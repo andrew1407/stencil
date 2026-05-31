@@ -1,0 +1,185 @@
+// ── TabsCoordinator: window-side cross-tab coordination ─────────
+// Talks to the SharedWorker coordinator when available, else falls back to a
+// BroadcastChannel roll-call, else degrades to single-tab assumptions. It never
+// touches localStorage itself — it only relays small control messages so the
+// projects UI can know the tab count, which projects are open elsewhere (peers),
+// and when another tab changed the project set.
+//
+// API:
+//   onTabCount(cb)        cb({count, youAreOnly})
+//   onPeers(cb)           cb(activeIds[])
+//   onProjectsChanged(cb) cb()
+//   reportActive(id)      announce this tab's active project id (or null)
+//   projectsChanged()     tell other tabs the project set changed
+//   whenReady()           Promise<{count, youAreOnly}> — always resolves
+import { MSG } from '../worker/messages.js';
+
+const CHANNEL_NAME = 'stencil_projects';
+const READY_TIMEOUT_MS = 400;
+
+export class TabsCoordinator {
+  #worker = null;
+  #port = null;
+  #channel = null;
+  #peerId = Math.random().toString(36).slice(2);
+  #tabCountCbs = new Set();
+  #peersCbs = new Set();
+  #projectsChangedCbs = new Set();
+
+  #activeId = null;
+  #lastTabCount = { count: 1, youAreOnly: true };
+  #readyResolve = null;
+  #readyPromise = null;
+  #resolvedReady = false;
+
+  // BroadcastChannel roll-call bookkeeping
+  #peerSeen = new Set();       // peer ids that answered the roll-call
+  #peerActive = new Map();     // peerId -> activeId
+
+  constructor() {
+    this.#readyPromise = new Promise(resolve => { this.#readyResolve = resolve; });
+
+    // Always resolve whenReady() even if no coordinator exists / answers.
+    setTimeout(() => this.#resolveReady(), READY_TIMEOUT_MS);
+
+    if (!this.#trySharedWorker()) this.#tryBroadcastChannel();
+  }
+
+  // ── subscriptions ─────────────────────────────────────────────
+  onTabCount(cb) { this.#tabCountCbs.add(cb); return () => this.#tabCountCbs.delete(cb); }
+  onPeers(cb) { this.#peersCbs.add(cb); return () => this.#peersCbs.delete(cb); }
+  onProjectsChanged(cb) { this.#projectsChangedCbs.add(cb); return () => this.#projectsChangedCbs.delete(cb); }
+
+  whenReady() { return this.#readyPromise; }
+
+  // ── outgoing ──────────────────────────────────────────────────
+  reportActive(id) {
+    this.#activeId = id ?? null;
+    if (this.#port) return this.#post({ type: MSG.ACTIVE, activeId: this.#activeId });
+    if (this.#channel) this.#channel.postMessage({ type: MSG.ACTIVE, peerId: this.#peerId, activeId: this.#activeId });
+  }
+
+  projectsChanged(detail = {}) {
+    if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
+    if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });
+  }
+
+  // ── SharedWorker path ─────────────────────────────────────────
+  #trySharedWorker() {
+    if (typeof SharedWorker === 'undefined') return false;
+    try {
+      this.#worker = new SharedWorker(
+        new URL('../worker/projectsWorker.js', import.meta.url),
+        { type: 'module' }
+      );
+      this.#port = this.#worker.port;
+      this.#port.start();
+      this.#port.onmessage = e => this.#onWorkerMessage(e.data || {});
+      this.#post({ type: MSG.HELLO });
+      window.addEventListener('beforeunload', () => this.#post({ type: MSG.BYE }));
+      return true;
+    } catch {
+      this.#worker = null;
+      this.#port = null;
+      return false;
+    }
+  }
+
+  #post(msg) { try { this.#port.postMessage(msg); } catch {} }
+
+  #onWorkerMessage(data) {
+    if (data.type === MSG.TABCOUNT) {
+      this.#lastTabCount = { count: data.count, youAreOnly: !!data.youAreOnly };
+      this.#emitTabCount();
+      this.#resolveReady();
+      return;
+    }
+    if (data.type === MSG.PEERS) return this.#emitPeers(data.activeIds || []);
+    if (data.type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
+  }
+
+  // ── BroadcastChannel fallback ─────────────────────────────────
+  #tryBroadcastChannel() {
+    if (typeof BroadcastChannel === 'undefined') return false;
+    try {
+      this.#channel = new BroadcastChannel(CHANNEL_NAME);
+    } catch {
+      this.#channel = null;
+      return false;
+    }
+
+    this.#peerSeen.add(this.#peerId);
+    this.#channel.onmessage = e => this.#onChannelMessage(e.data || {});
+
+    // Roll call: announce presence and ask who else is here. Peers reply with
+    // HERE. After a short window we estimate count/youAreOnly best-effort.
+    this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId });
+    setTimeout(() => {
+      const count = this.#peerSeen.size;
+      this.#lastTabCount = { count, youAreOnly: count <= 1 };
+      this.#emitTabCount();
+      this.#emitPeersFromMap();
+      this.#resolveReady();
+    }, READY_TIMEOUT_MS - 50);
+
+    window.addEventListener('beforeunload', () => {
+      try { this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId }); } catch {}
+    });
+    return true;
+  }
+
+  #onChannelMessage(data) {
+    const { type, peerId } = data;
+    if (peerId === this.#peerId) return;
+    if (type === MSG.HELLO) {
+      this.#peerSeen.add(peerId);
+      if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
+      // Reply so the newcomer can count us, and share our active project.
+      this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId });
+      this.#recountChannel();
+      return;
+    }
+    if (type === MSG.HERE) {
+      this.#peerSeen.add(peerId);
+      if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
+      this.#recountChannel();
+      return;
+    }
+    if (type === MSG.ACTIVE) {
+      this.#peerSeen.add(peerId);
+      if (data.activeId == null) this.#peerActive.delete(peerId);
+      else this.#peerActive.set(peerId, data.activeId);
+      this.#emitPeersFromMap();
+      return;
+    }
+    if (type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
+    if (type === MSG.BYE) {
+      this.#peerSeen.delete(peerId);
+      this.#peerActive.delete(peerId);
+      this.#recountChannel();
+      return;
+    }
+  }
+
+  #recountChannel() {
+    const count = this.#peerSeen.size;
+    this.#lastTabCount = { count, youAreOnly: count <= 1 };
+    this.#emitTabCount();
+    this.#emitPeersFromMap();
+  }
+
+  #emitPeersFromMap() {
+    this.#emitPeers(Array.from(this.#peerActive.values()).filter(id => id != null));
+  }
+
+  // ── emit helpers ──────────────────────────────────────────────
+  #emitTabCount() { for (const cb of this.#tabCountCbs) { try { cb(this.#lastTabCount); } catch {} } }
+  #emitPeers(ids) { for (const cb of this.#peersCbs) { try { cb(ids); } catch {} } }
+  #emitProjectsChanged(detail = {}) { for (const cb of this.#projectsChangedCbs) { try { cb(detail); } catch {} } }
+
+  #resolveReady() {
+    if (this.#resolvedReady) return;
+    this.#resolvedReady = true;
+    this.#readyResolve(this.#lastTabCount);
+  }
+}

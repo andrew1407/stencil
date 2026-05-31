@@ -1,0 +1,15 @@
+import { StencilElement, hostTag, define } from './base.js';
+// ── Component: global drag-and-drop overlay ─────────────────────
+export class StencilDropOverlay extends StencilElement {
+  static inner() {
+    return `
+        <div class="drop-message">
+            <div class="drop-icon">📂</div>
+            <p>Drop anywhere to load</p>
+            <span>Image file → sets background &nbsp;|&nbsp; .json file → applies drawing data</span>
+        </div>
+    `;
+  }
+  static template() { return hostTag('stencil-drop-overlay', 'id="globalDropOverlay"', StencilDropOverlay.inner()); }
+}
+define('stencil-drop-overlay', StencilDropOverlay);

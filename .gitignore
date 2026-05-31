@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node (only used for `node --test`; no deps committed)
+node_modules/
+npm-debug.log*
+
+# Logs / temp
+*.log
+*.tmp

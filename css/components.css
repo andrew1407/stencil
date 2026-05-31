@@ -1,0 +1,739 @@
+#globalDropOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 100, 255, 0.12);
+    backdrop-filter: blur(2px);
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+#globalDropOverlay .drop-message {
+    background: var(--bg-container);
+    border: 3px dashed #007bff;
+    border-radius: 16px;
+    padding: 40px 60px;
+    text-align: center;
+    box-shadow: 0 8px 32px var(--shadow);
+}
+#globalDropOverlay .drop-message .drop-icon {
+    font-size: 52px;
+    margin-bottom: 12px;
+}
+#globalDropOverlay .drop-message p {
+    font-size: 22px;
+    font-weight: bold;
+    color: #007bff;
+    margin: 0 0 6px;
+}
+#globalDropOverlay .drop-message span {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+.tooltip {
+    position: fixed;
+    background: var(--bg-tooltip);
+    border: 2px solid var(--border-tooltip);
+    border-radius: 6px;
+    padding: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px var(--shadow);
+}
+.tooltip-table {
+    border-collapse: collapse;
+    font-size: 15px;
+    color: var(--text-tooltip);
+    margin: 0;
+}
+.tooltip-table th,
+.tooltip-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--border-tooltip);
+}
+.tooltip-table th {
+    background: var(--bg-tt-th);
+    font-weight: bold;
+    color: var(--text-tt-header);
+}
+.tooltip-table td {
+    background: var(--bg-tt-td);
+}
+
+/* ── Fullscreen mode ── */
+body.fullscreen-mode {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+}
+body.fullscreen-mode .container {
+    max-width: 100vw;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+body.fullscreen-mode .controls-wrapper,
+body.fullscreen-mode .info,
+body.fullscreen-mode .drop-hint,
+body.fullscreen-mode .main-content > .coordinates-panel,
+body.fullscreen-mode #selectionPanel {
+    display: none !important;
+}
+body.fullscreen-mode .main-content {
+    display: contents; /* let children fill the container directly, no clip */
+}
+body.fullscreen-mode .canvas-section {
+    display: contents;
+}
+/* Take the viewport completely out of the flex chain so no parent can clip it */
+body.fullscreen-mode .canvas-viewport {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #000;
+    overflow: auto;
+    /* safe center: centered when image fits, start-aligned when overflows
+       so all four edges stay reachable by scrolling */
+    display: flex;
+    align-items: safe center;
+    justify-content: safe center;
+    z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
+}
+
+/* ── Fullscreen slide-in panels ── */
+#fs-controls-panel,
+#fs-points-panel {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    background: var(--bg-controls);
+    border: 1px solid var(--border-main);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    pointer-events: auto;
+}
+
+/* Top slide-in: controls */
+#fs-controls-panel {
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(-100%);
+    opacity: 0;
+    padding: 10px 14px;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+}
+#fs-controls-panel.fs-panel-visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Right slide-in: points list */
+#fs-points-panel {
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 360px;
+    transform: translateX(100%);
+    opacity: 0;
+    padding: 12px;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    overflow-y: auto;
+}
+#fs-points-panel.fs-panel-visible {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Trigger zones — invisible hover strips */
+#fs-top-trigger,
+#fs-right-trigger {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    pointer-events: auto;
+}
+#fs-top-trigger {
+    top: 0; left: 0; right: 0;
+    height: 8px;
+    z-index: 10002;
+}
+#fs-right-trigger {
+    top: 0; bottom: 0; right: 0;
+    width: 8px;
+    z-index: 10002;
+}
+body.fullscreen-mode #fs-top-trigger,
+body.fullscreen-mode #fs-right-trigger {
+    display: block;
+}
+body.fullscreen-mode #fs-controls-panel,
+body.fullscreen-mode #fs-points-panel {
+    display: block;
+}
+
+#fs-controls-panel .controls {
+    margin-bottom: 0;
+    background: transparent;
+    padding: 0;
+}
+#fs-exit-btn {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 13px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    cursor: pointer;
+    z-index: 2;
+}
+#fs-exit-btn:hover { background: var(--bg-info); }
+
+/* Fullscreen selection panel overlay */
+#fs-selection-panel {
+    background: var(--bg-sel-panel);
+    border-bottom: 2px solid var(--border-sel);
+    padding: 8px 14px;
+    animation: fadeIn 0.15s ease;
+    transition: top 0.25s ease;
+}
+#fs-selection-panel .selection-panel-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ── Custom context menu ── */
+#ctxMenu {
+    position: fixed;
+    z-index: 99999;
+    min-width: 210px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+    padding: 5px 0;
+    font-size: 13.5px;
+    color: var(--text-main);
+    user-select: none;
+    display: none;
+}
+#ctxMenu.ctx-open { display: block; }
+
+.ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 0 4px;
+    position: relative;
+    white-space: nowrap;
+    transition: background 0.12s;
+}
+.ctx-item:hover, .ctx-item.ctx-open-sub {
+    background: var(--bg-coord-hover);
+}
+.ctx-item.ctx-disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+.ctx-item .ctx-icon {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+.ctx-item .ctx-label { flex: 1; }
+.ctx-item .ctx-arrow {
+    margin-left: auto;
+    font-size: 10px;
+    opacity: 0.55;
+}
+.ctx-sep {
+    height: 1px;
+    background: var(--border-main);
+    margin: 5px 10px;
+}
+.ctx-check {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 13px;
+}
+
+/* Submenu — position:fixed set dynamically by JS so it never clips off-screen */
+.ctx-sub {
+    position: fixed;
+    min-width: 200px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+    padding: 5px 0;
+    display: none;
+    z-index: 100001;
+}
+.ctx-sub.ctx-sub-visible { display: block; }
+/* flip submenu to the left side of parent item */
+.ctx-sub.ctx-sub-left { /* left is set by JS */ }
+
+/* Checkbox items inside submenus */
+.ctx-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-main);
+    user-select: none;
+}
+.ctx-checkbox-item:hover { background: var(--bg-coord-hover); }
+.ctx-checkbox-item input[type=checkbox] { accent-color: #007bff; cursor: pointer; }
+
+/* Inline controls inside submenus */
+.ctx-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    white-space: nowrap;
+}
+.ctx-row label {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 90px;
+    font-weight: normal;
+}
+.ctx-num {
+    width: 56px;
+    padding: 3px 5px;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 13px;
+}
+.ctx-sel {
+    flex: 1;
+    padding: 3px 5px;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 13px;
+}
+.ctx-color {
+    width: 34px;
+    height: 26px;
+    padding: 1px;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    cursor: pointer;
+}
+.ctx-radio-group { display: flex; flex-direction: column; gap: 2px; padding: 4px 14px 6px; }
+.ctx-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.ctx-radio-item:hover { background: var(--bg-coord-hover); }
+.ctx-radio-item input[type=radio] { accent-color: #007bff; }
+.ctx-sub-label {
+    padding: 5px 14px 3px;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+/* tint color row — hidden until custom selected */
+#ctxTintRow { display: none; padding: 5px 14px 7px; align-items: center; gap: 8px; }
+#ctxTintRow.ctx-tint-visible { display: flex; }
+#ctxTintRow label { font-size: 12px; color: var(--text-muted); min-width: 70px; font-weight: normal; }
+
+/* Hotkey hint shown on the right side of ctx menu items */
+.ctx-hotkey {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-shortcut);
+    white-space: nowrap;
+    padding-left: 10px;
+}
+/* When a hotkey sits before the arrow, don't push it all the way right */
+.ctx-arrow + .ctx-hotkey, .ctx-hotkey + .ctx-arrow { margin-left: 0; }
+.ctx-item:has(.ctx-arrow) .ctx-hotkey { margin-left: auto; }
+
+/* ── Notification balloon (bottom-left) ── */
+#notifyBalloon {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    z-index: 100000;
+    min-width: 180px;
+    max-width: 380px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#notifyBalloon.notify-visible { opacity: 1; transform: translateY(0); }
+#notifyBalloon.notify-ok    { background: #28a745; }
+#notifyBalloon.notify-fail  { background: #dc3545; }
+#notifyBalloon.notify-info  { background: #007bff; }
+#notifyBalloon .notify-icon { font-size: 16px; }
+
+/* ── Settings gear button ── */
+#settingsBtn, #visualsBtn, #infoBtn {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 18px;
+    padding: 4px 10px;
+    line-height: 1;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+#settingsBtn:hover, #visualsBtn:hover, #infoBtn:hover { background: var(--bg-info); }
+
+/* ── Settings modal ── */
+#settingsModalOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+#settingsModalOverlay.modal-open { display: flex; }
+#settingsModal {
+    background: var(--bg-container);
+    color: var(--text-main);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+    width: 620px;
+    max-width: calc(100vw - 40px);
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-main);
+}
+.settings-header h2 { margin: 0; font-size: 16px; font-weight: bold; }
+#settingsClose {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+#settingsClose:hover { background: var(--bg-info); }
+.settings-body {
+    padding: 14px 18px;
+    overflow-y: auto;
+    flex: 1;
+}
+/* The hotkey table has its own sticky header; drop the body's top padding so
+   the header pins flush to the body top (not below the padding, where scrolled
+   rows would otherwise show above it and overlap the modal title bar). Scoped
+   to #settingsModal so the shared .settings-body of other modals is untouched. */
+#settingsModal .settings-body { padding-top: 0; }
+/* Shared modal search bar (settings + visuals; sits above the scrolling body). */
+.modal-search-bar { padding: 12px 18px 6px; }
+.modal-search {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 13px;
+}
+.settings-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-main);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+}
+.settings-footer .footer-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
+}
+#resetAllHotkeys {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 12.5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+#resetAllHotkeys:hover { background: var(--bg-info); }
+.hotkey-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.hotkey-table th, .hotkey-table td {
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-coord);
+}
+/* Pin the header row while the body scrolls. Sticky must sit on <thead> here —
+   sticky on the <th> cells alone does not engage in this table, leaving the
+   header to scroll up and overlap the modal title bar. */
+.hotkey-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-shadow: 0 1px 0 var(--border-coord); /* keep the divider when stuck (border-collapse drops it) */
+}
+.hotkey-table th {
+    background: var(--bg-coord-even);
+    font-weight: bold;
+}
+.hotkey-table tr:hover td { background: var(--bg-coord-hover); }
+.hotkey-cell {
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    background: var(--bg-info);
+    display: inline-block;
+    min-width: 110px;
+    text-align: center;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12.5px;
+    border: 1px solid var(--border-main);
+    color: var(--text-main);
+}
+.hotkey-cell:hover { background: var(--bg-coord-hover); }
+.hotkey-cell.capturing {
+    background: rgba(0,123,255,0.22);
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.4);
+    color: var(--text-main);
+}
+.hotkey-default {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Menlo','Consolas',monospace;
+}
+.hotkey-reset-btn {
+    background: transparent;
+    border: none !important;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+    border-radius: 4px;
+}
+.hotkey-reset-btn:hover { color: var(--text-main); background: var(--bg-coord-hover); }
+
+/* nested ctx items inside a submenu — keep them visually distinct  */
+.ctx-sub .ctx-item.ctx-sub-item { margin: 0 4px; }
+.ctx-sub .ctx-item.ctx-sub-item.ctx-disabled { opacity: 0.4; pointer-events: none; }
+
+/* ── Shared modal shell (visuals + info dialogs) ── */
+.app-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+.app-modal-overlay.modal-open { display: flex; }
+.app-modal {
+    background: var(--bg-container);
+    color: var(--text-main);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+    width: 560px;
+    max-width: calc(100vw - 40px);
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.app-modal-close {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+.app-modal-close:hover { background: var(--bg-info); }
+.vs-section {
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 14px 0 6px;
+}
+.vs-section:first-child { margin-top: 0; }
+.vs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border-coord);
+    font-size: 13px;
+}
+.vs-row label { font-weight: normal; }
+.vs-row input[type="color"] { width: 54px; height: 30px; padding: 2px; cursor: pointer; }
+.vs-row input[type="number"], .vs-row select { width: 90px; }
+#vs-reset {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 12.5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+#vs-reset:hover { background: var(--bg-info); }
+/* Info dialog */
+.info-group-title {
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 14px 0 4px;
+}
+.info-group-title:first-child { margin-top: 0; }
+.info-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--border-coord);
+    font-size: 13px;
+}
+.info-key {
+    flex: 0 0 188px;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-key);
+    letter-spacing: 0.02em;
+}
+.info-desc { flex: 1; color: var(--text-info); font-weight: 400; }
+.info-empty { padding: 16px 4px; color: var(--text-muted); font-size: 13px; }
+
+/* ── Custom-element hosts ───────────────────────────────────────
+   Custom elements default to display:inline. Hosts that reuse a styled
+   id/class whose rule sets display (#ctxMenu, .main-content, #notifyBalloon,
+   modals, …) are already covered; these block-flow hosts are not, so restore
+   their intended layout. The fullscreen layer is a pure wrapper of fixed-
+   positioned children, so it should not occupy any box of its own. */
+stencil-app-container,
+stencil-toolbar,
+stencil-image-info { display: block; }
+stencil-fullscreen-layer { display: contents; }
+
+/* ── Projects modal rows ────────────────────────────────────────── */
+.project-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 8px; cursor: pointer; background: var(--input-bg);
+}
+.project-row:hover { background: var(--bg-info); }
+.project-row.project-active { border-color: var(--text-key); }
+.project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
+.project-thumb {
+    width: 56px; height: 56px; flex: 0 0 56px; border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-info); border: 1px solid var(--border-main);
+}
+.project-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.project-thumb-placeholder { font-size: 24px; color: var(--text-muted); }
+.project-info { flex: 1; min-width: 0; }
+.project-name { font-weight: 600; font-size: 14px; color: var(--text-key); }
+.project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.project-sub.project-expired { color: #dc3545; font-weight: 600; }
+.project-open-elsewhere { color: #007bff; }
+.project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.project-switch:disabled { opacity: 0.6; cursor: default; }
+.project-row.project-incognito { border-color: #8b5cf6; border-style: dashed; }
+.project-row.project-incognito .project-name { color: #8b5cf6; }
+
+/* ── Incognito mode ─────────────────────────────────────────────── */
+/* The toggle lights up when active and greys out once it can't be switched. */
+#incognitoToggle.active { background: #6d28d9; }
+#incognitoToggle:disabled { opacity: 0.45; cursor: default; }
+/* A dashed outline + corner badge make it obvious nothing here is being saved. */
+body.incognito-mode .canvas-viewport {
+    outline: 3px dashed #8b5cf6;
+    outline-offset: -3px;
+}
+body.incognito-mode .canvas-section { position: relative; }
+body.incognito-mode .canvas-section::after {
+    content: '🕶 Incognito — not saved';
+    position: absolute; top: 8px; left: 8px; z-index: 6;
+    background: rgba(109, 40, 217, 0.9); color: #fff;
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
+    pointer-events: none;
+}
