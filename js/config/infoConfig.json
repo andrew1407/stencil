@@ -1,0 +1,38 @@
+[
+  ["Navigation", [
+    ["Ctrl + wheel", "Zoom in / out toward the cursor (Shift = larger steps)."],
+    ["Alt + wheel", "Change thickness of the line under the cursor (or hovered point’s line)."],
+    ["Ctrl + Shift + wheel", "Rotate the selected line around its center — or the focused point if one is selected."],
+    ["Alt + drag", "Pan the canvas; over a point/segment it drags that instead."],
+    ["Alt + Shift + drag", "Move a whole line."],
+    ["Shift + drag", "Zoom to the dragged rectangle."],
+    ["Middle-drag", "Pan the canvas."],
+    ["Alt / Middle double-click", "Reset zoom to fit the window."],
+    ["Arrow keys", "Pan the viewport (Shift = faster)."]
+  ]],
+  ["Drawing", [
+    ["Start / Stop (Alt+A / Alt+S)", "Begin or finish drawing the current line."],
+    ["Line / Rect toggle", "Switch between polyline drawing and rectangle drawing."],
+    ["Click (line mode)", "Add a point to the line being drawn."],
+    ["Click the first point", "Close the shape into a locked, fillable area."],
+    ["Drag (rect mode)", "Sweep out a rectangle: 4 corner points, a locked area."],
+    ["Ctrl + click (empty)", "Add a new point; connects to the selected line/point if one is selected."],
+    ["Ctrl + click (on a line)", "Insert a new point between the two connecting points."],
+    ["Double-click a line", "Delete that line."]
+  ]],
+  ["Selecting & editing", [
+    ["Click a line or point", "Select the line and focus the clicked point."],
+    ["Selection panel", "Edit color, thickness, marker size and style; locked areas also get a fill option."],
+    ["Locked-area fill", "Pick a fill color for a selected closed area; the ✕ button clears it back to transparent."],
+    ["Points table", "Edit point coordinates (double-click) or remove points."]
+  ]],
+  ["Tooltips", [
+    ["Hover", "Show coordinates of the nearest point or line endpoints."],
+    ["Hover + Shift", "Show every point of the hovered line (updates instantly)."],
+    ["Hover + Ctrl", "Show the live cursor coordinates."]
+  ]],
+  ["Appearance", [
+    ["🎨 Default visuals", "Set default line styles, area fill and highlight colors."],
+    ["⚙ Shortcuts", "View and rebind keyboard shortcuts."]
+  ]]
+]

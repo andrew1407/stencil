@@ -1,0 +1,31 @@
+{
+  "STORAGE_KEYS": {
+    "theme": "drawingApp_theme",
+    "image": "drawingApp_image",
+    "layout": "drawingApp_layout",
+    "hotkeys": "drawingApp_hotkeys"
+  },
+  "PAGE_SIZES": {
+    "A3": { "width": 29.7, "height": 42 },
+    "A4": { "width": 21, "height": 29.7 }
+  },
+  "DEFAULT_VISUALS": {
+    "color": "#FFFF00",
+    "thickness": 2,
+    "markerSize": 4,
+    "style": "solid",
+    "defaultFillColor": "#3399ff",
+    "selGlowColor": "#ffc800",
+    "hoverRingColor": "#007bff",
+    "focusRingColor": "#007bff"
+  },
+  "LIMITS": {
+    "zoomMin": 0.05,
+    "zoomMax": 5,
+    "thickMin": 1,
+    "thickMax": 20,
+    "markerMin": 1,
+    "markerMax": 30
+  },
+  "DEFAULT_PAGE": { "size": "A3", "width": 21, "height": 29.7 }
+}

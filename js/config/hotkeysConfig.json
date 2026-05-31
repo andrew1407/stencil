@@ -1,0 +1,21 @@
+[
+  { "id": "undo", "label": "Undo", "default": "Ctrl+Z" },
+  { "id": "redo", "label": "Redo", "default": "Ctrl+Shift+Z" },
+  { "id": "startDraw", "label": "Start Drawing", "default": "Alt+A" },
+  { "id": "stopDraw", "label": "Stop Drawing", "default": "Alt+S" },
+  { "id": "togglePoints", "label": "Toggle Show Points", "default": "Alt+P" },
+  { "id": "toggleLines", "label": "Toggle Show Lines", "default": "Alt+L" },
+  { "id": "cycleFilter", "label": "Cycle Image Filter", "default": "Alt+B" },
+  { "id": "resetZoom", "label": "Fit to Window", "default": "Alt+0" },
+  { "id": "toggleControls", "label": "Toggle Controls Panel", "default": "Alt+C" },
+  { "id": "togglePointsList", "label": "Toggle Points List", "default": "Alt+X" },
+  { "id": "fullscreen", "label": "Toggle Fullscreen", "default": "Alt+F" },
+  { "id": "zoomIn", "label": "Zoom In", "default": "Alt+ArrowUp" },
+  { "id": "zoomOut", "label": "Zoom Out", "default": "Alt+ArrowDown" },
+  { "id": "zoomInBig", "label": "Zoom In (Large Step)", "default": "Alt+Shift+ArrowUp" },
+  { "id": "zoomOutBig", "label": "Zoom Out (Large Step)", "default": "Alt+Shift+ArrowDown" },
+  { "id": "copyImage", "label": "Copy Image to Clipboard", "default": "Ctrl+C" },
+  { "id": "copyLayout", "label": "Copy Layout JSON", "default": "Alt+J" },
+  { "id": "paste", "label": "Paste (Image or Layout)", "default": "Ctrl+V" },
+  { "id": "clearAllLines", "label": "Clear All Lines", "default": "Alt+W" }
+]

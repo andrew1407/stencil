@@ -1,0 +1,11 @@
+{
+  "name": "stencil",
+  "version": "1.0.0",
+  "description": "Browser-based image annotation / drawing tool built with native ES modules and vanilla JS.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server \"${PORT:-8080}\" --bind \"${ADDR:-localhost}\""
+  }
+}

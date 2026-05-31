@@ -1,0 +1,134 @@
+import HOTKEY_DEFS from './config/hotkeysConfig.json' with { type: 'json' };
+// ── Utilities (consolidated): DOM, mount, notify, geometry, color, hotkeys ──
+
+// ── Small DOM helpers ───────────────────────────────────────────
+// Guarded value-set: assign to an element's .value only if it exists.
+export const setVal = (id, value) => {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
+};
+// Check the radio in a named group whose value matches.
+export const setRadioGroup = (name, value) => {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(r => { r.checked = r.value === value; });
+};
+// Mount an HTML string into a parent element so getElementById works
+// synchronously afterwards. Appends without nuking pre-existing children.
+export const mountHTML = (parent, html) => {
+  parent.insertAdjacentHTML('beforeend', html);
+};
+
+// ── Notification balloon ────────────────────────────────────────
+// Delegates to the <stencil-notifications> custom element, which owns the
+// show/auto-hide logic. Kept as a free function so existing import sites work.
+export const notify = (msg, type = 'ok') => {
+  const el = document.getElementById('notifyBalloon');
+  if (el && typeof el.notify === 'function') el.notify(msg, type);
+};
+
+// ── Geometry helpers (pure) ─────────────────────────────────────
+// Distance from point (px,py) to the segment a→b.
+export const distToSegment = (px, py, a, b) => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - a.x, py - a.y);
+  const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq));
+  return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+};
+
+// ── Color helpers (pure) ────────────────────────────────────────
+// Convert "#rrggbb" + alpha → "rgba(...)"; passes through values already rgba/named.
+export const hexToRgba = (hex, alpha) => {
+  if (typeof hex !== 'string' || hex[0] !== '#' || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+// Parse "#rrggbb" → { r, g, b }.
+export const parseHex = hex => ({
+  r: parseInt(hex.slice(1, 3), 16),
+  g: parseInt(hex.slice(3, 5), 16),
+  b: parseInt(hex.slice(5, 7), 16),
+});
+
+// ── Hotkey parsing / matching (pure) ────────────────────────────
+export const normalizeKey = (code, key) => {
+  if (!code) return key || '';
+  if (code.startsWith('Key')) return code.slice(3);     // KeyA  -> A
+  if (code.startsWith('Digit')) return code.slice(5);   // Digit0 -> 0
+  return code;                                          // ArrowUp / Numpad0 / F2 …
+};
+export const parseHotkey = str => {
+  if (!str) return null;
+  const parts = str.split('+').map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  const key = parts[parts.length - 1];
+  const mods = parts.slice(0, -1).map(p => p.toLowerCase());
+  return {
+    ctrl: mods.includes('ctrl'), shift: mods.includes('shift'),
+    alt: mods.includes('alt'), meta: mods.includes('meta'), key,
+  };
+};
+export const matchHotkey = (e, hkStr) => {
+  const h = parseHotkey(hkStr);
+  if (!h) return false;
+  if (!!e.ctrlKey !== h.ctrl) return false;
+  if (!!e.shiftKey !== h.shift) return false;
+  if (!!e.altKey !== h.alt) return false;
+  if (!!e.metaKey !== h.meta) return false;
+  const norm = normalizeKey(e.code, e.key);
+  return norm.toLowerCase() === h.key.toLowerCase();
+};
+export const comboFromEvent = e => {
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return null;
+  const parts = [];
+  if (e.ctrlKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  if (e.metaKey) parts.push('Meta');
+  parts.push(normalizeKey(e.code, e.key));
+  return parts.join('+');
+};
+export const isTypingTarget = t => {
+  if (!t) return false;
+  const tag = (t.tagName || '').toLowerCase();
+  if (tag === 'textarea') return true;
+  if (tag === 'select') return true;
+  if (tag === 'input') {
+    const ty = (t.type || '').toLowerCase();
+    return !(ty === 'checkbox' || ty === 'radio' || ty === 'file' || ty === 'color' || ty === 'button');
+  }
+  return t.isContentEditable === true;
+};
+
+
+// ── Browser-only hotkey state (loaded only in the browser) ──────
+if (typeof window !== 'undefined') {
+  window.HOTKEY_DEFAULTS = Object.fromEntries(HOTKEY_DEFS.map(h => [h.id, h.default]));
+  window.HOTKEYS = { ...window.HOTKEY_DEFAULTS };
+  try {
+    const saved = JSON.parse(localStorage.getItem('drawingApp_hotkeys') || '{}');
+    for (const k in saved)
+      if (k in window.HOTKEYS) window.HOTKEYS[k] = saved[k];
+  } catch {
+    /* ignore */
+  }
+
+  window.saveHotkeys = () => {
+    try {
+      localStorage.setItem('drawingApp_hotkeys', JSON.stringify(window.HOTKEYS));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Update every .ctx-hotkey[data-hk] in the page so context menus reflect current bindings
+  window.updateCtxHotkeyHints = () => {
+    document.querySelectorAll('[data-hk]').forEach(el => {
+      const id = el.dataset.hk;
+      if (window.HOTKEYS[id]) el.textContent = window.HOTKEYS[id];
+    });
+  };
+}
