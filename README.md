@@ -13,6 +13,14 @@ Stencil ships as **two front-ends over one shared logic core**:
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 
+```mermaid
+graph TD
+    CORE["<b>desktop/core/</b> — shared logic<br/>C++17, STL-only, GUI-free<br/><i>formulas · geometry · color · page metrics · history · projects</i>"]
+    CORE -->|"Emscripten → WebAssembly"| WEB["<b>Browser app</b><br/>vanilla ES modules, no build step"]
+    CORE -->|"native compile + Qt 6"| DESK["<b>Desktop app</b><br/>C++17 / Qt 6"]
+    WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
+```
+
 The two apps deliberately mirror each other's architecture. The **pure, GUI-free logic**
 — the formula parser, geometry, color, pixel↔page conversion, history, project storage and
 expiry — lives in `desktop/core/`, written dependency-free (STL only). It is compiled to
@@ -52,7 +60,3 @@ step.
 
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
-
-## License
-
-See repository.
