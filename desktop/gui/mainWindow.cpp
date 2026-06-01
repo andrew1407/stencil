@@ -254,12 +254,16 @@ namespace stencil::gui {
     onSelectionChanged();
     updateStatusIdle();
 
-    // Live OS-scheme follow (S14): re-tint when the system scheme flips, but only
-    // while we're in "system" mode (an explicit light/dark choice wins).
+    // Live OS-scheme follow: re-tint when the system scheme flips, but only while
+    // we're in "system" mode (an explicit light/dark choice wins). The
+    // colorSchemeChanged signal / Qt::ColorScheme arrived in Qt 6.5; on older Qt
+    // the system theme is still applied at startup, just not followed live.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this,
             [this](Qt::ColorScheme) {
               if (settings_.themeMode == "system") applyTheme();
             });
+#endif
   }
 
   QString MainWindow::hotkey(const QString& id, const QString& fallback) const {

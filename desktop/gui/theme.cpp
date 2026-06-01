@@ -49,8 +49,14 @@ namespace stencil::gui {
         gnome.contains("default", Qt::CaseInsensitive))
       return false;
 
-    // No desktop answer -> trust Qt's hint as a last resort.
+    // No desktop answer -> trust Qt's hint as a last resort. colorScheme() /
+    // Qt::ColorScheme arrived in Qt 6.5; on older Qt we have no hint to consult,
+    // so default to light.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+    return false;
+#endif
   }
 
   // Port of the browser theme toggle's tri-state resolution (S14).

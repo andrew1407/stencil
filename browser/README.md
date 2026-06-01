@@ -4,8 +4,7 @@ The browser front-end of Stencil. Built with **vanilla JavaScript and native ES
 modules** — no build step, no bundler, no third-party runtime dependencies.
 
 For the project overview and the desktop (C++/Qt) app, see the
-[repository README](../README.md). The shared-logic mirror map between this app and the
-C++ core is in [PIPELINE.md](../PIPELINE.md).
+[repository README](../README.md).
 
 ## Features
 

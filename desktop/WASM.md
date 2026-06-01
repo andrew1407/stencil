@@ -1,4 +1,4 @@
-# Stencil core → WebAssembly (S15)
+# Stencil core → WebAssembly
 
 The `desktop/core/` library is GUI-free and STL-only, so the same sources that
 back the Qt desktop app can compile to WebAssembly and back the **browser** app —

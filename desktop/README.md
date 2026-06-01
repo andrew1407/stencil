@@ -2,8 +2,7 @@
 
 The desktop front-end of Stencil: a C++17 + Qt 6 port that shares its pure logic
 with the browser app. For the project overview see the
-[repository README](../README.md); for how this code is developed (and the
-dependency policy) see [PIPELINE.md](../PIPELINE.md).
+[repository README](../README.md).
 
 ## Dependencies
 
@@ -132,9 +131,6 @@ The desktop app now mirrors the browser app's interaction surface:
   projects live alongside it in `desktop/.stencil/` (path baked via the
   `STENCIL_STATE_DIR` build define; the directory is in `.gitignore`).
 
-See [PORTING_PLAN.md](PORTING_PLAN.md) for the per-subtask breakdown.
-
-> Scope note: still out of scope (future pipeline iterations): rectangle/area
-> drawing, the editable coordinate table, the per-line styling panel, image filters,
-> drag-and-drop, the fullscreen overlay layer, and clipboard copy/paste of the
-> image + layout JSON.
+> Scope note: still out of scope: rectangle/area drawing, the editable coordinate
+> table, the per-line styling panel, image filters, drag-and-drop, the fullscreen
+> overlay layer, and clipboard copy/paste of the image + layout JSON.
