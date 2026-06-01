@@ -82,7 +82,7 @@ cmake --build build -j
 ## Test
 
 Unit tests use **Doctest** only — a single header at `third_party/doctest.h`
-(pinned to **v2.4.11**, Boost Software License). It is **not committed**: the CMake
+(pinned to **v2.4.11**). It is **not committed**: the CMake
 configure step downloads it from the official upstream and verifies its SHA-256, so
 on a fresh clone there is nothing to do — just configure and build.
 
@@ -105,8 +105,8 @@ Either way `stencil_tests` is always built (even without Qt). Each `core/` modul
 has a suite under `tests/`,
 ported case-for-case from the browser app's `browser/tests/` plus extra coverage
 for the new recursive-descent parser, plus the shared image-filter math and the
-WebAssembly ABI surface (compiled natively — see [WASM.md](WASM.md)). Current
-suite: **86 cases / 240 assertions**.
+WebAssembly ABI surface (compiled natively — see [WASM.md](WASM.md)). Suite:
+**88 cases / 255 assertions**.
 
 ```bash
 # run the whole suite via ctest
@@ -128,7 +128,7 @@ the current line, and right-click for the canvas context menu. The status bar sh
 the cursor's pixel and page (cm) coordinates, computed by the shared `core` exactly
 as the browser app does.
 
-The desktop app now mirrors the browser app's interaction surface:
+The desktop app mirrors the browser app's interaction surface:
 
 - **Light / dark theme** (default light) — Ctrl+D or Settings; QSS derived from
   `browser/css/theme.css` tokens.
@@ -150,6 +150,6 @@ The desktop app now mirrors the browser app's interaction surface:
   projects live alongside it in `desktop/.stencil/` (path baked via the
   `STENCIL_STATE_DIR` build define; the directory is in `.gitignore`).
 
-> Scope note: still out of scope: rectangle/area drawing, the editable coordinate
-> table, the per-line styling panel, image filters, drag-and-drop, the fullscreen
-> overlay layer, and clipboard copy/paste of the image + layout JSON.
+> Out of scope: rectangle/area drawing, the editable coordinate table, the per-line
+> styling panel, image filters, drag-and-drop, the fullscreen overlay layer, and
+> clipboard copy/paste of the image + layout JSON.
