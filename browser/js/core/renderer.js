@@ -1,4 +1,5 @@
 import { hexToRgba, parseHex } from '../utils.js';
+import { backend } from './wasmBackend.js';
 // ── Renderer: image filter + line/point drawing ─────────────────
 export class Renderer {
   constructor(app) {
@@ -16,10 +17,19 @@ export class Renderer {
       ctx.drawImage(this.app.image, 0, 0);
       ctx.filter = 'none';
     } else if (this.app.imageFilter === 'custom') {
-      ctx.filter = 'grayscale(100%)';
-      ctx.drawImage(this.app.image, 0, 0);
-      ctx.filter = 'none';
-      this.#applyTintFilter(ctx, this.app.filterColor || '#7c3aed');
+      const color = this.app.filterColor || '#7c3aed';
+      if (backend.applyFilterRGBA) {
+        // Shared C++ core (wasm): grayscale + duotone tint in one pass over the
+        // original pixels — no CSS grayscale prepass needed.
+        ctx.filter = 'none';
+        ctx.drawImage(this.app.image, 0, 0);
+        this.#applyWasmFilter(ctx, 'custom', color);
+      } else {
+        ctx.filter = 'grayscale(100%)';
+        ctx.drawImage(this.app.image, 0, 0);
+        ctx.filter = 'none';
+        this.#applyTintFilter(ctx, color);
+      }
     } else {
       ctx.drawImage(this.app.image, 0, 0);
     }
@@ -158,6 +168,17 @@ export class Renderer {
     this.app.ctx.strokeStyle = '#000';
     this.app.ctx.lineWidth = 1;
     this.app.ctx.stroke();
+  }
+
+  // Run the shared C++ core (wasm) filter over the canvas pixels in place.
+  // mode 'custom' computes grayscale + duotone tint in a single pass.
+  #applyWasmFilter(ctx, mode, hexColor) {
+    const { r, g, b } = parseHex(hexColor);
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    backend.applyFilterRGBA(mode, imageData.data, w * h, r, g, b);
+    ctx.putImageData(imageData, 0, 0);
   }
 
   // Duotone tint: dark pixels → chosen color, light pixels → white

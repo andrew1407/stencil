@@ -8,6 +8,9 @@ on:
 
 jobs:
   # ── Browser app: vanilla ES-module JS, no build step, node:test only ──────────
+  # Covers the JS reference/fallback path. The wasm core is a gitignored artifact
+  # not built here, so tests/wasm-parity.test.js self-skips; parity is asserted in
+  # the wasm job below against a fresh build. Node 22 for the SINGLE_FILE ES module.
   browser:
     name: Browser (JS tests)
     runs-on: ubuntu-latest
@@ -16,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Run JS tests
         working-directory: browser
         run: npm test
@@ -40,3 +43,44 @@ jobs:
       - name: Run C++ tests
         working-directory: desktop
         run: ctest --test-dir build --output-on-failure
+
+  # ── WebAssembly: build the core fresh and assert the browser still agrees ─────
+  # The shipped module is a gitignored artifact built only here: emcc compiles the
+  # core, the result is dropped at js/wasm/stencilCore.js, and the parity test runs
+  # against that FRESH build — failing if desktop/core behavior diverges from the JS
+  # reference. emsdk is pinned and cached; no third-party action (mirrors desktop).
+  wasm:
+    name: WebAssembly (build + parity)
+    runs-on: ubuntu-latest
+    env:
+      EMSDK_VERSION: '5.0.7'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache emsdk
+        uses: actions/cache@v4
+        with:
+          path: emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}
+      - name: Install Emscripten (if not cached)
+        run: |
+          if [ ! -d emsdk ]; then
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git
+          fi
+          cd emsdk
+          ./emsdk install "$EMSDK_VERSION"
+          ./emsdk activate "$EMSDK_VERSION"
+      - name: Build the wasm core
+        working-directory: desktop
+        run: |
+          source "$GITHUB_WORKSPACE/emsdk/emsdk_env.sh"
+          emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
+          emmake cmake --build build-wasm -j --target stencil_wasm
+      - name: Place the freshly built module in the browser tree
+        run: cp desktop/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parity test against the freshly built module
+        working-directory: browser
+        run: node --test tests/wasm-parity.test.js

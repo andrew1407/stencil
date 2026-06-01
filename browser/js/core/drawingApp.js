@@ -10,6 +10,7 @@ import { TabsCoordinator } from './tabsCoordinator.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
+import { backend } from './wasmBackend.js';
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
 export class DrawingApp {
   // Pan state (Alt+drag)
@@ -1201,13 +1202,9 @@ export class DrawingApp {
       if (this.#continueLineIdx >= 0 && this.lines[this.#continueLineIdx]) {
         const line = this.lines[this.#continueLineIdx];
         // Click near the first point closes it into a locked area
-        if (line.points.length >= 3) {
-          const p0 = line.points[0];
-          const closeThresh = (line.markerSize ?? this.markerSize) + 8;
-          if (Math.hypot(p0.x - x, p0.y - y) <= closeThresh) {
-            this.#closeContinuedShape();
-            return;
-          }
+        if (this.#shouldCloseShape(line.points, x, y, line.markerSize ?? this.markerSize)) {
+          this.#closeContinuedShape();
+          return;
         }
         line.points.splice(this.#continueInsertIdx, 0, { x, y });
         this.focusedPtIdx = this.#continueInsertIdx;
@@ -1220,13 +1217,9 @@ export class DrawingApp {
 
       const pts = this.currentLine.points;
       // Click on the first point closes the shape into a locked area
-      if (pts.length >= 3) {
-        const p0 = pts[0];
-        const closeThresh = (this.currentLine.markerSize ?? this.markerSize) + 8;
-        if (Math.hypot(p0.x - x, p0.y - y) <= closeThresh) {
-          this.#closeCurrentShape();
-          return;
-        }
+      if (this.#shouldCloseShape(pts, x, y, this.currentLine.markerSize ?? this.markerSize)) {
+        this.#closeCurrentShape();
+        return;
       }
       this.undonePoints = [];
       this.currentLine.points.push({ x, y });
@@ -1745,7 +1738,23 @@ export class DrawingApp {
     }
   }
 
+  // Does a click at (x,y) close the in-progress shape? (>= 3 points and within
+  // markerSize + 8 image px of the first point.) Shared C++ core (wasm) when
+  // loaded; the JS below is the reference + fallback.
+  #shouldCloseShape(points, x, y, markerSize) {
+    if (backend.shouldCloseShape) return backend.shouldCloseShape(points, { x, y }, markerSize);
+    if (points.length < 3) return false;
+    const p0 = points[0];
+    return Math.hypot(p0.x - x, p0.y - y) <= markerSize + 8;
+  }
+
   getPageDimensions() {
+    // Shared C++ core (wasm) owns the named-size table + landscape swap when
+    // loaded; the JS below is the reference + fallback (PAGE_SIZES mirrors it).
+    if (backend.pageDimensions) {
+      return backend.pageDimensions(this.pageSize, this.canvas.width, this.canvas.height,
+        this.customPageWidth, this.customPageHeight);
+    }
     if (this.pageSize === 'custom') return { width: this.customPageWidth, height: this.customPageHeight };
     const ps = { ...PAGE_SIZES[this.pageSize] };
     // Swap to landscape if image is wider than tall
@@ -1755,11 +1764,14 @@ export class DrawingApp {
 
   pixelToPageCoords(x, y) {
     const ps = this.getPageDimensions();
-    const rawX = (ps.width  / this.canvas.width)  * x;
-    const rawY = (ps.height / this.canvas.height) * y;
+    // Raw pixel→cm via the shared core when loaded; formula.apply itself already
+    // routes through the wasm parser (see FormulaEngine).
+    const raw = backend.pixelToPageRaw
+      ? backend.pixelToPageRaw(x, y, ps, this.canvas.width, this.canvas.height)
+      : { x: (ps.width / this.canvas.width) * x, y: (ps.height / this.canvas.height) * y };
     return {
-      x: this.formula.apply(this.formulaX, 'x', rawX, this.allowFormulas),
-      y: this.formula.apply(this.formulaY, 'y', rawY, this.allowFormulas)
+      x: this.formula.apply(this.formulaX, 'x', raw.x, this.allowFormulas),
+      y: this.formula.apply(this.formulaY, 'y', raw.y, this.allowFormulas)
     };
   }
 
@@ -1840,6 +1852,9 @@ export class DrawingApp {
         && line.points[this.focusedPtIdx]) {
       cx = line.points[this.focusedPtIdx].x;
       cy = line.points[this.focusedPtIdx].y;
+    } else if (backend.boundingBoxCenter) {
+      // Pivot = bbox center via the shared C++ core (wasm).
+      ({ x: cx, y: cy } = backend.boundingBoxCenter(line.points));
     } else {
       let minX = Infinity;
       let minY = Infinity;
@@ -1854,14 +1869,19 @@ export class DrawingApp {
       cx = (minX + maxX) / 2;
       cy = (minY + maxY) / 2;
     }
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    line.points.forEach(p => {
-      const dx = p.x - cx;
-      const dy = p.y - cy;
-      p.x = cx + dx * cos - dy * sin;
-      p.y = cy + dx * sin + dy * cos;
-    });
+    if (backend.rotatePoints) {
+      // Rotate every point about the pivot via the shared C++ core (wasm).
+      backend.rotatePoints(line.points, cx, cy, angle);
+    } else {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      line.points.forEach(p => {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        p.x = cx + dx * cos - dy * sin;
+        p.y = cy + dx * sin + dy * cos;
+      });
+    }
     this.renderer.redraw();
     if (this.coordLineIdx === this.selectedLineIdx) this.coordTable.update(line.points, this.selectedLineIdx);
     clearTimeout(this.#rotateSaveTimer);

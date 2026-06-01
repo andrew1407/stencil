@@ -1,4 +1,5 @@
 import HOTKEY_DEFS from './config/hotkeysConfig.json' with { type: 'json' };
+import { backend, callCore } from './core/wasmBackend.js';
 // ── Utilities (consolidated): DOM, mount, notify, geometry, color, hotkeys ──
 
 // ── Small DOM helpers ───────────────────────────────────────────
@@ -26,15 +27,16 @@ export const notify = (msg, type = 'ok') => {
 };
 
 // ── Geometry helpers (pure) ─────────────────────────────────────
-// Distance from point (px,py) to the segment a→b.
-export const distToSegment = (px, py, a, b) => {
+// Distance from point (px,py) to the segment a→b. Delegates to the shared C++
+// core (wasm) when loaded; the JS below is the reference + fallback.
+export const distToSegment = callCore('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lenSq = dx * dx + dy * dy;
   if (lenSq === 0) return Math.hypot(px - a.x, py - a.y);
   const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq));
   return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
-};
+});
 
 // ── Color helpers (pure) ────────────────────────────────────────
 // Convert "#rrggbb" + alpha → "rgba(...)"; passes through values already rgba/named.
@@ -46,12 +48,19 @@ export const hexToRgba = (hex, alpha) => {
   return `rgba(${r},${g},${b},${alpha})`;
 };
 
-// Parse "#rrggbb" → { r, g, b }.
-export const parseHex = hex => ({
-  r: parseInt(hex.slice(1, 3), 16),
-  g: parseInt(hex.slice(3, 5), 16),
-  b: parseInt(hex.slice(5, 7), 16),
-});
+// Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when
+// loaded and the string is a valid 7-char hex; the JS below is reference + fallback.
+export const parseHex = hex => {
+  if (backend.parseHex) {
+    const rgb = backend.parseHex(hex);
+    if (rgb) return rgb;
+  }
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+};
 
 // ── Hotkey parsing / matching (pure) ────────────────────────────
 export const normalizeKey = (code, key) => {

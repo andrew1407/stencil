@@ -10,6 +10,7 @@
 // Prototypes of the exported C surface (wasmApi.cpp has no header by design —
 // it is an ABI boundary, not a C++ API).
 extern "C" {
+  int stencil_parseHex(const char*, int*);
   double stencil_distToSegment(double, double, double, double, double, double);
   int stencil_shouldCloseShape(const double*, int, double, double, double);
   void stencil_pageDimensions(const char*, int, int, double, double, double*,
@@ -29,6 +30,15 @@ extern "C" {
 }
 
 TEST_SUITE("wasmApi") {
+  TEST_CASE("stencil_parseHex writes r,g,b and flags validity") {
+    int out[3] = {-1, -1, -1};
+    CHECK(stencil_parseHex("#7c3aed", out) == 1);
+    CHECK(out[0] == 0x7c);
+    CHECK(out[1] == 0x3a);
+    CHECK(out[2] == 0xed);
+    CHECK(stencil_parseHex("not-a-hex", out) == 0);  // invalid -> 0
+  }
+
   TEST_CASE("stencil_distToSegment forwards to the core") {
     CHECK(stencil_distToSegment(5, 3, 0, 0, 10, 0) == doctest::Approx(3.0));
   }

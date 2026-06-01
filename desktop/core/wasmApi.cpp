@@ -13,6 +13,7 @@
 // every export is a plain C function over doubles / C strings, which Emscripten
 // exposes via Module.ccall / cwrap with no extra runtime.
 
+#include "color.hpp"
 #include "formulaParser.hpp"
 #include "geometry.hpp"
 #include "imageFilter.hpp"
@@ -24,6 +25,19 @@
 using namespace stencil::core;
 
 extern "C" {
+
+  // ── color (utils.js parseHex / hexToRgba) ──
+  // Parse "#rrggbb" -> out[0..2] = {r, g, b}. Returns 1 on success, 0 if the
+  // string is not a 7-char hex (out is left untouched). The browser builds the
+  // "rgba(...)" string itself from these components, matching utils.js hexToRgba.
+  int stencil_parseHex(const char* hex, int* out) {
+    const auto rgb = parseHex(hex ? hex : "");
+    if (!rgb.has_value()) return 0;
+    out[0] = rgb->r;
+    out[1] = rgb->g;
+    out[2] = rgb->b;
+    return 1;
+  }
 
   // ── geometry (utils.js distToSegment) ──
   double stencil_distToSegment(double px, double py, double ax, double ay,

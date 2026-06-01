@@ -8,30 +8,41 @@ replacing its hand-written JS engines with one shared, tested implementation.
 `if(EMSCRIPTEN)` block in `desktop/CMakeLists.txt` builds it into
 `stencil_core.js` + `stencil_core.wasm`.
 
-> **Status:** the browser app today uses **no WebAssembly at all** — its logic is
-> the hand-written JS in `browser/js/`. The core was only ever *designed* to be
-> wasm-portable (STL-only, GUI-free); this is the **first** wasm path, and it is
-> build-ready, not yet wired into the browser. `emcc` is **not installed** in this
-> development environment, so the wasm artifact was **not built here**. The target
-> is fully guarded — a normal native `cmake` build never enters the Emscripten
-> branch and produces exactly the same `stencil_core`, `stencil_tests`, and
-> `stencil_gui` targets as before.
+> **Status:** the browser app now runs the shared C++ core via WebAssembly. The
+> module is built with `SINGLE_FILE=1` (wasm embedded as base64 in the `.js`, so
+> it loads under `file://` with no `fetch`) and emitted to
+> `browser/js/wasm/stencilCore.js`. That file is a **generated artifact, not
+> committed** (it's gitignored) — CI builds it for the parity check, and you build
+> it locally to exercise the wasm path (steps below). At boot, `js/index.js` calls
+> `initWasmCore()` (`js/core/wasmCore.js`), which instantiates the module and
+> installs typed wrappers into the backend registry (`js/core/wasmBackend.js`).
+> Every consumer calls through that registry and **falls back to its built-in JS**
+> when a slot is null — so on a fresh checkout (module not yet built), or if wasm
+> ever fails to load, the app degrades gracefully to the JS reference path, which
+> is also what Node tests (which never load wasm) exercise.
 >
-> `browser/README.md` names this intended swap explicitly: "If/when the core is
-> compiled to WebAssembly, `formulaEngine.js` is the intended call site to swap
-> over to it." That has not happened yet — this is the first wasm path.
+> The target stays fully guarded — a normal native `cmake` build never enters the
+> Emscripten branch and produces exactly the same `stencil_core`, `stencil_tests`,
+> and `stencil_gui` targets as before. To (re)build the module after editing the
+> core, follow *Build the wasm module* below and copy `stencil_core.js` to
+> `browser/js/wasm/stencilCore.js`.
 
 ## What it replaces
 
-| Browser JS today | Exported wasm function(s) |
+| Browser JS call site (now wasm-backed) | Exported wasm function(s) |
 |---|---|
-| `core/formulaEngine.js` validate / apply / evaluate | `stencil_formulaValidate`, `stencil_formulaApply`, `stencil_formulaEvaluate` |
+| `core/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
 | `utils.js` `distToSegment` | `stencil_distToSegment` |
+| `utils.js` `parseHex` (also feeds `hexToRgba`) | `stencil_parseHex` |
 | `drawingApp.js` `getPageDimensions` / `pixelToPageCoords` (raw) | `stencil_pageDimensions`, `stencil_pixelToPageRaw` |
-| `drawingApp.js` `#closeCurrentShape` gate | `stencil_shouldCloseShape` |
-| `renderer.js` `drawImageWithFilter` / `#applyTintFilter` | `stencil_applyFilterRGBA` |
+| `drawingApp.js` `#shouldCloseShape` gate | `stencil_shouldCloseShape` |
+| `renderer.js` `drawImageWithFilter` (custom duotone) | `stencil_applyFilterRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
-| `zoomPan.js` clamp / zoom-toward / zoom-to-rect math | `stencil_clampScale`, `stencil_anchoredZoom`, `stencil_rectZoom` |
+| `zoomPan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
+
+The bw/sepia filters stay on the browser's native CSS `ctx.filter` (GPU-fast,
+exact); only the custom duotone — which the JS already did as a per-pixel loop —
+routes through `stencil_applyFilterRGBA` (grayscale + tint in one pass).
 
 The image-filter math now lives once in `core/imageFilter.{hpp,cpp}`
 (`filterPixel` / `applyFilterRGBA`); the desktop canvas routes its bw / sepia /
@@ -47,14 +58,26 @@ The multi-line hit-testers — `findLineAt` / `findNearestPoint` /
 `findNearestSegment` — are still core-only: they take a whole `Lines` tree, which
 wants a handle-based ABI rather than the flat `double*` surface used here.)
 
-## Testing the ABI without Emscripten
+## Testing
 
-`wasmApi.cpp` is plain STL, so it is compiled **natively into `stencil_tests`**
-(see `CMakeLists.txt`) and every export is exercised by `tests/wasmApi.test.cpp`.
-The marshalling (flat point arrays, output pointers, the filter-mode enum codes,
-char-code variable names) is therefore covered on every build, even on a machine
-without `emcc`. `core/imageFilter` has its own suite in
-`tests/imageFilter.test.cpp`.
+Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
+
+1. **C++ side of the ABI** — `wasmApi.cpp` is plain STL, so it is compiled
+   **natively into `stencil_tests`** and every export is exercised by
+   `tests/wasmApi.test.cpp` (the `desktop` job). Covers the C++ marshalling (flat
+   point arrays, output pointers, filter-mode enum codes, char-code var names)
+   even on a machine without `emcc`. `core/imageFilter` has its own suite in
+   `tests/imageFilter.test.cpp`.
+2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm-parity.test.js`
+   loads the real wasm module in Node and asserts each wrapper agrees with the JS
+   reference, covering `js/core/wasmCore.js` (strings, char codes, in/out point
+   arrays, output pointers, the RGBA pixel buffer). The module is a gitignored
+   artifact, so this suite **self-skips when it hasn't been built** (e.g. the
+   `browser` job, which runs only `node --test`); the `wasm` job builds the core
+   **fresh** and runs the suite against that — failing if `core/` behavior changes
+   in a way the JS reference no longer matches.
+3. **JS fallback** — every other `browser/tests/*.test.js` suite runs with the
+   backend slots null, so the hand-written fallback stays a faithful stand-in.
 
 ## Install Emscripten (emsdk)
 
@@ -83,45 +106,41 @@ emmake cmake --build build-wasm -j
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
 ```
 
-## Wire it into the browser app
+## How it is wired into the browser app
 
-The module is built `MODULARIZE=1 EXPORT_ES6=1`, so it imports cleanly:
+The module is built `MODULARIZE=1 EXPORT_ES6=1 SINGLE_FILE=1`, so it imports
+cleanly and embeds its wasm. `js/core/wasmCore.js` owns instantiation + all the
+marshalling (strings, flat point arrays, output pointers, the pixel buffer) and
+installs typed wrappers into `js/core/wasmBackend.js`:
 
 ```js
-import createStencilCore from './stencil_core.js';
+import createStencilCore from '../wasm/stencilCore.js';
 const core = await createStencilCore();
 
-// distToSegment(px,py,ax,ay,bx,by) -> number
-const distToSegment = core.cwrap('stencil_distToSegment', 'number',
-  ['number','number','number','number','number','number']);
-
-// formula validate/apply (varName is the char code of 'x' or 'y')
-const formulaValidate = core.cwrap('stencil_formulaValidate', 'number',
-  ['string','number']);
 const formulaApply = core.cwrap('stencil_formulaApply', 'number',
   ['string','number','number','number']);
-
-console.log(formulaApply('x+9', 'x'.charCodeAt(0), 3, 1)); // 12
+formulaApply('x+9', 'x'.charCodeAt(0), 3, 1); // 12
 ```
 
 Functions that return multiple doubles (`stencil_pageDimensions`,
 `stencil_pixelToPageRaw`, `stencil_anchoredZoom`, `stencil_rectZoom`) take an
-output pointer: allocate a small Float64 buffer with `_malloc`, pass it, then
-read it back with `core.getValue(ptr + i*8, 'double')` and `_free` it.
+output pointer: `wasmCore.js` allocates a small Float64 buffer with `_malloc`,
+passes it, reads it back with `core.getValue(ptr + i*8, 'double')` and `_free`s it.
 
-```js
-const out = core._malloc(3 * 8);                       // {scale, scrollX, scrollY}
-core.ccall('stencil_rectZoom', null,
-  ['number','number','number','number','number','number','number'],
-  [50, 50, 100, 100, 400, 400, out]);
-const scale = core.getValue(out, 'double');
-core._free(out);
+Each consumer (`formulaEngine.js`, the geometry/color helpers in `utils.js`, the
+page-calc + rotate + close-shape helpers in `drawingApp.js`, `zoomPan.js`'s
+clamp, `renderer.js`'s custom filter) calls through the registry and keeps its
+JS body as the fallback. Because the wasm is compiled from the same source the
+desktop uses, the two front-ends stay in lock-step by construction.
+
+**Building/rebuilding the module:** it's gitignored, so build it locally to run
+the wasm path (otherwise the app uses the JS fallback and the parity suite skips).
+After editing anything in `core/`, rebuild (see *Build the wasm module*) and copy
+the artifact into the browser tree:
+
+```sh
+cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js
 ```
-
-Then swap the bodies of `formulaEngine.js`, the geometry helpers in `utils.js`,
-and the page-calc helpers in `drawingApp.js` to delegate to these calls. Because
-the wasm is compiled from the same source the desktop uses, the two front-ends
-stay in lock-step by construction.
 
 ## Notes / decisions
 

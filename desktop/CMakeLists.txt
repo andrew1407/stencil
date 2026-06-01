@@ -110,6 +110,8 @@ if(EMSCRIPTEN)
   # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
   set_target_properties(stencil_wasm PROPERTIES
     OUTPUT_NAME "stencil_core"
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_applyFilterRGBA','_stencil_rotatePoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_malloc','_free']")
+    # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module
+    # loads under file:// (the browser app is serverless — no fetch()).
+    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_applyFilterRGBA','_stencil_rotatePoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_malloc','_free']")
   message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
 endif()
