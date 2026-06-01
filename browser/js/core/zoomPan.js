@@ -1,8 +1,14 @@
+import { callCore } from './wasmBackend.js';
+
 // ── ZoomPan: zoom level, fit, hold-zoom, overlays ───────────────
 export class ZoomPan {
   constructor(app) {
     this.app = app;
   }
+
+  // Clamp a scale into the zoom limits. Delegates to the shared C++ core (wasm)
+  // clampScale when loaded; the JS bound is the reference + fallback.
+  clampScale = callCore('clampScale', s => Math.max(0.05, Math.min(5, s)));
 
   updateZoomRectOverlay() {
     const overlay = document.getElementById('zoomRectOverlay');
@@ -50,7 +56,7 @@ export class ZoomPan {
   }
 
   setZoom(newScale, persist = true) {
-    newScale = Math.max(0.05, Math.min(5, newScale));
+    newScale = this.clampScale(newScale);
     this.app.scale = newScale;
     this.app.canvas.style.width = (this.app.canvas.width * newScale) + 'px';
     this.app.canvas.style.height = (this.app.canvas.height * newScale) + 'px';
@@ -89,13 +95,13 @@ export class ZoomPan {
       lastPress = isDouble ? 0 : now;
       // On double-click, top up the prior SMALL step to reach LARGE in total
       const step = isDouble ? (LARGE - SMALL) : SMALL;
-      const target = Math.max(0.05, Math.min(5, this.app.scale + sign * step));
+      const target = this.clampScale(this.app.scale + sign * step);
       // Update the zoom % input synchronously so users see immediate feedback
       this.setZoomInputValue(Math.round(target * 100));
       this.zoomAroundCenter(target);
       holdTimer = setTimeout(() => {
         repeatTimer = setInterval(() => {
-          const t = Math.max(0.05, Math.min(5, this.app.scale + sign * CONT));
+          const t = this.clampScale(this.app.scale + sign * CONT);
           this.setZoomInputValue(Math.round(t * 100));
           this.zoomAroundCenter(t);
         }, REPEAT_MS);
@@ -116,7 +122,7 @@ export class ZoomPan {
       this.setZoom(newScale);
       return;
     }
-    newScale = Math.max(0.05, Math.min(5, newScale));
+    newScale = this.clampScale(newScale);
 
     // Cancel any in-flight animation; start from whatever is on screen NOW
     if (this.app.zoomAnimRaf) {

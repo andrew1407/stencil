@@ -19,8 +19,12 @@ npm-debug.log*
 *.log
 *.tmp
 
-# C++ / CMake build output (desktop/ app)
+# C++ / CMake build output (desktop/ app). build-wasm/ is the Emscripten output
+# dir; the SINGLE_FILE module copied from it (browser/js/wasm/stencilCore.js) is a
+# generated artifact too — built in CI (and on demand locally, see desktop/WASM.md),
+# not committed.
 build/
+build-wasm/
 *.o
 *.obj
 *.a
@@ -47,3 +51,8 @@ desktop/.stencil/
 # Desktop test dependency — doctest single header is fetched on demand, not committed
 # (see desktop/README.md → Test). Keeps the ~300 KB vendored header out of the repo.
 desktop/third_party/doctest.h
+
+# Generated WebAssembly core — Emscripten output copied from desktop/build-wasm/
+# (see desktop/WASM.md). Built in CI for the parity check; build locally to exercise
+# the wasm path. The JS reference/fallback path runs without it.
+browser/js/wasm/stencilCore.js

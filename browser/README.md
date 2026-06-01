@@ -74,7 +74,14 @@ npm test
 
 ## Relationship to the C++ core
 
-The pure-logic modules here have behavior-identical counterparts in `desktop/core/`:
+This app **runs the shared C++ core at runtime via WebAssembly**. At boot,
+`js/index.js` calls `initWasmCore()` (`js/core/wasmCore.js`), which instantiates
+the compiled core (`js/wasm/stencilCore.js`, a generated artifact built from
+`desktop/core/` — gitignored, see `desktop/WASM.md`) and installs typed wrappers
+into `js/core/wasmBackend.js`. Each pure-logic module calls through that registry
+and keeps its JS body as a fallback — used when the module hasn't been built or
+fails to load, and by `node --test`, which never loads wasm. The C++ counterparts
+in `desktop/core/`:
 
 | This app | C++ core |
 |---|---|
@@ -85,7 +92,11 @@ The pure-logic modules here have behavior-identical counterparts in `desktop/cor
 | `js/core/projectsStore.js` | `desktop/core/projectsStore.*` |
 
 > Note: the C++ `formulaParser` is a real recursive-descent parser for `+ - * / ** ( )`,
-> replacing this app's `new Function(...)` (`eval`) approach. If/when the core is compiled
-> to WebAssembly, `formulaEngine.js` is the intended call site to swap over to it. Until
-> then, keep the two implementations behaviorally aligned (same operators, same
-> precedence, same identity-on-error semantics).
+> replacing this app's `new Function(...)` (`eval`) approach. When wasm is loaded,
+> `formulaEngine.js` delegates to it; the JS `new Function` path remains as the
+> fallback. Keep the two behaviorally aligned (same operators, same precedence,
+> same identity-on-error semantics) so the fallback matches the C++.
+>
+> `historyStack.js` / `projectsStore.js` still run as JS (their C++ counterparts
+> exist but need a handle-based ABI rather than the flat numeric surface used by
+> the rest); they are the natural next candidates to route through wasm.
