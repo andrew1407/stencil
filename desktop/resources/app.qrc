@@ -1,0 +1,16 @@
+<!DOCTYPE RCC>
+<!-- Embeds the browser app's config JSON directly so the desktop and browser
+     read the SAME hotkeys / info / constants (single source of truth). Paths are
+     relative to this .qrc file (desktop/resources/ -> ../../browser/...). -->
+<RCC version="1.0">
+  <qresource prefix="/config">
+    <file alias="hotkeysConfig.json">../../browser/js/config/hotkeysConfig.json</file>
+    <file alias="infoConfig.json">../../browser/js/config/infoConfig.json</file>
+    <file alias="constants.json">../../browser/js/config/constants.json</file>
+  </qresource>
+  <qresource prefix="/icons">
+    <!-- Same icon as the browser app's favicon, so both front-ends share one
+         look. Rendered by Qt's SVG icon engine (qt6-qtsvg). -->
+    <file alias="appicon.svg">../../browser/favicon.svg</file>
+  </qresource>
+</RCC>

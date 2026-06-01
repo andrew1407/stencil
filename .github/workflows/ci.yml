@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Browser app: vanilla ES-module JS, no build step, node:test only ──────────
+  browser:
+    name: Browser (JS tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run JS tests
+        working-directory: browser
+        run: npm test
+
+  # ── Desktop app: C++17 core/tests (always) + Qt6 GUI build (when Qt present) ──
+  desktop:
+    name: Desktop (C++ build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain (g++, cmake, Qt6)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake ninja-build qt6-base-dev
+      - name: Configure
+        working-directory: desktop
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build (core + tests + GUI)
+        working-directory: desktop
+        run: cmake --build build -j
+      - name: Run C++ tests
+        working-directory: desktop
+        run: ctest --test-dir build --output-on-failure
