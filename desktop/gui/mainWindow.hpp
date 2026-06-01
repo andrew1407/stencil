@@ -58,6 +58,10 @@ namespace stencil::gui {
     // Paint a small color chip onto a swatch toolbutton (S8).
     void updateColorSwatch(QToolButton* btn, const QColor& color);
     void showContextMenu(const QPoint& globalPos);
+    // Re-sync the persistent context-menu actions to the live canvas state
+    // (enable flags, draw-mode label, marker/thickness seeds, group checks,
+    // tooltip rows). Called as the first statement of showContextMenu().
+    void syncContextActions();
     void onHoverDetail(double imageX, double imageY, const QPoint& globalPos,
                        Qt::KeyboardModifiers mods);
     // Data actions (S9): layout JSON export/import + clipboard, and image
@@ -81,6 +85,18 @@ namespace stencil::gui {
     void buildContextActions();
     void buildMenus();
     void buildToolbar();
+    // ctor decomposition (behavior-preserving): the hotkeys-config read/merge,
+    // and the contiguous signal-connection block (connect ORDER is preserved
+    // verbatim). loadHotkeys() must run before buildActions(); wireSignals()
+    // must run after buildActions/Context/Menus/Toolbar (it references their
+    // widgets/actions) and before the persisted-state load.
+    void loadHotkeys();
+    void wireSignals();
+    // buildToolbar() split into its three rows (call order preserves the
+    // addToolBar/addToolBarBreak sequencing that fixes visual row order).
+    void buildMainToolbar();
+    void buildPageFormulaToolbar();
+    void buildStyleToolbar();
     QString hotkey(const QString& id, const QString& fallback) const;
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
@@ -101,6 +117,9 @@ namespace stencil::gui {
     void restoreSession();
     void openProjects();
     void newProjectFromCanvas();
+    // Shared project-creation: build a Project from the current canvas, persist,
+    // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.
+    void createProject(const QString& name);
     void saveToActiveProject();
     void openInfo();
     void openShortcuts();

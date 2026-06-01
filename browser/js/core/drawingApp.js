@@ -10,8 +10,16 @@ import { TabsCoordinator } from './tabsCoordinator.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
-import { backend } from './wasmBackend.js';
+import { core } from './stencilCore.js';
+import { hotkeys } from './hotkeys.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
+// DOM event wiring is split into cohesive #wire* methods (style, selection,
+// page/display, formula, toolbar, zoom, scroll, theme, keyboard, arrow-pan,
+// drop/paste, canvas-pointer, smooth-zoom, pan-drag) invoked in source order
+// by the slim initEventListeners(). Pure decision helpers (layout payload /
+// validation, insert-index, fill-state) live in ./layout.js so they can be
+// unit-tested in Node without a DOM.
 export class DrawingApp {
   // Pan state (Alt+drag)
   #panLastX = 0;
@@ -151,7 +159,26 @@ export class DrawingApp {
     this.storage.newTemporary();
   }
 
+  // Slim orchestrator: wire each cohesive control group in source order so
+  // document-level listener dispatch order stays identical to before the split.
   initEventListeners() {
+    this.#wireStyleControls();
+    this.#wireSelectionPanelControls();
+    this.#wirePageAndDisplayControls();
+    this.#wireFormulaControls();
+    this.#wireToolbarButtons();
+    this.#wireZoomControls();
+    this.#wireScrollPersist();
+    this.#wireTheme();
+    this.#wireKeyboard();
+    this.#wireArrowPan();
+    this.#wireDropPaste();
+    this.#wireCanvasPointer();
+    this.#wireSmoothZoom();
+    this.#wirePanDrag();
+  }
+
+  #wireStyleControls() {
     document.getElementById('imageUpload').addEventListener('change', e => this.loadImage(e));
     document.getElementById('lineColor').addEventListener('change', e => { this.color = e.target.value; this.storage.save(); });
     document.getElementById('lineThickness').addEventListener('input', e => {
@@ -177,8 +204,32 @@ export class DrawingApp {
       setRadioGroup('ctxLineStyle', e.target.value);
       this.storage.save();
     });
+    document.getElementById('imageFilter').addEventListener('change', e => {
+      this.imageFilter = e.target.value;
+      const filterColorPicker = document.getElementById('filterColor');
+      if (filterColorPicker) filterColorPicker.style.display = (e.target.value === 'custom') ? 'inline-block' : 'none';
+      // Mirror to ctx filter radios + tint visibility
+      setRadioGroup('ctxFilter', e.target.value);
+      const tintRow = document.getElementById('ctxTintRow');
+      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', e.target.value === 'custom');
+      this.renderer.redraw();
+      this.storage.save();
+    });
+    let filterColorTimer = null;
+    document.getElementById('filterColor').addEventListener('input', e => {
+      this.filterColor = e.target.value;
+      const ctxTint = document.getElementById('ctx-tint-color');
+      if (ctxTint) ctxTint.value = e.target.value;
+      clearTimeout(filterColorTimer);
+      filterColorTimer = setTimeout(() => {
+        this.renderer.redraw();
+        this.storage.save();
+      }, 80);
+    });
+  }
 
-    // Selection panel listeners
+  // Selection panel listeners
+  #wireSelectionPanelControls() {
     document.getElementById('selColor').addEventListener('input', e => this.applySelectionChange('color', e.target.value));
     document.getElementById('selThickness').addEventListener('change', e => this.applySelectionChange('thickness', parseInt(e.target.value)));
     document.getElementById('selMarkerSize').addEventListener('change', e => this.applySelectionChange('markerSize', parseInt(e.target.value)));
@@ -194,6 +245,9 @@ export class DrawingApp {
       notify('Fill cleared (transparent)', 'ok');
     });
     document.getElementById('selDeselect').addEventListener('click', () => this.deselectLine());
+  }
+
+  #wirePageAndDisplayControls() {
     document.getElementById('pageSize').addEventListener('change', e => {
       this.pageSize = e.target.value;
       const cg = document.getElementById('customSizeGroup');
@@ -226,30 +280,10 @@ export class DrawingApp {
       this.renderer.redraw();
       this.storage.save();
     });
-    document.getElementById('imageFilter').addEventListener('change', e => {
-      this.imageFilter = e.target.value;
-      const filterColorPicker = document.getElementById('filterColor');
-      if (filterColorPicker) filterColorPicker.style.display = (e.target.value === 'custom') ? 'inline-block' : 'none';
-      // Mirror to ctx filter radios + tint visibility
-      setRadioGroup('ctxFilter', e.target.value);
-      const tintRow = document.getElementById('ctxTintRow');
-      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', e.target.value === 'custom');
-      this.renderer.redraw();
-      this.storage.save();
-    });
-    let filterColorTimer = null;
-    document.getElementById('filterColor').addEventListener('input', e => {
-      this.filterColor = e.target.value;
-      const ctxTint = document.getElementById('ctx-tint-color');
-      if (ctxTint) ctxTint.value = e.target.value;
-      clearTimeout(filterColorTimer);
-      filterColorTimer = setTimeout(() => {
-        this.renderer.redraw();
-        this.storage.save();
-      }, 80);
-    });
+  }
 
-    // ── Formula controls (top bar) ──────────────────────────────
+  // ── Formula controls (top bar) ──────────────────────────────
+  #wireFormulaControls() {
     const syncFormulaUI = checked => {
       document.getElementById('formulaInputs').style.display = checked ? 'inline-flex' : 'none';
       const ctxFi = document.getElementById('ctx-formula-inputs');
@@ -294,6 +328,9 @@ export class DrawingApp {
     });
     document.getElementById('formulaX').addEventListener('input', validateAndApplyFormulas);
     document.getElementById('formulaY').addEventListener('input', validateAndApplyFormulas);
+  }
+
+  #wireToolbarButtons() {
     document.getElementById('startDrawing').addEventListener('click', () => this.startDrawingMode());
     document.getElementById('stopDrawing').addEventListener('click', () => this.stopDrawingMode());
     document.getElementById('drawModeToggle').addEventListener('click', () => {
@@ -341,7 +378,9 @@ export class DrawingApp {
     this.zoomPan.setupHoldZoom(document.getElementById('zoomIn'), +1);
     this.zoomPan.setupHoldZoom(document.getElementById('zoomOut'), -1);
     document.getElementById('zoomFit').addEventListener('click', () => this.zoomPan.fitToWindow());
+  }
 
+  #wireZoomControls() {
     // Manual zoom input
     const zoomInput = document.getElementById('zoomInput');
     const applyZoomInput = () => {
@@ -359,7 +398,9 @@ export class DrawingApp {
     });
     // Prevent zoom input scroll from zooming the canvas
     zoomInput.addEventListener('wheel', e => e.stopPropagation());
+  }
 
+  #wireScrollPersist() {
     // Save scroll position (debounced) so it's restored on reopen
     {
       const scrollVp = document.getElementById('canvasViewport');
@@ -371,7 +412,9 @@ export class DrawingApp {
         });
       }
     }
+  }
 
+  #wireTheme() {
     // Theme toggle
     const updateThemeIcon = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -393,8 +436,10 @@ export class DrawingApp {
         updateThemeIcon();
       }
     });
+  }
 
-    // Keyboard shortcuts — dispatched via HOTKEYS registry
+  #wireKeyboard() {
+    // Keyboard shortcuts — dispatched via the hotkeys registry
     const HK_HANDLERS = {
       undo: () => { if (!document.getElementById('undo').disabled) this.undo(); },
       redo: () => { if (!document.getElementById('redo').disabled) this.redo(); },
@@ -425,7 +470,7 @@ export class DrawingApp {
       resetZoom: () => this.zoomPan.fitToWindow(),
       toggleControls: () => { const b = document.getElementById('toggleControls');   if (b) b.click(); },
       togglePointsList: () => { const b = document.getElementById('toggleCoordPanel'); if (b) b.click(); },
-      fullscreen: () => toggleFullscreen(),
+      fullscreen: () => this.toggleFullscreen?.(),
       zoomIn: () => this.zoomPan.zoomAroundCenter(this.scale + 0.25),
       zoomOut: () => this.zoomPan.zoomAroundCenter(this.scale - 0.25),
       zoomInBig: () => this.zoomPan.zoomAroundCenter(this.scale + 1.0),
@@ -439,7 +484,7 @@ export class DrawingApp {
     document.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;
       for (const def of HOTKEY_DEFS) {
-        const combo = HOTKEYS[def.id];
+        const combo = hotkeys.get(def.id);
         if (!combo) continue;
         if (!matchHotkey(e, combo)) continue;
         // Skip 'paste' here — let the browser fire its native paste event
@@ -486,7 +531,9 @@ export class DrawingApp {
     };
     document.addEventListener('keydown', onModifierChange);
     document.addEventListener('keyup', onModifierChange);
+  }
 
+  #wireArrowPan() {
     // ── Arrow-key panning ──────────────────────────────────────
     // Plain arrows pan the viewport; holding multiple arrows
     // (e.g. Down+Left) pans diagonally; opposing pairs cancel.
@@ -525,7 +572,9 @@ export class DrawingApp {
     });
     // Clear held keys if the window loses focus while arrows are held
     window.addEventListener('blur', () => { this.#arrowsHeld.clear(); });
+  }
 
+  #wireDropPaste() {
     // Document-wide drag-and-drop overlay
     const dropZone = document.getElementById('globalDropOverlay');
 
@@ -591,7 +640,9 @@ export class DrawingApp {
         }
       }
     });
+  }
 
+  #wireCanvasPointer() {
     this.canvas.addEventListener('click', e => this.canvasClick(e));
     this.canvas.addEventListener('dblclick', e => this.canvasDblClick(e));
     this.canvas.addEventListener('mousemove', e => this.canvasMouseMove(e));
@@ -600,7 +651,9 @@ export class DrawingApp {
       this.tooltipMgr.hide();
       if (this.hoverPt) { this.hoverPt = null; this.renderer.redraw(); }
     });
+  }
 
+  #wireSmoothZoom() {
     // ── Smooth zoom via rAF ──
     // #smoothZoom holds animation state. Rapid wheel events accumulate
     // into a single rAF loop instead of causing abrupt per-event jumps.
@@ -704,6 +757,10 @@ export class DrawingApp {
         sz.rafId = requestAnimationFrame(runSmoothZoom);
       }
     }, { passive: false });
+  }
+
+  #wirePanDrag() {
+    const viewport = document.getElementById('canvasViewport');
 
     // Pan: Alt+left-drag OR middle-mouse-button drag (works in both drawing/non-drawing modes)
     const startPan = e => {
@@ -1080,9 +1137,11 @@ export class DrawingApp {
     if (opts.connect !== false && this.selectedLineIdx >= 0 && this.lines[this.selectedLineIdx]) {
       this.#continueLineIdx = this.selectedLineIdx;
       const line = this.lines[this.#continueLineIdx];
-      this.#continueInsertIdx =
-        (this.coordLineIdx === this.selectedLineIdx && this.focusedPtIdx >= 0)
-          ? this.focusedPtIdx + 1 : line.points.length;
+      this.#continueInsertIdx = resolveInsertIdx(line, {
+        coordLineIdx: this.coordLineIdx,
+        selectedLineIdx: this.selectedLineIdx,
+        focusedPtIdx: this.focusedPtIdx
+      });
       this.currentLine = null;
       this.undonePoints = [];
       document.getElementById('startDrawing').classList.add('active');
@@ -1275,49 +1334,42 @@ export class DrawingApp {
 
   // Close the in-progress line into a locked, fillable area.
   #closeCurrentShape() {
-    const line = this.currentLine;
+    this.#closeShape({ line: this.currentLine, isContinuation: false });
+  }
+
+  // Close a line that is being extended (continuation drawing) into a locked area.
+  #closeContinuedShape() {
+    this.#closeShape({ line: this.lines[this.#continueLineIdx], idx: this.#continueLineIdx, isContinuation: true });
+  }
+
+  // Unified close: append a coincident closing point, lock + default-fill the
+  // line, commit it, and select the resulting area. A fresh shape is pushed
+  // into this.lines; a continued shape is already there (reset continue state).
+  #closeShape({ line, idx, isContinuation }) {
     if (!line || line.points.length < 3) return;
     // Append a closing point coincident with the first, then lock it
     line.points.push({ x: line.points[0].x, y: line.points[0].y });
     line.locked = true;
     if (line.fillColor === undefined) line.fillColor = 'transparent';
-    this.lines.push(line);
-    const idx = this.lines.length - 1;
+    let areaIdx;
+    if (isContinuation) {
+      this.#continueLineIdx = -1;
+      this.#continueInsertIdx = -1;
+      areaIdx = idx;
+    } else {
+      this.lines.push(line);
+      areaIdx = this.lines.length - 1;
+    }
     this.currentLine = null;
     this.isDrawing = false;
     document.getElementById('startDrawing').classList.remove('active');
     document.getElementById('stopDrawing').disabled = true;
     // Select the new area so its fill control appears
-    this.selectedLineIdx = idx;
-    this.coordLineIdx = idx;
+    this.selectedLineIdx = areaIdx;
+    this.coordLineIdx = areaIdx;
     this.focusedPtIdx = -1;
-    this.showSelectionPanel(this.lines[idx]);
-    this.coordTable.update(this.lines[idx].points, idx);
-    this.saveHistory();
-    this.renderer.redraw();
-    this.updateButtons();
-    notify('Shape closed — locked area created', 'ok');
-  }
-
-  // Close a line that is being extended (continuation drawing) into a locked area.
-  #closeContinuedShape() {
-    const li = this.#continueLineIdx;
-    const line = this.lines[li];
-    if (!line || line.points.length < 3) return;
-    line.points.push({ x: line.points[0].x, y: line.points[0].y });
-    line.locked = true;
-    if (line.fillColor === undefined) line.fillColor = 'transparent';
-    this.#continueLineIdx = -1;
-    this.#continueInsertIdx = -1;
-    this.currentLine = null;
-    this.isDrawing = false;
-    document.getElementById('startDrawing').classList.remove('active');
-    document.getElementById('stopDrawing').disabled = true;
-    this.selectedLineIdx = li;
-    this.coordLineIdx = li;
-    this.focusedPtIdx = -1;
-    this.showSelectionPanel(line);
-    this.coordTable.update(line.points, li);
+    this.showSelectionPanel(this.lines[areaIdx]);
+    this.coordTable.update(this.lines[areaIdx].points, areaIdx);
     this.saveHistory();
     this.renderer.redraw();
     this.updateButtons();
@@ -1345,12 +1397,11 @@ export class DrawingApp {
   #addConnectedPoint(x, y) {
     if (this.selectedLineIdx >= 0 && this.lines[this.selectedLineIdx]) {
       const line = this.lines[this.selectedLineIdx];
-      let insertIdx;
-      if (this.coordLineIdx === this.selectedLineIdx && this.focusedPtIdx >= 0) {
-        insertIdx = this.focusedPtIdx + 1; // connect to the selected point
-      } else {
-        insertIdx = line.points.length;     // connect to the last point
-      }
+      const insertIdx = resolveInsertIdx(line, {
+        coordLineIdx: this.coordLineIdx,
+        selectedLineIdx: this.selectedLineIdx,
+        focusedPtIdx: this.focusedPtIdx
+      });
       line.points.splice(insertIdx, 0, { x, y });
       this.coordLineIdx = this.selectedLineIdx;
       this.focusedPtIdx = insertIdx;
@@ -1408,8 +1459,11 @@ export class DrawingApp {
     }
     if (connect && this.selectedLineIdx >= 0 && this.lines[this.selectedLineIdx]) {
       const line = this.lines[this.selectedLineIdx];
-      let insertIdx = (this.coordLineIdx === this.selectedLineIdx && this.focusedPtIdx >= 0)
-        ? this.focusedPtIdx + 1 : line.points.length;
+      const insertIdx = resolveInsertIdx(line, {
+        coordLineIdx: this.coordLineIdx,
+        selectedLineIdx: this.selectedLineIdx,
+        focusedPtIdx: this.focusedPtIdx
+      });
       line.points.splice(insertIdx, 0, ...corners);
       this.coordLineIdx = this.selectedLineIdx;
       this.focusedPtIdx = insertIdx;
@@ -1544,9 +1598,9 @@ export class DrawingApp {
     if (fillGroup) {
       if (line.locked) {
         fillGroup.style.display = 'flex';
-        const hasFill = line.fillColor && line.fillColor !== 'transparent';
-        document.getElementById('selFillEnabled').checked = !!hasFill;
-        document.getElementById('selFill').value = hasFill ? line.fillColor : (this.defaultFillColor || '#3399ff');
+        const fs = fillState(line, this.defaultFillColor);
+        document.getElementById('selFillEnabled').checked = fs.enabled;
+        document.getElementById('selFill').value = fs.value;
       } else {
         fillGroup.style.display = 'none';
       }
@@ -1587,6 +1641,7 @@ export class DrawingApp {
       const trigger = document.getElementById('fs-top-trigger');
       if (trigger) trigger.style.height = Math.max(8, fsPanel.getBoundingClientRect().bottom) + 'px';
     });
+    const fs = fillState(line, this.defaultFillColor);
     fsPanel.innerHTML = `<div class="selection-panel-inner">
             <span class="selection-label">✏️ Selected Line:</span>
             <div class="control-group"><label>Color:</label>
@@ -1602,8 +1657,8 @@ export class DrawingApp {
                     <option value="dotted"${line.style==='dotted'?' selected':''}>Dotted</option>
                 </select></div>
             ${line.locked ? `<div class="control-group"><label>Fill:</label>
-                <input type="checkbox" id="fsSel-fillEnabled"${(line.fillColor && line.fillColor!=='transparent')?' checked':''} style="vertical-align:middle;">
-                <input type="color" id="fsSel-fill" value="${(line.fillColor && line.fillColor!=='transparent') ? line.fillColor : (this.defaultFillColor||'#3399ff')}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
+                <input type="checkbox" id="fsSel-fillEnabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
+                <input type="color" id="fsSel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
                 <button id="fsSel-fillClear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">✕</button></div>` : ''}
             <button id="fsSel-deselect" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">✕ Deselect</button>
         </div>`;
@@ -1742,7 +1797,8 @@ export class DrawingApp {
   // markerSize + 8 image px of the first point.) Shared C++ core (wasm) when
   // loaded; the JS below is the reference + fallback.
   #shouldCloseShape(points, x, y, markerSize) {
-    if (backend.shouldCloseShape) return backend.shouldCloseShape(points, { x, y }, markerSize);
+    const fn = core.op('shouldCloseShape');
+    if (fn) return fn(points, { x, y }, markerSize);
     if (points.length < 3) return false;
     const p0 = points[0];
     return Math.hypot(p0.x - x, p0.y - y) <= markerSize + 8;
@@ -1751,8 +1807,9 @@ export class DrawingApp {
   getPageDimensions() {
     // Shared C++ core (wasm) owns the named-size table + landscape swap when
     // loaded; the JS below is the reference + fallback (PAGE_SIZES mirrors it).
-    if (backend.pageDimensions) {
-      return backend.pageDimensions(this.pageSize, this.canvas.width, this.canvas.height,
+    const fn = core.op('pageDimensions');
+    if (fn) {
+      return fn(this.pageSize, this.canvas.width, this.canvas.height,
         this.customPageWidth, this.customPageHeight);
     }
     if (this.pageSize === 'custom') return { width: this.customPageWidth, height: this.customPageHeight };
@@ -1766,8 +1823,9 @@ export class DrawingApp {
     const ps = this.getPageDimensions();
     // Raw pixel→cm via the shared core when loaded; formula.apply itself already
     // routes through the wasm parser (see FormulaEngine).
-    const raw = backend.pixelToPageRaw
-      ? backend.pixelToPageRaw(x, y, ps, this.canvas.width, this.canvas.height)
+    const pixelToPageRaw = core.op('pixelToPageRaw');
+    const raw = pixelToPageRaw
+      ? pixelToPageRaw(x, y, ps, this.canvas.width, this.canvas.height)
       : { x: (ps.width / this.canvas.width) * x, y: (ps.height / this.canvas.height) * y };
     return {
       x: this.formula.apply(this.formulaX, 'x', raw.x, this.allowFormulas),
@@ -1852,26 +1910,30 @@ export class DrawingApp {
         && line.points[this.focusedPtIdx]) {
       cx = line.points[this.focusedPtIdx].x;
       cy = line.points[this.focusedPtIdx].y;
-    } else if (backend.boundingBoxCenter) {
-      // Pivot = bbox center via the shared C++ core (wasm).
-      ({ x: cx, y: cy } = backend.boundingBoxCenter(line.points));
     } else {
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      for (const p of line.points) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+      const bboxCenter = core.op('boundingBoxCenter');
+      if (bboxCenter) {
+        // Pivot = bbox center via the shared C++ core (wasm).
+        ({ x: cx, y: cy } = bboxCenter(line.points));
+      } else {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const p of line.points) {
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        cx = (minX + maxX) / 2;
+        cy = (minY + maxY) / 2;
       }
-      cx = (minX + maxX) / 2;
-      cy = (minY + maxY) / 2;
     }
-    if (backend.rotatePoints) {
+    const rotate = core.op('rotatePoints');
+    if (rotate) {
       // Rotate every point about the pivot via the shared C++ core (wasm).
-      backend.rotatePoints(line.points, cx, cy, angle);
+      rotate(line.points, cx, cy, angle);
     } else {
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
@@ -2094,11 +2156,11 @@ export class DrawingApp {
       return;
     }
 
-    const data = {
+    const data = buildLayoutPayload({
       imageWidth: this.canvas.width,
       imageHeight: this.canvas.height,
       lines: this.lines
-    };
+    });
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2118,24 +2180,26 @@ export class DrawingApp {
       try {
         const data = JSON.parse(event.target.result);
 
-        if (!this.image) {
+        const verdict = validateLayout(data, {
+          hasImage: !!this.image,
+          imgW: this.canvas.width,
+          imgH: this.canvas.height,
+          hasExistingLines: !!(this.lines && this.lines.length > 0)
+        });
+        if (!verdict.ok) {
           notify('Load an image first', 'fail');
           return;
         }
-        if (this.lines && this.lines.length > 0) {
-          if (!confirm('Replace current layout with uploaded JSON?')) {
-            notify('Upload canceled', 'fail');
-            return;
-          }
+        if (verdict.needsReplaceConfirm && !confirm('Replace current layout with uploaded JSON?')) {
+          notify('Upload canceled', 'fail');
+          return;
         }
-        if (data.imageWidth !== this.canvas.width || data.imageHeight !== this.canvas.height) {
-          if (!confirm('Image dimensions do not match. Continue anyway?')) {
-            notify('Upload canceled', 'fail');
-            return;
-          }
+        if (verdict.needsDimMismatchConfirm && !confirm('Image dimensions do not match. Continue anyway?')) {
+          notify('Upload canceled', 'fail');
+          return;
         }
 
-        this.lines = data.lines || [];
+        this.lines = verdict.lines;
         this.saveHistory();
         this.renderer.redraw();
         this.updateButtons();
@@ -2203,11 +2267,11 @@ export class DrawingApp {
       notify('No layout to copy', 'fail');
       return;
     }
-    const data = {
+    const data = buildLayoutPayload({
       imageWidth: this.canvas.width,
       imageHeight: this.canvas.height,
       lines: this.lines
-    };
+    });
     const txt = JSON.stringify(data, null, 2);
     navigator.clipboard.writeText(txt).then(
       () => notify('Layout JSON copied', 'ok'),
@@ -2217,23 +2281,25 @@ export class DrawingApp {
 
   // ── Apply a layout object pasted from the clipboard ──
   applyPastedLayout(data) {
-    if (!this.image) {
+    const verdict = validateLayout(data, {
+      hasImage: !!this.image,
+      imgW: this.canvas.width,
+      imgH: this.canvas.height,
+      hasExistingLines: !!(this.lines && this.lines.length > 0)
+    });
+    if (!verdict.ok) {
       notify('Load an image first', 'fail');
       return;
     }
-    if (this.lines && this.lines.length > 0) {
-      if (!confirm('Replace current layout with pasted JSON?')) {
-        notify('Layout paste canceled', 'fail');
-        return;
-      }
+    if (verdict.needsReplaceConfirm && !confirm('Replace current layout with pasted JSON?')) {
+      notify('Layout paste canceled', 'fail');
+      return;
     }
-    if (data.imageWidth !== this.canvas.width || data.imageHeight !== this.canvas.height) {
-      if (!confirm('Image dimensions do not match. Continue anyway?')) {
-        notify('Layout paste canceled', 'fail');
-        return;
-      }
+    if (verdict.needsDimMismatchConfirm && !confirm('Image dimensions do not match. Continue anyway?')) {
+      notify('Layout paste canceled', 'fail');
+      return;
     }
-    this.lines = data.lines || [];
+    this.lines = verdict.lines;
     this.saveHistory();
     this.renderer.redraw();
     this.updateButtons();

@@ -1,6 +1,10 @@
 import { hexToRgba, parseHex } from '../utils.js';
-import { backend } from './wasmBackend.js';
+import { core } from './stencilCore.js';
 // ── Renderer: image filter + line/point drawing ─────────────────
+// canvas setLineDash patterns for the two non-solid line styles.
+const DASH_PATTERN = [10, 5];
+const DOT_PATTERN = [2, 5];
+
 export class Renderer {
   constructor(app) {
     this.app = app;
@@ -18,12 +22,13 @@ export class Renderer {
       ctx.filter = 'none';
     } else if (this.app.imageFilter === 'custom') {
       const color = this.app.filterColor || '#7c3aed';
-      if (backend.applyFilterRGBA) {
+      const filter = core.op('applyFilterRGBA');
+      if (filter) {
         // Shared C++ core (wasm): grayscale + duotone tint in one pass over the
         // original pixels — no CSS grayscale prepass needed.
         ctx.filter = 'none';
         ctx.drawImage(this.app.image, 0, 0);
-        this.#applyWasmFilter(ctx, 'custom', color);
+        this.#applyWasmFilter(ctx, filter, 'custom', color);
       } else {
         ctx.filter = 'grayscale(100%)';
         ctx.drawImage(this.app.image, 0, 0);
@@ -46,18 +51,18 @@ export class Renderer {
       if (this.app.currentLine && this.app.currentLine.points.length > 0)
         this.drawLine(this.app.currentLine, false, -1);
     } else if (this.app.showPoints) {
-      // Show points only (no connecting lines)
-      const allLines = this.app.currentLine
-        ? [...this.app.lines, this.app.currentLine]
-        : this.app.lines;
-      allLines.forEach((line, i) => {
-        const sel = i === this.app.selectedLineIdx;
-        const li = i < this.app.lines.length ? i : -1;
+      // Show points only (no connecting lines). Iterate committed lines, then
+      // the in-progress line separately — avoids cloning the lines array into
+      // a combined list every frame.
+      const drawPts = (line, li, sel) => {
+        const ms = line.markerSize ?? this.app.markerSize;
         line.points.forEach((p, pi) => {
           const hs = this.#pointHighlightState(li, pi);
-          this.drawPoint(p, line.color, line.markerSize ?? this.app.markerSize, sel, hs);
+          this.drawPoint(p, line.color, ms, sel, hs);
         });
-      });
+      };
+      this.app.lines.forEach((line, i) => drawPts(line, i, i === this.app.selectedLineIdx));
+      if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
     }
   }
 
@@ -106,9 +111,9 @@ export class Renderer {
     this.app.ctx.lineJoin = 'round';
 
     if (line.style === 'dashed') {
-      this.app.ctx.setLineDash([10, 5]);
+      this.app.ctx.setLineDash(DASH_PATTERN);
     } else if (line.style === 'dotted') {
-      this.app.ctx.setLineDash([2, 5]);
+      this.app.ctx.setLineDash(DOT_PATTERN);
     } else {
       this.app.ctx.setLineDash([]);
     }
@@ -170,14 +175,15 @@ export class Renderer {
     this.app.ctx.stroke();
   }
 
-  // Run the shared C++ core (wasm) filter over the canvas pixels in place.
-  // mode 'custom' computes grayscale + duotone tint in a single pass.
-  #applyWasmFilter(ctx, mode, hexColor) {
+  // Run the shared C++ core (wasm) filter over the canvas pixels in place, using
+  // the resolved core.op('applyFilterRGBA') fn passed by the caller. mode
+  // 'custom' computes grayscale + duotone tint in a single pass.
+  #applyWasmFilter(ctx, filter, mode, hexColor) {
     const { r, g, b } = parseHex(hexColor);
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
     const imageData = ctx.getImageData(0, 0, w, h);
-    backend.applyFilterRGBA(mode, imageData.data, w * h, r, g, b);
+    filter(mode, imageData.data, w * h, r, g, b);
     ctx.putImageData(imageData, 0, 0);
   }
 

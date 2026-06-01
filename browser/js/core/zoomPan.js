@@ -1,4 +1,4 @@
-import { callCore } from './wasmBackend.js';
+import { core } from './stencilCore.js';
 
 // ── ZoomPan: zoom level, fit, hold-zoom, overlays ───────────────
 export class ZoomPan {
@@ -8,7 +8,7 @@ export class ZoomPan {
 
   // Clamp a scale into the zoom limits. Delegates to the shared C++ core (wasm)
   // clampScale when loaded; the JS bound is the reference + fallback.
-  clampScale = callCore('clampScale', s => Math.max(0.05, Math.min(5, s)));
+  clampScale = core.bind('clampScale', s => Math.max(0.05, Math.min(5, s)));
 
   updateZoomRectOverlay() {
     const overlay = document.getElementById('zoomRectOverlay');

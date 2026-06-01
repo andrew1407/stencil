@@ -76,9 +76,10 @@ export class ProjectsStore {
   // All projects, most-recently-updated first. [] on any error.
   list() {
     const arr = this.#readRegistry();
+    // .filter already produces a fresh array, so sorting it in place is safe
+    // (no .slice() copy needed) and never touches the stored registry.
     return arr
       .filter(m => m && m.id != null)
-      .slice()
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
@@ -141,7 +142,9 @@ export class ProjectsStore {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
     if (i === -1) return null;
-    arr[i] = { ...arr[i], updatedAt: now };
+    // arr is a fresh parse from #readRegistry (nothing else holds arr[i]), so
+    // bump the field in place instead of cloning the whole meta object.
+    arr[i].updatedAt = now;
     this.#writeRegistry(arr);
     return arr[i];
   }

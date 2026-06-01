@@ -41,6 +41,15 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 > If `python` maps to Python 2 on your system, use `python3`. Any other static file
 > server works too.
 
+> **WebAssembly core.** This app can run the shared C++ core via wasm, but that module
+> (`js/wasm/stencilCore.js`) is a generated artifact that isn't committed — so on a fresh
+> checkout the app transparently uses its behavior-identical JS fallback. To run the real
+> wasm path, build it once (needs Emscripten on `PATH` — see [`../desktop/WASM.md`](../desktop/WASM.md)):
+>
+> ```bash
+> npm run build-wasm   # builds desktop/core → js/wasm/stencilCore.js
+> ```
+
 ## Project structure
 
 ```

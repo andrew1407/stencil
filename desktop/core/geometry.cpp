@@ -60,6 +60,17 @@ namespace stencil::core {
     return std::nullopt;
   }
 
+  // First point in a single line within `threshold` (strict `<`) of (x, y).
+  // Used for the in-progress currentLine_ cursor scans in canvasWidget.
+  std::optional<int> nearestPointInLine(const std::vector<Point>& points,
+                                        double x, double y, double threshold) {
+    for (std::size_t i = 0; i < points.size(); ++i) {
+      if (std::hypot(points[i].x - x, points[i].y - y) < threshold)
+        return static_cast<int>(i);
+    }
+    return std::nullopt;
+  }
+
   // Port of browser/js/core/drawingApp.js #findNearestSegmentWithIdx (~1793).
   std::optional<SegmentHit> findNearestSegment(const Lines& lines, double x,
                                                double y, double threshold) {

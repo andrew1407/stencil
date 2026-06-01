@@ -76,7 +76,10 @@ jobs:
           emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
           emmake cmake --build build-wasm -j --target stencil_wasm
       - name: Place the freshly built module in the browser tree
-        run: cp desktop/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+        # js/wasm/ holds only the gitignored artifact, so it's absent on checkout.
+        run: |
+          mkdir -p browser/js/wasm
+          cp desktop/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

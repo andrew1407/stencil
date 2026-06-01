@@ -22,7 +22,10 @@ export class HistoryStack {
   // Push a new snapshot of `lines`, truncating any redo branch first.
   push(lines) {
     this.historyStep++;
-    this.history = this.history.slice(0, this.historyStep);
+    // Drop any redo branch by truncating in place (a no-op in the common
+    // no-redo case, where historyStep now equals history.length) — avoids
+    // reallocating the whole array on every push.
+    if (this.history.length > this.historyStep) this.history.length = this.historyStep;
     this.history.push(this.#clone(lines));
   }
 
@@ -55,7 +58,11 @@ export class HistoryStack {
     return null;
   }
 
+  // Deep-copy a snapshot so stored history is immune to later mutation of the
+  // live lines (their points arrays especially). structuredClone is the modern,
+  // dependency-free deep clone — faithful to the old JSON round-trip for this
+  // plain-data shape, without the serialize+reparse cost.
   #clone(lines) {
-    return JSON.parse(JSON.stringify(lines));
+    return structuredClone(lines);
   }
 }

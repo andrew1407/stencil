@@ -88,6 +88,7 @@ if(Qt6_FOUND)
     gui/projectsDialog.cpp
     gui/infoDialog.cpp
     gui/shortcutsDialog.cpp
+    gui/guiHelpers.cpp
     resources/app.qrc
   )
   target_link_libraries(stencil_gui PRIVATE stencil_core Qt6::Widgets)

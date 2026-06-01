@@ -1,6 +1,11 @@
 import { StencilElement, hostTag, define } from './base.js';
 // ── Component: bottom-left notification balloon ─────────────────
 // Owns the show/auto-hide logic; utils.js `notify()` delegates to this.
+
+// Auto-hide delays: failures linger a bit longer so they're not missed.
+const FAIL_HIDE_MS = 3200;
+const OK_HIDE_MS = 2400;
+
 export class StencilNotifications extends StencilElement {
   #timer = null;
 
@@ -22,7 +27,7 @@ export class StencilNotifications extends StencilElement {
     this.classList.add('notify-visible');
     clearTimeout(this.#timer);
     this.#timer = setTimeout(() => this.classList.remove('notify-visible'),
-      type === 'fail' ? 3200 : 2400);
+      type === 'fail' ? FAIL_HIDE_MS : OK_HIDE_MS);
   }
 }
 define('stencil-notifications', StencilNotifications);
