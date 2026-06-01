@@ -8,6 +8,9 @@ Thumbs.db
 *.swp
 *~
 
+# Claude Code (local harness state — locks, scheduler/session files)
+.claude/
+
 # Node (only used for `node --test`; no deps committed)
 node_modules/
 npm-debug.log*
@@ -15,3 +18,28 @@ npm-debug.log*
 # Logs / temp
 *.log
 *.tmp
+
+# C++ / CMake build output (desktop/ app)
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Qt
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+.qmake.stash
+*.autosave
+
+# Desktop app runtime state (settings / session / projects) — repo-local, never committed
+.stencil/
+desktop/.stencil/

@@ -1,73 +1,53 @@
 # Stencil
 
-A browser-based image annotation / drawing tool. Load an image, draw polylines
-and rectangles over it, edit points numerically, convert pixel coordinates to
-page (cm) coordinates, and save your work to the browser's local storage.
+[![CI](https://github.com/andrew1407/stencil/actions/workflows/ci.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/ci.yml)
 
-Built with **vanilla JavaScript and native ES modules** — no build step, no
-bundler, no third-party runtime dependencies.
+An image annotation / drawing tool: load an image, draw polylines and rectangles over
+it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
+optional `f(x,y)` formula transforms, and save your work.
 
-## Features
+Stencil ships as **two front-ends over one shared logic core**:
 
-- Draw polylines and lockable, fillable rectangles/areas over an uploaded image
-- Per-line color, thickness, marker size, and style (solid / dashed / dotted)
-- Editable points table with pixel ↔ page (cm) coordinate conversion and optional `f(x,y)` formula transforms
-- Image filters (B&W, sepia, custom tint), zoom/pan, and fit-to-window
-- Undo / redo, drag-and-drop and clipboard paste for images and layout JSON
-- Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
-- Session autosave to `localStorage` (image + layout)
+| App | Path | Stack | Docs |
+|---|---|---|---|
+| **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
+| **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 
-## Running
+The two apps deliberately mirror each other's architecture. The **pure, GUI-free logic**
+— the formula parser, geometry, pixel↔page conversion, history, project storage and
+expiry — lives once per language and is kept behaviorally identical between them. The C++
+core (`desktop/core/`) is written dependency-free (STL only) so it can also be compiled to
+**WebAssembly** and back the browser app from the same source in the future.
 
-Because the app uses native ES modules (`import` / `export`), browsers refuse to
-load it over the `file://` protocol (CORS / module-origin restrictions). It must
-be served over HTTP. The `serve` script uses Python's built-in server:
-
-```bash
-# from the project root — serves http://localhost:8080 by default
-npm run serve
-```
-
-Then open <http://localhost:8080/> in your browser.
-
-The address and port default to `localhost:8080` and can be overridden with env
-vars:
-
-```bash
-PORT=9000 npm run serve                # custom port
-ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
-```
-
-> If `python` maps to Python 2 on your system, use `python3`. Any other static
-> file server works too.
-
-## Project structure
+## Repository layout
 
 ```
-index.html            # single <script type="module"> entrypoint
-css/                  # theme, layout, component styles
-js/
-  index.js            # bootstraps the app on window load
-  utils.js            # shared DOM / geometry / color / hotkey helpers
-  config/             # constants, hotkey + help-text registries
-  core/               # DrawingApp and its collaborators (renderer, storage,
-                      #   history, zoom/pan, coord table, tooltip, formulas)
-  ui/                 # pure string-returning components composed by layout()
-  features/           # init functions that wire up DOM behavior after mount
-tests/                # node:test unit tests (run with `node --test`)
+README.md             # this overview
+PIPELINE.md           # three-agent dev pipeline (planner / writer / reviewer)
+browser/              # the browser app
+  index.html
+  css/  js/  tests/
+  package.json
+  README.md
+desktop/                  # the desktop app
+  core/               # shared, GUI-free logic + its Doctest tests
+  gui/                # Qt widgets (mirrors the browser UI)
+  tests/
+  third_party/        # vendored doctest.h
+  CMakeLists.txt
+  README.md
 ```
 
-Every module declares its dependencies with `import` and exposes its public API
-with `export`. The HTML loads only `js/index.js`; the module graph pulls in
-everything else.
+## Development
 
-## Tests
+Stencil is developed with a **three-agent pipeline** (planner → writer → reviewer)
+documented in [PIPELINE.md](PIPELINE.md). It also fixes the **dependency policy**: the
+only permitted third-party libraries are **Qt 6** (desktop GUI) and **Doctest** (C++
+tests); the browser app stays dependency-free with no build step.
 
-Unit tests (pure logic: formulas, history, geometry, color, hotkeys, and static
-markup) run under Node's built-in test runner — no dependencies to install:
+- Build & run the browser app → [browser/README.md](browser/README.md)
+- Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
 
-```bash
-node --test
-# or
-npm test
-```
+## License
+
+See repository.
