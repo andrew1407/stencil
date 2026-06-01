@@ -1,6 +1,7 @@
-import HOTKEY_DEFS from './config/hotkeysConfig.json' with { type: 'json' };
-import { backend, callCore } from './core/wasmBackend.js';
+import { core } from './core/stencilCore.js';
 // ── Utilities (consolidated): DOM, mount, notify, geometry, color, hotkeys ──
+// The mutable hotkey registry lives in ./core/hotkeys.js (the `hotkeys`
+// singleton); the pure parse/match helpers below stay here.
 
 // ── Small DOM helpers ───────────────────────────────────────────
 // Guarded value-set: assign to an element's .value only if it exists.
@@ -29,7 +30,7 @@ export const notify = (msg, type = 'ok') => {
 // ── Geometry helpers (pure) ─────────────────────────────────────
 // Distance from point (px,py) to the segment a→b. Delegates to the shared C++
 // core (wasm) when loaded; the JS below is the reference + fallback.
-export const distToSegment = callCore('distToSegment', (px, py, a, b) => {
+export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lenSq = dx * dx + dy * dy;
@@ -51,8 +52,9 @@ export const hexToRgba = (hex, alpha) => {
 // Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when
 // loaded and the string is a valid 7-char hex; the JS below is reference + fallback.
 export const parseHex = hex => {
-  if (backend.parseHex) {
-    const rgb = backend.parseHex(hex);
+  const fn = core.op('parseHex');
+  if (fn) {
+    const rgb = fn(hex);
     if (rgb) return rgb;
   }
   return {
@@ -111,33 +113,3 @@ export const isTypingTarget = t => {
   }
   return t.isContentEditable === true;
 };
-
-
-// ── Browser-only hotkey state (loaded only in the browser) ──────
-if (typeof window !== 'undefined') {
-  window.HOTKEY_DEFAULTS = Object.fromEntries(HOTKEY_DEFS.map(h => [h.id, h.default]));
-  window.HOTKEYS = { ...window.HOTKEY_DEFAULTS };
-  try {
-    const saved = JSON.parse(localStorage.getItem('drawingApp_hotkeys') || '{}');
-    for (const k in saved)
-      if (k in window.HOTKEYS) window.HOTKEYS[k] = saved[k];
-  } catch {
-    /* ignore */
-  }
-
-  window.saveHotkeys = () => {
-    try {
-      localStorage.setItem('drawingApp_hotkeys', JSON.stringify(window.HOTKEYS));
-    } catch {
-      /* ignore */
-    }
-  };
-
-  // Update every .ctx-hotkey[data-hk] in the page so context menus reflect current bindings
-  window.updateCtxHotkeyHints = () => {
-    document.querySelectorAll('[data-hk]').forEach(el => {
-      const id = el.dataset.hk;
-      if (window.HOTKEYS[id]) el.textContent = window.HOTKEYS[id];
-    });
-  };
-}

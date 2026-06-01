@@ -1,4 +1,5 @@
 #include "settingsDialog.hpp"
+#include "guiHelpers.hpp"
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
@@ -79,10 +80,8 @@ namespace stencil::gui {
     customH_->setValue(current.customPageHeight);
     form->addRow("Custom height (cm)", customH_);
 
-    auto* buttons = new QDialogButtonBox(
-        QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    auto* buttons =
+        makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
 
     auto* layout = new QVBoxLayout(this);
     layout->addLayout(form);

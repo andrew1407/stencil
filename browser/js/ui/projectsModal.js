@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 // ── Component: projects chooser / switcher modal ────────────────
 // Lists saved projects (most-recently-edited first) plus a synthetic row for
 // the current temporary editor, with thumbnails, dates, expiry badges, and an
@@ -138,36 +138,31 @@ export class StencilProjectsModal extends StencilElement {
     };
 
     const render = () => {
-      const q = (search.value || '').trim().toLowerCase();
+      const q = search.value || '';
       list.innerHTML = '';
 
       // Synthetic current-tab temporary/incognito row (always for this tab).
       if (app.storage.temporary) {
         const label = app.storage.incognito ? 'incognito (unsaved)' : 'temporary (unsaved)';
-        if (!q || label.includes(q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
+        if (rowMatches(label, q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
       }
 
-      const projects = store.list().filter(m => !q || (m.name || '').toLowerCase().includes(q));
+      const projects = store.list().filter(m => rowMatches(m.name || '', q));
       for (const meta of projects) list.appendChild(makeRow(meta));
 
       if (list.children.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
-        empty.textContent = q ? 'No matching projects.' : 'No saved projects yet.';
+        empty.textContent = q.trim() ? 'No matching projects.' : 'No saved projects yet.';
         list.appendChild(empty);
       }
     };
 
-    const open = () => { search.value = ''; render(); overlay.classList.add('modal-open'); };
-    const close = () => { overlay.classList.remove('modal-open'); };
-
-    search.addEventListener('input', render);
-    openBtn.addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('modal-open')) close();
+    const { open, close } = wireModalShell(overlay, openBtn, closeBtn, {
+      onOpen: () => { search.value = ''; render(); }
     });
+
+    attachSearchFilter(search, render);
 
     newEditorBtn.addEventListener('click', () => {
       if (!confirm('Discard current editor and start a new blank (unsaved) editor?')) return;

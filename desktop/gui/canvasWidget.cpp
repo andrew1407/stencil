@@ -330,14 +330,11 @@ namespace stencil::gui {
   // The line whose points the selection panel shows. S2 priority: an explicitly
   // selected committed line wins, else the in-progress line while drawing, else
   // the most recently committed line.
+  // Mutable forwarder: const_cast the result of the const overload (matches the
+  // renderToImage const_cast pattern; never recurse via the mutable version).
   core::Line* CanvasWidget::mutablePanelLine() {
-    if (selectedLineIdx_ >= 0 &&
-        selectedLineIdx_ < static_cast<int>(lines_.size())) {
-      return &lines_[selectedLineIdx_];
-    }
-    if (!currentLine_.points.empty()) return &currentLine_;
-    if (!lines_.empty()) return &lines_.back();
-    return nullptr;
+    return const_cast<core::Line*>(
+        static_cast<const CanvasWidget*>(this)->panelLine());
   }
 
   const core::Line* CanvasWidget::panelLine() const {
@@ -408,12 +405,11 @@ namespace stencil::gui {
     return selectedLineIdx_;
   }
 
+  // Mutable forwarder: const_cast the const overload's result (renderToImage
+  // pattern); never recurse through the mutable version.
   core::Line* CanvasWidget::selectedLine() {
-    if (selectedLineIdx_ < 0 ||
-        selectedLineIdx_ >= static_cast<int>(lines_.size())) {
-      return nullptr;
-    }
-    return &lines_[selectedLineIdx_];
+    return const_cast<core::Line*>(
+        static_cast<const CanvasWidget*>(this)->selectedLine());
   }
 
   const core::Line* CanvasWidget::selectedLine() const {
@@ -489,15 +485,29 @@ namespace stencil::gui {
     const QColor stroke(QString::fromStdString(line.color));
     const Palette& pal = themePalette(dark_);
 
+    drawFill(p, line, poly);
+    drawGlow(p, line, poly, lineIdx, highlight, pal);
+    drawStroke(p, line, poly, stroke);
+    drawMarkers(p, line, poly, lineIdx, highlight, stroke, pal);
+  }
+
+  // Locked-area fill beneath the stroke (renderer.js): only for closed shapes
+  // with a non-transparent fill while lines are shown.
+  void CanvasWidget::drawFill(QPainter& p, const core::Line& line,
+                              const QPolygonF& poly) const {
     if (showLines_ && line.locked && line.points.size() >= 3 &&
         line.fillColor != "transparent" && !line.fillColor.empty()) {
       p.setBrush(QColor(QString::fromStdString(line.fillColor)));
       p.setPen(Qt::NoPen);
       p.drawPolygon(poly);
     }
+  }
 
-    // Selection glow beneath the stroke (renderer.js drawLine ~77): a fat, semi-
-    // transparent halo around the selected committed line. Live view only.
+  // Selection glow beneath the stroke (renderer.js drawLine ~77): a fat, semi-
+  // transparent halo around the selected committed line. Live view only.
+  void CanvasWidget::drawGlow(QPainter& p, const core::Line& line,
+                              const QPolygonF& poly, int lineIdx, bool highlight,
+                              const Palette& pal) const {
     if (highlight && showLines_ && lineIdx >= 0 && lineIdx == selectedLineIdx_ &&
         line.points.size() >= 2) {
       QColor glow = pal.selGlow;
@@ -511,7 +521,12 @@ namespace stencil::gui {
       if (line.locked) p.drawPolygon(poly);
       else p.drawPolyline(poly);
     }
+  }
 
+  // The stroke itself: width/cap/join + dash pattern per style.
+  void CanvasWidget::drawStroke(QPainter& p, const core::Line& line,
+                                const QPolygonF& poly,
+                                const QColor& stroke) const {
     if (showLines_) {
       QPen pen(stroke);
       pen.setWidthF(line.thickness);
@@ -526,12 +541,17 @@ namespace stencil::gui {
         else p.drawPolyline(poly);
       }
     }
+  }
 
+  // Point markers + hover/focus rings. The browser does NOT number points on
+  // the canvas (renderer.js draws no labels), so we don't either — S4 removed
+  // the per-point index drawText. Rings are live-only (never baked into exports).
+  void CanvasWidget::drawMarkers(QPainter& p, const core::Line& line,
+                                 const QPolygonF& poly, int lineIdx,
+                                 bool highlight, const QColor& stroke,
+                                 const Palette& pal) const {
     if (!showPoints_) return;
 
-    // Point markers + hover/focus rings. The browser does NOT number points on
-    // the canvas (renderer.js draws no labels), so we don't either — S4 removed
-    // the per-point index drawText. Rings are live-only (never baked into exports).
     const bool isActive = highlight && (&line == panelLine());
     const double r = line.markerSize;
     p.setPen(QPen(pal.textMain, 1));
@@ -605,6 +625,11 @@ namespace stencil::gui {
     }
   }
 
+  // Flat dispatch (behavior-preserving). Precedence is load-bearing and matches
+  // the original order: RightButton -> MiddleButton pan -> Alt+Left drag/pan ->
+  // Shift+Left zoom-rect -> Left{Ctrl, rect-draw, select, rect-noop,
+  // continuation, close, append}. Each branch computes its own coords (Alt/Left
+  // use image space; Shift/Middle stay in widget/global space).
   void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::RightButton) {
       emit contextRequested(event->globalPosition().toPoint());
@@ -626,165 +651,188 @@ namespace stencil::gui {
       return;
     }
 
-    // Alt+left (port of startPan ~721/~764): if the cursor is over a point,
-    // segment, or (with Shift) a whole line, drag that; otherwise pan. Takes
-    // precedence over drawing — no points are added while editing/panning.
     if (event->button() == Qt::LeftButton && (mods & Qt::AltModifier)) {
-      const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
-      dragStart_ = ip;
-      dragMoved_ = false;
-
-      // Alt+Shift over a line -> whole-line drag. Record the grabbed segment too
-      // so releasing Shift mid-drag drops to moving just that segment.
-      if (mods & Qt::ShiftModifier) {
-        const int li = core::findLineAt(lines_, ip.x, ip.y);
-        if (li != -1) {
-          dragKind_ = DragKind::Line;
-          dragLineIdx_ = li;
-          dragOrig_ = lines_[li].points;
-          const auto seg = core::findNearestSegment(lines_, ip.x, ip.y);
-          if (seg && seg->lineIdx == li) {
-            dragPtIdx1_ = seg->ptIdx1;
-            dragPtIdx2_ = seg->ptIdx2;
-          } else {
-            dragPtIdx1_ = dragPtIdx2_ = -1;
-          }
-          setCursor(Qt::SizeAllCursor);
-          return;
-        }
-      }
-
-      // Priority 1: near a point (in-progress line first) -> drag the point.
-      for (int i = 0; i < static_cast<int>(currentLine_.points.size()); ++i) {
-        const auto& pt = currentLine_.points[i];
-        if (std::hypot(pt.x - ip.x, pt.y - ip.y) < 12.0) {
-          dragKind_ = DragKind::Point;
-          dragLineIdx_ = -1;  // in-progress line
-          dragPtIdx1_ = i;
-          setCursor(Qt::SizeAllCursor);
-          return;
-        }
-      }
-      if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y)) {
-        dragKind_ = DragKind::Point;
-        dragLineIdx_ = pt->lineIdx;
-        dragPtIdx1_ = pt->ptIdx;
-        setCursor(Qt::SizeAllCursor);
-        return;
-      }
-      // Priority 2: near a segment -> drag that segment.
-      if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
-        dragKind_ = DragKind::Segment;
-        dragLineIdx_ = seg->lineIdx;
-        dragPtIdx1_ = seg->ptIdx1;
-        dragPtIdx2_ = seg->ptIdx2;
-        dragOrig_ = lines_[seg->lineIdx].points;
-        setCursor(Qt::SizeAllCursor);
-        return;
-      }
-      // Otherwise: pan (drawingApp.js startPan ~797).
-      panning_ = true;
-      lastPanPos_ = event->globalPosition().toPoint();  // global: see above
-      setCursor(Qt::ClosedHandCursor);
+      beginAltDrag(toImageSpace(event->pos().x(), event->pos().y()), mods,
+                   event->globalPosition().toPoint());
       return;
     }
 
-    // Zoom-to-rect: Shift+left-drag sweeps a rubber band (S9; drawingApp.js
-    // startPan shift branch ~746). No points added while sweeping.
     if (event->button() == Qt::LeftButton && (mods & Qt::ShiftModifier)) {
-      zoomRectActive_ = true;
-      zoomRectStart_ = zoomRectEnd_ = event->pos();
-      update();
+      beginZoomRect(event->pos());
       return;
     }
 
     if (event->button() == Qt::LeftButton) {
       const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
-
-      // Ctrl+left: insert a point onto the nearest segment of an existing line,
-      // else (when not drawing) add a point connected to the selection. In
-      // drawing mode with no segment under the cursor, fall through to a normal
-      // point append. Port of drawingApp.js canvasClick Ctrl branches (~1187/1239).
       if (mods & Qt::ControlModifier) {
-        if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
-          insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);
-          // Inserting shifts later indices right by one; keep the continuation
-          // tail anchored to the same spot (drawingApp.js ~1193).
-          if (seg->lineIdx == continueLineIdx_ &&
-              seg->ptIdx2 <= continueInsertIdx_) {
-            ++continueInsertIdx_;
-          }
-          return;
-        }
-        if (!isDrawing_) {
-          addConnectedPoint(ip.x, ip.y);
-          return;
-        }
-        // drawing + Ctrl + no segment -> normal append below.
+        if (handleCtrlClick(ip)) return;
+        // drawing + Ctrl + no segment -> fall through to handleDrawingClick.
       }
+      handleDrawingClick(ip, mods, event->pos());
+    }
+  }
 
-      // S2: rect-draw press (drawingApp.js mousedown ~710). While drawing in rect
-      // mode with no modifier, begin a drag-to-create rubber band.
-      if (isDrawing_ && drawMode_ == DrawMode::Rect &&
-          mods == Qt::NoModifier) {
-        rectDrawActive_ = true;
-        rectDrawStart_ = rectDrawEnd_ = event->pos();
-        update();
+  // Alt+left (port of startPan ~721/~764): if the cursor is over a point,
+  // segment, or (with Shift) a whole line, drag that; otherwise pan. Takes
+  // precedence over drawing — no points are added while editing/panning. Every
+  // path ends in a state-set + return, so the caller always returns afterwards.
+  void CanvasWidget::beginAltDrag(const core::Point& ip,
+                                  Qt::KeyboardModifiers mods,
+                                  const QPoint& globalPos) {
+    dragStart_ = ip;
+    dragMoved_ = false;
+
+    // Alt+Shift over a line -> whole-line drag. Record the grabbed segment too
+    // so releasing Shift mid-drag drops to moving just that segment.
+    if (mods & Qt::ShiftModifier) {
+      const int li = core::findLineAt(lines_, ip.x, ip.y);
+      if (li != -1) {
+        dragKind_ = DragKind::Line;
+        dragLineIdx_ = li;
+        dragOrig_ = lines_[li].points;
+        const auto seg = core::findNearestSegment(lines_, ip.x, ip.y);
+        if (seg && seg->lineIdx == li) {
+          dragPtIdx1_ = seg->ptIdx1;
+          dragPtIdx2_ = seg->ptIdx2;
+        } else {
+          dragPtIdx1_ = dragPtIdx2_ = -1;
+        }
+        setCursor(Qt::SizeAllCursor);
         return;
       }
+    }
 
-      // S2: when not drawing, a left-click hit-tests + selects a committed line
-      // (port of drawingApp.js click-select ~1270) instead of being a no-op.
-      if (!isDrawing_) {
-        selectLineAt(ip.x, ip.y);
-        return;
+    // Priority 1: near a point (in-progress line first) -> drag the point.
+    if (auto idx = core::nearestPointInLine(currentLine_.points, ip.x, ip.y)) {
+      dragKind_ = DragKind::Point;
+      dragLineIdx_ = -1;  // in-progress line
+      dragPtIdx1_ = *idx;
+      setCursor(Qt::SizeAllCursor);
+      return;
+    }
+    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y)) {
+      dragKind_ = DragKind::Point;
+      dragLineIdx_ = pt->lineIdx;
+      dragPtIdx1_ = pt->ptIdx;
+      setCursor(Qt::SizeAllCursor);
+      return;
+    }
+    // Priority 2: near a segment -> drag that segment.
+    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
+      dragKind_ = DragKind::Segment;
+      dragLineIdx_ = seg->lineIdx;
+      dragPtIdx1_ = seg->ptIdx1;
+      dragPtIdx2_ = seg->ptIdx2;
+      dragOrig_ = lines_[seg->lineIdx].points;
+      setCursor(Qt::SizeAllCursor);
+      return;
+    }
+    // Otherwise: pan (drawingApp.js startPan ~797).
+    panning_ = true;
+    lastPanPos_ = globalPos;  // global: see middle-button note
+    setCursor(Qt::ClosedHandCursor);
+  }
+
+  // Zoom-to-rect: Shift+left-drag sweeps a rubber band (S9; drawingApp.js
+  // startPan shift branch ~746). No points added while sweeping. widgetPos is
+  // widget space (NOT image space).
+  void CanvasWidget::beginZoomRect(const QPoint& widgetPos) {
+    zoomRectActive_ = true;
+    zoomRectStart_ = zoomRectEnd_ = widgetPos;
+    update();
+  }
+
+  // Ctrl+left: insert a point onto the nearest segment of an existing line,
+  // else (when not drawing) add a point connected to the selection. Returns true
+  // when it consumed the click; false only for the drawing + Ctrl + no-segment
+  // case, which falls through to a normal point append. Port of drawingApp.js
+  // canvasClick Ctrl branches (~1187/1239).
+  bool CanvasWidget::handleCtrlClick(const core::Point& ip) {
+    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
+      insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);
+      // Inserting shifts later indices right by one; keep the continuation
+      // tail anchored to the same spot (drawingApp.js ~1193).
+      if (seg->lineIdx == continueLineIdx_ &&
+          seg->ptIdx2 <= continueInsertIdx_) {
+        ++continueInsertIdx_;
       }
+      return true;
+    }
+    if (!isDrawing_) {
+      addConnectedPoint(ip.x, ip.y);
+      return true;
+    }
+    // drawing + Ctrl + no segment -> normal append handled by the caller.
+    return false;
+  }
 
-      // S2: in rect mode, areas are created by dragging, never click-to-add
-      // (browser drawingApp.js ~1182).
-      if (drawMode_ == DrawMode::Rect) return;
+  // The plain (no-Alt / no-Shift) left-click drawing logic: rect-draw press,
+  // select-when-not-drawing, rect-mode no-op, continuation extend/close, the
+  // close-shape gate, and the normal point append. widgetPos seeds the rect-draw
+  // rubber band (widget space).
+  void CanvasWidget::handleDrawingClick(const core::Point& ip,
+                                        Qt::KeyboardModifiers mods,
+                                        const QPoint& widgetPos) {
+    // S2: rect-draw press (drawingApp.js mousedown ~710). While drawing in rect
+    // mode with no modifier, begin a drag-to-create rubber band.
+    if (isDrawing_ && drawMode_ == DrawMode::Rect && mods == Qt::NoModifier) {
+      rectDrawActive_ = true;
+      rectDrawStart_ = rectDrawEnd_ = widgetPos;
+      update();
+      return;
+    }
 
-      // Continuation drawing: extend the line being continued (drawingApp.js
-      // canvasClick continuation branch ~1201). A click near its first point
-      // closes it into a locked area.
-      if (continueLineIdx_ >= 0 &&
-          continueLineIdx_ < static_cast<int>(lines_.size())) {
-        core::Line& line = lines_[continueLineIdx_];
-        if (line.points.size() >= 3 &&
-            std::hypot(line.points.front().x - ip.x,
-                       line.points.front().y - ip.y) <= line.markerSize + 8.0) {
-          closeContinuedShape();
-          emit changed();
-          return;
-        }
-        const int at = std::max(
-            0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
-        line.points.insert(line.points.begin() + at, ip);
-        selectedPoint_ = at;
-        continueInsertIdx_ = at + 1;
-        update();
+    // S2: when not drawing, a left-click hit-tests + selects a committed line
+    // (port of drawingApp.js click-select ~1270) instead of being a no-op.
+    if (!isDrawing_) {
+      selectLineAt(ip.x, ip.y);
+      return;
+    }
+
+    // S2: in rect mode, areas are created by dragging, never click-to-add
+    // (browser drawingApp.js ~1182).
+    if (drawMode_ == DrawMode::Rect) return;
+
+    // Continuation drawing: extend the line being continued (drawingApp.js
+    // canvasClick continuation branch ~1201). A click near its first point
+    // closes it into a locked area.
+    if (continueLineIdx_ >= 0 &&
+        continueLineIdx_ < static_cast<int>(lines_.size())) {
+      core::Line& line = lines_[continueLineIdx_];
+      if (line.points.size() >= 3 &&
+          std::hypot(line.points.front().x - ip.x,
+                     line.points.front().y - ip.y) <= line.markerSize + 8.0) {
+        closeContinuedShape();
         emit changed();
-        emit selectionChanged();
         return;
       }
-
-      // Closing an area: with >= 3 points, a click near point[0] closes + locks
-      // the shape (mirrors #closeCurrentShape), then stops drawing.
-      if (core::shouldCloseShape(currentLine_.points, ip,
-                                 currentLine_.markerSize)) {
-        currentLine_.points.push_back(currentLine_.points.front());
-        currentLine_.locked = true;
-        stopDrawingMode();
-        emit changed();
-        return;
-      }
-
-      currentLine_.points.push_back(ip);
-      selectedPoint_ = static_cast<int>(currentLine_.points.size()) - 1;
+      const int at = std::max(
+          0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
+      line.points.insert(line.points.begin() + at, ip);
+      selectedPoint_ = at;
+      continueInsertIdx_ = at + 1;
       update();
       emit changed();
       emit selectionChanged();
+      return;
     }
+
+    // Closing an area: with >= 3 points, a click near point[0] closes + locks
+    // the shape (mirrors #closeCurrentShape), then stops drawing.
+    if (core::shouldCloseShape(currentLine_.points, ip,
+                               currentLine_.markerSize)) {
+      currentLine_.points.push_back(currentLine_.points.front());
+      currentLine_.locked = true;
+      stopDrawingMode();
+      emit changed();
+      return;
+    }
+
+    currentLine_.points.push_back(ip);
+    selectedPoint_ = static_cast<int>(currentLine_.points.size()) - 1;
+    update();
+    emit changed();
+    emit selectionChanged();
   }
 
   void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
@@ -797,34 +845,7 @@ namespace stencil::gui {
       const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
       const bool shift = bool(event->modifiers() & Qt::ShiftModifier);
       dragMoved_ = true;
-
-      if (dragKind_ == DragKind::Point) {
-        core::Line* line =
-            (dragLineIdx_ < 0) ? &currentLine_ : &lines_[dragLineIdx_];
-        if (dragPtIdx1_ >= 0 &&
-            dragPtIdx1_ < static_cast<int>(line->points.size())) {
-          line->points[dragPtIdx1_] = ip;  // snap point to cursor
-        }
-      } else {
-        // Segment / Line drags translate from the snapshot by (dx, dy).
-        core::Line& line = lines_[dragLineIdx_];
-        const double dx = ip.x - dragStart_.x;
-        const double dy = ip.y - dragStart_.y;
-        const bool whole =
-            (dragKind_ == DragKind::Line) ? (shift || dragPtIdx1_ < 0) : shift;
-        if (whole) {
-          for (std::size_t i = 0; i < line.points.size(); ++i) {
-            line.points[i].x = dragOrig_[i].x + dx;
-            line.points[i].y = dragOrig_[i].y + dy;
-          }
-        } else {
-          line.points = dragOrig_;  // reset, then move only the two endpoints
-          for (int pi : {dragPtIdx1_, dragPtIdx2_}) {
-            line.points[pi].x = dragOrig_[pi].x + dx;
-            line.points[pi].y = dragOrig_[pi].y + dy;
-          }
-        }
-      }
+      updateDrag(ip, shift);
       update();
       return;
     }
@@ -866,6 +887,40 @@ namespace stencil::gui {
     emit hovered(ip.x, ip.y);
     emit hoverDetail(ip.x, ip.y, event->globalPosition().toPoint(),
                      event->modifiers());
+  }
+
+  // Active Alt-drag move (port of drawingApp.js #dragMove ~1701). One of the
+  // point/segment/line moves; `shift` switches segment/line modes live from the
+  // original snapshot so toggling Shift never accumulates. Caller computes ip +
+  // shift, sets dragMoved_, and repaints.
+  void CanvasWidget::updateDrag(const core::Point& ip, bool shift) {
+    if (dragKind_ == DragKind::Point) {
+      core::Line* line =
+          (dragLineIdx_ < 0) ? &currentLine_ : &lines_[dragLineIdx_];
+      if (dragPtIdx1_ >= 0 &&
+          dragPtIdx1_ < static_cast<int>(line->points.size())) {
+        line->points[dragPtIdx1_] = ip;  // snap point to cursor
+      }
+    } else {
+      // Segment / Line drags translate from the snapshot by (dx, dy).
+      core::Line& line = lines_[dragLineIdx_];
+      const double dx = ip.x - dragStart_.x;
+      const double dy = ip.y - dragStart_.y;
+      const bool whole =
+          (dragKind_ == DragKind::Line) ? (shift || dragPtIdx1_ < 0) : shift;
+      if (whole) {
+        for (std::size_t i = 0; i < line.points.size(); ++i) {
+          line.points[i].x = dragOrig_[i].x + dx;
+          line.points[i].y = dragOrig_[i].y + dy;
+        }
+      } else {
+        line.points = dragOrig_;  // reset, then move only the two endpoints
+        for (int pi : {dragPtIdx1_, dragPtIdx2_}) {
+          line.points[pi].x = dragOrig_[pi].x + dx;
+          line.points[pi].y = dragOrig_[pi].y + dy;
+        }
+      }
+    }
   }
 
   // Alt -> move/grab depending on what's under the cursor; otherwise a pointer
@@ -1196,13 +1251,9 @@ namespace stencil::gui {
   bool CanvasWidget::updateHover(double imageX, double imageY) {
     int li = -1;
     int pi = -1;
-    for (int i = 0; i < static_cast<int>(currentLine_.points.size()); ++i) {
-      const auto& p = currentLine_.points[i];
-      if (std::hypot(p.x - imageX, p.y - imageY) < 12.0) {
-        li = -1;
-        pi = i;
-        break;
-      }
+    if (auto idx = core::nearestPointInLine(currentLine_.points, imageX, imageY)) {
+      li = -1;
+      pi = *idx;
     }
     if (pi < 0) {
       if (auto pt = core::findNearestPoint(lines_, imageX, imageY)) {

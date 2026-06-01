@@ -36,3 +36,38 @@ export class StencilElement extends ElementBase {
 
 // Compose a host tag string for layout(): `<tag attrs>inner</tag>`.
 export const hostTag = (tag, attrs, inner) => `<${tag}${attrs ? ' ' + attrs : ''}>${inner}</${tag}>`;
+
+// ── Shared modal shell ──────────────────────────────────────────
+// Wire the open/close/overlay-mousedown/Escape behavior shared by every
+// app modal. Returns { open, close } so the modal can reuse the same handlers
+// for programmatic opens/closes. onOpen runs BEFORE add('modal-open') and
+// onClose runs BEFORE remove('modal-open'), matching the original modals.
+// `escapeClose` (default true) controls whether a bubble-phase Escape closes
+// the modal — settingsModal passes false to preserve its no-Escape-close
+// behavior (its own capture-phase listener handles Escape during capture).
+export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true } = {}) => {
+  const open = () => { onOpen?.(); overlay.classList.add('modal-open'); };
+  const close = () => { onClose?.(); overlay.classList.remove('modal-open'); };
+  if (openBtn) openBtn.addEventListener('click', open);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
+  if (escapeClose) {
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && overlay.classList.contains('modal-open')) close();
+    });
+  }
+  return { open, close };
+};
+
+// Attach a search input that re-runs a filter on every keystroke.
+export const attachSearchFilter = (searchInput, applyFilterFn) => {
+  searchInput.addEventListener('input', applyFilterFn);
+};
+
+// Pure per-row search predicate: empty/whitespace query matches everything;
+// otherwise case-insensitive substring match. Trims the query internally so
+// callers don't have to.
+export const rowMatches = (text, query) => {
+  const q = String(query ?? '').trim().toLowerCase();
+  return !q || String(text ?? '').toLowerCase().includes(q);
+};

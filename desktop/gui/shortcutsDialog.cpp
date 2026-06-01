@@ -1,4 +1,5 @@
 #include "shortcutsDialog.hpp"
+#include "guiHelpers.hpp"
 #include <QDialogButtonBox>
 #include <QGridLayout>
 #include <QKeySequenceEdit>
@@ -39,10 +40,8 @@ namespace stencil::gui {
     scroll->setWidgetResizable(true);
     scroll->setWidget(inner);
 
-    auto* buttons = new QDialogButtonBox(
-        QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    auto* buttons =
+        makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(scroll, 1);

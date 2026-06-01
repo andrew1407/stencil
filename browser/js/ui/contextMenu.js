@@ -1,6 +1,11 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { notify, setRadioGroup } from '../utils.js';
+import { hotkeys } from '../core/hotkeys.js';
 // ── Component: custom right-click context menu ──────────────────
+const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
+const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
+const TINT_DEBOUNCE_MS = 80;       // debounce custom-tint recolor+save while dragging the picker
+
 export class StencilContextMenu extends StencilElement {
   static inner() {
     return `
@@ -210,7 +215,7 @@ export class StencilContextMenu extends StencilElement {
             item.classList.remove('ctx-open-sub');
             activeSub = null; activeSubItem = null;
           }
-        }, 180);
+        }, SUBMENU_HIDE_DELAY_MS);
       });
 
       // Cancel hide timer when cursor moves into submenu
@@ -221,7 +226,7 @@ export class StencilContextMenu extends StencilElement {
           sub.classList.remove('ctx-sub-visible');
           item.classList.remove('ctx-open-sub');
           if (activeSub === sub) { activeSub = null; activeSubItem = null; }
-        }, 180);
+        }, SUBMENU_HIDE_DELAY_MS);
       });
     });
 
@@ -264,7 +269,7 @@ export class StencilContextMenu extends StencilElement {
       document.getElementById('ctx-paste-layout').classList.toggle('ctx-disabled', !hasImage);
 
       // Refresh hotkey hint text in case shortcuts were remapped
-      updateCtxHotkeyHints();
+      hotkeys.updateCtxHints();
 
       // Checkmarks
       document.getElementById('ctx-chk-points').textContent = app.showPoints ? '✓' : '';
@@ -284,7 +289,7 @@ export class StencilContextMenu extends StencilElement {
       // Fullscreen label
       const isFS = document.body.classList.contains('fullscreen-mode');
       document.getElementById('ctx-fs-label').textContent = isFS ? 'Exit Fullscreen' : 'Enter Fullscreen';
-      document.getElementById('ctx-fullscreen').querySelector('.ctx-icon').textContent = isFS ? '⛶' : '⛶';
+      document.getElementById('ctx-fullscreen').querySelector('.ctx-icon').textContent = '⛶';
 
       // Tooltip checkboxes
       document.getElementById('ctx-tt-enabled').checked = app.tooltipEnabled;
@@ -313,7 +318,7 @@ export class StencilContextMenu extends StencilElement {
       syncInterval = setInterval(() => {
         if (menu.classList.contains('ctx-open')) syncState();
         else { clearInterval(syncInterval); syncInterval = null; }
-      }, 120);
+      }, LIVE_SYNC_INTERVAL_MS);
     };
 
     // Right-click on canvas or its viewport wrapper
@@ -522,13 +527,13 @@ export class StencilContextMenu extends StencilElement {
       clearTimeout(ctxTintTimer);
       ctxTintTimer = setTimeout(() => {
         if (app.imageFilter === 'custom') { app.renderer.redraw(); app.storage.save(); }
-      }, 80);
+      }, TINT_DEBOUNCE_MS);
     });
 
     // Fullscreen toggle
     document.getElementById('ctx-fullscreen').addEventListener('click', () => {
       closeMenu();
-      if (typeof window.toggleFullscreen === 'function') window.toggleFullscreen();
+      if (typeof app.toggleFullscreen === 'function') app.toggleFullscreen();
     });
 
     // Fit to window

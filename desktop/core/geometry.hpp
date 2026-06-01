@@ -36,6 +36,15 @@ namespace stencil::core {
   std::optional<PointHit> findNearestPoint(const Lines& lines, double x, double y,
                                            double threshold = 12.0);
 
+  // Scan a single line's `points` and return the FIRST index within `threshold`
+  // px of (x, y) using std::hypot with a strict `<` comparison (matching the
+  // in-progress-line cursor scans in canvasWidget; default 12 mirrors
+  // findNearestPoint). Returns nullopt when nothing is within range. Unlike
+  // findNearestPoint this operates on a single point list, not a Lines stack.
+  std::optional<int> nearestPointInLine(const std::vector<Point>& points,
+                                        double x, double y,
+                                        double threshold = 12.0);
+
   // A located segment: its line + the two consecutive point indices it spans.
   struct SegmentHit {
     int lineIdx = -1;

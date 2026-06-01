@@ -1,4 +1,5 @@
 #include "infoDialog.hpp"
+#include "guiHelpers.hpp"
 #include <QDialogButtonBox>
 #include <QFile>
 #include <QJsonArray>
@@ -17,9 +18,7 @@ namespace stencil::gui {
     browser->setOpenExternalLinks(true);
     browser->setHtml(buildHtml());
 
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    auto* buttons = makeButtonBox(this, QDialogButtonBox::Close);
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(browser, 1);

@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { setVal, setRadioGroup, notify } from '../utils.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
@@ -50,14 +50,14 @@ export class StencilVisualsModal extends StencilElement {
     emptyMsg.style.display = 'none';
     bodyEl.appendChild(emptyMsg);
     const applyFilter = () => {
-      const q = (search.value || '').trim().toLowerCase();
+      const q = search.value || '';
       let any = false, section = null, sectionMatch = false;
       const flush = () => { if (section) section.style.display = sectionMatch ? '' : 'none'; };
       for (const el of bodyEl.children) {
         if (el.classList.contains('vs-section')) { flush(); section = el; sectionMatch = false; }
         else if (el.classList.contains('vs-row')) {
-          const label = (el.querySelector('label')?.textContent || '').toLowerCase();
-          const match = !q || label.includes(q);
+          const label = el.querySelector('label')?.textContent || '';
+          const match = rowMatches(label, q);
           el.style.display = match ? '' : 'none';
           if (match) { sectionMatch = true; any = true; }
         }
@@ -65,7 +65,7 @@ export class StencilVisualsModal extends StencilElement {
       flush();
       emptyMsg.style.display = any ? 'none' : '';
     };
-    search.addEventListener('input', applyFilter);
+    attachSearchFilter(search, applyFilter);
 
     const VIS_DEFAULTS = {
       color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
@@ -135,13 +135,8 @@ export class StencilVisualsModal extends StencilElement {
       notify('Visual defaults reset', 'ok');
     });
 
-    const open = ()  => { populate(); search.value = ''; applyFilter(); overlay.classList.add('modal-open'); };
-    const close = () => { overlay.classList.remove('modal-open'); };
-    openBtn.addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('modal-open')) close();
+    wireModalShell(overlay, openBtn, closeBtn, {
+      onOpen: () => { populate(); search.value = ''; applyFilter(); }
     });
   }
 }
