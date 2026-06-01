@@ -15,6 +15,8 @@
 // stencil::core; only the paint calls are Qt-specific.
 namespace stencil::gui {
 
+  struct Palette;  // theme.hpp; used by the drawLineScaled paint helpers below
+
   class CanvasWidget : public QWidget {
     Q_OBJECT
    public:
@@ -152,6 +154,29 @@ namespace stencil::gui {
     // selection rings, which are drawn live but never baked into exports.
     void drawLineScaled(class QPainter& p, const core::Line& line, int lineIdx,
                         double scale, bool highlight) const;
+    // drawLineScaled decomposed into ordered const paint passes; poly/stroke/pal
+    // are built once in the head and threaded in by const& (no per-pass recompute).
+    void drawFill(QPainter& p, const core::Line& line,
+                  const class QPolygonF& poly) const;
+    void drawGlow(QPainter& p, const core::Line& line, const QPolygonF& poly,
+                  int lineIdx, bool highlight, const Palette& pal) const;
+    void drawStroke(QPainter& p, const core::Line& line, const QPolygonF& poly,
+                    const class QColor& stroke) const;
+    void drawMarkers(QPainter& p, const core::Line& line, const QPolygonF& poly,
+                     int lineIdx, bool highlight, const QColor& stroke,
+                     const Palette& pal) const;
+    // mousePressEvent dispatch helpers (behavior-preserving split). Precedence
+    // is preserved by the call order in mousePressEvent. handleCtrlClick returns
+    // true when it consumes the click; false falls through to a normal append.
+    void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods,
+                      const QPoint& globalPos);
+    void beginZoomRect(const QPoint& widgetPos);
+    bool handleCtrlClick(const core::Point& ip);
+    void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods,
+                            const QPoint& widgetPos);
+    // mouseMoveEvent Alt-drag body (caller computes ip/shift + repaints).
+    void updateDrag(const core::Point& ip, bool shift);
+
     core::Point toImageSpace(int widgetX, int widgetY) const;
     void commitHistory();
     void applyDefaultsToCurrent();

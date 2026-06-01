@@ -100,7 +100,14 @@ emmake cmake --build build-wasm -j
 ```
 
 `emcmake` defines `EMSCRIPTEN`, so only the `stencil_wasm` target is produced
-(no Qt, no Doctest binary). The native build is untouched:
+(no Qt, no Doctest binary). With `emcc` on `PATH`, the browser app wraps these
+steps (build + copy into `js/wasm/`) in one convenience script:
+
+```sh
+cd browser && npm run build-wasm
+```
+
+The native build is untouched:
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j

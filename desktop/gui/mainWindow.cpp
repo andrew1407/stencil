@@ -5,6 +5,7 @@
 #include "core/pageMetrics.hpp"
 #include "core/tooltipRows.hpp"
 #include "core/zoomPan.hpp"
+#include "guiHelpers.hpp"
 #include "infoDialog.hpp"
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
@@ -69,23 +70,7 @@ namespace stencil::gui {
     setWindowTitle("Stencil (Qt)");
     resize(1100, 760);
 
-    // ── hotkeys map (ported from browser/js/config/hotkeysConfig.json) ──
-    // Defaults + labels from the embedded config, then user overrides layered on
-    // top (override wins), mirroring the browser STORAGE_KEYS.hotkeys merge (S13).
-    QFile hk(":/config/hotkeysConfig.json");
-    if (hk.open(QIODevice::ReadOnly)) {
-      for (const auto& v : QJsonDocument::fromJson(hk.readAll()).array()) {
-        const QJsonObject o = v.toObject();
-        const QString id = o.value("id").toString();
-        const QString def = o.value("default").toString();
-        hotkeyDefaults_.insert(id, def);
-        hotkeyLabels_.insert(id, o.value("label").toString());
-        hotkeys_.insert(id, def);
-      }
-    }
-    const auto overrides = fileStore::loadHotkeys();
-    for (auto it = overrides.begin(); it != overrides.end(); ++it)
-      hotkeys_.insert(it.key(), it.value());
+    loadHotkeys();  // must precede buildActions() (it calls hotkey(...))
 
     // ── central canvas in a scroll area ──
     canvas_ = new CanvasWidget(this);
@@ -124,7 +109,55 @@ namespace stencil::gui {
     buildMenus();
     buildToolbar();
 
-    // ── wiring ──
+    // ── wiring ── (after buildToolbar so the referenced widgets/actions exist)
+    wireSignals();
+
+    // ── load persisted state ──
+    projectList_ = fileStore::loadProjects();
+    settings_ = fileStore::loadSettings();
+    applySettings(settings_, false);
+    restoreSession();
+    refreshActions();
+    onSelectionChanged();
+    updateStatusIdle();
+
+    // Live OS-scheme follow: re-tint when the system scheme flips, but only while
+    // we're in "system" mode (an explicit light/dark choice wins). The
+    // colorSchemeChanged signal / Qt::ColorScheme arrived in Qt 6.5; on older Qt
+    // the system theme is still applied at startup, just not followed live.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this,
+            [this](Qt::ColorScheme) {
+              if (settings_.themeMode == "system") applyTheme();
+            });
+#endif
+  }
+
+  // ── hotkeys map (ported from browser/js/config/hotkeysConfig.json) ──
+  // Defaults + labels from the embedded config, then user overrides layered on
+  // top (override wins), mirroring the browser STORAGE_KEYS.hotkeys merge (S13).
+  void MainWindow::loadHotkeys() {
+    QFile hk(":/config/hotkeysConfig.json");
+    if (hk.open(QIODevice::ReadOnly)) {
+      for (const auto& v : QJsonDocument::fromJson(hk.readAll()).array()) {
+        const QJsonObject o = v.toObject();
+        const QString id = o.value("id").toString();
+        const QString def = o.value("default").toString();
+        hotkeyDefaults_.insert(id, def);
+        hotkeyLabels_.insert(id, o.value("label").toString());
+        hotkeys_.insert(id, def);
+      }
+    }
+    const auto overrides = fileStore::loadHotkeys();
+    for (auto it = overrides.begin(); it != overrides.end(); ++it)
+      hotkeys_.insert(it.key(), it.value());
+  }
+
+  // Signal wiring extracted from the ctor. The connect() ORDER is observable
+  // (e.g. the allowFormulas_ handler drives actAllowFormulas_; customW_/customH_
+  // handlers call onSelectionChanged) and is preserved verbatim here. Must run
+  // after the widgets/actions are built and before the persisted-state load.
+  void MainWindow::wireSignals() {
     connect(canvas_, &CanvasWidget::hovered, this, &MainWindow::onHovered);
     connect(canvas_, &CanvasWidget::changed, this, &MainWindow::onCanvasChanged);
     connect(canvas_, &CanvasWidget::selectionChanged, this,
@@ -244,26 +277,6 @@ namespace stencil::gui {
             [this] { canvas_->deleteSelectedLine(); });
     connect(selPanel_, &SelectionPanel::deselectRequested, this,
             [this] { canvas_->deselect(); });
-
-    // ── load persisted state ──
-    projectList_ = fileStore::loadProjects();
-    settings_ = fileStore::loadSettings();
-    applySettings(settings_, false);
-    restoreSession();
-    refreshActions();
-    onSelectionChanged();
-    updateStatusIdle();
-
-    // Live OS-scheme follow: re-tint when the system scheme flips, but only while
-    // we're in "system" mode (an explicit light/dark choice wins). The
-    // colorSchemeChanged signal / Qt::ColorScheme arrived in Qt 6.5; on older Qt
-    // the system theme is still applied at startup, just not followed live.
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this,
-            [this](Qt::ColorScheme) {
-              if (settings_.themeMode == "system") applyTheme();
-            });
-#endif
   }
 
   QString MainWindow::hotkey(const QString& id, const QString& fallback) const {
@@ -624,7 +637,17 @@ namespace stencil::gui {
     help->addAction(actShortcuts_);
   }
 
+  // The toolbar is three rows. addToolBar/addToolBarBreak sequencing fixes the
+  // visual row order, so the sub-builders MUST run in this order. Each row's
+  // widget-creation + wiring stays grouped in one method (the Style row's
+  // connects reference widgets it creates).
   void MainWindow::buildToolbar() {
+    buildMainToolbar();
+    buildPageFormulaToolbar();
+    buildStyleToolbar();
+  }
+
+  void MainWindow::buildMainToolbar() {
     // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
     // hid the formula inputs / custom-page inputs at normal window widths). Row 1:
     // file + drawing + history + zoom. Row 2: page size (+custom) + formulas.
@@ -643,7 +666,9 @@ namespace stencil::gui {
     tb->addSeparator();
     tb->addWidget(new QLabel("  Zoom: ", this));
     tb->addWidget(zoom_);
+  }
 
+  void MainWindow::buildPageFormulaToolbar() {
     // ── second row ──
     addToolBarBreak();
     auto* tb2 = addToolBar("Page & Formula");
@@ -721,7 +746,9 @@ namespace stencil::gui {
     // Theme / Incognito / Settings / Projects / Info live in the menu bar only —
     // keeping them off the toolbar prevents overflow from hiding the inline
     // formula inputs (and mirrors the browser's leaner top bar).
+  }
 
+  void MainWindow::buildStyleToolbar() {
     // ── third row: Style (filter + line defaults + draw-mode) ──
     // Mirrors the browser toolbar's Image (filter) + Line Style + Draw sections
     // (toolbar.js ~24-63). The toolbar drives canvas DEFAULTS + the image filter;
@@ -919,10 +946,7 @@ namespace stencil::gui {
   // Paint a flat color chip as the toolbutton's icon so swatches read as their
   // current color (S8; the browser uses <input type=color>).
   void MainWindow::updateColorSwatch(QToolButton* btn, const QColor& color) {
-    if (!btn) return;
-    QPixmap chip(20, 20);
-    chip.fill(color);
-    btn->setIcon(QIcon(chip));
+    setColorSwatch(btn, color);  // QToolButton derives from QAbstractButton
   }
 
   void MainWindow::openImage() {
@@ -1058,48 +1082,7 @@ namespace stencil::gui {
   // (drawing · view/zoom · toggles · transform), reusing the shared QActions so
   // labels, checkmarks and enabled-state stay in sync with the toolbar/menubar.
   void MainWindow::showContextMenu(const QPoint& globalPos) {
-    // ── Live-sync the persistent submenu state before exec (mirrors the browser
-    // syncState() in contextMenu.js:239-297, which runs on open + on a timer).
-    const bool hasImg = canvas_->hasImage();
-    const bool hasLines = !canvas_->allLines().empty();
-
-    // Image / Layout enable-state (contextMenu.js:254-264).
-    actCopyImage_->setEnabled(hasImg);
-    actSaveImage_->setEnabled(hasImg);
-    actPasteImage_->setEnabled(true);  // dispatch notifies "Load an image first"
-    actCopyLayout_->setEnabled(hasLines);
-    actDownloadJson_->setEnabled(hasLines);
-    actPasteLayout_->setEnabled(hasImg);
-    actUploadJson_->setEnabled(hasImg);
-
-    // Draw-mode bridge label (contextMenu.js:249-252).
-    const bool isRect = canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
-    actDrawModeToggle_->setText(isRect ? "Switch to Line Drawing"
-                                       : "Switch to Rectangle Drawing");
-
-    // Style submenu values (contextMenu.js:274-276). Block so seeding the
-    // spinboxes/radios doesn't re-fire change handlers.
-    {
-      QSignalBlocker bm(markerSpin_), bt(thickSpin_);
-      markerSpin_->setValue(settings_.defaultMarkerSize);
-      thickSpin_->setValue(settings_.defaultThickness);
-    }
-    for (QAction* a : lineStyleGroup_->actions())
-      a->setChecked(a->data().toString() == settings_.defaultStyle);
-
-    // Image-filter submenu (contextMenu.js:278-282): check the active filter and
-    // show the tint action only for custom.
-    for (QAction* a : filterGroup_->actions())
-      a->setChecked(a->data().toString() == settings_.imageFilter);
-    tintColorAction_->setVisible(settings_.imageFilter == "custom");
-
-    // Tooltip rows (contextMenu.js:289-293).
-    {
-      QSignalBlocker bp(actTtPage_), bs(actTtScreen_), bc(actTtCoords_);
-      actTtPage_->setChecked(tooltipShowPage_);
-      actTtScreen_->setChecked(tooltipShowScreen_);
-      actTtCoords_->setChecked(tooltipShowCoords_);
-    }
+    syncContextActions();
 
     // ── Build the menu tree. Order mirrors contextMenu.js inner() (~5-108):
     // Image/Layout · Fullscreen · Fit · — · Draw · DrawMode · DrawRect · — ·
@@ -1168,6 +1151,51 @@ namespace stencil::gui {
     menu.addAction(actDeselect_);
 
     menu.exec(globalPos);
+  }
+
+  // Live-sync the persistent submenu state before exec (mirrors the browser
+  // syncState() in contextMenu.js:239-297, which runs on open + on a timer).
+  void MainWindow::syncContextActions() {
+    const bool hasImg = canvas_->hasImage();
+    const bool hasLines = !canvas_->allLines().empty();
+
+    // Image / Layout enable-state (contextMenu.js:254-264).
+    actCopyImage_->setEnabled(hasImg);
+    actSaveImage_->setEnabled(hasImg);
+    actPasteImage_->setEnabled(true);  // dispatch notifies "Load an image first"
+    actCopyLayout_->setEnabled(hasLines);
+    actDownloadJson_->setEnabled(hasLines);
+    actPasteLayout_->setEnabled(hasImg);
+    actUploadJson_->setEnabled(hasImg);
+
+    // Draw-mode bridge label (contextMenu.js:249-252).
+    const bool isRect = canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
+    actDrawModeToggle_->setText(isRect ? "Switch to Line Drawing"
+                                       : "Switch to Rectangle Drawing");
+
+    // Style submenu values (contextMenu.js:274-276). Block so seeding the
+    // spinboxes/radios doesn't re-fire change handlers.
+    {
+      QSignalBlocker bm(markerSpin_), bt(thickSpin_);
+      markerSpin_->setValue(settings_.defaultMarkerSize);
+      thickSpin_->setValue(settings_.defaultThickness);
+    }
+    for (QAction* a : lineStyleGroup_->actions())
+      a->setChecked(a->data().toString() == settings_.defaultStyle);
+
+    // Image-filter submenu (contextMenu.js:278-282): check the active filter and
+    // show the tint action only for custom.
+    for (QAction* a : filterGroup_->actions())
+      a->setChecked(a->data().toString() == settings_.imageFilter);
+    tintColorAction_->setVisible(settings_.imageFilter == "custom");
+
+    // Tooltip rows (contextMenu.js:289-293).
+    {
+      QSignalBlocker bp(actTtPage_), bs(actTtScreen_), bc(actTtCoords_);
+      actTtPage_->setChecked(tooltipShowPage_);
+      actTtScreen_->setChecked(tooltipShowScreen_);
+      actTtCoords_->setChecked(tooltipShowCoords_);
+    }
   }
 
   // Build + show the hover tooltip (S12). Port of tooltip.js applyHover:
@@ -1759,19 +1787,7 @@ namespace stencil::gui {
         notify_->info("Incognito mode — saving is disabled");
         return;
       }
-      Project pr;
-      pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
-      pr.meta.name = dlg.newName().toStdString();
-      pr.meta.createdAt = pr.meta.updatedAt = nowMs();
-      pr.imagePath = canvas_->imagePath();
-      pr.lines = canvas_->allLines();
-      pr.meta.hasImage = !pr.imagePath.isEmpty();
-      projectList_.push_back(pr);
-      activeProjectId_ = QString::fromStdString(pr.meta.id);
-      fileStore::saveProjects(projectList_);
-      refreshActions();
-      notify_->success(
-          QString("Created \"%1\"").arg(QString::fromStdString(pr.meta.name)));
+      createProject(dlg.newName());
     }
   }
 
@@ -1785,9 +1801,16 @@ namespace stencil::gui {
                                                "Project name:", QLineEdit::Normal,
                                                "Untitled", &ok);
     if (!ok || name.trimmed().isEmpty()) return;
+    createProject(name.trimmed());
+  }
+
+  // Build a Project from the current canvas, persist it, mark it active, refresh,
+  // and notify. Shared by openProjects' New action + newProjectFromCanvas (the
+  // incognito guard lives at each call site). pr.meta.name == the passed name.
+  void MainWindow::createProject(const QString& name) {
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
-    pr.meta.name = name.trimmed().toStdString();
+    pr.meta.name = name.toStdString();
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.imagePath = canvas_->imagePath();
     pr.lines = canvas_->allLines();
@@ -1796,7 +1819,7 @@ namespace stencil::gui {
     activeProjectId_ = QString::fromStdString(pr.meta.id);
     fileStore::saveProjects(projectList_);
     refreshActions();
-    notify_->success(QString("Created \"%1\"").arg(name.trimmed()));
+    notify_->success(QString("Created \"%1\"").arg(name));
   }
 
   void MainWindow::saveToActiveProject() {

@@ -1,8 +1,9 @@
 import { StencilElement, hostTag, define } from './base.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and the fullscreen behavior (cloning the
-// live controls + coord panel, slide-in panels, enter/exit). Defines
-// window.toggleFullscreen, which other modules (context menu, hotkeys) call.
+// live controls + coord panel, slide-in panels, enter/exit). Exposes the toggle
+// on the app instance as app.toggleFullscreen, which other modules (context
+// menu, hotkeys) call through their own app reference — no window global.
 export class StencilFullscreenLayer extends StencilElement {
   static inner() {
     return `
@@ -177,7 +178,7 @@ export class StencilFullscreenLayer extends StencilElement {
     fsPointsPanel.addEventListener('mouseleave', hidePointsPanel);
 
     // ── Enter / Exit fullscreen ──
-    window.toggleFullscreen = () => {
+    const toggleFullscreen = () => {
       // ── Save zoom & pan BEFORE switching modes ──
       // We record the image-space point at the viewport centre so we can
       // re-centre on the same spot after the viewport geometry changes.
@@ -193,7 +194,7 @@ export class StencilFullscreenLayer extends StencilElement {
 
       isFullscreen = !isFullscreen;
       document.body.classList.toggle('fullscreen-mode', isFullscreen);
-      fsBtn.textContent = isFullscreen ? '⛶' : '⛶';
+      fsBtn.textContent = '⛶';
       fsBtn.title = isFullscreen ? 'Exit fullscreen (Alt+F)' : 'Fullscreen mode (Alt+F)';
       fsBtn.style.background = isFullscreen ? '#007bff' : '';
       fsBtn.style.color = isFullscreen ? '#fff' : '';
@@ -235,15 +236,18 @@ export class StencilFullscreenLayer extends StencilElement {
         restoreView();
       }
     };
+    // Expose on the shared app instance so the hotkey dispatcher and context
+    // menu can reach it without a window global.
+    app.toggleFullscreen = toggleFullscreen;
 
-    fsBtn.addEventListener('click', () => window.toggleFullscreen());
+    fsBtn.addEventListener('click', () => toggleFullscreen());
     fsExitBtn.addEventListener('click', () => {
-      if (isFullscreen) window.toggleFullscreen();
+      if (isFullscreen) toggleFullscreen();
     });
 
     // Escape key exits fullscreen
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && isFullscreen) window.toggleFullscreen();
+      if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
     });
 
     // Resize: re-fit in fullscreen (CSS position:fixed handles viewport sizing)

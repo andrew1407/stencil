@@ -1,4 +1,5 @@
 #include "selectionPanel.hpp"
+#include "guiHelpers.hpp"
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
@@ -172,10 +173,7 @@ namespace stencil::gui {
   }
 
   void SelectionPanel::setSwatchColor(QPushButton* btn, const QColor& color) {
-    if (!btn) return;
-    QPixmap chip(20, 20);
-    chip.fill(color);
-    btn->setIcon(QIcon(chip));
+    setColorSwatch(btn, color);  // QPushButton derives from QAbstractButton
   }
 
   void SelectionPanel::showLine(const core::Line* line,

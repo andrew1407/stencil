@@ -1,5 +1,6 @@
-import { StencilElement, hostTag, define } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { notify, comboFromEvent } from '../utils.js';
+import { hotkeys } from '../core/hotkeys.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────
 export class StencilSettingsModal extends StencilElement {
@@ -43,11 +44,10 @@ export class StencilSettingsModal extends StencilElement {
 
     // Hide rows that don't match the search query (matches action/shortcut/default).
     const applyFilter = () => {
-      const q = (search.value || '').trim().toLowerCase();
       let visible = 0;
       tbody.querySelectorAll('tr').forEach(tr => {
         if (tr.classList.contains('hotkey-no-match')) return;
-        const match = !q || tr.textContent.toLowerCase().includes(q);
+        const match = rowMatches(tr.textContent, search.value || '');
         tr.style.display = match ? '' : 'none';
         if (match) visible++;
       });
@@ -69,8 +69,8 @@ export class StencilSettingsModal extends StencilElement {
       tbody.innerHTML = '';
       HOTKEY_DEFS.forEach(def => {
         const tr = document.createElement('tr');
-        const cur = HOTKEYS[def.id] || '(unset)';
-        const isDefault = HOTKEYS[def.id] === def.default;
+        const cur = hotkeys.get(def.id) || '(unset)';
+        const isDefault = hotkeys.get(def.id) === def.default;
         tr.innerHTML = `
                 <td>${def.label}</td>
                 <td><span class="hotkey-cell" data-id="${def.id}" title="Double-click to set a new combination">${cur}</span></td>
@@ -86,9 +86,9 @@ export class StencilSettingsModal extends StencilElement {
       });
       tbody.querySelectorAll('.hotkey-reset-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          HOTKEYS[btn.dataset.id] = HOTKEY_DEFAULTS[btn.dataset.id];
-          saveHotkeys();
-          updateCtxHotkeyHints();
+          hotkeys.reset(btn.dataset.id);
+          hotkeys.save();
+          hotkeys.updateCtxHints();
           rebuild();
         });
       });
@@ -106,9 +106,9 @@ export class StencilSettingsModal extends StencilElement {
       const c = capturing;
       capturing = null;
       if (commit && combo) {
-        HOTKEYS[c.id] = combo;
-        saveHotkeys();
-        updateCtxHotkeyHints();
+        hotkeys.set(c.id, combo);
+        hotkeys.save();
+        hotkeys.updateCtxHints();
       }
       rebuild();
     };
@@ -125,7 +125,7 @@ export class StencilSettingsModal extends StencilElement {
       if (!combo) return; // pure modifier — keep waiting
       e.preventDefault(); e.stopPropagation();
       // Conflict check
-      for (const [otherId, otherCombo] of Object.entries(HOTKEYS)) {
+      for (const [otherId, otherCombo] of hotkeys.entries()) {
         if (otherId === capturing.id) continue;
         if (otherCombo === combo) {
           const other = HOTKEY_DEFS.find(d => d.id === otherId);
@@ -133,40 +133,30 @@ export class StencilSettingsModal extends StencilElement {
             stopCapture(false);
             return;
           }
-          HOTKEYS[otherId] = '';
+          hotkeys.set(otherId, '');
           break;
         }
       }
       stopCapture(true, combo);
     }, true);
 
-    search.addEventListener('input', applyFilter);
-    openBtn.addEventListener('click', () => {
-      search.value = '';
-      rebuild();
-      overlay.classList.add('modal-open');
-    });
-    closeBtn.addEventListener('click', () => {
-      if (capturing) stopCapture(false);
-      overlay.classList.remove('modal-open');
-    });
-    overlay.addEventListener('mousedown', e => {
-      if (e.target === overlay) {
-        if (capturing) stopCapture(false);
-        overlay.classList.remove('modal-open');
-      }
+    attachSearchFilter(search, applyFilter);
+    wireModalShell(overlay, openBtn, closeBtn, {
+      onOpen: () => { search.value = ''; rebuild(); },
+      onClose: () => { if (capturing) stopCapture(false); },
+      escapeClose: false
     });
     resetAll.addEventListener('click', () => {
       if (!confirm('Reset ALL keyboard shortcuts to their defaults?')) return;
-      Object.assign(HOTKEYS, HOTKEY_DEFAULTS);
-      saveHotkeys();
-      updateCtxHotkeyHints();
+      hotkeys.resetAll();
+      hotkeys.save();
+      hotkeys.updateCtxHints();
       rebuild();
       notify('Hotkeys reset to defaults', 'ok');
     });
 
     // Reflect current bindings in context-menu hints on startup
-    updateCtxHotkeyHints();
+    hotkeys.updateCtxHints();
   }
 }
 define('stencil-settings-modal', StencilSettingsModal);
