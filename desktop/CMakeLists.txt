@@ -32,6 +32,20 @@ add_library(stencil_core STATIC ${STENCIL_CORE_SOURCES})
 target_include_directories(stencil_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # ── tests: Doctest over the core ──────────────────────────────────────────────
+# Doctest is a single header, fetched on demand rather than committed (see README
+# → Test). If it isn't present, pull the pinned release from the official upstream
+# at configure time and verify its hash, so a fresh clone builds with no manual step.
+set(DOCTEST_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/third_party/doctest.h)
+if(NOT EXISTS ${DOCTEST_HEADER})
+  message(STATUS "doctest.h not found — fetching pinned v2.4.11 from upstream")
+  file(DOWNLOAD
+    https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
+    ${DOCTEST_HEADER}
+    EXPECTED_HASH SHA256=44faa038e9c3f9728efbda143748d01124ea0a27f4bf78f35a15d8fab2e039fb
+    TLS_VERIFY ON
+    SHOW_PROGRESS)
+endif()
+
 enable_testing()
 add_executable(stencil_tests
   tests/testMain.cpp

@@ -11,7 +11,7 @@ Per the project's dependency policy, only **two** third-party libraries are used
 | Purpose | Library | How it's provided |
 |---|---|---|
 | Desktop GUI | **Qt 6** (Widgets) | system package (e.g. `qt6-qtbase-devel`) |
-| C++ unit tests | **Doctest** | vendored single header at `third_party/doctest.h` |
+| C++ unit tests | **Doctest** | single header fetched into `third_party/doctest.h` (not committed — see [Test](#test)) |
 
 Everything else is the C++17 standard library. The **`core/` library is GUI-free
 and STL-only** — it never includes Qt — so the same sources can later target
@@ -47,7 +47,7 @@ gui/                  # Qt widgets (mirrors the browser UI)
   mainWindow.{hpp,cpp}# window + toolbar + status<- browser/js/ui/layout.js, toolbar.js
   canvasWidget.{hpp,cpp} # QPainter rendering    <- browser/js/core/renderer.js, zoomPan.js
 tests/                # Doctest suites (one per core module)
-third_party/          # vendored doctest.h
+third_party/          # doctest.h — fetched on demand, git-ignored (see Test)
 CMakeLists.txt
 ```
 
@@ -81,9 +81,28 @@ cmake --build build -j
 
 ## Test
 
-Unit tests use **Doctest** only — a single header vendored at
-`third_party/doctest.h`, so there is nothing to install and `stencil_tests` is
-always built (even without Qt). Each `core/` module has a suite under `tests/`,
+Unit tests use **Doctest** only — a single header at `third_party/doctest.h`
+(pinned to **v2.4.11**, Boost Software License). It is **not committed**: the CMake
+configure step downloads it from the official upstream and verifies its SHA-256, so
+on a fresh clone there is nothing to do — just configure and build.
+
+If you'd rather fetch it yourself (e.g. offline-prep, no network at configure time),
+run this from this directory before `cmake`:
+
+```bash
+# create the dir if missing, then download the pinned single header from the
+# official doctest GitHub release tag (skips the download if already present)
+mkdir -p third_party
+[ -f third_party/doctest.h ] || curl -fsSL -o third_party/doctest.h \
+  https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
+
+# wget equivalent:
+# mkdir -p third_party && [ -f third_party/doctest.h ] || wget -qO third_party/doctest.h \
+#   https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
+```
+
+Either way `stencil_tests` is always built (even without Qt). Each `core/` module
+has a suite under `tests/`,
 ported case-for-case from the browser app's `browser/tests/` plus extra coverage
 for the new recursive-descent parser, plus the shared image-filter math and the
 WebAssembly ABI surface (compiled natively — see [WASM.md](WASM.md)). Current
