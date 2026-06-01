@@ -23,7 +23,6 @@ core (`desktop/core/`) is written dependency-free (STL only) so it can also be c
 
 ```
 README.md             # this overview
-PIPELINE.md           # three-agent dev pipeline (planner / writer / reviewer)
 browser/              # the browser app
   index.html
   css/  js/  tests/
@@ -40,10 +39,9 @@ desktop/                  # the desktop app
 
 ## Development
 
-Stencil is developed with a **three-agent pipeline** (planner → writer → reviewer)
-documented in [PIPELINE.md](PIPELINE.md). It also fixes the **dependency policy**: the
-only permitted third-party libraries are **Qt 6** (desktop GUI) and **Doctest** (C++
-tests); the browser app stays dependency-free with no build step.
+**Dependency policy:** the only permitted third-party libraries are **Qt 6** (desktop
+GUI) and **Doctest** (C++ tests); the browser app stays dependency-free with no build
+step.
 
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
