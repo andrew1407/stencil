@@ -43,3 +43,7 @@ ui_*.h
 # Desktop app runtime state (settings / session / projects) — repo-local, never committed
 .stencil/
 desktop/.stencil/
+
+# Desktop test dependency — doctest single header is fetched on demand, not committed
+# (see desktop/README.md → Test). Keeps the ~300 KB vendored header out of the repo.
+desktop/third_party/doctest.h
