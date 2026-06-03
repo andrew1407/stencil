@@ -107,6 +107,12 @@ namespace stencil::core {
     return meta.updatedAt + EXPIRY_MS;
   }
 
+  bool ProjectsStore::isExpiringSoon(const ProjectMeta& meta, long long now) const {
+    const auto at = expiresAt(meta);
+    if (!at.has_value()) return false;
+    return *at > now && (*at - now) <= WARN_MS;
+  }
+
   std::vector<std::string> ProjectsStore::sweepExpired(long long now) {
     std::vector<std::string> removed;
     for (const auto& m : registry_) {

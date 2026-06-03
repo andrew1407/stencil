@@ -2055,6 +2055,14 @@ export class DrawingApp {
     this.tabs.projectsChanged({ action: PROJECT_ACTION.CLEARED });
   }
 
+  // Prolong a project: reset its 7-day expiry window to start from now. Notifies
+  // peers so their open project lists re-render with the new expiry.
+  renewProject(id) {
+    const meta = this.storage.store.renew(id);
+    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    return meta;
+  }
+
   // Remove one project; if it's the active one, drop to a blank editor.
   removeProject(id) {
     if (id === this.activeProjectId) {

@@ -45,11 +45,15 @@ export class StencilProjectsModal extends StencilElement {
     };
 
     const expiryLabel = meta => {
-      if (store.isExpired(meta)) return { text: 'EXPIRED', expired: true };
+      if (store.isExpired(meta)) return { text: 'EXPIRED', expired: true, soon: false };
       const at = store.expiresAt(meta);
-      if (at == null) return { text: '', expired: false };
+      if (at == null) return { text: '', expired: false, soon: false };
       const days = Math.max(0, Math.ceil((at - Date.now()) / (24 * 60 * 60 * 1000)));
-      return { text: days <= 1 ? 'expires in 1 day' : `expires in ${days} days`, expired: false };
+      return {
+        text: days <= 1 ? 'expires in 1 day' : `expires in ${days} days`,
+        expired: false,
+        soon: store.isExpiringSoon(meta),
+      };
     };
 
     // Build a single row element for a project meta (or the temp synthetic row).
@@ -90,6 +94,7 @@ export class StencilProjectsModal extends StencilElement {
         if (exp.text) bits.push(exp.text);
         sub.textContent = bits.join(' · ');
         if (exp.expired) sub.classList.add('project-expired');
+        else if (exp.soon) sub.classList.add('project-expiring');
         // The worker echoes every tab's active id (including ours), so exclude
         // this tab's own active project — only mark it when a DIFFERENT tab has it.
         if (peers.includes(meta.id) && meta.id !== app.storage.activeId) {
@@ -114,6 +119,15 @@ export class StencilProjectsModal extends StencilElement {
           app.switchToProject(meta.id);
           close();
         });
+        const renewBtn = document.createElement('button');
+        renewBtn.className = 'project-renew';
+        renewBtn.title = 'Renew — reset the 7-day expiry to start from now';
+        renewBtn.textContent = '🔄';
+        renewBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          app.renewProject(meta.id);
+          render();
+        });
         const removeBtn = document.createElement('button');
         removeBtn.className = 'project-remove danger';
         removeBtn.title = 'Remove project';
@@ -125,6 +139,7 @@ export class StencilProjectsModal extends StencilElement {
           render();
         });
         actions.appendChild(switchBtn);
+        actions.appendChild(renewBtn);
         actions.appendChild(removeBtn);
         row.appendChild(actions);
 
