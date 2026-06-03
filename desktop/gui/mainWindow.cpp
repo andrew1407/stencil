@@ -1756,7 +1756,7 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
 
-    ProjectsDialog dlg(projectList_, this);
+    ProjectsDialog dlg(projectList_, nowMs(), this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
@@ -1782,6 +1782,18 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
       refreshActions();
       notify_->info("Project deleted");
+    } else if (dlg.action() == Action::Renew) {
+      const std::string id = dlg.selectedId().toStdString();
+      auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                             [&](const Project& p) { return p.meta.id == id; });
+      if (it == projectList_.end()) return;
+      // Restart the 7-day expiry window from now without touching content.
+      it->meta.updatedAt = nowMs();
+      // Not gated by incognito: operates on other saved projects, not the
+      // incognito editor's content (see S6 scope note above).
+      fileStore::saveProjects(projectList_);
+      notify_->success(QString("Renewed \"%1\" — expires in 7 days")
+                           .arg(QString::fromStdString(it->meta.name)));
     } else if (dlg.action() == Action::New) {
       if (incognito_) {  // S6: no project promotion while incognito
         notify_->info("Incognito mode — saving is disabled");

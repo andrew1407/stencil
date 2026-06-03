@@ -15,6 +15,7 @@ export const REGISTRY_KEY = 'stencil_projects_v1';
 export const PROJECT_PREFIX = 'stencil_project_';
 export const MIGRATED_FLAG = 'stencil_schema_migrated';
 export const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // one week
+export const WARN_MS = 24 * 60 * 60 * 1000; // warn once a project is within a day of expiry
 
 // Legacy single-project keys (pre-multi-project). Kept for idempotent migration.
 const LEGACY_IMAGE_KEY = 'drawingApp_image';
@@ -177,6 +178,21 @@ export class ProjectsStore {
   expiresAt(meta) {
     if (!meta || meta.updatedAt == null) return null;
     return meta.updatedAt + EXPIRY_MS;
+  }
+
+  // True when a project is not yet expired but falls due within WARN_MS — the
+  // cue for a warning colour in the UI. Already-expired projects return false
+  // (they get the stronger "expired" treatment instead).
+  isExpiringSoon(meta, now = Date.now()) {
+    const at = this.expiresAt(meta);
+    if (at == null) return false;
+    return at > now && (at - now) <= WARN_MS;
+  }
+
+  // Prolong a project's life: restamp updatedAt = now so its 7-day expiry window
+  // restarts from this moment. Alias of touch(), named for intent at call sites.
+  renew(id, now = Date.now()) {
+    return this.touch(id, now);
   }
 
   // Remove every expired project; return the removed ids.

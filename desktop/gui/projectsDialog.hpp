@@ -14,9 +14,12 @@ namespace stencil::gui {
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
-    enum class Action { None, Open, Delete, New };
+    enum class Action { None, Open, Delete, New, Renew };
 
-    explicit ProjectsDialog(const std::vector<Project>& projects,
+    // `now` (epoch ms) is the reference point for the per-row expiry labels and
+    // their warning/expired colouring; the caller passes its clock so the dialog
+    // stays free of time sources.
+    explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             QWidget* parent = nullptr);
 
     Action action() const { return action_; }
@@ -27,9 +30,11 @@ namespace stencil::gui {
     void refresh();
     void openSelected();
     void deleteSelected();
+    void renewSelected();
     void createNew();
 
     std::vector<Project> projects_;
+    long long now_ = 0;
     QListWidget* list_ = nullptr;
     Action action_ = Action::None;
     QString selectedId_;
