@@ -26,6 +26,8 @@ namespace stencil::core {
    public:
     // One week, matching EXPIRY_MS in the browser store.
     static constexpr long long EXPIRY_MS = 7LL * 24 * 60 * 60 * 1000;
+    // Warn once a project is within a day of expiry (browser WARN_MS).
+    static constexpr long long WARN_MS = 24LL * 60 * 60 * 1000;
 
     // Persist only when there is an active, non-temporary project to write to.
     static bool shouldPersist(const std::optional<std::string>& activeId,
@@ -56,6 +58,10 @@ namespace stencil::core {
     // ── expiry ──
     bool isExpired(const ProjectMeta& meta, long long now) const;
     std::optional<long long> expiresAt(const ProjectMeta& meta) const;
+
+    // Not yet expired but due within WARN_MS — the cue for a warning colour.
+    // Already-expired projects return false (they get the stronger treatment).
+    bool isExpiringSoon(const ProjectMeta& meta, long long now) const;
 
     // Remove every expired project; returns the removed ids.
     std::vector<std::string> sweepExpired(long long now);

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
-  ProjectsStore, shouldPersist, EXPIRY_MS,
+  ProjectsStore, shouldPersist, EXPIRY_MS, WARN_MS,
   REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
 } from '../js/core/projectsStore.js';
 
@@ -112,6 +112,56 @@ test('isExpired boundary: false at exactly EXPIRY_MS, true at +1', () => {
   assert.strictEqual(s.isExpired(m, now), false);
   const m2 = meta('a', { updatedAt: now - EXPIRY_MS - 1 });
   assert.strictEqual(s.isExpired(m2, now), true);
+});
+
+test('isExpiringSoon: true within WARN_MS of expiry, false when further out', () => {
+  const s = new ProjectsStore(makeShim());
+  const now = 1_000_000_000;
+  // Expires in 12h → within the 1-day warning window.
+  const soon = meta('a', { updatedAt: now - EXPIRY_MS + (WARN_MS / 2) });
+  assert.strictEqual(s.isExpiringSoon(soon, now), true);
+  // Expires in 2 days → outside the warning window.
+  const later = meta('b', { updatedAt: now - EXPIRY_MS + (2 * WARN_MS) });
+  assert.strictEqual(s.isExpiringSoon(later, now), false);
+});
+
+test('isExpiringSoon: false once already expired (gets the expired treatment)', () => {
+  const s = new ProjectsStore(makeShim());
+  const now = 1_000_000_000;
+  const expired = meta('a', { updatedAt: now - EXPIRY_MS - 1 });
+  assert.strictEqual(s.isExpired(expired, now), true);
+  assert.strictEqual(s.isExpiringSoon(expired, now), false);
+});
+
+test('isExpiringSoon boundary: true at exactly WARN_MS remaining, false just past', () => {
+  const s = new ProjectsStore(makeShim());
+  const now = 1_000_000_000;
+  // Exactly WARN_MS until expiry → inclusive, soon.
+  const edge = meta('a', { updatedAt: now - EXPIRY_MS + WARN_MS });
+  assert.strictEqual(s.isExpiringSoon(edge, now), true);
+  // One ms more remaining → outside the window.
+  const justOut = meta('b', { updatedAt: now - EXPIRY_MS + WARN_MS + 1 });
+  assert.strictEqual(s.isExpiringSoon(justOut, now), false);
+});
+
+test('renew restarts the expiry window from now', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a'), { image: null, layout: {} });
+  // Age it to one second from expiry.
+  const now = 1_000_000_000;
+  s.touch('a', now - EXPIRY_MS + 1000);
+  assert.strictEqual(s.isExpiringSoon(s.getMeta('a'), now), true);
+  // Renewing stamps updatedAt = now, so it's neither expiring soon nor expired.
+  const renewed = s.renew('a', now);
+  assert.strictEqual(renewed.updatedAt, now);
+  assert.strictEqual(s.isExpiringSoon(s.getMeta('a'), now), false);
+  assert.strictEqual(s.isExpired(s.getMeta('a'), now), false);
+  assert.strictEqual(s.expiresAt(s.getMeta('a')), now + EXPIRY_MS);
+});
+
+test('renew returns null for a missing project', () => {
+  const s = new ProjectsStore(makeShim());
+  assert.strictEqual(s.renew('nope', 123), null);
 });
 
 test('sweepExpired removes only expired and returns their ids', () => {
