@@ -19,6 +19,7 @@ export class StencilProjectsModal extends StencilElement {
             <div class="settings-body" id="projectsList"><!-- filled by JS --></div>
             <div class="settings-footer">
                 <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
+                <button id="projectsBlankImage" title="Create a blank image to draw on">🖼 Blank image</button>
                 <button id="projectsNewEditor">➕ New editor</button>
                 <button id="projectsClearAll" class="danger">🗑 Clear All</button>
             </div>

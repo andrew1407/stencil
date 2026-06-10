@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from '../js/core/layout.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx } from '../js/core/layout.js';
 
 // ── buildLayoutPayload ──────────────────────────────────────────
 test('buildLayoutPayload passes the lines array through by reference', () => {
@@ -115,4 +115,18 @@ test('fillState: a real fill color → enabled, value is that color', () => {
 
 test('fillState: no default supplied falls back to #3399ff', () => {
     assert.deepStrictEqual(fillState({}, undefined), { enabled: false, value: '#3399ff' });
+});
+
+// ── defaultBlankSizePx ──────────────────────────────────────────
+test('defaultBlankSizePx renders A4/A3 pages at 96 dpi', () => {
+    assert.deepStrictEqual(defaultBlankSizePx({ width: 21, height: 29.7 }), { width: 794, height: 1123 });
+    assert.deepStrictEqual(defaultBlankSizePx({ width: 29.7, height: 42 }), { width: 1123, height: 1587 });
+});
+
+test('defaultBlankSizePx honors a custom dpi', () => {
+    assert.deepStrictEqual(defaultBlankSizePx({ width: 2.54, height: 5.08 }, 100), { width: 100, height: 200 });
+});
+
+test('defaultBlankSizePx never collapses below 1px', () => {
+    assert.deepStrictEqual(defaultBlankSizePx({ width: 0, height: 0.001 }), { width: 1, height: 1 });
 });

@@ -120,6 +120,9 @@ namespace stencil::gui {
     void changed();                              // lines or history changed
     void selectionChanged();
     void contextRequested(const QPoint& globalPos);
+    // Left-click on the imageless (idle) canvas: ask the main window to open
+    // the blank-image creator (mirrors the browser idle-canvas icon).
+    void blankImageRequested();
     void zoomStep(int dir);  // Ctrl+wheel: +1 = in, -1 = out
     void drawingModeChanged(bool drawing);
     void drawModeChanged(DrawMode mode);  // line vs. rect (S2)

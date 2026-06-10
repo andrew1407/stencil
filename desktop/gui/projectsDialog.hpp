@@ -14,7 +14,9 @@ namespace stencil::gui {
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
-    enum class Action { None, Open, Delete, New, Renew };
+    // NewBlank: create a blank solid-color image (the main window opens its
+    // BlankImageDialog after this dialog closes).
+    enum class Action { None, Open, Delete, New, Renew, NewBlank };
 
     // `now` (epoch ms) is the reference point for the per-row expiry labels and
     // their warning/expired colouring; the caller passes its clock so the dialog
@@ -32,6 +34,7 @@ namespace stencil::gui {
     void deleteSelected();
     void renewSelected();
     void createNew();
+    void createBlank();
 
     std::vector<Project> projects_;
     long long now_ = 0;
