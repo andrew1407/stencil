@@ -12,6 +12,12 @@ export class StencilMainContent extends StencilElement {
                         <div id="zoomRectOverlay" style="display:none;position:absolute;border:2px dashed #007bff;background:rgba(0,123,255,0.08);pointer-events:none;box-sizing:border-box;"></div>
                         ${StencilTooltip.template()}
                     </div>
+                    <div class="idle-create" id="idleCreateWrap">
+                        <button id="createBlankBtn" class="idle-create-btn" title="Create a blank image (white, black, or any color) to draw on">
+                            <span class="idle-create-icon">🖼</span>
+                            <span>＋ Blank image</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="coord-status" id="coordStatus">Open an image to begin</div>
                 <div class="drop-hint">💡 Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>

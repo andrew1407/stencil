@@ -588,7 +588,8 @@ namespace stencil::gui {
     if (image_.isNull()) {
       p.fillRect(rect(), pal.bgPage);
       p.setPen(pal.textMuted);
-      p.drawText(rect(), Qt::AlignCenter, "Open an image to begin");
+      p.drawText(rect(), Qt::AlignCenter,
+                 "Open an image to begin\n🖼 Click to create a blank image");
       return;
     }
     // S3: draw the raw image when no filter, else the cached filtered copy
@@ -635,7 +636,12 @@ namespace stencil::gui {
       emit contextRequested(event->globalPosition().toPoint());
       return;
     }
-    if (image_.isNull()) return;
+    if (image_.isNull()) {
+      // Idle state: the canvas invites creating a blank image (paintEvent hint);
+      // a plain left-click opens the creator dialog.
+      if (event->button() == Qt::LeftButton) emit blankImageRequested();
+      return;
+    }
 
     const auto mods = event->modifiers();
 

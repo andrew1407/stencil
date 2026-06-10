@@ -20,6 +20,16 @@ namespace stencil::core {
     return ps;
   }
 
+  // Mirrors defaultBlankSizePx in browser/js/core/layout.js: cm / 2.54 * dpi,
+  // rounded, never below 1px.
+  SizePx defaultBlankSizePx(const PageSize& page, double dpi) {
+    const auto toPx = [dpi](double cm) {
+      const int px = static_cast<int>(cm / 2.54 * dpi + 0.5);
+      return px < 1 ? 1 : px;
+    };
+    return {toPx(page.width), toPx(page.height)};
+  }
+
   // Port of DrawingApp.pixelToPageCoords (raw part, pre-formula).
   Point pixelToPageRaw(double x, double y,
                        const PageSize& dims, int canvasWidth, int canvasHeight) {

@@ -42,3 +42,24 @@ TEST_CASE("raw conversion is safe on a zero-sized canvas") {
   CHECK(p.x == doctest::Approx(0.0));
   CHECK(p.y == doctest::Approx(0.0));
 }
+
+TEST_CASE("default blank-image size renders the page at 96 dpi") {
+  const auto a4 = defaultBlankSizePx(namedPageSize("A4"));
+  CHECK(a4.width == 794);    // round(21 / 2.54 * 96)
+  CHECK(a4.height == 1123);  // round(29.7 / 2.54 * 96)
+  const auto a3 = defaultBlankSizePx(namedPageSize("A3"));
+  CHECK(a3.width == 1123);
+  CHECK(a3.height == 1587);  // round(42 / 2.54 * 96)
+}
+
+TEST_CASE("default blank-image size honors a custom dpi") {
+  const auto px = defaultBlankSizePx({2.54, 5.08}, 100.0);
+  CHECK(px.width == 100);
+  CHECK(px.height == 200);
+}
+
+TEST_CASE("default blank-image size never collapses below 1px") {
+  const auto px = defaultBlankSizePx({0.0, 0.001});
+  CHECK(px.width == 1);
+  CHECK(px.height == 1);
+}
