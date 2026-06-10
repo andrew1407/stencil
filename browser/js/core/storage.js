@@ -31,6 +31,7 @@ export class Storage {
       pageSize: this.app.pageSize,
       customPageWidth: this.app.customPageWidth,
       customPageHeight: this.app.customPageHeight,
+      unit: this.app.unit,
       color: this.app.color,
       thickness: this.app.thickness,
       markerSize: this.app.markerSize,
@@ -278,16 +279,12 @@ export class Storage {
         const cg = document.getElementById('customSizeGroup');
         if (cg) cg.style.display = layout.pageSize === 'custom' ? 'inline-flex' : 'none';
       }
-      if (layout.customPageWidth) {
-        this.app.customPageWidth = layout.customPageWidth;
-        const el = document.getElementById('customPageWidth');
-        if (el) el.value = layout.customPageWidth;
-      }
-      if (layout.customPageHeight) {
-        this.app.customPageHeight = layout.customPageHeight;
-        const el = document.getElementById('customPageHeight');
-        if (el) el.value = layout.customPageHeight;
-      }
+      if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
+      if (layout.customPageHeight) this.app.customPageHeight = layout.customPageHeight;
+      // Restore the display unit, then render the custom page inputs + labels in
+      // it (stored values are cm; applyUnitToUI converts for display).
+      if (layout.unit) this.app.unit = layout.unit;
+      this.app.applyUnitToUI();
       if (layout.color) {
         this.app.color = layout.color;
         document.getElementById('lineColor').value = layout.color;

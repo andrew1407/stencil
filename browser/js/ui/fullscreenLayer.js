@@ -179,6 +179,10 @@ export class StencilFullscreenLayer extends StencilElement {
 
     // ── Enter / Exit fullscreen ──
     const toggleFullscreen = () => {
+      // Entering fullscreen needs an image to view; block it otherwise (the
+      // Alt+F hotkey and context menu route through here too). Exiting is
+      // always allowed.
+      if (!isFullscreen && !(app && app.image)) return;
       // ── Save zoom & pan BEFORE switching modes ──
       // We record the image-space point at the viewport centre so we can
       // re-centre on the same spot after the viewport geometry changes.

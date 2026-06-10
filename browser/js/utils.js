@@ -19,6 +19,17 @@ export const mountHTML = (parent, html) => {
   parent.insertAdjacentHTML('beforeend', html);
 };
 
+// ── Length units ────────────────────────────────────────────────
+// The model always stores lengths in centimetres; `unit` ('cm' | 'in') only
+// controls how they are shown/entered. 1 inch = 2.54 cm.
+export const CM_PER_INCH = 2.54;
+// cm → displayed unit value.
+export const cmToUnit = (cm, unit) => (unit === 'in' ? cm / CM_PER_INCH : cm);
+// displayed unit value → cm (for inputs the user types in the active unit).
+export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val);
+// Short label for the active unit.
+export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
+
 // ── Notification balloon ────────────────────────────────────────
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.

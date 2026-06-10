@@ -215,14 +215,15 @@ namespace stencil::gui {
             [this](const QString&) { onPageSizeChanged(); });
     connect(customW_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
-              settings_.customPageWidth = v;
+              // Spinboxes are edited in the active unit; store the model in cm.
+              settings_.customPageWidth = v / unitFormat().factor;
               if (!incognito_) fileStore::saveSettings(settings_);
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
             });
     connect(customH_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
-              settings_.customPageHeight = v;
+              settings_.customPageHeight = v / unitFormat().factor;
               if (!incognito_) fileStore::saveSettings(settings_);
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
@@ -570,6 +571,24 @@ namespace stencil::gui {
     actTtPage_ = mkTtRow("Page (cm)", tooltipShowPage_);
     actTtScreen_ = mkTtRow("Screen (px)", tooltipShowScreen_);
     actTtCoords_ = mkTtRow("To Edge (cm)", tooltipShowCoords_);
+
+    // ── Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
+    // Switching re-renders every length readout (status bar, tooltip, selection
+    // panel) and the custom page spinboxes, which stay backed by cm internally.
+    auto* unitGroup = new QActionGroup(this);
+    unitGroup->setExclusive(true);
+    auto mkUnit = [this, unitGroup](const QString& text, const QString& code) {
+      auto* a = new QAction(text, this);
+      a->setCheckable(true);
+      a->setChecked(settings_.units == code);
+      unitGroup->addAction(a);
+      connect(a, &QAction::toggled, this, [this, code](bool on) {
+        if (on) applyUnits(code);
+      });
+      return a;
+    };
+    actUnitCm_ = mkUnit("Centimeters (cm)", "cm");
+    actUnitIn_ = mkUnit("Inches (in)", "in");
   }
 
   void MainWindow::buildMenus() {
@@ -620,6 +639,9 @@ namespace stencil::gui {
     view->addAction(actPanel_);
     view->addAction(actTooltip_);
     view->addAction(actAllowFormulas_);
+    auto* units = view->addMenu("&Units");
+    units->addAction(actUnitCm_);
+    units->addAction(actUnitIn_);
     view->addSeparator();
     view->addAction(actTheme_);
     view->addAction(actFullscreen_);
@@ -678,6 +700,17 @@ namespace stencil::gui {
     tb2->addWidget(new QLabel(" Page: ", this));
     tb2->addWidget(pageSize_);
 
+    // Units switch on the toolbar (mirrors View ▸ Units, kept in sync). data
+    // carries the canonical code; both surfaces route through applyUnits().
+    tb2->addWidget(new QLabel(" Units: ", this));
+    unitCombo_ = new QComboBox(this);
+    unitCombo_->addItem("cm", "cm");
+    unitCombo_->addItem("in", "in");
+    unitCombo_->setToolTip("Display units (cm / inches)");
+    connect(unitCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int) { applyUnits(unitCombo_->currentData().toString()); });
+    tb2->addWidget(unitCombo_);
+
     // Inline custom W x H inputs (S10), shown only for the "custom" page size.
     customGroup_ = new QWidget(this);
     {
@@ -685,25 +718,26 @@ namespace stencil::gui {
       cl->setContentsMargins(4, 0, 0, 0);
       cl->setSpacing(2);
       customW_ = new QDoubleSpinBox(customGroup_);
-      customW_->setRange(1.0, 500.0);  // browser LIMITS custom page bounds
+      customW_->setRange(0.1, 500.0);  // browser LIMITS custom page bounds
       customW_->setSingleStep(0.1);
       customW_->setDecimals(1);
       customW_->setValue(21.0);
       // Width-tightening (S8 req 7): keep the custom-page spinboxes compact
-      // (browser style width:64px, toolbar.js:110/112).
-      customW_->setMaximumWidth(64);
+      // (browser style width:96px, toolbar.js:110/112).
+      customW_->setMaximumWidth(96);
       customW_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       customH_ = new QDoubleSpinBox(customGroup_);
-      customH_->setRange(1.0, 500.0);
+      customH_->setRange(0.1, 500.0);
       customH_->setSingleStep(0.1);
       customH_->setDecimals(1);
       customH_->setValue(29.7);
-      customH_->setMaximumWidth(64);
+      customH_->setMaximumWidth(96);
       customH_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       cl->addWidget(customW_);
       cl->addWidget(new QLabel("×", customGroup_));
       cl->addWidget(customH_);
-      cl->addWidget(new QLabel("cm", customGroup_));
+      customUnitLabel_ = new QLabel("cm", customGroup_);
+      cl->addWidget(customUnitLabel_);
     }
     // Toggle the QWidgetAction (not the widget) so the toolbar re-lays-out and
     // actually makes room for the inputs — setVisible() on the widget alone
@@ -785,6 +819,8 @@ namespace stencil::gui {
 
     // Thickness / marker spinboxes (toolbar.js:41-42, min/max mirrored). Fixed
     // narrow width so they don't sprawl (req: setMaximumWidth(56) + Fixed policy).
+    // Each gets a visible caption so the bare numbers aren't cryptic.
+    tb3->addWidget(new QLabel(" Thickness: ", this));
     lineThickness_ = new QSpinBox(this);
     lineThickness_->setRange(1, 20);
     lineThickness_->setValue(2);
@@ -792,6 +828,7 @@ namespace stencil::gui {
     lineThickness_->setMaximumWidth(56);
     lineThickness_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     tb3->addWidget(lineThickness_);
+    tb3->addWidget(new QLabel(" Marker: ", this));
     markerSize_ = new QSpinBox(this);
     markerSize_->setRange(1, 30);
     markerSize_->setValue(4);
@@ -801,6 +838,7 @@ namespace stencil::gui {
     tb3->addWidget(markerSize_);
 
     // Line-style combo (toolbar.js:43-47). data carries the canonical value.
+    tb3->addWidget(new QLabel(" Style: ", this));
     lineStyle_ = new QComboBox(this);
     lineStyle_->addItem("Solid", "solid");
     lineStyle_->addItem("Dashed", "dashed");
@@ -984,18 +1022,76 @@ namespace stencil::gui {
     return p;
   }
 
+  // Active display unit (cm by default; inches scales cm by 1/2.54). Shared with
+  // the hover tooltip via core::buildTooltipRows.
+  core::UnitFormat MainWindow::unitFormat() const {
+    if (settings_.units == "in") return {1.0 / 2.54, "in"};
+    return {1.0, "cm"};
+  }
+
+  // Render the custom page spinboxes + their suffix label in the active unit.
+  // Model values stay in cm; signals are blocked so the programmatic setValue
+  // here doesn't feed back through the valueChanged handlers.
+  void MainWindow::applyUnitToPageInputs() {
+    if (!customW_ || !customH_) return;
+    const auto u = unitFormat();
+    const bool inches = (settings_.units == "in");
+    QSignalBlocker bw(customW_), bh(customH_);
+    customW_->setDecimals(inches ? 2 : 1);
+    customH_->setDecimals(inches ? 2 : 1);
+    customW_->setValue(settings_.customPageWidth * u.factor);
+    customH_->setValue(settings_.customPageHeight * u.factor);
+    if (customUnitLabel_)
+      customUnitLabel_->setText(QString::fromStdString(u.label));
+  }
+
+  // Reflect settings_.units in both unit controls without firing their handlers.
+  void MainWindow::syncUnitControls() {
+    const bool inches = settings_.units == "in";
+    if (actUnitCm_ && actUnitIn_) {
+      QSignalBlocker bc(actUnitCm_), bi(actUnitIn_);
+      actUnitIn_->setChecked(inches);
+      actUnitCm_->setChecked(!inches);
+    }
+    if (unitCombo_) {
+      QSignalBlocker b(unitCombo_);
+      unitCombo_->setCurrentIndex(inches ? 1 : 0);
+    }
+  }
+
+  // Change the active display unit from any surface (menu or toolbar combo):
+  // persist, keep both controls in sync, and refresh every length readout.
+  void MainWindow::applyUnits(const QString& code) {
+    const QString c = (code == "in") ? "in" : "cm";
+    if (settings_.units == c) return;
+    settings_.units = c;
+    if (!incognito_) fileStore::saveSettings(settings_);
+    syncUnitControls();
+    applyUnitToPageInputs();
+    onHovered(lastHoverX_, lastHoverY_);  // status bar + live tooltip
+    onSelectionChanged();                 // selection panel rows
+  }
+
   // Reuse the core page metrics exactly as the browser's pixelToPageCoords does,
-  // so the cm readout matches between the two front-ends.
+  // so the page readout matches between the two front-ends. Status mirrors the
+  // browser status bar: Pixel / Page / To edge, in brackets, in the active unit.
   void MainWindow::onHovered(double imageX, double imageY) {
     if (!canvas_->hasImage()) return;
     lastHoverX_ = imageX;
     lastHoverY_ = imageY;
     const auto page = pageCoords(imageX, imageY);
-    status_->setText(QString("px: %1, %2     cm: %3, %4")
-                         .arg(qRound(imageX))
-                         .arg(qRound(imageY))
-                         .arg(page.x, 0, 'f', 2)
-                         .arg(page.y, 0, 'f', 2));
+    const auto dims = currentPageDimensions();
+    const auto u = unitFormat();
+    const QString lbl = QString::fromStdString(u.label);
+    status_->setText(
+        QString("Pixel (%1, %2)     Page (%3, %4) %5     To edge (%6, %7) %5")
+            .arg(qRound(imageX))
+            .arg(qRound(imageY))
+            .arg(page.x * u.factor, 0, 'f', 2)
+            .arg(page.y * u.factor, 0, 'f', 2)
+            .arg(lbl)
+            .arg((dims.width - page.x) * u.factor, 0, 'f', 2)
+            .arg((dims.height - page.y) * u.factor, 0, 'f', 2));
   }
 
   // Show/hide the custom inputs and recompute when the page size changes (S10).
@@ -1063,12 +1159,15 @@ namespace stencil::gui {
     // the panel. Mirrors browser/js/core/coordTable.js (px + cm per point).
     std::vector<QString> cmRows;
     if (line && canvas_->hasImage()) {
+      const auto u = unitFormat();
+      const QString ulbl = QString::fromStdString(u.label);
       cmRows.reserve(line->points.size());
       for (const auto& p : line->points) {
         const auto page = pageCoords(p.x, p.y);
-        cmRows.push_back(QString("%1, %2")
-                             .arg(page.x, 0, 'f', 2)
-                             .arg(page.y, 0, 'f', 2));
+        cmRows.push_back(QString("%1, %2 %3")
+                             .arg(page.x * u.factor, 0, 'f', 2)
+                             .arg(page.y * u.factor, 0, 'f', 2)
+                             .arg(ulbl));
       }
     }
     // Points/coord table follows panelLine() (browser's always-on coordTable),
@@ -1223,7 +1322,8 @@ namespace stencil::gui {
       flags.showScreen = tooltipShowScreen_;
       flags.showPage = tooltipShowPage_;
       flags.showCoords = tooltipShowCoords_;
-      const auto coreRows = core::buildTooltipRows({px, py}, page, dims, flags);
+      const auto coreRows =
+          core::buildTooltipRows({px, py}, page, dims, flags, unitFormat());
       std::vector<std::pair<QString, QString>> out;
       for (const auto& r : coreRows)
         out.emplace_back(QString::fromStdString(r.first),
@@ -1281,12 +1381,16 @@ namespace stencil::gui {
     // Line tooltip: Start/End, or ALL points with Shift (tooltip.js showLine).
     const bool showAll = bool(mods & Qt::ShiftModifier);
     std::vector<std::pair<QString, QString>> rows;
+    const auto u = unitFormat();
+    const QString ulbl = QString::fromStdString(u.label);
     auto fmt = [&](const QString& label, const core::Point& p) {
       const auto page = pageCoords(p.x, p.y);
       rows.emplace_back(
-          label, QString("%1, %2 px   %3, %4 cm")
+          label, QString("%1, %2 px   %3, %4 %5")
                      .arg(qRound(p.x)).arg(qRound(p.y))
-                     .arg(page.x, 0, 'f', 2).arg(page.y, 0, 'f', 2));
+                     .arg(page.x * u.factor, 0, 'f', 2)
+                     .arg(page.y * u.factor, 0, 'f', 2)
+                     .arg(ulbl));
     };
     const auto& pts = hitLine->points;
     if (showAll || pts.size() <= 2) {
@@ -1603,18 +1707,16 @@ namespace stencil::gui {
       actShowLines_->setChecked(s.showLines);
       actTooltip_->setChecked(s.tooltipEnabled);
     }
+    syncUnitControls();
     canvas_->setShowPoints(s.showPoints);
     canvas_->setShowLines(s.showLines);
     {
       QSignalBlocker b(pageSize_);
       pageSize_->setCurrentText(s.pageSize);
     }
-    // Sync custom page-size inputs (S10).
+    // Sync custom page-size inputs (S10) in the active display unit.
     if (customW_) {
-      QSignalBlocker bw(customW_);
-      QSignalBlocker bh(customH_);
-      customW_->setValue(s.customPageWidth);
-      customH_->setValue(s.customPageHeight);
+      applyUnitToPageInputs();
       if (customGroupAct_) customGroupAct_->setVisible(s.pageSize == "custom");
     }
     // Sync formula controls (S11).

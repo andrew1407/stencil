@@ -33,6 +33,9 @@ namespace stencil::gui {
     // Custom page dimensions in cm (browser DEFAULT_PAGE 21 x 29.7).
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
+    // Display unit for page/length readouts: "cm" (default) | "in". Lengths are
+    // always stored in cm; this only changes how they are shown and entered.
+    QString units = "cm";
     // Formula transform of page (cm) coords (browser allowFormulas/formulaX/Y).
     bool allowFormulas = false;
     QString formulaX;

@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { cmToUnit, unitLabel } from '../utils.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Custom element that owns both its (dynamically filled) DOM and the
 // show/hide/position logic that used to live in core/tooltip.js.
@@ -51,8 +52,12 @@ export class StencilTooltip extends StencilElement {
     }
     const pageCoords = this.app.pixelToPageCoords(x, y);
     const ps = this.app.getPageDimensions();
-    const tailX = ps.width - pageCoords.x;
-    const tailY = ps.height - pageCoords.y;
+    const u = this.app.unit;
+    const lbl = unitLabel(u);
+    const pageX = cmToUnit(pageCoords.x, u);
+    const pageY = cmToUnit(pageCoords.y, u);
+    const tailX = cmToUnit(ps.width - pageCoords.x, u);
+    const tailY = cmToUnit(ps.height - pageCoords.y, u);
 
     const rows = [];
     if (this.app.tooltipShowScreen) rows.push(`
@@ -63,13 +68,13 @@ export class StencilTooltip extends StencilElement {
       </tr>`);
     if (this.app.tooltipShowPage) rows.push(`
       <tr>
-        <td><strong>Page (cm)</strong></td>
-        <td>${pageCoords.x.toFixed(2)}</td>
-        <td>${pageCoords.y.toFixed(2)}</td>
+        <td><strong>Page (${lbl})</strong></td>
+        <td>${pageX.toFixed(2)}</td>
+        <td>${pageY.toFixed(2)}</td>
       </tr>`);
     if (this.app.tooltipShowCoords) rows.push(`
       <tr>
-        <td><strong>To edge (cm)</strong></td>
+        <td><strong>To edge (${lbl})</strong></td>
         <td>${tailX.toFixed(2)}</td>
         <td>${tailY.toFixed(2)}</td>
       </tr>`);
@@ -109,21 +114,23 @@ export class StencilTooltip extends StencilElement {
       return;
     }
     const pts = line.points;
+    const u = this.app.unit;
+    const lbl = unitLabel(u);
     const fmtRow = (label, p) => {
       const pc = this.app.pixelToPageCoords(p.x, p.y);
       return `<tr>
         <td><strong>${label}</strong></td>
         <td>${Math.round(p.x)}, ${Math.round(p.y)} px</td>
-        <td>${pc.x.toFixed(2)}, ${pc.y.toFixed(2)} cm</td>
+        <td>${cmToUnit(pc.x, u).toFixed(2)}, ${cmToUnit(pc.y, u).toFixed(2)} ${lbl}</td>
       </tr>`;
     };
     let bodyRows = '';
     let header = '';
     if (showAll || pts.length <= 2) {
-      header = `<tr><th>#</th><th>Pixel</th><th>Page (cm)</th></tr>`;
+      header = `<tr><th>#</th><th>Pixel</th><th>Page (${lbl})</th></tr>`;
       bodyRows = pts.map((p, i) => fmtRow(String(i + 1), p)).join('');
     } else {
-      header = `<tr><th>Point</th><th>Pixel</th><th>Page (cm)</th></tr>`;
+      header = `<tr><th>Point</th><th>Pixel</th><th>Page (${lbl})</th></tr>`;
       bodyRows = fmtRow('Start', pts[0]) + fmtRow('End', pts[pts.length - 1]);
     }
     const hint = (!showAll && pts.length > 2)

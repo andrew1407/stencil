@@ -56,6 +56,8 @@ export class ZoomPan {
   }
 
   setZoom(newScale, persist = true) {
+    // No image → there's nothing to scale; ignore zoom requests entirely.
+    if (!this.app.image) return;
     newScale = this.clampScale(newScale);
     this.app.scale = newScale;
     this.app.canvas.style.width = (this.app.canvas.width * newScale) + 'px';
@@ -117,8 +119,9 @@ export class ZoomPan {
   // this.app.scale is kept in sync each frame so rapid clicks start from the
   // correct visual position rather than the stale logical target.
   zoomAroundCenter(newScale) {
+    if (!this.app.image) return;  // no image → no zoom
     const vp = document.getElementById('canvasViewport');
-    if (!vp || !this.app.image) {
+    if (!vp) {
       this.setZoom(newScale);
       return;
     }

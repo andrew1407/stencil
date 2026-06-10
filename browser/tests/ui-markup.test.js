@@ -9,7 +9,7 @@ const markup = layout();
 // Count occurrences of a needle within the markup.
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 144 static body IDs (spec §6), original body order. Each must appear EXACTLY once.
+// All 146 static body IDs (spec §6), original body order. Each must appear EXACTLY once.
 const IDS = [
     'ctxMenu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
@@ -24,8 +24,8 @@ const IDS = [
     'fs-points-panel', 'globalDropOverlay', 'toggleControls', 'hintsBtn', 'hintsPopup', 'controlsBody',
     'imageUpload', 'imageSizeDisplay', 'imageFilter', 'filterColor', 'lineColor', 'lineThickness',
     'markerSize', 'lineStyle', 'startDrawing', 'stopDrawing', 'drawModeToggle', 'undo', 'redo', 'showPoints',
-    'showLines', 'clearAllLines', 'zoomOut', 'zoomInput', 'zoomIn', 'zoomFit', 'pageSize', 'customSizeGroup',
-    'customPageWidth', 'customPageHeight', 'allowFormulas', 'formulaInputs', 'formulaX', 'formulaY',
+    'showLines', 'clearAllLines', 'zoomOut', 'zoomInput', 'zoomIn', 'zoomFit', 'pageSize', 'unitSelect', 'customSizeGroup',
+    'customPageWidth', 'customPageHeight', 'customUnitLabel', 'allowFormulas', 'formulaInputs', 'formulaX', 'formulaY',
     'formulaError', 'downloadJSON', 'copyJSONBtn', 'saveImage', 'uploadJSON', 'uploadJSONBtn', 'clearStorage',
     'saveStatus', 'themeToggle', 'fullscreenToggle', 'settingsBtn', 'visualsBtn', 'infoBtn', 'selectionPanel',
     'selColor', 'selThickness', 'selMarkerSize', 'selStyle', 'selFillGroup', 'selFillEnabled', 'selFill',
@@ -37,8 +37,8 @@ const IDS = [
     'infoClose', 'infoSearch', 'infoBody'
 ];
 
-test('fixture has exactly 144 IDs', () => {
-    assert.strictEqual(IDS.length, 144);
+test('fixture has exactly 146 IDs', () => {
+    assert.strictEqual(IDS.length, 146);
 });
 
 test('every static body ID is present exactly once', () => {
