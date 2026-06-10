@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -13,6 +13,19 @@ import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
+
+// Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
+// the button's text color (so they theme + match the label automatically). The
+// line glyph shows a diagonal segment with endpoint dots (a polyline); the rect
+// glyph an outlined rectangle.
+export const DRAW_MODE_ICON = {
+  line: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
+    '<line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
+  rect: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
+    '<rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+};
+
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
 // DOM event wiring is split into cohesive #wire* methods (style, selection,
 // page/display, formula, toolbar, zoom, scroll, theme, keyboard, arrow-pan,
@@ -106,6 +119,10 @@ export class DrawingApp {
     this.formulaX = ''; // empty = identity
     this.formulaY = '';
 
+    // Display unit for page/length readouts: 'cm' (default) or 'in'. Lengths are
+    // always stored in cm; this only affects how they are shown and entered.
+    this.unit = 'cm';
+
     // ── Drawing mode: 'line' (click points) or 'rect' (drag rectangle) ──
     this.drawMode = 'line';
     this.isRectDrawDragging = false;
@@ -157,6 +174,9 @@ export class DrawingApp {
     // The projects component decides whether to offer a chooser after readiness.
     this.restoreFromLocalStorage();
     this.storage.newTemporary();
+    // Reflect the initial (imageless) state: undo/redo + fullscreen start disabled.
+    this.updateButtons();
+    this.applyUnitToUI();
   }
 
   // Slim orchestrator: wire each cohesive control group in source order so
@@ -257,13 +277,25 @@ export class DrawingApp {
       this.storage.save();
     });
     document.getElementById('customPageWidth').addEventListener('change', e => {
-      this.customPageWidth = parseFloat(e.target.value) || 21;
+      // Inputs are typed in the active unit; store the model value in cm.
+      const v = parseFloat(e.target.value);
+      this.customPageWidth = isNaN(v) ? 21 : unitToCm(v, this.unit);
       this.coordTable.update();
       this.storage.save();
     });
     document.getElementById('customPageHeight').addEventListener('change', e => {
-      this.customPageHeight = parseFloat(e.target.value) || 29.7;
+      const v = parseFloat(e.target.value);
+      this.customPageHeight = isNaN(v) ? 29.7 : unitToCm(v, this.unit);
       this.coordTable.update();
+      this.storage.save();
+    });
+    const unitSel = document.getElementById('unitSelect');
+    if (unitSel) unitSel.addEventListener('change', e => {
+      this.unit = e.target.value === 'in' ? 'in' : 'cm';
+      this.applyUnitToUI();          // re-render page inputs + labels + table headers
+      this.coordTable.update();      // re-render page cells in the new unit
+      this.updateCoordStatus();      // status refreshes fully on next hover
+      this.renderer.redraw();
       this.storage.save();
     });
     document.getElementById('showPoints').addEventListener('change', e => {
@@ -709,6 +741,8 @@ export class DrawingApp {
     // The +/− buttons use zoomAroundCenter() instead, so center-zoom is still reachable.
     document.addEventListener('wheel', e => {
       if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
+      // No image → nothing to zoom/thicken/rotate; let plain scroll pass through.
+      if (!this.image) return;
 
       // Alt+wheel → adjust thickness of the line under the cursor
       // (point's line if hovering a point, else the hovered line).
@@ -1187,7 +1221,8 @@ export class DrawingApp {
   syncDrawModeUI() {
     const btn = document.getElementById('drawModeToggle');
     if (btn) {
-      btn.textContent = this.drawMode === 'rect' ? '▭ Rect' : '╱ Line';
+      btn.innerHTML = (this.drawMode === 'rect' ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
+        (this.drawMode === 'rect' ? ' Rect' : ' Line');
       btn.title = this.drawMode === 'rect'
         ? 'Drawing mode: Rectangle (click to switch to Line)'
         : 'Drawing mode: Line (click to switch to Rectangle)';
@@ -1234,6 +1269,8 @@ export class DrawingApp {
   }
 
   canvasClick(e) {
+    // No image → the canvas is an empty void; don't let clicks drop points.
+    if (!this.image) return;
     // Ignore click that ended a pan gesture or point drag
     if (e.altKey) return;
     if (e.shiftKey) return; // Shift+drag is for zoom-area rect
@@ -1501,6 +1538,14 @@ export class DrawingApp {
     this.mouseOverCanvas = true;
     this.lastMouseClientX = e.clientX;
     this.lastMouseClientY = e.clientY;
+
+    // No image → empty void: no coordinate tooltip, no hover cursor, idle status.
+    if (!this.image) {
+      this.tooltipMgr.hide();
+      this.canvas.style.cursor = 'default';
+      this.updateCoordStatus();
+      return;
+    }
 
     // While panning or dragging point, don't update tooltip or cursor here
     if (this.isPanning || this.isDraggingPoint) return;
@@ -1853,10 +1898,31 @@ export class DrawingApp {
     }
     const page = this.pixelToPageCoords(x, y);
     const ps = this.getPageDimensions();
+    const lbl = unitLabel(this.unit);
+    const fx = v => cmToUnit(v, this.unit).toFixed(2);
     el.textContent =
       `Pixel (${Math.round(x)}, ${Math.round(y)})` +
-      `   ·   Page (${page.x.toFixed(2)}, ${page.y.toFixed(2)}) cm` +
-      `   ·   To edge (${(ps.width - page.x).toFixed(2)}, ${(ps.height - page.y).toFixed(2)}) cm`;
+      `   ·   Page (${fx(page.x)}, ${fx(page.y)}) ${lbl}` +
+      `   ·   To edge (${fx(ps.width - page.x)}, ${fx(ps.height - page.y)}) ${lbl}`;
+  }
+
+  // Reflect the active display unit across the UI: the unit dropdown, the custom
+  // page-size inputs (stored in cm → shown in the active unit), the unit label by
+  // those inputs, and the coord-table's two page-column headers. Model values are
+  // never mutated here — only how they are presented.
+  applyUnitToUI() {
+    const lbl = unitLabel(this.unit);
+    const sel = document.getElementById('unitSelect');
+    if (sel) sel.value = this.unit;
+    const w = document.getElementById('customPageWidth');
+    const h = document.getElementById('customPageHeight');
+    if (w) w.value = +cmToUnit(this.customPageWidth, this.unit).toFixed(2);
+    if (h) h.value = +cmToUnit(this.customPageHeight, this.unit).toFixed(2);
+    const cul = document.getElementById('customUnitLabel');
+    if (cul) cul.textContent = lbl;
+    const ths = document.querySelectorAll('#coordinatesTable thead th');
+    if (ths[3]) ths[3].textContent = `X ${lbl}`;
+    if (ths[4]) ths[4].textContent = `Y ${lbl}`;
   }
 
   // Reset drag flags & cursor after any Alt-drag gesture (point/segment/line)
@@ -2018,12 +2084,29 @@ export class DrawingApp {
   }
 
   updateButtons() {
-    if (this.isDrawing && this.currentLine) {
+    // No image → nothing to draw on, so undo/redo are meaningless (and there's
+    // no history to act on anyway). Keep them disabled until an image exists.
+    if (!this.image) {
+      document.getElementById('undo').disabled = true;
+      document.getElementById('redo').disabled = true;
+    } else if (this.isDrawing && this.currentLine) {
       document.getElementById('undo').disabled = this.currentLine.points.length === 0;
       document.getElementById('redo').disabled = !this.undonePoints || this.undonePoints.length === 0;
     } else {
       document.getElementById('undo').disabled = !this.history.canUndo();
       document.getElementById('redo').disabled = !this.history.canRedo();
+    }
+    // Fullscreen only makes sense with an image to view. Never disable while
+    // already in fullscreen (so the user can always get back out).
+    const fsBtn = document.getElementById('fullscreenToggle');
+    if (fsBtn && !document.body.classList.contains('fullscreen-mode'))
+      fsBtn.disabled = !this.image;
+    // Zoom controls are meaningless on an empty void — disable until an image
+    // is loaded (the wheel/hotkey zoom paths are guarded in zoomPan + wheel).
+    const noImage = !this.image;
+    for (const id of ['zoomIn', 'zoomOut', 'zoomFit', 'zoomInput']) {
+      const el = document.getElementById(id);
+      if (el) el.disabled = noImage;
     }
     this.updateIncognitoUI();
   }

@@ -221,13 +221,14 @@ namespace stencil::gui {
 
     for (std::size_t i = 0; i < line->points.size(); ++i) {
       const auto& p = line->points[i];
-      // px first (rounded like coordTable.js), then page cm when available so
-      // formulas / custom page show here exactly as on the status bar + tooltip.
+      // px first (rounded like coordTable.js), then the page coord (already
+      // formatted with its unit label by the caller) so formulas / custom page /
+      // unit show here exactly as on the status bar + tooltip.
       QString row = QString("%1.  %2, %3 px")
                         .arg(i + 1)
                         .arg(p.x, 0, 'f', 1)
                         .arg(p.y, 0, 'f', 1);
-      if (i < cmRows.size()) row += "   " + cmRows[i] + " cm";
+      if (i < cmRows.size()) row += "   " + cmRows[i];
       points_->addItem(row);
     }
     if (selectedPoint >= 0 && selectedPoint < points_->count())

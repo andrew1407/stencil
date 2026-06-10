@@ -12,12 +12,13 @@ namespace stencil::core {
          << static_cast<long long>(std::llround(y));
       return os.str();
     }
-    // "x.xx, y.yy" fixed to 2 decimals (matches Number.toFixed(2)).
-    std::string cmPair(double x, double y) {
+    // "x.xx, y.yy" fixed to 2 decimals (matches Number.toFixed(2)), each value
+    // scaled from cm into the active display unit by `factor`.
+    std::string lenPair(double x, double y, double factor) {
       std::ostringstream os;
       os.setf(std::ios::fixed);
       os.precision(2);
-      os << x << ", " << y;
+      os << (x * factor) << ", " << (y * factor);
       return os.str();
     }
   }  // namespace
@@ -25,15 +26,17 @@ namespace stencil::core {
   // Port of browser/js/ui/tooltip.js show() row construction.
   std::vector<std::pair<std::string, std::string>> buildTooltipRows(
       const Point& pixel, const Point& page, const PageSize& dims,
-      const TooltipRowFlags& flags) {
+      const TooltipRowFlags& flags, const UnitFormat& unit) {
     std::vector<std::pair<std::string, std::string>> rows;
     if (flags.showScreen)
       rows.emplace_back("Pixel", pxPair(pixel.x, pixel.y));
     if (flags.showPage)
-      rows.emplace_back("Page (cm)", cmPair(page.x, page.y));
+      rows.emplace_back("Page (" + unit.label + ")",
+                        lenPair(page.x, page.y, unit.factor));
     if (flags.showCoords)  // tailX = ps.width - pageX, tailY = ps.height - pageY
-      rows.emplace_back("To edge (cm)",
-                        cmPair(dims.width - page.x, dims.height - page.y));
+      rows.emplace_back("To edge (" + unit.label + ")",
+                        lenPair(dims.width - page.x, dims.height - page.y,
+                                unit.factor));
     return rows;
   }
 

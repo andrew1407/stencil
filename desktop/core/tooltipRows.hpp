@@ -17,12 +17,20 @@ namespace stencil::core {
     bool showCoords = true;  // "To edge (cm)"  (tooltipShowCoords)
   };
 
+  // Display unit for the page/to-edge rows. The model is always cm; `factor`
+  // scales cm into the shown unit (1.0 = cm, 1/2.54 = inches) and `label` is the
+  // suffix used in the row titles ("Page (cm)" vs "Page (in)").
+  struct UnitFormat {
+    double factor = 1.0;
+    std::string label = "cm";
+  };
+
   // Build the (label, value) rows for a single point. `pixel` is image-space px;
   // `page` is the page (cm) coord (post-formula); `dims` gives page size for the
   // to-edge computation. Values are rounded/formatted exactly like tooltip.js
-  // (px rounded to int "x, y"; cm to 2 decimals "x.xx, y.yy").
+  // (px rounded to int "x, y"; lengths to 2 decimals "x.xx, y.yy" in `unit`).
   std::vector<std::pair<std::string, std::string>> buildTooltipRows(
       const Point& pixel, const Point& page, const PageSize& dims,
-      const TooltipRowFlags& flags);
+      const TooltipRowFlags& flags, const UnitFormat& unit = {});
 
 }

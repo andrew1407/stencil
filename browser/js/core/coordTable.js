@@ -1,3 +1,4 @@
+import { cmToUnit } from '../utils.js';
 // ── CoordTable: the points table DOM + per-row interactions ──────
 export class CoordTable {
   constructor(app) {
@@ -24,8 +25,8 @@ export class CoordTable {
         <td>${index + 1}</td>
         <td class="cell-px-x">${Math.round(point.x)}</td>
         <td class="cell-px-y">${Math.round(point.y)}</td>
-        <td>${pageCoords.x.toFixed(2)}</td>
-        <td>${pageCoords.y.toFixed(2)}</td>
+        <td>${cmToUnit(pageCoords.x, this.app.unit).toFixed(2)}</td>
+        <td>${cmToUnit(pageCoords.y, this.app.unit).toFixed(2)}</td>
         <td style="text-align:center;padding:2px;"><button class="del-pt-btn" title="Remove point">🗑</button></td>
       `;
 
@@ -146,9 +147,9 @@ export class CoordTable {
     const cellY = row.querySelector('.cell-px-y');
     if (cellX && !cellX.querySelector('.coord-px-input')) cellX.textContent = Math.round(point.x);
     if (cellY && !cellY.querySelector('.coord-px-input')) cellY.textContent = Math.round(point.y);
-    // update cm cells
+    // update page cells (in the active display unit)
     const tds = row.querySelectorAll('td');
-    if (tds[3]) tds[3].textContent = pageCoords.x.toFixed(2);
-    if (tds[4]) tds[4].textContent = pageCoords.y.toFixed(2);
+    if (tds[3]) tds[3].textContent = cmToUnit(pageCoords.x, this.app.unit).toFixed(2);
+    if (tds[4]) tds[4].textContent = cmToUnit(pageCoords.y, this.app.unit).toFixed(2);
   }
 }

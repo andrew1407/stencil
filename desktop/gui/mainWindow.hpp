@@ -2,6 +2,7 @@
 #include "core/formulaParser.hpp"
 #include "core/pageMetrics.hpp"
 #include "core/projectsStore.hpp"
+#include "core/tooltipRows.hpp"
 #include "fileStore.hpp"
 #include <QColor>
 #include <QHash>
@@ -100,6 +101,15 @@ namespace stencil::gui {
     QString hotkey(const QString& id, const QString& fallback) const;
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
+    // Active display unit derived from settings_.units (cm default, else inches).
+    core::UnitFormat unitFormat() const;
+    // Apply the current unit to the custom page spinboxes + their suffix label.
+    void applyUnitToPageInputs();
+    // Single entry point for changing units: persists, syncs both UI surfaces
+    // (View ▸ Units menu + toolbar combo), and refreshes every length readout.
+    void applyUnits(const QString& code);
+    // Push settings_.units into the menu actions + toolbar combo (no side effects).
+    void syncUnitControls();
     void zoomStep(int dir);
     void zoomIn();
     void zoomOut();
@@ -148,6 +158,8 @@ namespace stencil::gui {
     QAction* customGroupAct_ = nullptr;
     QDoubleSpinBox* customW_ = nullptr;
     QDoubleSpinBox* customH_ = nullptr;
+    QLabel* customUnitLabel_ = nullptr;  // "cm"/"in" suffix by the spinboxes
+    QComboBox* unitCombo_ = nullptr;     // toolbar cm/in switch (mirrors the menu)
     QCheckBox* allowFormulas_ = nullptr;
     QWidget* formulaGroup_ = nullptr;
     QAction* formulaGroupAct_ = nullptr;
@@ -253,6 +265,10 @@ namespace stencil::gui {
     bool tooltipShowPage_ = true;
     bool tooltipShowScreen_ = true;
     bool tooltipShowCoords_ = true;
+
+    // Units submenu (View ▸ Units): cm | inches, persisted via settings_.units.
+    QAction* actUnitCm_ = nullptr;
+    QAction* actUnitIn_ = nullptr;
 
     // ── hotkeys (S13: defaults + user overrides, live re-apply) ──
     QHash<QString, QString> hotkeys_;

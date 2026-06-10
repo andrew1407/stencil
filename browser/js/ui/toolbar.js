@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 // ── Component: toolbar (controls-wrapper + all 8 sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -56,7 +57,7 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <button id="startDrawing" title="Start Drawing (Alt+A)">▶ Start</button>
                     <button id="stopDrawing" disabled title="Stop Drawing (Alt+S)">■ Stop</button>
-                    <button id="drawModeToggle" title="Drawing mode: Line (click to switch to Rectangle)">╱ Line</button>
+                    <button id="drawModeToggle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line} Line</button>
                     <button id="undo" disabled title="Undo (Ctrl+Z)">↩</button>
                     <button id="redo" disabled title="Redo (Ctrl+Shift+Z)">↪</button>
                 </div>
@@ -105,19 +106,24 @@ export class StencilToolbar extends StencilElement {
                         <option value="A4">A4</option>
                         <option value="custom">Custom…</option>
                     </select>
+                    <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">Units:</label>
+                    <select id="unitSelect" title="Display units (cm / inches)">
+                        <option value="cm">cm</option>
+                        <option value="in">in</option>
+                    </select>
                     <span id="customSizeGroup" style="display:none;align-items:center;gap:6px;">
                         <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">W</label>
-                        <input type="number" id="customPageWidth" value="21" min="1" max="500" step="0.1" style="width:64px">
+                        <input type="number" id="customPageWidth" value="21" min="0.1" max="500" step="0.1" style="width:96px">
                         <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">H</label>
-                        <input type="number" id="customPageHeight" value="29.7" min="1" max="500" step="0.1" style="width:64px">
-                        <span style="font-size:12px;color:var(--text-muted);">cm</span>
+                        <input type="number" id="customPageHeight" value="29.7" min="0.1" max="500" step="0.1" style="width:96px">
+                        <span id="customUnitLabel" style="font-size:12px;color:var(--text-muted);">cm</span>
                     </span>
                     <label style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:6px;">
                         <input type="checkbox" id="allowFormulas"> 𝑓(x,y)
                     </label>
                     <span id="formulaInputs" style="display:none;align-items:center;gap:6px;">
-                        <input type="text" id="formulaX" placeholder="x(x)=" style="width:90px;font-family:monospace;font-size:12px;">
-                        <input type="text" id="formulaY" placeholder="y(y)=" style="width:90px;font-family:monospace;font-size:12px;">
+                        <input type="text" id="formulaX" placeholder="x(x)=" style="width:180px;font-family:monospace;font-size:12px;">
+                        <input type="text" id="formulaY" placeholder="y(y)=" style="width:180px;font-family:monospace;font-size:12px;">
                         <span id="formulaError" style="font-size:11px;color:#dc3545;display:none;">⚠</span>
                     </span>
                 </div>
