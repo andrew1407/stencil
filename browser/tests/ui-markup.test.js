@@ -9,7 +9,7 @@ const markup = layout();
 // Count occurrences of a needle within the markup.
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 143 static body IDs (spec §6), original body order. Each must appear EXACTLY once.
+// All 144 static body IDs (spec §6), original body order. Each must appear EXACTLY once.
 const IDS = [
     'ctxMenu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
@@ -30,15 +30,15 @@ const IDS = [
     'saveStatus', 'themeToggle', 'fullscreenToggle', 'settingsBtn', 'visualsBtn', 'infoBtn', 'selectionPanel',
     'selColor', 'selThickness', 'selMarkerSize', 'selStyle', 'selFillGroup', 'selFillEnabled', 'selFill',
     'selFillClear', 'selDeselect', 'imageInfo', 'canvasViewport', 'canvasContainer', 'canvas', 'zoomRectOverlay',
-    'tooltip', 'coordPanel', 'coordPanelHeader', 'coordTitle', 'toggleCoordPanel', 'coordBody', 'coordinatesTable',
+    'tooltip', 'coordStatus', 'coordPanel', 'coordPanelHeader', 'coordTitle', 'toggleCoordPanel', 'coordBody', 'coordinatesTable',
     'coordinatesBody', 'notifyBalloon', 'settingsModalOverlay', 'settingsModal', 'settingsClose', 'hotkeyTable',
     'resetAllHotkeys', 'visualsModalOverlay', 'visualsClose', 'vs-line-color', 'vs-thickness', 'vs-marker',
     'vs-style', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'infoModalOverlay',
     'infoClose', 'infoSearch', 'infoBody'
 ];
 
-test('fixture has exactly 143 IDs', () => {
-    assert.strictEqual(IDS.length, 143);
+test('fixture has exactly 144 IDs', () => {
+    assert.strictEqual(IDS.length, 144);
 });
 
 test('every static body ID is present exactly once', () => {

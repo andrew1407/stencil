@@ -13,6 +13,7 @@ export class StencilMainContent extends StencilElement {
                         ${StencilTooltip.template()}
                     </div>
                 </div>
+                <div class="coord-status" id="coordStatus">Open an image to begin</div>
                 <div class="drop-hint">💡 Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
             </div>
 
