@@ -170,6 +170,19 @@ button.danger:hover {
     display: inline-block;
     /* No border here — border is on viewport */
 }
+.coord-status {
+    margin-top: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text-tooltip);
+    padding: 6px 10px;
+    background: var(--bg-tooltip);
+    border: 1px solid var(--border-tooltip);
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 .drop-hint {
     margin-top: 8px;
     font-size: 13px;

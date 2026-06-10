@@ -649,6 +649,7 @@ export class DrawingApp {
     this.canvas.addEventListener('mouseleave', () => {
       this.mouseOverCanvas = false;
       this.tooltipMgr.hide();
+      this.updateCoordStatus();
       if (this.hoverPt) { this.hoverPt = null; this.renderer.redraw(); }
     });
   }
@@ -1099,6 +1100,7 @@ export class DrawingApp {
         this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
         this.renderer.redraw();
         this.updateButtons();
+        this.updateCoordStatus();
         this.storage.save();
       };
       this.image.src = event.target.result;
@@ -1505,6 +1507,10 @@ export class DrawingApp {
 
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
 
+    // Persistent cursor-coordinate readout (mirrors the desktop status bar and
+    // the Ctrl-held tooltip content), independent of which tooltip is showing.
+    this.updateCoordStatus(x, y);
+
     // Track hovered point on ANY line (drives the hover ring), and keep the
     // coord-table row highlight in sync when the point belongs to the shown line.
     const nearPtIdx = this.#findNearestPointWithIdx(x, y);
@@ -1831,6 +1837,26 @@ export class DrawingApp {
       x: this.formula.apply(this.formulaX, 'x', raw.x, this.allowFormulas),
       y: this.formula.apply(this.formulaY, 'y', raw.y, this.allowFormulas)
     };
+  }
+
+  // Live cursor-coordinate readout shown in the status bar below the canvas.
+  // Mirrors the desktop status bar (mainWindow.cpp onHovered): a persistent
+  // readout that ALWAYS shows Pixel + Page (cm), independent of the floating
+  // tooltip's per-row toggles. To edge (cm) is appended for completeness.
+  // Called with no args (or no image) to reset to the idle hint.
+  updateCoordStatus(x, y) {
+    const el = this.coordStatus ??= document.getElementById('coordStatus');
+    if (!el) return;
+    if (!this.image || x === undefined) {
+      el.textContent = this.image ? 'Ready' : 'Open an image to begin';
+      return;
+    }
+    const page = this.pixelToPageCoords(x, y);
+    const ps = this.getPageDimensions();
+    el.textContent =
+      `Pixel (${Math.round(x)}, ${Math.round(y)})` +
+      `   ·   Page (${page.x.toFixed(2)}, ${page.y.toFixed(2)}) cm` +
+      `   ·   To edge (${(ps.width - page.x).toFixed(2)}, ${(ps.height - page.y).toFixed(2)}) cm`;
   }
 
   // Reset drag flags & cursor after any Alt-drag gesture (point/segment/line)
