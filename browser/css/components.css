@@ -31,6 +31,11 @@
     font-size: 14px;
     color: var(--text-muted);
 }
+/* Draw-mode toggle glyph (line / rect) — align with the button label. */
+.draw-mode-icon {
+    vertical-align: -2px;
+    margin-right: 1px;
+}
 .tooltip {
     position: fixed;
     background: var(--bg-tooltip);

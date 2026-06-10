@@ -131,6 +131,7 @@ namespace stencil::gui {
     s.pageSize = o.value("pageSize").toString(s.pageSize);
     s.customPageWidth = o.value("customPageWidth").toDouble(s.customPageWidth);
     s.customPageHeight = o.value("customPageHeight").toDouble(s.customPageHeight);
+    s.units = o.value("units").toString(s.units);
     s.allowFormulas = o.value("allowFormulas").toBool(s.allowFormulas);
     s.formulaX = o.value("formulaX").toString(s.formulaX);
     s.formulaY = o.value("formulaY").toString(s.formulaY);
@@ -154,6 +155,7 @@ namespace stencil::gui {
     o["pageSize"] = s.pageSize;
     o["customPageWidth"] = s.customPageWidth;
     o["customPageHeight"] = s.customPageHeight;
+    o["units"] = s.units;
     o["allowFormulas"] = s.allowFormulas;
     o["formulaX"] = s.formulaX;
     o["formulaY"] = s.formulaY;
