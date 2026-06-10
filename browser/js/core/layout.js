@@ -33,6 +33,14 @@ export const resolveInsertIdx = (line, { coordLineIdx, selectedLineIdx, focusedP
     ? focusedPtIdx + 1
     : line.points.length;
 
+// Default pixel size for a generated blank image: the page (cm) rendered at
+// `dpi` (CSS 96 by default), clamped to at least 1px per side. Mirrored by
+// core::defaultBlankSizePx in desktop/core/pageMetrics.cpp.
+export const defaultBlankSizePx = ({ width, height }, dpi = 96) => {
+  const toPx = cm => Math.max(1, Math.round(cm / 2.54 * dpi));
+  return { width: toPx(width), height: toPx(height) };
+};
+
 // Derive the selection-panel fill checkbox/color from a line's fillColor.
 export const fillState = (line, defaultFillColor) => {
   const enabled = !!(line.fillColor && line.fillColor !== 'transparent');

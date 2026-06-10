@@ -9,6 +9,8 @@ For the project overview and the desktop (C++/Qt) app, see the
 ## Features
 
 - Draw polylines and lockable, fillable rectangles/areas over an uploaded image
+- Blank-image creator (white / black / any color, sized to the page by default) for
+  starting from an empty canvas
 - Per-line color, thickness, marker size, and style (solid / dashed / dotted)
 - Editable points table with pixel ↔ page (cm) coordinate conversion and optional
   `f(x,y)` formula transforms

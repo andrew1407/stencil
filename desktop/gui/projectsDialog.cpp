@@ -52,6 +52,8 @@ namespace stencil::gui {
 
     auto* row = new QHBoxLayout;
     auto* newBtn = new QPushButton("New Project", this);
+    auto* blankBtn = new QPushButton("🖼 Blank Image", this);
+    blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
     auto* openBtn = new QPushButton("Open", this);
     auto* renewBtn = new QPushButton("🔄 Renew", this);
     renewBtn->setToolTip("Reset the 7-day expiry to start from now");
@@ -59,6 +61,7 @@ namespace stencil::gui {
     auto* closeBtn = new QPushButton("Close", this);
     openBtn->setDefault(true);
     row->addWidget(newBtn);
+    row->addWidget(blankBtn);
     row->addStretch(1);
     row->addWidget(openBtn);
     row->addWidget(renewBtn);
@@ -67,6 +70,7 @@ namespace stencil::gui {
     layout->addLayout(row);
 
     connect(newBtn, &QPushButton::clicked, this, &ProjectsDialog::createNew);
+    connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
     connect(openBtn, &QPushButton::clicked, this, &ProjectsDialog::openSelected);
     connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
     connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
@@ -122,6 +126,11 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Renew;
+    accept();
+  }
+
+  void ProjectsDialog::createBlank() {
+    action_ = Action::NewBlank;
     accept();
   }
 

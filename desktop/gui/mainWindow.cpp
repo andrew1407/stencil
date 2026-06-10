@@ -1,4 +1,5 @@
 #include "mainWindow.hpp"
+#include "blankImageDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
 #include "core/geometry.hpp"
@@ -86,7 +87,7 @@ namespace stencil::gui {
     notify_ = new Notifications(scroll_->viewport());
     tooltip_ = new CanvasTooltip(this);  // floating hover tooltip (S12)
 
-    status_ = new QLabel("Open an image to begin", this);
+    status_ = new QLabel("Open an image — or create a blank one — to begin", this);
     statusBar()->addWidget(status_);
 
     pageSize_ = new QComboBox(this);
@@ -164,6 +165,9 @@ namespace stencil::gui {
             &MainWindow::onSelectionChanged);
     connect(canvas_, &CanvasWidget::contextRequested, this,
             &MainWindow::showContextMenu);
+    // Idle-canvas click (no image yet) opens the blank-image creator.
+    connect(canvas_, &CanvasWidget::blankImageRequested, this,
+            &MainWindow::newBlankImage);
     connect(canvas_, &CanvasWidget::zoomStep, this, &MainWindow::zoomStep);
     // Reflect drawing mode in the Start/Stop actions (S5).
     connect(canvas_, &CanvasWidget::drawingModeChanged, this,
@@ -296,6 +300,9 @@ namespace stencil::gui {
     };
 
     actOpen_ = mk("Open Image…", "Ctrl+O");
+    actNewBlank_ = mk("🖼 New Blank Image…", QString());
+    actNewBlank_->setToolTip(
+        "Create a blank image (white, black, or any color) to draw on");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -367,6 +374,7 @@ namespace stencil::gui {
     actPanel_->setChecked(true);
 
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
+    connect(actNewBlank_, &QAction::triggered, this, &MainWindow::newBlankImage);
     connect(actStartDraw_, &QAction::triggered, canvas_,
             &CanvasWidget::startDrawingMode);
     connect(actStopDraw_, &QAction::triggered, canvas_,
@@ -600,6 +608,7 @@ namespace stencil::gui {
     // Alt+P points, Alt+L lines, etc.).
     auto* file = menuBar()->addMenu("F&ile");
     file->addAction(actOpen_);
+    file->addAction(actNewBlank_);
     file->addAction(actSaveSession_);
     file->addSeparator();
     file->addAction(actQuit_);
@@ -678,6 +687,7 @@ namespace stencil::gui {
     tb->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
     tb->addAction(actOpen_);
+    tb->addAction(actNewBlank_);
     tb->addSeparator();
     tb->addAction(actStartDraw_);
     tb->addAction(actStopDraw_);
@@ -997,6 +1007,29 @@ namespace stencil::gui {
     }
     notify_->success("Image loaded");
     refreshActions();
+  }
+
+  // Generate a solid-color image and adopt it exactly like a clipboard paste
+  // (confirm-replace guard included), so editing/persistence behave as if the
+  // image had been opened from disk. Mirrors browser blankImageModal.js.
+  void MainWindow::newBlankImage() {
+    const auto px = core::defaultBlankSizePx(currentPageDimensions());
+    BlankImageDialog dlg(px.width, px.height, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    if (canvas_->hasImage() &&
+        QMessageBox::question(this, "Replace image",
+                              "Replace the current image with a new blank image?")
+            != QMessageBox::Yes) {
+      notify_->info("Blank image canceled");
+      return;
+    }
+    QImage img(dlg.widthPx(), dlg.heightPx(), QImage::Format_RGB32);
+    img.fill(dlg.color());
+    canvas_->loadFromImage(img);
+    refreshActions();
+    notify_->success(QString("Blank %1×%2 image created")
+                         .arg(dlg.widthPx())
+                         .arg(dlg.heightPx()));
   }
 
   // Page dimensions for the current selection, honoring custom W x H (S10).
@@ -1902,6 +1935,8 @@ namespace stencil::gui {
         return;
       }
       createProject(dlg.newName());
+    } else if (dlg.action() == Action::NewBlank) {
+      newBlankImage();
     }
   }
 
@@ -2020,8 +2055,9 @@ namespace stencil::gui {
   }
 
   void MainWindow::updateStatusIdle() {
-    status_->setText(canvas_->hasImage() ? "Ready"
-                                         : "Open an image to begin");
+    status_->setText(canvas_->hasImage()
+                         ? "Ready"
+                         : "Open an image — or create a blank one — to begin");
   }
 
 }

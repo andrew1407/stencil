@@ -86,6 +86,7 @@ if(Qt6_FOUND)
     gui/selectionPanel.cpp
     gui/settingsDialog.cpp
     gui/projectsDialog.cpp
+    gui/blankImageDialog.cpp
     gui/infoDialog.cpp
     gui/shortcutsDialog.cpp
     gui/guiHelpers.cpp

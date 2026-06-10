@@ -2108,6 +2108,10 @@ export class DrawingApp {
       const el = document.getElementById(id);
       if (el) el.disabled = noImage;
     }
+    // The blank-image creator icon lives on the empty canvas — only the idle
+    // (imageless) state shows it; with an image loaded it would cover content.
+    const idleCreate = document.getElementById('idleCreateWrap');
+    if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
     this.updateIncognitoUI();
   }
 

@@ -659,6 +659,46 @@ body.fullscreen-mode #fs-points-panel {
     cursor: pointer;
 }
 #vs-reset:hover { background: var(--bg-info); }
+/* ── Blank-image creator ── */
+/* Idle-canvas entry point: centered over the empty viewport, hidden by
+   DrawingApp.updateButtons() once an image is loaded. */
+.idle-create {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.idle-create-btn {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 26px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--bg-info);
+    color: var(--text-main);
+    border: 2px dashed var(--border-hint);
+    border-radius: 10px;
+}
+.idle-create-btn:hover { border-color: var(--border-main); }
+.idle-create-icon { font-size: 32px; line-height: 1; }
+/* White/black preset chips in the blank-image modal */
+.bi-presets { display: flex; gap: 8px; }
+.bi-preset {
+    width: 54px;
+    height: 30px;
+    padding: 0;
+    font-size: 11px;
+    border: 1px solid var(--border-main) !important;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.bi-preset-white { background: #ffffff; color: #333333; }
+.bi-preset-black { background: #000000; color: #eeeeee; }
 /* Info dialog */
 .info-group-title {
     font-weight: bold;
