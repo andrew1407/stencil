@@ -399,6 +399,7 @@ export class Storage {
           this.app.updateInfo();
           this.app.renderer.redraw();
           this.app.updateButtons();
+          this.app.updateCoordStatus();
           if (this.app.lines.length > 0)
             this.app.coordTable.update(this.app.lines[this.app.lines.length - 1].points);
           this.showImageMissingBanner(false);
