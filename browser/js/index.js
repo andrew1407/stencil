@@ -2,6 +2,7 @@ import { mountHTML } from './utils.js';
 import { layout } from './ui/layout.js';
 import { DrawingApp } from './core/drawingApp.js';
 import { core } from './core/stencilCore.js';
+import { registerServiceWorker } from './pwa.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST. Importing layout registers every custom element. On load:
 // instantiate the shared C++ core (wasm) so geometry/formula/filter/zoom logic
@@ -19,4 +20,5 @@ window.onload = async () => {
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
+  registerServiceWorker();        // enable offline + installable PWA (best-effort)
 };
