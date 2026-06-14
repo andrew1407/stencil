@@ -294,7 +294,11 @@ namespace stencil::gui {
       if (!seq.isEmpty()) a->setShortcut(QKeySequence(seq));
       // WindowShortcut (default): fires when the main window is active, but not
       // over modal dialogs — so Backspace/Esc stay usable inside dialogs.
-      a->setToolTip(seq.isEmpty() ? text : QString("%1 (%2)").arg(text, seq));
+      // Show the shortcut natively (⌘C on macOS, Ctrl+C elsewhere); storage and
+      // matching keep the portable form via QKeySequence above.
+      const QString shown =
+          QKeySequence(seq).toString(QKeySequence::NativeText);
+      a->setToolTip(seq.isEmpty() ? text : QString("%1 (%2)").arg(text, shown));
       addAction(a);  // register the shortcut on the window
       return a;
     };
@@ -2039,8 +2043,10 @@ namespace stencil::gui {
         };
         // Notifications has Info/Success/Error levels; Error is the strongest
         // visual cue for this caution. Still applies below (warn, don't block).
+        // Comparison stays PortableText (above); only the shown seq is native.
+        const QString shown = QKeySequence(seq).toString(QKeySequence::NativeText);
         notify_->error(QString("Duplicate shortcut: '%1' is bound to %2 and %3")
-                           .arg(seq, label(prior.value()), label(it.key())));
+                           .arg(shown, label(prior.value()), label(it.key())));
         break;  // one warning is enough; still applies below
       }
       seen.insert(seq, it.key());

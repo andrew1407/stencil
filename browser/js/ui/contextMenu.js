@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { notify, setRadioGroup } from '../utils.js';
+import { notify, setRadioGroup, formatCombo } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 // ── Component: custom right-click context menu ──────────────────
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
@@ -248,8 +248,6 @@ export class StencilContextMenu extends StencilElement {
         app.isDrawing ? 'Stop Drawing' : 'Start Drawing';
       document.getElementById('ctx-draw-toggle').querySelector('.ctx-icon').textContent =
         app.isDrawing ? '⏹' : '✏️';
-      document.getElementById('ctx-draw-hotkey').textContent =
-        app.isDrawing ? 'Alt+S' : 'Alt+A';
 
       // Drawing-mode switch label
       const dmLabel = document.getElementById('ctx-drawmode-label');
@@ -270,6 +268,10 @@ export class StencilContextMenu extends StencilElement {
 
       // Refresh hotkey hint text in case shortcuts were remapped
       hotkeys.updateCtxHints();
+      // The draw hotkey span carries data-hk="startDraw"; override it after
+      // updateCtxHints so it reflects the start/stop binding for the live state.
+      document.getElementById('ctx-draw-hotkey').textContent =
+        formatCombo(hotkeys.get(app.isDrawing ? 'stopDraw' : 'startDraw'), hotkeys.isMac);
 
       // Checkmarks
       document.getElementById('ctx-chk-points').textContent = app.showPoints ? '✓' : '';
