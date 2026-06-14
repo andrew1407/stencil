@@ -1,0 +1,27 @@
+{
+  "name": "Stencil — image annotation",
+  "short_name": "Stencil",
+  "description": "Draw polylines and rectangles over an image with pixel ↔ page coordinates, formulas, filters, and multi-project storage.",
+  "id": "/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a1a",
+  "theme_color": "#7c3aed",
+  "categories": ["productivity", "graphics", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

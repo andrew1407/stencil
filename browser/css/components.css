@@ -431,6 +431,29 @@ body.fullscreen-mode #fs-points-panel {
 #notifyBalloon.notify-info  { background: #007bff; }
 #notifyBalloon .notify-icon { font-size: 16px; }
 
+/* ── PWA install button (floating, bottom-right) ── */
+#installHost[hidden] { display: none; }
+#installHost {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 100000;
+}
+#installAppBtn {
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+    transition: background 0.18s ease, transform 0.18s ease;
+}
+#installAppBtn:hover  { background: #6d28d9; }
+#installAppBtn:active { transform: translateY(1px); }
+
 /* ── Settings gear button ── */
 #settingsBtn, #visualsBtn, #infoBtn {
     background: transparent;
