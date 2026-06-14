@@ -1,5 +1,6 @@
 #include "infoDialog.hpp"
 #include "guiHelpers.hpp"
+#include "core/hotkeyFormat.hpp"
 #include <QDialogButtonBox>
 #include <QFile>
 #include <QJsonArray>
@@ -42,12 +43,17 @@ namespace stencil::gui {
             .array();
     if (!keys.isEmpty()) {
       html += "<h3>Keyboard shortcuts</h3><table cellpadding='4'>";
+      // Render the shortcut in the platform's native form: ⌘C / ⌥A on macOS,
+      // Ctrl+C / Alt+A on Windows/Linux. Storage stays the portable config
+      // string; only this human-facing column is converted.
+      const bool isMac = core::hotkeyFormat::isMacBuild();
       for (const auto& v : keys) {
         const QJsonObject o = v.toObject();
+        const QString seq = QString::fromStdString(core::hotkeyFormat::toNative(
+            o.value("default").toString().toStdString(), isMac));
         html += QString("<tr><td><b>%1</b></td><td>&nbsp;&nbsp;</td>"
                         "<td>%2</td></tr>")
-                    .arg(o.value("default").toString(),
-                         o.value("label").toString());
+                    .arg(seq.toHtmlEscaped(), o.value("label").toString());
       }
       html += "</table>";
     }

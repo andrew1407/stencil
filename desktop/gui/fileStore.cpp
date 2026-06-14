@@ -1,14 +1,29 @@
 #include "fileStore.hpp"
+#include "core/localeUnit.hpp"
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QStandardPaths>
 
 namespace stencil::gui {
 
   namespace {
+
+    // Seed the default display unit from the system locale: US customary →
+    // inches, everything else (incl. metric and the UK) → cm. Maps QLocale's
+    // measurement system onto the STL-only core policy. Only used as a default;
+    // a saved "units" preference always overrides it (see loadSettings).
+    QString localeDefaultUnit() {
+      using MS = core::localeUnit::MeasurementSystem;
+      const auto qsys = QLocale::system().measurementSystem();
+      const MS sys = (qsys == QLocale::ImperialUSSystem) ? MS::ImperialUS
+                   : (qsys == QLocale::ImperialUKSystem) ? MS::ImperialUK
+                                                         : MS::Metric;
+      return QString::fromStdString(core::localeUnit::defaultUnit(sys));
+    }
 
     // Baked at build time to <repo>/desktop/.stencil (see CMakeLists). Falls back
     // to the per-user config dir if the define is somehow absent.
@@ -111,6 +126,10 @@ namespace stencil::gui {
 
   Settings fileStore::loadSettings() {
     Settings s;
+    // Seed the locale-based default before reading the file, so a brand-new
+    // user (no settings yet) or an older config without a "units" key still
+    // gets a sensible default; a stored "units" value below overrides it.
+    s.units = localeDefaultUnit();
     const QJsonObject o = readJson(settingsPath()).object();
     if (o.isEmpty()) return s;
     // themeMode is the new key; migrate the legacy `theme` ("dark"->dark,

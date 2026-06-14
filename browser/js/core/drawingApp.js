@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -119,9 +119,11 @@ export class DrawingApp {
     this.formulaX = ''; // empty = identity
     this.formulaY = '';
 
-    // Display unit for page/length readouts: 'cm' (default) or 'in'. Lengths are
-    // always stored in cm; this only affects how they are shown and entered.
-    this.unit = 'cm';
+    // Display unit for page/length readouts: 'cm' or 'in'. Lengths are always
+    // stored in cm; this only affects how they are shown and entered. The
+    // initial default is seeded from the user's locale (US/imperial → inches,
+    // everyone else → cm); a restored layout's saved unit overrides it.
+    this.unit = defaultUnitFromLocale();
 
     // ── Drawing mode: 'line' (click points) or 'rect' (drag rectangle) ──
     this.drawMode = 'line';
