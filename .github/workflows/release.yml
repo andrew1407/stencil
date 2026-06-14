@@ -1,12 +1,16 @@
 name: Release
 
 # Builds self-contained desktop packages for macOS / Windows / Linux and, when the
-# run was triggered by a version tag, attaches them to the GitHub release. Manual
-# runs (workflow_dispatch) still build + upload the packages as workflow artifacts,
-# so you can smoke-test packaging without cutting a tag.
+# run was triggered by a version tag, attaches them to the GitHub release. Every
+# other run (branch pushes, PRs, manual workflow_dispatch) still builds + uploads
+# the packages as workflow artifacts, so packaging is exercised on every push the
+# same way CI is — only the "Attach to release" step is gated on a version tag.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
