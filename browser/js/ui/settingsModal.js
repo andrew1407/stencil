@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
-import { notify, comboFromEvent } from '../utils.js';
+import { notify, comboFromEvent, formatCombo } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────
@@ -69,12 +69,15 @@ export class StencilSettingsModal extends StencilElement {
       tbody.innerHTML = '';
       HOTKEY_DEFS.forEach(def => {
         const tr = document.createElement('tr');
-        const cur = hotkeys.get(def.id) || '(unset)';
-        const isDefault = hotkeys.get(def.id) === def.default;
+        // Defaults are platformized in the registry; compare/display against that.
+        const def0 = hotkeys.getDefault(def.id);
+        const curRaw = hotkeys.get(def.id);
+        const cur = curRaw ? formatCombo(curRaw, hotkeys.isMac) : '(unset)';
+        const isDefault = curRaw === def0;
         tr.innerHTML = `
                 <td>${def.label}</td>
                 <td><span class="hotkey-cell" data-id="${def.id}" title="Double-click to set a new combination">${cur}</span></td>
-                <td><span class="hotkey-default">${def.default}</span></td>
+                <td><span class="hotkey-default">${formatCombo(def0, hotkeys.isMac)}</span></td>
                 <td style="text-align:center;">
                     <button class="hotkey-reset-btn" data-id="${def.id}" title="Reset to default"${isDefault ? ' style="visibility:hidden;"' : ''}>↺</button>
                 </td>
@@ -129,7 +132,7 @@ export class StencilSettingsModal extends StencilElement {
         if (otherId === capturing.id) continue;
         if (otherCombo === combo) {
           const other = HOTKEY_DEFS.find(d => d.id === otherId);
-          if (!confirm(`"${combo}" is already used by "${other.label}".\n\nUnbind it and assign this combination?`)) {
+          if (!confirm(`"${formatCombo(combo, hotkeys.isMac)}" is already used by "${other.label}".\n\nUnbind it and assign this combination?`)) {
             stopCapture(false);
             return;
           }

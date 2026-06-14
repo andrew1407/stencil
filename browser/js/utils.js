@@ -30,6 +30,29 @@ export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val)
 // Short label for the active unit.
 export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
 
+// Pick the initial display unit from the user's locale. There is no dedicated
+// "measurement system" web API, so we derive the region from the locale tag via
+// Intl.Locale and map it: only the US, Liberia and Myanmar use inches for
+// everyday length — everyone else gets cm. A bare tag like "en" is resolved to
+// its likely region via maximize() (e.g. "en" → US). This only SEEDS the
+// default; a saved/typed preference always overrides it. Never throws.
+const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
+export const defaultUnitFromLocale = (
+  nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined),
+) => {
+  try {
+    // No usable locale tag → fall back to metric (the international default),
+    // not to a US-biased guess.
+    const tag = (nav && nav.languages && nav.languages[0]) || (nav && nav.language) || '';
+    if (!tag) return 'cm';
+    const loc = new Intl.Locale(tag);
+    const region = (loc.region || loc.maximize().region || '').toUpperCase();
+    return IMPERIAL_REGIONS.has(region) ? 'in' : 'cm';
+  } catch {
+    return 'cm';
+  }
+};
+
 // ── Notification balloon ────────────────────────────────────────
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.
@@ -113,6 +136,53 @@ export const comboFromEvent = e => {
   parts.push(normalizeKey(e.code, e.key));
   return parts.join('+');
 };
+// ── Platform detection / Mac-relative hotkeys (pure) ────────────
+// True on macOS. Prefers the modern userAgentData.platform hint, falls back to
+// navigator.platform / userAgent matching /Mac/i. Safe when nav is undefined
+// (returns false) so it can be imported/called in Node without throwing.
+export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
+  if (!nav) return false;
+  const uaPlat = nav.userAgentData && nav.userAgentData.platform;
+  if (typeof uaPlat === 'string') return /mac/i.test(uaPlat);
+  if (typeof nav.platform === 'string' && /mac/i.test(nav.platform)) return true;
+  if (typeof nav.userAgent === 'string' && /Mac/i.test(nav.userAgent)) return true;
+  return false;
+};
+
+// Rewrite a canonical combo for the active platform. On Mac the app's Ctrl-based
+// editing shortcuts (undo/redo/copy/paste, etc.) map to ⌘, so we swap the Ctrl
+// token to Meta. Token-aware (splits on '+'), case-insensitive on "Ctrl", and
+// idempotent (an already-Meta combo is unchanged). No-op when isMac is false.
+export const platformizeCombo = (combo, isMac) => {
+  if (!isMac || !combo) return combo;
+  return combo.split('+')
+    .map(p => (p.trim().toLowerCase() === 'ctrl' ? 'Meta' : p))
+    .join('+');
+};
+
+// Render a combo for DISPLAY only (storage stays canonical). On Mac, map tokens
+// to Apple symbols in the conventional ⌃⌥⇧⌘ order followed by the key, joined
+// with no separator (e.g. "Meta+Shift+Z" → "⇧⌘Z", "Alt+ArrowUp" → "⌥↑"). On
+// non-Mac, the canonical "Ctrl+Shift+Z" form is returned unchanged.
+export const formatCombo = (combo, isMac) => {
+  if (!isMac || !combo) return combo;
+  const parts = combo.split('+').map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return combo;
+  const key = parts[parts.length - 1];
+  const mods = new Set(parts.slice(0, -1).map(p => p.toLowerCase()));
+  const symFor = m => ({
+    ctrl: '⌃', control: '⌃', alt: '⌥', option: '⌥',
+    shift: '⇧', meta: '⌘', cmd: '⌘', command: '⌘',
+  })[m] || '';
+  // Apple convention: ⌃ ⌥ ⇧ ⌘ then the key.
+  let out = '';
+  for (const m of ['ctrl', 'control', 'alt', 'option', 'shift', 'meta', 'cmd', 'command']) {
+    if (mods.has(m)) { out += symFor(m); mods.delete(m); }
+  }
+  const arrows = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+  return out + (arrows[key] || key);
+};
+
 export const isTypingTarget = t => {
   if (!t) return false;
   const tag = (t.tagName || '').toLowerCase();

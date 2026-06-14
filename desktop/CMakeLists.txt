@@ -23,6 +23,8 @@ set(STENCIL_CORE_SOURCES
   core/zoomPan.cpp
   core/tooltipRows.cpp
   core/imageFilter.cpp
+  core/hotkeyFormat.cpp
+  core/localeUnit.cpp
 )
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
@@ -58,6 +60,8 @@ add_executable(stencil_tests
   tests/zoomPan.test.cpp
   tests/tooltipRows.test.cpp
   tests/imageFilter.test.cpp
+  tests/hotkeyFormat.test.cpp
+  tests/localeUnit.test.cpp
   # The WebAssembly ABI surface (extern "C" wrappers) is plain STL, so it
   # compiles and is exercised natively here — keeping the wasm exports covered
   # even on a machine without Emscripten.

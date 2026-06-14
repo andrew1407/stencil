@@ -13,12 +13,17 @@
 // typeof window/document/localStorage so importing this leaf module in Node
 // (transitively, via any browser module) stays inert and never throws.
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
+import { platformizeCombo, isMacPlatform, formatCombo } from '../utils.js';
 
 const STORAGE_KEY = 'drawingApp_hotkeys';
 
 class Hotkeys {
-  // Frozen id → default-combo map (the reset target).
-  #defaults = Object.freeze(Object.fromEntries(HOTKEY_DEFS.map(h => [h.id, h.default])));
+  // Whether the active platform is macOS (decided once at construction).
+  #isMac = isMacPlatform();
+  // Frozen id → default-combo map (the reset target). Defaults are platformized
+  // so on Mac the canonical Ctrl-based combos become Meta-based (⌘).
+  #defaults = Object.freeze(Object.fromEntries(
+    HOTKEY_DEFS.map(h => [h.id, platformizeCombo(h.default, this.#isMac)])));
   // Live id → combo map (mutable; starts from defaults, then merges saved).
   #current;
 
@@ -28,8 +33,10 @@ class Hotkeys {
     if (typeof localStorage === 'undefined') return;
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      // platformizeCombo is idempotent, so re-applying to an already-Meta
+      // override is a no-op; a legacy Ctrl override gets mapped to Meta on Mac.
       for (const k in saved)
-        if (k in this.#current) this.#current[k] = saved[k];
+        if (k in this.#current) this.#current[k] = platformizeCombo(saved[k], this.#isMac);
     } catch {
       /* ignore */
     }
@@ -40,9 +47,14 @@ class Hotkeys {
     return this.#current[id];
   }
 
-  // Default combo for an id.
+  // Default combo for an id (platformized: Meta-based on Mac).
   getDefault(id) {
     return this.#defaults[id];
+  }
+
+  // True on macOS — consumers use this to drive formatCombo for display.
+  get isMac() {
+    return this.#isMac;
   }
 
   // Set/override a binding (does not persist — callers save() explicitly, as the
@@ -82,7 +94,7 @@ class Hotkeys {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('[data-hk]').forEach(el => {
       const id = el.dataset.hk;
-      if (this.#current[id]) el.textContent = this.#current[id];
+      if (this.#current[id]) el.textContent = formatCombo(this.#current[id], this.#isMac);
     });
   }
 }
