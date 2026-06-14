@@ -1,4 +1,5 @@
 #pragma once
+#include "core/cropGeometry.hpp"
 #include "core/historyStack.hpp"
 #include "core/models.hpp"
 #include <QColor>
@@ -27,11 +28,23 @@ namespace stencil::gui {
     explicit CanvasWidget(QWidget* parent = nullptr);
 
     bool loadImage(const QString& path);
-    void restore(const QString& path, const core::Lines& lines, double scale);
+    void restore(const QString& path, const core::Lines& lines, double scale,
+                 const core::CropRect& cropRect = {});
     const QString& imagePath() const { return imagePath_; }
     bool hasImage() const { return !image_.isNull(); }
     int imageWidth() const { return image_.width(); }
     int imageHeight() const { return image_.height(); }
+
+    // ── crop (shared cropGeometry; mirrors browser DrawingApp.applyCrop) ──
+    // The untouched original; the working `image_` is just the cropped region.
+    const QImage& originalImage() const { return originalImage_; }
+    core::CropRect cropRect() const { return cropRect_; }
+    // Natural page dimensions (cm, NOT orientation-swapped) used to shape the
+    // default centered crop. Set by MainWindow on page-size changes.
+    void setPageCm(double widthCm, double heightCm);
+    // Adopt a new crop rectangle (original-image pixels). With `recalc`, existing
+    // lines are cleared on an orientation flip, else rescaled to the new size.
+    void applyCrop(const core::CropRect& rect, bool recalc);
 
     void setScale(double scale);
     double scale() const { return scale_; }
@@ -209,6 +222,15 @@ namespace stencil::gui {
     void scheduleEditCommit();  // debounced commitHistory for wheel edits
 
     QImage image_;
+    // Crop: the full original bitmap + the page-shaped sub-rectangle shown in
+    // image_. cropRect_.width == 0 means "no crop yet". pageW/H drive the default
+    // centered crop's aspect (set by MainWindow from the current page size).
+    QImage originalImage_;
+    core::CropRect cropRect_;
+    double pageWidthCm_ = 29.7;
+    double pageHeightCm_ = 42.0;
+    core::CropRect defaultCropRect() const;  // centered crop for originalImage_
+    void rebuildCroppedFromOriginal();       // image_ <- originalImage_ ∩ cropRect_
     QString imagePath_;
     core::Lines lines_;
     core::Line currentLine_;

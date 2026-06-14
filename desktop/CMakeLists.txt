@@ -17,6 +17,7 @@ set(STENCIL_CORE_SOURCES
   core/geometry.cpp
   core/color.cpp
   core/pageMetrics.cpp
+  core/cropGeometry.cpp
   core/formulaParser.cpp
   core/historyStack.cpp
   core/projectsStore.cpp
@@ -54,6 +55,7 @@ add_executable(stencil_tests
   tests/geometry.test.cpp
   tests/color.test.cpp
   tests/pageMetrics.test.cpp
+  tests/cropGeometry.test.cpp
   tests/formula.test.cpp
   tests/history.test.cpp
   tests/projectsStore.test.cpp
@@ -91,6 +93,7 @@ if(Qt6_FOUND)
     gui/settingsDialog.cpp
     gui/projectsDialog.cpp
     gui/blankImageDialog.cpp
+    gui/cropDialog.cpp
     gui/infoDialog.cpp
     gui/shortcutsDialog.cpp
     gui/guiHelpers.cpp
@@ -101,6 +104,20 @@ if(Qt6_FOUND)
   target_compile_definitions(stencil_gui PRIVATE
     "STENCIL_STATE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/.stencil\"")
   message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
+
+  # Headless functional check of the crop integration (CanvasWidget + cropGeometry).
+  # Runs offscreen (QT_QPA_PLATFORM=offscreen), so it needs no display. Kept out of
+  # stencil_tests (which is deliberately Qt-free) and built only when Qt is present.
+  add_executable(stencil_crop_headless
+    tests/cropCanvas.headless.cpp
+    gui/canvasWidget.cpp
+    gui/theme.cpp)
+  target_include_directories(stencil_crop_headless PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/gui)
+  target_link_libraries(stencil_crop_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_crop_headless COMMAND stencil_crop_headless)
+  set_tests_properties(stencil_crop_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 else()
   message(STATUS "Qt6 not found — skipping stencil_gui (core + tests still build)")
 endif()
@@ -118,6 +135,6 @@ if(EMSCRIPTEN)
     OUTPUT_NAME "stencil_core"
     # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module
     # loads under file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_applyFilterRGBA','_stencil_rotatePoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_malloc','_free']")
+    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_applyFilterRGBA','_stencil_rotatePoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_cropResizeScale','_stencil_cropChange','_malloc','_free']")
   message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
 endif()

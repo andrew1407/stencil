@@ -45,6 +45,10 @@ namespace stencil::gui {
     // color + px size (defaulting to the page at 96 dpi), then adopt the
     // generated image through the same path as a clipboard paste.
     void newBlankImage();
+    // Crop dialog (mirrors browser cropModal.js): pick the page-shaped region of
+    // the original image to show on the canvas. Confirms before discarding lines
+    // when the orientation flips; the original image is never replaced.
+    void openCropDialog();
     void onHovered(double imageX, double imageY);
     void refreshActions();
     void onCanvasChanged();
@@ -190,6 +194,7 @@ namespace stencil::gui {
     // ── actions (shared by menu bar, toolbar, context menu) ──
     QAction* actOpen_ = nullptr;
     QAction* actNewBlank_ = nullptr;
+    QAction* actCrop_ = nullptr;
     QAction* actStartDraw_ = nullptr;
     QAction* actStopDraw_ = nullptr;
     QAction* actNewLine_ = nullptr;

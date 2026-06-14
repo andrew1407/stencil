@@ -9,7 +9,7 @@ const markup = layout();
 // Count occurrences of a needle within the markup.
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 146 static body IDs (spec §6), original body order. Each must appear EXACTLY once.
+// All 156 static body IDs (spec §6 + crop modal), original body order. Each must appear EXACTLY once.
 const IDS = [
     'ctxMenu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
@@ -22,7 +22,7 @@ const IDS = [
     'ctx-tooltip-menu', 'ctx-tooltip-sub', 'ctx-tt-enabled', 'ctx-tt-page', 'ctx-tt-screen', 'ctx-tt-coords',
     'fs-top-trigger', 'fs-right-trigger', 'fs-controls-panel', 'fs-exit-btn', 'fs-selection-panel',
     'fs-points-panel', 'globalDropOverlay', 'toggleControls', 'hintsBtn', 'hintsPopup', 'controlsBody',
-    'imageUpload', 'imageSizeDisplay', 'imageFilter', 'filterColor', 'lineColor', 'lineThickness',
+    'imageUpload', 'imageSizeDisplay', 'imageFilter', 'filterColor', 'cropImage', 'lineColor', 'lineThickness',
     'markerSize', 'lineStyle', 'startDrawing', 'stopDrawing', 'drawModeToggle', 'undo', 'redo', 'showPoints',
     'showLines', 'clearAllLines', 'zoomOut', 'zoomInput', 'zoomIn', 'zoomFit', 'pageSize', 'unitSelect', 'customSizeGroup',
     'customPageWidth', 'customPageHeight', 'customUnitLabel', 'allowFormulas', 'formulaInputs', 'formulaX', 'formulaY',
@@ -34,11 +34,14 @@ const IDS = [
     'coordinatesBody', 'notifyBalloon', 'settingsModalOverlay', 'settingsModal', 'settingsClose', 'hotkeyTable',
     'resetAllHotkeys', 'visualsModalOverlay', 'visualsClose', 'vs-line-color', 'vs-thickness', 'vs-marker',
     'vs-style', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'infoModalOverlay',
-    'infoClose', 'infoSearch', 'infoBody'
+    'infoClose', 'infoSearch', 'infoBody',
+    // Crop modal (stencil-crop-modal) + its toolbar trigger (cropImage, above).
+    'cropModalOverlay', 'cropClose', 'cropStage', 'cropImageEl', 'cropBox',
+    'cropDims', 'cropOrientation', 'cropCancel', 'cropApply'
 ];
 
-test('fixture has exactly 146 IDs', () => {
-    assert.strictEqual(IDS.length, 146);
+test('fixture has exactly 156 IDs', () => {
+    assert.strictEqual(IDS.length, 156);
 });
 
 test('every static body ID is present exactly once', () => {

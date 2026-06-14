@@ -27,6 +27,9 @@ export class Storage {
     return {
       imageWidth: this.app.canvas.width,
       imageHeight: this.app.canvas.height,
+      // The crop rectangle (original-image pixels). The stored image stays the
+      // untouched original; the crop is re-applied on load.
+      cropRect: this.app.cropRect,
       lines: this.app.lines,
       pageSize: this.app.pageSize,
       customPageWidth: this.app.customPageWidth,
@@ -106,7 +109,11 @@ export class Storage {
     if (!proj) return; // gone — removal is handled by the REMOVED action
     const payload = proj.payload || {};
     const sameImage = (payload.image || null) === (this.app.imageDataUrl || null);
-    if (!sameImage || !this.app.image) {
+    // A crop change keeps the same original image but resizes the working canvas,
+    // so the light path (lines only) can't represent it — fall back to a full
+    // reload when the stored crop differs from the live one.
+    const sameCrop = JSON.stringify((payload.layout || {}).cropRect || null) === JSON.stringify(this.app.cropRect || null);
+    if (!sameImage || !sameCrop || !this.app.image) {
       this.loadPayloadIntoApp(payload);
       this.app.showSaveStatus('↺ Synced from another tab', '#007bff');
       return;
@@ -365,14 +372,16 @@ export class Storage {
       this.app.pendingImageSize = null;
 
       if (imageDataUrl) {
-        // Full restore: image + lines
+        // Full restore: original image + crop + lines
         this.app.imageDataUrl = imageDataUrl;
-        this.app.image = new Image();
-        this.app.image.onload = () => {
+        this.app.originalImage = new Image();
+        this.app.originalImage.onload = () => {
           // Stale-load guard: ignore if the user switched projects mid-load.
           if (this.activeId !== targetId) return;
-          this.app.canvas.width = this.app.image.width;
-          this.app.canvas.height = this.app.image.height;
+          // Re-apply the stored crop (or default-crop legacy projects saved
+          // before cropping existed) and build the working canvas from it.
+          this.app.cropRect = layout.cropRect || this.app.defaultCropRect();
+          this.app.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
           this.app.history.reset(this.app.lines, 0);
 
@@ -402,10 +411,12 @@ export class Storage {
           this.showImageMissingBanner(false);
           this.app.showSaveStatus('↺ Project loaded', '#007bff');
         };
-        this.app.image.src = imageDataUrl;
+        this.app.originalImage.src = imageDataUrl;
       } else if ((layout.lines || []).length > 0) {
         // Lines saved but image was too large for storage: keep lines pending.
         this.app.image = null;
+        this.app.originalImage = null;
+        this.app.cropRect = null;
         this.app.imageDataUrl = null;
         this.app.lines = [];
         this.app.history.reset([], -1);
@@ -419,6 +430,8 @@ export class Storage {
       } else {
         // Settings only.
         this.app.image = null;
+        this.app.originalImage = null;
+        this.app.cropRect = null;
         this.app.imageDataUrl = null;
         this.app.lines = [];
         this.app.history.reset([], -1);
@@ -440,6 +453,8 @@ export class Storage {
     this.app.activeProjectId = null;
 
     this.app.image = null;
+    this.app.originalImage = null;
+    this.app.cropRect = null;
     this.app.imageDataUrl = null;
     this.app.imageBaseName = null;
     this.app.imageExt = null;
@@ -475,14 +490,17 @@ export class Storage {
     return this.activeId;
   }
 
-  // Compress image to JPEG at given quality; returns data URL or null
+  // Compress image to JPEG at given quality; returns data URL or null. Operates
+  // on the ORIGINAL (full) image so the stored image is never the cropped view —
+  // the crop is persisted separately as a rectangle and re-applied on load.
   #compressImage(quality) {
-    if (!this.app.image) return null;
+    const src = this.app.originalImage || this.app.image;
+    if (!src) return null;
     try {
       const offscreen = document.createElement('canvas');
-      offscreen.width = this.app.image.width;
-      offscreen.height = this.app.image.height;
-      offscreen.getContext('2d').drawImage(this.app.image, 0, 0);
+      offscreen.width = src.width;
+      offscreen.height = src.height;
+      offscreen.getContext('2d').drawImage(src, 0, 0);
       return offscreen.toDataURL('image/jpeg', quality);
     } catch {
       return null;
