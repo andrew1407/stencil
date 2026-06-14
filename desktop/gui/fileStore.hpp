@@ -1,4 +1,5 @@
 #pragma once
+#include "core/cropGeometry.hpp"
 #include "core/models.hpp"
 #include "core/projectsStore.hpp"
 #include <QHash>
@@ -63,6 +64,9 @@ namespace stencil::gui {
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
     QString drawMode = "line";
+    // Crop window in original-image pixels (width 0 = no crop stored → default
+    // centered crop is applied on load). The original image is never modified.
+    core::CropRect cropRect;
   };
 
   // One saved project: registry metadata (handled by core::ProjectsStore) plus
@@ -71,6 +75,8 @@ namespace stencil::gui {
     core::ProjectMeta meta;
     QString imagePath;
     core::Lines lines;
+    // Crop window (original-image pixels); width 0 = default crop on load.
+    core::CropRect cropRect;
   };
 
   namespace fileStore {

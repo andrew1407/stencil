@@ -13,6 +13,7 @@ import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
+import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints } from './cropGeometry.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (so they theme + match the label automatically). The
@@ -63,6 +64,12 @@ export class DrawingApp {
     this.coordinatesBody = document.getElementById('coordinatesBody');
 
     this.image = null;
+    // Crop support: `originalImage` is the untouched full-resolution bitmap; the
+    // working `image` is a canvas holding only the cropped (page-shaped) region,
+    // and `cropRect` records that region in original-image pixels. Line/marker
+    // points live in crop-local pixels. See applyCrop / #buildCroppedImage.
+    this.originalImage = null;
+    this.cropRect = null;
     this.lines = [];
     this.currentLine = null;
     this.isDrawing = false;
@@ -1103,23 +1110,26 @@ export class DrawingApp {
 
     const reader = new FileReader();
     reader.onload = event => {
-      this.image = new Image();
-      this.image.onload = () => {
-        this.canvas.width = this.image.width;
-        this.canvas.height = this.image.height;
+      this.originalImage = new Image();
+      this.originalImage.onload = () => {
+        // Auto-crop from the center to the page aspect (cut the surplus sides),
+        // using the existing album/portrait detection. The original is kept; the
+        // working canvas shows only this region.
+        this.cropRect = this.defaultCropRect();
+        this.rebuildCroppedImage();
 
         // If pending lines exist from a previous session where image couldn't be stored,
-        // apply them automatically when user re-uploads an image of matching size
+        // apply them automatically when user re-uploads an image of matching (crop) size
         if (this.pendingLines && this.pendingLines.length > 0) {
           const ps = this.pendingImageSize;
-          if (!ps || (ps.w === this.image.width && ps.h === this.image.height)) {
+          if (!ps || (ps.w === this.canvas.width && ps.h === this.canvas.height)) {
             this.lines = this.pendingLines;
             this.pendingLines = null;
             this.pendingImageSize = null;
             this.storage.showImageMissingBanner(false);
             this.showSaveStatus('✓ Drawing restored!', '#28a745');
           } else {
-            if (confirm(`Saved drawing was for a ${ps.w}×${ps.h} image but this image is ${this.image.width}×${this.image.height}. Apply saved lines anyway?`))
+            if (confirm(`Saved drawing was for a ${ps.w}×${ps.h} image but this image is ${this.canvas.width}×${this.canvas.height}. Apply saved lines anyway?`))
               this.lines = this.pendingLines;
             this.pendingLines = null;
             this.pendingImageSize = null;
@@ -1139,11 +1149,84 @@ export class DrawingApp {
         this.updateCoordStatus();
         this.storage.save();
       };
-      this.image.src = event.target.result;
-      // Store base64 for persistence
+      this.originalImage.src = event.target.result;
+      // Store base64 of the ORIGINAL for persistence (the crop is stored as a
+      // rectangle, never baked into the saved image).
       this.imageDataUrl = event.target.result;
     };
     reader.readAsDataURL(file);
+  }
+
+  // Page natural dimensions (cm) as selected — NOT orientation-swapped (only the
+  // proportions matter). Mirrors blankImageModal.pageDims.
+  #pageCmDims() {
+    return this.pageSize === 'custom'
+      ? { width: this.customPageWidth, height: this.customPageHeight }
+      : (PAGE_SIZES[this.pageSize] || PAGE_SIZES.A4);
+  }
+
+  // The default centered crop for the loaded original: page aspect in the
+  // orientation matching the image (album when wider than tall). Public so the
+  // storage layer can default-crop legacy projects saved before cropping existed.
+  defaultCropRect() {
+    const iw = this.originalImage.width, ih = this.originalImage.height;
+    const aspect = cropAspect(this.#pageCmDims().width, this.#pageCmDims().height, isAlbumOrientation(iw, ih));
+    return this.#roundRect(centeredCrop(iw, ih, aspect), iw, ih);
+  }
+
+  // Snap a crop rect to integer pixels, clamped inside the original image.
+  #roundRect(r, iw = this.originalImage.width, ih = this.originalImage.height) {
+    let w = Math.max(1, Math.min(Math.round(r.width), iw));
+    let h = Math.max(1, Math.min(Math.round(r.height), ih));
+    const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
+    const y = Math.max(0, Math.min(Math.round(r.y), ih - h));
+    return { x, y, width: w, height: h };
+  }
+
+  // Rebuild the working `image` canvas from `originalImage` + `cropRect`, and
+  // size the main canvas to the crop. The original is never modified. Public so
+  // the storage layer can rebuild the view after restoring original + cropRect.
+  rebuildCroppedImage() {
+    const r = this.cropRect;
+    const c = document.createElement('canvas');
+    c.width = r.width;
+    c.height = r.height;
+    c.getContext('2d').drawImage(this.originalImage, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+    this.image = c;
+    this.canvas.width = r.width;
+    this.canvas.height = r.height;
+  }
+
+  // Apply a new crop rectangle (image-space). With opts.recalc, existing lines
+  // are cleared on an orientation flip or rescaled to the new size (the page
+  // relation is preserved). Does NOT replace the stored original image.
+  applyCrop(rect, opts = {}) {
+    if (!this.originalImage) return;
+    const newRect = this.#roundRect(rect);
+    if (opts.recalc && this.cropRect) {
+      const change = cropChange(this.cropRect, newRect);
+      if (change.orientationChanged) this.lines = [];
+      else if (change.scale !== 1) scaleLinePoints(this.lines, change.scale);
+    }
+    this.cropRect = newRect;
+    this.rebuildCroppedImage();
+
+    this.currentLine = null;
+    this.selectedLineIdx = -1;
+    this.coordLineIdx = -1;
+    this.focusedPtIdx = -1;
+    const selPanel = document.getElementById('selectionPanel');
+    if (selPanel) selPanel.style.display = 'none';
+    const fsPanel = document.getElementById('fs-selection-panel');
+    if (fsPanel) fsPanel.style.display = 'none';
+    this.history.reset(this.lines);
+    this.zoomPan.fitToWindow();
+    this.updateInfo();
+    this.renderer.redraw();
+    this.updateButtons();
+    this.updateCoordStatus();
+    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
+    this.storage.save();
   }
 
   loadJSONFromFile(file) {

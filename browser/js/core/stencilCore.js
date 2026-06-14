@@ -88,6 +88,8 @@ class StencilCore {
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
       'pageDimensions', 'pixelToPageRaw', 'rotatePoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA',
+      'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
+      'moveCropClamped', 'cropResizeScale', 'cropChange',
     ];
   }
 
@@ -111,6 +113,9 @@ class StencilCore {
     const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['string', 'number', 'number', 'number']);
     const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
     const cShouldClose    = core.cwrap('stencil_shouldCloseShape', 'number', ['number', 'number', 'number', 'number', 'number']);
+    const cIsAlbum        = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
+    const cCropAspect     = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
+    const cCropResizeScale = core.cwrap('stencil_cropResizeScale', 'number', ['number', 'number']);
 
     // ccall'd exports that read/write through pointers.
     const cPageDims   = (name, cw, ch, cuW, cuH, out) =>
@@ -123,6 +128,26 @@ class StencilCore {
       core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
     const cFilter     = (mode, ptr, n, r, g, b) =>
       core.ccall('stencil_applyFilterRGBA', null, ['number', 'number', 'number', 'number', 'number', 'number'], [mode, ptr, n, r, g, b]);
+    const cCenteredCrop = (iw, ih, aspect, out) =>
+      core.ccall('stencil_centeredCrop', null, ['number', 'number', 'number', 'number'], [iw, ih, aspect, out]);
+    const cResizeCorner = (x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out) =>
+      core.ccall('stencil_resizeCropFromCorner', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out]);
+    const cMoveCrop   = (x, y, w, h, dx, dy, iw, ih, out) =>
+      core.ccall('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, dx, dy, iw, ih, out]);
+    const cCropChange = (ox, oy, ow, oh, nx, ny, nw, nh, out) =>
+      core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
+
+    // Read a CropRect {x,y,width,height} written to a 4-double out pointer.
+    const readRect = out => ({
+      x: core.getValue(out, 'double'),
+      y: core.getValue(out + F64, 'double'),
+      width: core.getValue(out + 2 * F64, 'double'),
+      height: core.getValue(out + 3 * F64, 'double')
+    });
+    const withRectOut = fill => {
+      const out = core._malloc(4 * F64);
+      try { fill(out); return readRect(out); } finally { core._free(out); }
+    };
 
     // Copy an array of {x,y} into a freshly malloc'd flat f64 buffer. Caller frees.
     const allocPoints = points => {
@@ -233,6 +258,41 @@ class StencilCore {
           data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
         } finally {
           core._free(ptr);
+        }
+      },
+
+      // ── crop geometry (cropGeometry.js) ──
+      isAlbumOrientation(w, h) {
+        return cIsAlbum(w, h) === 1;
+      },
+
+      cropAspect(pageWidth, pageHeight, album) {
+        return cCropAspect(pageWidth, pageHeight, album ? 1 : 0);
+      },
+
+      centeredCrop(imageW, imageH, aspectWoverH) {
+        return withRectOut(out => cCenteredCrop(imageW, imageH, aspectWoverH, out));
+      },
+
+      resizeCropFromCorner(cur, corner, cursorX, cursorY, aspectWoverH, imageW, imageH, minSize = 16) {
+        return withRectOut(out => cResizeCorner(cur.x, cur.y, cur.width, cur.height, corner, cursorX, cursorY, aspectWoverH, imageW, imageH, minSize, out));
+      },
+
+      moveCropClamped(cur, dx, dy, imageW, imageH) {
+        return withRectOut(out => cMoveCrop(cur.x, cur.y, cur.width, cur.height, dx, dy, imageW, imageH, out));
+      },
+
+      cropResizeScale(oldWidth, newWidth) {
+        return cCropResizeScale(oldWidth, newWidth);
+      },
+
+      cropChange(oldRect, newRect) {
+        const out = core._malloc(2 * F64);
+        try {
+          cCropChange(oldRect.x, oldRect.y, oldRect.width, oldRect.height, newRect.x, newRect.y, newRect.width, newRect.height, out);
+          return { orientationChanged: core.getValue(out, 'double') === 1, scale: core.getValue(out + F64, 'double') };
+        } finally {
+          core._free(out);
         }
       },
     };

@@ -14,6 +14,7 @@
 // exposes via Module.ccall / cwrap with no extra runtime.
 
 #include "color.hpp"
+#include "cropGeometry.hpp"
 #include "formulaParser.hpp"
 #include "geometry.hpp"
 #include "imageFilter.hpp"
@@ -162,6 +163,62 @@ extern "C" {
     out[0] = z.scale;
     out[1] = z.scrollLeft;
     out[2] = z.scrollTop;
+  }
+
+  // ── crop geometry (cropGeometry.js; shared with the Qt crop dialog) ──
+  // Each CropRect result is written to out[0..3] = {x, y, width, height}.
+  int stencil_isAlbumOrientation(double width, double height) {
+    return isAlbumOrientation(width, height) ? 1 : 0;
+  }
+
+  double stencil_cropAspect(double pageWidth, double pageHeight, int album) {
+    return cropAspect(pageWidth, pageHeight, album != 0);
+  }
+
+  void stencil_centeredCrop(double imageW, double imageH, double aspectWoverH,
+                            double* out) {
+    const CropRect r = centeredCrop(imageW, imageH, aspectWoverH);
+    out[0] = r.x;
+    out[1] = r.y;
+    out[2] = r.width;
+    out[3] = r.height;
+  }
+
+  void stencil_resizeCropFromCorner(double x, double y, double w, double h,
+                                    int corner, double cursorX, double cursorY,
+                                    double aspectWoverH, double imageW,
+                                    double imageH, double minSize, double* out) {
+    const CropRect r = resizeCropFromCorner(CropRect{x, y, w, h}, corner, cursorX,
+                                            cursorY, aspectWoverH, imageW, imageH,
+                                            minSize);
+    out[0] = r.x;
+    out[1] = r.y;
+    out[2] = r.width;
+    out[3] = r.height;
+  }
+
+  void stencil_moveCropClamped(double x, double y, double w, double h, double dx,
+                               double dy, double imageW, double imageH,
+                               double* out) {
+    const CropRect r = moveCropClamped(CropRect{x, y, w, h}, dx, dy, imageW, imageH);
+    out[0] = r.x;
+    out[1] = r.y;
+    out[2] = r.width;
+    out[3] = r.height;
+  }
+
+  double stencil_cropResizeScale(double oldWidth, double newWidth) {
+    return cropResizeScale(oldWidth, newWidth);
+  }
+
+  // out[0] = orientationChanged (0/1), out[1] = scale.
+  void stencil_cropChange(double oldX, double oldY, double oldW, double oldH,
+                          double newX, double newY, double newW, double newH,
+                          double* out) {
+    const CropChange c = cropChange(CropRect{oldX, oldY, oldW, oldH},
+                                    CropRect{newX, newY, newW, newH});
+    out[0] = c.orientationChanged ? 1.0 : 0.0;
+    out[1] = c.scale;
   }
 
 }  // extern "C"

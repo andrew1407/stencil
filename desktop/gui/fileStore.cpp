@@ -98,6 +98,22 @@ namespace stencil::gui {
     return lines;
   }
 
+  // Crop rectangle <-> JSON (original-image pixels). File-local: only the session
+  // / project (de)serializers need it.
+  static QJsonObject cropRectToJson(const core::CropRect& r) {
+    QJsonObject o;
+    o["x"] = r.x;
+    o["y"] = r.y;
+    o["width"] = r.width;
+    o["height"] = r.height;
+    return o;
+  }
+
+  static core::CropRect cropRectFromJson(const QJsonObject& o) {
+    return {o.value("x").toDouble(), o.value("y").toDouble(),
+            o.value("width").toDouble(), o.value("height").toDouble()};
+  }
+
   // Build the layout export envelope (browser drawingApp.js:2078-2079).
   QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines) {
     QJsonObject o;
@@ -200,6 +216,7 @@ namespace stencil::gui {
     s.filterColor = o.value("filterColor").toString("#7c3aed");
     s.drawMode = o.value("drawMode").toString("line");
     s.lines = linesFromJson(o.value("lines").toArray());
+    s.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     return s;
   }
 
@@ -214,6 +231,7 @@ namespace stencil::gui {
     o["filterColor"] = s.filterColor;
     o["drawMode"] = s.drawMode;
     o["lines"] = linesToJson(s.lines);
+    if (s.cropRect.width > 0) o["cropRect"] = cropRectToJson(s.cropRect);
     writeJson(sessionPath(), QJsonDocument(o));
   }
 
@@ -231,6 +249,7 @@ namespace stencil::gui {
       pr.imagePath = o.value("imagePath").toString();
       pr.meta.hasImage = !pr.imagePath.isEmpty();
       pr.lines = linesFromJson(o.value("lines").toArray());
+      pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
       out.push_back(std::move(pr));
     }
     return out;
@@ -263,6 +282,7 @@ namespace stencil::gui {
       o["updatedAt"] = QString::number(pr.meta.updatedAt).toLongLong();
       o["imagePath"] = pr.imagePath;
       o["lines"] = linesToJson(pr.lines);
+      if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
       arr.append(o);
     }
     writeJson(projectsPath(), QJsonDocument(arr));
