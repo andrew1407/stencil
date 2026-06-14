@@ -159,12 +159,20 @@ if(Qt6_FOUND)
   endif()
 
   # Qt's own deployment helper (Qt >= 6.3) runs the right *deployqt tool at install
-  # time. Older Qt: skip it; the install tree then has no bundled Qt and the manual
-  # *deployqt step is documented in desktop/README.md.
-  if(Qt6_VERSION VERSION_GREATER_EQUAL 6.3)
+  # time. The keyword that captures the generated script path was renamed in Qt 6.5
+  # (FILENAME_VARIABLE → OUTPUT_SCRIPT), so pick it per version. Older Qt: skip it;
+  # the install tree then has no bundled Qt and the manual *deployqt step is
+  # documented in desktop/README.md.
+  if(Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
     qt6_generate_deploy_app_script(
       TARGET stencil_gui
       OUTPUT_SCRIPT STENCIL_DEPLOY_SCRIPT
+      NO_UNSUPPORTED_PLATFORM_ERROR)
+    install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
+  elseif(Qt6_VERSION VERSION_GREATER_EQUAL 6.3)
+    qt6_generate_deploy_app_script(
+      TARGET stencil_gui
+      FILENAME_VARIABLE STENCIL_DEPLOY_SCRIPT
       NO_UNSUPPORTED_PLATFORM_ERROR)
     install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
   else()
