@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="browser/favicon.svg" alt="Stencil logo" width="120" height="120">
+</p>
+
 # Stencil
 
 [![CI](https://github.com/andrew1407/stencil/actions/workflows/ci.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/ci.yml)
+[![Release](https://github.com/andrew1407/stencil/actions/workflows/release.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/release.yml)
 
 An image annotation / drawing tool: load an image, draw polylines and rectangles over
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
