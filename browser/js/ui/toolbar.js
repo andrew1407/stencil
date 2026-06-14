@@ -29,6 +29,7 @@ export class StencilToolbar extends StencilElement {
                         <option value="custom">Tint</option>
                     </select>
                     <input type="color" id="filterColor" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
+                    <button id="cropImage" title="Crop image — pick the page-shaped region to show on the canvas">✂ Crop</button>
                 </div>
             </div>
 

@@ -14,6 +14,10 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../js/core/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
+import {
+  cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS,
+  cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS
+} from '../js/core/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated artifact (gitignored) — present only after
 // the Emscripten build (CI's WASM job, or a local build per desktop/WASM.md). When
@@ -125,6 +129,33 @@ wtest('rotatePoints + boundingBoxCenter: wasm matches JS rotation (in/out array 
   got.forEach((p, i) => {
     assert.ok(Math.abs(p.x - expect[i].x) < 1e-9 && Math.abs(p.y - expect[i].y) < 1e-9, `point ${i}`);
   });
+});
+
+wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshalling)', () => {
+  const isAlbum = core.op('isAlbumOrientation');
+  const cropAspect = core.op('cropAspect');
+  const centeredCrop = core.op('centeredCrop');
+  const resizeCorner = core.op('resizeCropFromCorner');
+  const moveCrop = core.op('moveCropClamped');
+  const resizeScale = core.op('cropResizeScale');
+  const cropChange = core.op('cropChange');
+  const A3W = 29.7, A3H = 42.0;
+  const rectClose = (a, b) => ['x', 'y', 'width', 'height'].forEach(k =>
+    assert.ok(Math.abs(a[k] - b[k]) < 1e-9, `${k}: ${a[k]} ≈ ${b[k]}`));
+
+  assert.strictEqual(isAlbum(200, 100), isAlbumOrientationJS(200, 100));
+  assert.ok(Math.abs(cropAspect(A3W, A3H, true) - cropAspectJS(A3W, A3H, true)) < 1e-9);
+  rectClose(centeredCrop(100, 200, cropAspectJS(A3W, A3H, false)), centeredCropJS(100, 200, cropAspectJS(A3W, A3H, false)));
+
+  const cur = { x: 10, y: 10, width: 100, height: 70 };
+  const aspect = cropAspectJS(A3W, A3H, true);
+  rectClose(resizeCorner(cur, 2, 5000, 5000, aspect, 200, 200, 16), resizeCropFromCornerJS(cur, 2, 5000, 5000, aspect, 200, 200, 16));
+  rectClose(moveCrop(cur, 9999, 0, 500, 500), moveCropClampedJS(cur, 9999, 0, 500, 500));
+  assert.ok(Math.abs(resizeScale(100, 250) - cropResizeScaleJS(100, 250)) < 1e-9);
+
+  const portrait = { x: 0, y: 0, width: 100, height: 141 };
+  const album = { x: 0, y: 0, width: 141, height: 100 };
+  assert.deepStrictEqual(cropChange(portrait, album), cropChangeJS(portrait, album));
 });
 
 wtest('applyFilterRGBA custom: grayscale+tint in one pass, alpha preserved (pixel buffer marshalling)', () => {

@@ -2,8 +2,10 @@
 #include "blankImageDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
+#include "core/cropGeometry.hpp"
 #include "core/geometry.hpp"
 #include "core/pageMetrics.hpp"
+#include "cropDialog.hpp"
 #include "core/tooltipRows.hpp"
 #include "core/zoomPan.hpp"
 #include "guiHelpers.hpp"
@@ -64,6 +66,16 @@ namespace stencil::gui {
     std::string makeSalt() {
       return QString::number(QRandomGenerator::global()->bounded(1 << 24), 36)
           .toStdString();
+    }
+
+    // Natural page dimensions (cm) as selected — NOT orientation-swapped (only
+    // the proportions matter for the crop aspect). Mirrors the browser
+    // cropModal.pageDims helper.
+    core::PageSize naturalPageCm(const QString& pageSize, double customW,
+                                 double customH) {
+      if (pageSize == "custom") return {customW, customH};
+      const core::PageSize ps = core::namedPageSize(pageSize.toStdString());
+      return ps.width > 0 ? ps : core::namedPageSize("A4");
     }
   }  // namespace
 
@@ -307,6 +319,9 @@ namespace stencil::gui {
     actNewBlank_ = mk("🖼 New Blank Image…", QString());
     actNewBlank_->setToolTip(
         "Create a blank image (white, black, or any color) to draw on");
+    actCrop_ = mk("✂ Crop Image…", QString());
+    actCrop_->setToolTip(
+        "Crop the image — pick the page-shaped region to show on the canvas");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -379,6 +394,7 @@ namespace stencil::gui {
 
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
     connect(actNewBlank_, &QAction::triggered, this, &MainWindow::newBlankImage);
+    connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
     connect(actStartDraw_, &QAction::triggered, canvas_,
             &CanvasWidget::startDrawingMode);
     connect(actStopDraw_, &QAction::triggered, canvas_,
@@ -613,6 +629,7 @@ namespace stencil::gui {
     auto* file = menuBar()->addMenu("F&ile");
     file->addAction(actOpen_);
     file->addAction(actNewBlank_);
+    file->addAction(actCrop_);
     file->addAction(actSaveSession_);
     file->addSeparator();
     file->addAction(actQuit_);
@@ -692,6 +709,7 @@ namespace stencil::gui {
 
     tb->addAction(actOpen_);
     tb->addAction(actNewBlank_);
+    tb->addAction(actCrop_);
     tb->addSeparator();
     tb->addAction(actStartDraw_);
     tb->addAction(actStopDraw_);
@@ -1005,6 +1023,12 @@ namespace stencil::gui {
     const QString path = QFileDialog::getOpenFileName(
         this, "Open image", QString(), "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
     if (path.isEmpty()) return;
+    {
+      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                settings_.customPageWidth,
+                                                settings_.customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
     if (!canvas_->loadImage(path)) {
       notify_->error("Failed to load image");
       return;
@@ -1029,11 +1053,55 @@ namespace stencil::gui {
     }
     QImage img(dlg.widthPx(), dlg.heightPx(), QImage::Format_RGB32);
     img.fill(dlg.color());
+    {
+      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                settings_.customPageWidth,
+                                                settings_.customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
     canvas_->loadFromImage(img);
     refreshActions();
     notify_->success(QString("Blank %1×%2 image created")
                          .arg(dlg.widthPx())
                          .arg(dlg.heightPx()));
+  }
+
+  // Open the crop dialog over the ORIGINAL image and apply the chosen page-shaped
+  // region. Mirrors browser cropModal.js: confirm before discarding lines when the
+  // orientation flips; the original image is never replaced. Resizing within the
+  // same orientation rescales the lines (the page relation is preserved).
+  void MainWindow::openCropDialog() {
+    if (!canvas_->hasImage()) {
+      notify_->error("Open an image first");
+      return;
+    }
+    const core::PageSize page = naturalPageCm(
+        pageSize_->currentText(), settings_.customPageWidth, settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+
+    const core::CropRect cur = canvas_->cropRect();
+    const bool album = core::isAlbumOrientation(cur.width, cur.height);
+    CropDialog dlg(canvas_->originalImage(), page.width, page.height, album, cur, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    const core::CropRect next = dlg.cropRect();
+    const core::CropChange ch = core::cropChange(cur, next);
+    if (ch.orientationChanged && !canvas_->lines().empty() &&
+        QMessageBox::question(
+            this, "Change orientation",
+            "Changing the crop orientation will remove all placed lines and "
+            "markers. Continue?") != QMessageBox::Yes) {
+      notify_->info("Crop canceled");
+      return;
+    }
+    const bool hadLines = !canvas_->lines().empty();
+    canvas_->applyCrop(next, /*recalc=*/true);
+    fitToWindow();
+    refreshActions();
+    if (ch.orientationChanged && hadLines)
+      notify_->success("Image cropped — lines removed (orientation changed)");
+    else
+      notify_->success("Image cropped");
   }
 
   // Page dimensions for the current selection, honoring custom W x H (S10).
@@ -1136,6 +1204,13 @@ namespace stencil::gui {
     const bool custom = pageSize_->currentText() == "custom";
     if (customGroupAct_) customGroupAct_->setVisible(custom);
     settings_.pageSize = pageSize_->currentText();
+    // Keep the canvas's default-crop aspect in sync with the selected page.
+    {
+      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                settings_.customPageWidth,
+                                                settings_.customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
     if (!incognito_) fileStore::saveSettings(settings_);
     onHovered(lastHoverX_, lastHoverY_);
     onSelectionChanged();  // refresh panel cm for the new page size (GAP-2)
@@ -1840,6 +1915,7 @@ namespace stencil::gui {
     s.filterColor = settings_.filterColor;
     s.drawMode =
         canvas_->drawMode() == CanvasWidget::DrawMode::Rect ? "rect" : "line";
+    s.cropRect = canvas_->cropRect();
     fileStore::saveSession(s);
   }
 
@@ -1847,7 +1923,12 @@ namespace stencil::gui {
     auto sess = fileStore::loadSession();
     if (!sess) return;
     if (sess->lines.empty() && sess->imagePath.isEmpty()) return;
-    canvas_->restore(sess->imagePath, sess->lines, sess->scale);
+    {
+      const core::PageSize page = naturalPageCm(
+          sess->pageSize, sess->customPageWidth, sess->customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
+    canvas_->restore(sess->imagePath, sess->lines, sess->scale, sess->cropRect);
     {
       QSignalBlocker b(pageSize_);
       pageSize_->setCurrentText(sess->pageSize);
@@ -1904,7 +1985,13 @@ namespace stencil::gui {
       auto it = std::find_if(projectList_.begin(), projectList_.end(),
                              [&](const Project& p) { return p.meta.id == id; });
       if (it == projectList_.end()) return;
-      canvas_->restore(it->imagePath, it->lines, canvas_->scale());
+      {
+        const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                  settings_.customPageWidth,
+                                                  settings_.customPageHeight);
+        canvas_->setPageCm(page.width, page.height);
+      }
+      canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect);
       activeProjectId_ = dlg.selectedId();
       refreshActions();
       notify_->success(
@@ -1967,6 +2054,7 @@ namespace stencil::gui {
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.imagePath = canvas_->imagePath();
     pr.lines = canvas_->allLines();
+    pr.cropRect = canvas_->cropRect();
     pr.meta.hasImage = !pr.imagePath.isEmpty();
     projectList_.push_back(pr);
     activeProjectId_ = QString::fromStdString(pr.meta.id);
@@ -1993,6 +2081,7 @@ namespace stencil::gui {
     }
     it->imagePath = canvas_->imagePath();
     it->lines = canvas_->allLines();
+    it->cropRect = canvas_->cropRect();
     it->meta.updatedAt = nowMs();
     it->meta.hasImage = !it->imagePath.isEmpty();
     fileStore::saveProjects(projectList_);

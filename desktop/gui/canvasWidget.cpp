@@ -37,8 +37,12 @@ namespace stencil::gui {
   bool CanvasWidget::loadImage(const QString& path) {
     QImage img;
     if (!img.load(path)) return false;
-    image_ = img;
+    originalImage_ = img;
     imagePath_ = path;
+    // Auto-crop from the center to the page aspect (cut the surplus sides). The
+    // original is kept; image_ shows only this region.
+    cropRect_ = defaultCropRect();
+    rebuildCroppedFromOriginal();
     lines_.clear();
     currentLine_ = core::Line{};
     applyDefaultsToCurrent();
@@ -55,14 +59,82 @@ namespace stencil::gui {
     return true;
   }
 
+  // ── crop (shared cropGeometry; mirrors browser DrawingApp) ──
+  void CanvasWidget::setPageCm(double widthCm, double heightCm) {
+    if (widthCm > 0) pageWidthCm_ = widthCm;
+    if (heightCm > 0) pageHeightCm_ = heightCm;
+  }
+
+  core::CropRect CanvasWidget::defaultCropRect() const {
+    if (originalImage_.isNull()) return {};
+    const double iw = originalImage_.width();
+    const double ih = originalImage_.height();
+    const double aspect =
+        core::cropAspect(pageWidthCm_, pageHeightCm_, core::isAlbumOrientation(iw, ih));
+    return core::centeredCrop(iw, ih, aspect);
+  }
+
+  void CanvasWidget::rebuildCroppedFromOriginal() {
+    if (originalImage_.isNull()) {
+      image_ = QImage();
+      return;
+    }
+    if (cropRect_.width <= 0) {
+      image_ = originalImage_;
+    } else {
+      const QRect r(qRound(cropRect_.x), qRound(cropRect_.y),
+                    qRound(cropRect_.width), qRound(cropRect_.height));
+      image_ = originalImage_.copy(r.intersected(originalImage_.rect()));
+    }
+    filterDirty_ = true;
+  }
+
+  void CanvasWidget::applyCrop(const core::CropRect& rect, bool recalc) {
+    if (originalImage_.isNull()) return;
+    // Snap to integer pixels within the original image.
+    const double iw = originalImage_.width();
+    const double ih = originalImage_.height();
+    core::CropRect nr;
+    nr.width = std::clamp(std::round(rect.width), 1.0, iw);
+    nr.height = std::clamp(std::round(rect.height), 1.0, ih);
+    nr.x = std::clamp(std::round(rect.x), 0.0, iw - nr.width);
+    nr.y = std::clamp(std::round(rect.y), 0.0, ih - nr.height);
+
+    if (recalc && cropRect_.width > 0) {
+      const core::CropChange ch = core::cropChange(cropRect_, nr);
+      if (ch.orientationChanged)
+        lines_.clear();  // the caller confirms this with the user first
+      else if (ch.scale != 1.0)
+        core::scaleLinePoints(lines_, ch.scale);
+    }
+    cropRect_ = nr;
+    rebuildCroppedFromOriginal();
+
+    currentLine_ = core::Line{};
+    applyDefaultsToCurrent();
+    selectedPoint_ = -1;
+    selectedLineIdx_ = -1;
+    continueLineIdx_ = continueInsertIdx_ = -1;
+    history_.reset(lines_);
+    setFixedSize(QSize(qRound(image_.width() * scale_),
+                       qRound(image_.height() * scale_)));
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
   void CanvasWidget::restore(const QString& path, const core::Lines& lines,
-                             double scale) {
+                             double scale, const core::CropRect& cropRect) {
     scale_ = scale > 0 ? scale : 1.0;
     if (!path.isEmpty()) {
       QImage img;
       if (img.load(path)) {
-        image_ = img;
+        originalImage_ = img;
         imagePath_ = path;
+        // Re-apply the stored crop, or default-crop sessions saved before
+        // cropping existed (cropRect.width == 0).
+        cropRect_ = cropRect.width > 0 ? cropRect : defaultCropRect();
+        rebuildCroppedFromOriginal();
       }
     }
     lines_ = lines;
@@ -1167,7 +1239,9 @@ namespace stencil::gui {
   // path and resets lines/history/scale, mirroring a fresh load.
   void CanvasWidget::loadFromImage(const QImage& img) {
     if (img.isNull()) return;
-    image_ = img.convertToFormat(QImage::Format_ARGB32);
+    originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
+    cropRect_ = defaultCropRect();
+    rebuildCroppedFromOriginal();
     imagePath_.clear();
     lines_.clear();
     currentLine_ = core::Line{};
