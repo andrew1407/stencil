@@ -1,0 +1,67 @@
+name: Release
+
+# Builds self-contained desktop packages for macOS / Windows / Linux and, when the
+# run was triggered by a version tag, attaches them to the GitHub release. Manual
+# runs (workflow_dispatch) still build + upload the packages as workflow artifacts,
+# so you can smoke-test packaging without cutting a tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to attach assets to the release on a tag push
+
+jobs:
+  package:
+    name: Package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest,   name: macOS,   ext: dmg }
+          - { os: windows-latest, name: Windows, ext: zip }
+          - { os: ubuntu-latest,  name: Linux,   ext: tar.gz }
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cross-platform Qt install. The main CI uses the distro package on Linux,
+      # but a release matrix spans three OSes, so we use the standard Qt install
+      # action here to get an identical Qt across all of them.
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          modules: qtimageformats
+          cache: true
+
+      - name: Configure (portable build — no repo-local state dir)
+        working-directory: desktop
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF
+
+      - name: Build
+        working-directory: desktop
+        run: cmake --build build --config Release -j
+
+      - name: Package (deploy Qt + cpack)
+        working-directory: desktop
+        run: cpack --config build/CPackConfig.cmake -B build/dist
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stencil-${{ matrix.name }}
+          path: desktop/build/dist/stencil-*.${{ matrix.ext }}
+          if-no-files-found: error
+
+      # On a tag push, attach the package to the GitHub release. Uses the built-in
+      # gh CLI (no extra third-party action); creates the release if it's missing.
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes || true
+          gh release upload "${GITHUB_REF_NAME}" desktop/build/dist/stencil-*.${{ matrix.ext }} --clobber
