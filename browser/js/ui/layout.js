@@ -9,9 +9,10 @@ import { StencilInfoModal } from './infoModal.js';
 import { StencilProjectsModal } from './projectsModal.js';
 import { StencilBlankImageModal } from './blankImageModal.js';
 import { StencilCropModal } from './cropModal.js';
+import { StencilInstall } from './installButton.js';
 // ── Top-level body composer (custom-element hosts, exact original body order) ──
 // Importing the modules above registers every customElements.define. Each
 // template() emits the host tag with its markup inline, so layout() still
 // produces the full static markup string (143 ids) the app and tests expect.
 export const layout = () =>
-  `${StencilContextMenu.template()}${StencilFullscreenLayer.template()}${StencilDropOverlay.template()}${StencilAppContainer.template()}${StencilNotifications.template()}${StencilSettingsModal.template()}${StencilVisualsModal.template()}${StencilInfoModal.template()}${StencilProjectsModal.template()}${StencilBlankImageModal.template()}${StencilCropModal.template()}`;
+  `${StencilContextMenu.template()}${StencilFullscreenLayer.template()}${StencilDropOverlay.template()}${StencilAppContainer.template()}${StencilNotifications.template()}${StencilSettingsModal.template()}${StencilVisualsModal.template()}${StencilInfoModal.template()}${StencilProjectsModal.template()}${StencilBlankImageModal.template()}${StencilCropModal.template()}${StencilInstall.template()}`;

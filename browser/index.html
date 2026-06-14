@@ -6,6 +6,13 @@
   <title>Stencil</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#7c3aed">
+  <!-- PWA: installable + offline (see manifest.webmanifest, sw.js) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="description" content="Draw polylines and rectangles over an image with pixel ↔ page coordinates, formulas, filters, and multi-project storage.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stencil">
+  <link rel="apple-touch-icon" href="favicon.svg">
   <script>
     // Apply theme before paint to avoid flash
     (() => {

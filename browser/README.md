@@ -19,6 +19,8 @@ For the project overview and the desktop (C++/Qt) app, see the
 - Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
 - Session autosave to `localStorage` (image + layout), multi-project storage with a
   one-week expiry sweep
+- Installable as a **PWA** (Progressive Web App): "Install app" button + browser
+  install UI, runs in its own window, and works offline via a service-worker cache
 
 ## Running
 
@@ -56,14 +58,20 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 
 ```
 index.html            # single <script type="module"> entrypoint
+manifest.webmanifest  # PWA metadata (name, icons, standalone display)
+sw.js                 # service worker: offline app-shell + runtime cache
+favicon.svg           # icon (also the PWA "any"-purpose icon)
+icon-maskable.svg     # full-bleed PWA icon for adaptive (maskable) masks
 css/                  # theme, layout, component styles
 js/
   index.js            # bootstraps the app on window load
+  pwa.js              # registers the service worker (best-effort)
   utils.js            # shared DOM / geometry / color / hotkey helpers
   config/             # constants, hotkey + help-text registries
   core/               # DrawingApp and its collaborators (renderer, storage,
                       #   history, zoom/pan, coord table, formulas, projects store)
   ui/                 # pure string-returning components composed by layout()
+                      #   (incl. installButton.js — the PWA install affordance)
   worker/             # cross-tab projects sync worker + message constants
 tests/                # node:test unit tests (run with `node --test`)
 ```

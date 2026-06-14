@@ -9,7 +9,7 @@ const markup = layout();
 // Count occurrences of a needle within the markup.
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 156 static body IDs (spec §6 + crop modal), original body order. Each must appear EXACTLY once.
+// All 158 static body IDs (spec §6 + crop modal + PWA install), original body order. Each must appear EXACTLY once.
 const IDS = [
     'ctxMenu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
@@ -37,11 +37,13 @@ const IDS = [
     'infoClose', 'infoSearch', 'infoBody',
     // Crop modal (stencil-crop-modal) + its toolbar trigger (cropImage, above).
     'cropModalOverlay', 'cropClose', 'cropStage', 'cropImageEl', 'cropBox',
-    'cropDims', 'cropOrientation', 'cropCancel', 'cropApply'
+    'cropDims', 'cropOrientation', 'cropCancel', 'cropApply',
+    // PWA install button (stencil-install) — hidden until `beforeinstallprompt`.
+    'installHost', 'installAppBtn'
 ];
 
-test('fixture has exactly 156 IDs', () => {
-    assert.strictEqual(IDS.length, 156);
+test('fixture has exactly 158 IDs', () => {
+    assert.strictEqual(IDS.length, 158);
 });
 
 test('every static body ID is present exactly once', () => {
