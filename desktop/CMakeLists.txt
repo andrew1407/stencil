@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(stencil LANGUAGES CXX)
+project(stencil VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,6 +8,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+
+# Where the GUI keeps its runtime state (settings / session / projects). Dev builds
+# bake a repo-local desktop/.stencil for convenience; distributable builds turn this
+# OFF so state resolves to the per-user config dir instead (the fileStore fallback,
+# QStandardPaths::AppConfigLocation). Release packaging always configures with OFF.
+option(STENCIL_DEV_STATE_DIR "Bake the repo-local .stencil state dir (dev only; OFF for releases)" ON)
 
 add_compile_options(-Wall -Wextra)
 
@@ -100,9 +106,23 @@ if(Qt6_FOUND)
     resources/app.qrc
   )
   target_link_libraries(stencil_gui PRIVATE stencil_core Qt6::Widgets)
-  # Repo-local, gitignored runtime state dir (settings / session / projects).
-  target_compile_definitions(stencil_gui PRIVATE
-    "STENCIL_STATE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/.stencil\"")
+  if(STENCIL_DEV_STATE_DIR)
+    # Repo-local, gitignored runtime state dir (settings / session / projects).
+    target_compile_definitions(stencil_gui PRIVATE
+      "STENCIL_STATE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/.stencil\"")
+    message(STATUS "stencil_gui: dev state dir baked (${CMAKE_CURRENT_SOURCE_DIR}/.stencil)")
+  else()
+    message(STATUS "stencil_gui: portable build — state resolves to per-user config dir")
+  endif()
+  # Ship as a macOS .app bundle and a Windows GUI app (no console window) so the
+  # platform deploy tools have the right shape to bundle Qt into.
+  set_target_properties(stencil_gui PROPERTIES
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_BUNDLE_NAME "Stencil"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "ai.datagrok.stencil"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    WIN32_EXECUTABLE TRUE)
   message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
 
   # Headless functional check of the crop integration (CanvasWidget + cropGeometry).
@@ -118,6 +138,55 @@ if(Qt6_FOUND)
   add_test(NAME stencil_crop_headless COMMAND stencil_crop_headless)
   set_tests_properties(stencil_crop_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # ── Distributable packaging ───────────────────────────────────────────────
+  # `cmake --install build` lays the app out under the install prefix; the Qt
+  # deploy script then copies the Qt libraries + plugins next to it (macdeployqt /
+  # windeployqt, best-effort on Linux) so the result runs on a machine with no Qt
+  # installed. `cpack` finally wraps that tree into one platform package:
+  # .dmg (macOS) / .zip (Windows) / .tar.gz (Linux). Build releases with
+  # -DSTENCIL_DEV_STATE_DIR=OFF (see desktop/README.md → Release packaging).
+  install(TARGETS stencil_gui
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION bin)
+
+  if(UNIX AND NOT APPLE)
+    # Linux desktop integration: menu entry + scalable icon (shared with the
+    # browser favicon), picked up by system menus and AppImage tooling.
+    install(FILES packaging/stencil.desktop DESTINATION share/applications)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
+      DESTINATION share/icons/hicolor/scalable/apps RENAME stencil.svg)
+  endif()
+
+  # Qt's own deployment helper (Qt >= 6.3) runs the right *deployqt tool at install
+  # time. Older Qt: skip it; the install tree then has no bundled Qt and the manual
+  # *deployqt step is documented in desktop/README.md.
+  if(Qt6_VERSION VERSION_GREATER_EQUAL 6.3)
+    qt6_generate_deploy_app_script(
+      TARGET stencil_gui
+      OUTPUT_SCRIPT STENCIL_DEPLOY_SCRIPT
+      NO_UNSUPPORTED_PLATFORM_ERROR)
+    install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
+  else()
+    message(STATUS "Qt ${Qt6_VERSION} < 6.3 — install will not bundle Qt; run *deployqt manually")
+  endif()
+
+  # CPack: one self-contained package per platform.
+  set(CPACK_PACKAGE_NAME "Stencil")
+  set(CPACK_PACKAGE_VENDOR "Datagrok")
+  set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Image annotation / drawing tool")
+  set(CPACK_PACKAGE_FILE_NAME
+    "stencil-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+  set(CPACK_STRIP_FILES ON)
+  if(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+  elseif(WIN32)
+    set(CPACK_GENERATOR "ZIP")
+  else()
+    set(CPACK_GENERATOR "TGZ")
+  endif()
+  include(CPack)
 else()
   message(STATUS "Qt6 not found — skipping stencil_gui (core + tests still build)")
 endif()

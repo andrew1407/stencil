@@ -79,6 +79,45 @@ cmake --build build -j
   configuration prints a notice and skips it, so the core and tests still build
   on a machine without Qt).
 
+The plain build above bakes a repo-local `desktop/.stencil` runtime-state dir
+(handy for development) and links Qt dynamically — it is **not** a distributable
+binary. For that, see below.
+
+## Release packaging
+
+A distributable build differs from the dev build in two ways: runtime state goes
+to the **per-user config dir** instead of the repo (`-DSTENCIL_DEV_STATE_DIR=OFF`),
+and Qt is **bundled alongside the app** so it runs on a machine without Qt
+installed. Both are handled by the install + CPack flow:
+
+```bash
+# from this directory (desktop/)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF
+cmake --build build --config Release -j
+cpack --config build/CPackConfig.cmake -B build/dist
+```
+
+`cpack` runs Qt's deploy helper (`macdeployqt` / `windeployqt`, best-effort on
+Linux — Qt ≥ 6.3) to copy the Qt libraries and plugins next to the app, then wraps
+the result into one self-contained package in `build/dist/`:
+
+| Platform | Package | Form |
+|---|---|---|
+| macOS | `stencil-<ver>-Darwin-<arch>.dmg` | `Stencil.app` bundle |
+| Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil_gui.exe` + Qt DLLs |
+| Linux | `stencil-<ver>-Linux-<arch>.tar.gz` | `bin/` + `.desktop` entry & icon |
+
+The shipped binary is still `stencil_gui` — packaging only changes how it's laid
+out and where it stores state, not what it is. On macOS, signing/notarization is
+out of scope here; an unsigned `.dmg` warns on first launch.
+
+CI builds these for all three platforms on every `v*` tag and attaches them to the
+GitHub release (`.github/workflows/release.yml`); a manual `workflow_dispatch` run
+produces the same packages as downloadable workflow artifacts without cutting a tag.
+
+> On Qt < 6.3 the install step can't bundle Qt automatically — run the platform's
+> `*deployqt` tool against the built app manually before packaging.
+
 ## Test
 
 Unit tests use **Doctest** only — a single header at `third_party/doctest.h`
