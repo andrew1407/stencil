@@ -57,7 +57,7 @@ export const defaultUnitFromLocale = (
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.
 export const notify = (msg, type = 'ok') => {
-  const el = document.getElementById('notifyBalloon');
+  const el = document.getElementById('notify-balloon');
   if (el && typeof el.notify === 'function') el.notify(msg, type);
 };
 
@@ -147,6 +147,23 @@ export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalT
   if (typeof nav.platform === 'string' && /mac/i.test(nav.platform)) return true;
   if (typeof nav.userAgent === 'string' && /Mac/i.test(nav.userAgent)) return true;
   return false;
+};
+
+// Best-effort desktop OS detection for choosing a download. Returns 'mac',
+// 'windows', or 'linux', or null when it can't be told (mobile / unknown), so
+// the caller can fall back to a generic releases link. Prefers the modern
+// userAgentData.platform hint, falls back to navigator.platform / userAgent.
+// Android matches "Linux" in its UA, so it's excluded explicitly. Safe when
+// nav is undefined (returns null) for Node imports.
+export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
+  if (!nav) return null;
+  const uaPlat = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || '';
+  const hay = `${uaPlat} ${nav.userAgent || ''}`;
+  if (/android/i.test(hay)) return null;
+  if (isMacPlatform(nav)) return 'mac';
+  if (/win/i.test(hay)) return 'windows';
+  if (/linux|x11/i.test(hay)) return 'linux';
+  return null;
 };
 
 // Rewrite a canonical combo for the active platform. On Mac the app's Ctrl-based

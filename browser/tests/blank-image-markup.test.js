@@ -8,9 +8,9 @@ const markup = layout();
 const count = needle => markup.split(needle).length - 1;
 
 const NEW_IDS = [
-  'idleCreateWrap', 'createBlankBtn', 'blankImageModalOverlay', 'blankImageClose',
-  'blankImageWhite', 'blankImageBlack', 'blankImageColor', 'blankImageWidth',
-  'blankImageHeight', 'blankImageCreate', 'projectsBlankImage',
+  'idle-create-wrap', 'create-blank-btn', 'blank-image-modal-overlay', 'blank-image-close',
+  'blank-image-white', 'blank-image-black', 'blank-image-color', 'blank-image-width',
+  'blank-image-height', 'blank-image-create', 'projects-blank-image',
 ];
 
 test('each blank-image id appears exactly once', () => {
@@ -20,12 +20,12 @@ test('each blank-image id appears exactly once', () => {
 });
 
 test('blank-image color picker defaults to white', () => {
-  assert.ok(markup.includes('id="blankImageColor" value="#ffffff"'), 'white default');
+  assert.ok(markup.includes('id="blank-image-color" value="#ffffff"'), 'white default');
 });
 
 test('size inputs carry the 1–8192 px bounds', () => {
-  assert.ok(markup.includes('id="blankImageWidth" min="1" max="8192"'), 'width bounds');
-  assert.ok(markup.includes('id="blankImageHeight" min="1" max="8192"'), 'height bounds');
+  assert.ok(markup.includes('id="blank-image-width" min="1" max="8192"'), 'width bounds');
+  assert.ok(markup.includes('id="blank-image-height" min="1" max="8192"'), 'height bounds');
 });
 
 test('no backticks or template interpolation leaked into markup', () => {

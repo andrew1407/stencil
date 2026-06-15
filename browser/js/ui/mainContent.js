@@ -6,30 +6,30 @@ export class StencilMainContent extends StencilElement {
   static inner() {
     return `
             <div class="canvas-section">
-                <div class="canvas-viewport" id="canvasViewport">
-                    <div class="canvas-container" id="canvasContainer">
+                <div class="canvas-viewport" id="canvas-viewport">
+                    <div class="canvas-container" id="canvas-container">
                         <canvas id="canvas"></canvas>
-                        <div id="zoomRectOverlay" style="display:none;position:absolute;border:2px dashed #007bff;background:rgba(0,123,255,0.08);pointer-events:none;box-sizing:border-box;"></div>
+                        <div id="zoom-rect-overlay" style="display:none;position:absolute;border:2px dashed #007bff;background:rgba(0,123,255,0.08);pointer-events:none;box-sizing:border-box;"></div>
                         ${StencilTooltip.template()}
                     </div>
-                    <div class="idle-create" id="idleCreateWrap">
-                        <button id="createBlankBtn" class="idle-create-btn" title="Create a blank image (white, black, or any color) to draw on">
+                    <div class="idle-create" id="idle-create-wrap">
+                        <button id="create-blank-btn" class="idle-create-btn" title="Create a blank image (white, black, or any color) to draw on">
                             <span class="idle-create-icon">🖼</span>
                             <span>＋ Blank image</span>
                         </button>
                     </div>
                 </div>
-                <div class="coord-status" id="coordStatus">Open an image to begin</div>
+                <div class="coord-status" id="coord-status">Open an image to begin</div>
                 <div class="drop-hint">💡 Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
             </div>
 
-            <div class="coordinates-panel" id="coordPanel">
-                <div class="coord-panel-header" id="coordPanelHeader">
-                    <span class="coord-title" id="coordTitle">Last Line Points</span>
-                    <button id="toggleCoordPanel" title="Hide panel (Alt+X)">▼</button>
+            <div class="coordinates-panel" id="coord-panel">
+                <div class="coord-panel-header" id="coord-panel-header">
+                    <span class="coord-title" id="coord-title">Last Line Points</span>
+                    <button id="toggle-coord-panel" title="Hide panel (Alt+X)">▼</button>
                 </div>
-                <div id="coordBody">
-                <table class="coordinates-table" id="coordinatesTable">
+                <div id="coord-body">
+                <table class="coordinates-table" id="coordinates-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -40,7 +40,7 @@ export class StencilMainContent extends StencilElement {
                             <th style="width:28px;padding:4px;"></th>
                         </tr>
                     </thead>
-                    <tbody id="coordinatesBody">
+                    <tbody id="coordinates-body">
                         <tr>
                             <td colspan="6" class="empty-message">No points yet.</td>
                         </tr>
@@ -53,10 +53,10 @@ export class StencilMainContent extends StencilElement {
   static template() { return hostTag('stencil-main-content', 'class="main-content"', StencilMainContent.inner()); }
 
   wire(_app) {
-    const btn = document.getElementById('toggleCoordPanel');
-    const panel = document.getElementById('coordPanel');
-    const title = document.getElementById('coordTitle');
-    const body = document.getElementById('coordBody');
+    const btn = document.getElementById('toggle-coord-panel');
+    const panel = document.getElementById('coord-panel');
+    const title = document.getElementById('coord-title');
+    const body = document.getElementById('coord-body');
     let hidden = false;
 
     btn.addEventListener('click', () => {

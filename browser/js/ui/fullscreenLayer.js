@@ -34,7 +34,7 @@ export class StencilFullscreenLayer extends StencilElement {
     const fsTopTrigger = document.getElementById('fs-top-trigger');
     const fsRightTrigger = document.getElementById('fs-right-trigger');
     const fsExitBtn = document.getElementById('fs-exit-btn');
-    const fsBtn = document.getElementById('fullscreenToggle');
+    const fsBtn = document.getElementById('fullscreen-toggle');
 
     let isFullscreen = false;
     let controlsHideTimer = null;
@@ -45,7 +45,7 @@ export class StencilFullscreenLayer extends StencilElement {
       // Clone the controls div into the fs panel (after the exit button)
       const existing = fsControlsPanel.querySelector('.controls');
       if (existing) existing.remove();
-      const src = document.querySelector('#controlsBody .controls');
+      const src = document.querySelector('#controls-body .controls');
       if (src) {
         const clone = src.cloneNode(true);
         fsControlsPanel.appendChild(clone);
@@ -90,11 +90,11 @@ export class StencilFullscreenLayer extends StencilElement {
     // Populate the fullscreen points panel by mirroring coordPanel
     const populateFsPoints = () => {
       fsPointsPanel.innerHTML = '';
-      const src = document.getElementById('coordPanel');
+      const src = document.getElementById('coord-panel');
       if (src) {
         const clone = src.cloneNode(true);
         // Give cloned elements new ids to avoid conflicts
-        clone.id = 'fs-coordPanel-clone';
+        clone.id = 'fs-coord-panel-clone';
         clone.querySelectorAll('[id]').forEach(el => {
           el.id = 'fs-clone-' + el.id;
         });
@@ -109,7 +109,7 @@ export class StencilFullscreenLayer extends StencilElement {
     };
 
     // Keep fs points panel in sync when the coord table updates
-    const coordBody = document.getElementById('coordinatesBody');
+    const coordBody = document.getElementById('coordinates-body');
     if (coordBody) {
       new MutationObserver(() => {
         if (isFullscreen) populateFsPoints();
@@ -186,7 +186,7 @@ export class StencilFullscreenLayer extends StencilElement {
       // ── Save zoom & pan BEFORE switching modes ──
       // We record the image-space point at the viewport centre so we can
       // re-centre on the same spot after the viewport geometry changes.
-      const vp = document.getElementById('canvasViewport');
+      const vp = document.getElementById('canvas-viewport');
       let savedScale = null;
       let savedImgCx = null;
       let savedImgCy = null;

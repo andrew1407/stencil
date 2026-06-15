@@ -6,16 +6,16 @@ import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 export class StencilSettingsModal extends StencilElement {
   static inner() {
     return `
-        <div id="settingsModal">
+        <div id="settings-modal">
             <div class="settings-header">
                 <h2>⚙ Settings — Keyboard Shortcuts</h2>
-                <button id="settingsClose">✕ Close</button>
+                <button id="settings-close">✕ Close</button>
             </div>
             <div class="modal-search-bar">
-                <input type="text" id="hotkeySearch" class="modal-search" placeholder="Search shortcuts…">
+                <input type="text" id="hotkey-search" class="modal-search" placeholder="Search shortcuts…">
             </div>
             <div class="settings-body">
-                <table class="hotkey-table" id="hotkeyTable">
+                <table class="hotkey-table" id="hotkey-table">
                     <thead>
                         <tr><th>Action</th><th>Shortcut</th><th>Default</th><th style="width:30px;"></th></tr>
                     </thead>
@@ -24,20 +24,20 @@ export class StencilSettingsModal extends StencilElement {
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Double-click a shortcut to set a new combination · Esc cancels · ↺ resets one</span>
-                <button id="resetAllHotkeys">↺ Reset All</button>
+                <button id="reset-all-hotkeys">↺ Reset All</button>
             </div>
         </div>
     `;
   }
-  static template() { return hostTag('stencil-settings-modal', 'id="settingsModalOverlay"', StencilSettingsModal.inner()); }
+  static template() { return hostTag('stencil-settings-modal', 'id="settings-modal-overlay"', StencilSettingsModal.inner()); }
 
   wire(_app) {
-    const overlay = document.getElementById('settingsModalOverlay');
-    const openBtn = document.getElementById('settingsBtn');
-    const closeBtn = document.getElementById('settingsClose');
-    const resetAll = document.getElementById('resetAllHotkeys');
-    const search = document.getElementById('hotkeySearch');
-    const tbody = document.querySelector('#hotkeyTable tbody');
+    const overlay = document.getElementById('settings-modal-overlay');
+    const openBtn = document.getElementById('settings-btn');
+    const closeBtn = document.getElementById('settings-close');
+    const resetAll = document.getElementById('reset-all-hotkeys');
+    const search = document.getElementById('hotkey-search');
+    const tbody = document.querySelector('#hotkey-table tbody');
 
     // {id, cell} of the row currently waiting for a key combination
     let capturing = null;

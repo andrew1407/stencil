@@ -7,7 +7,7 @@ export class StencilVisualsModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>🎨 Default Visuals</h2>
-                <button class="app-modal-close" id="visualsClose">✕ Close</button>
+                <button class="app-modal-close" id="visuals-close">✕ Close</button>
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="vs-search" class="modal-search" placeholder="Search settings…">
@@ -33,12 +33,12 @@ export class StencilVisualsModal extends StencilElement {
         </div>
     `;
   }
-  static template() { return hostTag('stencil-visuals-modal', 'id="visualsModalOverlay" class="app-modal-overlay"', StencilVisualsModal.inner()); }
+  static template() { return hostTag('stencil-visuals-modal', 'id="visuals-modal-overlay" class="app-modal-overlay"', StencilVisualsModal.inner()); }
 
   wire(app) {
-    const overlay = document.getElementById('visualsModalOverlay');
-    const openBtn = document.getElementById('visualsBtn');
-    const closeBtn = document.getElementById('visualsClose');
+    const overlay = document.getElementById('visuals-modal-overlay');
+    const openBtn = document.getElementById('visuals-btn');
+    const closeBtn = document.getElementById('visuals-close');
     const resetBtn = document.getElementById('vs-reset');
     const search = document.getElementById('vs-search');
     const bodyEl = overlay.querySelector('.settings-body');
@@ -98,24 +98,24 @@ export class StencilVisualsModal extends StencilElement {
     // Default-line controls mirror the main toolbar inputs
     els.lineColor.addEventListener('input', e => {
       app.color = e.target.value;
-      setVal('lineColor', e.target.value);
+      setVal('line-color', e.target.value);
       app.storage.save();
     });
     els.thickness.addEventListener('change', e => {
       app.thickness = Math.max(1, Math.min(20, parseInt(e.target.value) || app.thickness));
       e.target.value = app.thickness;
-      setVal('lineThickness', app.thickness);
+      setVal('line-thickness', app.thickness);
       app.storage.save();
     });
     els.marker.addEventListener('change', e => {
       app.markerSize = Math.max(1, Math.min(30, parseInt(e.target.value) || app.markerSize));
       e.target.value = app.markerSize;
-      setVal('markerSize', app.markerSize);
+      setVal('marker-size', app.markerSize);
       app.renderer.redraw(); app.storage.save();
     });
     els.style.addEventListener('change', e => {
       app.style = e.target.value;
-      setVal('lineStyle', e.target.value);
+      setVal('line-style', e.target.value);
       setRadioGroup('ctxLineStyle', e.target.value);
       app.storage.save();
     });
@@ -126,10 +126,10 @@ export class StencilVisualsModal extends StencilElement {
 
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
-      setVal('lineColor', app.color);
-      setVal('lineThickness', app.thickness);
-      setVal('markerSize', app.markerSize);
-      setVal('lineStyle', app.style);
+      setVal('line-color', app.color);
+      setVal('line-thickness', app.thickness);
+      setVal('marker-size', app.markerSize);
+      setVal('line-style', app.style);
       populate();
       app.renderer.redraw(); app.storage.save();
       notify('Visual defaults reset', 'ok');

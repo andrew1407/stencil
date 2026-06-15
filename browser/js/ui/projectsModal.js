@@ -3,7 +3,7 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 // Lists saved projects (most-recently-edited first) plus a synthetic row for
 // the current temporary editor, with thumbnails, dates, expiry badges, and an
 // "open elsewhere" marker driven by the TabsCoordinator peers feed. Rows are
-// built at runtime (the static #projectsList stays comment-only) so the markup
+// built at runtime (the static #projects-list stays comment-only) so the markup
 // tests' no-backtick / no-runtime-id assertions stay green.
 export class StencilProjectsModal extends StencilElement {
   static inner() {
@@ -11,31 +11,31 @@ export class StencilProjectsModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>🗂 Projects</h2>
-                <button class="app-modal-close" id="projectsClose">✕ Close</button>
+                <button class="app-modal-close" id="projects-close">✕ Close</button>
             </div>
             <div class="modal-search-bar">
-                <input type="text" id="projectsSearch" class="modal-search" placeholder="Search projects…">
+                <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
             </div>
-            <div class="settings-body" id="projectsList"><!-- filled by JS --></div>
+            <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
             <div class="settings-footer">
                 <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
-                <button id="projectsBlankImage" title="Create a blank image to draw on">🖼 Blank image</button>
-                <button id="projectsNewEditor">➕ New editor</button>
-                <button id="projectsClearAll" class="danger">🗑 Clear All</button>
+                <button id="projects-blank-image" title="Create a blank image to draw on">🖼 Blank image</button>
+                <button id="projects-new-editor">➕ New editor</button>
+                <button id="projects-clear-all" class="danger">🗑 Clear All</button>
             </div>
         </div>
     `;
   }
-  static template() { return hostTag('stencil-projects-modal', 'id="projectsModalOverlay" class="app-modal-overlay"', StencilProjectsModal.inner()); }
+  static template() { return hostTag('stencil-projects-modal', 'id="projects-modal-overlay" class="app-modal-overlay"', StencilProjectsModal.inner()); }
 
   wire(app) {
-    const overlay = document.getElementById('projectsModalOverlay');
-    const openBtn = document.getElementById('projectsBtn');
-    const closeBtn = document.getElementById('projectsClose');
-    const search = document.getElementById('projectsSearch');
-    const list = document.getElementById('projectsList');
-    const newEditorBtn = document.getElementById('projectsNewEditor');
-    const clearAllBtn = document.getElementById('projectsClearAll');
+    const overlay = document.getElementById('projects-modal-overlay');
+    const openBtn = document.getElementById('projects-btn');
+    const closeBtn = document.getElementById('projects-close');
+    const search = document.getElementById('projects-search');
+    const list = document.getElementById('projects-list');
+    const newEditorBtn = document.getElementById('projects-new-editor');
+    const clearAllBtn = document.getElementById('projects-clear-all');
     const store = app.storage.store;
 
     let peers = []; // active project ids open in OTHER tabs

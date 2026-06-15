@@ -38,7 +38,7 @@ export class StencilContextMenu extends StencilElement {
         <!-- Toggles -->
         <div class="ctx-item" id="ctx-show-points"><span class="ctx-check" id="ctx-chk-points">✓</span><span class="ctx-label">Show Points</span><span class="ctx-hotkey" data-hk="togglePoints">Alt+P</span></div>
         <div class="ctx-item" id="ctx-show-lines"><span class="ctx-check" id="ctx-chk-lines">✓</span><span class="ctx-label">Show Lines</span><span class="ctx-hotkey" data-hk="toggleLines">Alt+L</span></div>
-        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">🗑</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clearAllLines">Alt+W</span></div>
+        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">🗑</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clear-all-lines">Alt+W</span></div>
         <div class="ctx-sep"></div>
         <!-- Style submenu -->
         <div class="ctx-item" id="ctx-style-menu">
@@ -71,7 +71,7 @@ export class StencilContextMenu extends StencilElement {
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="sepia"> Sepia</label>
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="custom"> Custom Tint</label>
                 </div>
-                <div id="ctxTintRow">
+                <div id="ctx-tint-row">
                     <label>Tint Color</label>
                     <input type="color" class="ctx-color" id="ctx-tint-color">
                 </div>
@@ -112,12 +112,12 @@ export class StencilContextMenu extends StencilElement {
         </div>
     `;
   }
-  static template() { return hostTag('stencil-context-menu', 'id="ctxMenu"', StencilContextMenu.inner()); }
+  static template() { return hostTag('stencil-context-menu', 'id="ctx-menu"', StencilContextMenu.inner()); }
 
   wire(app) {
-    const menu = document.getElementById('ctxMenu');
+    const menu = document.getElementById('ctx-menu');
     const canvas = document.getElementById('canvas');
-    const viewport = document.getElementById('canvasViewport');
+    const viewport = document.getElementById('canvas-viewport');
 
     // ── Submenu management ──────────────────────────────────────
     let subHideTimer = null;
@@ -126,8 +126,8 @@ export class StencilContextMenu extends StencilElement {
 
     const closeAllSubs = () => {
       clearTimeout(subHideTimer);
-      document.querySelectorAll('#ctxMenu .ctx-sub.ctx-sub-visible').forEach(s => s.classList.remove('ctx-sub-visible'));
-      document.querySelectorAll('#ctxMenu .ctx-item.ctx-open-sub').forEach(i => i.classList.remove('ctx-open-sub'));
+      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => s.classList.remove('ctx-sub-visible'));
+      document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => i.classList.remove('ctx-open-sub'));
       activeSub = null;
       activeSubItem = null;
     };
@@ -195,10 +195,10 @@ export class StencilContextMenu extends StencilElement {
       item.addEventListener('mouseenter', () => {
         clearTimeout(subHideTimer);
         // Close other open subs
-        document.querySelectorAll('#ctxMenu .ctx-sub.ctx-sub-visible').forEach(s => {
+        document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => {
           if (s !== sub) s.classList.remove('ctx-sub-visible');
         });
-        document.querySelectorAll('#ctxMenu .ctx-item.ctx-open-sub').forEach(i => {
+        document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => {
           if (i !== item) i.classList.remove('ctx-open-sub');
         });
         positionSub(item, sub);
@@ -285,7 +285,7 @@ export class StencilContextMenu extends StencilElement {
       // Filter sub values
       setRadioGroup('ctxFilter', app.imageFilter);
       document.getElementById('ctx-tint-color').value = app.filterColor || '#7c3aed';
-      const tintRow = document.getElementById('ctxTintRow');
+      const tintRow = document.getElementById('ctx-tint-row');
       tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
 
       // Fullscreen label
@@ -361,7 +361,7 @@ export class StencilContextMenu extends StencilElement {
 
     // Upload layout
     document.getElementById('ctx-ul-layout').addEventListener('click', () => {
-      closeMenu(); document.getElementById('uploadJSON').click();
+      closeMenu(); document.getElementById('upload-json').click();
     });
 
     // Copy layout JSON to clipboard
@@ -440,7 +440,7 @@ export class StencilContextMenu extends StencilElement {
     // Show points
     document.getElementById('ctx-show-points').addEventListener('click', () => {
       app.showPoints = !app.showPoints;
-      const cb = document.getElementById('showPoints');
+      const cb = document.getElementById('show-points');
       if (cb) cb.checked = app.showPoints;
       app.renderer.redraw(); app.storage.save();
       document.getElementById('ctx-chk-points').textContent = app.showPoints ? '✓' : '';
@@ -449,7 +449,7 @@ export class StencilContextMenu extends StencilElement {
     // Show lines
     document.getElementById('ctx-show-lines').addEventListener('click', () => {
       app.showLines = !app.showLines;
-      const cb = document.getElementById('showLines');
+      const cb = document.getElementById('show-lines');
       if (cb) cb.checked = app.showLines;
       app.renderer.redraw(); app.storage.save();
       document.getElementById('ctx-chk-lines').textContent = app.showLines ? '✓' : '';
@@ -466,7 +466,7 @@ export class StencilContextMenu extends StencilElement {
       const v = parseInt(e.target.value);
       if (!isNaN(v) && v >= 1 && v <= 30) {
         app.markerSize = v;
-        const inp = document.getElementById('markerSize');
+        const inp = document.getElementById('marker-size');
         if (inp) inp.value = v;
         app.renderer.redraw();
       }
@@ -474,7 +474,7 @@ export class StencilContextMenu extends StencilElement {
     document.getElementById('ctx-marker-size').addEventListener('change', e => {
       const v = Math.max(1, Math.min(30, parseInt(e.target.value) || app.markerSize));
       e.target.value = v; app.markerSize = v;
-      const inp = document.getElementById('markerSize');
+      const inp = document.getElementById('marker-size');
       if (inp) inp.value = v;
       app.renderer.redraw(); app.storage.save();
     });
@@ -484,7 +484,7 @@ export class StencilContextMenu extends StencilElement {
       const v = parseInt(e.target.value);
       if (!isNaN(v) && v >= 1 && v <= 20) {
         app.thickness = v;
-        const inp = document.getElementById('lineThickness');
+        const inp = document.getElementById('line-thickness');
         if (inp) inp.value = v;
         app.renderer.redraw();
       }
@@ -492,7 +492,7 @@ export class StencilContextMenu extends StencilElement {
     document.getElementById('ctx-thickness').addEventListener('change', e => {
       const v = Math.max(1, Math.min(20, parseInt(e.target.value) || app.thickness));
       e.target.value = v; app.thickness = v;
-      const inp = document.getElementById('lineThickness');
+      const inp = document.getElementById('line-thickness');
       if (inp) inp.value = v;
       app.renderer.redraw(); app.storage.save();
     });
@@ -501,7 +501,7 @@ export class StencilContextMenu extends StencilElement {
     document.querySelectorAll('input[name="ctxLineStyle"]').forEach(r => {
       r.addEventListener('change', () => {
         app.style = r.value;
-        const sel = document.getElementById('lineStyle');
+        const sel = document.getElementById('line-style');
         if (sel) sel.value = r.value;
         app.renderer.redraw(); app.storage.save();
       });
@@ -511,11 +511,11 @@ export class StencilContextMenu extends StencilElement {
     document.querySelectorAll('input[name="ctxFilter"]').forEach(r => {
       r.addEventListener('change', () => {
         app.imageFilter = r.value;
-        const sel = document.getElementById('imageFilter');
+        const sel = document.getElementById('image-filter');
         if (sel) sel.value = r.value;
-        const mainPicker = document.getElementById('filterColor');
+        const mainPicker = document.getElementById('filter-color');
         if (mainPicker) mainPicker.style.display = (r.value === 'custom') ? 'inline-block' : 'none';
-        document.getElementById('ctxTintRow').classList.toggle('ctx-tint-visible', r.value === 'custom');
+        document.getElementById('ctx-tint-row').classList.toggle('ctx-tint-visible', r.value === 'custom');
         app.renderer.redraw(); app.storage.save();
       });
     });
@@ -524,7 +524,7 @@ export class StencilContextMenu extends StencilElement {
     let ctxTintTimer = null;
     document.getElementById('ctx-tint-color').addEventListener('input', e => {
       app.filterColor = e.target.value;
-      const mainPicker = document.getElementById('filterColor');
+      const mainPicker = document.getElementById('filter-color');
       if (mainPicker) mainPicker.value = e.target.value;
       clearTimeout(ctxTintTimer);
       ctxTintTimer = setTimeout(() => {
@@ -565,15 +565,15 @@ export class StencilContextMenu extends StencilElement {
 
     // Transformation submenu: formulas
     const ctxSyncFormulaUI = checked => {
-      const fi = document.getElementById('formulaInputs');
+      const fi = document.getElementById('formula-inputs');
       const ctxFi = document.getElementById('ctx-formula-inputs');
-      const mainCb = document.getElementById('allowFormulas');
+      const mainCb = document.getElementById('allow-formulas');
       if (fi) fi.style.display = checked ? 'inline-flex' : 'none';
       if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
       if (mainCb) mainCb.checked = checked;
     };
     const ctxShowFormulaError = hasError => {
-      const el = document.getElementById('formulaError');
+      const el = document.getElementById('formula-error');
       const ctxEl = document.getElementById('ctx-formula-error');
       if (el) el.style.display = hasError ? 'inline' : 'none';
       if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
@@ -591,8 +591,8 @@ export class StencilContextMenu extends StencilElement {
       ctxShowFormulaError(!okX || !okY);
       if (okX && okY) {
         app.formulaX = fxVal; app.formulaY = fyVal;
-        const mx = document.getElementById('formulaX');
-        const my = document.getElementById('formulaY');
+        const mx = document.getElementById('formula-x');
+        const my = document.getElementById('formula-y');
         if (mx) mx.value = fxVal;
         if (my) my.value = fyVal;
         ctxRefreshCoords();

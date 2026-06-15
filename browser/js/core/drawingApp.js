@@ -61,7 +61,7 @@ export class DrawingApp {
     this.canvas = document.getElementById('canvas');
     this.ctx = this.canvas.getContext('2d');
     this.tooltip = document.getElementById('tooltip');
-    this.coordinatesBody = document.getElementById('coordinatesBody');
+    this.coordinatesBody = document.getElementById('coordinates-body');
 
     this.image = null;
     // Crop support: `originalImage` is the untouched full-resolution bitmap; the
@@ -177,7 +177,7 @@ export class DrawingApp {
 
     this.initEventListeners();
     // Set a sensible initial viewport height
-    const vp = document.getElementById('canvasViewport');
+    const vp = document.getElementById('canvas-viewport');
     if (vp) vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
     // Boot synchronously into a blank temporary editor (migrate + sweep only).
     // The projects component decides whether to offer a chooser after readiness.
@@ -208,9 +208,9 @@ export class DrawingApp {
   }
 
   #wireStyleControls() {
-    document.getElementById('imageUpload').addEventListener('change', e => this.loadImage(e));
-    document.getElementById('lineColor').addEventListener('change', e => { this.color = e.target.value; this.storage.save(); });
-    document.getElementById('lineThickness').addEventListener('input', e => {
+    document.getElementById('image-upload').addEventListener('change', e => this.loadImage(e));
+    document.getElementById('line-color').addEventListener('change', e => { this.color = e.target.value; this.storage.save(); });
+    document.getElementById('line-thickness').addEventListener('input', e => {
       const v = parseInt(e.target.value);
       if (isNaN(v)) return;
       this.thickness = v;
@@ -218,8 +218,8 @@ export class DrawingApp {
       if (ctxEl && document.activeElement !== ctxEl) ctxEl.value = v;
       this.renderer.redraw();
     });
-    document.getElementById('lineThickness').addEventListener('change', e => { this.thickness = parseInt(e.target.value); this.storage.save(); });
-    document.getElementById('markerSize').addEventListener('input', e => {
+    document.getElementById('line-thickness').addEventListener('change', e => { this.thickness = parseInt(e.target.value); this.storage.save(); });
+    document.getElementById('marker-size').addEventListener('input', e => {
       const v = parseInt(e.target.value);
       if (isNaN(v)) return;
       this.markerSize = v;
@@ -227,25 +227,25 @@ export class DrawingApp {
       if (ctxEl && document.activeElement !== ctxEl) ctxEl.value = v;
       this.renderer.redraw();
     });
-    document.getElementById('markerSize').addEventListener('change', e => { this.markerSize = parseInt(e.target.value); this.storage.save(); });
-    document.getElementById('lineStyle').addEventListener('change', e => {
+    document.getElementById('marker-size').addEventListener('change', e => { this.markerSize = parseInt(e.target.value); this.storage.save(); });
+    document.getElementById('line-style').addEventListener('change', e => {
       this.style = e.target.value;
       setRadioGroup('ctxLineStyle', e.target.value);
       this.storage.save();
     });
-    document.getElementById('imageFilter').addEventListener('change', e => {
+    document.getElementById('image-filter').addEventListener('change', e => {
       this.imageFilter = e.target.value;
-      const filterColorPicker = document.getElementById('filterColor');
+      const filterColorPicker = document.getElementById('filter-color');
       if (filterColorPicker) filterColorPicker.style.display = (e.target.value === 'custom') ? 'inline-block' : 'none';
       // Mirror to ctx filter radios + tint visibility
       setRadioGroup('ctxFilter', e.target.value);
-      const tintRow = document.getElementById('ctxTintRow');
+      const tintRow = document.getElementById('ctx-tint-row');
       if (tintRow) tintRow.classList.toggle('ctx-tint-visible', e.target.value === 'custom');
       this.renderer.redraw();
       this.storage.save();
     });
     let filterColorTimer = null;
-    document.getElementById('filterColor').addEventListener('input', e => {
+    document.getElementById('filter-color').addEventListener('input', e => {
       this.filterColor = e.target.value;
       const ctxTint = document.getElementById('ctx-tint-color');
       if (ctxTint) ctxTint.value = e.target.value;
@@ -259,46 +259,46 @@ export class DrawingApp {
 
   // Selection panel listeners
   #wireSelectionPanelControls() {
-    document.getElementById('selColor').addEventListener('input', e => this.applySelectionChange('color', e.target.value));
-    document.getElementById('selThickness').addEventListener('change', e => this.applySelectionChange('thickness', parseInt(e.target.value)));
-    document.getElementById('selMarkerSize').addEventListener('change', e => this.applySelectionChange('markerSize', parseInt(e.target.value)));
-    document.getElementById('selStyle').addEventListener('change', e => this.applySelectionChange('style', e.target.value));
-    document.getElementById('selFillEnabled').addEventListener('change', () => this.applyFill());
-    document.getElementById('selFill').addEventListener('input', () => {
-      document.getElementById('selFillEnabled').checked = true;
+    document.getElementById('sel-color').addEventListener('input', e => this.applySelectionChange('color', e.target.value));
+    document.getElementById('sel-thickness').addEventListener('change', e => this.applySelectionChange('thickness', parseInt(e.target.value)));
+    document.getElementById('sel-marker-size').addEventListener('change', e => this.applySelectionChange('marker-size', parseInt(e.target.value)));
+    document.getElementById('sel-style').addEventListener('change', e => this.applySelectionChange('style', e.target.value));
+    document.getElementById('sel-fill-enabled').addEventListener('change', () => this.applyFill());
+    document.getElementById('sel-fill').addEventListener('input', () => {
+      document.getElementById('sel-fill-enabled').checked = true;
       this.applyFill();
     });
-    document.getElementById('selFillClear').addEventListener('click', () => {
-      document.getElementById('selFillEnabled').checked = false;
+    document.getElementById('sel-fill-clear').addEventListener('click', () => {
+      document.getElementById('sel-fill-enabled').checked = false;
       this.applyFill();
       notify('Fill cleared (transparent)', 'ok');
     });
-    document.getElementById('selDeselect').addEventListener('click', () => this.deselectLine());
+    document.getElementById('sel-deselect').addEventListener('click', () => this.deselectLine());
   }
 
   #wirePageAndDisplayControls() {
-    document.getElementById('pageSize').addEventListener('change', e => {
+    document.getElementById('page-size').addEventListener('change', e => {
       this.pageSize = e.target.value;
-      const cg = document.getElementById('customSizeGroup');
+      const cg = document.getElementById('custom-size-group');
       if (cg) cg.style.display = e.target.value === 'custom' ? 'inline-flex' : 'none';
       this.coordTable.update();
       this.renderer.redraw();
       this.storage.save();
     });
-    document.getElementById('customPageWidth').addEventListener('change', e => {
+    document.getElementById('custom-page-width').addEventListener('change', e => {
       // Inputs are typed in the active unit; store the model value in cm.
       const v = parseFloat(e.target.value);
       this.customPageWidth = isNaN(v) ? 21 : unitToCm(v, this.unit);
       this.coordTable.update();
       this.storage.save();
     });
-    document.getElementById('customPageHeight').addEventListener('change', e => {
+    document.getElementById('custom-page-height').addEventListener('change', e => {
       const v = parseFloat(e.target.value);
       this.customPageHeight = isNaN(v) ? 29.7 : unitToCm(v, this.unit);
       this.coordTable.update();
       this.storage.save();
     });
-    const unitSel = document.getElementById('unitSelect');
+    const unitSel = document.getElementById('unit-select');
     if (unitSel) unitSel.addEventListener('change', e => {
       this.unit = e.target.value === 'in' ? 'in' : 'cm';
       this.applyUnitToUI();          // re-render page inputs + labels + table headers
@@ -307,14 +307,14 @@ export class DrawingApp {
       this.renderer.redraw();
       this.storage.save();
     });
-    document.getElementById('showPoints').addEventListener('change', e => {
+    document.getElementById('show-points').addEventListener('change', e => {
       this.showPoints = e.target.checked;
       const chk = document.getElementById('ctx-chk-points');
       if (chk) chk.textContent = e.target.checked ? '✓' : '';
       this.renderer.redraw();
       this.storage.save();
     });
-    document.getElementById('showLines').addEventListener('change', e => {
+    document.getElementById('show-lines').addEventListener('change', e => {
       this.showLines = e.target.checked;
       const chk = document.getElementById('ctx-chk-lines');
       if (chk) chk.textContent = e.target.checked ? '✓' : '';
@@ -326,14 +326,14 @@ export class DrawingApp {
   // ── Formula controls (top bar) ──────────────────────────────
   #wireFormulaControls() {
     const syncFormulaUI = checked => {
-      document.getElementById('formulaInputs').style.display = checked ? 'inline-flex' : 'none';
+      document.getElementById('formula-inputs').style.display = checked ? 'inline-flex' : 'none';
       const ctxFi = document.getElementById('ctx-formula-inputs');
       if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
       const ctxCb = document.getElementById('ctx-allow-formulas');
       if (ctxCb) ctxCb.checked = checked;
     };
     const showFormulaError = hasError => {
-      const el = document.getElementById('formulaError');
+      const el = document.getElementById('formula-error');
       const ctxEl = document.getElementById('ctx-formula-error');
       if (el) el.style.display = hasError ? 'inline' : 'none';
       if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
@@ -344,8 +344,8 @@ export class DrawingApp {
       this.coordTable.update(pts, li);
     };
     const validateAndApplyFormulas = () => {
-      const fxVal = document.getElementById('formulaX').value.trim();
-      const fyVal = document.getElementById('formulaY').value.trim();
+      const fxVal = document.getElementById('formula-x').value.trim();
+      const fyVal = document.getElementById('formula-y').value.trim();
       const okX = this.formula.validate(fxVal, 'x');
       const okY = this.formula.validate(fyVal, 'y');
       showFormulaError(!okX || !okY);
@@ -360,32 +360,32 @@ export class DrawingApp {
         this.storage.save();
       }
     };
-    document.getElementById('allowFormulas').addEventListener('change', e => {
+    document.getElementById('allow-formulas').addEventListener('change', e => {
       this.allowFormulas = e.target.checked;
       syncFormulaUI(e.target.checked);
       if (!e.target.checked) { this.formulaX = ''; this.formulaY = ''; showFormulaError(false); }
       refreshCoordsAfterFormula();
       this.storage.save();
     });
-    document.getElementById('formulaX').addEventListener('input', validateAndApplyFormulas);
-    document.getElementById('formulaY').addEventListener('input', validateAndApplyFormulas);
+    document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
+    document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
   }
 
   #wireToolbarButtons() {
-    document.getElementById('startDrawing').addEventListener('click', () => this.startDrawingMode());
-    document.getElementById('stopDrawing').addEventListener('click', () => this.stopDrawingMode());
-    document.getElementById('drawModeToggle').addEventListener('click', () => {
+    document.getElementById('start-drawing').addEventListener('click', () => this.startDrawingMode());
+    document.getElementById('stop-drawing').addEventListener('click', () => this.stopDrawingMode());
+    document.getElementById('draw-mode-toggle').addEventListener('click', () => {
       this.setDrawMode(this.drawMode === 'rect' ? 'line' : 'rect');
       this.storage.save();
     });
     document.getElementById('undo').addEventListener('click', () => this.undo());
     document.getElementById('redo').addEventListener('click', () => this.redo());
-    document.getElementById('downloadJSON').addEventListener('click', () => this.downloadJSON());
-    document.getElementById('copyJSONBtn').addEventListener('click', () => this.copyLayoutToClipboard());
-    document.getElementById('saveImage').addEventListener('click', () => this.saveImage());
-    document.getElementById('uploadJSONBtn').addEventListener('click', () => document.getElementById('uploadJSON').click());
-    document.getElementById('uploadJSON').addEventListener('change', e => this.uploadJSON(e));
-    document.getElementById('clearStorage').addEventListener('click', () => {
+    document.getElementById('download-json').addEventListener('click', () => this.downloadJSON());
+    document.getElementById('copy-json-btn').addEventListener('click', () => this.copyLayoutToClipboard());
+    document.getElementById('save-image').addEventListener('click', () => this.saveImage());
+    document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
+    document.getElementById('upload-json').addEventListener('change', e => this.uploadJSON(e));
+    document.getElementById('clear-storage').addEventListener('click', () => {
       if (this.storage.temporary || this.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
         if (confirm('Clear this editor (image + lines)?')) {
@@ -404,7 +404,7 @@ export class DrawingApp {
         this.showSaveStatus('🗑 Cleared', '#dc3545');
       }
     });
-    const incognitoBtn = document.getElementById('incognitoToggle');
+    const incognitoBtn = document.getElementById('incognito-toggle');
     if (incognitoBtn) incognitoBtn.addEventListener('click', () => {
       if (!this.#canToggleIncognito()) return;
       this.storage.incognito = !this.storage.incognito;
@@ -413,17 +413,17 @@ export class DrawingApp {
         ? 'Incognito mode — this editor won\'t be saved'
         : 'Incognito off', 'info');
     });
-    document.getElementById('clearAllLines').addEventListener('click', () => this.clearAllLines());
+    document.getElementById('clear-all-lines').addEventListener('click', () => this.clearAllLines());
     // Zoom buttons: single click = small step, double-click = large step,
     // hold = continuous zoom (kicks in after a short delay)
-    this.zoomPan.setupHoldZoom(document.getElementById('zoomIn'), +1);
-    this.zoomPan.setupHoldZoom(document.getElementById('zoomOut'), -1);
-    document.getElementById('zoomFit').addEventListener('click', () => this.zoomPan.fitToWindow());
+    this.zoomPan.setupHoldZoom(document.getElementById('zoom-in'), +1);
+    this.zoomPan.setupHoldZoom(document.getElementById('zoom-out'), -1);
+    document.getElementById('zoom-fit').addEventListener('click', () => this.zoomPan.fitToWindow());
   }
 
   #wireZoomControls() {
     // Manual zoom input
-    const zoomInput = document.getElementById('zoomInput');
+    const zoomInput = document.getElementById('zoom-input');
     const applyZoomInput = () => {
       const val = parseFloat(zoomInput.value);
       if (!isNaN(val) && val >= 5 && val <= 500) {
@@ -444,7 +444,7 @@ export class DrawingApp {
   #wireScrollPersist() {
     // Save scroll position (debounced) so it's restored on reopen
     {
-      const scrollVp = document.getElementById('canvasViewport');
+      const scrollVp = document.getElementById('canvas-viewport');
       if (scrollVp) {
         let scrollSaveTimer = null;
         scrollVp.addEventListener('scroll', () => {
@@ -459,10 +459,10 @@ export class DrawingApp {
     // Theme toggle
     const updateThemeIcon = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+      document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
     };
     updateThemeIcon();
-    document.getElementById('themeToggle').addEventListener('click', () => {
+    document.getElementById('theme-toggle').addEventListener('click', () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const next = isDark ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
@@ -487,30 +487,30 @@ export class DrawingApp {
       startDraw: () => { if (this.image && !this.isDrawing) this.startDrawingMode(); },
       stopDraw: () => { if (this.isDrawing) this.stopDrawingMode(); },
       togglePoints: () => {
-        const cb = document.getElementById('showPoints');
+        const cb = document.getElementById('show-points');
         cb.checked = !cb.checked;
         this.showPoints = cb.checked;
         this.renderer.redraw();
       },
       toggleLines: () => {
-        const cb = document.getElementById('showLines');
+        const cb = document.getElementById('show-lines');
         cb.checked = !cb.checked;
         this.showLines = cb.checked;
         this.renderer.redraw();
       },
       cycleFilter: () => {
-        const sel = document.getElementById('imageFilter');
+        const sel = document.getElementById('image-filter');
         const opts = ['none', 'bw', 'sepia', 'custom'];
         const cur = opts.indexOf(sel.value);
         sel.value = opts[(cur + 1) % opts.length];
         this.imageFilter = sel.value;
-        const filterColorPicker = document.getElementById('filterColor');
+        const filterColorPicker = document.getElementById('filter-color');
         if (filterColorPicker) filterColorPicker.style.display = (this.imageFilter === 'custom') ? 'inline-block' : 'none';
         this.renderer.redraw();
       },
       resetZoom: () => this.zoomPan.fitToWindow(),
-      toggleControls: () => { const b = document.getElementById('toggleControls');   if (b) b.click(); },
-      togglePointsList: () => { const b = document.getElementById('toggleCoordPanel'); if (b) b.click(); },
+      toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
+      togglePointsList: () => { const b = document.getElementById('toggle-coord-panel'); if (b) b.click(); },
       fullscreen: () => this.toggleFullscreen?.(),
       zoomIn: () => this.zoomPan.zoomAroundCenter(this.scale + 0.25),
       zoomOut: () => this.zoomPan.zoomAroundCenter(this.scale - 0.25),
@@ -584,7 +584,7 @@ export class DrawingApp {
     this.#arrowPanRaf = null;
     const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
     const arrowPanTick = () => {
-      const vp = document.getElementById('canvasViewport');
+      const vp = document.getElementById('canvas-viewport');
       if (!vp || this.#arrowsHeld.size === 0) { this.#arrowPanRaf = null; return; }
       const speed = this.#arrowsHeld.has('Shift') ? 22 : 7;
       let dx = 0;
@@ -617,7 +617,7 @@ export class DrawingApp {
 
   #wireDropPaste() {
     // Document-wide drag-and-drop overlay
-    const dropZone = document.getElementById('globalDropOverlay');
+    const dropZone = document.getElementById('global-drop-overlay');
 
     document.addEventListener('dragenter', e => {
       e.preventDefault();
@@ -704,7 +704,7 @@ export class DrawingApp {
     // (that conflict causes the flicker).
     this.#smoothZoom = { target: null, focal: null, rafId: null };
 
-    const viewport = document.getElementById('canvasViewport');
+    const viewport = document.getElementById('canvas-viewport');
 
     const runSmoothZoom = () => {
       const sz = this.#smoothZoom;
@@ -804,7 +804,7 @@ export class DrawingApp {
   }
 
   #wirePanDrag() {
-    const viewport = document.getElementById('canvasViewport');
+    const viewport = document.getElementById('canvas-viewport');
 
     // Pan: Alt+left-drag OR middle-mouse-button drag (works in both drawing/non-drawing modes)
     const startPan = e => {
@@ -995,7 +995,7 @@ export class DrawingApp {
           const rectW = x2 - x1;
           const rectH = y2 - y1;
           if (rectW > 4 && rectH > 4) {
-            const vp = document.getElementById('canvasViewport');
+            const vp = document.getElementById('canvas-viewport');
             const availW = vp ? vp.clientWidth  : window.innerWidth;
             const availH = vp ? vp.clientHeight : window.innerHeight;
             const newScale = Math.min(availW / rectW, availH / rectH, 5);
@@ -1215,7 +1215,7 @@ export class DrawingApp {
     this.selectedLineIdx = -1;
     this.coordLineIdx = -1;
     this.focusedPtIdx = -1;
-    const selPanel = document.getElementById('selectionPanel');
+    const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');
     if (fsPanel) fsPanel.style.display = 'none';
@@ -1265,8 +1265,8 @@ export class DrawingApp {
       });
       this.currentLine = null;
       this.undonePoints = [];
-      document.getElementById('startDrawing').classList.add('active');
-      document.getElementById('stopDrawing').disabled = false;
+      document.getElementById('start-drawing').classList.add('active');
+      document.getElementById('stop-drawing').disabled = false;
       this.coordLineIdx = this.#continueLineIdx;
       this.coordTable.update(line.points, this.#continueLineIdx);
       this.updateButtons();
@@ -1286,13 +1286,13 @@ export class DrawingApp {
     };
     if (!opts.keepSelection) {
       this.selectedLineIdx = -1;
-      document.getElementById('selectionPanel').style.display = 'none';
+      document.getElementById('selection-panel').style.display = 'none';
       const fsPanel = document.getElementById('fs-selection-panel');
       if (fsPanel) fsPanel.style.display = 'none';
     }
     this.undonePoints = []; // stack for redo while drawing
-    document.getElementById('startDrawing').classList.add('active');
-    document.getElementById('stopDrawing').disabled = false;
+    document.getElementById('start-drawing').classList.add('active');
+    document.getElementById('stop-drawing').disabled = false;
     this.updateButtons();
     this.renderer.redraw();
   }
@@ -1304,7 +1304,7 @@ export class DrawingApp {
   }
 
   syncDrawModeUI() {
-    const btn = document.getElementById('drawModeToggle');
+    const btn = document.getElementById('draw-mode-toggle');
     if (btn) {
       btn.innerHTML = (this.drawMode === 'rect' ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
         (this.drawMode === 'rect' ? ' Rect' : ' Line');
@@ -1325,8 +1325,8 @@ export class DrawingApp {
       this.#continueInsertIdx = -1;
       this.currentLine = null;
       this.isDrawing = false;
-      document.getElementById('startDrawing').classList.remove('active');
-      document.getElementById('stopDrawing').disabled = true;
+      document.getElementById('start-drawing').classList.remove('active');
+      document.getElementById('stop-drawing').disabled = true;
       if (this.lines[li]) this.coordTable.update(this.lines[li].points, li);
       this.saveHistory();
       this.renderer.redraw();
@@ -1347,8 +1347,8 @@ export class DrawingApp {
     }
     this.currentLine = null;
     this.isDrawing = false;
-    document.getElementById('startDrawing').classList.remove('active');
-    document.getElementById('stopDrawing').disabled = true;
+    document.getElementById('start-drawing').classList.remove('active');
+    document.getElementById('stop-drawing').disabled = true;
     this.renderer.redraw();
     this.updateButtons();
   }
@@ -1486,8 +1486,8 @@ export class DrawingApp {
     }
     this.currentLine = null;
     this.isDrawing = false;
-    document.getElementById('startDrawing').classList.remove('active');
-    document.getElementById('stopDrawing').disabled = true;
+    document.getElementById('start-drawing').classList.remove('active');
+    document.getElementById('stop-drawing').disabled = true;
     // Select the new area so its fill control appears
     this.selectedLineIdx = areaIdx;
     this.coordLineIdx = areaIdx;
@@ -1725,23 +1725,23 @@ export class DrawingApp {
   }
 
   showSelectionPanel(line) {
-    document.getElementById('selColor').value = line.color;
-    document.getElementById('selThickness').value = line.thickness;
-    document.getElementById('selMarkerSize').value = line.markerSize ?? this.markerSize;
-    document.getElementById('selStyle').value = line.style;
+    document.getElementById('sel-color').value = line.color;
+    document.getElementById('sel-thickness').value = line.thickness;
+    document.getElementById('sel-marker-size').value = line.markerSize ?? this.markerSize;
+    document.getElementById('sel-style').value = line.style;
     // Fill control appears only for locked areas
-    const fillGroup = document.getElementById('selFillGroup');
+    const fillGroup = document.getElementById('sel-fill-group');
     if (fillGroup) {
       if (line.locked) {
         fillGroup.style.display = 'flex';
         const fs = fillState(line, this.defaultFillColor);
-        document.getElementById('selFillEnabled').checked = fs.enabled;
-        document.getElementById('selFill').value = fs.value;
+        document.getElementById('sel-fill-enabled').checked = fs.enabled;
+        document.getElementById('sel-fill').value = fs.value;
       } else {
         fillGroup.style.display = 'none';
       }
     }
-    document.getElementById('selectionPanel').style.display = 'block';
+    document.getElementById('selection-panel').style.display = 'block';
     // Sync fullscreen overlay panel
     this.syncFsSelectionPanel(line);
   }
@@ -1751,8 +1751,8 @@ export class DrawingApp {
     if (this.selectedLineIdx === -1) return;
     const line = this.lines[this.selectedLineIdx];
     if (!line) return;
-    const enabled = document.getElementById('selFillEnabled').checked;
-    const color = document.getElementById('selFill').value;
+    const enabled = document.getElementById('sel-fill-enabled').checked;
+    const color = document.getElementById('sel-fill').value;
     line.fillColor = enabled ? color : 'transparent';
     this.saveHistory();
     this.renderer.redraw();
@@ -1781,63 +1781,63 @@ export class DrawingApp {
     fsPanel.innerHTML = `<div class="selection-panel-inner">
             <span class="selection-label">✏️ Selected Line:</span>
             <div class="control-group"><label>Color:</label>
-                <input type="color" id="fsSel-color" value="${line.color}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;"></div>
+                <input type="color" id="fs-sel-color" value="${line.color}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;"></div>
             <div class="control-group"><label>Thickness:</label>
-                <input type="number" id="fsSel-thickness" value="${line.thickness}" min="1" max="20" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
+                <input type="number" id="fs-sel-thickness" value="${line.thickness}" min="1" max="20" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
             <div class="control-group"><label>Marker Size:</label>
-                <input type="number" id="fsSel-markerSize" value="${line.markerSize ?? this.markerSize}" min="1" max="30" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
+                <input type="number" id="fs-sel-marker-size" value="${line.markerSize ?? this.markerSize}" min="1" max="30" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
             <div class="control-group"><label>Style:</label>
-                <select id="fsSel-style" style="background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;">
+                <select id="fs-sel-style" style="background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;">
                     <option value="solid"${line.style==='solid'?' selected':''}>Solid</option>
                     <option value="dashed"${line.style==='dashed'?' selected':''}>Dashed</option>
                     <option value="dotted"${line.style==='dotted'?' selected':''}>Dotted</option>
                 </select></div>
             ${line.locked ? `<div class="control-group"><label>Fill:</label>
-                <input type="checkbox" id="fsSel-fillEnabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
-                <input type="color" id="fsSel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
-                <button id="fsSel-fillClear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">✕</button></div>` : ''}
-            <button id="fsSel-deselect" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">✕ Deselect</button>
+                <input type="checkbox" id="fs-sel-fill-enabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
+                <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
+                <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">✕</button></div>` : ''}
+            <button id="fs-sel-deselect" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">✕ Deselect</button>
         </div>`;
     // Wire events
-    fsPanel.querySelector('#fsSel-color').addEventListener('input', e => {
+    fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {
       this.applySelectionChange('color', e.target.value);
-      document.getElementById('selColor').value = e.target.value;
+      document.getElementById('sel-color').value = e.target.value;
     });
-    fsPanel.querySelector('#fsSel-thickness').addEventListener('change', e => {
+    fsPanel.querySelector('#fs-sel-thickness').addEventListener('change', e => {
       this.applySelectionChange('thickness', parseInt(e.target.value));
-      document.getElementById('selThickness').value = e.target.value;
+      document.getElementById('sel-thickness').value = e.target.value;
     });
-    fsPanel.querySelector('#fsSel-markerSize').addEventListener('change', e => {
-      this.applySelectionChange('markerSize', parseInt(e.target.value));
-      document.getElementById('selMarkerSize').value = e.target.value;
+    fsPanel.querySelector('#fs-sel-marker-size').addEventListener('change', e => {
+      this.applySelectionChange('marker-size', parseInt(e.target.value));
+      document.getElementById('sel-marker-size').value = e.target.value;
     });
-    fsPanel.querySelector('#fsSel-style').addEventListener('change', e => {
+    fsPanel.querySelector('#fs-sel-style').addEventListener('change', e => {
       this.applySelectionChange('style', e.target.value);
-      document.getElementById('selStyle').value = e.target.value;
+      document.getElementById('sel-style').value = e.target.value;
     });
-    const fsFillEnabled = fsPanel.querySelector('#fsSel-fillEnabled');
-    const fsFill = fsPanel.querySelector('#fsSel-fill');
+    const fsFillEnabled = fsPanel.querySelector('#fs-sel-fill-enabled');
+    const fsFill = fsPanel.querySelector('#fs-sel-fill');
     if (fsFillEnabled && fsFill) {
       const applyFsFill = () => {
         if (this.selectedLineIdx === -1) return;
         const ln = this.lines[this.selectedLineIdx];
         if (!ln) return;
         ln.fillColor = fsFillEnabled.checked ? fsFill.value : 'transparent';
-        const mainEnabled = document.getElementById('selFillEnabled');
-        const mainFill = document.getElementById('selFill');
+        const mainEnabled = document.getElementById('sel-fill-enabled');
+        const mainFill = document.getElementById('sel-fill');
         if (mainEnabled) mainEnabled.checked = fsFillEnabled.checked;
         if (mainFill) mainFill.value = fsFill.value;
         this.saveHistory(); this.renderer.redraw(); this.storage.save();
       };
       fsFillEnabled.addEventListener('change', applyFsFill);
       fsFill.addEventListener('input', () => { fsFillEnabled.checked = true; applyFsFill(); });
-      const fsFillClear = fsPanel.querySelector('#fsSel-fillClear');
+      const fsFillClear = fsPanel.querySelector('#fs-sel-fill-clear');
       if (fsFillClear) fsFillClear.addEventListener('click', () => {
         fsFillEnabled.checked = false; applyFsFill();
         notify('Fill cleared (transparent)', 'ok');
       });
     }
-    fsPanel.querySelector('#fsSel-deselect').addEventListener('click', () => this.deselectLine());
+    fsPanel.querySelector('#fs-sel-deselect').addEventListener('click', () => this.deselectLine());
   }
 
   deselectLine(redraw = true) {
@@ -1845,7 +1845,7 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.hoveredPtIdx = -1;
     this.focusedPtIdx = -1;
-    document.getElementById('selectionPanel').style.display = 'none';
+    document.getElementById('selection-panel').style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');
     if (fsPanel) {
       fsPanel.style.display = 'none';
@@ -1975,7 +1975,7 @@ export class DrawingApp {
   // tooltip's per-row toggles. To edge (cm) is appended for completeness.
   // Called with no args (or no image) to reset to the idle hint.
   updateCoordStatus(x, y) {
-    const el = this.coordStatus ??= document.getElementById('coordStatus');
+    const el = this.coordStatus ??= document.getElementById('coord-status');
     if (!el) return;
     if (!this.image || x === undefined) {
       el.textContent = this.image ? 'Ready' : 'Open an image to begin';
@@ -1997,15 +1997,15 @@ export class DrawingApp {
   // never mutated here — only how they are presented.
   applyUnitToUI() {
     const lbl = unitLabel(this.unit);
-    const sel = document.getElementById('unitSelect');
+    const sel = document.getElementById('unit-select');
     if (sel) sel.value = this.unit;
-    const w = document.getElementById('customPageWidth');
-    const h = document.getElementById('customPageHeight');
+    const w = document.getElementById('custom-page-width');
+    const h = document.getElementById('custom-page-height');
     if (w) w.value = +cmToUnit(this.customPageWidth, this.unit).toFixed(2);
     if (h) h.value = +cmToUnit(this.customPageHeight, this.unit).toFixed(2);
-    const cul = document.getElementById('customUnitLabel');
+    const cul = document.getElementById('custom-unit-label');
     if (cul) cul.textContent = lbl;
-    const ths = document.querySelectorAll('#coordinatesTable thead th');
+    const ths = document.querySelectorAll('#coordinates-table thead th');
     if (ths[3]) ths[3].textContent = `X ${lbl}`;
     if (ths[4]) ths[4].textContent = `Y ${lbl}`;
   }
@@ -2067,8 +2067,8 @@ export class DrawingApp {
     if (newT === line.thickness) return true;
     line.thickness = newT;
     if (lineIdx === this.selectedLineIdx) {
-      setVal('selThickness', newT);
-      setVal('fsSel-thickness', newT);
+      setVal('sel-thickness', newT);
+      setVal('fs-sel-thickness', newT);
     }
     this.renderer.redraw();
     notify('Line thickness: ' + newT, 'info');
@@ -2183,26 +2183,26 @@ export class DrawingApp {
     }
     // Fullscreen only makes sense with an image to view. Never disable while
     // already in fullscreen (so the user can always get back out).
-    const fsBtn = document.getElementById('fullscreenToggle');
+    const fsBtn = document.getElementById('fullscreen-toggle');
     if (fsBtn && !document.body.classList.contains('fullscreen-mode'))
       fsBtn.disabled = !this.image;
     // Zoom controls are meaningless on an empty void — disable until an image
     // is loaded (the wheel/hotkey zoom paths are guarded in zoomPan + wheel).
     const noImage = !this.image;
-    for (const id of ['zoomIn', 'zoomOut', 'zoomFit', 'zoomInput']) {
+    for (const id of ['zoom-in', 'zoom-out', 'zoom-fit', 'zoom-input']) {
       const el = document.getElementById(id);
       if (el) el.disabled = noImage;
     }
     // The blank-image creator icon lives on the empty canvas — only the idle
     // (imageless) state shows it; with an image loaded it would cover content.
-    const idleCreate = document.getElementById('idleCreateWrap');
+    const idleCreate = document.getElementById('idle-create-wrap');
     if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
     this.updateIncognitoUI();
   }
 
   updateInfo() {
-    const info = document.getElementById('imageInfo');
-    const sizeDisplay = document.getElementById('imageSizeDisplay');
+    const info = document.getElementById('image-info');
+    const sizeDisplay = document.getElementById('image-size-display');
     if (this.image) {
       info.textContent = `Image Size: ${this.canvas.width} × ${this.canvas.height} px  |  Zoom: Ctrl+Scroll · Alt+± · +/− btn  (+Shift = larger)  |  Alt+Scroll: thickness  |  Ctrl+Shift+Scroll: rotate selected  |  Ctrl+Click: add point  |  ℹ for full help`;
       if (sizeDisplay) {
@@ -2216,7 +2216,7 @@ export class DrawingApp {
   }
 
   showSaveStatus(msg, color) {
-    const el = document.getElementById('saveStatus');
+    const el = document.getElementById('save-status');
     if (!el) return;
     el.textContent = msg;
     el.style.color = color;
@@ -2291,7 +2291,7 @@ export class DrawingApp {
   // Reflect incognito state: toggle availability, button highlight, and the
   // editor outline. Called from updateButtons() so it tracks every state change.
   updateIncognitoUI() {
-    const btn = document.getElementById('incognitoToggle');
+    const btn = document.getElementById('incognito-toggle');
     if (btn) {
       btn.disabled = !this.#canToggleIncognito();
       btn.classList.toggle('active', this.storage.incognito);
@@ -2457,7 +2457,7 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.focusedPtIdx = -1;
     this.hoveredPtIdx = -1;
-    document.getElementById('selectionPanel').style.display = 'none';
+    document.getElementById('selection-panel').style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');
     if (fsPanel) fsPanel.style.display = 'none';
     this.saveHistory();

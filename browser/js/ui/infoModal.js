@@ -7,23 +7,23 @@ export class StencilInfoModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>📋 Controls &amp; Shortcuts</h2>
-                <button class="app-modal-close" id="infoClose">✕ Close</button>
+                <button class="app-modal-close" id="info-close">✕ Close</button>
             </div>
             <div style="padding:12px 18px 6px;">
-                <input type="text" id="infoSearch" placeholder="Search controls…" style="width:100%;padding:8px 10px;border:1px solid var(--border-main);border-radius:6px;background:var(--input-bg);color:var(--input-text);font-size:13px;">
+                <input type="text" id="info-search" placeholder="Search controls…" style="width:100%;padding:8px 10px;border:1px solid var(--border-main);border-radius:6px;background:var(--input-bg);color:var(--input-text);font-size:13px;">
             </div>
-            <div class="settings-body" id="infoBody"><!-- filled by JS --></div>
+            <div class="settings-body" id="info-body"><!-- filled by JS --></div>
         </div>
     `;
   }
-  static template() { return hostTag('stencil-info-modal', 'id="infoModalOverlay" class="app-modal-overlay"', StencilInfoModal.inner()); }
+  static template() { return hostTag('stencil-info-modal', 'id="info-modal-overlay" class="app-modal-overlay"', StencilInfoModal.inner()); }
 
   wire(_app) {
-    const overlay = document.getElementById('infoModalOverlay');
-    const openBtn = document.getElementById('infoBtn');
-    const closeBtn = document.getElementById('infoClose');
-    const search = document.getElementById('infoSearch');
-    const body = document.getElementById('infoBody');
+    const overlay = document.getElementById('info-modal-overlay');
+    const openBtn = document.getElementById('info-btn');
+    const closeBtn = document.getElementById('info-close');
+    const search = document.getElementById('info-search');
+    const body = document.getElementById('info-body');
 
     const render = filter => {
       const q = (filter || '').trim().toLowerCase();

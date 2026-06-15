@@ -11,7 +11,7 @@ export class ZoomPan {
   clampScale = core.bind('clampScale', s => Math.max(0.05, Math.min(5, s)));
 
   updateZoomRectOverlay() {
-    const overlay = document.getElementById('zoomRectOverlay');
+    const overlay = document.getElementById('zoom-rect-overlay');
     if (!overlay || !this.app.zoomRectStart || !this.app.zoomRectEnd) return;
     const s = this.app.zoomRectStart;
     const en = this.app.zoomRectEnd;
@@ -27,13 +27,13 @@ export class ZoomPan {
   }
 
   hideZoomRectOverlay() {
-    const overlay = document.getElementById('zoomRectOverlay');
+    const overlay = document.getElementById('zoom-rect-overlay');
     if (overlay) overlay.style.display = 'none';
   }
 
   // Reuse the zoom-rect overlay element to preview a rectangle being drawn.
   updateRectDrawOverlay() {
-    const overlay = document.getElementById('zoomRectOverlay');
+    const overlay = document.getElementById('zoom-rect-overlay');
     if (!overlay || !this.app.rectDrawStart || !this.app.rectDrawEnd) return;
     const s = this.app.rectDrawStart;
     const en = this.app.rectDrawEnd;
@@ -48,7 +48,7 @@ export class ZoomPan {
   // fullscreen clones still in the DOM). Skip the one the user is
   // currently editing so typing isn't interrupted.
   setZoomInputValue(percent) {
-    const inputs = document.querySelectorAll('[id="zoomInput"]');
+    const inputs = document.querySelectorAll('[id="zoom-input"]');
     inputs.forEach(el => {
       if (document.activeElement === el) return;
       el.value = percent;
@@ -120,7 +120,7 @@ export class ZoomPan {
   // correct visual position rather than the stale logical target.
   zoomAroundCenter(newScale) {
     if (!this.app.image) return;  // no image → no zoom
-    const vp = document.getElementById('canvasViewport');
+    const vp = document.getElementById('canvas-viewport');
     if (!vp) {
       this.setZoom(newScale);
       return;
@@ -202,7 +202,7 @@ export class ZoomPan {
     this.setZoom(Math.round(fit * 100) / 100); // round to 2 decimals
 
     // Size viewport to show the fitted image fully (cap at availH)
-    const viewport = document.getElementById('canvasViewport');
+    const viewport = document.getElementById('canvas-viewport');
     if (viewport) {
       if (!isFS) {
         // Normal mode: shrink viewport to fit image snugly
