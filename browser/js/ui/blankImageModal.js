@@ -9,44 +9,44 @@ const { PAGE_SIZES } = constants;
 // chosen pixel size — defaulting to the current page size at 96 dpi — and feeds
 // it through the normal image-upload path (loadImageFromFile), so persistence,
 // project promotion, and editing behave exactly like an uploaded file. Opened
-// from the idle-canvas icon (#createBlankBtn) and the projects modal footer
-// (#projectsBlankImage).
+// from the idle-canvas icon (#create-blank-btn) and the projects modal footer
+// (#projects-blank-image).
 export class StencilBlankImageModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
                 <h2>🖼 New Blank Image</h2>
-                <button class="app-modal-close" id="blankImageClose">✕ Close</button>
+                <button class="app-modal-close" id="blank-image-close">✕ Close</button>
             </div>
             <div class="settings-body">
                 <div class="vs-section">Fill color</div>
                 <div class="vs-row"><label>Presets</label>
                     <span class="bi-presets">
-                        <button id="blankImageWhite" class="bi-preset bi-preset-white" title="Fill with white">White</button>
-                        <button id="blankImageBlack" class="bi-preset bi-preset-black" title="Fill with black">Black</button>
+                        <button id="blank-image-white" class="bi-preset bi-preset-white" title="Fill with white">White</button>
+                        <button id="blank-image-black" class="bi-preset bi-preset-black" title="Fill with black">Black</button>
                     </span>
                 </div>
-                <div class="vs-row"><label>Custom color</label><input type="color" id="blankImageColor" value="#ffffff"></div>
+                <div class="vs-row"><label>Custom color</label><input type="color" id="blank-image-color" value="#ffffff"></div>
                 <div class="vs-section">Size (px)</div>
-                <div class="vs-row"><label>Width</label><input type="number" id="blankImageWidth" min="1" max="8192"></div>
-                <div class="vs-row"><label>Height</label><input type="number" id="blankImageHeight" min="1" max="8192"></div>
+                <div class="vs-row"><label>Width</label><input type="number" id="blank-image-width" min="1" max="8192"></div>
+                <div class="vs-row"><label>Height</label><input type="number" id="blank-image-height" min="1" max="8192"></div>
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Size defaults match the current page size.</span>
-                <button id="blankImageCreate">🖼 Create</button>
+                <button id="blank-image-create">🖼 Create</button>
             </div>
         </div>
     `;
   }
-  static template() { return hostTag('stencil-blank-image-modal', 'id="blankImageModalOverlay" class="app-modal-overlay"', StencilBlankImageModal.inner()); }
+  static template() { return hostTag('stencil-blank-image-modal', 'id="blank-image-modal-overlay" class="app-modal-overlay"', StencilBlankImageModal.inner()); }
 
   wire(app) {
-    const overlay = document.getElementById('blankImageModalOverlay');
-    const closeBtn = document.getElementById('blankImageClose');
-    const widthEl = document.getElementById('blankImageWidth');
-    const heightEl = document.getElementById('blankImageHeight');
-    const colorEl = document.getElementById('blankImageColor');
+    const overlay = document.getElementById('blank-image-modal-overlay');
+    const closeBtn = document.getElementById('blank-image-close');
+    const widthEl = document.getElementById('blank-image-width');
+    const heightEl = document.getElementById('blank-image-height');
+    const colorEl = document.getElementById('blank-image-color');
 
     // Page dimensions for the size defaults. Deliberately NOT getPageDimensions():
     // that swaps to landscape from the CURRENT canvas aspect, which is meaningless
@@ -56,7 +56,7 @@ export class StencilBlankImageModal extends StencilElement {
       ? { width: app.customPageWidth, height: app.customPageHeight }
       : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
 
-    const { open, close } = wireModalShell(overlay, document.getElementById('createBlankBtn'), closeBtn, {
+    const { open, close } = wireModalShell(overlay, document.getElementById('create-blank-btn'), closeBtn, {
       onOpen: () => {
         const px = defaultBlankSizePx(pageDims());
         widthEl.value = px.width;
@@ -66,15 +66,15 @@ export class StencilBlankImageModal extends StencilElement {
 
     // Second entry point: the projects modal footer. Close that modal (via its
     // own close button so its handlers run) before opening this one.
-    document.getElementById('projectsBlankImage').addEventListener('click', () => {
-      document.getElementById('projectsClose').click();
+    document.getElementById('projects-blank-image').addEventListener('click', () => {
+      document.getElementById('projects-close').click();
       open();
     });
 
-    document.getElementById('blankImageWhite').addEventListener('click', () => { colorEl.value = '#ffffff'; });
-    document.getElementById('blankImageBlack').addEventListener('click', () => { colorEl.value = '#000000'; });
+    document.getElementById('blank-image-white').addEventListener('click', () => { colorEl.value = '#ffffff'; });
+    document.getElementById('blank-image-black').addEventListener('click', () => { colorEl.value = '#000000'; });
 
-    document.getElementById('blankImageCreate').addEventListener('click', () => {
+    document.getElementById('blank-image-create').addEventListener('click', () => {
       const w = parseInt(widthEl.value), h = parseInt(heightEl.value);
       if (!(w >= 1 && w <= 8192) || !(h >= 1 && h <= 8192)) {
         notify('Width and height must be 1–8192 px', 'fail');

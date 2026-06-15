@@ -1,4 +1,4 @@
-#globalDropOverlay {
+#global-drop-overlay {
     display: none;
     position: fixed;
     inset: 0;
@@ -9,7 +9,7 @@
     justify-content: center;
     pointer-events: none;
 }
-#globalDropOverlay .drop-message {
+#global-drop-overlay .drop-message {
     background: var(--bg-container);
     border: 3px dashed #007bff;
     border-radius: 16px;
@@ -17,17 +17,17 @@
     text-align: center;
     box-shadow: 0 8px 32px var(--shadow);
 }
-#globalDropOverlay .drop-message .drop-icon {
+#global-drop-overlay .drop-message .drop-icon {
     font-size: 52px;
     margin-bottom: 12px;
 }
-#globalDropOverlay .drop-message p {
+#global-drop-overlay .drop-message p {
     font-size: 22px;
     font-weight: bold;
     color: #007bff;
     margin: 0 0 6px;
 }
-#globalDropOverlay .drop-message span {
+#global-drop-overlay .drop-message span {
     font-size: 14px;
     color: var(--text-muted);
 }
@@ -95,7 +95,7 @@ body.fullscreen-mode .controls-wrapper,
 body.fullscreen-mode .info,
 body.fullscreen-mode .drop-hint,
 body.fullscreen-mode .main-content > .coordinates-panel,
-body.fullscreen-mode #selectionPanel {
+body.fullscreen-mode #selection-panel {
     display: none !important;
 }
 body.fullscreen-mode .main-content {
@@ -235,7 +235,7 @@ body.fullscreen-mode #fs-points-panel {
 }
 
 /* ── Custom context menu ── */
-#ctxMenu {
+#ctx-menu {
     position: fixed;
     z-index: 99999;
     min-width: 210px;
@@ -249,7 +249,7 @@ body.fullscreen-mode #fs-points-panel {
     user-select: none;
     display: none;
 }
-#ctxMenu.ctx-open { display: block; }
+#ctx-menu.ctx-open { display: block; }
 
 .ctx-item {
     display: flex;
@@ -308,8 +308,6 @@ body.fullscreen-mode #fs-points-panel {
     z-index: 100001;
 }
 .ctx-sub.ctx-sub-visible { display: block; }
-/* flip submenu to the left side of parent item */
-.ctx-sub.ctx-sub-left { /* left is set by JS */ }
 
 /* Checkbox items inside submenus */
 .ctx-checkbox-item {
@@ -387,9 +385,9 @@ body.fullscreen-mode #fs-points-panel {
     letter-spacing: 0.5px;
 }
 /* tint color row — hidden until custom selected */
-#ctxTintRow { display: none; padding: 5px 14px 7px; align-items: center; gap: 8px; }
-#ctxTintRow.ctx-tint-visible { display: flex; }
-#ctxTintRow label { font-size: 12px; color: var(--text-muted); min-width: 70px; font-weight: normal; }
+#ctx-tint-row { display: none; padding: 5px 14px 7px; align-items: center; gap: 8px; }
+#ctx-tint-row.ctx-tint-visible { display: flex; }
+#ctx-tint-row label { font-size: 12px; color: var(--text-muted); min-width: 70px; font-weight: normal; }
 
 /* Hotkey hint shown on the right side of ctx menu items */
 .ctx-hotkey {
@@ -404,7 +402,7 @@ body.fullscreen-mode #fs-points-panel {
 .ctx-item:has(.ctx-arrow) .ctx-hotkey { margin-left: auto; }
 
 /* ── Notification balloon (bottom-left) ── */
-#notifyBalloon {
+#notify-balloon {
     position: fixed;
     left: 18px;
     bottom: 18px;
@@ -425,37 +423,81 @@ body.fullscreen-mode #fs-points-panel {
     align-items: center;
     gap: 8px;
 }
-#notifyBalloon.notify-visible { opacity: 1; transform: translateY(0); }
-#notifyBalloon.notify-ok    { background: #28a745; }
-#notifyBalloon.notify-fail  { background: #dc3545; }
-#notifyBalloon.notify-info  { background: #007bff; }
-#notifyBalloon .notify-icon { font-size: 16px; }
+#notify-balloon.notify-visible { opacity: 1; transform: translateY(0); }
+#notify-balloon.notify-ok    { background: #28a745; }
+#notify-balloon.notify-fail  { background: #dc3545; }
+#notify-balloon.notify-info  { background: #007bff; }
+#notify-balloon .notify-icon { font-size: 16px; }
 
-/* ── PWA install button (floating, bottom-right) ── */
-#installHost[hidden] { display: none; }
-#installHost {
+/* ── Install / download button (small icon, floating bottom-right) ── */
+#install-host[hidden] { display: none; }
+#install-host {
     position: fixed;
     right: 18px;
     bottom: 18px;
     z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
 }
-#installAppBtn {
+/* Small round trigger icon. */
+#install-toggle {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #7c3aed;
     color: #fff;
     border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 13.5px;
-    font-weight: 600;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 1;
     cursor: pointer;
     box-shadow: 0 6px 24px rgba(0,0,0,0.28);
     transition: background 0.18s ease, transform 0.18s ease;
 }
-#installAppBtn:hover  { background: #6d28d9; }
-#installAppBtn:active { transform: translateY(1px); }
+#install-toggle:hover  { background: #6d28d9; }
+#install-toggle:active { transform: translateY(1px); }
+
+/* Hover/focus popup listing the install + download options, above the icon. */
+#install-menu {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    background: #1f2430;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+#install-host:hover #install-menu,
+#install-host:focus-within #install-menu { display: flex; }
+
+#install-menu [role="menuitem"] {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    background: transparent;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+#install-menu [role="menuitem"]:hover { background: rgba(255,255,255,0.14); }
+#install-menu [role="menuitem"][hidden] { display: none; }
+#install-menu .install-ic { font-size: 16px; }
 
 /* ── Settings gear button ── */
-#settingsBtn, #visualsBtn, #infoBtn {
+#settings-btn, #visuals-btn, #info-btn {
     background: transparent;
     border: 1px solid var(--border-main) !important;
     color: var(--text-main);
@@ -466,10 +508,10 @@ body.fullscreen-mode #fs-points-panel {
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
 }
-#settingsBtn:hover, #visualsBtn:hover, #infoBtn:hover { background: var(--bg-info); }
+#settings-btn:hover, #visuals-btn:hover, #info-btn:hover { background: var(--bg-info); }
 
 /* ── Settings modal ── */
-#settingsModalOverlay {
+#settings-modal-overlay {
     display: none;
     position: fixed;
     inset: 0;
@@ -478,8 +520,8 @@ body.fullscreen-mode #fs-points-panel {
     align-items: center;
     justify-content: center;
 }
-#settingsModalOverlay.modal-open { display: flex; }
-#settingsModal {
+#settings-modal-overlay.modal-open { display: flex; }
+#settings-modal {
     background: var(--bg-container);
     color: var(--text-main);
     border-radius: 10px;
@@ -499,7 +541,7 @@ body.fullscreen-mode #fs-points-panel {
     border-bottom: 1px solid var(--border-main);
 }
 .settings-header h2 { margin: 0; font-size: 16px; font-weight: bold; }
-#settingsClose {
+#settings-close {
     background: transparent;
     border: 1px solid var(--border-main) !important;
     color: var(--text-main);
@@ -508,7 +550,7 @@ body.fullscreen-mode #fs-points-panel {
     border-radius: 12px;
     cursor: pointer;
 }
-#settingsClose:hover { background: var(--bg-info); }
+#settings-close:hover { background: var(--bg-info); }
 .settings-body {
     padding: 14px 18px;
     overflow-y: auto;
@@ -517,8 +559,8 @@ body.fullscreen-mode #fs-points-panel {
 /* The hotkey table has its own sticky header; drop the body's top padding so
    the header pins flush to the body top (not below the padding, where scrolled
    rows would otherwise show above it and overlap the modal title bar). Scoped
-   to #settingsModal so the shared .settings-body of other modals is untouched. */
-#settingsModal .settings-body { padding-top: 0; }
+   to #settings-modal so the shared .settings-body of other modals is untouched. */
+#settings-modal .settings-body { padding-top: 0; }
 /* Shared modal search bar (settings + visuals; sits above the scrolling body). */
 .modal-search-bar { padding: 12px 18px 6px; }
 .modal-search {
@@ -543,7 +585,7 @@ body.fullscreen-mode #fs-points-panel {
     color: var(--text-muted);
     flex: 1;
 }
-#resetAllHotkeys {
+#reset-all-hotkeys {
     background: transparent;
     border: 1px solid var(--border-main) !important;
     color: var(--text-main);
@@ -552,7 +594,7 @@ body.fullscreen-mode #fs-points-panel {
     border-radius: 6px;
     cursor: pointer;
 }
-#resetAllHotkeys:hover { background: var(--bg-info); }
+#reset-all-hotkeys:hover { background: var(--bg-info); }
 .hotkey-table {
     width: 100%;
     border-collapse: collapse;
@@ -753,7 +795,7 @@ body.fullscreen-mode #fs-points-panel {
 
 /* ── Custom-element hosts ───────────────────────────────────────
    Custom elements default to display:inline. Hosts that reuse a styled
-   id/class whose rule sets display (#ctxMenu, .main-content, #notifyBalloon,
+   id/class whose rule sets display (#ctx-menu, .main-content, #notify-balloon,
    modals, …) are already covered; these block-flow hosts are not, so restore
    their intended layout. The fullscreen layer is a pure wrapper of fixed-
    positioned children, so it should not occupy any box of its own. */
@@ -791,8 +833,8 @@ stencil-fullscreen-layer { display: contents; }
 
 /* ── Incognito mode ─────────────────────────────────────────────── */
 /* The toggle lights up when active and greys out once it can't be switched. */
-#incognitoToggle.active { background: #6d28d9; }
-#incognitoToggle:disabled { opacity: 0.45; cursor: default; }
+#incognito-toggle.active { background: #6d28d9; }
+#incognito-toggle:disabled { opacity: 0.45; cursor: default; }
 /* A dashed outline + corner badge make it obvious nothing here is being saved. */
 body.incognito-mode .canvas-viewport {
     outline: 3px dashed #8b5cf6;

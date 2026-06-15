@@ -23,7 +23,7 @@ export class Storage {
 
   // Build the EXACT layout object (28 fields) from current app state.
   #buildLayout() {
-    const viewport = document.getElementById('canvasViewport');
+    const viewport = document.getElementById('canvas-viewport');
     return {
       imageWidth: this.app.canvas.width,
       imageHeight: this.app.canvas.height,
@@ -123,18 +123,18 @@ export class Storage {
     this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
     if (layout.showPoints !== undefined) {
       this.app.showPoints = layout.showPoints;
-      const cb = document.getElementById('showPoints');
+      const cb = document.getElementById('show-points');
       if (cb) cb.checked = layout.showPoints;
     }
     if (layout.showLines !== undefined) {
       this.app.showLines = layout.showLines;
-      const cb = document.getElementById('showLines');
+      const cb = document.getElementById('show-lines');
       if (cb) cb.checked = layout.showLines;
     }
     this.app.selectedLineIdx = -1;
     this.app.coordLineIdx = -1;
     this.app.focusedPtIdx = -1;
-    const selPanel = document.getElementById('selectionPanel');
+    const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';
     this.app.renderer.redraw();
     this.app.updateButtons();
@@ -234,13 +234,13 @@ export class Storage {
   }
 
   showImageMissingBanner(show) {
-    let banner = document.getElementById('imageMissingBanner');
+    let banner = document.getElementById('image-missing-banner');
     if (!banner) {
       banner = document.createElement('div');
-      banner.id = 'imageMissingBanner';
+      banner.id = 'image-missing-banner';
       banner.style.cssText = 'background:#fff3cd;border:2px solid #ffc107;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:14px;color:#856404;display:flex;align-items:center;gap:10px;';
       banner.innerHTML = '⚠️ <strong>Image too large to save in browser storage.</strong> Your drawing lines are saved. Please re-upload the same image after refreshing — your lines will reappear automatically. <button onclick="document.getElementById(\'imageUpload\').click();this.closest(\'div\').style.display=\'none\'" style="margin-left:auto;padding:5px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Re-upload Image</button>';
-      const selPanel = document.getElementById('selectionPanel');
+      const selPanel = document.getElementById('selection-panel');
       selPanel.parentNode.insertBefore(banner, selPanel);
     }
     banner.style.display = show ? 'flex' : 'none';
@@ -282,8 +282,8 @@ export class Storage {
       // Restore UI settings
       if (layout.pageSize) {
         this.app.pageSize = layout.pageSize;
-        document.getElementById('pageSize').value = layout.pageSize;
-        const cg = document.getElementById('customSizeGroup');
+        document.getElementById('page-size').value = layout.pageSize;
+        const cg = document.getElementById('custom-size-group');
         if (cg) cg.style.display = layout.pageSize === 'custom' ? 'inline-flex' : 'none';
       }
       if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
@@ -294,32 +294,32 @@ export class Storage {
       this.app.applyUnitToUI();
       if (layout.color) {
         this.app.color = layout.color;
-        document.getElementById('lineColor').value = layout.color;
+        document.getElementById('line-color').value = layout.color;
       }
       if (layout.thickness) {
         this.app.thickness = layout.thickness;
-        document.getElementById('lineThickness').value = layout.thickness;
+        document.getElementById('line-thickness').value = layout.thickness;
       }
       if (layout.markerSize) {
         this.app.markerSize = layout.markerSize;
-        document.getElementById('markerSize').value = layout.markerSize;
+        document.getElementById('marker-size').value = layout.markerSize;
       }
       if (layout.style) {
         this.app.style = layout.style;
-        document.getElementById('lineStyle').value = layout.style;
+        document.getElementById('line-style').value = layout.style;
       }
       this.app.showPoints = layout.showPoints !== undefined ? layout.showPoints : true;
       this.app.showLines = layout.showLines !== undefined ? layout.showLines : true;
       this.app.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');
       if (layout.filterColor) {
         this.app.filterColor = layout.filterColor;
-        const fp = document.getElementById('filterColor');
+        const fp = document.getElementById('filter-color');
         if (fp) fp.value = this.app.filterColor;
       }
-      document.getElementById('showPoints').checked = this.app.showPoints;
-      document.getElementById('showLines').checked = this.app.showLines;
-      document.getElementById('imageFilter').value = this.app.imageFilter;
-      const filterColorPicker = document.getElementById('filterColor');
+      document.getElementById('show-points').checked = this.app.showPoints;
+      document.getElementById('show-lines').checked = this.app.showLines;
+      document.getElementById('image-filter').value = this.app.imageFilter;
+      const filterColorPicker = document.getElementById('filter-color');
       if (filterColorPicker) filterColorPicker.style.display = (this.app.imageFilter === 'custom') ? 'inline-block' : 'none';
       this.app.imageBaseName = layout.imageBaseName || null;
       this.app.imageExt = layout.imageExt || null;
@@ -329,21 +329,21 @@ export class Storage {
       if (layout.tooltipShowCoords !== undefined) this.app.tooltipShowCoords = layout.tooltipShowCoords;
       if (layout.allowFormulas !== undefined) {
         this.app.allowFormulas = layout.allowFormulas;
-        const cb = document.getElementById('allowFormulas');
+        const cb = document.getElementById('allow-formulas');
         if (cb) cb.checked = this.app.allowFormulas;
         const ctxCb = document.getElementById('ctx-allow-formulas');
         if (ctxCb) ctxCb.checked = this.app.allowFormulas;
-        const fi = document.getElementById('formulaInputs');
+        const fi = document.getElementById('formula-inputs');
         const ctxFi = document.getElementById('ctx-formula-inputs');
         if (fi) fi.style.display = this.app.allowFormulas ? 'inline-flex' : 'none';
         if (ctxFi) ctxFi.style.display = this.app.allowFormulas ? 'block' : 'none';
       } else {
         this.app.allowFormulas = false;
-        const cb = document.getElementById('allowFormulas');
+        const cb = document.getElementById('allow-formulas');
         if (cb) cb.checked = false;
         const ctxCb = document.getElementById('ctx-allow-formulas');
         if (ctxCb) ctxCb.checked = false;
-        const fi = document.getElementById('formulaInputs');
+        const fi = document.getElementById('formula-inputs');
         const ctxFi = document.getElementById('ctx-formula-inputs');
         if (fi) fi.style.display = 'none';
         if (ctxFi) ctxFi.style.display = 'none';
@@ -351,11 +351,11 @@ export class Storage {
       this.app.formulaX = layout.formulaX || '';
       this.app.formulaY = layout.formulaY || '';
       {
-        const el = document.getElementById('formulaX');
+        const el = document.getElementById('formula-x');
         const ctxEl = document.getElementById('ctx-formula-x');
         if (el) el.value = this.app.formulaX;
         if (ctxEl) ctxEl.value = this.app.formulaX;
-        const ely = document.getElementById('formulaY');
+        const ely = document.getElementById('formula-y');
         const ctxEly = document.getElementById('ctx-formula-y');
         if (ely) ely.value = this.app.formulaY;
         if (ctxEly) ctxEly.value = this.app.formulaY;
@@ -387,7 +387,7 @@ export class Storage {
 
           if (layout.zoom) {
             this.app.zoomPan.setZoom(layout.zoom);
-            const vp = document.getElementById('canvasViewport');
+            const vp = document.getElementById('canvas-viewport');
             if (vp) {
               const availH = Math.max(200, window.innerHeight - 220);
               const fittedH = Math.round(this.app.image.height * this.app.scale);
@@ -469,7 +469,7 @@ export class Storage {
 
     const ctx = this.app.ctx;
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
-    const selPanel = document.getElementById('selectionPanel');
+    const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');
     if (fsPanel) fsPanel.style.display = 'none';

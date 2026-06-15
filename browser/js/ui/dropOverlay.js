@@ -10,6 +10,6 @@ export class StencilDropOverlay extends StencilElement {
         </div>
     `;
   }
-  static template() { return hostTag('stencil-drop-overlay', 'id="globalDropOverlay"', StencilDropOverlay.inner()); }
+  static template() { return hostTag('stencil-drop-overlay', 'id="global-drop-overlay"', StencilDropOverlay.inner()); }
 }
 define('stencil-drop-overlay', StencilDropOverlay);

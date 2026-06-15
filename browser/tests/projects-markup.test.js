@@ -8,8 +8,8 @@ const markup = layout();
 const count = needle => markup.split(needle).length - 1;
 
 const NEW_IDS = [
-  'projectsBtn', 'incognitoToggle', 'projectsModalOverlay', 'projectsClose',
-  'projectsList', 'projectsNewEditor', 'projectsClearAll', 'projectsSearch',
+  'projects-btn', 'incognito-toggle', 'projects-modal-overlay', 'projects-close',
+  'projects-list', 'projects-new-editor', 'projects-clear-all', 'projects-search',
 ];
 
 test('each new projects id appears exactly once', () => {
@@ -18,10 +18,10 @@ test('each new projects id appears exactly once', () => {
   }
 });
 
-test('#projectsList is empty/comment-only in static markup', () => {
+test('#projects-list is empty/comment-only in static markup', () => {
   assert.ok(
-    /<div class="settings-body" id="projectsList"><!-- filled by JS --><\/div>/.test(markup),
-    'empty comment-only #projectsList present'
+    /<div class="settings-body" id="projects-list"><!-- filled by JS --><\/div>/.test(markup),
+    'empty comment-only #projects-list present'
   );
 });
 

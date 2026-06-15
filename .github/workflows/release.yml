@@ -16,6 +16,12 @@ on:
 permissions:
   contents: write  # needed to attach assets to the release on a tag push
 
+# actions/upload-artifact@v5, actions/cache@v4 et al. still declare node20 in
+# their action.yml; opt their JS into node24 now so we don't ride the runner's
+# forced switch (and to silence the node20 deprecation warning).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   package:
     name: Package (${{ matrix.name }})

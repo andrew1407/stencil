@@ -1,8 +1,8 @@
-<p align="center">
-  <img src="browser/favicon.svg" alt="Stencil logo" width="120" height="120">
-</p>
-
 # Stencil
+
+<p align="center">
+  <a href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"><img src="browser/favicon.svg" alt="Stencil logo" width="120" height="120"></a>
+</p>
 
 [![CI](https://github.com/andrew1407/stencil/actions/workflows/ci.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/ci.yml)
 [![Release](https://github.com/andrew1407/stencil/actions/workflows/release.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/release.yml)

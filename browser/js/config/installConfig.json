@@ -1,0 +1,20 @@
+{
+  "desktop": {
+    "mac": {
+      "label": "macOS",
+      "url": "https://github.com/andrew1407/stencil/releases/download/stencil-desktop/stencil-macOS.zip"
+    },
+    "windows": {
+      "label": "Windows",
+      "url": "https://github.com/andrew1407/stencil/releases/download/stencil-desktop/stencil-Windows.zip"
+    },
+    "linux": {
+      "label": "Linux",
+      "url": "https://github.com/andrew1407/stencil/releases/download/stencil-desktop/stencil-Linux.zip"
+    },
+    "fallback": {
+      "label": "all platforms",
+      "url": "https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
+    }
+  }
+}

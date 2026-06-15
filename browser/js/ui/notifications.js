@@ -15,7 +15,7 @@ export class StencilNotifications extends StencilElement {
         <span class="notify-text"></span>
     `;
   }
-  static template() { return hostTag('stencil-notifications', 'id="notifyBalloon"', StencilNotifications.inner()); }
+  static template() { return hostTag('stencil-notifications', 'id="notify-balloon"', StencilNotifications.inner()); }
 
   notify(msg, type = 'ok') {
     const icon = this.querySelector('.notify-icon');
