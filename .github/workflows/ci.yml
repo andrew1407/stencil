@@ -15,9 +15,9 @@ jobs:
     name: Browser (JS tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Run JS tests
@@ -29,7 +29,7 @@ jobs:
     name: Desktop (C++ build + tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install toolchain (g++, cmake, Qt6)
         run: |
           sudo apt-get update
@@ -55,7 +55,7 @@ jobs:
     env:
       EMSDK_VERSION: '5.0.7'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache emsdk
         uses: actions/cache@v4
         with:
@@ -81,7 +81,7 @@ jobs:
           mkdir -p browser/js/wasm
           cp desktop/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Parity test against the freshly built module
