@@ -21,7 +21,7 @@ Stencil ships as **two front-ends over one shared logic core**:
 A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
 Stencil editor (new tab) — with a quick in-page crop modal. Manifest V3, vanilla JS, no
-build step. See [extension/README.md](extension/README.md).
+build step.
 
 ```mermaid
 graph TD
@@ -64,7 +64,6 @@ extension/            # companion Chrome extension (MV3) for the browser editor
   manifest.json
   src/                # background / popup / crop / options / lib
   tests/              # node:test unit tests (pure filtering + crop geometry)
-  icons/              # icon.svg → symlink to browser/favicon.svg; icon-*.png generated
   package.json
   README.md
 ```

@@ -3,7 +3,7 @@
 A Manifest V3 Chrome/Edge extension that lists, searches and filters every image
 on the current page and lets you download it, open it in a tab, or send it to the
 [Stencil browser editor](../browser/) — as an **in-page modal** by default —
-including a quick page-aspect crop.
+including a quick page-aspect crop. Vanilla JS, no build step.
 
 ## Features
 
@@ -65,32 +65,11 @@ page size, loads the image (with the crop), then strips the fragment.
    this `extension/` folder.
 3. (Optional) **Options**: editor URL, open mode (modal / tab), default page size.
 
-> **Loading unpacked in current Chrome stable** is gated; if `Load unpacked` is
-> unavailable, use [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/).
-
-### Icons
-
-Chrome's toolbar and context menu need **raster PNG** icons (an SVG renders as the
-generic puzzle piece), so `icons/icon-{16,32,48,128}.png` are used by the manifest.
-They're generated from the **shared** browser favicon — which is reused, not copied:
-`icons/icon.svg` is a symlink to `../../browser/favicon.svg` (the in-page popup/crop
-logos use it). Regenerate the PNGs after changing the favicon:
-
-```bash
-# from the repo root (macOS; uses Quick Look)
-for s in 16 32 48 128; do qlmanage -t -s $s -o /tmp/ql browser/favicon.svg && \
-  mv /tmp/ql/favicon.svg.png extension/icons/icon-$s.png; done
-```
-
-> The symlink keeps a single source of truth for unpacked development; if you zip
-> the folder for distribution, replace it with a real copy of `favicon.svg`.
-
 ## Project structure
 
 ```
 manifest.json            MV3 manifest
 package.json             `npm test` → node --test
-icons/                   icon.svg → symlink to ../../browser/favicon.svg; icon-*.png generated from it
 src/
   background/background.js  service worker: image context menu + tab-fallback relay
   popup/    popup.html|css|js   image list, search/filters, floating actions, preview
