@@ -3,7 +3,7 @@
 // chrome.scripting.executeScript), so it must be entirely self-contained — no
 // imports, no references to module scope. It collects <img>, inline <svg><image>
 // and CSS background-image URLs, resolved to absolute, deduped, capped.
-export function scanPageForImages(limit) {
+export const scanPageForImages = (limit) => {
   const out = [];
   const seen = new Set();
   const push = (raw, kind, w, h, alt) => {
@@ -33,4 +33,4 @@ export function scanPageForImages(limit) {
     }
   }
   return out;
-}
+};

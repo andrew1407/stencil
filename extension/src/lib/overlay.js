@@ -9,7 +9,7 @@
 // {type:'close'} when done. If we never hear 'ready' (the page's CSP frame-src or
 // mixed-content rules blocked the frame), we drop the modal and open the tool in
 // a real tab instead.
-export function mountStencilModal(url, title) {
+export const mountStencilModal = (url, title) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
   if (existing) existing.remove();
@@ -60,7 +60,10 @@ export function mountStencilModal(url, title) {
     window.removeEventListener('message', onMsg);
     clearTimeout(timer);
   };
-  const close = () => { cleanup(); host.remove(); };
+  const close = () => {
+    cleanup();
+    host.remove();
+  };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onMsg = (e) => {
     const d = e.data;
@@ -73,14 +76,20 @@ export function mountStencilModal(url, title) {
       close();
     }
   };
-  const timer = setTimeout(() => { close(); openTab(); }, 3000);
+  const timer = setTimeout(() => {
+    close();
+    openTab();
+  }, 3000);
 
   window.addEventListener('message', onMsg);
   document.addEventListener('keydown', onKey, true);
   wrap.querySelector('.close').onclick = close;
   wrap.querySelector('.backdrop').onclick = close;
-  wrap.querySelector('.tab').onclick = () => { close(); openTab(); };
+  wrap.querySelector('.tab').onclick = () => {
+    close();
+    openTab();
+  };
 
   frame.src = url;
   (document.body || document.documentElement).appendChild(host);
-}
+};

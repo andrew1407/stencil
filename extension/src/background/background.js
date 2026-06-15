@@ -4,19 +4,24 @@
 // image can go straight into the editor (as an in-page modal by default).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
 
-const MENU = { parent: 'stencil-parent', open: 'stencil-open', openIncognito: 'stencil-open-incognito', crop: 'stencil-crop' };
+const MENU = {
+  parent: 'stencil-parent',
+  open: 'stencil-open',
+  openIncognito: 'stencil-open-incognito',
+  crop: 'stencil-crop'
+};
 
 // The contextMenus API has no per-item image icon, so we (a) ship PNG action
 // icons — Chrome then shows the Stencil icon next to the "Stencil" group — and
 // (b) prefix each item with a glyph matching the popup's action icons.
-function buildMenus() {
+const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: MENU.parent, title: 'Stencil', contexts: ['image'] });
     chrome.contextMenus.create({ id: MENU.open, parentId: MENU.parent, title: '✎ Open image in Stencil editor', contexts: ['image'] });
     chrome.contextMenus.create({ id: MENU.openIncognito, parentId: MENU.parent, title: '🕶 Open in Stencil (incognito)', contexts: ['image'] });
     chrome.contextMenus.create({ id: MENU.crop, parentId: MENU.parent, title: '✂ Crop image in Stencil…', contexts: ['image'] });
   });
-}
+};
 
 chrome.runtime.onInstalled.addListener(buildMenus);
 chrome.runtime.onStartup.addListener(buildMenus);
