@@ -15,7 +15,13 @@ endif()
 # QStandardPaths::AppConfigLocation). Release packaging always configures with OFF.
 option(STENCIL_DEV_STATE_DIR "Bake the repo-local .stencil state dir (dev only; OFF for releases)" ON)
 
-add_compile_options(-Wall -Wextra)
+# GCC/Clang use -Wall -Wextra; MSVC rejects those (it reads /Wextra as an invalid
+# numeric warning-level arg, D8021), so give it its own near-equivalent.
+if(MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
 
 # Shared core sources (STL only, GUI-free). Listed once so both the native static
 # library and the optional WebAssembly target compile exactly the same files.
