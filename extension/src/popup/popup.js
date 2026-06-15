@@ -1,7 +1,8 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
 import { scanPageForImages } from '../lib/imageScan.js';
-import { passesFilters, distinctFormats, formatOf } from '../lib/filters.js';
+import { toggleStencilHighlight } from '../lib/highlight.js';
+import { passesFilters, distinctFormats, formatOf, UNKNOWN_FORMAT } from '../lib/filters.js';
 
 // Common web image formats always offered in the filter, plus any others the
 // page actually uses (added in populateFormats).
@@ -15,6 +16,10 @@ const previewImg = previewEl.querySelector('img');
 const menuEl = document.getElementById('action-menu');
 
 const MAX_IMAGES = 1000; // hard cap on what we pull from the page
+const THUMB_PX = 48;     // rendered thumbnail size (see .thumb in popup.css)
+// Placeholder thumbnail for a video whose frame couldn't be read (cross-origin).
+const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
 const state = { all: [], filtered: [], activeTabId: null };
 
@@ -33,23 +38,42 @@ const measureObs = new IntersectionObserver((entries) => {
 const scan = async () => {
   listEl.innerHTML = '';
   statusEl.textContent = 'Scanning…';
+  // Render the format checkboxes up front (common formats), so they're always
+  // visible even on a page that can't be scanned; refreshed once results arrive.
+  state.all = [];
+  populateFormats();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || /^(chrome|edge|about|chrome-extension|view-source):/.test(tab.url || '')) {
     statusEl.textContent = 'This page can’t be scanned.';
     return;
   }
   state.activeTabId = tab.id;
+  await syncHighlightCheckbox(tab.id);
   let images = [];
   try {
-    const [res] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id, allFrames: false }, func: scanPageForImages, args: [MAX_IMAGES]
+    // Scan every frame (sites often put the real content in an iframe), then
+    // merge + dedupe across frames.
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true }, func: scanPageForImages, args: [MAX_IMAGES]
     });
-    images = res?.result || [];
+    const seen = new Set();
+    for (const r of results) {
+      for (const it of (r?.result || [])) {
+        if (images.length >= MAX_IMAGES) break;
+        if (!seen.has(it.src)) { seen.add(it.src); images.push(it); }
+      }
+    }
   } catch (err) {
     statusEl.textContent = `Could not read this page (${err.message}).`;
     return;
   }
-  state.all = images.map(it => ({ ...it, name: filenameFromUrl(it.src), measured: it.w > 0 && it.h > 0 }));
+  state.all = images.map(it => ({
+    ...it,
+    // Name a video from its media URL (the still is an opaque data URL); fall back
+    // to a generic name when the video is an in-page blob with no usable URL.
+    name: filenameFromUrl(it.kind === 'video' && it.videoUrl ? it.videoUrl : it.src, it.kind === 'video' ? 'video' : 'image'),
+    measured: it.w > 0 && it.h > 0
+  }));
   populateFormats();
   applyFilters();
 };
@@ -58,7 +82,11 @@ const scan = async () => {
 // checked (= no filtering); the toggle button flips select-all / deselect-all.
 const populateFormats = () => {
   const present = new Set(distinctFormats(state.all));
-  const formats = [...COMMON_FORMATS, ...[...present].filter(f => !COMMON_FORMATS.includes(f))];
+  // 'etc' covers images with no detectable format; always offered, marked
+  // present only when the page actually has such images. Kept last in the list.
+  if (state.all.some(it => !formatOf(it.src))) present.add(UNKNOWN_FORMAT);
+  const extras = [...present].filter(f => !COMMON_FORMATS.includes(f) && f !== UNKNOWN_FORMAT);
+  const formats = [...COMMON_FORMATS, ...extras, UNKNOWN_FORMAT];
   const box = document.getElementById('f-formats');
   box.innerHTML = formats.map(f =>
     `<label class="${present.has(f) ? '' : 'absent'}"><input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`
@@ -92,7 +120,8 @@ const readFilters = () => {
     minH: num(document.getElementById('f-minh')),
     maxH: num(document.getElementById('f-maxh')),
     includeImg: document.getElementById('f-img').checked,
-    includeBg: document.getElementById('f-bg').checked
+    includeBg: document.getElementById('f-bg').checked,
+    includeVideo: document.getElementById('f-video').checked
   };
 };
 
@@ -125,37 +154,53 @@ const renderRow = (image) => {
   const row = document.createElement('div');
   row.className = 'row';
 
+  // Tooltip on both the thumbnail and the name, spelling out the gestures and
+  // where the image came from (<img>, a CSS background, or a video).
+  const kindLabel = { bg: 'Background image', video: 'Video', img: 'Image' }[image.kind] || 'Image';
+  const ref = image.kind === 'video' ? (image.videoUrl || '(in-page video)') : image.src;
+  const hint = image.kind === 'video'
+    ? (image.src ? 'Click: open current frame · Double-click: crop frame' : 'Use the ⋯ menu to open the video')
+    : 'Click: open in editor · Double-click: quick crop';
+  const title = `${ref}\n\n${kindLabel}\n${hint}`;
+
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
-  thumb.src = image.src;
+  thumb.src = image.src || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
-  thumb.addEventListener('error', () => { thumb.style.visibility = 'hidden'; });
-  bindPreview(thumb, image.src);
+  thumb.title = title;
+  // A video with no readable frame shows a play glyph; any other broken thumb hides.
+  thumb.addEventListener('error', () => {
+    if (image.kind === 'video') thumb.src = PLAY_THUMB;
+    else thumb.style.visibility = 'hidden';
+  });
+  bindPreview(thumb, image);
 
   const meta = document.createElement('div');
   meta.className = 'meta';
   const name = document.createElement('div');
   name.className = 'name clickable';
   name.textContent = image.name;
-  name.title = `${image.src}\n\nClick: open in editor · Double-click: quick crop`;
+  name.title = title;
 
   // Click the thumbnail or name → open in editor (asks about incognito);
-  // double-click → quick crop. Disambiguated with a short timer.
-  bindOpenGestures(thumb, image.src);
-  bindOpenGestures(name, image.src);
+  // double-click → quick crop. Disambiguated with a short timer. Videos open/crop
+  // their current frame, or open the video in a tab when no frame is available.
+  bindRowGestures(thumb, image);
+  bindRowGestures(name, image);
   const sub = document.createElement('div');
   sub.className = 'sub';
   const badge = document.createElement('span');
-  badge.className = 'badge' + (image.kind === 'bg' ? ' bg' : '');
-  badge.textContent = image.kind === 'bg' ? 'bg' : 'img';
-  const fmt = formatOf(image.src);
+  badge.className = 'badge ' + image.kind;   // .bg / .video styled; .img neutral
+  badge.textContent = image.kind;
   sub.appendChild(badge);
-  if (fmt) {
-    const f = document.createElement('span');
-    f.className = 'badge fmt';
-    f.textContent = fmt;
-    sub.appendChild(f);
-  }
+  const f = document.createElement('span');
+  f.className = 'badge fmt';
+  // For a video show its container format (mp4/webm…) from the media URL, not the
+  // frame's jpg; fall back to a plain "video" tag for in-page (blob) videos.
+  f.textContent = image.kind === 'video'
+    ? (formatOf(image.videoUrl) || 'video')
+    : (formatOf(image.src) || UNKNOWN_FORMAT);
+  sub.appendChild(f);
   const dim = document.createElement('span');
   dim.className = 'dim';
   dim.textContent = image.w && image.h ? `${image.w}×${image.h}` : '';
@@ -224,14 +269,29 @@ const openMenu = (btn, image) => {
     d.className = 'sep';
     return d;
   };
-  menuEl.append(
-    item('⬇', 'Download', () => download(image.src)),
-    item('↗', 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
-    sep(),
-    item('✎', 'Open in editor', () => sendToEditor(image.src, false)),
-    item('🕶', 'Editor (incognito)', () => sendToEditor(image.src, true)),
-    item('✂', 'Crop…', () => openCrop(image.src))
-  );
+  if (image.kind === 'video') {
+    if (image.videoUrl) menuEl.append(
+      item('↗', 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
+      item('⬇', 'Download video', () => download(image.videoUrl))
+    );
+    if (image.src) {
+      if (image.videoUrl) menuEl.append(sep());
+      menuEl.append(
+        item('✎', 'Open current frame in editor', () => sendToEditor(image.src, false)),
+        item('🕶', 'Frame in editor (incognito)', () => sendToEditor(image.src, true)),
+        item('✂', 'Crop current frame', () => openCrop(image.src))
+      );
+    }
+  } else {
+    menuEl.append(
+      item('⬇', 'Download', () => download(image.src)),
+      item('↗', 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
+      sep(),
+      item('✎', 'Open in editor', () => sendToEditor(image.src, false)),
+      item('🕶', 'Editor (incognito)', () => sendToEditor(image.src, true)),
+      item('✂', 'Crop…', () => openCrop(image.src))
+    );
+  }
   menuEl.hidden = false;
   // Position next to the button, flipping to stay on-screen.
   const r = btn.getBoundingClientRect();
@@ -263,13 +323,16 @@ const run = async (fn) => {
 };
 
 // ── Click / double-click gestures on the thumbnail + name ──
-const bindOpenGestures = (el, src) => {
+// Click → editor, double-click → crop, disambiguated with a short timer. The
+// click/dblclick actions are passed in so videos can act on their frame (or open
+// the video in a tab when there's no frame).
+const bindGestures = (el, onClick, onDouble) => {
   let timer = null;
   el.addEventListener('click', () => {
     if (timer) return;                      // second click of a dblclick
     timer = setTimeout(() => {
       timer = null;
-      run(() => openEditorWithConfirm(src));
+      if (onClick) run(onClick);
     }, 220);
   });
   el.addEventListener('dblclick', () => {
@@ -277,8 +340,21 @@ const bindOpenGestures = (el, src) => {
       clearTimeout(timer);
       timer = null;
     }
-    run(() => openCrop(src));
+    if (onDouble) run(onDouble);
   });
+};
+
+const bindOpenGestures = (el, src) =>
+  bindGestures(el, () => openEditorWithConfirm(src), () => openCrop(src));
+
+const bindRowGestures = (el, image) => {
+  if (image.kind !== 'video') return bindOpenGestures(el, image.src);
+  // Video: act on the current frame; with no frame, single-click opens the video.
+  const onClick = image.src
+    ? () => openEditorWithConfirm(image.src)
+    : (image.videoUrl ? () => chrome.tabs.create({ url: image.videoUrl }) : null);
+  const onDouble = image.src ? () => openCrop(image.src) : null;
+  bindGestures(el, onClick, onDouble);
 };
 
 // ── Actions ──
@@ -306,7 +382,13 @@ const openCrop = async (src) => {
 };
 
 // ── Hover preview ──
-const bindPreview = (el, src) => {
+// Skip the floating preview when the image isn't actually bigger than the
+// thumbnail already shown in the row — there'd be nothing larger to reveal.
+// Unknown-size images (not yet measured, w/h = 0) still get a preview.
+const previewWorthwhile = (image) =>
+  !(image.w > 0 && image.h > 0 && image.w <= THUMB_PX && image.h <= THUMB_PX);
+
+const bindPreview = (el, image) => {
   const position = () => {
     const r = el.getBoundingClientRect();
     const pw = previewEl.offsetWidth || 270;
@@ -319,7 +401,8 @@ const bindPreview = (el, src) => {
     previewEl.style.top = `${y}px`;
   };
   el.addEventListener('mouseenter', () => {
-    previewImg.src = src;
+    if (!image.src || !previewWorthwhile(image)) return;   // nothing to preview (e.g. a frameless video)
+    previewImg.src = image.src;
     previewEl.hidden = false;
     position();
   });
@@ -332,7 +415,34 @@ document.getElementById('f-search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(applyFilters, 150);
 });
-['f-img', 'f-bg'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+['f-img', 'f-bg', 'f-video'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+
+// The highlight lives on the page (it survives the popup closing), so on open
+// reflect its real state in the checkbox instead of defaulting to unchecked —
+// otherwise reopening the popup would wrongly show it off after you'd turned it on.
+const syncHighlightCheckbox = async (tabId) => {
+  try {
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId }, func: () => !!document.getElementById('stencil-hl-style')
+    });
+    document.getElementById('f-highlight').checked = !!res?.result;
+  } catch { /* restricted page — leave as-is */ }
+};
+
+// Highlight toggle: outline every <img> / background-image element on the page
+// so the user can see what Stencil can grab. Off by default; injects into the page.
+document.getElementById('f-highlight').addEventListener('change', async (e) => {
+  if (state.activeTabId == null) { e.target.checked = false; return; }
+  try {
+    // All frames, so iframed content is highlighted too.
+    await chrome.scripting.executeScript({
+      target: { tabId: state.activeTabId, allFrames: true }, func: toggleStencilHighlight, args: [e.target.checked]
+    });
+  } catch (err) {
+    statusEl.textContent = `Couldn’t toggle highlight (${err.message}).`;
+    e.target.checked = false;
+  }
+});
 document.getElementById('f-fmt-toggle').addEventListener('click', () => {
   const target = !allFormatsChecked();
   formatCheckboxes().forEach(c => { c.checked = target; });

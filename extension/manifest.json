@@ -6,6 +6,9 @@
   "permissions": ["activeTab", "scripting", "downloads", "contextMenus", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "src/background/background.js", "type": "module" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["src/content/ctxTarget.js"], "run_at": "document_idle", "all_frames": true }
+  ],
   "options_page": "src/options/options.html",
   "action": {
     "default_popup": "src/popup/popup.html",
