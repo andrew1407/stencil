@@ -14,7 +14,10 @@ import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab } from '../
 // host overlay that we booted (so it keeps the modal) and ask it to close once
 // the user opens the editor.
 const FRAMED = window.parent && window.parent !== window;
-const postToHost = (type) => { if (FRAMED) window.parent.postMessage({ source: 'stencil-modal', type }, '*'); };
+
+const postToHost = (type) => {
+  if (FRAMED) window.parent.postMessage({ source: 'stencil-modal', type }, '*');
+};
 
 const viewport = document.getElementById('viewport');
 const imgEl = document.getElementById('image');
@@ -23,72 +26,96 @@ const cropBox = document.getElementById('crop-box');
 const previewCanvas = document.getElementById('preview');
 const statusEl = document.getElementById('status');
 const cropInfo = document.getElementById('crop-info');
-const masks = { top: overlay.querySelector('.mask-top'), bottom: overlay.querySelector('.mask-bottom'),
-                left: overlay.querySelector('.mask-left'), right: overlay.querySelector('.mask-right') };
-
-const state = {
-  srcUrl: '', dataUrl: '', name: 'image.png',
-  imgW: 0, imgH: 0,
-  page: 'A3', customW: 21, customH: 29.7, album: true,
-  crop: { x: 0, y: 0, width: 0, height: 0 },
-  fitScale: 1, zoom: 1
+const masks = {
+  top: overlay.querySelector('.mask-top'),
+  bottom: overlay.querySelector('.mask-bottom'),
+  left: overlay.querySelector('.mask-left'),
+  right: overlay.querySelector('.mask-right')
 };
 
-state.srcUrl = new URLSearchParams(location.search).get('src') || '';
-init();
+const state = {
+  srcUrl: '',
+  dataUrl: '',
+  name: 'image.png',
+  imgW: 0,
+  imgH: 0,
+  page: 'A3',
+  customW: 21,
+  customH: 29.7,
+  album: true,
+  crop: { x: 0, y: 0, width: 0, height: 0 },
+  fitScale: 1,
+  zoom: 1
+};
 
-async function init() {
+const init = async () => {
   if (!state.srcUrl) {
     statusEl.textContent = 'No image URL provided.';
     return;
   }
   state.name = filenameFromUrl(state.srcUrl);
-  try { state.page = (await getSettings()).page || 'A3'; } catch { /* default */ }
+  try {
+    state.page = (await getSettings()).page || 'A3';
+  } catch { /* default */ }
   syncPageButtons();
   try {
     state.dataUrl = await fetchAsDataUrl(state.srcUrl);
-  } catch (err) { statusEl.textContent = `Could not load the image (${err.message}).`; return; }
+  } catch (err) {
+    statusEl.textContent = `Could not load the image (${err.message}).`;
+    return;
+  }
 
   imgEl.onload = () => {
-    state.imgW = imgEl.naturalWidth; state.imgH = imgEl.naturalHeight;
+    state.imgW = imgEl.naturalWidth;
+    state.imgH = imgEl.naturalHeight;
     state.album = isAlbumOrientation(state.imgW, state.imgH);
     syncOrientationButtons();
     fitToWindow();
     resetCrop();
-    overlay.hidden = false; statusEl.textContent = '';
+    overlay.hidden = false;
+    statusEl.textContent = '';
     postToHost('ready');   // confirm to the host overlay that the frame loaded
   };
   imgEl.onerror = () => { statusEl.textContent = 'The image failed to decode.'; };
   imgEl.src = state.dataUrl;
-  window.addEventListener('resize', () => { fitToWindow(); layoutOverlay(); });
-}
+  window.addEventListener('resize', () => {
+    fitToWindow();
+    layoutOverlay();
+  });
+};
 
 // ── Page aspect ──
-function aspect() {
+const aspect = () => {
   const d = pageDims(state.page, state.customW, state.customH);
   return cropAspect(d.width, d.height, state.album);
-}
-function resetCrop() {
+};
+
+const resetCrop = () => {
   state.crop = roundRect(centeredCrop(state.imgW, state.imgH, aspect()), state.imgW, state.imgH);
-  layoutOverlay(); renderPreview();
-}
+  layoutOverlay();
+  renderPreview();
+};
 
 // ── Zoom ──
-function fitToWindow() {
-  const vw = viewport.clientWidth - 4, vh = viewport.clientHeight - 4 || Math.round(window.innerHeight * 0.72);
+const fitToWindow = () => {
+  const vw = viewport.clientWidth - 4;
+  const vh = viewport.clientHeight - 4 || Math.round(window.innerHeight * 0.72);
   state.fitScale = Math.min(vw / state.imgW, vh / state.imgH) || 1;
   state.zoom = 1;
   applyZoom();
-}
-function displayScale() { return state.fitScale * state.zoom; }
-function applyZoom() {
+};
+
+const displayScale = () => state.fitScale * state.zoom;
+
+const applyZoom = () => {
   const s = displayScale();
   imgEl.style.width = `${state.imgW * s}px`;
   imgEl.style.height = `${state.imgH * s}px`;
   document.getElementById('zoom-label').textContent = `${Math.round(s * 100)}%`;
   layoutOverlay();
-}
-function setZoom(nextZoom, cx, cy) {
+};
+
+const setZoom = (nextZoom, cx, cy) => {
   const clamped = Math.max(0.1, Math.min(nextZoom, 16 / state.fitScale));
   // Keep the image point under the cursor stable, when a cursor is given.
   let anchor = null;
@@ -103,7 +130,8 @@ function setZoom(nextZoom, cx, cy) {
     viewport.scrollLeft = anchor.ix * displayScale() - (anchor.cx - vr.left);
     viewport.scrollTop = anchor.iy * displayScale() - (anchor.cy - vr.top);
   }
-}
+};
+
 document.getElementById('zoom-in').addEventListener('click', () => setZoom(state.zoom * 1.25));
 document.getElementById('zoom-out').addEventListener('click', () => setZoom(state.zoom * 0.8));
 document.getElementById('zoom-fit').addEventListener('click', fitToWindow);
@@ -114,97 +142,133 @@ viewport.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ── Overlay layout (image-space → display px) ──
-function scale() { return (imgEl.getBoundingClientRect().width / state.imgW) || 1; }
-function layoutOverlay() {
-  const s = scale(), c = state.crop;
-  const left = c.x * s, top = c.y * s, w = c.width * s, h = c.height * s;
-  const W = state.imgW * s, H = state.imgH * s;
+const scale = () => (imgEl.getBoundingClientRect().width / state.imgW) || 1;
+
+const layoutOverlay = () => {
+  const s = scale();
+  const c = state.crop;
+  const left = c.x * s;
+  const top = c.y * s;
+  const w = c.width * s;
+  const h = c.height * s;
+  const W = state.imgW * s;
+  const H = state.imgH * s;
   Object.assign(cropBox.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
   Object.assign(masks.top.style, { left: 0, top: 0, width: `${W}px`, height: `${top}px` });
   Object.assign(masks.bottom.style, { left: 0, top: `${top + h}px`, width: `${W}px`, height: `${H - top - h}px` });
   Object.assign(masks.left.style, { left: 0, top: `${top}px`, width: `${left}px`, height: `${h}px` });
   Object.assign(masks.right.style, { left: `${left + w}px`, top: `${top}px`, width: `${W - left - w}px`, height: `${h}px` });
   cropInfo.textContent = `${c.width}×${c.height}px from ${state.imgW}×${state.imgH}`;
-}
-function renderPreview() {
+};
+
+const renderPreview = () => {
   const c = state.crop;
   if (!c.width || !c.height) return;
   const ratio = Math.min(320 / c.width, 320 / c.height, 1);
   previewCanvas.width = Math.max(1, Math.round(c.width * ratio));
   previewCanvas.height = Math.max(1, Math.round(c.height * ratio));
   previewCanvas.getContext('2d').drawImage(imgEl, c.x, c.y, c.width, c.height, 0, 0, previewCanvas.width, previewCanvas.height);
-}
+};
 
 // ── Pointer interaction ──
 let drag = null;
-function toImageSpace(clientX, clientY) {
-  const r = imgEl.getBoundingClientRect(), s = scale();
+
+const toImageSpace = (clientX, clientY) => {
+  const r = imgEl.getBoundingClientRect();
+  const s = scale();
   return { x: (clientX - r.left) / s, y: (clientY - r.top) / s };
-}
+};
+
 cropBox.addEventListener('pointerdown', (e) => {
   const corner = e.target.dataset.corner;
-  drag = { mode: corner != null ? 'resize' : 'move', corner: corner != null ? Number(corner) : null,
-           start: toImageSpace(e.clientX, e.clientY), startCrop: { ...state.crop } };
+  drag = {
+    mode: corner != null ? 'resize' : 'move',
+    corner: corner != null ? Number(corner) : null,
+    start: toImageSpace(e.clientX, e.clientY),
+    startCrop: { ...state.crop }
+  };
   e.target.setPointerCapture?.(e.pointerId);
   e.preventDefault();
 });
+
 window.addEventListener('pointermove', (e) => {
   if (!drag) return;
   const p = toImageSpace(e.clientX, e.clientY);
-  if (drag.mode === 'move') {
-    state.crop = roundRect(moveCropClamped(drag.startCrop, p.x - drag.start.x, p.y - drag.start.y, state.imgW, state.imgH), state.imgW, state.imgH);
-  } else {
-    state.crop = roundRect(resizeCropFromCorner(drag.startCrop, drag.corner, p.x, p.y, aspect(), state.imgW, state.imgH), state.imgW, state.imgH);
-  }
-  layoutOverlay(); renderPreview();
+  const moved = drag.mode === 'move'
+    ? moveCropClamped(drag.startCrop, p.x - drag.start.x, p.y - drag.start.y, state.imgW, state.imgH)
+    : resizeCropFromCorner(drag.startCrop, drag.corner, p.x, p.y, aspect(), state.imgW, state.imgH);
+  state.crop = roundRect(moved, state.imgW, state.imgH);
+  layoutOverlay();
+  renderPreview();
 });
+
 window.addEventListener('pointerup', () => { drag = null; });
 
 // ── Controls ──
-function syncPageButtons() {
+const syncPageButtons = () => {
   document.querySelectorAll('#page-seg button').forEach(b => b.classList.toggle('active', b.dataset.page === state.page));
   document.getElementById('custom-dims').hidden = state.page !== 'custom';
-}
-function syncOrientationButtons() {
+};
+
+const syncOrientationButtons = () => {
   document.querySelectorAll('#orient-seg button').forEach(b => b.classList.toggle('active', (b.dataset.album === 'true') === state.album));
-}
-document.getElementById('page-seg').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  state.page = b.dataset.page; syncPageButtons(); resetCrop();
-});
-document.getElementById('orient-seg').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  state.album = b.dataset.album === 'true'; syncOrientationButtons(); resetCrop();
-});
+};
+
 const onCustom = () => {
-  const w = parseFloat(document.getElementById('custom-w').value), h = parseFloat(document.getElementById('custom-h').value);
+  const w = parseFloat(document.getElementById('custom-w').value);
+  const h = parseFloat(document.getElementById('custom-h').value);
   if (w > 0) state.customW = w;
   if (h > 0) state.customH = h;
   if (state.page === 'custom') resetCrop();
 };
+
+document.getElementById('page-seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.page = b.dataset.page;
+  syncPageButtons();
+  resetCrop();
+});
+document.getElementById('orient-seg').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.album = b.dataset.album === 'true';
+  syncOrientationButtons();
+  resetCrop();
+});
 document.getElementById('custom-w').addEventListener('input', onCustom);
 document.getElementById('custom-h').addEventListener('input', onCustom);
 document.getElementById('reset').addEventListener('click', resetCrop);
 
 document.getElementById('open').addEventListener('click', async (e) => {
-  const btn = e.currentTarget; btn.disabled = true;
+  const btn = e.currentTarget;
+  btn.disabled = true;
   try {
     const incognito = document.getElementById('incognito').checked;
     const mode = document.querySelector('input[name="mode"]:checked').value;
     const page = state.page === 'custom' ? { size: 'custom', width: state.customW, height: state.customH } : { size: state.page };
     let payload;
     if (mode === 'apply') {
-      payload = { dataUrl: state.dataUrl, name: state.name, crop: state.crop, page, incognito };
+      payload = {
+        dataUrl: state.dataUrl,
+        name: state.name,
+        crop: state.crop,
+        page,
+        incognito
+      };
     } else {
       const c = state.crop;
       const canvas = document.createElement('canvas');
-      canvas.width = c.width; canvas.height = c.height;
+      canvas.width = c.width;
+      canvas.height = c.height;
       canvas.getContext('2d').drawImage(imgEl, c.x, c.y, c.width, c.height, 0, 0, c.width, c.height);
       const dot = state.name.lastIndexOf('.');
       payload = {
         dataUrl: canvas.toDataURL('image/png'),
         name: (dot > 0 ? state.name.slice(0, dot) : state.name) + '-crop.png',
-        crop: { x: 0, y: 0, width: c.width, height: c.height }, page, incognito
+        crop: { x: 0, y: 0, width: c.width, height: c.height },
+        page,
+        incognito
       };
     }
     await openEditorTab(payload);   // full editor always opens in a new tab
@@ -212,5 +276,11 @@ document.getElementById('open').addEventListener('click', async (e) => {
     postToHost('close');            // dismiss the quick-crop modal
   } catch (err) {
     statusEl.textContent = `Failed to open: ${err.message}`;
-  } finally { btn.disabled = false; }
+  } finally {
+    btn.disabled = false;
+  }
 });
+
+// ── Bootstrap (last, so every const above is defined before init runs) ──
+state.srcUrl = new URLSearchParams(location.search).get('src') || '';
+init();
