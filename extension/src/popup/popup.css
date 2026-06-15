@@ -30,7 +30,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   border-radius: 6px; padding: 5px 8px; font-size: 12px;
 }
 .search { width: 100%; }
-.frow { display: flex; align-items: center; gap: 8px; }
+.frow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
 .dlbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
 .num { width: 56px; }
@@ -70,6 +70,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   padding: 0 5px; font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
 }
 .badge.bg { color: var(--yellow); }
+.badge.video { color: #4ade80; }
 .badge.fmt { color: var(--accent-2); }
 
 .more-btn {

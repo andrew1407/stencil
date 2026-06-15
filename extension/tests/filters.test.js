@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatOf, distinctFormats, extractCssUrls, passesFilters } from '../src/lib/filters.js';
+import { formatOf, distinctFormats, extractCssUrls, passesFilters, UNKNOWN_FORMAT } from '../src/lib/filters.js';
 
 test('formatOf: extensions, query strings, data URIs, normalisation', () => {
   assert.equal(formatOf('https://a.com/x/cat.PNG'), 'png');
@@ -30,6 +30,26 @@ test('passesFilters: include img / bg toggles', () => {
   assert.equal(passesFilters(img, { includeImg: true, includeBg: false }), true);
 });
 
+test('passesFilters: video toggle + videos bypass the format set', () => {
+  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'clip.mp4', videoUrl: 'https://x.com/clip.mp4', w: 1280, h: 720 };
+  // The dedicated 'video' toggle hides/shows videos.
+  assert.equal(passesFilters(vid, { includeVideo: false }), false);
+  assert.equal(passesFilters(vid, { includeVideo: true }), true);
+  // A video is NOT removed by the image-format checkboxes (its still is a jpg frame).
+  assert.equal(passesFilters(vid, { formats: ['png'] }), true);
+  assert.equal(passesFilters(vid, { formats: [] }), true);
+  // But an <img> still is.
+  const jpg = { kind: 'img', src: 'b.jpg', name: 'b.jpg', w: 10, h: 10 };
+  assert.equal(passesFilters(jpg, { formats: ['png'] }), false);
+});
+
+test('passesFilters: search matches a video media URL too', () => {
+  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'video.jpeg', videoUrl: 'https://cdn.example.com/reel-42.mp4', w: 0, h: 0 };
+  assert.equal(passesFilters(vid, { search: 'reel-42' }), true);
+  assert.equal(passesFilters(vid, { search: 'cdn.example' }), true);
+  assert.equal(passesFilters(vid, { search: 'nope' }), false);
+});
+
 test('passesFilters: search matches name or URL', () => {
   const it = { kind: 'img', src: 'https://x.com/hero-banner.png', name: 'hero-banner.png', w: 10, h: 10 };
   assert.equal(passesFilters(it, { search: 'banner' }), true);
@@ -40,14 +60,19 @@ test('passesFilters: search matches name or URL', () => {
 test('passesFilters: format checkbox set', () => {
   const png = { kind: 'img', src: 'a.png', name: 'a.png', w: 10, h: 10 };
   const jpg = { kind: 'img', src: 'b.jpg', name: 'b.jpg', w: 10, h: 10 };
+  const unknown = { kind: 'img', src: 'x', name: 'x', w: 1, h: 1 };
   assert.equal(passesFilters(png, { formats: ['png', 'gif'] }), true);
   assert.equal(passesFilters(jpg, { formats: ['png', 'gif'] }), false);
-  // unknown/undetectable format always passes the format filter
-  assert.equal(passesFilters({ kind: 'img', src: 'x', name: 'x', w: 1, h: 1 }, { formats: ['png'] }), true);
+  // undetectable format is bucketed as 'etc' — passes only when 'etc' is in the set
+  assert.equal(UNKNOWN_FORMAT, 'etc');
+  assert.equal(passesFilters(unknown, { formats: ['png'] }), false);
+  assert.equal(passesFilters(unknown, { formats: ['png', UNKNOWN_FORMAT] }), true);
   // no formats key → no format filtering
   assert.equal(passesFilters(jpg, {}), true);
-  // empty set → only undetectable-format items pass
+  assert.equal(passesFilters(unknown, {}), true);
+  // empty set → nothing passes (including undetectable)
   assert.equal(passesFilters(jpg, { formats: [] }), false);
+  assert.equal(passesFilters(unknown, { formats: [] }), false);
 });
 
 test('passesFilters: min/max dims apply when known', () => {

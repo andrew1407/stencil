@@ -2,6 +2,10 @@
 // The popup keeps the full scan result and derives the visible subset from a
 // filter state. Kept here, free of chrome/DOM, so it runs under `node --test`.
 
+// Bucket label for images whose format can't be detected (no extension, opaque
+// URL, etc.). Surfaced as its own "ETC" checkbox so these can be filtered too.
+export const UNKNOWN_FORMAT = 'etc';
+
 // Lowercase image "format" from a URL or data: URI ('' if unknown).
 export const formatOf = (src) => {
   if (!src) return '';
@@ -38,26 +42,30 @@ export const extractCssUrls = (bg) => {
 };
 
 // Does an item pass the active filter state?
-//   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg }
-// `formats` is an array of allowed lowercase formats (from the checkbox group);
-// an item with a known format must be in it. Items whose format can't be detected
-// always pass the format filter. Numeric bounds are null/undefined when empty
-// (= no bound). Items with unknown size (w/h <= 0) PASS the size filters — they're
-// measured lazily afterwards.
+//   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo }
+// `formats` is an array of allowed lowercase formats (from the checkbox group).
+// An item's format must be in it; items whose format can't be detected are
+// bucketed as UNKNOWN_FORMAT ('etc') and pass only when 'etc' is in the set.
+// Numeric bounds are null/undefined when empty (= no bound). Items with unknown
+// size (w/h <= 0) PASS the size filters — they're measured lazily afterwards.
 export const passesFilters = (item, f = {}) => {
   if (item.kind === 'img' && f.includeImg === false) return false;
   if (item.kind === 'bg' && f.includeBg === false) return false;
+  if (item.kind === 'video' && f.includeVideo === false) return false;
 
   if (f.search) {
     const q = f.search.toLowerCase();
     const inName = (item.name || '').toLowerCase().includes(q);
     const inSrc = (item.src || '').toLowerCase().includes(q);
-    if (!inName && !inSrc) return false;
+    const inVideoUrl = (item.videoUrl || '').toLowerCase().includes(q);
+    if (!inName && !inSrc && !inVideoUrl) return false;
   }
 
-  if (Array.isArray(f.formats)) {
-    const fmt = formatOf(item.src);
-    if (fmt && !f.formats.includes(fmt)) return false;
+  // Videos are governed by the dedicated 'video' toggle, not the image-format set
+  // (their still is an opaque JPEG frame), so don't format-filter them away.
+  if (Array.isArray(f.formats) && item.kind !== 'video') {
+    const fmt = formatOf(item.src) || UNKNOWN_FORMAT;
+    if (!f.formats.includes(fmt)) return false;
   }
 
   if (item.w > 0) {

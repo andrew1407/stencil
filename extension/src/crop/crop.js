@@ -8,7 +8,7 @@ import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
   roundRect, isAlbumOrientation, pageDims
 } from '../lib/cropGeometry.js';
-import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY } from '../lib/stencil.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
 // host overlay that we booted (so it keeps the modal) and ask it to close once
@@ -282,5 +282,14 @@ document.getElementById('open').addEventListener('click', async (e) => {
 });
 
 // ── Bootstrap (last, so every const above is defined before init runs) ──
-state.srcUrl = new URLSearchParams(location.search).get('src') || '';
-init();
+// The image source comes from session storage (set by launchCrop); fall back to
+// a ?src query param for older callers.
+(async () => {
+  let src = new URLSearchParams(location.search).get('src') || '';
+  if (!src) {
+    try { const d = await chrome.storage.session.get(CROP_SRC_KEY); src = d[CROP_SRC_KEY] || ''; }
+    catch { /* leave empty → "No image URL provided." */ }
+  }
+  state.srcUrl = src;
+  init();
+})();
