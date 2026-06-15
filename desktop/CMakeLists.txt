@@ -19,6 +19,10 @@ option(STENCIL_DEV_STATE_DIR "Bake the repo-local .stencil state dir (dev only; 
 # numeric warning-level arg, D8021), so give it its own near-equivalent.
 if(MSVC)
   add_compile_options(/W4)
+  # M_PI et al. are POSIX, not standard C++: GCC/Clang/Emscripten expose them by
+  # default, but MSVC only does so when this is defined before <cmath>. Set it on
+  # the command line so the Qt-free core/tests get it too (the GUI gets it via Qt).
+  add_compile_definitions(_USE_MATH_DEFINES)
 else()
   add_compile_options(-Wall -Wextra)
 endif()
