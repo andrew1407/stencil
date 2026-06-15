@@ -1,0 +1,75 @@
+/* Palette + box-sizing reset live in ../lib/theme.css (linked first). */
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+header { display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+header .logo { width: 22px; height: 22px; }
+header h1 { font-size: 15px; margin: 0; }
+header .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+.stage-col { flex: 1 1 auto; min-width: 0; }
+
+.zoombar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.zbtn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; height: 28px; min-width: 28px; cursor: pointer; font-size: 14px; }
+.zbtn.wide { padding: 0 10px; }
+.zbtn:hover { background: var(--accent); border-color: var(--accent); }
+.zlabel { color: var(--muted); font-size: 12px; min-width: 46px; text-align: center; }
+
+.viewport {
+  max-height: 72vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px;
+  background:
+    linear-gradient(45deg, #2a2e38 25%, transparent 25%, transparent 75%, #2a2e38 75%) 0 0/20px 20px,
+    linear-gradient(45deg, #2a2e38 25%, #262a33 25%, #262a33 75%, #2a2e38 75%) 10px 10px/20px 20px;
+}
+.stage { position: relative; display: inline-block; line-height: 0; user-select: none; touch-action: none; }
+#image { display: block; max-width: none; }
+
+.overlay { position: absolute; inset: 0; }
+.mask { position: absolute; background: rgba(10,12,18,.62); }
+.crop-box { position: absolute; outline: 2px solid var(--accent-2); cursor: move;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.handle { position: absolute; width: 14px; height: 14px; background: var(--accent-2);
+  border: 2px solid #fff; border-radius: 50%; }
+.h-tl { left: -7px; top: -7px; cursor: nwse-resize; }
+.h-tr { right: -7px; top: -7px; cursor: nesw-resize; }
+.h-br { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.h-bl { left: -7px; bottom: -7px; cursor: nesw-resize; }
+
+.status { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+.panel { flex: 0 0 280px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 16px; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 0; cursor: pointer; font-size: 13px; }
+.seg button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.custom-dims { display: flex; align-items: center; gap: 6px; }
+.custom-dims[hidden] { display: none; }
+.num { width: 84px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+.custom-dims .times { color: var(--muted); }
+.custom-dims .unit { color: var(--muted); font-size: 12px; }
+
+.preview-frame { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; padding: 6px; min-height: 80px; }
+#preview { max-width: 100%; max-height: 180px; }
+.crop-info { color: var(--muted); font-size: 11px; }
+
+.radio, .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; cursor: pointer; }
+.radio input, .check input { margin-top: 2px; }
+.radio b { color: var(--text); }
+
+.actions { margin-top: auto; display: flex; gap: 8px; }
+.btn { flex: 1; border-radius: 7px; padding: 9px 0; font-size: 13px; cursor: pointer; border: 1px solid var(--line); }
+.btn.ghost { background: var(--panel-2); color: var(--text); }
+.btn.ghost:hover { background: var(--line); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-2); }
+.btn:disabled { opacity: .5; cursor: default; }

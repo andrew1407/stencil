@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stencil — images on this page</title>
+  <link rel="stylesheet" href="../lib/theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="../../icons/icon.svg" alt="" class="logo">
+    <h1>Images on this page</h1>
+    <span id="count" class="count"></span>
+    <button id="rescan" class="icon-btn" title="Rescan page">⟳</button>
+    <button id="open-options" class="icon-btn" title="Settings">⚙</button>
+  </header>
+
+  <div class="filters">
+    <input id="f-search" class="search" type="search" placeholder="Search by name or URL…" autocomplete="off">
+    <div class="frow">
+      <label class="chk"><input type="checkbox" id="f-img" checked> &lt;img&gt;</label>
+      <label class="chk"><input type="checkbox" id="f-bg" checked> background</label>
+    </div>
+    <div class="frow fmt-head">
+      <span class="dlbl">Formats</span>
+      <button id="f-fmt-toggle" class="mini" type="button">Deselect all</button>
+    </div>
+    <div id="f-formats" class="formats"></div>
+    <div class="frow dims">
+      <span class="dlbl">W</span>
+      <input id="f-minw" class="num" type="number" min="0" placeholder="min">
+      <input id="f-maxw" class="num" type="number" min="0" placeholder="max">
+      <span class="dlbl">H</span>
+      <input id="f-minh" class="num" type="number" min="0" placeholder="min">
+      <input id="f-maxh" class="num" type="number" min="0" placeholder="max">
+    </div>
+  </div>
+
+  <div id="status" class="status"></div>
+  <ul id="list" class="list"></ul>
+
+  <!-- Floating hover preview -->
+  <div id="preview" class="preview" hidden><img alt="preview"></div>
+
+  <!-- Floating "…" action menu (anchored to the clicked button) -->
+  <div id="action-menu" class="action-menu" hidden></div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

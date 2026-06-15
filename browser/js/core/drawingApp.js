@@ -1088,7 +1088,10 @@ export class DrawingApp {
     this.loadImageFromFile(file);
   }
 
-  loadImageFromFile(file) {
+  // opts.crop — an explicit crop rect {x,y,width,height} in original-image pixel
+  // space to use instead of the default centered page-aspect crop. Used by the
+  // external-launch path (browser extension) to honour a crop chosen elsewhere.
+  loadImageFromFile(file, opts = {}) {
     // A temporary editor receiving its first image becomes a real project, so
     // the final storage.save() below persists it (and subsequent tabs see it).
     // Incognito editors are the exception: they deliberately stay unsaved, so
@@ -1114,8 +1117,9 @@ export class DrawingApp {
       this.originalImage.onload = () => {
         // Auto-crop from the center to the page aspect (cut the surplus sides),
         // using the existing album/portrait detection. The original is kept; the
-        // working canvas shows only this region.
-        this.cropRect = this.defaultCropRect();
+        // working canvas shows only this region. An explicit opts.crop (from the
+        // external-launch path) overrides the default centered crop.
+        this.cropRect = opts.crop ? this.#roundRect(opts.crop) : this.defaultCropRect();
         this.rebuildCroppedImage();
 
         // If pending lines exist from a previous session where image couldn't be stored,
@@ -1155,6 +1159,66 @@ export class DrawingApp {
       this.imageDataUrl = event.target.result;
     };
     reader.readAsDataURL(file);
+  }
+
+  // ── External launch (browser extension) ──────────────────────────
+  // The Stencil browser extension hands an image off by opening the editor with
+  // a URL fragment: `#stencil=<encodeURIComponent(JSON)>` where the JSON is
+  //   { dataUrl, name?, crop?: {x,y,width,height},
+  //     page?: { size: 'A3'|'A4'|'custom', width?: cm, height?: cm },
+  //     incognito?: bool }
+  // The fragment is used (not the query string) so the payload never hits the
+  // server and large data URLs are kept out of logs. We consume it once, strip
+  // it from the URL, then route the image through the normal upload path.
+  applyExternalLaunch() {
+    const hash = location.hash || '';
+    const marker = '#stencil=';
+    if (!hash.startsWith(marker)) return;
+    // Strip the fragment immediately so a reload doesn't re-import the image.
+    history.replaceState(null, '', location.pathname + location.search);
+
+    let payload;
+    try {
+      payload = JSON.parse(decodeURIComponent(hash.slice(marker.length)));
+    } catch {
+      notify('Stencil: could not read the shared image', 'fail');
+      return;
+    }
+    if (!payload || typeof payload.dataUrl !== 'string') return;
+
+    // Page size must be applied BEFORE loading so the crop aspect and pixel↔page
+    // conversion match the size the image was cropped for in the extension.
+    if (payload.page && typeof payload.page === 'object') this.#setExternalPage(payload.page);
+
+    if (payload.incognito) {
+      this.storage.incognito = true;
+      this.updateIncognitoUI();
+    }
+
+    const name = typeof payload.name === 'string' && payload.name ? payload.name : 'image.png';
+    const crop = payload.crop && typeof payload.crop === 'object' ? payload.crop : null;
+    fetch(payload.dataUrl)
+      .then(r => r.blob())
+      .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), crop ? { crop } : {}))
+      .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
+  }
+
+  // Apply a page size handed in by the external launch and reflect it in the UI.
+  // page.width/height are in cm (only used for the 'custom' size).
+  #setExternalPage(page) {
+    const size = page.size === 'A4' ? 'A4' : page.size === 'custom' ? 'custom' : 'A3';
+    this.pageSize = size;
+    if (size === 'custom') {
+      const w = parseFloat(page.width), h = parseFloat(page.height);
+      if (!isNaN(w) && w > 0) this.customPageWidth = w;
+      if (!isNaN(h) && h > 0) this.customPageHeight = h;
+    }
+    const sel = document.getElementById('page-size');
+    if (sel) sel.value = size;
+    const cg = document.getElementById('custom-size-group');
+    if (cg) cg.style.display = size === 'custom' ? 'inline-flex' : 'none';
+    this.applyUnitToUI();   // refresh the custom width/height inputs in the active unit
+    this.coordTable.update();
   }
 
   // Page natural dimensions (cm) as selected — NOT orientation-swapped (only the

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stencil Image Picker — options</title>
+  <link rel="stylesheet" href="../lib/theme.css">
+  <style>
+    body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui,sans-serif; margin:0; padding:32px; }
+    .card { max-width:560px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:24px; }
+    h1 { font-size:18px; margin:0 0 4px; }
+    p.sub { color:var(--muted); margin:0 0 20px; }
+    label.f { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; }
+    input, select { width:100%; background:#343948; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:9px 10px; font-size:14px; }
+    .row { display:flex; gap:12px; align-items:center; margin-top:24px; }
+    button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:10px 18px; font-size:14px; cursor:pointer; }
+    .saved { color:#4ade80; font-size:13px; }
+    .help { color:var(--muted); font-size:12px; margin-top:6px; }
+    code { background:#343948; padding:1px 5px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Stencil Image Picker</h1>
+    <p class="sub">Where the editor is served, how it opens, and the default page size.</p>
+
+    <label class="f" for="editorUrl">Editor URL</label>
+    <input id="editorUrl" type="url" placeholder="http://localhost:8080/">
+    <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>
+
+    <label class="f" for="page">Default page size (crop aspect)</label>
+    <select id="page">
+      <option value="A3">A3</option>
+      <option value="A4">A4</option>
+    </select>
+
+    <div class="row">
+      <button id="save">Save</button>
+      <span id="status" class="saved"></span>
+    </div>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
