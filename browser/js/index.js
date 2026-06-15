@@ -20,5 +20,8 @@ window.onload = async () => {
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
+  // If the Stencil browser extension launched us with an image (URL fragment),
+  // import it now that every component is wired. No-op for normal sessions.
+  app.applyExternalLaunch();
   registerServiceWorker();        // enable offline + installable PWA (best-effort)
 };

@@ -30,6 +30,23 @@ jobs:
         working-directory: browser
         run: npm test
 
+  # ── Chrome extension: pure-logic unit tests (filtering + crop geometry) ───────
+  # Vanilla MV3 extension, no build step; node:test covers the chrome/DOM-free
+  # modules (the crop-geometry port mirrors browser/desktop, so divergence shows
+  # here too). No dependencies to install.
+  extension:
+    name: Extension (JS tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Run JS tests
+        working-directory: extension
+        run: npm test
+
   # ── Desktop app: C++17 core/tests (always) + Qt6 GUI build (when Qt present) ──
   desktop:
     name: Desktop (C++ build + tests)

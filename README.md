@@ -18,6 +18,11 @@ Stencil ships as **two front-ends over one shared logic core**:
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 
+A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
+lists, searches and filters every image on any web page and opens a chosen image in the
+Stencil editor (new tab) — with a quick in-page crop modal. Manifest V3, vanilla JS, no
+build step. See [extension/README.md](extension/README.md).
+
 ```mermaid
 graph TD
     CORE["<b>desktop/core/</b> — shared logic<br/>C++17, STL-only, GUI-free<br/><i>formulas · geometry · color · page metrics · history · projects</i>"]
@@ -55,6 +60,13 @@ desktop/                  # the desktop app
   CMakeLists.txt
   WASM.md             # how the core is built to wasm and wired into the browser
   README.md
+extension/            # companion Chrome extension (MV3) for the browser editor
+  manifest.json
+  src/                # background / popup / crop / options / lib
+  tests/              # node:test unit tests (pure filtering + crop geometry)
+  icons/              # icon.svg → symlink to browser/favicon.svg; icon-*.png generated
+  package.json
+  README.md
 ```
 
 ## Development
@@ -65,3 +77,4 @@ step.
 
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
+- Load & test the Chrome extension → [extension/README.md](extension/README.md)
