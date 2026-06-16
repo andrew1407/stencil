@@ -455,7 +455,9 @@ const syncHighlightCheckbox = async (tabId) => {
       target: { tabId }, func: () => !!document.getElementById('stencil-hl-style')
     });
     document.getElementById('f-highlight').checked = !!res?.result;
-  } catch { /* restricted page — leave as-is */ }
+  } catch {
+    /* restricted page — leave as-is */
+  }
 };
 
 // Highlight toggle: outline every grabbable element on the page. Off by default.

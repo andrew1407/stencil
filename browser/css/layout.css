@@ -109,14 +109,14 @@ select {
     color: var(--input-text);
 }
 button {
-    background: #007bff;
+    background: var(--accent);
     color: white;
     cursor: pointer;
     border: none;
     transition: background 0.3s;
 }
 button:hover {
-    background: #0056b3;
+    background: var(--accent-2);
 }
 button:disabled {
     background: #555;
@@ -220,7 +220,7 @@ button.danger:hover {
 }
 #zoom-input::-webkit-inner-spin-button,
 #zoom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-#zoom-input:focus { outline: 2px solid #007bff; outline-offset: 1px; }
+#zoom-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .shortcut-hint {
     font-size: 12px;
     color: var(--text-shortcut);
@@ -433,8 +433,8 @@ input[type="color"] {
 .coordinates-table tr:nth-child(even) { background: var(--bg-coord-even); }
 .coordinates-table tbody tr:hover { background: var(--bg-coord-hover); cursor: pointer; }
 .coordinates-table tbody tr.row-highlighted {
-    background: rgba(0,123,255,0.18) !important;
-    outline: 2px solid #007bff;
+    background: rgba(124,58,237,0.18) !important;
+    outline: 2px solid var(--accent);
 }
 .coordinates-table tbody tr.row-focused {
     background: rgba(255,200,0,0.28) !important;
@@ -446,13 +446,13 @@ input[type="color"] {
     width: 58px;
     background: var(--input-bg);
     color: var(--input-text);
-    border: 1px solid #007bff;
+    border: 1px solid var(--accent);
     border-radius: 3px;
     padding: 1px 3px;
     font-size: 12px;
     outline: none;
 }
-.coord-px-input:focus { box-shadow: 0 0 0 2px rgba(0,123,255,0.35); }
+.coord-px-input:focus { box-shadow: 0 0 0 2px rgba(124,58,237,0.35); }
 
 /* delete point btn */
 .del-pt-btn {

@@ -201,7 +201,7 @@ export class StencilFullscreenLayer extends StencilElement {
       document.body.classList.toggle('fullscreen-mode', isFullscreen);
       fsBtn.textContent = '⛶';
       fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
-      fsBtn.style.background = isFullscreen ? '#007bff' : '';
+      fsBtn.style.background = isFullscreen ? '#7c3aed' : '';
       fsBtn.style.color = isFullscreen ? '#fff' : '';
 
       // Helper: restore the saved zoom level and re-centre the viewport on the

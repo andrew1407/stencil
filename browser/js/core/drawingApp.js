@@ -158,8 +158,8 @@ export class DrawingApp {
 
     // ── Configurable visuals (persisted) ──
     this.selGlowColor = '#ffc800'; // selection highlight glow (lines + points)
-    this.hoverRingColor = '#007bff'; // hover ring around points
-    this.focusRingColor = '#007bff'; // focused/clicked point ring
+    this.hoverRingColor = '#7c3aed'; // hover ring around points
+    this.focusRingColor = '#7c3aed'; // focused/clicked point ring
     this.defaultFillColor = '#3399ff'; // default fill applied to new locked areas
 
     // ── Multi-project state ──
@@ -689,7 +689,9 @@ export class DrawingApp {
       const text = cd.getData('text/plain');
       if (text) {
         let data = null;
-        try { data = JSON.parse(text); } catch {}
+        try {
+          data = JSON.parse(text);
+        } catch {}
         if (data && Array.isArray(data.lines)) {
           e.preventDefault();
           this.applyPastedLayout(data);

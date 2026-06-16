@@ -1,4 +1,9 @@
 :root {
+    /* Brand accent — violet, matching the Stencil logo + extension palette
+       (extension/src/lib/theme.css). --accent is the primary, --accent-2 the
+       darker hover/active shade. */
+    --accent:         #7c3aed;
+    --accent-2:       #6d28d9;
     --bg-page:        #f0f0f0;
     --bg-container:   #ffffff;
     --bg-controls:    #f8f9fa;
@@ -7,18 +12,18 @@
     --bg-coord-table: #ffffff;
     --bg-coord-even:  #f8f9fa;
     --bg-coord-hover: #e9ecef;
-    --bg-coord-th:    #007bff;
+    --bg-coord-th:    var(--accent);
     --bg-tooltip:     #f8f9fa;
     --bg-tt-th:       #e9ecef;
     --bg-tt-td:       #ffffff;
     --bg-sel-panel:   #fff8e1;
-    --bg-drop-hint:   #f0f4ff;
+    --bg-drop-hint:   #f3effc;
     --border-main:    #ddd;
     --border-canvas:  #ddd;
     --border-coord:   #ddd;
     --border-tooltip: #2c3e50;
     --border-sel:     #f0b429;
-    --border-hint:    #b0c4ef;
+    --border-hint:    #cdbdf2;
     --text-main:      #000000;
     --text-label:     inherit;
     --text-muted:     #888;
@@ -26,7 +31,7 @@
     --text-coord-h3:  #333;
     --text-sel-label: #7a5c00;
     --text-shortcut:  #999;
-    --text-key:       #0066cc;
+    --text-key:       #6d28d9;
     --text-empty:     #666;
     --text-tooltip:   #2c3e50;
     --text-tt-header: #1a252f;
@@ -40,6 +45,8 @@
 }
 
 [data-theme="dark"] {
+    --accent:         #7c3aed;
+    --accent-2:       #9b6cf2;
     --bg-page:        #1a1a1a;
     --bg-container:   #242424;
     --bg-controls:    #2d2d2d;
@@ -48,18 +55,18 @@
     --bg-coord-table: #1e1e1e;
     --bg-coord-even:  #2a2a2a;
     --bg-coord-hover: #3a3a3a;
-    --bg-coord-th:    #0056b3;
+    --bg-coord-th:    var(--accent-2);
     --bg-tooltip:     #2d2d2d;
     --bg-tt-th:       #3a3a3a;
     --bg-tt-td:       #242424;
     --bg-sel-panel:   #2e2a17;
-    --bg-drop-hint:   #1e2340;
+    --bg-drop-hint:   #241a3a;
     --border-main:    #444;
     --border-canvas:  #555;
     --border-coord:   #444;
     --border-tooltip: #7f8fa6;
     --border-sel:     #b8860b;
-    --border-hint:    #4a5a8f;
+    --border-hint:    #5a4a8f;
     --text-main:      #e0e0e0;
     --text-label:     #cccccc;
     --text-muted:     #aaaaaa;
@@ -67,7 +74,7 @@
     --text-coord-h3:  #cccccc;
     --text-sel-label: #e0b84a;
     --text-shortcut:  #888888;
-    --text-key:       #5aa9ff;
+    --text-key:       #9b6cf2;
     --text-empty:     #888888;
     --text-tooltip:   #e0e0e0;
     --text-tt-header: #f0f0f0;

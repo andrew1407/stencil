@@ -8,7 +8,11 @@ export const scanPageForImages = (limit) => {
   const seen = new Set();
   const abs = (raw) => {
     if (!raw) return '';
-    try { return new URL(raw, location.href).href; } catch { return ''; }
+    try {
+      return new URL(raw, location.href).href;
+    } catch {
+      return '';
+    }
   };
   // `extra` carries video-only fields (videoUrl, hasFrame). A frameless, posterless
   // video still lists (keyed on its media URL) so it can be opened in a tab.
@@ -44,7 +48,9 @@ export const scanPageForImages = (limit) => {
         c.width = cw; c.height = ch;
         c.getContext('2d').drawImage(v, 0, 0, cw, ch);
         frame = c.toDataURL('image/jpeg', 0.92);
-      } catch { frame = null; }
+      } catch {
+        frame = null;
+      }
     }
     // Only an http(s) media URL is reachable from another context; a page-created
     // blob: URL isn't, so leave it out.

@@ -25,7 +25,7 @@ namespace stencil::gui {
     QColor textKey;      // --text-key         (shortcut keys)
     QColor inputBg;      // --input-bg
     QColor inputText;    // --input-text
-    QColor accent;       // --bg-coord-th      (primary / table header blue)
+    QColor accent;       // --bg-coord-th      (primary / table header — brand violet)
     QColor selGlow;      // DEFAULT_VISUALS.selGlowColor
     QColor hoverRing;    // DEFAULT_VISUALS.hoverRingColor
   };

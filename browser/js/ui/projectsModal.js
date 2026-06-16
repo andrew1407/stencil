@@ -42,7 +42,11 @@ export class StencilProjectsModal extends StencilElement {
 
     const fmtDate = ts => {
       if (!ts) return '';
-      try { return new Date(ts).toLocaleString(); } catch { return ''; }
+      try {
+        return new Date(ts).toLocaleString();
+      } catch {
+        return '';
+      }
     };
 
     const expiryLabel = meta => {

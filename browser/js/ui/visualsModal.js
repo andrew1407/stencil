@@ -70,7 +70,7 @@ export class StencilVisualsModal extends StencilElement {
     const VIS_DEFAULTS = {
       color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
       defaultFillColor: '#3399ff', selGlowColor: '#ffc800',
-      hoverRingColor: '#007bff', focusRingColor: '#007bff'
+      hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed'
     };
 
     const els = {

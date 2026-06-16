@@ -42,7 +42,11 @@ export class ProjectsStore {
     const s = this.#storage;
     if (!s) return [];
     if (typeof s.keys === 'function') return Array.from(s.keys());
-    try { return Object.keys(s); } catch { return []; }
+    try {
+      return Object.keys(s);
+    } catch {
+      return [];
+    }
   }
 
   #readJSON(key, fallback) {
@@ -154,7 +158,9 @@ export class ProjectsStore {
   remove(id) {
     const arr = this.#readRegistry().filter(m => !(m && m.id === id));
     this.#writeRegistry(arr);
-    try { this.#storage.removeItem(this.#payloadKey(id)); } catch {}
+    try {
+      this.#storage.removeItem(this.#payloadKey(id));
+    } catch {}
   }
 
   // Wipe every project (all stencil_project_* keys + the registry). MUST NOT
@@ -162,10 +168,14 @@ export class ProjectsStore {
   clearAll() {
     for (const key of this.#keys()) {
       if (key.startsWith(PROJECT_PREFIX)) {
-        try { this.#storage.removeItem(key); } catch {}
+        try {
+          this.#storage.removeItem(key);
+        } catch {}
       }
     }
-    try { this.#storage.removeItem(REGISTRY_KEY); } catch {}
+    try {
+      this.#storage.removeItem(REGISTRY_KEY);
+    } catch {}
   }
 
   // ── expiry ────────────────────────────────────────────────────
