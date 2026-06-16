@@ -109,15 +109,37 @@ const fitLaunchPayload = async (editorUrl, payload) => {
   return { payload, url };
 };
 
-// Open the full editor in a NEW browser tab with the given image payload.
+// Build the editor launch URL for a payload, shrinking the image if needed so the
+// URL stays under the length limit. Shared by the tab and in-page-modal launchers.
 //   payload = { dataUrl, name?, crop?, page?, incognito? }
-// The editor's own multi-project / cross-tab UI surfaces any already-open editors.
-export const openEditorTab = async (payload) => {
+const buildEditorLaunchUrl = async (payload) => {
   const { editorUrl } = await getSettings();
   const fitted = await fitLaunchPayload(editorUrl, payload);
   if (fitted.url.length > MAX_PAYLOAD)
     console.warn(`[stencil] launch URL is ${fitted.url.length} bytes — image may be too large.`);
-  return chrome.tabs.create({ url: fitted.url });
+  return fitted.url;
+};
+
+// Open the full editor in a NEW browser tab with the given image payload.
+// The editor's own multi-project / cross-tab UI surfaces any already-open editors.
+export const openEditorTab = async (payload) =>
+  chrome.tabs.create({ url: await buildEditorLaunchUrl(payload) });
+
+// Open the full editor as a small in-page modal on the given tab (mirrors
+// launchCrop). Falls back to a real tab with no tabId, or when the modal can't be
+// injected (restricted page) / the editor frame is later blocked by the page CSP.
+//   { dataUrl, name?, crop?, page?, incognito?, tabId }
+export const launchEditorModal = async ({ tabId, ...payload }) => {
+  const url = await buildEditorLaunchUrl(payload);
+  if (tabId == null) return chrome.tabs.create({ url });
+  const title = payload.incognito ? 'Stencil editor (incognito)' : 'Stencil editor';
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, title, 8000]
+    });
+  } catch {
+    return chrome.tabs.create({ url });
+  }
 };
 
 // The crop page reads its image from session storage under this key — not the

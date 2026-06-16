@@ -1,17 +1,41 @@
-/* ── Shared dark theme ───────────────────────────────────────────────────────
+/* ── Shared theme — follows the OS light/dark preference ──────────────────────
    Single source of truth for the palette used by the extension's own pages
-   (popup, crop, options). Link this BEFORE a page's own stylesheet. The injected
-   in-page modal (lib/overlay.js) can't use this — it must be self-contained — so
-   it keeps its colours inline on purpose. */
+   (popup, crop, options). Link this BEFORE a page's own stylesheet. Light is the
+   default; the @media (prefers-color-scheme: dark) block swaps in the dark
+   palette, so the UI tracks the system setting live with no JS — the same
+   prefers-color-scheme contract the browser app (browser/css/theme.css) and the
+   desktop app (QStyleHints::colorScheme) already follow. color-scheme also lets
+   native bits (form controls, scrollbars) match. The injected in-page modal
+   (lib/overlay.js) can't link this — it must be self-contained — so it carries
+   the same media query inline. */
 :root {
-  --bg: #21242d;
-  --panel: #2b2f3a;
-  --panel-2: #343948;
-  --line: #3d4354;
-  --text: #e8eaf0;
-  --muted: #9aa0b0;
+  color-scheme: light dark;
+  /* Light (default) */
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #eceef3;
+  --line: #d4d8e2;
+  --text: #1d2230;
+  --muted: #6b7180;
   --accent: #7c3aed;
-  --accent-2: #9b6cf2;
-  --yellow: #ffd400;
+  --accent-2: #6d28d9;
+  --yellow: #a67c00;
+  --check-a: #e7eaf0;
+  --check-b: #dfe2ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #21242d;
+    --panel: #2b2f3a;
+    --panel-2: #343948;
+    --line: #3d4354;
+    --text: #e8eaf0;
+    --muted: #9aa0b0;
+    --accent: #7c3aed;
+    --accent-2: #9b6cf2;
+    --yellow: #ffd400;
+    --check-a: #2a2e38;
+    --check-b: #262a33;
+  }
 }
 * { box-sizing: border-box; }

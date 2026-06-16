@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MENU, MENU_ITEMS, resolveContextAction } from '../src/lib/contextMenu.js';
 
-test('MENU_ITEMS: one parent + three actions, all always-visible on the all context', () => {
+test('MENU_ITEMS: one parent + five actions, all always-visible on the all context', () => {
   const parents = MENU_ITEMS.filter(i => !i.parentId);
   assert.deepEqual(parents.map(p => p.id), [MENU.parent]);
   const children = MENU_ITEMS.filter(i => i.parentId);
-  assert.equal(children.length, 3);
+  assert.equal(children.length, 5);
   assert.ok(children.every(c => c.parentId === MENU.parent));
   // every item is on 'all' and none is hidden (no visibility toggling — see module doc)
   assert.ok(MENU_ITEMS.every(i => i.contexts.includes('all')));
@@ -36,6 +36,15 @@ test('resolveContextAction: incognito + crop variants', () => {
   assert.equal(resolveContextAction({ menuItemId: MENU.openIncognito }, 'b').incognito, true);
   assert.deepEqual(resolveContextAction({ menuItemId: MENU.crop, srcUrl: 'a' }), { action: 'crop', src: 'a' });
   assert.deepEqual(resolveContextAction({ menuItemId: MENU.crop }, 'b'), { action: 'crop', src: 'b' });
+});
+
+test('resolveContextAction: in-page modal variants carry the open-modal action', () => {
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.openModal, srcUrl: 'a' }),
+    { action: 'open-modal', src: 'a', incognito: false });
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.openModalIncognito, srcUrl: 'a' }),
+    { action: 'open-modal', src: 'a', incognito: true });
+  // background-image path (no srcUrl) resolves from the recorded URL too
+  assert.equal(resolveContextAction({ menuItemId: MENU.openModal }, 'b').action, 'open-modal');
 });
 
 test('resolveContextAction: null when id is foreign or no URL is available', () => {

@@ -21,8 +21,8 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .viewport {
   max-height: 72vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px;
   background:
-    linear-gradient(45deg, #2a2e38 25%, transparent 25%, transparent 75%, #2a2e38 75%) 0 0/20px 20px,
-    linear-gradient(45deg, #2a2e38 25%, #262a33 25%, #262a33 75%, #2a2e38 75%) 10px 10px/20px 20px;
+    linear-gradient(45deg, var(--check-a) 25%, transparent 25%, transparent 75%, var(--check-a) 75%) 0 0/20px 20px,
+    linear-gradient(45deg, var(--check-a) 25%, var(--check-b) 25%, var(--check-b) 75%, var(--check-a) 75%) 10px 10px/20px 20px;
 }
 .stage { position: relative; display: inline-block; line-height: 0; user-select: none; touch-action: none; }
 #image { display: block; max-width: none; }
