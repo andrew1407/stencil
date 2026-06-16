@@ -31,6 +31,10 @@ namespace stencil::gui {
         "projects", "Open the Projects window at launch.");
     parser.addOptions({themeOpt, projectOpt, srcOpt, frameOpt, incognitoOpt,
                        layoutOpt, projectsOpt});
+    // A bare file path (what a file-association / "Open With" passes), opened via
+    // the same suffix-sniffing path as a drag-and-drop.
+    parser.addPositionalArgument("file", "Image, video, or layout JSON to open.",
+                                 "[file]");
 
     // process() honors --help/--version and exits on a malformed command line,
     // which is the conventional CLI behavior (the GUI only starts on success).
@@ -56,6 +60,8 @@ namespace stencil::gui {
     o.incognito = parser.isSet(incognitoOpt);
     o.layout = parser.value(layoutOpt).trimmed();
     o.projects = parser.isSet(projectsOpt);
+    const QStringList positional = parser.positionalArguments();
+    if (!positional.isEmpty()) o.file = positional.first().trimmed();
     return o;
   }
 

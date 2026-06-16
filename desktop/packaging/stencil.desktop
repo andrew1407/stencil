@@ -3,8 +3,23 @@ Type=Application
 Name=Stencil
 GenericName=Image Annotator
 Comment=Load an image, draw polylines and rectangles over it, edit points, and save your work
-Exec=stencil_gui
+# %f passes a launcher/file-manager-selected file as a positional arg, opened by
+# openPathFromOS (image/video -> editor, *.json -> layout).
+Exec=stencil_gui %f
 Icon=stencil
 Terminal=false
 Categories=Graphics;2DGraphics;RasterGraphics;
 Keywords=image;annotation;drawing;polyline;rectangle;
+# File associations: double-click / "Open With" in the file manager launches the
+# app with the file as a positional arg.
+MimeType=image/png;image/jpeg;image/bmp;image/gif;image/webp;video/mp4;video/quicktime;video/webm;video/x-matroska;application/json;
+# Right-click (Jump-list-style) launcher actions.
+Actions=Incognito;Projects;
+
+[Desktop Action Incognito]
+Name=New Incognito Editor
+Exec=stencil_gui --incognito
+
+[Desktop Action Projects]
+Name=Open Projects
+Exec=stencil_gui --projects

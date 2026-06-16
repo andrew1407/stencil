@@ -30,9 +30,10 @@ namespace stencil::gui {
     // first frame; ignored for still images. Negative/invalid clamps to 0.
     int frame = 0;
 
-    // --incognito : edit without saving. Only honored when a fresh image --src is
-    // opened (never for a saved --project), mirroring the browser, where incognito
-    // rides along the external-image launch payload, not a project deep-link.
+    // --incognito : edit without saving. Honored whenever we are NOT opening a
+    // saved --project (a blank incognito editor, or an incognito image --src);
+    // ignored for --project, mirroring the browser, where incognito rides along
+    // the external-image launch, not a project deep-link.
     bool incognito = false;
 
     // --layout <path|url> : a layout JSON to apply once a --src image has loaded
@@ -42,11 +43,16 @@ namespace stencil::gui {
     // --projects : open the Projects window at launch.
     bool projects = false;
 
+    // A bare positional file argument (image / video / layout JSON), the form an
+    // OS file-association or "Open With" hands the app. Routed through the same
+    // suffix-sniffing open path as drag-and-drop. Lower priority than --src.
+    QString file;
+
     // True when nothing was requested (a plain launch) — applyLaunchOptions then
     // does nothing and the normal session-restore stands.
     bool empty() const {
       return !hasTheme && project.isEmpty() && src.isEmpty() && layout.isEmpty() &&
-             !projects;
+             !projects && !incognito && file.isEmpty();
     }
   };
 

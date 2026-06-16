@@ -24,6 +24,9 @@ class QJsonObject;
 class QActionGroup;
 class QWidgetAction;
 class QImage;
+class QMenu;
+class QDragEnterEvent;
+class QDropEvent;
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
 // toolbar.js + the DrawingApp wiring: a toolbar of actions, the canvas in the
@@ -40,12 +43,21 @@ namespace stencil::gui {
   class MainWindow : public QMainWindow {
     Q_OBJECT
    public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    // restoreLast=false skips reloading the last autosaved session, so the editor
+    // starts empty — used for a "New Incognito Editor" window (and an incognito
+    // launch), which should begin blank rather than resurrecting prior content.
+    explicit MainWindow(QWidget* parent = nullptr, bool restoreLast = true);
 
     // Apply command-line launch options (the desktop counterpart of the browser's
     // URL deep-links). Called from main() AFTER show() so the async image / video
     // / network resolution runs on the event loop. See gui/launchOptions.hpp.
     void applyLaunchOptions(const LaunchOptions& opts);
+
+    // Open a file handed in by the OS shell — a Finder/Explorer "Open With", a
+    // file-association double-click (via QFileOpenEvent / argv), or a drag onto
+    // the window. Sniffs the suffix: *.json → layout, else image/video → --src.
+    // `frame` selects the video frame (0 = first).
+    void openPathFromOS(const QString& path, int frame = 0);
 
    private slots:
     void openImage();
@@ -160,6 +172,22 @@ namespace stencil::gui {
     // Launch support: load a layout JSON from a local path or URL and adopt it
     // (shared applyLayoutJson guards apply). Used for --layout after --src loads.
     void applyLayoutFromSource(const QString& src);
+    // Lazily build + wire the async --src resolver, then begin resolving `src`
+    // (image / URL / video frame). Shared by --src, the positional/OS open path,
+    // and drag-and-drop.
+    void openImageSource(const QString& src, int frame);
+    void ensureMediaLoader();
+
+    // OS-shell window spawners for the Dock menu / Jump-list-style actions. They
+    // create self-owned top-level windows (WA_DeleteOnClose) so they never depend
+    // on the lifetime of the window that triggered them — safe to invoke from a
+    // long-lived application Dock menu.
+    static void openIncognitoWindow();
+    static void openProjectsWindow();
+    static void openProjectWindowById(const QString& id);
+    // Rebuild the macOS Dock menu (New Incognito Editor · Open Projects · recent
+    // projects). No-op off macOS. Called after project-list changes.
+    void refreshDockMenu();
     void newProjectFromCanvas();
     // Shared project-creation: build a Project from the current canvas, persist,
     // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.
@@ -173,6 +201,10 @@ namespace stencil::gui {
     // browser uploadJSON/applyPastedLayout (drawingApp.js ~2101-2222).
     void applyLayoutJson(const QJsonObject& obj);
     void keyPressEvent(QKeyEvent* event) override;
+    // Drag-and-drop of a file onto the window (image / video / layout JSON),
+    // routed through openPathFromOS — the Photoshop-style drop-to-open.
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
     // ── core widgets ──
     CanvasWidget* canvas_ = nullptr;
@@ -329,6 +361,11 @@ namespace stencil::gui {
     MediaLoader* mediaLoader_ = nullptr;
     // A --layout source held until the --src image has loaded, then applied once.
     QString pendingLaunchLayout_;
+
+    // macOS Dock menu, shared across all windows (last setAsDockMenu wins, so a
+    // single app-lifetime menu avoids dangling when a window closes). Owned by the
+    // app, not any window. Unused off macOS.
+    static QMenu* sDockMenu_;
   };
 
 }
