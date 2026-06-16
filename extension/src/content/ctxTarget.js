@@ -5,7 +5,10 @@
 //   • CSS background-image (element or ancestor, incl. ::before/::after) → { url }
 //   • <video> → current frame as a data URL { url }; if cross-origin (tainted
 //     canvas) → a screenshot-crop request { video:true, rect, dpr } instead.
-//   • real <img>/<svg><image> → null (native 'image' context + info.srcUrl cover it).
+//   • real <img>/<svg><image> directly under the cursor → null (native 'image'
+//     context + info.srcUrl cover it).
+//   • an <img>/background-image hidden under click-catcher overlays → { url }
+//     found by hit-testing the cursor point.
 // Self-contained (content scripts can't import). The guard stops a double
 // injection (manifest + executeScript) from binding two listeners.
 (() => {
@@ -61,26 +64,44 @@
     }
   };
 
-  // The <video> the right-click really points at. Players often lay a controls
-  // overlay over the <video> as a sibling, so closest() misses it. Three escalating
-  // attempts: 1) closest(); 2) hit-test the cursor point (sees through an overlay
-  // to the video under it); 3) geometric test (a <video> box containing the cursor,
-  // for when the hit-test only reports a wrapper / closed shadow host).
+  // The <video> the right-click points at. Players lay a controls/link overlay over
+  // the <video>, so closest() misses it; fall back to a geometric hit-test.
   const videoAt = (start, x, y) => {
     const direct = start.closest && start.closest('video');
     if (direct) return direct;
-    if (typeof document.elementsFromPoint === 'function' && x != null) {
-      for (const el of document.elementsFromPoint(x, y)) {
-        if (el.tagName === 'VIDEO') return el;
-        const v = el.querySelector && el.querySelector('video');
-        if (v) return v;
-      }
-    }
     if (x != null) {
+      // Smallest <video> whose box contains the cursor — spatially correct, and
+      // (unlike querySelector on an ancestor) never picks a different video when
+      // several share a wrapper.
+      let best = null, bestArea = Infinity;
       for (const v of document.querySelectorAll('video')) {
         const r = v.getBoundingClientRect();
-        if (r.width && r.height && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return v;
+        if (r.width && r.height && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          const a = r.width * r.height;
+          if (a < bestArea) { bestArea = a; best = v; }
+        }
       }
+      if (best) return best;
+      if (typeof document.elementsFromPoint === 'function')
+        for (const el of document.elementsFromPoint(x, y)) if (el.tagName === 'VIDEO') return el;
+    }
+    return null;
+  };
+
+  // Absolute URL of the first <img>/<svg><image> or background-image element under
+  // the cursor point — for photos buried beneath click-catcher overlays, where
+  // neither the native image context nor an ancestor walk sees the picture.
+  const imageUnderPoint = (x, y) => {
+    if (x == null || typeof document.elementsFromPoint !== 'function') return null;
+    for (const el of document.elementsFromPoint(x, y)) {
+      // <img>: currentSrc/src are URL strings. <svg><image>: el.src is an
+      // SVGAnimatedString (not a URL) — read the href attribute instead.
+      const u = el.tagName === 'IMG' ? (el.currentSrc || el.src)
+        : el.tagName === 'IMAGE' ? (el.getAttribute('href') || el.getAttribute('xlink:href'))
+          : null;
+      if (u) { try { return new URL(u, location.href).href; } catch { return u; } }
+      const bg = cssImageUrlOf(el);
+      if (bg) { try { return new URL(bg, location.href).href; } catch { return bg; } }
     }
     return null;
   };
@@ -125,7 +146,10 @@
       return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1 };
     }
     const bg = bgUrlFor(start);
-    return bg ? { url: bg } : null;
+    if (bg) return { url: bg };
+    // Last resort: a real image hidden under overlay elements at the cursor point.
+    const under = imageUnderPoint(x, y);
+    return under ? { url: under } : null;
   };
 
   document.addEventListener('contextmenu', (e) => {
