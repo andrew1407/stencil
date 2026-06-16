@@ -92,6 +92,32 @@ export const scaleLinePoints = (lines, scale) => {
     }
 };
 
+// Rotate a crop rect one quarter turn within an image of imageW x imageH (the
+// space the rect currently lives in). The turned image is imageH x imageW;
+// `clockwise` rotates the picture right. Port of core::rotateCropRectQuarter.
+export const rotateCropRectQuarterJS = (r, imageW, imageH, clockwise) =>
+  clockwise
+    ? { x: imageH - (r.y + r.height), y: r.x, width: r.height, height: r.width }
+    : { x: r.y, y: imageW - (r.x + r.width), width: r.height, height: r.width };
+
+// Rotate every crop-local point of every line one quarter turn inside a crop box
+// of boxW x boxH, in place (the box becomes boxH x boxW). Like scaleLinePoints
+// this runs in JS in both builds — no wasm marshalling needed.
+export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
+  for (const line of lines)
+    for (const p of line.points) {
+      const px = p.x;
+      const py = p.y;
+      if (clockwise) {
+        p.x = boxH - py;
+        p.y = px;
+      } else {
+        p.x = py;
+        p.y = boxW - px;
+      }
+    }
+};
+
 // ── Public API: wasm when loaded, JS reference otherwise ──
 
 export const isAlbumOrientation = (w, h) =>
@@ -114,3 +140,6 @@ export const cropResizeScale = (oldWidth, newWidth) =>
 
 export const cropChange = (oldRect, newRect) =>
   (core.op('cropChange') ?? cropChangeJS)(oldRect, newRect);
+
+export const rotateCropRectQuarter = (r, imageW, imageH, clockwise) =>
+  (core.op('rotateCropRectQuarter') ?? rotateCropRectQuarterJS)(r, imageW, imageH, clockwise);

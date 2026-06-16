@@ -1,15 +1,10 @@
 // ── Context-menu definitions + click resolution (pure, unit-tested) ──────────
-// One "Stencil" group on the 'all' context, always visible. It covers both:
-//   • <img> / <svg><image> — Chrome fills info.srcUrl, used directly.
-//   • background-image elements — there's no native context and info.srcUrl is
-//     empty, so we use the URL the content-script probe recorded for the element
-//     under the cursor (src/content/ctxTarget.js).
-// Why always visible (rather than toggling visibility per right-click): in MV3
-// the service worker is frequently asleep when the menu opens, so a
-// contextMenus.update() fired from the probe message loses the race and the item
-// never shows. Recording the URL, by contrast, is reliable — the click happens
-// long after the probe ran. The trade-off is that "Stencil" shows on every
-// right-click; on a spot with no image the actions resolve to nothing (no-op).
+// One always-visible "Stencil" group on the 'all' context. It covers <img>/<svg>
+// (Chrome fills info.srcUrl) and background-image elements (no native context, so
+// the probe in ctxTarget.js records the URL under the cursor for us to use).
+// Always-visible rather than toggled per right-click because in MV3 the worker is
+// often asleep when the menu opens, so a contextMenus.update() loses the race. The
+// trade-off: the group shows everywhere; on a spot with no image it's a no-op.
 export const MENU = {
   parent: 'stencil-parent',
   open: 'stencil-open',
@@ -34,11 +29,9 @@ export const MENU_ITEMS = [
   { id: MENU.crop, parentId: MENU.parent, title: '✂ Crop image in Stencil…', contexts: CONTEXTS }
 ];
 
-// Decide what a context-menu click should do. `info` is the onClicked payload;
-// `recordedUrl` is the image URL the content-script probe last saw under the
-// cursor (a background-image, used when info.srcUrl is empty). info.srcUrl wins
-// (it's the real <img>). Returns null when the id isn't ours or there's no URL —
-// e.g. the user invoked Stencil on a spot with no image.
+// Decide what a context-menu click should do. info.srcUrl (the real <img>) wins
+// over `recordedUrl` (the background-image the probe saw). Returns null when the
+// id isn't ours or there's no URL (e.g. invoked on a spot with no image).
 export const resolveContextAction = (info = {}, recordedUrl = null) => {
   const spec = ACTIONS[info.menuItemId];
   if (!spec) return null;

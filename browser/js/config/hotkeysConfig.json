@@ -14,6 +14,8 @@
   { "id": "zoomOut", "label": "Zoom Out", "default": "Alt+ArrowDown" },
   { "id": "zoomInBig", "label": "Zoom In (Large Step)", "default": "Alt+Shift+ArrowUp" },
   { "id": "zoomOutBig", "label": "Zoom Out (Large Step)", "default": "Alt+Shift+ArrowDown" },
+  { "id": "rotateImageLeft", "label": "Rotate Image Left", "default": "Alt+R" },
+  { "id": "rotateImageRight", "label": "Rotate Image Right", "default": "Alt+Shift+R" },
   { "id": "copyImage", "label": "Copy Image to Clipboard", "default": "Ctrl+C" },
   { "id": "copyLayout", "label": "Copy Layout JSON", "default": "Alt+J" },
   { "id": "paste", "label": "Paste (Image or Layout)", "default": "Ctrl+V" },

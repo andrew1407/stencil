@@ -1,16 +1,17 @@
 // ── Image-list filtering (pure, dependency-free, unit-tested) ────────────────
-// The popup keeps the full scan result and derives the visible subset from a
-// filter state. Kept here, free of chrome/DOM, so it runs under `node --test`.
 
-// Bucket label for images whose format can't be detected (no extension, opaque
-// URL, etc.). Surfaced as its own "ETC" checkbox so these can be filtered too.
+// Bucket label for media whose format can't be detected (no extension, opaque URL).
 export const UNKNOWN_FORMAT = 'etc';
 
-// Lowercase image "format" from a URL or data: URI ('' if unknown).
+// Video container formats offered in the filter. A video's format comes from its
+// media URL (item.videoUrl), not its opaque JPEG still — see formatOfItem.
+export const VIDEO_FORMATS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv'];
+
+// Lowercase media "format" from a URL or data: URI ('' if unknown).
 export const formatOf = (src) => {
   if (!src) return '';
   if (src.startsWith('data:')) {
-    const m = /^data:image\/([a-z0-9.+-]+)/i.exec(src);
+    const m = /^data:(?:image|video)\/([a-z0-9.+-]+)/i.exec(src);
     return m ? norm(m[1]) : '';
   }
   let path = src;
@@ -19,13 +20,17 @@ export const formatOf = (src) => {
   return m ? norm(m[1]) : '';
 };
 
-const norm = ext => ext.toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+// The format used to filter an item: a video keys on its media URL, the rest on `src`.
+export const formatOfItem = (item) =>
+  item && item.kind === 'video' ? formatOf(item.videoUrl) : formatOf(item && item.src);
+
+const norm = ext => ext.toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg').replace('quicktime', 'mov');
 
 // Distinct, sorted formats present in the items.
 export const distinctFormats = (items) => {
   const set = new Set();
   for (const it of items) {
-    const f = formatOf(it.src);
+    const f = formatOfItem(it);
     if (f) set.add(f);
   }
   return [...set].sort();
@@ -43,11 +48,8 @@ export const extractCssUrls = (bg) => {
 
 // Does an item pass the active filter state?
 //   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo }
-// `formats` is an array of allowed lowercase formats (from the checkbox group).
-// An item's format must be in it; items whose format can't be detected are
-// bucketed as UNKNOWN_FORMAT ('etc') and pass only when 'etc' is in the set.
-// Numeric bounds are null/undefined when empty (= no bound). Items with unknown
-// size (w/h <= 0) PASS the size filters — they're measured lazily afterwards.
+// Undetectable formats bucket as UNKNOWN_FORMAT ('etc'). Empty numeric bounds are
+// null. Items with unknown size (w/h <= 0) pass the size filters (measured later).
 export const passesFilters = (item, f = {}) => {
   if (item.kind === 'img' && f.includeImg === false) return false;
   if (item.kind === 'bg' && f.includeBg === false) return false;
@@ -61,10 +63,8 @@ export const passesFilters = (item, f = {}) => {
     if (!inName && !inSrc && !inVideoUrl) return false;
   }
 
-  // Videos are governed by the dedicated 'video' toggle, not the image-format set
-  // (their still is an opaque JPEG frame), so don't format-filter them away.
-  if (Array.isArray(f.formats) && item.kind !== 'video') {
-    const fmt = formatOf(item.src) || UNKNOWN_FORMAT;
+  if (Array.isArray(f.formats)) {
+    const fmt = formatOfItem(item) || UNKNOWN_FORMAT;
     if (!f.formats.includes(fmt)) return false;
   }
 

@@ -29,7 +29,7 @@ namespace stencil::gui {
 
     bool loadImage(const QString& path);
     void restore(const QString& path, const core::Lines& lines, double scale,
-                 const core::CropRect& cropRect = {});
+                 const core::CropRect& cropRect = {}, int rotationQuarters = 0);
     const QString& imagePath() const { return imagePath_; }
     bool hasImage() const { return !image_.isNull(); }
     int imageWidth() const { return image_.width(); }
@@ -38,7 +38,17 @@ namespace stencil::gui {
     // ── crop (shared cropGeometry; mirrors browser DrawingApp.applyCrop) ──
     // The untouched original; the working `image_` is just the cropped region.
     const QImage& originalImage() const { return originalImage_; }
+    // The original with the current rotation baked in (== originalImage_ when not
+    // rotated). This is the pixel space cropRect_ lives in; the crop dialog
+    // previews it.
+    QImage effectiveOriginalImage() const;
     core::CropRect cropRect() const { return cropRect_; }
+    // Non-destructive 90° rotation: quarter-turns (0..3, clockwise) applied to the
+    // original before the crop is taken. Persisted alongside cropRect_.
+    int rotationQuarters() const { return rotationQuarters_; }
+    // Rotate the whole image a quarter turn (clockwise = right). The crop window
+    // and every line follow the picture so the framing/drawing stay put.
+    void rotateImage(bool clockwise);
     // Natural page dimensions (cm, NOT orientation-swapped) used to shape the
     // default centered crop. Set by MainWindow on page-size changes.
     void setPageCm(double widthCm, double heightCm);
@@ -227,10 +237,12 @@ namespace stencil::gui {
     // centered crop's aspect (set by MainWindow from the current page size).
     QImage originalImage_;
     core::CropRect cropRect_;
+    // 90° quarter-turns (0..3, clockwise) baked into the original before cropping.
+    int rotationQuarters_ = 0;
     double pageWidthCm_ = 29.7;
     double pageHeightCm_ = 42.0;
-    core::CropRect defaultCropRect() const;  // centered crop for originalImage_
-    void rebuildCroppedFromOriginal();       // image_ <- originalImage_ ∩ cropRect_
+    core::CropRect defaultCropRect() const;  // centered crop for the rotated original
+    void rebuildCroppedFromOriginal();       // image_ <- rotated original ∩ cropRect_
     QString imagePath_;
     core::Lines lines_;
     core::Line currentLine_;

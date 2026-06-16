@@ -1,15 +1,10 @@
 // ── In-page highlight overlay (injected) ─────────────────────────────────────
-// toggleStencilHighlight(on) marks every element Stencil can pull an image from
-// — <img>, inline <svg><image>, and elements with a CSS background-image (incl.
-// ::before / ::after) — with a persistent outline, AND:
-//   • tracks the cursor so the element under the mouse gets a stronger highlight;
-//   • watches the DOM (MutationObserver) so content added later — e.g. images
-//     that lazy-load as you scroll — gets outlined too.
-// Toggling off (or re-running with on=false) removes outlines, the hover style,
-// the mouse listener and the observer. Injected via chrome.scripting into the
-// PAGE (isolated world); must be self-contained — no imports, no module-scope
-// refs. Teardown is stashed on window so a later call can detach everything.
-// Returns the number of statically highlighted elements.
+// Outlines every element Stencil can grab from (<img>, <svg><image>, CSS
+// background-image incl. ::before/::after), highlights the one under the cursor,
+// and watches the DOM so lazy-loaded content gets outlined too. on=false (or a
+// re-run) tears it all down. Injected via chrome.scripting into the PAGE, so it
+// must be self-contained — no imports, no module-scope refs. Teardown is stashed
+// on window. Returns the count of statically highlighted elements.
 export const toggleStencilHighlight = (on) => {
   const STYLE_ID = 'stencil-hl-style';
   const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable
@@ -33,7 +28,7 @@ export const toggleStencilHighlight = (on) => {
       const re = /url\((['"]?)(.*?)\1\)/g;
       let m;
       while ((m = re.exec(bg))) {
-        if (m[2] && !/^data:image\/svg/i.test(m[2])) return true;
+        if (m[2] && !m[2].toLowerCase().startsWith('data:image/svg')) return true;
       }
     }
     return false;

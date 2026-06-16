@@ -30,17 +30,16 @@ const arrayBufferToBase64 = (buf) => {
 };
 
 // Fetch any image URL (http(s)/blob:/data:) and return it as a data URL. The
-// extension's host_permissions bypass page CORS → the editor never sees a
-// tainted canvas.
+// extension's host_permissions bypass page CORS → no tainted canvas.
 export const fetchAsDataUrl = async (url) => {
   if (url.startsWith('data:')) return url;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const type = resp.headers.get('content-type') || guessMime(url);
-  // A <video>'s media URL must never be turned into an image: an <img> handed a
-  // data:video/… URL just "fails to decode". Reject it with a clear message
-  // instead (and skip buffering the whole media file).
-  if (/^(video|audio)\//i.test(type)) throw new Error('source is video/audio, not an image');
+  // Reject a video/audio media URL: an <img> handed a data:video/… URL just
+  // "fails to decode" (and skip buffering the whole media file).
+  const lc = type.toLowerCase();
+  if (lc.startsWith('video/') || lc.startsWith('audio/')) throw new Error('source is video/audio, not an image');
   const buf = await resp.arrayBuffer();
   return `data:${type};base64,${arrayBufferToBase64(buf)}`;
 };
@@ -69,8 +68,7 @@ export const filenameFromUrl = (url, fallback = 'image') => {
 };
 
 // Build the editor launch URL. Image + options ride in the URL fragment
-// (`#stencil=…`) so they never reach the server. Editor reads it in
-// DrawingApp.applyExternalLaunch().
+// (`#stencil=…`) so they never reach the server (read in applyExternalLaunch()).
 export const buildLaunchUrl = (editorUrl, payload) => {
   const base = editorUrl.split('#')[0];
   return `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
@@ -90,9 +88,8 @@ const scaleRect = (r, k) => ({
 });
 
 // Re-encode payload.dataUrl smaller until the launch URL fits MAX_PAYLOAD, so a
-// big image (e.g. a 4K video frame) never overflows the URL into about:blank. Any
-// crop rect is in original-image pixels, so it's scaled by the same factor.
-// Returns the (possibly downscaled) payload + its launch URL.
+// big image (e.g. a 4K video frame) never overflows into about:blank. Any crop
+// rect (original-image pixels) is scaled by the same factor.
 const fitLaunchPayload = async (editorUrl, payload) => {
   let url = buildLaunchUrl(editorUrl, payload);
   const data = payload.dataUrl;
@@ -123,15 +120,14 @@ export const openEditorTab = async (payload) => {
   return chrome.tabs.create({ url: fitted.url });
 };
 
-// The crop page reads its image from session storage under this key. We pass it
-// via storage (not the URL) because a captured video frame is a data URL hundreds
-// of KB long — a query string would truncate it and the image would fail to
-// decode. Session storage is shared between the service worker and the crop page.
+// The crop page reads its image from session storage under this key — not the
+// URL, since a captured video frame is a data URL hundreds of KB long that a
+// query string would truncate. Storage is shared between the SW and the crop page.
 export const CROP_SRC_KEY = 'stencil-crop-src';
 
-// Open the quick-crop tool as a small in-page MODAL on the given tab (so the
-// user stays put). Falls back to a real tab when the modal can't be injected
-// (restricted page) or when the frame is later blocked by the page's CSP.
+// Open the quick-crop tool as a small in-page modal on the given tab. Falls back
+// to a real tab when the modal can't be injected (restricted page) or the frame
+// is later blocked by the page's CSP.
 export const launchCrop = async ({ src, tabId }) => {
   try { await chrome.storage.session.set({ [CROP_SRC_KEY]: src }); } catch { /* crop page shows a message */ }
   const url = chrome.runtime.getURL('src/crop/crop.html');

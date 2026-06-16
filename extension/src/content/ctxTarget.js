@@ -1,25 +1,20 @@
 // ── Right-click probe (content script) ───────────────────────────────────────
-// Declared on <all_urls> and also injected into already-open tabs by the service
-// worker on install/startup. On every contextmenu it works out what Stencil can
-// grab from the element under the cursor and tells the service worker, which
-// remembers it for the click handler:
-//   • a CSS background-image (the element or an ancestor, incl. ::before/::after)
-//     → { url }
-//   • a <video> → its current frame as a data URL ({ url }); if the video is
-//     cross-origin the canvas is tainted, so we instead send a screenshot-crop
-//     request ({ video:true, rect, dpr }) the SW fulfils via captureVisibleTab.
-//   • real <img>/<svg><image> → null (the native 'image' context + info.srcUrl
-//     already cover those).
-// Self-contained: declared content scripts can't use imports. The guard keeps a
-// double injection (manifest + executeScript) from binding two listeners.
+// Declared on <all_urls> and also injected into already-open tabs by the SW on
+// install/startup. On every contextmenu it resolves what Stencil can grab under
+// the cursor and tells the SW (which the click handler then reads):
+//   • CSS background-image (element or ancestor, incl. ::before/::after) → { url }
+//   • <video> → current frame as a data URL { url }; if cross-origin (tainted
+//     canvas) → a screenshot-crop request { video:true, rect, dpr } instead.
+//   • real <img>/<svg><image> → null (native 'image' context + info.srcUrl cover it).
+// Self-contained (content scripts can't import). The guard stops a double
+// injection (manifest + executeScript) from binding two listeners.
 (() => {
   if (window.__stencilCtxProbe) return;
   window.__stencilCtxProbe = true;
 
-  // Wake the (lazy) service worker on load so it creates the context menu before
-  // the first right-click — otherwise the menu wouldn't exist yet and only the
-  // native menu would show. The message itself needs no handling; receiving it
-  // is enough to evaluate the worker (which builds the menu at top level).
+  // Wake the lazy SW on load so the context menu exists before the first
+  // right-click. The message needs no handling — receiving it evaluates the
+  // worker, which builds the menu at top level.
   try { chrome.runtime.sendMessage({ type: 'stencil-wake' }, () => void chrome.runtime.lastError); } catch { /* ignore */ }
 
   const firstCssImageUrl = (bg) => {
@@ -28,7 +23,7 @@
     let m;
     while ((m = re.exec(bg))) {
       const u = m[2];
-      if (u && !/^data:image\/svg/i.test(u)) return u;
+      if (u && !u.toLowerCase().startsWith('data:image/svg')) return u;
     }
     return null;
   };
@@ -43,15 +38,13 @@
 
   const isImageEl = (el) => !!(el && el.closest && (el.closest('img') || el.closest('image')));
 
-  // Cap the captured frame's longest side. The frame rides in the editor launch
-  // URL (#stencil=…) as a data URL; an un-capped 4K frame blows past Chrome's URL
-  // limit and the editor tab lands on about:blank. 1920 is ample for a crop.
+  // Cap the captured frame's longest side: it rides in the editor launch URL as a
+  // data URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
   const FRAME_MAX_SIDE = 1920;
 
-  // Current frame of a <video> as a JPEG data URL, or null if it can't be read.
-  // Returns null when no frame is decoded yet (readyState < HAVE_CURRENT_DATA —
-  // drawing then yields a blank frame) or when the canvas is tainted (cross-origin
-  // media), in which case the caller falls back to a tab screenshot.
+  // Current frame of a <video> as a JPEG data URL, or null when no frame is decoded
+  // yet (readyState < HAVE_CURRENT_DATA → blank) or the canvas is tainted
+  // (cross-origin) — the caller then falls back to a tab screenshot.
   const captureVideoFrame = (video) => {
     if (!video) return null;
     const vw = video.videoWidth, vh = video.videoHeight;
@@ -68,16 +61,11 @@
     }
   };
 
-  // The <video> the right-click is really pointing at. Players commonly lay a
-  // transparent controls/poster overlay OVER the <video> as a sibling, so the
-  // event target is neither the video nor an ancestor of it — closest() misses.
-  // Three escalating attempts:
-  //   1. closest() — the simple, common case.
-  //   2. hit-test the cursor point — sees through an overlay to the video stacked
-  //      under it (and picks the right one when there are several videos).
-  //   3. geometric test — a <video> whose box contains the cursor, used when the
-  //      hit-test reports only a wrapper/shadow host (closed shadow DOM, custom
-  //      players) and never the video itself.
+  // The <video> the right-click really points at. Players often lay a controls
+  // overlay over the <video> as a sibling, so closest() misses it. Three escalating
+  // attempts: 1) closest(); 2) hit-test the cursor point (sees through an overlay
+  // to the video under it); 3) geometric test (a <video> box containing the cursor,
+  // for when the hit-test only reports a wrapper / closed shadow host).
   const videoAt = (start, x, y) => {
     const direct = start.closest && start.closest('video');
     if (direct) return direct;
@@ -108,10 +96,9 @@
     return null;
   };
 
-  // An element's rect in the TOP window's coordinates — add each enclosing
-  // (same-origin) iframe's offset, so a tab screenshot can be cropped correctly
-  // even when the element is inside a frame. Cross-origin ancestors throw and
-  // stop the walk (best effort).
+  // An element's rect in TOP-window coordinates — add each enclosing same-origin
+  // iframe's offset so a tab screenshot crops correctly when the element is framed.
+  // Cross-origin ancestors throw and stop the walk (best effort).
   const topRect = (el) => {
     const r = el.getBoundingClientRect();
     let x = r.x, y = r.y, win = el.ownerDocument.defaultView;
@@ -132,8 +119,8 @@
     const video = videoAt(start, x, y);
     if (video) {
       const frame = captureVideoFrame(video);
-      // Tag it `video` so the click handler always prefers this frame over Chrome's
-      // info.srcUrl (which for a <video> is the media file, not a still).
+      // Tag it `video` so the click handler prefers this frame over info.srcUrl
+      // (which for a <video> is the media file, not a still).
       if (frame) return { url: frame, video: true };
       return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1 };
     }
@@ -144,11 +131,10 @@
   document.addEventListener('contextmenu', (e) => {
     let data = null;
     try { data = resolveTarget(e.target, e.clientX, e.clientY); } catch { data = null; }
-    // Send the cursor point too: for a video the SW recaptures the frame in-page at
-    // click time (robust against an MV3 worker restart / a stale recorded frame),
-    // and the point lets it pick the right video.
+    // Send the cursor point too: the SW recaptures a video frame in-page at click
+    // time (robust against a worker restart / stale frame) and uses it to pick the
+    // right video. The SW may be asleep / page navigating — a failed send is fine.
     const point = { x: e.clientX, y: e.clientY };
-    // The SW may be asleep / the page navigating — failing to reach it is fine.
     try { chrome.runtime.sendMessage({ type: 'stencil-ctx', data, point }); } catch { /* ignore */ }
   }, true);
 })();

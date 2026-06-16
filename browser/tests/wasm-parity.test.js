@@ -16,7 +16,7 @@ import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS,
-  cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS
+  cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
 } from '../js/core/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated artifact (gitignored) — present only after
@@ -156,6 +156,11 @@ wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshallin
   const portrait = { x: 0, y: 0, width: 100, height: 141 };
   const album = { x: 0, y: 0, width: 141, height: 100 };
   assert.deepStrictEqual(cropChange(portrait, album), cropChangeJS(portrait, album));
+
+  const rotateCrop = core.op('rotateCropRectQuarter');
+  const r = { x: 10, y: 20, width: 80, height: 40 };
+  rectClose(rotateCrop(r, 200, 100, true), rotateCropRectQuarterJS(r, 200, 100, true));
+  rectClose(rotateCrop(r, 200, 100, false), rotateCropRectQuarterJS(r, 200, 100, false));
 });
 
 wtest('applyFilterRGBA custom: grayscale+tint in one pass, alpha preserved (pixel buffer marshalling)', () => {

@@ -322,6 +322,12 @@ namespace stencil::gui {
     actCrop_ = mk("✂ Crop Image…", QString());
     actCrop_->setToolTip(
         "Crop the image — pick the page-shaped region to show on the canvas");
+    // Non-destructive 90° rotation (browser hotkeys rotateImageLeft=Alt+R,
+    // rotateImageRight=Alt+Shift+R). The crop window and lines follow the picture.
+    actRotateLeft_ = mk("↺ Rotate Left", hotkey("rotateImageLeft", "Alt+R"));
+    actRotateLeft_->setToolTip("Rotate the image left (counter-clockwise)");
+    actRotateRight_ = mk("↻ Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
+    actRotateRight_->setToolTip("Rotate the image right (clockwise)");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -395,6 +401,18 @@ namespace stencil::gui {
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
     connect(actNewBlank_, &QAction::triggered, this, &MainWindow::newBlankImage);
     connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
+    auto rotate = [this](bool clockwise) {
+      if (!canvas_->hasImage()) {
+        notify_->error("Open an image first");
+        return;
+      }
+      canvas_->rotateImage(clockwise);
+      fitToWindow();
+      refreshActions();
+      notify_->success(clockwise ? "Rotated right" : "Rotated left");
+    };
+    connect(actRotateLeft_, &QAction::triggered, this, [rotate] { rotate(false); });
+    connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
     connect(actStartDraw_, &QAction::triggered, canvas_,
             &CanvasWidget::startDrawingMode);
     connect(actStopDraw_, &QAction::triggered, canvas_,
@@ -439,6 +457,8 @@ namespace stencil::gui {
 
     // Map hotkey ids -> their actions so a rebind can re-apply live (S13). Only
     // ids present in hotkeysConfig.json are rebindable.
+    hotkeyActions_["rotateImageLeft"] = actRotateLeft_;
+    hotkeyActions_["rotateImageRight"] = actRotateRight_;
     hotkeyActions_["startDraw"] = actStartDraw_;
     hotkeyActions_["stopDraw"] = actStopDraw_;
     hotkeyActions_["clearAllLines"] = actClearAll_;
@@ -630,6 +650,8 @@ namespace stencil::gui {
     file->addAction(actOpen_);
     file->addAction(actNewBlank_);
     file->addAction(actCrop_);
+    file->addAction(actRotateLeft_);
+    file->addAction(actRotateRight_);
     file->addAction(actSaveSession_);
     file->addSeparator();
     file->addAction(actQuit_);
@@ -710,6 +732,8 @@ namespace stencil::gui {
     tb->addAction(actOpen_);
     tb->addAction(actNewBlank_);
     tb->addAction(actCrop_);
+    tb->addAction(actRotateLeft_);
+    tb->addAction(actRotateRight_);
     tb->addSeparator();
     tb->addAction(actStartDraw_);
     tb->addAction(actStopDraw_);
@@ -1081,7 +1105,8 @@ namespace stencil::gui {
 
     const core::CropRect cur = canvas_->cropRect();
     const bool album = core::isAlbumOrientation(cur.width, cur.height);
-    CropDialog dlg(canvas_->originalImage(), page.width, page.height, album, cur, this);
+    // Preview the rotated original — cropRect lives in that pixel space.
+    CropDialog dlg(canvas_->effectiveOriginalImage(), page.width, page.height, album, cur, this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     const core::CropRect next = dlg.cropRect();
@@ -1916,6 +1941,7 @@ namespace stencil::gui {
     s.drawMode =
         canvas_->drawMode() == CanvasWidget::DrawMode::Rect ? "rect" : "line";
     s.cropRect = canvas_->cropRect();
+    s.rotationQuarters = canvas_->rotationQuarters();
     fileStore::saveSession(s);
   }
 
@@ -1928,7 +1954,8 @@ namespace stencil::gui {
           sess->pageSize, sess->customPageWidth, sess->customPageHeight);
       canvas_->setPageCm(page.width, page.height);
     }
-    canvas_->restore(sess->imagePath, sess->lines, sess->scale, sess->cropRect);
+    canvas_->restore(sess->imagePath, sess->lines, sess->scale, sess->cropRect,
+                     sess->rotationQuarters);
     {
       QSignalBlocker b(pageSize_);
       pageSize_->setCurrentText(sess->pageSize);
@@ -1991,7 +2018,8 @@ namespace stencil::gui {
                                                   settings_.customPageHeight);
         canvas_->setPageCm(page.width, page.height);
       }
-      canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect);
+      canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect,
+                       it->rotationQuarters);
       activeProjectId_ = dlg.selectedId();
       refreshActions();
       notify_->success(
@@ -2055,6 +2083,7 @@ namespace stencil::gui {
     pr.imagePath = canvas_->imagePath();
     pr.lines = canvas_->allLines();
     pr.cropRect = canvas_->cropRect();
+    pr.rotationQuarters = canvas_->rotationQuarters();
     pr.meta.hasImage = !pr.imagePath.isEmpty();
     projectList_.push_back(pr);
     activeProjectId_ = QString::fromStdString(pr.meta.id);
@@ -2082,6 +2111,7 @@ namespace stencil::gui {
     it->imagePath = canvas_->imagePath();
     it->lines = canvas_->allLines();
     it->cropRect = canvas_->cropRect();
+    it->rotationQuarters = canvas_->rotationQuarters();
     it->meta.updatedAt = nowMs();
     it->meta.hasImage = !it->imagePath.isEmpty();
     fileStore::saveProjects(projectList_);

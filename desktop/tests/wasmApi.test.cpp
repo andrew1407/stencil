@@ -38,6 +38,8 @@ extern "C" {
   double stencil_cropResizeScale(double, double);
   void stencil_cropChange(double, double, double, double, double, double, double,
                           double, double*);
+  void stencil_rotateCropRectQuarter(double, double, double, double, double,
+                                     double, int, double*);
 }
 
 TEST_SUITE("wasmApi") {
@@ -190,5 +192,19 @@ TEST_SUITE("wasmApi") {
     stencil_cropChange(0, 0, 100, 141, 0, 0, 141, 100, out);  // flipped
     CHECK(out[0] == doctest::Approx(1.0));   // orientation changed
     CHECK(out[1] == doctest::Approx(1.0));
+  }
+
+  TEST_CASE("stencil_rotateCropRectQuarter writes the turned {x,y,width,height}") {
+    double out[4] = {0, 0, 0, 0};
+    stencil_rotateCropRectQuarter(10, 20, 80, 40, 200, 100, 1, out);  // CW
+    CHECK(out[0] == doctest::Approx(100 - (20 + 40)));
+    CHECK(out[1] == doctest::Approx(10));
+    CHECK(out[2] == doctest::Approx(40));
+    CHECK(out[3] == doctest::Approx(80));
+    stencil_rotateCropRectQuarter(10, 20, 80, 40, 200, 100, 0, out);  // CCW
+    CHECK(out[0] == doctest::Approx(20));
+    CHECK(out[1] == doctest::Approx(200 - (10 + 80)));
+    CHECK(out[2] == doctest::Approx(40));
+    CHECK(out[3] == doctest::Approx(80));
   }
 }

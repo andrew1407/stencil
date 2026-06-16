@@ -136,6 +136,8 @@ class StencilCore {
       core.ccall('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, dx, dy, iw, ih, out]);
     const cCropChange = (ox, oy, ow, oh, nx, ny, nw, nh, out) =>
       core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
+    const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
+      core.ccall('stencil_rotateCropRectQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, cw, out]);
 
     // Read a CropRect {x,y,width,height} written to a 4-double out pointer.
     const readRect = out => ({
@@ -294,6 +296,10 @@ class StencilCore {
         } finally {
           core._free(out);
         }
+      },
+
+      rotateCropRectQuarter(r, imageW, imageH, clockwise) {
+        return withRectOut(out => cRotateCrop(r.x, r.y, r.width, r.height, imageW, imageH, clockwise ? 1 : 0, out));
       },
     };
   }

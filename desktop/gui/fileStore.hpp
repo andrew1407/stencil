@@ -64,9 +64,11 @@ namespace stencil::gui {
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
     QString drawMode = "line";
-    // Crop window in original-image pixels (width 0 = no crop stored → default
+    // Crop window in rotated-image pixels (width 0 = no crop stored → default
     // centered crop is applied on load). The original image is never modified.
     core::CropRect cropRect;
+    // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
+    int rotationQuarters = 0;
   };
 
   // One saved project: registry metadata (handled by core::ProjectsStore) plus
@@ -75,8 +77,10 @@ namespace stencil::gui {
     core::ProjectMeta meta;
     QString imagePath;
     core::Lines lines;
-    // Crop window (original-image pixels); width 0 = default crop on load.
+    // Crop window (rotated-image pixels); width 0 = default crop on load.
     core::CropRect cropRect;
+    // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
+    int rotationQuarters = 0;
   };
 
   namespace fileStore {

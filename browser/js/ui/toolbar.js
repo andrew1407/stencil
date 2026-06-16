@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { DRAW_MODE_ICON } from '../core/drawingApp.js';
+import { hotkeys } from '../core/hotkeys.js';
 // ── Component: toolbar (controls-wrapper + all 8 sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -7,7 +8,7 @@ export class StencilToolbar extends StencilElement {
   static inner() {
     return `
             <div class="controls-topbar">
-                <button id="toggle-controls" title="Hide controls (Alt+C)">▲ Controls</button>
+                <button id="toggle-controls" data-hk-title="toggleControls" title="Hide controls (Alt+C)">▲ Controls</button>
                 <span id="hints-btn" style="display:none;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
                     ?
                     <span class="hints-popup" id="hints-popup"></span>
@@ -22,7 +23,7 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <input type="file" id="image-upload" accept="image/*">
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
-                    <select id="image-filter" title="Image Filter (Alt+B)">
+                    <select id="image-filter" data-hk-title="cycleFilter" title="Image Filter (Alt+B)">
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
                         <option value="sepia">Sepia</option>
@@ -30,6 +31,8 @@ export class StencilToolbar extends StencilElement {
                     </select>
                     <input type="color" id="filter-color" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
                     <button id="crop-image" title="Crop image — pick the page-shaped region to show on the canvas">✂ Crop</button>
+                    <button id="rotate-left" data-hk-title="rotateImageLeft" title="Rotate image left (Alt+R)">↺</button>
+                    <button id="rotate-right" data-hk-title="rotateImageRight" title="Rotate image right (Alt+Shift+R)">↻</button>
                 </div>
             </div>
 
@@ -56,11 +59,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Draw</div>
                 <div class="ctrl-section-row">
-                    <button id="start-drawing" title="Start Drawing (Alt+A)">▶ Start</button>
-                    <button id="stop-drawing" disabled title="Stop Drawing (Alt+S)">■ Stop</button>
+                    <button id="start-drawing" data-hk-title="startDraw" title="Start Drawing (Alt+A)">▶ Start</button>
+                    <button id="stop-drawing" disabled data-hk-title="stopDraw" title="Stop Drawing (Alt+S)">■ Stop</button>
                     <button id="draw-mode-toggle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line} Line</button>
-                    <button id="undo" disabled title="Undo (Ctrl+Z)">↩</button>
-                    <button id="redo" disabled title="Redo (Ctrl+Shift+Z)">↪</button>
+                    <button id="undo" disabled data-hk-title="undo" title="Undo (Ctrl+Z)">↩</button>
+                    <button id="redo" disabled data-hk-title="redo" title="Redo (Ctrl+Shift+Z)">↪</button>
                 </div>
             </div>
 
@@ -70,13 +73,13 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">View</div>
                 <div class="ctrl-section-row">
-                    <label style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Points (Alt+P)">
+                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Points (Alt+P)">
                         <input type="checkbox" id="show-points" checked> Points
                     </label>
-                    <label style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Lines (Alt+L)">
+                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Lines (Alt+L)">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
-                    <button id="clear-all-lines" class="danger" title="Clear All Lines (Alt+W)">🗑 Clear</button>
+                    <button id="clear-all-lines" class="danger" data-hk-title="clearAllLines" title="Clear All Lines (Alt+W)">🗑 Clear</button>
                 </div>
             </div>
 
@@ -91,7 +94,7 @@ export class StencilToolbar extends StencilElement {
                         <input type="number" id="zoom-input" value="100" min="5" max="500" title="Zoom % (Enter to apply)">
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>
                         <button id="zoom-in" title="Zoom in">+</button>
-                        <button id="zoom-fit" title="Fit to window (Alt+0)">⊡</button>
+                        <button id="zoom-fit" data-hk-title="resetZoom" title="Fit to window (Alt+0)">⊡</button>
                     </div>
                 </div>
             </div>
@@ -137,7 +140,7 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
                     <button id="download-json" title="Download Layout JSON">⬇ JSON</button>
-                    <button id="copy-json-btn" title="Copy Layout JSON (Alt+J)">📋</button>
+                    <button id="copy-json-btn" data-hk-title="copyLayout" title="Copy Layout JSON (Alt+J)">📋</button>
                     <button id="save-image" title="Save Image">💾</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
                     <button id="upload-json-btn" title="Upload Layout JSON">📂</button>
@@ -153,7 +156,7 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">App</div>
                 <div class="ctrl-section-row">
                     <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
-                    <button id="fullscreen-toggle" title="Fullscreen (Alt+F)">⛶</button>
+                    <button id="fullscreen-toggle" data-hk-title="fullscreen" title="Fullscreen (Alt+F)">⛶</button>
                     <button id="projects-btn" title="Projects">🗂</button>
                     <button id="incognito-toggle" title="Incognito — edit without saving (choose before adding an image)">🕶</button>
                     <button id="settings-btn" title="Keyboard shortcuts">⚙️</button>
@@ -184,7 +187,7 @@ export class StencilToolbar extends StencilElement {
       hidden = !hidden;
       body.classList.toggle('hidden', hidden);
       btn.textContent = hidden ? '▼ Controls' : '▲ Controls';
-      btn.title = hidden ? 'Show controls (Alt+C)' : 'Hide controls (Alt+C)';
+      btn.title = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
       hintsBtn.style.display = hidden ? 'inline-block' : 'none';
       if (hidden) popup.textContent = infoText();
     });

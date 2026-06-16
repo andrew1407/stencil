@@ -1,25 +1,21 @@
 // ── Background service worker ───────────────────────────────────────────────
-// Owns the right-click context menu. The native menu already offers "Open image"
-// / "Save image"; we add Stencil's actions next to them so an image can go
-// straight into the editor (as an in-page modal by default). We cover both real
-// <img> elements (native 'image' context) and elements with a CSS
-// background-image (detected by the content-script probe — see ../lib/contextMenu.js).
+// Owns the right-click context menu: adds Stencil's actions so an image can go
+// straight into the editor. Covers real <img> (native 'image' context) and CSS
+// background-image elements (detected by the content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, resolveContextAction } from '../lib/contextMenu.js';
 
-// Rebuild the menu from scratch. removeAll first so repeated calls (install +
-// startup) don't pile up "duplicate id" errors. Called only on install/startup —
-// not on every wake — so removeAll never races a right-click.
+// Rebuild the menu from scratch. removeAll first so install+startup don't pile up
+// "duplicate id" errors. Only on install/startup, so it never races a right-click.
 const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
   });
 };
 
-// Declared content scripts only inject into pages loaded AFTER the extension is
-// installed/updated. Inject the right-click probe into already-open http(s) tabs
-// too, so the background context menu works without reloading every tab. The
-// probe guards against binding twice (see ctxTarget.js).
+// Declared content scripts only inject into pages loaded AFTER install/update.
+// Inject the probe into already-open http(s) tabs too, so the menu works without
+// reloading every tab. The probe guards against binding twice (see ctxTarget.js).
 const injectProbeIntoOpenTabs = async () => {
   try {
     const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
@@ -41,17 +37,16 @@ chrome.runtime.onStartup.addListener(() => {
   injectProbeIntoOpenTabs();
 });
 
-// What the probe last resolved under the cursor, per tab. Usually a ready-to-use
-// { url } (a background image, or a captured video frame as a data URL). For a
-// cross-origin video it's instead the *Promise* of the tab-screenshot crop still
-// in flight — the click handler awaits it, so a fast click can't beat the capture
-// and end up with nothing. Used because info.srcUrl is absent (backgrounds) or
-// points at the wrong thing (for a <video> it's the media file, not a frame).
+// What the probe last resolved under the cursor, per tab. Usually a ready { url }
+// (background image, or a captured video frame). For a cross-origin video it's the
+// *Promise* of the in-flight screenshot crop — the click handler awaits it so a
+// fast click can't beat the capture. Needed because info.srcUrl is absent
+// (backgrounds) or wrong (a <video>'s media file, not a frame).
 const lastTargetByTab = new Map();
-// Where/what the last right-click pointed at when it was a <video>, per tab:
-// { frameId, point:{x,y}, rect, dpr }. Lets the click handler recapture the frame
-// in-page at click time even if the recorded frame above is missing (worker
-// restart) or stale, and screenshot-crop the right rectangle for tainted media.
+// Where the last right-click pointed when it was a <video>, per tab:
+// { frameId, point, rect, dpr }. Lets the click handler recapture the frame in-page
+// at click time (if the recorded one is missing/stale) and screenshot-crop the
+// right rectangle for tainted media.
 const lastVideoByTab = new Map();
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastTargetByTab.delete(tabId);
@@ -60,7 +55,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
   // The in-page editor overlay asks us to open a real tab when its iframe is
-  // blocked (CSP frame-src / mixed content). Doing it here avoids popup blockers.
+  // blocked (CSP / mixed content). Doing it here avoids popup blockers.
   if (msg && msg.type === 'stencil-open-tab' && msg.url) {
     chrome.tabs.create({ url: msg.url });
     return;
@@ -69,18 +64,16 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     const tabId = sender.tab?.id;
     if (tabId == null) return;
     const data = msg.data;
-    // Remember the video context (which frame, where, the rect for a screenshot)
-    // so the click handler can recapture the current frame in-page.
+    // Remember the video context so the click handler can recapture in-page.
     lastVideoByTab.set(tabId, data && data.video
       ? { frameId: sender.frameId, point: msg.point || null, rect: data.rect || null, dpr: data.dpr || 1 }
       : null);
     // A tainted (cross-origin) video can't be read via canvas, so grab its frame
-    // NOW — at right-click — by cropping a tab screenshot. Doing it here (not at
-    // click time) means the editor gets the frame the user actually saw, instead
-    // of a later one the still-playing video advanced to.
+    // NOW — at right-click — by cropping a tab screenshot, so the editor gets the
+    // frame the user saw, not a later one the still-playing video advanced to.
     if (data && data.video && !data.url) {
-      // Store the in-flight promise so a click that arrives before the screenshot
-      // finishes awaits it instead of reading null (see lastTargetByTab).
+      // Store the in-flight promise so a click arriving before it finishes awaits
+      // it instead of reading null (see lastTargetByTab).
       const pending = captureFrameFromScreenshot(sender.tab && sender.tab.windowId, data.rect, data.dpr)
         .then((url) => (url ? { url, video: true } : null))
         .catch(() => null);
@@ -100,14 +93,13 @@ const blobToDataUrl = async (blob) => {
   return `data:${blob.type || 'image/jpeg'};base64,${btoa(binary)}`;
 };
 
-// Cap the captured frame's longest side — it rides in the editor launch URL as a
-// data URL, and an un-capped retina crop can blow past Chrome's URL limit (the
-// editor tab then lands on about:blank). Matches the canvas path in ctxTarget.js.
+// Cap the captured frame's longest side: it rides in the editor launch URL as a
+// data URL, and an un-capped retina crop overflows Chrome's URL limit (about:blank).
 const FRAME_MAX_SIDE = 1920;
 
 // Crop a tab screenshot to the video's on-screen rectangle. captureVisibleTab
-// returns an extension-owned image, so it's never tainted. Downscale to the cap
-// and encode JPEG so the data URL stays small enough for the editor launch URL.
+// returns an extension-owned (never tainted) image; downscale + JPEG-encode so the
+// data URL stays small enough for the launch URL.
 const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   const shot = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   const bitmap = await createImageBitmap(await (await fetch(shot)).blob());
@@ -121,10 +113,9 @@ const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
 };
 
 // Capture a <video>'s current frame by running canvas readback IN THE PAGE at
-// click time — the same approach the popup's scanner uses successfully. This is
-// the reliable path: it doesn't depend on a recorded frame surviving an MV3
-// worker restart, and it grabs the live frame. Returns a JPEG data URL, or null
-// when there's no readable video (cross-origin taint → caller screenshots).
+// click time (like the popup scanner). Reliable — doesn't depend on a recorded
+// frame surviving a worker restart, and grabs the live frame. Returns a JPEG data
+// URL, or null when no readable video (cross-origin taint → caller screenshots).
 const captureVideoFrameInTab = async (tabId, frameId, point) => {
   if (tabId == null) return null;
   const target = { tabId };
@@ -174,9 +165,9 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
 };
 
 // Resolve the image source for a click. A probe-captured video frame (rec.video)
-// always wins: for a <video> info.srcUrl is the media file, not a frame — and
-// Chrome doesn't always report mediaType:'video' (e.g. a click on a player's
-// overlay). Otherwise a real <img>/<svg> uses info.srcUrl; backgrounds use rec.
+// wins: for a <video> info.srcUrl is the media file, not a frame, and Chrome
+// doesn't always report mediaType:'video'. Otherwise <img>/<svg> use info.srcUrl,
+// backgrounds use rec.
 const resolveSrc = (info, rec) => {
   if (rec && rec.video && rec.url) return rec.url;
   if (info.mediaType === 'video' || info.mediaType === 'audio') return (rec && rec.url) || null;
@@ -192,11 +183,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (rec && typeof rec.then === 'function') rec = await rec;
   let src = resolveSrc(info, rec);
 
-  // Video path. Treat it as a video when Chrome says so, when the probe saw one,
-  // or when we already have a probe-captured frame. Unless that frame is already
-  // in hand, (re)capture the current frame in-page at click time, then fall back
-  // to a screenshot crop. A media URL is NEVER used as the image — better to do
-  // nothing than hand the editor a .mp4 it "fails to decode".
+  // Video path: treat as video when Chrome says so, the probe saw one, or we have a
+  // probe-captured frame. Unless that frame is in hand, (re)capture in-page at click
+  // time, then fall back to a screenshot crop. A media URL is NEVER used as the
+  // image — better to do nothing than hand the editor a .mp4 it can't decode.
   const vinfo = tabId != null ? lastVideoByTab.get(tabId) : null;
   const isVideo = info.mediaType === 'video' || !!vinfo || !!(rec && rec.video);
   if (isVideo && !(rec && rec.video && rec.url)) {
@@ -205,9 +195,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     src = frame || null;
   }
 
-  // Feed the resolved src as srcUrl: resolveContextAction prefers info.srcUrl, but
-  // for a <video> that's the media file, not the frame src picked above — so the
-  // raw info.srcUrl must not slip back in here.
+  // Feed the resolved src as srcUrl so the raw info.srcUrl (a <video>'s media file)
+  // can't slip back in over the frame src picked above.
   const act = resolveContextAction({ ...info, srcUrl: src }, src);
   if (!act) return;
   try {

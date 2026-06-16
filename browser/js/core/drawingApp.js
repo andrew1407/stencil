@@ -13,7 +13,7 @@ import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
-import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints } from './cropGeometry.js';
+import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (so they theme + match the label automatically). The
@@ -70,6 +70,11 @@ export class DrawingApp {
     // points live in crop-local pixels. See applyCrop / #buildCroppedImage.
     this.originalImage = null;
     this.cropRect = null;
+    // Non-destructive 90° rotation: a quarter-turn count (0..3, clockwise) applied
+    // to `originalImage` before the crop is taken. The original bitmap is never
+    // modified; `cropRect` lives in the rotated image's pixel space and line
+    // points ride along on each turn. See rotateImage / #rotatedOriginalCanvas.
+    this.rotationQuarters = 0;
     this.lines = [];
     this.currentLine = null;
     this.isDrawing = false;
@@ -209,6 +214,8 @@ export class DrawingApp {
 
   #wireStyleControls() {
     document.getElementById('image-upload').addEventListener('change', e => this.loadImage(e));
+    document.getElementById('rotate-left').addEventListener('click', () => this.rotateImage(-1));
+    document.getElementById('rotate-right').addEventListener('click', () => this.rotateImage(1));
     document.getElementById('line-color').addEventListener('change', e => { this.color = e.target.value; this.storage.save(); });
     document.getElementById('line-thickness').addEventListener('input', e => {
       const v = parseInt(e.target.value);
@@ -516,6 +523,8 @@ export class DrawingApp {
       zoomOut: () => this.zoomPan.zoomAroundCenter(this.scale - 0.25),
       zoomInBig: () => this.zoomPan.zoomAroundCenter(this.scale + 1.0),
       zoomOutBig: () => this.zoomPan.zoomAroundCenter(this.scale - 1.0),
+      rotateImageLeft: () => { if (this.image) this.rotateImage(-1); },
+      rotateImageRight: () => { if (this.image) this.rotateImage(1); },
       copyImage: () => this.copyImageToClipboard(),
       copyLayout: () => this.copyLayoutToClipboard(),
       // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
@@ -1119,6 +1128,8 @@ export class DrawingApp {
         // using the existing album/portrait detection. The original is kept; the
         // working canvas shows only this region. An explicit opts.crop (from the
         // external-launch path) overrides the default centered crop.
+        // A freshly-loaded image starts un-rotated; the crop is in original space.
+        this.rotationQuarters = 0;
         this.cropRect = opts.crop ? this.#roundRect(opts.crop) : this.defaultCropRect();
         this.rebuildCroppedImage();
 
@@ -1233,13 +1244,47 @@ export class DrawingApp {
   // orientation matching the image (album when wider than tall). Public so the
   // storage layer can default-crop legacy projects saved before cropping existed.
   defaultCropRect() {
-    const iw = this.originalImage.width, ih = this.originalImage.height;
+    const { w: iw, h: ih } = this.#rotatedOriginalDims();
     const aspect = cropAspect(this.#pageCmDims().width, this.#pageCmDims().height, isAlbumOrientation(iw, ih));
     return this.#roundRect(centeredCrop(iw, ih, aspect), iw, ih);
   }
 
-  // Snap a crop rect to integer pixels, clamped inside the original image.
-  #roundRect(r, iw = this.originalImage.width, ih = this.originalImage.height) {
+  // Dimensions of the original image after the current rotation is applied (the
+  // pixel space `cropRect` lives in). Odd quarter-turns swap width and height.
+  #rotatedOriginalDims() {
+    const w = this.originalImage.width, h = this.originalImage.height;
+    return (this.rotationQuarters % 2) ? { w: h, h: w } : { w, h };
+  }
+
+  // The original image rotated by the current quarter-turn count (clockwise). For
+  // no rotation the untouched bitmap is returned; otherwise a freshly-rotated
+  // canvas. Used by rebuildCroppedImage and the crop modal's preview.
+  #rotatedOriginalCanvas() {
+    const img = this.originalImage;
+    const q = ((this.rotationQuarters % 4) + 4) % 4;
+    if (q === 0) return img;
+    const swap = q % 2 === 1;
+    const c = document.createElement('canvas');
+    c.width = swap ? img.height : img.width;
+    c.height = swap ? img.width : img.height;
+    const ctx = c.getContext('2d');
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(q * Math.PI / 2);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    return c;
+  }
+
+  // The rotated original as a data URL + dimensions, for the crop modal (which
+  // previews the full original). Returns the stored data URL untouched when the
+  // image is not rotated, avoiding a needless re-encode.
+  effectiveOriginalDims() { return this.#rotatedOriginalDims(); }
+  effectiveOriginalDataUrl() {
+    if (!this.rotationQuarters) return this.imageDataUrl;
+    return this.#rotatedOriginalCanvas().toDataURL();
+  }
+
+  // Snap a crop rect to integer pixels, clamped inside the rotated original image.
+  #roundRect(r, iw = this.#rotatedOriginalDims().w, ih = this.#rotatedOriginalDims().h) {
     let w = Math.max(1, Math.min(Math.round(r.width), iw));
     let h = Math.max(1, Math.min(Math.round(r.height), ih));
     const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
@@ -1247,18 +1292,55 @@ export class DrawingApp {
     return { x, y, width: w, height: h };
   }
 
-  // Rebuild the working `image` canvas from `originalImage` + `cropRect`, and
-  // size the main canvas to the crop. The original is never modified. Public so
-  // the storage layer can rebuild the view after restoring original + cropRect.
+  // Rebuild the working `image` canvas from the rotated `originalImage` +
+  // `cropRect`, and size the main canvas to the crop. The original is never
+  // modified. Public so the storage layer can rebuild the view after restoring
+  // original + rotation + cropRect.
   rebuildCroppedImage() {
+    const src = this.#rotatedOriginalCanvas();
     const r = this.cropRect;
     const c = document.createElement('canvas');
     c.width = r.width;
     c.height = r.height;
-    c.getContext('2d').drawImage(this.originalImage, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+    c.getContext('2d').drawImage(src, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
     this.image = c;
     this.canvas.width = r.width;
     this.canvas.height = r.height;
+  }
+
+  // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0
+  // rotates right (CW). The crop window and every line follow the picture so the
+  // framing and the drawing stay put relative to the image content.
+  rotateImage(dir) {
+    if (!this.originalImage) {
+      notify('Open an image first', 'fail');
+      return;
+    }
+    const clockwise = dir > 0;
+    const dims = this.#rotatedOriginalDims();  // space the crop currently lives in
+    // Points first — they rotate inside the OLD crop box (width x height).
+    rotateLinePointsQuarter(this.lines, this.cropRect.width, this.cropRect.height, clockwise);
+    const rotated = rotateCropRectQuarter(this.cropRect, dims.w, dims.h, clockwise);
+    this.rotationQuarters = (((this.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
+    this.cropRect = this.#roundRect(rotated);
+    this.rebuildCroppedImage();
+
+    this.currentLine = null;
+    this.selectedLineIdx = -1;
+    this.coordLineIdx = -1;
+    this.focusedPtIdx = -1;
+    const selPanel = document.getElementById('selection-panel');
+    if (selPanel) selPanel.style.display = 'none';
+    const fsPanel = document.getElementById('fs-selection-panel');
+    if (fsPanel) fsPanel.style.display = 'none';
+    this.history.reset(this.lines);
+    this.zoomPan.fitToWindow();
+    this.updateInfo();
+    this.renderer.redraw();
+    this.updateButtons();
+    this.updateCoordStatus();
+    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
+    this.storage.save();
   }
 
   // Apply a new crop rectangle (image-space). With opts.recalc, existing lines

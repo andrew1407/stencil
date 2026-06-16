@@ -195,6 +195,8 @@ namespace stencil::gui {
     QAction* actOpen_ = nullptr;
     QAction* actNewBlank_ = nullptr;
     QAction* actCrop_ = nullptr;
+    QAction* actRotateLeft_ = nullptr;
+    QAction* actRotateRight_ = nullptr;
     QAction* actStartDraw_ = nullptr;
     QAction* actStopDraw_ = nullptr;
     QAction* actNewLine_ = nullptr;
