@@ -9,13 +9,18 @@ export const MENU = {
   parent: 'stencil-parent',
   open: 'stencil-open',
   openIncognito: 'stencil-open-incognito',
+  openModal: 'stencil-open-modal',
+  openModalIncognito: 'stencil-open-modal-incognito',
   crop: 'stencil-crop'
 };
 
-// Action item id → what clicking it does.
+// Action item id → what clicking it does. 'open' lands in a new tab; 'open-modal'
+// frames the same editor in an in-page modal on the current page (like crop does).
 const ACTIONS = {
   [MENU.open]: { action: 'open', incognito: false },
   [MENU.openIncognito]: { action: 'open', incognito: true },
+  [MENU.openModal]: { action: 'open-modal', incognito: false },
+  [MENU.openModalIncognito]: { action: 'open-modal', incognito: true },
   [MENU.crop]: { action: 'crop' }
 };
 
@@ -26,6 +31,8 @@ export const MENU_ITEMS = [
   { id: MENU.parent, title: 'Stencil', contexts: CONTEXTS },
   { id: MENU.open, parentId: MENU.parent, title: '✎ Open image in Stencil editor', contexts: CONTEXTS },
   { id: MENU.openIncognito, parentId: MENU.parent, title: '🕶 Open in Stencil (incognito)', contexts: CONTEXTS },
+  { id: MENU.openModal, parentId: MENU.parent, title: '▣ Open image in Stencil here', contexts: CONTEXTS },
+  { id: MENU.openModalIncognito, parentId: MENU.parent, title: '▣ Open in Stencil here (incognito)', contexts: CONTEXTS },
   { id: MENU.crop, parentId: MENU.parent, title: '✂ Crop image in Stencil…', contexts: CONTEXTS }
 ];
 
@@ -39,5 +46,5 @@ export const resolveContextAction = (info = {}, recordedUrl = null) => {
   if (!src) return null;
   return spec.action === 'crop'
     ? { action: 'crop', src }
-    : { action: 'open', src, incognito: spec.incognito };
+    : { action: spec.action, src, incognito: spec.incognito };
 };

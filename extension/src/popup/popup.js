@@ -1,5 +1,5 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
@@ -213,6 +213,11 @@ const renderRow = (image) => {
     e.stopPropagation();
     openMenu(more, image);
   });
+  // Right-click anywhere on the row opens the same actions menu, at the cursor.
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    openMenuAt(image, e.clientX, e.clientY);
+  });
 
   row.append(thumb, meta, more);
   li.appendChild(row);
@@ -246,11 +251,11 @@ const measure = (image, dimEl, li) => {
 
 // ── Floating "…" action menu ──
 let menuAnchor = null;
-const openMenu = (btn, image) => {
-  if (menuAnchor === btn) return closeMenu();
-  closeMenu();
-  menuAnchor = btn;
-  btn.classList.add('active');
+
+// Fill the menu with the actions for `image`. Editor actions come in pairs: a new
+// tab and an in-page modal (▣, mirrors the quick-crop modal), each with a normal
+// and an incognito variant.
+const buildMenu = (image) => {
   menuEl.innerHTML = '';
   const item = (icon, label, fn) => {
     const b = document.createElement('button');
@@ -276,6 +281,8 @@ const openMenu = (btn, image) => {
       menuEl.append(
         item('✎', 'Open current frame in editor', () => sendToEditor(image.src, false)),
         item('🕶', 'Frame in editor (incognito)', () => sendToEditor(image.src, true)),
+        item('▣', 'Open frame in editor here', () => sendToEditorModal(image.src, false)),
+        item('▣', 'Frame in editor here (incognito)', () => sendToEditorModal(image.src, true)),
         item('✂', 'Crop current frame', () => openCrop(image.src))
       );
     }
@@ -286,20 +293,44 @@ const openMenu = (btn, image) => {
       sep(),
       item('✎', 'Open in editor', () => sendToEditor(image.src, false)),
       item('🕶', 'Editor (incognito)', () => sendToEditor(image.src, true)),
+      item('▣', 'Open in editor here', () => sendToEditorModal(image.src, false)),
+      item('▣', 'Editor here (incognito)', () => sendToEditorModal(image.src, true)),
       item('✂', 'Crop…', () => openCrop(image.src))
     );
   }
-  menuEl.hidden = false;
-  // Position next to the button, flipping to stay on-screen.
-  const r = btn.getBoundingClientRect();
+};
+
+// Place the (already-built, visible) menu at top-left x/y, flipping to stay on-screen.
+const placeMenu = (x, y) => {
   const mw = menuEl.offsetWidth;
   const mh = menuEl.offsetHeight;
-  let x = r.left - mw - 6;
-  if (x < 6) x = Math.min(r.right + 6, window.innerWidth - mw - 6);
-  let y = r.top;
+  if (x + mw > window.innerWidth) x = Math.max(6, window.innerWidth - mw - 6);
   if (y + mh > window.innerHeight) y = Math.max(6, window.innerHeight - mh - 6);
-  menuEl.style.left = `${x}px`;
-  menuEl.style.top = `${y}px`;
+  menuEl.style.left = `${Math.max(6, x)}px`;
+  menuEl.style.top = `${Math.max(6, y)}px`;
+};
+
+// Open the menu anchored to the ⋯ button (toggles closed if already open on it).
+const openMenu = (btn, image) => {
+  if (menuAnchor === btn) return closeMenu();
+  closeMenu();
+  menuAnchor = btn;
+  btn.classList.add('active');
+  buildMenu(image);
+  menuEl.hidden = false;
+  // Prefer the left of the button; fall back to its right if it won't fit.
+  const r = btn.getBoundingClientRect();
+  let x = r.left - menuEl.offsetWidth - 6;
+  if (x < 6) x = r.right + 6;
+  placeMenu(x, r.top);
+};
+
+// Open the same menu at a point (used by row right-click); no button is anchored.
+const openMenuAt = (image, x, y) => {
+  closeMenu();
+  buildMenu(image);
+  menuEl.hidden = false;
+  placeMenu(x, y);
 };
 const closeMenu = () => {
   menuEl.hidden = true;
@@ -340,14 +371,15 @@ const bindGestures = (el, onClick, onDouble) => {
   });
 };
 
+// Single click → open in the editor (normal, not incognito); double click → crop.
 const bindOpenGestures = (el, src) =>
-  bindGestures(el, () => openEditorWithConfirm(src), () => openCrop(src));
+  bindGestures(el, () => sendToEditor(src, false), () => openCrop(src));
 
 const bindRowGestures = (el, image) => {
   if (image.kind !== 'video') return bindOpenGestures(el, image.src);
   // Video: act on the current frame; with no frame, single-click opens the video.
   const onClick = image.src
-    ? () => openEditorWithConfirm(image.src)
+    ? () => sendToEditor(image.src, false)
     : (image.videoUrl ? () => chrome.tabs.create({ url: image.videoUrl }) : null);
   const onDouble = image.src ? () => openCrop(image.src) : null;
   bindGestures(el, onClick, onDouble);
@@ -356,18 +388,21 @@ const bindRowGestures = (el, image) => {
 // ── Actions ──
 const download = (src) => chrome.downloads.download({ url: src, filename: filenameFromUrl(src) });
 
-// Single-click open: confirm incognito vs normal, then open in an editor tab.
-const openEditorWithConfirm = (src) => {
-  const incognito = confirm(
-    'Open this image in the Stencil editor?\n\nOK = incognito mode (won’t be saved)\nCancel = normal editor');
-  return sendToEditor(src, incognito);
-};
-
 const sendToEditor = async (src, incognito) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
   const dataUrl = await fetchAsDataUrl(src);
   await openEditorTab({ dataUrl, name: filenameFromUrl(src), page: { size: page }, incognito });
+  window.close();
+};
+
+// Same as sendToEditor, but frames the editor in an in-page modal on the active
+// page instead of opening a new tab (mirrors the quick-crop modal).
+const sendToEditorModal = async (src, incognito) => {
+  statusEl.textContent = 'Loading image…';
+  const { page } = await getSettings();
+  const dataUrl = await fetchAsDataUrl(src);
+  await launchEditorModal({ dataUrl, name: filenameFromUrl(src), page: { size: page }, incognito, tabId: state.activeTabId });
   window.close();
 };
 

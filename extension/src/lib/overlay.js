@@ -4,7 +4,7 @@
 // self-contained — no imports, no module-scope refs. The framed page posts
 // {source:'stencil-modal', type:'ready'|'close'}; if 'ready' never arrives (CSP
 // frame-src / mixed-content blocked the frame), we drop the modal and open a tab.
-export const mountStencilModal = (url, title) => {
+export const mountStencilModal = (url, title, readyTimeoutMs) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
   if (existing) existing.remove();
@@ -30,6 +30,16 @@ export const mountStencilModal = (url, title) => {
     .loading{position:absolute;left:0;right:0;bottom:0;top:45px;display:flex;
       align-items:center;justify-content:center;color:#9aa0b0;font:13px system-ui,sans-serif;}
     iframe{flex:1;width:100%;border:0;background:#21242d;position:relative;}
+    /* Light system preference: mirror lib/theme.css's light palette so the modal
+       chrome matches the (theme.css-driven) page framed inside it. Updates live. */
+    @media (prefers-color-scheme: light){
+      .panel{background:#f4f5f7;border-color:#d4d8e2;}
+      .bar{background:#ffffff;border-bottom-color:#d4d8e2;color:#1d2230;}
+      .bar button{background:#eceef3;border-color:#d4d8e2;color:#1d2230;}
+      .bar button:hover{background:#7c3aed;border-color:#7c3aed;color:#fff;}
+      .loading{color:#6b7180;}
+      iframe{background:#f4f5f7;}
+    }
   `;
 
   const wrap = document.createElement('div');
@@ -74,7 +84,7 @@ export const mountStencilModal = (url, title) => {
   const timer = setTimeout(() => {
     close();
     openTab();
-  }, 3000);
+  }, readyTimeoutMs || 3000);
 
   window.addEventListener('message', onMsg);
   document.addEventListener('keydown', onKey, true);

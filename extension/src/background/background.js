@@ -2,7 +2,7 @@
 // Owns the right-click context menu: adds Stencil's actions so an image can go
 // straight into the editor. Covers real <img> (native 'image' context) and CSS
 // background-image elements (detected by the content-script probe, ctxTarget.js).
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, resolveContextAction } from '../lib/contextMenu.js';
 
 // Rebuild the menu from scratch. removeAll first so install+startup don't pile up
@@ -268,7 +268,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
     const { page } = await getSettings();
     const dataUrl = await fetchAsDataUrl(act.src);
-    await openEditorTab({ dataUrl, name: filenameFromUrl(act.src), page: { size: page }, incognito: act.incognito });
+    const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, incognito: act.incognito };
+    if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId: tab?.id });   // in-page editor modal
+    else await openEditorTab(payload);
   } catch (err) {
     console.error('[stencil] context-menu action failed:', err);
   }

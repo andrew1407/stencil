@@ -13,6 +13,13 @@ import { registerServiceWorker } from './pwa.js';
 // preserving the original DOM → app → wire order. If wasm fails to load, the
 // core installs no ops and every consumer falls back to its JS reference.
 window.onload = async () => {
+  // When the browser extension frames us in its in-page editor modal, tell the
+  // host overlay we're alive right away (before the heavy core/UI boot) so it
+  // keeps the modal up rather than timing out and falling back to a full tab. A
+  // CSP-blocked frame runs no script → no message → the host opens a tab instead.
+  if (window.parent !== window && (location.hash || '').startsWith('#stencil=')) {
+    try { window.parent.postMessage({ source: 'stencil-modal', type: 'ready' }, '*'); } catch { /* ignore */ }
+  }
   await core.init();
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
   const root = document.getElementById('root');

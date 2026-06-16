@@ -64,6 +64,20 @@ const init = async () => {
   }
 
   imgEl.onload = () => {
+    // An animated GIF keeps cycling frames inside the crop view (and the preview
+    // canvas), which is distracting while positioning the box. Freeze it to the
+    // frame on screen right now by baking it onto a canvas and swapping in that
+    // static PNG; the reload re-enters onload, this time as a non-GIF.
+    if (!state.frozen && /^data:image\/gif/i.test(state.dataUrl)) {
+      state.frozen = true;
+      const c = document.createElement('canvas');
+      c.width = imgEl.naturalWidth || 1;
+      c.height = imgEl.naturalHeight || 1;
+      c.getContext('2d').drawImage(imgEl, 0, 0);
+      state.dataUrl = c.toDataURL('image/png');
+      imgEl.src = state.dataUrl;
+      return;
+    }
     state.imgW = imgEl.naturalWidth;
     state.imgH = imgEl.naturalHeight;
     state.album = isAlbumOrientation(state.imgW, state.imgH);
