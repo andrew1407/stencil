@@ -1,3 +1,4 @@
+#include "launchOptions.hpp"
 #include "mainWindow.hpp"
 #include <QApplication>
 #include <QIcon>
@@ -19,7 +20,12 @@ int main(int argc, char** argv) {
   if (auto* fusion = QStyleFactory::create("Fusion")) {
     QApplication::setStyle(fusion);
   }
+  // Parse CLI launch options before the window so --help/bad args exit cleanly,
+  // then apply them after show() (the image/URL/video + layout resolution is
+  // async and needs the running event loop). A plain launch is a no-op.
+  const stencil::gui::LaunchOptions opts = stencil::gui::parseLaunchOptions(app);
   stencil::gui::MainWindow window;
   window.show();
+  window.applyLaunchOptions(opts);
   return app.exec();
 }

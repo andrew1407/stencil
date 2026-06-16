@@ -167,6 +167,59 @@ the current line, and right-click for the canvas context menu. The status bar sh
 the cursor's pixel and page (cm) coordinates, computed by the shared `core` exactly
 as the browser app does.
 
+### Launch options (CLI)
+
+The executable accepts flags that pre-open content at startup — the desktop
+counterpart of the browser app's URL deep-links (`#stencil=` / `?open=`):
+
+```bash
+./build/stencil_gui [options]
+```
+
+| Flag | Description |
+| --- | --- |
+| `--theme <dark\|light>` | Set (and persist as) the default theme for this launch, overriding the saved/system choice. |
+| `--project <name>` | Open an existing, editable saved project by name (case-insensitive). Takes precedence over `--src`. |
+| `--src <path\|url>` | Open an image by local path, fetch and open a remote image URL, or grab a frame from a video file / direct media URL. |
+| `--frame <n>` | The 0-based video frame to open (default: first frame; ignored for still images). |
+| `--incognito` | Edit without saving. Honored only when a fresh image `--src` is opened — never for a saved `--project`. |
+| `--layout <path\|url>` | A layout JSON applied once the `--src` image loads successfully (local file or URL). Ignored without `--src`. |
+| `--projects` | Open the Projects window at launch. |
+| `--help` | Show the full option list. |
+
+Examples:
+
+```bash
+# Force dark mode for this launch
+./build/stencil_gui --theme dark
+
+# Open a local image, starting in light mode
+./build/stencil_gui --src ~/Pictures/floorplan.png --theme light
+
+# Fetch and open a remote image
+./build/stencil_gui --src https://example.com/diagram.jpg
+
+# Grab the 120th frame of a video file and edit it without saving
+./build/stencil_gui --src ~/clips/walkthrough.mp4 --frame 120 --incognito
+
+# Open an image and immediately apply a saved layout (local file or URL)
+./build/stencil_gui --src floorplan.png --layout floorplan-layout.json
+./build/stencil_gui --src floorplan.png --layout https://example.com/layout.json
+
+# Reopen an existing saved project by name
+./build/stencil_gui --project "Kitchen remodel"
+
+# Launch straight into the Projects window
+./build/stencil_gui --projects
+```
+
+The image / URL / video and layout resolution runs asynchronously on the event
+loop after the window appears; a toast reports success or failure. Remote images
+and video frames are adopted in-memory (like a clipboard paste), so they carry no
+on-disk path; a local image `--src` keeps its path for session / project saves.
+Video support reads **direct** media files/URLs (it does not resolve streaming
+*page* links such as a YouTube watch URL).
+
 The desktop app mirrors the browser app's interaction surface:
 
 - **Light / dark theme** (default light) — Ctrl+D or Settings; QSS derived from
