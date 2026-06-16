@@ -2008,22 +2008,9 @@ namespace stencil::gui {
 
     using Action = ProjectsDialog::Action;
     if (dlg.action() == Action::Open) {
-      const std::string id = dlg.selectedId().toStdString();
-      auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == id; });
-      if (it == projectList_.end()) return;
-      {
-        const core::PageSize page = naturalPageCm(pageSize_->currentText(),
-                                                  settings_.customPageWidth,
-                                                  settings_.customPageHeight);
-        canvas_->setPageCm(page.width, page.height);
-      }
-      canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect,
-                       it->rotationQuarters);
-      activeProjectId_ = dlg.selectedId();
-      refreshActions();
-      notify_->success(
-          QString("Opened \"%1\"").arg(QString::fromStdString(it->meta.name)));
+      loadProjectIntoCanvas(dlg.selectedId());
+    } else if (dlg.action() == Action::OpenInNewWindow) {
+      openProjectInNewWindow(dlg.selectedId());
     } else if (dlg.action() == Action::Delete) {
       const std::string id = dlg.selectedId().toStdString();
       projectList_.erase(
@@ -2056,6 +2043,38 @@ namespace stencil::gui {
       createProject(dlg.newName());
     } else if (dlg.action() == Action::NewBlank) {
       newBlankImage();
+    }
+  }
+
+  bool MainWindow::loadProjectIntoCanvas(const QString& id) {
+    const std::string sid = id.toStdString();
+    auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                           [&](const Project& p) { return p.meta.id == sid; });
+    if (it == projectList_.end()) return false;
+    {
+      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                settings_.customPageWidth,
+                                                settings_.customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
+    canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect,
+                     it->rotationQuarters);
+    activeProjectId_ = id;
+    refreshActions();
+    notify_->success(
+        QString("Opened \"%1\"").arg(QString::fromStdString(it->meta.name)));
+    return true;
+  }
+
+  void MainWindow::openProjectInNewWindow(const QString& id) {
+    // A fresh window loads the saved projects from disk in its constructor, so it
+    // already knows this project. It owns itself and is destroyed on close.
+    auto* win = new MainWindow();
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    win->show();
+    if (!win->loadProjectIntoCanvas(id)) {
+      notify_->error("Could not open the project in a new window");
+      win->close();
     }
   }
 

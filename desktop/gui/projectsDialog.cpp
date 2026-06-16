@@ -55,6 +55,8 @@ namespace stencil::gui {
     auto* blankBtn = new QPushButton("🖼 Blank Image", this);
     blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
     auto* openBtn = new QPushButton("Open", this);
+    auto* openNewWinBtn = new QPushButton("↗ New Window", this);
+    openNewWinBtn->setToolTip("Open the selected project in a new window");
     auto* renewBtn = new QPushButton("🔄 Renew", this);
     renewBtn->setToolTip("Reset the 7-day expiry to start from now");
     auto* delBtn = new QPushButton("Delete", this);
@@ -64,6 +66,7 @@ namespace stencil::gui {
     row->addWidget(blankBtn);
     row->addStretch(1);
     row->addWidget(openBtn);
+    row->addWidget(openNewWinBtn);
     row->addWidget(renewBtn);
     row->addWidget(delBtn);
     row->addWidget(closeBtn);
@@ -72,6 +75,8 @@ namespace stencil::gui {
     connect(newBtn, &QPushButton::clicked, this, &ProjectsDialog::createNew);
     connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
     connect(openBtn, &QPushButton::clicked, this, &ProjectsDialog::openSelected);
+    connect(openNewWinBtn, &QPushButton::clicked, this,
+            &ProjectsDialog::openSelectedInNewWindow);
     connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
     connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
@@ -110,6 +115,14 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Open;
+    accept();
+  }
+
+  void ProjectsDialog::openSelectedInNewWindow() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    selectedId_ = it->data(Qt::UserRole).toString();
+    action_ = Action::OpenInNewWindow;
     accept();
   }
 

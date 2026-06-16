@@ -134,6 +134,14 @@ namespace stencil::gui {
     void saveSessionNow();
     void restoreSession();
     void openProjects();
+    // Load a saved project (by id) into THIS window's canvas, mirroring the
+    // browser switchToProject(): set page size, restore image + lines + crop,
+    // mark it active. Returns false if no project with that id exists.
+    bool loadProjectIntoCanvas(const QString& id);
+    // Open a saved project in a NEW top-level window, leaving this one untouched
+    // (the desktop counterpart of the browser's "open in new tab"). The new
+    // window owns itself (WA_DeleteOnClose) and reads projects from disk.
+    void openProjectInNewWindow(const QString& id);
     void newProjectFromCanvas();
     // Shared project-creation: build a Project from the current canvas, persist,
     // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.

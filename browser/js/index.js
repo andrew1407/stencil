@@ -27,5 +27,8 @@ window.onload = async () => {
   // If the Stencil browser extension launched us with an image (URL fragment),
   // import it now that every component is wired. No-op for normal sessions.
   app.applyExternalLaunch();
+  // If launched via the projects modal's "open in new tab" action (?open=<id>),
+  // load that project now. No-op for normal sessions.
+  app.applyProjectDeepLink();
   registerServiceWorker();        // enable offline + installable PWA (best-effort)
 };

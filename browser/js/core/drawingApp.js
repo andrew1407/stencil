@@ -14,6 +14,7 @@ import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
+import { readOpenProjectId, buildOpenProjectUrl } from './deepLink.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (so they theme + match the label automatically). The
@@ -188,6 +189,11 @@ export class DrawingApp {
     // The projects component decides whether to offer a chooser after readiness.
     this.restoreFromLocalStorage();
     this.storage.newTemporary();
+    // A "?open=<id>" deep link means this tab was launched to view one specific
+    // project (the projects modal's "open in new tab" action). Read it now, before
+    // any component wires, so the chooser knows to stay closed; applyProjectDeepLink()
+    // actually loads it once everything is wired.
+    this.pendingOpenProjectId = readOpenProjectId(location.search);
     // Reflect the initial (imageless) state: undo/redo + fullscreen start disabled.
     this.updateButtons();
     this.applyUnitToUI();
@@ -2377,12 +2383,34 @@ export class DrawingApp {
   // ── Multi-project navigation (called by the projects modal) ──────
   // Switch the editor to a saved project, persisting the current one first.
   switchToProject(id) {
-    if (id === this.activeProjectId) return;
+    if (id === this.activeProjectId) return false;
     if (!this.storage.temporary && this.activeProjectId != null) this.storage.save();
     if (this.storage.loadProject(id)) {
       this.activeProjectId = id;
       this.tabs.reportActive(id);
+      return true;
     }
+    return false;
+  }
+
+  // Open a saved project in a NEW browser tab, leaving this tab untouched. The
+  // new tab boots with a "?open=<id>" deep link that applyProjectDeepLink()
+  // consumes. Default open-in-current-tab behavior stays on switchToProject().
+  openProjectInNewTab(id) {
+    if (id == null) return;
+    const base = location.origin + location.pathname;
+    window.open(buildOpenProjectUrl(base, id), '_blank');
+  }
+
+  // Consume a "?open=<id>" deep link captured at boot: strip it from the URL (so
+  // a reload doesn't re-trigger) and switch to the project if it still exists.
+  // Called once from the entrypoint after every component is wired.
+  applyProjectDeepLink() {
+    const id = this.pendingOpenProjectId;
+    if (id == null) return false;
+    // Drop the query param but keep the path + any fragment.
+    history.replaceState(null, '', location.pathname + location.hash);
+    return this.switchToProject(id);
   }
 
   // Start a fresh blank (unsaved) editor.
