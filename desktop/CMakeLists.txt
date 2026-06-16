@@ -93,7 +93,9 @@ target_link_libraries(stencil_tests PRIVATE stencil_core)
 add_test(NAME stencil_tests COMMAND stencil_tests)
 
 # ── desktop GUI: Qt 6 (optional — core + tests build without it) ──────────────
-find_package(Qt6 QUIET COMPONENTS Widgets)
+# Network + Multimedia back the --src launch flag (remote-image fetch and
+# video-frame grab); Widgets remains the gate for building the GUI at all.
+find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia)
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTORCC ON)
@@ -113,9 +115,12 @@ if(Qt6_FOUND)
     gui/infoDialog.cpp
     gui/shortcutsDialog.cpp
     gui/guiHelpers.cpp
+    gui/launchOptions.cpp
+    gui/mediaLoader.cpp
     resources/app.qrc
   )
-  target_link_libraries(stencil_gui PRIVATE stencil_core Qt6::Widgets)
+  target_link_libraries(stencil_gui
+    PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia)
   if(STENCIL_DEV_STATE_DIR)
     # Repo-local, gitignored runtime state dir (settings / session / projects).
     target_compile_definitions(stencil_gui PRIVATE

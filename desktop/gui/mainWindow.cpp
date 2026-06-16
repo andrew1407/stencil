@@ -10,6 +10,8 @@
 #include "core/zoomPan.hpp"
 #include "guiHelpers.hpp"
 #include "infoDialog.hpp"
+#include "launchOptions.hpp"
+#include "mediaLoader.hpp"
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
 #include "selectionPanel.hpp"
@@ -28,8 +30,10 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
 #include <QLineEdit>
 #include <QPixmap>
+#include <QUrl>
 #include <QStyleHints>
 #include <QFile>
 #include <QFileDialog>
@@ -2076,6 +2080,131 @@ namespace stencil::gui {
       notify_->error("Could not open the project in a new window");
       win->close();
     }
+  }
+
+  // ── launch options (CLI) ──
+  // Apply the parsed command-line options (gui/launchOptions.hpp). The desktop
+  // counterpart of the browser's URL launch (applyExternalLaunch '#stencil=' +
+  // applyProjectDeepLink '?open='). Runs after show(): the image/URL/video and
+  // layout resolution is async, so it relies on the running event loop.
+  void MainWindow::applyLaunchOptions(const LaunchOptions& opts) {
+    if (opts.empty()) return;
+
+    // Incognito is honored ONLY for a fresh image --src (never a saved --project),
+    // mirroring the browser. Set it FIRST so it gates the theme persist below and
+    // every write the subsequent image load would trigger.
+    const bool incognitoForSrc =
+        opts.incognito && !opts.src.isEmpty() && opts.project.isEmpty();
+    if (incognitoForSrc && actIncognito_->isEnabled())
+      actIncognito_->setChecked(true);  // drives incognito_ via its toggled slot
+
+    // --theme dark|light: set + persist the default theme (persist is suppressed
+    // while incognito, like every other settings write).
+    if (opts.hasTheme) {
+      settings_.themeMode = (opts.theme == "dark") ? "dark" : "light";
+      applySettings(settings_, /*persist=*/true);
+    }
+
+    // Primary content: --project wins over --src when both are given.
+    if (!opts.project.isEmpty()) {
+      if (!openProjectByName(opts.project))
+        notify_->error(QString("No project named \"%1\"").arg(opts.project));
+    } else if (!opts.src.isEmpty()) {
+      pendingLaunchLayout_ = opts.layout;  // applied after the image loads
+      if (!mediaLoader_) {
+        mediaLoader_ = new MediaLoader(this);
+        connect(mediaLoader_, &MediaLoader::loaded, this,
+                &MainWindow::onLaunchImageLoaded);
+        connect(mediaLoader_, &MediaLoader::failed, this,
+                [this](const QString& msg) {
+                  pendingLaunchLayout_.clear();
+                  notify_->error(msg);
+                });
+      }
+      notify_->info("Opening…");
+      mediaLoader_->load(opts.src, opts.frame);
+    }
+
+    // --projects: open the Projects window at launch. Queued so it runs after the
+    // current call unwinds (and after a primary load has been kicked off).
+    if (opts.projects) QTimer::singleShot(0, this, &MainWindow::openProjects);
+  }
+
+  bool MainWindow::openProjectByName(const QString& name) {
+    const QString want = name.trimmed();
+    for (const auto& p : projectList_) {
+      if (QString::fromStdString(p.meta.name).compare(want, Qt::CaseInsensitive) ==
+          0)
+        return loadProjectIntoCanvas(QString::fromStdString(p.meta.id));
+    }
+    return false;
+  }
+
+  // Adopt a resolved --src image. A local file keeps its path (so session/project
+  // saves reference it); a remote image / video frame has no path, so it is
+  // adopted in-memory (like a clipboard paste). The page aspect is applied first,
+  // exactly as openImage() does, so the auto-crop matches the current page size.
+  void MainWindow::onLaunchImageLoaded(const QImage& image,
+                                       const QString& localPath) {
+    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+    bool ok = false;
+    if (!localPath.isEmpty())
+      ok = canvas_->loadImage(localPath);  // path-backed (keeps it for saves)
+    if (!ok) {
+      if (image.isNull()) {
+        notify_->error("Failed to open the image");
+        pendingLaunchLayout_.clear();
+        return;
+      }
+      canvas_->loadFromImage(image);  // remote image / video frame (in-memory)
+    }
+    refreshActions();
+    fitToWindow();
+    notify_->success("Image opened");
+
+    // --layout: apply now that an image exists (applyLayoutJson needs one).
+    if (!pendingLaunchLayout_.isEmpty()) {
+      const QString src = pendingLaunchLayout_;
+      pendingLaunchLayout_.clear();
+      applyLayoutFromSource(src);
+    }
+  }
+
+  // Load a layout JSON from a local path or an http(s) URL, then adopt it through
+  // the shared applyLayoutJson() guards. Mirrors uploadLayout(), but the source is
+  // given (no file dialog) and may be remote.
+  void MainWindow::applyLayoutFromSource(const QString& src) {
+    auto adopt = [this, src](const QByteArray& bytes) {
+      QJsonParseError err{};
+      const QJsonDocument doc = QJsonDocument::fromJson(bytes, &err);
+      if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        notify_->error("Invalid layout JSON: " + err.errorString());
+        return;
+      }
+      applyLayoutJson(doc.object());
+    };
+
+    const QUrl url = QUrl::fromUserInput(src);
+    if (url.scheme() == "http" || url.scheme() == "https") {
+      net::fetch(this, url, adopt, [this](const QString& e) {
+        notify_->error("Could not fetch --layout: " + e);
+      });
+      return;
+    }
+    // Local file (resolve the existing path, not fromUserInput's guess).
+    const QString path =
+        QFileInfo(src).exists() ? src : url.toLocalFile();
+    QFile f(path.isEmpty() ? src : path);
+    if (!f.open(QIODevice::ReadOnly)) {
+      notify_->error("Could not read --layout file");
+      return;
+    }
+    const QByteArray bytes = f.readAll();
+    f.close();
+    adopt(bytes);
   }
 
   void MainWindow::newProjectFromCanvas() {

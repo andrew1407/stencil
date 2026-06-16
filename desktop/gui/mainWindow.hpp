@@ -23,6 +23,7 @@ class QToolButton;
 class QJsonObject;
 class QActionGroup;
 class QWidgetAction;
+class QImage;
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
 // toolbar.js + the DrawingApp wiring: a toolbar of actions, the canvas in the
@@ -33,11 +34,18 @@ namespace stencil::gui {
   class SelectionPanel;
   class Notifications;
   class CanvasTooltip;
+  class MediaLoader;
+  struct LaunchOptions;
 
   class MainWindow : public QMainWindow {
     Q_OBJECT
    public:
     explicit MainWindow(QWidget* parent = nullptr);
+
+    // Apply command-line launch options (the desktop counterpart of the browser's
+    // URL deep-links). Called from main() AFTER show() so the async image / video
+    // / network resolution runs on the event loop. See gui/launchOptions.hpp.
+    void applyLaunchOptions(const LaunchOptions& opts);
 
    private slots:
     void openImage();
@@ -142,6 +150,16 @@ namespace stencil::gui {
     // (the desktop counterpart of the browser's "open in new tab"). The new
     // window owns itself (WA_DeleteOnClose) and reads projects from disk.
     void openProjectInNewWindow(const QString& id);
+    // Launch support: open a saved project by NAME (case-insensitive; first
+    // match), used by --project. Returns false when no such project exists.
+    bool openProjectByName(const QString& name);
+    // Launch support: adopt a freshly resolved --src image onto the canvas (path
+    // non-empty for a local file, so it survives session/project saves), then
+    // apply any pending --layout. Wired to MediaLoader::loaded.
+    void onLaunchImageLoaded(const QImage& image, const QString& localPath);
+    // Launch support: load a layout JSON from a local path or URL and adopt it
+    // (shared applyLayoutJson guards apply). Used for --layout after --src loads.
+    void applyLayoutFromSource(const QString& src);
     void newProjectFromCanvas();
     // Shared project-creation: build a Project from the current canvas, persist,
     // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.
@@ -305,6 +323,12 @@ namespace stencil::gui {
     bool incognito_ = false;
     double lastHoverX_ = 0.0;
     double lastHoverY_ = 0.0;
+
+    // ── launch options (CLI) ──
+    // Async resolver for --src (image / URL / video frame); created on first use.
+    MediaLoader* mediaLoader_ = nullptr;
+    // A --layout source held until the --src image has loaded, then applied once.
+    QString pendingLaunchLayout_;
   };
 
 }
