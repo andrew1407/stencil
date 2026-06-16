@@ -73,17 +73,17 @@ namespace stencil::gui {
         QColor("#f0f0f0"), QColor("#ffffff"), QColor("#f8f9fa"),
         QColor("#fff8e1"), QColor("#dddddd"), QColor("#dddddd"),
         QColor("#f0b429"), QColor("#000000"), QColor("#888888"),
-        QColor("#7a5c00"), QColor("#0066cc"), QColor("#ffffff"),
-        QColor("#000000"), QColor("#007bff"), QColor("#ffc800"),
-        QColor("#007bff"),
+        QColor("#7a5c00"), QColor("#6d28d9"), QColor("#ffffff"),
+        QColor("#000000"), QColor("#7c3aed"), QColor("#ffc800"),
+        QColor("#7c3aed"),
     };
     static const Palette darkP{
         QColor("#1a1a1a"), QColor("#242424"), QColor("#2d2d2d"),
         QColor("#2e2a17"), QColor("#444444"), QColor("#555555"),
         QColor("#b8860b"), QColor("#e0e0e0"), QColor("#aaaaaa"),
-        QColor("#e0b84a"), QColor("#5aa9ff"), QColor("#333333"),
-        QColor("#e0e0e0"), QColor("#0056b3"), QColor("#ffc800"),
-        QColor("#007bff"),
+        QColor("#e0b84a"), QColor("#9b6cf2"), QColor("#333333"),
+        QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#ffc800"),
+        QColor("#7c3aed"),
     };
     return dark ? darkP : light;
   }
@@ -93,7 +93,7 @@ namespace stencil::gui {
     auto c = [](const QColor& q) { return q.name(); };
 
     // One stylesheet covering the widgets the app uses. Kept close to the CSS:
-    // page backdrop, light-grey controls, blue accent, themed inputs + lists.
+    // page backdrop, light-grey controls, violet accent, themed inputs + lists.
     return QString(R"(
       QMainWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
       QToolBar { background: %BG_CONTROLS%; border: 0; border-bottom: 1px solid %BORDER%; spacing: 4px; padding: 3px; }

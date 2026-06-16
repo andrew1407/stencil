@@ -105,7 +105,9 @@ const fitLaunchPayload = async (editorUrl, payload) => {
       const nextUrl = buildLaunchUrl(editorUrl, next);
       if (nextUrl.length < url.length) { payload = next; url = nextUrl; }
     }
-  } catch { /* keep the original; the caller still warns below */ }
+  } catch {
+    /* keep the original; the caller still warns below */
+  }
   return { payload, url };
 };
 
@@ -151,7 +153,11 @@ export const CROP_SRC_KEY = 'stencil-crop-src';
 // to a real tab when the modal can't be injected (restricted page) or the frame
 // is later blocked by the page's CSP.
 export const launchCrop = async ({ src, tabId }) => {
-  try { await chrome.storage.session.set({ [CROP_SRC_KEY]: src }); } catch { /* crop page shows a message */ }
+  try {
+    await chrome.storage.session.set({ [CROP_SRC_KEY]: src });
+  } catch {
+    /* crop page shows a message */
+  }
   const url = chrome.runtime.getURL('src/crop/crop.html');
   if (tabId == null) return chrome.tabs.create({ url });
   try {

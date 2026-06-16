@@ -11,7 +11,7 @@
 }
 #global-drop-overlay .drop-message {
     background: var(--bg-container);
-    border: 3px dashed #007bff;
+    border: 3px dashed var(--accent);
     border-radius: 16px;
     padding: 40px 60px;
     text-align: center;
@@ -24,7 +24,7 @@
 #global-drop-overlay .drop-message p {
     font-size: 22px;
     font-weight: bold;
-    color: #007bff;
+    color: var(--accent);
     margin: 0 0 6px;
 }
 #global-drop-overlay .drop-message span {
@@ -322,7 +322,7 @@ body.fullscreen-mode #fs-points-panel {
     user-select: none;
 }
 .ctx-checkbox-item:hover { background: var(--bg-coord-hover); }
-.ctx-checkbox-item input[type=checkbox] { accent-color: #007bff; cursor: pointer; }
+.ctx-checkbox-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
 
 /* Inline controls inside submenus */
 .ctx-row {
@@ -375,7 +375,7 @@ body.fullscreen-mode #fs-points-panel {
     font-size: 13px;
 }
 .ctx-radio-item:hover { background: var(--bg-coord-hover); }
-.ctx-radio-item input[type=radio] { accent-color: #007bff; }
+.ctx-radio-item input[type=radio] { accent-color: var(--accent); }
 .ctx-sub-label {
     padding: 5px 14px 3px;
     font-size: 11px;
@@ -426,7 +426,7 @@ body.fullscreen-mode #fs-points-panel {
 #notify-balloon.notify-visible { opacity: 1; transform: translateY(0); }
 #notify-balloon.notify-ok    { background: #28a745; }
 #notify-balloon.notify-fail  { background: #dc3545; }
-#notify-balloon.notify-info  { background: #007bff; }
+#notify-balloon.notify-info  { background: var(--accent); }
 #notify-balloon .notify-icon { font-size: 16px; }
 
 /* ── Install / download button (small icon, floating bottom-right) ── */
@@ -635,9 +635,9 @@ body.fullscreen-mode #fs-points-panel {
 }
 .hotkey-cell:hover { background: var(--bg-coord-hover); }
 .hotkey-cell.capturing {
-    background: rgba(0,123,255,0.22);
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.4);
+    background: rgba(124,58,237,0.22);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(124,58,237,0.4);
     color: var(--text-main);
 }
 .hotkey-default {
@@ -825,7 +825,7 @@ stencil-fullscreen-layer { display: contents; }
 .project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .project-sub.project-expired { color: #dc3545; font-weight: 600; }
 .project-sub.project-expiring { color: #e0a800; font-weight: 600; }
-.project-open-elsewhere { color: #007bff; }
+.project-open-elsewhere { color: var(--accent); }
 .project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
 .project-row.project-incognito { border-color: #8b5cf6; border-style: dashed; }

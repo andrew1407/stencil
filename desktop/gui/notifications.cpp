@@ -20,7 +20,7 @@ namespace stencil::gui {
     switch (level) {
       case Level::Success: bg = "#28a745"; break;
       case Level::Error:   bg = "#dc3545"; break;
-      case Level::Info:    bg = "#007bff"; break;
+      case Level::Info:    bg = "#7c3aed"; break;
     }
 
     auto* toast = new QLabel(text, host_);

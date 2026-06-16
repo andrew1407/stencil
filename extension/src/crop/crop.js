@@ -54,7 +54,9 @@ const init = async () => {
   state.name = filenameFromUrl(state.srcUrl);
   try {
     state.page = (await getSettings()).page || 'A3';
-  } catch { /* default */ }
+  } catch {
+    /* default */
+  }
   syncPageButtons();
   try {
     state.dataUrl = await fetchAsDataUrl(state.srcUrl);

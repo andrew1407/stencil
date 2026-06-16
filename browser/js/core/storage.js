@@ -99,7 +99,9 @@ export class Storage {
     const id = this.activeId;
     clearTimeout(this.#syncTimer);
     this.#syncTimer = setTimeout(() => {
-      try { this.app.tabs?.projectsChanged({ id, action: PROJECT_ACTION.UPDATED }); } catch {}
+      try {
+        this.app.tabs?.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+      } catch {}
     }, 400);
   }
 
@@ -118,7 +120,7 @@ export class Storage {
     const sameCrop = JSON.stringify((payload.layout || {}).cropRect || null) === JSON.stringify(this.app.cropRect || null);
     if (!sameImage || !sameCrop || !this.app.image) {
       this.loadPayloadIntoApp(payload);
-      this.app.showSaveStatus('↺ Synced from another tab', '#007bff');
+      this.app.showSaveStatus('↺ Synced from another tab', '#7c3aed');
       return;
     }
     const layout = payload.layout || {};
@@ -142,7 +144,7 @@ export class Storage {
     this.app.renderer.redraw();
     this.app.updateButtons();
     this.app.coordTable.update(this.app.lines.length ? this.app.lines[this.app.lines.length - 1].points : null);
-    this.app.showSaveStatus('↺ Synced from another tab', '#007bff');
+    this.app.showSaveStatus('↺ Synced from another tab', '#7c3aed');
   }
 
   // Upsert with progressive image compression + eviction on quota exhaustion.
@@ -180,7 +182,9 @@ export class Storage {
           }
           // Then evict the oldest OTHER project (never the active one).
           if (this.#evictOldestOther()) {
-            try { this.app.tabs?.projectsChanged(); } catch {}
+            try {
+              this.app.tabs?.projectsChanged();
+            } catch {}
             continue;
           }
           break; // nothing left to evict at this quality → try lower quality
@@ -414,7 +418,7 @@ export class Storage {
           if (this.app.lines.length > 0)
             this.app.coordTable.update(this.app.lines[this.app.lines.length - 1].points);
           this.showImageMissingBanner(false);
-          this.app.showSaveStatus('↺ Project loaded', '#007bff');
+          this.app.showSaveStatus('↺ Project loaded', '#7c3aed');
         };
         this.app.originalImage.src = imageDataUrl;
       } else if ((layout.lines || []).length > 0) {
@@ -445,7 +449,7 @@ export class Storage {
         this.app.updateInfo();
         this.app.renderer.redraw();
         this.app.updateButtons();
-        this.app.showSaveStatus('↺ Settings restored', '#007bff');
+        this.app.showSaveStatus('↺ Settings restored', '#7c3aed');
       }
     } catch (e) {
       console.warn('Could not load project payload:', e);

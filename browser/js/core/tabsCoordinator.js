@@ -85,7 +85,11 @@ export class TabsCoordinator {
     }
   }
 
-  #post(msg) { try { this.#port.postMessage(msg); } catch {} }
+  #post(msg) {
+    try {
+      this.#port.postMessage(msg);
+    } catch {}
+  }
 
   #onWorkerMessage(data) {
     if (data.type === MSG.TABCOUNT) {
@@ -123,7 +127,9 @@ export class TabsCoordinator {
     }, READY_TIMEOUT_MS - 50);
 
     window.addEventListener('beforeunload', () => {
-      try { this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId }); } catch {}
+      try {
+        this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId });
+      } catch {}
     });
     return true;
   }
@@ -173,9 +179,27 @@ export class TabsCoordinator {
   }
 
   // ── emit helpers ──────────────────────────────────────────────
-  #emitTabCount() { for (const cb of this.#tabCountCbs) { try { cb(this.#lastTabCount); } catch {} } }
-  #emitPeers(ids) { for (const cb of this.#peersCbs) { try { cb(ids); } catch {} } }
-  #emitProjectsChanged(detail = {}) { for (const cb of this.#projectsChangedCbs) { try { cb(detail); } catch {} } }
+  #emitTabCount() {
+    for (const cb of this.#tabCountCbs) {
+      try {
+        cb(this.#lastTabCount);
+      } catch {}
+    }
+  }
+  #emitPeers(ids) {
+    for (const cb of this.#peersCbs) {
+      try {
+        cb(ids);
+      } catch {}
+    }
+  }
+  #emitProjectsChanged(detail = {}) {
+    for (const cb of this.#projectsChangedCbs) {
+      try {
+        cb(detail);
+      } catch {}
+    }
+  }
 
   #resolveReady() {
     if (this.#resolvedReady) return;

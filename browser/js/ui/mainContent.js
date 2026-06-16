@@ -10,7 +10,7 @@ export class StencilMainContent extends StencilElement {
                 <div class="canvas-viewport" id="canvas-viewport">
                     <div class="canvas-container" id="canvas-container">
                         <canvas id="canvas"></canvas>
-                        <div id="zoom-rect-overlay" style="display:none;position:absolute;border:2px dashed #007bff;background:rgba(0,123,255,0.08);pointer-events:none;box-sizing:border-box;"></div>
+                        <div id="zoom-rect-overlay" style="display:none;position:absolute;border:2px dashed #7c3aed;background:rgba(124,58,237,0.08);pointer-events:none;box-sizing:border-box;"></div>
                         ${StencilTooltip.template()}
                     </div>
                     <div class="idle-create" id="idle-create-wrap">

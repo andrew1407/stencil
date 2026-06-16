@@ -24,7 +24,11 @@ const peersMsg = () => ({
     .filter(id => id != null),
 });
 
-const post = (port, msg) => { try { port.postMessage(msg); } catch {} };
+const post = (port, msg) => {
+  try {
+    port.postMessage(msg);
+  } catch {}
+};
 const broadcast = (msg, except = null) => {
   for (const port of ports.keys()) {
     if (port === except) continue;

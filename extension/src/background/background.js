@@ -25,7 +25,9 @@ const injectProbeIntoOpenTabs = async () => {
         target: { tabId: tab.id, allFrames: true }, files: ['src/content/ctxTarget.js']
       }).catch(() => { /* restricted page / no access — ignore */ });
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -156,7 +158,11 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
         // fallback (Chrome video context without a probe point).
         const v = px != null ? at(px, py) : largest();
         if (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) return null;
-        try { return { frame: draw(v) }; } catch { /* tainted — try CORS below */ }
+        try {
+          return { frame: draw(v) };
+        } catch {
+          /* tainted — try CORS below */
+        }
         const src = v.currentSrc || v.src || '';
         const t = v.currentTime || 0;
         if (!src) return null;
@@ -166,9 +172,19 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
           let done = false;
           const fin = (x) => { if (!done) { done = true; resolve(x); } };
           nv.addEventListener('loadeddata', () => {
-            try { nv.currentTime = Math.min(t, Math.max(0, (nv.duration || t) - 0.01)); } catch { fin(null); }
+            try {
+              nv.currentTime = Math.min(t, Math.max(0, (nv.duration || t) - 0.01));
+            } catch {
+              fin(null);
+            }
           });
-          nv.addEventListener('seeked', () => { try { fin(draw(nv)); } catch { fin(null); } });
+          nv.addEventListener('seeked', () => {
+            try {
+              fin(draw(nv));
+            } catch {
+              fin(null);
+            }
+          });
           nv.addEventListener('error', () => fin(null));
           setTimeout(() => fin(null), 8000);
         });
@@ -176,7 +192,9 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
       }
     });
     return (res && res.result) || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 // Current-frame capture for a tainted, non-CORS video: fetch the bytes with the
@@ -204,7 +222,11 @@ const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
           let done = false;
           const fin = (x) => { if (!done) { done = true; URL.revokeObjectURL(url); resolve(x); } };
           v.addEventListener('loadeddata', () => {
-            try { v.currentTime = Math.min(time, Math.max(0, (v.duration || time) - 0.01)); } catch { fin(null); }
+            try {
+              v.currentTime = Math.min(time, Math.max(0, (v.duration || time) - 0.01));
+            } catch {
+              fin(null);
+            }
           });
           v.addEventListener('seeked', () => {
             try {
@@ -214,7 +236,9 @@ const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
               c.width = w; c.height = h;
               c.getContext('2d').drawImage(v, 0, 0, w, h);
               fin(c.toDataURL('image/jpeg', 0.92));
-            } catch { fin(null); }
+            } catch {
+              fin(null);
+            }
           });
           v.addEventListener('error', () => fin(null));
           setTimeout(() => fin(null), 8000);
@@ -222,7 +246,9 @@ const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
       }
     });
     return (res && res.result) || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 // Resolve the image source for a click. A probe-captured video frame (rec.video)

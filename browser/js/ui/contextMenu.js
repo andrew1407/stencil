@@ -401,7 +401,9 @@ export class StencilContextMenu extends StencilElement {
         const text = await navigator.clipboard.readText();
         if (!text) { notify('Clipboard is empty', 'fail'); return; }
         let data = null;
-        try { data = JSON.parse(text); } catch {}
+        try {
+          data = JSON.parse(text);
+        } catch {}
         if (!data || !Array.isArray(data.lines)) {
           notify('Clipboard does not contain a layout JSON', 'fail');
           return;

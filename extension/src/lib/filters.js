@@ -15,7 +15,11 @@ export const formatOf = (src) => {
     return m ? norm(m[1]) : '';
   }
   let path = src;
-  try { path = new URL(src, 'http://_/').pathname; } catch { /* keep raw */ }
+  try {
+    path = new URL(src, 'http://_/').pathname;
+  } catch {
+    /* keep raw */
+  }
   const m = /\.([a-z0-9]{2,5})(?:[?#]|$)/i.exec(path);
   return m ? norm(m[1]) : '';
 };

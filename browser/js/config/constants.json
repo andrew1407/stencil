@@ -16,8 +16,8 @@
     "style": "solid",
     "defaultFillColor": "#3399ff",
     "selGlowColor": "#ffc800",
-    "hoverRingColor": "#007bff",
-    "focusRingColor": "#007bff"
+    "hoverRingColor": "#7c3aed",
+    "focusRingColor": "#7c3aed"
   },
   "LIMITS": {
     "zoomMin": 0.05,

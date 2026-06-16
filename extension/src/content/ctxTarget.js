@@ -18,7 +18,11 @@
   // Wake the lazy SW on load so the context menu exists before the first
   // right-click. The message needs no handling — receiving it evaluates the
   // worker, which builds the menu at top level.
-  try { chrome.runtime.sendMessage({ type: 'stencil-wake' }, () => void chrome.runtime.lastError); } catch { /* ignore */ }
+  try {
+    chrome.runtime.sendMessage({ type: 'stencil-wake' }, () => void chrome.runtime.lastError);
+  } catch {
+    /* ignore */
+  }
 
   const firstCssImageUrl = (bg) => {
     if (!bg || bg === 'none') return null;
@@ -99,9 +103,21 @@
       const u = el.tagName === 'IMG' ? (el.currentSrc || el.src)
         : el.tagName === 'IMAGE' ? (el.getAttribute('href') || el.getAttribute('xlink:href'))
           : null;
-      if (u) { try { return new URL(u, location.href).href; } catch { return u; } }
+      if (u) {
+        try {
+          return new URL(u, location.href).href;
+        } catch {
+          return u;
+        }
+      }
       const bg = cssImageUrlOf(el);
-      if (bg) { try { return new URL(bg, location.href).href; } catch { return bg; } }
+      if (bg) {
+        try {
+          return new URL(bg, location.href).href;
+        } catch {
+          return bg;
+        }
+      }
     }
     return null;
   };
@@ -111,7 +127,11 @@
     for (let node = start; node && node.nodeType === 1; node = node.parentElement) {
       const u = cssImageUrlOf(node);
       if (u) {
-        try { return new URL(u, location.href).href; } catch { return null; }
+        try {
+          return new URL(u, location.href).href;
+        } catch {
+          return null;
+        }
       }
     }
     return null;
@@ -129,7 +149,9 @@
         x += fr.x; y += fr.y;
         win = win.parent;
       }
-    } catch { /* cross-origin ancestor — use what we have */ }
+    } catch {
+      /* cross-origin ancestor — use what we have */
+    }
     return { x, y, width: r.width, height: r.height };
   };
 
@@ -154,11 +176,19 @@
 
   document.addEventListener('contextmenu', (e) => {
     let data = null;
-    try { data = resolveTarget(e.target, e.clientX, e.clientY); } catch { data = null; }
+    try {
+      data = resolveTarget(e.target, e.clientX, e.clientY);
+    } catch {
+      data = null;
+    }
     // Send the cursor point too: the SW recaptures a video frame in-page at click
     // time (robust against a worker restart / stale frame) and uses it to pick the
     // right video. The SW may be asleep / page navigating — a failed send is fine.
     const point = { x: e.clientX, y: e.clientY };
-    try { chrome.runtime.sendMessage({ type: 'stencil-ctx', data, point }); } catch { /* ignore */ }
+    try {
+      chrome.runtime.sendMessage({ type: 'stencil-ctx', data, point });
+    } catch {
+      /* ignore */
+    }
   }, true);
 })();
