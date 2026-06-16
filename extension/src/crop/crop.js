@@ -1,9 +1,8 @@
 // ── Quick crop page ─────────────────────────────────────────────────────────
-// Mirrors the editor's crop model: a crop is a rect in ORIGINAL-image pixels
-// whose aspect is locked to the page (A3/A4/custom). Move by dragging inside,
-// resize corner-only, scroll to zoom. Then either "Keep original" (full image +
-// crop rect) or "Cut cropped part" (bake the region into a new image). Opens the
-// editor as an in-page modal or a new tab per the user's setting.
+// Mirrors the editor's crop model: a rect in ORIGINAL-image pixels whose aspect is
+// locked to the page (A3/A4/custom). Drag to move, resize corner-only, scroll to
+// zoom. Then "Keep original" (full image + crop rect) or "Cut cropped part" (bake
+// the region into a new image), opening the editor in a tab.
 import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
   roundRect, isAlbumOrientation, pageDims
@@ -11,8 +10,7 @@ import {
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY } from '../lib/stencil.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
-// host overlay that we booted (so it keeps the modal) and ask it to close once
-// the user opens the editor.
+// host overlay when we booted (so it keeps the modal) and when to close.
 const FRAMED = window.parent && window.parent !== window;
 
 const postToHost = (type) => {
@@ -236,6 +234,42 @@ document.getElementById('orient-seg').addEventListener('click', (e) => {
   syncOrientationButtons();
   resetCrop();
 });
+
+// ── Rotate ──
+// Bake a 90° turn into the source image so the crop coords we later hand the editor
+// match the rotated picture. Dimensions swap, so orientation follows the new shape
+// and the crop re-centers to the page.
+const rotate = (clockwise) => {
+  if (!state.imgW) return;
+  const c = document.createElement('canvas');
+  c.width = state.imgH;
+  c.height = state.imgW;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate((clockwise ? 1 : -1) * Math.PI / 2);
+  ctx.drawImage(imgEl, -state.imgW / 2, -state.imgH / 2);
+  state.dataUrl = c.toDataURL('image/png');
+  state.imgW = c.width;
+  state.imgH = c.height;
+  state.album = isAlbumOrientation(state.imgW, state.imgH);
+  syncOrientationButtons();
+  imgEl.onload = () => {
+    fitToWindow();
+    resetCrop();
+    overlay.hidden = false;
+  };
+  imgEl.src = state.dataUrl;
+};
+
+document.getElementById('rotate-left').addEventListener('click', () => rotate(false));
+document.getElementById('rotate-right').addEventListener('click', () => rotate(true));
+window.addEventListener('keydown', (e) => {
+  if (!e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    rotate(e.shiftKey);   // Alt+R = left, Alt+Shift+R = right
+  }
+});
 document.getElementById('custom-w').addEventListener('input', onCustom);
 document.getElementById('custom-h').addEventListener('input', onCustom);
 document.getElementById('reset').addEventListener('click', resetCrop);
@@ -282,8 +316,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
 });
 
 // ── Bootstrap (last, so every const above is defined before init runs) ──
-// The image source comes from session storage (set by launchCrop); fall back to
-// a ?src query param for older callers.
+// Image source comes from session storage (set by launchCrop); fall back to ?src.
 (async () => {
   let src = new URLSearchParams(location.search).get('src') || '';
   if (!src) {

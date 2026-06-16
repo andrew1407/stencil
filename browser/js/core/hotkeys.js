@@ -88,6 +88,13 @@ class Hotkeys {
     }
   }
 
+  // Format "<label> (<combo>)" for a tooltip, platform-aware (⌥R on Mac, Alt+R
+  // elsewhere). Returns just the label when the id has no binding.
+  hkTitle(label, id) {
+    const combo = this.#current[id];
+    return combo ? `${label} (${formatCombo(combo, this.#isMac)})` : label;
+  }
+
   // Update every .ctx-hotkey[data-hk] element so context menus reflect current
   // bindings. No-op-safe when there's no document (Node import).
   updateCtxHints() {
@@ -95,6 +102,22 @@ class Hotkeys {
     document.querySelectorAll('[data-hk]').forEach(el => {
       const id = el.dataset.hk;
       if (this.#current[id]) el.textContent = formatCombo(this.#current[id], this.#isMac);
+    });
+    this.updateHotkeyTitles();
+  }
+
+  // Patch every [data-hk-title] element's `title` tooltip to the platform-formatted
+  // current binding. data-hk-title = hotkey id; data-hk-label = base tooltip text
+  // (falls back to the element's existing title with any "(…)" suffix stripped).
+  // Keeps button tooltips correct on macOS (⌥/⇧/⌘) and live across rebinds.
+  updateHotkeyTitles() {
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll('[data-hk-title]').forEach(el => {
+      const id = el.dataset.hkTitle;
+      if (!this.#current[id]) return;
+      const label = el.dataset.hkLabel
+        || (el.dataset.hkLabel = (el.getAttribute('title') || '').replace(/\s*\([^)]*\)\s*$/, ''));
+      el.title = `${label} (${formatCombo(this.#current[id], this.#isMac)})`;
     });
   }
 }

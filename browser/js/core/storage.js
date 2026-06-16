@@ -27,9 +27,12 @@ export class Storage {
     return {
       imageWidth: this.app.canvas.width,
       imageHeight: this.app.canvas.height,
-      // The crop rectangle (original-image pixels). The stored image stays the
-      // untouched original; the crop is re-applied on load.
+      // The crop rectangle (rotated-image pixels). The stored image stays the
+      // untouched original; the rotation + crop are re-applied on load.
       cropRect: this.app.cropRect,
+      // 90° quarter-turns (0..3, clockwise) applied to the original before the
+      // crop is taken. cropRect lives in this rotated space.
+      rotationQuarters: this.app.rotationQuarters || 0,
       lines: this.app.lines,
       pageSize: this.app.pageSize,
       customPageWidth: this.app.customPageWidth,
@@ -378,8 +381,10 @@ export class Storage {
         this.app.originalImage.onload = () => {
           // Stale-load guard: ignore if the user switched projects mid-load.
           if (this.activeId !== targetId) return;
-          // Re-apply the stored crop (or default-crop legacy projects saved
-          // before cropping existed) and build the working canvas from it.
+          // Re-apply the stored rotation + crop (or default-crop legacy projects
+          // saved before cropping existed) and build the working canvas from it.
+          // Rotation must be set first: defaultCropRect and rebuild both read it.
+          this.app.rotationQuarters = layout.rotationQuarters || 0;
           this.app.cropRect = layout.cropRect || this.app.defaultCropRect();
           this.app.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
@@ -417,6 +422,7 @@ export class Storage {
         this.app.image = null;
         this.app.originalImage = null;
         this.app.cropRect = null;
+        this.app.rotationQuarters = 0;
         this.app.imageDataUrl = null;
         this.app.lines = [];
         this.app.history.reset([], -1);
@@ -432,6 +438,7 @@ export class Storage {
         this.app.image = null;
         this.app.originalImage = null;
         this.app.cropRect = null;
+        this.app.rotationQuarters = 0;
         this.app.imageDataUrl = null;
         this.app.lines = [];
         this.app.history.reset([], -1);

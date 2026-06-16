@@ -1,9 +1,8 @@
 // ── Page image scanner ──────────────────────────────────────────────────────
-// scanPageForImages runs in the PAGE context (injected via
-// chrome.scripting.executeScript), so it must be entirely self-contained — no
-// imports, no references to module scope. It collects <img>, inline <svg><image>
-// CSS background-image URLs (including ::before / ::after pseudo-elements), and
-// <video> current frames, resolved to absolute, deduped, capped.
+// Runs in the PAGE context (injected via chrome.scripting), so it must be fully
+// self-contained — no imports, no module-scope refs. Collects <img>, inline
+// <svg><image>, CSS background-image URLs (incl. ::before/::after), and <video>
+// current frames — resolved to absolute, deduped, capped.
 export const scanPageForImages = (limit) => {
   const out = [];
   const seen = new Set();
@@ -11,9 +10,8 @@ export const scanPageForImages = (limit) => {
     if (!raw) return '';
     try { return new URL(raw, location.href).href; } catch { return ''; }
   };
-  // `extra` carries video-only fields (videoUrl, hasFrame). A video with no
-  // readable frame and no poster still lists (keyed on its media URL) so it can be
-  // opened in a tab.
+  // `extra` carries video-only fields (videoUrl, hasFrame). A frameless, posterless
+  // video still lists (keyed on its media URL) so it can be opened in a tab.
   const push = (raw, kind, w, h, alt, extra = {}) => {
     if (out.length >= limit) return;
     const src = abs(raw);
@@ -29,18 +27,17 @@ export const scanPageForImages = (limit) => {
   document.querySelectorAll('svg image').forEach(im =>
     push(im.getAttribute('href') || im.getAttribute('xlink:href'), 'img', 0, 0, ''));
 
-  // <video>: list as a video carrying its current frame (the still to edit/crop)
-  // AND its media URL (to open/download). Cross-origin videos taint the canvas, so
-  // the frame may be null — then the still falls back to the poster, and the popup
-  // can still open the video in a tab.
+  // <video>: list with its current frame (the still to edit/crop) AND its media URL
+  // (to open/download). A cross-origin video taints the canvas, so the frame may be
+  // null — the still then falls back to the poster.
   document.querySelectorAll('video').forEach(v => {
     const w = v.videoWidth, h = v.videoHeight;
     let frame = null;
     // readyState >= HAVE_CURRENT_DATA — otherwise drawImage paints a blank frame.
     if (w && h && v.readyState >= 2) {
       try {
-        // Cap the longest side: the frame rides in the editor launch URL as a data
-        // URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
+        // Cap the longest side so the frame's data URL doesn't overflow the editor
+        // launch URL (a 4K frame would land the editor tab on about:blank).
         const s = Math.min(1, 1920 / Math.max(w, h));
         const cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
         const c = document.createElement('canvas');
@@ -49,10 +46,10 @@ export const scanPageForImages = (limit) => {
         frame = c.toDataURL('image/jpeg', 0.92);
       } catch { frame = null; }
     }
-    // Only an http(s) media URL is openable from the extension; a page-created
-    // blob: URL isn't reachable from another context, so leave it out.
+    // Only an http(s) media URL is reachable from another context; a page-created
+    // blob: URL isn't, so leave it out.
     const raw = v.currentSrc || v.src || '';
-    const videoUrl = /^https?:/i.test(raw) ? abs(raw) : '';
+    const videoUrl = (raw.startsWith('http:') || raw.startsWith('https:')) ? abs(raw) : '';
     const still = frame || v.poster || '';
     push(still, 'video', w, h, v.getAttribute('aria-label') || 'video', { videoUrl, hasFrame: !!frame });
   });
@@ -66,7 +63,7 @@ export const scanPageForImages = (limit) => {
       let m;
       while ((m = re.exec(bg))) {
         const u = m[2];
-        if (u && !/^data:image\/svg/i.test(u)) push(u, 'bg', 0, 0, '');
+        if (u && !u.toLowerCase().startsWith('data:image/svg')) push(u, 'bg', 0, 0, '');
       }
     }
   }

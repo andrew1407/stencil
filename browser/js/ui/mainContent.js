@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { StencilTooltip } from './tooltip.js';
+import { hotkeys } from '../core/hotkeys.js';
 // ── Component: main content (canvas section + coordinates panel) ──
 // Owns the canvas/coord-panel markup and the coord-panel collapse behavior.
 export class StencilMainContent extends StencilElement {
@@ -26,7 +27,7 @@ export class StencilMainContent extends StencilElement {
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
                     <span class="coord-title" id="coord-title">Last Line Points</span>
-                    <button id="toggle-coord-panel" title="Hide panel (Alt+X)">▼</button>
+                    <button id="toggle-coord-panel" data-hk-title="togglePointsList" title="Hide panel (Alt+X)">▼</button>
                 </div>
                 <div id="coord-body">
                 <table class="coordinates-table" id="coordinates-table">
@@ -63,7 +64,7 @@ export class StencilMainContent extends StencilElement {
       hidden = !hidden;
       panel.classList.toggle('coord-collapsed', hidden);
       btn.textContent = hidden ? '▶' : '▼';
-      btn.title = hidden ? 'Show Last Line Points (Alt+X)' : 'Hide panel (Alt+X)';
+      btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
   }
 }

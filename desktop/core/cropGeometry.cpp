@@ -105,4 +105,37 @@ namespace stencil::core {
       }
   }
 
+  CropRect rotateCropRectQuarter(const CropRect& r, double imageW, double imageH,
+                                 bool clockwise) {
+    CropRect out;
+    out.width = r.height;
+    out.height = r.width;
+    if (clockwise) {
+      // Top-left of the picture moves to the top-right: x' spans down from the
+      // far edge (imageH), y' picks up the old x.
+      out.x = imageH - (r.y + r.height);
+      out.y = r.x;
+    } else {
+      out.x = r.y;
+      out.y = imageW - (r.x + r.width);
+    }
+    return out;
+  }
+
+  void rotateLinePointsQuarter(Lines& lines, double boxW, double boxH,
+                               bool clockwise) {
+    for (auto& line : lines)
+      for (auto& p : line.points) {
+        const double px = p.x;
+        const double py = p.y;
+        if (clockwise) {
+          p.x = boxH - py;
+          p.y = px;
+        } else {
+          p.x = py;
+          p.y = boxW - px;
+        }
+      }
+  }
+
 }

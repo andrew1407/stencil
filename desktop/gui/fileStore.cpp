@@ -217,6 +217,7 @@ namespace stencil::gui {
     s.drawMode = o.value("drawMode").toString("line");
     s.lines = linesFromJson(o.value("lines").toArray());
     s.cropRect = cropRectFromJson(o.value("cropRect").toObject());
+    s.rotationQuarters = o.value("rotationQuarters").toInt(0);
     return s;
   }
 
@@ -232,6 +233,7 @@ namespace stencil::gui {
     o["drawMode"] = s.drawMode;
     o["lines"] = linesToJson(s.lines);
     if (s.cropRect.width > 0) o["cropRect"] = cropRectToJson(s.cropRect);
+    if (s.rotationQuarters) o["rotationQuarters"] = s.rotationQuarters;
     writeJson(sessionPath(), QJsonDocument(o));
   }
 
@@ -250,6 +252,7 @@ namespace stencil::gui {
       pr.meta.hasImage = !pr.imagePath.isEmpty();
       pr.lines = linesFromJson(o.value("lines").toArray());
       pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
+      pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
       out.push_back(std::move(pr));
     }
     return out;
@@ -283,6 +286,7 @@ namespace stencil::gui {
       o["imagePath"] = pr.imagePath;
       o["lines"] = linesToJson(pr.lines);
       if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
+      if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
       arr.append(o);
     }
     writeJson(projectsPath(), QJsonDocument(arr));

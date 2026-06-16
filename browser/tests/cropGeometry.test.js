@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   isAlbumOrientationJS, cropAspectJS, centeredCropJS, resizeCropFromCornerJS,
-  moveCropClampedJS, cropResizeScaleJS, cropChangeJS, scaleLinePoints
+  moveCropClampedJS, cropResizeScaleJS, cropChangeJS, scaleLinePoints,
+  rotateCropRectQuarterJS, rotateLinePointsQuarter
 } from '../js/core/cropGeometry.js';
 
 // A3 page in cm (aspect ≈ √2), matching desktop/tests/cropGeometry.test.cpp.
@@ -105,4 +106,50 @@ test('scaleLinePoints multiplies every point in place', () => {
   approx(lines[0].points[1].x, 45);
   approx(lines[1].points[0].x, 1.5);
   approx(lines[1].points[0].y, 3);
+});
+
+test('rotateCropRectQuarter turns the crop into the swapped-dimension image', () => {
+  // 200x100 image, crop {10,20,80,40}. A right (CW) turn -> 100x200 space.
+  const r = { x: 10, y: 20, width: 80, height: 40 };
+  const cw = rotateCropRectQuarterJS(r, 200, 100, true);
+  // CW: x' = imageH - (y+h), y' = x; dims swap.
+  approx(cw.x, 100 - (20 + 40));
+  approx(cw.y, 10);
+  approx(cw.width, 40);
+  approx(cw.height, 80);
+
+  const ccw = rotateCropRectQuarterJS(r, 200, 100, false);
+  approx(ccw.x, 20);
+  approx(ccw.y, 200 - (10 + 80));
+  approx(ccw.width, 40);
+  approx(ccw.height, 80);
+});
+
+test('rotateCropRectQuarter round-trips (CW then CCW) back to the original rect', () => {
+  const r = { x: 13, y: 7, width: 50, height: 30 };
+  const W = 200, H = 100;
+  const cw = rotateCropRectQuarterJS(r, W, H, true);         // now in H x W space
+  const back = rotateCropRectQuarterJS(cw, H, W, false);     // back to W x H
+  approx(back.x, r.x);
+  approx(back.y, r.y);
+  approx(back.width, r.width);
+  approx(back.height, r.height);
+});
+
+test('rotateLinePointsQuarter turns crop-local points and round-trips', () => {
+  const boxW = 80, boxH = 40;
+  const mk = () => [{ points: [{ x: 0, y: 0 }, { x: 80, y: 0 }, { x: 80, y: 40 }] }];
+  const cw = mk();
+  rotateLinePointsQuarter(cw, boxW, boxH, true);  // box becomes 40 x 80
+  // CW: (px,py) -> (boxH - py, px)
+  approx(cw[0].points[0].x, 40); approx(cw[0].points[0].y, 0);
+  approx(cw[0].points[1].x, 40); approx(cw[0].points[1].y, 80);
+  approx(cw[0].points[2].x, 0);  approx(cw[0].points[2].y, 80);
+
+  // round-trip: CW (boxW,boxH) then CCW in the swapped box (boxH,boxW) restores.
+  const rt = mk();
+  rotateLinePointsQuarter(rt, boxW, boxH, true);
+  rotateLinePointsQuarter(rt, boxH, boxW, false);
+  const orig = mk()[0].points;
+  rt[0].points.forEach((p, i) => { approx(p.x, orig[i].x); approx(p.y, orig[i].y); });
 });

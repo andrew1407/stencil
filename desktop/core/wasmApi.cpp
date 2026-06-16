@@ -211,6 +211,21 @@ extern "C" {
     return cropResizeScale(oldWidth, newWidth);
   }
 
+  // Rotate a crop rect one quarter turn (clockwise != 0 = right) within an image
+  // of imageW x imageH -> out[0..3] = {x, y, width, height}. Crop-local line
+  // points ride along via the plain rotateLinePointsQuarter core call (the
+  // browser runs that one in JS, like scaleLinePoints), so it needs no export.
+  void stencil_rotateCropRectQuarter(double x, double y, double w, double h,
+                                     double imageW, double imageH, int clockwise,
+                                     double* out) {
+    const CropRect r = rotateCropRectQuarter(CropRect{x, y, w, h}, imageW, imageH,
+                                             clockwise != 0);
+    out[0] = r.x;
+    out[1] = r.y;
+    out[2] = r.width;
+    out[3] = r.height;
+  }
+
   // out[0] = orientationChanged (0/1), out[1] = scale.
   void stencil_cropChange(double oldX, double oldY, double oldW, double oldH,
                           double newX, double newY, double newW, double newH,

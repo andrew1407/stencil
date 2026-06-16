@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { hotkeys } from '../core/hotkeys.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and the fullscreen behavior (cloning the
 // live controls + coord panel, slide-in panels, enter/exit). Exposes the toggle
@@ -13,7 +14,7 @@ export class StencilFullscreenLayer extends StencilElement {
 
     <!-- Fullscreen slide-in: controls (top) -->
     <div id="fs-controls-panel">
-        <button id="fs-exit-btn" title="Exit fullscreen (Alt+F)">✕ Exit</button>
+        <button id="fs-exit-btn" data-hk-title="fullscreen" title="Exit fullscreen (Alt+F)">✕ Exit</button>
         <!-- Controls content will be cloned here by JS -->
     </div>
 
@@ -199,7 +200,7 @@ export class StencilFullscreenLayer extends StencilElement {
       isFullscreen = !isFullscreen;
       document.body.classList.toggle('fullscreen-mode', isFullscreen);
       fsBtn.textContent = '⛶';
-      fsBtn.title = isFullscreen ? 'Exit fullscreen (Alt+F)' : 'Fullscreen mode (Alt+F)';
+      fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
       fsBtn.style.background = isFullscreen ? '#007bff' : '';
       fsBtn.style.color = isFullscreen ? '#fff' : '';
 

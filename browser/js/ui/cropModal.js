@@ -95,8 +95,11 @@ export class StencilCropModal extends StencilElement {
         notify('Open an image first', 'fail');
         return;
       }
-      iw = app.originalImage.width;
-      ih = app.originalImage.height;
+      // Preview the rotated original so the crop rect (which lives in rotated
+      // pixel space) lines up with what's shown.
+      const dims = app.effectiveOriginalDims();
+      iw = dims.w;
+      ih = dims.h;
       // Seed from the current applied crop (or a centered default).
       rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
       album = isAlbumOrientation(rect.width, rect.height);
@@ -104,7 +107,7 @@ export class StencilCropModal extends StencilElement {
       open();
       // Position once the preview image has its displayed size.
       img.onload = () => { computeScale(); renderBox(); };
-      img.src = app.imageDataUrl;
+      img.src = app.effectiveOriginalDataUrl();
       if (img.complete && img.naturalWidth) { computeScale(); renderBox(); }
     };
     document.getElementById('crop-image').addEventListener('click', openCrop);

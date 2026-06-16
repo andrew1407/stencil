@@ -2,6 +2,7 @@ import { mountHTML } from './utils.js';
 import { layout } from './ui/layout.js';
 import { DrawingApp } from './core/drawingApp.js';
 import { core } from './core/stencilCore.js';
+import { hotkeys } from './core/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST. Importing layout registers every custom element. On load:
@@ -20,6 +21,9 @@ window.onload = async () => {
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
+  // Platform-format every button tooltip carrying a hotkey hint (⌥R on macOS,
+  // Alt+R elsewhere) now that the components have rendered their markup.
+  hotkeys.updateHotkeyTitles();
   // If the Stencil browser extension launched us with an image (URL fragment),
   // import it now that every component is wired. No-op for normal sessions.
   app.applyExternalLaunch();

@@ -1,14 +1,9 @@
 // ── In-page modal (quick-crop) ──────────────────────────────────────────────
-// Frames an extension page (the quick-crop tool) in a centered modal on top of
-// the current page, so cropping is a fast in-place step — only "Open in editor"
-// spawns a full tab. This function is ALSO injected into arbitrary web pages via
-// chrome.scripting.executeScript, so it must be fully self-contained: no imports,
-// no references to any module-scope identifier.
-//
-// The framed page posts {source:'stencil-modal', type:'ready'} once it boots and
-// {type:'close'} when done. If we never hear 'ready' (the page's CSP frame-src or
-// mixed-content rules blocked the frame), we drop the modal and open the tool in
-// a real tab instead.
+// Frames the quick-crop extension page in a centered modal over the current page.
+// Injected into arbitrary pages via chrome.scripting, so it must be fully
+// self-contained — no imports, no module-scope refs. The framed page posts
+// {source:'stencil-modal', type:'ready'|'close'}; if 'ready' never arrives (CSP
+// frame-src / mixed-content blocked the frame), we drop the modal and open a tab.
 export const mountStencilModal = (url, title) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);

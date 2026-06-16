@@ -66,4 +66,22 @@ namespace stencil::core {
   // rescale applied when the crop is resized within the same orientation.
   void scaleLinePoints(Lines& lines, double scale);
 
+  // ── 90° image rotation (shared by the desktop app and the wasm browser build) ──
+  // Rotation is non-destructive: the original image is kept and a quarter-turn
+  // count (0..3, clockwise) is stored alongside the crop rectangle. These helpers
+  // transport the crop window and the crop-local line points across a single
+  // quarter turn so the framing and the drawing follow the rotated picture.
+
+  // Rotate a crop rectangle one quarter turn within an image of imageW x imageH
+  // (the dimensions of the image the rect currently lives in). The turned image's
+  // dimensions are imageH x imageW. `clockwise` rotates the picture right.
+  CropRect rotateCropRectQuarter(const CropRect& r, double imageW, double imageH,
+                                 bool clockwise);
+
+  // Rotate every crop-local point of every line one quarter turn inside a crop
+  // box of boxW x boxH (in crop-local pixels), in place. After the turn the box
+  // is boxH x boxW. `clockwise` matches rotateCropRectQuarter.
+  void rotateLinePointsQuarter(Lines& lines, double boxW, double boxH,
+                               bool clockwise);
+
 }

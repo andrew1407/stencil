@@ -132,3 +132,49 @@ TEST_CASE("scaleLinePoints multiplies every point in place") {
   CHECK(lines[1].points[0].x == doctest::Approx(1.5));
   CHECK(lines[1].points[0].y == doctest::Approx(3.0));
 }
+
+TEST_CASE("rotateCropRectQuarter turns the crop into the swapped-dimension image") {
+  const CropRect r{10, 20, 80, 40};  // in a 200x100 image
+  const auto cw = rotateCropRectQuarter(r, 200, 100, true);
+  CHECK(cw.x == doctest::Approx(100 - (20 + 40)));
+  CHECK(cw.y == doctest::Approx(10));
+  CHECK(cw.width == doctest::Approx(40));
+  CHECK(cw.height == doctest::Approx(80));
+
+  const auto ccw = rotateCropRectQuarter(r, 200, 100, false);
+  CHECK(ccw.x == doctest::Approx(20));
+  CHECK(ccw.y == doctest::Approx(200 - (10 + 80)));
+  CHECK(ccw.width == doctest::Approx(40));
+  CHECK(ccw.height == doctest::Approx(80));
+}
+
+TEST_CASE("rotateCropRectQuarter round-trips CW then CCW") {
+  const CropRect r{13, 7, 50, 30};
+  const auto cw = rotateCropRectQuarter(r, 200, 100, true);     // H x W space
+  const auto back = rotateCropRectQuarter(cw, 100, 200, false); // back to W x H
+  CHECK(back.x == doctest::Approx(r.x));
+  CHECK(back.y == doctest::Approx(r.y));
+  CHECK(back.width == doctest::Approx(r.width));
+  CHECK(back.height == doctest::Approx(r.height));
+}
+
+TEST_CASE("rotateLinePointsQuarter turns crop-local points and round-trips") {
+  Line a;
+  a.points = {{0, 0}, {80, 0}, {80, 40}};
+  Lines cw{a};
+  rotateLinePointsQuarter(cw, 80, 40, true);  // box 80x40 -> 40x80
+  CHECK(cw[0].points[0].x == doctest::Approx(40));
+  CHECK(cw[0].points[0].y == doctest::Approx(0));
+  CHECK(cw[0].points[1].x == doctest::Approx(40));
+  CHECK(cw[0].points[1].y == doctest::Approx(80));
+  CHECK(cw[0].points[2].x == doctest::Approx(0));
+  CHECK(cw[0].points[2].y == doctest::Approx(80));
+
+  Lines rt{a};
+  rotateLinePointsQuarter(rt, 80, 40, true);
+  rotateLinePointsQuarter(rt, 40, 80, false);  // swapped box restores
+  for (std::size_t i = 0; i < a.points.size(); ++i) {
+    CHECK(rt[0].points[i].x == doctest::Approx(a.points[i].x));
+    CHECK(rt[0].points[i].y == doctest::Approx(a.points[i].y));
+  }
+}

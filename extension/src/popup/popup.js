@@ -2,10 +2,10 @@
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchCrop, getSettings } from '../lib/stencil.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
-import { passesFilters, distinctFormats, formatOf, UNKNOWN_FORMAT } from '../lib/filters.js';
+import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
 
-// Common web image formats always offered in the filter, plus any others the
-// page actually uses (added in populateFormats).
+// Common web image formats always offered in the filter, plus any others the page
+// uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
 const COMMON_FORMATS = ['png', 'jpg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'tiff'];
 
 const listEl = document.getElementById('list');
@@ -17,15 +17,16 @@ const menuEl = document.getElementById('action-menu');
 
 const MAX_IMAGES = 1000; // hard cap on what we pull from the page
 const THUMB_PX = 48;     // rendered thumbnail size (see .thumb in popup.css)
+// Page schemes the extension can't script.
+const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:'];
 // Placeholder thumbnail for a video whose frame couldn't be read (cross-origin).
 const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
 const state = { all: [], filtered: [], activeTabId: null };
 
-// Lazily measure unknown-size images only once their row scrolls into view —
-// the actual lazy-on-scroll behaviour (thumbnails use loading="lazy" too). All
-// matching rows are rendered up front so search/filtering shows everything.
+// Measure unknown-size images only once their row scrolls into view (thumbnails
+// use loading="lazy" too). All matching rows render up front so filtering shows all.
 const measureObs = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (!e.isIntersecting) continue;
@@ -43,7 +44,7 @@ const scan = async () => {
   state.all = [];
   populateFormats();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || /^(chrome|edge|about|chrome-extension|view-source):/.test(tab.url || '')) {
+  if (!tab || BLOCKED_SCHEMES.some(s => (tab.url || '').startsWith(s))) {
     statusEl.textContent = 'This page can’t be scanned.';
     return;
   }
@@ -51,8 +52,7 @@ const scan = async () => {
   await syncHighlightCheckbox(tab.id);
   let images = [];
   try {
-    // Scan every frame (sites often put the real content in an iframe), then
-    // merge + dedupe across frames.
+    // Scan every frame (content is often in an iframe), then dedupe across frames.
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id, allFrames: true }, func: scanPageForImages, args: [MAX_IMAGES]
     });
@@ -82,11 +82,12 @@ const scan = async () => {
 // checked (= no filtering); the toggle button flips select-all / deselect-all.
 const populateFormats = () => {
   const present = new Set(distinctFormats(state.all));
-  // 'etc' covers images with no detectable format; always offered, marked
-  // present only when the page actually has such images. Kept last in the list.
-  if (state.all.some(it => !formatOf(it.src))) present.add(UNKNOWN_FORMAT);
-  const extras = [...present].filter(f => !COMMON_FORMATS.includes(f) && f !== UNKNOWN_FORMAT);
-  const formats = [...COMMON_FORMATS, ...extras, UNKNOWN_FORMAT];
+  // 'etc' (undetectable format) is always offered, last, marked present only when
+  // the page actually has such items.
+  if (state.all.some(it => !formatOfItem(it))) present.add(UNKNOWN_FORMAT);
+  const known = new Set([...COMMON_FORMATS, ...VIDEO_FORMATS, UNKNOWN_FORMAT]);
+  const extras = [...present].filter(f => !known.has(f));
+  const formats = [...COMMON_FORMATS, ...VIDEO_FORMATS, ...extras, UNKNOWN_FORMAT];
   const box = document.getElementById('f-formats');
   box.innerHTML = formats.map(f =>
     `<label class="${present.has(f) ? '' : 'absent'}"><input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`
@@ -154,8 +155,7 @@ const renderRow = (image) => {
   const row = document.createElement('div');
   row.className = 'row';
 
-  // Tooltip on both the thumbnail and the name, spelling out the gestures and
-  // where the image came from (<img>, a CSS background, or a video).
+  // Tooltip on the thumbnail + name: the gestures and where the image came from.
   const kindLabel = { bg: 'Background image', video: 'Video', img: 'Image' }[image.kind] || 'Image';
   const ref = image.kind === 'video' ? (image.videoUrl || '(in-page video)') : image.src;
   const hint = image.kind === 'video'
@@ -182,9 +182,7 @@ const renderRow = (image) => {
   name.textContent = image.name;
   name.title = title;
 
-  // Click the thumbnail or name → open in editor (asks about incognito);
-  // double-click → quick crop. Disambiguated with a short timer. Videos open/crop
-  // their current frame, or open the video in a tab when no frame is available.
+  // Click → open in editor; double-click → quick crop (videos act on their frame).
   bindRowGestures(thumb, image);
   bindRowGestures(name, image);
   const sub = document.createElement('div');
@@ -195,8 +193,8 @@ const renderRow = (image) => {
   sub.appendChild(badge);
   const f = document.createElement('span');
   f.className = 'badge fmt';
-  // For a video show its container format (mp4/webm…) from the media URL, not the
-  // frame's jpg; fall back to a plain "video" tag for in-page (blob) videos.
+  // A video shows its container format (from the media URL), not the frame's jpg;
+  // in-page (blob) videos fall back to a plain "video" tag.
   f.textContent = image.kind === 'video'
     ? (formatOf(image.videoUrl) || 'video')
     : (formatOf(image.src) || UNKNOWN_FORMAT);
@@ -236,8 +234,7 @@ const measure = (image, dimEl, li) => {
     image.h = probe.naturalHeight;
     image.measured = true;
     dimEl.textContent = image.w && image.h ? `${image.w}×${image.h}` : '';
-    // Now that the real size is known the item may no longer match — drop the row
-    // and keep the (visible/total) counter in sync.
+    // The now-known size may no longer match — drop the row, keep the counter synced.
     if (!passesFilters(image, filters)) {
       li.remove();
       state.filtered = state.filtered.filter(it => it !== image);
@@ -323,9 +320,8 @@ const run = async (fn) => {
 };
 
 // ── Click / double-click gestures on the thumbnail + name ──
-// Click → editor, double-click → crop, disambiguated with a short timer. The
-// click/dblclick actions are passed in so videos can act on their frame (or open
-// the video in a tab when there's no frame).
+// Click → editor, double-click → crop, disambiguated with a short timer. Actions
+// are passed in so videos can act on their frame (or open the video in a tab).
 const bindGestures = (el, onClick, onDouble) => {
   let timer = null;
   el.addEventListener('click', () => {
@@ -382,9 +378,8 @@ const openCrop = async (src) => {
 };
 
 // ── Hover preview ──
-// Skip the floating preview when the image isn't actually bigger than the
-// thumbnail already shown in the row — there'd be nothing larger to reveal.
-// Unknown-size images (not yet measured, w/h = 0) still get a preview.
+// Skip the floating preview when the image is no bigger than its row thumbnail
+// (nothing larger to reveal). Unmeasured images (w/h = 0) still get a preview.
 const previewWorthwhile = (image) =>
   !(image.w > 0 && image.h > 0 && image.w <= THUMB_PX && image.h <= THUMB_PX);
 
@@ -417,9 +412,8 @@ document.getElementById('f-search').addEventListener('input', () => {
 });
 ['f-img', 'f-bg', 'f-video'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 
-// The highlight lives on the page (it survives the popup closing), so on open
-// reflect its real state in the checkbox instead of defaulting to unchecked —
-// otherwise reopening the popup would wrongly show it off after you'd turned it on.
+// The highlight lives on the page (survives the popup closing), so on open reflect
+// its real state in the checkbox rather than defaulting to unchecked.
 const syncHighlightCheckbox = async (tabId) => {
   try {
     const [res] = await chrome.scripting.executeScript({
@@ -429,8 +423,7 @@ const syncHighlightCheckbox = async (tabId) => {
   } catch { /* restricted page — leave as-is */ }
 };
 
-// Highlight toggle: outline every <img> / background-image element on the page
-// so the user can see what Stencil can grab. Off by default; injects into the page.
+// Highlight toggle: outline every grabbable element on the page. Off by default.
 document.getElementById('f-highlight').addEventListener('change', async (e) => {
   if (state.activeTabId == null) { e.target.checked = false; return; }
   try {
