@@ -27,6 +27,8 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QDoubleSpinBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -83,9 +85,16 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+  // App-lifetime macOS Dock menu, shared by all windows (see header note).
+  QMenu* MainWindow::sDockMenu_ = nullptr;
+
+  MainWindow::MainWindow(QWidget* parent, bool restoreLast)
+      : QMainWindow(parent) {
     setWindowTitle("Stencil (Qt)");
     resize(1100, 760);
+    // Photoshop-style drop-to-open: a file dragged onto the window is opened
+    // (image/video) or applied (layout JSON) via openPathFromOS / dropEvent.
+    setAcceptDrops(true);
 
     loadHotkeys();  // must precede buildActions() (it calls hotkey(...))
 
@@ -133,10 +142,11 @@ namespace stencil::gui {
     projectList_ = fileStore::loadProjects();
     settings_ = fileStore::loadSettings();
     applySettings(settings_, false);
-    restoreSession();
+    if (restoreLast) restoreSession();  // skipped for a blank incognito editor
     refreshActions();
     onSelectionChanged();
     updateStatusIdle();
+    refreshDockMenu();  // macOS Dock menu (no-op elsewhere)
 
     // Live OS-scheme follow: re-tint when the system scheme flips, but only while
     // we're in "system" mode (an explicit light/dark choice wins). The
@@ -2026,6 +2036,7 @@ namespace stencil::gui {
       // incognito editor's content (see S6 scope note above).
       fileStore::saveProjects(projectList_);
       refreshActions();
+      refreshDockMenu();  // drop it from the Dock "recent" list
       notify_->info("Project deleted");
     } else if (dlg.action() == Action::Renew) {
       const std::string id = dlg.selectedId().toStdString();
@@ -2090,12 +2101,10 @@ namespace stencil::gui {
   void MainWindow::applyLaunchOptions(const LaunchOptions& opts) {
     if (opts.empty()) return;
 
-    // Incognito is honored ONLY for a fresh image --src (never a saved --project),
-    // mirroring the browser. Set it FIRST so it gates the theme persist below and
-    // every write the subsequent image load would trigger.
-    const bool incognitoForSrc =
-        opts.incognito && !opts.src.isEmpty() && opts.project.isEmpty();
-    if (incognitoForSrc && actIncognito_->isEnabled())
+    // Incognito is honored whenever we're NOT opening a saved project — a blank
+    // incognito editor, or an incognito image. Set FIRST so it gates the theme
+    // persist below and every write a subsequent load would trigger.
+    if (opts.incognito && opts.project.isEmpty() && actIncognito_->isEnabled())
       actIncognito_->setChecked(true);  // drives incognito_ via its toggled slot
 
     // --theme dark|light: set + persist the default theme (persist is suppressed
@@ -2105,29 +2114,51 @@ namespace stencil::gui {
       applySettings(settings_, /*persist=*/true);
     }
 
-    // Primary content: --project wins over --src when both are given.
+    // Primary content priority: --project > --src > a bare positional file.
     if (!opts.project.isEmpty()) {
       if (!openProjectByName(opts.project))
         notify_->error(QString("No project named \"%1\"").arg(opts.project));
     } else if (!opts.src.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;  // applied after the image loads
-      if (!mediaLoader_) {
-        mediaLoader_ = new MediaLoader(this);
-        connect(mediaLoader_, &MediaLoader::loaded, this,
-                &MainWindow::onLaunchImageLoaded);
-        connect(mediaLoader_, &MediaLoader::failed, this,
-                [this](const QString& msg) {
-                  pendingLaunchLayout_.clear();
-                  notify_->error(msg);
-                });
-      }
-      notify_->info("Opening…");
-      mediaLoader_->load(opts.src, opts.frame);
+      openImageSource(opts.src, opts.frame);
+    } else if (!opts.file.isEmpty()) {
+      pendingLaunchLayout_ = opts.layout;
+      openPathFromOS(opts.file, opts.frame);
     }
 
     // --projects: open the Projects window at launch. Queued so it runs after the
     // current call unwinds (and after a primary load has been kicked off).
     if (opts.projects) QTimer::singleShot(0, this, &MainWindow::openProjects);
+  }
+
+  // Lazily construct + wire the async --src resolver (image / URL / video frame).
+  void MainWindow::ensureMediaLoader() {
+    if (mediaLoader_) return;
+    mediaLoader_ = new MediaLoader(this);
+    connect(mediaLoader_, &MediaLoader::loaded, this,
+            &MainWindow::onLaunchImageLoaded);
+    connect(mediaLoader_, &MediaLoader::failed, this, [this](const QString& msg) {
+      pendingLaunchLayout_.clear();
+      notify_->error(msg);
+    });
+  }
+
+  void MainWindow::openImageSource(const QString& src, int frame) {
+    ensureMediaLoader();
+    notify_->info("Opening…");
+    mediaLoader_->load(src, frame);
+  }
+
+  // Open a file handed in by the OS shell (file-association / "Open With" / drop):
+  // a *.json is a layout (applied onto the current image), anything else is an
+  // image or video opened via the --src path.
+  void MainWindow::openPathFromOS(const QString& path, int frame) {
+    if (path.isEmpty()) return;
+    if (QFileInfo(path).suffix().compare("json", Qt::CaseInsensitive) == 0) {
+      applyLayoutFromSource(path);
+      return;
+    }
+    openImageSource(path, frame);
   }
 
   bool MainWindow::openProjectByName(const QString& name) {
@@ -2207,6 +2238,93 @@ namespace stencil::gui {
     adopt(bytes);
   }
 
+  // ── OS-shell window spawners (Dock menu / drop targets) ──
+  // Each opens a fresh, self-owned top-level window so the action is independent
+  // of whichever window (or app-lifetime menu) triggered it.
+  void MainWindow::openIncognitoWindow() {
+    // restoreLast=false → a brand-new EMPTY editor, not the last session.
+    auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    if (win->actIncognito_->isEnabled())
+      win->actIncognito_->setChecked(true);  // no image yet → toggle allowed
+    win->show();
+  }
+
+  void MainWindow::openProjectsWindow() {
+    auto* win = new MainWindow();
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    win->show();
+    QTimer::singleShot(0, win, &MainWindow::openProjects);
+  }
+
+  void MainWindow::openProjectWindowById(const QString& id) {
+    auto* win = new MainWindow();
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    win->show();
+    if (!win->loadProjectIntoCanvas(id)) win->close();
+  }
+
+  // Rebuild the macOS Dock menu: New Incognito Editor · Open Projects · the most
+  // recently updated projects. Connected to qApp so the lambdas outlive the window
+  // that built the menu. A no-op off macOS (QMenu::setAsDockMenu is macOS-only).
+  void MainWindow::refreshDockMenu() {
+#ifdef Q_OS_MACOS
+    if (!sDockMenu_) {
+      sDockMenu_ = new QMenu();  // app-lifetime; owned by neither window
+      sDockMenu_->setAsDockMenu();
+    }
+    sDockMenu_->clear();
+    connect(sDockMenu_->addAction("New Incognito Editor"), &QAction::triggered,
+            qApp, [] { MainWindow::openIncognitoWindow(); });
+    connect(sDockMenu_->addAction("Open Projects…"), &QAction::triggered, qApp,
+            [] { MainWindow::openProjectsWindow(); });
+
+    // Recent projects: the most recently updated, newest first (proxy for
+    // "recently opened"). Each opens in its own window, leaving others untouched.
+    std::vector<Project> recents = projectList_;
+    std::sort(recents.begin(), recents.end(), [](const Project& a, const Project& b) {
+      return a.meta.updatedAt > b.meta.updatedAt;
+    });
+    constexpr std::size_t kMaxRecents = 8;
+    if (recents.size() > kMaxRecents) recents.resize(kMaxRecents);
+    if (!recents.empty()) {
+      sDockMenu_->addSeparator();
+      for (const auto& pr : recents) {
+        const QString id = QString::fromStdString(pr.meta.id);
+        const QString name = QString::fromStdString(pr.meta.name);
+        connect(sDockMenu_->addAction(name), &QAction::triggered, qApp,
+                [id] { MainWindow::openProjectWindowById(id); });
+      }
+    }
+#endif
+  }
+
+  // ── drag-and-drop (Photoshop-style drop-to-open) ──
+  void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
+    // Accept a dragged local file (image / video / layout JSON); the suffix is
+    // resolved on drop by openPathFromOS.
+    const QMimeData* m = event->mimeData();
+    if (m && m->hasUrls()) {
+      for (const QUrl& u : m->urls())
+        if (u.isLocalFile()) {
+          event->acceptProposedAction();
+          return;
+        }
+    }
+  }
+
+  void MainWindow::dropEvent(QDropEvent* event) {
+    const QMimeData* m = event->mimeData();
+    if (!m || !m->hasUrls()) return;
+    for (const QUrl& u : m->urls()) {
+      if (u.isLocalFile()) {
+        openPathFromOS(u.toLocalFile());
+        event->acceptProposedAction();
+        return;  // open the first file only (matches a single-image editor)
+      }
+    }
+  }
+
   void MainWindow::newProjectFromCanvas() {
     if (incognito_) {  // S6: project promotion is blocked while incognito
       notify_->info("Incognito mode — saving is disabled");
@@ -2237,6 +2355,7 @@ namespace stencil::gui {
     activeProjectId_ = QString::fromStdString(pr.meta.id);
     fileStore::saveProjects(projectList_);
     refreshActions();
+    refreshDockMenu();  // surface the new project in the Dock "recent" list
     notify_->success(QString("Created \"%1\"").arg(name));
   }
 
@@ -2263,6 +2382,7 @@ namespace stencil::gui {
     it->meta.updatedAt = nowMs();
     it->meta.hasImage = !it->imagePath.isEmpty();
     fileStore::saveProjects(projectList_);
+    refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(
         QString("Saved to \"%1\"").arg(QString::fromStdString(it->meta.name)));
   }

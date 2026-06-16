@@ -131,12 +131,15 @@ if(Qt6_FOUND)
   endif()
   # Ship as a macOS .app bundle and a Windows GUI app (no console window) so the
   # platform deploy tools have the right shape to bundle Qt into.
+  # Custom Info.plist adds CFBundleDocumentTypes (image/movie/json) so Finder
+  # offers Stencil for "Open With" / drag-onto-Dock, delivering a QFileOpenEvent.
   set_target_properties(stencil_gui PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_BUNDLE_NAME "Stencil"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.stencil.app"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/MacOSXBundleInfo.plist.in"
     WIN32_EXECUTABLE TRUE)
   message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
 

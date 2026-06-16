@@ -182,9 +182,10 @@ counterpart of the browser app's URL deep-links (`#stencil=` / `?open=`):
 | `--project <name>` | Open an existing, editable saved project by name (case-insensitive). Takes precedence over `--src`. |
 | `--src <path\|url>` | Open an image by local path, fetch and open a remote image URL, or grab a frame from a video file / direct media URL. |
 | `--frame <n>` | The 0-based video frame to open (default: first frame; ignored for still images). |
-| `--incognito` | Edit without saving. Honored only when a fresh image `--src` is opened — never for a saved `--project`. |
-| `--layout <path\|url>` | A layout JSON applied once the `--src` image loads successfully (local file or URL). Ignored without `--src`. |
+| `--incognito` | Edit without saving. Honored unless a saved `--project` is being opened — so `--incognito` alone starts a blank incognito editor. |
+| `--layout <path\|url>` | A layout JSON applied once the `--src` image loads successfully (local file or URL). Ignored without an image. |
 | `--projects` | Open the Projects window at launch. |
+| `<file>` (positional) | A bare image / video / layout-JSON path — the form an OS file-association or "Open With" passes. `*.json` is applied as a layout, anything else opened as an image/video. Lower priority than `--src`. |
 | `--help` | Show the full option list. |
 
 Examples:
@@ -219,6 +220,40 @@ and video frames are adopted in-memory (like a clipboard paste), so they carry n
 on-disk path; a local image `--src` keeps its path for session / project saves.
 Video support reads **direct** media files/URLs (it does not resolve streaming
 *page* links such as a YouTube watch URL).
+
+### OS-shell integration
+
+The same open paths are wired into the desktop shells:
+
+- **Drag-and-drop** — drop an image, video, or layout `*.json` onto the window to
+  open / apply it (Photoshop-style). Cross-platform.
+- **File associations / "Open With"** — opening a declared file type launches (or,
+  on macOS, signals a running) Stencil with that file:
+  - **macOS** — a `QFileOpenEvent` (Finder double-click, drag-onto-Dock, "Open
+    With") routed to the open window; the bundle declares image / movie / JSON
+    document types in its `Info.plist`. Events arriving during launch are buffered
+    until the window is ready.
+  - **Linux** — the `.desktop` file declares `MimeType=` and opens the file via the
+    `%f` positional argument.
+  - **Windows** — registering a file association (in your installer) makes a
+    double-click launch the app with the file as a positional argument, which the
+    same code path opens.
+- **App-icon menu** — right-click the icon for quick actions:
+  - **macOS Dock menu** — *New Incognito Editor*, *Open Projects…*, and the most
+    recently updated projects (each opens in its own window). Set via
+    `QMenu::setAsDockMenu()`.
+  - **Linux launcher actions** — *New Incognito Editor* and *Open Projects* via the
+    `.desktop` `Actions=` entries (static; the freedesktop spec has no dynamic
+    "recent" list).
+  - **Windows Jump List** — *not implemented.* Qt 6 dropped the `QtWinExtras` jump-
+    list API, so this needs native Win32 (`ICustomDestinationList`) code; the Dock /
+    launcher equivalents above cover macOS and Linux.
+
+> **Install-time caveat:** file associations, the macOS Dock document-type hooks,
+> and the Linux launcher actions only take effect once the app is **installed**
+> (`cmake --install build`, then `update-desktop-database` on Linux / LaunchServices
+> registration on macOS) — not when running the binary straight from `build/`.
+> Drag-and-drop onto the window and the CLI flags work regardless.
 
 The desktop app mirrors the browser app's interaction surface:
 
