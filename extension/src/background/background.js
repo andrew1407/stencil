@@ -68,19 +68,10 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     lastVideoByTab.set(tabId, data && data.video
       ? { frameId: sender.frameId, point: msg.point || null, rect: data.rect || null, dpr: data.dpr || 1 }
       : null);
-    // A tainted (cross-origin) video can't be read via canvas, so grab its frame
-    // NOW — at right-click — by cropping a tab screenshot, so the editor gets the
-    // frame the user saw, not a later one the still-playing video advanced to.
-    if (data && data.video && !data.url) {
-      // Store the in-flight promise so a click arriving before it finishes awaits
-      // it instead of reading null (see lastTargetByTab).
-      const pending = captureFrameFromScreenshot(sender.tab && sender.tab.windowId, data.rect, data.dpr)
-        .then((url) => (url ? { url, video: true } : null))
-        .catch(() => null);
-      lastTargetByTab.set(tabId, pending);
-    } else {
-      lastTargetByTab.set(tabId, data || null);
-    }
+    // A tainted (cross-origin) video has no ready frame here — its CURRENT frame is
+    // captured at click time (in-page CORS readback → extension byte re-fetch →
+    // screenshot crop), so record nothing and let the click handler do the work.
+    lastTargetByTab.set(tabId, (data && data.video && !data.url) ? null : (data || null));
   }
 });
 
@@ -112,10 +103,13 @@ const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
 };
 
-// Capture a <video>'s current frame by running canvas readback IN THE PAGE at
-// click time (like the popup scanner). Reliable — doesn't depend on a recorded
-// frame surviving a worker restart, and grabs the live frame. Returns a JPEG data
-// URL, or null when no readable video (cross-origin taint → caller screenshots).
+// Capture a <video>'s current frame by canvas readback in the page at click time.
+// Tries a direct draw (same-origin), then a fresh crossOrigin="anonymous" video at
+// the same src seeked to the same time (works when the CDN serves CORS even though
+// the page's own <video> is tainted). Returns:
+//   { frame }  → a JPEG data URL of the current frame (full resolution)
+//   { src, t } → a tainted, non-CORS video; caller re-fetches the bytes
+//   null       → no usable video under the cursor
 const captureVideoFrameInTab = async (tabId, frameId, point) => {
   if (tabId == null) return null;
   const target = { tabId };
@@ -124,20 +118,22 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
     const [res] = await chrome.scripting.executeScript({
       target,
       args: [point ? point.x : null, point ? point.y : null, FRAME_MAX_SIDE],
-      func: (px, py, maxSide) => {
+      func: async (px, py, maxSide) => {
+        // Smallest <video> whose box contains the cursor — spatially correct even
+        // under an overlay, and never jumps to another video the way
+        // querySelector('video') on an ancestor would.
         const at = (x, y) => {
-          if (x == null || !document.elementsFromPoint) return null;
-          for (const el of document.elementsFromPoint(x, y)) {
-            if (el.tagName === 'VIDEO') return el;
-            const v = el.querySelector && el.querySelector('video');
-            if (v) return v;
-          }
-          if (x != null) {
-            for (const v of document.querySelectorAll('video')) {
-              const r = v.getBoundingClientRect();
-              if (r.width && r.height && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return v;
+          if (x == null) return null;
+          let best = null, bestArea = Infinity;
+          for (const v of document.querySelectorAll('video')) {
+            const r = v.getBoundingClientRect();
+            if (r.width && r.height && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+              const a = r.width * r.height;
+              if (a < bestArea) { bestArea = a; best = v; }
             }
           }
+          if (best) return best;
+          if (document.elementsFromPoint) for (const el of document.elementsFromPoint(x, y)) if (el.tagName === 'VIDEO') return el;
           return null;
         };
         const largest = () => {
@@ -148,16 +144,81 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
           }
           return best;
         };
-        const v = at(px, py) || largest();
-        if (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) return null;
-        const s = Math.min(1, maxSide / Math.max(v.videoWidth, v.videoHeight));
-        const w = Math.max(1, Math.round(v.videoWidth * s)), h = Math.max(1, Math.round(v.videoHeight * s));
-        try {
+        const draw = (video) => {
+          const s = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
+          const w = Math.max(1, Math.round(video.videoWidth * s)), h = Math.max(1, Math.round(video.videoHeight * s));
           const c = document.createElement('canvas');
           c.width = w; c.height = h;
-          c.getContext('2d').drawImage(v, 0, 0, w, h);
+          c.getContext('2d').drawImage(video, 0, 0, w, h);
           return c.toDataURL('image/jpeg', 0.92);
-        } catch { return null; } // tainted cross-origin media
+        };
+        // With a cursor point use only the video under it; largest() is the no-point
+        // fallback (Chrome video context without a probe point).
+        const v = px != null ? at(px, py) : largest();
+        if (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) return null;
+        try { return { frame: draw(v) }; } catch { /* tainted — try CORS below */ }
+        const src = v.currentSrc || v.src || '';
+        const t = v.currentTime || 0;
+        if (!src) return null;
+        const frame = await new Promise((resolve) => {
+          const nv = document.createElement('video');
+          nv.crossOrigin = 'anonymous'; nv.muted = true; nv.preload = 'auto'; nv.src = src;
+          let done = false;
+          const fin = (x) => { if (!done) { done = true; resolve(x); } };
+          nv.addEventListener('loadeddata', () => {
+            try { nv.currentTime = Math.min(t, Math.max(0, (nv.duration || t) - 0.01)); } catch { fin(null); }
+          });
+          nv.addEventListener('seeked', () => { try { fin(draw(nv)); } catch { fin(null); } });
+          nv.addEventListener('error', () => fin(null));
+          setTimeout(() => fin(null), 8000);
+        });
+        return frame ? { frame } : { src, t };
+      }
+    });
+    return (res && res.result) || null;
+  } catch { return null; }
+};
+
+// Current-frame capture for a tainted, non-CORS video: fetch the bytes with the
+// extension's host permissions (bypasses page CORS), ship them into the page as a
+// blob URL, and draw the frame at the recorded time. Skips huge media (caller falls
+// back to a screenshot crop). Returns a JPEG data URL or null.
+const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
+  if (tabId == null || !src) return null;
+  try {
+    const resp = await fetch(src);
+    if (!resp.ok) return null;
+    const clen = Number(resp.headers.get('content-length') || 0);
+    if (clen && clen > 25_000_000) return null;
+    const dataUrl = await blobToDataUrl(await resp.blob());
+    const target = { tabId };
+    if (frameId != null) target.frameIds = [frameId];
+    const [res] = await chrome.scripting.executeScript({
+      target,
+      args: [dataUrl, t || 0, FRAME_MAX_SIDE],
+      func: async (durl, time, maxSide) => {
+        const url = URL.createObjectURL(await (await fetch(durl)).blob());
+        return await new Promise((resolve) => {
+          const v = document.createElement('video');
+          v.muted = true; v.preload = 'auto'; v.src = url;
+          let done = false;
+          const fin = (x) => { if (!done) { done = true; URL.revokeObjectURL(url); resolve(x); } };
+          v.addEventListener('loadeddata', () => {
+            try { v.currentTime = Math.min(time, Math.max(0, (v.duration || time) - 0.01)); } catch { fin(null); }
+          });
+          v.addEventListener('seeked', () => {
+            try {
+              const s = Math.min(1, maxSide / Math.max(v.videoWidth, v.videoHeight));
+              const w = Math.max(1, Math.round(v.videoWidth * s)), h = Math.max(1, Math.round(v.videoHeight * s));
+              const c = document.createElement('canvas');
+              c.width = w; c.height = h;
+              c.getContext('2d').drawImage(v, 0, 0, w, h);
+              fin(c.toDataURL('image/jpeg', 0.92));
+            } catch { fin(null); }
+          });
+          v.addEventListener('error', () => fin(null));
+          setTimeout(() => fin(null), 8000);
+        });
       }
     });
     return (res && res.result) || null;
@@ -177,20 +238,21 @@ const resolveSrc = (info, rec) => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
-  let rec = tabId != null ? lastTargetByTab.get(tabId) : null;
-  // For a cross-origin video rec is the still-running screenshot capture — wait
-  // for it rather than resolving to nothing.
-  if (rec && typeof rec.then === 'function') rec = await rec;
+  const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
   // Video path: treat as video when Chrome says so, the probe saw one, or we have a
-  // probe-captured frame. Unless that frame is in hand, (re)capture in-page at click
-  // time, then fall back to a screenshot crop. A media URL is NEVER used as the
-  // image — better to do nothing than hand the editor a .mp4 it can't decode.
+  // probe-captured frame. Unless that frame is already in hand, capture the CURRENT
+  // frame in-page at click time (direct/CORS readback), then re-fetch the bytes, then
+  // fall back to a screenshot crop. A media URL is NEVER used as the image — better
+  // to do nothing than hand the editor a .mp4 it can't decode.
   const vinfo = tabId != null ? lastVideoByTab.get(tabId) : null;
   const isVideo = info.mediaType === 'video' || !!vinfo || !!(rec && rec.video);
   if (isVideo && !(rec && rec.video && rec.url)) {
-    let frame = await captureVideoFrameInTab(tabId, vinfo ? vinfo.frameId : info.frameId, vinfo && vinfo.point);
+    const frameId = vinfo ? vinfo.frameId : info.frameId;
+    const probe = await captureVideoFrameInTab(tabId, frameId, vinfo && vinfo.point);
+    let frame = probe && probe.frame ? probe.frame : null;
+    if (!frame && probe && probe.src) frame = await captureVideoFrameViaFetch(tabId, frameId, probe.src, probe.t);
     if (!frame && vinfo && vinfo.rect) frame = await captureFrameFromScreenshot(tab.windowId, vinfo.rect, vinfo.dpr);
     src = frame || null;
   }

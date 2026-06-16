@@ -52,6 +52,15 @@ class StencilCore {
     this.#initPromise = import(WASM_MODULE_PATH)
       .then(({ default: createStencilCore }) => createStencilCore())
       .then(core => {
+        // Guard against a stale/incompatible artifact: an older build can load yet
+        // be missing exports the wrappers cwrap. cwrap'ing a missing export yields a
+        // non-callable that throws at call time instead of degrading, so verify all
+        // required exports up front and fall back to the JS refs if any are absent.
+        const missing = this.#missingExports(core);
+        if (missing.length) {
+          console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per desktop/WASM.md; using JS fallback.`);
+          return false;
+        }
         this.#installWrappers(this.#buildWrappers(core));
         return true;
       })
@@ -60,6 +69,24 @@ class StencilCore {
         return false;
       });
     return this.#initPromise;
+  }
+
+  // C exports the wrappers depend on (emscripten exposes each as `_<symbol>`).
+  // Any absent → the artifact predates code that needs it, so we reject the whole
+  // core rather than install bindings that throw when called.
+  #requiredExports = [
+    'stencil_parseHex', 'stencil_distToSegment', 'stencil_formulaValidate',
+    'stencil_formulaApply', 'stencil_clampScale', 'stencil_shouldCloseShape',
+    'stencil_isAlbumOrientation', 'stencil_cropAspect', 'stencil_cropResizeScale',
+    'stencil_pageDimensions', 'stencil_pixelToPageRaw', 'stencil_rotatePoints',
+    'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA', 'stencil_centeredCrop',
+    'stencil_resizeCropFromCorner', 'stencil_moveCropClamped', 'stencil_cropChange',
+    'stencil_rotateCropRectQuarter',
+  ];
+
+  // Names of required exports the instantiated module does not expose as callables.
+  #missingExports(core) {
+    return this.#requiredExports.filter(sym => typeof core[`_${sym}`] !== 'function');
   }
 
   // Wrap a JS reference implementation so calls route to the wasm-backed op

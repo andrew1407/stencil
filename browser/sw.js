@@ -5,7 +5,7 @@
 // the cached copy answers instantly (fast loads, full offline use after the
 // first visit) while a background fetch refreshes the cache for next time.
 // Bump VERSION to force a clean re-precache and evict the old cache on activate.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `stencil-${VERSION}`;
 
 // Critical shell: enough to boot the app offline. The rest of the module graph
