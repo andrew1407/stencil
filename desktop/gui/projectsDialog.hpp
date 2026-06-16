@@ -16,7 +16,9 @@ namespace stencil::gui {
    public:
     // NewBlank: create a blank solid-color image (the main window opens its
     // BlankImageDialog after this dialog closes).
-    enum class Action { None, Open, Delete, New, Renew, NewBlank };
+    // OpenInNewWindow: like Open, but the main window loads the project into a
+    // fresh top-level window instead of replacing the current canvas.
+    enum class Action { None, Open, OpenInNewWindow, Delete, New, Renew, NewBlank };
 
     // `now` (epoch ms) is the reference point for the per-row expiry labels and
     // their warning/expired colouring; the caller passes its clock so the dialog
@@ -31,6 +33,7 @@ namespace stencil::gui {
    private:
     void refresh();
     void openSelected();
+    void openSelectedInNewWindow();
     void deleteSelected();
     void renewSelected();
     void createNew();

@@ -120,6 +120,16 @@ export class StencilProjectsModal extends StencilElement {
           app.switchToProject(meta.id);
           close();
         });
+        // Open in a new tab — leaves the current tab as-is, so it stays enabled
+        // even for the active project (a second view of the same project).
+        const newTabBtn = document.createElement('button');
+        newTabBtn.className = 'project-newtab';
+        newTabBtn.title = 'Open in a new tab';
+        newTabBtn.textContent = '↗';
+        newTabBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          app.openProjectInNewTab(meta.id);
+        });
         const renewBtn = document.createElement('button');
         renewBtn.className = 'project-renew';
         renewBtn.title = 'Renew — reset the 7-day expiry to start from now';
@@ -140,6 +150,7 @@ export class StencilProjectsModal extends StencilElement {
           render();
         });
         actions.appendChild(switchBtn);
+        actions.appendChild(newTabBtn);
         actions.appendChild(renewBtn);
         actions.appendChild(removeBtn);
         row.appendChild(actions);
@@ -199,9 +210,10 @@ export class StencilProjectsModal extends StencilElement {
     });
 
     // On-open chooser: if this is the only tab AND there are saved projects,
-    // offer the chooser. Otherwise stay in the (already-blank) temporary editor.
+    // offer the chooser. Skipped when this tab was launched to open a specific
+    // project (?open=<id> deep link). Otherwise stay in the blank temporary editor.
     app.tabs.whenReady().then(({ youAreOnly }) => {
-      if (youAreOnly && store.list().length) open();
+      if (youAreOnly && store.list().length && !app.pendingOpenProjectId) open();
     });
   }
 }
