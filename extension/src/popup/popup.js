@@ -155,7 +155,8 @@ const readFilters = () => {
     maxH: num(document.getElementById('f-maxh')),
     includeImg: document.getElementById('f-img').checked,
     includeBg: document.getElementById('f-bg').checked,
-    includeVideo: document.getElementById('f-video').checked
+    includeVideo: document.getElementById('f-video').checked,
+    includePosters: document.getElementById('f-poster').checked
   };
 };
 
@@ -206,10 +207,23 @@ const renderRow = (image) => {
   thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
   thumb.title = title;
-  // A video with no readable frame shows a play glyph; any other broken thumb hides.
-  thumb.addEventListener('error', () => {
-    if (image.kind === 'video') thumb.src = PLAY_THUMB;
-    else thumb.style.visibility = 'hidden';
+  // A video with no readable frame shows a play glyph. Any other broken thumb is
+  // likely a cross-origin / hotlink-protected source (e.g. an Instagram poster)
+  // that a bare <img> can't load from the popup — retry once through the
+  // extension's host permissions (fetchAsDataUrl), reusing the hover-preview
+  // cache, and only hide if even that fails.
+  thumb.addEventListener('error', async () => {
+    if (image.kind === 'video') { thumb.src = PLAY_THUMB; return; }
+    const src = editableSrc(image);
+    if (thumb.dataset.recovered || !src || src.startsWith('data:')) { thumb.style.visibility = 'hidden'; return; }
+    thumb.dataset.recovered = '1';
+    try {
+      const dataUrl = previewCache.get(src) || await fetchAsDataUrl(src);
+      previewCache.set(src, dataUrl);
+      thumb.src = dataUrl;
+    } catch {
+      thumb.style.visibility = 'hidden';
+    }
   });
   bindPreview(thumb, image);
 
@@ -510,26 +524,70 @@ const openCrop = async (image) => {
 const previewWorthwhile = (image) =>
   !(image.w > 0 && image.h > 0 && image.w <= THUMB_PX && image.h <= THUMB_PX);
 
+// Cache of source → data URL for previews already fetched, so re-hovering a row
+// is instant and each source is fetched at most once.
+const previewCache = new Map();
+// The row the preview is anchored to (to reposition once the image's real size
+// is known) and a token to drop a stale async fetch when the pointer moves on
+// before fetchAsDataUrl resolves.
+let previewAnchor = null;
+let previewToken = 0;
+
+const positionPreview = (el) => {
+  const r = el.getBoundingClientRect();
+  const pw = previewEl.offsetWidth || 270;
+  const ph = previewEl.offsetHeight || 270;
+  let x = r.right + 12;
+  if (x + pw > window.innerWidth) x = Math.max(12, r.left - pw - 12);
+  let y = r.top;
+  if (y + ph > window.innerHeight) y = Math.max(12, window.innerHeight - ph - 12);
+  previewEl.style.left = `${x}px`;
+  previewEl.style.top = `${y}px`;
+};
+
+// Resolve a source to something the popup <img> can actually display. A plain
+// <img src> from the popup can't load a hotlink-protected / cross-origin poster
+// (no page referrer or cookies) — it just renders a void box. fetchAsDataUrl
+// pulls it through the extension's host permissions (the same path the editor
+// uses), so posters that fail as a bare <img> still preview. data: frames and
+// already-cached sources resolve synchronously.
+const resolvePreviewSrc = async (src) => {
+  if (src.startsWith('data:')) return src;
+  if (previewCache.has(src)) return previewCache.get(src);
+  const dataUrl = await fetchAsDataUrl(src);
+  previewCache.set(src, dataUrl);
+  return dataUrl;
+};
+
+// Reposition once the real dimensions are known; hide (rather than leave a void
+// box) if even the fetched data URL won't decode.
+previewImg.addEventListener('load', () => {
+  if (previewAnchor) positionPreview(previewAnchor);
+});
+previewImg.addEventListener('error', () => { previewEl.hidden = true; });
+
 const bindPreview = (el, image) => {
-  const position = () => {
-    const r = el.getBoundingClientRect();
-    const pw = previewEl.offsetWidth || 270;
-    const ph = previewEl.offsetHeight || 270;
-    let x = r.right + 12;
-    if (x + pw > window.innerWidth) x = Math.max(12, r.left - pw - 12);
-    let y = r.top;
-    if (y + ph > window.innerHeight) y = Math.max(12, window.innerHeight - ph - 12);
-    previewEl.style.left = `${x}px`;
-    previewEl.style.top = `${y}px`;
-  };
-  el.addEventListener('mouseenter', () => {
+  el.addEventListener('mouseenter', async () => {
     const ps = editableSrc(image);
     if (!ps || !previewWorthwhile(image)) return;   // nothing to preview
-    previewImg.src = ps;
+    const token = ++previewToken;
+    previewAnchor = el;
+    let src = ps;
+    try {
+      src = await resolvePreviewSrc(ps);
+    } catch {
+      src = ps;   // fall back to a direct load; the error handler hides a void box
+    }
+    if (token !== previewToken) return;   // pointer already moved on
+    previewImg.src = src;
     previewEl.hidden = false;
-    position();
+    positionPreview(el);
   });
-  el.addEventListener('mouseleave', () => { previewEl.hidden = true; });
+  el.addEventListener('mouseleave', () => {
+    previewToken++;       // cancel any in-flight fetch for this row
+    previewAnchor = null;
+    previewEl.hidden = true;
+  });
 };
 
 // ── Wiring ──
@@ -538,7 +596,7 @@ document.getElementById('f-search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(applyFilters, 150);
 });
-['f-img', 'f-bg', 'f-video'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+['f-img', 'f-bg', 'f-video', 'f-poster'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 
 // Opened-images toggles (persisted to settings so they follow the user and stay in
 // sync with the options page). "mark opened" needs a re-annotate (badges depend on
