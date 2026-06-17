@@ -51,13 +51,19 @@ export const extractCssUrls = (bg) => {
 };
 
 // Does an item pass the active filter state?
-//   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo }
+//   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo, includePosters }
 // Undetectable formats bucket as UNKNOWN_FORMAT ('etc'). Empty numeric bounds are
 // null. Items with unknown size (w/h <= 0) pass the size filters (measured later).
 export const passesFilters = (item, f = {}) => {
-  if (item.kind === 'img' && f.includeImg === false) return false;
-  if (item.kind === 'bg' && f.includeBg === false) return false;
-  if (item.kind === 'video' && f.includeVideo === false) return false;
+  // A video poster lists as an <img> but has its own toggle (independent of the
+  // plain-image one), so it can be shown or hidden as a group.
+  if (item.poster) {
+    if (f.includePosters === false) return false;
+  } else {
+    if (item.kind === 'img' && f.includeImg === false) return false;
+    if (item.kind === 'bg' && f.includeBg === false) return false;
+    if (item.kind === 'video' && f.includeVideo === false) return false;
+  }
 
   if (f.search) {
     const q = f.search.toLowerCase();

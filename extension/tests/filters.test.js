@@ -43,6 +43,19 @@ test('passesFilters: include img / bg toggles', () => {
   assert.equal(passesFilters(img, { includeImg: true, includeBg: false }), true);
 });
 
+test('passesFilters: video-poster toggle is independent of the img toggle', () => {
+  const poster = { kind: 'img', src: 'p.jpg', name: 'p.jpg', poster: true, w: 0, h: 0 };
+  const plain = { kind: 'img', src: 'a.jpg', name: 'a.jpg', w: 100, h: 100 };
+  // The posters toggle controls posters; the img toggle does not touch them.
+  assert.equal(passesFilters(poster, { includePosters: false }), false);
+  assert.equal(passesFilters(poster, { includeImg: false }), true);
+  assert.equal(passesFilters(poster, { includePosters: true, includeImg: false }), true);
+  // Conversely, hiding posters leaves plain images alone.
+  assert.equal(passesFilters(plain, { includePosters: false }), true);
+  // Default (no keys) → posters show.
+  assert.equal(passesFilters(poster, {}), true);
+});
+
 test('passesFilters: video toggle + per-format video filtering', () => {
   const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'clip.mp4', videoUrl: 'https://x.com/clip.mp4', w: 1280, h: 720 };
   // The dedicated 'video' toggle hides/shows videos regardless of format.
