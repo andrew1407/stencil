@@ -95,7 +95,18 @@ add_test(NAME stencil_tests COMMAND stencil_tests)
 # ── desktop GUI: Qt 6 (optional — core + tests build without it) ──────────────
 # Network + Multimedia back the --src launch flag (remote-image fetch and
 # video-frame grab); Widgets remains the gate for building the GUI at all.
-find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia)
+#
+# Release packaging MUST build the GUI (cpack wraps it), so it sets
+# STENCIL_REQUIRE_QT=ON: Qt is then REQUIRED, turning a misconfigured prefix into a
+# clear configure-time error instead of a silently GUI-less build that only blows up
+# later at `cpack` with "Cannot find CPack config file" (CPackConfig.cmake is emitted
+# by include(CPack) below, which lives in this Qt6_FOUND block).
+option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packaging)" OFF)
+if(STENCIL_REQUIRE_QT)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia)
+else()
+  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia)
+endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTORCC ON)
@@ -111,6 +122,7 @@ if(Qt6_FOUND)
     gui/settingsDialog.cpp
     gui/projectsDialog.cpp
     gui/blankImageDialog.cpp
+    gui/linksDialog.cpp
     gui/cropDialog.cpp
     gui/infoDialog.cpp
     gui/shortcutsDialog.cpp

@@ -2,16 +2,23 @@
 // The pure helpers (buildLaunchUrl, filenameFromUrl, guessMime) are unit-tested;
 // the rest wrap chrome.* and are service-worker-safe (no FileReader / DOM).
 import { mountStencilModal } from './overlay.js';
+import { recordOpened } from './ledger.js';
 
 export const DEFAULT_EDITOR_URL = 'http://localhost:8080/';
 export const DEFAULT_PAGE = 'A3';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE });
+  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true });
   return {
     editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
-    page: s.page || DEFAULT_PAGE
+    page: s.page || DEFAULT_PAGE,
+    // Whether the popup badges images that already have an editor (default on).
+    markOpened: s.markOpened !== false,
+    // Whether the popup sorts already-opened images to the top of the list
+    // (default on). Toggled live from the popup, persisted here so it follows the
+    // user. Independent of markOpened, but a no-op when badging is off.
+    openedFirst: s.openedFirst !== false
   };
 };
 
@@ -113,7 +120,9 @@ const fitLaunchPayload = async (editorUrl, payload) => {
 
 // Build the editor launch URL for a payload, shrinking the image if needed so the
 // URL stays under the length limit. Shared by the tab and in-page-modal launchers.
-//   payload = { dataUrl, name?, crop?, page?, incognito? }
+//   payload = { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }
+// `source`/`resource` are the image's own URL and the page it came from; `open`
+// ('resume'|'copy') tells the editor to switch to a matching project or force a copy.
 const buildEditorLaunchUrl = async (payload) => {
   const { editorUrl } = await getSettings();
   const fitted = await fitLaunchPayload(editorUrl, payload);
@@ -122,23 +131,40 @@ const buildEditorLaunchUrl = async (payload) => {
   return fitted.url;
 };
 
+// Append a hand-off to the opened-images ledger (best-effort) so the popup can
+// later badge this image as already-opened. No-op for incognito launches (the
+// editor never persists them) and for untrackable sources (handled in recordOpened).
+const noteOpened = async (payload) => {
+  if (payload.incognito) return;
+  const { editorUrl } = await getSettings();
+  await recordOpened({ source: payload.source, resource: payload.resource, name: payload.name, editorUrl });
+};
+
 // Open the full editor in a NEW browser tab with the given image payload.
 // The editor's own multi-project / cross-tab UI surfaces any already-open editors.
-export const openEditorTab = async (payload) =>
-  chrome.tabs.create({ url: await buildEditorLaunchUrl(payload) });
+export const openEditorTab = async (payload) => {
+  const tab = await chrome.tabs.create({ url: await buildEditorLaunchUrl(payload) });
+  await noteOpened(payload);
+  return tab;
+};
 
 // Open the full editor as a small in-page modal on the given tab (mirrors
 // launchCrop). Falls back to a real tab with no tabId, or when the modal can't be
 // injected (restricted page) / the editor frame is later blocked by the page CSP.
-//   { dataUrl, name?, crop?, page?, incognito?, tabId }
+//   { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito?, tabId }
 export const launchEditorModal = async ({ tabId, ...payload }) => {
   const url = await buildEditorLaunchUrl(payload);
-  if (tabId == null) return chrome.tabs.create({ url });
+  if (tabId == null) {
+    const tab = await chrome.tabs.create({ url });
+    await noteOpened(payload);
+    return tab;
+  }
   const title = payload.incognito ? 'Stencil editor (incognito)' : 'Stencil editor';
   try {
     await chrome.scripting.executeScript({
       target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, title, 8000]
     });
+    await noteOpened(payload);
   } catch {
     return chrome.tabs.create({ url });
   }
@@ -148,13 +174,17 @@ export const launchEditorModal = async ({ tabId, ...payload }) => {
 // URL, since a captured video frame is a data URL hundreds of KB long that a
 // query string would truncate. Storage is shared between the SW and the crop page.
 export const CROP_SRC_KEY = 'stencil-crop-src';
+// Provenance (source/resource URLs) for the image being cropped, threaded through
+// to the post-crop editor hand-off so a cropped image keeps where it came from.
+export const CROP_META_KEY = 'stencil-crop-meta';
 
 // Open the quick-crop tool as a small in-page modal on the given tab. Falls back
 // to a real tab when the modal can't be injected (restricted page) or the frame
-// is later blocked by the page's CSP.
-export const launchCrop = async ({ src, tabId }) => {
+// is later blocked by the page's CSP. `source`/`resource` ride along (via session
+// storage) so the cropped result's editor hand-off keeps its provenance.
+export const launchCrop = async ({ src, source, resource, tabId }) => {
   try {
-    await chrome.storage.session.set({ [CROP_SRC_KEY]: src });
+    await chrome.storage.session.set({ [CROP_SRC_KEY]: src, [CROP_META_KEY]: { source: source || '', resource: resource || '' } });
   } catch {
     /* crop page shows a message */
   }

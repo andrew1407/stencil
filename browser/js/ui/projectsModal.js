@@ -89,6 +89,38 @@ export class StencilProjectsModal extends StencilElement {
       name.textContent = opts.incognito ? 'Incognito (unsaved)' : (opts.temp ? 'Temporary (unsaved)' : (meta.name || 'Untitled'));
       info.appendChild(name);
 
+      // Inline rename: swap the name div for an input (✎ button or double-click).
+      // Commit on Enter/blur, cancel on Escape. Saved projects only.
+      const beginRename = () => {
+        if (opts.temp) return;
+        const input = document.createElement('input');
+        input.className = 'project-name-edit';
+        input.type = 'text';
+        input.value = meta.name || 'Untitled';
+        name.replaceWith(input);
+        input.focus();
+        input.select();
+        let done = false;
+        const commit = (save) => {
+          if (done) return;
+          done = true;
+          const next = input.value.trim();
+          if (save && next && next !== meta.name) {
+            app.renameProject(meta.id, next);
+            meta.name = next;
+          }
+          render();
+        };
+        input.addEventListener('keydown', e => {
+          e.stopPropagation();
+          if (e.key === 'Enter') commit(true);
+          else if (e.key === 'Escape') commit(false);
+        });
+        input.addEventListener('blur', () => commit(true));
+        input.addEventListener('click', e => e.stopPropagation());
+      };
+      if (!opts.temp) name.addEventListener('dblclick', e => { e.stopPropagation(); beginRename(); });
+
       const sub = document.createElement('div');
       sub.className = 'project-sub';
       if (opts.temp) {
@@ -134,6 +166,14 @@ export class StencilProjectsModal extends StencilElement {
           e.stopPropagation();
           app.openProjectInNewTab(meta.id);
         });
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'project-rename';
+        renameBtn.title = 'Rename project';
+        renameBtn.textContent = '✎';
+        renameBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          beginRename();
+        });
         const renewBtn = document.createElement('button');
         renewBtn.className = 'project-renew';
         renewBtn.title = 'Renew — reset the 7-day expiry to start from now';
@@ -155,6 +195,7 @@ export class StencilProjectsModal extends StencilElement {
         });
         actions.appendChild(switchBtn);
         actions.appendChild(newTabBtn);
+        actions.appendChild(renameBtn);
         actions.appendChild(renewBtn);
         actions.appendChild(removeBtn);
         row.appendChild(actions);
@@ -215,9 +256,11 @@ export class StencilProjectsModal extends StencilElement {
 
     // On-open chooser: if this is the only tab AND there are saved projects,
     // offer the chooser. Skipped when this tab was launched to open a specific
-    // project (?open=<id> deep link). Otherwise stay in the blank temporary editor.
+    // project (?open=<id> deep link) OR a specific image (extension #stencil=
+    // hand-off) — in both cases the user already chose what to open, so the chooser
+    // must not pop over it. Otherwise stay in the blank temporary editor.
     app.tabs.whenReady().then(({ youAreOnly }) => {
-      if (youAreOnly && store.list().length && !app.pendingOpenProjectId) open();
+      if (youAreOnly && store.list().length && !app.pendingOpenProjectId && !app.hasExternalLaunch) open();
     });
   }
 }

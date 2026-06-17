@@ -51,6 +51,11 @@ export class Storage {
       scrollTop: viewport ? viewport.scrollTop : 0,
       imageBaseName: this.app.imageBaseName || null,
       imageExt: this.app.imageExt || null,
+      // Provenance: the image/video's own URL (source) and the web page it was
+      // pulled from (resource). Both empty for plain local uploads; populated by
+      // the add-by-URL flow and the browser extension hand-off.
+      imageSource: this.app.imageSource || null,
+      imageResource: this.app.imageResource || null,
       tooltipEnabled: this.app.tooltipEnabled,
       tooltipShowPage: this.app.tooltipShowPage,
       tooltipShowScreen: this.app.tooltipShowScreen,
@@ -80,12 +85,16 @@ export class Storage {
     const layout = this.#buildLayout();
     const meta = {
       id: this.activeId,
-      name: this.app.imageBaseName || this.store.getMeta(this.activeId)?.name || 'Untitled',
+      name: this.store.getMeta(this.activeId)?.name || this.app.imageBaseName || 'Untitled',
       thumbnail: this.#makeThumbnail(),
       createdAt: this.store.getMeta(this.activeId)?.createdAt ?? Date.now(),
       hasImage: !!this.app.imageDataUrl,
       imageW: this.app.canvas.width,
       imageH: this.app.canvas.height,
+      // Mirror provenance into the registry meta so the projects list and the
+      // extension-launch "resume" match can use it without reading the payload.
+      source: this.app.imageSource || null,
+      resource: this.app.imageResource || null,
     };
     this.#upsertWithQuota(meta, { image: this.app.imageDataUrl || null, layout });
 
@@ -330,6 +339,8 @@ export class Storage {
       if (filterColorPicker) filterColorPicker.style.display = (this.app.imageFilter === 'custom') ? 'inline-block' : 'none';
       this.app.imageBaseName = layout.imageBaseName || null;
       this.app.imageExt = layout.imageExt || null;
+      this.app.imageSource = layout.imageSource || null;
+      this.app.imageResource = layout.imageResource || null;
       if (layout.tooltipEnabled !== undefined) this.app.tooltipEnabled = layout.tooltipEnabled;
       if (layout.tooltipShowPage !== undefined) this.app.tooltipShowPage = layout.tooltipShowPage;
       if (layout.tooltipShowScreen !== undefined) this.app.tooltipShowScreen = layout.tooltipShowScreen;
@@ -469,6 +480,8 @@ export class Storage {
     this.app.imageDataUrl = null;
     this.app.imageBaseName = null;
     this.app.imageExt = null;
+    this.app.imageSource = null;
+    this.app.imageResource = null;
     this.app.lines = [];
     this.app.currentLine = null;
     this.app.selectedLineIdx = -1;

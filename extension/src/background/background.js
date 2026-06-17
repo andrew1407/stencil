@@ -3,15 +3,23 @@
 // straight into the editor. Covers real <img> (native 'image' context) and CSS
 // background-image elements (detected by the content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
-import { MENU_ITEMS, resolveContextAction } from '../lib/contextMenu.js';
+import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS } from '../lib/contextMenu.js';
 
-// Rebuild the menu from scratch. removeAll first so install+startup don't pile up
-// "duplicate id" errors. Only on install/startup, so it never races a right-click.
+// Rebuild the menu from scratch. removeAll first so repeated builds don't pile up
+// "duplicate id" errors. Context menus don't survive an extension reload, and the
+// onInstalled/onStartup events don't reliably fire on every reload — so this also
+// runs at top level on each service-worker start (below), guaranteeing the menu
+// reflects the current code whenever the worker evaluates.
 const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
+    console.info(`[stencil] context menu built: ${MENU_ITEMS.length} items`);
   });
 };
+
+// Build immediately on worker startup (covers reloads where onInstalled/onStartup
+// don't fire). Idempotent: removeAll precedes every create.
+buildMenus();
 
 // Declared content scripts only inject into pages loaded AFTER install/update.
 // Inject the probe into already-open http(s) tabs too, so the menu works without
@@ -50,9 +58,13 @@ const lastTargetByTab = new Map();
 // at click time (if the recorded one is missing/stale) and screenshot-crop the
 // right rectangle for tainted media.
 const lastVideoByTab = new Map();
+// The poster (preview image) URL of the <video> last right-clicked, per tab. Drives
+// the menu's "Video preview image" submenu — independent of the frame capture above.
+const lastPosterByTab = new Map();
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastTargetByTab.delete(tabId);
   lastVideoByTab.delete(tabId);
+  lastPosterByTab.delete(tabId);
 });
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
@@ -68,12 +80,21 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     const data = msg.data;
     // Remember the video context so the click handler can recapture in-page.
     lastVideoByTab.set(tabId, data && data.video
-      ? { frameId: sender.frameId, point: msg.point || null, rect: data.rect || null, dpr: data.dpr || 1 }
+      ? { frameId: sender.frameId, point: msg.point || null, rect: data.rect || null, dpr: data.dpr || 1, posterShown: !!data.posterShown }
       : null);
     // A tainted (cross-origin) video has no ready frame here — its CURRENT frame is
     // captured at click time (in-page CORS readback → extension byte re-fetch →
     // screenshot crop), so record nothing and let the click handler do the work.
     lastTargetByTab.set(tabId, (data && data.video && !data.url) ? null : (data || null));
+    // The poster (preview image) the probe saw, if any — drives the Preview submenu.
+    lastPosterByTab.set(tabId, (data && data.poster) ? data.poster : '');
+    // Reveal the dynamic background-image / image-link items ONLY when the probe found
+    // a plain image URL under the cursor (not a <video>); hide them otherwise so they
+    // never show on a plain element. <img>/<video> use the native-context items instead,
+    // so they leave this group hidden. The native items are unaffected by this toggle.
+    const showBg = !!(data && data.url && !data.video);
+    for (const id of DYNAMIC_ITEMS)
+      chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
   }
 });
 
@@ -158,6 +179,9 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
         // fallback (Chrome video context without a probe point).
         const v = px != null ? at(px, py) : largest();
         if (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) return null;
+        // Paused at the very start → the poster is showing, not a real frame; let
+        // the caller fall back to the poster instead of grabbing a black frame 0.
+        if (v.paused && !v.currentTime) return null;
         try {
           return { frame: draw(v) };
         } catch {
@@ -264,6 +288,34 @@ const resolveSrc = (info, rec) => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
+
+  // ── Preview submenu: act on the video's POSTER (a normal image URL), never a
+  // frame. A no-op when the right-clicked element had no poster. ──
+  if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) {
+    const poster = (tabId != null ? lastPosterByTab.get(tabId) : '') || '';
+    const act = resolveContextAction({ menuItemId: info.menuItemId, srcUrl: poster }, poster);
+    if (!act) return;   // no poster on this element
+    const resource = tab?.url || '';
+    try {
+      if (act.action === 'open-tab') {
+        await chrome.tabs.create({ url: act.src });
+        return;
+      }
+      if (act.action === 'crop') {
+        await launchCrop({ src: act.src, source: act.src, resource, tabId });
+        return;
+      }
+      const { page } = await getSettings();
+      const dataUrl = await fetchAsDataUrl(act.src);
+      const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, source: act.src, resource, incognito: act.incognito };
+      if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId });
+      else await openEditorTab(payload);
+    } catch (err) {
+      console.error('[stencil] preview action failed:', err);
+    }
+    return;
+  }
+
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
@@ -272,15 +324,32 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // frame in-page at click time (direct/CORS readback), then re-fetch the bytes, then
   // fall back to a screenshot crop. A media URL is NEVER used as the image — better
   // to do nothing than hand the editor a .mp4 it can't decode.
+  // Provenance to record: the image's own URL (or, for a video, its media URL,
+  // captured BEFORE the block below overwrites `src` with a frame data URL) and
+  // the page the menu was used on. recordOpened ignores non-http(s) sources.
+  const sourceUrl = src || '';
+  const resource = tab?.url || '';
+
   const vinfo = tabId != null ? lastVideoByTab.get(tabId) : null;
+  const poster = (tabId != null ? lastPosterByTab.get(tabId) : '') || '';
   const isVideo = info.mediaType === 'video' || !!vinfo || !!(rec && rec.video);
   if (isVideo && !(rec && rec.video && rec.url)) {
     const frameId = vinfo ? vinfo.frameId : info.frameId;
     const probe = await captureVideoFrameInTab(tabId, frameId, vinfo && vinfo.point);
     let frame = probe && probe.frame ? probe.frame : null;
     if (!frame && probe && probe.src) frame = await captureVideoFrameViaFetch(tabId, frameId, probe.src, probe.t);
-    if (!frame && vinfo && vinfo.rect) frame = await captureFrameFromScreenshot(tab.windowId, vinfo.rect, vinfo.dpr);
-    src = frame || null;
+    if (frame) {
+      src = frame;
+    } else if (poster && (!vinfo || vinfo.posterShown)) {
+      // No real frame AND the video is on its poster (not played) → use the poster.
+      // The poster URL is cleaner than a screenshot crop, and avoids a black frame 0.
+      src = poster;
+    } else if (vinfo && vinfo.rect) {
+      // Playing but cross-origin / unreadable → screenshot-crop the on-screen frame.
+      src = await captureFrameFromScreenshot(tab.windowId, vinfo.rect, vinfo.dpr);
+    } else {
+      src = poster || null;  // last resort: any poster we have
+    }
   }
 
   // Feed the resolved src as srcUrl so the raw info.srcUrl (a <video>'s media file)
@@ -289,12 +358,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!act) return;
   try {
     if (act.action === 'crop') {
-      await launchCrop({ src: act.src, tabId: tab?.id });   // small in-page modal
+      await launchCrop({ src: act.src, source: sourceUrl, resource, tabId: tab?.id });   // small in-page modal
       return;
     }
     const { page } = await getSettings();
     const dataUrl = await fetchAsDataUrl(act.src);
-    const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, incognito: act.incognito };
+    // `act.open` ('resume') only set by the Resume item; undefined drops out of the
+    // JSON payload so a plain open imports fresh, as before.
+    const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, source: sourceUrl, resource, incognito: act.incognito, open: act.open };
     if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId: tab?.id });   // in-page editor modal
     else await openEditorTab(payload);
   } catch (err) {

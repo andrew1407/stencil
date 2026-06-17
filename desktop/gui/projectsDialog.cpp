@@ -57,6 +57,8 @@ namespace stencil::gui {
     auto* openBtn = new QPushButton("Open", this);
     auto* openNewWinBtn = new QPushButton("↗ New Window", this);
     openNewWinBtn->setToolTip("Open the selected project in a new window");
+    auto* renameBtn = new QPushButton("✎ Rename", this);
+    renameBtn->setToolTip("Rename the selected project");
     auto* renewBtn = new QPushButton("🔄 Renew", this);
     renewBtn->setToolTip("Reset the 7-day expiry to start from now");
     auto* delBtn = new QPushButton("Delete", this);
@@ -67,6 +69,7 @@ namespace stencil::gui {
     row->addStretch(1);
     row->addWidget(openBtn);
     row->addWidget(openNewWinBtn);
+    row->addWidget(renameBtn);
     row->addWidget(renewBtn);
     row->addWidget(delBtn);
     row->addWidget(closeBtn);
@@ -77,6 +80,7 @@ namespace stencil::gui {
     connect(openBtn, &QPushButton::clicked, this, &ProjectsDialog::openSelected);
     connect(openNewWinBtn, &QPushButton::clicked, this,
             &ProjectsDialog::openSelectedInNewWindow);
+    connect(renameBtn, &QPushButton::clicked, this, &ProjectsDialog::renameSelected);
     connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
     connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
@@ -131,6 +135,28 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Delete;
+    accept();
+  }
+
+  void ProjectsDialog::renameSelected() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    const QString id = it->data(Qt::UserRole).toString();
+    const auto cur = std::find_if(projects_.begin(), projects_.end(),
+                                  [&](const Project& p) {
+                                    return QString::fromStdString(p.meta.id) == id;
+                                  });
+    const QString old = cur != projects_.end()
+                            ? QString::fromStdString(cur->meta.name)
+                            : QString();
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, "Rename Project",
+                                               "Project name:", QLineEdit::Normal,
+                                               old, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+    selectedId_ = id;
+    newName_ = name.trimmed();
+    action_ = Action::Rename;
     accept();
   }
 

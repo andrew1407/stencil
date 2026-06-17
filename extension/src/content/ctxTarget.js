@@ -24,6 +24,52 @@
     /* ignore */
   }
 
+  // ── Poster snapshot ──────────────────────────────────────────────────────
+  // Some players STRIP the <video poster> attribute once playback starts (e.g.
+  // imginn/Instagram), so reading it lazily at right-click / scan time misses it.
+  // Snapshot every video's poster early and stamp it on the element (a non-empty
+  // value is never overwritten by a later empty one), so both this probe and the
+  // popup scan — which share this extension's isolated world — can recover it.
+  // The expando rides on the DOM node and is visible to scanPageForImages.
+  const STAMP = '__stencilPoster';
+  const rememberPoster = (v) => {
+    if (v && v.tagName === 'VIDEO' && v.poster) {
+      try {
+        v[STAMP] = v.poster;
+      } catch {
+        /* frozen element — ignore */
+      }
+    }
+  };
+  // The persisted poster for a video: the live attribute, else the early snapshot.
+  const posterOf = (v) => (v && (v.poster || v[STAMP])) || '';
+  const snapshotPosters = () => {
+    try {
+      document.querySelectorAll('video').forEach(rememberPoster);
+    } catch {
+      /* ignore */
+    }
+  };
+  snapshotPosters();
+  try {
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === 'attributes') {
+          rememberPoster(m.target);
+        } else {
+          for (const n of m.addedNodes || []) {
+            if (n.tagName === 'VIDEO') rememberPoster(n);
+            else if (n.querySelectorAll) n.querySelectorAll('video').forEach(rememberPoster);
+          }
+        }
+      }
+    }).observe(document.documentElement, {
+      subtree: true, childList: true, attributes: true, attributeFilter: ['poster']
+    });
+  } catch {
+    /* observer unsupported — live attribute still works */
+  }
+
   const firstCssImageUrl = (bg) => {
     if (!bg || bg === 'none') return null;
     const re = /url\((['"]?)(.*?)\1\)/g;
@@ -49,13 +95,18 @@
   // data URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
   const FRAME_MAX_SIDE = 1920;
 
-  // Current frame of a <video> as a JPEG data URL, or null when no frame is decoded
-  // yet (readyState < HAVE_CURRENT_DATA → blank) or the canvas is tainted
-  // (cross-origin) — the caller then falls back to a tab screenshot.
+  // True when the video is sitting on its POSTER, not a real frame: never played
+  // (paused at time 0) or no decoded data yet. drawImage() then yields frame 0
+  // (commonly black), so the caller should use the poster instead.
+  const showingPoster = (v) => (v.paused && !v.currentTime) || v.readyState < 2;
+
+  // Current frame of a <video> as a JPEG data URL, or null when the poster is
+  // showing (use it instead) or the canvas is tainted (cross-origin) — the caller
+  // then falls back to the poster, then a tab screenshot.
   const captureVideoFrame = (video) => {
     if (!video) return null;
     const vw = video.videoWidth, vh = video.videoHeight;
-    if (!vw || !vh || video.readyState < 2) return null;
+    if (!vw || !vh || showingPoster(video)) return null;
     const s = Math.min(1, FRAME_MAX_SIDE / Math.max(vw, vh));
     const w = Math.max(1, Math.round(vw * s)), h = Math.max(1, Math.round(vh * s));
     try {
@@ -122,6 +173,23 @@
     return null;
   };
 
+  // A link (<a href>) pointing straight at an image file (absolute URL). Lets the
+  // menu act on the linked image when there's no <img>/background under the cursor —
+  // restricted to image extensions so a normal page link never reveals the menu.
+  const IMG_LINK_EXT = /\.(avif|bmp|gif|jpe?g|png|svg|webp|ico|tiff?)(?:[?#]|$)/i;
+  const imageLinkUrl = (start) => {
+    const a = start && start.closest && start.closest('a[href]');
+    if (!a) return null;
+    const raw = a.getAttribute('href');
+    if (!raw) return null;
+    try {
+      const abs = new URL(raw, location.href).href;
+      return IMG_LINK_EXT.test(abs) ? abs : null;
+    } catch {
+      return null;
+    }
+  };
+
   // Background-image URL on `start` or its ancestors (absolute).
   const bgUrlFor = (start) => {
     for (let node = start; node && node.nodeType === 1; node = node.parentElement) {
@@ -161,17 +229,34 @@
     if (!start || isImageEl(start)) return null;
     const video = videoAt(start, x, y);
     if (video) {
+      // The poster is a page-level preview image (often unlike any frame). Use the
+      // persisted value (posterOf) so a player that stripped the attribute after
+      // playback doesn't hide it. Pass it along for the menu's Preview submenu.
+      let poster = '';
+      const rawPoster = posterOf(video);
+      if (rawPoster) {
+        try {
+          poster = new URL(rawPoster, location.href).href;
+        } catch {
+          poster = rawPoster;
+        }
+      }
       const frame = captureVideoFrame(video);
       // Tag it `video` so the click handler prefers this frame over info.srcUrl
-      // (which for a <video> is the media file, not a still).
-      if (frame) return { url: frame, video: true };
-      return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1 };
+      // (which for a <video> is the media file, not a still). `posterShown` tells the
+      // click handler the video is on its poster (not played) → use the poster, not
+      // a screenshot, when no frame could be read.
+      if (frame) return { url: frame, video: true, poster };
+      return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1, poster, posterShown: showingPoster(video) };
     }
     const bg = bgUrlFor(start);
     if (bg) return { url: bg };
-    // Last resort: a real image hidden under overlay elements at the cursor point.
+    // A real image hidden under overlay elements at the cursor point.
     const under = imageUnderPoint(x, y);
-    return under ? { url: under } : null;
+    if (under) return { url: under };
+    // Last resort: a link pointing straight at an image file.
+    const link = imageLinkUrl(start);
+    return link ? { url: link } : null;
   };
 
   document.addEventListener('contextmenu', (e) => {

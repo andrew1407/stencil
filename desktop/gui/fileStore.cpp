@@ -250,6 +250,8 @@ namespace stencil::gui {
       pr.meta.updatedAt = o.value("updatedAt").toVariant().toLongLong();
       pr.imagePath = o.value("imagePath").toString();
       pr.meta.hasImage = !pr.imagePath.isEmpty();
+      pr.meta.source = o.value("source").toString().toStdString();
+      pr.meta.resource = o.value("resource").toString().toStdString();
       pr.lines = linesFromJson(o.value("lines").toArray());
       pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
       pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
@@ -284,6 +286,8 @@ namespace stencil::gui {
       o["createdAt"] = QString::number(pr.meta.createdAt).toLongLong();
       o["updatedAt"] = QString::number(pr.meta.updatedAt).toLongLong();
       o["imagePath"] = pr.imagePath;
+      if (!pr.meta.source.empty()) o["source"] = QString::fromStdString(pr.meta.source);
+      if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
       o["lines"] = linesToJson(pr.lines);
       if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
       if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;

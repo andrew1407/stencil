@@ -20,6 +20,11 @@ namespace stencil::core {
     bool hasImage = false;
     int imageW = 0;
     int imageH = 0;
+    // Provenance: the image/video's own URL (source) and the web page it was
+    // pulled from (resource). Empty for plain local uploads; set by the
+    // add-by-URL flow. Mirrors the browser project's source/resource fields.
+    std::string source;
+    std::string resource;
   };
 
   class ProjectsStore {

@@ -25,6 +25,11 @@ const LEGACY_LAYOUT_KEY = 'drawingApp_layout';
 // active, non-temporary project to write to.
 export const shouldPersist = (activeId, temporary) => !temporary && activeId != null;
 
+// Strip a trailing copy suffix " (N)" so "photo (2)" and "photo" group together
+// when matching/numbering copies. Pure, unit-tested.
+export const baseProjectName = (name) =>
+  String(name || '').replace(/\s*\(\d+\)\s*$/, '').trim();
+
 export class ProjectsStore {
   #storage;
 
@@ -110,6 +115,42 @@ export class ProjectsStore {
       id = 'p_' + Date.now().toString(36) + '_' + rnd();
     } while (this.getMeta(id));
     return id;
+  }
+
+  // Rename a project: update its registry meta.name in place. No-op (returns null)
+  // when the id is unknown. Does not touch the payload or bump updatedAt.
+  rename(id, name) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    arr[i].name = name;
+    this.#writeRegistry(arr);
+    return arr[i];
+  }
+
+  // Projects that came from the same image, most-recently-updated first. A match
+  // is an identical, non-empty `source` URL; when `source` is empty we fall back
+  // to matching the base name (so a plain local "photo" still groups with copies).
+  // Drives the extension-launch "resume" path and copy-numbering below.
+  findByImage(source, name) {
+    const src = source || '';
+    const base = baseProjectName(name || '');
+    return this.list().filter(m => {
+      if (src) return (m.source || '') === src;
+      return !!base && baseProjectName(m.name || '') === base;
+    });
+  }
+
+  // Next free "Name (N)" for a new copy of an image already opened as one or more
+  // projects (matched by findByImage). Returns the bare base name when no project
+  // with that image/name exists yet, else the lowest unused (N) ≥ 1.
+  copyName(baseName, source) {
+    const base = baseProjectName(baseName || '') || (baseName || 'Untitled');
+    const taken = new Set(this.findByImage(source, base).map(m => m.name || ''));
+    if (!taken.has(base)) return base;
+    let n = 1;
+    while (taken.has(`${base} (${n})`)) n++;
+    return `${base} (${n})`;
   }
 
   // "Untitled N" where N is one past the highest existing Untitled index.

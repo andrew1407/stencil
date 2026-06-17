@@ -48,7 +48,11 @@ jobs:
 
       - name: Configure (portable build — no repo-local state dir)
         working-directory: desktop
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF
+        # CMAKE_PREFIX_PATH points find_package at the Qt the install step laid down
+        # (QT_ROOT_DIR is exported into the env context for later steps); STENCIL_REQUIRE_QT
+        # makes a missing/mis-pathed Qt fail here loudly rather than silently skipping the
+        # GUI + CPack config and surfacing later as a confusing cpack error.
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
 
       - name: Build
         working-directory: desktop
