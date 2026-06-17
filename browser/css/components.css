@@ -830,6 +830,56 @@ stencil-fullscreen-layer { display: contents; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
 .project-row.project-incognito { border-color: #8b5cf6; border-style: dashed; }
 .project-row.project-incognito .project-name { color: #8b5cf6; }
+/* Inline rename input shown in place of .project-name */
+.project-name-edit {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-key);
+    background: var(--bg-info);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 1px 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ── Links modal (source/resource + add-by-URL) ─────────────────── */
+.links-field { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.links-field input[type="text"] { flex: 1 1 auto; min-width: 0; }
+.vs-row input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--bg-info);
+    color: var(--text-main);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 12.5px;
+}
+.links-open, .links-clear {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border-main) !important;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--bg-info);
+    color: var(--text-main);
+}
+.links-clear.danger:hover { border-color: #dc3545 !important; color: #dc3545; }
+.links-preview-wrap {
+    margin: 8px 4px 0;
+    padding: 8px;
+    border: 1px solid var(--border-coord);
+    border-radius: 6px;
+    text-align: center;
+}
+.links-preview-wrap img, .links-preview-wrap video { max-width: 100%; max-height: 240px; border-radius: 4px; }
+.links-preview-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+.links-frame-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.links-frame-row input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.links-frame-num { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.links-frame-num input[type="number"] { width: 5.5em; }
 
 /* ── Incognito mode ─────────────────────────────────────────────── */
 /* The toggle lights up when active and greys out once it can't be switched. */

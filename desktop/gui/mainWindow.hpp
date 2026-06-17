@@ -177,6 +177,13 @@ namespace stencil::gui {
     // and drag-and-drop.
     void openImageSource(const QString& src, int frame);
     void ensureMediaLoader();
+    // Source/resource links dialog (mirrors browser linksModal.js): view/edit/open/
+    // remove the active image's provenance and add a new image by URL. Edits persist
+    // to the active project; a URL load routes through loadImageByUrl().
+    void openLinks();
+    // Load an image/video BY URL (extracting frame `frame` for video), tagging the
+    // result with `source`/`resource` provenance so the next project save records it.
+    void loadImageByUrl(const QString& source, const QString& resource, int frame);
 
     // OS-shell window spawners for the Dock menu / Jump-list-style actions. They
     // create self-owned top-level windows (WA_DeleteOnClose) so they never depend
@@ -275,6 +282,7 @@ namespace stencil::gui {
     QAction* actFullscreen_ = nullptr;
     QAction* actSettings_ = nullptr;
     QAction* actProjects_ = nullptr;
+    QAction* actLinks_ = nullptr;
     QAction* actNewProject_ = nullptr;
     QAction* actSaveProject_ = nullptr;
     QAction* actSaveSession_ = nullptr;
@@ -352,6 +360,15 @@ namespace stencil::gui {
     core::ProjectsStore projectsStore_;
     std::vector<Project> projectList_;
     QString activeProjectId_;
+    // Provenance of the image currently on the canvas (the image/video's own URL
+    // and the page it came from). Set by loadImageByUrl(); cleared on a plain local
+    // open / blank image. Folded into the project meta on create/save.
+    QString currentSource_;
+    QString currentResource_;
+    // Pending provenance for an in-flight loadImageByUrl(), promoted to current* in
+    // onLaunchImageLoaded() once the async load succeeds.
+    QString pendingProvSource_;
+    QString pendingProvResource_;
     bool incognito_ = false;
     double lastHoverX_ = 0.0;
     double lastHoverY_ = 0.0;

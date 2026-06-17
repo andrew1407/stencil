@@ -72,6 +72,11 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .badge.bg { color: var(--yellow); }
 .badge.video { color: #4ade80; }
 .badge.fmt { color: var(--accent-2); }
+.badge.poster { color: #38bdf8; border-color: #38bdf8; }
+/* Already-opened-in-an-editor cue: yellow flag + row outline. */
+.badge.opened { color: #1b1b1b; background: var(--yellow); border-color: var(--yellow); font-weight: 600; }
+.row.opened { outline: 2px solid var(--yellow); outline-offset: -2px; }
+.row.opened .thumb { border-color: var(--yellow); }
 
 .more-btn {
   flex: 0 0 auto; background: transparent; border: 1px solid transparent; color: var(--muted);

@@ -11,6 +11,7 @@
 #include "guiHelpers.hpp"
 #include "infoDialog.hpp"
 #include "launchOptions.hpp"
+#include "linksDialog.hpp"
 #include "mediaLoader.hpp"
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
@@ -363,6 +364,7 @@ namespace stencil::gui {
     actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
     actSettings_ = mk("Settings…", "Ctrl+,");
     actProjects_ = mk("Projects…", "Ctrl+Shift+P");
+    actLinks_ = mk("🔗 Image Links…", QString());
     actNewProject_ = mk("New Project", QString());
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
     actSaveSession_ = mk("Save Session", "Ctrl+S");
@@ -457,6 +459,7 @@ namespace stencil::gui {
             &MainWindow::toggleFullscreen);
     connect(actSettings_, &QAction::triggered, this, &MainWindow::openSettings);
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
+    connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
     connect(actNewProject_, &QAction::triggered, this,
             &MainWindow::newProjectFromCanvas);
     connect(actSaveProject_, &QAction::triggered, this,
@@ -719,6 +722,8 @@ namespace stencil::gui {
     project->addAction(actProjects_);
     project->addAction(actNewProject_);
     project->addAction(actSaveProject_);
+    project->addSeparator();
+    project->addAction(actLinks_);
 
     auto* help = menuBar()->addMenu("&Help");
     help->addAction(actInfo_);
@@ -745,6 +750,7 @@ namespace stencil::gui {
 
     tb->addAction(actOpen_);
     tb->addAction(actNewBlank_);
+    tb->addAction(actLinks_);
     tb->addAction(actCrop_);
     tb->addAction(actRotateLeft_);
     tb->addAction(actRotateRight_);
@@ -1071,6 +1077,8 @@ namespace stencil::gui {
       notify_->error("Failed to load image");
       return;
     }
+    currentSource_.clear();  // a local file has no source/resource provenance
+    currentResource_.clear();
     notify_->success("Image loaded");
     refreshActions();
   }
@@ -1098,6 +1106,8 @@ namespace stencil::gui {
       canvas_->setPageCm(page.width, page.height);
     }
     canvas_->loadFromImage(img);
+    currentSource_.clear();  // a generated blank image has no provenance
+    currentResource_.clear();
     refreshActions();
     notify_->success(QString("Blank %1×%2 image created")
                          .arg(dlg.widthPx())
@@ -2038,6 +2048,16 @@ namespace stencil::gui {
       refreshActions();
       refreshDockMenu();  // drop it from the Dock "recent" list
       notify_->info("Project deleted");
+    } else if (dlg.action() == Action::Rename) {
+      const std::string id = dlg.selectedId().toStdString();
+      auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                             [&](const Project& p) { return p.meta.id == id; });
+      if (it == projectList_.end()) return;
+      it->meta.name = dlg.newName().toStdString();
+      fileStore::saveProjects(projectList_);
+      refreshDockMenu();  // reflect the new name in the Dock "recent" list
+      notify_->success(
+          QString("Renamed to \"%1\"").arg(QString::fromStdString(it->meta.name)));
     } else if (dlg.action() == Action::Renew) {
       const std::string id = dlg.selectedId().toStdString();
       auto it = std::find_if(projectList_.begin(), projectList_.end(),
@@ -2075,6 +2095,8 @@ namespace stencil::gui {
     canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect,
                      it->rotationQuarters);
     activeProjectId_ = id;
+    currentSource_ = QString::fromStdString(it->meta.source);
+    currentResource_ = QString::fromStdString(it->meta.resource);
     refreshActions();
     notify_->success(
         QString("Opened \"%1\"").arg(QString::fromStdString(it->meta.name)));
@@ -2139,6 +2161,8 @@ namespace stencil::gui {
             &MainWindow::onLaunchImageLoaded);
     connect(mediaLoader_, &MediaLoader::failed, this, [this](const QString& msg) {
       pendingLaunchLayout_.clear();
+      pendingProvSource_.clear();
+      pendingProvResource_.clear();
       notify_->error(msg);
     });
   }
@@ -2177,6 +2201,12 @@ namespace stencil::gui {
   // exactly as openImage() does, so the auto-crop matches the current page size.
   void MainWindow::onLaunchImageLoaded(const QImage& image,
                                        const QString& localPath) {
+    // Provenance for this load (from loadImageByUrl); consumed once, then cleared.
+    const QString provSource = pendingProvSource_;
+    const QString provResource = pendingProvResource_;
+    pendingProvSource_.clear();
+    pendingProvResource_.clear();
+
     const core::PageSize page = naturalPageCm(pageSize_->currentText(),
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
@@ -2192,6 +2222,10 @@ namespace stencil::gui {
       }
       canvas_->loadFromImage(image);  // remote image / video frame (in-memory)
     }
+    // A new image's provenance replaces the previous one (a plain --src/OS open
+    // carries none, so both clear). Saved to the project on the next create/save.
+    currentSource_ = provSource;
+    currentResource_ = provResource;
     refreshActions();
     fitToWindow();
     notify_->success("Image opened");
@@ -2325,6 +2359,74 @@ namespace stencil::gui {
     }
   }
 
+  // View/edit/open/remove the current image's source & resource links, or add a
+  // new image by URL. Edits to the links persist to the active project (and the
+  // in-memory current* provenance); a URL load routes through loadImageByUrl().
+  void MainWindow::openLinks() {
+    // Seed from the active project's stored provenance when available, else from
+    // the live current* provenance (e.g. an image just loaded by URL, not yet saved).
+    QString src = currentSource_, res = currentResource_;
+    if (!activeProjectId_.isEmpty()) {
+      const std::string id = activeProjectId_.toStdString();
+      auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                             [&](const Project& p) { return p.meta.id == id; });
+      if (it != projectList_.end()) {
+        src = QString::fromStdString(it->meta.source);
+        res = QString::fromStdString(it->meta.resource);
+      }
+    }
+
+    LinksDialog dlg(src, res, canvas_->hasImage(), this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    if (dlg.loadRequested()) {
+      // The dialog already fetched and decoded the exact image/frame for its
+      // preview — adopt those pixels directly (no second download/seek) so what
+      // was previewed is exactly what loads. Fall back to a fresh resolve only if
+      // the preview image is somehow absent.
+      const QImage previewed = dlg.previewedImage();
+      if (!previewed.isNull()) {
+        pendingProvSource_ = dlg.urlSource();
+        pendingProvResource_ = dlg.urlResource();
+        onLaunchImageLoaded(previewed, QString());
+      } else {
+        loadImageByUrl(dlg.urlSource(), dlg.urlResource(), dlg.urlFrame());
+      }
+      return;
+    }
+
+    // No image → the dialog was in add-by-URL mode and just closed; nothing to save.
+    if (!canvas_->hasImage()) return;
+
+    // Plain OK: persist the edited links onto the current image + active project.
+    currentSource_ = dlg.source();
+    currentResource_ = dlg.resource();
+    if (!activeProjectId_.isEmpty()) {
+      const std::string id = activeProjectId_.toStdString();
+      auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                             [&](const Project& p) { return p.meta.id == id; });
+      if (it != projectList_.end()) {
+        it->meta.source = currentSource_.toStdString();
+        it->meta.resource = currentResource_.toStdString();
+        it->meta.updatedAt = nowMs();
+        fileStore::saveProjects(projectList_);
+        notify_->success("Links saved");
+        return;
+      }
+    }
+    notify_->info("Links updated — save to a project to keep them");
+  }
+
+  // Load an image/video by URL (reusing the --src resolver), remembering the URL +
+  // optional resource as provenance so the next project save records them.
+  void MainWindow::loadImageByUrl(const QString& source, const QString& resource,
+                                  int frame) {
+    if (source.isEmpty()) return;
+    pendingProvSource_ = source;
+    pendingProvResource_ = resource;
+    openImageSource(source, frame);
+  }
+
   void MainWindow::newProjectFromCanvas() {
     if (incognito_) {  // S6: project promotion is blocked while incognito
       notify_->info("Incognito mode — saving is disabled");
@@ -2351,6 +2453,8 @@ namespace stencil::gui {
     pr.cropRect = canvas_->cropRect();
     pr.rotationQuarters = canvas_->rotationQuarters();
     pr.meta.hasImage = !pr.imagePath.isEmpty();
+    pr.meta.source = currentSource_.toStdString();
+    pr.meta.resource = currentResource_.toStdString();
     projectList_.push_back(pr);
     activeProjectId_ = QString::fromStdString(pr.meta.id);
     fileStore::saveProjects(projectList_);
@@ -2381,6 +2485,10 @@ namespace stencil::gui {
     it->rotationQuarters = canvas_->rotationQuarters();
     it->meta.updatedAt = nowMs();
     it->meta.hasImage = !it->imagePath.isEmpty();
+    // Keep provenance unless the active image carries its own (a save shouldn't
+    // wipe links set via the Links dialog, but a fresh URL-loaded image updates them).
+    if (!currentSource_.isEmpty()) it->meta.source = currentSource_.toStdString();
+    if (!currentResource_.isEmpty()) it->meta.resource = currentResource_.toStdString();
     fileStore::saveProjects(projectList_);
     refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(

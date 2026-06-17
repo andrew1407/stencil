@@ -39,3 +39,6 @@
   }
 }
 * { box-sizing: border-box; }
+/* Native form controls follow the violet brand accent instead of the OS default
+   (aqua/blue on macOS), so checkboxes/radios match the rest of the palette. */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }

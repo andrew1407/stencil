@@ -158,6 +158,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
                     <button id="fullscreen-toggle" data-hk-title="fullscreen" title="Fullscreen (Alt+F)">⛶</button>
                     <button id="projects-btn" title="Projects">🗂</button>
+                    <button id="links-btn" title="Source &amp; resource links · add image by URL">🔗</button>
                     <button id="incognito-toggle" title="Incognito — edit without saving (choose before adding an image)">🕶</button>
                     <button id="settings-btn" title="Keyboard shortcuts">⚙️</button>
                     <button id="visuals-btn" title="Default visuals & highlight styles">🎨</button>

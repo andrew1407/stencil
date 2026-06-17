@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
-  ProjectsStore, shouldPersist, EXPIRY_MS, WARN_MS,
+  ProjectsStore, shouldPersist, baseProjectName, EXPIRY_MS, WARN_MS,
   REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
 } from '../js/core/projectsStore.js';
 
@@ -227,4 +227,48 @@ test('shouldPersist truth table', () => {
   assert.strictEqual(shouldPersist(null, true), false);
   assert.strictEqual(shouldPersist('id', true), false);
   assert.strictEqual(shouldPersist('id', false), true);
+});
+
+test('baseProjectName strips a trailing copy suffix', () => {
+  assert.strictEqual(baseProjectName('photo'), 'photo');
+  assert.strictEqual(baseProjectName('photo (2)'), 'photo');
+  assert.strictEqual(baseProjectName('photo (12)  '), 'photo');
+  assert.strictEqual(baseProjectName('a (1) (3)'), 'a (1)');
+  assert.strictEqual(baseProjectName(''), '');
+  assert.strictEqual(baseProjectName(null), '');
+});
+
+test('rename updates meta.name, no-op on unknown id', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'old' }), { image: null, layout: {} });
+  assert.strictEqual(s.rename('a', 'new').name, 'new');
+  assert.strictEqual(s.getMeta('a').name, 'new');
+  assert.strictEqual(s.rename('missing', 'x'), null);
+});
+
+test('findByImage matches by source URL, falls back to base name', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'img', source: 'https://x/i.png', updatedAt: 100 }), { image: null, layout: {} });
+  s.upsert(meta('b', { name: 'img (1)', source: 'https://x/i.png', updatedAt: 300 }), { image: null, layout: {} });
+  s.upsert(meta('c', { name: 'other', source: 'https://y/o.png', updatedAt: 200 }), { image: null, layout: {} });
+
+  const bySource = s.findByImage('https://x/i.png', 'whatever');
+  assert.deepStrictEqual(bySource.map(m => m.id).sort(), ['a', 'b']);
+
+  // No source → fall back to base name (suffix-insensitive).
+  s.upsert(meta('d', { name: 'photo' }), { image: null, layout: {} });
+  s.upsert(meta('e', { name: 'photo (2)' }), { image: null, layout: {} });
+  const byName = s.findByImage('', 'photo');
+  assert.deepStrictEqual(byName.map(m => m.id).sort(), ['d', 'e']);
+});
+
+test('copyName returns base when free, else next free (N)', () => {
+  const s = new ProjectsStore(makeShim());
+  assert.strictEqual(s.copyName('img', 'https://x/i.png'), 'img');
+  s.upsert(meta('a', { name: 'img', source: 'https://x/i.png' }), { image: null, layout: {} });
+  assert.strictEqual(s.copyName('img', 'https://x/i.png'), 'img (1)');
+  s.upsert(meta('b', { name: 'img (1)', source: 'https://x/i.png' }), { image: null, layout: {} });
+  assert.strictEqual(s.copyName('img', 'https://x/i.png'), 'img (2)');
+  // A different source does not collide.
+  assert.strictEqual(s.copyName('img', 'https://y/i.png'), 'img');
 });

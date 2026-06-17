@@ -64,6 +64,10 @@ namespace stencil::gui {
     src_ = src;
     frame_ = std::max(0, frame);
     done_ = false;
+    isVideo_ = false;
+    thumbnail_ = QImage();
+    fps_ = 0;
+    durationMs_ = 0;
     seekIssued_ = false;
 
     // Resolve to a URL: an existing local file wins (so relative paths and odd
@@ -135,6 +139,7 @@ namespace stencil::gui {
 
   void MediaLoader::startVideo(const QUrl& url) {
     if (done_) return;
+    isVideo_ = true;  // every video path (incl. the image-decode fallback) funnels here
     cleanupVideo();  // defensive: never run two pipelines at once
     player_ = new QMediaPlayer(this);
     audio_ = new QAudioOutput(this);
@@ -176,14 +181,30 @@ namespace stencil::gui {
 
     double fps = player_->metaData().value(QMediaMetaData::VideoFrameRate).toDouble();
     if (fps <= 0.0) fps = kAssumedFps;
+    fps_ = fps;                       // expose for the dialog's slider / frame count
     targetMs_ = static_cast<qint64>(frame_ / fps * 1000.0 + 0.5);
     const qint64 dur = player_->duration();
-    if (dur > 0) targetMs_ = std::min(targetMs_, std::max<qint64>(0, dur - 1));
+    if (dur > 0) {
+      durationMs_ = dur;              // expose for the dialog's slider bounds
+      targetMs_ = std::min(targetMs_, std::max<qint64>(0, dur - 1));
+    }
+
+    captureThumbnail();  // metadata is available now (LoadedMedia) — grab any cover art
 
     if (targetMs_ > 0) player_->setPosition(targetMs_);
     // Playback is required for the sink to emit frames; we stop on the first
     // usable one in onVideoFrame().
     player_->play();
+  }
+
+  // Read the container's embedded preview/cover image, if any. Best-effort: many
+  // files (and most network streams) carry none, leaving thumbnail_ null.
+  void MediaLoader::captureThumbnail() {
+    if (!player_ || !thumbnail_.isNull()) return;
+    const QMediaMetaData md = player_->metaData();
+    QImage t = md.value(QMediaMetaData::ThumbnailImage).value<QImage>();
+    if (t.isNull()) t = md.value(QMediaMetaData::CoverArtImage).value<QImage>();
+    if (!t.isNull()) thumbnail_ = t;
   }
 
   void MediaLoader::onVideoFrame(const QVideoFrame& frame) {
@@ -195,6 +216,7 @@ namespace stencil::gui {
     if (targetMs_ > 0 && player_ && player_->position() + 60 < targetMs_) return;
     const QImage img = frame.toImage();
     if (img.isNull()) return;  // wait for the next, decodable frame
+    captureThumbnail();  // last chance to read cover art (metadata may arrive late)
     done_ = true;
     if (player_) player_->stop();
     if (timeout_) timeout_->stop();

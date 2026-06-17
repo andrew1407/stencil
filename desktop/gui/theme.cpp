@@ -1,10 +1,13 @@
 #include "theme.hpp"
 #include <QGuiApplication>
-#include <QProcess>
 #include <QStyleHints>
+#ifdef Q_OS_LINUX
+#include <QProcess>
+#endif
 
 namespace stencil::gui {
 
+#ifdef Q_OS_LINUX
   namespace {
     // Runs a desktop-settings query and returns its trimmed stdout (empty on
     // failure). Used as the X11/GNOME fallback when Qt can't see the scheme.
@@ -18,6 +21,7 @@ namespace stencil::gui {
       return QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
     }
   }  // namespace
+#endif
 
   // Port of the browser matchMedia('(prefers-color-scheme: dark)') check.
   // Qt 6.5+ QStyleHints::colorScheme() is preferred, but on X11/GNOME it often
@@ -25,10 +29,14 @@ namespace stencil::gui {
   // Qt), so we fall back to the freedesktop portal value and then the GNOME
   // setting directly — fixing the Fedora case where prefer-dark was ignored.
   bool systemPrefersDark() {
+#ifdef Q_OS_LINUX
     // GNOME is the source of truth on Linux. NOTE: under xcb on GNOME,
     // QStyleHints::colorScheme() wrongly reports Light (not Unknown), so the app
     // launched light even with prefer-dark. We therefore consult the desktop
     // portal + gsettings FIRST and only trust Qt's hint when neither answers.
+    // These probes are Linux-only: on macOS/Windows Qt's hint is reliable, and
+    // running gdbus/gsettings there only risks picking up stray PATH binaries
+    // (e.g. a Homebrew install) that don't reflect the OS appearance.
 
     // freedesktop portal (color-scheme: 1 = prefer dark, 2 = prefer light,
     // 0 = no preference). Returned as "(<<uint32 1>>,)".
@@ -48,6 +56,7 @@ namespace stencil::gui {
     if (gnome.contains("light", Qt::CaseInsensitive) ||
         gnome.contains("default", Qt::CaseInsensitive))
       return false;
+#endif
 
     // No desktop answer -> trust Qt's hint as a last resort. colorScheme() /
     // Qt::ColorScheme arrived in Qt 6.5; on older Qt we have no hint to consult,

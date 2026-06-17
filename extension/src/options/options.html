@@ -33,6 +33,17 @@
       <option value="A4">A4</option>
     </select>
 
+    <label class="f" for="markOpened">Already-opened images</label>
+    <label style="display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+      <input id="markOpened" type="checkbox" style="width:auto;" checked>
+      Mark images already opened in an editor (yellow flag), and offer to resume them
+    </label>
+    <label style="display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; margin-top:8px;">
+      <input id="openedFirst" type="checkbox" style="width:auto;" checked>
+      Sort already-opened images to the top of the list
+    </label>
+    <div class="help">Uses a local record of images this extension has opened. Turn off marking to always open a fresh editor with no badges. These toggles are also available directly in the popup.</div>
+
     <div class="row">
       <button id="save">Save</button>
       <span id="status" class="saved"></span>

@@ -32,6 +32,32 @@ namespace stencil::gui {
     // Calling load() again cancels any in-flight resolution.
     void load(const QString& src, int frame);
 
+    // True when the most recent load() resolved the source as a video (so the
+    // emitted image is a grabbed frame rather than a decoded still). Valid when
+    // loaded() fires; lets callers (the links dialog) reveal frame controls only
+    // for videos, mirroring the browser modal's image-vs-video preview branch.
+    bool isVideoSource() const { return isVideo_; }
+
+    // A video's embedded preview/cover image (QMediaMetaData ThumbnailImage, else
+    // CoverArtImage), if the container carries one — independent of the decoded
+    // frames. Null when the source isn't a video or embeds no such image. Valid
+    // when loaded() fires; lets the links dialog offer "use the preview image".
+    QImage embeddedThumbnail() const { return thumbnail_; }
+
+    // Video timeline, captured while seeking (valid when loaded() fires for a
+    // video). frameRate() falls back to an assumed fps when metadata omits it;
+    // frameCount() is the estimated total frame count (0 when unknown). Lets the
+    // links dialog bound its frame slider / spin box and validate input.
+    double frameRate() const { return fps_; }
+    qint64 durationMs() const { return durationMs_; }
+    int frameCount() const {
+      return (fps_ > 0 && durationMs_ > 0) ? static_cast<int>(durationMs_ / 1000.0 * fps_) : 0;
+    }
+
+    // The URL the last load() resolved to (local file → file URL, else fromUserInput).
+    // Lets the links dialog hand the same source to its persistent scrub player.
+    QUrl resolvedUrl() const { return url_; }
+
    signals:
     // image  : the decoded pixels.
     // localPath : the originating file path when `src` was a LOCAL image file
@@ -47,6 +73,7 @@ namespace stencil::gui {
     void resolve();
     void startVideo(const QUrl& url);
     void tryStartVideoSeek();
+    void captureThumbnail();  // read embedded preview/cover art from the player's metadata
     void fail(const QString& message);
     void cleanupVideo();
 
@@ -54,7 +81,11 @@ namespace stencil::gui {
     QUrl url_;
     QString localPath_;  // non-empty only for an existing local file
     int frame_ = 0;
-    bool done_ = false;  // guards single-shot loaded()/failed()
+    bool done_ = false;     // guards single-shot loaded()/failed()
+    bool isVideo_ = false;  // set once the source is resolved as a video
+    QImage thumbnail_;      // embedded preview/cover image, if the video carries one
+    double fps_ = 0;        // video frame rate (assumed fallback when unknown)
+    qint64 durationMs_ = 0; // video duration in ms
 
     // Video pipeline (lazily constructed in startVideo()).
     QMediaPlayer* player_ = nullptr;

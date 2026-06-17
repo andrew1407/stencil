@@ -1,5 +1,6 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings } from '../lib/stencil.js';
+import { loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
@@ -23,7 +24,16 @@ const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'vie
 const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
-const state = { all: [], filtered: [], activeTabId: null };
+const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true };
+
+// The image's own URL for provenance: its media URL for a video (the still is an
+// opaque frame), else the image/background src. Empty/data: sources aren't tracked.
+const sourceOf = (image) => (image.kind === 'video' ? (image.videoUrl || '') : (image.src || ''));
+
+// The image to actually open / crop / preview: the scanned still, falling back to a
+// video's poster when no frame was captured (an unplayed video shows its poster, and
+// its frame 0 is often black — so the poster is the right stand-in, never a black image).
+const editableSrc = (image) => image.src || image.posterUrl || '';
 
 // Measure unknown-size images only once their row scrolls into view (thumbnails
 // use loading="lazy" too). All matching rows render up front so filtering shows all.
@@ -49,6 +59,7 @@ const scan = async () => {
     return;
   }
   state.activeTabId = tab.id;
+  state.activeUrl = tab.url || '';
   await syncHighlightCheckbox(tab.id);
   let images = [];
   try {
@@ -74,8 +85,30 @@ const scan = async () => {
     name: filenameFromUrl(it.kind === 'video' && it.videoUrl ? it.videoUrl : it.src, it.kind === 'video' ? 'video' : 'image'),
     measured: it.w > 0 && it.h > 0
   }));
+  await annotateOpened();
   populateFormats();
   applyFilters();
+};
+
+// Tag each image with the ledger entries that show it's already been opened in an
+// editor (drives the yellow badge + the resume chooser). Gated by the markOpened
+// setting; only trackable (http(s)) sources can match another scan.
+const annotateOpened = async () => {
+  const { markOpened, openedFirst } = await getSettings();
+  state.markOpened = markOpened;
+  state.openedFirst = openedFirst;
+  // Keep the popup toggles in sync with the persisted settings (and the options page).
+  document.getElementById('f-mark-opened').checked = markOpened;
+  document.getElementById('f-opened-first').checked = openedFirst;
+  if (!markOpened) {
+    for (const img of state.all) img.opened = [];
+    return;
+  }
+  const ledger = await loadLedger();
+  for (const img of state.all) {
+    const src = sourceOf(img);
+    img.opened = trackableSource(src) ? matchEntries(ledger, src, img.name) : [];
+  }
 };
 
 // Build a checkbox per format (common ones + any extra the page uses). All start
@@ -134,6 +167,11 @@ const renderCount = () => {
 const applyFilters = () => {
   filters = readFilters();
   state.filtered = state.all.filter(it => passesFilters(it, filters));
+  // Float already-opened images to the top when enabled. Array.sort is stable, so
+  // images keep their scan order within each group. A no-op when badging is off
+  // (isOpened is false for all), so the page's natural order is preserved.
+  if (state.openedFirst)
+    state.filtered.sort((a, b) => (isOpened(b) ? 1 : 0) - (isOpened(a) ? 1 : 0));
   listEl.innerHTML = '';
   renderCount();
   if (!state.all.length) {
@@ -165,7 +203,7 @@ const renderRow = (image) => {
 
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
-  thumb.src = image.src || (image.kind === 'video' ? PLAY_THUMB : '');
+  thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
   thumb.title = title;
   // A video with no readable frame shows a play glyph; any other broken thumb hides.
@@ -191,6 +229,15 @@ const renderRow = (image) => {
   badge.className = 'badge ' + image.kind;   // .bg / .video styled; .img neutral
   badge.textContent = image.kind;
   sub.appendChild(badge);
+  // A video poster lists as a normal image; tag it so it's distinct from the
+  // sibling video (frame) row it was split from.
+  if (image.poster) {
+    const pb = document.createElement('span');
+    pb.className = 'badge poster';
+    pb.textContent = 'poster';
+    pb.title = 'A video’s preview (poster) image — independent of its frames';
+    sub.appendChild(pb);
+  }
   const f = document.createElement('span');
   f.className = 'badge fmt';
   // A video shows its container format (from the media URL), not the frame's jpg;
@@ -203,6 +250,16 @@ const renderRow = (image) => {
   dim.className = 'dim';
   dim.textContent = image.w && image.h ? `${image.w}×${image.h}` : '';
   sub.appendChild(dim);
+  // Already opened in an editor: a yellow outline + flag. Clicking the row opens
+  // the resume/copy chooser (see bindRowGestures / buildMenu).
+  if (isOpened(image)) {
+    row.classList.add('opened');
+    const ob = document.createElement('span');
+    ob.className = 'badge opened';
+    ob.textContent = '⚑ opened';
+    ob.title = 'Already opened in an editor — click to resume or add a copy';
+    sub.appendChild(ob);
+  }
   meta.append(name, sub);
 
   const more = document.createElement('button');
@@ -271,19 +328,32 @@ const buildMenu = (image) => {
     d.className = 'sep';
     return d;
   };
+  // Already opened: offer to resume the existing editor (the editor switches to the
+  // matching project, or lets the user pick when several share this image) or to add
+  // a fresh numbered copy. Shown first since it's the point of the yellow badge.
+  if (isOpened(image)) {
+    const n = image.opened.reduce((a, e) => a + (e.count || 1), 0);
+    menuEl.append(
+      item('↩', `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
+      item('＋', 'Add as new copy', () => sendToEditor(image, false, 'copy')),
+      sep()
+    );
+  }
   if (image.kind === 'video') {
     if (image.videoUrl) menuEl.append(
       item('↗', 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
       item('⬇', 'Download video', () => download(image.videoUrl))
     );
-    if (image.src) {
+    if (editableSrc(image)) {
+      // With no decoded frame (unplayed video) these act on the poster instead of a
+      // black frame, via editableSrc() in sendToEditor / openCrop.
       if (image.videoUrl) menuEl.append(sep());
       menuEl.append(
-        item('✎', 'Open current frame in editor', () => sendToEditor(image.src, false)),
-        item('🕶', 'Frame in editor (incognito)', () => sendToEditor(image.src, true)),
-        item('▣', 'Open frame in editor here', () => sendToEditorModal(image.src, false)),
-        item('▣', 'Frame in editor here (incognito)', () => sendToEditorModal(image.src, true)),
-        item('✂', 'Crop current frame', () => openCrop(image.src))
+        item('✎', 'Open current frame in editor', () => sendToEditor(image, false)),
+        item('🕶', 'Frame in editor (incognito)', () => sendToEditor(image, true)),
+        item('▣', 'Open frame in editor here', () => sendToEditorModal(image, false)),
+        item('▣', 'Frame in editor here (incognito)', () => sendToEditorModal(image, true)),
+        item('✂', 'Crop current frame', () => openCrop(image))
       );
     }
   } else {
@@ -291,11 +361,11 @@ const buildMenu = (image) => {
       item('⬇', 'Download', () => download(image.src)),
       item('↗', 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
       sep(),
-      item('✎', 'Open in editor', () => sendToEditor(image.src, false)),
-      item('🕶', 'Editor (incognito)', () => sendToEditor(image.src, true)),
-      item('▣', 'Open in editor here', () => sendToEditorModal(image.src, false)),
-      item('▣', 'Editor here (incognito)', () => sendToEditorModal(image.src, true)),
-      item('✂', 'Crop…', () => openCrop(image.src))
+      item('✎', 'Open in editor', () => sendToEditor(image, false)),
+      item('🕶', 'Editor (incognito)', () => sendToEditor(image, true)),
+      item('▣', 'Open in editor here', () => sendToEditorModal(image, false)),
+      item('▣', 'Editor here (incognito)', () => sendToEditorModal(image, true)),
+      item('✂', 'Crop…', () => openCrop(image))
     );
   }
 };
@@ -372,43 +442,65 @@ const bindGestures = (el, onClick, onDouble) => {
 };
 
 // Single click → open in the editor (normal, not incognito); double click → crop.
-const bindOpenGestures = (el, src) =>
-  bindGestures(el, () => sendToEditor(src, false), () => openCrop(src));
+const bindOpenGestures = (el, image) =>
+  bindGestures(el, () => sendToEditor(image, false), () => openCrop(image));
+
+const isOpened = (image) => state.markOpened && image.opened && image.opened.length > 0;
 
 const bindRowGestures = (el, image) => {
-  if (image.kind !== 'video') return bindOpenGestures(el, image.src);
-  // Video: act on the current frame; with no frame, single-click opens the video.
-  const onClick = image.src
-    ? () => sendToEditor(image.src, false)
+  // Already-opened image: a click surfaces the resume / add-a-copy chooser (the
+  // ⋯ menu) rather than silently creating yet another editor for the same image.
+  if (isOpened(image)) {
+    bindGestures(el,
+      () => { const r = el.getBoundingClientRect(); openMenuAt(image, r.left, r.bottom); },
+      () => openCrop(image));
+    return;
+  }
+  if (image.kind !== 'video') return bindOpenGestures(el, image);
+  // Video: act on the current frame (or the poster when unplayed); with neither,
+  // single-click opens the media in a tab.
+  const es = editableSrc(image);
+  const onClick = es
+    ? () => sendToEditor(image, false)
     : (image.videoUrl ? () => chrome.tabs.create({ url: image.videoUrl }) : null);
-  const onDouble = image.src ? () => openCrop(image.src) : null;
+  const onDouble = es ? () => openCrop(image) : null;
   bindGestures(el, onClick, onDouble);
 };
 
 // ── Actions ──
 const download = (src) => chrome.downloads.download({ url: src, filename: filenameFromUrl(src) });
 
-const sendToEditor = async (src, incognito) => {
+// Provenance attached to every editor hand-off: the image's own URL (or a video's
+// media URL) and the page it was scanned on. `open` ('resume'|'copy') lets the
+// editor switch to an already-opened project or force a fresh numbered copy.
+const handoff = (image, open) => ({
+  name: image.name,
+  source: sourceOf(image),
+  resource: state.activeUrl,
+  open
+});
+
+const sendToEditor = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
-  const dataUrl = await fetchAsDataUrl(src);
-  await openEditorTab({ dataUrl, name: filenameFromUrl(src), page: { size: page }, incognito });
+  const dataUrl = await fetchAsDataUrl(editableSrc(image));
+  await openEditorTab({ dataUrl, page: { size: page }, incognito, ...handoff(image, open) });
   window.close();
 };
 
 // Same as sendToEditor, but frames the editor in an in-page modal on the active
 // page instead of opening a new tab (mirrors the quick-crop modal).
-const sendToEditorModal = async (src, incognito) => {
+const sendToEditorModal = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
-  const dataUrl = await fetchAsDataUrl(src);
-  await launchEditorModal({ dataUrl, name: filenameFromUrl(src), page: { size: page }, incognito, tabId: state.activeTabId });
+  const dataUrl = await fetchAsDataUrl(editableSrc(image));
+  await launchEditorModal({ dataUrl, page: { size: page }, incognito, tabId: state.activeTabId, ...handoff(image, open) });
   window.close();
 };
 
 // Crop opens a small in-page modal on the current page (full editor stays a tab).
-const openCrop = async (src) => {
-  await launchCrop({ src, tabId: state.activeTabId });
+const openCrop = async (image) => {
+  await launchCrop({ src: editableSrc(image), source: sourceOf(image), resource: state.activeUrl, tabId: state.activeTabId });
   window.close();
 };
 
@@ -431,8 +523,9 @@ const bindPreview = (el, image) => {
     previewEl.style.top = `${y}px`;
   };
   el.addEventListener('mouseenter', () => {
-    if (!image.src || !previewWorthwhile(image)) return;   // nothing to preview (e.g. a frameless video)
-    previewImg.src = image.src;
+    const ps = editableSrc(image);
+    if (!ps || !previewWorthwhile(image)) return;   // nothing to preview
+    previewImg.src = ps;
     previewEl.hidden = false;
     position();
   });
@@ -446,6 +539,20 @@ document.getElementById('f-search').addEventListener('input', () => {
   searchTimer = setTimeout(applyFilters, 150);
 });
 ['f-img', 'f-bg', 'f-video'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+
+// Opened-images toggles (persisted to settings so they follow the user and stay in
+// sync with the options page). "mark opened" needs a re-annotate (badges depend on
+// it); "opened first" only re-sorts the current list.
+document.getElementById('f-mark-opened').addEventListener('change', async (e) => {
+  await setSettings({ markOpened: e.target.checked });
+  await annotateOpened();
+  applyFilters();
+});
+document.getElementById('f-opened-first').addEventListener('change', async (e) => {
+  await setSettings({ openedFirst: e.target.checked });
+  state.openedFirst = e.target.checked;
+  applyFilters();
+});
 
 // The highlight lives on the page (survives the popup closing), so on open reflect
 // its real state in the checkbox rather than defaulting to unchecked.

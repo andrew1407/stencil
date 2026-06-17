@@ -37,8 +37,11 @@ export const scanPageForImages = (limit) => {
   document.querySelectorAll('video').forEach(v => {
     const w = v.videoWidth, h = v.videoHeight;
     let frame = null;
-    // readyState >= HAVE_CURRENT_DATA — otherwise drawImage paints a blank frame.
-    if (w && h && v.readyState >= 2) {
+    // Capture a frame only when the video is actually showing one: it must have
+    // decoded data AND have been played. A video paused at time 0 displays its
+    // POSTER, while drawImage() would grab frame 0 (commonly black) — so skip it
+    // and let the poster stand in (below).
+    if (w && h && v.readyState >= 2 && !(v.paused && !v.currentTime)) {
       try {
         // Cap the longest side so the frame's data URL doesn't overflow the editor
         // launch URL (a 4K frame would land the editor tab on about:blank).
@@ -56,8 +59,25 @@ export const scanPageForImages = (limit) => {
     // blob: URL isn't, so leave it out.
     const raw = v.currentSrc || v.src || '';
     const videoUrl = (raw.startsWith('http:') || raw.startsWith('https:')) ? abs(raw) : '';
-    const still = frame || v.poster || '';
-    push(still, 'video', w, h, v.getAttribute('aria-label') || 'video', { videoUrl, hasFrame: !!frame });
+    // The poster is a page-level preview image, often unrelated to any frame. List
+    // it as its OWN image item (so it can be opened/cropped independently), and tag
+    // the video item with it. Fall back to the probe's persisted snapshot
+    // (`__stencilPoster`, same extension isolated world) since some players strip
+    // the live poster attribute once playback starts.
+    const rawPoster = v.poster || v.__stencilPoster || '';
+    const poster = rawPoster ? abs(rawPoster) : '';
+    if (poster) {
+      // The same image is often ALSO a plain <img> on the page (scanned first) — tag
+      // that existing row as a poster rather than dropping a duplicate; otherwise add
+      // the poster as its own image item.
+      const existing = out.find(it => it.src === poster);
+      if (existing) existing.poster = true;
+      else push(poster, 'img', 0, 0, v.getAttribute('aria-label') || 'video poster', { poster: true });
+    }
+    // The video item now represents the FRAME (its still); poster is its own item
+    // above, so it isn't reused as the video src/key here (that would collide and
+    // drop one of the two). A frameless video still lists via its media URL.
+    push(frame || '', 'video', w, h, v.getAttribute('aria-label') || 'video', { videoUrl, hasFrame: !!frame, posterUrl: poster });
   });
 
   for (const el of document.querySelectorAll('*')) {

@@ -7,7 +7,7 @@ import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
   roundRect, isAlbumOrientation, pageDims
 } from '../lib/cropGeometry.js';
-import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
 // host overlay when we booted (so it keeps the modal) and when to close.
@@ -33,6 +33,8 @@ const masks = {
 
 const state = {
   srcUrl: '',
+  source: '',
+  resource: '',
   dataUrl: '',
   name: 'image.png',
   imgW: 0,
@@ -304,6 +306,8 @@ document.getElementById('open').addEventListener('click', async (e) => {
         name: state.name,
         crop: state.crop,
         page,
+        source: state.source,
+        resource: state.resource,
         incognito
       };
     } else {
@@ -318,6 +322,8 @@ document.getElementById('open').addEventListener('click', async (e) => {
         name: (dot > 0 ? state.name.slice(0, dot) : state.name) + '-crop.png',
         crop: { x: 0, y: 0, width: c.width, height: c.height },
         page,
+        source: state.source,
+        resource: state.resource,
         incognito
       };
     }
@@ -340,5 +346,15 @@ document.getElementById('open').addEventListener('click', async (e) => {
     catch { /* leave empty → "No image URL provided." */ }
   }
   state.srcUrl = src;
+  // Provenance set by launchCrop (the image's own URL + the page it came from), so
+  // the post-crop editor hand-off keeps where the image came from. Empty otherwise.
+  try {
+    const m = await chrome.storage.session.get(CROP_META_KEY);
+    state.source = (m[CROP_META_KEY] && m[CROP_META_KEY].source) || '';
+    state.resource = (m[CROP_META_KEY] && m[CROP_META_KEY].resource) || '';
+  } catch {
+    state.source = '';
+    state.resource = '';
+  }
   init();
 })();

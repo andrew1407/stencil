@@ -76,6 +76,12 @@ export class DrawingApp {
     // modified; `cropRect` lives in the rotated image's pixel space and line
     // points ride along on each turn. See rotateImage / #rotatedOriginalCanvas.
     this.rotationQuarters = 0;
+    // Provenance for the current image: `imageSource` is the image/video's own URL,
+    // `imageResource` is the web page it was pulled from. Both null for plain local
+    // uploads; set by the add-by-URL flow and the extension hand-off. Persisted in
+    // the layout and mirrored into the project meta.
+    this.imageSource = null;
+    this.imageResource = null;
     this.lines = [];
     this.currentLine = null;
     this.isDrawing = false;
@@ -194,6 +200,11 @@ export class DrawingApp {
     // any component wires, so the chooser knows to stay closed; applyProjectDeepLink()
     // actually loads it once everything is wired.
     this.pendingOpenProjectId = readOpenProjectId(location.search);
+    // An extension hand-off (`#stencil=…`) means this tab was launched to open one
+    // specific image — like the deep link above, the projects chooser must stay
+    // closed so it doesn't pop over the freshly imported image. Read before the
+    // fragment is consumed/stripped in applyExternalLaunch().
+    this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
     // Reflect the initial (imageless) state: undo/redo + fullscreen start disabled.
     this.updateButtons();
     this.applyUnitToUI();
@@ -1108,6 +1119,9 @@ export class DrawingApp {
   // opts.crop — an explicit crop rect {x,y,width,height} in original-image pixel
   // space to use instead of the default centered page-aspect crop. Used by the
   // external-launch path (browser extension) to honour a crop chosen elsewhere.
+  // opts.source / opts.resource — provenance URLs (image/video URL and the page it
+  // came from) for the add-by-URL and extension hand-off paths; omitted for plain
+  // local uploads, which clears any prior provenance.
   loadImageFromFile(file, opts = {}) {
     // A temporary editor receiving its first image becomes a real project, so
     // the final storage.save() below persists it (and subsequent tabs see it).
@@ -1127,6 +1141,15 @@ export class DrawingApp {
       this.imageBaseName = file.name;
       this.imageExt = 'png';
     }
+
+    // An explicit project name (extension copy-numbering) overrides the filename-
+    // derived base used to auto-name the project on first save.
+    if (opts.name) this.imageBaseName = opts.name;
+
+    // Provenance comes from the caller (add-by-URL / extension); a plain local
+    // upload passes neither, which clears any provenance carried by a prior image.
+    this.imageSource = opts.source || null;
+    this.imageResource = opts.resource || null;
 
     const reader = new FileReader();
     reader.onload = event => {
@@ -1185,10 +1208,20 @@ export class DrawingApp {
   // a URL fragment: `#stencil=<encodeURIComponent(JSON)>` where the JSON is
   //   { dataUrl, name?, crop?: {x,y,width,height},
   //     page?: { size: 'A3'|'A4'|'custom', width?: cm, height?: cm },
+  //     source?: string,   // the image/video's own URL (provenance)
+  //     resource?: string, // the web page it was pulled from (provenance)
+  //     open?: 'resume'|'copy', // resume a matching project, or force a new copy
   //     incognito?: bool }
   // The fragment is used (not the query string) so the payload never hits the
   // server and large data URLs are kept out of logs. We consume it once, strip
   // it from the URL, then route the image through the normal upload path.
+  //
+  // Provenance + dedup: the extension can't read our (cross-origin) project
+  // registry, so it only knows it has opened this image before. `open:'resume'`
+  // asks us to switch to a project we already hold for the same source instead of
+  // re-importing; with several matches we surface the projects list to pick from.
+  // Otherwise we import as a new project, auto-numbered "name (N)" when the same
+  // source already has a project (so a second open never silently shadows it).
   applyExternalLaunch() {
     const hash = location.hash || '';
     const marker = '#stencil=';
@@ -1216,10 +1249,43 @@ export class DrawingApp {
 
     const name = typeof payload.name === 'string' && payload.name ? payload.name : 'image.png';
     const crop = payload.crop && typeof payload.crop === 'object' ? payload.crop : null;
+    const source = typeof payload.source === 'string' && payload.source ? payload.source : null;
+    const resource = typeof payload.resource === 'string' && payload.resource ? payload.resource : null;
+
+    // Resume: if we already hold project(s) for this source, switch instead of
+    // re-importing. Several matches → open the projects list to pick among them.
+    // No match (stale ledger / expired project) falls through to a fresh import.
+    if (payload.open === 'resume' && !this.storage.incognito && (source || name)) {
+      const baseName = this.#stripExt(name);
+      const matches = this.storage.store.findByImage(source, baseName);
+      if (matches.length && this.switchToProject(matches[0].id)) {
+        if (matches.length > 1) {
+          notify(`Resumed "${matches[0].name}" — ${matches.length} projects share this image`, 'ok');
+          document.getElementById('projects-btn')?.click();
+        }
+        return;
+      }
+    }
+
+    // Fresh import. Auto-number the project name against existing same-source
+    // projects so a repeat open becomes "name (1)", "name (2)", … (skipped for
+    // incognito, which never persists). `open:'copy'` takes the same path.
+    const opts = crop ? { crop } : {};
+    opts.source = source;
+    opts.resource = resource;
+    if (!this.storage.incognito && source) opts.name = this.storage.store.copyName(this.#stripExt(name), source);
+
     fetch(payload.dataUrl)
       .then(r => r.blob())
-      .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), crop ? { crop } : {}))
+      .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), opts))
       .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
+  }
+
+  // Base name without its file extension (for project naming / source matching).
+  #stripExt(name) {
+    const s = String(name || '');
+    const dot = s.lastIndexOf('.');
+    return dot > 0 ? s.slice(0, dot) : s;
   }
 
   // Apply a page size handed in by the external launch and reflect it in the UI.
@@ -2433,6 +2499,18 @@ export class DrawingApp {
   // peers so their open project lists re-render with the new expiry.
   renewProject(id) {
     const meta = this.storage.store.renew(id);
+    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    return meta;
+  }
+
+  // Rename a project. The registry meta is the source of truth for the projects
+  // list and the save() name fallback already prefers it over imageBaseName, so a
+  // rename of the active project survives subsequent saves. Notifies peers so
+  // their lists re-render. Returns the updated meta (or null for an unknown id).
+  renameProject(id, name) {
+    const clean = String(name || '').trim();
+    if (!clean) return null;
+    const meta = this.storage.store.rename(id, clean);
     if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     return meta;
   }
