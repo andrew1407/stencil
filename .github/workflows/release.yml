@@ -43,7 +43,10 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.7.*'
-          modules: qtimageformats
+          # qtmultimedia backs the --src video-frame grab; the desktop CMakeLists
+          # requires the Multimedia component, so it must be installed alongside
+          # qtbase or STENCIL_REQUIRE_QT configure fails to find Qt6Multimedia.
+          modules: qtimageformats qtmultimedia
           cache: true
 
       - name: Configure (portable build — no repo-local state dir)
