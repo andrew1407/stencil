@@ -1,27 +1,11 @@
 // ── Context-menu definitions + click resolution (pure, unit-tested) ──────────
-// We create NO explicit "Stencil" parent: Chrome automatically groups an extension's
-// multiple top-level items under a single submenu named after the extension ("Stencil
-// Image Picker"), so adding our own parent produced a redundant "Stencil Image Picker ›
-// Stencil ›" double-nest. Items therefore sit at top level; the only real submenu is
-// the video Preview group (a genuine sub-category). The menu still appears ONLY when
-// there's something to act on under the cursor — never on plain text / empty page —
-// via two item groups, of which at most ONE matches at a time:
-//
-//   1. NATIVE group — scoped to Chrome's built-in image/video contexts, so it shows on
-//      a real <img> or <video> with zero timing risk (the filtering is static; it works
-//      even when the MV3 worker is asleep):
-//        • image → a real <img>. Acts on the image.
-//        • video → a real <video>. Acts on its CURRENT FRAME, with a "Video preview
-//          image" submenu for the poster (resolved by the ctxTarget.js probe).
-//
-//   2. DYNAMIC group (ALL_CONTEXTS) — CSS background-image elements, overlay-buried
-//      images and image links have NO native context, so these items are eligible
-//      everywhere but DEFAULT-HIDDEN (each carries visible:false). The probe
-//      (ctxTarget.js) detects a URL under the cursor and the worker reveals them via
-//      contextMenus.update(); with nothing there they stay hidden, so they never show
-//      on a plain element. The only cost is MV3's update race: right after the worker
-//      wakes, the reveal can land one click late on these non-native elements (the
-//      native group is immune).
+// No explicit "Stencil" parent — Chrome auto-groups top-level items under the
+// extension name (a parent of our own double-nests it). Only the video Preview group
+// is a real submenu. Two item groups, at most one matching at a time:
+//   1. NATIVE (image/video contexts) — static, works even when the MV3 worker sleeps.
+//   2. DYNAMIC (ALL_CONTEXTS) — backgrounds/overlay-buried/linked images have no
+//      native context, so these start hidden and the worker reveals them via the
+//      probe. Cost: an update race can land one click late right after the worker wakes.
 export const MENU = {
   // Image actions (on <img>).
   open: 'stencil-open',
@@ -44,10 +28,8 @@ export const MENU = {
   previewModal: 'stencil-preview-modal',
   previewModalIncognito: 'stencil-preview-modal-incognito',
   previewCrop: 'stencil-preview-crop',
-  // Background-image / image-link actions. These elements have NO native context,
-  // so these items sit on the 'all' context but start HIDDEN; the ctxTarget.js
-  // probe + worker reveal them only when a background/linked image is under the
-  // cursor — never on a plain element. Same actions as the <img> group.
+  // Background-image / image-link actions — no native context, so on 'all' but
+  // start hidden; the probe reveals them. Same actions as the <img> group.
   bgOpen: 'stencil-bg-open',
   bgOpenResume: 'stencil-bg-open-resume',
   bgOpenIncognito: 'stencil-bg-open-incognito',
@@ -56,12 +38,9 @@ export const MENU = {
   bgCrop: 'stencil-bg-crop'
 };
 
-// Action item id → what clicking it does. 'open' lands in a new tab; 'open-modal'
-// frames the editor in an in-page modal; 'open-tab' opens the image URL in a plain
-// tab. `open: 'resume'` switches to a project already held for the same image (else a
-// normal import). `target`: 'main' acts on the image / current video frame; 'preview'
-// acts on the poster. The 'frame*' items are 'main' too — same behaviour as the image
-// open/crop on a <video>; only the wording differs.
+// Action item id → click behaviour. action: open (new tab) / open-modal (in-page
+// modal) / open-tab (plain image URL) / crop. open:'resume' switches to an existing
+// project. target: 'main' (image / current frame) vs 'preview' (the poster).
 const ACTIONS = {
   [MENU.open]: { action: 'open', incognito: false, target: 'main' },
   [MENU.openResume]: { action: 'open', incognito: false, open: 'resume', target: 'main' },
@@ -80,8 +59,7 @@ const ACTIONS = {
   [MENU.previewModal]: { action: 'open-modal', incognito: false, target: 'preview' },
   [MENU.previewModalIncognito]: { action: 'open-modal', incognito: true, target: 'preview' },
   [MENU.previewCrop]: { action: 'crop', target: 'preview' },
-  // Background-image / image-link items mirror the <img> actions exactly (they act on
-  // the recorded URL the probe found under the cursor).
+  // Background-image / image-link items mirror the <img> actions (on the probed URL).
   [MENU.bgOpen]: { action: 'open', incognito: false, target: 'main' },
   [MENU.bgOpenResume]: { action: 'open', incognito: false, open: 'resume', target: 'main' },
   [MENU.bgOpenIncognito]: { action: 'open', incognito: true, target: 'main' },
@@ -94,16 +72,13 @@ const ACTIONS = {
 // 'page'/'all', so these never show on plain elements.
 const IMAGE_CONTEXTS = ['image'];
 const VIDEO_CONTEXTS = ['video'];
-// Background-image / image-link elements have no native context, so this group is
-// eligible everywhere ('all') but DEFAULT-HIDDEN — the probe reveals it (toggles each
-// item's `visible`) only when there's a real URL under the cursor. Without a parent to
-// inherit hidden state from, every item carries its own visible:false and the worker
-// flips them together.
+// Background/link elements have no native context: this group is on 'all' but each
+// item carries its own visible:false (no parent to inherit from); the worker flips
+// them together when the probe finds a URL.
 const ALL_CONTEXTS = ['all'];
 
-// Flat list passed straight to chrome.contextMenus.create (in order). There is NO
-// explicit "Stencil" parent — Chrome auto-groups these top-level items under the
-// extension name. The only nested submenu is the video Preview group.
+// Flat list passed straight to chrome.contextMenus.create (in order). No explicit
+// "Stencil" parent — Chrome auto-groups these; only the Preview group is a submenu.
 export const MENU_ITEMS = [
   // Image: a real <img>.
   { id: MENU.open, title: '✎ Open image in Stencil editor', contexts: IMAGE_CONTEXTS },
@@ -119,17 +94,17 @@ export const MENU_ITEMS = [
   { id: MENU.frameModalIncognito, title: '▣ Current frame here (incognito)', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameCrop, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
   // Video: the poster / preview image — a genuine sub-category, kept as a submenu.
-  { id: MENU.previewParent, title: 'Video preview image', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewTab, parentId: MENU.previewParent, title: '↗ Open preview in a new tab', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewOpen, parentId: MENU.previewParent, title: '✎ Open preview in editor', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewOpenIncognito, parentId: MENU.previewParent, title: '🕶 Preview in editor (incognito)', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewModal, parentId: MENU.previewParent, title: '▣ Open preview in editor here', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewModalIncognito, parentId: MENU.previewParent, title: '▣ Preview here (incognito)', contexts: VIDEO_CONTEXTS },
-  { id: MENU.previewCrop, parentId: MENU.previewParent, title: '✂ Crop preview…', contexts: VIDEO_CONTEXTS },
-  // Background-image / image-link group: top-level items on the 'all' context, each
-  // DEFAULT-HIDDEN. The native image/video items above can't match these elements (no
-  // native context), so the worker reveals this group — and only this group — for
-  // background/linked images under the cursor. Same actions as the <img> group.
+  // Default-hidden: the worker reveals it (PREVIEW_ITEMS) only when the probed video
+  // actually has a poster, so posterless videos don't show a dead "no-op" submenu.
+  { id: MENU.previewParent, title: 'Video preview image', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewTab, parentId: MENU.previewParent, title: '↗ Open preview in a new tab', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewOpen, parentId: MENU.previewParent, title: '✎ Open preview in editor', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewOpenIncognito, parentId: MENU.previewParent, title: '🕶 Preview in editor (incognito)', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewModal, parentId: MENU.previewParent, title: '▣ Open preview in editor here', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewModalIncognito, parentId: MENU.previewParent, title: '▣ Preview here (incognito)', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewCrop, parentId: MENU.previewParent, title: '✂ Crop preview…', contexts: VIDEO_CONTEXTS, visible: false },
+  // Background-image / image-link group: top-level 'all'-context items, default-hidden.
+  // The worker reveals this group (only) for background/linked images under the cursor.
   { id: MENU.bgOpen, title: '✎ Open image in Stencil editor', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenResume, title: '↩ Resume in existing Stencil editor', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenIncognito, title: '🕶 Open in Stencil (incognito)', contexts: ALL_CONTEXTS, visible: false },
@@ -138,17 +113,24 @@ export const MENU_ITEMS = [
   { id: MENU.bgCrop, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false }
 ];
 
-// The background/link items the worker reveals/hides together (they have no native
-// context, so they start hidden and surface only when the probe finds a URL under the
-// cursor). Export so the background SW and tests share one source.
+// The background/link items the worker reveals/hides together. Exported so the SW
+// and tests share one source.
 export const DYNAMIC_ITEMS = [
   MENU.bgOpen, MENU.bgOpenResume, MENU.bgOpenIncognito,
   MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop
 ];
 
-// Decide what a context-menu click should do. info.srcUrl (the real <img>/<video>'s
-// resolved source) wins over `recordedUrl` (for a preview item, the poster URL the
-// caller passes in). Returns null when the id isn't ours or there's no URL.
+// The video Preview submenu items the worker reveals/hides together — shown only when
+// the probed <video> actually carries a poster (preview image). Same source-of-truth
+// pattern as DYNAMIC_ITEMS, shared by the SW and tests.
+export const PREVIEW_ITEMS = [
+  MENU.previewParent, MENU.previewTab, MENU.previewOpen, MENU.previewOpenIncognito,
+  MENU.previewModal, MENU.previewModalIncognito, MENU.previewCrop
+];
+
+// Decide what a context-menu click should do. info.srcUrl wins over `recordedUrl`
+// (the caller-passed poster URL for preview items). Returns null when the id isn't
+// ours or there's no URL.
 export const resolveContextAction = (info = {}, recordedUrl = null) => {
   const spec = ACTIONS[info.menuItemId];
   if (!spec) return null;

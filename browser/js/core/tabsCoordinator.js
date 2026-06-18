@@ -1,17 +1,8 @@
 // ── TabsCoordinator: window-side cross-tab coordination ─────────
-// Talks to the SharedWorker coordinator when available, else falls back to a
-// BroadcastChannel roll-call, else degrades to single-tab assumptions. It never
-// touches localStorage itself — it only relays small control messages so the
-// projects UI can know the tab count, which projects are open elsewhere (peers),
-// and when another tab changed the project set.
-//
-// API:
-//   onTabCount(cb)        cb({count, youAreOnly})
-//   onPeers(cb)           cb(activeIds[])
-//   onProjectsChanged(cb) cb()
-//   reportActive(id)      announce this tab's active project id (or null)
-//   projectsChanged()     tell other tabs the project set changed
-//   whenReady()           Promise<{count, youAreOnly}> — always resolves
+// Talks to the SharedWorker coordinator when available, else a BroadcastChannel
+// roll-call, else single-tab assumptions. Never touches localStorage — only relays
+// small control messages so the projects UI knows the tab count, peers, and when
+// another tab changed the project set.
 import { MSG } from '../worker/messages.js';
 
 const CHANNEL_NAME = 'stencil_projects';

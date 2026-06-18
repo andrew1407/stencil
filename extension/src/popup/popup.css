@@ -108,3 +108,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .action-menu button:hover { background: var(--accent); color: #fff; }
 .action-menu .ic { width: 16px; text-align: center; font-size: 13px; }
 .action-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+/* Sub-category heading inside the action menu (e.g. "Video preview image"). */
+.action-menu .label {
+  padding: 5px 9px 3px; color: var(--muted);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+}

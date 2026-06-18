@@ -1,30 +1,10 @@
 // ── Shared C++ core singleton ───────────────────────────────────
-// Owns the WebAssembly build of the shared C++ core (desktop/core → wasm, emitted
-// as the self-contained ES module js/wasm/stencilCore.js with SINGLE_FILE so it
-// loads under file://) and the typed wrappers over its raw extern "C" exports
-// (which speak only numbers and pointers). This module marshals everything —
-// strings, flat point arrays, output pointers, the pixel buffer — and hands the
-// rest of the app clean JS-shaped functions through a single `core` singleton.
-//
-// State that used to be module-level mutable globals (an exported `backend`
-// object Object.assign'd from another module, plus a `let initPromise`) now lives
-// in #private fields of one StencilCore instance:
-//   • #ops      — the installed wasm wrappers (empty until init() succeeds);
-//   • #ready    — explicit flag, flipped once wrappers are installed;
-//   • #initPromise — memoizes the idempotent init().
-// Consumers never see a mutable export: symmetric sites call core.bind(name, jsRef)
-// (late-binds per call), asymmetric sites call core.op(name) (the installed fn or
-// null). When #ops is empty (wasm failed to load, or Node tests that never call
-// init()) both routes fall through to the caller's JS reference.
-//
-// js/wasm/stencilCore.js is a generated artifact (gitignored, built per
-// desktop/WASM.md) and may be absent on a fresh checkout — so it's imported
-// dynamically inside init(), where a missing-module rejection is caught and
-// degrades to the JS fallback. A static import would instead crash the whole
-// module graph (and the app's boot) when the file isn't present. Because the only
-// import of the artifact is dynamic and inside init(), this stays a leaf module
-// with no app-side imports — free of circular dependencies, and Node never loads
-// wasm unless init() is called.
+// Owns the WebAssembly build of the shared C++ core and typed wrappers over its
+// raw extern "C" exports, exposing clean JS-shaped functions via the `core`
+// singleton. The wasm artifact is generated (gitignored, built per desktop/WASM.md)
+// and may be absent — so it's imported dynamically inside init() and a missing
+// module degrades to the JS fallback (a static import would crash boot). Dynamic-
+// only import keeps this a leaf module with no app imports, so Node never loads wasm.
 
 // The generated artifact's path, relative to this module. Kept as a named
 // constant rather than inlined into the import() call (native ESM accepts a
@@ -89,15 +69,10 @@ class StencilCore {
     return this.#requiredExports.filter(sym => typeof core[`_${sym}`] !== 'function');
   }
 
-  // Wrap a JS reference implementation so calls route to the wasm-backed op
-  // `name` when it is installed, else to the JS reference. The op is read on
-  // every call, so a wrapper built once at module-eval time still picks up the
-  // post-load swap — and degrades to the JS reference while no op is installed
-  // (wasm failed to load, or Node tests that never call init()). The fallback is
-  // passed in by the consumer. Use only for symmetric ops where the wasm and JS
-  // paths take the same arguments; asymmetric sites (parseHex's null fall-through,
-  // the renderer's one-pass filter fork, drawingApp's this-bound methods) use
-  // op(name) with their explicit guard on purpose.
+  // Route calls to wasm op `name` when installed, else the JS reference. The op is
+  // read per call, so a wrapper built at module-eval time still picks up the post-
+  // load swap. Symmetric ops only (same args on both paths); asymmetric sites use
+  // op(name) with their own guard.
   bind(name, jsRef) {
     return (...args) => (this.#ops[name] ?? jsRef)(...args);
   }

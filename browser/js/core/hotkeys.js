@@ -1,17 +1,8 @@
 // ── Hotkey registry singleton ───────────────────────────────────
-// Owns the mutable keyboard-shortcut bindings that used to live as global
-// window.HOTKEYS / window.HOTKEY_DEFAULTS / window.saveHotkeys /
-// window.updateCtxHotkeyHints and were read as bare globals from settingsModal,
-// drawingApp and contextMenu. The state now lives in #private fields of one
-// `hotkeys` instance, imported explicitly by those consumers — no globals, no
-// implicit window reads.
-//
-// Behavior is preserved exactly: defaults come from the same hotkeysConfig.json,
-// saved overrides are merged from localStorage under the same 'drawingApp_hotkeys'
-// key, save() writes the same JSON, and updateCtxHints() patches the same
-// [data-hk] elements. The localStorage load/save and DOM work are guarded by
-// typeof window/document/localStorage so importing this leaf module in Node
-// (transitively, via any browser module) stays inert and never throws.
+// Owns the mutable keyboard-shortcut bindings as #private fields of one `hotkeys`
+// instance (no window globals). Defaults from hotkeysConfig.json, overrides merged
+// from localStorage 'drawingApp_hotkeys'. localStorage/DOM access is guarded by
+// typeof window/document/localStorage so importing this leaf module in Node stays inert.
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { platformizeCombo, isMacPlatform, formatCombo } from '../utils.js';
 

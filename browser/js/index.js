@@ -5,13 +5,10 @@ import { core } from './core/stencilCore.js';
 import { hotkeys } from './core/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 // ── Application entrypoint ──────────────────────────────────────
-// Loaded LAST. Importing layout registers every custom element. On load:
-// instantiate the shared C++ core (wasm) so geometry/formula/filter/zoom logic
-// runs the same compiled code as the desktop app, then mount the component hosts
-// (each renders its markup + subscribes to `stencil:ready`), construct the app,
-// then dispatch `stencil:ready` so every component wires its behavior —
-// preserving the original DOM → app → wire order. If wasm fails to load, the
-// core installs no ops and every consumer falls back to its JS reference.
+// Loaded LAST (importing layout registers every custom element). On load: init
+// the shared C++ core (wasm), mount component hosts, construct the app, then
+// dispatch `stencil:ready` so components wire — preserving DOM → app → wire order.
+// If wasm fails, the core installs no-ops and consumers use their JS fallback.
 window.onload = async () => {
   // When framed in the extension's in-page editor modal, signal liveness before
   // the heavy boot so the host keeps the modal up instead of timing out to a tab.

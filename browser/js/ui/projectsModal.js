@@ -1,10 +1,9 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 // ── Component: projects chooser / switcher modal ────────────────
-// Lists saved projects (most-recently-edited first) plus a synthetic row for
-// the current temporary editor, with thumbnails, dates, expiry badges, and an
-// "open elsewhere" marker driven by the TabsCoordinator peers feed. Rows are
-// built at runtime (the static #projects-list stays comment-only) so the markup
-// tests' no-backtick / no-runtime-id assertions stay green.
+// Lists saved projects (most-recent first) plus a synthetic row for the current
+// temp editor, with thumbnails/dates/expiry badges and an "open elsewhere" marker
+// from the TabsCoordinator peers feed. Rows are built at runtime (static
+// #projects-list stays comment-only) to keep the markup tests' assertions green.
 export class StencilProjectsModal extends StencilElement {
   static inner() {
     return `

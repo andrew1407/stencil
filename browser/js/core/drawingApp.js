@@ -29,12 +29,9 @@ export const DRAW_MODE_ICON = {
 };
 
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
-// DOM event wiring is split into cohesive #wire* methods (style, selection,
-// page/display, formula, toolbar, zoom, scroll, theme, keyboard, arrow-pan,
-// drop/paste, canvas-pointer, smooth-zoom, pan-drag) invoked in source order
-// by the slim initEventListeners(). Pure decision helpers (layout payload /
-// validation, insert-index, fill-state) live in ./layout.js so they can be
-// unit-tested in Node without a DOM.
+// DOM event wiring is split into cohesive #wire* methods invoked in source order
+// by initEventListeners(). Pure decision helpers live in ./layout.js so they can
+// be unit-tested in Node without a DOM.
 export class DrawingApp {
   // Pan state (Alt+drag)
   #panLastX = 0;
@@ -725,11 +722,9 @@ export class DrawingApp {
 
   #wireSmoothZoom() {
     // ── Smooth zoom via rAF ──
-    // #smoothZoom holds animation state. Rapid wheel events accumulate
-    // into a single rAF loop instead of causing abrupt per-event jumps.
-    // IMPORTANT: we add `zoom-no-transition` to the canvas while the rAF
-    // runs so the CSS width/height transition doesn't fight the rAF updates
-    // (that conflict causes the flicker).
+    // Rapid wheel events accumulate into a single rAF loop. IMPORTANT: add
+    // `zoom-no-transition` while the rAF runs so the CSS width/height transition
+    // doesn't fight the rAF updates (that conflict causes flicker).
     this.#smoothZoom = { target: null, focal: null, rafId: null };
 
     const viewport = document.getElementById('canvas-viewport');
@@ -1116,12 +1111,10 @@ export class DrawingApp {
     this.loadImageFromFile(file);
   }
 
-  // opts.crop — an explicit crop rect {x,y,width,height} in original-image pixel
-  // space to use instead of the default centered page-aspect crop. Used by the
-  // external-launch path (browser extension) to honour a crop chosen elsewhere.
-  // opts.source / opts.resource — provenance URLs (image/video URL and the page it
-  // came from) for the add-by-URL and extension hand-off paths; omitted for plain
-  // local uploads, which clears any prior provenance.
+  // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels,
+  // overriding the default centered page-aspect crop (external-launch path).
+  // opts.source/opts.resource — provenance URLs for add-by-URL and extension hand-off;
+  // omitted for local uploads, which clears any prior provenance.
   loadImageFromFile(file, opts = {}) {
     // A temporary editor receiving its first image becomes a real project, so
     // the final storage.save() below persists it (and subsequent tabs see it).
@@ -1204,24 +1197,12 @@ export class DrawingApp {
   }
 
   // ── External launch (browser extension) ──────────────────────────
-  // The Stencil browser extension hands an image off by opening the editor with
-  // a URL fragment: `#stencil=<encodeURIComponent(JSON)>` where the JSON is
-  //   { dataUrl, name?, crop?: {x,y,width,height},
-  //     page?: { size: 'A3'|'A4'|'custom', width?: cm, height?: cm },
-  //     source?: string,   // the image/video's own URL (provenance)
-  //     resource?: string, // the web page it was pulled from (provenance)
-  //     open?: 'resume'|'copy', // resume a matching project, or force a new copy
-  //     incognito?: bool }
-  // The fragment is used (not the query string) so the payload never hits the
-  // server and large data URLs are kept out of logs. We consume it once, strip
-  // it from the URL, then route the image through the normal upload path.
-  //
-  // Provenance + dedup: the extension can't read our (cross-origin) project
-  // registry, so it only knows it has opened this image before. `open:'resume'`
-  // asks us to switch to a project we already hold for the same source instead of
-  // re-importing; with several matches we surface the projects list to pick from.
-  // Otherwise we import as a new project, auto-numbered "name (N)" when the same
-  // source already has a project (so a second open never silently shadows it).
+  // The extension hands off an image via a URL fragment `#stencil=<encodeURIComponent(JSON)>`
+  // (shape: { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }).
+  // The fragment (not query) keeps the payload off the server and out of logs; consumed
+  // once, stripped, then routed through the normal upload path. `open:'resume'` switches
+  // to an existing project for the same source (cross-origin, so the extension can't dedup
+  // itself); otherwise import as a new project, auto-numbered "name (N)" to avoid shadowing.
   applyExternalLaunch() {
     const hash = location.hash || '';
     const marker = '#stencil=';

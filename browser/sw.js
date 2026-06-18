@@ -1,9 +1,7 @@
 // ── Service worker: offline app shell + runtime cache ───────────
-// Stencil ships as static ES modules with no build step, so this worker has no
-// generated manifest to consume. It precaches the critical shell on install,
-// then serves *every* same-origin GET with a stale-while-revalidate strategy:
-// the cached copy answers instantly (fast loads, full offline use after the
-// first visit) while a background fetch refreshes the cache for next time.
+// No build step / generated manifest. Precaches the critical shell on install,
+// then serves every same-origin GET stale-while-revalidate (cache answers
+// instantly; background fetch refreshes for next time).
 // Bump VERSION to force a clean re-precache and evict the old cache on activate.
 const VERSION = 'v2';
 const CACHE = `stencil-${VERSION}`;

@@ -1,15 +1,10 @@
 import { core } from './stencilCore.js';
 // ── Crop-window geometry ────────────────────────────────────────
-// Port of desktop/core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned
-// rectangle {x, y, width, height} in ORIGINAL-image pixel space; the main canvas
-// shows exactly that sub-rectangle and line/marker points live in crop-local
-// pixels. The original image is never modified — only the rectangle is stored —
-// so the crop can be moved, resized, or flipped (album↔portrait) losslessly.
-//
-// The crop aspect is fixed to the page (e.g. A3 = 42/29.7 ≈ √2), so resizing is
-// corner-only. Each public function routes to the shared C++ core (wasm) when
-// loaded, falling back to the JS reference below (which the wasm build mirrors —
-// see tests/cropGeometry.test.js and tests/wasm-parity.test.js).
+// Port of desktop/core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned rect
+// {x,y,width,height} in ORIGINAL-image pixel space; the original image is never
+// modified (only the rect is stored), so moves/resizes/flips are lossless. Aspect
+// is fixed to the page so resizing is corner-only. Public functions route to the
+// wasm core when loaded, else the JS reference below (see parity tests).
 
 // ── JS reference implementations (exported for parity tests) ──
 

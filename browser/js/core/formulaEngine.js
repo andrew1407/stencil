@@ -1,11 +1,9 @@
 import { core } from './stencilCore.js';
 
 // ── Formula transforms (pure logic) ─────────────────────────────
-// When the shared C++ core (wasm) is loaded, validate/apply delegate to its
-// recursive-descent parser (desktop/core/formulaParser) — the same code the Qt
-// desktop app runs — instead of the JS `new Function(...)` path. The JS below is
-// the reference implementation and the fallback used until wasm is ready (and in
-// Node tests, which the native desktop tests prove equivalent to the C++).
+// When the wasm core is loaded, validate/apply delegate to its recursive-descent
+// parser (the same code the Qt desktop app runs) instead of the JS `new Function`
+// path. The JS below is the reference and the fallback until wasm is ready.
 export class FormulaEngine {
   // Validate a formula string — try evaluating it with x=1 (or y=1).
   // Empty = valid (identity).

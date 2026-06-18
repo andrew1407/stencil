@@ -1,12 +1,8 @@
 // ── Opened-images ledger ─────────────────────────────────────────────────────
-// The editor stores its projects in its own origin's localStorage, which the
-// extension (a different origin) can't read. So to tell which page images already
-// have an editor, we keep our OWN record here in chrome.storage.local: every image
-// the extension hands to the editor is appended, keyed by its real source URL.
-//
-// The popup uses lookup() to badge already-opened images and to offer "resume"
-// (re-open, the editor switches to the matching project) vs "add a new copy".
-// Pure matching (matchEntries) is unit-tested; the rest wrap chrome.storage.
+// The editor's projects live in its own origin's localStorage, unreadable by the
+// extension. So we keep our own record in chrome.storage.local (keyed by source URL)
+// of every image handed to the editor, to badge already-opened images and offer
+// resume vs add-a-copy. Pure matching (matchEntries) is unit-tested.
 export const LEDGER_KEY = 'stencil-opened';
 const MAX_ENTRIES = 500;
 

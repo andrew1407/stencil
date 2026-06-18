@@ -1,0 +1,8 @@
+/* Docked side-panel overrides for the shared popup styling (popup.css linked first).
+   The popup is a fixed 400×600 floater; the side panel fills the strip Chrome gives
+   it, so drop the fixed size and grow to the full viewport height. */
+html, body {
+  width: auto;
+  max-height: none;
+  height: 100vh;
+}

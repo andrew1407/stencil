@@ -5,13 +5,11 @@ import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, cropCh
 const { PAGE_SIZES } = constants;
 
 // ── Component: image-crop modal ─────────────────────────────────
-// Opens the full ORIGINAL image in a preview and lets the user move + resize an
-// overlaid crop rectangle. The rectangle is locked to the page aspect ratio
-// (A3/A4 = √2, or the custom W×H), so it can only be resized from its four
-// corners; an Album/Portrait toggle flips the orientation. Confirming stores the
-// rect on the app (DrawingApp.applyCrop) WITHOUT replacing the original image, so
-// it can be re-adjusted later. The heavy geometry math is the shared C++ core
-// (cropGeometry.js → wasm), keeping the desktop and browser crops identical.
+// Move/resize a crop rect over the original image, locked to the page aspect
+// ratio (resizable from corners only; Album/Portrait toggle flips orientation).
+// Confirm stores the rect via DrawingApp.applyCrop WITHOUT replacing the original,
+// so it stays re-adjustable. Geometry runs in the shared C++ core (cropGeometry.js
+// → wasm) so desktop and browser crops match.
 export class StencilCropModal extends StencilElement {
   static inner() {
     return `

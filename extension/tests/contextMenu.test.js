@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS } from '../src/lib/contextMenu.js';
+import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../src/lib/contextMenu.js';
 
 test('MENU_ITEMS: no explicit Stencil parent — items sit at top level; Preview is the only submenu', () => {
   // We create NO "Stencil" parent: Chrome auto-groups an extension's multiple top-level
@@ -23,8 +23,11 @@ test('MENU_ITEMS: no explicit Stencil parent — items sit at top level; Preview
   const native = MENU_ITEMS.filter(i => !i.contexts.includes('all'));
   assert.ok(native.every(i => !i.contexts.includes('page') && !i.contexts.includes('all')));
 
-  // Only the dynamic background group carries a `visible` flag; native items have none.
-  assert.ok(native.every(i => !('visible' in i)));
+  // The always-on native items (image actions, video current-frame actions) carry no
+  // `visible` flag. The two dynamically-gated groups DO: the background group and the
+  // video Preview submenu (revealed only when the probed video has a poster).
+  const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id));
+  assert.ok(nativeAlways.every(i => !('visible' in i)));
   const ids = MENU_ITEMS.map(i => i.id);
   assert.equal(new Set(ids).size, ids.length);
 });
@@ -39,6 +42,17 @@ test('MENU_ITEMS: dynamic background/link group is top-level on the all-context 
   // …but with no parent to inherit hidden state from, EVERY item must carry its own
   // visible:false, so the worker reveals them one by one.
   assert.ok(bg.every(i => i.visible === false));
+});
+
+test('MENU_ITEMS: video Preview submenu is default-hidden so it shows only when a poster exists', () => {
+  const preview = MENU_ITEMS.filter(i => PREVIEW_ITEMS.includes(i.id));
+  // The parent + its 6 action items.
+  assert.equal(preview.length, 7);
+  assert.equal(PREVIEW_ITEMS.length, 7);
+  assert.ok(PREVIEW_ITEMS.includes(MENU.previewParent));
+  // Every item starts hidden; the worker reveals the group only for a video with a
+  // poster, so a posterless video never shows a dead (no-op) Preview submenu.
+  assert.ok(preview.every(i => i.visible === false));
 });
 
 test('resolveContextAction: background/link items mirror the <img> open/crop actions', () => {

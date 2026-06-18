@@ -3,13 +3,15 @@
   "name": "Stencil Image Picker",
   "version": "1.1.0",
   "description": "List, search and filter every image on a page, then download it, open it in a tab, or send it to the Stencil editor — with a quick page-aspect crop.",
-  "permissions": ["activeTab", "scripting", "downloads", "contextMenus", "storage", "tabs"],
+  "permissions": ["activeTab", "scripting", "downloads", "contextMenus", "storage", "tabs", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "src/background/background.js", "type": "module" },
   "content_scripts": [
     { "matches": ["<all_urls>"], "js": ["src/content/ctxTarget.js"], "run_at": "document_idle", "all_frames": true }
   ],
   "options_page": "src/options/options.html",
+  "side_panel": { "default_path": "src/sidepanel/sidepanel.html" },
+  "devtools_page": "src/devtools/devtools.html",
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_title": "Stencil — images on this page",

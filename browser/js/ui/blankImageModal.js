@@ -5,12 +5,10 @@ import { defaultBlankSizePx } from '../core/layout.js';
 const { PAGE_SIZES } = constants;
 
 // ── Component: blank-image creator modal ────────────────────────
-// Generates a solid-color image (white / black preset or any picked color) at a
-// chosen pixel size — defaulting to the current page size at 96 dpi — and feeds
-// it through the normal image-upload path (loadImageFromFile), so persistence,
-// project promotion, and editing behave exactly like an uploaded file. Opened
-// from the idle-canvas icon (#create-blank-btn) and the projects modal footer
-// (#projects-blank-image).
+// Generates a solid-color image at a chosen pixel size (default: current page at
+// 96 dpi) and feeds it through the normal upload path (loadImageFromFile) so it
+// behaves like an uploaded file. Opened from the idle-canvas icon and the
+// projects modal footer.
 export class StencilBlankImageModal extends StencilElement {
   static inner() {
     return `

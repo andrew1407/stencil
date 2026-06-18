@@ -1,11 +1,8 @@
 // ── projectsWorker: SharedWorker tab coordinator (PURE — no storage) ──
-// This worker is a pure message router between browser tabs. It NEVER touches
-// localStorage (a SharedWorker is window-less and has no DOM); all persistence
-// stays window-side in ProjectsStore/Storage. Its only state is the set of
-// connected ports and each port's currently-active project id, so it can:
-//   • report the live tab count (and whether a tab is the only one), and
-//   • broadcast which project ids are open in other tabs (peers), and
-//   • relay "projects changed" pings so other tabs re-render their lists.
+// Pure message router between tabs; NEVER touches localStorage (SharedWorker is
+// window-less) — persistence stays window-side. State is just connected ports +
+// each port's active project id, used to: report tab count, broadcast which
+// project ids are open in peers, and relay "projects changed" re-render pings.
 import { MSG } from './messages.js';
 
 // port -> { activeId }

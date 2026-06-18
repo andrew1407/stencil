@@ -26,9 +26,37 @@ const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
 
 const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true };
 
+// This same controller drives three surfaces: the toolbar popup (closes after an
+// action), the docked side panel (src/sidepanel/sidepanel.html), and the DevTools
+// panel (src/devtools/panel.html). Both docked surfaces stay open and re-scan as the
+// page changes; only the popup closes. The host document's path tells them apart.
+const IS_SIDE_PANEL = location.pathname.includes('sidepanel');
+const IS_DEVTOOLS = location.pathname.includes('devtools');
+// The popup is the only ephemeral surface; the docked ones persist, so leave them.
+const dismiss = () => { if (!IS_SIDE_PANEL && !IS_DEVTOOLS) window.close(); };
+
+// The tab to scan/act on. Popup and side panel ride the active tab of the current
+// window; a DevTools panel is pinned to the tab it's inspecting, regardless of focus.
+const getTargetTab = async () => {
+  if (IS_DEVTOOLS) return chrome.tabs.get(chrome.devtools.inspectedWindow.tabId);
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+};
+
 // The image's own URL for provenance: its media URL for a video (the still is an
 // opaque frame), else the image/background src. Empty/data: sources aren't tracked.
 const sourceOf = (image) => (image.kind === 'video' ? (image.videoUrl || '') : (image.src || ''));
+
+// A video's poster as a standalone image item, so the action menu can open / crop /
+// download the poster (preview cover) directly — the same actions the page context
+// menu's "Video preview image" submenu offers. Mirrors a scanned <img> poster row.
+const posterImage = (video) => ({
+  kind: 'img',
+  src: video.posterUrl,
+  poster: true,
+  name: filenameFromUrl(video.posterUrl, 'poster'),
+  w: 0, h: 0
+});
 
 // The image to actually open / crop / preview: the scanned still, falling back to a
 // video's poster when no frame was captured (an unplayed video shows its poster, and
@@ -53,7 +81,7 @@ const scan = async () => {
   // visible even on a page that can't be scanned; refreshed once results arrive.
   state.all = [];
   populateFormats();
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await getTargetTab();
   if (!tab || BLOCKED_SCHEMES.some(s => (tab.url || '').startsWith(s))) {
     statusEl.textContent = 'This page can’t be scanned.';
     return;
@@ -207,11 +235,9 @@ const renderRow = (image) => {
   thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
   thumb.title = title;
-  // A video with no readable frame shows a play glyph. Any other broken thumb is
-  // likely a cross-origin / hotlink-protected source (e.g. an Instagram poster)
-  // that a bare <img> can't load from the popup — retry once through the
-  // extension's host permissions (fetchAsDataUrl), reusing the hover-preview
-  // cache, and only hide if even that fails.
+  // Video with no readable frame → play glyph. Any other broken thumb is likely a
+  // hotlink-protected source a bare <img> can't load — retry once via fetchAsDataUrl
+  // (host permissions), reusing the preview cache; hide only if that fails too.
   thumb.addEventListener('error', async () => {
     if (image.kind === 'video') { thumb.src = PLAY_THUMB; return; }
     const src = editableSrc(image);
@@ -342,6 +368,13 @@ const buildMenu = (image) => {
     d.className = 'sep';
     return d;
   };
+  // Non-clickable sub-category heading (the flat menu's stand-in for a nested submenu).
+  const label = (text) => {
+    const d = document.createElement('div');
+    d.className = 'label';
+    d.textContent = text;
+    return d;
+  };
   // Already opened: offer to resume the existing editor (the editor switches to the
   // matching project, or lets the user pick when several share this image) or to add
   // a fresh numbered copy. Shown first since it's the point of the yellow badge.
@@ -368,6 +401,23 @@ const buildMenu = (image) => {
         item('▣', 'Open frame in editor here', () => sendToEditorModal(image, false)),
         item('▣', 'Frame in editor here (incognito)', () => sendToEditorModal(image, true)),
         item('✂', 'Crop current frame', () => openCrop(image))
+      );
+    }
+    // The poster (preview cover) is a normal image independent of the frames — offer
+    // the same open / view / crop actions as the page menu's "Video preview image"
+    // submenu, acting on a synthetic image item for the poster URL.
+    if (image.posterUrl) {
+      const poster = posterImage(image);
+      menuEl.append(
+        sep(),
+        label('Video preview image'),
+        item('↗', 'Open preview in new tab', () => chrome.tabs.create({ url: poster.src })),
+        item('⬇', 'Download preview', () => download(poster.src)),
+        item('✎', 'Open preview in editor', () => sendToEditor(poster, false)),
+        item('🕶', 'Preview in editor (incognito)', () => sendToEditor(poster, true)),
+        item('▣', 'Open preview in editor here', () => sendToEditorModal(poster, false)),
+        item('▣', 'Preview here (incognito)', () => sendToEditorModal(poster, true)),
+        item('✂', 'Crop preview…', () => openCrop(poster))
       );
     }
   } else {
@@ -499,7 +549,7 @@ const sendToEditor = async (image, incognito, open) => {
   const { page } = await getSettings();
   const dataUrl = await fetchAsDataUrl(editableSrc(image));
   await openEditorTab({ dataUrl, page: { size: page }, incognito, ...handoff(image, open) });
-  window.close();
+  dismiss();
 };
 
 // Same as sendToEditor, but frames the editor in an in-page modal on the active
@@ -509,13 +559,13 @@ const sendToEditorModal = async (image, incognito, open) => {
   const { page } = await getSettings();
   const dataUrl = await fetchAsDataUrl(editableSrc(image));
   await launchEditorModal({ dataUrl, page: { size: page }, incognito, tabId: state.activeTabId, ...handoff(image, open) });
-  window.close();
+  dismiss();
 };
 
 // Crop opens a small in-page modal on the current page (full editor stays a tab).
 const openCrop = async (image) => {
   await launchCrop({ src: editableSrc(image), source: sourceOf(image), resource: state.activeUrl, tabId: state.activeTabId });
-  window.close();
+  dismiss();
 };
 
 // ── Hover preview ──
@@ -545,12 +595,9 @@ const positionPreview = (el) => {
   previewEl.style.top = `${y}px`;
 };
 
-// Resolve a source to something the popup <img> can actually display. A plain
-// <img src> from the popup can't load a hotlink-protected / cross-origin poster
-// (no page referrer or cookies) — it just renders a void box. fetchAsDataUrl
-// pulls it through the extension's host permissions (the same path the editor
-// uses), so posters that fail as a bare <img> still preview. data: frames and
-// already-cached sources resolve synchronously.
+// Resolve a source to something the popup <img> can display. A bare <img src> can't
+// load a hotlink-protected / cross-origin poster (no referrer/cookies) — it renders a
+// void box; fetchAsDataUrl pulls it through the extension's host permissions instead.
 const resolvePreviewSrc = async (src) => {
   if (src.startsWith('data:')) return src;
   if (previewCache.has(src)) return previewCache.get(src);
@@ -650,5 +697,32 @@ document.getElementById('f-fmt-toggle').addEventListener('click', () => {
 }));
 document.getElementById('rescan').addEventListener('click', scan);
 document.getElementById('open-options').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+// Popup only: promote this view into the docked side panel (same UI, but it persists
+// while you work the page and re-scans on tab switch). Opening a side panel needs a
+// user gesture, which this click is; closing the popup hands focus to the panel.
+document.getElementById('open-sidepanel')?.addEventListener('click', async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    await chrome.sidePanel.open({ windowId: tab.windowId });
+    window.close();
+  } catch (err) {
+    statusEl.textContent = `Couldn’t open the side panel (${err.message}).`;
+  }
+});
+
+// Side panel only: it outlives a single page, so re-scan when the user switches tabs
+// or the active tab finishes loading new content (the popup, which closes on blur,
+// just scans once on open). Guard re-entrancy isn't needed — scan() resets state.
+if (IS_SIDE_PANEL) {
+  chrome.tabs.onActivated.addListener(() => scan());
+  chrome.tabs.onUpdated.addListener((_id, info, tab) => {
+    if (tab.active && info.status === 'complete') scan();
+  });
+} else if (IS_DEVTOOLS) {
+  // A DevTools panel is pinned to one tab and never switches; it only needs to
+  // re-scan when that inspected page navigates to fresh content.
+  chrome.devtools.network.onNavigated.addListener(() => scan());
+}
 
 scan();

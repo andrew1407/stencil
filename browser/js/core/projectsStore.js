@@ -1,15 +1,9 @@
 // ── ProjectsStore: pure, DOM-free project registry over a storage backend ──
-// The store owns the multi-project schema in (local)Storage: a registry array
-// of lightweight metadata plus one payload key per project. It is intentionally
-// free of any document/window/Image usage so it can be unit-tested under Node
-// with a Map-backed shim. All JSON.parse is guarded with safe defaults.
-//
-// KEYS
-//   stencil_projects_v1        registry array of metadata entries
-//   stencil_project_<id>       per-project payload { image, layout }
-//   stencil_schema_migrated    "1" idempotency flag for the legacy migration
-//
-// Global keys drawingApp_theme / drawingApp_hotkeys are NEVER touched here.
+// Owns the multi-project schema in (local)Storage: a registry array of metadata
+// plus one payload key per project. DOM-free so it unit-tests under Node with a
+// Map-backed shim; all JSON.parse is guarded with safe defaults. Keys: registry
+// (stencil_projects_v1), per-project payload (stencil_project_<id>), migration flag
+// (stencil_schema_migrated). Never touches global drawingApp_theme/_hotkeys keys.
 
 export const REGISTRY_KEY = 'stencil_projects_v1';
 export const PROJECT_PREFIX = 'stencil_project_';
