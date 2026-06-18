@@ -79,6 +79,21 @@ namespace stencil::core {
     // "Untitled N", one past the highest existing Untitled index.
     std::string defaultName() const;
 
+    // ── name validation (mirrors the browser store) ──
+    // True when another project (id != exceptId) already uses `name` (trimmed,
+    // case-insensitive). Drives the "no duplicate names" guard on rename.
+    bool nameExists(const std::string& name, const std::string& exceptId = {}) const;
+
+    // Result of validating a proposed project name.
+    struct NameCheck {
+      bool ok = false;
+      std::string reason;  // human-readable rejection reason when !ok
+    };
+    // Validate a proposed name → { ok, reason }. Rejects empty / too-long (>80
+    // chars) / duplicate names with a reason; otherwise ok. `exceptId` is the
+    // project being renamed (so its own current name isn't a self-collision).
+    NameCheck validateName(const std::string& name, const std::string& exceptId = {}) const;
+
    private:
     std::vector<ProjectMeta> registry_;
   };

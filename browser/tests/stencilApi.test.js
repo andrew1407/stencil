@@ -1,0 +1,557 @@
+// Tests for the editor's console control API — window.stencil (js/console/stencilApi.js).
+// createStencil(app) is a closure facade over the live DrawingApp: every method routes
+// through the same core app.* methods the toolbar uses. We drive it with a mock `app`
+// that records calls (and mutates its lines/points so move/apply effects are observable),
+// so these tests pin the facade's behaviour without a browser: the read-only guard, the
+// chainable editor actions, line/point/project wrappers, settings flattening, zoom, crop,
+// the incognito guard rule, and shortcut rebinding (against the real hotkeys singleton).
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+// Inert DOM stubs so the few document/window-touching paths (closeModals, color canvas,
+// the links-modal refresh event) stay no-ops instead of throwing under node --test.
+globalThis.window = globalThis.window ?? {};
+globalThis.window.dispatchEvent = globalThis.window.dispatchEvent ?? (() => {});
+// A mutable fake viewport (stencil.move pans it) + a body whose fullscreen class is
+// driven by a flag the toggleFullscreen mock flips, so move/fullscreen are observable.
+const viewport = { scrollLeft: 0, scrollTop: 0 };
+let bodyFullscreen = false;
+globalThis.document = globalThis.document ?? {
+  querySelectorAll: () => [],
+  getElementById: (id) => (id === 'canvas-viewport' ? viewport : null),
+  createElement: () => ({ getContext: () => null }),
+  body: { classList: { contains: (c) => c === 'fullscreen-mode' && bodyFullscreen } },
+};
+
+const { createStencil } = await import('../js/console/stencilApi.js');
+const { hotkeys } = await import('../js/core/hotkeys.js');
+
+// ── Mock DrawingApp ──────────────────────────────────────────────────────────
+// Records every call as [name, ...args] in `app.calls`. Line/point mutators actually
+// mutate app.lines so wrapper effects (move/rotate/add/remove) can be asserted.
+const makeApp = (over = {}) => {
+  const calls = [];
+  const rec = (name) => (...args) => { calls.push([name, ...args]); };
+  const app = {
+    calls,
+    activeProjectId: null,
+    lines: [],
+    currentLine: null,
+    coordLineIdx: -1,
+    image: null,
+    originalImage: null,
+    scale: 1,
+    // settings backing fields
+    color: '#ff0000', thickness: 2, markerSize: 5, style: 'solid',
+    showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#000000',
+    unit: 'cm', pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7,
+    theme: 'dark', drawMode: 'line', allowFormulas: false, formulaX: '', formulaY: '',
+    defaultFillColor: '#ffffff', selGlowColor: '#000000', hoverRingColor: '#000000', focusRingColor: '#000000',
+    // tooltip + provenance backing fields
+    tooltipEnabled: true, tooltipShowPage: true, tooltipShowScreen: true, tooltipShowCoords: true,
+    imageBaseName: 'pic.png', imageSource: null, imageResource: null,
+
+    tabs: { onPeers() {}, projectsChanged: rec('projectsChanged') },
+    renderer: { redraw: rec('redraw') },
+    coordTable: { update: rec('coordTableUpdate') },
+    zoomPan: {
+      clampScale: (n) => n,
+      zoomAroundCenter: rec('zoomAroundCenter'),
+      zoomToImagePoint: rec('zoomToImagePoint'),
+      fitToWindow: rec('fitToWindow'),
+    },
+    storage: {
+      incognito: false,
+      temporary: true,
+      save: rec('save'),
+      store: {
+        list: () => app._metas,
+        getMeta: (id) => app._metas.find((m) => m.id === id) || null,
+        get: (id) => app._projects[id] || null,
+        nameExists: (name, exceptId) => app._metas.some((m) => m.name === name && m.id !== exceptId),
+        upsert: rec('upsert'),
+        expiresAt: () => null,
+        isExpired: () => false,
+      },
+    },
+    _metas: [],
+    _projects: {},
+
+    saveHistory: rec('saveHistory'),
+    setPointCoord(lineIdx, ptIdx, axis, v) {
+      calls.push(['setPointCoord', lineIdx, ptIdx, axis, v]);
+      const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
+      if (line && line.points[ptIdx]) line.points[ptIdx][axis] = Number(v);
+    },
+    removePoint(lineIdx, ptIdx) {
+      calls.push(['removePoint', lineIdx, ptIdx]);
+      const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
+      if (!line) return;
+      line.points.splice(ptIdx, 1);
+      if (!line.points.length && lineIdx !== -1) app.lines.splice(lineIdx, 1);
+    },
+    removeLine(idx) {
+      calls.push(['removeLine', idx]);
+      app.lines.splice(idx, 1);
+      app.saveHistory(); app.renderer.redraw();
+    },
+    setColor: rec('setColor'), setThickness: rec('setThickness'), setMarkerSize: rec('setMarkerSize'),
+    setLineStyle: rec('setLineStyle'), setShowPoints: rec('setShowPoints'), setShowLines: rec('setShowLines'),
+    setImageFilter: rec('setImageFilter'), setFilterColor: rec('setFilterColor'), setUnit: rec('setUnit'),
+    setPageSize: rec('setPageSize'), setCustomPageWidth: rec('setCustomPageWidth'), setCustomPageHeight: rec('setCustomPageHeight'),
+    setTheme: rec('setTheme'), setDrawMode: rec('setDrawMode'), setAllowFormulas: rec('setAllowFormulas'),
+    setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
+    rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
+    startDrawingMode: rec('startDrawingMode'), stopDrawingMode: rec('stopDrawingMode'),
+    clearAllLines: rec('clearAllLines'), saveImage: rec('saveImage'),
+    copyLayoutToClipboard: rec('copyLayoutToClipboard'), copyImageToClipboard: rec('copyImageToClipboard'),
+    downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
+    newEditor: rec('newEditor'), updateIncognitoUI: rec('updateIncognitoUI'),
+    renameProject: rec('renameProject'), renewProject: rec('renewProject'),
+    closeProject: rec('closeProject'), switchToProject: rec('switchToProject'),
+    toggleFullscreen() { calls.push(['toggleFullscreen']); bodyFullscreen = !bodyFullscreen; },
+    pixelToPageCoords(x, y) { calls.push(['pixelToPageCoords', x, y]); return { x: x / 10, y: y / 10 }; },
+    getPageDimensions: () => ({ width: 20, height: 30 }),
+    canvas: { width: 200, height: 300 },
+    createBlankImage(opts) { calls.push(['createBlankImage', opts]); app.image = { width: opts.width || 100, height: opts.height || 100 }; },
+    isDrawing: false,
+    ...over,
+  };
+  return app;
+};
+
+const called = (app, name) => app.calls.filter((c) => c[0] === name);
+const lastCall = (app, name) => called(app, name).at(-1);
+
+// ── Read-only guard ────────────────────────────────────────────────────────────
+test('guard: reassigning a method, defining, or deleting a member throws; real setters write through', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.throws(() => { stencil.undo = 0; }, /read-only/);
+  assert.throws(() => { stencil.getProjectByName = 0; }, /read-only/);
+  assert.throws(() => { delete stencil.lines; }, /cannot be deleted/);
+  assert.throws(() => { Object.defineProperty(stencil, 'x', { value: 1 }); }, /read-only/);
+
+  // A legit setter (a flattened setting) writes through to the app.
+  stencil.lineColor = '#ABC';
+  assert.deepEqual(lastCall(app, 'setColor'), ['setColor', '#aabbcc']); // #abc → #aabbcc via toHexColor
+});
+
+// ── Chainable editor actions ────────────────────────────────────────────────────
+test('editor actions route to app.* and return the facade for chaining', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.rotateLeft(), stencil);
+  assert.deepEqual(lastCall(app, 'rotateImage'), ['rotateImage', -1]);
+  assert.equal(stencil.rotateRight(), stencil);
+  assert.deepEqual(lastCall(app, 'rotateImage'), ['rotateImage', 1]);
+
+  // A whole chain hits each underlying method once, in order.
+  stencil.undo().redo().clearLines().startDrawing().stopDrawing()
+    .downloadImage().copyImage().copyLayout().downloadLayout().newEditor().zoomFit();
+  for (const m of ['undo', 'redo', 'clearAllLines', 'startDrawingMode', 'stopDrawingMode',
+    'saveImage', 'copyImageToClipboard', 'copyLayoutToClipboard', 'downloadJSON', 'newEditor', 'fitToWindow'])
+    assert.equal(called(app, m).length, 1, `${m} called once`);
+});
+
+test('drawing get/set mirrors the start/stop buttons and honours the loaded-image guard', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  // No image → enabling drawing is a no-op (matches the toolbar guard).
+  stencil.drawing = true;
+  assert.equal(called(app, 'startDrawingMode').length, 0);
+
+  app.image = { width: 10, height: 10 };
+  stencil.drawing = true;
+  assert.equal(called(app, 'startDrawingMode').length, 1);
+
+  app.isDrawing = true;
+  stencil.drawing = false;
+  assert.equal(called(app, 'stopDrawingMode').length, 1);
+});
+
+// ── Settings flattening ─────────────────────────────────────────────────────────
+test('settings flatten onto the facade and onto stencil.settings, both driving app setters', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.thickness, 2);          // reads app.thickness
+  stencil.thickness = 4;
+  assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 4]);
+
+  stencil.settings.pageSize = 'a3';
+  assert.deepEqual(lastCall(app, 'setPageSize'), ['setPageSize', 'a3']);
+
+  stencil.theme = 'light';
+  assert.deepEqual(lastCall(app, 'setTheme'), ['setTheme', 'light']);
+});
+
+// ── Lines ───────────────────────────────────────────────────────────────────────
+test('line.move translates every point and commits (history + redraw + coord table)', () => {
+  const app = makeApp({ lines: [{ color: '#111111', thickness: 1, points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] }] });
+  const stencil = createStencil(app);
+
+  const line = stencil.lines[0];
+  assert.equal(line.move({ x: 5, y: -5 }), line);
+  assert.deepEqual(app.lines[0].points, [{ x: 15, y: 15 }, { x: 35, y: 35 }]);
+  assert.equal(called(app, 'saveHistory').length, 1);
+  assert.equal(called(app, 'redraw').length, 1);
+  assert.equal(called(app, 'coordTableUpdate').length, 1);
+});
+
+test('line.rotate rotates points around the bbox centre by default', () => {
+  const app = makeApp({ lines: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }] });
+  const stencil = createStencil(app);
+
+  stencil.lines[0].rotate(90);   // centre = (5,0); 90° CW
+  const [p0, p1] = app.lines[0].points;
+  assert.ok(Math.abs(p0.x - 5) < 1e-9 && Math.abs(p0.y - (-5)) < 1e-9);
+  assert.ok(Math.abs(p1.x - 5) < 1e-9 && Math.abs(p1.y - 5) < 1e-9);
+});
+
+test('line.apply batch-updates style props and normalizes color/fillColor', () => {
+  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, markerSize: 1, style: 'solid', fillColor: 'transparent', points: [] }] });
+  const stencil = createStencil(app);
+
+  stencil.lines[0].apply({ color: '#ABC', thickness: 3, pointSize: 7, style: 'dashed', fillColor: 'transparent' });
+  const l = app.lines[0];
+  assert.equal(l.color, '#aabbcc');
+  assert.equal(l.thickness, 3);
+  assert.equal(l.markerSize, 7);   // pointSize alias → markerSize
+  assert.equal(l.style, 'dashed');
+  assert.equal(l.fillColor, 'transparent');
+});
+
+test('line.add inserts a point at a neighbour slot; line.remove(index) drops one', () => {
+  const app = makeApp({ lines: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }] });
+  const stencil = createStencil(app);
+
+  stencil.lines[0].add({ x: 5, y: 5 }, { neighbour: 0 });   // after index 0
+  assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 }]);
+
+  stencil.lines[0].remove(1);
+  assert.deepEqual(lastCall(app, 'removePoint'), ['removePoint', 0, 1]);
+  assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 10, y: 10 }]);
+});
+
+test('line.join appends the other line\'s points and drops the other line', () => {
+  const app = makeApp({ lines: [
+    { points: [{ x: 0, y: 0 }] },
+    { points: [{ x: 9, y: 9 }, { x: 8, y: 8 }] },
+  ] });
+  const stencil = createStencil(app);
+
+  const lines = stencil.lines;
+  lines[0].join(lines[1]);
+  assert.equal(app.lines.length, 1);
+  assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 9, y: 9 }, { x: 8, y: 8 }]);
+  assert.deepEqual(lastCall(app, 'removeLine'), ['removeLine', 1]);
+});
+
+// ── Points ──────────────────────────────────────────────────────────────────────
+test('points getter targets the current line; point.apply/move route through setPointCoord', () => {
+  const app = makeApp({ currentLine: { points: [{ x: 100, y: 100 }] } });
+  const stencil = createStencil(app);
+
+  const pt = stencil.points[0];
+  assert.equal(pt.x, 100);
+  assert.equal(pt.y, 100);
+
+  pt.apply({ x: 5, y: 6 });
+  assert.deepEqual(app.currentLine.points[0], { x: 5, y: 6 });
+
+  pt.move({ x: 10 });   // relative: 5 + 10
+  assert.equal(app.currentLine.points[0].x, 15);
+});
+
+// ── Projects ──────────────────────────────────────────────────────────────────────
+const withProjects = () => makeApp({
+  activeProjectId: 1,
+  _metas: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }],
+  _projects: {
+    1: { meta: { id: 1, name: 'Alpha' }, payload: { layout: {} } },
+    2: { meta: { id: 2, name: 'Beta' }, payload: { layout: {} } },
+  },
+});
+
+test('getProjectByName matches case-insensitively; current wraps the active project', () => {
+  const app = withProjects();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.getProjectByName('alpha').id, 1);
+  assert.equal(stencil.getProjectByName('  BETA  ').id, 2);
+  assert.equal(stencil.getProjectByName('nope'), null);
+  assert.equal(stencil.current.id, 1);
+});
+
+test('project.name setter validates empty + duplicate names and routes to renameProject', () => {
+  const app = withProjects();
+  app.renameProject = (id, name) => { app.calls.push(['renameProject', id, name]); return true; };
+  const stencil = createStencil(app);
+
+  const p = stencil.getProjectByName('alpha');
+  assert.throws(() => { p.name = '   '; }, /cannot be empty/);
+  assert.throws(() => { p.name = 'Beta'; }, /already exists/);   // collides with id 2
+  p.name = 'Gamma';
+  assert.deepEqual(lastCall(app, 'renameProject'), ['renameProject', 1, 'Gamma']);
+});
+
+test('project.renew/open/close route to app and return the project for chaining', () => {
+  const app = withProjects();
+  const stencil = createStencil(app);
+  const p = stencil.getProjectByName('beta');
+
+  assert.equal(p.renew(), p);
+  assert.deepEqual(lastCall(app, 'renewProject'), ['renewProject', 2]);
+  assert.equal(p.open(), p);
+  assert.deepEqual(lastCall(app, 'switchToProject'), ['switchToProject', 2]);
+  p.close({ fully: true });
+  assert.deepEqual(lastCall(app, 'closeProject'), ['closeProject', 2, { fully: true }]);
+});
+
+test('incognito project: synthetic name + mutating links/name throw', () => {
+  const app = makeApp({ storage: { ...makeApp().storage, incognito: true } });
+  const stencil = createStencil(app);
+
+  const inc = stencil.current;   // active id null + incognito storage → incognito project
+  assert.equal(inc.incognito, true);
+  assert.equal(inc.name, 'Incognito (unsaved)');
+  assert.throws(() => { inc.name = 'x'; }, /Cannot rename an incognito/);
+  assert.throws(() => { inc.source = 'http://x'; }, /Cannot set links on an incognito/);
+});
+
+// ── Zoom / crop ─────────────────────────────────────────────────────────────────
+test('zoom: relative step recentres; passing a point keeps it fixed; zoomLevel get/set', () => {
+  const app = makeApp({ scale: 1 });
+  const stencil = createStencil(app);
+
+  stencil.zoom(0.25);
+  assert.deepEqual(lastCall(app, 'zoomAroundCenter'), ['zoomAroundCenter', 1.25]);
+  stencil.zoom(0.5, { x: 10, y: 20 });
+  assert.deepEqual(lastCall(app, 'zoomToImagePoint'), ['zoomToImagePoint', 1.5, 10, 20]);
+
+  assert.equal(stencil.zoomLevel, 100);
+  stencil.zoomLevel = 150;
+  assert.deepEqual(lastCall(app, 'zoomAroundCenter'), ['zoomAroundCenter', 1.5]);
+});
+
+test('crop throws without an image, and otherwise commits a rect via applyCrop', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+  assert.throws(() => stencil.crop({ x1: 10 }), /No image loaded/);
+
+  // Loaded image: provide the geometry crop() reads, assert applyCrop gets a numeric rect.
+  const app2 = makeApp({
+    originalImage: {},
+    cropRect: { x: 0, y: 0, width: 100, height: 100 },
+    effectiveOriginalDims: () => ({ w: 200, h: 200 }),
+    getPageDimensions: () => ({ width: 21, height: 29.7 }),
+    canvas: { width: 200, height: 200 },
+    defaultCropRect: () => ({ x: 0, y: 0, width: 200, height: 200 }),
+    applyCrop: function (rect, opts) { this.calls.push(['applyCrop', rect, opts]); },
+  });
+  const stencil2 = createStencil(app2);
+  assert.equal(stencil2.crop({ x1: 10, x2: 90 }), stencil2);
+  const [, rect, opts] = lastCall(app2, 'applyCrop');
+  for (const k of ['x', 'y', 'width', 'height']) assert.equal(typeof rect[k], 'number');
+  assert.deepEqual(opts, { recalc: true });
+});
+
+// ── Incognito toggle guard ────────────────────────────────────────────────────────
+test('incognito setter only enables on a blank editor', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  app.image = { width: 1, height: 1 };
+  assert.throws(() => { stencil.incognito = true; }, /blank editor/);
+
+  app.image = null;
+  stencil.incognito = true;
+  assert.equal(app.storage.incognito, true);
+  assert.equal(called(app, 'updateIncognitoUI').length, 1);
+});
+
+// ── Shortcuts (real hotkeys singleton) ─────────────────────────────────────────────
+test('changeShortcut rebinds, rejects unknown refs, and rejects conflicts', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  const entries = hotkeys.entries();
+  assert.ok(entries.length >= 2, 'need at least two shortcuts to test conflicts');
+  const [id0, combo0] = entries[0];
+  const [, combo1] = entries[1];
+  const FREE = 'ctrl+shift+f13';
+
+  try {
+    assert.throws(() => stencil.changeShortcut('no-such-action', FREE), /No shortcut matches/);
+    assert.throws(() => stencil.changeShortcut(id0, combo1), /already bound/);
+
+    assert.equal(stencil.changeShortcut(id0, FREE), stencil);
+    assert.equal(stencil.shortcuts[id0], FREE);
+    // oldRef may be the current combo string too.
+    stencil.changeShortcut(FREE, combo0);
+    assert.equal(stencil.shortcuts[id0], combo0);
+  } finally {
+    hotkeys.set(id0, combo0);   // restore the singleton for other test files
+  }
+});
+
+// ── Full settings sweep ───────────────────────────────────────────────────────────
+test('every documented flattened setting routes to its app setter with the expected arg', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  // [facade key, app setter, value to assign, expected setter arg]. Hex values dodge the
+  // canvas-less toHexColor (named colors would pass through unchanged anyway).
+  const DIRECT = [
+    ['unit', 'setUnit', 'in', 'in'],
+    ['color', 'setColor', '#abcdef', '#abcdef'],
+    ['lineColor', 'setColor', '#abcdef', '#abcdef'],
+    ['thickness', 'setThickness', 3, 3],
+    ['pointSize', 'setMarkerSize', 9, 9],
+    ['markerSize', 'setMarkerSize', 9, 9],
+    ['lineStyle', 'setLineStyle', 'dashed', 'dashed'],
+    ['pointStyle', 'setShowPoints', true, true],
+    ['showPoints', 'setShowPoints', true, true],
+    ['showLines', 'setShowLines', false, false],
+    ['filter', 'setImageFilter', 'sepia', 'sepia'],
+    ['filterColor', 'setFilterColor', '#7c3aed', '#7c3aed'],
+    ['pageSize', 'setPageSize', 'a3', 'a3'],
+    ['pageWidth', 'setCustomPageWidth', 30, 30],
+    ['pageHeight', 'setCustomPageHeight', 40, 40],
+    ['theme', 'setTheme', 'light', 'light'],
+    ['allowFormulas', 'setAllowFormulas', true, true],
+  ];
+  for (const [key, setter, value, expected] of DIRECT) {
+    stencil[key] = value;
+    assert.deepEqual(lastCall(app, setter), [setter, expected], `${key} → ${setter}`);
+  }
+
+  // Special routing: drawMode normalizes, formulas pick an axis, visual colors pick a channel.
+  stencil.drawMode = 'rect';
+  assert.deepEqual(lastCall(app, 'setDrawMode'), ['setDrawMode', 'rect']);
+  stencil.formulaX = 'x*2';
+  assert.deepEqual(lastCall(app, 'setFormula'), ['setFormula', 'x', 'x*2']);
+  stencil.formulaY = 'y+1';
+  assert.deepEqual(lastCall(app, 'setFormula'), ['setFormula', 'y', 'y+1']);
+  for (const [key, channel] of [['fillColor', 'fill'], ['selectionGlow', 'selGlow'], ['hoverRing', 'hoverRing'], ['focusRing', 'focusRing']]) {
+    stencil[key] = '#123456';
+    assert.deepEqual(lastCall(app, 'setVisualColor'), ['setVisualColor', channel, '#123456'], `${key} → setVisualColor`);
+  }
+});
+
+// ── Tooltip / imageSize / layout / coordinate conversion / viewport / fullscreen ──
+test('tooltip sections, imageSize, and layout get/set route to the app', () => {
+  const app = makeApp({ image: { width: 800, height: 600 } });
+  const stencil = createStencil(app);
+
+  assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+
+  stencil.tooltip.enabled = false;
+  assert.deepEqual(lastCall(app, 'setTooltipOption'), ['setTooltipOption', 'enabled', false]);
+  assert.equal(stencil.tooltip.page, true);   // reads app.tooltipShowPage
+
+  stencil.layout = { foo: 1 };
+  assert.deepEqual(lastCall(app, 'applyPastedLayout'), ['applyPastedLayout', { foo: 1 }]);
+});
+
+test('px2Page / page2Px convert via the app mapping', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.deepEqual(stencil.px2Page({ x: 100, y: 200 }), { x: 10, y: 20 });
+  // page2Px: (cm / pageDim) * canvasPx → (5/20)*200=50 , (15/30)*300=150
+  assert.deepEqual(stencil.page2Px({ x: 5, y: 15 }), { x: 50, y: 150 });
+});
+
+test('move pans the viewport; fullscreen get/set toggles via the app', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.move({ x: 10, y: -4 }), stencil);
+  assert.equal(viewport.scrollLeft, 10);
+  assert.equal(viewport.scrollTop, -4);
+
+  assert.equal(stencil.fullscreen, false);
+  stencil.fullscreen = true;
+  assert.equal(called(app, 'toggleFullscreen').length, 1);
+  assert.equal(stencil.fullscreen, true);
+  stencil.fullscreen = true;                       // already on → no extra toggle
+  assert.equal(called(app, 'toggleFullscreen').length, 1);
+});
+
+test('blank() creates a solid image via the app and resolves to the facade', async () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  const ret = await stencil.blank('red', { size: { width: 800, height: 600 } });
+  assert.equal(ret, stencil);
+  assert.deepEqual(lastCall(app, 'createBlankImage'), ['createBlankImage', { color: 'red', width: 800, height: 600 }]);
+  assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+});
+
+// ── Project collections ───────────────────────────────────────────────────────────
+test('project collections: opened / archived / getProjects honour the open set', () => {
+  const app = withProjects();   // active id 1; metas Alpha(1), Beta(2)
+  const stencil = createStencil(app);
+
+  assert.deepEqual(stencil.openedProjects.map((p) => p.id), [1]);    // only the active id is open
+  assert.deepEqual(stencil.archivedProjects.map((p) => p.id), [2]);  // saved but not open
+  assert.deepEqual(stencil.incognitoProjects, []);                   // no incognito editor here
+  assert.deepEqual(stencil.getProjects().map((p) => p.id), [1]);     // default = currently open
+  assert.deepEqual(stencil.getProjects({ archived: true }).map((p) => p.id), [1, 2]);
+});
+
+test('active project: source/resource/imageName set live; size/isOpened/layout read through', () => {
+  const app = withProjects();
+  const stencil = createStencil(app);
+  app.image = { width: 640, height: 480 };
+
+  const p = stencil.current;   // id 1, the active project
+  assert.equal(p.isOpened, true);
+  assert.deepEqual(p.size, { image: { width: 640, height: 480 } });
+  assert.equal(p.imageName, 'pic.png');
+
+  p.source = 'http://x/i.png';
+  assert.equal(app.imageSource, 'http://x/i.png');
+  p.resource = 'http://x/page';
+  assert.equal(app.imageResource, 'http://x/page');
+  p.imageName = 'renamed.png';
+  assert.equal(app.imageBaseName, 'renamed.png');
+  assert.ok(called(app, 'save').length >= 3);   // each live edit flushes storage
+
+  assert.deepEqual(p.layout, {});   // store().get(1).payload.layout
+});
+
+// ── Line individual setters + point setters/remove ──────────────────────────────────
+test('individual line setters commit each change', () => {
+  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, markerSize: 1, style: 'solid', fillColor: 'transparent', points: [{ x: 0, y: 0 }] }] });
+  const stencil = createStencil(app);
+  const line = stencil.lines[0];
+
+  line.color = '#ABC';      assert.equal(app.lines[0].color, '#aabbcc');
+  line.thickness = 4;       assert.equal(app.lines[0].thickness, 4);
+  line.markerSize = 8;      assert.equal(app.lines[0].markerSize, 8);
+  line.style = 'dotted';    assert.equal(app.lines[0].style, 'dotted');
+  line.fillColor = '#3399ff'; assert.equal(app.lines[0].fillColor, '#3399ff');
+  line.fillColor = null;    assert.equal(app.lines[0].fillColor, 'transparent');   // null → transparent
+  assert.equal(called(app, 'saveHistory').length, 6);   // one commit per setter
+});
+
+test('point x/y setters write absolute coords; pt.remove drops the point (and empties → drops the line)', () => {
+  const app = makeApp({ lines: [{ points: [{ x: 1, y: 2 }] }] });
+  const stencil = createStencil(app);
+
+  const pt = stencil.lines[0].points[0];
+  pt.x = 50; pt.y = 60;
+  assert.deepEqual(app.lines[0].points[0], { x: 50, y: 60 });
+  assert.deepEqual(lastCall(app, 'setPointCoord'), ['setPointCoord', 0, 0, 'y', 60]);
+
+  // Removing the only point empties the line → the line is dropped, and remove() returns the facade.
+  assert.equal(pt.remove(), stencil);
+  assert.equal(app.lines.length, 0);
+});

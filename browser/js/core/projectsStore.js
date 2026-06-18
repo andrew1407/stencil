@@ -111,6 +111,26 @@ export class ProjectsStore {
     return id;
   }
 
+  // True when another project (id ≠ exceptId) already uses `name` (trimmed,
+  // case-insensitive). Pure; drives the "no duplicate names" guard in renameProject.
+  nameExists(name, exceptId = null) {
+    const n = String(name || '').trim().toLowerCase();
+    if (!n) return false;
+    return this.#readRegistry().some(m =>
+      m && m.id !== exceptId && String(m.name || '').trim().toLowerCase() === n);
+  }
+
+  // Validate a proposed project name → { ok, reason }. Pure; the UI uses it to gate
+  // the rename ✓ button and show why it's disabled. `exceptId` is the project being
+  // renamed (so its own current name doesn't count as a duplicate).
+  validateName(name, exceptId = null) {
+    const clean = String(name || '').trim();
+    if (!clean) return { ok: false, reason: 'Name can’t be empty' };
+    if (clean.length > 80) return { ok: false, reason: 'Name is too long (max 80 characters)' };
+    if (this.nameExists(clean, exceptId)) return { ok: false, reason: `“${clean}” is already taken` };
+    return { ok: true, reason: '' };
+  }
+
   // Rename a project: update its registry meta.name in place. No-op (returns null)
   // when the id is unknown. Does not touch the payload or bump updatedAt.
   rename(id, name) {

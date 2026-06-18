@@ -498,6 +498,7 @@ namespace stencil::gui {
       incognito_ = on;
       notify_->info(on ? "Incognito mode — this editor won't be saved"
                        : "Incognito off");
+      updateProjectTitle();
     });
     connect(actTooltip_, &QAction::toggled, this, [this](bool on) {
       settings_.tooltipEnabled = on;
@@ -764,6 +765,38 @@ namespace stencil::gui {
     tb->addSeparator();
     tb->addWidget(new QLabel("  Zoom: ", this));
     tb->addWidget(zoom_);
+
+    // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The
+    // field shows the active project's name and renames it inline, validated live:
+    // ✓ is enabled only for a changed, valid (non-empty, ≤80, unique) name, with the
+    // reason on its tooltip when disabled. Enter = ✓, Escape / click-away = ✗. ──
+    tb->addSeparator();
+    tb->addWidget(new QLabel("  Project: ", this));
+    projectName_ = new QLineEdit(this);
+    projectName_->setPlaceholderText("No project");
+    projectName_->setToolTip("Project name — type to rename");
+    projectName_->setMinimumWidth(150);
+    projectName_->setMaximumWidth(260);
+    projectName_->setEnabled(false);
+    tb->addWidget(projectName_);
+    projectNameAccept_ = new QToolButton(this);
+    projectNameAccept_->setText(QString::fromUtf8("✓"));   // ✓
+    projectNameAccept_->setVisible(false);
+    tb->addWidget(projectNameAccept_);
+    projectNameCancel_ = new QToolButton(this);
+    projectNameCancel_->setText(QString::fromUtf8("✗"));   // ✗
+    projectNameCancel_->setToolTip("Cancel (Esc)");
+    projectNameCancel_->setVisible(false);
+    tb->addWidget(projectNameCancel_);
+    // textEdited fires only on USER edits (not programmatic setText), so updating the
+    // field from updateProjectTitle() never re-triggers validation.
+    connect(projectName_, &QLineEdit::textEdited, this,
+            [this](const QString&) { refreshProjectNameButtons(); });
+    connect(projectName_, &QLineEdit::returnPressed, this, [this] {
+      if (projectNameAccept_->isVisible() && projectNameAccept_->isEnabled()) commitProjectName();
+    });
+    connect(projectNameAccept_, &QToolButton::clicked, this, [this] { commitProjectName(); });
+    connect(projectNameCancel_, &QToolButton::clicked, this, [this] { cancelProjectName(); });
   }
 
   void MainWindow::buildPageFormulaToolbar() {
@@ -1305,6 +1338,7 @@ namespace stencil::gui {
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
+    updateProjectTitle();   // keep the window title + toolbar name field in sync
   }
 
   void MainWindow::onCanvasChanged() {
@@ -1573,7 +1607,7 @@ namespace stencil::gui {
       notify_->error("No lines to export");  // drawingApp.js:2073 alert
       return;
     }
-    const QString suggested = canvas_->imageBaseName() + "-layout.json";
+    const QString suggested = projectBaseName() + "-layout.json";
     const QString path = QFileDialog::getSaveFileName(
         this, "Export layout JSON", suggested, "JSON (*.json)");
     if (path.isEmpty()) return;
@@ -1692,7 +1726,7 @@ namespace stencil::gui {
       notify_->error("Load an image first");  // drawingApp.js:2037 "No image"
       return;
     }
-    const QString suggested = canvas_->imageBaseName() + "-drawing." +
+    const QString suggested = projectBaseName() + "-drawing." +
                               canvas_->imageExt();
     const QString path = QFileDialog::getSaveFileName(
         this, "Save image", suggested,
@@ -2049,15 +2083,8 @@ namespace stencil::gui {
       refreshDockMenu();  // drop it from the Dock "recent" list
       notify_->info("Project deleted");
     } else if (dlg.action() == Action::Rename) {
-      const std::string id = dlg.selectedId().toStdString();
-      auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == id; });
-      if (it == projectList_.end()) return;
-      it->meta.name = dlg.newName().toStdString();
-      fileStore::saveProjects(projectList_);
-      refreshDockMenu();  // reflect the new name in the Dock "recent" list
-      notify_->success(
-          QString("Renamed to \"%1\"").arg(QString::fromStdString(it->meta.name)));
+      // The dialog already validated, but re-validate here so any rename path is safe.
+      renameProjectById(dlg.selectedId(), dlg.newName());
     } else if (dlg.action() == Action::Renew) {
       const std::string id = dlg.selectedId().toStdString();
       auto it = std::find_if(projectList_.begin(), projectList_.end(),
@@ -2432,11 +2459,26 @@ namespace stencil::gui {
       notify_->info("Incognito mode — saving is disabled");
       return;
     }
+    // Seed the name from the image filename (mirrors the browser, where a new project
+    // is named after the image), else a unique "Untitled N".
+    QString seed = canvas_->hasImage() ? canvas_->imageBaseName() : QString();
+    if (seed.isEmpty()) {
+      std::vector<core::ProjectMeta> metas;
+      for (const auto& pr : projectList_) metas.push_back(pr.meta);
+      core::ProjectsStore tmp;
+      tmp.load(metas);
+      seed = QString::fromStdString(tmp.defaultName());
+    }
     bool ok = false;
     const QString name = QInputDialog::getText(this, "New Project",
                                                "Project name:", QLineEdit::Normal,
-                                               "Untitled", &ok);
+                                               seed, &ok);
     if (!ok || name.trimmed().isEmpty()) return;
+    const auto check = checkProjectName(name.trimmed(), QString());
+    if (!check.ok) {
+      notify_->error(QString::fromStdString(check.reason));
+      return;
+    }
     createProject(name.trimmed());
   }
 
@@ -2493,6 +2535,101 @@ namespace stencil::gui {
     refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(
         QString("Saved to \"%1\"").arg(QString::fromStdString(it->meta.name)));
+  }
+
+  // ── Project name surface (window title + toolbar field) ──
+
+  QString MainWindow::activeProjectName() const {
+    if (activeProjectId_.isEmpty()) return {};
+    for (const auto& p : projectList_)
+      if (QString::fromStdString(p.meta.id) == activeProjectId_)
+        return QString::fromStdString(p.meta.name);
+    return {};
+  }
+
+  QString MainWindow::projectBaseName() const {
+    const QString n = activeProjectName();
+    if (!n.isEmpty()) return n;   // the project name IS the download name
+    return canvas_ ? canvas_->imageBaseName() : QStringLiteral("image");
+  }
+
+  core::ProjectsStore::NameCheck MainWindow::checkProjectName(
+      const QString& name, const QString& exceptId) const {
+    std::vector<core::ProjectMeta> metas;
+    for (const auto& p : projectList_) metas.push_back(p.meta);
+    core::ProjectsStore store;   // local; never disturbs projectsStore_
+    store.load(metas);
+    return store.validateName(name.toStdString(), exceptId.toStdString());
+  }
+
+  bool MainWindow::renameProjectById(const QString& id, const QString& rawName) {
+    const QString name = rawName.trimmed();
+    auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                           [&](const Project& p) {
+                             return QString::fromStdString(p.meta.id) == id;
+                           });
+    if (it == projectList_.end()) return false;
+    const auto check = checkProjectName(name, id);
+    if (!check.ok) {
+      notify_->error(QString::fromStdString(check.reason));
+      return false;
+    }
+    it->meta.name = name.toStdString();
+    // The project name is THE name: downloads use projectBaseName(), so there is no
+    // separate image name to keep in sync.
+    fileStore::saveProjects(projectList_);
+    refreshDockMenu();
+    if (activeProjectId_ == id) updateProjectTitle();
+    notify_->success(QString("Renamed to \"%1\"").arg(name));
+    return true;
+  }
+
+  void MainWindow::updateProjectTitle() {
+    QString name;
+    bool editable = false;
+    if (incognito_) {
+      name = "Incognito";
+    } else if (!activeProjectId_.isEmpty()) {
+      name = activeProjectName();
+      editable = !name.isEmpty();
+    }
+    if (name.isEmpty() && canvas_ && canvas_->hasImage())
+      name = canvas_->imageBaseName();   // show the image name until it's a saved project
+    setWindowTitle(name.isEmpty() ? QStringLiteral("Stencil (Qt)")
+                                  : QString("%1 — Stencil").arg(name));
+    // Don't clobber the field while the user is typing in it.
+    if (projectName_ && !projectName_->hasFocus()) {
+      projectName_->setText(name);
+      projectName_->setEnabled(editable);
+      projectName_->setPlaceholderText(
+          incognito_ ? QStringLiteral("Incognito (unsaved)") : QStringLiteral("No project"));
+      refreshProjectNameButtons();
+    }
+  }
+
+  void MainWindow::refreshProjectNameButtons() {
+    if (!projectName_ || !projectNameAccept_ || !projectNameCancel_) return;
+    const QString v = projectName_->text().trimmed();
+    const bool changed = projectName_->isEnabled() && v != activeProjectName();
+    projectNameAccept_->setVisible(changed);
+    projectNameCancel_->setVisible(changed);
+    if (!changed) return;
+    const auto check = checkProjectName(v, activeProjectId_);
+    projectNameAccept_->setEnabled(check.ok);
+    projectNameAccept_->setToolTip(check.ok ? QStringLiteral("Save name (Enter)")
+                                            : QString::fromStdString(check.reason));
+  }
+
+  void MainWindow::commitProjectName() {
+    if (!activeProjectId_.isEmpty())
+      renameProjectById(activeProjectId_, projectName_->text());
+    projectName_->clearFocus();
+    updateProjectTitle();   // force the field/title back to the stored name
+  }
+
+  void MainWindow::cancelProjectName() {
+    projectName_->clearFocus();
+    updateProjectTitle();   // revert the field to the stored name
   }
 
   void MainWindow::openInfo() {

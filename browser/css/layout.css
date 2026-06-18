@@ -328,6 +328,25 @@ input[type="color"] {
 /* ── Controls collapsible ── */
 .controls-wrapper { margin-bottom: 12px; }
 .controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* Project-name field in the topbar: a read-only title by default. Renaming is
+   explicit — double-click the name or click the ✎ that appears on hover (only for a
+   saved project). The field shows its editable border/background only in edit mode. */
+.project-name-field { position: relative; }
+#project-name-input:read-only { cursor: default; }
+#project-name-input:not(:read-only) { border-color: var(--border-main); background: var(--bg-info); cursor: text; }
+#project-name-input:not(:read-only):focus { outline: none; border-color: var(--accent, #7c3aed); }
+#project-name-input:disabled { color: var(--text-muted); cursor: default; }
+/* ✎ rename affordance: hidden until you hover the field. JS sets display:none when the
+   project can't be renamed (no project / incognito) or while editing, so this only
+   reveals it when it's actually actionable. */
+.name-edit-pencil { visibility: hidden; }
+.project-name-field:hover .name-edit-pencil { visibility: visible; }
+/* Inline rename accept(✓)/cancel(✗) buttons (topbar + projects list). */
+.name-edit-btn { border: 1px solid var(--border-main); background: var(--bg-info); border-radius: 5px; padding: 2px 7px; font-size: 12px; line-height: 1; cursor: pointer; }
+.name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.name-edit-accept { color: #22c55e; }
+.name-edit-cancel { color: #ef4444; }
+.project-rename-wrap { display: inline-flex; align-items: center; gap: 4px; }
 #toggle-controls {
     background: transparent;
     border: 1px solid var(--border-main) !important;

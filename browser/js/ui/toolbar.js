@@ -9,6 +9,13 @@ export class StencilToolbar extends StencilElement {
     return `
             <div class="controls-topbar">
                 <button id="toggle-controls" data-hk-title="toggleControls" title="Hide controls (Alt+C)">▲ Controls</button>
+                <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
+                    <input id="project-name-input" type="text" placeholder="No project" title="Project name — double-click to rename" readonly disabled
+                        style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text);background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
+                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" title="Rename project" style="display:none;">✎</button>
+                    <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" title="Save name" style="display:none;">✓</button>
+                    <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" title="Cancel" style="display:none;">✗</button>
+                </span>
                 <span id="hints-btn" style="display:none;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
                     ?
                     <span class="hints-popup" id="hints-popup"></span>

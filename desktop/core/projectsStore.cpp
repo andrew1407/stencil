@@ -18,6 +18,21 @@ namespace stencil::core {
       return out;
     }
 
+    // Trim leading/trailing ASCII whitespace.
+    std::string trim(const std::string& s) {
+      size_t a = 0, b = s.size();
+      while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) ++a;
+      while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) --b;
+      return s.substr(a, b - a);
+    }
+
+    // Trim + ASCII-lowercase, for case-insensitive name comparison.
+    std::string trimLower(const std::string& s) {
+      std::string out = trim(s);
+      for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      return out;
+    }
+
     // Parse "Untitled <n>" -> n, or -1 if the name does not match exactly.
     int untitledIndex(const std::string& name) {
       const std::string prefix = "Untitled ";
@@ -133,6 +148,26 @@ namespace stencil::core {
       max = std::max(max, untitledIndex(m.name));
     }
     return "Untitled " + std::to_string(max + 1);
+  }
+
+  bool ProjectsStore::nameExists(const std::string& name,
+                                 const std::string& exceptId) const {
+    const std::string n = trimLower(name);
+    if (n.empty()) return false;
+    for (const auto& m : registry_) {
+      if (m.id.empty() || m.id == exceptId) continue;
+      if (trimLower(m.name) == n) return true;
+    }
+    return false;
+  }
+
+  ProjectsStore::NameCheck ProjectsStore::validateName(
+      const std::string& name, const std::string& exceptId) const {
+    const std::string clean = trim(name);
+    if (clean.empty()) return {false, "Name can't be empty"};
+    if (clean.size() > 80) return {false, "Name is too long (max 80 characters)"};
+    if (nameExists(clean, exceptId)) return {false, "\"" + clean + "\" is already taken"};
+    return {true, ""};
   }
 
 }

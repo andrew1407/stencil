@@ -167,6 +167,15 @@ export class StencilLinksModal extends StencilElement {
       if (e.key === 'Enter') { e.preventDefault(); $('links-preview').click(); }
     }));
 
+    // Re-read the current project's name/source/resource into the fields. Pulled out
+    // of onOpen so it can also refresh LIVE while the modal is open (e.g. when the
+    // console's stencil.current.source = … updates the active project).
+    const syncLinkFields = () => {
+      nameEl.value = (app.activeProjectId && app.storage.store.getMeta(app.activeProjectId)?.name) || app.imageBaseName || '';
+      sourceEl.value = app.imageSource || '';
+      resourceEl.value = app.imageResource || '';
+    };
+
     const { open, close } = wireModalShell(overlay, $('links-btn'), $('links-close'), {
       onOpen: () => {
         // An image already loaded → only edit its links. No image yet → only the
@@ -179,9 +188,7 @@ export class StencilLinksModal extends StencilElement {
           ? 'Editing the current image’s links.'
           : 'Cross-origin URLs need CORS headers to load here; otherwise use the extension or desktop app.';
 
-        nameEl.value = (app.activeProjectId && app.storage.store.getMeta(app.activeProjectId)?.name) || app.imageBaseName || '';
-        sourceEl.value = app.imageSource || '';
-        resourceEl.value = app.imageResource || '';
+        syncLinkFields();
         urlEl.value = '';
         urlResourceEl.value = '';
         resetPreview();
@@ -189,15 +196,21 @@ export class StencilLinksModal extends StencilElement {
       onClose: resetPreview,
     });
 
+    // Live-refresh the open modal when the project set changes — keeps the link fields
+    // in sync with on-the-fly source/resource edits. Uses the window event (fired by
+    // TabsCoordinator.projectsChanged in THIS tab; onProjectsChanged only fires for
+    // OTHER tabs), so same-tab console edits refresh too.
+    window.addEventListener('stencil:registry-changed', () => {
+      if (overlay.classList.contains('modal-open')) syncLinkFields();
+    });
+
     // ── Current-project links: edit / open / remove ──
     const persist = () => { app.storage.save(); };
 
     const commitName = () => {
       const v = nameEl.value.trim();
-      if (app.activeProjectId && v) {
-        app.renameProject(app.activeProjectId, v);
-        app.imageBaseName = v;
-      }
+      // renameProject keeps imageBaseName in lockstep for the active project.
+      if (app.activeProjectId && v) app.renameProject(app.activeProjectId, v);
     };
     nameEl.addEventListener('change', commitName);
 

@@ -8,10 +8,13 @@
   if (window.__stencilCtxProbe) return;
   window.__stencilCtxProbe = true;
 
+  // mirror of lib/messages.js (classic content script — can't import)
+  const MSG = { WAKE: 'stencil-wake', CTX: 'stencil-ctx' };
+
   // Wake the lazy SW on load so the menu exists before the first right-click —
   // receiving the message evaluates the worker, which builds the menu.
   try {
-    chrome.runtime.sendMessage({ type: 'stencil-wake' }, () => void chrome.runtime.lastError);
+    chrome.runtime.sendMessage({ type: MSG.WAKE }, () => void chrome.runtime.lastError);
   } catch {
     /* ignore */
   }
@@ -261,7 +264,7 @@
     // right video. The SW may be asleep / page navigating — a failed send is fine.
     const point = { x: e.clientX, y: e.clientY };
     try {
-      chrome.runtime.sendMessage({ type: 'stencil-ctx', data, point });
+      chrome.runtime.sendMessage({ type: MSG.CTX, data, point });
     } catch {
       /* ignore */
     }

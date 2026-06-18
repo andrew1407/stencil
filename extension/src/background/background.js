@@ -5,6 +5,7 @@
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../lib/contextMenu.js';
 import { pruneLedger } from '../lib/ledger.js';
+import { MSG } from '../lib/messages.js';
 
 // Rebuild the menu from scratch. removeAll first so repeated builds don't pile up
 // "duplicate id" errors. onInstalled/onStartup don't reliably fire on every reload,
@@ -92,24 +93,70 @@ const injectBridgeIntoOpenEditors = async () => {
 
 const setUpEditorBridge = () => { registerEditorBridge(); injectBridgeIntoOpenEditors(); };
 
-// Re-scope the bridge when the user points the extension at a different editor URL.
+// ── Page scripting API (opt-in window.stencil) ──────────────────────────────
+// When the user enables it, inject two scripts into every page: a MAIN-world script
+// that defines window.stencil (so its entries hold live DOM elements), and an
+// ISOLATED bridge that relays the API's action requests to this worker. Off by
+// default; registered/unregistered as the setting flips.
+const PAGE_API = [
+  { id: 'stencil-page-bridge', file: 'src/content/pageApiBridge.js', world: 'ISOLATED', runAt: 'document_start' },
+  { id: 'stencil-page-main', file: 'src/content/pageApiMain.js', world: 'MAIN', runAt: 'document_idle' },
+];
+
+const registerPageApi = async () => {
+  try { await chrome.scripting.unregisterContentScripts({ ids: PAGE_API.map((s) => s.id) }); } catch { /* not registered */ }
+  const { exposeWindowStencil } = await getSettings();
+  if (!exposeWindowStencil) return;
+  try {
+    await chrome.scripting.registerContentScripts(PAGE_API.map((s) => ({
+      id: s.id, js: [s.file], matches: ['<all_urls>'], runAt: s.runAt, allFrames: false, world: s.world,
+    })));
+  } catch (e) {
+    console.warn('[stencil] could not register page API:', e?.message);
+  }
+};
+
+// Cover already-open http(s) tabs so enabling the API works without a reload.
+const injectPageApiIntoOpenTabs = async () => {
+  const { exposeWindowStencil } = await getSettings();
+  if (!exposeWindowStencil) return;
+  try {
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    for (const tab of tabs) {
+      if (tab.id == null) continue;
+      for (const s of PAGE_API)
+        chrome.scripting.executeScript({ target: { tabId: tab.id }, world: s.world, files: [s.file] })
+          .catch(() => { /* restricted page — ignore */ });
+    }
+  } catch { /* ignore */ }
+};
+
+const setUpPageApi = () => { registerPageApi(); injectPageApiIntoOpenTabs(); };
+
+// React to settings changes: re-scope the editor bridge (editorUrl) and toggle the
+// page API (exposeWindowStencil).
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync' && changes.editorUrl) setUpEditorBridge();
+  if (area !== 'sync') return;
+  if (changes.editorUrl) setUpEditorBridge();
+  if (changes.exposeWindowStencil) setUpPageApi();
 });
 
 chrome.runtime.onInstalled.addListener(() => {
   buildMenus();
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
+  setUpPageApi();
 });
 chrome.runtime.onStartup.addListener(() => {
   buildMenus();
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
+  setUpPageApi();
 });
 
 // Also set up on every worker start (onInstalled/onStartup don't fire on every wake).
 setUpEditorBridge();
+registerPageApi();   // re-asserts registration (injection into open tabs only on explicit toggle/startup)
 
 // What the probe last resolved under the cursor, per tab (a ready { url } for a
 // background or captured frame). Needed because info.srcUrl is absent (backgrounds)
@@ -130,20 +177,48 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onMessage.addListener((msg, sender) => {
   // The in-page editor overlay asks us to open a real tab when its iframe is
   // blocked (CSP / mixed content). Doing it here avoids popup blockers.
-  if (msg && msg.type === 'stencil-open-tab' && msg.url) {
+  if (msg && msg.type === MSG.OPEN_TAB && msg.url) {
     chrome.tabs.create({ url: msg.url });
     return;
   }
   // The editor-origin bridge reports the editor's live project registry. Prune
   // opened-ledger entries for projects that no longer exist there — scoped to the
   // sender's origin so other editor deployments are left untouched.
-  if (msg && msg.type === 'stencil-registry') {
+  if (msg && msg.type === MSG.REGISTRY) {
     let origin = sender.origin || '';
     if (!origin && sender.url) { try { origin = new URL(sender.url).origin; } catch { origin = ''; } }
     if (origin) pruneLedger(Array.isArray(msg.projects) ? msg.projects : [], origin);
     return;
   }
-  if (msg && msg.type === 'stencil-ctx') {
+  // ── Page-API (window.stencil) relays ──
+  // Open a page image/video in the editor (new tab or in-page modal).
+  if (msg && msg.type === MSG.PAGE_OPEN) {
+    (async () => {
+      try {
+        const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url);
+        const { page } = await getSettings();
+        const payload = {
+          dataUrl, name: msg.name || filenameFromUrl(msg.url || 'image'), page: { size: page },
+          source: msg.source || msg.url || '', resource: msg.resource || sender.tab?.url || '', incognito: !!msg.incognito,
+        };
+        if (msg.newTab) await openEditorTab(payload);
+        else await launchEditorModal({ ...payload, tabId: sender.tab?.id });
+      } catch (err) { console.warn('[stencil] page open failed:', err?.message); }
+    })();
+    return;
+  }
+  // Open a page image/video in the quick-crop tool.
+  if (msg && msg.type === MSG.PAGE_CROP) {
+    const src = msg.dataUrl || msg.url;
+    if (src) launchCrop({ src, source: msg.source || msg.url || '', resource: msg.resource || sender.tab?.url || '', tabId: sender.tab?.id });
+    return;
+  }
+  // The API's `stencil.enabled = false` — turn the feature off (unregisters the scripts).
+  if (msg && msg.type === MSG.PAGE_DISABLE) {
+    chrome.storage.sync.set({ exposeWindowStencil: false });
+    return;
+  }
+  if (msg && msg.type === MSG.CTX) {
     const tabId = sender.tab?.id;
     if (tabId == null) return;
     const data = msg.data;

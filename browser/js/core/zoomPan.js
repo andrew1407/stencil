@@ -190,6 +190,25 @@ export class ZoomPan {
     this.app.zoomAnimRaf = requestAnimationFrame(tick);
   }
 
+  // Zoom to `newScale` keeping the image-space point (imgX, imgY) pinned under its
+  // current on-screen position (focal zoom). Non-animated; used by the console API's
+  // stencil.zoom(amount, { x, y }). Falls back to plain setZoom with no viewport.
+  zoomToImagePoint(newScale, imgX, imgY) {
+    if (!this.app.image) return;
+    newScale = this.clampScale(newScale);
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp) { this.setZoom(newScale); return; }
+    if (this.app.zoomAnimRaf) { cancelAnimationFrame(this.app.zoomAnimRaf); this.app.zoomAnimRaf = null; }
+    const scaleStart = (this.app.renderedScale != null) ? this.app.renderedScale : this.app.scale;
+    // On-screen offset (within the viewport) of the focal point right now.
+    const offX = imgX * scaleStart - vp.scrollLeft;
+    const offY = imgY * scaleStart - vp.scrollTop;
+    this.setZoom(newScale);          // updates scale + canvas CSS size + zoom input + persist
+    this.app.renderedScale = newScale;
+    vp.scrollLeft = imgX * newScale - offX;
+    vp.scrollTop = imgY * newScale - offY;
+  }
+
   fitToWindow() {
     if (!this.app.image) return;
     const isFS = document.body.classList.contains('fullscreen-mode');

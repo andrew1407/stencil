@@ -51,6 +51,44 @@ export const defaultUnitFromLocale = (
   }
 };
 
+// ── Inline name editor (shared: topbar + projects list) ─────────
+// Live-validated rename wiring. Enables the accept (✓) button only when the trimmed
+// value is changed AND valid; puts the rejection reason on ✓'s tooltip when disabled.
+// Enter commits (if ✓ enabled), Escape cancels. mousedown-preventDefault on the
+// buttons keeps the input focused so the click fires before any blur handler (callers
+// wire blur→cancel if they want a click-away to discard).
+//   opts: { current():string, validate(v):{ok,reason}, commit(v), cancel(), alwaysShow }
+// `alwaysShow` keeps ✓/✗ visible the whole time (projects list); otherwise they appear
+// only once the value differs from the current name (keeps the topbar uncluttered).
+export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate, commit, cancel, alwaysShow = false }) => {
+  const refresh = () => {
+    const v = input.value.trim();
+    const changed = v !== (current() || '');
+    if (!alwaysShow) {
+      acceptBtn.style.display = changed ? '' : 'none';
+      cancelBtn.style.display = changed ? '' : 'none';
+    }
+    if (!changed) { acceptBtn.disabled = true; acceptBtn.title = 'No change'; return; }
+    const res = validate(v) || { ok: true, reason: '' };
+    acceptBtn.disabled = !res.ok;
+    acceptBtn.title = res.ok ? 'Save name (Enter)' : res.reason;
+  };
+  const doCommit = () => {
+    const v = input.value.trim();
+    if (!acceptBtn.disabled && v !== (current() || '')) commit(v);
+  };
+  input.addEventListener('input', refresh);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doCommit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  for (const b of [acceptBtn, cancelBtn]) b.addEventListener('mousedown', (e) => e.preventDefault());
+  acceptBtn.addEventListener('click', doCommit);
+  cancelBtn.addEventListener('click', () => cancel());
+  refresh();
+  return { refresh };
+};
+
 // ── Notification balloon ────────────────────────────────────────
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.

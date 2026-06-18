@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
+import { wireNameEditor } from '../utils.js';
 // ── Component: projects chooser / switcher modal ────────────────
 // Lists saved projects (most-recent first) plus a synthetic row for the current
 // temp editor, with thumbnails/dates/expiry badges and an "open elsewhere" marker
@@ -92,30 +93,39 @@ export class StencilProjectsModal extends StencilElement {
       // Commit on Enter/blur, cancel on Escape. Saved projects only.
       const beginRename = () => {
         if (opts.temp) return;
+        const wrap = document.createElement('span');
+        wrap.className = 'project-rename-wrap';
         const input = document.createElement('input');
         input.className = 'project-name-edit';
         input.type = 'text';
         input.value = meta.name || 'Untitled';
-        name.replaceWith(input);
+        const accept = document.createElement('button');
+        accept.type = 'button'; accept.className = 'name-edit-btn name-edit-accept'; accept.textContent = '✓';
+        const cancel = document.createElement('button');
+        cancel.type = 'button'; cancel.className = 'name-edit-btn name-edit-cancel'; cancel.textContent = '✗'; cancel.title = 'Cancel';
+        wrap.append(input, accept, cancel);
+        name.replaceWith(wrap);
         input.focus();
         input.select();
         let done = false;
-        const commit = (save) => {
+        const finish = (save, next) => {
           if (done) return;
           done = true;
-          const next = input.value.trim();
-          if (save && next && next !== meta.name) {
-            app.renameProject(meta.id, next);
-            meta.name = next;
-          }
+          // renameProject re-checks uniqueness; adopt the name only if accepted.
+          if (save && next && next !== meta.name && app.renameProject(meta.id, next)) meta.name = next;
           render();
         };
-        input.addEventListener('keydown', e => {
-          e.stopPropagation();
-          if (e.key === 'Enter') commit(true);
-          else if (e.key === 'Escape') commit(false);
+        // Live-validated ✓/✗ (always shown here): ✓ enabled only for a changed, valid
+        // name, its tooltip explaining any rejection. Enter = ✓, Escape/click-away = ✗.
+        wireNameEditor(input, accept, cancel, {
+          alwaysShow: true,
+          current: () => meta.name || '',
+          validate: (v) => app.storage.store.validateName(v, meta.id),
+          commit: (v) => finish(true, v),
+          cancel: () => finish(false),
         });
-        input.addEventListener('blur', () => commit(true));
+        input.addEventListener('keydown', e => e.stopPropagation());   // keep modal hotkeys out
+        input.addEventListener('blur', () => finish(false));           // click-away discards
         input.addEventListener('click', e => e.stopPropagation());
       };
       if (!opts.temp) name.addEventListener('dblclick', e => { e.stopPropagation(); beginRename(); });
