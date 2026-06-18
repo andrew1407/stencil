@@ -44,6 +44,13 @@
     </label>
     <div class="help">Uses a local record of images this extension has opened. Turn off marking to always open a fresh editor with no badges. These toggles are also available directly in the popup.</div>
 
+    <label class="f" for="exposeWindowStencil">Page scripting API (advanced)</label>
+    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+      <input id="exposeWindowStencil" type="checkbox" style="width:auto; margin-top:3px;">
+      <span>Expose a <code>window.stencil</code> object on every page (scan images, open/crop from the console)</span>
+    </label>
+    <div class="help">Off by default. When on, a scripting API is injected into every page's main world so you can run e.g. <code>stencil.images</code>, <code>stencil.search('logo')</code>, or <code>stencil.open(el)</code> from the DevTools console. Leave off unless you need it.</div>
+
     <div class="row">
       <button id="save">Save</button>
       <span id="status" class="saved"></span>

@@ -79,21 +79,9 @@ export class StencilBlankImageModal extends StencilElement {
         return;
       }
       if (app.image && !confirm('Replace the current image with a new blank image?')) return;
-      const cnv = document.createElement('canvas');
-      cnv.width = w;
-      cnv.height = h;
-      const ctx = cnv.getContext('2d');
-      ctx.fillStyle = colorEl.value;
-      ctx.fillRect(0, 0, w, h);
-      cnv.toBlob(blob => {
-        if (!blob) {
-          notify('Could not create the image', 'fail');
-          return;
-        }
-        app.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }));
-        close();
-        notify(`Blank ${w}×${h} image created`, 'ok');
-      }, 'image/png');
+      app.createBlankImage({ color: colorEl.value, width: w, height: h })
+        .then(() => { close(); notify(`Blank ${w}×${h} image created`, 'ok'); })
+        .catch(() => notify('Could not create the image', 'fail'));
     });
   }
 }

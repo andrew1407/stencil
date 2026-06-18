@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -8,6 +8,7 @@ import { Renderer } from './renderer.js';
 import { Storage } from './storage.js';
 import { TabsCoordinator } from './tabsCoordinator.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
+import { defaultBlankSizePx } from './layout.js';
 import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
@@ -15,6 +16,7 @@ import { hotkeys } from './hotkeys.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl } from './deepLink.js';
+import { normalizePageSize } from './units.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (so they theme + match the label automatically). The
@@ -45,6 +47,10 @@ export class DrawingApp {
   #continueLineIdx = -1;
   #continueInsertIdx = -1;
   #rectConnectOnce = false;
+  // Topbar project-name editor controller ({ refresh }), wired in #wireToolbarButtons.
+  #nameEditor = null;
+  // True while the topbar name is in inline-edit mode (input unlocked, ✓/✗ shown).
+  #nameEditing = false;
   // Arrow-key panning
   #arrowsHeld = new Set();
   #arrowPanRaf = null;
@@ -230,51 +236,22 @@ export class DrawingApp {
     document.getElementById('image-upload').addEventListener('change', e => this.loadImage(e));
     document.getElementById('rotate-left').addEventListener('click', () => this.rotateImage(-1));
     document.getElementById('rotate-right').addEventListener('click', () => this.rotateImage(1));
-    document.getElementById('line-color').addEventListener('change', e => { this.color = e.target.value; this.storage.save(); });
-    document.getElementById('line-thickness').addEventListener('input', e => {
-      const v = parseInt(e.target.value);
-      if (isNaN(v)) return;
-      this.thickness = v;
-      const ctxEl = document.getElementById('ctx-thickness');
-      if (ctxEl && document.activeElement !== ctxEl) ctxEl.value = v;
-      this.renderer.redraw();
-    });
-    document.getElementById('line-thickness').addEventListener('change', e => { this.thickness = parseInt(e.target.value); this.storage.save(); });
-    document.getElementById('marker-size').addEventListener('input', e => {
-      const v = parseInt(e.target.value);
-      if (isNaN(v)) return;
-      this.markerSize = v;
-      const ctxEl = document.getElementById('ctx-marker-size');
-      if (ctxEl && document.activeElement !== ctxEl) ctxEl.value = v;
-      this.renderer.redraw();
-    });
-    document.getElementById('marker-size').addEventListener('change', e => { this.markerSize = parseInt(e.target.value); this.storage.save(); });
-    document.getElementById('line-style').addEventListener('change', e => {
-      this.style = e.target.value;
-      setRadioGroup('ctxLineStyle', e.target.value);
-      this.storage.save();
-    });
-    document.getElementById('image-filter').addEventListener('change', e => {
-      this.imageFilter = e.target.value;
-      const filterColorPicker = document.getElementById('filter-color');
-      if (filterColorPicker) filterColorPicker.style.display = (e.target.value === 'custom') ? 'inline-block' : 'none';
-      // Mirror to ctx filter radios + tint visibility
-      setRadioGroup('ctxFilter', e.target.value);
-      const tintRow = document.getElementById('ctx-tint-row');
-      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', e.target.value === 'custom');
-      this.renderer.redraw();
-      this.storage.save();
-    });
+    document.getElementById('line-color').addEventListener('change', e => this.setColor(e.target.value));
+    // Live drag (input) previews without persisting; the trailing change commits.
+    document.getElementById('line-thickness').addEventListener('input', e => this.setThickness(e.target.value, { persist: false }));
+    document.getElementById('line-thickness').addEventListener('change', e => this.setThickness(e.target.value));
+    document.getElementById('marker-size').addEventListener('input', e => this.setMarkerSize(e.target.value, { persist: false }));
+    document.getElementById('marker-size').addEventListener('change', e => this.setMarkerSize(e.target.value));
+    document.getElementById('line-style').addEventListener('change', e => this.setLineStyle(e.target.value));
+    document.getElementById('image-filter').addEventListener('change', e => this.setImageFilter(e.target.value));
     let filterColorTimer = null;
     document.getElementById('filter-color').addEventListener('input', e => {
+      // Reflect the model + mirror immediately; debounce the redraw/persist commit.
       this.filterColor = e.target.value;
       const ctxTint = document.getElementById('ctx-tint-color');
       if (ctxTint) ctxTint.value = e.target.value;
       clearTimeout(filterColorTimer);
-      filterColorTimer = setTimeout(() => {
-        this.renderer.redraw();
-        this.storage.save();
-      }, 80);
+      filterColorTimer = setTimeout(() => this.setFilterColor(e.target.value), 80);
     });
   }
 
@@ -298,101 +275,96 @@ export class DrawingApp {
   }
 
   #wirePageAndDisplayControls() {
-    document.getElementById('page-size').addEventListener('change', e => {
-      this.pageSize = e.target.value;
-      const cg = document.getElementById('custom-size-group');
-      if (cg) cg.style.display = e.target.value === 'custom' ? 'inline-flex' : 'none';
-      this.coordTable.update();
-      this.renderer.redraw();
-      this.storage.save();
-    });
+    document.getElementById('page-size').addEventListener('change', e => this.setPageSize(e.target.value));
     document.getElementById('custom-page-width').addEventListener('change', e => {
-      // Inputs are typed in the active unit; store the model value in cm.
+      // Inputs are typed in the active unit; the setter stores cm.
       const v = parseFloat(e.target.value);
-      this.customPageWidth = isNaN(v) ? 21 : unitToCm(v, this.unit);
-      this.coordTable.update();
-      this.storage.save();
+      this.setCustomPageWidth(Number.isNaN(v) ? 21 : unitToCm(v, this.unit));
     });
     document.getElementById('custom-page-height').addEventListener('change', e => {
       const v = parseFloat(e.target.value);
-      this.customPageHeight = isNaN(v) ? 29.7 : unitToCm(v, this.unit);
-      this.coordTable.update();
-      this.storage.save();
+      this.setCustomPageHeight(Number.isNaN(v) ? 29.7 : unitToCm(v, this.unit));
     });
     const unitSel = document.getElementById('unit-select');
-    if (unitSel) unitSel.addEventListener('change', e => {
-      this.unit = e.target.value === 'in' ? 'in' : 'cm';
-      this.applyUnitToUI();          // re-render page inputs + labels + table headers
-      this.coordTable.update();      // re-render page cells in the new unit
-      this.updateCoordStatus();      // status refreshes fully on next hover
-      this.renderer.redraw();
-      this.storage.save();
-    });
-    document.getElementById('show-points').addEventListener('change', e => {
-      this.showPoints = e.target.checked;
-      const chk = document.getElementById('ctx-chk-points');
-      if (chk) chk.textContent = e.target.checked ? '✓' : '';
-      this.renderer.redraw();
-      this.storage.save();
-    });
-    document.getElementById('show-lines').addEventListener('change', e => {
-      this.showLines = e.target.checked;
-      const chk = document.getElementById('ctx-chk-lines');
-      if (chk) chk.textContent = e.target.checked ? '✓' : '';
-      this.renderer.redraw();
-      this.storage.save();
-    });
+    if (unitSel) unitSel.addEventListener('change', e => this.setUnit(e.target.value));
+    document.getElementById('show-points').addEventListener('change', e => this.setShowPoints(e.target.checked));
+    document.getElementById('show-lines').addEventListener('change', e => this.setShowLines(e.target.checked));
   }
 
   // ── Formula controls (top bar) ──────────────────────────────
+  // The shared #syncFormulaUI / #showFormulaError / #refreshFormulaCoords helpers and
+  // setAllowFormulas live with the other setters above. This validates BOTH inputs
+  // together (so a half-typed pair doesn't apply) and shows the inline error; the
+  // console's setFormula() path throws instead.
   #wireFormulaControls() {
-    const syncFormulaUI = checked => {
-      document.getElementById('formula-inputs').style.display = checked ? 'inline-flex' : 'none';
-      const ctxFi = document.getElementById('ctx-formula-inputs');
-      if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
-      const ctxCb = document.getElementById('ctx-allow-formulas');
-      if (ctxCb) ctxCb.checked = checked;
-    };
-    const showFormulaError = hasError => {
-      const el = document.getElementById('formula-error');
-      const ctxEl = document.getElementById('ctx-formula-error');
-      if (el) el.style.display = hasError ? 'inline' : 'none';
-      if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
-    };
-    const refreshCoordsAfterFormula = () => {
-      const li = this.coordLineIdx;
-      const pts = li === -1 ? (this.currentLine ? this.currentLine.points : null) : (this.lines[li] ? this.lines[li].points : null);
-      this.coordTable.update(pts, li);
-    };
     const validateAndApplyFormulas = () => {
       const fxVal = document.getElementById('formula-x').value.trim();
       const fyVal = document.getElementById('formula-y').value.trim();
       const okX = this.formula.validate(fxVal, 'x');
       const okY = this.formula.validate(fyVal, 'y');
-      showFormulaError(!okX || !okY);
+      this.#showFormulaError(!okX || !okY);
       if (okX && okY) {
         this.formulaX = fxVal;
         this.formulaY = fyVal;
-        const cx = document.getElementById('ctx-formula-x');
-        const cy = document.getElementById('ctx-formula-y');
-        if (cx) cx.value = fxVal;
-        if (cy) cy.value = fyVal;
-        refreshCoordsAfterFormula();
+        setVal('ctx-formula-x', fxVal);
+        setVal('ctx-formula-y', fyVal);
+        this.#refreshFormulaCoords();
         this.storage.save();
       }
     };
-    document.getElementById('allow-formulas').addEventListener('change', e => {
-      this.allowFormulas = e.target.checked;
-      syncFormulaUI(e.target.checked);
-      if (!e.target.checked) { this.formulaX = ''; this.formulaY = ''; showFormulaError(false); }
-      refreshCoordsAfterFormula();
-      this.storage.save();
-    });
+    document.getElementById('allow-formulas').addEventListener('change', e => this.setAllowFormulas(e.target.checked));
     document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
     document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
   }
 
   #wireToolbarButtons() {
+    // Topbar project-name field: a read-only title that renames inline only on demand.
+    // Double-click the name (or click the hover ✎) to edit; ✓/✗ appear ONLY while
+    // editing. ✓ is enabled for a changed, valid (non-empty, unique) name; ✓/Enter
+    // commit, ✗/Escape/click-away revert. No rename affordance for incognito / no
+    // project — those states never expose ✎ or ✓/✗.
+    const nameInput = document.getElementById('project-name-input');
+    const nameEdit = document.getElementById('project-name-edit');
+    const nameAccept = document.getElementById('project-name-accept');
+    const nameCancel = document.getElementById('project-name-cancel');
+    if (nameInput && nameAccept && nameCancel) {
+      const currentName = () => (this.activeProjectId != null ? (this.storage.store.getMeta(this.activeProjectId)?.name || '') : '');
+      // Only a saved (non-incognito) project can be renamed.
+      const canRename = () => this.activeProjectId != null && !this.storage.incognito;
+      const endEdit = () => {
+        this.#nameEditing = false;
+        nameInput.readOnly = true;
+        nameAccept.style.display = 'none';
+        nameCancel.style.display = 'none';
+        this.updateProjectTitle(true);   // restore value + ✎ visibility
+      };
+      const beginEdit = () => {
+        if (!canRename() || this.#nameEditing) return;
+        this.#nameEditing = true;
+        nameInput.readOnly = false;
+        if (nameEdit) nameEdit.style.display = 'none';
+        nameAccept.style.display = '';
+        nameCancel.style.display = '';
+        this.#nameEditor?.refresh();     // set ✓ enabled/disabled for the starting value
+        nameInput.focus();
+        nameInput.select();
+      };
+      this.#nameEditor = wireNameEditor(nameInput, nameAccept, nameCancel, {
+        alwaysShow: true,                // edit-mode controls ✓/✗ visibility, not change-detection
+        current: currentName,
+        validate: (v) => this.storage.store.validateName(v, this.activeProjectId),
+        commit: (v) => {
+          if (this.activeProjectId != null) this.renameProject(this.activeProjectId, v);   // syncs imageBaseName itself
+          endEdit();
+        },
+        cancel: () => endEdit(),
+      });
+      nameInput.addEventListener('dblclick', () => beginEdit());
+      if (nameEdit) nameEdit.addEventListener('click', () => beginEdit());
+      // A real click-away (the ✓/✗ buttons prevent their own mousedown, so they don't
+      // blur) discards the in-progress rename.
+      nameInput.addEventListener('blur', () => { if (this.#nameEditing) endEdit(); });
+    }
     document.getElementById('start-drawing').addEventListener('click', () => this.startDrawingMode());
     document.getElementById('stop-drawing').addEventListener('click', () => this.stopDrawingMode());
     document.getElementById('draw-mode-toggle').addEventListener('click', () => {
@@ -476,26 +448,30 @@ export class DrawingApp {
     }
   }
 
+  // Active UI theme ('dark' | 'light').
+  get theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  // Set (and persist as the manual override) the UI theme; refreshes the toggle icon.
+  setTheme(theme) {
+    const next = String(theme).toLowerCase() === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('drawingApp_theme', next);
+    this.#updateThemeIcon();
+  }
+  #updateThemeIcon() {
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = this.theme === 'dark' ? '☀️' : '🌙';
+  }
+
   #wireTheme() {
-    // Theme toggle
-    const updateThemeIcon = () => {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      document.getElementById('theme-toggle').textContent = isDark ? '☀️' : '🌙';
-    };
-    updateThemeIcon();
+    this.#updateThemeIcon();
     document.getElementById('theme-toggle').addEventListener('click', () => {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const next = isDark ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('drawingApp_theme', next);
-      updateThemeIcon();
+      this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
     });
     // Follow system changes only if user hasn't manually overridden
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
       if (!localStorage.getItem('drawingApp_theme')) {
-        const theme = e.matches ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', theme);
-        updateThemeIcon();
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        this.#updateThemeIcon();
       }
     });
   }
@@ -2399,6 +2375,46 @@ export class DrawingApp {
     const idleCreate = document.getElementById('idle-create-wrap');
     if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
     this.updateIncognitoUI();
+    this.updateProjectTitle();
+  }
+
+  // Reflect the active project's name in the browser tab title AND the topbar name
+  // field. The field is editable only when there's a saved active project to rename;
+  // it shows the image-derived name for a fresh project (see projectsStore meta init).
+  // `force` re-syncs the field even while it's focused (used by commit/cancel); the
+  // default respects focus so updateButtons() can't clobber a name being typed.
+  updateProjectTitle(force = false) {
+    let name = '';
+    let editable = false;
+    if (this.storage.incognito) {
+      name = 'Incognito';
+    } else if (this.activeProjectId != null) {
+      name = this.storage.store.getMeta(this.activeProjectId)?.name || this.imageBaseName || 'Untitled';
+      editable = true;
+    } else if (this.image) {
+      name = this.imageBaseName || 'Untitled';
+    }
+    document.title = name ? `${name} — Stencil` : 'Stencil';
+    const input = document.getElementById('project-name-input');
+    const editBtn = document.getElementById('project-name-edit');
+    if (input && (force || document.activeElement !== input)) {
+      input.value = name;
+      // `editable` (a saved, non-incognito project) only gates the rename affordance;
+      // the field itself stays a read-only title until the user enters edit mode.
+      input.disabled = !editable;
+      if (!this.#nameEditing) input.readOnly = true;
+      input.placeholder = editable ? 'Untitled' : (this.storage.incognito ? 'Incognito (unsaved)' : 'No project');
+      if (editBtn && !this.#nameEditing) editBtn.style.display = editable ? '' : 'none';
+      this.#nameEditor?.refresh();                      // set ✓ enabled/disabled state
+    }
+    // Outside edit mode (no project, incognito, post-commit, click-away) the ✓/✗
+    // rename controls must never linger — they belong to edit mode only.
+    if (!this.#nameEditing) {
+      const a = document.getElementById('project-name-accept');
+      const c = document.getElementById('project-name-cancel');
+      if (a) a.style.display = 'none';
+      if (c) c.style.display = 'none';
+    }
   }
 
   updateInfo() {
@@ -2468,6 +2484,33 @@ export class DrawingApp {
     this.tabs.reportActive(null);
   }
 
+  // Create a solid-color blank image and load it as the current image (the blank-image
+  // creator's core, shared with the console API). width/height in px (clamped 1–8192);
+  // when omitted they default to the current page size, exactly like the modal. Returns
+  // a Promise resolving with { width, height } once the blank is handed to the loader,
+  // and rejecting if the canvas can't be encoded — so both callers can report accurately.
+  createBlankImage({ color = '#ffffff', width, height } = {}) {
+    const dims = (width != null && height != null)
+      ? { width, height }
+      : defaultBlankSizePx(this.pageSize === 'custom'
+        ? { width: this.customPageWidth, height: this.customPageHeight }
+        : (PAGE_SIZES[this.pageSize] || PAGE_SIZES.A4));
+    const w = Math.max(1, Math.min(8192, Math.round(dims.width)));
+    const h = Math.max(1, Math.min(8192, Math.round(dims.height)));
+    const cnv = document.createElement('canvas');
+    cnv.width = w; cnv.height = h;
+    const ctx = cnv.getContext('2d');
+    ctx.fillStyle = color || '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    return new Promise((resolve, reject) => {
+      cnv.toBlob(blob => {
+        if (!blob) { reject(new Error('Could not create the image')); return; }
+        this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }));
+        resolve({ width: w, height: h });
+      }, 'image/png');
+    });
+  }
+
   // Permanently delete every saved project, then drop to a blank editor.
   clearAllProjects() {
     this.storage.store.clearAll();
@@ -2478,10 +2521,302 @@ export class DrawingApp {
 
   // Prolong a project: reset its 7-day expiry window to start from now. Notifies
   // peers so their open project lists re-render with the new expiry.
+  // ── Shared editor setters ─────────────────────────────────────
+  // Single source of truth for the top-menu settings: the toolbar handlers AND the
+  // console API (window.stencil) both call these, so changing a value from either
+  // surface stays in sync. Each updates model state, mirrors the relevant UI
+  // controls, redraws/persists as needed, and returns `this` for chaining.
+  // `persist:false` is used by live-drag (input) events that commit on the trailing
+  // change event to avoid a storage write per slider tick.
+
+  setColor(v, { persist = true } = {}) {
+    this.color = String(v);
+    setVal('line-color', this.color);
+    if (persist) this.storage.save();
+    return this;
+  }
+
+  setThickness(n, { persist = true } = {}) {
+    const v = parseInt(n, 10);
+    if (Number.isNaN(v)) return this;
+    this.thickness = v;
+    setVal('line-thickness', v);
+    const ctx = document.getElementById('ctx-thickness');
+    if (ctx && document.activeElement !== ctx) ctx.value = v;
+    this.renderer.redraw();
+    if (persist) this.storage.save();
+    return this;
+  }
+
+  setMarkerSize(n, { persist = true } = {}) {
+    const v = parseInt(n, 10);
+    if (Number.isNaN(v)) return this;
+    this.markerSize = v;
+    setVal('marker-size', v);
+    const ctx = document.getElementById('ctx-marker-size');
+    if (ctx && document.activeElement !== ctx) ctx.value = v;
+    this.renderer.redraw();
+    if (persist) this.storage.save();
+    return this;
+  }
+
+  setLineStyle(s) {
+    this.style = String(s);
+    setVal('line-style', this.style);
+    setRadioGroup('ctxLineStyle', this.style);
+    this.storage.save();
+    return this;
+  }
+
+  setShowPoints(b) {
+    this.showPoints = !!b;
+    const cb = document.getElementById('show-points');
+    if (cb) cb.checked = this.showPoints;
+    const chk = document.getElementById('ctx-chk-points');
+    if (chk) chk.textContent = this.showPoints ? '✓' : '';
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  setShowLines(b) {
+    this.showLines = !!b;
+    const cb = document.getElementById('show-lines');
+    if (cb) cb.checked = this.showLines;
+    const chk = document.getElementById('ctx-chk-lines');
+    if (chk) chk.textContent = this.showLines ? '✓' : '';
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  setImageFilter(f) {
+    this.imageFilter = String(f);
+    setVal('image-filter', this.imageFilter);
+    const picker = document.getElementById('filter-color');
+    if (picker) picker.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
+    setRadioGroup('ctxFilter', this.imageFilter);
+    const tintRow = document.getElementById('ctx-tint-row');
+    if (tintRow) tintRow.classList.toggle('ctx-tint-visible', this.imageFilter === 'custom');
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  setFilterColor(v, { persist = true } = {}) {
+    this.filterColor = String(v);
+    setVal('filter-color', this.filterColor);
+    const ctxTint = document.getElementById('ctx-tint-color');
+    if (ctxTint) ctxTint.value = this.filterColor;
+    this.renderer.redraw();
+    if (persist) this.storage.save();
+    return this;
+  }
+
+  setPageSize(size) {
+    const n = normalizePageSize(size);
+    if (!n) throw new Error(`Unknown page size: ${size} (use 'A3', 'A4', or 'custom')`);
+    this.pageSize = n;
+    setVal('page-size', n);
+    const cg = document.getElementById('custom-size-group');
+    if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
+    this.coordTable.update();
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  // Width/height are stored in cm (the model unit); the input is shown in the active
+  // display unit. Pass cm from the UI handler (it converts the typed value first).
+  setCustomPageWidth(cm) {
+    const v = parseFloat(cm);
+    if (Number.isNaN(v)) return this;
+    this.customPageWidth = v;
+    setVal('custom-page-width', cmToUnit(v, this.unit));
+    this.coordTable.update();
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  setCustomPageHeight(cm) {
+    const v = parseFloat(cm);
+    if (Number.isNaN(v)) return this;
+    this.customPageHeight = v;
+    setVal('custom-page-height', cmToUnit(v, this.unit));
+    this.coordTable.update();
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  setUnit(u) {
+    this.unit = u === 'in' ? 'in' : 'cm';
+    setVal('unit-select', this.unit);
+    this.applyUnitToUI();
+    this.coordTable.update();
+    this.updateCoordStatus();
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  // ── Formula controls (shared) ──
+  #syncFormulaUI(checked) {
+    const fi = document.getElementById('formula-inputs');
+    if (fi) fi.style.display = checked ? 'inline-flex' : 'none';
+    const ctxFi = document.getElementById('ctx-formula-inputs');
+    if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
+    const ctxCb = document.getElementById('ctx-allow-formulas');
+    if (ctxCb) ctxCb.checked = checked;
+  }
+
+  #showFormulaError(hasError) {
+    const el = document.getElementById('formula-error');
+    const ctxEl = document.getElementById('ctx-formula-error');
+    if (el) el.style.display = hasError ? 'inline' : 'none';
+    if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
+  }
+
+  #refreshFormulaCoords() {
+    const li = this.coordLineIdx;
+    const pts = li === -1
+      ? (this.currentLine ? this.currentLine.points : null)
+      : (this.lines[li] ? this.lines[li].points : null);
+    this.coordTable.update(pts, li);
+  }
+
+  setAllowFormulas(b) {
+    this.allowFormulas = !!b;
+    const cb = document.getElementById('allow-formulas');
+    if (cb) cb.checked = this.allowFormulas;
+    this.#syncFormulaUI(this.allowFormulas);
+    if (!this.allowFormulas) {
+      this.formulaX = '';
+      this.formulaY = '';
+      this.#showFormulaError(false);
+      setVal('formula-x', '');
+      setVal('formula-y', '');
+    }
+    this.#refreshFormulaCoords();
+    this.storage.save();
+    return this;
+  }
+
+  // Set the x or y coordinate transform. Throws on an invalid expression so the
+  // console surfaces it; the UI handler catches and shows the inline error instead.
+  setFormula(axis, expr) {
+    const a = axis === 'y' ? 'y' : 'x';
+    const v = String(expr ?? '').trim();
+    if (v && !this.formula.validate(v, a)) throw new Error(`Invalid ${a} formula: ${expr}`);
+    if (a === 'x') this.formulaX = v; else this.formulaY = v;
+    setVal(`formula-${a}`, v);
+    setVal(`ctx-formula-${a}`, v);
+    this.#showFormulaError(false);
+    this.#refreshFormulaCoords();
+    this.storage.save();
+    return this;
+  }
+
+  // Toggle one tooltip section: key ∈ 'enabled' | 'page' | 'screen' | 'coords'.
+  setTooltipOption(key, on) {
+    const propMap = { enabled: 'tooltipEnabled', page: 'tooltipShowPage', screen: 'tooltipShowScreen', coords: 'tooltipShowCoords' };
+    const idMap = { enabled: 'ctx-tt-enabled', page: 'ctx-tt-page', screen: 'ctx-tt-screen', coords: 'ctx-tt-coords' };
+    const prop = propMap[key];
+    if (!prop) throw new Error(`Unknown tooltip option: ${key}`);
+    this[prop] = !!on;
+    const el = document.getElementById(idMap[key]);
+    if (el) el.checked = !!on;
+    this.storage.save();
+    try { this.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
+    return this;
+  }
+
+  // Set one "visual default" colour (shared by the visuals modal + console settings).
+  // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'.
+  setVisualColor(key, value) {
+    const propMap = { fill: 'defaultFillColor', selGlow: 'selGlowColor', hoverRing: 'hoverRingColor', focusRing: 'focusRingColor' };
+    const idMap = { fill: 'vs-fill', selGlow: 'vs-sel-glow', hoverRing: 'vs-hover-ring', focusRing: 'vs-focus-ring' };
+    const prop = propMap[key];
+    if (!prop) throw new Error(`Unknown visual colour: ${key}`);
+    this[prop] = String(value);
+    setVal(idMap[key], this[prop]);
+    this.renderer.redraw();
+    this.storage.save();
+    return this;
+  }
+
+  // ── Point / line mutation (shared with the coord table + console) ──
+  // Set one point's x or y in crop-local pixels. lineIdx === -1 targets the
+  // in-progress currentLine (mirrors the coord table's target resolution).
+  setPointCoord(lineIdx, ptIdx, axis, valuePx) {
+    const line = lineIdx === -1 ? this.currentLine : this.lines[lineIdx];
+    if (!line || !line.points[ptIdx] || (axis !== 'x' && axis !== 'y')) return this;
+    const v = Number(valuePx);
+    if (!Number.isFinite(v)) return this;
+    line.points[ptIdx][axis] = v;
+    this.saveHistory();
+    this.renderer.redraw();
+    this.coordTable.update(line.points, lineIdx);
+    return this;
+  }
+
+  // Remove one point; if that empties a committed line, drop the line too. Keeps the
+  // coord-table focus/active-line state consistent. Shared by the coord table UI and
+  // the console (Point.remove / Line.remove).
+  removePoint(lineIdx, ptIdx) {
+    const line = lineIdx === -1 ? this.currentLine : this.lines[lineIdx];
+    if (!line || !line.points[ptIdx]) return this;
+    line.points.splice(ptIdx, 1);
+    if (line.points.length === 0 && lineIdx !== -1) {
+      this.lines.splice(lineIdx, 1);
+      if (this.selectedLineIdx === lineIdx) this.deselectLine(false);
+      this.coordLineIdx = -1;
+      this.focusedPtIdx = -1;
+      this.coordTable.update(null);
+    } else {
+      if (this.focusedPtIdx >= line.points.length) this.focusedPtIdx = line.points.length - 1;
+      this.coordTable.update(line.points, lineIdx);
+    }
+    this.saveHistory();
+    this.renderer.redraw();
+    this.updateButtons();
+    return this;
+  }
+
+  // Remove an entire committed line by index.
+  removeLine(idx) {
+    if (idx < 0 || idx >= this.lines.length) return this;
+    this.lines.splice(idx, 1);
+    // Keep the selection + coord-table target consistent with the now-shifted indices:
+    // drop them if they pointed at the removed line, else shift down past it.
+    if (this.selectedLineIdx === idx) this.deselectLine(false);
+    else if (this.selectedLineIdx > idx) this.selectedLineIdx -= 1;
+    if (this.coordLineIdx === idx) { this.coordLineIdx = -1; this.focusedPtIdx = -1; }
+    else if (this.coordLineIdx > idx) this.coordLineIdx -= 1;
+    this.saveHistory();
+    this.renderer.redraw();
+    this.updateButtons();
+    const target = this.coordLineIdx >= 0 ? this.lines[this.coordLineIdx] : null;
+    this.coordTable.update(target ? target.points : null, this.coordLineIdx);
+    return this;
+  }
+
   renewProject(id) {
     const meta = this.storage.store.renew(id);
     if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     return meta;
+  }
+
+  // Close a project's editor (without deleting the saved project). If it's active in
+  // THIS tab, drop to a blank editor; if it's open in ANOTHER tab, ask that tab to do
+  // the same via a CLOSE broadcast. `fully` also closes this browser tab/window
+  // (best-effort — only script-opened windows can self-close).
+  closeProject(id, { fully = false } = {}) {
+    if (id != null && id === this.activeProjectId) this.newEditor();
+    else if (id != null) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.CLOSE });
+    if (fully) { try { window.close(); } catch { /* not closeable */ } }
+    return this;
   }
 
   // Rename a project. The registry meta is the source of truth for the projects
@@ -2491,8 +2826,23 @@ export class DrawingApp {
   renameProject(id, name) {
     const clean = String(name || '').trim();
     if (!clean) return null;
+    // Names must be unique across projects. The UI surfaces null as "kept old name";
+    // the console's Project.name setter checks store.nameExists() first to throw.
+    if (this.storage.store.nameExists(clean, id)) {
+      notify(`A project named “${clean}” already exists`, 'fail');
+      return null;
+    }
     const meta = this.storage.store.rename(id, clean);
-    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    if (meta) {
+      // The project name is THE name: keep the working/download name (imageBaseName)
+      // in lockstep for the active project, no matter which surface renamed it
+      // (topbar, projects list, links modal, console). No separate image name to track.
+      if (id === this.activeProjectId) {
+        this.imageBaseName = clean;
+        this.updateProjectTitle();   // refresh tab title + topbar field
+      }
+      this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    }
     return meta;
   }
 
@@ -2549,6 +2899,13 @@ export class DrawingApp {
       this.tabs.reportActive(null);
       this.updateButtons();
       notify('All projects were cleared in another tab', 'info');
+      return;
+    }
+    if (action === PROJECT_ACTION.CLOSE && id === this.activeProjectId) {
+      this.storage.newTemporary();
+      this.tabs.reportActive(null);
+      this.updateButtons();
+      notify('This project was closed from another tab', 'info');
       return;
     }
     if (action === PROJECT_ACTION.UPDATED && id === this.activeProjectId && this.#isIdle())

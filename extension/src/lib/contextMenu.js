@@ -7,6 +7,9 @@
 //      native context, so these start hidden and the worker reveals them via the
 //      probe. Cost: an update race can land one click late right after the worker wakes.
 export const MENU = {
+  // Explicit "Stencil" parent so the submenu is labelled "Stencil" (not the extension
+  // name Chrome auto-groups under). With a single top-level item Chrome shows it directly.
+  root: 'stencil-root',
   // Image actions (on <img>).
   open: 'stencil-open',
   openResume: 'stencil-open-resume',
@@ -77,40 +80,44 @@ const VIDEO_CONTEXTS = ['video'];
 // them together when the probe finds a URL.
 const ALL_CONTEXTS = ['all'];
 
-// Flat list passed straight to chrome.contextMenus.create (in order). No explicit
-// "Stencil" parent — Chrome auto-groups these; only the Preview group is a submenu.
+// Flat list passed straight to chrome.contextMenus.create (in order). Everything hangs
+// off one explicit "Stencil" parent (created first), so the submenu reads "Stencil"
+// rather than the auto-grouped extension name; the video Preview group nests one deeper.
 export const MENU_ITEMS = [
+  // The single top-level parent — Chrome shows it directly (and hides it when none of
+  // its children match the current context, exactly like its auto-group would).
+  { id: MENU.root, title: 'Stencil', contexts: ALL_CONTEXTS },
   // Image: a real <img>.
-  { id: MENU.open, title: '✎ Open image in Stencil editor', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openResume, title: '↩ Resume in existing Stencil editor', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openIncognito, title: '🕶 Open in Stencil (incognito)', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openModal, title: '▣ Open image in Stencil here', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openModalIncognito, title: '▣ Open in Stencil here (incognito)', contexts: IMAGE_CONTEXTS },
-  { id: MENU.crop, title: '✂ Crop image in Stencil…', contexts: IMAGE_CONTEXTS },
+  { id: MENU.open, parentId: MENU.root, title: '✎ Open image in Stencil editor', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openResume, parentId: MENU.root, title: '↩ Resume in existing Stencil editor', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openIncognito, parentId: MENU.root, title: '🕶 Open in Stencil (incognito)', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: IMAGE_CONTEXTS },
+  { id: MENU.crop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: IMAGE_CONTEXTS },
   // Video: act on the CURRENT FRAME.
-  { id: MENU.frameOpen, title: '✎ Open current frame in editor', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameOpenIncognito, title: '🕶 Current frame in editor (incognito)', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameModal, title: '▣ Open current frame in editor here', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameModalIncognito, title: '▣ Current frame here (incognito)', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameCrop, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameOpen, parentId: MENU.root, title: '✎ Open current frame in editor', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameOpenIncognito, parentId: MENU.root, title: '🕶 Current frame in editor (incognito)', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameModal, parentId: MENU.root, title: '▣ Open current frame in editor here', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameModalIncognito, parentId: MENU.root, title: '▣ Current frame here (incognito)', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameCrop, parentId: MENU.root, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
   // Video: the poster / preview image — a genuine sub-category, kept as a submenu.
   // Default-hidden: the worker reveals it (PREVIEW_ITEMS) only when the probed video
   // actually has a poster, so posterless videos don't show a dead "no-op" submenu.
-  { id: MENU.previewParent, title: 'Video preview image', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.previewParent, parentId: MENU.root, title: 'Video preview image', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewTab, parentId: MENU.previewParent, title: '↗ Open preview in a new tab', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewOpen, parentId: MENU.previewParent, title: '✎ Open preview in editor', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewOpenIncognito, parentId: MENU.previewParent, title: '🕶 Preview in editor (incognito)', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewModal, parentId: MENU.previewParent, title: '▣ Open preview in editor here', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewModalIncognito, parentId: MENU.previewParent, title: '▣ Preview here (incognito)', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewCrop, parentId: MENU.previewParent, title: '✂ Crop preview…', contexts: VIDEO_CONTEXTS, visible: false },
-  // Background-image / image-link group: top-level 'all'-context items, default-hidden.
+  // Background-image / image-link group: 'all'-context items, default-hidden.
   // The worker reveals this group (only) for background/linked images under the cursor.
-  { id: MENU.bgOpen, title: '✎ Open image in Stencil editor', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenResume, title: '↩ Resume in existing Stencil editor', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenIncognito, title: '🕶 Open in Stencil (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenModal, title: '▣ Open image in Stencil here', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenModalIncognito, title: '▣ Open in Stencil here (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgCrop, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false }
+  { id: MENU.bgOpen, parentId: MENU.root, title: '✎ Open image in Stencil editor', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenResume, parentId: MENU.root, title: '↩ Resume in existing Stencil editor', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenIncognito, parentId: MENU.root, title: '🕶 Open in Stencil (incognito)', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false }
 ];
 
 // The background/link items the worker reveals/hides together. Exported so the SW

@@ -9,7 +9,7 @@ export const DEFAULT_PAGE = 'A3';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true });
+  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, exposeWindowStencil: false });
   return {
     editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
     page: s.page || DEFAULT_PAGE,
@@ -18,7 +18,10 @@ export const getSettings = async () => {
     // Whether the popup sorts already-opened images to the top of the list
     // (default on). Toggled live from the popup, persisted here so it follows the
     // user. Independent of markOpened, but a no-op when badging is off.
-    openedFirst: s.openedFirst !== false
+    openedFirst: s.openedFirst !== false,
+    // Whether to inject a page-global `window.stencil` scripting API into every page
+    // (default OFF — it touches every page's main world, so it's strictly opt-in).
+    exposeWindowStencil: s.exposeWindowStencil === true
   };
 };
 

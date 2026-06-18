@@ -119,10 +119,11 @@ export class StencilVisualsModal extends StencilElement {
       setRadioGroup('ctxLineStyle', e.target.value);
       app.storage.save();
     });
-    els.fill.addEventListener('input', e => { app.defaultFillColor = e.target.value; app.storage.save(); });
-    els.selGlow.addEventListener('input', e => { app.selGlowColor = e.target.value; app.renderer.redraw(); app.storage.save(); });
-    els.hoverRing.addEventListener('input', e => { app.hoverRingColor = e.target.value; app.renderer.redraw(); app.storage.save(); });
-    els.focusRing.addEventListener('input', e => { app.focusRingColor = e.target.value; app.renderer.redraw(); app.storage.save(); });
+    // Shared core setter (also used by the console: stencil.settings.fillColor, etc.)
+    els.fill.addEventListener('input', e => app.setVisualColor('fill', e.target.value));
+    els.selGlow.addEventListener('input', e => app.setVisualColor('selGlow', e.target.value));
+    els.hoverRing.addEventListener('input', e => app.setVisualColor('hoverRing', e.target.value));
+    els.focusRing.addEventListener('input', e => app.setVisualColor('focusRing', e.target.value));
 
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);

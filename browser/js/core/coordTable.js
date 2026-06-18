@@ -66,18 +66,15 @@ export class CoordTable {
 
           const commit = () => {
             const newVal = parseInt(inp.value, 10);
+            // Shared core path (also used by the console); it re-renders the table.
             if (!isNaN(newVal)) {
-              const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
-              if (line) {
-                line.points[index][axis] = newVal;
-                this.app.saveHistory();
-                this.app.renderer.redraw();
-              }
+              this.app.setPointCoord(lineIdx, index, axis, newVal);
+            } else {
+              this.update(
+                lineIdx === -1 ? (this.app.currentLine ? this.app.currentLine.points : null) : (this.app.lines[lineIdx] ? this.app.lines[lineIdx].points : null),
+                lineIdx,
+              );
             }
-            this.update(
-              lineIdx === -1 ? (this.app.currentLine ? this.app.currentLine.points : null) : (this.app.lines[lineIdx] ? this.app.lines[lineIdx].points : null),
-              lineIdx,
-            );
           };
           inp.addEventListener('blur', commit);
           inp.addEventListener('keydown', ev => {
@@ -101,25 +98,10 @@ export class CoordTable {
       makeEditable(row.querySelector('.cell-px-x'), 'x');
       makeEditable(row.querySelector('.cell-px-y'), 'y');
 
-      // Delete point button
+      // Delete point button → shared core path (also used by the console).
       row.querySelector('.del-pt-btn').addEventListener('click', e => {
         e.stopPropagation();
-        const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
-        if (!line) return;
-        line.points.splice(index, 1);
-        if (line.points.length === 0 && lineIdx !== -1) {
-          this.app.lines.splice(lineIdx, 1);
-          if (this.app.selectedLineIdx === lineIdx) this.app.deselectLine(false);
-          this.app.coordLineIdx = -1;
-          this.app.focusedPtIdx = -1;
-          this.update(null);
-        } else {
-          if (this.app.focusedPtIdx >= line.points.length) this.app.focusedPtIdx = line.points.length - 1;
-          this.update(line.points, lineIdx);
-        }
-        this.app.saveHistory();
-        this.app.renderer.redraw();
-        this.app.updateButtons();
+        this.app.removePoint(lineIdx, index);
       });
 
       this.app.coordinatesBody.appendChild(row);

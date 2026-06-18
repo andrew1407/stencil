@@ -56,6 +56,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs) => {
   const frame = wrap.querySelector('iframe');
 
   const openTab = () => {
+    // Literal MSG.OPEN_TAB (lib/messages.js): this fn is injected via
+    // executeScript({func}) — serialized, so it can't import. Keep in sync by hand.
     try { chrome.runtime.sendMessage({ type: 'stencil-open-tab', url }); }
     catch { window.open(url, '_blank'); }
   };
@@ -71,7 +73,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs) => {
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onMsg = (e) => {
     const d = e.data;
-    if (!d || d.source !== 'stencil-modal') return;
+    if (!d || d.source !== 'stencil-modal') return;   // literal SRC.MODAL (injected fn — can't import)
     if (d.type === 'ready') {
       clearTimeout(timer);
       const l = root.querySelector('.loading');

@@ -158,6 +158,12 @@ const populateFormats = () => {
       updateToggleLabel();
       applyFilters();
     }));
+  // Re-apply persisted format toggles (checkboxes are rebuilt fresh — all checked — on
+  // every scan, so restore the user's OFF formats here). New formats default to on.
+  if (persistedFilters && Array.isArray(persistedFilters.disabledFormats)) {
+    const off = new Set(persistedFilters.disabledFormats);
+    box.querySelectorAll('input').forEach(cb => { if (off.has(cb.value)) cb.checked = false; });
+  }
   updateToggleLabel();
 };
 
@@ -193,8 +199,38 @@ const renderCount = () => {
   countEl.textContent = state.all.length ? `(${state.filtered.length}/${state.all.length})` : '';
 };
 
+// Persist the FILTER controls (search / formats / sizes / include toggles) so they
+// survive the popup closing and reopening (the popup's DOM is rebuilt each open). The
+// mark-opened / opened-first / highlight toggles persist on their own elsewhere.
+const FILTERS_KEY = 'popupFilters';
+let persistedFilters = null;
+const loadPersistedFilters = async () => {
+  try { persistedFilters = (await chrome.storage.local.get(FILTERS_KEY))[FILTERS_KEY] || null; }
+  catch { persistedFilters = null; }
+};
+const saveFilters = () => {
+  const f = readFilters();
+  persistedFilters = {
+    search: f.search, minW: f.minW, maxW: f.maxW, minH: f.minH, maxH: f.maxH,
+    includeImg: f.includeImg, includeBg: f.includeBg, includeVideo: f.includeVideo, includePosters: f.includePosters,
+    disabledFormats: formatCheckboxes().filter(c => !c.checked).map(c => c.value),   // store the OFF ones (new formats default on)
+  };
+  try { chrome.storage.local.set({ [FILTERS_KEY]: persistedFilters }); } catch { /* storage unavailable */ }
+};
+// Restore the static controls from persisted state (format checkboxes are restored in
+// populateFormats, since they're rebuilt on every scan).
+const restoreStaticFilters = () => {
+  if (!persistedFilters) return;
+  const f = persistedFilters;
+  const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+  setV('f-search', f.search); setV('f-minw', f.minW); setV('f-maxw', f.maxW); setV('f-minh', f.minH); setV('f-maxh', f.maxH);
+  const setC = (id, v) => { const el = document.getElementById(id); if (el && typeof v === 'boolean') el.checked = v; };
+  setC('f-img', f.includeImg); setC('f-bg', f.includeBg); setC('f-video', f.includeVideo); setC('f-poster', f.includePosters);
+};
+
 const applyFilters = () => {
   filters = readFilters();
+  saveFilters();                         // persist the current filter state on every change
   state.filtered = state.all.filter(it => passesFilters(it, filters));
   // Float already-opened images to the top when enabled. Array.sort is stable, so
   // images keep their scan order within each group. A no-op when badging is off
@@ -737,4 +773,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-scan();
+// Load the persisted filters first, restore the static controls, then scan (populateFormats
+// restores the format toggles from the same persisted state).
+loadPersistedFilters().then(() => { restoreStaticFilters(); scan(); });

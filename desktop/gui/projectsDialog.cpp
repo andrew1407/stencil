@@ -2,13 +2,15 @@
 #include "core/projectsStore.hpp"
 #include <QBrush>
 #include <QColor>
+#include <QDialogButtonBox>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <optional>
 
 namespace stencil::gui {
 
@@ -25,6 +27,47 @@ namespace stencil::gui {
       if (days < 0) days = 0;
       return days <= 1 ? QString("expires in 1 day")
                        : QString("expires in %1 days").arg(days);
+    }
+
+    // Modal name prompt with live validation (mirrors the browser's validated inline
+    // rename): the ✓ (OK) button is enabled only when the trimmed name is non-empty,
+    // ≤80 chars, and unique (excluding `exceptId`); its tooltip shows the reason when
+    // disabled. Returns the accepted name, or nullopt on cancel.
+    std::optional<QString> promptValidatedName(QWidget* parent, const QString& title,
+                                               const QString& initial,
+                                               const QString& exceptId,
+                                               const std::vector<Project>& projects) {
+      core::ProjectsStore store;
+      std::vector<core::ProjectMeta> metas;
+      for (const auto& p : projects) metas.push_back(p.meta);
+      store.load(metas);
+
+      QDialog d(parent);
+      d.setWindowTitle(title);
+      auto* lay = new QVBoxLayout(&d);
+      lay->addWidget(new QLabel("Project name:", &d));
+      auto* edit = new QLineEdit(initial, &d);
+      edit->selectAll();
+      lay->addWidget(edit);
+      auto* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+      auto* okBtn = box->button(QDialogButtonBox::Ok);
+      okBtn->setText(QString::fromUtf8("✓ Save"));
+      box->button(QDialogButtonBox::Cancel)->setText(QString::fromUtf8("✗ Cancel"));
+      lay->addWidget(box);
+
+      auto revalidate = [&]() {
+        const auto res =
+            store.validateName(edit->text().trimmed().toStdString(), exceptId.toStdString());
+        okBtn->setEnabled(res.ok);
+        okBtn->setToolTip(res.ok ? QStringLiteral("Save name")
+                                 : QString::fromStdString(res.reason));
+      };
+      QObject::connect(edit, &QLineEdit::textChanged, &d, [&](const QString&) { revalidate(); });
+      QObject::connect(box, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+      QObject::connect(box, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+      revalidate();
+      if (d.exec() != QDialog::Accepted) return std::nullopt;
+      return edit->text().trimmed();
     }
   }  // namespace
 
@@ -149,13 +192,10 @@ namespace stencil::gui {
     const QString old = cur != projects_.end()
                             ? QString::fromStdString(cur->meta.name)
                             : QString();
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "Rename Project",
-                                               "Project name:", QLineEdit::Normal,
-                                               old, &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
+    const auto name = promptValidatedName(this, "Rename Project", old, id, projects_);
+    if (!name) return;
     selectedId_ = id;
-    newName_ = name.trimmed();
+    newName_ = *name;
     action_ = Action::Rename;
     accept();
   }
@@ -174,12 +214,14 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::createNew() {
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "New Project",
-                                               "Project name:", QLineEdit::Normal,
-                                               "Untitled", &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-    newName_ = name.trimmed();
+    core::ProjectsStore store;
+    std::vector<core::ProjectMeta> metas;
+    for (const auto& p : projects_) metas.push_back(p.meta);
+    store.load(metas);
+    const QString seed = QString::fromStdString(store.defaultName());
+    const auto name = promptValidatedName(this, "New Project", seed, QString(), projects_);
+    if (!name) return;
+    newName_ = *name;
     action_ = Action::New;
     accept();
   }

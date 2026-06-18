@@ -8,13 +8,14 @@ import {
   roundRect, isAlbumOrientation, pageDims
 } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
+import { SRC } from '../lib/messages.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
 // host overlay when we booted (so it keeps the modal) and when to close.
 const FRAMED = window.parent && window.parent !== window;
 
 const postToHost = (type) => {
-  if (FRAMED) window.parent.postMessage({ source: 'stencil-modal', type }, '*');
+  if (FRAMED) window.parent.postMessage({ source: SRC.MODAL, type }, '*');
 };
 
 const viewport = document.getElementById('viewport');

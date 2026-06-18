@@ -98,9 +98,85 @@ src/
     cropGeometry.js  port of the editor's crop math (kept behaviour-identical)
     imageScan.js     the page scanner (injected via chrome.scripting)
     filters.js       format / search / size filtering (pure)
+    messages.js      cross-context message `type`/`source` constants (no magic strings)
     theme.css        shared dark-theme palette (linked by popup/crop/options)
 tests/                   node:test unit tests for the pure modules
 ```
+
+## Page scripting API (`window.stencil`, opt-in)
+
+Off by default. Enable **Options → Page scripting API** to inject a `window.stencil`
+object into every page's main world, mirroring the popup/context-menu actions for
+scripting from the DevTools console. Entries hold the **live DOM element**.
+
+```js
+// Lists (these honor the live filters below):
+stencil.items;                     // every <img>/<svg image>/<video>/background on the page
+stencil.images;                    // just <img> + inline <svg><image>
+stencil.backgrounds;               // just CSS background-image elements
+stencil.videos;                    // just the <video> elements
+stencil.posters;                   // the poster image of every <video> that has one
+
+// ── Live filters (mirror — and stay in two-way sync with — the popup's controls) ──
+stencil.formats;                   // a per-format toggle map: { png: true, jpg: true, mp4: true }
+stencil.formats.png = false;       // …turn a format off (Object.keys lists those present)
+stencil.kinds;                     // a per-category toggle map: { image, background, video, poster }
+stencil.kinds.video = false;       // …hide a whole category (the popup's include checkboxes)
+stencil.searchText = 'logo';       // name/URL substring filter
+stencil.minWidth = 200;            // size bounds: minWidth/maxWidth/minHeight/maxHeight (or null)
+stencil.maxHeight = 1000;
+stencil.highlightOnPage = true;    // outline the (filtered) images on the page (alias: highlightOnImage)
+stencil.resetFilters();            // clear all filters + the highlight → the facade
+
+// One-off queries (ignore the live filters above):
+stencil.search('logo');            // entries whose name or URL contains "logo"
+stencil.format('png');             // entries of a given format ('png' or '.png')
+stencil.size({ minW: 200, minH: 200 });  // entries within pixel bounds (unknown sizes pass)
+
+const e = stencil.items[0];
+e.element; e.kind;                 // live DOM node; 'image' | 'background' | 'video'
+e.url;                             // the image/video/background URL
+e.name;                            // a derived "file.ext" name
+e.format;                          // 'png' | 'jpg' | 'webp' | … ('' if undetectable)
+e.width; e.height;                 // intrinsic px where known (0 if not, e.g. unloaded bg)
+e.poster;                          // true for a stencil.posters entry
+e.open();                          // → open in the editor (in-page modal); returns the facade
+e.open({ newTab: true, incognito: true });   // open opts: newTab, incognito, poster, frame
+e.crop();                          // → quick-crop tool
+e.crop({ album: true });           // crop opts: album, poster
+
+// Or act on a raw element / URL directly (throws if it isn't a loadable image):
+stencil.open(document.querySelector('video'), { poster: true });
+stencil.open('https://example.com/pic.png', { newTab: true });
+stencil.crop('https://example.com/pic.png', { album: true });
+
+stencil.enabled = false;           // turn the whole feature back off (get/set)
+```
+
+The filters and the highlight **stay in two-way sync with the popup**: the filters share the
+popup's persisted `chrome.storage.local` state (the MAIN-world API can't touch `chrome.*`,
+so the ISOLATED `content/pageApiBridge.js` proxies storage for it), and the highlight shares
+the popup's `<style id="stencil-hl-style">` element. So `stencil.formats.png = false` or
+`stencil.kinds.video = false` here is reflected in the popup's checkboxes (and vice-versa),
+and `stencil.highlightOnPage = true` ticks the popup's highlight box.
+
+The **Options-page settings** are a different layer: `editorUrl`, default page size,
+**Mark already-opened images**, **Sort opened first** are the extension's cross-page
+preferences (also in `chrome.storage`, behind the service worker) and are *not* part of this
+page API — there's no `stencil.markOpened`, because this surface is about the images on the
+*current page*. Set those in the Options page (or the popup's own toggles).
+
+Like the editor's `window.stencil`, this object is **hard-guarded**: every method, read-only
+getter, and scanned entry rejects reassignment (`stencil.open = 0` / `e.url = 'x'` throw),
+so only the documented setters (`enabled`, the filter controls) mutate anything. It's also
+non-enumerable, so `console.log(stencil)` stays clean while access and autocomplete still work.
+
+Architecture: a MAIN-world script (`content/pageApiMain.js`) defines the API and
+scans the DOM; since the main world has no `chrome.*`, action requests are
+postMessage'd to an ISOLATED bridge (`content/pageApiBridge.js`) that relays them to
+the service worker, which reuses the same `openEditorTab` / `launchEditorModal` /
+`launchCrop` hand-off as the popup. The pure scan helpers live in `lib/pageImages.js`
+(unit-tested); the MAIN-world file mirrors them (it can't import modules).
 
 ## Tests
 

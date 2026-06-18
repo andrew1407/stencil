@@ -2,45 +2,46 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../src/lib/contextMenu.js';
 
-test('MENU_ITEMS: no explicit Stencil parent — items sit at top level; Preview is the only submenu', () => {
-  // We create NO "Stencil" parent: Chrome auto-groups an extension's multiple top-level
-  // items under its own name, so an own parent only double-nested. The lone submenu is
-  // the video Preview group.
-  const withChildren = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))];
-  assert.deepEqual(withChildren, [MENU.previewParent]);
-  // The Preview submenu nests its own 6 action items.
-  const preview = MENU_ITEMS.filter(i => i.parentId === MENU.previewParent);
-  assert.equal(preview.length, 6);
-  assert.ok(MENU_ITEMS.some(i => i.id === MENU.previewParent && !i.parentId));
+test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests one deeper', () => {
+  // A single top-level parent (id=root, title "Stencil") so the submenu reads "Stencil"
+  // instead of the auto-grouped extension name. Everything else hangs off it; only the
+  // video Preview group nests a second level.
+  const root = MENU_ITEMS.find(i => i.id === MENU.root);
+  assert.ok(root && root.title === 'Stencil' && !root.parentId);
+  // Exactly one item has no parent: the root.
+  assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.root]);
+  // Distinct parents used: the root and the Preview submenu parent.
+  const parents = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))].sort();
+  assert.deepEqual(parents, [MENU.previewParent, MENU.root].sort());
+  // previewParent hangs off root; its 6 actions hang off it.
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.previewParent).parentId, MENU.root);
+  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.previewParent).length, 6);
 
   // Native items are scoped to native contexts: image actions on <img>, frame + preview
-  // on <video>. None is on 'page'/'all', so they never appear on plain elements (that
-  // was the "shows on every element" regression).
+  // on <video>. None is on 'page'/'all' (only the root carries 'all'), so they never
+  // appear on plain elements (that was the "shows on every element" regression).
   for (const id of [MENU.open, MENU.crop, MENU.openResume])
     assert.deepEqual(MENU_ITEMS.find(i => i.id === id).contexts, ['image']);
   for (const id of [MENU.frameOpen, MENU.frameCrop, MENU.previewParent, MENU.previewOpen])
     assert.deepEqual(MENU_ITEMS.find(i => i.id === id).contexts, ['video']);
-  const native = MENU_ITEMS.filter(i => !i.contexts.includes('all'));
-  assert.ok(native.every(i => !i.contexts.includes('page') && !i.contexts.includes('all')));
 
   // The always-on native items (image actions, video current-frame actions) carry no
-  // `visible` flag. The two dynamically-gated groups DO: the background group and the
-  // video Preview submenu (revealed only when the probed video has a poster).
+  // `visible` flag. The dynamically-gated groups (background + Preview) do.
+  const native = MENU_ITEMS.filter(i => i.id !== MENU.root && !i.contexts.includes('all'));
   const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id));
   assert.ok(nativeAlways.every(i => !('visible' in i)));
   const ids = MENU_ITEMS.map(i => i.id);
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('MENU_ITEMS: dynamic background/link group is top-level on the all-context and every item is default-hidden', () => {
+test('MENU_ITEMS: dynamic background/link group hangs off the Stencil parent on the all-context, default-hidden', () => {
   const bg = MENU_ITEMS.filter(i => DYNAMIC_ITEMS.includes(i.id));
   // 6 image-equivalent actions (open / resume / incognito / 2× modal / crop).
   assert.equal(bg.length, 6);
   assert.equal(DYNAMIC_ITEMS.length, 6);
-  // Each sits at top level (no parent) on the 'all' context so it CAN show on a background div…
-  assert.ok(bg.every(i => !i.parentId && i.contexts.includes('all')));
-  // …but with no parent to inherit hidden state from, EVERY item must carry its own
-  // visible:false, so the worker reveals them one by one.
+  // Each hangs off the root parent on the 'all' context so it CAN show on a background div…
+  assert.ok(bg.every(i => i.parentId === MENU.root && i.contexts.includes('all')));
+  // …and every item carries its own visible:false, so the worker reveals them one by one.
   assert.ok(bg.every(i => i.visible === false));
 });
 

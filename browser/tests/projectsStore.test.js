@@ -48,6 +48,31 @@ test('defaultName increments past existing Untitled indices', () => {
   assert.strictEqual(s.defaultName(), 'Untitled 4');
 });
 
+test('nameExists: case-insensitive, trims, excludes a given id', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'Floor Plan' }), { image: null, layout: {} });
+  s.upsert(meta('b', { name: 'Roof' }), { image: null, layout: {} });
+  assert.strictEqual(s.nameExists('floor plan'), true);     // case-insensitive
+  assert.strictEqual(s.nameExists('  Roof  '), true);       // trims
+  assert.strictEqual(s.nameExists('Basement'), false);
+  // The project being renamed shouldn't collide with its own current name.
+  assert.strictEqual(s.nameExists('Floor Plan', 'a'), false);
+  assert.strictEqual(s.nameExists('Floor Plan', 'b'), true);
+  assert.strictEqual(s.nameExists(''), false);
+});
+
+test('validateName: reports ok + reason for empty / too-long / duplicate', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'Roof' }), { image: null, layout: {} });
+  assert.deepEqual(s.validateName('Floor'), { ok: true, reason: '' });
+  assert.equal(s.validateName('   ').ok, false);
+  assert.match(s.validateName('').reason, /empty/i);
+  assert.equal(s.validateName('x'.repeat(81)).ok, false);
+  assert.equal(s.validateName('roof').ok, false);            // case-insensitive duplicate
+  assert.match(s.validateName('roof').reason, /taken/i);
+  assert.equal(s.validateName('Roof', 'a').ok, true);        // its own name doesn't collide
+});
+
 test('upsert/get/list round-trip, list sorted updatedAt desc', () => {
   const s = new ProjectsStore(makeShim());
   s.upsert(meta('a', { updatedAt: 100 }), { image: 'imgA', layout: { lines: [1] } });

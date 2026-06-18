@@ -200,6 +200,25 @@ namespace stencil::gui {
     // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.
     void createProject(const QString& name);
     void saveToActiveProject();
+
+    // ── Project name surface (window title + toolbar field). Mirrors the browser's
+    // updateProjectTitle + validated inline rename (validateName/nameExists). ──
+    // Reflect the active project's name in the window title and the toolbar field.
+    void updateProjectTitle();
+    // The active project's name, or empty when there is no active saved project.
+    QString activeProjectName() const;
+    // The name used for downloads/exports: the active project name when there is one,
+    // else the image's base name. Keeps the download name in lockstep with the project.
+    QString projectBaseName() const;
+    // Validate a proposed name against the current project set (uses core::validateName).
+    core::ProjectsStore::NameCheck checkProjectName(const QString& name,
+                                                    const QString& exceptId) const;
+    // Validate + rename a project by id; notifies on rejection. Returns true on success.
+    bool renameProjectById(const QString& id, const QString& name);
+    // Live-update the ✓/✗ visibility + ✓ enabled-state/tooltip as the field is edited.
+    void refreshProjectNameButtons();
+    void commitProjectName();
+    void cancelProjectName();
     void openInfo();
     void openShortcuts();
     void updateStatusIdle();
@@ -223,6 +242,12 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
+
+    // ── Project-name field (toolbar) + its inline-rename ✓/✗ buttons. Mirrors the
+    // browser topbar name field: shows the active project name, validated inline. ──
+    QLineEdit* projectName_ = nullptr;
+    QToolButton* projectNameAccept_ = nullptr;
+    QToolButton* projectNameCancel_ = nullptr;
 
     // ── inline toolbar widget groups (S10 custom page, S11 formulas) ──
     // The QWidgetAction handle (…Act_) is toggled, not the widget, so the

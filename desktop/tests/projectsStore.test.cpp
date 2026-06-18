@@ -121,6 +121,30 @@ TEST_CASE("defaultName is one past the highest Untitled index") {
   CHECK(s.defaultName() == "Untitled 4");
 }
 
+TEST_CASE("nameExists: case-insensitive, trims, excludes a given id") {
+  ProjectsStore s;
+  s.upsert(mk("a", "Floor Plan", 0), 1);
+  s.upsert(mk("b", "Roof", 0), 2);
+  CHECK(s.nameExists("floor plan"));        // case-insensitive
+  CHECK(s.nameExists("  Roof  "));          // trims
+  CHECK_FALSE(s.nameExists("Basement"));
+  CHECK_FALSE(s.nameExists("Floor Plan", "a"));   // its own name doesn't collide
+  CHECK(s.nameExists("Floor Plan", "b"));
+  CHECK_FALSE(s.nameExists(""));
+}
+
+TEST_CASE("validateName: ok + reason for empty / too-long / duplicate") {
+  ProjectsStore s;
+  s.upsert(mk("a", "Roof", 0), 1);
+  CHECK(s.validateName("Floor").ok);
+  CHECK_FALSE(s.validateName("   ").ok);
+  CHECK(s.validateName("").reason.find("empty") != std::string::npos);
+  CHECK_FALSE(s.validateName(std::string(81, 'x')).ok);
+  CHECK_FALSE(s.validateName("roof").ok);                 // case-insensitive duplicate
+  CHECK(s.validateName("roof").reason.find("taken") != std::string::npos);
+  CHECK(s.validateName("Roof", "a").ok);                  // its own name is fine
+}
+
 TEST_CASE("createId has the expected shape") {
   ProjectsStore s;
   const std::string id = s.createId(0, "abc123");
