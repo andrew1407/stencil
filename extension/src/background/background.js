@@ -3,13 +3,11 @@
 // straight into the editor. Covers real <img> (native 'image' context) and CSS
 // background-image elements (detected by the content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
-import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS } from '../lib/contextMenu.js';
+import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../lib/contextMenu.js';
 
 // Rebuild the menu from scratch. removeAll first so repeated builds don't pile up
-// "duplicate id" errors. Context menus don't survive an extension reload, and the
-// onInstalled/onStartup events don't reliably fire on every reload — so this also
-// runs at top level on each service-worker start (below), guaranteeing the menu
-// reflects the current code whenever the worker evaluates.
+// "duplicate id" errors. onInstalled/onStartup don't reliably fire on every reload,
+// so this also runs at top level on each worker start (below).
 const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
@@ -47,19 +45,15 @@ chrome.runtime.onStartup.addListener(() => {
   injectProbeIntoOpenTabs();
 });
 
-// What the probe last resolved under the cursor, per tab. Usually a ready { url }
-// (background image, or a captured video frame). For a cross-origin video it's the
-// *Promise* of the in-flight screenshot crop — the click handler awaits it so a
-// fast click can't beat the capture. Needed because info.srcUrl is absent
-// (backgrounds) or wrong (a <video>'s media file, not a frame).
+// What the probe last resolved under the cursor, per tab (a ready { url } for a
+// background or captured frame). Needed because info.srcUrl is absent (backgrounds)
+// or wrong (a <video>'s media file, not a frame).
 const lastTargetByTab = new Map();
-// Where the last right-click pointed when it was a <video>, per tab:
-// { frameId, point, rect, dpr }. Lets the click handler recapture the frame in-page
-// at click time (if the recorded one is missing/stale) and screenshot-crop the
-// right rectangle for tainted media.
+// Where the last right-click pointed when it was a <video>, per tab: { frameId,
+// point, rect, dpr }. Lets the click handler recapture in-page and screenshot-crop
+// the right rect for tainted media.
 const lastVideoByTab = new Map();
-// The poster (preview image) URL of the <video> last right-clicked, per tab. Drives
-// the menu's "Video preview image" submenu — independent of the frame capture above.
+// Poster URL of the last right-clicked <video>, per tab — drives the Preview submenu.
 const lastPosterByTab = new Map();
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastTargetByTab.delete(tabId);
@@ -88,13 +82,17 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     lastTargetByTab.set(tabId, (data && data.video && !data.url) ? null : (data || null));
     // The poster (preview image) the probe saw, if any — drives the Preview submenu.
     lastPosterByTab.set(tabId, (data && data.poster) ? data.poster : '');
-    // Reveal the dynamic background-image / image-link items ONLY when the probe found
-    // a plain image URL under the cursor (not a <video>); hide them otherwise so they
-    // never show on a plain element. <img>/<video> use the native-context items instead,
-    // so they leave this group hidden. The native items are unaffected by this toggle.
+    // Reveal the dynamic background/link items only when the probe found a plain image
+    // URL (not a <video>); hide otherwise so they never show on a plain element.
+    // <img>/<video> use native-context items, untouched by this toggle.
     const showBg = !!(data && data.url && !data.video);
     for (const id of DYNAMIC_ITEMS)
       chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
+    // Reveal the video Preview submenu only when the probed <video> has a poster, so a
+    // posterless video no longer shows a submenu whose actions would be a silent no-op.
+    const showPreview = !!(data && data.video && data.poster);
+    for (const id of PREVIEW_ITEMS)
+      chrome.contextMenus.update(id, { visible: showPreview }, () => void chrome.runtime.lastError);
   }
 });
 
@@ -126,13 +124,10 @@ const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
 };
 
-// Capture a <video>'s current frame by canvas readback in the page at click time.
-// Tries a direct draw (same-origin), then a fresh crossOrigin="anonymous" video at
-// the same src seeked to the same time (works when the CDN serves CORS even though
-// the page's own <video> is tainted). Returns:
-//   { frame }  → a JPEG data URL of the current frame (full resolution)
-//   { src, t } → a tainted, non-CORS video; caller re-fetches the bytes
-//   null       → no usable video under the cursor
+// Capture a <video>'s current frame by in-page canvas readback at click time. Tries
+// a direct draw (same-origin), then a fresh crossOrigin="anonymous" video at the same
+// src/time (works when the CDN serves CORS though the page's <video> is tainted).
+// Returns { frame } (JPEG data URL), { src, t } (tainted; caller re-fetches), or null.
 const captureVideoFrameInTab = async (tabId, frameId, point) => {
   if (tabId == null) return null;
   const target = { tabId };
@@ -319,14 +314,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
-  // Video path: treat as video when Chrome says so, the probe saw one, or we have a
-  // probe-captured frame. Unless that frame is already in hand, capture the CURRENT
-  // frame in-page at click time (direct/CORS readback), then re-fetch the bytes, then
-  // fall back to a screenshot crop. A media URL is NEVER used as the image — better
-  // to do nothing than hand the editor a .mp4 it can't decode.
-  // Provenance to record: the image's own URL (or, for a video, its media URL,
-  // captured BEFORE the block below overwrites `src` with a frame data URL) and
-  // the page the menu was used on. recordOpened ignores non-http(s) sources.
+  // Video path (Chrome says so, probe saw one, or we have a captured frame). Unless
+  // the frame is already in hand: capture in-page at click time, then re-fetch bytes,
+  // then screenshot-crop. A media URL is NEVER used as the image (.mp4 won't decode).
+  // sourceUrl is captured here for provenance BEFORE the block below overwrites `src`
+  // with a frame data URL; for a video it's the media URL. recordOpened ignores non-http.
   const sourceUrl = src || '';
   const resource = tab?.url || '';
 

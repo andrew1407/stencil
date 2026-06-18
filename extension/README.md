@@ -20,7 +20,22 @@ including a quick page-aspect crop. Vanilla JS, no build step.
 - **Click** a thumbnail or name → open it in the editor (a quick prompt picks
   incognito vs normal). **Double-click** → quick crop.
 - A `⋯` button opens a floating menu **next to the icon** with: **Download**,
-  **Open in new tab**, **Open in editor**, **Editor (incognito)**, **Crop…**.
+  **Open in new tab**, **Open in editor**, **Editor (incognito)**, **Crop…**. For a
+  **video** the menu also carries a **Video preview image** group (open in a tab,
+  download, open/crop the poster in the editor) — the poster acts independently of
+  the current frame, mirroring the page right-click menu's submenu.
+- The `⇥` header button **docks the same view as a side panel** (Chrome side panel).
+
+**Side panel** (the `⇥` button, or `chrome.sidePanel`) — the identical search /
+filters / image-video list, but **persistent**: it stays open while you work the
+page and **re-scans automatically** when you switch tabs or a page finishes loading.
+Runs the same `popup.js` controller (`src/sidepanel/`).
+
+**DevTools panel** — a **Stencil** tab inside Chrome DevTools (next to Elements,
+Console, …), the same view again but **pinned to the inspected tab** rather than
+the focused one, and **re-scans when that page navigates**. Registered by
+`src/devtools/devtools.js`; the panel page (`src/devtools/panel.html`) reuses the
+same `popup.js` controller, which targets `chrome.devtools.inspectedWindow.tabId`.
 
 **Image right-click menu** — a **Stencil** submenu next to the browser's own
 “Open image / Save image”: *Open in editor*, *Open in Stencil (incognito)*,
@@ -73,6 +88,8 @@ package.json             `npm test` → node --test
 src/
   background/background.js  service worker: image context menu + tab-fallback relay
   popup/    popup.html|css|js   image list, search/filters, floating actions, preview
+  sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + popup.css)
+  devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
   crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
   options/  options.html|js     editor URL, open mode, default page size
   lib/

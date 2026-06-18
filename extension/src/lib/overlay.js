@@ -1,9 +1,8 @@
 // ── In-page modal (quick-crop) ──────────────────────────────────────────────
-// Frames the quick-crop extension page in a centered modal over the current page.
-// Injected into arbitrary pages via chrome.scripting, so it must be fully
-// self-contained — no imports, no module-scope refs. The framed page posts
-// {source:'stencil-modal', type:'ready'|'close'}; if 'ready' never arrives (CSP
-// frame-src / mixed-content blocked the frame), we drop the modal and open a tab.
+// Frames the quick-crop page in a centered modal over the current page. Injected,
+// so self-contained (no imports). The framed page posts {source:'stencil-modal',
+// type:'ready'|'close'}; if 'ready' never arrives (CSP / mixed-content blocked the
+// frame), drop the modal and open a tab instead.
 export const mountStencilModal = (url, title, readyTimeoutMs) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);

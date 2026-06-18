@@ -2,17 +2,11 @@ import { StencilElement, hostTag, define } from './base.js';
 import { notify, detectDesktopOS } from '../utils.js';
 import INSTALL from '../config/installConfig.json' with { type: 'json' };
 // ── Component: install/download affordance (floating, bottom-right) ──
-// A small icon button that, on hover/focus, reveals a menu with two ways to
-// get Stencil:
-//   • Install web app (PWA)  — only shown once the browser fires
-//     `beforeinstallprompt`; clicking replays that deferred event to show the
-//     native install dialog. Hidden once installed / already standalone.
-//   • Download desktop app   — a direct release-zip link picked for the OS the
-//     page is open on (macOS / Windows / Linux), falling back to the releases
-//     page when the platform can't be told. Always available.
-// Download targets live in config/installConfig.json so they're easy to find
-// and bump for new releases. Owns its own markup + behavior, so PWA / download
-// concerns never touch DrawingApp.
+// Hover/focus menu with two ways to get Stencil:
+//   • Install web app (PWA) — shown only after `beforeinstallprompt` fires;
+//     click replays that deferred event. Hidden once installed/standalone.
+//   • Download desktop app — OS-specific release zip, falling back to the
+//     releases page when the platform is unknown. Targets in installConfig.json.
 export class StencilInstall extends StencilElement {
   #deferred = null;
 

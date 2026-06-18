@@ -1,11 +1,9 @@
 import { ProjectsStore, shouldPersist } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
-// The multi-project schema lives in ProjectsStore (pure, DOM-free). This class
-// is the window-side bridge: it builds the layout/payload from live app state,
-// compresses the image, regenerates a thumbnail, and reads payloads back into
-// the DOM. `save()` keeps its name (~40 call sites) and now writes the active
-// project; in temporary mode it is a no-op.
+// Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload
+// from live app state, compresses the image, regenerates a thumbnail, and reads
+// payloads back into the DOM. `save()` writes the active project; no-op in temporary mode.
 export class Storage {
   constructor(app) {
     this.app = app;

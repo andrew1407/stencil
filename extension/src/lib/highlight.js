@@ -1,10 +1,8 @@
 // ── In-page highlight overlay (injected) ─────────────────────────────────────
-// Outlines every element Stencil can grab from (<img>, <svg><image>, CSS
-// background-image incl. ::before/::after), highlights the one under the cursor,
-// and watches the DOM so lazy-loaded content gets outlined too. on=false (or a
-// re-run) tears it all down. Injected via chrome.scripting into the PAGE, so it
-// must be self-contained — no imports, no module-scope refs. Teardown is stashed
-// on window. Returns the count of statically highlighted elements.
+// Outlines every grabbable element (<img>, <svg><image>, CSS background-image),
+// tracks the one under the cursor, and observes the DOM for lazy content. on=false
+// (or a re-run) tears it down. Injected into the page, so self-contained (no imports);
+// teardown is stashed on window. Returns the static-highlight count.
 export const toggleStencilHighlight = (on) => {
   const STYLE_ID = 'stencil-hl-style';
   const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable

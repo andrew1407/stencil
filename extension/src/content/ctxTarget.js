@@ -1,23 +1,15 @@
 // ── Right-click probe (content script) ───────────────────────────────────────
-// Declared on <all_urls> and also injected into already-open tabs by the SW on
-// install/startup. On every contextmenu it resolves what Stencil can grab under
-// the cursor and tells the SW (which the click handler then reads):
-//   • CSS background-image (element or ancestor, incl. ::before/::after) → { url }
-//   • <video> → current frame as a data URL { url }; if cross-origin (tainted
-//     canvas) → a screenshot-crop request { video:true, rect, dpr } instead.
-//   • real <img>/<svg><image> directly under the cursor → null (native 'image'
-//     context + info.srcUrl cover it).
-//   • an <img>/background-image hidden under click-catcher overlays → { url }
-//     found by hit-testing the cursor point.
-// Self-contained (content scripts can't import). The guard stops a double
-// injection (manifest + executeScript) from binding two listeners.
+// On <all_urls> (also injected into open tabs by the SW). On contextmenu it resolves
+// what Stencil can grab under the cursor and messages the SW: background-image,
+// <video> frame (or a screenshot-crop request when the canvas is tainted), or an
+// overlay-buried image. Real <img>/<svg><image> return null (native context covers).
+// Self-contained (no imports); the guard stops double injection binding two listeners.
 (() => {
   if (window.__stencilCtxProbe) return;
   window.__stencilCtxProbe = true;
 
-  // Wake the lazy SW on load so the context menu exists before the first
-  // right-click. The message needs no handling — receiving it evaluates the
-  // worker, which builds the menu at top level.
+  // Wake the lazy SW on load so the menu exists before the first right-click —
+  // receiving the message evaluates the worker, which builds the menu.
   try {
     chrome.runtime.sendMessage({ type: 'stencil-wake' }, () => void chrome.runtime.lastError);
   } catch {
@@ -25,12 +17,10 @@
   }
 
   // ── Poster snapshot ──────────────────────────────────────────────────────
-  // Some players STRIP the <video poster> attribute once playback starts (e.g.
-  // imginn/Instagram), so reading it lazily at right-click / scan time misses it.
-  // Snapshot every video's poster early and stamp it on the element (a non-empty
-  // value is never overwritten by a later empty one), so both this probe and the
-  // popup scan — which share this extension's isolated world — can recover it.
-  // The expando rides on the DOM node and is visible to scanPageForImages.
+  // Some players strip <video poster> once playback starts, so read it lazily and
+  // it's gone. Stamp every video's poster early onto the element (non-empty wins, so
+  // a later empty never clobbers it) where both this probe and the popup scan — same
+  // isolated world — can recover it.
   const STAMP = '__stencilPoster';
   const rememberPoster = (v) => {
     if (v && v.tagName === 'VIDEO' && v.poster) {

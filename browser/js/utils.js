@@ -30,12 +30,10 @@ export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val)
 // Short label for the active unit.
 export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
 
-// Pick the initial display unit from the user's locale. There is no dedicated
-// "measurement system" web API, so we derive the region from the locale tag via
-// Intl.Locale and map it: only the US, Liberia and Myanmar use inches for
-// everyday length — everyone else gets cm. A bare tag like "en" is resolved to
-// its likely region via maximize() (e.g. "en" → US). This only SEEDS the
-// default; a saved/typed preference always overrides it. Never throws.
+// Seed the initial display unit from locale (a saved/typed preference overrides).
+// No "measurement system" web API exists, so derive the region via Intl.Locale
+// (maximize() resolves bare tags like "en" → US); only US/Liberia/Myanmar get
+// inches. Never throws.
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
 export const defaultUnitFromLocale = (
   nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined),
@@ -149,12 +147,9 @@ export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalT
   return false;
 };
 
-// Best-effort desktop OS detection for choosing a download. Returns 'mac',
-// 'windows', or 'linux', or null when it can't be told (mobile / unknown), so
-// the caller can fall back to a generic releases link. Prefers the modern
-// userAgentData.platform hint, falls back to navigator.platform / userAgent.
-// Android matches "Linux" in its UA, so it's excluded explicitly. Safe when
-// nav is undefined (returns null) for Node imports.
+// Best-effort desktop OS for choosing a download: 'mac'/'windows'/'linux', or
+// null when unknown (mobile, Node) so the caller uses a generic releases link.
+// Android matches "Linux" in its UA, so it's excluded explicitly.
 export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return null;
   const uaPlat = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || '';

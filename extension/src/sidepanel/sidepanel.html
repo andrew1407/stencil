@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil — images on this page</title>
   <link rel="stylesheet" href="../lib/theme.css">
-  <link rel="stylesheet" href="popup.css">
+  <!-- Reuse the popup's controls/list styling, then dock it full-height (sidepanel.css). -->
+  <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
   <header>
     <img src="../../icons/icon.svg" alt="" class="logo">
     <h1>Images on this page</h1>
     <span id="count" class="count"></span>
-    <button id="open-sidepanel" class="icon-btn" title="Open as a docked side panel">⇥</button>
     <button id="rescan" class="icon-btn" title="Rescan page">⟳</button>
     <button id="open-options" class="icon-btn" title="Settings">⚙</button>
   </header>
@@ -54,6 +55,7 @@
   <!-- Floating "…" action menu (anchored to the clicked button) -->
   <div id="action-menu" class="action-menu" hidden></div>
 
-  <script type="module" src="popup.js"></script>
+  <!-- The popup controller drives both surfaces; it detects the side panel by path. -->
+  <script type="module" src="../popup/popup.js"></script>
 </body>
 </html>

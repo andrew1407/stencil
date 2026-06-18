@@ -2,21 +2,14 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 
 // ── Component: source/resource links modal ──────────────────────
-// Two jobs, opened from the toolbar 🔗 button (#links-btn):
-//   1. View / edit / open / remove the active project's provenance — the image's
-//      own URL (source) and the web page it came from (resource) — plus a second
-//      entry point for renaming the project.
-//   2. Add an image BY URL: paste a link, preview it (image, or a scrubbable video
-//      whose current frame is captured), optionally tag a resource URL, then load
-//      it through the normal upload path so persistence/promotion behave as usual.
-//
-// The browser is bound by CORS: a cross-origin URL without permissive headers can
-// be previewed (an <img>/<video> renders) but its bytes/frame can't be read — the
-// load then fails with a clear hint to use the extension or desktop app instead.
+// Opened from the toolbar 🔗 button: view/edit a project's provenance (source
+// image URL + originating web page), rename, and add an image BY URL (image or
+// scrubbed video frame) through the normal upload path.
+// CORS caveat: a cross-origin URL without permissive headers previews but its
+// bytes/frame can't be read — load fails with a hint to use extension/desktop.
 
-// Browsers don't expose a video's real frame rate, so frame numbers in the preview
-// are computed against this assumed fps (frame = time × fps). The captured pixels
-// are exact regardless; only the displayed frame index is an approximation.
+// Browsers don't expose a video's real fps, so displayed frame indices use this
+// assumed fps (frame = time × fps); captured pixels are exact regardless.
 const ASSUMED_FPS = 30;
 
 // A best-effort "name.ext" from a URL for the synthetic File handed to the editor.

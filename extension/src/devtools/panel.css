@@ -1,0 +1,8 @@
+/* DevTools-pane overrides for the shared popup styling (popup.css linked first).
+   The popup is a fixed 400×600 floater; the DevTools panel fills whatever pane
+   Chrome gives it, so drop the fixed size and grow to the full viewport. */
+html, body {
+  width: auto;
+  max-height: none;
+  height: 100vh;
+}
