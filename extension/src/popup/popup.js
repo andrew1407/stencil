@@ -1,6 +1,6 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings } from '../lib/stencil.js';
-import { loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
+import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
@@ -379,7 +379,9 @@ const buildMenu = (image) => {
   // matching project, or lets the user pick when several share this image) or to add
   // a fresh numbered copy. Shown first since it's the point of the yellow badge.
   if (isOpened(image)) {
-    const n = image.opened.reduce((a, e) => a + (e.count || 1), 0);
+    // After reconciliation each matched entry carries the live project count for the
+    // source, so they agree — take the max (not a sum, which would multiply duplicates).
+    const n = image.opened.reduce((a, e) => Math.max(a, e.count || 1), 0);
     menuEl.append(
       item('↩', `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
       item('＋', 'Add as new copy', () => sendToEditor(image, false, 'copy')),
@@ -724,5 +726,15 @@ if (IS_SIDE_PANEL) {
   // re-scan when that inspected page navigates to fresh content.
   chrome.devtools.network.onNavigated.addListener(() => scan());
 }
+
+// The ledger can change while a surface is open — most importantly a prune when a
+// project is deleted in the editor (background.js → pruneLedger). Re-annotate the
+// already-scanned images in place so badges drop without a full re-scan. The popup
+// closes on action so this mainly serves the persistent side panel / DevTools panel.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[LEDGER_KEY] && state.all.length) {
+    annotateOpened().then(applyFilters);
+  }
+});
 
 scan();
