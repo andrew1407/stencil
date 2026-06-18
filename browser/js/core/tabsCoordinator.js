@@ -51,6 +51,11 @@ export class TabsCoordinator {
   }
 
   projectsChanged(detail = {}) {
+    // Nudge the Stencil extension's in-page editor bridge (present only when this
+    // editor was opened by the extension) to re-read the registry and prune its
+    // opened-ledger. Detail-free — the bridge reads localStorage itself, so no
+    // project data crosses — and a no-op when no extension is listening.
+    try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch {}
     if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
     if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });
   }

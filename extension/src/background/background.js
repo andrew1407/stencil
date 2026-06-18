@@ -4,6 +4,7 @@
 // background-image elements (detected by the content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../lib/contextMenu.js';
+import { pruneLedger } from '../lib/ledger.js';
 
 // Rebuild the menu from scratch. removeAll first so repeated builds don't pile up
 // "duplicate id" errors. onInstalled/onStartup don't reliably fire on every reload,
@@ -36,14 +37,79 @@ const injectProbeIntoOpenTabs = async () => {
   }
 };
 
+// ── Editor bridge ───────────────────────────────────────────────────────────
+// The editor app is cross-origin: its project registry lives in its own localStorage,
+// unreadable from here. A content script injected ONLY into the configured editor
+// origin reads that registry (same-origin) and reports it back, so we can prune
+// opened-ledger entries for projects the user deleted. Registration follows the
+// editorUrl setting and is refreshed when it changes; already-open editor tabs are
+// injected on startup so the bridge works without a reload.
+const BRIDGE_ID = 'stencil-editor-bridge';
+const BRIDGE_FILE = 'src/content/editorBridge.js';
+
+// `${origin}/*` match pattern for the configured editor, or null when the editorUrl
+// isn't an http(s) origin we can scope a content script to.
+const editorOriginPattern = async () => {
+  try {
+    const { editorUrl } = await getSettings();
+    const origin = new URL(editorUrl).origin;
+    return origin.startsWith('http') ? `${origin}/*` : null;
+  } catch {
+    return null;
+  }
+};
+
+const registerEditorBridge = async () => {
+  // Clear any prior registration first so an editorUrl change doesn't leave the old
+  // origin registered (and a re-register doesn't throw "duplicate id").
+  try { await chrome.scripting.unregisterContentScripts({ ids: [BRIDGE_ID] }); } catch { /* not registered */ }
+  const pattern = await editorOriginPattern();
+  if (!pattern) return;
+  try {
+    await chrome.scripting.registerContentScripts([{
+      id: BRIDGE_ID, js: [BRIDGE_FILE], matches: [pattern], runAt: 'document_start', allFrames: false
+    }]);
+  } catch (e) {
+    console.warn('[stencil] could not register editor bridge:', e?.message);
+  }
+};
+
+// Declared/registered scripts only inject on future loads; cover editor tabs open now.
+const injectBridgeIntoOpenEditors = async () => {
+  const pattern = await editorOriginPattern();
+  if (!pattern) return;
+  try {
+    const tabs = await chrome.tabs.query({ url: [pattern] });
+    for (const tab of tabs) {
+      if (tab.id == null) continue;
+      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [BRIDGE_FILE] })
+        .catch(() => { /* restricted page / no access — ignore */ });
+    }
+  } catch {
+    /* ignore */
+  }
+};
+
+const setUpEditorBridge = () => { registerEditorBridge(); injectBridgeIntoOpenEditors(); };
+
+// Re-scope the bridge when the user points the extension at a different editor URL.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync' && changes.editorUrl) setUpEditorBridge();
+});
+
 chrome.runtime.onInstalled.addListener(() => {
   buildMenus();
   injectProbeIntoOpenTabs();
+  setUpEditorBridge();
 });
 chrome.runtime.onStartup.addListener(() => {
   buildMenus();
   injectProbeIntoOpenTabs();
+  setUpEditorBridge();
 });
+
+// Also set up on every worker start (onInstalled/onStartup don't fire on every wake).
+setUpEditorBridge();
 
 // What the probe last resolved under the cursor, per tab (a ready { url } for a
 // background or captured frame). Needed because info.srcUrl is absent (backgrounds)
@@ -66,6 +132,15 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   // blocked (CSP / mixed content). Doing it here avoids popup blockers.
   if (msg && msg.type === 'stencil-open-tab' && msg.url) {
     chrome.tabs.create({ url: msg.url });
+    return;
+  }
+  // The editor-origin bridge reports the editor's live project registry. Prune
+  // opened-ledger entries for projects that no longer exist there — scoped to the
+  // sender's origin so other editor deployments are left untouched.
+  if (msg && msg.type === 'stencil-registry') {
+    let origin = sender.origin || '';
+    if (!origin && sender.url) { try { origin = new URL(sender.url).origin; } catch { origin = ''; } }
+    if (origin) pruneLedger(Array.isArray(msg.projects) ? msg.projects : [], origin);
     return;
   }
   if (msg && msg.type === 'stencil-ctx') {
