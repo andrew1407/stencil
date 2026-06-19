@@ -1,9 +1,21 @@
 #include "notifications.hpp"
 #include <algorithm>
+#include <QEasingCurve>
 #include <QEvent>
+#include <QGraphicsOpacityEffect>
 #include <QLabel>
+#include <QPropertyAnimation>
 #include <QTimer>
 #include <QWidget>
+
+namespace {
+  // Fade durations for the toast lifecycle. Short enough to feel instant, long
+  // enough to read as motion. Opacity is animated via QGraphicsOpacityEffect on
+  // the (child) label — purely Qt-core, so it renders identically on macOS,
+  // Windows and Linux with no compositor/window-manager dependency.
+  constexpr int kFadeInMs = 180;
+  constexpr int kFadeOutMs = 160;
+}  // namespace
 
 namespace stencil::gui {
 
@@ -33,15 +45,36 @@ namespace stencil::gui {
     // adjustSize() sizes against the unstyled label and the text gets clipped.
     toast->ensurePolished();
     toast->adjustSize();
+
+    // Fade the toast in. The effect is owned by the label (setGraphicsEffect
+    // takes ownership) and the animation deletes itself when it stops, so this
+    // adds no lifetime bookkeeping to the toast's existing delete-on-timeout.
+    auto* fx = new QGraphicsOpacityEffect(toast);
+    fx->setOpacity(0.0);
+    toast->setGraphicsEffect(fx);
     toast->show();
     toast->raise();
-
     reflow();
+    auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
+    fadeIn->setDuration(kFadeInMs);
+    fadeIn->setStartValue(0.0);
+    fadeIn->setEndValue(1.0);
+    fadeIn->setEasingCurve(QEasingCurve::OutCubic);
+    fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
 
-    QTimer::singleShot(msec, toast, [this, toast] {
-      toast->deleteLater();
-      // Reflow after the event loop deletes it.
-      QTimer::singleShot(0, this, [this] { reflow(); });
+    QTimer::singleShot(msec, toast, [this, toast, fx] {
+      // Fade out, then delete and reflow the survivors.
+      auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
+      fadeOut->setDuration(kFadeOutMs);
+      fadeOut->setStartValue(fx->opacity());
+      fadeOut->setEndValue(0.0);
+      fadeOut->setEasingCurve(QEasingCurve::InCubic);
+      QObject::connect(fadeOut, &QPropertyAnimation::finished, this,
+                       [this, toast] {
+                         toast->deleteLater();
+                         QTimer::singleShot(0, this, [this] { reflow(); });
+                       });
+      fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
     });
   }
 

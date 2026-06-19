@@ -1,6 +1,8 @@
 #include "canvasTooltip.hpp"
 #include <QApplication>
+#include <QEasingCurve>
 #include <QLabel>
+#include <QPropertyAnimation>
 #include <QScreen>
 #include <QVBoxLayout>
 
@@ -52,8 +54,27 @@ namespace stencil::gui {
     if (left < scr.left() + 10) left = scr.left() + 10;
     if (top < scr.top() + 10) top = scr.top() + 10;
     move(left, top);
+
+    // Fade in only on the hidden -> visible transition; while it merely follows
+    // the cursor (already visible) we just move(), so there's no per-frame
+    // flicker. windowOpacity is a no-op on platforms/compositors that don't
+    // support per-window alpha — there the tooltip simply appears instantly, so
+    // this is a progressive enhancement, never a regression.
+    const bool wasHidden = !isVisible();
+    if (wasHidden) setWindowOpacity(0.0);
     show();
     raise();
+    if (wasHidden) {
+      auto* fade = new QPropertyAnimation(this, "windowOpacity", this);
+      fade->setDuration(120);
+      fade->setStartValue(0.0);
+      fade->setEndValue(1.0);
+      fade->setEasingCurve(QEasingCurve::OutCubic);
+      // Guarantee full opacity even if the animation is cut short.
+      connect(fade, &QPropertyAnimation::finished, this,
+              [this] { setWindowOpacity(1.0); });
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+    }
   }
 
 }

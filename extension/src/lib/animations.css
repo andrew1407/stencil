@@ -1,0 +1,105 @@
+/* ──────────────────────────────────────────────────────────────────────
+   animations.css — shared motion layer for the extension's own pages
+   (popup, side panel, devtools panel, quick-crop, options).
+
+   Link AFTER lib/theme.css and the page's own stylesheet so it enriches
+   existing rules. It's purely cosmetic — every surface works without it.
+   Selectors are scoped by class names that only exist on a given surface,
+   so unmatched rules are harmless no-ops on the others.
+
+   The injected in-page surfaces (lib/overlay.js modal, lib/highlight.js
+   image outlines) can't link a file — they carry their own motion inline.
+
+   All motion collapses under prefers-reduced-motion (see bottom).
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Keyframes ──────────────────────────────────────────────────────── */
+@keyframes stPopIn    { from { opacity: 0; transform: scale(0.95) translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes stMenuRise { from { opacity: 0; transform: translateY(8px); }              to { opacity: 1; transform: none; } }
+@keyframes stFade     { from { opacity: 0; }                                          to { opacity: 1; } }
+@keyframes stRowIn    { from { opacity: 0; transform: translateX(-6px); }             to { opacity: 1; transform: none; } }
+@keyframes stCardIn   { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* ── Smooth scrolling on the scrollable regions ─────────────────────── */
+.list, .formats, .viewport, .panel { scroll-behavior: smooth; }
+
+/* ── Generic focus glow for text inputs / selects across all surfaces ── */
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+.search:focus, .num:focus {
+    outline: none;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.28);
+    transition: box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+/* ═══════════════ Popup / side panel / devtools ═══════════════════════ */
+/* Button hovers gain a transition + subtle press feedback. */
+.icon-btn, .mini, .more-btn {
+    transition: background 0.16s ease, border-color 0.16s ease,
+                color 0.16s ease, transform 0.12s ease;
+}
+.icon-btn:hover, .mini:hover { transform: translateY(-1px); }
+.icon-btn:active, .mini:active, .more-btn:active { transform: translateY(1px) scale(0.97); }
+
+/* Image rows: smooth hover tint + a slide-in as the list renders, with a
+   thumbnail zoom on hover. */
+.row { transition: background 0.15s ease, outline-color 0.2s ease; }
+.list .row { animation: stRowIn 0.22s ease both; }
+.thumb { transition: transform 0.2s ease, border-color 0.2s ease; }
+.row:hover .thumb { transform: scale(1.06); }
+.more-btn { transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }
+.meta .name.clickable { transition: color 0.15s ease; }
+.badge { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
+
+/* Floating popups: hover preview + the "…" action menu fade/scale in. */
+.preview { animation: stPopIn 0.14s ease both; }
+.action-menu { animation: stMenuRise 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: top right; }
+.action-menu button { transition: background 0.14s ease, color 0.14s ease, padding-left 0.14s ease; }
+.action-menu button:hover { padding-left: 12px; }
+
+/* ═══════════════ Quick-crop page ═════════════════════════════════════ */
+.zbtn, .seg button, .btn {
+    transition: background 0.16s ease, border-color 0.16s ease,
+                color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+.zbtn:hover, .btn:not(:disabled):hover { transform: translateY(-1px); }
+.zbtn:active, .btn:not(:disabled):active, .seg button:active { transform: translateY(1px) scale(0.98); }
+.btn.primary:not(:disabled):hover { box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4); }
+/* Resize handles + crop box track drags smoothly and grow on hover. */
+.crop-box { transition: outline-color 0.15s ease; }
+.handle { transition: transform 0.12s ease, background 0.15s ease; }
+.handle:hover { transform: scale(1.25); }
+.preview-frame img, #preview { transition: opacity 0.2s ease; }
+
+/* Crop: stack the side panel under the stage on narrow windows. */
+@media (max-width: 720px) {
+    main { flex-direction: column; }
+    .panel { flex: 1 1 auto; width: 100%; }
+    .viewport { max-height: 56vh; }
+}
+
+/* ═══════════════ Options page ════════════════════════════════════════ */
+.card { animation: stCardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.card button { transition: background 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease; }
+.card button:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); }
+.card button:active { transform: translateY(1px) scale(0.99); }
+.saved { transition: opacity 0.2s ease; }
+.saved:not(:empty) { animation: stFade 0.25s ease; }
+
+@media (max-width: 600px) {
+    body { padding: 16px; }
+    .card { padding: 18px; }
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   Accessibility — honour the user's reduced-motion preference.
+   ─────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}

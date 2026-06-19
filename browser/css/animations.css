@@ -1,0 +1,274 @@
+/* ──────────────────────────────────────────────────────────────────────
+   animations.css — motion, transitions, hovers, popups & responsive layer
+
+   Loaded LAST (after theme/layout/components) so it can enrich existing
+   rules without the base files needing to know about it. Everything here is
+   purely cosmetic: removing this file leaves the app fully functional, just
+   static. All motion is disabled under prefers-reduced-motion (see bottom).
+
+   Deliberately NOT touched:
+     • .canvas-viewport scrolling — zoom/pan assign scrollLeft/scrollTop
+       directly, so scroll-behavior:smooth here would fight the JS and break
+       zoom-to-cursor. Smooth scroll is scoped to content panels only.
+     • canvas width/height transition — already tuned in layout.css.
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Keyframes ──────────────────────────────────────────────────────── */
+@keyframes appReveal      { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes overlayFadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes modalPop       { from { opacity: 0; transform: translateY(18px) scale(0.965); } to { opacity: 1; transform: none; } }
+@keyframes popIn          { from { opacity: 0; transform: scale(0.94) translateY(-6px); }  to { opacity: 1; transform: none; } }
+@keyframes menuRise       { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes tooltipIn      { from { opacity: 0; transform: translateY(4px); }  to { opacity: 1; transform: none; } }
+@keyframes rowPulse       { 0% { box-shadow: 0 0 0 0 rgba(124,58,237,0.45); } 100% { box-shadow: 0 0 0 8px rgba(124,58,237,0); } }
+@keyframes focusPulse     { 0% { box-shadow: 0 0 0 0 rgba(230,184,0,0.5); }   100% { box-shadow: 0 0 0 8px rgba(230,184,0,0); } }
+@keyframes spinIn         { from { opacity: 0; transform: rotate(-90deg) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes shimmerSweep   { from { background-position: 200% 0; }              to { background-position: -200% 0; } }
+
+/* ── App container reveal on first paint ────────────────────────────── */
+.container {
+    animation: appReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ── Smooth scrolling — content panels only (never the canvas viewport) ─ */
+.settings-body,
+#fs-points-panel,
+.coordinates-panel,
+.app-modal {
+    scroll-behavior: smooth;
+}
+
+/* ── Buttons: richer hover/press feedback ───────────────────────────── */
+/* layout.css gives buttons a background transition; widen it to also cover a
+   subtle lift + shadow. Disabled buttons and the canvas are untouched. */
+button {
+    transition: background 0.25s ease, color 0.2s ease,
+                transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+button:not(:disabled):not(.active):hover {
+    box-shadow: 0 3px 10px var(--shadow);
+    transform: translateY(-1px);
+}
+button:not(:disabled):active {
+    transform: translateY(1px) scale(0.99);
+    box-shadow: none;
+}
+/* Primary action buttons get a faint sheen sweep on hover for a "fancy" feel.
+   Scoped to the accent-coloured controls/toolbar buttons so icon/ghost
+   buttons (theme toggle, settings gear, close ✕) stay flat. */
+.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(:disabled) {
+    background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    background-position: 200% 0;
+}
+.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(:disabled):hover {
+    animation: shimmerSweep 0.7s ease;
+}
+
+/* Ghost/icon buttons: smooth rotate-in flourish for the theme toggle. */
+#theme-toggle { transition: background 0.2s, border-color 0.2s, transform 0.3s ease; }
+#theme-toggle:hover { transform: rotate(20deg) scale(1.08); }
+#theme-toggle:active { transform: rotate(0) scale(0.95); }
+#settings-btn:hover, #visuals-btn:hover, #info-btn:hover { transform: scale(1.08); }
+
+/* ── Modal appearance: backdrop fade + content pop ──────────────────── */
+#settings-modal-overlay.modal-open,
+.app-modal-overlay.modal-open {
+    animation: overlayFadeIn 0.22s ease both;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+#settings-modal-overlay.modal-open #settings-modal,
+.app-modal-overlay.modal-open .app-modal {
+    animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Context menu + submenus: scale/fade pop ────────────────────────── */
+#ctx-menu.ctx-open {
+    animation: popIn 0.14s ease both;
+    transform-origin: top left;
+}
+.ctx-sub.ctx-sub-visible {
+    animation: popIn 0.13s ease both;
+    transform-origin: top left;
+}
+/* Slight slide of the menu items' hover highlight already comes from the
+   background transition in components.css; nudge the icon on hover. */
+.ctx-item { transition: background 0.12s, padding-left 0.12s; }
+.ctx-item:not(.ctx-disabled):hover { padding-left: 17px; }
+
+/* ── Tooltip: fade/slide in (size-neutral so JS positioning stays exact) ─ */
+/* The tooltip element is re-rendered in place and stays display:block while
+   tracking the cursor, so the entrance animation only fires when it first
+   appears (none→block), not on every mousemove. opacity/translateY don't
+   alter the measured box, so position() keeps working. */
+.tooltip {
+    animation: tooltipIn 0.13s ease both;
+    box-shadow: 0 6px 22px var(--shadow);
+    transition: left 0.06s linear, top 0.06s linear;
+}
+
+/* ── Popups: hints bubble + install menu fade up ────────────────────── */
+#hints-btn:hover .hints-popup {
+    animation: popIn 0.16s ease both;
+}
+#install-host:hover #install-menu,
+#install-host:focus-within #install-menu {
+    animation: menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+#install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
+#install-menu [role="menuitem"]:hover { transform: translateX(2px); }
+#install-toggle:hover { transform: translateY(-2px) scale(1.06); }
+
+/* ── Notification balloon: springy entrance (overrides the linear ease) ─ */
+#notify-balloon {
+    transition: opacity 0.25s ease, transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Coordinate table: smooth row hover + attention pulse ───────────── */
+.coordinates-table tbody tr { transition: background 0.15s ease; }
+.coordinates-table tbody tr.row-highlighted { animation: rowPulse 0.5s ease; }
+.coordinates-table tbody tr.row-focused      { animation: focusPulse 0.5s ease; }
+
+/* ── Projects modal rows: hover lift ────────────────────────────────── */
+.project-row { transition: background 0.18s ease, border-color 0.18s ease, transform 0.14s ease, box-shadow 0.18s ease; }
+.project-row:not(.project-temp):hover { transform: translateX(3px); box-shadow: 0 3px 12px var(--shadow); }
+.project-thumb img { transition: transform 0.3s ease; }
+.project-row:hover .project-thumb img { transform: scale(1.06); }
+
+/* ── Hotkey cells + visuals/info rows: gentle hover ─────────────────── */
+.hotkey-cell { transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+.hotkey-table tr td { transition: background 0.15s ease; }
+.vs-row, .info-item { transition: background 0.15s ease; }
+.vs-row:hover, .info-item:hover { background: var(--bg-coord-hover); }
+
+/* ── Idle "create blank image" affordance: invite a click ───────────── */
+.idle-create-btn { transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+.idle-create-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px var(--shadow); }
+.idle-create-icon { transition: transform 0.3s ease; }
+.idle-create-btn:hover .idle-create-icon { transform: scale(1.12) translateY(-2px); }
+
+/* ── Inputs & selects: focus glow ───────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+input[type="color"],
+select {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.2s ease;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.25);
+}
+
+/* ── Checkboxes / toggles: subtle scale on the label hover ──────────── */
+.ctx-checkbox-item, .ctx-radio-item { transition: background 0.12s ease; }
+
+/* ── Selection panel deselect button: keep the lift consistent ──────── */
+.deselect-btn { transition: background 0.2s ease, transform 0.12s ease; }
+
+/* ───────────────────────────────────────────────────────────────────────
+   Responsive layout — adapt to viewport / display size
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Tablets & small laptops: stack the canvas and coordinates panel. */
+@media (max-width: 960px) {
+    body { padding: 12px; }
+    .container { padding: 14px; }
+    .main-content { flex-direction: column; }
+    .coordinates-panel {
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+        margin-top: 14px;
+    }
+    /* A side panel collapsed to its rail makes no sense once stacked. */
+    .coordinates-panel.coord-collapsed {
+        width: 100%;
+        padding: 10px 12px;
+    }
+    .coordinates-panel.coord-collapsed .coord-title { display: inline; }
+    .coordinates-panel.coord-collapsed #coord-body { display: block; }
+    .coordinates-panel.coord-collapsed #toggle-coord-panel {
+        writing-mode: horizontal-tb;
+        transform: none;
+        border: 1px solid var(--border-main) !important;
+    }
+    .coordinates-panel.coord-collapsed .coord-panel-header { flex-direction: row; }
+    /* Modals fill more of the narrow viewport. */
+    #settings-modal, .app-modal { width: calc(100vw - 28px); }
+}
+
+/* Phones (landscape) & small tablets: tighten the control clusters. */
+@media (max-width: 680px) {
+    body { padding: 8px; }
+    .container { padding: 10px; border-radius: 6px; }
+    .controls { gap: 4px 4px; padding: 8px 10px; }
+    .ctrl-section { padding: 4px; }
+    .ctrl-sep { margin: 0 2px; }
+    /* Vertical separators read as clutter when controls wrap a lot. */
+    .ctrl-sep { display: none; }
+    #settings-modal, .app-modal { max-height: 88vh; }
+    .settings-header, .settings-footer { padding: 10px 12px; }
+    .settings-body { padding: 10px 12px; }
+    .info-key { flex: 0 0 130px; }
+    /* The fullscreen points drawer should never exceed the screen. */
+    #fs-points-panel { width: min(360px, 86vw); }
+}
+
+/* Phones (portrait): compact typography & full-bleed modals. */
+@media (max-width: 460px) {
+    body { padding: 6px; }
+    .container { padding: 8px; }
+    button, input, select { font-size: 13px; }
+    .controls button { padding: 7px 9px; }
+    .coordinates-table { font-size: 11px; }
+    .coordinates-table th, .coordinates-table td { padding: 4px 4px; }
+    #settings-modal, .app-modal {
+        width: 100vw;
+        max-width: 100vw;
+        max-height: 92vh;
+        border-radius: 12px 12px 0 0;
+    }
+    /* The non-essential shortcut hints are the first thing to drop. */
+    .shortcut-hint, .ctx-hotkey { display: none; }
+    .info-key { flex: 0 0 110px; font-size: 11px; }
+}
+
+/* Coarse-pointer (touch) devices: enlarge tap targets, drop hover-only sheen. */
+@media (hover: none) and (pointer: coarse) {
+    .ctx-item { padding-top: 10px; padding-bottom: 10px; }
+    .ctx-checkbox-item, .ctx-radio-item { padding-top: 9px; padding-bottom: 9px; }
+    .del-pt-btn { opacity: 0.85; font-size: 16px; }
+    button:not(:disabled):not(.active):hover { transform: none; box-shadow: none; }
+}
+
+/* Wide displays: let the workspace breathe a little more. */
+@media (min-width: 1800px) {
+    .container { max-width: 1680px; }
+}
+
+/* Print: hide chrome, show only the canvas/coords. */
+@media print {
+    .controls-wrapper, #install-host, #notify-balloon, #ctx-menu,
+    .tooltip, #theme-toggle, .drop-hint { display: none !important; }
+    body { padding: 0; background: #fff; }
+    .container { box-shadow: none; max-width: none; animation: none; }
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   Accessibility — honour the user's reduced-motion preference.
+   Neutralises every animation/transition added across the whole app.
+   ─────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
