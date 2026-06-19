@@ -1,9 +1,12 @@
 :root {
     /* Brand accent — violet, matching the Stencil logo + extension palette
-       (extension/src/lib/theme.css). --accent is the primary, --accent-2 the
-       darker hover/active shade. */
+       (extension/src/lib/theme.css). --accent is the primary; --accent-2 is the
+       hover/active shade, derived from it (darker in light mode, lighter in
+       dark) so any chosen accent stays harmonised. The accent is swappable via a
+       data-accent preset (see below + js/core/accents.js); the default is
+       violet. */
     --accent:         #7c3aed;
-    --accent-2:       #6d28d9;
+    --accent-2:       color-mix(in srgb, var(--accent) 86%, black);
     --bg-page:        #f0f0f0;
     --bg-container:   #ffffff;
     --bg-controls:    #f8f9fa;
@@ -17,13 +20,14 @@
     --bg-tt-th:       #e9ecef;
     --bg-tt-td:       #ffffff;
     --bg-sel-panel:   #fff8e1;
-    --bg-drop-hint:   #f3effc;
+    /* Drop-hint bg/border tint with the chosen accent (was fixed violet). */
+    --bg-drop-hint:   color-mix(in srgb, var(--accent) 9%, white);
     --border-main:    #ddd;
     --border-canvas:  #ddd;
     --border-coord:   #ddd;
     --border-tooltip: #2c3e50;
     --border-sel:     #f0b429;
-    --border-hint:    #cdbdf2;
+    --border-hint:    color-mix(in srgb, var(--accent) 35%, white);
     --text-main:      #000000;
     --text-label:     inherit;
     --text-muted:     #888;
@@ -31,7 +35,7 @@
     --text-coord-h3:  #333;
     --text-sel-label: #7a5c00;
     --text-shortcut:  #999;
-    --text-key:       #6d28d9;
+    --text-key:       var(--accent-2);
     --text-empty:     #666;
     --text-tooltip:   #2c3e50;
     --text-tt-header: #1a252f;
@@ -44,9 +48,26 @@
     --sb-thumb-active: #7a838c;
 }
 
+/* Accent presets — set only --accent; --accent-2, --text-key and every glow
+   derive from it, so a preset is one line. Keys mirror js/core/accents.js and
+   are applied as <html data-accent="…"> (pre-paint in index.html). Violet is the
+   :root default above, so no data-accent attribute = violet. */
+:root[data-accent="violet"]  { --accent: #7c3aed; }
+:root[data-accent="pink"]    { --accent: #ec4899; }
+:root[data-accent="yellow"]  { --accent: #eab308; }
+:root[data-accent="orange"]  { --accent: #ea580c; }
+:root[data-accent="crimson"] { --accent: #be123c; }
+:root[data-accent="aqua"]    { --accent: #0891b2; }
+:root[data-accent="sky"]     { --accent: #0ea5e9; }
+:root[data-accent="blue"]    { --accent: #2563eb; }
+:root[data-accent="grass"]   { --accent: #16a34a; }
+:root[data-accent="green"]   { --accent: #047857; }
+:root[data-accent="brown"]   { --accent: #a87c50; }
+:root[data-accent="grey"]    { --accent: #64748b; }
+
 [data-theme="dark"] {
-    --accent:         #7c3aed;
-    --accent-2:       #9b6cf2;
+    /* Same accent (from :root / data-accent); only the shade flips lighter. */
+    --accent-2:       color-mix(in srgb, var(--accent) 78%, white);
     --bg-page:        #1a1a1a;
     --bg-container:   #242424;
     --bg-controls:    #2d2d2d;
@@ -60,13 +81,13 @@
     --bg-tt-th:       #3a3a3a;
     --bg-tt-td:       #242424;
     --bg-sel-panel:   #2e2a17;
-    --bg-drop-hint:   #241a3a;
+    --bg-drop-hint:   color-mix(in srgb, var(--accent) 16%, var(--bg-page));
     --border-main:    #444;
     --border-canvas:  #555;
     --border-coord:   #444;
     --border-tooltip: #7f8fa6;
     --border-sel:     #b8860b;
-    --border-hint:    #5a4a8f;
+    --border-hint:    color-mix(in srgb, var(--accent) 50%, #2a2a2a);
     --text-main:      #e0e0e0;
     --text-label:     #cccccc;
     --text-muted:     #aaaaaa;
@@ -74,7 +95,7 @@
     --text-coord-h3:  #cccccc;
     --text-sel-label: #e0b84a;
     --text-shortcut:  #888888;
-    --text-key:       #9b6cf2;
+    --text-key:       var(--accent-2);
     --text-empty:     #888888;
     --text-tooltip:   #e0e0e0;
     --text-tt-header: #f0f0f0;

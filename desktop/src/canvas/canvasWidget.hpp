@@ -78,6 +78,9 @@ namespace stencil::gui {
     void setShowPoints(bool on);
     void setShowLines(bool on);
     void setDark(bool dark);
+    // Brand-accent preset key (theme.hpp accentPresets); recolours the rubber-band
+    // previews to match the rest of the app.
+    void setAccent(const QString& accentKey);
 
     // Selection panel support: the line whose points are shown, and the focused
     // point within it (-1 = none).
@@ -253,6 +256,7 @@ namespace stencil::gui {
     bool showLines_ = true;
     bool isDrawing_ = false;  // gates left-click point adds (S2)
     bool dark_ = false;
+    QString accentKey_ = "violet";  // brand accent for the rubber-band previews
 
     // S2: selected committed-line index (-1 = none) + draw-mode/rect state.
     // Canonical owner; filters/render/line-edit only consume selectedLineIdx_.

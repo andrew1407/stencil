@@ -20,7 +20,7 @@
 @keyframes popIn          { from { opacity: 0; transform: scale(0.94) translateY(-6px); }  to { opacity: 1; transform: none; } }
 @keyframes menuRise       { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
 @keyframes tooltipIn      { from { opacity: 0; transform: translateY(4px); }  to { opacity: 1; transform: none; } }
-@keyframes rowPulse       { 0% { box-shadow: 0 0 0 0 rgba(124,58,237,0.45); } 100% { box-shadow: 0 0 0 8px rgba(124,58,237,0); } }
+@keyframes rowPulse       { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
 @keyframes focusPulse     { 0% { box-shadow: 0 0 0 0 rgba(230,184,0,0.5); }   100% { box-shadow: 0 0 0 8px rgba(230,184,0,0); } }
 @keyframes spinIn         { from { opacity: 0; transform: rotate(-90deg) scale(0.6); } to { opacity: 1; transform: none; } }
 @keyframes shimmerSweep   { from { background-position: 200% 0; }              to { background-position: -200% 0; } }
@@ -118,6 +118,10 @@ button:not(:disabled):active {
 #install-host:focus-within #install-menu {
     animation: menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+/* Main-theme picker popup rises in like the other menus; rows nudge on hover. */
+.accent-dd-menu:not([hidden]) { animation: menuRise 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
+.accent-dd-opt:hover { transform: translateX(2px); }
 #install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
 #install-menu [role="menuitem"]:hover { transform: translateX(2px); }
 #install-toggle:hover { transform: translateY(-2px) scale(1.06); }
@@ -162,7 +166,7 @@ input[type="number"]:focus,
 select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(124,58,237,0.25);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* ── Checkboxes / toggles: subtle scale on the label hover ──────────── */

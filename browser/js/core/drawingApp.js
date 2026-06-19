@@ -13,6 +13,7 @@ import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl } from './deepLink.js';
@@ -462,8 +463,23 @@ export class DrawingApp {
     if (btn) btn.textContent = this.theme === 'dark' ? '☀️' : '🌙';
   }
 
+  // Active accent preset key (see js/core/accents.js); falls back to violet.
+  get accent() {
+    const a = document.documentElement.getAttribute('data-accent');
+    return isAccent(a) ? a : DEFAULT_ACCENT;
+  }
+  // Set (and persist) the accent preset; --accent-2 and the glows derive from it.
+  setAccent(key) {
+    const next = isAccent(key) ? key : DEFAULT_ACCENT;
+    document.documentElement.setAttribute('data-accent', next);
+    try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
+    applyAccentFavicon(next);
+  }
+
   #wireTheme() {
     this.#updateThemeIcon();
+    // Tint the tab favicon + status bar to the saved accent on load.
+    applyAccentFavicon(this.accent);
     document.getElementById('theme-toggle').addEventListener('click', () => {
       this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
     });
@@ -675,7 +691,9 @@ export class DrawingApp {
         let data = null;
         try {
           data = JSON.parse(text);
-        } catch {}
+        } catch {
+          /* not layout JSON — left as null; the guard below simply ignores the paste */
+        }
         if (data && Array.isArray(data.lines)) {
           e.preventDefault();
           this.applyPastedLayout(data);

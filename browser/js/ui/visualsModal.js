@@ -1,5 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { setVal, setRadioGroup, notify } from '../utils.js';
+import { DEFAULT_ACCENT } from '../core/accents.js';
+import { buildAccentPicker } from './accentPicker.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() {
@@ -13,6 +15,10 @@ export class StencilVisualsModal extends StencilElement {
                 <input type="text" id="vs-search" class="modal-search" placeholder="Search settings…">
             </div>
             <div class="settings-body">
+                <div class="vs-section">App appearance</div>
+                <div class="vs-row"><label>Main theme</label>
+                    <div id="vs-accent"></div>
+                </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>
                 <div class="vs-row"><label>Line color</label><input type="color" id="vs-line-color"></div>
                 <div class="vs-row"><label>Line thickness</label><input type="number" id="vs-thickness" min="1" max="20"></div>
@@ -73,6 +79,12 @@ export class StencilVisualsModal extends StencilElement {
       hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed'
     };
 
+    // Main theme — a custom colour-swatch dropdown (./accentPicker.js).
+    const accentPicker = buildAccentPicker(document.getElementById('vs-accent'), {
+      current: app.accent,
+      onSelect: (key) => app.setAccent(key),
+    });
+
     const els = {
       lineColor: document.getElementById('vs-line-color'),
       thickness: document.getElementById('vs-thickness'),
@@ -85,6 +97,7 @@ export class StencilVisualsModal extends StencilElement {
     };
 
     const populate = () => {
+      accentPicker.set(app.accent);
       els.lineColor.value = app.color;
       els.thickness.value = app.thickness;
       els.marker.value = app.markerSize;
@@ -127,6 +140,7 @@ export class StencilVisualsModal extends StencilElement {
 
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
+      app.setAccent(DEFAULT_ACCENT);
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
       setVal('marker-size', app.markerSize);

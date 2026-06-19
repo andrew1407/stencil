@@ -108,7 +108,9 @@ export class Storage {
     this.#syncTimer = setTimeout(() => {
       try {
         this.app.tabs?.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-      } catch {}
+      } catch {
+        /* coordinator gone — cross-tab sync is best-effort, the local save already succeeded */
+      }
     }, 400);
   }
 
@@ -191,7 +193,9 @@ export class Storage {
           if (this.#evictOldestOther()) {
             try {
               this.app.tabs?.projectsChanged();
-            } catch {}
+            } catch {
+              /* coordinator gone — cross-tab sync is best-effort; eviction still happened */
+            }
             continue;
           }
           break; // nothing left to evict at this quality → try lower quality

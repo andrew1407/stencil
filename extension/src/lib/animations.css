@@ -29,7 +29,7 @@ select:focus,
 .search:focus, .num:focus {
     outline: none;
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.28);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
     transition: box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
@@ -65,7 +65,7 @@ select:focus,
 }
 .zbtn:hover, .btn:not(:disabled):hover { transform: translateY(-1px); }
 .zbtn:active, .btn:not(:disabled):active, .seg button:active { transform: translateY(1px) scale(0.98); }
-.btn.primary:not(:disabled):hover { box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4); }
+.btn.primary:not(:disabled):hover { box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent); }
 /* Resize handles + crop box track drags smoothly and grow on hover. */
 .crop-box { transition: outline-color 0.15s ease; }
 .handle { transition: transform 0.12s ease, background 0.15s ease; }
@@ -82,7 +82,7 @@ select:focus,
 /* ═══════════════ Options page ════════════════════════════════════════ */
 .card { animation: stCardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .card button { transition: background 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease; }
-.card button:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); }
+.card button:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
 .card button:active { transform: translateY(1px) scale(0.99); }
 .saved { transition: opacity 0.2s ease; }
 .saved:not(:empty) { animation: stFade 0.25s ease; }

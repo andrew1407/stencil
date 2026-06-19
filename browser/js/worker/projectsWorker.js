@@ -24,7 +24,9 @@ const peersMsg = () => ({
 const post = (port, msg) => {
   try {
     port.postMessage(msg);
-  } catch {}
+  } catch {
+    /* port closed (tab gone) — it'll be pruned on its next BYE / failed ping */
+  }
 };
 const broadcast = (msg, except = null) => {
   for (const port of ports.keys()) {

@@ -160,10 +160,18 @@ const populateFormats = () => {
     }));
   // Re-apply persisted format toggles (checkboxes are rebuilt fresh — all checked — on
   // every scan, so restore the user's OFF formats here). New formats default to on.
-  if (persistedFilters && Array.isArray(persistedFilters.disabledFormats)) {
-    const off = new Set(persistedFilters.disabledFormats);
-    box.querySelectorAll('input').forEach(cb => { if (off.has(cb.value)) cb.checked = false; });
-  }
+  applyPersistedFormats();
+};
+
+// Sync the (already-rendered) format checkboxes to persistedFilters.disabledFormats:
+// OFF formats unchecked, everything else (incl. formats new since the save) checked.
+// Used after a scan rebuilds them and when another open surface changes the filters.
+const applyPersistedFormats = () => {
+  const box = document.getElementById('f-formats');
+  if (!box) return;
+  const off = new Set(persistedFilters && Array.isArray(persistedFilters.disabledFormats)
+    ? persistedFilters.disabledFormats : []);
+  box.querySelectorAll('input').forEach(cb => { cb.checked = !off.has(cb.value); });
   updateToggleLabel();
 };
 
@@ -204,9 +212,13 @@ const renderCount = () => {
 // mark-opened / opened-first / highlight toggles persist on their own elsewhere.
 const FILTERS_KEY = 'popupFilters';
 let persistedFilters = null;
+// JSON of the filter state we last wrote, so the storage.onChanged listener can tell
+// our own write from another surface's and skip echoing it back (avoids a loop).
+let lastSavedJson = null;
 const loadPersistedFilters = async () => {
   try { persistedFilters = (await chrome.storage.local.get(FILTERS_KEY))[FILTERS_KEY] || null; }
   catch { persistedFilters = null; }
+  lastSavedJson = persistedFilters ? JSON.stringify(persistedFilters) : null;
 };
 const saveFilters = () => {
   const f = readFilters();
@@ -215,6 +227,7 @@ const saveFilters = () => {
     includeImg: f.includeImg, includeBg: f.includeBg, includeVideo: f.includeVideo, includePosters: f.includePosters,
     disabledFormats: formatCheckboxes().filter(c => !c.checked).map(c => c.value),   // store the OFF ones (new formats default on)
   };
+  lastSavedJson = JSON.stringify(persistedFilters);
   try { chrome.storage.local.set({ [FILTERS_KEY]: persistedFilters }); } catch { /* storage unavailable */ }
 };
 // Restore the static controls from persisted state (format checkboxes are restored in
@@ -258,9 +271,14 @@ const renderRow = (image) => {
   const row = document.createElement('div');
   row.className = 'row';
 
-  // Tooltip on the thumbnail + name: the gestures and where the image came from.
+  // Provenance for the name's tooltip: the gestures and where the image came from. An
+  // embedded data: URI is a huge base64 blob — show just its short mime prefix, never
+  // the whole thing (it would otherwise fill the screen, as the native title did).
   const kindLabel = { bg: 'Background image', video: 'Video', img: 'Image' }[image.kind] || 'Image';
-  const ref = image.kind === 'video' ? (image.videoUrl || '(in-page video)') : image.src;
+  const refOf = (src) => src && src.startsWith('data:')
+    ? src.slice(0, src.indexOf(',') + 1 || 32) + '…'   // e.g. "data:image/jpeg;base64,…"
+    : src;
+  const ref = image.kind === 'video' ? (image.videoUrl || '(in-page video)') : refOf(image.src);
   const hint = image.kind === 'video'
     ? (image.src ? 'Click: open current frame · Double-click: crop frame' : 'Use the ⋯ menu to open the video')
     : 'Click: open in editor · Double-click: quick crop';
@@ -270,7 +288,9 @@ const renderRow = (image) => {
   thumb.className = 'thumb';
   thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
-  thumb.title = title;
+  // No native title on the thumbnail itself: hovering it shows the floating image
+  // preview (bindPreview below), and a native tooltip would cover that preview. The
+  // same info stays available on the name's title (hovered off the image).
   // Video with no readable frame → play glyph. Any other broken thumb is likely a
   // hotlink-protected source a bare <img> can't load — retry once via fetchAsDataUrl
   // (host permissions), reusing the preview cache; hide only if that fails too.
@@ -770,6 +790,24 @@ if (IS_SIDE_PANEL) {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[LEDGER_KEY] && state.all.length) {
     annotateOpened().then(applyFilters);
+  }
+  // Keep concurrently-open surfaces in lockstep: the popup, side panel, and DevTools
+  // panel all run this controller and persist their filter state to the same key, so a
+  // change in one should mirror into the others. Skip the echo of our own write.
+  if (area === 'local' && changes[FILTERS_KEY]) {
+    const nv = changes[FILTERS_KEY].newValue || null;
+    if (nv && JSON.stringify(nv) !== lastSavedJson) {
+      persistedFilters = nv;
+      lastSavedJson = JSON.stringify(nv);
+      restoreStaticFilters();      // search / sizes / kind toggles
+      applyPersistedFormats();     // format checkboxes (already rendered)
+      applyFilters();              // re-filter the list to match
+    }
+  }
+  // The opened-images settings (markOpened / openedFirst) live in storage.sync and are
+  // also editable from the options page — reflect external changes here too.
+  if (area === 'sync' && (changes.markOpened || changes.openedFirst) && state.all.length) {
+    annotateOpened().then(applyFilters);   // annotateOpened re-syncs the two checkboxes
   }
 });
 

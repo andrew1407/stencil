@@ -328,6 +328,11 @@ input[type="color"] {
 /* ── Controls collapsible ── */
 .controls-wrapper { margin-bottom: 12px; }
 .controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* App logo — its panel outline tracks the chosen accent (the rest of the mark is
+   fixed brand art). A gentle hover lift to match the toolbar's other affordances. */
+.app-logo { flex: 0 0 auto; display: block; transition: transform 0.2s ease; }
+.app-logo:hover { transform: scale(1.08); }
+.app-logo-frame { stroke: var(--accent); transition: stroke 0.2s ease; }
 /* Project-name field in the topbar: a read-only title by default. Renaming is
    explicit — double-click the name or click the ✎ that appears on hover (only for a
    saved project). The field shows its editable border/background only in edit mode. */
@@ -452,7 +457,7 @@ input[type="color"] {
 .coordinates-table tr:nth-child(even) { background: var(--bg-coord-even); }
 .coordinates-table tbody tr:hover { background: var(--bg-coord-hover); cursor: pointer; }
 .coordinates-table tbody tr.row-highlighted {
-    background: rgba(124,58,237,0.18) !important;
+    background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
     outline: 2px solid var(--accent);
 }
 .coordinates-table tbody tr.row-focused {
@@ -471,7 +476,7 @@ input[type="color"] {
     font-size: 12px;
     outline: none;
 }
-.coord-px-input:focus { box-shadow: 0 0 0 2px rgba(124,58,237,0.35); }
+.coord-px-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 /* delete point btn */
 .del-pt-btn {

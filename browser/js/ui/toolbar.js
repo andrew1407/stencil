@@ -8,6 +8,15 @@ export class StencilToolbar extends StencilElement {
   static inner() {
     return `
             <div class="controls-topbar">
+                <svg class="app-logo" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Stencil" focusable="false">
+                    <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
+                    <rect class="app-logo-frame" x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke-width="2.5"/>
+                    <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
+                    <polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <g fill="#FFFF00" stroke="#000000" stroke-width="1.25">
+                        <circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/>
+                    </g>
+                </svg>
                 <button id="toggle-controls" data-hk-title="toggleControls" title="Hide controls (Alt+C)">▲ Controls</button>
                 <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
                     <input id="project-name-input" type="text" placeholder="No project" title="Project name — double-click to rename" readonly disabled

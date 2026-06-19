@@ -264,6 +264,11 @@ namespace stencil::gui {
     update();
   }
 
+  void CanvasWidget::setAccent(const QString& accentKey) {
+    accentKey_ = accentKey;
+    update();
+  }
+
   // ── S3: image filters (port of browser/js/core/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164) ──
   void CanvasWidget::setFilter(const QString& mode) {
@@ -607,7 +612,7 @@ namespace stencil::gui {
     }
 
     const QColor stroke(QString::fromStdString(line.color));
-    const Palette& pal = themePalette(dark_);
+    const Palette pal = themePalette(dark_, accentKey_);
 
     drawFill(p, line, poly);
     drawGlow(p, line, poly, lineIdx, highlight, pal);
@@ -708,7 +713,7 @@ namespace stencil::gui {
   void CanvasWidget::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const Palette& pal = themePalette(dark_);
+    const Palette pal = themePalette(dark_, accentKey_);
     if (image_.isNull()) {
       p.fillRect(rect(), pal.bgPage);
       p.setPen(pal.textMuted);
@@ -730,7 +735,7 @@ namespace stencil::gui {
 
     // Zoom-to-rect rubber band preview (S9).
     if (zoomRectActive_) {
-      QPen pen(themePalette(dark_).accent);
+      QPen pen(themePalette(dark_, accentKey_).accent);
       pen.setStyle(Qt::DashLine);
       pen.setWidth(1);
       p.setPen(pen);
@@ -741,7 +746,7 @@ namespace stencil::gui {
     // S2: drag-to-create rectangle rubber band (browser drawingApp.js rect-draw
     // overlay). Same dashed-accent style as the zoom band.
     if (rectDrawActive_) {
-      QPen pen(themePalette(dark_).accent);
+      QPen pen(themePalette(dark_, accentKey_).accent);
       pen.setStyle(Qt::DashLine);
       pen.setWidth(1);
       p.setPen(pen);

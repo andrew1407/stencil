@@ -55,7 +55,7 @@ export class TabsCoordinator {
     // editor was opened by the extension) to re-read the registry and prune its
     // opened-ledger. Detail-free — the bridge reads localStorage itself, so no
     // project data crosses — and a no-op when no extension is listening.
-    try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch {}
+    try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch { /* no DOM (e.g. worker) — the bridge nudge is best-effort */ }
     if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
     if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });
   }
@@ -84,7 +84,9 @@ export class TabsCoordinator {
   #post(msg) {
     try {
       this.#port.postMessage(msg);
-    } catch {}
+    } catch {
+      /* worker port closed (shutting down) — coordination is best-effort */
+    }
   }
 
   #onWorkerMessage(data) {
@@ -125,7 +127,9 @@ export class TabsCoordinator {
     window.addEventListener('beforeunload', () => {
       try {
         this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId });
-      } catch {}
+      } catch {
+        /* channel already closed during unload — peers time us out anyway */
+      }
     });
     return true;
   }
@@ -179,21 +183,27 @@ export class TabsCoordinator {
     for (const cb of this.#tabCountCbs) {
       try {
         cb(this.#lastTabCount);
-      } catch {}
+      } catch {
+        /* one subscriber threw — isolate it so the others still get notified */
+      }
     }
   }
   #emitPeers(ids) {
     for (const cb of this.#peersCbs) {
       try {
         cb(ids);
-      } catch {}
+      } catch {
+        /* one subscriber threw — isolate it so the others still get notified */
+      }
     }
   }
   #emitProjectsChanged(detail = {}) {
     for (const cb of this.#projectsChangedCbs) {
       try {
         cb(detail);
-      } catch {}
+      } catch {
+        /* one subscriber threw — isolate it so the others still get notified */
+      }
     }
   }
 

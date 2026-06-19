@@ -75,9 +75,48 @@ namespace stencil::gui {
     return systemPrefersDark();  // "system" (default)
   }
 
+  // The selectable brand-accent presets. Keys + hexes mirror the browser
+  // (accents.js) and extension (accent.js) data-accent presets; violet is the
+  // default. The darker/lighter --accent-2 shade derives from the primary below.
+  const std::vector<AccentPreset>& accentPresets() {
+    static const std::vector<AccentPreset> presets{
+        {"violet", "Violet", "#7c3aed"},   {"pink", "Pink", "#ec4899"},
+        {"yellow", "Yellow", "#eab308"},   {"orange", "Orange", "#ea580c"},
+        {"crimson", "Crimson", "#be123c"}, {"aqua", "Aqua", "#0891b2"},
+        {"sky", "Sky blue", "#0ea5e9"},    {"blue", "Blue", "#2563eb"},
+        {"grass", "Grass green", "#16a34a"}, {"green", "Green", "#047857"},
+        {"brown", "Brown", "#a87c50"},     {"grey", "Grey", "#64748b"},
+    };
+    return presets;
+  }
+
+  QColor accentPrimary(const QString& accentKey) {
+    for (const AccentPreset& a : accentPresets())
+      if (a.key == accentKey) return QColor(a.hex);
+    return QColor("#7c3aed");  // unknown key -> violet (the default)
+  }
+
+  namespace {
+    // Linear sRGB mix, matching CSS color-mix(in srgb, a (1-t), b t) used by the
+    // web themes for the accent shade + glows.
+    QColor mixSrgb(const QColor& a, const QColor& b, double t) {
+      return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
+                              a.greenF() * (1 - t) + b.greenF() * t,
+                              a.blueF() * (1 - t) + b.blueF() * t);
+    }
+    // The --accent-2 shade: darker in light mode, lighter in dark — the same
+    // ratios as browser/css/theme.css (86% accent + 14% black / 78% + 22% white).
+    QColor accentShade(const QColor& primary, bool dark) {
+      return dark ? mixSrgb(primary, QColor(Qt::white), 0.22)
+                  : mixSrgb(primary, QColor(Qt::black), 0.14);
+    }
+  }  // namespace
+
   // Values copied verbatim from browser/css/theme.css + the DEFAULT_VISUALS
-  // block of browser/js/config/constants.json.
-  const Palette& themePalette(bool dark) {
+  // block of browser/js/config/constants.json. The accent + textKey fields are
+  // then overridden from the chosen accentKey (accent itself, and textKey =
+  // --accent-2), so the whole app recolours to the selected brand colour.
+  Palette themePalette(bool dark, const QString& accentKey) {
     static const Palette light{
         QColor("#f0f0f0"), QColor("#ffffff"), QColor("#f8f9fa"),
         QColor("#fff8e1"), QColor("#dddddd"), QColor("#dddddd"),
@@ -94,11 +133,15 @@ namespace stencil::gui {
         QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#ffc800"),
         QColor("#7c3aed"),
     };
-    return dark ? darkP : light;
+    Palette p = dark ? darkP : light;
+    const QColor accent = accentPrimary(accentKey);
+    p.accent = accent;
+    p.textKey = accentShade(accent, dark);
+    return p;
   }
 
-  QString buildStylesheet(bool dark) {
-    const Palette& p = themePalette(dark);
+  QString buildStylesheet(bool dark, const QString& accentKey) {
+    const Palette p = themePalette(dark, accentKey);
     auto c = [](const QColor& q) { return q.name(); };
 
     // One stylesheet covering the widgets the app uses. Kept close to the CSS:
@@ -157,8 +200,8 @@ namespace stencil::gui {
 
   // Build a QPalette from the same theme tokens the stylesheet uses, so menus,
   // popups and other native bits match. Set on qApp in applyTheme() (S14).
-  QPalette buildQPalette(bool dark) {
-    const Palette& p = themePalette(dark);
+  QPalette buildQPalette(bool dark, const QString& accentKey) {
+    const Palette p = themePalette(dark, accentKey);
     QPalette q;
     q.setColor(QPalette::Window, p.bgPage);
     q.setColor(QPalette::WindowText, p.textMain);

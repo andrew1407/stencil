@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil — images on this page</title>
+  <!-- Apply the saved accent (data-accent) before the stylesheet → no flash. -->
+  <script src="../lib/accent.js"></script>
   <link rel="stylesheet" href="../lib/theme.css">
   <!-- Reuse the popup's controls/list styling, then dock it full-height (sidepanel.css). -->
   <link rel="stylesheet" href="../popup/popup.css">
@@ -12,7 +14,13 @@
 </head>
 <body>
   <header>
-    <img src="../../icons/icon.svg" alt="" class="logo">
+    <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Stencil">
+      <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
+      <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
+      <polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FF0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#FF0" stroke="#000" stroke-width="1.25"><circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/></g>
+    </svg>
     <h1>Images on this page</h1>
     <span id="count" class="count"></span>
     <button id="rescan" class="icon-btn" title="Rescan page">⟳</button>
