@@ -57,8 +57,13 @@ export const toggleStencilHighlight = (on) => {
 
   const style = document.createElement('style');
   style.id = STYLE_ID;
+  // Transitions are added even on the !important rules: a transition animates the
+  // computed value regardless of importance, so the hover ring eases in/out smoothly
+  // (the box-shadow grows from nothing as HOVER is applied — a subtle pulse) without a
+  // keyframe animating hundreds of marked elements at once.
   style.textContent =
-    '[' + ATTR + ']{outline:2px solid #7c3aed !important;outline-offset:-2px !important;}' +
+    '[' + ATTR + ']{outline:2px solid #7c3aed !important;outline-offset:-2px !important;' +
+    'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
     '[' + HOVER + ']{outline:3px solid #a855f7 !important;outline-offset:-3px !important;' +
     'box-shadow:0 0 0 3px rgba(168,85,247,.45) !important;}';
   (document.head || document.documentElement).appendChild(style);
