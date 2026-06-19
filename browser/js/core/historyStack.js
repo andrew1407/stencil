@@ -1,17 +1,14 @@
 // ── Line-snapshot history (pure data structure) ─────────────────
-// Mirrors the original DrawingApp `history` array + `historyStep` cursor
-// semantics exactly, including deep-copy on push/undo/redo and the
-// "step 0 → empty lines, step -1" undo behavior.
+// Mirrors DrawingApp's `history` array + `historyStep` cursor semantics exactly:
+// deep-copy on push/undo/redo and the "step 0 → empty lines, step -1" undo behavior.
 export class HistoryStack {
   constructor() {
     this.history = [];
     this.historyStep = -1;
   }
 
-  // Initialize the stack from a base lines array.
-  // baseStep lets callers reproduce the original variants:
-  //   loadImage: step = lines.length > 0 ? 0 : -1
-  //   restore:   step = 0
+  // Initialize from a base lines array. baseStep reproduces the original variants:
+  //   loadImage: step = lines.length > 0 ? 0 : -1;  restore: step = 0
   reset(lines, baseStep) {
     this.history = [this.#clone(lines)];
     this.historyStep = baseStep !== undefined
@@ -58,10 +55,9 @@ export class HistoryStack {
     return null;
   }
 
-  // Deep-copy a snapshot so stored history is immune to later mutation of the
-  // live lines (their points arrays especially). structuredClone is the modern,
-  // dependency-free deep clone — faithful to the old JSON round-trip for this
-  // plain-data shape, without the serialize+reparse cost.
+  // Deep-copy a snapshot so stored history is immune to later mutation of live lines
+  // (their points arrays especially). structuredClone is the modern dependency-free deep
+  // clone — faithful to the old JSON round-trip for this plain-data shape, without its cost.
   #clone(lines) {
     return structuredClone(lines);
   }

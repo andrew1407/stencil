@@ -1,8 +1,8 @@
 // ── Service worker: offline app shell + runtime cache ───────────
-// No build step / generated manifest. Precaches the critical shell on install,
-// then serves every same-origin GET stale-while-revalidate (cache answers
-// instantly; background fetch refreshes for next time).
-// Bump VERSION to force a clean re-precache and evict the old cache on activate.
+// No build step / generated manifest. Precaches the critical shell on install, then
+// serves every same-origin GET stale-while-revalidate (cache answers instantly,
+// background fetch refreshes for next time). Bump VERSION to force a clean
+// re-precache and evict the old cache on activate.
 const VERSION = 'v3';
 const CACHE = `stencil-${VERSION}`;
 

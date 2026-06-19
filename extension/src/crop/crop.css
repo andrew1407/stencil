@@ -49,6 +49,9 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .seg button { flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 0; cursor: pointer; font-size: 13px; }
 .seg button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Inline-SVG icons (shared set: lib/icons.js) inherit color via currentColor. */
+.btn-icon-text { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ic { flex: 0 0 auto; }
 
 .custom-dims { display: flex; align-items: center; gap: 6px; }
 .custom-dims[hidden] { display: none; }

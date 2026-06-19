@@ -1,14 +1,10 @@
 // ── Cross-context message contracts ─────────────────────────────────────────
-// The `type` of every chrome.runtime message and the `source` tag of every
-// window.postMessage the extension uses, named in one place so both ends reference
-// a constant instead of a bare string (a typo on either side silently drops the
-// message otherwise).
-//
-// Import-ability: module contexts (the background service worker, crop.js, lib/*)
-// import from here. The injected CLASSIC content scripts (src/content/*.js, run
-// without ES-module support) and the serialized `executeScript({func})` overlay keep
-// a small MIRROR of just the constants they use, tagged "mirror of lib/messages.js" —
-// the same convention lib/pageImages.js already uses. Keep the mirrors in sync.
+// Every chrome.runtime message `type` and window.postMessage `source` tag, named once
+// so both ends reference a constant, not a bare string (a typo silently drops the message).
+// Module contexts (background SW, crop.js, lib/*) import from here; injected CLASSIC
+// content scripts (src/content/*.js, no ES-module support) and the serialized
+// executeScript({func}) overlay keep a MIRROR tagged "mirror of lib/messages.js"
+// (same convention as lib/pageImages.js). Keep the mirrors in sync.
 
 // chrome.runtime.sendMessage / onMessage `type` values.
 export const MSG = {

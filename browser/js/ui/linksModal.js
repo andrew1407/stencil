@@ -1,10 +1,11 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
+import { icon } from './icons.js';
 
 // ── Component: source/resource links modal ──────────────────────
-// Opened from the toolbar 🔗 button: view/edit a project's provenance (source
-// image URL + originating web page), rename, and add an image BY URL (image or
-// scrubbed video frame) through the normal upload path.
+// Opened from the toolbar 🔗 button: view/edit a project's provenance (source image
+// URL + originating web page), rename, and add an image BY URL (image or scrubbed
+// video frame) through the normal upload path.
 // CORS caveat: a cross-origin URL without permissive headers previews but its
 // bytes/frame can't be read — load fails with a hint to use extension/desktop.
 
@@ -30,8 +31,8 @@ export class StencilLinksModal extends StencilElement {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>🔗 Image links</h2>
-                <button class="app-modal-close" id="links-close">✕ Close</button>
+                <h2>${icon('link', { size: 18 })} Image links</h2>
+                <button class="app-modal-close btn-icon-text" id="links-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
                 <!-- Edit the current image's links. Shown only when an image is loaded. -->
@@ -43,15 +44,15 @@ export class StencilLinksModal extends StencilElement {
                     <div class="vs-row"><label title="The image/video's own URL">Source</label>
                         <span class="links-field">
                             <input type="text" id="links-source" placeholder="(empty — local upload)">
-                            <button id="links-source-open" class="links-open" title="Open source in a new tab">↗</button>
-                            <button id="links-source-clear" class="links-clear danger" title="Remove source link">✕</button>
+                            <button id="links-source-open" class="links-open btn-icon" title="Open source in a new tab">${icon('external', { size: 14 })}</button>
+                            <button id="links-source-clear" class="links-clear danger btn-icon" title="Remove source link">${icon('x', { size: 14 })}</button>
                         </span>
                     </div>
                     <div class="vs-row"><label title="The web page the image was found on">Resource</label>
                         <span class="links-field">
                             <input type="text" id="links-resource" placeholder="(empty)">
-                            <button id="links-resource-open" class="links-open" title="Open resource page in a new tab">↗</button>
-                            <button id="links-resource-clear" class="links-clear danger" title="Remove resource link">✕</button>
+                            <button id="links-resource-open" class="links-open btn-icon" title="Open resource page in a new tab">${icon('external', { size: 14 })}</button>
+                            <button id="links-resource-clear" class="links-clear danger btn-icon" title="Remove resource link">${icon('x', { size: 14 })}</button>
                         </span>
                     </div>
                 </div>
@@ -62,7 +63,7 @@ export class StencilLinksModal extends StencilElement {
                     <div class="vs-row"><label title="The image/video's own URL — becomes the source link">Image / video URL</label>
                         <span class="links-field">
                             <input type="text" id="links-url" placeholder="https://… (image or video)">
-                            <button id="links-preview" class="links-open" title="Preview">👁 Preview</button>
+                            <button id="links-preview" class="links-open btn-icon-text" title="Preview">${icon('eye', { size: 14 })}<span>Preview</span></button>
                         </span>
                     </div>
                     <div class="vs-row"><label>Resource URL</label><input type="text" id="links-url-resource" placeholder="(optional — page the image is on)"></div>
@@ -83,7 +84,7 @@ export class StencilLinksModal extends StencilElement {
             </div>
             <div class="settings-footer">
                 <span class="footer-hint" id="links-foot-hint"></span>
-                <button id="links-load" disabled>⬇ Load into editor</button>
+                <button id="links-load" disabled class="btn-icon-text">${icon('download')}<span>Load into editor</span></button>
             </div>
         </div>
     `;
@@ -196,8 +197,8 @@ export class StencilLinksModal extends StencilElement {
       onClose: resetPreview,
     });
 
-    // Live-refresh the open modal when the project set changes — keeps the link fields
-    // in sync with on-the-fly source/resource edits. Uses the window event (fired by
+    // Live-refresh the open modal on project-set changes — keeps link fields in sync
+    // with on-the-fly source/resource edits. Uses the window event (fired by
     // TabsCoordinator.projectsChanged in THIS tab; onProjectsChanged only fires for
     // OTHER tabs), so same-tab console edits refresh too.
     window.addEventListener('stencil:registry-changed', () => {

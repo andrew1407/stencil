@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { notify, setRadioGroup, formatCombo } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
+import { icon } from './icons.js';
 // ── Component: custom right-click context menu ──────────────────
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
 const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
@@ -11,38 +12,38 @@ export class StencilContextMenu extends StencilElement {
     return `
         <!-- Image / Layout submenu -->
         <div class="ctx-item" id="ctx-layout-menu">
-            <span class="ctx-icon">📁</span><span class="ctx-label">Image / Layout</span><span class="ctx-arrow">▶</span>
+            <span class="ctx-icon">${icon('folder')}</span><span class="ctx-label">Image / Layout</span><span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>
             <div class="ctx-sub" id="ctx-layout-sub">
                 <div class="ctx-sub-label">Image</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-copy-img"><span class="ctx-icon">📋</span><span class="ctx-label">Copy Image</span><span class="ctx-hotkey" data-hk="copyImage">Ctrl+C</span></div>
-                <div class="ctx-item ctx-sub-item" id="ctx-paste-img"><span class="ctx-icon">📥</span><span class="ctx-label">Paste Image</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
-                <div class="ctx-item ctx-sub-item" id="ctx-dl-img"><span class="ctx-icon">⬇</span><span class="ctx-label">Download Image</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-copy-img"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Image</span><span class="ctx-hotkey" data-hk="copyImage">Ctrl+C</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-paste-img"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Image</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-dl-img"><span class="ctx-icon">${icon('download')}</span><span class="ctx-label">Download Image</span></div>
                 <div class="ctx-sep"></div>
                 <div class="ctx-sub-label">Layout (JSON)</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">📋</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Alt+J</span></div>
-                <div class="ctx-item ctx-sub-item" id="ctx-paste-layout"><span class="ctx-icon">📥</span><span class="ctx-label">Paste Layout</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
-                <div class="ctx-item ctx-sub-item" id="ctx-dl-layout"><span class="ctx-icon">📄</span><span class="ctx-label">Download Layout</span></div>
-                <div class="ctx-item ctx-sub-item" id="ctx-ul-layout"><span class="ctx-icon">📂</span><span class="ctx-label">Upload Layout</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Alt+J</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-paste-layout"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Layout</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-dl-layout"><span class="ctx-icon">${icon('file-text')}</span><span class="ctx-label">Download Layout</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-ul-layout"><span class="ctx-icon">${icon('upload')}</span><span class="ctx-label">Upload Layout</span></div>
             </div>
         </div>
         <!-- Fullscreen toggle -->
-        <div class="ctx-item" id="ctx-fullscreen"><span class="ctx-icon">⛶</span><span class="ctx-label" id="ctx-fs-label">Enter Fullscreen</span><span class="ctx-hotkey" data-hk="fullscreen">Alt+F</span></div>
+        <div class="ctx-item" id="ctx-fullscreen"><span class="ctx-icon">${icon('maximize')}</span><span class="ctx-label" id="ctx-fs-label">Enter Fullscreen</span><span class="ctx-hotkey" data-hk="fullscreen">Alt+F</span></div>
         <!-- Fit zoom to window -->
-        <div class="ctx-item" id="ctx-fit-window"><span class="ctx-icon">⊡</span><span class="ctx-label">Fit to Window</span><span class="ctx-hotkey" data-hk="resetZoom">Alt+0</span></div>
+        <div class="ctx-item" id="ctx-fit-window"><span class="ctx-icon">${icon('fit')}</span><span class="ctx-label">Fit to Window</span><span class="ctx-hotkey" data-hk="resetZoom">Alt+0</span></div>
         <div class="ctx-sep"></div>
         <!-- Drawing -->
-        <div class="ctx-item" id="ctx-draw-toggle"><span class="ctx-icon">✏️</span><span class="ctx-label" id="ctx-draw-label">Start Drawing</span><span class="ctx-hotkey" id="ctx-draw-hotkey" data-hk="startDraw">Alt+A</span></div>
-        <div class="ctx-item" id="ctx-drawmode-toggle"><span class="ctx-icon">▭</span><span class="ctx-label" id="ctx-drawmode-label">Switch to Rectangle Drawing</span></div>
-        <div class="ctx-item" id="ctx-draw-rect"><span class="ctx-icon">⬛</span><span class="ctx-label">Draw Rectangle (instant)</span></div>
+        <div class="ctx-item" id="ctx-draw-toggle"><span class="ctx-icon">${icon('play', { size: 14 })}</span><span class="ctx-label" id="ctx-draw-label">Start Drawing</span><span class="ctx-hotkey" id="ctx-draw-hotkey" data-hk="startDraw">Alt+A</span></div>
+        <div class="ctx-item" id="ctx-drawmode-toggle"><span class="ctx-icon">${icon('rect')}</span><span class="ctx-label" id="ctx-drawmode-label">Switch to Rectangle Drawing</span></div>
+        <div class="ctx-item" id="ctx-draw-rect"><span class="ctx-icon">${icon('rect-filled')}</span><span class="ctx-label">Draw Rectangle (instant)</span></div>
         <div class="ctx-sep"></div>
         <!-- Toggles -->
-        <div class="ctx-item" id="ctx-show-points"><span class="ctx-check" id="ctx-chk-points">✓</span><span class="ctx-label">Show Points</span><span class="ctx-hotkey" data-hk="togglePoints">Alt+P</span></div>
-        <div class="ctx-item" id="ctx-show-lines"><span class="ctx-check" id="ctx-chk-lines">✓</span><span class="ctx-label">Show Lines</span><span class="ctx-hotkey" data-hk="toggleLines">Alt+L</span></div>
-        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">🗑</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clear-all-lines">Alt+W</span></div>
+        <div class="ctx-item" id="ctx-show-points"><span class="ctx-check" id="ctx-chk-points">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Points</span><span class="ctx-hotkey" data-hk="togglePoints">Alt+P</span></div>
+        <div class="ctx-item" id="ctx-show-lines"><span class="ctx-check" id="ctx-chk-lines">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Lines</span><span class="ctx-hotkey" data-hk="toggleLines">Alt+L</span></div>
+        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">${icon('trash')}</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clear-all-lines">Alt+W</span></div>
         <div class="ctx-sep"></div>
         <!-- Style submenu -->
         <div class="ctx-item" id="ctx-style-menu">
-            <span class="ctx-icon">🎨</span><span class="ctx-label">Style</span><span class="ctx-arrow">▶</span>
+            <span class="ctx-icon">${icon('palette')}</span><span class="ctx-label">Style</span><span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>
             <div class="ctx-sub" id="ctx-style-sub">
                 <div class="ctx-row">
                     <label>Marker Size</label>
@@ -62,7 +63,7 @@ export class StencilContextMenu extends StencilElement {
         </div>
         <!-- Filter submenu -->
         <div class="ctx-item" id="ctx-filter-menu">
-            <span class="ctx-icon">🖼</span><span class="ctx-label">Image Filter</span><span class="ctx-hotkey" data-hk="cycleFilter">Alt+B</span><span class="ctx-arrow">▶</span>
+            <span class="ctx-icon">${icon('image')}</span><span class="ctx-label">Image Filter</span><span class="ctx-hotkey" data-hk="cycleFilter">Alt+B</span><span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>
             <div class="ctx-sub" id="ctx-filter-sub">
                 <div class="ctx-sub-label">Filter</div>
                 <div class="ctx-radio-group" id="ctx-filter-radios">
@@ -79,7 +80,7 @@ export class StencilContextMenu extends StencilElement {
         </div>
         <!-- Transformation submenu -->
         <div class="ctx-item" id="ctx-transform-menu">
-            <span class="ctx-icon">𝑓</span><span class="ctx-label">Transformation</span><span class="ctx-arrow">▶</span>
+            <span class="ctx-icon">${icon('function')}</span><span class="ctx-label">Transformation</span><span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>
             <div class="ctx-sub" id="ctx-transform-sub">
                 <div class="ctx-sub-label">Coordinate Formulas</div>
                 <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-allow-formulas"> Allow Formulas</label>
@@ -93,14 +94,14 @@ export class StencilContextMenu extends StencilElement {
                             <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">y(y)=</label>
                             <input type="text" id="ctx-formula-y" placeholder="e.g. (y-7)*4" style="width:140px;font-family:monospace;font-size:12px;padding:3px 6px;border:1px solid var(--border-main);border-radius:4px;background:var(--input-bg);color:var(--input-text);">
                         </div>
-                        <div id="ctx-formula-error" style="font-size:11px;color:#dc3545;display:none;">⚠ Invalid formula</div>
+                        <div id="ctx-formula-error" style="font-size:11px;color:var(--danger);display:none;align-items:center;gap:5px;">${icon('alert', { size: 13 })} Invalid formula</div>
                     </div>
                 </div>
             </div>
         </div>
         <!-- Tooltip submenu -->
         <div class="ctx-item" id="ctx-tooltip-menu">
-            <span class="ctx-icon">💬</span><span class="ctx-label">Tooltip</span><span class="ctx-arrow">▶</span>
+            <span class="ctx-icon">${icon('message')}</span><span class="ctx-label">Tooltip</span><span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>
             <div class="ctx-sub" id="ctx-tooltip-sub">
                 <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-tt-enabled" checked> Show Tooltips</label>
                 <div class="ctx-sep"></div>
@@ -246,25 +247,37 @@ export class StencilContextMenu extends StencilElement {
       // Draw toggle label
       document.getElementById('ctx-draw-label').textContent =
         app.isDrawing ? 'Stop Drawing' : 'Start Drawing';
-      document.getElementById('ctx-draw-toggle').querySelector('.ctx-icon').textContent =
-        app.isDrawing ? '⏹' : '✏️';
+      document.getElementById('ctx-draw-toggle').querySelector('.ctx-icon').innerHTML =
+        app.isDrawing ? icon('stop', { size: 14 }) : icon('play', { size: 14 });
 
       // Drawing-mode switch label
       const dmLabel = document.getElementById('ctx-drawmode-label');
       if (dmLabel) dmLabel.textContent = app.drawMode === 'rect'
         ? 'Switch to Line Drawing' : 'Switch to Rectangle Drawing';
+      const dmIcon = document.getElementById('ctx-drawmode-toggle').querySelector('.ctx-icon');
+      if (dmIcon) dmIcon.innerHTML = app.drawMode === 'rect'
+        ? icon('swap') : icon('rect');
+
+      // Toggle a row's disabled state and explain it via the native title tooltip:
+      // the base label when enabled, base + "— reason" when off.
+      const gate = (id, off, base, reason) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('ctx-disabled', off);
+        el.title = off ? `${base}\n— ${reason}` : base;
+      };
 
       // Download / copy layout enabled only when lines exist
       const hasLines = app.lines && app.lines.length > 0;
-      document.getElementById('ctx-dl-layout').classList.toggle('ctx-disabled', !hasLines);
-      document.getElementById('ctx-copy-layout').classList.toggle('ctx-disabled', !hasLines);
+      gate('ctx-dl-layout', !hasLines, 'Download Layout', 'Draw at least one line to export');
+      gate('ctx-copy-layout', !hasLines, 'Copy Layout', 'Draw at least one line to copy');
 
       // Copy/download image enabled only when image loaded
       const hasImage = !!app.image;
-      document.getElementById('ctx-copy-img').classList.toggle('ctx-disabled', !hasImage);
-      document.getElementById('ctx-dl-img').classList.toggle('ctx-disabled', !hasImage);
+      gate('ctx-copy-img', !hasImage, 'Copy Image', 'Load an image first');
+      gate('ctx-dl-img', !hasImage, 'Download Image', 'Load an image first');
       // Paste-layout needs an image too (matching paste handler behavior)
-      document.getElementById('ctx-paste-layout').classList.toggle('ctx-disabled', !hasImage);
+      gate('ctx-paste-layout', !hasImage, 'Paste Layout', 'Load an image first');
 
       // Refresh hotkey hint text in case shortcuts were remapped
       hotkeys.updateCtxHints();
@@ -274,8 +287,8 @@ export class StencilContextMenu extends StencilElement {
         formatCombo(hotkeys.get(app.isDrawing ? 'stopDraw' : 'startDraw'), hotkeys.isMac);
 
       // Checkmarks
-      document.getElementById('ctx-chk-points').textContent = app.showPoints ? '✓' : '';
-      document.getElementById('ctx-chk-lines').textContent = app.showLines  ? '✓' : '';
+      document.getElementById('ctx-chk-points').innerHTML = app.showPoints ? icon('check', { size: 14 }) : '';
+      document.getElementById('ctx-chk-lines').innerHTML = app.showLines  ? icon('check', { size: 14 }) : '';
 
       // Style sub values
       document.getElementById('ctx-marker-size').value = app.markerSize;
@@ -291,7 +304,7 @@ export class StencilContextMenu extends StencilElement {
       // Fullscreen label
       const isFS = document.body.classList.contains('fullscreen-mode');
       document.getElementById('ctx-fs-label').textContent = isFS ? 'Exit Fullscreen' : 'Enter Fullscreen';
-      document.getElementById('ctx-fullscreen').querySelector('.ctx-icon').textContent = '⛶';
+      document.getElementById('ctx-fullscreen').querySelector('.ctx-icon').innerHTML = icon('maximize');
 
       // Tooltip checkboxes
       document.getElementById('ctx-tt-enabled').checked = app.tooltipEnabled;
@@ -447,7 +460,7 @@ export class StencilContextMenu extends StencilElement {
       const cb = document.getElementById('show-points');
       if (cb) cb.checked = app.showPoints;
       app.renderer.redraw(); app.storage.save();
-      document.getElementById('ctx-chk-points').textContent = app.showPoints ? '✓' : '';
+      document.getElementById('ctx-chk-points').innerHTML = app.showPoints ? icon('check', { size: 14 }) : '';
     });
 
     // Show lines
@@ -456,7 +469,7 @@ export class StencilContextMenu extends StencilElement {
       const cb = document.getElementById('show-lines');
       if (cb) cb.checked = app.showLines;
       app.renderer.redraw(); app.storage.save();
-      document.getElementById('ctx-chk-lines').textContent = app.showLines ? '✓' : '';
+      document.getElementById('ctx-chk-lines').innerHTML = app.showLines ? icon('check', { size: 14 }) : '';
     });
 
     // Clear all lines

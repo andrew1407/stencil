@@ -1,17 +1,14 @@
 // ── Editor bridge content script ────────────────────────────────────────────
-// Injected ONLY into the configured Stencil editor origin (registered in
-// background.js from the editorUrl setting). Unlike the rest of the extension it is
-// SAME-ORIGIN with the editor, so it can read the editor's project registry from
-// localStorage — the registry the popup/service-worker can't reach across origins.
-// It reports that registry to the service worker, which prunes the opened-images
-// ledger for projects the user has deleted (background.js → pruneLedger).
-//
-// This is READ-ONLY on the editor: it never writes the registry or any project, so it
-// cannot create, duplicate, or renumber projects. It only lets the extension drop
-// stale "opened" badges — the editor app stays the sole source of truth.
-//
-// Self-contained (no imports); the guard stops double injection from redeclaring its
-// bindings (a top-level `const` would throw on the second inject) or binding the
+// Injected ONLY into the configured Stencil editor origin (registered in background.js
+// from the editorUrl setting). SAME-ORIGIN with the editor, so it can read the editor's
+// project registry from localStorage (unreachable cross-origin from popup/SW). Reports
+// that registry to the SW, which prunes the opened-images ledger for deleted projects
+// (background.js → pruneLedger).
+// READ-ONLY on the editor: never writes the registry or any project (can't create,
+// duplicate, or renumber); only lets the extension drop stale "opened" badges — the
+// editor app stays the sole source of truth.
+// Self-contained (no imports); the guard stops double injection from redeclaring
+// bindings (a top-level `const` throws on second inject) or binding the
 // `storage`/`stencil:registry-changed` listeners twice.
 (() => {
   if (window.__stencilEditorBridge) return;
@@ -46,8 +43,8 @@
 
   // Report once on load, then on every registry change. The editing tab fires
   // `stencil:registry-changed` (TabsCoordinator.projectsChanged); the `storage` event
-  // covers OTHER editor tabs (localStorage is per-origin shared, and `storage` fires in
-  // every same-origin document except the one that wrote it).
+  // covers OTHER editor tabs (storage fires in every same-origin document except the
+  // one that wrote it).
   publishRegistry();
   window.addEventListener('stencil:registry-changed', publishRegistry);
   window.addEventListener('storage', (e) => {

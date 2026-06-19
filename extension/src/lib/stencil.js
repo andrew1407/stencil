@@ -15,12 +15,11 @@ export const getSettings = async () => {
     page: s.page || DEFAULT_PAGE,
     // Whether the popup badges images that already have an editor (default on).
     markOpened: s.markOpened !== false,
-    // Whether the popup sorts already-opened images to the top of the list
-    // (default on). Toggled live from the popup, persisted here so it follows the
-    // user. Independent of markOpened, but a no-op when badging is off.
+    // Whether the popup sorts opened images to the top (default on). Toggled live from
+    // the popup, persisted here. Independent of markOpened, but a no-op when badging is off.
     openedFirst: s.openedFirst !== false,
     // Whether to inject a page-global `window.stencil` scripting API into every page
-    // (default OFF — it touches every page's main world, so it's strictly opt-in).
+    // (default OFF — touches every page's main world, so strictly opt-in).
     exposeWindowStencil: s.exposeWindowStencil === true
   };
 };
@@ -121,11 +120,11 @@ const fitLaunchPayload = async (editorUrl, payload) => {
   return { payload, url };
 };
 
-// Build the editor launch URL for a payload, shrinking the image if needed so the
-// URL stays under the length limit. Shared by the tab and in-page-modal launchers.
+// Build the editor launch URL, shrinking the image if needed to stay under the length
+// limit. Shared by the tab and in-page-modal launchers.
 //   payload = { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }
-// `source`/`resource` are the image's own URL and the page it came from; `open`
-// ('resume'|'copy') tells the editor to switch to a matching project or force a copy.
+// `source`/`resource` = image's own URL and the page it came from; `open` ('resume'|
+// 'copy') tells the editor to switch to a matching project or force a copy.
 const buildEditorLaunchUrl = async (payload) => {
   const { editorUrl } = await getSettings();
   const fitted = await fitLaunchPayload(editorUrl, payload);
@@ -134,9 +133,9 @@ const buildEditorLaunchUrl = async (payload) => {
   return fitted.url;
 };
 
-// Append a hand-off to the opened-images ledger (best-effort) so the popup can
-// later badge this image as already-opened. No-op for incognito launches (the
-// editor never persists them) and for untrackable sources (handled in recordOpened).
+// Append a hand-off to the opened-images ledger (best-effort) so the popup can badge
+// this image as already-opened. No-op for incognito launches (editor never persists
+// them) and untrackable sources (handled in recordOpened).
 const noteOpened = async (payload) => {
   if (payload.incognito) return;
   const { editorUrl } = await getSettings();
@@ -151,9 +150,9 @@ export const openEditorTab = async (payload) => {
   return tab;
 };
 
-// Open the full editor as a small in-page modal on the given tab (mirrors
-// launchCrop). Falls back to a real tab with no tabId, or when the modal can't be
-// injected (restricted page) / the editor frame is later blocked by the page CSP.
+// Open the full editor as a small in-page modal on the given tab (mirrors launchCrop).
+// Falls back to a real tab with no tabId, or when the modal can't be injected
+// (restricted page) / the editor frame is later blocked by the page CSP.
 //   { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito?, tabId }
 export const launchEditorModal = async ({ tabId, ...payload }) => {
   const url = await buildEditorLaunchUrl(payload);
@@ -181,10 +180,9 @@ export const CROP_SRC_KEY = 'stencil-crop-src';
 // to the post-crop editor hand-off so a cropped image keeps where it came from.
 export const CROP_META_KEY = 'stencil-crop-meta';
 
-// Open the quick-crop tool as a small in-page modal on the given tab. Falls back
-// to a real tab when the modal can't be injected (restricted page) or the frame
-// is later blocked by the page's CSP. `source`/`resource` ride along (via session
-// storage) so the cropped result's editor hand-off keeps its provenance.
+// Open the quick-crop tool as a small in-page modal on the given tab. Falls back to a
+// real tab when the modal can't be injected (restricted page) / the frame is CSP-blocked.
+// `source`/`resource` ride along (via session storage) so the cropped result keeps provenance.
 export const launchCrop = async ({ src, source, resource, tabId }) => {
   try {
     await chrome.storage.session.set({ [CROP_SRC_KEY]: src, [CROP_META_KEY]: { source: source || '', resource: resource || '' } });

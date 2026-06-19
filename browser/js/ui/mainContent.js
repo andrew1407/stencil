@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { StencilTooltip } from './tooltip.js';
 import { hotkeys } from '../core/hotkeys.js';
+import { icon } from './icons.js';
 // ── Component: main content (canvas section + coordinates panel) ──
 // Owns the canvas/coord-panel markup and the coord-panel collapse behavior.
 export class StencilMainContent extends StencilElement {
@@ -15,19 +16,19 @@ export class StencilMainContent extends StencilElement {
                     </div>
                     <div class="idle-create" id="idle-create-wrap">
                         <button id="create-blank-btn" class="idle-create-btn" title="Create a blank image (white, black, or any color) to draw on">
-                            <span class="idle-create-icon">🖼</span>
+                            <span class="idle-create-icon">${icon('image', { size: 32 })}</span>
                             <span>＋ Blank image</span>
                         </button>
                     </div>
                 </div>
                 <div class="coord-status" id="coord-status">Open an image to begin</div>
-                <div class="drop-hint">💡 Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
+                <div class="drop-hint">${icon('lightbulb', { size: 14 })} Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
             </div>
 
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
                     <span class="coord-title" id="coord-title">Last Line Points</span>
-                    <button id="toggle-coord-panel" data-hk-title="togglePointsList" title="Hide panel (Alt+X)">▼</button>
+                    <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel" title="Hide panel">${icon('chevron-down')}</button>
                 </div>
                 <div id="coord-body">
                 <table class="coordinates-table" id="coordinates-table">
@@ -63,7 +64,8 @@ export class StencilMainContent extends StencilElement {
     btn.addEventListener('click', () => {
       hidden = !hidden;
       panel.classList.toggle('coord-collapsed', hidden);
-      btn.textContent = hidden ? '▶' : '▼';
+      btn.innerHTML = hidden ? icon('chevron-right') : icon('chevron-down');
+      btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
   }

@@ -1,8 +1,7 @@
 /* ── Custom scrollbars: thin by default, expand on container hover ─
-   The visible thumb is shrunk by a transparent border; the scrollbar
-   gutter itself stays a constant width so growth causes no layout
-   shift, just a visual swell. background-clip:padding-box is what
-   lets the transparent border act as padding around the thumb. */
+   The visible thumb is shrunk by a transparent border; the gutter stays a
+   constant width so growth causes no layout shift, just a visual swell.
+   background-clip:padding-box lets the transparent border act as thumb padding. */
 /* Firefox — only auto/thin/none are available, so we stay 'thin' */
 .canvas-viewport,
 .settings-body,
@@ -118,20 +117,51 @@ button {
 button:hover {
     background: var(--accent-2);
 }
-button:disabled {
-    background: #555;
-    color: #999;
+button:disabled,
+button.danger:disabled,
+button.active:disabled {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
     cursor: not-allowed;
 }
 button.active {
-    background: #28a745;
+    background: var(--success);
 }
 button.danger {
-    background: #dc3545;
+    background: var(--danger);
 }
 button.danger:hover {
-    background: #c82333;
+    background: var(--danger-2);
 }
+
+/* ── Inline-SVG icons (js/ui/icons.js) ──────────────────────────
+   Icons inherit color (currentColor) so they theme with the button/text. These
+   rules only handle layout: glyph on the text baseline when inline, centered
+   inside icon buttons. */
+.ic {
+    display: inline-block;
+    vertical-align: -0.18em;
+    flex: 0 0 auto;
+}
+/* Icon + label buttons (and label spans): a flex row with an even gap so the
+   glyph and text align regardless of font metrics. */
+.btn-icon-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-icon-text .ic { vertical-align: 0; }
+/* Icon-only buttons: square-ish, glyph centered; disabled keeps a clear look. */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-icon .ic { vertical-align: 0; }
+/* Disabled controls must still receive pointer events so their title tooltip
+   (the reason) shows on hover — :disabled normally swallows them. A disabled
+   button never dispatches click, so this only re-enables the tooltip. */
+button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 /* Theme toggle button */
 #theme-toggle {
     background: transparent;

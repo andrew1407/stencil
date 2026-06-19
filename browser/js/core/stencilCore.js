@@ -1,14 +1,12 @@
 // ── Shared C++ core singleton ───────────────────────────────────
-// Owns the WebAssembly build of the shared C++ core and typed wrappers over its
-// raw extern "C" exports, exposing clean JS-shaped functions via the `core`
-// singleton. The wasm artifact is generated (gitignored, built per core/WASM.md)
-// and may be absent — so it's imported dynamically inside init() and a missing
-// module degrades to the JS fallback (a static import would crash boot). Dynamic-
-// only import keeps this a leaf module with no app imports, so Node never loads wasm.
+// Owns the WebAssembly build of the shared C++ core and typed wrappers over its raw
+// extern "C" exports, exposing clean JS functions via the `core` singleton. The wasm
+// artifact is generated (gitignored, built per core/WASM.md) and may be absent — so it's
+// imported dynamically inside init(), degrading to the JS fallback (a static import would
+// crash boot). Dynamic-only import keeps this a leaf module, so Node never loads wasm.
 
-// The generated artifact's path, relative to this module. Kept as a named
-// constant rather than inlined into the import() call (native ESM accepts a
-// variable specifier at runtime; there is no build step to require a literal).
+// Generated artifact path, relative to this module. A named constant, not inlined into
+// import() (native ESM accepts a variable specifier; no build step requires a literal).
 const WASM_MODULE_PATH = '../wasm/stencilCore.js';
 
 class StencilCore {
@@ -32,10 +30,9 @@ class StencilCore {
     this.#initPromise = import(WASM_MODULE_PATH)
       .then(({ default: createStencilCore }) => createStencilCore())
       .then(core => {
-        // Guard against a stale/incompatible artifact: an older build can load yet
-        // be missing exports the wrappers cwrap. cwrap'ing a missing export yields a
-        // non-callable that throws at call time instead of degrading, so verify all
-        // required exports up front and fall back to the JS refs if any are absent.
+        // Guard against a stale/incompatible artifact: an older build can load yet lack
+        // exports the wrappers cwrap. cwrap'ing a missing export yields a non-callable that
+        // throws at call time, so verify all required exports up front and fall back to JS refs.
         const missing = this.#missingExports(core);
         if (missing.length) {
           console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
@@ -69,10 +66,9 @@ class StencilCore {
     return this.#requiredExports.filter(sym => typeof core[`_${sym}`] !== 'function');
   }
 
-  // Route calls to wasm op `name` when installed, else the JS reference. The op is
-  // read per call, so a wrapper built at module-eval time still picks up the post-
-  // load swap. Symmetric ops only (same args on both paths); asymmetric sites use
-  // op(name) with their own guard.
+  // Route calls to wasm op `name` when installed, else the JS reference. Read per call so a
+  // wrapper built at module-eval time picks up the post-load swap. Symmetric ops only (same
+  // args both paths); asymmetric sites use op(name) with their own guard.
   bind(name, jsRef) {
     return (...args) => (this.#ops[name] ?? jsRef)(...args);
   }

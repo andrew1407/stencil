@@ -1,13 +1,11 @@
 /* ── Shared theme — follows the OS light/dark preference ──────────────────────
-   Single source of truth for the palette used by the extension's own pages
-   (popup, crop, options). Link this BEFORE a page's own stylesheet. Light is the
-   default; the @media (prefers-color-scheme: dark) block swaps in the dark
-   palette, so the UI tracks the system setting live with no JS — the same
-   prefers-color-scheme contract the browser app (browser/css/theme.css) and the
-   desktop app (QStyleHints::colorScheme) already follow. color-scheme also lets
-   native bits (form controls, scrollbars) match. The injected in-page modal
-   (lib/overlay.js) can't link this — it must be self-contained — so it carries
-   the same media query inline. */
+   Single source of truth for the extension's own pages (popup, crop, options);
+   link BEFORE a page's stylesheet. Light is default; @media (prefers-color-scheme:
+   dark) swaps in the dark palette, so the UI tracks the system live with no JS —
+   the same prefers-color-scheme contract the browser app (browser/css/theme.css)
+   and desktop app (QStyleHints::colorScheme) follow. color-scheme also lets native
+   bits (form controls, scrollbars) match. The injected in-page modal (lib/overlay.js)
+   can't link this — it must be self-contained — so it carries the media query inline. */
 :root {
   color-scheme: light dark;
   /* Light (default) */
@@ -18,9 +16,8 @@
   --text: #1d2230;
   --muted: #6b7180;
   /* Brand accent — violet by default, swappable via a data-accent preset (see
-     below + lib/accent.js). --accent-2 is the hover/active shade, derived from
-     --accent (darker here, lighter in dark mode) so any chosen accent stays
-     harmonised. */
+     below + lib/accent.js). --accent-2 is the hover/active shade derived from
+     --accent (darker here, lighter in dark) so any chosen accent stays harmonised. */
   --accent: #7c3aed;
   --accent-2: color-mix(in srgb, var(--accent) 86%, black);
   --yellow: #a67c00;

@@ -3,6 +3,7 @@ import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, laun
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
+import { icon } from '../lib/icons.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
 
 // Common web image formats always offered in the filter, plus any others the page
@@ -26,10 +27,10 @@ const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
 
 const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true };
 
-// This same controller drives three surfaces: the toolbar popup (closes after an
-// action), the docked side panel (src/sidepanel/sidepanel.html), and the DevTools
-// panel (src/devtools/panel.html). Both docked surfaces stay open and re-scan as the
-// page changes; only the popup closes. The host document's path tells them apart.
+// This controller drives three surfaces: the toolbar popup (closes after an action),
+// the docked side panel (src/sidepanel/sidepanel.html), and the DevTools panel
+// (src/devtools/panel.html). Docked ones stay open and re-scan; only the popup closes.
+// The host document's path tells them apart.
 const IS_SIDE_PANEL = location.pathname.includes('sidepanel');
 const IS_DEVTOOLS = location.pathname.includes('devtools');
 // The popup is the only ephemeral surface; the docked ones persist, so leave them.
@@ -288,9 +289,8 @@ const renderRow = (image) => {
   thumb.className = 'thumb';
   thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
   thumb.loading = 'lazy';
-  // No native title on the thumbnail itself: hovering it shows the floating image
-  // preview (bindPreview below), and a native tooltip would cover that preview. The
-  // same info stays available on the name's title (hovered off the image).
+  // No native title on the thumbnail: hovering shows the floating preview (bindPreview),
+  // which a tooltip would cover; the same info stays on the name's title.
   // Video with no readable frame → play glyph. Any other broken thumb is likely a
   // hotlink-protected source a bare <img> can't load — retry once via fetchAsDataUrl
   // (host permissions), reusing the preview cache; hide only if that fails too.
@@ -352,7 +352,7 @@ const renderRow = (image) => {
     row.classList.add('opened');
     const ob = document.createElement('span');
     ob.className = 'badge opened';
-    ob.textContent = '⚑ opened';
+    ob.innerHTML = icon('flag', { size: 12 }) + ' opened';
     ob.title = 'Already opened in an editor — click to resume or add a copy';
     sub.appendChild(ob);
   }
@@ -405,9 +405,8 @@ const measure = (image, dimEl, li) => {
 // ── Floating "…" action menu ──
 let menuAnchor = null;
 
-// Fill the menu with the actions for `image`. Editor actions come in pairs: a new
-// tab and an in-page modal (▣, mirrors the quick-crop modal), each with a normal
-// and an incognito variant.
+// Fill the menu with the actions for `image`. Editor actions come in pairs: a new tab
+// and an in-page modal (▣, mirrors the quick-crop modal), each normal and incognito.
 const buildMenu = (image) => {
   menuEl.innerHTML = '';
   const item = (icon, label, fn) => {
@@ -431,34 +430,34 @@ const buildMenu = (image) => {
     d.textContent = text;
     return d;
   };
-  // Already opened: offer to resume the existing editor (the editor switches to the
-  // matching project, or lets the user pick when several share this image) or to add
-  // a fresh numbered copy. Shown first since it's the point of the yellow badge.
+  // Already opened: offer to resume the existing editor (switches to the matching
+  // project, or lets the user pick when several share this image) or add a fresh
+  // numbered copy. Shown first since it's the point of the yellow badge.
   if (isOpened(image)) {
     // After reconciliation each matched entry carries the live project count for the
     // source, so they agree — take the max (not a sum, which would multiply duplicates).
     const n = image.opened.reduce((a, e) => Math.max(a, e.count || 1), 0);
     menuEl.append(
-      item('↩', `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
+      item(icon('refresh', { size: 15 }), `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
       item('＋', 'Add as new copy', () => sendToEditor(image, false, 'copy')),
       sep()
     );
   }
   if (image.kind === 'video') {
     if (image.videoUrl) menuEl.append(
-      item('↗', 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
-      item('⬇', 'Download video', () => download(image.videoUrl))
+      item(icon('external', { size: 15 }), 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
+      item(icon('download', { size: 15 }), 'Download video', () => download(image.videoUrl))
     );
     if (editableSrc(image)) {
       // With no decoded frame (unplayed video) these act on the poster instead of a
       // black frame, via editableSrc() in sendToEditor / openCrop.
       if (image.videoUrl) menuEl.append(sep());
       menuEl.append(
-        item('✎', 'Open current frame in editor', () => sendToEditor(image, false)),
-        item('🕶', 'Frame in editor (incognito)', () => sendToEditor(image, true)),
-        item('▣', 'Open frame in editor here', () => sendToEditorModal(image, false)),
-        item('▣', 'Frame in editor here (incognito)', () => sendToEditorModal(image, true)),
-        item('✂', 'Crop current frame', () => openCrop(image))
+        item(icon('pencil', { size: 15 }), 'Open current frame in editor', () => sendToEditor(image, false)),
+        item(icon('incognito', { size: 15 }), 'Frame in editor (incognito)', () => sendToEditor(image, true)),
+        item(icon('monitor', { size: 15 }), 'Open frame in editor here', () => sendToEditorModal(image, false)),
+        item(icon('monitor', { size: 15 }), 'Frame in editor here (incognito)', () => sendToEditorModal(image, true)),
+        item(icon('crop', { size: 15 }), 'Crop current frame', () => openCrop(image))
       );
     }
     // The poster (preview cover) is a normal image independent of the frames — offer
@@ -469,25 +468,25 @@ const buildMenu = (image) => {
       menuEl.append(
         sep(),
         label('Video preview image'),
-        item('↗', 'Open preview in new tab', () => chrome.tabs.create({ url: poster.src })),
-        item('⬇', 'Download preview', () => download(poster.src)),
-        item('✎', 'Open preview in editor', () => sendToEditor(poster, false)),
-        item('🕶', 'Preview in editor (incognito)', () => sendToEditor(poster, true)),
-        item('▣', 'Open preview in editor here', () => sendToEditorModal(poster, false)),
-        item('▣', 'Preview here (incognito)', () => sendToEditorModal(poster, true)),
-        item('✂', 'Crop preview…', () => openCrop(poster))
+        item(icon('external', { size: 15 }), 'Open preview in new tab', () => chrome.tabs.create({ url: poster.src })),
+        item(icon('download', { size: 15 }), 'Download preview', () => download(poster.src)),
+        item(icon('pencil', { size: 15 }), 'Open preview in editor', () => sendToEditor(poster, false)),
+        item(icon('incognito', { size: 15 }), 'Preview in editor (incognito)', () => sendToEditor(poster, true)),
+        item(icon('monitor', { size: 15 }), 'Open preview in editor here', () => sendToEditorModal(poster, false)),
+        item(icon('monitor', { size: 15 }), 'Preview here (incognito)', () => sendToEditorModal(poster, true)),
+        item(icon('crop', { size: 15 }), 'Crop preview…', () => openCrop(poster))
       );
     }
   } else {
     menuEl.append(
-      item('⬇', 'Download', () => download(image.src)),
-      item('↗', 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
+      item(icon('download', { size: 15 }), 'Download', () => download(image.src)),
+      item(icon('external', { size: 15 }), 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
       sep(),
-      item('✎', 'Open in editor', () => sendToEditor(image, false)),
-      item('🕶', 'Editor (incognito)', () => sendToEditor(image, true)),
-      item('▣', 'Open in editor here', () => sendToEditorModal(image, false)),
-      item('▣', 'Editor here (incognito)', () => sendToEditorModal(image, true)),
-      item('✂', 'Crop…', () => openCrop(image))
+      item(icon('pencil', { size: 15 }), 'Open in editor', () => sendToEditor(image, false)),
+      item(icon('incognito', { size: 15 }), 'Editor (incognito)', () => sendToEditor(image, true)),
+      item(icon('monitor', { size: 15 }), 'Open in editor here', () => sendToEditorModal(image, false)),
+      item(icon('monitor', { size: 15 }), 'Editor here (incognito)', () => sendToEditorModal(image, true)),
+      item(icon('crop', { size: 15 }), 'Crop…', () => openCrop(image))
     );
   }
 };
@@ -783,10 +782,9 @@ if (IS_SIDE_PANEL) {
   chrome.devtools.network.onNavigated.addListener(() => scan());
 }
 
-// The ledger can change while a surface is open — most importantly a prune when a
-// project is deleted in the editor (background.js → pruneLedger). Re-annotate the
-// already-scanned images in place so badges drop without a full re-scan. The popup
-// closes on action so this mainly serves the persistent side panel / DevTools panel.
+// The ledger can change while a surface is open — notably a prune when a project is
+// deleted in the editor (background.js → pruneLedger). Re-annotate scanned images in
+// place so badges drop without a re-scan. Mainly serves the side panel / DevTools panel.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[LEDGER_KEY] && state.all.length) {
     annotateOpened().then(applyFilters);

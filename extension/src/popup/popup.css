@@ -20,8 +20,13 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .icon-btn {
   background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
   border-radius: 6px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.icon-btn:hover { background: var(--accent); border-color: var(--accent); }
+.icon-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Inline-SVG icons inherit color via currentColor (shared set: lib/icons.js). */
+.ic { flex: 0 0 auto; vertical-align: -0.18em; }
+.btn-icon-text { display: inline-flex; align-items: center; gap: 6px; }
+.btn-icon-text .ic { vertical-align: 0; }
 
 .filters {
   display: flex; flex-direction: column; gap: 6px;
@@ -108,7 +113,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   padding: 7px 9px; font-size: 12.5px; cursor: pointer; text-align: left;
 }
 .action-menu button:hover { background: var(--accent); color: #fff; }
-.action-menu .ic { width: 16px; text-align: center; font-size: 13px; }
+.action-menu .ic { width: 16px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.badge.opened .ic { vertical-align: -0.16em; }
 .action-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
 /* Sub-category heading inside the action menu (e.g. "Video preview image"). */
 .action-menu .label {

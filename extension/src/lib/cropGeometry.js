@@ -1,8 +1,7 @@
 // ── Crop-window geometry (extension copy) ───────────────────────────────────
-// Behaviour-identical port of browser/js/core/cropGeometry.js. A crop is an
-// axis-aligned rect {x,y,width,height} in ORIGINAL-image pixels whose aspect is
-// locked to the chosen page (so resizing is corner-only). Keep in sync with the
-// editor (tests/cropGeometry.test.js).
+// Behaviour-identical port of browser/js/core/cropGeometry.js. A crop is an axis-aligned
+// rect {x,y,width,height} in ORIGINAL-image pixels whose aspect is locked to the chosen
+// page (resizing is corner-only). Keep in sync with the editor (tests/cropGeometry.test.js).
 
 // Page natural dimensions (cm). Mirrors browser/js/config/constants.json.
 export const PAGE_SIZES = {

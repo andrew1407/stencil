@@ -1,8 +1,7 @@
 // ── TabsCoordinator: window-side cross-tab coordination ─────────
-// Talks to the SharedWorker coordinator when available, else a BroadcastChannel
-// roll-call, else single-tab assumptions. Never touches localStorage — only relays
-// small control messages so the projects UI knows the tab count, peers, and when
-// another tab changed the project set.
+// Talks to the SharedWorker coordinator when available, else a BroadcastChannel roll-call,
+// else single-tab assumptions. Never touches localStorage — only relays small control
+// messages so the projects UI knows tab count, peers, and when another tab changed projects.
 import { MSG } from '../worker/messages.js';
 
 const CHANNEL_NAME = 'stencil_projects';
@@ -51,10 +50,9 @@ export class TabsCoordinator {
   }
 
   projectsChanged(detail = {}) {
-    // Nudge the Stencil extension's in-page editor bridge (present only when this
-    // editor was opened by the extension) to re-read the registry and prune its
-    // opened-ledger. Detail-free — the bridge reads localStorage itself, so no
-    // project data crosses — and a no-op when no extension is listening.
+    // Nudge the Stencil extension's in-page editor bridge (present only when opened by the
+    // extension) to re-read the registry and prune its opened-ledger. Detail-free — the bridge
+    // reads localStorage itself, so no project data crosses — and a no-op when no one listens.
     try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch { /* no DOM (e.g. worker) — the bridge nudge is best-effort */ }
     if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
     if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });

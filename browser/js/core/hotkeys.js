@@ -1,10 +1,9 @@
 // ── Hotkey registry singleton ───────────────────────────────────
-// Owns the mutable keyboard-shortcut bindings as #private fields of one `hotkeys`
-// instance (no window globals). Defaults from hotkeysConfig.json, overrides merged
-// from localStorage 'drawingApp_hotkeys'. localStorage/DOM access is guarded by
-// typeof window/document/localStorage so importing this leaf module in Node stays inert.
+// Mutable keyboard-shortcut bindings as #private fields of one `hotkeys` instance (no window
+// globals). Defaults from hotkeysConfig.json, overrides merged from localStorage
+// 'drawingApp_hotkeys'. localStorage/DOM access guarded so importing in Node stays inert.
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
-import { platformizeCombo, isMacPlatform, formatCombo } from '../utils.js';
+import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle } from '../utils.js';
 
 const STORAGE_KEY = 'drawingApp_hotkeys';
 
@@ -97,18 +96,13 @@ class Hotkeys {
     this.updateHotkeyTitles();
   }
 
-  // Patch every [data-hk-title] element's `title` tooltip to the platform-formatted
-  // current binding. data-hk-title = hotkey id; data-hk-label = base tooltip text
-  // (falls back to the element's existing title with any "(…)" suffix stripped).
-  // Keeps button tooltips correct on macOS (⌥/⇧/⌘) and live across rebinds.
+  // Patch every [data-hk-title] element's `title` to the platform-formatted current binding
+  // (keeping any disabled-reason line). composeControlTitle owns base/hotkey/reason composition,
+  // shared with DrawingApp.updateButtons → identical, macOS-correct (⌥/⇧/⌘) tooltips, live across rebinds.
   updateHotkeyTitles() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('[data-hk-title]').forEach(el => {
-      const id = el.dataset.hkTitle;
-      if (!this.#current[id]) return;
-      const label = el.dataset.hkLabel
-        || (el.dataset.hkLabel = (el.getAttribute('title') || '').replace(/\s*\([^)]*\)\s*$/, ''));
-      el.title = `${label} (${formatCombo(this.#current[id], this.#isMac)})`;
+      el.title = composeControlTitle(el, this.#isMac, id => this.#current[id]);
     });
   }
 }

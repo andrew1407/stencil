@@ -1,8 +1,7 @@
 // ── Page image scanner ──────────────────────────────────────────────────────
-// Runs in the PAGE context (injected via chrome.scripting), so it must be fully
-// self-contained — no imports, no module-scope refs. Collects <img>, inline
-// <svg><image>, CSS background-image URLs (incl. ::before/::after), and <video>
-// current frames — resolved to absolute, deduped, capped.
+// Runs in the PAGE context (injected via chrome.scripting), so fully self-contained
+// (no imports/module refs). Collects <img>, inline <svg><image>, CSS background-image
+// URLs (incl. ::before/::after), and <video> current frames — absolute, deduped, capped.
 export const scanPageForImages = (limit) => {
   const out = [];
   const seen = new Set();
@@ -59,17 +58,15 @@ export const scanPageForImages = (limit) => {
     // blob: URL isn't, so leave it out.
     const raw = v.currentSrc || v.src || '';
     const videoUrl = (raw.startsWith('http:') || raw.startsWith('https:')) ? abs(raw) : '';
-    // The poster is a page-level preview image, often unrelated to any frame. List
-    // it as its OWN image item (so it can be opened/cropped independently), and tag
-    // the video item with it. Fall back to the probe's persisted snapshot
-    // (`__stencilPoster`, same extension isolated world) since some players strip
-    // the live poster attribute once playback starts.
+    // The poster is a page-level preview, often unrelated to any frame. List it as its
+    // OWN image item (openable/croppable independently) and tag the video item with it.
+    // Fall back to the probe's persisted snapshot (`__stencilPoster`, same extension
+    // isolated world) since some players strip the live poster attribute on playback.
     const rawPoster = v.poster || v.__stencilPoster || '';
     const poster = rawPoster ? abs(rawPoster) : '';
     if (poster) {
-      // The same image is often ALSO a plain <img> on the page (scanned first) — tag
-      // that existing row as a poster rather than dropping a duplicate; otherwise add
-      // the poster as its own image item.
+      // The same image is often ALSO a plain <img> (scanned first) — tag that existing
+      // row as a poster rather than duplicating; otherwise add the poster as its own item.
       const existing = out.find(it => it.src === poster);
       if (existing) existing.poster = true;
       else push(poster, 'img', 0, 0, v.getAttribute('aria-label') || 'video poster', { poster: true });

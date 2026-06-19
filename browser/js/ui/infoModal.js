@@ -1,13 +1,14 @@
 import { StencilElement, hostTag, define } from './base.js';
 import INFO from '../config/infoConfig.json' with { type: 'json' };
+import { icon } from './icons.js';
 // ── Component: controls & shortcuts info modal ──────────────────
 export class StencilInfoModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>📋 Controls &amp; Shortcuts</h2>
-                <button class="app-modal-close" id="info-close">✕ Close</button>
+                <h2>${icon('help', { size: 18 })} Controls &amp; Shortcuts</h2>
+                <button class="app-modal-close btn-icon-text" id="info-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div style="padding:12px 18px 6px;">
                 <input type="text" id="info-search" placeholder="Search controls…" style="width:100%;padding:8px 10px;border:1px solid var(--border-main);border-radius:6px;background:var(--input-bg);color:var(--input-text);font-size:13px;">

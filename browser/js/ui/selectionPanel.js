@@ -1,11 +1,12 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { icon } from './icons.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
 export class StencilSelectionPanel extends StencilElement {
   static inner() {
     return `
             <div class="selection-panel-inner">
-                <span class="selection-label">✏️ Selected Line:</span>
+                <span class="selection-label">${icon('pencil', { size: 14 })} Selected Line:</span>
                 <div class="control-group">
                     <label>Color:</label>
                     <input type="color" id="sel-color">
@@ -29,9 +30,9 @@ export class StencilSelectionPanel extends StencilElement {
                 <div class="control-group" id="sel-fill-group" style="display:none;">
                     <label title="Locked area fill"><input type="checkbox" id="sel-fill-enabled" style="vertical-align:middle;"> Fill:</label>
                     <input type="color" id="sel-fill" title="Area fill color">
-                    <button id="sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;padding:6px 10px;">✕</button>
+                    <button id="sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;padding:6px 10px;">${icon('x', { size: 13 })}</button>
                 </div>
-                <button id="sel-deselect" class="deselect-btn">✕ Deselect</button>
+                <button id="sel-deselect" class="deselect-btn btn-icon-text">${icon('x', { size: 13 })}<span>Deselect</span></button>
             </div>
     `;
   }

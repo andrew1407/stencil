@@ -2,15 +2,12 @@
    animations.css — shared motion layer for the extension's own pages
    (popup, side panel, devtools panel, quick-crop, options).
 
-   Link AFTER lib/theme.css and the page's own stylesheet so it enriches
-   existing rules. It's purely cosmetic — every surface works without it.
-   Selectors are scoped by class names that only exist on a given surface,
-   so unmatched rules are harmless no-ops on the others.
-
-   The injected in-page surfaces (lib/overlay.js modal, lib/highlight.js
-   image outlines) can't link a file — they carry their own motion inline.
-
-   All motion collapses under prefers-reduced-motion (see bottom).
+   Link AFTER lib/theme.css and the page's stylesheet so it enriches existing
+   rules. Purely cosmetic — every surface works without it. Selectors are scoped
+   by class names unique to each surface, so unmatched rules are harmless no-ops.
+   Injected in-page surfaces (lib/overlay.js modal, lib/highlight.js image
+   outlines) can't link a file — they carry their own motion inline. All motion
+   collapses under prefers-reduced-motion (see bottom).
    ────────────────────────────────────────────────────────────────────── */
 
 /* ── Keyframes ──────────────────────────────────────────────────────── */

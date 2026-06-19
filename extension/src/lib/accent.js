@@ -1,13 +1,11 @@
 // Accent (brand-colour) presets + flash-free apply for the extension's own pages
 // (popup, options, sidepanel, crop, devtools panel). Loaded as a CLASSIC <script>
-// in each page's <head> BEFORE lib/theme.css, so the saved accent sits on
-// <html data-accent="…"> before first paint — no colour flash. It is a separate
-// file (not inline) because MV3 forbids inline page scripts. The choice lives in
-// localStorage, which is synchronous and shared across the extension's pages
-// (same chrome-extension:// origin) — unlike chrome.storage.sync, which is async
-// and would flash. The darker/lighter --accent-2 shade and the glows derive from
-// --accent via color-mix() in lib/theme.css. Mirrors browser/js/core/accents.js
-// and desktop theme.cpp. window.StencilAccent lets the options page read/write it.
+// (separate file — MV3 forbids inline page scripts) in each page's <head> BEFORE
+// lib/theme.css, so the saved accent sits on <html data-accent="…"> before first paint.
+// Choice lives in localStorage (synchronous + shared across same-origin pages, unlike
+// async chrome.storage.sync which would flash). --accent-2 shade and glows derive from
+// --accent via color-mix() in lib/theme.css. Mirrors browser/js/core/accents.js and
+// desktop theme.cpp. window.StencilAccent lets the options page read/write it.
 (function () {
   var ACCENTS = [
     { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
@@ -40,10 +38,9 @@
     for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
   };
-  // The tab favicon as an inline SVG with the panel outline painted in `hex` (the rest
-  // is fixed brand art) — so an extension page opened as a tab (the options page) shows
-  // the Stencil mark tinted to the accent, next to its title. Mirrors the inline header
-  // logo and browser/js/core/accents.js faviconSvg (kept in sync by hand).
+  // Tab favicon as inline SVG with the panel outline painted in `hex` (rest is fixed
+  // brand art) — so an extension page opened as a tab (options) shows the Stencil mark
+  // tinted to the accent. Mirrors the inline header logo and browser accents.js faviconSvg.
   var faviconSvg = function (hex) {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
       '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +

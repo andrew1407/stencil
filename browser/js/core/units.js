@@ -1,16 +1,13 @@
 // ── Length-token parsing for the console API (pure) ─────────────────────────
-// The console API (window.stencil) lets callers express positions/sizes as a bare
-// number (a pixel DELTA — "move by N px"), or a unit string: '3cm', '-4in', '50%',
-// '-60%'. A leading '-' on a UNIT/PERCENT token means "measured from the END of the
-// axis" (image/page edge), NOT a negative length. On a bare number the '-' keeps its
-// arithmetic meaning (a leftward/upward move). All pure + unit-tested; no DOM.
+// window.stencil expresses positions/sizes as a bare number (a pixel DELTA — "move by N px")
+// or a unit string ('3cm', '-4in', '50%', '-60%'). A leading '-' on a UNIT/PERCENT token means
+// "measured from the axis END" (image/page edge), NOT a negative length; on a bare number '-'
+// keeps its arithmetic meaning (leftward/upward move). All pure + unit-tested; no DOM.
 import { CM_PER_INCH } from '../utils.js';
 
-// Parse a token into { kind, value, fromEnd }:
-//   kind 'delta'   → relative px move (value carries its own sign)
-//   kind 'px'|'cm' → absolute length (cm already converted from in/mm)
-//   kind 'percent' → fraction 0..100 of the axis length
-// fromEnd (absolute kinds only) → measure from the axis end. null on bad input.
+// Parse a token into { kind, value, fromEnd }: 'delta' = relative px move (value keeps its
+// sign); 'px'|'cm' = absolute length (cm already converted from in/mm); 'percent' = 0..100
+// fraction of axis length. fromEnd (absolute kinds) = measure from axis end. null on bad input.
 export const parseLengthToken = (token) => {
   if (typeof token === 'number') return Number.isFinite(token) ? { kind: 'delta', value: token } : null;
   if (typeof token !== 'string') return null;
@@ -31,11 +28,9 @@ export const parseLengthToken = (token) => {
   }
 };
 
-// Resolve a token to an ABSOLUTE pixel coordinate on an axis:
-//   lengthPx  total axis length in px (image/page extent)
-//   pxPerCm   px per centimetre for cm/in conversion on this axis
-//   currentPx the current value, used as the base for a delta move
-// Returns null on unparseable input.
+// Resolve a token to an ABSOLUTE pixel coordinate on an axis. lengthPx = total axis length
+// px (image/page extent); pxPerCm = px/cm for cm/in conversion; currentPx = base for a delta
+// move. Returns null on unparseable input.
 export const resolveAxisPx = (token, { lengthPx, pxPerCm, currentPx = 0 }) => {
   const t = parseLengthToken(token);
   if (!t) return null;

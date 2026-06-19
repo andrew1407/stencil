@@ -1,8 +1,7 @@
 // ── In-page highlight overlay (injected) ─────────────────────────────────────
-// Outlines every grabbable element (<img>, <svg><image>, CSS background-image),
-// tracks the one under the cursor, and observes the DOM for lazy content. on=false
-// (or a re-run) tears it down. Injected into the page, so self-contained (no imports);
-// teardown is stashed on window. Returns the static-highlight count.
+// Outlines every grabbable element (<img>, <svg><image>, CSS background-image), tracks
+// the one under the cursor, observes the DOM for lazy content. on=false (or re-run) tears
+// down. Injected, so self-contained (no imports); teardown stashed on window. Returns count.
 export const toggleStencilHighlight = (on) => {
   const STYLE_ID = 'stencil-hl-style';
   const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable
@@ -57,10 +56,9 @@ export const toggleStencilHighlight = (on) => {
 
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  // Transitions are added even on the !important rules: a transition animates the
-  // computed value regardless of importance, so the hover ring eases in/out smoothly
-  // (the box-shadow grows from nothing as HOVER is applied — a subtle pulse) without a
-  // keyframe animating hundreds of marked elements at once.
+  // Transitions on !important rules still animate (importance is irrelevant), so the
+  // hover ring eases in/out smoothly (box-shadow grows from nothing as HOVER is applied)
+  // without a keyframe animating hundreds of marked elements at once.
   style.textContent =
     '[' + ATTR + ']{outline:2px solid #7c3aed !important;outline-offset:-2px !important;' +
     'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +

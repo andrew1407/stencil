@@ -1,9 +1,9 @@
 // ── ProjectsStore: pure, DOM-free project registry over a storage backend ──
-// Owns the multi-project schema in (local)Storage: a registry array of metadata
-// plus one payload key per project. DOM-free so it unit-tests under Node with a
-// Map-backed shim; all JSON.parse is guarded with safe defaults. Keys: registry
-// (stencil_projects_v1), per-project payload (stencil_project_<id>), migration flag
-// (stencil_schema_migrated). Never touches global drawingApp_theme/_hotkeys keys.
+// Owns the multi-project schema in (local)Storage: a registry array of metadata plus one
+// payload key per project. DOM-free (unit-tests under Node with a Map-backed shim); all
+// JSON.parse guarded with safe defaults. Keys: registry (stencil_projects_v1), per-project
+// payload (stencil_project_<id>), migration flag (stencil_schema_migrated). Never touches
+// global drawingApp_theme/_hotkeys keys.
 
 export const REGISTRY_KEY = 'stencil_projects_v1';
 export const PROJECT_PREFIX = 'stencil_project_';
@@ -142,10 +142,9 @@ export class ProjectsStore {
     return arr[i];
   }
 
-  // Projects that came from the same image, most-recently-updated first. A match
-  // is an identical, non-empty `source` URL; when `source` is empty we fall back
-  // to matching the base name (so a plain local "photo" still groups with copies).
-  // Drives the extension-launch "resume" path and copy-numbering below.
+  // Projects from the same image, most-recently-updated first. Match = identical non-empty
+  // `source` URL; when `source` is empty, fall back to base-name match (so a local "photo"
+  // still groups with copies). Drives the extension-launch "resume" path + copy-numbering below.
   findByImage(source, name) {
     const src = source || '';
     const base = baseProjectName(name || '');
@@ -280,9 +279,9 @@ export class ProjectsStore {
 
   // ── legacy migration ──────────────────────────────────────────
 
-  // Idempotently fold the pre-multi-project keys into one project. Guarded by
-  // MIGRATED_FLAG so repeated calls are no-ops. Legacy keys are NOT deleted.
-  // Returns the new project id, or null when there was nothing to migrate.
+  // Idempotently fold the pre-multi-project keys into one project. Guarded by MIGRATED_FLAG
+  // (repeated calls no-op); legacy keys are NOT deleted. Returns the new project id, or
+  // null when there was nothing to migrate.
   migrateLegacy(now = Date.now()) {
     if (this.#storage.getItem(MIGRATED_FLAG)) return null;
 

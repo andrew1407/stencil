@@ -1,10 +1,11 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
+import { icon } from './icons.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
-// Owns the fs trigger/panel markup and the fullscreen behavior (cloning the
-// live controls + coord panel, slide-in panels, enter/exit). Exposes the toggle
-// on the app instance as app.toggleFullscreen, which other modules (context
-// menu, hotkeys) call through their own app reference — no window global.
+// Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
+// controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
+// app.toggleFullscreen, which context menu / hotkeys call through their own app
+// reference — no window global.
 export class StencilFullscreenLayer extends StencilElement {
   static inner() {
     return `
@@ -14,7 +15,7 @@ export class StencilFullscreenLayer extends StencilElement {
 
     <!-- Fullscreen slide-in: controls (top) -->
     <div id="fs-controls-panel">
-        <button id="fs-exit-btn" data-hk-title="fullscreen" title="Exit fullscreen (Alt+F)">✕ Exit</button>
+        <button id="fs-exit-btn" class="btn-icon-text" data-hk-title="fullscreen" data-title="Exit fullscreen" title="Exit fullscreen">${icon('x', { size: 14 })}<span>Exit</span></button>
         <!-- Controls content will be cloned here by JS -->
     </div>
 
@@ -199,7 +200,8 @@ export class StencilFullscreenLayer extends StencilElement {
 
       isFullscreen = !isFullscreen;
       document.body.classList.toggle('fullscreen-mode', isFullscreen);
-      fsBtn.textContent = '⛶';
+      fsBtn.innerHTML = icon('maximize');
+      fsBtn.dataset.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode';
       fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
       fsBtn.style.background = isFullscreen ? '#7c3aed' : '';
       fsBtn.style.color = isFullscreen ? '#fff' : '';

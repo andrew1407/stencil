@@ -1,10 +1,11 @@
 import { ACCENTS, accentHex } from '../core/accents.js';
+import { icon } from './icons.js';
 
-// Custom "main theme" dropdown: a trigger showing the current colour swatch +
-// name, and a popup listbox where every option is a colour RECT next to its name.
-// A native <select> can't paint a per-option swatch on every OS (notably macOS),
-// so this small listbox does it explicitly. Calls onSelect(key) on choice and
-// returns { set(key) } to re-sync the trigger when the value changes elsewhere.
+// Custom "main theme" dropdown: trigger showing the current colour swatch + name,
+// and a popup listbox where every option is a colour RECT next to its name. A native
+// <select> can't paint a per-option swatch on every OS (notably macOS), so this does
+// it explicitly. Calls onSelect(key) on choice; returns { set(key) } to re-sync the
+// trigger when the value changes elsewhere.
 export function buildAccentPicker(mount, { current, onSelect }) {
   const labelOf = (k) => (ACCENTS.find((a) => a.key === k) || ACCENTS[0]).label;
   let value = current;
@@ -14,7 +15,7 @@ export function buildAccentPicker(mount, { current, onSelect }) {
     <button type="button" class="accent-dd-trigger" aria-haspopup="listbox" aria-expanded="false">
       <span class="accent-swatch js-cur-sw"></span>
       <span class="accent-dd-name js-cur-name"></span>
-      <span class="accent-dd-caret" aria-hidden="true">▾</span>
+      <span class="accent-dd-caret" aria-hidden="true">${icon('chevron-down', { size: 13 })}</span>
     </button>
     <ul class="accent-dd-menu" role="listbox" hidden></ul>`;
   const trigger = mount.querySelector('.accent-dd-trigger');

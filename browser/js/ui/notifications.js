@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { icon } from './icons.js';
 // ── Component: bottom-left notification balloon ─────────────────
 // Owns the show/auto-hide logic; utils.js `notify()` delegates to this.
 
@@ -18,9 +19,9 @@ export class StencilNotifications extends StencilElement {
   static template() { return hostTag('stencil-notifications', 'id="notify-balloon"', StencilNotifications.inner()); }
 
   notify(msg, type = 'ok') {
-    const icon = this.querySelector('.notify-icon');
+    const iconEl = this.querySelector('.notify-icon');
     const text = this.querySelector('.notify-text');
-    icon.textContent = type === 'fail' ? '✗' : (type === 'info' ? 'ℹ' : '✓');
+    iconEl.innerHTML = icon(type === 'fail' ? 'x' : (type === 'info' ? 'info' : 'check'), { size: 16 });
     text.textContent = msg;
     this.classList.remove('notify-ok', 'notify-fail', 'notify-info');
     this.classList.add('notify-' + type);

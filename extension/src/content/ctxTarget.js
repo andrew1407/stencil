@@ -1,9 +1,9 @@
 // ── Right-click probe (content script) ───────────────────────────────────────
-// On <all_urls> (also injected into open tabs by the SW). On contextmenu it resolves
-// what Stencil can grab under the cursor and messages the SW: background-image,
-// <video> frame (or a screenshot-crop request when the canvas is tainted), or an
-// overlay-buried image. Real <img>/<svg><image> return null (native context covers).
-// Self-contained (no imports); the guard stops double injection binding two listeners.
+// On <all_urls> (also injected into open tabs by the SW). On contextmenu, resolves
+// what Stencil can grab under the cursor and messages the SW: background-image, <video>
+// frame (or a screenshot-crop request when the canvas is tainted), or an overlay-buried
+// image. Real <img>/<svg><image> return null (native context covers). Self-contained
+// (no imports); the guard stops double injection binding two listeners.
 (() => {
   if (window.__stencilCtxProbe) return;
   window.__stencilCtxProbe = true;
@@ -20,10 +20,10 @@
   }
 
   // ── Poster snapshot ──────────────────────────────────────────────────────
-  // Some players strip <video poster> once playback starts, so read it lazily and
-  // it's gone. Stamp every video's poster early onto the element (non-empty wins, so
-  // a later empty never clobbers it) where both this probe and the popup scan — same
-  // isolated world — can recover it.
+  // Some players strip <video poster> once playback starts, so a lazy read finds it
+  // gone. Stamp every video's poster early onto the element (non-empty wins, so a later
+  // empty never clobbers it) where both this probe and the popup scan — same isolated
+  // world — can recover it.
   const STAMP = '__stencilPoster';
   const rememberPoster = (v) => {
     if (v && v.tagName === 'VIDEO' && v.poster) {
@@ -88,9 +88,9 @@
   // data URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
   const FRAME_MAX_SIDE = 1920;
 
-  // True when the video is sitting on its POSTER, not a real frame: never played
-  // (paused at time 0) or no decoded data yet. drawImage() then yields frame 0
-  // (commonly black), so the caller should use the poster instead.
+  // True when the video sits on its POSTER, not a real frame: never played (paused at
+  // time 0) or no decoded data yet. drawImage() then yields frame 0 (commonly black),
+  // so the caller should use the poster instead.
   const showingPoster = (v) => (v.paused && !v.currentTime) || v.readyState < 2;
 
   // Current frame of a <video> as a JPEG data URL, or null when the poster is
@@ -118,9 +118,9 @@
     const direct = start.closest && start.closest('video');
     if (direct) return direct;
     if (x != null) {
-      // Smallest <video> whose box contains the cursor — spatially correct, and
-      // (unlike querySelector on an ancestor) never picks a different video when
-      // several share a wrapper.
+      // Smallest <video> whose box contains the cursor — spatially correct, and (unlike
+      // querySelector on an ancestor) never picks a different video when several share a
+      // wrapper.
       let best = null, bestArea = Infinity;
       for (const v of document.querySelectorAll('video')) {
         const r = v.getBoundingClientRect();
@@ -198,9 +198,9 @@
     return null;
   };
 
-  // An element's rect in TOP-window coordinates — add each enclosing same-origin
-  // iframe's offset so a tab screenshot crops correctly when the element is framed.
-  // Cross-origin ancestors throw and stop the walk (best effort).
+  // Element's rect in TOP-window coordinates — add each enclosing same-origin iframe's
+  // offset so a tab screenshot crops correctly when the element is framed. Cross-origin
+  // ancestors throw and stop the walk (best effort).
   const topRect = (el) => {
     const r = el.getBoundingClientRect();
     let x = r.x, y = r.y, win = el.ownerDocument.defaultView;
@@ -223,8 +223,8 @@
     const video = videoAt(start, x, y);
     if (video) {
       // The poster is a page-level preview image (often unlike any frame). Use the
-      // persisted value (posterOf) so a player that stripped the attribute after
-      // playback doesn't hide it. Pass it along for the menu's Preview submenu.
+      // persisted value (posterOf) so a player stripping the attribute after playback
+      // doesn't hide it. Passed along for the menu's Preview submenu.
       let poster = '';
       const rawPoster = posterOf(video);
       if (rawPoster) {
@@ -235,10 +235,9 @@
         }
       }
       const frame = captureVideoFrame(video);
-      // Tag it `video` so the click handler prefers this frame over info.srcUrl
-      // (which for a <video> is the media file, not a still). `posterShown` tells the
-      // click handler the video is on its poster (not played) → use the poster, not
-      // a screenshot, when no frame could be read.
+      // Tag it `video` so the click handler prefers this frame over info.srcUrl (the
+      // media file, not a still). `posterShown` tells the click handler the video is on
+      // its poster (not played) → use the poster, not a screenshot, when no frame read.
       if (frame) return { url: frame, video: true, poster };
       return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1, poster, posterShown: showingPoster(video) };
     }
@@ -259,9 +258,9 @@
     } catch {
       data = null;
     }
-    // Send the cursor point too: the SW recaptures a video frame in-page at click
-    // time (robust against a worker restart / stale frame) and uses it to pick the
-    // right video. The SW may be asleep / page navigating — a failed send is fine.
+    // Send the cursor point too: the SW recaptures a video frame in-page at click time
+    // (robust against worker restart / stale frame) and uses it to pick the right video.
+    // The SW may be asleep / page navigating — a failed send is fine.
     const point = { x: e.clientX, y: e.clientY };
     try {
       chrome.runtime.sendMessage({ type: MSG.CTX, data, point });

@@ -1,4 +1,5 @@
 import { cmToUnit } from '../utils.js';
+import { icon } from '../ui/icons.js';
 // ── CoordTable: the points table DOM + per-row interactions ──────
 export class CoordTable {
   constructor(app) {
@@ -27,7 +28,7 @@ export class CoordTable {
         <td class="cell-px-y">${Math.round(point.y)}</td>
         <td>${cmToUnit(pageCoords.x, this.app.unit).toFixed(2)}</td>
         <td>${cmToUnit(pageCoords.y, this.app.unit).toFixed(2)}</td>
-        <td style="text-align:center;padding:2px;"><button class="del-pt-btn" title="Remove point">🗑</button></td>
+        <td style="text-align:center;padding:2px;"><button class="del-pt-btn btn-icon" title="Remove point">${icon('trash', { size: 14 })}</button></td>
       `;
 
       // Hover → highlight row + canvas point
