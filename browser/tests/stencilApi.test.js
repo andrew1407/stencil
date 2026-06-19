@@ -361,6 +361,47 @@ test('crop throws without an image, and otherwise commits a rect via applyCrop',
   assert.deepEqual(opts, { recalc: true });
 });
 
+test('crop derives the missing axis from the page proportion when only one axis is given', () => {
+  const makeCropApp = () => makeApp({
+    originalImage: {},
+    cropRect: { x: 5, y: 7, width: 100, height: 100 },
+    effectiveOriginalDims: () => ({ w: 2000, h: 2000 }),
+    getPageDimensions: () => ({ width: 21, height: 29.7 }),   // A4 proportions
+    canvas: { width: 200, height: 200 },
+    defaultCropRect: () => ({ x: 0, y: 0, width: 200, height: 200 }),
+    applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+  });
+  const near = (a, b) => Math.abs(a - b) < 0.5;
+
+  // Only the x axis is given → height is derived from width. Portrait (album false):
+  // height = width × (29.7 / 21). The unspecified y keeps the current top edge (7).
+  // (Absolute 'px' tokens — a bare number would be a delta from the current edge.)
+  let app = makeCropApp();
+  createStencil(app).crop({ x1: '10px', x2: '90px' });   // width 80
+  let [, rect] = lastCall(app, 'applyCrop');
+  assert.ok(near(rect.width, 80) && near(rect.height, 80 * 29.7 / 21), `portrait x→y ${JSON.stringify(rect)}`);
+  assert.equal(rect.y, 7);
+
+  // album true (landscape) inverts the relation: height = width × (21 / 29.7).
+  app = makeCropApp();
+  createStencil(app).crop({ x1: '10px', x2: '90px', album: true });
+  [, rect] = lastCall(app, 'applyCrop');
+  assert.ok(near(rect.height, 80 * 21 / 29.7), `landscape x→y ${JSON.stringify(rect)}`);
+
+  // Only the y axis (and only one edge of it) → width is derived, x keeps its start.
+  app = makeCropApp();
+  createStencil(app).crop({ y2: '207px' });      // height = 207 - currentTop(7) = 200
+  [, rect] = lastCall(app, 'applyCrop');
+  assert.ok(near(rect.height, 200) && near(rect.width, 200 * 21 / 29.7), `portrait y→x ${JSON.stringify(rect)}`);
+  assert.equal(rect.x, 5);
+
+  // Both axes given → free-form, no proportion adjustment.
+  app = makeCropApp();
+  createStencil(app).crop({ x1: '0px', x2: '100px', y1: '0px', y2: '40px' });
+  [, rect] = lastCall(app, 'applyCrop');
+  assert.ok(near(rect.width, 100) && near(rect.height, 40), `free-form ${JSON.stringify(rect)}`);
+});
+
 // ── Incognito toggle guard ────────────────────────────────────────────────────────
 test('incognito setter only enables on a blank editor', () => {
   const app = makeApp();

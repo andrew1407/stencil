@@ -16,6 +16,7 @@
 //   (await stencil.load(url)).crop({ x2: '-10%' }).apply({ lineColor: 'aqua' })
 import { hotkeys } from '../core/hotkeys.js';
 import { resolveAxisPx } from '../core/units.js';
+import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 
 const str = (v) => (v == null ? '' : String(v));
@@ -498,6 +499,15 @@ export const createStencil = (app) => {
     // Crop by axis edges. Each of x1/y1/x2/y2 may be a number (px move of that edge),
     // an absolute length ('3cm'/'-4in'/'50%'/'-60%'; '-' = from the axis end), or be
     // omitted (keep the current edge). Commits via the same applyCrop the UI uses.
+    //
+    // Proportion fill: when exactly ONE axis is given (any of its edges present) and
+    // the other is left out entirely, the missing axis's LENGTH is derived from the
+    // page proportion instead of kept as-is, so the crop matches the page's
+    // width:height relation. `album` (default false) picks the orientation that
+    // proportion is taken in — false (portrait): height = width × (long/short page
+    // side), width = height ÷ (…); album true (landscape) is the inverse. The derived
+    // axis keeps its current start edge; only its length changes. Giving both axes (or
+    // neither) leaves cropping free-form, exactly as before.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
       const dims = app.effectiveOriginalDims();   // { w, h } in rotated-original pixels
@@ -506,10 +516,21 @@ export const createStencil = (app) => {
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
       const edge = (tok, cur, lengthPx, pxPerCm) =>
         tok == null ? cur : resolveAxisPx(tok, { lengthPx, pxPerCm, currentPx: cur });
-      const x1 = edge(spec.x1, r.x, dims.w, pxPerCmX);
-      const x2 = edge(spec.x2, r.x + r.width, dims.w, pxPerCmX);
-      const y1 = edge(spec.y1, r.y, dims.h, pxPerCmY);
-      const y2 = edge(spec.y2, r.y + r.height, dims.h, pxPerCmY);
+      let x1 = edge(spec.x1, r.x, dims.w, pxPerCmX);
+      let x2 = edge(spec.x2, r.x + r.width, dims.w, pxPerCmX);
+      let y1 = edge(spec.y1, r.y, dims.h, pxPerCmY);
+      let y2 = edge(spec.y2, r.y + r.height, dims.h, pxPerCmY);
+
+      const xGiven = spec.x1 != null || spec.x2 != null;
+      const yGiven = spec.y1 != null || spec.y2 != null;
+      if (xGiven !== yGiven) {
+        const aspect = cropAspect(ps.width, ps.height, !!spec.album);   // width / height
+        if (xGiven) {                                  // have width → derive height
+          y1 = r.y; y2 = r.y + Math.abs(x2 - x1) / aspect;
+        } else {                                       // have height → derive width
+          x1 = r.x; x2 = r.x + Math.abs(y2 - y1) * aspect;
+        }
+      }
       app.applyCrop({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) }, { recalc: true });
       return stencil;
     },
