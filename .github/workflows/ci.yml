@@ -47,7 +47,28 @@ jobs:
         working-directory: extension
         run: npm test
 
-  # ── Desktop app: C++17 core/tests (always) + Qt6 GUI build (when Qt present) ──
+  # ── Core: the shared, GUI-free C++ library + its Doctest suite (no Qt) ─────────
+  # The core lives at the repo-root core/ and builds standalone. This job owns the
+  # unit suite; the desktop job below consumes the same library (tests OFF there).
+  core:
+    name: Core (C++ build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install toolchain (g++, cmake)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake ninja-build
+      - name: Configure
+        run: cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build (library + tests)
+        run: cmake --build core/build -j
+      - name: Run C++ tests
+        run: ctest --test-dir core/build --output-on-failure
+
+  # ── Desktop app: Qt6 GUI build over the shared core + headless crop test ──────
+  # Pulls core in via add_subdirectory(../core) with its doctest suite OFF (the core
+  # job runs that); ctest here exercises the Qt headless integration test.
   desktop:
     name: Desktop (C++ build + tests)
     runs-on: ubuntu-latest
@@ -60,7 +81,7 @@ jobs:
       - name: Configure
         working-directory: desktop
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-      - name: Build (core + tests + GUI)
+      - name: Build (core + GUI)
         working-directory: desktop
         run: cmake --build build -j
       - name: Run C++ tests
@@ -93,16 +114,15 @@ jobs:
           ./emsdk install "$EMSDK_VERSION"
           ./emsdk activate "$EMSDK_VERSION"
       - name: Build the wasm core
-        working-directory: desktop
         run: |
           source "$GITHUB_WORKSPACE/emsdk/emsdk_env.sh"
-          emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
-          emmake cmake --build build-wasm -j --target stencil_wasm
+          emcmake cmake -S core -B core/build-wasm -DCMAKE_BUILD_TYPE=Release
+          emmake cmake --build core/build-wasm -j --target stencil_wasm
       - name: Place the freshly built module in the browser tree
         # js/wasm/ holds only the gitignored artifact, so it's absent on checkout.
         run: |
           mkdir -p browser/js/wasm
-          cp desktop/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+          cp core/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
@@ -110,3 +130,23 @@ jobs:
       - name: Parity test against the freshly built module
         working-directory: browser
         run: node --test tests/wasm-parity.test.js
+
+  # ── CLI: Zig tool wrapping the C++ core (recompiled via build.zig) + stb_image ─
+  # zig build pulls in the core sources and the stb_image headers; Zig ships its own
+  # clang, so no system C/C++ toolchain is needed. `zig build test` runs the unit
+  # suite (arg parsing, the C ABI bridge, codec round-trips, layout JSON).
+  cli:
+    name: CLI (Zig build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build
+        working-directory: cli
+        run: zig build
+      - name: Test
+        working-directory: cli
+        run: zig build test --summary all

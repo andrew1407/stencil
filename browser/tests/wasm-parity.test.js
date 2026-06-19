@@ -1,5 +1,5 @@
 // Parity coverage for the WebAssembly core (js/wasm/stencilCore.js, compiled
-// from desktop/core). The other JS suites exercise the hand-written fallback
+// from core/). The other JS suites exercise the hand-written fallback
 // path (no wasm ops installed); this one loads the real wasm module and asserts:
 //   1. the compiled C++ agrees with the JS reference (so the fallback the other
 //      suites test stays a faithful stand-in, and the shipped .js is in sync), and
@@ -20,7 +20,7 @@ import {
 } from '../js/core/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated artifact (gitignored) — present only after
-// the Emscripten build (CI's WASM job, or a local build per desktop/WASM.md). When
+// the Emscripten build (CI's WASM job, or a local build per core/WASM.md). When
 // it is missing, skip this whole suite rather than fail the build: the other suites
 // already cover the JS reference path that the wasm core mirrors. core.init() does
 // the dynamic import internally, so it only touches the artifact when built.

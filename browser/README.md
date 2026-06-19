@@ -48,10 +48,10 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 > **WebAssembly core.** This app can run the shared C++ core via wasm, but that module
 > (`js/wasm/stencilCore.js`) is a generated artifact that isn't committed — so on a fresh
 > checkout the app transparently uses its behavior-identical JS fallback. To run the real
-> wasm path, build it once (needs Emscripten on `PATH` — see [`../desktop/WASM.md`](../desktop/WASM.md)):
+> wasm path, build it once (needs Emscripten on `PATH` — see [`../core/WASM.md`](../core/WASM.md)):
 >
 > ```bash
-> npm run build-wasm   # builds desktop/core → js/wasm/stencilCore.js
+> npm run build-wasm   # builds core/ → js/wasm/stencilCore.js
 > ```
 
 ## Project structure
@@ -225,18 +225,18 @@ npm test
 This app **runs the shared C++ core at runtime via WebAssembly**. At boot,
 `js/index.js` calls `core.init()` on the `core` singleton in `js/core/stencilCore.js`,
 which instantiates the compiled core (`js/wasm/stencilCore.js`, a generated artifact
-built from `desktop/core/` — gitignored, see `desktop/WASM.md`) and installs typed
-wrappers into that singleton. Each pure-logic module calls through it and keeps its
-JS body as a fallback — used when the module hasn't been built or fails to load, and
-by `node --test`, which never loads wasm. The C++ counterparts in `desktop/core/`:
+built from `core/` — gitignored, see `core/WASM.md`) and installs typed wrappers into
+that singleton. Each pure-logic module calls through it and keeps its JS body as a
+fallback — used when the module hasn't been built or fails to load, and by
+`node --test`, which never loads wasm. The C++ counterparts in `core/`:
 
 | This app | C++ core |
 |---|---|
-| `js/core/formulaEngine.js` | `desktop/core/formulaParser.*` |
-| `js/utils.js` (`distToSegment`, color) | `desktop/core/geometry.*`, `desktop/core/color.*` |
-| `js/core/drawingApp.js` (`pixelToPageCoords`) | `desktop/core/pageMetrics.*` |
-| `js/core/historyStack.js` | `desktop/core/historyStack.*` |
-| `js/core/projectsStore.js` | `desktop/core/projectsStore.*` |
+| `js/core/formulaEngine.js` | `core/formulaParser.*` |
+| `js/utils.js` (`distToSegment`, color) | `core/geometry.*`, `core/color.*` |
+| `js/core/drawingApp.js` (`pixelToPageCoords`) | `core/pageMetrics.*` |
+| `js/core/historyStack.js` | `core/historyStack.*` |
+| `js/core/projectsStore.js` | `core/projectsStore.*` |
 
 > Note: the C++ `formulaParser` is a real recursive-descent parser for `+ - * / ** ( )`,
 > replacing this app's `new Function(...)` (`eval`) approach. When wasm is loaded,
