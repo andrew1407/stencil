@@ -1,6 +1,6 @@
 import { core } from './stencilCore.js';
 // ── Crop-window geometry ────────────────────────────────────────
-// Port of desktop/core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned rect
+// Port of core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned rect
 // {x,y,width,height} in ORIGINAL-image pixel space; the original image is never
 // modified (only the rect is stored), so moves/resizes/flips are lossless. Aspect
 // is fixed to the page so resizing is corner-only. Public functions route to the

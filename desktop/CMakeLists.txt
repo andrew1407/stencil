@@ -27,70 +27,17 @@ else()
   add_compile_options(-Wall -Wextra)
 endif()
 
-# Shared core sources (STL only, GUI-free). Listed once so both the native static
-# library and the optional WebAssembly target compile exactly the same files.
-set(STENCIL_CORE_SOURCES
-  core/geometry.cpp
-  core/color.cpp
-  core/pageMetrics.cpp
-  core/cropGeometry.cpp
-  core/formulaParser.cpp
-  core/historyStack.cpp
-  core/projectsStore.cpp
-  core/zoomPan.cpp
-  core/tooltipRows.cpp
-  core/imageFilter.cpp
-  core/hotkeyFormat.cpp
-  core/localeUnit.cpp
-)
+# ── stencil_core: the shared, GUI-free logic library ──────────────────────────
+# The core now lives at the repo-root core/ (a sibling of desktop/), built by its own
+# CMakeLists so it can also build standalone, to WebAssembly, and into the Zig CLI.
+# Pull it in here for the GUI to link. It's an out-of-tree source dir, so name an
+# explicit binary dir. Desktop only needs the library + the headless GUI test, so turn
+# the core's own doctest suite OFF (the dedicated `core` CI job runs it).
+set(STENCIL_CORE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../core ${CMAKE_BINARY_DIR}/core)
 
-# ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
-# Same sources are the intended WebAssembly target for the browser app, so this
-# library must never depend on Qt.
-add_library(stencil_core STATIC ${STENCIL_CORE_SOURCES})
-target_include_directories(stencil_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ── tests: Doctest over the core ──────────────────────────────────────────────
-# Doctest is a single header, fetched on demand rather than committed (see README
-# → Test). If it isn't present, pull the pinned release from the official upstream
-# at configure time and verify its hash, so a fresh clone builds with no manual step.
-set(DOCTEST_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/third_party/doctest.h)
-if(NOT EXISTS ${DOCTEST_HEADER})
-  message(STATUS "doctest.h not found — fetching pinned v2.4.11 from upstream")
-  file(DOWNLOAD
-    https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
-    ${DOCTEST_HEADER}
-    EXPECTED_HASH SHA256=44faa038e9c3f9728efbda143748d01124ea0a27f4bf78f35a15d8fab2e039fb
-    TLS_VERIFY ON
-    SHOW_PROGRESS)
-endif()
-
+# The crop headless test below registers with CTest.
 enable_testing()
-add_executable(stencil_tests
-  tests/testMain.cpp
-  tests/geometry.test.cpp
-  tests/color.test.cpp
-  tests/pageMetrics.test.cpp
-  tests/cropGeometry.test.cpp
-  tests/formula.test.cpp
-  tests/history.test.cpp
-  tests/projectsStore.test.cpp
-  tests/zoomPan.test.cpp
-  tests/tooltipRows.test.cpp
-  tests/imageFilter.test.cpp
-  tests/hotkeyFormat.test.cpp
-  tests/localeUnit.test.cpp
-  # The WebAssembly ABI surface (extern "C" wrappers) is plain STL, so it
-  # compiles and is exercised natively here — keeping the wasm exports covered
-  # even on a machine without Emscripten.
-  tests/wasmApi.test.cpp
-  core/wasmApi.cpp
-)
-target_include_directories(stencil_tests PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-  ${CMAKE_CURRENT_SOURCE_DIR}/core)
-target_link_libraries(stencil_tests PRIVATE stencil_core)
-add_test(NAME stencil_tests COMMAND stencil_tests)
 
 # ── desktop GUI: Qt 6 (optional — core + tests build without it) ──────────────
 # Network + Multimedia back the --src launch flag (remote-image fetch and
@@ -110,27 +57,39 @@ endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTORCC ON)
+
+  # GUI sources are grouped under src/ by role. The headers are included bare
+  # (e.g. "fileStore.hpp"), so every group dir goes on the include path below and no
+  # cross-group include needs a path prefix.
+  set(STENCIL_GUI_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/io
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/support)
+
   add_executable(stencil_gui
-    gui/main.cpp
-    gui/mainWindow.cpp
-    gui/canvasWidget.cpp
-    gui/canvasTooltip.cpp
-    gui/theme.cpp
-    gui/fileStore.cpp
-    gui/notifications.cpp
-    gui/selectionPanel.cpp
-    gui/settingsDialog.cpp
-    gui/projectsDialog.cpp
-    gui/blankImageDialog.cpp
-    gui/linksDialog.cpp
-    gui/cropDialog.cpp
-    gui/infoDialog.cpp
-    gui/shortcutsDialog.cpp
-    gui/guiHelpers.cpp
-    gui/launchOptions.cpp
-    gui/mediaLoader.cpp
+    src/app/main.cpp
+    src/app/mainWindow.cpp
+    src/app/launchOptions.cpp
+    src/app/selectionPanel.cpp
+    src/canvas/canvasWidget.cpp
+    src/canvas/canvasTooltip.cpp
+    src/dialogs/settingsDialog.cpp
+    src/dialogs/projectsDialog.cpp
+    src/dialogs/blankImageDialog.cpp
+    src/dialogs/linksDialog.cpp
+    src/dialogs/cropDialog.cpp
+    src/dialogs/infoDialog.cpp
+    src/dialogs/shortcutsDialog.cpp
+    src/io/fileStore.cpp
+    src/io/mediaLoader.cpp
+    src/support/theme.cpp
+    src/support/notifications.cpp
+    src/support/guiHelpers.cpp
     resources/app.qrc
   )
+  target_include_directories(stencil_gui PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_gui
     PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia)
   if(STENCIL_DEV_STATE_DIR)
@@ -160,13 +119,28 @@ if(Qt6_FOUND)
   # stencil_tests (which is deliberately Qt-free) and built only when Qt is present.
   add_executable(stencil_crop_headless
     tests/cropCanvas.headless.cpp
-    gui/canvasWidget.cpp
-    gui/theme.cpp)
-  target_include_directories(stencil_crop_headless PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/gui)
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp)
+  # "canvasWidget.hpp"/"theme.hpp" come from the src/ group dirs; the "core/*.hpp"
+  # headers they pull in arrive transitively from the linked stencil_core.
+  target_include_directories(stencil_crop_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_crop_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_crop_headless COMMAND stencil_crop_headless)
   set_tests_properties(stencil_crop_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Image-fixture test: loads a real PNG from tests/fixtures/ and runs it through the
+  # load -> crop -> core image-filter path (desktop analogue of the CLI fixture tests).
+  add_executable(stencil_image_headless
+    tests/imageFixture.headless.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp)
+  target_include_directories(stencil_image_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_image_headless PRIVATE
+    "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\"")
+  target_link_libraries(stencil_image_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_image_headless COMMAND stencil_image_headless)
+  set_tests_properties(stencil_image_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # ── Distributable packaging ───────────────────────────────────────────────
@@ -226,22 +200,8 @@ if(Qt6_FOUND)
   endif()
   include(CPack)
 else()
-  message(STATUS "Qt6 not found — skipping stencil_gui (core + tests still build)")
+  message(STATUS "Qt6 not found — skipping stencil_gui (core builds via ../core)")
 endif()
 
-# ── WebAssembly target (S15) — OPTIONAL, Emscripten only ──────────────────────
-# Only materializes when configured through emcmake (which sets EMSCRIPTEN). A
-# normal native `cmake` build never enters this branch, so the desktop targets
-# above are unchanged. emcc is NOT installed in this environment; this is
-# build-ready + documented (see desktop/WASM.md) but was not compiled here.
-if(EMSCRIPTEN)
-  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} core/wasmApi.cpp)
-  target_include_directories(stencil_wasm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-  # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
-  set_target_properties(stencil_wasm PROPERTIES
-    OUTPUT_NAME "stencil_core"
-    # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module
-    # loads under file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_applyFilterRGBA','_stencil_rotatePoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_malloc','_free']")
-  message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
-endif()
+# The WebAssembly target moved to core/CMakeLists.txt (it builds the shared core, not
+# anything desktop-specific). Configure core through emcmake to produce stencil_core.js.

@@ -10,12 +10,13 @@ Per the project's dependency policy, only **two** third-party libraries are used
 
 | Purpose | Library | How it's provided |
 |---|---|---|
-| Desktop GUI | **Qt 6** (Widgets) | system package (e.g. `qt6-qtbase-devel`) |
-| C++ unit tests | **Doctest** | single header fetched into `third_party/doctest.h` (not committed — see [Test](#test)) |
+| Desktop GUI | **Qt 6** (Widgets, Network, Multimedia) | system package (e.g. `qt6-qtbase-devel`) |
+| C++ unit tests | **Doctest** | single header fetched into `../core/third_party/doctest.h` (not committed) |
 
-Everything else is the C++17 standard library. The **`core/` library is GUI-free
-and STL-only** — it never includes Qt — so the same sources can later target
-**WebAssembly** and back the browser app.
+Everything else is the C++17 standard library. The shared logic lives in the top-level
+[`../core/`](../core/) library — **GUI-free and STL-only** (it never includes Qt) — which
+this app pulls in via `add_subdirectory(../core)`. The same sources also compile to
+**WebAssembly** for the browser app and into the **Zig CLI** (`../cli/`).
 
 ### Installing the toolchain
 
@@ -29,26 +30,21 @@ sudo apt install -y g++ cmake qt6-base-dev
 
 ## Layout
 
+The shared logic lives in the sibling [`../core/`](../core/) library (see its
+[WASM.md](../core/WASM.md) and the repo README for the module list). This directory holds
+only the Qt GUI and its integration test:
+
 ```
-core/                 # shared, GUI-free logic (STL only)
-  models.hpp          # Point / Line value types
-  geometry.{hpp,cpp}  # distToSegment            <- browser/js/utils.js
-  color.{hpp,cpp}     # parseHex / hexToRgba     <- browser/js/utils.js
-  pageMetrics.{hpp,cpp} # pixel <-> page (cm)    <- browser/js/core/drawingApp.js
-  formulaParser.{hpp,cpp} # f(x,y) parser        <- browser/js/core/formulaEngine.js
-  historyStack.{hpp,cpp}  # undo/redo            <- browser/js/core/historyStack.js
-  projectsStore.{hpp,cpp} # registry + expiry    <- browser/js/core/projectsStore.js
-  imageFilter.{hpp,cpp}   # bw/sepia/tint pixels <- browser/js/core/renderer.js
-  zoomPan.{hpp,cpp}       # clamp / anchored zoom<- browser/js/core/zoomPan.js
-  tooltipRows.{hpp,cpp}   # hover tooltip rows   <- browser/js/ui/tooltip.js
-  wasmApi.cpp             # extern "C" ABI (WebAssembly) -> see WASM.md
-gui/                  # Qt widgets (mirrors the browser UI)
-  main.cpp            # entry point              <- browser/js/index.js
-  mainWindow.{hpp,cpp}# window + toolbar + status<- browser/js/ui/layout.js, toolbar.js
-  canvasWidget.{hpp,cpp} # QPainter rendering    <- browser/js/core/renderer.js, zoomPan.js
-tests/                # Doctest suites (one per core module)
-third_party/          # doctest.h — fetched on demand, git-ignored (see Test)
-CMakeLists.txt
+src/                  # Qt GUI, grouped by role (headers included bare across groups)
+  app/                # main.cpp, mainWindow, launchOptions, selectionPanel
+  canvas/             # canvasWidget (QPainter rendering) + canvasTooltip
+  dialogs/            # settings / projects / blank / links / crop / info / shortcuts
+  io/                 # fileStore (persistence) + mediaLoader (image/video --src)
+  support/            # theme, notifications, guiHelpers
+tests/                # Qt headless integration tests (crop + image fixture)
+  fixtures/           # sample.png used by the image test
+resources/  packaging/
+CMakeLists.txt        # builds stencil_gui; pulls the core via add_subdirectory(../core)
 ```
 
 ### Architecture parity with the browser app
@@ -73,11 +69,16 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-- `stencil_core`  — static library of the shared logic.
-- `stencil_tests` — the Doctest executable (always built).
+- `stencil_core`  — static library of the shared logic (defined in `../core/`, pulled in
+  here via `add_subdirectory`; its own Doctest suite is turned **off** for the desktop
+  build and run by the dedicated core build instead).
 - `stencil_gui`   — the Qt desktop app (built only if Qt 6 is found; otherwise
-  configuration prints a notice and skips it, so the core and tests still build
-  on a machine without Qt).
+  configuration prints a notice and skips it, so the core still builds on a machine
+  without Qt).
+- `stencil_crop_headless` — a Qt offscreen integration test of the crop canvas (ctest).
+
+To build and run the **core's** unit suite directly: `cmake -S ../core -B ../core/build &&
+ctest --test-dir ../core/build`.
 
 The plain build above bakes a repo-local `desktop/.stencil` runtime-state dir
 (handy for development) and links Qt dynamically — it is **not** a distributable
@@ -120,40 +121,26 @@ produces the same packages as downloadable workflow artifacts without cutting a 
 
 ## Test
 
-Unit tests use **Doctest** only — a single header at `third_party/doctest.h`
-(pinned to **v2.4.11**). It is **not committed**: the CMake
-configure step downloads it from the official upstream and verifies its SHA-256, so
-on a fresh clone there is nothing to do — just configure and build.
-
-If you'd rather fetch it yourself (e.g. offline-prep, no network at configure time),
-run this from this directory before `cmake`:
+The **core's** Doctest suite (one suite per core module, the WebAssembly ABI, and the new
+CLI image-pipeline modules) lives with the core and is built/run there:
 
 ```bash
-# create the dir if missing, then download the pinned single header from the
-# official doctest GitHub release tag (skips the download if already present)
-mkdir -p third_party
-[ -f third_party/doctest.h ] || curl -fsSL -o third_party/doctest.h \
-  https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
-
-# wget equivalent:
-# mkdir -p third_party && [ -f third_party/doctest.h ] || wget -qO third_party/doctest.h \
-#   https://raw.githubusercontent.com/doctest/doctest/v2.4.11/doctest/doctest.h
+cmake -S ../core -B ../core/build -DCMAKE_BUILD_TYPE=Release
+cmake --build ../core/build -j
+ctest --test-dir ../core/build --output-on-failure   # or ../core/build/stencil_tests
 ```
 
-Either way `stencil_tests` is always built (even without Qt). Each `core/` module
-has a suite under `tests/`,
-ported case-for-case from the browser app's `browser/tests/` plus extra coverage
-for the new recursive-descent parser, plus the shared image-filter math and the
-WebAssembly ABI surface (compiled natively — see [WASM.md](WASM.md)). Suite:
-**88 cases / 255 assertions**.
+Doctest is a single header (pinned **v2.4.11**), fetched into `../core/third_party/doctest.h`
+at configure time with SHA-256 verification — nothing to commit or install.
+
+The **desktop** build registers two Qt offscreen CTest cases of its own:
+
+- `stencil_crop_headless` — crop canvas integration (`CanvasWidget` + the core crop geometry).
+- `stencil_image_headless` — loads a real PNG from `tests/fixtures/` and runs it through the
+  load → crop → core image-filter path (the desktop analogue of the CLI's fixture tests).
 
 ```bash
-# run the whole suite via ctest
-ctest --test-dir build --output-on-failure
-
-# or run the Doctest binary directly (supports filtering, e.g. by suite)
-./build/stencil_tests
-./build/stencil_tests --test-case="*power*"
+ctest --test-dir build --output-on-failure   # runs both headless tests (needs Qt)
 ```
 
 ## Run the GUI

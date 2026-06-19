@@ -35,7 +35,7 @@ export const resolveInsertIdx = (line, { coordLineIdx, selectedLineIdx, focusedP
 
 // Default pixel size for a generated blank image: the page (cm) rendered at
 // `dpi` (CSS 96 by default), clamped to at least 1px per side. Mirrored by
-// core::defaultBlankSizePx in desktop/core/pageMetrics.cpp.
+// core::defaultBlankSizePx in core/pageMetrics.cpp.
 export const defaultBlankSizePx = ({ width, height }, dpi = 96) => {
   const toPx = cm => Math.max(1, Math.round(cm / 2.54 * dpi));
   return { width: toPx(width), height: toPx(height) };

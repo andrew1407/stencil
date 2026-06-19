@@ -1,0 +1,16 @@
+{
+  "imageWidth": 16,
+  "imageHeight": 12,
+  "filter": "bw",
+  "lines": [
+    {
+      "points": [{"x": 1, "y": 1}, {"x": 14, "y": 10}],
+      "color": "#ff0000",
+      "thickness": 3,
+      "markerSize": 0,
+      "style": "solid",
+      "locked": false,
+      "fillColor": "transparent"
+    }
+  ]
+}

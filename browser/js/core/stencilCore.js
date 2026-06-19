@@ -1,7 +1,7 @@
 // ── Shared C++ core singleton ───────────────────────────────────
 // Owns the WebAssembly build of the shared C++ core and typed wrappers over its
 // raw extern "C" exports, exposing clean JS-shaped functions via the `core`
-// singleton. The wasm artifact is generated (gitignored, built per desktop/WASM.md)
+// singleton. The wasm artifact is generated (gitignored, built per core/WASM.md)
 // and may be absent — so it's imported dynamically inside init() and a missing
 // module degrades to the JS fallback (a static import would crash boot). Dynamic-
 // only import keeps this a leaf module with no app imports, so Node never loads wasm.
@@ -38,7 +38,7 @@ class StencilCore {
         // required exports up front and fall back to the JS refs if any are absent.
         const missing = this.#missingExports(core);
         if (missing.length) {
-          console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per desktop/WASM.md; using JS fallback.`);
+          console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
           return false;
         }
         this.#installWrappers(this.#buildWrappers(core));
@@ -165,7 +165,7 @@ class StencilCore {
       return { ptr, n, view };
     };
 
-    // FilterMode enum codes (must match desktop/core/imageFilter.hpp).
+    // FilterMode enum codes (must match core/imageFilter.hpp).
     const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3 };
 
     return {

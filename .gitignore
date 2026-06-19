@@ -48,11 +48,18 @@ ui_*.h
 .stencil/
 desktop/.stencil/
 
-# Desktop test dependency — doctest single header is fetched on demand, not committed
-# (see desktop/README.md → Test). Keeps the ~300 KB vendored header out of the repo.
-desktop/third_party/doctest.h
+# Core test dependency — doctest single header is fetched on demand, not committed
+# (see core/README via README → Test). Keeps the ~300 KB vendored header out of the repo.
+core/third_party/doctest.h
 
-# Generated WebAssembly core — Emscripten output copied from desktop/build-wasm/
-# (see desktop/WASM.md). Built in CI for the parity check; build locally to exercise
+# Generated WebAssembly core — Emscripten output copied from core/build-wasm/
+# (see core/WASM.md). Built in CI for the parity check; build locally to exercise
 # the wasm path. The JS reference/fallback path runs without it.
 browser/js/wasm/stencilCore.js
+
+# Zig CLI (cli/) build output and the on-demand package cache (stb etc.), neither
+# committed. zig-out/ is `zig build` output; .zig-cache/ and zig-pkg/ are local caches.
+cli/zig-out/
+cli/.zig-cache/
+cli/zig-pkg/
+.zig-cache/
