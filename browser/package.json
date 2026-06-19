@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "serve": "python -m http.server \"${PORT:-8080}\" --bind \"${ADDR:-localhost}\"",
+    "serve": "python3 -m http.server \"${PORT:-8080}\" --bind \"${ADDR:-localhost}\"",
     "build-wasm": "cd ../core && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release && emmake cmake --build build-wasm -j --target stencil_wasm && mkdir -p ../browser/js/wasm && cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js"
   }
 }
