@@ -17,8 +17,12 @@
   --line: #d4d8e2;
   --text: #1d2230;
   --muted: #6b7180;
+  /* Brand accent — violet by default, swappable via a data-accent preset (see
+     below + lib/accent.js). --accent-2 is the hover/active shade, derived from
+     --accent (darker here, lighter in dark mode) so any chosen accent stays
+     harmonised. */
   --accent: #7c3aed;
-  --accent-2: #6d28d9;
+  --accent-2: color-mix(in srgb, var(--accent) 86%, black);
   --yellow: #a67c00;
   --check-a: #e7eaf0;
   --check-b: #dfe2ea;
@@ -31,13 +35,28 @@
     --line: #3d4354;
     --text: #e8eaf0;
     --muted: #9aa0b0;
-    --accent: #7c3aed;
-    --accent-2: #9b6cf2;
+    /* Same accent (from :root / data-accent); only the shade flips lighter. */
+    --accent-2: color-mix(in srgb, var(--accent) 78%, white);
     --yellow: #ffd400;
     --check-a: #2a2e38;
     --check-b: #262a33;
   }
 }
+/* Accent presets — set only --accent; --accent-2 and the glows derive from it.
+   Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
+   sets it pre-paint). Violet is the :root default, so no attribute = violet. */
+:root[data-accent="violet"]  { --accent: #7c3aed; }
+:root[data-accent="pink"]    { --accent: #ec4899; }
+:root[data-accent="yellow"]  { --accent: #eab308; }
+:root[data-accent="orange"]  { --accent: #ea580c; }
+:root[data-accent="crimson"] { --accent: #be123c; }
+:root[data-accent="aqua"]    { --accent: #0891b2; }
+:root[data-accent="sky"]     { --accent: #0ea5e9; }
+:root[data-accent="blue"]    { --accent: #2563eb; }
+:root[data-accent="grass"]   { --accent: #16a34a; }
+:root[data-accent="green"]   { --accent: #047857; }
+:root[data-accent="brown"]   { --accent: #a87c50; }
+:root[data-accent="grey"]    { --accent: #64748b; }
 * { box-sizing: border-box; }
 /* Native form controls follow the violet brand accent instead of the OS default
    (aqua/blue on macOS), so checkboxes/radios match the rest of the palette. */

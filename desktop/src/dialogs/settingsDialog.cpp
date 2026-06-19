@@ -1,11 +1,15 @@
 #include "settingsDialog.hpp"
 #include "guiHelpers.hpp"
+#include "theme.hpp"
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QIcon>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -28,6 +32,29 @@ namespace stencil::gui {
       theme_->setCurrentIndex(idx >= 0 ? idx : 0);
     }
     form->addRow("Theme", theme_);
+
+    accent_ = new QComboBox(this);
+    // Brand-accent presets (theme.hpp) — violet first/default. Same choices as
+    // the browser/extension main-theme dropdowns. Each item carries a rounded
+    // colour swatch icon so the actual colour shows next to the name.
+    const auto swatch = [](const QColor& c) {
+      QPixmap pm(16, 16);
+      pm.fill(Qt::transparent);
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      p.setPen(QPen(QColor(0, 0, 0, 70), 1));
+      p.setBrush(c);
+      p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+      p.end();
+      return QIcon(pm);
+    };
+    for (const AccentPreset& a : accentPresets())
+      accent_->addItem(swatch(QColor(a.hex)), a.label, a.key);
+    {
+      const int idx = accent_->findData(current.accentColor);
+      accent_->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    form->addRow("Main theme", accent_);
 
     autosave_ = new QCheckBox(this);
     autosave_->setChecked(current.autosave);
@@ -100,6 +127,7 @@ namespace stencil::gui {
   Settings SettingsDialog::result() const {
     Settings s = base_;  // keep fields not exposed here (formulas, tooltip…)
     s.themeMode = theme_->currentData().toString();
+    s.accentColor = accent_->currentData().toString();
     s.autosave = autosave_->isChecked();
     s.showPoints = showPoints_->isChecked();
     s.showLines = showLines_->isChecked();

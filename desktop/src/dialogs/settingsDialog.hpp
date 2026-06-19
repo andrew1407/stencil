@@ -23,6 +23,7 @@ namespace stencil::gui {
 
     Settings base_;  // preserves fields this dialog doesn't edit (formulas etc.)
     QComboBox* theme_ = nullptr;
+    QComboBox* accent_ = nullptr;
     QCheckBox* autosave_ = nullptr;
     QCheckBox* showPoints_ = nullptr;
     QCheckBox* showLines_ = nullptr;

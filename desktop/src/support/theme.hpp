@@ -2,6 +2,8 @@
 #include <QColor>
 #include <QPalette>
 #include <QString>
+#include <utility>
+#include <vector>
 
 // Light / dark theming. The palettes are a direct port of the CSS custom
 // properties in browser/css/theme.css (:root = light, [data-theme="dark"] =
@@ -30,17 +32,35 @@ namespace stencil::gui {
     QColor hoverRing;    // DEFAULT_VISUALS.hoverRingColor
   };
 
-  // Palette for the given mode. `dark == false` is the browser default (light).
-  // (Named themePalette, not palette, to avoid shadowing QWidget::palette().)
-  const Palette& themePalette(bool dark);
+  // A selectable brand-accent preset: a key (stored in Settings.accentColor), a
+  // human label (shown in the Settings dropdown) and the primary hex. Mirrors the
+  // browser (accents.js) / extension (accent.js) data-accent presets.
+  struct AccentPreset {
+    QString key;
+    QString label;
+    QString hex;
+  };
 
-  // A Qt stylesheet (QSS) styling the whole app for the given mode.
-  QString buildStylesheet(bool dark);
+  // The accent presets in display order; the first (violet) is the default.
+  const std::vector<AccentPreset>& accentPresets();
+
+  // Primary colour for an accent key (defaults to violet for unknown keys). The
+  // darker/lighter --accent-2 shade is derived inside themePalette().
+  QColor accentPrimary(const QString& accentKey);
+
+  // Palette for the given mode + accent. `dark == false` is the browser default
+  // (light); `accentKey` defaults to violet (the brand colour). Returned by value
+  // so the accent can vary. (Named themePalette, not palette, to avoid shadowing
+  // QWidget::palette().)
+  Palette themePalette(bool dark, const QString& accentKey = "violet");
+
+  // A Qt stylesheet (QSS) styling the whole app for the given mode + accent.
+  QString buildStylesheet(bool dark, const QString& accentKey = "violet");
 
   // A QPalette matching the theme, set on qApp so native bits (menu/toolbar
   // popups, scrollbars) follow the theme alongside the stylesheet — needed on
   // Fedora where the native style otherwise leaves the chrome unthemed (S14).
-  QPalette buildQPalette(bool dark);
+  QPalette buildQPalette(bool dark, const QString& accentKey = "violet");
 
   // Does the OS currently prefer a dark scheme? Uses Qt 6.5+ QStyleHints::
   // colorScheme(). Mirrors the browser matchMedia('(prefers-color-scheme:dark)').

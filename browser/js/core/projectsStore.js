@@ -215,7 +215,9 @@ export class ProjectsStore {
     this.#writeRegistry(arr);
     try {
       this.#storage.removeItem(this.#payloadKey(id));
-    } catch {}
+    } catch {
+      /* key already gone or storage unavailable — registry entry is the source of truth */
+    }
   }
 
   // Wipe every project (all stencil_project_* keys + the registry). MUST NOT
@@ -225,12 +227,16 @@ export class ProjectsStore {
       if (key.startsWith(PROJECT_PREFIX)) {
         try {
           this.#storage.removeItem(key);
-        } catch {}
+        } catch {
+          /* key already gone or storage unavailable — skip it, keep wiping the rest */
+        }
       }
     }
     try {
       this.#storage.removeItem(REGISTRY_KEY);
-    } catch {}
+    } catch {
+      /* registry already gone or storage unavailable — nothing left to wipe */
+    }
   }
 
   // ── expiry ────────────────────────────────────────────────────

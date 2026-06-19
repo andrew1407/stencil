@@ -23,6 +23,10 @@ namespace stencil::gui {
     // tracks the OS color scheme (S14). The legacy `theme` key is migrated on
     // load. Default "system" (per the confirmed decision).
     QString themeMode = "system";     // "system" | "light" | "dark"
+    // Brand accent preset key (theme.hpp accentPresets); "violet" is the default.
+    // Mirrors the browser/extension data-accent choice, persisted like the web's
+    // localStorage drawingApp_accent / stencil_accent.
+    QString accentColor = "violet";
     bool autosave = true;
     bool showPoints = true;
     bool showLines = true;

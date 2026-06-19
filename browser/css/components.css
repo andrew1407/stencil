@@ -448,7 +448,7 @@ body.fullscreen-mode #fs-points-panel {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #7c3aed;
+    background: var(--accent);
     color: #fff;
     border: none;
     border-radius: 50%;
@@ -458,7 +458,7 @@ body.fullscreen-mode #fs-points-panel {
     box-shadow: 0 6px 24px rgba(0,0,0,0.28);
     transition: background 0.18s ease, transform 0.18s ease;
 }
-#install-toggle:hover  { background: #6d28d9; }
+#install-toggle:hover  { background: var(--accent-2); }
 #install-toggle:active { transform: translateY(1px); }
 
 /* Hover/focus popup listing the install + download options, above the icon. */
@@ -635,9 +635,9 @@ body.fullscreen-mode #fs-points-panel {
 }
 .hotkey-cell:hover { background: var(--bg-coord-hover); }
 .hotkey-cell.capturing {
-    background: rgba(124,58,237,0.22);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(124,58,237,0.4);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
     color: var(--text-main);
 }
 .hotkey-default {
@@ -714,6 +714,66 @@ body.fullscreen-mode #fs-points-panel {
 .vs-row label { font-weight: normal; }
 .vs-row input[type="color"] { width: 54px; height: 30px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
+/* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accentPicker.js) ──
+   A native <select> can't paint a colour rect per option on every OS, so this is
+   a small listbox: a trigger (current swatch + name) and a popup of rect+name
+   rows. */
+.accent-swatch {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    border-radius: 4px;
+    border: 1px solid var(--border-main);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+    transition: background 0.2s ease;
+}
+.accent-dd { position: relative; }
+.accent-dd-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 150px;
+    padding: 5px 10px;
+    font: inherit;
+    text-align: left;
+    color: var(--input-text);
+    background: var(--input-bg);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+.accent-dd-trigger:hover { border-color: var(--accent); }
+.accent-dd-name { flex: 1 1 auto; }
+.accent-dd-caret { color: var(--text-muted); font-size: 11px; }
+.accent-dd-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 50;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    min-width: 100%;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-container);
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--shadow);
+}
+.accent-dd-menu[hidden] { display: none; }
+.accent-dd-opt {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 9px;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.accent-dd-opt:hover { background: var(--bg-coord-hover); }
+.accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 #vs-reset {
     background: transparent;
     border: 1px solid var(--border-main) !important;

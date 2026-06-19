@@ -1871,9 +1871,10 @@ namespace stencil::gui {
     // aren't children of this window) are themed too. With the Fusion style set
     // in main(), a matching palette + stylesheet themes the whole app — on
     // Fedora a widget-level setStyleSheet left the menubar/toolbar unthemed.
-    qApp->setPalette(buildQPalette(dark));
-    qApp->setStyleSheet(buildStylesheet(dark));
+    qApp->setPalette(buildQPalette(dark, settings_.accentColor));
+    qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
     canvas_->setDark(dark);
+    canvas_->setAccent(settings_.accentColor);
     actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
 
     QPalette vp;

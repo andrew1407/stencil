@@ -156,6 +156,7 @@ namespace stencil::gui {
       const QString legacy = o.value("theme").toString();
       s.themeMode = (legacy == "dark" || legacy == "light") ? legacy : "system";
     }
+    s.accentColor = o.value("accentColor").toString(s.accentColor);
     s.autosave = o.value("autosave").toBool(s.autosave);
     s.showPoints = o.value("showPoints").toBool(s.showPoints);
     s.showLines = o.value("showLines").toBool(s.showLines);
@@ -180,6 +181,7 @@ namespace stencil::gui {
   void fileStore::saveSettings(const Settings& s) {
     QJsonObject o;
     o["themeMode"] = s.themeMode;
+    o["accentColor"] = s.accentColor;
     o["autosave"] = s.autosave;
     o["showPoints"] = s.showPoints;
     o["showLines"] = s.showLines;

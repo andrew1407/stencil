@@ -403,7 +403,9 @@ export class StencilContextMenu extends StencilElement {
         let data = null;
         try {
           data = JSON.parse(text);
-        } catch {}
+        } catch {
+          /* not JSON — left as null, the guard below notifies the user */
+        }
         if (!data || !Array.isArray(data.lines)) {
           notify('Clipboard does not contain a layout JSON', 'fail');
           return;

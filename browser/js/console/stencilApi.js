@@ -18,6 +18,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { resolveAxisPx } from '../core/units.js';
 import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
+import { ACCENTS, isAccent } from '../core/accents.js';
 
 const str = (v) => (v == null ? '' : String(v));
 
@@ -315,6 +316,15 @@ export const createStencil = (app) => {
     get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
     get theme() { return app.theme; }, set theme(v) { app.setTheme(v); },                        // 'dark' | 'light'
+    // Brand accent preset (see stencil.mainThemes for the valid keys). Setting an
+    // unknown key throws rather than silently falling back.
+    get mainTheme() { return app.accent; },
+    set mainTheme(v) {
+      const k = str(v).trim().toLowerCase();
+      if (!isAccent(k)) throw new Error(`Unknown theme "${v}". Options: ${ACCENTS.map((a) => a.key).join(', ')}`);
+      app.setAccent(k);
+    },
+    get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.setAllowFormulas(v); },
     get formulaX() { return app.formulaX; }, set formulaX(v) { app.setFormula('x', v); },
