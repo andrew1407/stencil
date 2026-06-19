@@ -1,8 +1,7 @@
 // ── Quick crop page ─────────────────────────────────────────────────────────
-// Mirrors the editor's crop model: a rect in ORIGINAL-image pixels whose aspect is
-// locked to the page (A3/A4/custom). Drag to move, resize corner-only, scroll to
-// zoom. Then "Keep original" (full image + crop rect) or "Cut cropped part" (bake
-// the region into a new image), opening the editor in a tab.
+// Mirrors the editor's crop model: a rect in ORIGINAL-image pixels whose aspect is locked
+// to the page (A3/A4/custom). Drag to move, resize corner-only, scroll to zoom. Then "Keep
+// original" (full image + crop rect) or "Cut cropped part" (bake the region), opening a tab.
 import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
   roundRect, isAlbumOrientation, pageDims
@@ -69,10 +68,9 @@ const init = async () => {
   }
 
   imgEl.onload = () => {
-    // An animated GIF keeps cycling frames inside the crop view (and the preview
-    // canvas), which is distracting while positioning the box. Freeze it to the
-    // frame on screen right now by baking it onto a canvas and swapping in that
-    // static PNG; the reload re-enters onload, this time as a non-GIF.
+    // An animated GIF keeps cycling frames (distracting while positioning the box).
+    // Freeze it to the current frame by baking onto a canvas and swapping in that static
+    // PNG; the reload re-enters onload, this time as a non-GIF.
     if (!state.frozen && /^data:image\/gif/i.test(state.dataUrl)) {
       state.frozen = true;
       const c = document.createElement('canvas');
@@ -255,9 +253,9 @@ document.getElementById('orient-seg').addEventListener('click', (e) => {
 });
 
 // ── Rotate ──
-// Bake a 90° turn into the source image so the crop coords we later hand the editor
-// match the rotated picture. Dimensions swap, so orientation follows the new shape
-// and the crop re-centers to the page.
+// Bake a 90° turn into the source image so the crop coords we hand the editor match the
+// rotated picture. Dimensions swap, so orientation follows the new shape and the crop
+// re-centers to the page.
 const rotate = (clockwise) => {
   if (!state.imgW) return;
   const c = document.createElement('canvas');

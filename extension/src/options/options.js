@@ -1,4 +1,5 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL } from '../lib/stencil.js';
+import { icon } from '../lib/icons.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
 // up by lib/accent.js) so it applies flash-free across the extension's pages. It
@@ -14,7 +15,7 @@ if (accent) {
   mount.innerHTML =
     '<button type="button" class="accent-dd-trigger" aria-haspopup="listbox" aria-expanded="false">' +
     '<span class="accent-swatch js-cur-sw"></span><span class="accent-dd-name js-cur-name"></span>' +
-    '<span class="accent-dd-caret" aria-hidden="true">▾</span></button>' +
+    '<span class="accent-dd-caret" aria-hidden="true">' + icon('chevron-down', { size: 13 }) + '</span></button>' +
     '<ul class="accent-dd-menu" role="listbox" hidden></ul>';
   const trigger = mount.querySelector('.accent-dd-trigger');
   const menu = mount.querySelector('.accent-dd-menu');
@@ -61,6 +62,6 @@ document.getElementById('save').addEventListener('click', async () => {
   const editorUrl = (document.getElementById('editorUrl').value || '').trim() || DEFAULT_EDITOR_URL;
   await setSettings({ editorUrl, page: document.getElementById('page').value, markOpened: document.getElementById('markOpened').checked, openedFirst: document.getElementById('openedFirst').checked, exposeWindowStencil: document.getElementById('exposeWindowStencil').checked });
   document.getElementById('editorUrl').value = editorUrl;
-  document.getElementById('status').textContent = '✓ Saved';
+  document.getElementById('status').innerHTML = icon('check', { size: 13 }) + ' Saved';
   setTimeout(() => { document.getElementById('status').textContent = ''; }, 1500);
 });

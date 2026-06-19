@@ -2,21 +2,22 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, cropChange, isAlbumOrientation } from '../core/cropGeometry.js';
+import { icon } from './icons.js';
 const { PAGE_SIZES } = constants;
 
 // ── Component: image-crop modal ─────────────────────────────────
-// Move/resize a crop rect over the original image, locked to the page aspect
-// ratio (resizable from corners only; Album/Portrait toggle flips orientation).
-// Confirm stores the rect via DrawingApp.applyCrop WITHOUT replacing the original,
-// so it stays re-adjustable. Geometry runs in the shared C++ core (cropGeometry.js
-// → wasm) so desktop and browser crops match.
+// Move/resize a crop rect over the original image, locked to the page aspect ratio
+// (resizable from corners only; Album/Portrait toggle flips orientation). Confirm
+// stores the rect via DrawingApp.applyCrop WITHOUT replacing the original, so it
+// stays re-adjustable. Geometry runs in the shared C++ core (cropGeometry.js → wasm)
+// so desktop and browser crops match.
 export class StencilCropModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal" style="width:auto;max-width:calc(100vw - 32px);">
             <div class="settings-header">
-                <h2>✂ Crop Image</h2>
-                <button class="app-modal-close" id="crop-close">✕ Close</button>
+                <h2>${icon('crop', { size: 18 })} Crop Image</h2>
+                <button class="app-modal-close btn-icon-text" id="crop-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
                 <div id="crop-stage" style="position:relative;display:inline-block;line-height:0;max-width:100%;background:#222;overflow:hidden;">
@@ -31,10 +32,10 @@ export class StencilCropModal extends StencilElement {
                 <div id="crop-dims" style="font-size:13px;color:var(--text-muted);"></div>
             </div>
             <div class="settings-footer">
-                <button id="crop-orientation" title="Swap album / portrait — flips the crop orientation">⤢ Album</button>
+                <button id="crop-orientation" class="btn-icon-text" title="Swap album / portrait — flips the crop orientation">${icon('swap', { size: 14 })}<span>Album</span></button>
                 <span class="footer-hint">Drag to move · drag a corner to resize (aspect locked to the page).</span>
-                <button id="crop-cancel">✕ Cancel</button>
-                <button id="crop-apply">✓ Apply Crop</button>
+                <button id="crop-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span>Cancel</span></button>
+                <button id="crop-apply" class="btn-icon-text">${icon('check', { size: 14 })}<span>Apply Crop</span></button>
             </div>
         </div>
     `;
@@ -73,7 +74,7 @@ export class StencilCropModal extends StencilElement {
       box.style.width = (rect.width * scale) + 'px';
       box.style.height = (rect.height * scale) + 'px';
       dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
-      orientBtn.textContent = album ? '⤢ Album' : '⤡ Portrait';
+      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
     };
 
     // Re-fit a centered crop for the current orientation (used on open + on flip).

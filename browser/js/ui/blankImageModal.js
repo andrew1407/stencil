@@ -2,20 +2,20 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
+import { icon } from './icons.js';
 const { PAGE_SIZES } = constants;
 
 // ── Component: blank-image creator modal ────────────────────────
 // Generates a solid-color image at a chosen pixel size (default: current page at
-// 96 dpi) and feeds it through the normal upload path (loadImageFromFile) so it
-// behaves like an uploaded file. Opened from the idle-canvas icon and the
-// projects modal footer.
+// 96 dpi), fed through the normal upload path (loadImageFromFile) so it behaves
+// like an uploaded file. Opened from the idle-canvas icon and projects modal footer.
 export class StencilBlankImageModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>🖼 New Blank Image</h2>
-                <button class="app-modal-close" id="blank-image-close">✕ Close</button>
+                <h2>${icon('image', { size: 18 })} New Blank Image</h2>
+                <button class="app-modal-close btn-icon-text" id="blank-image-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
                 <div class="vs-section">Fill color</div>
@@ -32,7 +32,7 @@ export class StencilBlankImageModal extends StencilElement {
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Size defaults match the current page size.</span>
-                <button id="blank-image-create">🖼 Create</button>
+                <button id="blank-image-create" class="btn-icon-text">${icon('image')}<span>Create</span></button>
             </div>
         </div>
     `;
@@ -46,10 +46,9 @@ export class StencilBlankImageModal extends StencilElement {
     const heightEl = document.getElementById('blank-image-height');
     const colorEl = document.getElementById('blank-image-color');
 
-    // Page dimensions for the size defaults. Deliberately NOT getPageDimensions():
-    // that swaps to landscape from the CURRENT canvas aspect, which is meaningless
-    // while choosing the size of a new image — use the page as selected (portrait
-    // for named sizes, the entered W×H for custom).
+    // Page dimensions for size defaults. NOT getPageDimensions(): that swaps to
+    // landscape from the CURRENT canvas aspect, meaningless when sizing a new image
+    // — use the page as selected (portrait for named sizes, entered W×H for custom).
     const pageDims = () => (app.pageSize === 'custom'
       ? { width: app.customPageWidth, height: app.customPageHeight }
       : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);

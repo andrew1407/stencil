@@ -1,17 +1,18 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { wireNameEditor } from '../utils.js';
+import { icon } from './icons.js';
 // ── Component: projects chooser / switcher modal ────────────────
-// Lists saved projects (most-recent first) plus a synthetic row for the current
-// temp editor, with thumbnails/dates/expiry badges and an "open elsewhere" marker
-// from the TabsCoordinator peers feed. Rows are built at runtime (static
-// #projects-list stays comment-only) to keep the markup tests' assertions green.
+// Lists saved projects (most-recent first) + a synthetic row for the current temp
+// editor, with thumbnails/dates/expiry badges and an "open elsewhere" marker from
+// the TabsCoordinator peers feed. Rows built at runtime (static #projects-list
+// stays comment-only) to keep the markup tests' assertions green.
 export class StencilProjectsModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>🗂 Projects</h2>
-                <button class="app-modal-close" id="projects-close">✕ Close</button>
+                <h2>${icon('layers', { size: 18 })} Projects</h2>
+                <button class="app-modal-close btn-icon-text" id="projects-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
@@ -19,9 +20,9 @@ export class StencilProjectsModal extends StencilElement {
             <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
             <div class="settings-footer">
                 <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
-                <button id="projects-blank-image" title="Create a blank image to draw on">🖼 Blank image</button>
-                <button id="projects-new-editor">➕ New editor</button>
-                <button id="projects-clear-all" class="danger">🗑 Clear All</button>
+                <button id="projects-blank-image" class="btn-icon-text" title="Create a blank image to draw on">${icon('image')}<span>Blank image</span></button>
+                <button id="projects-new-editor" class="btn-icon-text">${icon('plus-circle')}<span>New editor</span></button>
+                <button id="projects-clear-all" class="danger btn-icon-text">${icon('trash')}<span>Clear All</span></button>
             </div>
         </div>
     `;
@@ -77,7 +78,7 @@ export class StencilProjectsModal extends StencilElement {
         img.alt = '';
         thumbWrap.appendChild(img);
       } else {
-        thumbWrap.textContent = opts.incognito ? '🕶' : (opts.temp ? '✎' : '🖼');
+        thumbWrap.innerHTML = icon(opts.incognito ? 'incognito' : (opts.temp ? 'pencil' : 'image'), { size: 24 });
         thumbWrap.classList.add('project-thumb-placeholder');
       }
       row.appendChild(thumbWrap);
@@ -100,9 +101,9 @@ export class StencilProjectsModal extends StencilElement {
         input.type = 'text';
         input.value = meta.name || 'Untitled';
         const accept = document.createElement('button');
-        accept.type = 'button'; accept.className = 'name-edit-btn name-edit-accept'; accept.textContent = '✓';
+        accept.type = 'button'; accept.className = 'name-edit-btn name-edit-accept'; accept.innerHTML = icon('check', { size: 14 });
         const cancel = document.createElement('button');
-        cancel.type = 'button'; cancel.className = 'name-edit-btn name-edit-cancel'; cancel.textContent = '✗'; cancel.title = 'Cancel';
+        cancel.type = 'button'; cancel.className = 'name-edit-btn name-edit-cancel'; cancel.innerHTML = icon('x', { size: 14 }); cancel.title = 'Cancel';
         wrap.append(input, accept, cancel);
         name.replaceWith(wrap);
         input.focus();
@@ -158,7 +159,8 @@ export class StencilProjectsModal extends StencilElement {
         actions.className = 'project-actions';
         const switchBtn = document.createElement('button');
         switchBtn.className = 'project-switch';
-        switchBtn.textContent = meta.id === app.activeProjectId ? '✓ Current' : 'Open';
+        switchBtn.innerHTML = meta.id === app.activeProjectId ? `${icon('check', { size: 13 })}<span>Current</span>` : '<span>Open</span>';
+        if (meta.id === app.activeProjectId) switchBtn.classList.add('btn-icon-text');
         switchBtn.disabled = meta.id === app.activeProjectId;
         switchBtn.addEventListener('click', e => {
           e.stopPropagation();
@@ -168,34 +170,34 @@ export class StencilProjectsModal extends StencilElement {
         // Open in a new tab — leaves the current tab as-is, so it stays enabled
         // even for the active project (a second view of the same project).
         const newTabBtn = document.createElement('button');
-        newTabBtn.className = 'project-newtab';
+        newTabBtn.className = 'project-newtab btn-icon';
         newTabBtn.title = 'Open in a new tab';
-        newTabBtn.textContent = '↗';
+        newTabBtn.innerHTML = icon('external', { size: 15 });
         newTabBtn.addEventListener('click', e => {
           e.stopPropagation();
           app.openProjectInNewTab(meta.id);
         });
         const renameBtn = document.createElement('button');
-        renameBtn.className = 'project-rename';
+        renameBtn.className = 'project-rename btn-icon';
         renameBtn.title = 'Rename project';
-        renameBtn.textContent = '✎';
+        renameBtn.innerHTML = icon('pencil', { size: 15 });
         renameBtn.addEventListener('click', e => {
           e.stopPropagation();
           beginRename();
         });
         const renewBtn = document.createElement('button');
-        renewBtn.className = 'project-renew';
+        renewBtn.className = 'project-renew btn-icon';
         renewBtn.title = 'Renew — reset the 7-day expiry to start from now';
-        renewBtn.textContent = '🔄';
+        renewBtn.innerHTML = icon('refresh', { size: 15 });
         renewBtn.addEventListener('click', e => {
           e.stopPropagation();
           app.renewProject(meta.id);
           render();
         });
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'project-remove danger';
+        removeBtn.className = 'project-remove danger btn-icon';
         removeBtn.title = 'Remove project';
-        removeBtn.textContent = '✕';
+        removeBtn.innerHTML = icon('trash', { size: 15 });
         removeBtn.addEventListener('click', e => {
           e.stopPropagation();
           if (!confirm(`Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`)) return;
@@ -263,11 +265,10 @@ export class StencilProjectsModal extends StencilElement {
       if (overlay.classList.contains('modal-open')) render();
     });
 
-    // On-open chooser: if this is the only tab AND there are saved projects,
-    // offer the chooser. Skipped when this tab was launched to open a specific
-    // project (?open=<id> deep link) OR a specific image (extension #stencil=
-    // hand-off) — in both cases the user already chose what to open, so the chooser
-    // must not pop over it. Otherwise stay in the blank temporary editor.
+    // On-open chooser: offer it only if this is the only tab AND saved projects
+    // exist. Skipped when launched to open a specific project (?open=<id> deep link)
+    // or image (extension #stencil= hand-off) — user already chose; don't pop over
+    // it. Otherwise stay in the blank temporary editor.
     app.tabs.whenReady().then(({ youAreOnly }) => {
       if (youAreOnly && store.list().length && !app.pendingOpenProjectId && !app.hasExternalLaunch) open();
     });

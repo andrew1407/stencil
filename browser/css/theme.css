@@ -1,10 +1,9 @@
 :root {
     /* Brand accent — violet, matching the Stencil logo + extension palette
-       (extension/src/lib/theme.css). --accent is the primary; --accent-2 is the
-       hover/active shade, derived from it (darker in light mode, lighter in
-       dark) so any chosen accent stays harmonised. The accent is swappable via a
-       data-accent preset (see below + js/core/accents.js); the default is
-       violet. */
+       (extension/src/lib/theme.css). --accent is primary; --accent-2 is the
+       hover/active shade derived from it (darker in light, lighter in dark) so
+       any chosen accent stays harmonised. Swappable via a data-accent preset
+       (see below + js/core/accents.js); default violet. */
     --accent:         #7c3aed;
     --accent-2:       color-mix(in srgb, var(--accent) 86%, black);
     --bg-page:        #f0f0f0;
@@ -42,16 +41,24 @@
     --input-bg:       #ffffff;
     --input-text:     #000000;
     --shadow:         rgba(0,0,0,0.1);
+    /* Status colors — single source for the reds/greens/ambers formerly hard-coded
+       (#dc3545 / #28a745 / #e0a800) across CSS + inline JS. Tuned per theme to keep
+       contrast on light and dark surfaces. */
+    --danger:         #d6293e;
+    --danger-2:       #b71d30;
+    --success:        #2e9e4f;
+    --warning:        #c98a00;
+    --disabled-bg:    #e4e6ea;
+    --disabled-text:  #9aa0a8;
     --sb-track:        transparent;
     --sb-thumb:        #d4d8de;
     --sb-thumb-hover:  #a8b0b8;
     --sb-thumb-active: #7a838c;
 }
 
-/* Accent presets — set only --accent; --accent-2, --text-key and every glow
-   derive from it, so a preset is one line. Keys mirror js/core/accents.js and
-   are applied as <html data-accent="…"> (pre-paint in index.html). Violet is the
-   :root default above, so no data-accent attribute = violet. */
+/* Accent presets — set only --accent; --accent-2, --text-key and every glow derive
+   from it, so a preset is one line. Keys mirror js/core/accents.js, applied as
+   <html data-accent="…"> (pre-paint in index.html). No attribute = :root violet. */
 :root[data-accent="violet"]  { --accent: #7c3aed; }
 :root[data-accent="pink"]    { --accent: #ec4899; }
 :root[data-accent="yellow"]  { --accent: #eab308; }
@@ -102,6 +109,13 @@
     --input-bg:       #333333;
     --input-text:     #e0e0e0;
     --shadow:         rgba(0,0,0,0.4);
+    /* Lifted toward the light so reds/greens/ambers read clearly on dark panels. */
+    --danger:         #f0697a;
+    --danger-2:       #e8455a;
+    --success:        #4cc471;
+    --warning:        #e6b53c;
+    --disabled-bg:    #3a3a3a;
+    --disabled-text:  #777777;
     --sb-track:        transparent;
     --sb-thumb:        #6a6a6a;
     --sb-thumb-hover:  #8a8a8a;

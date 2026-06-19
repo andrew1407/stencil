@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { notify, comboFromEvent, formatCombo } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
+import { icon } from './icons.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────
 export class StencilSettingsModal extends StencilElement {
@@ -8,8 +9,8 @@ export class StencilSettingsModal extends StencilElement {
     return `
         <div id="settings-modal">
             <div class="settings-header">
-                <h2>⚙ Settings — Keyboard Shortcuts</h2>
-                <button id="settings-close">✕ Close</button>
+                <h2>${icon('gear', { size: 18 })} Settings — Keyboard Shortcuts</h2>
+                <button id="settings-close" class="btn-icon-text">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="hotkey-search" class="modal-search" placeholder="Search shortcuts…">
@@ -23,8 +24,8 @@ export class StencilSettingsModal extends StencilElement {
                 </table>
             </div>
             <div class="settings-footer">
-                <span class="footer-hint">Double-click a shortcut to set a new combination · Esc cancels · ↺ resets one</span>
-                <button id="reset-all-hotkeys">↺ Reset All</button>
+                <span class="footer-hint">Double-click a shortcut to set a new combination · Esc cancels · reset icon clears one</span>
+                <button id="reset-all-hotkeys" class="btn-icon-text">${icon('rotate-ccw', { size: 14 })}<span>Reset All</span></button>
             </div>
         </div>
     `;
@@ -79,7 +80,7 @@ export class StencilSettingsModal extends StencilElement {
                 <td><span class="hotkey-cell" data-id="${def.id}" title="Double-click to set a new combination">${cur}</span></td>
                 <td><span class="hotkey-default">${formatCombo(def0, hotkeys.isMac)}</span></td>
                 <td style="text-align:center;">
-                    <button class="hotkey-reset-btn" data-id="${def.id}" title="Reset to default"${isDefault ? ' style="visibility:hidden;"' : ''}>↺</button>
+                    <button class="hotkey-reset-btn" data-id="${def.id}" title="Reset to default"${isDefault ? ' style="visibility:hidden;"' : ''}>${icon('rotate-ccw', { size: 15 })}</button>
                 </td>
             `;
         tbody.appendChild(tr);

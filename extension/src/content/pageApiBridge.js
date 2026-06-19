@@ -1,10 +1,9 @@
 // ── Page-API bridge (ISOLATED world) ────────────────────────────────────────
-// The page-global window.stencil lives in the MAIN world (content/pageApiMain.js)
-// so its image entries can hold live DOM elements — but the MAIN world has no
-// chrome.* APIs. This ISOLATED content script shares the page's `window` message
-// bus with the MAIN world and relays the API's action requests to the service
-// worker (which owns chrome.tabs / chrome.scripting). Fire-and-forget: opening the
-// editor / crop is one-way, so no response is plumbed back.
+// The page-global window.stencil lives in the MAIN world (content/pageApiMain.js) so
+// its entries can hold live DOM elements — but MAIN has no chrome.* APIs. This ISOLATED
+// script shares the page's `window` message bus with MAIN and relays the API's action
+// requests to the SW (owner of chrome.tabs / chrome.scripting). Fire-and-forget:
+// opening the editor / crop is one-way, no response plumbed back.
 if (!window.__stencilPageBridge) {
   window.__stencilPageBridge = true;
   // mirror of lib/messages.js (classic content script — can't import)

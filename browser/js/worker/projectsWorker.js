@@ -1,8 +1,8 @@
 // ── projectsWorker: SharedWorker tab coordinator (PURE — no storage) ──
 // Pure message router between tabs; NEVER touches localStorage (SharedWorker is
-// window-less) — persistence stays window-side. State is just connected ports +
-// each port's active project id, used to: report tab count, broadcast which
-// project ids are open in peers, and relay "projects changed" re-render pings.
+// window-less) — persistence stays window-side. State = connected ports + each
+// port's active project id, used to report tab count, broadcast peer-open project
+// ids, and relay "projects changed" re-render pings.
 import { MSG } from './messages.js';
 
 // port -> { activeId }

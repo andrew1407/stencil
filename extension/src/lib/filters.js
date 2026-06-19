@@ -52,8 +52,8 @@ export const extractCssUrls = (bg) => {
 
 // Does an item pass the active filter state?
 //   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo, includePosters }
-// Undetectable formats bucket as UNKNOWN_FORMAT ('etc'). Empty numeric bounds are
-// null. Items with unknown size (w/h <= 0) pass the size filters (measured later).
+// Undetectable formats bucket as UNKNOWN_FORMAT ('etc'); empty bounds are null;
+// unknown-size items (w/h <= 0) pass size filters (measured later).
 export const passesFilters = (item, f = {}) => {
   // A video poster lists as an <img> but has its own toggle (independent of the
   // plain-image one), so it can be shown or hidden as a group.

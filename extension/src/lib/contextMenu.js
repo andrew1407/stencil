@@ -1,11 +1,9 @@
 // ── Context-menu definitions + click resolution (pure, unit-tested) ──────────
-// No explicit "Stencil" parent — Chrome auto-groups top-level items under the
-// extension name (a parent of our own double-nests it). Only the video Preview group
-// is a real submenu. Two item groups, at most one matching at a time:
+// Only the video Preview group is a real submenu. Two item groups, at most one matching:
 //   1. NATIVE (image/video contexts) — static, works even when the MV3 worker sleeps.
-//   2. DYNAMIC (ALL_CONTEXTS) — backgrounds/overlay-buried/linked images have no
-//      native context, so these start hidden and the worker reveals them via the
-//      probe. Cost: an update race can land one click late right after the worker wakes.
+//   2. DYNAMIC (ALL_CONTEXTS) — backgrounds/overlay-buried/linked images have no native
+//      context, so start hidden; the worker reveals them via the probe. Cost: an update
+//      race can land one click late right after the worker wakes.
 export const MENU = {
   // Explicit "Stencil" parent so the submenu is labelled "Stencil" (not the extension
   // name Chrome auto-groups under). With a single top-level item Chrome shows it directly.
@@ -75,9 +73,8 @@ const ACTIONS = {
 // 'page'/'all', so these never show on plain elements.
 const IMAGE_CONTEXTS = ['image'];
 const VIDEO_CONTEXTS = ['video'];
-// Background/link elements have no native context: this group is on 'all' but each
-// item carries its own visible:false (no parent to inherit from); the worker flips
-// them together when the probe finds a URL.
+// Background/link elements have no native context: group is on 'all', each item carries
+// its own visible:false (no parent to inherit); the worker flips them together on a probe hit.
 const ALL_CONTEXTS = ['all'];
 
 // Flat list passed straight to chrome.contextMenus.create (in order). Everything hangs

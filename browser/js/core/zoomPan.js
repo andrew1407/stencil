@@ -67,11 +67,9 @@ export class ZoomPan {
     if (persist && this.app.image) this.app.storage.save();
   }
 
-  // Press-and-hold zoom for the +/− buttons.
-  //   • Single press → small step (0.25)
-  //   • Double-press → large step (1.0)  — second mousedown within 280 ms
-  //   • Hold        → continuous zoom (kicks in after 380 ms, then 0.10 every 70 ms)
-  // sign is +1 for zoom-in, −1 for zoom-out.
+  // Press-and-hold zoom for the +/− buttons. sign is +1 zoom-in, −1 zoom-out.
+  //   • Single press → small step (0.25); double-press → large step (1.0) within 280 ms;
+  //   • Hold → continuous zoom (after 380 ms, then 0.10 every 70 ms).
   setupHoldZoom(btn, sign) {
     // Smaller, gentler steps so a single click feels like one notch, not a leap.
     const SMALL = 0.10;

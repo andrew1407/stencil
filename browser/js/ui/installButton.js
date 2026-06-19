@@ -1,12 +1,13 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { notify, detectDesktopOS } from '../utils.js';
 import INSTALL from '../config/installConfig.json' with { type: 'json' };
+import { icon } from './icons.js';
 // ── Component: install/download affordance (floating, bottom-right) ──
 // Hover/focus menu with two ways to get Stencil:
-//   • Install web app (PWA) — shown only after `beforeinstallprompt` fires;
-//     click replays that deferred event. Hidden once installed/standalone.
-//   • Download desktop app — OS-specific release zip, falling back to the
-//     releases page when the platform is unknown. Targets in installConfig.json.
+//   • Install web app (PWA) — shown only after `beforeinstallprompt` fires; click
+//     replays that deferred event. Hidden once installed/standalone.
+//   • Download desktop app — OS-specific release zip (installConfig.json), falling
+//     back to the releases page when the platform is unknown.
 export class StencilInstall extends StencilElement {
   #deferred = null;
 
@@ -21,15 +22,15 @@ export class StencilInstall extends StencilElement {
     const { label, url } = StencilInstall.#desktop();
     return `<div id="install-menu" role="menu" aria-label="Get Stencil">
         <button type="button" id="install-pwa-btn" role="menuitem" hidden>
-          <span class="install-ic">⬇</span><span>Install web app (PWA)</span>
+          <span class="install-ic">${icon('download')}</span><span>Install web app (PWA)</span>
         </button>
         <a id="install-desktop-btn" role="menuitem" href="${url}" download rel="noopener"
            title="Download the Stencil desktop app for ${label}">
-          <span class="install-ic">🖥</span><span>Download desktop app</span>
+          <span class="install-ic">${icon('monitor')}</span><span>Download desktop app</span>
         </a>
       </div>
       <button type="button" id="install-toggle" aria-haspopup="true"
-              title="Get Stencil — install or download">⬇</button>`;
+              title="Get Stencil — install or download">${icon('download')}</button>`;
   }
   static template() { return hostTag('stencil-install', 'id="install-host"', StencilInstall.inner()); }
 

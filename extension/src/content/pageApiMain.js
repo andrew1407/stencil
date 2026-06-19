@@ -1,13 +1,11 @@
 // ── Page-global window.stencil (MAIN world) ─────────────────────────────────
-// Injected into every page's MAIN world ONLY when the user opts in (options →
-// "Page scripting API"). It exposes a console-friendly API to scan the page's
-// images/videos and send them to the Stencil editor — mirroring the popup/context
-// menu. It runs in the MAIN world so returned entries can carry LIVE DOM elements;
-// since the MAIN world has no chrome.* APIs, action requests are postMessage'd to
-// the ISOLATED bridge (content/pageApiBridge.js), which relays them to the SW.
-//
-// The pure helpers below MIRROR lib/pageImages.js (the unit-tested source of truth)
-// — keep the two in sync.
+// Injected into every page's MAIN world ONLY when opted in (options → "Page scripting
+// API"). Console-friendly API to scan the page's images/videos and send them to the
+// Stencil editor (mirrors popup/context menu). MAIN world so entries carry LIVE DOM
+// elements; lacking chrome.* APIs there, action requests are postMessage'd to the
+// ISOLATED bridge (content/pageApiBridge.js), which relays them to the SW.
+// The pure helpers below MIRROR lib/pageImages.js (unit-tested source of truth) —
+// keep the two in sync.
 (() => {
   // Don't double-inject, and never clobber the editor's OWN window.stencil (that API
   // has no __stencil tag; the editor page wins on its own origin).
@@ -77,20 +75,20 @@
     return { kind: null, url: '' };
   };
 
-  // Intrinsic pixel size where the DOM exposes it synchronously: <video> from its
-  // decoded dimensions, <img>/<svg image> from naturalWidth. A CSS background has no
-  // intrinsic size available without loading it (the popup measures lazily), so we
-  // fall back to the element's rendered box — 0 when nothing is known.
+  // Intrinsic pixel size where the DOM exposes it synchronously: <video> from decoded
+  // dimensions, <img>/<svg image> from naturalWidth. A CSS background has no intrinsic
+  // size without loading it (popup measures lazily), so fall back to the rendered box —
+  // 0 when nothing is known.
   const entryDims = (el, kind) => {
     if (kind === 'video') return { w: el.videoWidth || 0, h: el.videoHeight || 0 };
     if (el && el.naturalWidth) return { w: el.naturalWidth, h: el.naturalHeight || 0 };
     return { w: (el && el.offsetWidth) || 0, h: (el && el.offsetHeight) || 0 };
   };
 
-  // Hard-guard an API object: a property with a real setter writes through, but writing a
-  // method / read-only getter / data field (or adding/deleting one) THROWS rather than
+  // Hard-guard an API object: a property with a real setter writes through, but writing
+  // a method / read-only getter / data field (or adding/deleting one) THROWS instead of
   // silently no-opping. Applied to the facade and every scanned entry, so `entry.open = 0`,
-  // `entry.url = 'x'`, or `stencil.search = 1` is rejected outright.
+  // `entry.url = 'x'`, or `stencil.search = 1` is rejected.
   const guard = (obj) => new Proxy(Object.freeze(obj), {
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
@@ -134,10 +132,10 @@
   };
 
   // ── Live filter state (mirrors — and SYNCS with — the popup's filter controls) ──
-  // The list getters (items/images/videos/backgrounds/posters) honor it; the one-off
-  // query methods search()/format()/size() stay unfiltered (explicit ad-hoc queries).
-  // It's two-way bound to the popup via chrome.storage.local.popupFilters (the bridge
-  // proxies storage for this MAIN-world script — see content/pageApiBridge.js).
+  // List getters (items/images/videos/backgrounds/posters) honor it; one-off queries
+  // search()/format()/size() stay unfiltered. Two-way bound to the popup via
+  // chrome.storage.local.popupFilters (the bridge proxies storage for this MAIN-world
+  // script — see content/pageApiBridge.js).
   const filters = {
     searchText: '',
     disabledFormats: new Set(),     // lowercase formats toggled off via stencil.formats.<f> = false
@@ -334,24 +332,23 @@
   };
 
   // Hide every member from enumeration so the console shows a clean `stencil` (no
-  // __stencil tag / method dump on `console.log(stencil)` or Object.keys). Access and
-  // DevTools autocomplete still work — non-enumerable ≠ inaccessible. Must run before
-  // the freeze below (freeze locks descriptors). Internal __stencil stays a property
-  // (the back-off guard reads it) but no longer leaks into enumeration.
+  // __stencil tag / method dump on console.log/Object.keys); access and DevTools
+  // autocomplete still work (non-enumerable ≠ inaccessible). Must run before the freeze
+  // below (freeze locks descriptors). __stencil stays a property (back-off guard reads
+  // it) but no longer leaks into enumeration.
   for (const k of Reflect.ownKeys(api)) {
     const d = Object.getOwnPropertyDescriptor(api, k);
     if (d.enumerable) Object.defineProperty(api, k, { ...d, enumerable: false });
   }
-  // Hard-guard with the same proxy as the entries: writing a method, a read-only getter,
-  // or the internal __stencil tag THROWS instead of silently no-opping (`stencil.open = 0`
-  // / `stencil.__stencil = 'x'`). The only legit setter is `enabled`, which the trap
-  // delegates to. Methods `return this` (the proxy when called on it), so chaining holds.
-  // (guard() does the Object.freeze the API previously did on its own.)
+  // Hard-guard with the same proxy as entries: writing a method, read-only getter, or the
+  // internal __stencil tag THROWS (`stencil.open = 0` / `stencil.__stencil = 'x'`). Only
+  // legit setter is `enabled`, which the trap delegates to. Methods `return this` (the
+  // proxy when called on it), so chaining holds. guard() also does the Object.freeze.
   const guarded = guard(api);
 
-  // Lock the binding against plain reassignment (writable:false). configurable:true is
-  // kept deliberately: on the editor's own page its (non-configurable) window.stencil
-  // must be able to take over — and our back-off guard above already yields to it.
+  // Lock the binding against plain reassignment (writable:false). configurable:true kept
+  // deliberately: on the editor's own page its (non-configurable) window.stencil must be
+  // able to take over — and the back-off guard above already yields to it.
   try {
     Object.defineProperty(window, 'stencil', { value: guarded, writable: false, configurable: true, enumerable: false });
   } catch { /* a non-configurable window.stencil already exists (the editor) — leave it */ }

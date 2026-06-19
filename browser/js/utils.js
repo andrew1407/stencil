@@ -32,8 +32,7 @@ export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
 
 // Seed the initial display unit from locale (a saved/typed preference overrides).
 // No "measurement system" web API exists, so derive the region via Intl.Locale
-// (maximize() resolves bare tags like "en" → US); only US/Liberia/Myanmar get
-// inches. Never throws.
+// (maximize() resolves bare "en" → US); only US/Liberia/Myanmar get inches. Never throws.
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
 export const defaultUnitFromLocale = (
   nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined),
@@ -52,14 +51,13 @@ export const defaultUnitFromLocale = (
 };
 
 // ── Inline name editor (shared: topbar + projects list) ─────────
-// Live-validated rename wiring. Enables the accept (✓) button only when the trimmed
-// value is changed AND valid; puts the rejection reason on ✓'s tooltip when disabled.
-// Enter commits (if ✓ enabled), Escape cancels. mousedown-preventDefault on the
-// buttons keeps the input focused so the click fires before any blur handler (callers
-// wire blur→cancel if they want a click-away to discard).
+// Live-validated rename wiring. Enables ✓ only when the trimmed value is changed AND
+// valid (rejection reason shown on ✓'s tooltip when disabled). Enter commits (if ✓
+// enabled), Escape cancels. mousedown-preventDefault keeps the input focused so the click
+// fires before any blur handler (callers wire blur→cancel for click-away discard).
 //   opts: { current():string, validate(v):{ok,reason}, commit(v), cancel(), alwaysShow }
-// `alwaysShow` keeps ✓/✗ visible the whole time (projects list); otherwise they appear
-// only once the value differs from the current name (keeps the topbar uncluttered).
+// `alwaysShow` keeps ✓/✗ visible always (projects list); else they appear only once the
+// value differs from the current name (keeps the topbar uncluttered).
 export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate, commit, cancel, alwaysShow = false }) => {
   const refresh = () => {
     const v = input.value.trim();
@@ -199,10 +197,9 @@ export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globa
   return null;
 };
 
-// Rewrite a canonical combo for the active platform. On Mac the app's Ctrl-based
-// editing shortcuts (undo/redo/copy/paste, etc.) map to ⌘, so we swap the Ctrl
-// token to Meta. Token-aware (splits on '+'), case-insensitive on "Ctrl", and
-// idempotent (an already-Meta combo is unchanged). No-op when isMac is false.
+// Rewrite a canonical combo for the platform. On Mac, Ctrl-based editing shortcuts
+// (undo/redo/copy/paste, etc.) map to ⌘, so swap the Ctrl token → Meta. Token-aware,
+// case-insensitive on "Ctrl", idempotent (already-Meta unchanged). No-op when !isMac.
 export const platformizeCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   return combo.split('+')
@@ -210,10 +207,9 @@ export const platformizeCombo = (combo, isMac) => {
     .join('+');
 };
 
-// Render a combo for DISPLAY only (storage stays canonical). On Mac, map tokens
-// to Apple symbols in the conventional ⌃⌥⇧⌘ order followed by the key, joined
-// with no separator (e.g. "Meta+Shift+Z" → "⇧⌘Z", "Alt+ArrowUp" → "⌥↑"). On
-// non-Mac, the canonical "Ctrl+Shift+Z" form is returned unchanged.
+// Render a combo for DISPLAY only (storage stays canonical). On Mac, map tokens to Apple
+// symbols in ⌃⌥⇧⌘ order then the key, joined with no separator ("Meta+Shift+Z" → "⇧⌘Z",
+// "Alt+ArrowUp" → "⌥↑"). Non-Mac returns the canonical "Ctrl+Shift+Z" form unchanged.
 export const formatCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   const parts = combo.split('+').map(p => p.trim()).filter(Boolean);
@@ -231,6 +227,34 @@ export const formatCombo = (combo, isMac) => {
   }
   const arrows = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
   return out + (arrows[key] || key);
+};
+
+// ── Unified control tooltip ─────────────────────────────────────
+// Composes an element's `title` from 3 optional parts (base label, hotkey when bound,
+// disabled-reason) so toolbar/menu tooltips stay consistent and live:
+//   • base: data-title wins; else current title with trailing "(…)" hotkey + prior
+//     "— reason" line stripped (cached into data-title so repeated calls stay stable).
+//   • hotkey: data-hk-title = a hotkey id; combo appended as " (…)" platform-formatted via
+//     injected getCombo (avoids importing hotkeys here — that module imports this one).
+//   • reason: data-disabled-reason, shown as a "— reason" line only while el.disabled or
+//     el.classList.contains('ctx-disabled').
+export const composeControlTitle = (el, isMac, getCombo) => {
+  let base = el.dataset.title;
+  if (base == null) {
+    base = (el.getAttribute('title') || '')
+      .replace(/\n[\s\S]*$/, '')          // drop any existing reason line
+      .replace(/\s*\([^)]*\)\s*$/, '');   // drop any trailing "(combo)"
+    el.dataset.title = base;
+  }
+  let out = base;
+  const hkId = el.dataset.hkTitle;
+  if (hkId && getCombo) {
+    const combo = getCombo(hkId);
+    if (combo) out += `${out ? ' ' : ''}(${formatCombo(combo, isMac)})`;
+  }
+  const off = el.disabled === true || el.classList.contains('ctx-disabled');
+  if (off && el.dataset.disabledReason) out += `${out ? '\n' : ''}— ${el.dataset.disabledReason}`;
+  return out;
 };
 
 export const isTypingTarget = t => {

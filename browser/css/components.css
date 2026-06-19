@@ -273,15 +273,18 @@ body.fullscreen-mode #fs-points-panel {
 }
 .ctx-item .ctx-icon {
     width: 16px;
-    text-align: center;
     flex-shrink: 0;
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
 }
 .ctx-item .ctx-label { flex: 1; }
 .ctx-item .ctx-arrow {
     margin-left: auto;
-    font-size: 10px;
     opacity: 0.55;
+    display: inline-flex;
+    align-items: center;
 }
 .ctx-sep {
     height: 1px;
@@ -290,9 +293,11 @@ body.fullscreen-mode #fs-points-panel {
 }
 .ctx-check {
     width: 16px;
-    text-align: center;
     flex-shrink: 0;
-    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
 }
 
 /* Submenu — position:fixed set dynamically by JS so it never clips off-screen */
@@ -424,10 +429,10 @@ body.fullscreen-mode #fs-points-panel {
     gap: 8px;
 }
 #notify-balloon.notify-visible { opacity: 1; transform: translateY(0); }
-#notify-balloon.notify-ok    { background: #28a745; }
-#notify-balloon.notify-fail  { background: #dc3545; }
+#notify-balloon.notify-ok    { background: var(--success); }
+#notify-balloon.notify-fail  { background: var(--danger); }
 #notify-balloon.notify-info  { background: var(--accent); }
-#notify-balloon .notify-icon { font-size: 16px; }
+#notify-balloon .notify-icon { display: inline-flex; align-items: center; }
 
 /* ── Install / download button (small icon, floating bottom-right) ── */
 #install-host[hidden] { display: none; }
@@ -556,10 +561,9 @@ body.fullscreen-mode #fs-points-panel {
     overflow-y: auto;
     flex: 1;
 }
-/* The hotkey table has its own sticky header; drop the body's top padding so
-   the header pins flush to the body top (not below the padding, where scrolled
-   rows would otherwise show above it and overlap the modal title bar). Scoped
-   to #settings-modal so the shared .settings-body of other modals is untouched. */
+/* Hotkey table has a sticky header; drop the body's top padding so it pins flush
+   to the body top (else scrolled rows show above it and overlap the modal title
+   bar). Scoped to #settings-modal so other modals' .settings-body is untouched. */
 #settings-modal .settings-body { padding-top: 0; }
 /* Shared modal search bar (settings + visuals; sits above the scrolling body). */
 .modal-search-bar { padding: 12px 18px 6px; }
@@ -605,9 +609,9 @@ body.fullscreen-mode #fs-points-panel {
     text-align: left;
     border-bottom: 1px solid var(--border-coord);
 }
-/* Pin the header row while the body scrolls. Sticky must sit on <thead> here —
-   sticky on the <th> cells alone does not engage in this table, leaving the
-   header to scroll up and overlap the modal title bar. */
+/* Pin the header while the body scrolls. Sticky must sit on <thead> — sticky on
+   the <th> cells alone doesn't engage here, letting the header scroll up and
+   overlap the modal title bar. */
 .hotkey-table thead {
     position: sticky;
     top: 0;
@@ -716,8 +720,7 @@ body.fullscreen-mode #fs-points-panel {
 .vs-row input[type="number"], .vs-row select { width: 90px; }
 /* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accentPicker.js) ──
    A native <select> can't paint a colour rect per option on every OS, so this is
-   a small listbox: a trigger (current swatch + name) and a popup of rect+name
-   rows. */
+   a small listbox: trigger (current swatch + name) plus a popup of rect+name rows. */
 .accent-swatch {
     width: 16px;
     height: 16px;
@@ -854,11 +857,10 @@ body.fullscreen-mode #fs-points-panel {
 .info-empty { padding: 16px 4px; color: var(--text-muted); font-size: 13px; }
 
 /* ── Custom-element hosts ───────────────────────────────────────
-   Custom elements default to display:inline. Hosts that reuse a styled
-   id/class whose rule sets display (#ctx-menu, .main-content, #notify-balloon,
-   modals, …) are already covered; these block-flow hosts are not, so restore
-   their intended layout. The fullscreen layer is a pure wrapper of fixed-
-   positioned children, so it should not occupy any box of its own. */
+   Custom elements default to display:inline. Hosts reusing a styled id/class
+   that sets display (#ctx-menu, .main-content, #notify-balloon, modals, …) are
+   covered; these block-flow hosts aren't, so restore their layout. The fullscreen
+   layer is a pure wrapper of fixed-positioned children, so it occupies no box. */
 stencil-app-container,
 stencil-toolbar,
 stencil-image-info { display: block; }
@@ -883,8 +885,8 @@ stencil-fullscreen-layer { display: contents; }
 .project-info { flex: 1; min-width: 0; }
 .project-name { font-weight: 600; font-size: 14px; color: var(--text-key); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.project-sub.project-expired { color: #dc3545; font-weight: 600; }
-.project-sub.project-expiring { color: #e0a800; font-weight: 600; }
+.project-sub.project-expired { color: var(--danger); font-weight: 600; }
+.project-sub.project-expiring { color: var(--warning); font-weight: 600; }
 .project-open-elsewhere { color: var(--accent); }
 .project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
@@ -926,7 +928,7 @@ stencil-fullscreen-layer { display: contents; }
     background: var(--bg-info);
     color: var(--text-main);
 }
-.links-clear.danger:hover { border-color: #dc3545 !important; color: #dc3545; }
+.links-clear.danger:hover { border-color: var(--danger) !important; color: var(--danger); }
 .links-preview-wrap {
     margin: 8px 4px 0;
     padding: 8px;

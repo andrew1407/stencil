@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -18,11 +18,11 @@ import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from 
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl } from './deepLink.js';
 import { normalizePageSize } from './units.js';
+import { icon } from '../ui/icons.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
-// the button's text color (so they theme + match the label automatically). The
-// line glyph shows a diagonal segment with endpoint dots (a polyline); the rect
-// glyph an outlined rectangle.
+// the button's text color (theme + label match). line = diagonal segment with
+// endpoint dots (polyline); rect = outlined rectangle.
 export const DRAW_MODE_ICON = {
   line: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
     '<line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
@@ -69,21 +69,18 @@ export class DrawingApp {
     this.coordinatesBody = document.getElementById('coordinates-body');
 
     this.image = null;
-    // Crop support: `originalImage` is the untouched full-resolution bitmap; the
-    // working `image` is a canvas holding only the cropped (page-shaped) region,
-    // and `cropRect` records that region in original-image pixels. Line/marker
-    // points live in crop-local pixels. See applyCrop / #buildCroppedImage.
+    // Crop support: `originalImage` = untouched full-res bitmap; working `image` =
+    // canvas holding only the cropped (page-shaped) region; `cropRect` records it in
+    // original-image pixels. Line/marker points are crop-local. See applyCrop / #buildCroppedImage.
     this.originalImage = null;
     this.cropRect = null;
-    // Non-destructive 90° rotation: a quarter-turn count (0..3, clockwise) applied
-    // to `originalImage` before the crop is taken. The original bitmap is never
-    // modified; `cropRect` lives in the rotated image's pixel space and line
-    // points ride along on each turn. See rotateImage / #rotatedOriginalCanvas.
+    // Non-destructive 90° rotation: quarter-turn count (0..3, clockwise) applied to
+    // `originalImage` before cropping. Original is never modified; `cropRect` lives in
+    // the rotated pixel space and line points ride along each turn. See rotateImage / #rotatedOriginalCanvas.
     this.rotationQuarters = 0;
-    // Provenance for the current image: `imageSource` is the image/video's own URL,
-    // `imageResource` is the web page it was pulled from. Both null for plain local
-    // uploads; set by the add-by-URL flow and the extension hand-off. Persisted in
-    // the layout and mirrored into the project meta.
+    // Provenance: `imageSource` = image/video's own URL, `imageResource` = web page it
+    // came from. Both null for plain local uploads; set by add-by-URL + extension hand-off.
+    // Persisted in the layout and mirrored into project meta.
     this.imageSource = null;
     this.imageResource = null;
     this.lines = [];
@@ -142,10 +139,9 @@ export class DrawingApp {
     this.formulaX = ''; // empty = identity
     this.formulaY = '';
 
-    // Display unit for page/length readouts: 'cm' or 'in'. Lengths are always
-    // stored in cm; this only affects how they are shown and entered. The
-    // initial default is seeded from the user's locale (US/imperial → inches,
-    // everyone else → cm); a restored layout's saved unit overrides it.
+    // Display unit for page/length readouts: 'cm' or 'in'. Lengths are always stored in
+    // cm; this only affects display/entry. Default seeded from locale (US/imperial → in,
+    // else cm); a restored layout's saved unit overrides it.
     this.unit = defaultUnitFromLocale();
 
     // ── Drawing mode: 'line' (click points) or 'rect' (drag rectangle) ──
@@ -154,9 +150,8 @@ export class DrawingApp {
     this.rectDrawStart = null; // { imgX, imgY, cssX, cssY }
     this.rectDrawEnd = null;
     this.#rectConnectOnce = false; // one-shot: connect next rect to selection
-    // Continuation drawing: when Start is pressed with a line selected, new
-    // points/rects extend that line (connecting to its last/focused point)
-    // and inherit its style. -1 = drawing a fresh line.
+    // Continuation drawing: Start with a line selected → new points/rects extend that
+    // line (connecting to its last/focused point) and inherit its style. -1 = fresh line.
     this.#continueLineIdx = -1;
     this.#continueInsertIdx = -1;
 
@@ -195,19 +190,17 @@ export class DrawingApp {
     // Set a sensible initial viewport height
     const vp = document.getElementById('canvas-viewport');
     if (vp) vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
-    // Boot synchronously into a blank temporary editor (migrate + sweep only).
-    // The projects component decides whether to offer a chooser after readiness.
+    // Boot synchronously into a blank temporary editor (migrate + sweep only); the
+    // projects component decides whether to offer a chooser after readiness.
     this.restoreFromLocalStorage();
     this.storage.newTemporary();
-    // A "?open=<id>" deep link means this tab was launched to view one specific
-    // project (the projects modal's "open in new tab" action). Read it now, before
-    // any component wires, so the chooser knows to stay closed; applyProjectDeepLink()
-    // actually loads it once everything is wired.
+    // "?open=<id>" deep link = tab launched to view one project (projects modal's "open
+    // in new tab"). Read now, before any component wires, so the chooser stays closed;
+    // applyProjectDeepLink() loads it once everything is wired.
     this.pendingOpenProjectId = readOpenProjectId(location.search);
-    // An extension hand-off (`#stencil=…`) means this tab was launched to open one
-    // specific image — like the deep link above, the projects chooser must stay
-    // closed so it doesn't pop over the freshly imported image. Read before the
-    // fragment is consumed/stripped in applyExternalLaunch().
+    // Extension hand-off (`#stencil=…`) = tab launched to open one image; like the deep
+    // link above, the chooser must stay closed so it doesn't pop over the imported image.
+    // Read before the fragment is consumed/stripped in applyExternalLaunch().
     this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
     // Reflect the initial (imageless) state: undo/redo + fullscreen start disabled.
     this.updateButtons();
@@ -293,10 +286,9 @@ export class DrawingApp {
   }
 
   // ── Formula controls (top bar) ──────────────────────────────
-  // The shared #syncFormulaUI / #showFormulaError / #refreshFormulaCoords helpers and
-  // setAllowFormulas live with the other setters above. This validates BOTH inputs
-  // together (so a half-typed pair doesn't apply) and shows the inline error; the
-  // console's setFormula() path throws instead.
+  // #syncFormulaUI / #showFormulaError / #refreshFormulaCoords + setAllowFormulas live
+  // with the other setters. This validates BOTH inputs together (no half-typed pair) and
+  // shows the inline error; the console's setFormula() throws instead.
   #wireFormulaControls() {
     const validateAndApplyFormulas = () => {
       const fxVal = document.getElementById('formula-x').value.trim();
@@ -319,11 +311,10 @@ export class DrawingApp {
   }
 
   #wireToolbarButtons() {
-    // Topbar project-name field: a read-only title that renames inline only on demand.
-    // Double-click the name (or click the hover ✎) to edit; ✓/✗ appear ONLY while
-    // editing. ✓ is enabled for a changed, valid (non-empty, unique) name; ✓/Enter
-    // commit, ✗/Escape/click-away revert. No rename affordance for incognito / no
-    // project — those states never expose ✎ or ✓/✗.
+    // Topbar project-name field: read-only title, renames inline on demand. Double-click
+    // (or hover ✎) to edit; ✓/✗ show ONLY while editing. ✓ enabled for a changed, valid
+    // (non-empty, unique) name; ✓/Enter commit, ✗/Escape/click-away revert. Incognito / no
+    // project never expose ✎ or ✓/✗.
     const nameInput = document.getElementById('project-name-input');
     const nameEdit = document.getElementById('project-name-edit');
     const nameAccept = document.getElementById('project-name-accept');
@@ -385,7 +376,7 @@ export class DrawingApp {
         if (confirm('Clear this editor (image + lines)?')) {
           this.storage.newTemporary();
           this.tabs.reportActive(null);
-          this.showSaveStatus('🗑 Cleared', '#dc3545');
+          this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
         }
         return;
       }
@@ -395,7 +386,7 @@ export class DrawingApp {
         this.storage.newTemporary();
         this.tabs.reportActive(null);
         this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
-        this.showSaveStatus('🗑 Cleared', '#dc3545');
+        this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
       }
     });
     const incognitoBtn = document.getElementById('incognito-toggle');
@@ -460,7 +451,7 @@ export class DrawingApp {
   }
   #updateThemeIcon() {
     const btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = this.theme === 'dark' ? '☀️' : '🌙';
+    if (btn) btn.innerHTML = this.theme === 'dark' ? icon('sun') : icon('moon');
   }
 
   // Active accent preset key (see js/core/accents.js); falls back to violet.
@@ -591,10 +582,8 @@ export class DrawingApp {
 
   #wireArrowPan() {
     // ── Arrow-key panning ──────────────────────────────────────
-    // Plain arrows pan the viewport; holding multiple arrows
-    // (e.g. Down+Left) pans diagonally; opposing pairs cancel.
-    // Shift accelerates pan. Alt/Ctrl/Meta are reserved for other
-    // shortcuts (e.g. Alt+ArrowUp = zoom), so we ignore them here.
+    // Plain arrows pan the viewport; multiple arrows pan diagonally, opposing pairs
+    // cancel; Shift accelerates. Alt/Ctrl/Meta are reserved (e.g. Alt+ArrowUp = zoom).
     this.#arrowsHeld = new Set();
     this.#arrowPanRaf = null;
     const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
@@ -716,9 +705,8 @@ export class DrawingApp {
 
   #wireSmoothZoom() {
     // ── Smooth zoom via rAF ──
-    // Rapid wheel events accumulate into a single rAF loop. IMPORTANT: add
-    // `zoom-no-transition` while the rAF runs so the CSS width/height transition
-    // doesn't fight the rAF updates (that conflict causes flicker).
+    // Rapid wheel events accumulate into one rAF loop. IMPORTANT: add `zoom-no-transition`
+    // while the rAF runs so the CSS width/height transition doesn't fight it (causes flicker).
     this.#smoothZoom = { target: null, focal: null, rafId: null };
 
     const viewport = document.getElementById('canvas-viewport');
@@ -1105,15 +1093,13 @@ export class DrawingApp {
     this.loadImageFromFile(file);
   }
 
-  // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels,
-  // overriding the default centered page-aspect crop (external-launch path).
-  // opts.source/opts.resource — provenance URLs for add-by-URL and extension hand-off;
-  // omitted for local uploads, which clears any prior provenance.
+  // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels, overriding
+  // the default centered page-aspect crop (external-launch path). opts.source/opts.resource —
+  // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
   loadImageFromFile(file, opts = {}) {
-    // A temporary editor receiving its first image becomes a real project, so
-    // the final storage.save() below persists it (and subsequent tabs see it).
-    // Incognito editors are the exception: they deliberately stay unsaved, so
-    // we do NOT promote — the image/lines live in memory only.
+    // A temporary editor receiving its first image becomes a real project (the final
+    // storage.save() persists it; other tabs see it). Exception: incognito editors stay
+    // unsaved — do NOT promote, image/lines live in memory only.
     if ((this.storage.temporary || this.activeProjectId == null) && !this.storage.incognito) {
       this.storage.promoteTemporaryToProject();
       this.tabs.reportActive(this.activeProjectId);
@@ -1142,11 +1128,9 @@ export class DrawingApp {
     reader.onload = event => {
       this.originalImage = new Image();
       this.originalImage.onload = () => {
-        // Auto-crop from the center to the page aspect (cut the surplus sides),
-        // using the existing album/portrait detection. The original is kept; the
-        // working canvas shows only this region. An explicit opts.crop (from the
-        // external-launch path) overrides the default centered crop.
-        // A freshly-loaded image starts un-rotated; the crop is in original space.
+        // Auto-crop center to the page aspect (cut surplus sides) via album/portrait
+        // detection; original kept, working canvas shows only this region. opts.crop
+        // (external-launch) overrides. Fresh image starts un-rotated; crop in original space.
         this.rotationQuarters = 0;
         this.cropRect = opts.crop ? this.#roundRect(opts.crop) : this.defaultCropRect();
         this.rebuildCroppedImage();
@@ -1160,7 +1144,7 @@ export class DrawingApp {
             this.pendingLines = null;
             this.pendingImageSize = null;
             this.storage.showImageMissingBanner(false);
-            this.showSaveStatus('✓ Drawing restored!', '#28a745');
+            this.showSaveStatus('Drawing restored!', 'var(--success)', 'check');
           } else {
             if (confirm(`Saved drawing was for a ${ps.w}×${ps.h} image but this image is ${this.canvas.width}×${this.canvas.height}. Apply saved lines anyway?`))
               this.lines = this.pendingLines;
@@ -1191,12 +1175,11 @@ export class DrawingApp {
   }
 
   // ── External launch (browser extension) ──────────────────────────
-  // The extension hands off an image via a URL fragment `#stencil=<encodeURIComponent(JSON)>`
-  // (shape: { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }).
-  // The fragment (not query) keeps the payload off the server and out of logs; consumed
-  // once, stripped, then routed through the normal upload path. `open:'resume'` switches
-  // to an existing project for the same source (cross-origin, so the extension can't dedup
-  // itself); otherwise import as a new project, auto-numbered "name (N)" to avoid shadowing.
+  // Extension hands off an image via URL fragment `#stencil=<encodeURIComponent(JSON)>`,
+  // shape { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }. Fragment
+  // (not query) keeps the payload off server/logs; consumed once, stripped, routed through the
+  // normal upload. `open:'resume'` switches to an existing same-source project (cross-origin, so
+  // the extension can't dedup itself); else import a new project, auto-numbered "name (N)".
   applyExternalLaunch() {
     const hash = location.hash || '';
     const marker = '#stencil=';
@@ -1227,9 +1210,9 @@ export class DrawingApp {
     const source = typeof payload.source === 'string' && payload.source ? payload.source : null;
     const resource = typeof payload.resource === 'string' && payload.resource ? payload.resource : null;
 
-    // Resume: if we already hold project(s) for this source, switch instead of
-    // re-importing. Several matches → open the projects list to pick among them.
-    // No match (stale ledger / expired project) falls through to a fresh import.
+    // Resume: if we hold project(s) for this source, switch instead of re-importing.
+    // Several matches → open the projects list to pick. No match (stale ledger / expired
+    // project) falls through to a fresh import.
     if (payload.open === 'resume' && !this.storage.incognito && (source || name)) {
       const baseName = this.#stripExt(name);
       const matches = this.storage.store.findByImage(source, baseName);
@@ -1242,9 +1225,9 @@ export class DrawingApp {
       }
     }
 
-    // Fresh import. Auto-number the project name against existing same-source
-    // projects so a repeat open becomes "name (1)", "name (2)", … (skipped for
-    // incognito, which never persists). `open:'copy'` takes the same path.
+    // Fresh import. Auto-number the name against existing same-source projects so repeats
+    // become "name (1)", "name (2)", … (skipped for incognito, which never persists).
+    // `open:'copy'` takes the same path.
     const opts = crop ? { crop } : {};
     opts.source = source;
     opts.resource = resource;
@@ -1341,10 +1324,9 @@ export class DrawingApp {
     return { x, y, width: w, height: h };
   }
 
-  // Rebuild the working `image` canvas from the rotated `originalImage` +
-  // `cropRect`, and size the main canvas to the crop. The original is never
-  // modified. Public so the storage layer can rebuild the view after restoring
-  // original + rotation + cropRect.
+  // Rebuild the working `image` canvas from the rotated `originalImage` + `cropRect`,
+  // sizing the main canvas to the crop. Original never modified. Public so storage can
+  // rebuild the view after restoring original + rotation + cropRect.
   rebuildCroppedImage() {
     const src = this.#rotatedOriginalCanvas();
     const r = this.cropRect;
@@ -1502,10 +1484,11 @@ export class DrawingApp {
     const btn = document.getElementById('draw-mode-toggle');
     if (btn) {
       btn.innerHTML = (this.drawMode === 'rect' ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
-        (this.drawMode === 'rect' ? ' Rect' : ' Line');
-      btn.title = this.drawMode === 'rect'
+        (this.drawMode === 'rect' ? '<span>Rect</span>' : '<span>Line</span>');
+      btn.dataset.title = this.drawMode === 'rect'
         ? 'Drawing mode: Rectangle (click to switch to Line)'
         : 'Drawing mode: Line (click to switch to Rectangle)';
+      btn.title = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
     }
     const lbl = document.getElementById('ctx-drawmode-label');
     if (lbl) lbl.textContent = this.drawMode === 'rect'
@@ -1974,7 +1957,7 @@ export class DrawingApp {
     });
     const fs = fillState(line, this.defaultFillColor);
     fsPanel.innerHTML = `<div class="selection-panel-inner">
-            <span class="selection-label">✏️ Selected Line:</span>
+            <span class="selection-label">${icon('pencil', { size: 14 })} Selected Line:</span>
             <div class="control-group"><label>Color:</label>
                 <input type="color" id="fs-sel-color" value="${line.color}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;"></div>
             <div class="control-group"><label>Thickness:</label>
@@ -1990,8 +1973,8 @@ export class DrawingApp {
             ${line.locked ? `<div class="control-group"><label>Fill:</label>
                 <input type="checkbox" id="fs-sel-fill-enabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
                 <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
-                <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">✕</button></div>` : ''}
-            <button id="fs-sel-deselect" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">✕ Deselect</button>
+                <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
+            <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
         </div>`;
     // Wire events
     fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {
@@ -2073,10 +2056,9 @@ export class DrawingApp {
     return null;
   }
 
-  // Apply the active segment/whole-line drag at the given cursor position.
-  // `shiftKey` decides the mode live: held → translate the entire line shape;
-  // released → move only the grabbed segment's two endpoints. Both modes derive
-  // from the original snapshot, so toggling Shift mid-drag never accumulates.
+  // Apply the active segment/whole-line drag at the cursor. `shiftKey` decides the mode
+  // live: held → translate the entire line shape; released → move only the grabbed segment's
+  // two endpoints. Both derive from the original snapshot, so toggling Shift never accumulates.
   #dragMove(clientX, clientY, shiftKey) {
     const { x, y } = this.canvasCoords(clientX, clientY);
 
@@ -2164,11 +2146,9 @@ export class DrawingApp {
     };
   }
 
-  // Live cursor-coordinate readout shown in the status bar below the canvas.
-  // Mirrors the desktop status bar (mainWindow.cpp onHovered): a persistent
-  // readout that ALWAYS shows Pixel + Page (cm), independent of the floating
-  // tooltip's per-row toggles. To edge (cm) is appended for completeness.
-  // Called with no args (or no image) to reset to the idle hint.
+  // Live cursor-coordinate readout in the status bar below the canvas. Mirrors the desktop
+  // status bar (mainWindow.cpp onHovered): ALWAYS shows Pixel + Page (cm) regardless of the
+  // tooltip's per-row toggles; appends To edge (cm). No args / no image → idle hint.
   updateCoordStatus(x, y) {
     const el = this.coordStatus ??= document.getElementById('coord-status');
     if (!el) return;
@@ -2186,10 +2166,9 @@ export class DrawingApp {
       `   ·   To edge (${fx(ps.width - page.x)}, ${fx(ps.height - page.y)}) ${lbl}`;
   }
 
-  // Reflect the active display unit across the UI: the unit dropdown, the custom
-  // page-size inputs (stored in cm → shown in the active unit), the unit label by
-  // those inputs, and the coord-table's two page-column headers. Model values are
-  // never mutated here — only how they are presented.
+  // Reflect the active display unit across the UI: unit dropdown, custom page-size inputs
+  // (stored cm → shown in active unit), their unit label, and the coord-table's two
+  // page-column headers. Model values are never mutated — only their presentation.
   applyUnitToUI() {
     const lbl = unitLabel(this.unit);
     const sel = document.getElementById('unit-select');
@@ -2392,15 +2371,40 @@ export class DrawingApp {
     // (imageless) state shows it; with an image loaded it would cover content.
     const idleCreate = document.getElementById('idle-create-wrap');
     if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
+
+    // ── Gate every image/lines-dependent action ──────────────────
+    // No image → nothing to draw/transform/export, so these are disabled; their
+    // data-disabled-reason (in the markup) feeds the tooltip via composeControlTitle to
+    // explain why. Layout export/clear also need at least one line.
+    const hasImage = !!this.image;
+    const hasLines = this.lines && this.lines.length > 0;
+    const setDisabled = (id, off) => { const el = document.getElementById(id); if (el) el.disabled = off; };
+    setDisabled('start-drawing', !hasImage || this.isDrawing);
+    setDisabled('stop-drawing', !this.isDrawing);
+    setDisabled('draw-mode-toggle', !hasImage);
+    setDisabled('crop-image', !hasImage);
+    setDisabled('rotate-left', !hasImage);
+    setDisabled('rotate-right', !hasImage);
+    setDisabled('image-filter', !hasImage);
+    setDisabled('save-image', !hasImage);
+    setDisabled('download-json', !hasLines);
+    setDisabled('copy-json-btn', !hasLines);
+    setDisabled('clear-all-lines', !hasLines);
+    // Recompose tooltips so the reason line appears/clears with the disabled state
+    // (and hotkey buttons keep their combo). Covers every control carrying either
+    // a hotkey id or a disabled-reason.
+    document.querySelectorAll('[data-disabled-reason], [data-hk-title]').forEach(el => {
+      el.title = composeControlTitle(el, hotkeys.isMac, id => hotkeys.get(id));
+    });
+
     this.updateIncognitoUI();
     this.updateProjectTitle();
   }
 
-  // Reflect the active project's name in the browser tab title AND the topbar name
-  // field. The field is editable only when there's a saved active project to rename;
-  // it shows the image-derived name for a fresh project (see projectsStore meta init).
-  // `force` re-syncs the field even while it's focused (used by commit/cancel); the
-  // default respects focus so updateButtons() can't clobber a name being typed.
+  // Reflect the active project's name in the tab title AND topbar field. Field editable only
+  // with a saved active project; shows the image-derived name for a fresh one (see projectsStore
+  // meta init). `force` re-syncs even while focused (commit/cancel); default respects focus so
+  // updateButtons() can't clobber a name being typed.
   updateProjectTitle(force = false) {
     let name = '';
     let editable = false;
@@ -2441,8 +2445,8 @@ export class DrawingApp {
     if (this.image) {
       info.textContent = `Image Size: ${this.canvas.width} × ${this.canvas.height} px  |  Zoom: Ctrl+Scroll · Alt+± · +/− btn  (+Shift = larger)  |  Alt+Scroll: thickness  |  Ctrl+Shift+Scroll: rotate selected  |  Ctrl+Click: add point  |  ℹ for full help`;
       if (sizeDisplay) {
-        sizeDisplay.textContent = `📐 ${this.canvas.width} × ${this.canvas.height} px`;
-        sizeDisplay.style.display = 'inline-block';
+        sizeDisplay.innerHTML = `${icon('ruler', { size: 13 })} ${this.canvas.width} × ${this.canvas.height} px`;
+        sizeDisplay.style.display = 'inline-flex';
       }
     } else {
       info.textContent = 'No image loaded. Upload an image to start.';
@@ -2450,13 +2454,19 @@ export class DrawingApp {
     }
   }
 
-  showSaveStatus(msg, color) {
+  // Transient status line next to the toolbar. `iconName` (optional) prepends a
+  // themed SVG glyph; `color` accepts a CSS color or a var() string so callers
+  // use the shared status tokens (var(--success) etc.) instead of hex literals.
+  showSaveStatus(msg, color, iconName = null) {
     const el = document.getElementById('save-status');
     if (!el) return;
-    el.textContent = msg;
+    el.innerHTML = (iconName ? icon(iconName, { size: 13 }) : '') + `<span>${msg}</span>`;
     el.style.color = color;
+    el.style.display = 'inline-flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '4px';
     clearTimeout(this.#saveStatusTimer);
-    this.#saveStatusTimer = setTimeout(() => { el.textContent = ''; }, 3000);
+    this.#saveStatusTimer = setTimeout(() => { el.innerHTML = ''; }, 3000);
   }
 
   restoreFromLocalStorage() {
@@ -2502,11 +2512,10 @@ export class DrawingApp {
     this.tabs.reportActive(null);
   }
 
-  // Create a solid-color blank image and load it as the current image (the blank-image
-  // creator's core, shared with the console API). width/height in px (clamped 1–8192);
-  // when omitted they default to the current page size, exactly like the modal. Returns
-  // a Promise resolving with { width, height } once the blank is handed to the loader,
-  // and rejecting if the canvas can't be encoded — so both callers can report accurately.
+  // Create a solid-color blank image and load it (blank-image creator's core, shared with the
+  // console API). width/height in px (clamped 1–8192); omitted → current page size, like the
+  // modal. Returns a Promise resolving { width, height } once handed to the loader, rejecting
+  // if the canvas can't be encoded — so both callers can report accurately.
   createBlankImage({ color = '#ffffff', width, height } = {}) {
     const dims = (width != null && height != null)
       ? { width, height }
@@ -2540,12 +2549,10 @@ export class DrawingApp {
   // Prolong a project: reset its 7-day expiry window to start from now. Notifies
   // peers so their open project lists re-render with the new expiry.
   // ── Shared editor setters ─────────────────────────────────────
-  // Single source of truth for the top-menu settings: the toolbar handlers AND the
-  // console API (window.stencil) both call these, so changing a value from either
-  // surface stays in sync. Each updates model state, mirrors the relevant UI
-  // controls, redraws/persists as needed, and returns `this` for chaining.
-  // `persist:false` is used by live-drag (input) events that commit on the trailing
-  // change event to avoid a storage write per slider tick.
+  // Single source of truth for top-menu settings: toolbar handlers AND the console API
+  // (window.stencil) both call these, staying in sync. Each updates model, mirrors UI,
+  // redraws/persists as needed, returns `this` for chaining. `persist:false` is used by
+  // live-drag (input) events that commit on the trailing change (no write per slider tick).
 
   setColor(v, { persist = true } = {}) {
     this.color = String(v);
@@ -2591,7 +2598,7 @@ export class DrawingApp {
     const cb = document.getElementById('show-points');
     if (cb) cb.checked = this.showPoints;
     const chk = document.getElementById('ctx-chk-points');
-    if (chk) chk.textContent = this.showPoints ? '✓' : '';
+    if (chk) chk.innerHTML = this.showPoints ? icon('check', { size: 14 }) : '';
     this.renderer.redraw();
     this.storage.save();
     return this;
@@ -2602,7 +2609,7 @@ export class DrawingApp {
     const cb = document.getElementById('show-lines');
     if (cb) cb.checked = this.showLines;
     const chk = document.getElementById('ctx-chk-lines');
-    if (chk) chk.textContent = this.showLines ? '✓' : '';
+    if (chk) chk.innerHTML = this.showLines ? icon('check', { size: 14 }) : '';
     this.renderer.redraw();
     this.storage.save();
     return this;
@@ -2826,10 +2833,9 @@ export class DrawingApp {
     return meta;
   }
 
-  // Close a project's editor (without deleting the saved project). If it's active in
-  // THIS tab, drop to a blank editor; if it's open in ANOTHER tab, ask that tab to do
-  // the same via a CLOSE broadcast. `fully` also closes this browser tab/window
-  // (best-effort — only script-opened windows can self-close).
+  // Close a project's editor (without deleting the saved project). Active in THIS tab →
+  // blank editor; open in ANOTHER tab → ask it to via a CLOSE broadcast. `fully` also closes
+  // this tab/window (best-effort — only script-opened windows can self-close).
   closeProject(id, { fully = false } = {}) {
     if (id != null && id === this.activeProjectId) this.newEditor();
     else if (id != null) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.CLOSE });
@@ -2837,10 +2843,9 @@ export class DrawingApp {
     return this;
   }
 
-  // Rename a project. The registry meta is the source of truth for the projects
-  // list and the save() name fallback already prefers it over imageBaseName, so a
-  // rename of the active project survives subsequent saves. Notifies peers so
-  // their lists re-render. Returns the updated meta (or null for an unknown id).
+  // Rename a project. Registry meta is the source of truth for the projects list, and
+  // save()'s name fallback prefers it over imageBaseName, so an active-project rename
+  // survives saves. Notifies peers to re-render. Returns updated meta (null for unknown id).
   renameProject(id, name) {
     const clean = String(name || '').trim();
     if (!clean) return null;

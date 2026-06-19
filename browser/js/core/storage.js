@@ -1,18 +1,18 @@
 import { ProjectsStore, shouldPersist } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
-// Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload
-// from live app state, compresses the image, regenerates a thumbnail, and reads
-// payloads back into the DOM. `save()` writes the active project; no-op in temporary mode.
+// Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
+// app state, compresses the image, regenerates a thumbnail, reads payloads back into the
+// DOM. `save()` writes the active project; no-op in temporary mode.
 export class Storage {
   constructor(app) {
     this.app = app;
     this.store = new ProjectsStore(localStorage);
     this.activeId = null;
     this.temporary = false;
-    // Incognito: a deliberately unsaved editor. Unlike a plain temporary editor
-    // (which promotes to a saved project the moment an image is loaded),
-    // incognito NEVER persists — adding an image/lines stays in memory only.
+    // Incognito: a deliberately unsaved editor. Unlike a plain temporary editor (which
+    // promotes to a saved project the moment an image loads), incognito NEVER persists —
+    // adding an image/lines stays in memory only.
     this.incognito = false;
   }
 
@@ -74,7 +74,7 @@ export class Storage {
     if (!shouldPersist(this.activeId, this.temporary)) {
       // Throttle the "not saved" hint so rapid edits don't spam the status line.
       if (!this.#tempStatusTimer) {
-        this.app.showSaveStatus('● Temporary — not saved', '#e67e22');
+        this.app.showSaveStatus('Temporary — not saved', 'var(--warning)', 'info');
         this.#tempStatusTimer = setTimeout(() => { this.#tempStatusTimer = null; }, 1500);
       }
       return;
@@ -129,7 +129,7 @@ export class Storage {
     const sameCrop = JSON.stringify((payload.layout || {}).cropRect || null) === JSON.stringify(this.app.cropRect || null);
     if (!sameImage || !sameCrop || !this.app.image) {
       this.loadPayloadIntoApp(payload);
-      this.app.showSaveStatus('↺ Synced from another tab', '#7c3aed');
+      this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
       return;
     }
     const layout = payload.layout || {};
@@ -153,7 +153,7 @@ export class Storage {
     this.app.renderer.redraw();
     this.app.updateButtons();
     this.app.coordTable.update(this.app.lines.length ? this.app.lines[this.app.lines.length - 1].points : null);
-    this.app.showSaveStatus('↺ Synced from another tab', '#7c3aed');
+    this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
   }
 
   // Upsert with progressive image compression + eviction on quota exhaustion.
@@ -178,7 +178,7 @@ export class Storage {
         try {
           tryStore(img);
           const note = q === null || baseImage == null ? '' : ` (compressed ${Math.round(q * 100)}%)`;
-          this.app.showSaveStatus('✓ Saved' + note, '#28a745');
+          this.app.showSaveStatus('Saved' + note, 'var(--success)', 'check');
           this.showImageMissingBanner(false);
           return;
         } catch (e) {
@@ -207,12 +207,12 @@ export class Storage {
     try {
       const m = { ...meta, hasImage: false };
       this.store.upsert(m, { ...payload, image: null });
-      this.app.showSaveStatus('⚠ Lines saved — image too large for browser storage', '#e67e22');
+      this.app.showSaveStatus('Lines saved — image too large for browser storage', 'var(--warning)', 'alert');
       this.showImageMissingBanner(true);
       console.warn('Project image too large for storage; saved layout only.');
     } catch (e) {
       console.warn('Could not save project:', e);
-      this.app.showSaveStatus('✗ Save failed (storage full)', '#dc3545');
+      this.app.showSaveStatus('Save failed (storage full)', 'var(--danger)', 'x');
     }
   }
 
@@ -431,7 +431,7 @@ export class Storage {
           if (this.app.lines.length > 0)
             this.app.coordTable.update(this.app.lines[this.app.lines.length - 1].points);
           this.showImageMissingBanner(false);
-          this.app.showSaveStatus('↺ Project loaded', '#7c3aed');
+          this.app.showSaveStatus('Project loaded', 'var(--accent)', 'refresh');
         };
         this.app.originalImage.src = imageDataUrl;
       } else if ((layout.lines || []).length > 0) {
@@ -449,7 +449,7 @@ export class Storage {
         this.app.renderer.redraw();
         this.app.updateButtons();
         this.showImageMissingBanner(true);
-        this.app.showSaveStatus('⚠ Re-upload image to restore drawing', '#e67e22');
+        this.app.showSaveStatus('Re-upload image to restore drawing', 'var(--warning)', 'alert');
       } else {
         // Settings only.
         this.app.image = null;
@@ -462,7 +462,7 @@ export class Storage {
         this.app.updateInfo();
         this.app.renderer.redraw();
         this.app.updateButtons();
-        this.app.showSaveStatus('↺ Settings restored', '#7c3aed');
+        this.app.showSaveStatus('Settings restored', 'var(--accent)', 'refresh');
       }
     } catch (e) {
       console.warn('Could not load project payload:', e);

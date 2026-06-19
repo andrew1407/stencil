@@ -1,15 +1,15 @@
 // ── Background service worker ───────────────────────────────────────────────
-// Owns the right-click context menu: adds Stencil's actions so an image can go
-// straight into the editor. Covers real <img> (native 'image' context) and CSS
-// background-image elements (detected by the content-script probe, ctxTarget.js).
+// Owns the right-click context menu (Stencil actions → editor). Covers real <img>
+// (native 'image' context) and CSS background-image elements (detected by the
+// content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../lib/contextMenu.js';
 import { pruneLedger } from '../lib/ledger.js';
 import { MSG } from '../lib/messages.js';
 
-// Rebuild the menu from scratch. removeAll first so repeated builds don't pile up
-// "duplicate id" errors. onInstalled/onStartup don't reliably fire on every reload,
-// so this also runs at top level on each worker start (below).
+// Rebuild the menu from scratch; removeAll first avoids "duplicate id" on repeated
+// builds. onInstalled/onStartup aren't reliable per reload, so this also runs at
+// top level on each worker start (below).
 const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
@@ -39,12 +39,11 @@ const injectProbeIntoOpenTabs = async () => {
 };
 
 // ── Editor bridge ───────────────────────────────────────────────────────────
-// The editor app is cross-origin: its project registry lives in its own localStorage,
-// unreadable from here. A content script injected ONLY into the configured editor
-// origin reads that registry (same-origin) and reports it back, so we can prune
-// opened-ledger entries for projects the user deleted. Registration follows the
-// editorUrl setting and is refreshed when it changes; already-open editor tabs are
-// injected on startup so the bridge works without a reload.
+// Editor is cross-origin: its project registry lives in its own localStorage,
+// unreadable here. A content script injected ONLY into the configured editor origin
+// reads that registry (same-origin) and reports it back to prune opened-ledger
+// entries for deleted projects. Registration follows the editorUrl setting (refreshed
+// on change); already-open editor tabs are injected on startup (no reload needed).
 const BRIDGE_ID = 'stencil-editor-bridge';
 const BRIDGE_FILE = 'src/content/editorBridge.js';
 
@@ -94,10 +93,10 @@ const injectBridgeIntoOpenEditors = async () => {
 const setUpEditorBridge = () => { registerEditorBridge(); injectBridgeIntoOpenEditors(); };
 
 // ── Page scripting API (opt-in window.stencil) ──────────────────────────────
-// When the user enables it, inject two scripts into every page: a MAIN-world script
-// that defines window.stencil (so its entries hold live DOM elements), and an
-// ISOLATED bridge that relays the API's action requests to this worker. Off by
-// default; registered/unregistered as the setting flips.
+// When enabled, inject two scripts into every page: a MAIN-world script defining
+// window.stencil (entries hold live DOM elements) and an ISOLATED bridge relaying
+// the API's action requests to this worker. Off by default; (un)registered as the
+// setting flips.
 const PAGE_API = [
   { id: 'stencil-page-bridge', file: 'src/content/pageApiBridge.js', world: 'ISOLATED', runAt: 'document_start' },
   { id: 'stencil-page-main', file: 'src/content/pageApiMain.js', world: 'MAIN', runAt: 'document_idle' },
@@ -158,13 +157,12 @@ chrome.runtime.onStartup.addListener(() => {
 setUpEditorBridge();
 registerPageApi();   // re-asserts registration (injection into open tabs only on explicit toggle/startup)
 
-// What the probe last resolved under the cursor, per tab (a ready { url } for a
+// What the probe last resolved under the cursor, per tab (ready { url } for a
 // background or captured frame). Needed because info.srcUrl is absent (backgrounds)
 // or wrong (a <video>'s media file, not a frame).
 const lastTargetByTab = new Map();
-// Where the last right-click pointed when it was a <video>, per tab: { frameId,
-// point, rect, dpr }. Lets the click handler recapture in-page and screenshot-crop
-// the right rect for tainted media.
+// Last right-click <video> target, per tab: { frameId, point, rect, dpr }. Lets the
+// click handler recapture in-page and screenshot-crop the right rect for tainted media.
 const lastVideoByTab = new Map();
 // Poster URL of the last right-clicked <video>, per tab — drives the Preview submenu.
 const lastPosterByTab = new Map();
@@ -226,15 +224,15 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     lastVideoByTab.set(tabId, data && data.video
       ? { frameId: sender.frameId, point: msg.point || null, rect: data.rect || null, dpr: data.dpr || 1, posterShown: !!data.posterShown }
       : null);
-    // A tainted (cross-origin) video has no ready frame here — its CURRENT frame is
+    // A tainted (cross-origin) video has no ready frame here; its CURRENT frame is
     // captured at click time (in-page CORS readback → extension byte re-fetch →
     // screenshot crop), so record nothing and let the click handler do the work.
     lastTargetByTab.set(tabId, (data && data.video && !data.url) ? null : (data || null));
     // The poster (preview image) the probe saw, if any — drives the Preview submenu.
     lastPosterByTab.set(tabId, (data && data.poster) ? data.poster : '');
-    // Reveal the dynamic background/link items only when the probe found a plain image
-    // URL (not a <video>); hide otherwise so they never show on a plain element.
-    // <img>/<video> use native-context items, untouched by this toggle.
+    // Reveal dynamic background/link items only when the probe found a plain image URL
+    // (not a <video>); hidden otherwise. <img>/<video> use native-context items,
+    // untouched by this toggle.
     const showBg = !!(data && data.url && !data.video);
     for (const id of DYNAMIC_ITEMS)
       chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
@@ -274,10 +272,10 @@ const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
 };
 
-// Capture a <video>'s current frame by in-page canvas readback at click time. Tries
-// a direct draw (same-origin), then a fresh crossOrigin="anonymous" video at the same
-// src/time (works when the CDN serves CORS though the page's <video> is tainted).
-// Returns { frame } (JPEG data URL), { src, t } (tainted; caller re-fetches), or null.
+// Capture a <video>'s current frame by in-page canvas readback at click time: direct
+// draw (same-origin), then a fresh crossOrigin="anonymous" video at the same src/time
+// (works when the CDN serves CORS though the page's <video> is tainted). Returns
+// { frame } (JPEG data URL), { src, t } (tainted; caller re-fetches), or null.
 const captureVideoFrameInTab = async (tabId, frameId, point) => {
   if (tabId == null) return null;
   const target = { tabId };
@@ -287,9 +285,9 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
       target,
       args: [point ? point.x : null, point ? point.y : null, FRAME_MAX_SIDE],
       func: async (px, py, maxSide) => {
-        // Smallest <video> whose box contains the cursor — spatially correct even
-        // under an overlay, and never jumps to another video the way
-        // querySelector('video') on an ancestor would.
+        // Smallest <video> whose box contains the cursor — spatially correct even under
+        // an overlay, and (unlike querySelector('video') on an ancestor) never jumps to
+        // another video.
         const at = (x, y) => {
           if (x == null) return null;
           let best = null, bestArea = Infinity;
@@ -366,10 +364,10 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
   }
 };
 
-// Current-frame capture for a tainted, non-CORS video: fetch the bytes with the
-// extension's host permissions (bypasses page CORS), ship them into the page as a
-// blob URL, and draw the frame at the recorded time. Skips huge media (caller falls
-// back to a screenshot crop). Returns a JPEG data URL or null.
+// Current-frame capture for a tainted, non-CORS video: fetch bytes with the extension's
+// host permissions (bypasses page CORS), ship them into the page as a blob URL, draw
+// the frame at the recorded time. Skips huge media (caller falls back to a screenshot
+// crop). Returns a JPEG data URL or null.
 const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
   if (tabId == null || !src) return null;
   try {
@@ -420,10 +418,9 @@ const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
   }
 };
 
-// Resolve the image source for a click. A probe-captured video frame (rec.video)
-// wins: for a <video> info.srcUrl is the media file, not a frame, and Chrome
-// doesn't always report mediaType:'video'. Otherwise <img>/<svg> use info.srcUrl,
-// backgrounds use rec.
+// Resolve the image source for a click. A probe-captured video frame (rec.video) wins:
+// for a <video> info.srcUrl is the media file (not a frame) and Chrome doesn't always
+// report mediaType:'video'. Otherwise <img>/<svg> use info.srcUrl, backgrounds use rec.
 const resolveSrc = (info, rec) => {
   if (rec && rec.video && rec.url) return rec.url;
   if (info.mediaType === 'video' || info.mediaType === 'audio') return (rec && rec.url) || null;
@@ -464,11 +461,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
-  // Video path (Chrome says so, probe saw one, or we have a captured frame). Unless
-  // the frame is already in hand: capture in-page at click time, then re-fetch bytes,
-  // then screenshot-crop. A media URL is NEVER used as the image (.mp4 won't decode).
-  // sourceUrl is captured here for provenance BEFORE the block below overwrites `src`
-  // with a frame data URL; for a video it's the media URL. recordOpened ignores non-http.
+  // Video path (Chrome says so, probe saw one, or frame in hand). Unless the frame is
+  // already in hand: capture in-page at click time → re-fetch bytes → screenshot-crop.
+  // A media URL is NEVER used as the image (.mp4 won't decode). sourceUrl captured here
+  // for provenance BEFORE the block below overwrites `src` with a frame data URL; for a
+  // video it's the media URL. recordOpened ignores non-http.
   const sourceUrl = src || '';
   const resource = tab?.url || '';
 

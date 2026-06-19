@@ -1,9 +1,7 @@
-// Accent (brand-colour) presets — the theme-colour choices offered in the
-// Visuals modal (🎨). The first, violet, is the default brand colour; every
-// preset is just one primary hex, because --accent-2 (the darker/lighter
-// hover-active shade) and the focus/selection glows all derive from --accent via
-// color-mix() in css/theme.css. Mirrors the extension (extension/src/lib/
-// accent.js) and desktop (theme.cpp accentPresets) preset lists.
+// Accent (brand-colour) presets — theme-colour choices in the Visuals modal (🎨). First
+// (violet) is the default. Each preset is just one primary hex; --accent-2 (hover-active
+// shade) and the focus/selection glows derive from --accent via color-mix() in css/theme.css.
+// Mirrors the extension (extension/src/lib/accent.js) and desktop (theme.cpp accentPresets).
 export const ACCENTS = [
   { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
   { key: 'pink',    label: 'Pink',        hex: '#ec4899' },

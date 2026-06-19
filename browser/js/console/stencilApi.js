@@ -1,17 +1,11 @@
 // ── window.stencil — console control API for the Stencil editor ─────────────
-// A thin, chainable facade over the live DrawingApp. It NEVER reimplements editor
-// behaviour: every mutation routes through the same shared core methods the toolbar
-// UI uses (setColor/setPageSize/applyCrop/loadImageFromFile/…), so scripting the
-// editor from the console and clicking the toolbar stay perfectly in sync.
-//
-// Encapsulation: built as a closure factory, NOT a class — `app` and all state live
-// in this function's scope, so the returned objects carry no fields at all. `stencil`
-// previews as just its getters/methods; there is no `_app`/`#app` to read or overwrite
-// from page script. (A DevTools user can still reach `app` via a method's [[Scopes]] —
-// nothing can hide data from the console — but no property access exposes it.)
-//
-// Construction: index.js builds this after the app and assigns window.stencil.
-// Most methods return the facade (or a Project/Line/Point) for chaining:
+// Thin chainable facade over the live DrawingApp; NEVER reimplements editor behaviour —
+// every mutation routes through the same shared core methods the toolbar uses
+// (setColor/setPageSize/applyCrop/loadImageFromFile/…), so console and toolbar stay in sync.
+// Closure factory (not a class): `app`/state live in scope, returned objects carry no fields
+// (no `_app`/`#app` to read/overwrite; DevTools can still reach `app` via [[Scopes]]).
+// index.js builds this after the app → window.stencil. Most methods return the facade (or a
+// Project/Line/Point) for chaining, e.g.
 //   stencil.apply({ page: 'a3', pointSize: 9 }).rotateLeft().crop({ x1: '10%' })
 //   (await stencil.load(url)).crop({ x2: '-10%' }).apply({ lineColor: 'aqua' })
 import { hotkeys } from '../core/hotkeys.js';
@@ -34,11 +28,10 @@ export const createStencil = (app) => {
 
   let stencil;   // forward ref so wrappers can return the facade for chaining
 
-  // Hard-guard an API object: a property with a real setter still writes through, but
-  // writing a method or a read-only getter (or adding/deleting a property) THROWS rather
-  // than silently no-opping on a frozen object in the non-strict console. Applied to the
-  // facade and every Line / Point / Project / settings object it hands back, so e.g.
-  // `stencil.lines[0].move = 3`, `stencil.load = 0`, or `pt.remove = 1` is rejected.
+  // Hard-guard an API object: real setters write through, but writing a method/read-only
+  // getter (or add/delete) THROWS instead of silently no-opping in the non-strict console.
+  // Applied to the facade + every Line/Point/Project/settings object handed back (so e.g.
+  // `stencil.lines[0].move = 3`, `stencil.load = 0`, `pt.remove = 1` is rejected).
   const guard = (obj) => new Proxy(Object.freeze(obj), {
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
@@ -49,18 +42,17 @@ export const createStencil = (app) => {
     deleteProperty(target, prop) { throw new TypeError(`stencil: "${String(prop)}" cannot be deleted`); },
   });
 
-  // Dismiss any open editor modal (projects chooser, shortcuts/info, links, visuals, …)
-  // so a console-driven load isn't left hidden behind one. Toggles the shared .modal-open
-  // class each modal uses; their onClose cleanup is idempotent and re-runs on next open.
+  // Dismiss any open editor modal (projects, shortcuts/info, links, visuals, …) so a
+  // console-driven load isn't hidden behind one. Toggles the shared .modal-open class;
+  // each modal's onClose cleanup is idempotent and re-runs on next open.
   const closeModals = () => {
     try { document.querySelectorAll('.app-modal-overlay.modal-open').forEach((o) => o.classList.remove('modal-open')); }
     catch { /* no DOM (node tests) */ }
   };
 
-  // Normalize any CSS color (named like 'red', rgb()/hsl(), #rgb) to '#rrggbb' so the
-  // console accepts the same colors CSS does — the editor's <input type=color> controls
-  // only take #rrggbb. 'transparent'/null pass through (fills allow them); a truly
-  // unparseable value is returned unchanged (so it still surfaces as an error, not black).
+  // Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' since the editor's
+  // <input type=color> controls only take #rrggbb. 'transparent'/null pass through (fills
+  // allow them); an unparseable value is returned unchanged (surfaces as an error, not black).
   const colorCanvas = (() => { try { return document.createElement('canvas').getContext('2d'); } catch { return null; } })();
   const toHexColor = (v) => {
     if (v == null) return v;
@@ -222,8 +214,8 @@ export const createStencil = (app) => {
     const store = () => app.storage.store;
     const meta = () => (id == null ? null : store().getMeta(id));
     const isActive = () => id != null && id === app.activeProjectId;
-    // Update a provenance link, live: active project via app state + save; a stored
-    // (possibly open-in-another-tab) project via the registry + a broadcast.
+    // Update a provenance link live: active project via app state + save; a stored
+    // (maybe open-in-another-tab) project via the registry + a broadcast.
     const setLink = (metaKey, appKey, v) => {
       const val = str(v).trim() || null;
       if (incognito) throw new Error('Cannot set links on an incognito editor');
@@ -507,17 +499,13 @@ export const createStencil = (app) => {
     },
 
     // Crop by axis edges. Each of x1/y1/x2/y2 may be a number (px move of that edge),
-    // an absolute length ('3cm'/'-4in'/'50%'/'-60%'; '-' = from the axis end), or be
-    // omitted (keep the current edge). Commits via the same applyCrop the UI uses.
-    //
-    // Proportion fill: when exactly ONE axis is given (any of its edges present) and
-    // the other is left out entirely, the missing axis's LENGTH is derived from the
-    // page proportion instead of kept as-is, so the crop matches the page's
-    // width:height relation. `album` (default false) picks the orientation that
-    // proportion is taken in — false (portrait): height = width × (long/short page
-    // side), width = height ÷ (…); album true (landscape) is the inverse. The derived
-    // axis keeps its current start edge; only its length changes. Giving both axes (or
-    // neither) leaves cropping free-form, exactly as before.
+    // an absolute length ('3cm'/'-4in'/'50%'/'-60%'; '-' = from the axis end), or omitted
+    // (keep current edge). Commits via the same applyCrop the UI uses.
+    // Proportion fill: when exactly ONE axis is given and the other is fully omitted, the
+    // missing axis's LENGTH is derived from the page proportion (matching page width:height)
+    // rather than kept; it keeps its current start edge. `album` (default false) picks the
+    // orientation — false (portrait): height = width × (long/short side), width = height ÷ (…);
+    // album true (landscape) is the inverse. Giving both axes (or neither) stays free-form.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
       const dims = app.effectiveOriginalDims();   // { w, h } in rotated-original pixels
@@ -609,26 +597,23 @@ export const createStencil = (app) => {
     },
   };
 
-  // Flatten the settings accessors onto the facade itself so `stencil.lineColor`,
-  // `stencil.showPoints`, `stencil.pageSize`, `stencil.theme`, … work as well as
-  // `stencil.settings.<key>` (both drive the same app setters). Copies the get/set
-  // descriptors (not values); the keys don't collide with the facade's own members.
+  // Flatten the settings accessors onto the facade so `stencil.lineColor`/`showPoints`/
+  // `pageSize`/`theme`/… work as well as `stencil.settings.<key>` (same app setters).
+  // Copies the get/set descriptors (not values); keys don't collide with facade members.
   Object.defineProperties(stencil, Object.getOwnPropertyDescriptors(settingsAccessors()));
 
-  // Hide every member from enumeration so `console.log(stencil)` / Object.keys read as
-  // a clean object rather than dumping the whole method surface. Access and DevTools
-  // autocomplete are unaffected (non-enumerable ≠ inaccessible). Runs before the freeze
-  // (freeze locks descriptors).
+  // Hide every member from enumeration so `console.log(stencil)`/Object.keys read clean,
+  // not the whole method surface. Access + DevTools autocomplete unaffected (non-enumerable
+  // ≠ inaccessible). Runs before the freeze (freeze locks descriptors).
   for (const k of Reflect.ownKeys(stencil)) {
     const d = Object.getOwnPropertyDescriptor(stencil, k);
     if (d.enumerable) Object.defineProperty(stencil, k, { ...d, enumerable: false });
   }
-  // Freeze + hard-guard via the same proxy as every nested object (writing a method or a
-  // read-only getter THROWS — `stencil.load = 0` / `stencil.getProjectByName = 0`; the
-  // legit setters fullscreen/incognito/layout still write through). Tamper-resistance, not
-  // a security boundary — a DevTools user is inside the trust boundary regardless.
-  // Reassigning the closure ref means every method that `return stencil`s hands back this
-  // guarded proxy, so chaining is unaffected.
+  // Freeze + hard-guard via the same proxy as every nested object (writing a method/read-only
+  // getter THROWS, e.g. `stencil.load = 0`; setters fullscreen/incognito/layout still write).
+  // Tamper-resistance, not security — a DevTools user is inside the trust boundary regardless.
+  // Reassigning the closure ref makes every `return stencil` hand back this guarded proxy
+  // (chaining unaffected).
   stencil = guard(stencil);
   return stencil;
 };

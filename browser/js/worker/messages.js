@@ -1,7 +1,7 @@
 // ── Cross-tab message types ─────────────────────────────────────
-// Shared protocol vocabulary for the SharedWorker coordinator and the
-// window-side TabsCoordinator (and the BroadcastChannel fallback). Frozen so
-// the string keys live in exactly one place instead of as scattered literals.
+// Shared protocol vocabulary for the SharedWorker coordinator, window-side
+// TabsCoordinator, and the BroadcastChannel fallback. Frozen so the string keys
+// live in exactly one place instead of as scattered literals.
 export const MSG = Object.freeze({
   HELLO: 'hello',                       // a tab announces itself
   HERE: 'here',                         // BroadcastChannel roll-call reply

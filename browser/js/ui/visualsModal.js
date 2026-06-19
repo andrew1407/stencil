@@ -2,14 +2,15 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 import { setVal, setRadioGroup, notify } from '../utils.js';
 import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
+import { icon } from './icons.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>🎨 Default Visuals</h2>
-                <button class="app-modal-close" id="visuals-close">✕ Close</button>
+                <h2>${icon('palette', { size: 18 })} Default Visuals</h2>
+                <button class="app-modal-close btn-icon-text" id="visuals-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="vs-search" class="modal-search" placeholder="Search settings…">
@@ -34,7 +35,7 @@ export class StencilVisualsModal extends StencilElement {
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Changes apply live and are saved automatically.</span>
-                <button id="vs-reset">↺ Reset All</button>
+                <button id="vs-reset" class="btn-icon-text">${icon('rotate-ccw', { size: 14 })}<span>Reset All</span></button>
             </div>
         </div>
     `;

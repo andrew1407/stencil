@@ -1,21 +1,18 @@
 // ── Pure layout helpers: serialization, validation, geometry-edit indices ──
-// Extracted from DrawingApp so the decision logic is unit-testable in Node
-// WITHOUT a DOM. These functions never touch the DOM, app state, or globals —
-// callers pass plain data in and act on the returned descriptors.
+// Extracted from DrawingApp so decision logic is unit-testable in Node WITHOUT a DOM.
+// Never touch DOM/app state/globals — callers pass plain data in, act on returned descriptors.
 
-// Build the layout export payload. `lines` is passed through by reference (no
-// copy) so JSON.stringify output stays byte-identical to the previous inline
-// object literals in downloadJSON / copyLayoutToClipboard.
+// Build the layout export payload. `lines` passed by reference (no copy) so JSON.stringify
+// output stays byte-identical to the old inline literals in downloadJSON/copyLayoutToClipboard.
 export const buildLayoutPayload = ({ imageWidth, imageHeight, lines }) => ({
   imageWidth,
   imageHeight,
   lines
 });
 
-// Decide what to do with an incoming layout object (from upload or paste).
-// Pure: the DOM/confirm()/saveHistory/redraw stay in the calling method, which
-// reads needsReplaceConfirm / needsDimMismatchConfirm (in that order) and the
-// resolved `lines` array.
+// Decide what to do with an incoming layout object (upload or paste). Pure: DOM/confirm()/
+// saveHistory/redraw stay in the calling method, which reads needsReplaceConfirm then
+// needsDimMismatchConfirm (in that order) and the resolved `lines` array.
 export const validateLayout = (data, { hasImage, imgW, imgH, hasExistingLines }) => {
   if (!hasImage) return { ok: false, reason: 'no-image', needsReplaceConfirm: false, needsDimMismatchConfirm: false, lines: [] };
   return {

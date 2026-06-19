@@ -1,9 +1,9 @@
 // ── Web Component base: light-DOM custom elements ───────────────
-// Each UI region owns its markup (static inner()) and behavior (wire(app)).
-// Light DOM keeps global-id wiring, global CSS, and fullscreen cloneNode working.
-// wire() waits for the one-shot `stencil:ready` (fired after DrawingApp exists)
-// to preserve DOM → app → wire init order. Falls back to a plain base + no-op
-// define() off-browser so the Node test runner (no DOM) can still import markup.
+// Each UI region owns its markup (static inner()) and behavior (wire(app)). Light
+// DOM keeps global-id wiring, global CSS, and fullscreen cloneNode working. wire()
+// waits for the one-shot `stencil:ready` (fired after DrawingApp exists) to preserve
+// DOM → app → wire init order. Falls back to a plain base + no-op define() off-browser
+// so the Node test runner (no DOM) can still import markup.
 const ElementBase = typeof HTMLElement !== 'undefined' ? HTMLElement : class {};
 
 // Register a custom element, but only in a browser (no customElements in Node).
@@ -30,9 +30,9 @@ export const hostTag = (tag, attrs, inner) => `<${tag}${attrs ? ' ' + attrs : ''
 
 // ── Shared modal shell ──────────────────────────────────────────
 // Wires open/close/overlay-mousedown/Escape for every app modal; returns
-// { open, close } for programmatic use. onOpen/onClose run BEFORE the
-// modal-open class toggles. `escapeClose` false (settingsModal) suppresses the
-// bubble-phase Escape so its own capture-phase listener can handle it.
+// { open, close }. onOpen/onClose run BEFORE the modal-open class toggles.
+// `escapeClose` false (settingsModal) suppresses the bubble-phase Escape so its
+// own capture-phase listener can handle it.
 export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true } = {}) => {
   const open = () => { onOpen?.(); overlay.classList.add('modal-open'); };
   const close = () => { onClose?.(); overlay.classList.remove('modal-open'); };

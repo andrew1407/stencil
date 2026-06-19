@@ -1,8 +1,7 @@
 // ── Project deep links ──────────────────────────────────────────
-// A saved project can be opened in a NEW browser tab from the projects modal.
-// The new tab carries the target project id in a query param (`?open=<id>`),
-// which the booting app consumes once and strips from the URL. Kept as pure
-// string helpers (no DOM) so they can be unit-tested directly.
+// A saved project can open in a NEW browser tab from the projects modal. The new tab carries
+// the target id in a query param (`?open=<id>`), which the booting app consumes once and
+// strips from the URL. Pure string helpers (no DOM) for direct unit-testing.
 
 export const OPEN_PARAM = 'open';
 

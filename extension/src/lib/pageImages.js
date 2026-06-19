@@ -1,9 +1,8 @@
 // ── Pure helpers for the page-global window.stencil API ─────────────────────
-// The DOM scan itself must run in the page's MAIN world (so returned entries can
-// hold live element references the user's console code can touch), and MAIN-world
-// content scripts can't import modules — so content/pageApiMain.js carries a small
-// inline MIRROR of the functions below. These exported copies are the unit-tested
-// source of truth; keep the two in sync. No DOM access here beyond what's passed in.
+// The DOM scan runs in the page's MAIN world (so entries hold live element refs the
+// user's console can touch), and MAIN-world scripts can't import — so content/pageApiMain.js
+// carries an inline MIRROR of these. These exported copies are the tested source of
+// truth; keep in sync. No DOM access here beyond what's passed in.
 
 // Extract the URL from a CSS background-image value, or '' when there is none / it's
 // an inline SVG data URL (not a real shareable image). Handles url("…")/url('…')/url(…).

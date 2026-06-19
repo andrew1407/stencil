@@ -1,16 +1,13 @@
 /* ──────────────────────────────────────────────────────────────────────
    animations.css — motion, transitions, hovers, popups & responsive layer
 
-   Loaded LAST (after theme/layout/components) so it can enrich existing
-   rules without the base files needing to know about it. Everything here is
-   purely cosmetic: removing this file leaves the app fully functional, just
-   static. All motion is disabled under prefers-reduced-motion (see bottom).
-
-   Deliberately NOT touched:
-     • .canvas-viewport scrolling — zoom/pan assign scrollLeft/scrollTop
-       directly, so scroll-behavior:smooth here would fight the JS and break
-       zoom-to-cursor. Smooth scroll is scoped to content panels only.
-     • canvas width/height transition — already tuned in layout.css.
+   Loaded LAST (after theme/layout/components) to enrich existing rules. Purely
+   cosmetic: removing it leaves the app fully functional, just static. All motion
+   disabled under prefers-reduced-motion (see bottom). Deliberately untouched:
+   .canvas-viewport scrolling (zoom/pan assign scrollLeft/scrollTop directly, so
+   scroll-behavior:smooth would fight the JS and break zoom-to-cursor — smooth
+   scroll is scoped to content panels only), and canvas width/height transition
+   (already tuned in layout.css).
    ────────────────────────────────────────────────────────────────────── */
 
 /* ── Keyframes ──────────────────────────────────────────────────────── */
@@ -54,9 +51,9 @@ button:not(:disabled):active {
     transform: translateY(1px) scale(0.99);
     box-shadow: none;
 }
-/* Primary action buttons get a faint sheen sweep on hover for a "fancy" feel.
-   Scoped to the accent-coloured controls/toolbar buttons so icon/ghost
-   buttons (theme toggle, settings gear, close ✕) stay flat. */
+/* Primary action buttons get a faint sheen sweep on hover. Scoped to the
+   accent-coloured controls/toolbar buttons so icon/ghost buttons (theme toggle,
+   settings gear, close ✕) stay flat. */
 .controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(:disabled) {
     background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
     background-size: 220% 100%;
@@ -100,10 +97,9 @@ button:not(:disabled):active {
 .ctx-item:not(.ctx-disabled):hover { padding-left: 17px; }
 
 /* ── Tooltip: fade/slide in (size-neutral so JS positioning stays exact) ─ */
-/* The tooltip element is re-rendered in place and stays display:block while
-   tracking the cursor, so the entrance animation only fires when it first
-   appears (none→block), not on every mousemove. opacity/translateY don't
-   alter the measured box, so position() keeps working. */
+/* Tooltip stays display:block while tracking the cursor, so the entrance
+   animation only fires on first appear (none→block), not every mousemove.
+   opacity/translateY don't alter the measured box, so position() keeps working. */
 .tooltip {
     animation: tooltipIn 0.13s ease both;
     box-shadow: 0 6px 22px var(--shadow);
