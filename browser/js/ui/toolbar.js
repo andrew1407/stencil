@@ -38,7 +38,16 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Image</div>
                 <div class="ctrl-section-row">
-                    <input type="file" id="image-upload" accept="image/*">
+                    <!-- File input is the hidden picker target; shown affordances below toggle on image state. -->
+                    <input type="file" id="image-upload" accept="image/*" style="display:none;">
+                    <button id="load-image-btn" class="btn-icon-text" data-title="Load an image" title="Load an image">${icon('image')}<span>Load Image</span></button>
+                    <!-- Image actions (shown only when an image is loaded). #save-image moved here from Data. -->
+                    <span id="image-actions" style="display:none;align-items:center;gap:4px;">
+                        <button id="save-image" class="btn-icon" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
+                        <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
+                        <button id="share-image" class="btn-icon" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
+                        <button id="open-image-btn" class="btn-icon" data-title="Open another image" title="Open another image…">${icon('external')}</button>
+                    </span>
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
                     <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
                         <option value="none">No Filter</option>
@@ -158,7 +167,6 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <button id="download-json" class="btn-icon-text" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}<span>JSON</span></button>
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy Layout JSON" data-disabled-reason="Draw at least one line to copy" title="Copy Layout JSON">${icon('copy')}</button>
-                    <button id="save-image" class="btn-icon" data-title="Save Image" data-disabled-reason="Load an image to save it" title="Save Image">${icon('save')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
                     <button id="upload-json-btn" class="btn-icon" title="Upload Layout JSON">${icon('upload')}</button>
                     <button id="clear-storage" class="danger btn-icon" title="Clear saved storage">${icon('trash')}</button>

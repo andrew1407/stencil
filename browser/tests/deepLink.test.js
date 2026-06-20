@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { OPEN_PARAM, readOpenProjectId, buildOpenProjectUrl } from '../js/core/deepLink.js';
+import { OPEN_PARAM, readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from '../js/core/deepLink.js';
 
 test('readOpenProjectId returns the project id from the open param', () => {
   assert.strictEqual(readOpenProjectId('?open=p_1'), 'p_1');
@@ -41,4 +41,13 @@ test('buildOpenProjectUrl output round-trips through readOpenProjectId', () => {
 
 test('OPEN_PARAM is the documented param name', () => {
   assert.strictEqual(OPEN_PARAM, 'open');
+});
+
+test('buildExternalLaunchUrl encodes the payload into the #stencil= fragment', () => {
+  const url = buildExternalLaunchUrl('https://app.example/editor', { dataUrl: 'data:image/png;base64,AAA', name: 'a.png', incognito: true });
+  assert.ok(url.startsWith('https://app.example/editor#stencil='), 'has #stencil= fragment');
+  // The receiver (applyExternalLaunch) does: JSON.parse(decodeURIComponent(hash.slice('#stencil='.length)))
+  const json = decodeURIComponent(url.slice(url.indexOf('#stencil=') + '#stencil='.length));
+  const payload = JSON.parse(json);
+  assert.deepStrictEqual(payload, { dataUrl: 'data:image/png;base64,AAA', name: 'a.png', incognito: true });
 });

@@ -40,11 +40,22 @@ const IDS = [
     'crop-dims', 'crop-orientation', 'crop-cancel', 'crop-apply',
     // Install / download button (stencil-install): small bottom-right icon with a
     // hover menu — PWA option appears only after `beforeinstallprompt`.
-    'install-host', 'install-menu', 'install-pwa-btn', 'install-desktop-btn', 'install-toggle'
+    'install-host', 'install-menu', 'install-pwa-btn', 'install-desktop-btn', 'install-toggle',
+    // State-aware Image section: compact load button + image-actions group (download/copy/share/open).
+    'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn',
+    // Context-menu Share Image item.
+    'ctx-share-img',
+    // Open-another-image modal (stencil-open-image-modal).
+    'open-image-modal-overlay', 'open-image-close', 'open-image-file', 'open-image-incognito',
+    'open-image-cancel', 'open-image-here', 'open-image-newtab',
+    // Generic confirm modal (stencil-confirm-modal) replacing native confirm().
+    'confirm-modal-overlay', 'confirm-modal-close', 'confirm-modal-title', 'confirm-modal-title-text',
+    'confirm-modal-message', 'confirm-modal-cancel', 'confirm-modal-cancel-text',
+    'confirm-modal-confirm', 'confirm-modal-confirm-text'
 ];
 
-test('fixture has exactly 161 IDs', () => {
-    assert.strictEqual(IDS.length, 161);
+test('fixture has exactly 183 IDs', () => {
+    assert.strictEqual(IDS.length, 183);
 });
 
 test('every static body ID is present exactly once', () => {

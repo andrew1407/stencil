@@ -84,7 +84,12 @@ button:not(:disabled):active {
 
 /* ── Context menu + submenus: scale/fade pop ────────────────────────── */
 #ctx-menu.ctx-open {
-    animation: popIn 0.14s ease both;
+    /* No `both` fill: keeping the animation's filled end-state leaves a
+       `transform: matrix(1,0,0,1,0,0)` on the menu, which (even as an identity)
+       makes it the containing block for its position:fixed submenus — so they
+       anchor to the menu instead of the viewport and land off-screen. Letting the
+       transform revert to none after the pop keeps submenu positioning correct. */
+    animation: popIn 0.14s ease;
     transform-origin: top left;
 }
 .ctx-sub.ctx-sub-visible {
@@ -180,7 +185,14 @@ select:focus {
 @media (max-width: 960px) {
     body { padding: 12px; }
     .container { padding: 14px; }
-    .main-content { flex-direction: column; }
+    /* Stacked layout: stretch children to the viewport width. Without this the
+       column's default flex-start sizing lets .canvas-section grow to the canvas's
+       intrinsic pixel width (a big zoomed image), overflowing the page sideways.
+       Stretch + the width caps below keep the viewport clipping the canvas (which
+       then scrolls/pans inside it) instead of widening the page. */
+    .main-content { flex-direction: column; align-items: stretch; }
+    .canvas-section { width: 100%; min-width: 0; max-width: 100%; }
+    .canvas-viewport { max-width: 100%; }
     .coordinates-panel {
         min-width: 0;
         max-width: none;

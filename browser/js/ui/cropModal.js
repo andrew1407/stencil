@@ -151,11 +151,11 @@ export class StencilCropModal extends StencilElement {
     orientBtn.addEventListener('click', () => { album = !album; recenter(); });
     document.getElementById('crop-cancel').addEventListener('click', close);
 
-    document.getElementById('crop-apply').addEventListener('click', () => {
+    document.getElementById('crop-apply').addEventListener('click', async () => {
       // Warn before discarding lines on an orientation flip.
       const change = app.cropRect ? cropChange(app.cropRect, rect) : { orientationChanged: false };
       if (change.orientationChanged && app.lines.length > 0 &&
-          !confirm('Changing the crop orientation will remove all placed lines and markers. Continue?')) {
+          !(await app.confirm('Changing the crop orientation will remove all placed lines and markers. Continue?', { title: 'Change orientation', danger: true }))) {
         return;
       }
       const hadLines = app.lines.length;

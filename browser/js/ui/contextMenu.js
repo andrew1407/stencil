@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { notify, setRadioGroup, formatCombo } from '../utils.js';
+import { notify, setRadioGroup, formatCombo, supportsShareFiles } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 // ── Component: custom right-click context menu ──────────────────
@@ -18,6 +18,7 @@ export class StencilContextMenu extends StencilElement {
                 <div class="ctx-item ctx-sub-item" id="ctx-copy-img"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Image</span><span class="ctx-hotkey" data-hk="copyImage">Ctrl+C</span></div>
                 <div class="ctx-item ctx-sub-item" id="ctx-paste-img"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Image</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
                 <div class="ctx-item ctx-sub-item" id="ctx-dl-img"><span class="ctx-icon">${icon('download')}</span><span class="ctx-label">Download Image</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-share-img" style="display:none;"><span class="ctx-icon">${icon('share')}</span><span class="ctx-label">Share Image</span></div>
                 <div class="ctx-sep"></div>
                 <div class="ctx-sub-label">Layout (JSON)</div>
                 <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Alt+J</span></div>
@@ -276,6 +277,8 @@ export class StencilContextMenu extends StencilElement {
       const hasImage = !!app.image;
       gate('ctx-copy-img', !hasImage, 'Copy Image', 'Load an image first');
       gate('ctx-dl-img', !hasImage, 'Download Image', 'Load an image first');
+      // Share item is rendered only where Web Share files are supported (see wire()).
+      gate('ctx-share-img', !hasImage, 'Share Image', 'Load an image first');
       // Paste-layout needs an image too (matching paste handler behavior)
       gate('ctx-paste-layout', !hasImage, 'Paste Layout', 'Load an image first');
 
@@ -367,6 +370,13 @@ export class StencilContextMenu extends StencilElement {
       closeMenu(); app.saveImage();
     });
 
+    // Share image — only revealed where the Web Share API can share files.
+    const shareItem = document.getElementById('ctx-share-img');
+    if (shareItem && supportsShareFiles()) shareItem.style.display = '';
+    shareItem?.addEventListener('click', () => {
+      closeMenu(); app.shareImage();
+    });
+
     // Download layout
     document.getElementById('ctx-dl-layout').addEventListener('click', () => {
       closeMenu(); app.downloadJSON();
@@ -390,7 +400,7 @@ export class StencilContextMenu extends StencilElement {
         for (const item of items) {
           const imgType = item.types.find(t => t.startsWith('image/'));
           if (imgType) {
-            if (app.image && !confirm('Replace current image with pasted image?')) {
+            if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image' }))) {
               notify('Image paste canceled', 'fail');
               return;
             }

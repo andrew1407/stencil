@@ -463,7 +463,9 @@ export const createStencil = (app) => {
     clearLines() { app.clearAllLines(); return stencil; },
     downloadImage() { app.saveImage(); return stencil; },        // download image+lines (PNG)
     copyLayout() { app.copyLayoutToClipboard(); return stencil; },
-    copyImage() { app.copyImageToClipboard(); return stencil; },
+    copyImage() { app.copyImageToClipboard(); return stencil; }, // alias of copyImageToClipboard
+    copyImageToClipboard() { app.copyImageToClipboard(); return stencil; },
+    shareImage() { app.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
     downloadLayout() { app.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
     set layout(data) { app.applyPastedLayout(data); },

@@ -198,9 +198,9 @@ export class StencilProjectsModal extends StencilElement {
         removeBtn.className = 'project-remove danger btn-icon';
         removeBtn.title = 'Remove project';
         removeBtn.innerHTML = icon('trash', { size: 15 });
-        removeBtn.addEventListener('click', e => {
+        removeBtn.addEventListener('click', async e => {
           e.stopPropagation();
-          if (!confirm(`Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`)) return;
+          if (!(await app.confirm(`Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Remove project', danger: true }))) return;
           app.removeProject(meta.id);
           render();
         });
@@ -247,13 +247,13 @@ export class StencilProjectsModal extends StencilElement {
 
     attachSearchFilter(search, render);
 
-    newEditorBtn.addEventListener('click', () => {
-      if (!confirm('Discard current editor and start a new blank (unsaved) editor?')) return;
+    newEditorBtn.addEventListener('click', async () => {
+      if (!(await app.confirm('Discard current editor and start a new blank (unsaved) editor?', { title: 'New editor' }))) return;
       app.newEditor();
       close();
     });
-    clearAllBtn.addEventListener('click', () => {
-      if (!confirm('Permanently delete ALL saved projects?')) return;
+    clearAllBtn.addEventListener('click', async () => {
+      if (!(await app.confirm('Permanently delete ALL saved projects?', { title: 'Delete all projects', danger: true }))) return;
       app.clearAllProjects();
       render();
     });
