@@ -318,6 +318,8 @@ export const createStencil = (app) => {
     },
     get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
+    // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
+    get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.setHoldDrawDelay(v); },
     get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.setAllowFormulas(v); },
     get formulaX() { return app.formulaX; }, set formulaX(v) { app.setFormula('x', v); },
     get formulaY() { return app.formulaY; }, set formulaY(v) { app.setFormula('y', v); },

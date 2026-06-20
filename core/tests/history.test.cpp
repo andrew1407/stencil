@@ -74,3 +74,22 @@ TEST_CASE("reset initializes from base lines") {
   CHECK(h.step() == -1);
   CHECK_FALSE(h.canUndo());
 }
+
+TEST_CASE("reset with empty lines leaves NO redo (no stray redo step after a blank)") {
+  HistoryStack h;
+  h.push({lineWithX(0)});  // simulate prior edits
+  h.reset({});             // e.g. creating a blank image / fresh load
+  CHECK_FALSE(h.canUndo());
+  CHECK_FALSE(h.canRedo());  // was true: phantom empty snapshot
+  CHECK_FALSE(h.redo().has_value());
+  // A real edit after reset still undoes back to empty and redoes forward.
+  h.push({lineWithX(1)});
+  CHECK(h.canUndo());
+  auto u = h.undo();
+  CHECK(u.has_value());
+  CHECK(u->empty());
+  CHECK(h.canRedo());
+  auto r = h.redo();
+  CHECK(r.has_value());
+  CHECK(r->size() == 1);
+}

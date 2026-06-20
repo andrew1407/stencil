@@ -512,13 +512,13 @@ input[type="color"] {
 .del-pt-btn {
     background: transparent;
     border: none !important;
-    color: #dc3545;
+    color: var(--danger);
     cursor: pointer;
     font-size: 14px;
     padding: 0 3px;
     line-height: 1;
     border-radius: 3px;
-    opacity: 0.55;
+    opacity: 0.85;
     transition: opacity 0.15s;
 }
-.del-pt-btn:hover { opacity: 1; background: rgba(220,53,69,0.12) !important; }
+.del-pt-btn:hover { opacity: 1; background: color-mix(in srgb, var(--danger) 14%, transparent) !important; }

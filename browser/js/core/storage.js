@@ -62,6 +62,7 @@ export class Storage {
       formulaX: this.app.formulaX,
       formulaY: this.app.formulaY,
       drawMode: this.app.drawMode,
+      holdDrawDelay: this.app.holdDrawDelay,
       selGlowColor: this.app.selGlowColor,
       hoverRingColor: this.app.hoverRingColor,
       focusRingColor: this.app.focusRingColor,
@@ -381,6 +382,8 @@ export class Storage {
         if (ctxEly) ctxEly.value = this.app.formulaY;
       }
       if (layout.drawMode) this.app.drawMode = layout.drawMode;
+      if (Number.isFinite(layout.holdDrawDelay))
+        this.app.holdDrawDelay = Math.max(100, Math.min(3000, Math.round(layout.holdDrawDelay)));
       if (layout.selGlowColor) this.app.selGlowColor = layout.selGlowColor;
       if (layout.hoverRingColor) this.app.hoverRingColor = layout.hoverRingColor;
       if (layout.focusRingColor) this.app.focusRingColor = layout.focusRingColor;

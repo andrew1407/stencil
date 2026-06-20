@@ -70,6 +70,18 @@ namespace stencil::gui {
   namespace {
     long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
+    // On macOS the primary delete key emits Backspace (⌫), so the shared
+    // "Alt+Delete" defaults must bind to Backspace to fire on the key Mac users
+    // actually press (mirrors the browser's platformizeCombo Delete→Backspace).
+    // No-op for other combos and off macOS.
+    QString platformizeSeq(QString seq) {
+#ifdef Q_OS_MACOS
+      seq.replace(QStringLiteral("Delete"), QStringLiteral("Backspace"),
+                  Qt::CaseInsensitive);
+#endif
+      return seq;
+    }
+
     std::string makeSalt() {
       return QString::number(QRandomGenerator::global()->bounded(1 << 24), 36)
           .toStdString();
@@ -352,6 +364,12 @@ namespace stencil::gui {
     actUndo_ = mk("Undo", hotkey("undo", "Ctrl+Z"));
     actRedo_ = mk("Redo", hotkey("redo", "Ctrl+Shift+Z"));
     actDeleteLast_ = mk("Delete Last Point", "Backspace");
+    // Selection deletes (shared hotkeysConfig deleteLine=Alt+Delete,
+    // deletePoint=Alt+Shift+Delete). On macOS Delete→Backspace so ⌥⌫ / ⌥⇧⌫ work.
+    actDeleteLine_ =
+        mk("Delete Selected Line", platformizeSeq(hotkey("deleteLine", "Alt+Delete")));
+    actDeletePoint_ = mk("Delete Selected Point",
+                         platformizeSeq(hotkey("deletePoint", "Alt+Shift+Delete")));
     actClearAll_ = mk("Clear All Lines", hotkey("clearAllLines", "Alt+W"));
     actDeselect_ = mk("Deselect", "Esc");
     actZoomIn_ = mk("Zoom In", hotkey("zoomIn", "Alt+Up"));
@@ -438,6 +456,10 @@ namespace stencil::gui {
     connect(actRedo_, &QAction::triggered, canvas_, &CanvasWidget::redo);
     connect(actDeleteLast_, &QAction::triggered, canvas_,
             &CanvasWidget::deleteLastPoint);
+    connect(actDeleteLine_, &QAction::triggered, canvas_,
+            &CanvasWidget::deleteSelectedLine);
+    connect(actDeletePoint_, &QAction::triggered, this,
+            [this] { canvas_->deletePoint(canvas_->selectedPoint()); });
     connect(actClearAll_, &QAction::triggered, canvas_, &CanvasWidget::clearAll);
     connect(actDeselect_, &QAction::triggered, canvas_, &CanvasWidget::deselect);
     connect(actZoomIn_, &QAction::triggered, this, &MainWindow::zoomIn);
@@ -479,6 +501,8 @@ namespace stencil::gui {
     hotkeyActions_["startDraw"] = actStartDraw_;
     hotkeyActions_["stopDraw"] = actStopDraw_;
     hotkeyActions_["clearAllLines"] = actClearAll_;
+    hotkeyActions_["deleteLine"] = actDeleteLine_;
+    hotkeyActions_["deletePoint"] = actDeletePoint_;
     hotkeyActions_["togglePoints"] = actShowPoints_;
     hotkeyActions_["toggleLines"] = actShowLines_;
     hotkeyActions_["togglePointsList"] = actPanel_;
@@ -683,6 +707,8 @@ namespace stencil::gui {
     edit->addSeparator();
     edit->addAction(actNewLine_);
     edit->addAction(actDeleteLast_);
+    edit->addAction(actDeleteLine_);
+    edit->addAction(actDeletePoint_);
     edit->addAction(actClearAll_);
     edit->addAction(actDeselect_);
 
@@ -1895,6 +1921,7 @@ namespace stencil::gui {
     settings_ = s;
     canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultMarkerSize,
                          s.defaultStyle);
+    canvas_->setHoldDrawDelay(s.holdDrawDelay);
     {
       QSignalBlocker bp(actShowPoints_);
       QSignalBlocker bl(actShowLines_);
@@ -2685,10 +2712,11 @@ namespace stencil::gui {
       seen.insert(seq, it.key());
     }
 
-    // Re-apply to the live actions.
+    // Re-apply to the live actions. platformizeSeq keeps the delete combos on the
+    // macOS Backspace key (no-op for everything else / off macOS).
     for (auto it = hotkeyActions_.begin(); it != hotkeyActions_.end(); ++it) {
       const QString seq = hotkeys_.value(it.key(), hotkeyDefaults_.value(it.key()));
-      it.value()->setShortcut(QKeySequence(seq));
+      it.value()->setShortcut(QKeySequence(platformizeSeq(seq)));
     }
     notify_->success("Shortcuts updated");
   }

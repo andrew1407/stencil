@@ -90,6 +90,17 @@ namespace stencil::core {
     return best;
   }
 
+  // Port of browser/js/core/holdDraw.js holdDrawTarget. Point hit wins over a
+  // segment hit; both reuse the same finders the click/drag paths use.
+  HoldTarget holdDrawTarget(const Lines& lines, double x, double y,
+                            double pointThreshold, double segThreshold) {
+    if (auto p = findNearestPoint(lines, x, y, pointThreshold))
+      return HoldTarget{HoldTargetKind::ContinuePoint, p->lineIdx, p->ptIdx, -1};
+    if (auto s = findNearestSegment(lines, x, y, segThreshold))
+      return HoldTarget{HoldTargetKind::InsertSegment, s->lineIdx, s->ptIdx1, s->ptIdx2};
+    return HoldTarget{HoldTargetKind::NewLine, -1, -1, -1};
+  }
+
   // Port of browser/js/core/drawingApp.js #rotateSelectedLine rotation (~1857).
   void rotatePoints(std::vector<Point>& points, double cx, double cy,
                     double angle) {

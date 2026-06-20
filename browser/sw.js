@@ -3,7 +3,7 @@
 // serves every same-origin GET stale-while-revalidate (cache answers instantly,
 // background fetch refreshes for next time). Bump VERSION to force a clean
 // re-precache and evict the old cache on activate.
-const VERSION = 'v3';
+const VERSION = 'v7';
 const CACHE = `stencil-${VERSION}`;
 
 // Critical shell: enough to boot the app offline. The rest of the module graph

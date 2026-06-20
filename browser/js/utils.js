@@ -198,12 +198,18 @@ export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globa
 };
 
 // Rewrite a canonical combo for the platform. On Mac, Ctrl-based editing shortcuts
-// (undo/redo/copy/paste, etc.) map to ⌘, so swap the Ctrl token → Meta. Token-aware,
-// case-insensitive on "Ctrl", idempotent (already-Meta unchanged). No-op when !isMac.
+// (undo/redo/copy/paste, etc.) map to ⌘, so swap the Ctrl token → Meta; and the
+// primary delete key emits Backspace (⌫), so swap a Delete key token → Backspace.
+// Token-aware, case-insensitive, idempotent. No-op when !isMac.
 export const platformizeCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   return combo.split('+')
-    .map(p => (p.trim().toLowerCase() === 'ctrl' ? 'Meta' : p))
+    .map(p => {
+      const t = p.trim().toLowerCase();
+      if (t === 'ctrl') return 'Meta';
+      if (t === 'delete') return 'Backspace';
+      return p;
+    })
     .join('+');
 };
 
@@ -225,8 +231,11 @@ export const formatCombo = (combo, isMac) => {
   for (const m of ['ctrl', 'control', 'alt', 'option', 'shift', 'meta', 'cmd', 'command']) {
     if (mods.has(m)) { out += symFor(m); mods.delete(m); }
   }
-  const arrows = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
-  return out + (arrows[key] || key);
+  const glyphs = {
+    ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+    Backspace: '⌫', Delete: '⌦',
+  };
+  return out + (glyphs[key] || key);
 };
 
 // ── Unified control tooltip ─────────────────────────────────────

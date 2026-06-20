@@ -66,6 +66,8 @@ self.onconnect = e => {
     // Relay (with its id/action detail) to OTHER tabs so they re-render their
     // lists and, if they hold the same project, sync their editor.
     if (type === MSG.PROJECTS_CHANGED) return broadcast(data, port);
+    // Relay an accent change so every other tab repaints its UI live.
+    if (type === MSG.ACCENT) return broadcast(data, port);
     if (type === MSG.BYE) return drop(port);
   };
 

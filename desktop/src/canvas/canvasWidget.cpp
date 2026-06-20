@@ -30,6 +30,11 @@ namespace stencil::gui {
     editCommitTimer_.setInterval(280);
     connect(&editCommitTimer_, &QTimer::timeout, this,
             [this] { commitHistory(); });
+    // Hold-to-draw: while a hold is engaged, tick the controller (~40 ms) so the
+    // hold/dwell thresholds fire even when the cursor is held perfectly still.
+    holdClock_.start();
+    holdTimer_.setInterval(40);
+    connect(&holdTimer_, &QTimer::timeout, this, [this] { handleHoldTick(); });
     // Watch modifier key changes app-wide so the tooltip/cursor refresh on
     // Shift/Ctrl/Alt without needing a mouse move (see eventFilter).
     qApp->installEventFilter(this);
@@ -753,6 +758,30 @@ namespace stencil::gui {
       p.setBrush(Qt::NoBrush);
       p.drawRect(QRectF(rectDrawStart_, rectDrawEnd_).normalized());
     }
+
+    // Hold-to-draw: faded dashed segment from the stroke's anchor to the held
+    // cursor + a ghost marker — mirrors renderer.js drawHoldPreview. Transient.
+    if (holdHasPreview_) {
+      const QColor base(QString::fromStdString(
+          currentLine_.points.empty() && selectedLine()
+              ? selectedLine()->color
+              : defColor_.toStdString()));
+      const QPointF cur(holdPreview_.x * scale_, holdPreview_.y * scale_);
+      if (const core::Point* a = holdAnchor()) {
+        QColor line = base; line.setAlphaF(0.45);
+        QPen pen(line);
+        pen.setStyle(Qt::DashLine);
+        pen.setWidthF(std::max(1.0, defThickness_));
+        pen.setCapStyle(Qt::RoundCap);
+        p.setPen(pen);
+        p.setBrush(Qt::NoBrush);
+        p.drawLine(QPointF(a->x * scale_, a->y * scale_), cur);
+      }
+      QColor dot = base; dot.setAlphaF(0.6);
+      p.setPen(Qt::NoPen);
+      p.setBrush(dot);
+      p.drawEllipse(cur, defMarkerSize_, defMarkerSize_);
+    }
   }
 
   // Flat dispatch (behavior-preserving). Precedence is load-bearing and matches
@@ -803,7 +832,13 @@ namespace stencil::gui {
         if (handleCtrlClick(ip)) return;
         // drawing + Ctrl + no segment -> fall through to handleDrawingClick.
       }
+      // Hold-to-draw is the plain-left alternative flow: it only arms when not
+      // already drawing and with no modifiers. handleDrawingClick still runs first
+      // so a quick click keeps selecting; the controller (driven by holdTimer_)
+      // takes over only once the press is held near-stationary past the delay.
+      const bool eligibleHold = !isDrawing_ && mods == Qt::NoModifier;
       handleDrawingClick(ip, mods, event->pos());
+      if (eligibleHold && !isDrawing_) beginHold(event->pos());
     }
   }
 
@@ -973,6 +1008,22 @@ namespace stencil::gui {
   void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     if (image_.isNull()) return;
 
+    // Hold-to-draw: while armed/drawing, feed the controller. Moving past the
+    // tolerance before the hold fires aborts (a normal click/drag); moving while
+    // drawing updates the ghost-line preview. Suppress hover while engaged.
+    if (hold_.engaged()) {
+      const core::HoldEvent ev =
+          hold_.pointerMove(event->pos().x(), event->pos().y(), holdNowMs());
+      if (ev.action == core::HoldAction::Abort) {
+        stopHold();
+      } else if (ev.action == core::HoldAction::Preview) {
+        holdPreview_ = core::Point{ev.x / scale_, ev.y / scale_};
+        holdHasPreview_ = true;
+        update();
+      }
+      return;
+    }
+
     // Active Alt-drag gesture (port of drawingApp.js #dragMove ~1701). One of the
     // point/segment/line moves; Shift switches segment/line modes live from the
     // original snapshot so toggling Shift never accumulates.
@@ -1136,6 +1187,21 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
+    // Finish a hold-to-draw gesture. Releasing after a stroke commits the line and
+    // exits drawing; releasing a quick/aborted hold just tears down (selection
+    // already happened on press in handleDrawingClick).
+    if (holdTimer_.isActive() || hold_.engaged()) {
+      holdTimer_.stop();
+      const core::HoldEvent ev = hold_.pointerUp(holdNowMs());
+      if (ev.action == core::HoldAction::Commit) {
+        holdCommit();
+      } else if (holdHasPreview_) {
+        holdHasPreview_ = false;
+        update();
+      }
+      return;
+    }
+
     // Finish an Alt-drag gesture (drawingApp.js mouseup ~925-949). Commit one
     // undo step only when a committed line actually moved; an in-progress-line
     // point edit just refreshes the panel.
@@ -1379,6 +1445,118 @@ namespace stencil::gui {
     update();
     emit changed();
     emit selectionChanged();
+  }
+
+  // ── hold-to-draw (alternative flow; port of browser holdDraw.js) ──
+
+  void CanvasWidget::setHoldDrawDelay(int ms) {
+    holdDelayMs_ = std::max(100, std::min(3000, ms));
+    hold_.setHoldDelay(holdDelayMs_);
+  }
+
+  double CanvasWidget::holdNowMs() const {
+    return static_cast<double>(holdClock_.elapsed());
+  }
+
+  void CanvasWidget::beginHold(const QPoint& widgetPos) {
+    hold_.setHoldDelay(holdDelayMs_);
+    holdPressPos_ = widgetPos;
+    hold_.pointerDown(widgetPos.x(), widgetPos.y(), holdNowMs());
+    holdTimer_.start();
+  }
+
+  void CanvasWidget::stopHold() {
+    holdTimer_.stop();
+    hold_.cancel();
+    if (holdHasPreview_) {
+      holdHasPreview_ = false;
+      update();
+    }
+  }
+
+  void CanvasWidget::handleHoldTick() {
+    const core::HoldEvent ev = hold_.tick(holdNowMs());
+    if (ev.action == core::HoldAction::Start) holdStart(ev.x, ev.y);
+    else if (ev.action == core::HoldAction::Drop) holdDrop(ev.x, ev.y);
+  }
+
+  // Hold completed → auto-enter drawing and seed the stroke. The target under the
+  // press decides: existing point → continue that line; line body → insert a point
+  // there then continue; empty → fresh line. Selection from the press already
+  // matches the target (same finders), so startDrawingMode continues correctly.
+  void CanvasWidget::holdStart(double widgetX, double widgetY) {
+    const core::Point ip{widgetX / scale_, widgetY / scale_};
+    const core::HoldTarget t = core::holdDrawTarget(lines_, ip.x, ip.y);
+    holdPrepend_ = false;
+    if (t.kind == core::HoldTargetKind::ContinuePoint) {
+      selectedLineIdx_ = t.lineIdx;
+      selectedPoint_ = t.ptIdx;
+      startDrawingMode();
+      // Holding the FIRST point extends the line backward: prepend new points
+      // before it (index 0) instead of inserting after it as the second point.
+      if (t.ptIdx == 0) { holdPrepend_ = true; continueInsertIdx_ = 0; }
+    } else if (t.kind == core::HoldTargetKind::InsertSegment) {
+      insertPointOnSegment(t.lineIdx, t.ptIdx2, ip.x, ip.y);
+      startDrawingMode();
+    } else {
+      selectedLineIdx_ = -1;
+      selectedPoint_ = -1;
+      startDrawingMode();
+      currentLine_.points.push_back(ip);
+    }
+    holdPreview_ = ip;
+    holdHasPreview_ = true;
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
+  // Dwell completed → drop a point (extends the in-progress / continued line).
+  void CanvasWidget::holdDrop(double widgetX, double widgetY) {
+    const core::Point ip{widgetX / scale_, widgetY / scale_};
+    if (continueLineIdx_ >= 0 &&
+        continueLineIdx_ < static_cast<int>(lines_.size())) {
+      core::Line& line = lines_[continueLineIdx_];
+      const int at = std::max(
+          0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
+      line.points.insert(line.points.begin() + at, ip);
+      selectedPoint_ = at;
+      // Prepend mode keeps inserting at index 0 (each new point becomes the new
+      // head); forward mode advances the insert point so points keep appending.
+      if (!holdPrepend_) continueInsertIdx_ = at + 1;
+    } else {
+      currentLine_.points.push_back(ip);
+    }
+    holdPreview_ = ip;
+    holdHasPreview_ = true;
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
+  // Release after a hold stroke → commit the line and disable drawing again.
+  void CanvasWidget::holdCommit() {
+    holdHasPreview_ = false;
+    holdPrepend_ = false;
+    if (isDrawing_) stopDrawingMode();  // commits + emits drawingModeChanged(false)
+    update();
+  }
+
+  // Origin of the hold-draw preview line: the tail of the in-progress line, or the
+  // current insertion tail of the line being extended. nullptr = nothing to anchor.
+  const core::Point* CanvasWidget::holdAnchor() const {
+    if (!currentLine_.points.empty()) return &currentLine_.points.back();
+    if (continueLineIdx_ >= 0 &&
+        continueLineIdx_ < static_cast<int>(lines_.size())) {
+      const std::vector<core::Point>& pts = lines_[continueLineIdx_].points;
+      if (pts.empty()) return nullptr;
+      // Prepend: the next point connects to the current head (continueInsertIdx_);
+      // forward: it connects to the point just before the insertion tail.
+      const int idx = holdPrepend_ ? continueInsertIdx_ : continueInsertIdx_ - 1;
+      if (idx >= 0 && idx < static_cast<int>(pts.size())) return &pts[idx];
+      return &pts.back();
+    }
+    return nullptr;
   }
 
   // ── interactive editing helpers (port of drawingApp.js) ──

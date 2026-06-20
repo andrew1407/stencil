@@ -11,6 +11,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
@@ -107,6 +108,15 @@ namespace stencil::gui {
     customH_->setValue(current.customPageHeight);
     form->addRow("Custom height (cm)", customH_);
 
+    holdDelay_ = new QSpinBox(this);
+    holdDelay_->setRange(100, 3000);  // clamp mirrors CanvasWidget::setHoldDrawDelay
+    holdDelay_->setSingleStep(50);
+    holdDelay_->setSuffix(" ms");
+    holdDelay_->setValue(current.holdDrawDelay);
+    holdDelay_->setToolTip(
+        "Press-and-hold delay before hold-to-draw places a point");
+    form->addRow("Hold-to-draw delay", holdDelay_);
+
     auto* buttons =
         makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
 
@@ -138,6 +148,7 @@ namespace stencil::gui {
     s.pageSize = page_->currentText();
     s.customPageWidth = customW_->value();
     s.customPageHeight = customH_->value();
+    s.holdDrawDelay = holdDelay_->value();
     return s;
   }
 

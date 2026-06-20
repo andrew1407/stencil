@@ -46,7 +46,7 @@ const makeApp = (over = {}) => {
     color: '#ff0000', thickness: 2, markerSize: 5, style: 'solid',
     showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#000000',
     unit: 'cm', pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7,
-    theme: 'dark', drawMode: 'line', allowFormulas: false, formulaX: '', formulaY: '',
+    theme: 'dark', drawMode: 'line', holdDrawDelay: 500, allowFormulas: false, formulaX: '', formulaY: '',
     defaultFillColor: '#ffffff', selGlowColor: '#000000', hoverRingColor: '#000000', focusRingColor: '#000000',
     // tooltip + provenance backing fields
     tooltipEnabled: true, tooltipShowPage: true, tooltipShowScreen: true, tooltipShowCoords: true,
@@ -100,7 +100,7 @@ const makeApp = (over = {}) => {
     setLineStyle: rec('setLineStyle'), setShowPoints: rec('setShowPoints'), setShowLines: rec('setShowLines'),
     setImageFilter: rec('setImageFilter'), setFilterColor: rec('setFilterColor'), setUnit: rec('setUnit'),
     setPageSize: rec('setPageSize'), setCustomPageWidth: rec('setCustomPageWidth'), setCustomPageHeight: rec('setCustomPageHeight'),
-    setTheme: rec('setTheme'), setDrawMode: rec('setDrawMode'), setAllowFormulas: rec('setAllowFormulas'),
+    setTheme: rec('setTheme'), setDrawMode: rec('setDrawMode'), setHoldDrawDelay: rec('setHoldDrawDelay'), setAllowFormulas: rec('setAllowFormulas'),
     setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
     rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
     startDrawingMode: rec('startDrawingMode'), stopDrawingMode: rec('stopDrawingMode'),
@@ -475,6 +475,8 @@ test('every documented flattened setting routes to its app setter with the expec
   // Special routing: drawMode normalizes, formulas pick an axis, visual colors pick a channel.
   stencil.drawMode = 'rect';
   assert.deepEqual(lastCall(app, 'setDrawMode'), ['setDrawMode', 'rect']);
+  stencil.holdDrawDelay = 750;
+  assert.deepEqual(lastCall(app, 'setHoldDrawDelay'), ['setHoldDrawDelay', 750]);
   stencil.formulaX = 'x*2';
   assert.deepEqual(lastCall(app, 'setFormula'), ['setFormula', 'x', 'x*2']);
   stencil.formulaY = 'y+1';

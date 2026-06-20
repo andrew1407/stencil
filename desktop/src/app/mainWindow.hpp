@@ -293,6 +293,8 @@ namespace stencil::gui {
     QAction* actUndo_ = nullptr;
     QAction* actRedo_ = nullptr;
     QAction* actDeleteLast_ = nullptr;
+    QAction* actDeleteLine_ = nullptr;   // Alt+Delete (⌥⌫ on macOS)
+    QAction* actDeletePoint_ = nullptr;  // Alt+Shift+Delete (⌥⇧⌫ on macOS)
     QAction* actClearAll_ = nullptr;
     QAction* actDeselect_ = nullptr;
     QAction* actZoomIn_ = nullptr;

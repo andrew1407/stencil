@@ -21,6 +21,7 @@ const core_sources = [_][]const u8{
     "state/historyStack.cpp",
     "state/projectsStore.cpp",
     "state/zoomPan.cpp",
+    "state/holdDraw.cpp",
     "cliApi.cpp",
 };
 

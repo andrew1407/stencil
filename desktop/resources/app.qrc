@@ -12,5 +12,12 @@
     <!-- Same icon as the browser app's favicon, so both front-ends share one
          look. Rendered by Qt's SVG icon engine (qt6-qtsvg). -->
     <file alias="appicon.svg">../../browser/favicon.svg</file>
+    <!-- White check / dot drawn over the accent-filled checkbox & radio
+         indicators (see support/theme.cpp buildStylesheet). PNG, not SVG: a QSS
+         `image: url()` is loaded via QImageReader, which needs the separate qsvg
+         image-format plugin for SVGs — PNG decoding is built in. The .svg files
+         beside these are the editable source (regenerate with Qt's SVG renderer). -->
+    <file alias="check.png">icons/check.png</file>
+    <file alias="radio-dot.png">icons/radio-dot.png</file>
   </qresource>
 </RCC>

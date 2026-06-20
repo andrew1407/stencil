@@ -1,3 +1,40 @@
+/* Checkboxes & radios: a transparent box outlined in the brand accent, filled
+   with the accent (+ a white check / dot) when on — matching the desktop Qt
+   indicator. appearance:none so the look is ours (not the OS default), and the
+   box tracks the chosen main theme via var(--accent). */
+input[type=checkbox], input[type=radio] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-sizing: border-box;
+    flex: none;
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    min-height: 15px;
+    margin: 0;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    vertical-align: middle;
+}
+input[type=radio] { border-radius: 50%; }
+input[type=checkbox]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px;
+}
+input[type=radio]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    background-image: radial-gradient(circle, #fff 0 2.6px, transparent 3.1px);
+}
+input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor: default; }
+
 #global-drop-overlay {
     display: none;
     position: fixed;
@@ -890,8 +927,8 @@ stencil-fullscreen-layer { display: contents; }
 .project-open-elsewhere { color: var(--accent); }
 .project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
-.project-row.project-incognito { border-color: #8b5cf6; border-style: dashed; }
-.project-row.project-incognito .project-name { color: #8b5cf6; }
+.project-row.project-incognito { border-color: var(--accent); border-style: dashed; }
+.project-row.project-incognito .project-name { color: var(--accent); }
 /* Inline rename input shown in place of .project-name */
 .project-name-edit {
     font-weight: 600;
@@ -944,19 +981,33 @@ stencil-fullscreen-layer { display: contents; }
 .links-frame-num input[type="number"] { width: 5.5em; }
 
 /* ── Incognito mode ─────────────────────────────────────────────── */
-/* The toggle lights up when active and greys out once it can't be switched. */
-#incognito-toggle.active { background: #6d28d9; }
+/* A neutral ghost button when off; fills with the chosen theme accent when on, so
+   the "edits aren't saved" state reads in whatever accent the user picked. */
+#incognito-toggle {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+#incognito-toggle:hover { background: var(--bg-info); }
+#incognito-toggle.active {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: #fff;
+}
+#incognito-toggle.active:hover { background: var(--accent-2); border-color: var(--accent-2) !important; }
 #incognito-toggle:disabled { opacity: 0.45; cursor: default; }
-/* A dashed outline + corner badge make it obvious nothing here is being saved. */
+/* A dashed outline + corner badge make it obvious nothing here is being saved —
+   both tinted to the current accent. */
 body.incognito-mode .canvas-viewport {
-    outline: 3px dashed #8b5cf6;
+    outline: 3px dashed var(--accent);
     outline-offset: -3px;
 }
 body.incognito-mode .canvas-section { position: relative; }
 body.incognito-mode .canvas-section::after {
     content: '🕶 Incognito — not saved';
     position: absolute; top: 8px; left: 8px; z-index: 6;
-    background: rgba(109, 40, 217, 0.9); color: #fff;
+    background: color-mix(in srgb, var(--accent) 90%, transparent); color: #fff;
     font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
     pointer-events: none;
 }

@@ -175,6 +175,7 @@ namespace stencil::gui {
     // Image filter + custom tint (browser storage.js:309-311).
     s.imageFilter = o.value("imageFilter").toString(s.imageFilter);
     s.filterColor = o.value("filterColor").toString(s.filterColor);
+    s.holdDrawDelay = o.value("holdDrawDelay").toInt(s.holdDrawDelay);
     return s;
   }
 
@@ -199,6 +200,7 @@ namespace stencil::gui {
     o["tooltipEnabled"] = s.tooltipEnabled;
     o["imageFilter"] = s.imageFilter;
     o["filterColor"] = s.filterColor;
+    o["holdDrawDelay"] = s.holdDrawDelay;
     writeJson(settingsPath(), QJsonDocument(o));
   }
 
