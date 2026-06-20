@@ -15,7 +15,7 @@ Stencil ships as **three front-ends over one shared logic core**:
 
 | App | Path | Stack | Docs |
 |---|---|---|---|
-| **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | — |
+| **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | [core/README.md](core/README.md) |
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) |
@@ -62,6 +62,7 @@ core/                 # shared, GUI-free C++ logic library (sibling of the apps)
   tests/              # Doctest suite
   third_party/        # vendored doctest.h (fetched on demand)
   CMakeLists.txt
+  README.md           # the core's own overview, layout & design principles
   WASM.md             # how the core is built to wasm and wired into the browser
 browser/              # the browser app
   index.html
@@ -95,7 +96,7 @@ codecs (compiled from source, no native dependency); it fetches URLs with Zig's 
 HTTP client (native TLS) and shells out to the system **ffmpeg** only for video input
 (optional). The core itself remains STL-only.
 
-- Build & test the shared core → `cmake -S core -B core/build && ctest --test-dir core/build`
+- Build & test the shared core → [core/README.md](core/README.md) (`cmake -S core -B core/build && ctest --test-dir core/build`)
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
 - Build, test & run the CLI → [cli/README.md](cli/README.md)
