@@ -23,3 +23,12 @@ export const readOpenProjectId = (search = '') => {
 // the open param, URL-encoded.
 export const buildOpenProjectUrl = (base, id) =>
   `${base}?${OPEN_PARAM}=${encodeURIComponent(id)}`;
+
+// Build a URL that hands a full image off to a fresh tab via the `#stencil=<JSON>`
+// fragment consumed by DrawingApp.applyExternalLaunch (shape
+// { dataUrl, name?, incognito?, ... }). The payload rides in the fragment (not the
+// query) so it stays off server logs and out of history after the receiver strips it.
+// This is the only vehicle that works for incognito launches, since those are never
+// persisted and so cannot be referenced by `?open=<id>`.
+export const buildExternalLaunchUrl = (base, payload) =>
+  `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;

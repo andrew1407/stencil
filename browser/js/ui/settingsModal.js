@@ -32,7 +32,7 @@ export class StencilSettingsModal extends StencilElement {
   }
   static template() { return hostTag('stencil-settings-modal', 'id="settings-modal-overlay"', StencilSettingsModal.inner()); }
 
-  wire(_app) {
+  wire(app) {
     const overlay = document.getElementById('settings-modal-overlay');
     const openBtn = document.getElementById('settings-btn');
     const closeBtn = document.getElementById('settings-close');
@@ -118,7 +118,7 @@ export class StencilSettingsModal extends StencilElement {
     };
 
     // Capture-phase keydown so the global hotkey dispatcher doesn't fire while editing
-    document.addEventListener('keydown', e => {
+    document.addEventListener('keydown', async e => {
       if (!capturing) return;
       if (e.key === 'Escape') {
         e.preventDefault(); e.stopPropagation();
@@ -133,7 +133,7 @@ export class StencilSettingsModal extends StencilElement {
         if (otherId === capturing.id) continue;
         if (otherCombo === combo) {
           const other = HOTKEY_DEFS.find(d => d.id === otherId);
-          if (!confirm(`"${formatCombo(combo, hotkeys.isMac)}" is already used by "${other.label}".\n\nUnbind it and assign this combination?`)) {
+          if (!(await app.confirm(`"${formatCombo(combo, hotkeys.isMac)}" is already used by "${other.label}". Unbind it and assign this combination?`, { title: 'Shortcut in use' }))) {
             stopCapture(false);
             return;
           }
@@ -150,8 +150,8 @@ export class StencilSettingsModal extends StencilElement {
       onClose: () => { if (capturing) stopCapture(false); },
       escapeClose: false
     });
-    resetAll.addEventListener('click', () => {
-      if (!confirm('Reset ALL keyboard shortcuts to their defaults?')) return;
+    resetAll.addEventListener('click', async () => {
+      if (!(await app.confirm('Reset ALL keyboard shortcuts to their defaults?', { title: 'Reset shortcuts', danger: true }))) return;
       hotkeys.resetAll();
       hotkeys.save();
       hotkeys.updateCtxHints();

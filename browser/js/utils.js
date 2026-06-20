@@ -95,6 +95,18 @@ export const notify = (msg, type = 'ok') => {
   if (el && typeof el.notify === 'function') el.notify(msg, type);
 };
 
+// True only when the browser can share FILES via the Web Share API (most desktop
+// browsers cannot, even if navigator.share exists for text/URLs). Used to decide
+// whether to show the Share-image action at all — when false it's not rendered.
+export const supportsShareFiles = () => {
+  try {
+    return !!(navigator.canShare &&
+      navigator.canShare({ files: [new File([], 'x.png', { type: 'image/png' })] }));
+  } catch {
+    return false;
+  }
+};
+
 // ── Geometry helpers (pure) ─────────────────────────────────────
 // Distance from point (px,py) to the segment a→b. Delegates to the shared C++
 // core (wasm) when loaded; the JS below is the reference + fallback.

@@ -1,5 +1,6 @@
 #include "mainWindow.hpp"
 #include "blankImageDialog.hpp"
+#include "openImageDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
 #include "cropGeometry.hpp"
@@ -103,7 +104,7 @@ namespace stencil::gui {
 
   MainWindow::MainWindow(QWidget* parent, bool restoreLast)
       : QMainWindow(parent) {
-    setWindowTitle("Stencil (Qt)");
+    setWindowTitle("Stencil");
     resize(1100, 760);
     // Photoshop-style drop-to-open: a file dragged onto the window is opened
     // (image/video) or applied (layout JSON) via openPathFromOS / dropEvent.
@@ -343,6 +344,9 @@ namespace stencil::gui {
     };
 
     actOpen_ = mk("Open Image…", "Ctrl+O");
+    actOpenAnother_ = mk("Open Another Image…", QString());
+    actOpenAnother_->setToolTip(
+        "Open another image — replace the current editor or launch it in a new window");
     actNewBlank_ = mk("🖼 New Blank Image…", QString());
     actNewBlank_->setToolTip(
         "Create a blank image (white, black, or any color) to draw on");
@@ -433,6 +437,8 @@ namespace stencil::gui {
     actPanel_->setChecked(true);
 
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
+    connect(actOpenAnother_, &QAction::triggered, this,
+            &MainWindow::openAnotherImage);
     connect(actNewBlank_, &QAction::triggered, this, &MainWindow::newBlankImage);
     connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
     auto rotate = [this](bool clockwise) {
@@ -690,6 +696,7 @@ namespace stencil::gui {
     // Alt+P points, Alt+L lines, etc.).
     auto* file = menuBar()->addMenu("F&ile");
     file->addAction(actOpen_);
+    file->addAction(actOpenAnother_);
     file->addAction(actNewBlank_);
     file->addAction(actCrop_);
     file->addAction(actRotateLeft_);
@@ -776,6 +783,7 @@ namespace stencil::gui {
     tb->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
     tb->addAction(actOpen_);
+    tb->addAction(actOpenAnother_);
     tb->addAction(actNewBlank_);
     tb->addAction(actLinks_);
     tb->addAction(actCrop_);
@@ -1140,6 +1148,67 @@ namespace stencil::gui {
     currentResource_.clear();
     notify_->success("Image loaded");
     refreshActions();
+  }
+
+  // "Open another image" (mirrors browser openImageModal.js): pick a file + an
+  // incognito flag, then either replace this editor or launch the image in a new
+  // window. The dialog returns the chosen outcome; we dispatch accordingly.
+  void MainWindow::openAnotherImage() {
+    OpenImageDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QString path = dlg.path();
+    if (path.isEmpty()) return;
+    if (dlg.outcome() == OpenImageDialog::Outcome::NewWindow)
+      openImageInNewWindow(path, dlg.incognito());
+    else
+      openImageHere(path, dlg.incognito());
+  }
+
+  // Replace this editor's image with `path`. Mirrors the browser's openImageHere:
+  // persist the current content first (unless incognito) so it isn't lost, then
+  // start a fresh editor in the requested incognito mode and load the image.
+  void MainWindow::openImageHere(const QString& path, bool incognito) {
+    if (!incognito_) {
+      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+      else saveSessionNow();
+    }
+    // Replacing the image wholesale resets the editor: drop the project binding and
+    // adopt the chosen incognito mode (the toggle is normally gated to before an
+    // image; we set it directly here since this is a reset). Signals blocked so the
+    // toggle slot's notification doesn't fire — we emit our own below.
+    activeProjectId_.clear();
+    if (incognito_ != incognito) {
+      incognito_ = incognito;
+      actIncognito_->blockSignals(true);
+      actIncognito_->setChecked(incognito);
+      actIncognito_->blockSignals(false);
+      updateProjectTitle();
+    }
+    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+    if (!canvas_->loadImage(path)) {
+      notify_->error("Failed to load image");
+      return;
+    }
+    currentSource_.clear();
+    currentResource_.clear();
+    refreshActions();
+    notify_->success("Image loaded");
+  }
+
+  // Launch `path` in a fresh, self-owned window, leaving this editor untouched
+  // (the desktop analog of the browser's "open in new tab"). Reuses the launch
+  // path (--src/--incognito), which honors incognito and the page-aspect crop.
+  void MainWindow::openImageInNewWindow(const QString& path, bool incognito) {
+    auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    win->show();
+    LaunchOptions opts;
+    opts.src = path;
+    opts.incognito = incognito;
+    win->applyLaunchOptions(opts);
   }
 
   // Generate a solid-color image and adopt it exactly like a clipboard paste
@@ -2623,7 +2692,7 @@ namespace stencil::gui {
     }
     if (name.isEmpty() && canvas_ && canvas_->hasImage())
       name = canvas_->imageBaseName();   // show the image name until it's a saved project
-    setWindowTitle(name.isEmpty() ? QStringLiteral("Stencil (Qt)")
+    setWindowTitle(name.isEmpty() ? QStringLiteral("Stencil")
                                   : QString("%1 — Stencil").arg(name));
     // Don't clobber the field while the user is typing in it.
     if (projectName_ && !projectName_->hasFocus()) {

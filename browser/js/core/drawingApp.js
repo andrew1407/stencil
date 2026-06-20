@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -16,9 +16,10 @@ import { hotkeys } from './hotkeys.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
-import { readOpenProjectId, buildOpenProjectUrl } from './deepLink.js';
+import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
 import { normalizePageSize } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
+import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
@@ -52,6 +53,10 @@ export class DrawingApp {
   // Hold-to-draw gesture (alternative drawing flow; see ./holdDraw.js)
   #holdDraw = null;
   #holdTickTimer = null;
+  // Touchscreen input layer (see ./touchGestures.js + #wireTouch). #touch holds
+  // the live single/two-finger gesture state; null between gestures.
+  #touch = null;
+  #longPressTimer = null;
   #holdAutoEnabled = false;
   // True while a hold stroke extends a line BACKWARD from its first point: new
   // points are prepended (inserted at index 0) so the line grows from its start.
@@ -246,10 +251,22 @@ export class DrawingApp {
     this.#wireSmoothZoom();
     this.#wirePanDrag();
     this.#wireHoldDraw();
+    this.#wireTouch();
   }
 
   #wireStyleControls() {
     document.getElementById('image-upload').addEventListener('change', e => this.loadImage(e));
+    // Compact "Load Image" affordance (shown when no image) just triggers the hidden picker.
+    document.getElementById('load-image-btn')?.addEventListener('click',
+      () => document.getElementById('image-upload').click());
+    // Image actions (shown when an image is loaded). #open-image-btn is wired by the
+    // open-image modal component (as its open button); the rest are direct actions.
+    document.getElementById('copy-image')?.addEventListener('click', () => this.copyImageToClipboard());
+    const shareBtn = document.getElementById('share-image');
+    if (shareBtn) {
+      if (supportsShareFiles()) shareBtn.style.display = '';
+      shareBtn.addEventListener('click', () => this.shareImage());
+    }
     document.getElementById('rotate-left').addEventListener('click', () => this.rotateImage(-1));
     document.getElementById('rotate-right').addEventListener('click', () => this.rotateImage(1));
     document.getElementById('line-color').addEventListener('change', e => this.setColor(e.target.value));
@@ -392,17 +409,17 @@ export class DrawingApp {
     document.getElementById('save-image').addEventListener('click', () => this.saveImage());
     document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
     document.getElementById('upload-json').addEventListener('change', e => this.uploadJSON(e));
-    document.getElementById('clear-storage').addEventListener('click', () => {
+    document.getElementById('clear-storage').addEventListener('click', async () => {
       if (this.storage.temporary || this.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
-        if (confirm('Clear this editor (image + lines)?')) {
+        if (await this.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true })) {
           this.storage.newTemporary();
           this.tabs.reportActive(null);
           this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
         }
         return;
       }
-      if (confirm('Clear this project (image + lines) from storage?')) {
+      if (await this.confirm('Clear this project (image + lines) from storage?', { title: 'Clear project', danger: true })) {
         const id = this.activeProjectId;
         this.storage.store.remove(id);
         this.storage.newTemporary();
@@ -682,12 +699,12 @@ export class DrawingApp {
       } else if (file.name.endsWith('.json') || file.type === 'application/json') {
         this.loadJSONFromFile(file);
       } else {
-        alert('Please drop an image or a .json file.');
+        notify('Please drop an image or a .json file', 'fail');
       }
     });
 
     // Clipboard paste (Ctrl+V) — handles images and JSON layout text
-    document.addEventListener('paste', e => {
+    document.addEventListener('paste', async e => {
       if (isTypingTarget(e.target)) return; // let native paste work in inputs
       const cd = e.clipboardData;
       if (!cd) return;
@@ -696,11 +713,12 @@ export class DrawingApp {
       for (const item of cd.items) {
         if (item.type && item.type.startsWith('image/')) {
           e.preventDefault();
-          if (this.image && !confirm('Replace current image with pasted image?')) {
+          // Read the file synchronously — clipboardData is invalid after an await.
+          const file = item.getAsFile();
+          if (this.image && !(await this.confirm('Replace current image with pasted image?', { title: 'Replace image' }))) {
             notify('Image paste canceled', 'fail');
             return;
           }
-          const file = item.getAsFile();
           if (file) {
             this.loadImageFromFile(file);
             notify('Image pasted from clipboard', 'ok');
@@ -1130,42 +1148,279 @@ export class DrawingApp {
   // when NOT already drawing, so the existing click-to-draw flow is untouched.
   #wireHoldDraw() {
     const ctrl = this.#holdDraw = new HoldDrawController({ holdDelay: this.holdDrawDelay });
-    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    const stopTicks = () => { if (this.#holdTickTimer) { clearInterval(this.#holdTickTimer); this.#holdTickTimer = null; } };
-    const startTicks = () => { if (!this.#holdTickTimer) this.#holdTickTimer = setInterval(() => this.#holdTick(now()), 40); };
 
     const onDown = e => {
-      if (!this.image) return;
       if (e.button !== 0 || e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
-      // Only the auto-mode: manual line/rect drawing keeps its click behavior.
-      if (this.isDrawing) return;
-      // Never start over another active gesture (pan / drag / zoom / rect).
-      if (this.isPanning || this.isDraggingPoint || this.isDraggingSegment ||
-          this.isDraggingLine || this.isZoomRectDragging || this.isRectDrawDragging) return;
-      ctrl.setHoldDelay(this.holdDrawDelay);
-      ctrl.pointerDown(e.clientX, e.clientY, now());
-      startTicks();
+      this.#holdTryDown(e.clientX, e.clientY);
     };
     this.canvas.addEventListener('mousedown', onDown);
 
     document.addEventListener('mousemove', e => {
       if (!ctrl.engaged) return;
-      const r = ctrl.pointerMove(e.clientX, e.clientY, now());
+      const r = ctrl.pointerMove(e.clientX, e.clientY, this.#now());
       if (!r) return;
-      if (r.type === 'abort') { stopTicks(); ctrl.cancel(); return; }
+      if (r.type === 'abort') { this.#stopHoldTicks(); ctrl.cancel(); return; }
       if (r.type === 'preview') this.#holdSetPreview(e.clientX, e.clientY);
     });
 
     document.addEventListener('mouseup', () => {
       if (ctrl.state === 'idle') return;
-      const r = ctrl.pointerUp(now());
-      stopTicks();
+      const r = ctrl.pointerUp(this.#now());
+      this.#stopHoldTicks();
       if (r && r.type === 'commit') this.#holdCommit();
       else this.#holdClearPreview();
     });
 
     // Drop the gesture if focus leaves the window mid-hold.
-    window.addEventListener('blur', () => { stopTicks(); ctrl.cancel(); this.#holdClearPreview(); });
+    window.addEventListener('blur', () => { this.#stopHoldTicks(); ctrl.cancel(); this.#holdClearPreview(); });
+  }
+
+  // Monotonic clock for gesture timing (falls back to Date in old environments).
+  #now() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()); }
+  #stopHoldTicks() { if (this.#holdTickTimer) { clearInterval(this.#holdTickTimer); this.#holdTickTimer = null; } }
+  #startHoldTicks() { if (!this.#holdTickTimer) this.#holdTickTimer = setInterval(() => this.#holdTick(this.#now()), 40); }
+
+  // Arm hold-to-draw at a press point, if eligible. Shared by mouse (#wireHoldDraw)
+  // and touch (#wireTouch); the caller has already filtered out modified presses.
+  // Returns true if the hold gesture was armed.
+  #holdTryDown(clientX, clientY) {
+    if (!this.image) return false;
+    // Only the auto-mode: manual line/rect drawing keeps its click behavior.
+    if (this.isDrawing) return false;
+    // Never start over another active gesture (pan / drag / zoom / rect).
+    if (this.isPanning || this.isDraggingPoint || this.isDraggingSegment ||
+        this.isDraggingLine || this.isZoomRectDragging || this.isRectDrawDragging) return false;
+    this.#holdDraw.setHoldDelay(this.holdDrawDelay);
+    this.#holdDraw.pointerDown(clientX, clientY, this.#now());
+    this.#startHoldTicks();
+    return true;
+  }
+
+  // ── Touchscreen input (direct manipulation + two-finger) ───────
+  // A touch-only gesture layer; the mouse handlers above stay untouched. Touch
+  // events never fire for a mouse, and preventDefault() suppresses the synthetic
+  // mouse/click a touch would otherwise emit — so the two input paths can't
+  // collide. Mapping (chosen over keyboard-modifier gestures the desktop uses):
+  //   1 finger on a point   → drag that point      (no Alt needed)
+  //   1 finger on a segment → drag that segment
+  //   1 finger held still on geometry → context menu (mirrors right-click there)
+  //   1 finger on empty: tap → place a point; press-and-hold → hold-to-draw
+  //   2 fingers → pan + pinch-zoom (focal = the midpoint between the fingers)
+  #wireTouch() {
+    const viewport = document.getElementById('canvas-viewport');
+    const moveTol = TOUCH_DEFAULTS.moveTol;
+
+    const clearLongPress = () => {
+      if (this.#longPressTimer) { clearTimeout(this.#longPressTimer); this.#longPressTimer = null; }
+    };
+    // Abandon every single-finger gesture (used when a 2nd finger lands or on cancel).
+    const dropSingle = () => {
+      clearLongPress();
+      this.#stopHoldTicks();
+      if (this.#holdDraw.engaged) { this.#holdDraw.cancel(); this.#holdClearPreview(); }
+      this.isDraggingPoint = false; this.#draggingPoint = null;
+      this.isDraggingSegment = false; this.#draggingSegment = null;
+    };
+    // A stationary tap behaves exactly like a left mouse click: drops a point in
+    // empty space, or selects the line/point under the finger and opens its style
+    // panel (canvasClick handles both). Synthesise a modifier-free MouseEvent.
+    const tapClick = (e, st) => {
+      const ct = (e.changedTouches && e.changedTouches[0]) || st;
+      this.canvasClick({
+        clientX: ct.clientX ?? st.startX, clientY: ct.clientY ?? st.startY,
+        altKey: false, shiftKey: false, ctrlKey: false, metaKey: false,
+      });
+    };
+
+    // Long-press on grabbed geometry that never moved → open the context menu
+    // instead of leaving a no-op drag (empty-space holds belong to hold-to-draw).
+    const armGeometryLongPress = (t) => {
+      this.#longPressTimer = setTimeout(() => {
+        this.#longPressTimer = null;
+        if (!this.#touch || this.#touch.id !== t.identifier) return;
+        dropSingle();
+        this.#touch = { mode: 'done', id: t.identifier };
+        this.canvas.dispatchEvent(new MouseEvent('contextmenu',
+          { clientX: t.clientX, clientY: t.clientY, bubbles: true, cancelable: true }));
+      }, TOUCH_DEFAULTS.longPressMs);
+    };
+
+    const onStart = e => {
+      if (!this.image) return;
+
+      // Two fingers → pan + pinch. Abandon any in-flight single-finger gesture.
+      if (e.touches.length >= 2) {
+        e.preventDefault();
+        dropSingle();
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const mid = midpoint(a, b);
+        const vpRect = viewport.getBoundingClientRect();
+        const contentX = mid.x - vpRect.left + viewport.scrollLeft;
+        const contentY = mid.y - vpRect.top + viewport.scrollTop;
+        this.canvas.classList.add('zoom-no-transition');
+        this.#touch = {
+          mode: 'pinch',
+          startDist: touchDist(a, b) || 1,
+          startScale: this.scale,
+          imgX: contentX / this.scale,
+          imgY: contentY / this.scale,
+        };
+        return;
+      }
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      const { x, y } = this.canvasCoords(t.clientX, t.clientY);
+
+      // Direct manipulation: a finger landing on a point/segment grabs it.
+      const nearPt = this.#findNearestPointWithIdx(x, y);
+      if (nearPt) {
+        this.isDraggingPoint = true;
+        this.#draggingPoint = nearPt;
+        this.#touch = { mode: 'point', id: t.identifier, startX: t.clientX, startY: t.clientY };
+        armGeometryLongPress(t);
+        return;
+      }
+      const nearSeg = this.#findNearestSegmentWithIdx(x, y);
+      if (nearSeg) {
+        const line = this.lines[nearSeg.lineIdx];
+        this.isDraggingSegment = true;
+        this.#draggingSegment = {
+          lineIdx: nearSeg.lineIdx, ptIdx1: nearSeg.ptIdx1, ptIdx2: nearSeg.ptIdx2,
+          startX: x, startY: y,
+          origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
+          origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
+          origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
+        };
+        this.#touch = { mode: 'segment', id: t.identifier, startX: t.clientX, startY: t.clientY };
+        armGeometryLongPress(t);
+        return;
+      }
+
+      // Empty space: tap places a point, press-and-hold draws (hold-to-draw).
+      this.#touch = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, startT: this.#now() };
+      this.#holdTryDown(t.clientX, t.clientY);
+    };
+
+    const onMove = e => {
+      const st = this.#touch;
+      if (!st) return;
+
+      if (st.mode === 'pinch') {
+        if (e.touches.length < 2) return;
+        e.preventDefault();
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const mid = midpoint(a, b);
+        const factor = touchDist(a, b) / st.startDist;
+        const newScale = Math.max(0.05, Math.min(5, st.startScale * factor));
+        this.scale = newScale;
+        this.canvas.style.width = (this.canvas.width * newScale) + 'px';
+        this.canvas.style.height = (this.canvas.height * newScale) + 'px';
+        this.zoomPan.setZoomInputValue(Math.round(newScale * 100));
+        // Keep the pinched-down image point pinned under the (moving) midpoint —
+        // this delivers pan and zoom together.
+        const vpRect = viewport.getBoundingClientRect();
+        viewport.scrollLeft = st.imgX * newScale - (mid.x - vpRect.left);
+        viewport.scrollTop = st.imgY * newScale - (mid.y - vpRect.top);
+        return;
+      }
+
+      const t = Array.from(e.touches).find(tc => tc.identifier === st.id);
+      if (!t) return;
+      e.preventDefault();
+      const moved = Math.hypot(t.clientX - st.startX, t.clientY - st.startY);
+
+      if (st.mode === 'point') {
+        if (moved <= moveTol) return; // below threshold → still a tap; leave room for long-press
+        clearLongPress();
+        st.dragged = true;
+        const { x, y } = this.canvasCoords(t.clientX, t.clientY);
+        const dp = this.#draggingPoint;
+        const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
+        if (line) {
+          line.points[dp.ptIdx].x = x;
+          line.points[dp.ptIdx].y = y;
+          this.renderer.redraw();
+          this.coordTable.refreshCoordRow(dp.ptIdx);
+        }
+        return;
+      }
+      if (st.mode === 'segment') {
+        if (moved <= moveTol) return;
+        clearLongPress();
+        st.dragged = true;
+        this.#dragMove(t.clientX, t.clientY, false);
+        return;
+      }
+      if (st.mode === 'tap') {
+        st.moved = Math.max(st.moved || 0, moved);
+        if (!this.#holdDraw.engaged) return;
+        const r = this.#holdDraw.pointerMove(t.clientX, t.clientY, this.#now());
+        if (!r) return;
+        if (r.type === 'abort') { this.#stopHoldTicks(); this.#holdDraw.cancel(); }
+        else if (r.type === 'preview') this.#holdSetPreview(t.clientX, t.clientY);
+      }
+    };
+
+    const onEnd = e => {
+      const st = this.#touch;
+      if (!st) return;
+
+      if (st.mode === 'pinch') {
+        // A finger lifted: settle the zoom; ignore the lone remaining finger until
+        // all fingers are up, so lifting one doesn't kick off a stray drag.
+        this.canvas.classList.remove('zoom-no-transition');
+        this.zoomPan.setZoom(this.scale, true);
+        this.#touch = e.touches.length === 0 ? null : { mode: 'done', id: -1 };
+        return;
+      }
+
+      if (e.touches.length > 0) return; // wait until the last finger lifts
+      clearLongPress();
+
+      if (st.mode === 'point') {
+        const dp = this.#draggingPoint;
+        this.isDraggingPoint = false;
+        this.#draggingPoint = null;
+        if (st.dragged) {
+          if (dp && dp.lineIdx !== -1) this.saveHistory();
+          this.#finishDragGesture(false);
+        } else {
+          // Tap (no drag) on a point → select its line + focus the point + open
+          // the style panel, exactly as a mouse click does.
+          tapClick(e, st);
+        }
+      } else if (st.mode === 'segment') {
+        this.isDraggingSegment = false;
+        this.#draggingSegment = null;
+        if (st.dragged) {
+          this.saveHistory();
+          this.#finishDragGesture(false);
+        } else {
+          // Tap (no drag) on a line → select it + open the style panel.
+          tapClick(e, st);
+        }
+      } else if (st.mode === 'tap') {
+        const r = this.#holdDraw.pointerUp(this.#now());
+        this.#stopHoldTicks();
+        if (r && r.type === 'commit') {
+          this.#holdCommit();
+        } else {
+          this.#holdClearPreview();
+          // Not a hold stroke → a plain tap drops a point (like a left click).
+          const kind = classifyEnd({ moved: st.moved || 0, elapsed: this.#now() - st.startT });
+          if (kind === 'tap') tapClick(e, st);
+        }
+      }
+      this.#touch = null;
+    };
+
+    const onCancel = () => { dropSingle(); this.#touch = null; };
+
+    this.canvas.addEventListener('touchstart', onStart, { passive: false });
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onCancel);
   }
 
   #holdTick(t) {
@@ -1317,7 +1572,7 @@ export class DrawingApp {
     const reader = new FileReader();
     reader.onload = event => {
       this.originalImage = new Image();
-      this.originalImage.onload = () => {
+      this.originalImage.onload = async () => {
         // Auto-crop center to the page aspect (cut surplus sides) via album/portrait
         // detection; original kept, working canvas shows only this region. opts.crop
         // (external-launch) overrides. Fresh image starts un-rotated; crop in original space.
@@ -1336,7 +1591,7 @@ export class DrawingApp {
             this.storage.showImageMissingBanner(false);
             this.showSaveStatus('Drawing restored!', 'var(--success)', 'check');
           } else {
-            if (confirm(`Saved drawing was for a ${ps.w}×${ps.h} image but this image is ${this.canvas.width}×${this.canvas.height}. Apply saved lines anyway?`))
+            if (await this.confirm(`Saved drawing was for a ${ps.w}×${ps.h} image but this image is ${this.canvas.width}×${this.canvas.height}. Apply saved lines anyway?`, { title: 'Size mismatch' }))
               this.lines = this.pendingLines;
             this.pendingLines = null;
             this.pendingImageSize = null;
@@ -1615,7 +1870,7 @@ export class DrawingApp {
 
   startDrawingMode(opts = {}) {
     if (!this.image) {
-      alert('Please upload an image first!');
+      notify('Please upload an image first', 'fail');
       return;
     }
     this.isDrawing = true;
@@ -2580,6 +2835,13 @@ export class DrawingApp {
     setDisabled('download-json', !hasLines);
     setDisabled('copy-json-btn', !hasLines);
     setDisabled('clear-all-lines', !hasLines);
+    // State-aware Image section: the compact "Load Image" button shows only when
+    // empty; the image-actions group (download/copy/share/open) shows only with an
+    // image. (The file input itself stays hidden — it's just the picker target.)
+    const loadBtn = document.getElementById('load-image-btn');
+    if (loadBtn) loadBtn.style.display = hasImage ? 'none' : '';
+    const imgActions = document.getElementById('image-actions');
+    if (imgActions) imgActions.style.display = hasImage ? 'inline-flex' : 'none';
     // Recompose tooltips so the reason line appears/clears with the disabled state
     // (and hotkey buttons keep their combo). Covers every control carrying either
     // a hotkey id or a disabled-reason.
@@ -2696,10 +2958,45 @@ export class DrawingApp {
     return this.switchToProject(id);
   }
 
+  // Promise-based confirmation, replacing native confirm(). Delegates to the
+  // <stencil-confirm-modal> component; falls back to native confirm only if the
+  // modal isn't present (e.g. before wiring, or in non-DOM test contexts).
+  // opts: { title, confirmLabel, cancelLabel, danger }.
+  confirm(message, opts = {}) {
+    const el = document.getElementById('confirm-modal-overlay');
+    if (el && typeof el.ask === 'function') return el.ask(message, opts);
+    return Promise.resolve(typeof window !== 'undefined' && window.confirm ? window.confirm(message) : true);
+  }
+
   // Start a fresh blank (unsaved) editor.
   newEditor() {
     this.storage.newTemporary();
     this.tabs.reportActive(null);
+  }
+
+  // Open-image dialog action: replace the current editor with `file`. A non-incognito
+  // current project already persists (so it stays in the projects list) — flush it,
+  // then reset to a fresh editor and load the new file (as incognito if requested).
+  openImageHere(file, incognito = false) {
+    if (!file) return;
+    if (!this.storage.incognito) this.storage.save();
+    this.newEditor();
+    if (incognito) { this.storage.incognito = true; this.updateIncognitoUI(); }
+    this.loadImageFromFile(file);
+  }
+
+  // Open-image dialog action: launch `file` in a NEW browser tab via the #stencil=
+  // fragment hand-off (consumed by applyExternalLaunch, which honors `incognito`).
+  openImageNewTab(file, incognito = false) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base = location.origin + location.pathname;
+      const url = buildExternalLaunchUrl(base, { dataUrl: reader.result, name: file.name, incognito: !!incognito });
+      window.open(url, '_blank');
+    };
+    reader.onerror = () => notify('Could not read the image', 'fail');
+    reader.readAsDataURL(file);
   }
 
   // Create a solid-color blank image and load it (blank-image creator's core, shared with the
@@ -3125,29 +3422,36 @@ export class DrawingApp {
       this.storage.syncActiveFromStorage();
   }
 
-  saveImage() {
-    if (!this.image) {
-      alert('No image loaded!');
-      return;
-    }
-    // Render everything onto an offscreen canvas at full resolution
+  // Render the image (with its current filter) plus all visible lines/points onto a
+  // fresh full-resolution offscreen canvas. Shared by saveImage / copyImageToClipboard
+  // / shareImage so every image action produces the same annotated result.
+  #renderExportCanvas() {
     const offscreen = document.createElement('canvas');
     offscreen.width = this.canvas.width;
     offscreen.height = this.canvas.height;
     const ctx = offscreen.getContext('2d');
-
-    // Draw image with current filter, then render lines/points via main draw helpers
+    // The renderer's draw helpers write to this.ctx; point them at the offscreen
+    // ctx for the duration of the export, then restore.
     const savedCtx = this.ctx;
     this.ctx = ctx;
     this.renderer.drawImageWithFilter(ctx);
     if (this.showLines) {
-      this.lines.forEach((line, i) => this.renderer.drawLine(line, false));
+      this.lines.forEach(line => this.renderer.drawLine(line, false));
     } else if (this.showPoints) {
       this.lines.forEach(line => {
         line.points.forEach(p => this.renderer.drawPoint(p, line.color, line.markerSize ?? this.markerSize, false));
       });
     }
     this.ctx = savedCtx;
+    return offscreen;
+  }
+
+  saveImage() {
+    if (!this.image) {
+      notify('No image loaded', 'fail');
+      return;
+    }
+    const offscreen = this.#renderExportCanvas();
 
     // Download — use original image name if available
     const baseName = this.imageBaseName || 'drawing';
@@ -3161,9 +3465,28 @@ export class DrawingApp {
     link.click();
   }
 
+  // Share the annotated image via the Web Share API (mobile/PWA). The Share entry
+  // points are only shown when supportsShareFiles() is true (see toolbar/contextMenu
+  // wiring), so this is reached only where file sharing works; we still guard defensively.
+  shareImage() {
+    if (!this.image) { notify('No image loaded', 'fail'); return; }
+    const off = this.#renderExportCanvas();
+    const baseName = this.imageBaseName || 'drawing';
+    off.toBlob(blob => {
+      if (!blob) { notify('Image encode failed', 'fail'); return; }
+      const file = new File([blob], `${baseName}-drawing.png`, { type: 'image/png' });
+      if (!(navigator.canShare && navigator.canShare({ files: [file] }))) {
+        notify('Sharing not supported on this browser', 'fail');
+        return;
+      }
+      navigator.share({ files: [file], title: `${baseName} — Stencil` })
+        .catch(err => { if (err && err.name !== 'AbortError') notify('Share failed', 'fail'); });
+    }, 'image/png');
+  }
+
   downloadJSON() {
     if (this.lines.length === 0) {
-      alert('No lines to export!');
+      notify('No lines to export', 'fail');
       return;
     }
 
@@ -3187,7 +3510,7 @@ export class DrawingApp {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = event => {
+    reader.onload = async event => {
       try {
         const data = JSON.parse(event.target.result);
 
@@ -3201,11 +3524,11 @@ export class DrawingApp {
           notify('Load an image first', 'fail');
           return;
         }
-        if (verdict.needsReplaceConfirm && !confirm('Replace current layout with uploaded JSON?')) {
+        if (verdict.needsReplaceConfirm && !(await this.confirm('Replace current layout with uploaded JSON?', { title: 'Replace layout' }))) {
           notify('Upload canceled', 'fail');
           return;
         }
-        if (verdict.needsDimMismatchConfirm && !confirm('Image dimensions do not match. Continue anyway?')) {
+        if (verdict.needsDimMismatchConfirm && !(await this.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
           notify('Upload canceled', 'fail');
           return;
         }
@@ -3228,10 +3551,7 @@ export class DrawingApp {
   copyImageToClipboard() {
     if (!this.image) { notify('No image to copy', 'fail'); return; }
     try {
-      const off = document.createElement('canvas');
-      off.width = this.canvas.width;
-      off.height = this.canvas.height;
-      this.renderer.drawImageWithFilter(off.getContext('2d'));
+      const off = this.#renderExportCanvas();
       off.toBlob(async blob => {
         if (!blob) { notify('Image encode failed', 'fail'); return; }
         try {
@@ -3247,12 +3567,12 @@ export class DrawingApp {
   }
 
   // ── Wipe every line on the canvas (confirms first) ──
-  clearAllLines() {
+  async clearAllLines() {
     if ((!this.lines || this.lines.length === 0) && (!this.currentLine || this.currentLine.points.length === 0)) {
       notify('No lines to clear', 'info');
       return;
     }
-    if (!confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.')) {
+    if (!(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true }))) {
       notify('Clear canceled', 'fail');
       return;
     }
@@ -3291,7 +3611,7 @@ export class DrawingApp {
   }
 
   // ── Apply a layout object pasted from the clipboard ──
-  applyPastedLayout(data) {
+  async applyPastedLayout(data) {
     const verdict = validateLayout(data, {
       hasImage: !!this.image,
       imgW: this.canvas.width,
@@ -3302,11 +3622,11 @@ export class DrawingApp {
       notify('Load an image first', 'fail');
       return;
     }
-    if (verdict.needsReplaceConfirm && !confirm('Replace current layout with pasted JSON?')) {
+    if (verdict.needsReplaceConfirm && !(await this.confirm('Replace current layout with pasted JSON?', { title: 'Replace layout' }))) {
       notify('Layout paste canceled', 'fail');
       return;
     }
-    if (verdict.needsDimMismatchConfirm && !confirm('Image dimensions do not match. Continue anyway?')) {
+    if (verdict.needsDimMismatchConfirm && !(await this.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
       notify('Layout paste canceled', 'fail');
       return;
     }

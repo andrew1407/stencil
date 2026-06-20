@@ -196,6 +196,14 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     cursor: crosshair;
     /* anchor for the idle blank-image overlay (.idle-create) */
     position: relative;
+    /* Touch input: we implement pan/pinch ourselves in #wireTouch, so stop the
+       browser from hijacking these gestures for native scroll/zoom. The callout/
+       select disables iOS's long-press text-selection menu, which would otherwise
+       fight our long-press-to-open-context-menu. Harmless for mouse/desktop. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 .canvas-container {
     position: relative;

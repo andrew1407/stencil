@@ -71,13 +71,13 @@ export class StencilBlankImageModal extends StencilElement {
     document.getElementById('blank-image-white').addEventListener('click', () => { colorEl.value = '#ffffff'; });
     document.getElementById('blank-image-black').addEventListener('click', () => { colorEl.value = '#000000'; });
 
-    document.getElementById('blank-image-create').addEventListener('click', () => {
+    document.getElementById('blank-image-create').addEventListener('click', async () => {
       const w = parseInt(widthEl.value), h = parseInt(heightEl.value);
       if (!(w >= 1 && w <= 8192) || !(h >= 1 && h <= 8192)) {
         notify('Width and height must be 1–8192 px', 'fail');
         return;
       }
-      if (app.image && !confirm('Replace the current image with a new blank image?')) return;
+      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image' }))) return;
       app.createBlankImage({ color: colorEl.value, width: w, height: h })
         .then(() => { close(); notify(`Blank ${w}×${h} image created`, 'ok'); })
         .catch(() => notify('Could not create the image', 'fail'));

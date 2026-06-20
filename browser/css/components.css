@@ -285,6 +285,14 @@ body.fullscreen-mode #fs-points-panel {
     color: var(--text-main);
     user-select: none;
     display: none;
+    /* Never exceed the viewport: on short screens (landscape phones, small
+       tablets) the tall menu would otherwise run off the bottom with its lower
+       items unreachable. Scroll instead. Submenus are position:fixed (below) so
+       this overflow does not clip them. */
+    max-height: calc(100dvh - 12px);
+    max-width: calc(100vw - 12px);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 #ctx-menu.ctx-open { display: block; }
 
@@ -348,6 +356,12 @@ body.fullscreen-mode #fs-points-panel {
     padding: 5px 0;
     display: none;
     z-index: 100001;
+    /* Same viewport cap as the root menu — a tall submenu (e.g. the style panel)
+       must scroll rather than run off a short screen. */
+    max-height: calc(100dvh - 12px);
+    max-width: calc(100vw - 12px);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .ctx-sub.ctx-sub-visible { display: block; }
 

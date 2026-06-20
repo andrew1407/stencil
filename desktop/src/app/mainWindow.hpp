@@ -61,6 +61,9 @@ namespace stencil::gui {
 
    private slots:
     void openImage();
+    // "Open another image" dialog (mirrors browser openImageModal.js): pick a file
+    // + incognito, then replace the current editor or launch it in a new window.
+    void openAnotherImage();
     // Blank-image creator (mirrors browser blankImageModal.js): pick a fill
     // color + px size (defaulting to the page at 96 dpi), then adopt the
     // generated image through the same path as a clipboard paste.
@@ -162,6 +165,12 @@ namespace stencil::gui {
     // (the desktop counterpart of the browser's "open in new tab"). The new
     // window owns itself (WA_DeleteOnClose) and reads projects from disk.
     void openProjectInNewWindow(const QString& id);
+    // "Open another image" outcomes. Open here: replace this editor's image
+    // (saving the current content first unless incognito), adopting the chosen
+    // incognito mode. New window: launch a fresh window loading the image (via
+    // applyLaunchOptions, the --src/--incognito path), leaving this one untouched.
+    void openImageHere(const QString& path, bool incognito);
+    void openImageInNewWindow(const QString& path, bool incognito);
     // Launch support: open a saved project by NAME (case-insensitive; first
     // match), used by --project. Returns false when no such project exists.
     bool openProjectByName(const QString& name);
@@ -283,6 +292,7 @@ namespace stencil::gui {
 
     // ── actions (shared by menu bar, toolbar, context menu) ──
     QAction* actOpen_ = nullptr;
+    QAction* actOpenAnother_ = nullptr;
     QAction* actNewBlank_ = nullptr;
     QAction* actCrop_ = nullptr;
     QAction* actRotateLeft_ = nullptr;
