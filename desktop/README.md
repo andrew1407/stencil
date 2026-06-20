@@ -49,17 +49,12 @@ CMakeLists.txt        # builds stencil_gui; pulls the core via add_subdirectory(
 
 ### Architecture parity with the browser app
 
-The C++ app deliberately mirrors the JS module structure so the two read the same.
-The `core/` modules are kept **behaviorally identical** to their JS counterparts and
-are covered by the same test cases (ported from `browser/tests/`).
-
-One deliberate divergence: the browser `formulaEngine.js` evaluates formulas with
-`new Function(...)` (JavaScript `eval`). The C++ `formulaParser` is instead a real
-**recursive-descent parser** for `+ - * / ** ( )` and a single variable — no `eval`,
-no functions, division-by-zero / overflow reported as invalid. It is right-associative
-for `**` and treats an empty expression as identity, matching the engine's
-validate/apply contract. This parser is the intended shared implementation if/when the
-core is compiled to WebAssembly for the browser.
+The C++ app deliberately mirrors the JS module structure so the two read the same, and
+its shared logic *is* the same code the browser runs (compiled to WebAssembly). The
+behavioral-parity contract and the core's design principles — including the one deliberate
+divergence, the eval-free recursive-descent `formulaParser` that replaces the browser's
+`new Function(...)` — are documented with the core: see
+[`../core/README.md`](../core/README.md).
 
 ## Build
 
