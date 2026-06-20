@@ -65,6 +65,24 @@ zig build run -- --help   # build and run with arguments
 
 The first build fetches the `stb` headers (network required once; cached afterwards).
 
+### Docker
+
+A multi-stage [`Dockerfile`](Dockerfile) compiles the CLI (recompiling `core/`) and ships
+a slim runtime image with `ffmpeg` for video input. Because `build.zig` pulls in `core/`,
+**build from the repo root** and select the Dockerfile with `-f`:
+
+```bash
+# from the repo root
+docker build -f cli/Dockerfile -t stencil-cli .
+
+# mount a working directory for inputs/outputs (ENTRYPOINT is `stencil`)
+docker run --rm -v "$PWD:/work" -w /work stencil-cli -i in.png -r 1 out.png
+```
+
+Override the toolchain with `--build-arg ZIG_VERSION=…` (and `ZIG_ARCH=aarch64` on
+arm64); for a Zig dev/nightly build, set `--build-arg ZIG_URL=…` to the `ziglang.org/builds/`
+tarball. The build fetches the `stb` dependency, so it needs network access.
+
 ## Usage
 
 ```

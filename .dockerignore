@@ -1,0 +1,26 @@
+# Build context is the repo root (the browser/CLI images both compile core/).
+# Keep the context small: drop VCS, build outputs, caches and OS cruft.
+
+.git
+.github
+**/.DS_Store
+
+# Generated / build outputs
+core/build
+core/build-wasm
+desktop/build
+desktop/build-wasm
+desktop/CMakeFiles
+cli/zig-out
+cli/zig-cache
+cli/.zig-cache
+cli/zig-pkg
+browser/js/wasm
+
+# Parts not used by the browser or CLI images
+desktop
+extension
+
+# Docs / editor
+**/*.md
+.claude

@@ -101,3 +101,12 @@ HTTP client (native TLS) and shells out to the system **ffmpeg** only for video 
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
 - Build, test & run the CLI → [cli/README.md](cli/README.md)
 - Load & test the Chrome extension → [extension/README.md](extension/README.md)
+
+**Docker.** The two deployable front-ends ship a multi-stage `Dockerfile`
+([`browser/`](browser/Dockerfile) — wasm build + nginx; [`cli/`](cli/Dockerfile) — Zig
+build + ffmpeg runtime). Both compile `core/`, so **build from the repo root**:
+
+```bash
+docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser
+docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
+```
