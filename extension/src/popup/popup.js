@@ -1,6 +1,8 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings } from '../lib/stencil.js';
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
+import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned } from '../lib/pins.js';
+import { resolveHighlightColor } from '../lib/highlightColor.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
 import { icon } from '../lib/icons.js';
@@ -25,7 +27,7 @@ const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'vie
 const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
-const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true };
+const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true, showPinned: true };
 
 // This controller drives three surfaces: the toolbar popup (closes after an action),
 // the docked side panel (src/sidepanel/sidepanel.html), and the DevTools panel
@@ -115,6 +117,7 @@ const scan = async () => {
     measured: it.w > 0 && it.h > 0
   }));
   await annotateOpened();
+  await annotatePinned();
   populateFormats();
   applyFilters();
 };
@@ -139,6 +142,24 @@ const annotateOpened = async () => {
     img.opened = trackableSource(src) ? matchEntries(ledger, src, img.name) : [];
   }
 };
+
+// An image/video can be pinned when it has an openable source URL (img/background src,
+// or a video's media URL) — the same thing "open in new tab" needs.
+const pinnable = (image) => !!sourceOf(image);
+
+// Tag each image with whether it's pinned on this site (drives the gray outline, the
+// pin button's active state, and the float-to-top sort). The pin store is keyed by the
+// page's origin so a pin made here matches the same image on the same site next visit.
+const annotatePinned = async () => {
+  const { showPinned } = await getSettings();
+  state.showPinned = showPinned;
+  document.getElementById('f-show-pinned').checked = showPinned;
+  const site = siteOf(state.activeUrl);
+  const pins = await loadPins();
+  for (const img of state.all) img.pinned = pinnable(img) && isPinnedIn(pins, site, sourceOf(img));
+};
+
+const isPinned = (image) => state.showPinned && !!image.pinned;
 
 // Build a checkbox per format (common ones + any extra the page uses). All start
 // checked (= no filtering); the toggle button flips select-all / deselect-all.
@@ -246,11 +267,12 @@ const applyFilters = () => {
   filters = readFilters();
   saveFilters();                         // persist the current filter state on every change
   state.filtered = state.all.filter(it => passesFilters(it, filters));
-  // Float already-opened images to the top when enabled. Array.sort is stable, so
-  // images keep their scan order within each group. A no-op when badging is off
-  // (isOpened is false for all), so the page's natural order is preserved.
-  if (state.openedFirst)
-    state.filtered.sort((a, b) => (isOpened(b) ? 1 : 0) - (isOpened(a) ? 1 : 0));
+  // Float pinned images (primary) then already-opened images (secondary) to the top.
+  // Array.sort is stable, so images keep their scan order within each group, and each
+  // key is a no-op when its toggle is off — preserving the page's natural order.
+  const rank = (it) => (isPinned(it) ? 2 : 0) + (state.openedFirst && isOpened(it) ? 1 : 0);
+  if (state.showPinned || state.openedFirst)
+    state.filtered.sort((a, b) => rank(b) - rank(a));
   listEl.innerHTML = '';
   renderCount();
   if (!state.all.length) {
@@ -271,6 +293,8 @@ const renderRow = (image) => {
   const li = document.createElement('li');
   const row = document.createElement('div');
   row.className = 'row';
+  // Back-reference so togglePin can scroll the row into view after a re-render floats it.
+  image._row = row;
 
   // Provenance for the name's tooltip: the gestures and where the image came from. An
   // embedded data: URI is a huge base64 blob — show just its short mime prefix, never
@@ -346,6 +370,16 @@ const renderRow = (image) => {
   dim.className = 'dim';
   dim.textContent = image.w && image.h ? `${image.w}×${image.h}` : '';
   sub.appendChild(dim);
+  // Pinned on this site: a gray outline + pin tag, floated to the top. Independent of
+  // the opened cue below (an image can be both).
+  if (isPinned(image)) {
+    row.classList.add('pinned');
+    const pb = document.createElement('span');
+    pb.className = 'badge pinned';
+    pb.innerHTML = icon('pin', { size: 12 }) + ' pinned';
+    pb.title = 'Pinned on this site';
+    sub.appendChild(pb);
+  }
   // Already opened in an editor: a yellow outline + flag. Clicking the row opens
   // the resume/copy chooser (see bindRowGestures / buildMenu).
   if (isOpened(image)) {
@@ -357,6 +391,20 @@ const renderRow = (image) => {
     sub.appendChild(ob);
   }
   meta.append(name, sub);
+
+  // Pin toggle (shown only when the item has an openable source). Reflects the raw
+  // pinned state so you can unpin even with "show pinned" off (which hides the outline).
+  let pinBtn = null;
+  if (pinnable(image)) {
+    pinBtn = document.createElement('button');
+    pinBtn.className = 'pin-btn' + (image.pinned ? ' active' : '');
+    pinBtn.innerHTML = icon('pin', { size: 15 });
+    pinBtn.title = image.pinned ? 'Unpin' : 'Pin to top';
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePin(image);
+    });
+  }
 
   const more = document.createElement('button');
   more.className = 'more-btn';
@@ -372,7 +420,7 @@ const renderRow = (image) => {
     openMenuAt(image, e.clientX, e.clientY);
   });
 
-  row.append(thumb, meta, more);
+  row.append(thumb, meta, ...(pinBtn ? [pinBtn] : []), more);
   li.appendChild(row);
   listEl.appendChild(li);
 
@@ -430,6 +478,13 @@ const buildMenu = (image) => {
     d.textContent = text;
     return d;
   };
+  // Pin / unpin on the current site (mirrors the row's pin button).
+  if (pinnable(image)) {
+    menuEl.append(
+      item(icon('pin', { size: 15 }), image.pinned ? 'Unpin' : 'Pin to top', () => togglePin(image)),
+      sep()
+    );
+  }
   // Already opened: offer to resume the existing editor (switches to the matching
   // project, or lets the user pick when several share this image) or add a fresh
   // numbered copy. Shown first since it's the point of the yellow badge.
@@ -591,6 +646,28 @@ const bindRowGestures = (el, image) => {
 // ── Actions ──
 const download = (src) => chrome.downloads.download({ url: src, filename: filenameFromUrl(src) });
 
+// Pin / unpin an image on this site, then re-render so it floats (or settles back).
+// The storage write also reaches any open side panel / DevTools panel and the page API
+// (entry.pinned) via their storage.onChanged listeners.
+const togglePin = async (image) => {
+  const next = !image.pinned;
+  image.pinned = next;
+  await setPinned({
+    source: sourceOf(image), site: siteOf(state.activeUrl), resource: state.activeUrl,
+    name: image.name, kind: image.kind, pinned: next,
+  });
+  applyFilters();           // re-sorts: a pinned row floats to the top
+  // Follow the row to its new position so it stays in view (and flash it), instead of it
+  // jumping off-screen while the scroll stays put. renderRow re-set image._row just now.
+  const row = image._row;
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.remove('just-pinned');
+    void row.offsetWidth;   // restart the flash animation if it was mid-run
+    row.classList.add('just-pinned');
+  }
+};
+
 // Provenance attached to every editor hand-off: the image's own URL (or a video's
 // media URL) and the page it was scanned on. `open` ('resume'|'copy') lets the
 // editor switch to an already-opened project or force a fresh numbered copy.
@@ -715,6 +792,13 @@ document.getElementById('f-opened-first').addEventListener('change', async (e) =
   state.openedFirst = e.target.checked;
   applyFilters();
 });
+// Show-pinned toggle: styles pinned rows (gray outline) and floats them to the top.
+// Persisted (follows the user + options page); pinning still works when it's off.
+document.getElementById('f-show-pinned').addEventListener('change', async (e) => {
+  await setSettings({ showPinned: e.target.checked });
+  state.showPinned = e.target.checked;
+  applyFilters();
+});
 
 // The highlight lives on the page (survives the popup closing), so on open reflect
 // its real state in the checkbox rather than defaulting to unchecked.
@@ -729,13 +813,23 @@ const syncHighlightCheckbox = async (tabId) => {
   }
 };
 
+// The on-page highlight colour: the main accent ('theme') or a custom hex (options).
+// The accent key comes from this page's StencilAccent (localStorage); resolve to a hex.
+const highlightColorValue = async () => {
+  const { highlightColor } = await getSettings();
+  let accentKey = 'violet';
+  try { accentKey = window.StencilAccent.get(); } catch { /* default */ }
+  return resolveHighlightColor(highlightColor, accentKey);
+};
+
 // Highlight toggle: outline every grabbable element on the page. Off by default.
 document.getElementById('f-highlight').addEventListener('change', async (e) => {
   if (state.activeTabId == null) { e.target.checked = false; return; }
   try {
     // All frames, so iframed content is highlighted too.
+    const color = await highlightColorValue();
     await chrome.scripting.executeScript({
-      target: { tabId: state.activeTabId, allFrames: true }, func: toggleStencilHighlight, args: [e.target.checked]
+      target: { tabId: state.activeTabId, allFrames: true }, func: toggleStencilHighlight, args: [e.target.checked, color]
     });
   } catch (err) {
     statusEl.textContent = `Couldn’t toggle highlight (${err.message}).`;
@@ -789,6 +883,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[LEDGER_KEY] && state.all.length) {
     annotateOpened().then(applyFilters);
   }
+  // Pins changed elsewhere (this surface, another open surface, or the page API) —
+  // re-annotate in place so the gray outline / float updates without a re-scan.
+  if (area === 'local' && changes[PINS_KEY] && state.all.length) {
+    annotatePinned().then(applyFilters);
+  }
   // Keep concurrently-open surfaces in lockstep: the popup, side panel, and DevTools
   // panel all run this controller and persist their filter state to the same key, so a
   // change in one should mirror into the others. Skip the echo of our own write.
@@ -806,6 +905,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // also editable from the options page — reflect external changes here too.
   if (area === 'sync' && (changes.markOpened || changes.openedFirst) && state.all.length) {
     annotateOpened().then(applyFilters);   // annotateOpened re-syncs the two checkboxes
+  }
+  // The show-pinned setting also lives in storage.sync and is editable from options.
+  if (area === 'sync' && changes.showPinned && state.all.length) {
+    annotatePinned().then(applyFilters);   // annotatePinned re-syncs its checkbox
   }
 });
 

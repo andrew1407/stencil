@@ -84,13 +84,28 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .badge.opened { color: #1b1b1b; background: var(--yellow); border-color: var(--yellow); font-weight: 600; }
 .row.opened { outline: 2px solid var(--yellow); outline-offset: -2px; }
 .row.opened .thumb { border-color: var(--yellow); }
+/* Pinned cue: gray pin tag + row outline. An image can be both pinned and opened; the
+   two pin/opened badges disambiguate, so the outline colour alone need not encode both. */
+.badge.pinned { color: var(--text); border-color: var(--muted); font-weight: 600; }
+.badge.pinned .ic { vertical-align: -0.16em; }
+.row.pinned { outline: 2px solid var(--muted); outline-offset: -2px; }
+.row.pinned .thumb { border-color: var(--muted); }
+/* Brief accent flash on the just-(un)pinned row, so the eye can follow it as it floats. */
+@keyframes stencil-pin-flash {
+  from { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+  to   { background: transparent; }
+}
+.row.just-pinned { animation: stencil-pin-flash .9s ease; }
 
-.more-btn {
+.more-btn, .pin-btn {
   flex: 0 0 auto; background: transparent; border: 1px solid transparent; color: var(--muted);
   border-radius: 6px; width: 28px; height: 28px; font-size: 16px; cursor: pointer;
 }
-.row:hover .more-btn { border-color: var(--line); color: var(--text); }
-.more-btn:hover, .more-btn.active { background: var(--accent); color: #fff; }
+.pin-btn { display: inline-flex; align-items: center; justify-content: center; }
+.row:hover .more-btn, .row:hover .pin-btn { border-color: var(--line); color: var(--text); }
+.more-btn:hover, .more-btn.active, .pin-btn:hover { background: var(--accent); color: #fff; }
+/* Active (pinned) state: filled accent, so a pin reads as "on" even without hover. */
+.pin-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .empty { padding: 24px 12px; text-align: center; color: var(--muted); }
 

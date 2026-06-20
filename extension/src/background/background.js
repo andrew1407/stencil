@@ -3,8 +3,9 @@
 // (native 'image' context) and CSS background-image elements (detected by the
 // content-script probe, ctxTarget.js).
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
-import { MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../lib/contextMenu.js';
+import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../lib/contextMenu.js';
 import { pruneLedger } from '../lib/ledger.js';
+import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
 import { MSG } from '../lib/messages.js';
 
 // Rebuild the menu from scratch; removeAll first avoids "duplicate id" on repeated
@@ -203,6 +204,17 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
         else await launchEditorModal({ ...payload, tabId: sender.tab?.id });
       } catch (err) { console.warn('[stencil] page open failed:', err?.message); }
     })();
+    return;
+  }
+  // Pin / unpin a page image/video. The pin is grouped under the page's origin so the
+  // options page can list "pins on this site"; the bridge mirrors the write back to the
+  // page API (entry.pinned) and any open popup/side panel.
+  if (msg && msg.type === MSG.PAGE_PIN) {
+    const resource = msg.resource || sender.tab?.url || '';
+    setPinned({
+      source: msg.source || msg.url || '', site: siteOf(resource), resource,
+      name: msg.name || filenameFromUrl(msg.url || 'image'), kind: msg.kind || 'image', pinned: !!msg.pin,
+    }).catch(() => { /* storage unavailable */ });
     return;
   }
   // Open a page image/video in the quick-crop tool.
@@ -431,6 +443,19 @@ const resolveSrc = (info, rec) => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
 
+  // ── Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito variant
+  // opens it in an incognito window, so the editor's own project storage is throwaway. ──
+  if (info.menuItemId === MENU.actionOpen || info.menuItemId === MENU.actionOpenIncognito) {
+    try {
+      const { editorUrl } = await getSettings();
+      if (info.menuItemId === MENU.actionOpenIncognito) await chrome.windows.create({ url: editorUrl, incognito: true });
+      else await chrome.tabs.create({ url: editorUrl });
+    } catch (err) {
+      console.error('[stencil] open-editor action failed:', err);
+    }
+    return;
+  }
+
   // ── Preview submenu: act on the video's POSTER (a normal image URL), never a
   // frame. A no-op when the right-clicked element had no poster. ──
   if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) {
@@ -454,6 +479,29 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       else await openEditorTab(payload);
     } catch (err) {
       console.error('[stencil] preview action failed:', err);
+    }
+    return;
+  }
+
+  // ── Pin / unpin the right-clicked image or video on this site. No editor launch and
+  // no frame capture — a pin keys on the openable SOURCE URL (a video's media URL, an
+  // image/background's src), the same thing "open in new tab" uses. Toggles. ──
+  if (PIN_ITEMS.includes(info.menuItemId)) {
+    const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
+    // For a <video> the media URL (info.srcUrl) is the openable source, not a frame; for
+    // a background/overlay/link image the probe's recorded URL; otherwise the <img> src.
+    const source = info.menuItemId === MENU.bgPin ? ((rec && rec.url) || info.srcUrl || '')
+      : info.menuItemId === MENU.framePin ? (info.srcUrl || (tabId != null ? lastPosterByTab.get(tabId) : '') || '')
+        : (info.srcUrl || (rec && rec.url) || '');
+    if (!source) return;
+    const resource = tab?.url || '';
+    const site = siteOf(resource);
+    const kind = info.menuItemId === MENU.framePin ? 'video' : info.menuItemId === MENU.bgPin ? 'background' : 'image';
+    try {
+      const pinned = isPinnedIn(await loadPins(), site, source);
+      await setPinned({ source, site, resource, name: filenameFromUrl(source), kind, pinned: !pinned });
+    } catch (err) {
+      console.error('[stencil] pin action failed:', err);
     }
     return;
   }

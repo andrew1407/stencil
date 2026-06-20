@@ -35,6 +35,24 @@
     .accent-dd-opt { display:flex; align-items:center; gap:10px; padding:8px 9px; border-radius:6px; cursor:pointer; white-space:nowrap; transition:background .15s ease, transform .12s ease; }
     .accent-dd-opt:hover { background:var(--panel-2); transform:translateX(2px); }
     .accent-dd-opt[aria-selected="true"] { background:color-mix(in srgb, var(--accent) 22%, transparent); }
+    /* Pinned-images viewer */
+    .card + .card { margin-top:20px; }
+    .pin-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .pin-head h1 { flex:1 1 auto; }
+    #pin-site { width:auto; min-width:160px; }
+    .pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+    .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; }
+    .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
+    .pin-info { flex:1 1 auto; min-width:0; }
+    .pin-name { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pin-sub { display:flex; align-items:center; gap:8px; margin-top:3px; font-size:11px; color:var(--muted); }
+    .pin-sub .site { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pin-kind { text-transform:uppercase; letter-spacing:.03em; border:1px solid var(--line); border-radius:4px; padding:0 5px; }
+    .pin-actions { display:flex; gap:6px; flex:0 0 auto; }
+    .pin-btn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:var(--panel); color:var(--muted); border:1px solid var(--line); border-radius:7px; cursor:pointer; }
+    .pin-btn:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
+    .pin-btn.danger:hover { background:#dc2626; border-color:#dc2626; }
+    .pin-empty { color:var(--muted); font-size:13px; margin-top:14px; }
   </style>
 </head>
 <body>
@@ -76,6 +94,17 @@
     </label>
     <div class="help">Uses a local record of images this extension has opened. Turn off marking to always open a fresh editor with no badges. These toggles are also available directly in the popup.</div>
 
+    <label class="f" for="hl-mode">On-page highlight colour</label>
+    <select id="hl-mode">
+      <option value="theme">Main theme (follow the accent)</option>
+      <option value="custom">Custom colour…</option>
+    </select>
+    <div id="hl-custom-row" style="display:none; align-items:center; gap:10px; margin-top:8px;">
+      <input id="hl-color" type="color" value="#7c3aed" style="width:52px; height:36px; padding:2px;">
+      <span class="help" style="margin:0;">Pick the outline colour.</span>
+    </div>
+    <div class="help">The outline colour used when you tick “highlight on page” in the popup. “Main theme” keeps it in sync with the accent above; the mark/hover ring is derived from it.</div>
+
     <label class="f" for="exposeWindowStencil">Page scripting API (advanced)</label>
     <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
       <input id="exposeWindowStencil" type="checkbox" style="width:auto; margin-top:3px;">
@@ -88,6 +117,17 @@
       <span id="status" class="saved"></span>
     </div>
   </div>
+
+  <div class="card">
+    <div class="pin-head">
+      <h1>Pinned images</h1>
+      <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
+    </div>
+    <p class="sub">Images and videos you pinned with the 📌 button, grouped by the site they were pinned on. Pinning floats them to the top of the popup list.</p>
+    <ul id="pin-list" class="pin-list"></ul>
+    <div id="pin-empty" class="pin-empty" hidden>No pinned images yet. Open the popup on any page and pin an image with the 📌 button.</div>
+  </div>
+
   <script type="module" src="options.js"></script>
 </body>
 </html>

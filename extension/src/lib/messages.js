@@ -14,6 +14,8 @@ export const MSG = {
   OPEN_TAB: 'stencil-open-tab',         // overlay → SW: open a URL in a new tab
   PAGE_OPEN: 'stencil-page-open',       // page API → bridge → SW: open a target in the editor
   PAGE_CROP: 'stencil-page-crop',       // page API → bridge → SW: open a target in quick-crop
+  PAGE_PIN: 'stencil-page-pin',         // page API → bridge → SW: pin / unpin a target
+  PAGE_REQUEST_SYNC: 'stencil-page-request-sync', // page API → bridge: (re)push pins/edited/filters/hl-colour; NOT relayed to the SW
   PAGE_DISABLE: 'stencil-page-disable', // page API → bridge → SW: turn the page scripting API off
   PAGE_SET_FILTERS: 'stencil-page-set-filters', // page API → bridge: persist filter state (popupFilters); NOT relayed to the SW
 };
@@ -22,5 +24,8 @@ export const MSG = {
 export const SRC = {
   PAGE_API: 'stencil-page-api',         // pageApiMain (MAIN world) → pageApiBridge (ISOLATED)
   PAGE_FILTERS: 'stencil-page-filters', // pageApiBridge (ISOLATED) → pageApiMain: pushed popup filters
+  PAGE_PINS: 'stencil-page-pins',       // pageApiBridge (ISOLATED) → pageApiMain: pinned source URLs for this site
+  PAGE_EDITED: 'stencil-page-edited',   // pageApiBridge (ISOLATED) → pageApiMain: opened/edited source URLs (ledger)
+  PAGE_HL_COLOR: 'stencil-page-hl-color', // pageApiBridge (ISOLATED) → pageApiMain: resolved highlight outline colour
   MODAL: 'stencil-modal',               // quick-crop frame → overlay host (ready/close handshake)
 };

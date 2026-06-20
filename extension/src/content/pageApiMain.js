@@ -15,8 +15,17 @@
   }
 
   // mirror of lib/messages.js (MAIN-world script — can't import)
-  const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
-  const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters' };
+  const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_PIN: 'stencil-page-pin', PAGE_REQUEST_SYNC: 'stencil-page-request-sync', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
+  const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited', PAGE_HL_COLOR: 'stencil-page-hl-color' };
+
+  // Source URLs the bridge tells us are pinned (on this site) / opened-in-an-editor.
+  // entry.pinned / entry.isEdited read these synchronously; the bridge keeps them live
+  // (chrome.storage → SRC.PAGE_PINS / SRC.PAGE_EDITED). A pin write optimistically
+  // updates pinnedSources so the getter flips before the round-trip lands.
+  const pinnedSources = new Set();
+  const editedSources = new Set();
+  // The highlight outline colour (accent or custom), pushed by the bridge; default violet.
+  let hlColor = '#7c3aed';
 
   const send = (message) => window.postMessage({ source: SRC.PAGE_API, message }, '*');
 
@@ -99,6 +108,16 @@
     deleteProperty(target, prop) { throw new TypeError(`stencil: "${String(prop)}" cannot be deleted`); },
   });
 
+  // Post a pin / unpin request (→ bridge → SW writes the pin store) and optimistically
+  // reflect it locally so entry.pinned reads true/false immediately. Throws when there's
+  // no openable URL to key the pin on (mirrors open()/resolveTarget).
+  const setPinnedState = (entry, on) => {
+    const url = entry && entry.url;
+    if (!url) throw new Error('Stencil: nothing to pin — this item has no openable source URL');
+    if (on) pinnedSources.add(url); else pinnedSources.delete(url);
+    send({ type: MSG.PAGE_PIN, pin: !!on, url, source: url, name: entry.name, kind: entry.kind, resource: location.href });
+  };
+
   const makeEntry = (el, kind, url, poster = false) => guard({
     __stencilEntry: true,
     element: el,
@@ -109,8 +128,15 @@
     get format() { return formatOf(url); },
     get width() { return entryDims(el, kind).w; },
     get height() { return entryDims(el, kind).h; },
+    // Pinned on this site (popup list + options page). Assignable: `entry.pinned = true`.
+    get pinned() { return pinnedSources.has(url); },
+    set pinned(v) { setPinnedState(this, !!v); },
+    // Whether this image was/is opened (edited) in an editor — read-only, from the ledger.
+    get isEdited() { return editedSources.has(url); },
     open(opts) { return api.open(this, opts); },
     crop(opts) { return api.crop(this, opts); },
+    pin() { setPinnedState(this, true); return this; },
+    unpin() { setPinnedState(this, false); return this; },
   });
 
   // Scan the page → entry objects (live elements). Bounded element walk for backgrounds.
@@ -163,22 +189,62 @@
   };
 
   // ── Highlight: share the popup's <style id=stencil-hl-style> + data-stencil-hl attr,
-  //    so toggling it here is detected by the popup (and vice versa). ──
+  //    so toggling it here is detected by the popup (and vice versa). The element under
+  //    the cursor gets a thicker, brightened hover ring + glow — same behaviour as the
+  //    popup's lib/highlight.js (kept in sync). ──
   const HL_STYLE_ID = 'stencil-hl-style';
   const HL_ATTR = 'data-stencil-hl';
+  const HL_HOVER = 'data-stencil-hl-hover';
   const highlightActive = () => !!document.getElementById(HL_STYLE_ID);
+  // Hover ring derives from the base colour: same hue brightened toward white, plus a glow.
+  const hlToRgb = (hex) => {
+    let h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return Number.isFinite(n) && h.length === 6 ? { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 } : { r: 124, g: 58, b: 237 };
+  };
+  const hlStyleText = () => {
+    const { r, g, b } = hlToRgb(hlColor);
+    const lift = (v) => Math.round(v + (255 - v) * 0.28);
+    const hov = `rgb(${lift(r)},${lift(g)},${lift(b)})`, glow = `rgba(${lift(r)},${lift(g)},${lift(b)},.45)`;
+    return '[' + HL_ATTR + ']{outline:2px solid ' + hlColor + ' !important;outline-offset:-2px !important;' +
+      'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
+      '[' + HL_HOVER + ']{outline:3px solid ' + hov + ' !important;outline-offset:-3px !important;box-shadow:0 0 0 3px ' + glow + ' !important;}';
+  };
+  // Nearest marked ancestor of the cursor target (follows the ring onto a parent bg element).
+  const hlAt = (start) => { for (let n = start; n && n.nodeType === 1; n = n.parentElement) if (n.hasAttribute && n.hasAttribute(HL_ATTR)) return n; return null; };
+  let hlCurrent = null, hlBound = false;
+  const hlOnOver = (e) => {
+    const t = hlAt(e.target);
+    if (t === hlCurrent) return;
+    if (hlCurrent) hlCurrent.removeAttribute(HL_HOVER);
+    hlCurrent = t;
+    if (hlCurrent) hlCurrent.setAttribute(HL_HOVER, '');
+  };
   const applyHighlight = () => {
     document.querySelectorAll('[' + HL_ATTR + ']').forEach((el) => el.removeAttribute(HL_ATTR));
     if (!document.getElementById(HL_STYLE_ID)) {
       const style = document.createElement('style');
       style.id = HL_STYLE_ID;
-      style.textContent = '[' + HL_ATTR + ']{outline:2px solid #7c3aed !important;outline-offset:-2px !important;}';
+      style.textContent = hlStyleText();
       (document.head || document.documentElement).appendChild(style);
+    }
+    // Track the cursor so the element under it gets the hover ring (once; cleanup teardown
+    // is shared with the popup via window.__stencilHlCleanup, which clearHighlight calls).
+    if (!hlBound && typeof document.addEventListener === 'function') {
+      document.addEventListener('mouseover', hlOnOver, true);
+      hlBound = true;
+      window.__stencilHlCleanup = () => {
+        document.removeEventListener('mouseover', hlOnOver, true);
+        if (hlCurrent) hlCurrent.removeAttribute(HL_HOVER);
+        hlCurrent = null; hlBound = false;
+      };
     }
     for (const e of scanFiltered()) { const el = e.element; if (el && el.setAttribute) el.setAttribute(HL_ATTR, ''); }
   };
   const clearHighlight = () => {
     document.querySelectorAll('[' + HL_ATTR + ']').forEach((el) => el.removeAttribute(HL_ATTR));
+    document.querySelectorAll('[' + HL_HOVER + ']').forEach((el) => el.removeAttribute(HL_HOVER));
     const style = document.getElementById(HL_STYLE_ID); if (style) style.remove();
     try { if (typeof window.__stencilHlCleanup === 'function') { window.__stencilHlCleanup(); window.__stencilHlCleanup = null; } } catch { /* ignore */ }
   };
@@ -201,11 +267,26 @@
   const persistFilters = () => { if (!syncing) try { send({ type: MSG.PAGE_SET_FILTERS, filters: toPopupShape() }); } catch { /* bridge gone */ } };
   // Called after any filter mutation: refresh the highlight (if on) and persist (→ popup).
   const onFilterChange = () => { if (highlightActive()) applyHighlight(); persistFilters(); };
-  // The bridge pushes the stored popup filters on load and whenever they change.
+  // Replace a Set's contents with the pushed source-URL list.
+  const resetSet = (set, sources) => { set.clear(); for (const s of (Array.isArray(sources) ? sources : [])) if (s) set.add(s); };
+  // The bridge pushes the stored popup filters / pinned sources / opened sources on
+  // load and whenever they change.
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
     const d = e.data;
-    if (!d || d.source !== SRC.PAGE_FILTERS) return;
+    if (!d) return;
+    if (d.source === SRC.PAGE_PINS) { resetSet(pinnedSources, d.sources); return; }
+    if (d.source === SRC.PAGE_EDITED) { resetSet(editedSources, d.sources); return; }
+    if (d.source === SRC.PAGE_HL_COLOR) {
+      const c = typeof d.color === 'string' && d.color ? d.color : hlColor;
+      if (c !== hlColor) {
+        hlColor = c;
+        // Re-colour an active highlight: drop the style so applyHighlight rebuilds it.
+        if (highlightActive()) { const s = document.getElementById(HL_STYLE_ID); if (s) s.remove(); applyHighlight(); }
+      }
+      return;
+    }
+    if (d.source !== SRC.PAGE_FILTERS) return;
     syncing = true;
     try { fromPopupShape(d.filters); } finally { syncing = false; }
     if (highlightActive()) applyHighlight();
@@ -259,6 +340,54 @@
     return { url, name: nameFromUrl(url), source: url };
   };
 
+  // Resolve a pin/unpin target → array of pin-target objects ({ url, name, kind }) that
+  // setPinnedState understands. Accepts a scanned entry, an index into stencil.items, a
+  // DOM element, an image/video URL, or an array of any of those. More lenient than
+  // resolveTarget (no video-frame capture — a pin keys on the source URL, not a frame).
+  const resolvePinTargets = (target) => {
+    if (Array.isArray(target)) return target.flatMap(resolvePinTargets);
+    if (typeof target === 'number') { const e = scanFiltered()[target]; return e ? [e] : []; }
+    if (target && target.__stencilEntry) return [target];
+    if (target && target.nodeType === 1) {
+      const r = elementUrl(target);
+      return r.url ? [{ url: r.url, name: nameFromUrl(r.url, r.kind === 'video' ? 'video' : 'image'), kind: r.kind || 'image' }] : [];
+    }
+    if (typeof target === 'string' && target) return [{ url: target, name: nameFromUrl(target), kind: 'image' }];
+    throw new Error('Stencil: pin() expects an entry, an item index, an element, a URL, or an array of those');
+  };
+
+  // Media URL extensions that mark a bare-URL target as a video (vs an image) — only used
+  // to label detect()'s `kind` for a raw URL; element/entry targets carry their own kind.
+  const VIDEO_FMTS = new Set(['mp4', 'webm', 'mov', 'm4v', 'mkv', 'avi', 'ogv', 'ogg']);
+
+  // Inspect a target WITHOUT acting on it. Accepts a scanned entry, a stencil.items index,
+  // a DOM element (e.g. a document.querySelector result), or an image/video URL — the same
+  // union open()/pin() take, minus arrays. Returns a plain descriptor of what Stencil sees,
+  // or null when the target carries nothing grabbable (a <div> with no background, a <video>
+  // with no src/poster/frame, an out-of-range index, a non-target value). Never throws.
+  const describeTarget = (target) => {
+    let el = null, kind = null, url = '';
+    if (target && target.__stencilEntry) { el = target.element; kind = target.kind; url = target.url; }
+    else if (typeof target === 'number') { const e = scanFiltered()[target]; if (!e) return null; el = e.element; kind = e.kind; url = e.url; }
+    else if (target && target.nodeType === 1) { const r = elementUrl(target); el = target; kind = r.kind; url = r.url; }
+    else if (typeof target === 'string' && target) { kind = VIDEO_FMTS.has(formatOf(target)) ? 'video' : 'image'; url = target; }
+    else return null;
+
+    const hasFrame = kind === 'video' && videoHasFrame(el);
+    const hasPoster = !!(el && el.nodeType === 1 && el.getAttribute && el.getAttribute('poster'));
+    // Grabbable = there's an openable source URL, or a <video> we can capture a frame from.
+    if (!url && !hasFrame) return null;
+    return {
+      kind, url, element: el, hasFrame, hasPoster,
+      name: nameFromUrl(url || (el && (el.currentSrc || el.src)) || '', kind === 'video' ? 'video' : 'image'),
+      format: formatOf(url),
+      pinned: !!url && pinnedSources.has(url),
+      isEdited: !!url && editedSources.has(url),
+      // Does it currently appear in stencil.items (i.e. survive the live filters)?
+      listed: scanFiltered().some((e) => (el && e.element === el) || (!!url && e.url === url)),
+    };
+  };
+
   const api = {
     __stencil: 'page',
     get enabled() { return true; },
@@ -271,6 +400,8 @@
     get backgrounds() { return scanFiltered().filter((e) => e.kind === 'background'); },
     // Just the <video> elements.
     get videos() { return scanFiltered().filter((e) => e.kind === 'video'); },
+    // The currently-pinned scanned entries (honors the live filters, like `items`).
+    get pins() { return scanFiltered().filter((e) => e.pinned); },
     // The poster image of every <video> that declares one.
     get posters() { return scanPosters().filter(passes); },
     // Per-format on/off toggles: stencil.formats.png = false. Object.keys lists the
@@ -329,6 +460,20 @@
       send({ type: MSG.PAGE_CROP, url: r.url, dataUrl: r.dataUrl, source: r.source, resource: location.href, album: !!opts.album });
       return this;
     },
+    // Pin / unpin a target so it floats to the top of the popup list (and shows in the
+    // options page's pinned viewer). Accepts an entry, a stencil.items index, an element,
+    // a URL, or an array of those. Chainable.
+    pin(target) { for (const t of resolvePinTargets(target)) setPinnedState(t, true); return this; },
+    unpin(target) { for (const t of resolvePinTargets(target)) setPinnedState(t, false); return this; },
+    // Inspect a target without acting on it → { kind, url, name, format, element, hasFrame,
+    // hasPoster, pinned, isEdited, listed } or null. Accepts a scanned entry, a stencil.items
+    // index, a DOM element (e.g. document.querySelector('img')), or an image/video URL.
+    detect(target) { return describeTarget(target); },
+    // True when Stencil can grab `target` (it has an image/video/background source, or a
+    // capturable video frame) — i.e. it's a valid open()/crop()/pin() target. Never throws,
+    // so it's the safe pre-check before pinning a querySelector result. Same accepted types
+    // as detect(); for an array, test each item (`arr.every(stencil.grabbable)`).
+    grabbable(target) { return !!describeTarget(target); },
   };
 
   // Hide every member from enumeration so the console shows a clean `stencil` (no
@@ -352,4 +497,10 @@
   try {
     Object.defineProperty(window, 'stencil', { value: guarded, writable: false, configurable: true, enumerable: false });
   } catch { /* a non-configurable window.stencil already exists (the editor) — leave it */ }
+
+  // Ask the bridge to (re)push pins / edited / filters / highlight colour now that our
+  // message listener is installed. The bridge pushes once at document_start — before this
+  // MAIN-world script runs at document_idle — so without this request that state is missed
+  // and getters fall back to defaults (e.g. the highlight stays the default colour).
+  try { send({ type: MSG.PAGE_REQUEST_SYNC }); } catch { /* bridge not present */ }
 })();

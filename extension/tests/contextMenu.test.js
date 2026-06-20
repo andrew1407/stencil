@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS } from '../src/lib/contextMenu.js';
+import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../src/lib/contextMenu.js';
 
 test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests one deeper', () => {
   // A single top-level parent (id=root, title "Stencil") so the submenu reads "Stencil"
@@ -36,9 +36,9 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
 
 test('MENU_ITEMS: dynamic background/link group hangs off the Stencil parent on the all-context, default-hidden', () => {
   const bg = MENU_ITEMS.filter(i => DYNAMIC_ITEMS.includes(i.id));
-  // 6 image-equivalent actions (open / resume / incognito / 2× modal / crop).
-  assert.equal(bg.length, 6);
-  assert.equal(DYNAMIC_ITEMS.length, 6);
+  // 7 image-equivalent actions (open / resume / incognito / 2× modal / crop / pin).
+  assert.equal(bg.length, 7);
+  assert.equal(DYNAMIC_ITEMS.length, 7);
   // Each hangs off the root parent on the 'all' context so it CAN show on a background div…
   assert.ok(bg.every(i => i.parentId === MENU.root && i.contexts.includes('all')));
   // …and every item carries its own visible:false, so the worker reveals them one by one.
@@ -54,6 +54,27 @@ test('MENU_ITEMS: video Preview submenu is default-hidden so it shows only when 
   // Every item starts hidden; the worker reveals the group only for a video with a
   // poster, so a posterless video never shows a dead (no-op) Preview submenu.
   assert.ok(preview.every(i => i.visible === false));
+});
+
+test('MENU_ITEMS: toolbar-icon (action) menu offers open-editor + incognito under the Stencil parent', () => {
+  for (const id of [MENU.actionOpen, MENU.actionOpenIncognito]) {
+    const it = MENU_ITEMS.find(i => i.id === id);
+    assert.deepEqual(it.contexts, ['action']);   // only on the extension icon, never a page element
+    assert.equal(it.parentId, MENU.root);
+    assert.ok(!('visible' in it));                // always available
+  }
+});
+
+test('MENU_ITEMS: a pin item sits in each context group (image / video / background)', () => {
+  // One pin item per group: <img> + <video> on their native contexts, background on 'all'
+  // (default-hidden, revealed with the rest of the dynamic group).
+  assert.deepEqual(PIN_ITEMS, [MENU.pin, MENU.framePin, MENU.bgPin]);
+  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.pin).contexts, ['image']);
+  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.framePin).contexts, ['video']);
+  const bgPin = MENU_ITEMS.find(i => i.id === MENU.bgPin);
+  assert.ok(bgPin.contexts.includes('all') && bgPin.visible === false && DYNAMIC_ITEMS.includes(MENU.bgPin));
+  // Pin items are handled directly in the SW, not via resolveContextAction.
+  for (const id of PIN_ITEMS) assert.equal(resolveContextAction({ menuItemId: id, srcUrl: 'a' }), null);
 });
 
 test('resolveContextAction: background/link items mirror the <img> open/crop actions', () => {

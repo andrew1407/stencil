@@ -60,20 +60,42 @@
     link.type = 'image/svg+xml';
     link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hexOf(has(k) ? k : DEFAULT)));
   };
+  // Mirror the accent KEY into chrome.storage.local so non-page contexts that can't read
+  // this page's localStorage (the service worker, the page-API bridge) can resolve the
+  // accent — e.g. to colour the on-page highlight to match the theme (lib/highlightColor.js).
+  var mirror = function (k) {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
+        chrome.storage.local.set({ stencil_accent: k });
+    } catch (e) { /* no chrome.storage on this page */ }
+  };
   var apply = function (k) {
     document.documentElement.setAttribute('data-accent', has(k) ? k : DEFAULT);
     applyFavicon(k);
   };
   apply(read());
+  mirror(read());
   window.StencilAccent = {
     list: ACCENTS,
     storageKey: KEY,
     get: read,
+    hexOf: hexOf,
     set: function (k) {
       var next = has(k) ? k : DEFAULT;
       try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
       apply(next);
+      mirror(next);
       return next;
     },
   };
+  // Live cross-page sync: localStorage is shared across all same-origin extension pages,
+  // and the `storage` event fires in every OTHER document when one of them writes KEY. So
+  // changing the accent in the options page (or popup) re-applies here without a reload —
+  // fixing an already-open side panel / DevTools panel that used to stay on the old accent.
+  // (No echo: the event never fires in the document that made the change.)
+  try {
+    window.addEventListener('storage', function (e) {
+      if (e.key === KEY || e.key === null) apply(read());   // key===null on localStorage.clear()
+    });
+  } catch (e) { /* no window — not a page context */ }
 })();

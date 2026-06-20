@@ -9,15 +9,21 @@ export const DEFAULT_PAGE = 'A3';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, exposeWindowStencil: false });
+  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, highlightColor: 'theme', exposeWindowStencil: false });
   return {
     editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
     page: s.page || DEFAULT_PAGE,
+    // The on-page highlight outline colour: 'theme' = follow the main accent, or a hex
+    // string for a custom colour. Read live by the popup + page API when highlighting.
+    highlightColor: typeof s.highlightColor === 'string' && s.highlightColor ? s.highlightColor : 'theme',
     // Whether the popup badges images that already have an editor (default on).
     markOpened: s.markOpened !== false,
     // Whether the popup sorts opened images to the top (default on). Toggled live from
     // the popup, persisted here. Independent of markOpened, but a no-op when badging is off.
     openedFirst: s.openedFirst !== false,
+    // Whether the popup styles pinned images (gray outline) and floats them to the top
+    // (default on). Toggled live from the popup; pinning still works when off.
+    showPinned: s.showPinned !== false,
     // Whether to inject a page-global `window.stencil` scripting API into every page
     // (default OFF — touches every page's main world, so strictly opt-in).
     exposeWindowStencil: s.exposeWindowStencil === true
