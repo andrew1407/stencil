@@ -60,6 +60,21 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 > npm run build-wasm   # builds core/ → js/wasm/stencilCore.js
 > ```
 
+### Docker
+
+A multi-stage [`Dockerfile`](Dockerfile) builds the wasm core (Emscripten) and serves
+the static app with nginx. Because the wasm step needs `core/`, **build from the repo
+root** and select the Dockerfile with `-f`:
+
+```bash
+# from the repo root
+docker build -f browser/Dockerfile -t stencil-browser .
+docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
+```
+
+The image bakes in the freshly built `js/wasm/stencilCore.js`, so it runs the real wasm
+path (no JS fallback). Map a different host port with e.g. `-p 9000:80`.
+
 ## Project structure
 
 ```
