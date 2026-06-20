@@ -98,6 +98,7 @@ src/
     cropGeometry.js  port of the editor's crop math (kept behaviour-identical)
     imageScan.js     the page scanner (injected via chrome.scripting)
     filters.js       format / search / size filtering (pure)
+    pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
     messages.js      cross-context message `type`/`source` constants (no magic strings)
     theme.css        shared dark-theme palette (linked by popup/crop/options)
 tests/                   node:test unit tests for the pure modules
@@ -116,6 +117,7 @@ stencil.images;                    // just <img> + inline <svg><image>
 stencil.backgrounds;               // just CSS background-image elements
 stencil.videos;                    // just the <video> elements
 stencil.posters;                   // the poster image of every <video> that has one
+stencil.pins;                      // just the entries currently pinned on this site
 
 // ── Live filters (mirror — and stay in two-way sync with — the popup's controls) ──
 stencil.formats;                   // a per-format toggle map: { png: true, jpg: true, mp4: true }
@@ -140,15 +142,33 @@ e.name;                            // a derived "file.ext" name
 e.format;                          // 'png' | 'jpg' | 'webp' | … ('' if undetectable)
 e.width; e.height;                 // intrinsic px where known (0 if not, e.g. unloaded bg)
 e.poster;                          // true for a stencil.posters entry
+e.pinned;                          // pinned on this site? — assignable get/set
+e.isEdited;                        // was/is this image opened (edited) in an editor? (read-only)
 e.open();                          // → open in the editor (in-page modal); returns the facade
 e.open({ newTab: true, incognito: true });   // open opts: newTab, incognito, poster, frame
 e.crop();                          // → quick-crop tool
 e.crop({ album: true });           // crop opts: album, poster
+e.pin(); e.unpin();                // pin/unpin this entry (chainable); same as e.pinned = true/false
 
 // Or act on a raw element / URL directly (throws if it isn't a loadable image):
 stencil.open(document.querySelector('video'), { poster: true });
-stencil.open('https://example.com/pic.png', { newTab: true });
+stencil.open('https://example.com/pic.png', { newTab: true });   // a string is a URL, NOT a selector
 stencil.crop('https://example.com/pic.png', { album: true });
+
+// Pin / unpin a target — an entry, a stencil.items index, an element, a URL, or an array:
+stencil.pin(0);                    // pin stencil.items[0]
+stencil.pin(document.images[2]);   // pin an element
+stencil.pin(document.querySelector('img.hero'));   // a querySelector result is just an element
+stencil.pin(['https://example.com/a.png', 3]);   // mixed array, chainable
+stencil.unpin(0);
+
+// Inspect a target before acting on it (entry | items-index | element | URL) — never throws:
+stencil.grabbable(el);             // → boolean: can Stencil grab this? (valid open/crop/pin target)
+stencil.grabbable(document.querySelector('div.banner'));   // false if it has no image/video/bg source
+stencil.detect(el);                // → { kind, url, name, format, element, hasFrame, hasPoster,
+                                   //     pinned, isEdited, listed } — or null if nothing grabbable
+stencil.detect(0).listed;          // does the target currently appear in stencil.items?
+[a, b, c].every(stencil.grabbable);   // validate a batch before stencil.pin([...])
 
 stencil.enabled = false;           // turn the whole feature back off (get/set)
 ```
@@ -160,11 +180,27 @@ the popup's `<style id="stencil-hl-style">` element. So `stencil.formats.png = f
 `stencil.kinds.video = false` here is reflected in the popup's checkboxes (and vice-versa),
 and `stencil.highlightOnPage = true` ticks the popup's highlight box.
 
+`pinned` and `isEdited` are backed the same way: the bridge pushes the current site's pinned
+source URLs and the opened-images ledger into the page so the getters answer synchronously.
+Pinning here writes the shared pin store, so it lights up the popup's row (gray outline, the
+📌 button) and appears in **Options → Pinned images** — a cross-site browser of every pin,
+filterable by the site it was pinned on, with open-in-new-tab and unpin. `isEdited` reflects
+the **already-opened** ledger (an image opened in an editor); it's read-only here.
+
+`open`/`crop`/`pin` accept a **DOM element** (so `document.querySelector('img')` works), a scanned
+entry, a `stencil.items` index, or a **URL string** — a string is always a URL, never a CSS
+selector (use `querySelector` yourself and pass the element). To check a target *before* acting,
+`stencil.grabbable(target)` returns whether Stencil can grab it (it carries an image/video/background
+source, or a capturable video frame), and `stencil.detect(target)` returns a descriptor of what it
+sees (`kind`, `url`, `name`, `format`, `hasFrame`, `hasPoster`, `pinned`, `isEdited`, `listed`) or
+`null` — both never throw, unlike the actions. `listed` says whether the target currently survives
+the live filters (appears in `stencil.items`).
+
 The **Options-page settings** are a different layer: `editorUrl`, default page size,
-**Mark already-opened images**, **Sort opened first** are the extension's cross-page
-preferences (also in `chrome.storage`, behind the service worker) and are *not* part of this
-page API — there's no `stencil.markOpened`, because this surface is about the images on the
-*current page*. Set those in the Options page (or the popup's own toggles).
+**Mark already-opened images**, **Sort opened first**, **Show pinned** are the extension's
+cross-page preferences (also in `chrome.storage`, behind the service worker) and are *not*
+part of this page API — there's no `stencil.markOpened`, because this surface is about the
+images on the *current page*. Set those in the Options page (or the popup's own toggles).
 
 Like the editor's `window.stencil`, this object is **hard-guarded**: every method, read-only
 getter, and scanned entry rejects reassignment (`stencil.open = 0` / `e.url = 'x'` throw),

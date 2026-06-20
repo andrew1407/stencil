@@ -32,10 +32,17 @@ const video = (src, poster, { videoWidth = 0, videoHeight = 0 } = {}) => ({
   setAttribute() {}, removeAttribute() {},
 });
 
-// Install a fake page on globalThis. Returns the captured postMessage payloads.
+// Install a fake page on globalThis. Returns the captured postMessage payloads and a
+// `dispatch` that delivers a window 'message' to the API (as the ISOLATED bridge would).
 const setupEnv = ({ imgs = [], bgs = [], videos = [], stencilPreset } = {}) => {
   const posted = [];
-  const win = { addEventListener() {}, postMessage: (m) => posted.push(m) };
+  const listeners = [];
+  const win = {
+    addEventListener(type, fn) { if (type === 'message') listeners.push(fn); },
+    postMessage: (m) => posted.push(m),
+  };
+  // The API's handler checks `e.source === window` (= win) — mimic a real same-window message.
+  const dispatch = (data) => { for (const fn of listeners) fn({ source: win, data }); };
   if (stencilPreset !== undefined) win.stencil = stencilPreset;
   globalThis.window = win;
   globalThis.location = { href: 'http://page.example/here' };
@@ -49,20 +56,22 @@ const setupEnv = ({ imgs = [], bgs = [], videos = [], stencilPreset } = {}) => {
     head: { appendChild() {} },
     documentElement: { appendChild() {} },
   };
-  return { posted, win };
+  return { posted, win, dispatch };
 };
 
 let caseId = 0;
-// Fresh fake page + a fresh module evaluation; returns { stencil, posted, win }.
+// Fresh fake page + a fresh module evaluation; returns { stencil, posted, win, dispatch }.
 const loadApi = async (opts) => {
   const env = setupEnv(opts);
   await import(`../src/content/pageApiMain.js?case=${++caseId}`);
   return { stencil: env.win.stencil, ...env };
 };
 
-const SRC = { PAGE_API: 'stencil-page-api' };
-const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
-const sent = (posted) => posted.filter((p) => p.source === SRC.PAGE_API).map((p) => p.message);
+const SRC = { PAGE_API: 'stencil-page-api', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited' };
+const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_PIN: 'stencil-page-pin', PAGE_REQUEST_SYNC: 'stencil-page-request-sync', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
+// Posted API messages. The IIFE fires one PAGE_REQUEST_SYNC on load (asking the bridge to
+// push current state); filter it out so tests assert on the messages their actions caused.
+const sent = (posted) => posted.filter((p) => p.source === SRC.PAGE_API).map((p) => p.message).filter((m) => m.type !== MSG.PAGE_REQUEST_SYNC);
 
 test('injects a tagged, non-enumerable, non-writable window.stencil', async () => {
   const { stencil, win } = await loadApi();
@@ -73,6 +82,12 @@ test('injects a tagged, non-enumerable, non-writable window.stencil', async () =
   const desc = Object.getOwnPropertyDescriptor(win, 'stencil');
   assert.equal(desc.enumerable, false);
   assert.equal(desc.writable, false);   // plain reassignment can't replace the binding
+});
+
+test('on load the API requests a state sync from the bridge (avoids the document_start race)', async () => {
+  const { posted } = await loadApi();
+  const types = posted.filter((p) => p.source === SRC.PAGE_API).map((p) => p.message.type);
+  assert.ok(types.includes(MSG.PAGE_REQUEST_SYNC));
 });
 
 test('the API object is a hard read-only proxy; only `enabled=false` writes through', async () => {
@@ -241,4 +256,137 @@ test('open() throws when handed something with no loadable image', async () => {
   const { stencil } = await loadApi();
   assert.throws(() => stencil.open(123), /pass an image\/video element/);
   assert.throws(() => stencil.open({ nodeType: 1, tagName: 'DIV', getAttribute: () => null }), /not a loadable image/);
+});
+
+test('entry.pinned set/get posts PAGE_PIN and optimistically flips; pin()/unpin() chain', async () => {
+  const { stencil, posted } = await loadApi({ imgs: [img('http://cdn/a.png')] });
+  assert.equal(stencil.items[0].pinned, false);
+
+  stencil.items[0].pinned = true;
+  assert.equal(stencil.items[0].pinned, true);   // optimistic local flip (entries are re-scanned, state is by URL)
+  let m = sent(posted).at(-1);
+  assert.equal(m.type, MSG.PAGE_PIN);
+  assert.equal(m.pin, true);
+  assert.equal(m.url, 'http://cdn/a.png');
+  assert.equal(m.source, 'http://cdn/a.png');
+  assert.equal(m.name, 'a.png');
+
+  const e = stencil.items[0];
+  assert.equal(e.unpin(), e);                     // chainable
+  assert.equal(sent(posted).at(-1).pin, false);
+  assert.equal(stencil.items[0].pinned, false);
+
+  const e2 = stencil.items[0];
+  assert.equal(e2.pin(), e2);                     // pin() returns the entry (chainable)
+  assert.equal(sent(posted).at(-1).pin, true);
+});
+
+test('entry.isEdited reflects the pushed opened-sources snapshot and is read-only', async () => {
+  const { stencil, dispatch } = await loadApi({ imgs: [img('http://cdn/a.png')] });
+  assert.equal(stencil.items[0].isEdited, false);
+  assert.throws(() => { stencil.items[0].isEdited = true; }, /read-only/);
+
+  dispatch({ source: SRC.PAGE_EDITED, sources: ['http://cdn/a.png'] });
+  assert.equal(stencil.items[0].isEdited, true);
+});
+
+test('a pushed PAGE_PINS snapshot drives entry.pinned and stencil.pins (bridge → MAIN sync)', async () => {
+  const { stencil, dispatch } = await loadApi({ imgs: [img('http://cdn/a.png'), img('http://cdn/b.png')] });
+  assert.deepEqual(stencil.pins.map((e) => e.url), []);
+
+  dispatch({ source: SRC.PAGE_PINS, sources: ['http://cdn/b.png'] });
+  assert.equal(stencil.images[0].pinned, false);
+  assert.equal(stencil.images[1].pinned, true);
+  assert.deepEqual(stencil.pins.map((e) => e.url), ['http://cdn/b.png']);
+
+  dispatch({ source: SRC.PAGE_PINS, sources: [] });   // unpinned elsewhere
+  assert.deepEqual(stencil.pins.map((e) => e.url), []);
+});
+
+test('stencil.pin accepts an index, URL, element, or array; unpin posts pin:false', async () => {
+  const { stencil, posted } = await loadApi({ imgs: [img('http://cdn/a.png'), img('http://cdn/b.png')] });
+
+  assert.equal(stencil.pin(0), stencil);                  // chainable; index into stencil.items
+  assert.equal(sent(posted).at(-1).url, 'http://cdn/a.png');
+  assert.equal(sent(posted).at(-1).pin, true);
+
+  stencil.pin('http://cdn/z.png');                        // URL string
+  assert.equal(sent(posted).at(-1).url, 'http://cdn/z.png');
+
+  stencil.pin(img('http://cdn/c.png'));                   // DOM element
+  assert.equal(sent(posted).at(-1).url, 'http://cdn/c.png');
+
+  stencil.pin([0, 1]);                                    // array → one post per target
+  assert.deepEqual(sent(posted).slice(-2).map((m) => m.url), ['http://cdn/a.png', 'http://cdn/b.png']);
+
+  stencil.unpin(0);
+  assert.equal(sent(posted).at(-1).pin, false);
+});
+
+test('stencil.pin throws on an unpinnable target', async () => {
+  const { stencil } = await loadApi();
+  assert.throws(() => stencil.pin({}), /expects an entry/);
+});
+
+test('stencil.detect describes an entry/index/element/URL target (or null), never throwing', async () => {
+  const { stencil } = await loadApi({
+    imgs: [img('http://cdn/a.png', { naturalWidth: 64, naturalHeight: 48 })],
+    videos: [video('http://cdn/clip.mp4', 'http://cdn/poster.webp')],
+  });
+
+  // By index into stencil.items.
+  const d = stencil.detect(0);
+  assert.equal(d.kind, 'image');
+  assert.equal(d.url, 'http://cdn/a.png');
+  assert.equal(d.name, 'a.png');
+  assert.equal(d.format, 'png');
+  assert.equal(d.element.tagName, 'IMG');
+  assert.equal(d.listed, true);          // appears in stencil.items
+  assert.equal(d.pinned, false);
+
+  // The same entry object.
+  assert.equal(stencil.detect(stencil.items[0]).url, 'http://cdn/a.png');
+
+  // A raw element NOT on the page → still described, but not listed.
+  const off = stencil.detect(img('http://cdn/off.jpg'));
+  assert.equal(off.kind, 'image');
+  assert.equal(off.listed, false);
+
+  // A bare URL → kind inferred from the extension; videos read as 'video'.
+  assert.equal(stencil.detect('http://cdn/movie.mp4').kind, 'video');
+  assert.equal(stencil.detect('http://cdn/pic.png').kind, 'image');
+
+  // A <video> with a poster but no decodable frame: described, hasPoster flagged.
+  const v = stencil.detect(stencil.videos[0]);
+  assert.equal(v.kind, 'video');
+  assert.equal(v.hasPoster, true);
+  assert.equal(v.hasFrame, false);
+
+  // Non-targets → null (no throw).
+  assert.equal(stencil.detect({ nodeType: 1, tagName: 'DIV', getAttribute: () => null }), null);
+  assert.equal(stencil.detect(999), null);   // out-of-range index
+  assert.equal(stencil.detect(null), null);
+  assert.equal(stencil.detect({}), null);
+});
+
+test('stencil.grabbable is the boolean pre-check for a pin/open target', async () => {
+  const { stencil } = await loadApi({ imgs: [img('http://cdn/a.png')] });
+  assert.equal(stencil.grabbable(0), true);
+  assert.equal(stencil.grabbable(stencil.items[0]), true);
+  assert.equal(stencil.grabbable(img('http://cdn/b.png')), true);
+  assert.equal(stencil.grabbable('http://cdn/c.png'), true);
+  assert.equal(stencil.grabbable({ nodeType: 1, tagName: 'DIV', getAttribute: () => null }), false);
+  assert.equal(stencil.grabbable(999), false);
+  assert.equal(stencil.grabbable(undefined), false);
+});
+
+test('detect reports the live pinned/listed state', async () => {
+  const { stencil, dispatch } = await loadApi({ imgs: [img('http://cdn/a.png'), img('http://cdn/b.png')] });
+  dispatch({ source: SRC.PAGE_PINS, sources: ['http://cdn/b.png'] });
+  assert.equal(stencil.detect('http://cdn/a.png').pinned, false);
+  assert.equal(stencil.detect('http://cdn/b.png').pinned, true);
+
+  stencil.searchText = 'a';                                  // filter b.png out of the list
+  assert.equal(stencil.detect('http://cdn/b.png').listed, false);
+  assert.equal(stencil.detect('http://cdn/a.png').listed, true);
 });

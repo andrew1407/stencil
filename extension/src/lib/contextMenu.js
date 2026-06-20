@@ -8,6 +8,9 @@ export const MENU = {
   // Explicit "Stencil" parent so the submenu is labelled "Stencil" (not the extension
   // name Chrome auto-groups under). With a single top-level item Chrome shows it directly.
   root: 'stencil-root',
+  // Action (toolbar-icon) items — a quick "open a fresh editor" not tied to any image.
+  actionOpen: 'stencil-action-open',
+  actionOpenIncognito: 'stencil-action-open-incognito',
   // Image actions (on <img>).
   open: 'stencil-open',
   openResume: 'stencil-open-resume',
@@ -15,12 +18,14 @@ export const MENU = {
   openModal: 'stencil-open-modal',
   openModalIncognito: 'stencil-open-modal-incognito',
   crop: 'stencil-crop',
+  pin: 'stencil-pin',
   // Video current-frame actions (on <video>).
   frameOpen: 'stencil-frame-open',
   frameOpenIncognito: 'stencil-frame-open-incognito',
   frameModal: 'stencil-frame-modal',
   frameModalIncognito: 'stencil-frame-modal-incognito',
   frameCrop: 'stencil-frame-crop',
+  framePin: 'stencil-frame-pin',
   // Video poster / preview submenu (on <video>).
   previewParent: 'stencil-preview',
   previewTab: 'stencil-preview-tab',
@@ -36,7 +41,8 @@ export const MENU = {
   bgOpenIncognito: 'stencil-bg-open-incognito',
   bgOpenModal: 'stencil-bg-open-modal',
   bgOpenModalIncognito: 'stencil-bg-open-modal-incognito',
-  bgCrop: 'stencil-bg-crop'
+  bgCrop: 'stencil-bg-crop',
+  bgPin: 'stencil-bg-pin'
 };
 
 // Action item id → click behaviour. action: open (new tab) / open-modal (in-page
@@ -69,6 +75,9 @@ const ACTIONS = {
   [MENU.bgCrop]: { action: 'crop', target: 'main' }
 };
 
+// The extension's toolbar-icon (right-click) menu. Items here show on the action icon,
+// never on a page element.
+const ACTION_CONTEXTS = ['action'];
 // Native contexts: image actions on <img>, frame + preview on <video>. NOTHING is on
 // 'page'/'all', so these never show on plain elements.
 const IMAGE_CONTEXTS = ['image'];
@@ -84,6 +93,11 @@ export const MENU_ITEMS = [
   // The single top-level parent — Chrome shows it directly (and hides it when none of
   // its children match the current context, exactly like its auto-group would).
   { id: MENU.root, title: 'Stencil', contexts: ALL_CONTEXTS },
+  // Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito one opens it
+  // in an incognito window so the editor's project storage is throwaway. 'action' context
+  // → shown on the extension icon's right-click menu, never on a page element.
+  { id: MENU.actionOpen, parentId: MENU.root, title: '✎ Open Stencil editor', contexts: ACTION_CONTEXTS },
+  { id: MENU.actionOpenIncognito, parentId: MENU.root, title: '🕶 Open Stencil editor (incognito)', contexts: ACTION_CONTEXTS },
   // Image: a real <img>.
   { id: MENU.open, parentId: MENU.root, title: '✎ Open image in Stencil editor', contexts: IMAGE_CONTEXTS },
   { id: MENU.openResume, parentId: MENU.root, title: '↩ Resume in existing Stencil editor', contexts: IMAGE_CONTEXTS },
@@ -91,12 +105,14 @@ export const MENU_ITEMS = [
   { id: MENU.openModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: IMAGE_CONTEXTS },
   { id: MENU.openModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: IMAGE_CONTEXTS },
   { id: MENU.crop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: IMAGE_CONTEXTS },
+  { id: MENU.pin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: IMAGE_CONTEXTS },
   // Video: act on the CURRENT FRAME.
   { id: MENU.frameOpen, parentId: MENU.root, title: '✎ Open current frame in editor', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameOpenIncognito, parentId: MENU.root, title: '🕶 Current frame in editor (incognito)', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameModal, parentId: MENU.root, title: '▣ Open current frame in editor here', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameModalIncognito, parentId: MENU.root, title: '▣ Current frame here (incognito)', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameCrop, parentId: MENU.root, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
+  { id: MENU.framePin, parentId: MENU.root, title: '📌 Pin / unpin video', contexts: VIDEO_CONTEXTS },
   // Video: the poster / preview image — a genuine sub-category, kept as a submenu.
   // Default-hidden: the worker reveals it (PREVIEW_ITEMS) only when the probed video
   // actually has a poster, so posterless videos don't show a dead "no-op" submenu.
@@ -114,15 +130,20 @@ export const MENU_ITEMS = [
   { id: MENU.bgOpenIncognito, parentId: MENU.root, title: '🕶 Open in Stencil (incognito)', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false }
+  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgPin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: ALL_CONTEXTS, visible: false }
 ];
 
 // The background/link items the worker reveals/hides together. Exported so the SW
 // and tests share one source.
 export const DYNAMIC_ITEMS = [
   MENU.bgOpen, MENU.bgOpenResume, MENU.bgOpenIncognito,
-  MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop
+  MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop, MENU.bgPin
 ];
+
+// The pin items (one per context group). Handled directly in the SW (no editor launch,
+// no frame capture) — they toggle the pinned state of the source URL under the cursor.
+export const PIN_ITEMS = [MENU.pin, MENU.framePin, MENU.bgPin];
 
 // The video Preview submenu items the worker reveals/hides together — shown only when
 // the probed <video> actually carries a poster (preview image). Same source-of-truth

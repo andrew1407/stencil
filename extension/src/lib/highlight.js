@@ -2,7 +2,9 @@
 // Outlines every grabbable element (<img>, <svg><image>, CSS background-image), tracks
 // the one under the cursor, observes the DOM for lazy content. on=false (or re-run) tears
 // down. Injected, so self-contained (no imports); teardown stashed on window. Returns count.
-export const toggleStencilHighlight = (on) => {
+// `color` is the outline hex (defaults to the brand violet) — the caller resolves it from
+// the accent / a custom colour (lib/highlightColor.js) so the highlight matches the theme.
+export const toggleStencilHighlight = (on, color = '#7c3aed') => {
   const STYLE_ID = 'stencil-hl-style';
   const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable
   const HOVER = 'data-stencil-hl-hover';   // the one currently under the cursor
@@ -54,16 +56,29 @@ export const toggleStencilHighlight = (on) => {
   };
   markWithin(document.body || document.documentElement);
 
+  // Hover ring = the same colour, brightened a touch, plus a soft glow at 45% alpha —
+  // both derived from `color` so any accent / custom colour stays self-consistent.
+  const toRgb = (hex) => {
+    let h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return Number.isFinite(n) && h.length === 6 ? { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 } : { r: 124, g: 58, b: 237 };
+  };
+  const { r, g, b } = toRgb(color);
+  const lift = (v) => Math.round(v + (255 - v) * 0.28);   // brighten toward white for the hover ring
+  const hover = `rgb(${lift(r)},${lift(g)},${lift(b)})`;
+  const glow = `rgba(${lift(r)},${lift(g)},${lift(b)},.45)`;
+
   const style = document.createElement('style');
   style.id = STYLE_ID;
   // Transitions on !important rules still animate (importance is irrelevant), so the
   // hover ring eases in/out smoothly (box-shadow grows from nothing as HOVER is applied)
   // without a keyframe animating hundreds of marked elements at once.
   style.textContent =
-    '[' + ATTR + ']{outline:2px solid #7c3aed !important;outline-offset:-2px !important;' +
+    '[' + ATTR + ']{outline:2px solid ' + color + ' !important;outline-offset:-2px !important;' +
     'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
-    '[' + HOVER + ']{outline:3px solid #a855f7 !important;outline-offset:-3px !important;' +
-    'box-shadow:0 0 0 3px rgba(168,85,247,.45) !important;}';
+    '[' + HOVER + ']{outline:3px solid ' + hover + ' !important;outline-offset:-3px !important;' +
+    'box-shadow:0 0 0 3px ' + glow + ' !important;}';
   (document.head || document.documentElement).appendChild(style);
 
   // Cursor tracking: move the HOVER marker to the grabbable element under the mouse.
