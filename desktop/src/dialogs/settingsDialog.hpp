@@ -5,6 +5,7 @@
 class QComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
+class QSpinBox;
 class QPushButton;
 
 // Settings editor. Mirrors browser/js/ui/settingsModal.js (theme, autosave,
@@ -34,6 +35,7 @@ namespace stencil::gui {
     QComboBox* page_ = nullptr;
     QDoubleSpinBox* customW_ = nullptr;
     QDoubleSpinBox* customH_ = nullptr;
+    QSpinBox* holdDelay_ = nullptr;
     QString colorHex_;
   };
 

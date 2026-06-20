@@ -58,6 +58,24 @@ namespace stencil::core {
   std::optional<SegmentHit> findNearestSegment(const Lines& lines, double x,
                                                double y, double threshold = 12.0);
 
+  // What an initial hold-to-draw press over (x, y) targets, given the committed
+  // lines. Port of browser/js/core/holdDraw.js holdDrawTarget.
+  enum class HoldTargetKind { NewLine, ContinuePoint, InsertSegment };
+  struct HoldTarget {
+    HoldTargetKind kind = HoldTargetKind::NewLine;
+    int lineIdx = -1;  // line to continue / insert into (-1 for NewLine)
+    int ptIdx = -1;    // ContinuePoint: the point; InsertSegment: first endpoint
+    int ptIdx2 = -1;   // InsertSegment: second endpoint
+  };
+
+  // Decide the hold-to-draw seed: an existing point under the cursor → continue
+  // that line from it; a line body (not a point) → insert a point there; empty
+  // space → a fresh line. Point hit takes priority over a segment hit. Reuses
+  // findNearestPoint / findNearestSegment so the semantics match the hit tests.
+  HoldTarget holdDrawTarget(const Lines& lines, double x, double y,
+                            double pointThreshold = 12.0,
+                            double segThreshold = 12.0);
+
   // Rotate `points` in place about pivot (cx, cy) by `angle` radians, using the
   // standard 2D rotation matrix. Port of #rotateSelectedLine (~1857).
   void rotatePoints(std::vector<Point>& points, double cx, double cy,

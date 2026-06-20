@@ -47,6 +47,7 @@ set(STENCIL_CORE_SOURCES
   state/historyStack.cpp
   state/projectsStore.cpp
   state/zoomPan.cpp
+  state/holdDraw.cpp
 )
 
 # Every group dir (plus the core root for models.hpp + the extern "C" API files) is on
@@ -91,6 +92,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   add_executable(stencil_tests
     tests/testMain.cpp
     tests/geometry.test.cpp
+    tests/holdDraw.test.cpp
     tests/color.test.cpp
     tests/pageMetrics.test.cpp
     tests/cropGeometry.test.cpp

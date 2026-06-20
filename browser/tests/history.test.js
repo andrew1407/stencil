@@ -62,3 +62,18 @@ test('reset initializes from base lines', () => {
     assert.strictEqual(h.historyStep, -1);
     assert.strictEqual(h.canUndo(), false);
 });
+
+test('reset with empty lines leaves NO redo (no stray redo step after a blank)', () => {
+    const h = new HistoryStack();
+    h.push([{ id: 'a' }]);  // simulate prior edits
+    h.reset([]);            // e.g. creating a blank image / fresh load
+    assert.strictEqual(h.canUndo(), false);
+    assert.strictEqual(h.canRedo(), false); // was true: phantom empty snapshot
+    assert.strictEqual(h.redo(), null);
+    // A real edit after reset still undoes back to empty and redoes forward.
+    h.push([{ id: 'b' }]);
+    assert.strictEqual(h.canUndo(), true);
+    assert.deepStrictEqual(h.undo(), []);
+    assert.strictEqual(h.canRedo(), true);
+    assert.deepStrictEqual(h.redo(), [{ id: 'b' }]);
+});

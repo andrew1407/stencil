@@ -171,6 +171,22 @@ namespace stencil::gui {
       }
       QComboBox QAbstractItemView { background: %INPUT_BG%; color: %INPUT_TEXT%; selection-background-color: %ACCENT%; }
       QCheckBox { color: %TEXT%; }
+      QRadioButton { color: %TEXT%; }
+      /* Checkboxes/radios follow the brand accent (matches the browser
+         accent-color: var(--accent)): an empty themed box, filled with the
+         accent when checked. */
+      QCheckBox::indicator, QRadioButton::indicator {
+        width: 16px; height: 16px; border: 1px solid %ACCENT%; background: transparent;
+      }
+      QCheckBox::indicator { border-radius: 3px; }
+      QRadioButton::indicator { border-radius: 9px; }
+      QCheckBox::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/check.png);
+      }
+      QRadioButton::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
+      }
+      QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT%; }
       QDockWidget { color: %TEXT%; titlebar-close-icon: none; }
       QDockWidget::title { background: %BG_CONTROLS%; padding: 5px; border-bottom: 1px solid %BORDER%; }
       QListWidget, QTableWidget, QTreeWidget {

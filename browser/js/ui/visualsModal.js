@@ -28,6 +28,8 @@ export class StencilVisualsModal extends StencilElement {
                     <select id="vs-style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
                 </div>
                 <div class="vs-row"><label>Area fill (new locked areas)</label><input type="color" id="vs-fill"></div>
+                <div class="vs-section">Drawing behavior</div>
+                <div class="vs-row"><label>Hold-to-draw delay (ms)</label><input type="number" id="vs-hold-delay" min="100" max="3000" step="50"></div>
                 <div class="vs-section">Highlight styles</div>
                 <div class="vs-row"><label>Selected line/point glow</label><input type="color" id="vs-sel-glow"></div>
                 <div class="vs-row"><label>Point hover ring</label><input type="color" id="vs-hover-ring"></div>
@@ -77,7 +79,7 @@ export class StencilVisualsModal extends StencilElement {
     const VIS_DEFAULTS = {
       color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
       defaultFillColor: '#3399ff', selGlowColor: '#ffc800',
-      hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed'
+      hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
     };
 
     // Main theme — a custom colour-swatch dropdown (./accentPicker.js).
@@ -85,6 +87,9 @@ export class StencilVisualsModal extends StencilElement {
       current: app.accent,
       onSelect: (key) => app.setAccent(key),
     });
+    // Another tab changed the accent — keep this picker's swatch in sync (the app
+    // UI itself is already repainted by the cross-tab listener in drawingApp).
+    window.addEventListener('stencil:accent-changed', e => accentPicker.set(e.detail || app.accent));
 
     const els = {
       lineColor: document.getElementById('vs-line-color'),
@@ -94,7 +99,8 @@ export class StencilVisualsModal extends StencilElement {
       fill: document.getElementById('vs-fill'),
       selGlow: document.getElementById('vs-sel-glow'),
       hoverRing: document.getElementById('vs-hover-ring'),
-      focusRing: document.getElementById('vs-focus-ring')
+      focusRing: document.getElementById('vs-focus-ring'),
+      holdDelay: document.getElementById('vs-hold-delay')
     };
 
     const populate = () => {
@@ -103,6 +109,7 @@ export class StencilVisualsModal extends StencilElement {
       els.thickness.value = app.thickness;
       els.marker.value = app.markerSize;
       els.style.value = app.style;
+      els.holdDelay.value = app.holdDrawDelay ?? VIS_DEFAULTS.holdDrawDelay;
       els.fill.value = app.defaultFillColor || VIS_DEFAULTS.defaultFillColor;
       els.selGlow.value = app.selGlowColor   || VIS_DEFAULTS.selGlowColor;
       els.hoverRing.value = app.hoverRingColor || VIS_DEFAULTS.hoverRingColor;
@@ -132,6 +139,10 @@ export class StencilVisualsModal extends StencilElement {
       setVal('line-style', e.target.value);
       setRadioGroup('ctxLineStyle', e.target.value);
       app.storage.save();
+    });
+    els.holdDelay.addEventListener('change', e => {
+      app.setHoldDrawDelay(e.target.value);
+      e.target.value = app.holdDrawDelay; // reflect the clamped value
     });
     // Shared core setter (also used by the console: stencil.settings.fillColor, etc.)
     els.fill.addEventListener('input', e => app.setVisualColor('fill', e.target.value));

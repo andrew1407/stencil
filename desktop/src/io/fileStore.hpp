@@ -51,6 +51,8 @@ namespace stencil::gui {
     // "sepia" | "custom"; filterColor is the custom duotone tint.
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
+    // Hold-to-draw hold/dwell delay in ms (browser holdDrawDelay; clamped 100–3000).
+    int holdDrawDelay = 500;
   };
 
   // The autosaved in-progress drawing ("last edited points"), restored on launch.

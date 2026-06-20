@@ -18,7 +18,11 @@ namespace stencil::core {
 
   void HistoryStack::reset(const Lines& lines, int baseStep) {
     history_.clear();
-    history_.push_back(lines);
+    // A negative base step means "no current snapshot" (a fresh / empty / imageless
+    // load): keep the history empty so canRedo() stays false. Pushing a phantom
+    // snapshot here made canRedo() true (step -1 < size 1 - 1 = 0), surfacing a
+    // stray redo step right after creating a blank image.
+    if (baseStep >= 0) history_.push_back(lines);
     historyStep_ = baseStep;
   }
 

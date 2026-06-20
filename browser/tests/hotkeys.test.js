@@ -97,6 +97,12 @@ test('platformizeCombo is case-insensitive on the Ctrl token', () => {
     assert.strictEqual(platformizeCombo('ctrl+z', true), 'Meta+z');
     assert.strictEqual(platformizeCombo('CTRL+Shift+Z', true), 'Meta+Shift+Z');
 });
+test('platformizeCombo swaps Delete->Backspace on Mac (the ⌫ delete key)', () => {
+    assert.strictEqual(platformizeCombo('Alt+Delete', true), 'Alt+Backspace');
+    assert.strictEqual(platformizeCombo('Alt+Shift+Delete', true), 'Alt+Shift+Backspace');
+    // Unchanged off-Mac.
+    assert.strictEqual(platformizeCombo('Alt+Delete', false), 'Alt+Delete');
+});
 
 // ── formatCombo (display) ───────────────────────────────────────
 test('formatCombo renders Apple symbols on Mac', () => {
@@ -114,6 +120,22 @@ test('formatCombo renders arrow keys on Mac', () => {
 test('formatCombo returns canonical string unchanged on non-Mac', () => {
     assert.strictEqual(formatCombo('Ctrl+Shift+Z', false), 'Ctrl+Shift+Z');
     assert.strictEqual(formatCombo('Alt+ArrowUp', false), 'Alt+ArrowUp');
+});
+test('formatCombo renders ⌫/⌦ delete glyphs on Mac', () => {
+    assert.strictEqual(formatCombo('Alt+Backspace', true), '⌥⌫');
+    assert.strictEqual(formatCombo('Alt+Shift+Backspace', true), '⌥⇧⌫');
+    assert.strictEqual(formatCombo('Alt+Delete', true), '⌥⌦');
+});
+
+// ── Integration: the Mac delete-key analogue ────────────────────
+test('Mac ⌥+delete event matches the platformized Alt+Backspace combo', () => {
+    const combo = platformizeCombo('Alt+Delete', true); // 'Alt+Backspace'
+    const macEvent = { altKey: true, code: 'Backspace', key: 'Backspace' };
+    assert.strictEqual(matchHotkey(macEvent, combo), true);
+});
+test('non-Mac Alt+Delete event matches the canonical combo', () => {
+    const winEvent = { altKey: true, code: 'Delete', key: 'Delete' };
+    assert.strictEqual(matchHotkey(winEvent, 'Alt+Delete'), true);
 });
 
 // ── Integration: the Mac ⌘ bug being fixed ──────────────────────

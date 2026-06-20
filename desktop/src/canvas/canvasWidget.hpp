@@ -1,6 +1,7 @@
 #pragma once
 #include "cropGeometry.hpp"
 #include "historyStack.hpp"
+#include "holdDraw.hpp"
 #include "models.hpp"
 #include <QColor>
 #include <QImage>
@@ -8,6 +9,7 @@
 #include <QWidget>
 #include <QPoint>
 #include <QRectF>
+#include <QElapsedTimer>
 #include <QTimer>
 #include <vector>
 
@@ -131,6 +133,13 @@ namespace stencil::gui {
     // ── drawing-mode state machine (S2; port of drawingApp.js) ──
     bool isDrawing() const { return isDrawing_; }
 
+    // ── hold-to-draw (alternative flow; port of browser holdDraw.js) ──
+    // A near-stationary plain-left press-and-hold auto-enters drawing and drops
+    // the first point; dwelling drops more; release commits + exits drawing.
+    // The delay (ms) is the hold/dwell threshold, surfaced in Settings.
+    void setHoldDrawDelay(int ms);
+    int holdDrawDelay() const { return holdDelayMs_; }
+
     // ── interactive editing (port of drawingApp.js Alt-drag + Alt/Ctrl wheel) ──
     // Move a point/segment/whole line by Alt / Alt+Shift drag; bump thickness with
     // Alt+wheel; rotate the selected line with Ctrl+Shift+wheel. Exposed only via
@@ -205,6 +214,18 @@ namespace stencil::gui {
                             const QPoint& widgetPos);
     // mouseMoveEvent Alt-drag body (caller computes ip/shift + repaints).
     void updateDrag(const core::Point& ip, bool shift);
+
+    // Hold-to-draw helpers. beginHold arms the controller on a plain-left press;
+    // handleHoldTick is the timer slot; holdStart/holdDrop/holdCommit react to the
+    // controller's start/drop/commit events; holdAnchor is the preview's origin.
+    void beginHold(const QPoint& widgetPos);
+    void stopHold();
+    void handleHoldTick();
+    void holdStart(double widgetX, double widgetY);
+    void holdDrop(double widgetX, double widgetY);
+    void holdCommit();
+    double holdNowMs() const;
+    const core::Point* holdAnchor() const;
 
     core::Point toImageSpace(int widgetX, int widgetY) const;
     void commitHistory();
@@ -310,6 +331,20 @@ namespace stencil::gui {
     // burst of wheel ticks collapses into one undo step (browser saveHistory
     // debounce, ~280 ms).
     QTimer editCommitTimer_;
+
+    // Hold-to-draw state. hold_ is the pure controller; holdTimer_ ticks it while
+    // engaged; holdClock_ supplies monotonic ms. holdPreview_ (image space) is the
+    // ghost-line cursor while a hold stroke is active.
+    core::HoldDrawController hold_;
+    QTimer holdTimer_;
+    QElapsedTimer holdClock_;
+    int holdDelayMs_ = 500;
+    bool holdHasPreview_ = false;
+    // True while a hold stroke extends a line BACKWARD from its first point: new
+    // points are prepended (inserted at index 0) so the line grows from its start.
+    bool holdPrepend_ = false;
+    core::Point holdPreview_;
+    QPoint holdPressPos_;
   };
 
 }

@@ -11,7 +11,11 @@ export class StencilTooltip extends StencilElement {
 
   // DrawingApp sets the app ref directly in its constructor; the ready event
   // is a backstop in case the element is wired before the app assigns it.
-  wire(app) { this.app = app; }
+  wire(app) {
+    this.app = app;
+    // Re-home the position:fixed tooltip to <body> so no ancestor transform (e.g. .container's reveal-animation identity matrix) becomes its containing block and offsets it from the cursor.
+    if (this.parentElement !== document.body) document.body.appendChild(this);
+  }
 
   // Shared tooltip decision — used by mousemove and by Shift/Ctrl key-refresh
   // so the tooltip updates the instant a modifier is pressed (no need to re-hover).

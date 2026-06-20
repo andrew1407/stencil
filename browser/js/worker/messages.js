@@ -6,6 +6,7 @@ export const MSG = Object.freeze({
   HELLO: 'hello',                       // a tab announces itself
   HERE: 'here',                         // BroadcastChannel roll-call reply
   ACTIVE: 'active',                     // a tab's active project id changed
+  ACCENT: 'accent',                     // a tab changed the main accent colour
   PROJECTS_CHANGED: 'projects-changed', // the stored project set changed
   BYE: 'bye',                           // a tab is going away
   TABCOUNT: 'tabcount',                 // worker → tab: live tab count

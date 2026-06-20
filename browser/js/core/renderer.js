@@ -64,6 +64,39 @@ export class Renderer {
       this.app.lines.forEach((line, i) => drawPts(line, i, i === this.app.selectedLineIdx));
       if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
     }
+
+    // Hold-to-draw: faded ghost line from the current anchor to the held cursor.
+    if (this.app.holdPreview) this.drawHoldPreview();
+  }
+
+  // Translucent dashed segment from the stroke's anchor point to the live cursor,
+  // plus a ghost marker at the cursor — shows where the next point would land
+  // during a hold-to-draw gesture. Purely transient; never committed.
+  drawHoldPreview() {
+    const app = this.app;
+    const p = app.holdPreview;
+    if (!p) return;
+    const ctx = app.ctx;
+    const anchor = typeof app.holdAnchorPoint === 'function' ? app.holdAnchorPoint() : null;
+    ctx.save();
+    if (anchor) {
+      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = app.color;
+      ctx.lineWidth = app.thickness;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(anchor.x, anchor.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = app.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, app.markerSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   drawLine(line, isSelected = false, lineIdx = -99) {

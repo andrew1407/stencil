@@ -15,6 +15,7 @@ export class TabsCoordinator {
   #tabCountCbs = new Set();
   #peersCbs = new Set();
   #projectsChangedCbs = new Set();
+  #accentCbs = new Set();
 
   #activeId = null;
   #lastTabCount = { count: 1, youAreOnly: true };
@@ -39,6 +40,7 @@ export class TabsCoordinator {
   onTabCount(cb) { this.#tabCountCbs.add(cb); return () => this.#tabCountCbs.delete(cb); }
   onPeers(cb) { this.#peersCbs.add(cb); return () => this.#peersCbs.delete(cb); }
   onProjectsChanged(cb) { this.#projectsChangedCbs.add(cb); return () => this.#projectsChangedCbs.delete(cb); }
+  onAccent(cb) { this.#accentCbs.add(cb); return () => this.#accentCbs.delete(cb); }
 
   whenReady() { return this.#readyPromise; }
 
@@ -47,6 +49,13 @@ export class TabsCoordinator {
     this.#activeId = id ?? null;
     if (this.#port) return this.#post({ type: MSG.ACTIVE, activeId: this.#activeId });
     if (this.#channel) this.#channel.postMessage({ type: MSG.ACTIVE, peerId: this.#peerId, activeId: this.#activeId });
+  }
+
+  // Tell every other tab the main accent changed so they repaint live. The key
+  // is the only payload — peers apply it themselves (and read localStorage on load).
+  broadcastAccent(key) {
+    if (this.#port) return this.#post({ type: MSG.ACCENT, key });
+    if (this.#channel) this.#channel.postMessage({ type: MSG.ACCENT, peerId: this.#peerId, key });
   }
 
   projectsChanged(detail = {}) {
@@ -96,6 +105,7 @@ export class TabsCoordinator {
     }
     if (data.type === MSG.PEERS) return this.#emitPeers(data.activeIds || []);
     if (data.type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
+    if (data.type === MSG.ACCENT) return this.#emitAccent(data.key);
   }
 
   // ── BroadcastChannel fallback ─────────────────────────────────
@@ -157,6 +167,7 @@ export class TabsCoordinator {
       return;
     }
     if (type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
+    if (type === MSG.ACCENT) return this.#emitAccent(data.key);
     if (type === MSG.BYE) {
       this.#peerSeen.delete(peerId);
       this.#peerActive.delete(peerId);
@@ -199,6 +210,15 @@ export class TabsCoordinator {
     for (const cb of this.#projectsChangedCbs) {
       try {
         cb(detail);
+      } catch {
+        /* one subscriber threw — isolate it so the others still get notified */
+      }
+    }
+  }
+  #emitAccent(key) {
+    for (const cb of this.#accentCbs) {
+      try {
+        cb(key);
       } catch {
         /* one subscriber threw — isolate it so the others still get notified */
       }

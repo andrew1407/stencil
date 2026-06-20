@@ -55,6 +55,38 @@
 :root[data-accent="brown"]   { --accent: #a87c50; }
 :root[data-accent="grey"]    { --accent: #64748b; }
 * { box-sizing: border-box; }
-/* Native form controls follow the violet brand accent instead of the OS default
-   (aqua/blue on macOS), so checkboxes/radios match the rest of the palette. */
-input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+/* Checkboxes & radios: a transparent box outlined in the brand accent, filled
+   with the accent (+ a white check / dot) when on — matching the editor + the
+   desktop Qt indicator. appearance:none so the look is ours, not the OS default. */
+input[type="checkbox"], input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-sizing: border-box;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  margin: 0;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  vertical-align: middle;
+}
+input[type="radio"] { border-radius: 50%; }
+input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
+}
+input[type="radio"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: radial-gradient(circle, #fff 0 2.6px, transparent 3.1px);
+}
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cursor: default; }

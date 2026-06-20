@@ -129,6 +129,17 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_crop_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Hold-to-draw + selection-delete headless check (CanvasWidget public API).
+  add_executable(stencil_holddraw_headless
+    tests/holdDrawCanvas.headless.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp)
+  target_include_directories(stencil_holddraw_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_holddraw_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_holddraw_headless COMMAND stencil_holddraw_headless)
+  set_tests_properties(stencil_holddraw_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Image-fixture test: loads a real PNG from tests/fixtures/ and runs it through the
   # load -> crop -> core image-filter path (desktop analogue of the CLI fixture tests).
   add_executable(stencil_image_headless

@@ -9,6 +9,12 @@ For the project overview and the desktop (C++/Qt) app, see the
 ## Features
 
 - Draw polylines and lockable, fillable rectangles/areas over an uploaded image
+- **Hold-to-draw**: press and hold the left button (no modifiers) to auto-enter
+  drawing and drop the first point, then dwell to add more and release to commit —
+  hold over an existing point to extend its line, over a line body to insert a
+  point. Delay is configurable (Visuals modal / `stencil.holdDrawDelay`). Delete a
+  selected line with **Alt+Delete** (⌥⌫ on macOS) or a focused point with
+  **Alt+Shift+Delete** (⌥⇧⌫)
 - Blank-image creator (white / black / any color, sized to the page by default) for
   starting from an empty canvas
 - Per-line color, thickness, marker size, and style (solid / dashed / dotted)
@@ -113,6 +119,7 @@ stencil.pageWidth        = 30;         // cm; applies when pageSize === 'custom'
 stencil.pageHeight       = 40;         // cm; applies when pageSize === 'custom'
 stencil.theme            = 'dark';     // 'dark' | 'light'
 stencil.drawMode         = 'rect';     // 'line' | 'rect'
+stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
 stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms
 stencil.formulaX         = 'x*2';      // x transform (also formulaY)
 stencil.formulaY         = 'y+10';
