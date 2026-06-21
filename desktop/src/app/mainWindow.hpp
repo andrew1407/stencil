@@ -171,6 +171,8 @@ namespace stencil::gui {
     // applyLaunchOptions, the --src/--incognito path), leaving this one untouched.
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
+    // Load a local file as a fresh image (resets page + provenance); returns success.
+    bool loadLocalImageReset(const QString& path);
     // Launch support: open a saved project by NAME (case-insensitive; first
     // match), used by --project. Returns false when no such project exists.
     bool openProjectByName(const QString& name);

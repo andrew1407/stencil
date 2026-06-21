@@ -157,10 +157,8 @@ export class DrawingApp {
     // else cm); a restored layout's saved unit overrides it.
     this.unit = defaultUnitFromLocale();
 
-    // ── Hold-to-draw (alternative flow): press-and-hold to auto-enter drawing,
-    // dwell to drop points, release to commit. Delay (ms) is configurable in the
-    // Visuals modal and via stencil.settings.holdDrawDelay. holdPreview holds the
-    // ghost-line cursor target (image space) while a hold stroke is active. ──
+    // Hold-to-draw (see ./holdDraw.js): delay (ms) is configurable; holdPreview is the
+    // ghost-line cursor target (image space) while a hold stroke is active.
     this.holdDrawDelay = 500;
     this.holdPreview = null;
 
@@ -944,19 +942,7 @@ export class DrawingApp {
         const nearSeg = this.#findNearestSegmentWithIdx(x, y);
         if (nearSeg) {
           e.preventDefault();
-          const line = this.lines[nearSeg.lineIdx];
-          this.isDraggingSegment = true;
-          this.#draggingSegment = {
-            lineIdx: nearSeg.lineIdx,
-            ptIdx1: nearSeg.ptIdx1,
-            ptIdx2: nearSeg.ptIdx2,
-            startX: x,
-            startY: y,
-            origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
-            origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
-            // Full snapshot so Shift mid-drag can translate the whole line shape.
-            origPoints: line.points.map(p => ({ x: p.x, y: p.y }))
-          };
+          this.#beginSegmentDrag(nearSeg, x, y);
           this.canvas.style.cursor = 'move';
           return;
         }
@@ -996,14 +982,7 @@ export class DrawingApp {
       // Handle point drag
       if (this.isDraggingPoint && this.#draggingPoint) {
         const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        const dp = this.#draggingPoint;
-        const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
-        if (line) {
-          line.points[dp.ptIdx].x = x;
-          line.points[dp.ptIdx].y = y;
-          this.renderer.redraw();
-          this.coordTable.refreshCoordRow(dp.ptIdx);
-        }
+        this.#movePointTo(this.#draggingPoint, x, y);
         return;
       }
 
@@ -1092,19 +1071,13 @@ export class DrawingApp {
 
       // Finish point drag
       if (this.isDraggingPoint) {
-        this.isDraggingPoint = false;
-        if (this.#draggingPoint && this.#draggingPoint.lineIdx !== -1) this.saveHistory();
-        this.#draggingPoint = null;
-        this.#finishDragGesture(e.altKey);
+        this.#endPointDrag(this.#draggingPoint, e.altKey);
         return;
       }
 
       // Finish segment drag
       if (this.isDraggingSegment) {
-        this.isDraggingSegment = false;
-        this.#draggingSegment = null;
-        this.saveHistory();
-        this.#finishDragGesture(e.altKey);
+        this.#endSegmentDrag(e.altKey);
         return;
       }
 
@@ -1197,10 +1170,8 @@ export class DrawingApp {
   }
 
   // ── Touchscreen input (direct manipulation + two-finger) ───────
-  // A touch-only gesture layer; the mouse handlers above stay untouched. Touch
-  // events never fire for a mouse, and preventDefault() suppresses the synthetic
-  // mouse/click a touch would otherwise emit — so the two input paths can't
-  // collide. Mapping (chosen over keyboard-modifier gestures the desktop uses):
+  // Touch-only layer; preventDefault() suppresses the synthetic mouse/click so it
+  // can't collide with the mouse handlers above. Gesture map:
   //   1 finger on a point   → drag that point      (no Alt needed)
   //   1 finger on a segment → drag that segment
   //   1 finger held still on geometry → context menu (mirrors right-click there)
@@ -1209,6 +1180,28 @@ export class DrawingApp {
   #wireTouch() {
     const viewport = document.getElementById('canvas-viewport');
     const moveTol = TOUCH_DEFAULTS.moveTol;
+
+    const findTouch = (touches, id) => {
+      for (let i = 0; i < touches.length; i++) if (touches[i].identifier === id) return touches[i];
+      return null;
+    };
+    // Pinch DOM writes are coalesced into one rAF (like #wireSmoothZoom) so a flood of
+    // touchmoves doesn't thrash layout: onMove just stashes the latest scale+midpoint.
+    const applyPinch = () => {
+      const st = this.#touch;
+      if (!st || st.mode !== 'pinch' || !st.pending) { if (st) st.raf = null; return; }
+      const { scale, midX, midY } = st.pending;
+      st.pending = null;
+      st.raf = null;
+      this.scale = scale;
+      this.canvas.style.width = (this.canvas.width * scale) + 'px';
+      this.canvas.style.height = (this.canvas.height * scale) + 'px';
+      this.zoomPan.setZoomInputValue(Math.round(scale * 100));
+      // Keep the pinched-down image point pinned under the (moving) midpoint — pan + zoom
+      // together. vpLeft/vpTop are cached at pinch start (the viewport can't move mid-gesture).
+      viewport.scrollLeft = st.imgX * scale - (midX - st.vpLeft);
+      viewport.scrollTop = st.imgY * scale - (midY - st.vpTop);
+    };
 
     const clearLongPress = () => {
       if (this.#longPressTimer) { clearTimeout(this.#longPressTimer); this.#longPressTimer = null; }
@@ -1264,6 +1257,8 @@ export class DrawingApp {
           startScale: this.scale,
           imgX: contentX / this.scale,
           imgY: contentY / this.scale,
+          vpLeft: vpRect.left, vpTop: vpRect.top,   // viewport screen pos, fixed for the gesture
+          pending: null, raf: null,                 // latest frame awaiting applyPinch
         };
         return;
       }
@@ -1283,15 +1278,7 @@ export class DrawingApp {
       }
       const nearSeg = this.#findNearestSegmentWithIdx(x, y);
       if (nearSeg) {
-        const line = this.lines[nearSeg.lineIdx];
-        this.isDraggingSegment = true;
-        this.#draggingSegment = {
-          lineIdx: nearSeg.lineIdx, ptIdx1: nearSeg.ptIdx1, ptIdx2: nearSeg.ptIdx2,
-          startX: x, startY: y,
-          origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
-          origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
-          origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
-        };
+        this.#beginSegmentDrag(nearSeg, x, y);
         this.#touch = { mode: 'segment', id: t.identifier, startX: t.clientX, startY: t.clientY };
         armGeometryLongPress(t);
         return;
@@ -1313,19 +1300,12 @@ export class DrawingApp {
         const mid = midpoint(a, b);
         const factor = touchDist(a, b) / st.startDist;
         const newScale = Math.max(0.05, Math.min(5, st.startScale * factor));
-        this.scale = newScale;
-        this.canvas.style.width = (this.canvas.width * newScale) + 'px';
-        this.canvas.style.height = (this.canvas.height * newScale) + 'px';
-        this.zoomPan.setZoomInputValue(Math.round(newScale * 100));
-        // Keep the pinched-down image point pinned under the (moving) midpoint —
-        // this delivers pan and zoom together.
-        const vpRect = viewport.getBoundingClientRect();
-        viewport.scrollLeft = st.imgX * newScale - (mid.x - vpRect.left);
-        viewport.scrollTop = st.imgY * newScale - (mid.y - vpRect.top);
+        st.pending = { scale: newScale, midX: mid.x, midY: mid.y };
+        if (!st.raf) st.raf = requestAnimationFrame(applyPinch);
         return;
       }
 
-      const t = Array.from(e.touches).find(tc => tc.identifier === st.id);
+      const t = findTouch(e.touches, st.id);
       if (!t) return;
       e.preventDefault();
       const moved = Math.hypot(t.clientX - st.startX, t.clientY - st.startY);
@@ -1335,14 +1315,7 @@ export class DrawingApp {
         clearLongPress();
         st.dragged = true;
         const { x, y } = this.canvasCoords(t.clientX, t.clientY);
-        const dp = this.#draggingPoint;
-        const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
-        if (line) {
-          line.points[dp.ptIdx].x = x;
-          line.points[dp.ptIdx].y = y;
-          this.renderer.redraw();
-          this.coordTable.refreshCoordRow(dp.ptIdx);
-        }
+        this.#movePointTo(this.#draggingPoint, x, y);
         return;
       }
       if (st.mode === 'segment') {
@@ -1369,6 +1342,8 @@ export class DrawingApp {
       if (st.mode === 'pinch') {
         // A finger lifted: settle the zoom; ignore the lone remaining finger until
         // all fingers are up, so lifting one doesn't kick off a stray drag.
+        if (st.raf) { cancelAnimationFrame(st.raf); st.raf = null; }
+        if (st.pending) applyPinch();   // flush the last frame so we settle at the real pinch end
         this.canvas.classList.remove('zoom-no-transition');
         this.zoomPan.setZoom(this.scale, true);
         this.#touch = e.touches.length === 0 ? null : { mode: 'done', id: -1 };
@@ -1379,25 +1354,22 @@ export class DrawingApp {
       clearLongPress();
 
       if (st.mode === 'point') {
-        const dp = this.#draggingPoint;
-        this.isDraggingPoint = false;
-        this.#draggingPoint = null;
         if (st.dragged) {
-          if (dp && dp.lineIdx !== -1) this.saveHistory();
-          this.#finishDragGesture(false);
+          this.#endPointDrag(this.#draggingPoint, false);
         } else {
           // Tap (no drag) on a point → select its line + focus the point + open
           // the style panel, exactly as a mouse click does.
+          this.isDraggingPoint = false;
+          this.#draggingPoint = null;
           tapClick(e, st);
         }
       } else if (st.mode === 'segment') {
-        this.isDraggingSegment = false;
-        this.#draggingSegment = null;
         if (st.dragged) {
-          this.saveHistory();
-          this.#finishDragGesture(false);
+          this.#endSegmentDrag(false);
         } else {
           // Tap (no drag) on a line → select it + open the style panel.
+          this.isDraggingSegment = false;
+          this.#draggingSegment = null;
           tapClick(e, st);
         }
       } else if (st.mode === 'tap') {
@@ -1415,7 +1387,11 @@ export class DrawingApp {
       this.#touch = null;
     };
 
-    const onCancel = () => { dropSingle(); this.#touch = null; };
+    const onCancel = () => {
+      if (this.#touch && this.#touch.raf) cancelAnimationFrame(this.#touch.raf);
+      dropSingle();
+      this.#touch = null;
+    };
 
     this.canvas.addEventListener('touchstart', onStart, { passive: false });
     document.addEventListener('touchmove', onMove, { passive: false });
@@ -2499,6 +2475,48 @@ export class DrawingApp {
       if (dist < threshold) return point;
     }
     return null;
+  }
+
+  // Begin dragging a segment (shared by the mouse Alt-drag and the touch grab). Snapshots
+  // the two endpoints + the whole line so a mid-drag Shift can translate the shape.
+  // (x, y) are the grab point in canvas coords.
+  #beginSegmentDrag(nearSeg, x, y) {
+    const line = this.lines[nearSeg.lineIdx];
+    this.isDraggingSegment = true;
+    this.#draggingSegment = {
+      lineIdx: nearSeg.lineIdx, ptIdx1: nearSeg.ptIdx1, ptIdx2: nearSeg.ptIdx2,
+      startX: x, startY: y,
+      origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
+      origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
+      origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
+    };
+  }
+
+  // Move the currently-dragged point (dp = #draggingPoint) to canvas coords (x, y) and
+  // refresh its coordinate row. Shared by the mouse and touch point-drag paths.
+  #movePointTo(dp, x, y) {
+    const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
+    if (!line) return;
+    line.points[dp.ptIdx].x = x;
+    line.points[dp.ptIdx].y = y;
+    this.renderer.redraw();
+    this.coordTable.refreshCoordRow(dp.ptIdx);
+  }
+
+  // Finish a point drag: clear state, save history (only for a placed line), commit.
+  #endPointDrag(dp, altKey) {
+    this.isDraggingPoint = false;
+    this.#draggingPoint = null;
+    if (dp && dp.lineIdx !== -1) this.saveHistory();
+    this.#finishDragGesture(altKey);
+  }
+
+  // Finish a segment drag: clear state, save history, commit.
+  #endSegmentDrag(altKey) {
+    this.isDraggingSegment = false;
+    this.#draggingSegment = null;
+    this.saveHistory();
+    this.#finishDragGesture(altKey);
   }
 
   // Apply the active segment/whole-line drag at the cursor. `shiftKey` decides the mode

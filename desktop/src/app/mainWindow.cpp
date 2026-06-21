@@ -35,6 +35,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QImage>
+#include <QImageReader>
 #include <QLineEdit>
 #include <QPixmap>
 #include <QUrl>
@@ -1130,24 +1131,29 @@ namespace stencil::gui {
     setColorSwatch(btn, color);  // QToolButton derives from QAbstractButton
   }
 
+  // Load a local file as a fresh image, page-sized to the current page setting, clearing
+  // any source/resource provenance. Notifies + refreshes actions. Returns whether it loaded.
+  bool MainWindow::loadLocalImageReset(const QString& path) {
+    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+    if (!canvas_->loadImage(path)) {
+      notify_->error("Failed to load image");
+      return false;
+    }
+    currentSource_.clear();  // a local file has no source/resource provenance
+    currentResource_.clear();
+    refreshActions();
+    notify_->success("Image loaded");
+    return true;
+  }
+
   void MainWindow::openImage() {
     const QString path = QFileDialog::getOpenFileName(
         this, "Open image", QString(), "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
     if (path.isEmpty()) return;
-    {
-      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
-                                                settings_.customPageWidth,
-                                                settings_.customPageHeight);
-      canvas_->setPageCm(page.width, page.height);
-    }
-    if (!canvas_->loadImage(path)) {
-      notify_->error("Failed to load image");
-      return;
-    }
-    currentSource_.clear();  // a local file has no source/resource provenance
-    currentResource_.clear();
-    notify_->success("Image loaded");
-    refreshActions();
+    loadLocalImageReset(path);
   }
 
   // "Open another image" (mirrors browser openImageModal.js): pick a file + an
@@ -1172,10 +1178,9 @@ namespace stencil::gui {
       if (!activeProjectId_.isEmpty()) saveToActiveProject();
       else saveSessionNow();
     }
-    // Replacing the image wholesale resets the editor: drop the project binding and
-    // adopt the chosen incognito mode (the toggle is normally gated to before an
-    // image; we set it directly here since this is a reset). Signals blocked so the
-    // toggle slot's notification doesn't fire — we emit our own below.
+    // Replacing the image wholesale resets the editor: drop the project binding and adopt
+    // the chosen incognito mode directly (the toggle is normally gated to before an image).
+    // Its signals are blocked so the toggle slot doesn't fire; we sync the title ourselves.
     activeProjectId_.clear();
     if (incognito_ != incognito) {
       incognito_ = incognito;
@@ -1184,24 +1189,20 @@ namespace stencil::gui {
       actIncognito_->blockSignals(false);
       updateProjectTitle();
     }
-    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
-                                              settings_.customPageWidth,
-                                              settings_.customPageHeight);
-    canvas_->setPageCm(page.width, page.height);
-    if (!canvas_->loadImage(path)) {
-      notify_->error("Failed to load image");
-      return;
-    }
-    currentSource_.clear();
-    currentResource_.clear();
-    refreshActions();
-    notify_->success("Image loaded");
+    loadLocalImageReset(path);
   }
 
   // Launch `path` in a fresh, self-owned window, leaving this editor untouched
   // (the desktop analog of the browser's "open in new tab"). Reuses the launch
   // path (--src/--incognito), which honors incognito and the page-aspect crop.
   void MainWindow::openImageInNewWindow(const QString& path, bool incognito) {
+    // The dialog only yields a local image file, and the new window's async launch path
+    // can't report a load failure back here — so validate up front and show the error on
+    // THIS window instead of spawning a blank one (mirrors openProjectInNewWindow's guard).
+    if (!QImageReader(path).canRead()) {
+      notify_->error("Failed to load image");
+      return;
+    }
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();

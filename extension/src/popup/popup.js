@@ -293,8 +293,6 @@ const renderRow = (image) => {
   const li = document.createElement('li');
   const row = document.createElement('div');
   row.className = 'row';
-  // Back-reference so togglePin can scroll the row into view after a re-render floats it.
-  image._row = row;
 
   // Provenance for the name's tooltip: the gestures and where the image came from. An
   // embedded data: URI is a huge base64 blob — show just its short mime prefix, never
@@ -656,10 +654,11 @@ const togglePin = async (image) => {
     source: sourceOf(image), site: siteOf(state.activeUrl), resource: state.activeUrl,
     name: image.name, kind: image.kind, pinned: next,
   });
-  applyFilters();           // re-sorts: a pinned row floats to the top
+  applyFilters();           // re-sorts + re-renders: a pinned row floats to the top
   // Follow the row to its new position so it stays in view (and flash it), instead of it
-  // jumping off-screen while the scroll stays put. renderRow re-set image._row just now.
-  const row = image._row;
+  // jumping off-screen while the scroll stays put. Rows render in state.filtered order.
+  const idx = state.filtered.indexOf(image);
+  const row = idx >= 0 ? listEl.children[idx]?.querySelector('.row') : null;
   if (row) {
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     row.classList.remove('just-pinned');

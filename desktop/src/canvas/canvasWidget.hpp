@@ -240,6 +240,9 @@ namespace stencil::gui {
     void insertPointOnSegment(int lineIdx, int insertIdx, double x, double y);
     void addConnectedPoint(double x, double y);
     void closeContinuedShape();
+    // Insert ip into the line being continued at the (clamped) insert cursor and select
+    // it; advance the cursor unless prepending. Caller must have validated continueLineIdx_.
+    void insertContinuationPoint(const core::Point& ip, bool advance);
 
     // Interactive editing helpers (port of drawingApp.js). Refresh the hovered
     // point under the cursor (returns true when it changed), bump thickness of

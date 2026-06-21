@@ -976,11 +976,7 @@ namespace stencil::gui {
         emit changed();
         return;
       }
-      const int at = std::max(
-          0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
-      line.points.insert(line.points.begin() + at, ip);
-      selectedPoint_ = at;
-      continueInsertIdx_ = at + 1;
+      insertContinuationPoint(ip, /*advance=*/true);
       update();
       emit changed();
       emit selectionChanged();
@@ -1459,7 +1455,6 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::beginHold(const QPoint& widgetPos) {
-    hold_.setHoldDelay(holdDelayMs_);
     holdPressPos_ = widgetPos;
     hold_.pointerDown(widgetPos.x(), widgetPos.y(), holdNowMs());
     holdTimer_.start();
@@ -1511,19 +1506,23 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  // Insert ip into the continued line at the clamped insert cursor + select it. Prepend
+  // mode keeps inserting at the head; forward mode advances so points keep appending.
+  void CanvasWidget::insertContinuationPoint(const core::Point& ip, bool advance) {
+    core::Line& line = lines_[continueLineIdx_];
+    const int at = std::max(
+        0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
+    line.points.insert(line.points.begin() + at, ip);
+    selectedPoint_ = at;
+    if (advance) continueInsertIdx_ = at + 1;
+  }
+
   // Dwell completed → drop a point (extends the in-progress / continued line).
   void CanvasWidget::holdDrop(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
     if (continueLineIdx_ >= 0 &&
         continueLineIdx_ < static_cast<int>(lines_.size())) {
-      core::Line& line = lines_[continueLineIdx_];
-      const int at = std::max(
-          0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
-      line.points.insert(line.points.begin() + at, ip);
-      selectedPoint_ = at;
-      // Prepend mode keeps inserting at index 0 (each new point becomes the new
-      // head); forward mode advances the insert point so points keep appending.
-      if (!holdPrepend_) continueInsertIdx_ = at + 1;
+      insertContinuationPoint(ip, /*advance=*/!holdPrepend_);
     } else {
       currentLine_.points.push_back(ip);
     }

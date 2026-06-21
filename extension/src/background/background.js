@@ -488,15 +488,19 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // image/background's src), the same thing "open in new tab" uses. Toggles. ──
   if (PIN_ITEMS.includes(info.menuItemId)) {
     const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
-    // For a <video> the media URL (info.srcUrl) is the openable source, not a frame; for
-    // a background/overlay/link image the probe's recorded URL; otherwise the <img> src.
-    const source = info.menuItemId === MENU.bgPin ? ((rec && rec.url) || info.srcUrl || '')
-      : info.menuItemId === MENU.framePin ? (info.srcUrl || (tabId != null ? lastPosterByTab.get(tabId) : '') || '')
-        : (info.srcUrl || (rec && rec.url) || '');
+    const poster = tabId != null ? lastPosterByTab.get(tabId) : '';
+    // The openable source + kind depend on which menu item fired: a background/overlay uses
+    // the probe's recorded URL; a <video> frame uses the media URL (info.srcUrl) or poster
+    // fallback; a plain image uses info.srcUrl.
+    const byItem = {
+      [MENU.bgPin]: { source: (rec && rec.url) || info.srcUrl || '', kind: 'background' },
+      [MENU.framePin]: { source: info.srcUrl || poster || '', kind: 'video' },
+    };
+    const { source, kind } = byItem[info.menuItemId]
+      || { source: info.srcUrl || (rec && rec.url) || '', kind: 'image' };
     if (!source) return;
     const resource = tab?.url || '';
     const site = siteOf(resource);
-    const kind = info.menuItemId === MENU.framePin ? 'video' : info.menuItemId === MENU.bgPin ? 'background' : 'image';
     try {
       const pinned = isPinnedIn(await loadPins(), site, source);
       await setPinned({ source, site, resource, name: filenameFromUrl(source), kind, pinned: !pinned });

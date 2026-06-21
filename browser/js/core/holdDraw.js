@@ -43,12 +43,9 @@ export const holdDrawTarget = (lines, x, y, { pointThreshold = 12, segThreshold 
 
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 
-// Gesture state machine. All coordinates are in the host's screen/client space
-// (so tolerances stay zoom-independent); the host converts the emitted drop /
-// preview positions into image space. Times are arbitrary monotonic ms values.
-//
-// States: 'idle' → 'armed' → 'drawing' → 'idle' (commit), or 'armed' → 'aborted'
-// when the pointer moves too far before the hold completes (a normal click/drag).
+// Gesture state machine. Coordinates are host screen/client space (zoom-independent);
+// times are arbitrary monotonic ms. States: idle → armed → drawing → idle (commit), or
+// armed → aborted when the pointer moves too far before the hold completes.
 //
 // Driver contract (host):
 //   pointerDown(x,y,t)  on a plain left mousedown that is eligible for hold-draw
