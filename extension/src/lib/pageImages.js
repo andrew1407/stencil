@@ -36,6 +36,3 @@ export const nameFromUrl = (url, fallback = 'image') => {
 // real dimensions, and not paused on frame 0 i.e. the poster). Mirrors imageScan.js.
 export const videoHasFrame = (v) =>
   !!(v && v.videoWidth && v.videoHeight && v.readyState >= 2 && !(v.paused && !v.currentTime));
-
-// True for an http(s) URL — the only kind the editor hand-off can re-fetch/track.
-export const isHttpUrl = (url) => /^https?:\/\//i.test(String(url || ''));

@@ -31,7 +31,19 @@ export const centeredCrop = (imageW, imageH, aspectWoverH) => {
   return { x: (imageW - w) / 2, y: (imageH - h) / 2, width: w, height: h };
 };
 
-// corner: 0=TL, 1=TR, 2=BR, 3=BL
+/**
+ * Resize an aspect-locked crop rect by dragging one corner; the opposite corner
+ * stays anchored and the result is clamped inside the image.
+ * @param {{x: number, y: number, width: number, height: number}} cur - Current crop rect.
+ * @param {0|1|2|3} corner - Dragged corner: 0=TL, 1=TR, 2=BR, 3=BL.
+ * @param {number} cursorX - Cursor x in original-image pixels.
+ * @param {number} cursorY - Cursor y in original-image pixels.
+ * @param {number} aspectWoverH - Locked width/height aspect ratio.
+ * @param {number} imageW - Original image width (px).
+ * @param {number} imageH - Original image height (px).
+ * @param {number} [minSize=16] - Minimum crop width (px).
+ * @returns {{x: number, y: number, width: number, height: number}} The resized rect.
+ */
 export const resizeCropFromCorner = (cur, corner, cursorX, cursorY, aspectWoverH, imageW, imageH, minSize = 16) => {
   if (aspectWoverH <= 0 || imageW <= 0 || imageH <= 0) return { ...cur };
   const movingLeft = corner === 0 || corner === 3;

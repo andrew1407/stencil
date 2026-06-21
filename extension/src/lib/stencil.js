@@ -44,8 +44,13 @@ const arrayBufferToBase64 = (buf) => {
   return btoa(binary);
 };
 
-// Fetch any image URL (http(s)/blob:/data:) and return it as a data URL. The
-// extension's host_permissions bypass page CORS → no tainted canvas.
+/**
+ * Fetch any image URL (http(s)/blob:/data:) and return it as a data URL. The
+ * extension's host_permissions bypass page CORS → no tainted canvas.
+ * @param {string} url - The image URL (data: URLs pass through unchanged).
+ * @returns {Promise<string>} A `data:<mime>;base64,<…>` URL.
+ * @throws {Error} On a non-OK response or a video/audio source.
+ */
 export const fetchAsDataUrl = async (url) => {
   if (url.startsWith('data:')) return url;
   const resp = await fetch(url);
@@ -65,7 +70,12 @@ export const guessMime = (url) => {
   return ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml', ico: 'image/x-icon', tif: 'image/tiff' })[ext] || `image/${ext}`;
 };
 
-// A reasonable download / project filename from the image URL.
+/**
+ * Derive a reasonable download / project filename from an image URL.
+ * @param {string} url - The image URL (http(s) or data:).
+ * @param {string} [fallback='image'] - Base name when none can be parsed.
+ * @returns {string} A filename with an extension (e.g. "cat.png").
+ */
 export const filenameFromUrl = (url, fallback = 'image') => {
   try {
     if (url.startsWith('data:')) {
@@ -82,8 +92,13 @@ export const filenameFromUrl = (url, fallback = 'image') => {
   }
 };
 
-// Build the editor launch URL. Image + options ride in the URL fragment
-// (`#stencil=…`) so they never reach the server (read in applyExternalLaunch()).
+/**
+ * Build the editor launch URL. The image + options ride in the URL fragment
+ * (`#stencil=…`) so they never reach the server (read in applyExternalLaunch()).
+ * @param {string} editorUrl - The editor page URL (any existing fragment is dropped).
+ * @param {object} payload - The launch payload ({dataUrl, name?, crop?, …}).
+ * @returns {string} The editor URL with the encoded payload fragment.
+ */
 export const buildLaunchUrl = (editorUrl, payload) => {
   const base = editorUrl.split('#')[0];
   return `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
@@ -93,8 +108,13 @@ export const buildLaunchUrl = (editorUrl, payload) => {
 // Past it Chrome drops the navigation and the editor tab lands on about:blank.
 export const MAX_PAYLOAD = 1_800_000;
 
-// Encode a Blob as a data URL (no FileReader → works in the service worker too).
-const blobToDataUrl = async (blob) =>
+/**
+ * Encode a Blob as a data URL without FileReader (so it works in the service
+ * worker too).
+ * @param {Blob} blob - The blob to encode.
+ * @returns {Promise<string>} A `data:<type>;base64,<…>` URL.
+ */
+export const blobToDataUrl = async (blob) =>
   `data:${blob.type || 'image/jpeg'};base64,${arrayBufferToBase64(await blob.arrayBuffer())}`;
 
 const scaleRect = (r, k) => ({
@@ -148,18 +168,27 @@ const noteOpened = async (payload) => {
   await recordOpened({ source: payload.source, resource: payload.resource, name: payload.name, editorUrl });
 };
 
-// Open the full editor in a NEW browser tab with the given image payload.
-// The editor's own multi-project / cross-tab UI surfaces any already-open editors.
+/**
+ * Open the full editor in a NEW browser tab with the given image payload. The
+ * editor's own multi-project / cross-tab UI surfaces any already-open editors.
+ * @param {object} payload - Launch payload ({dataUrl, name?, crop?, source?,
+ *   resource?, open?, incognito?}).
+ * @returns {Promise<chrome.tabs.Tab>} The created tab.
+ */
 export const openEditorTab = async (payload) => {
   const tab = await chrome.tabs.create({ url: await buildEditorLaunchUrl(payload) });
   await noteOpened(payload);
   return tab;
 };
 
-// Open the full editor as a small in-page modal on the given tab (mirrors launchCrop).
-// Falls back to a real tab with no tabId, or when the modal can't be injected
-// (restricted page) / the editor frame is later blocked by the page CSP.
-//   { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito?, tabId }
+/**
+ * Open the full editor as a small in-page modal on the given tab (mirrors
+ * launchCrop). Falls back to a real tab when `tabId` is null, or when the modal
+ * can't be injected (restricted page) / the editor frame is later CSP-blocked.
+ * @param {object} args - Launch payload plus `tabId`:
+ *   {dataUrl, name?, crop?, page?, source?, resource?, open?, incognito?, tabId}.
+ * @returns {Promise<chrome.tabs.Tab|void>} The fallback tab when one is opened.
+ */
 export const launchEditorModal = async ({ tabId, ...payload }) => {
   const url = await buildEditorLaunchUrl(payload);
   if (tabId == null) {
@@ -186,9 +215,18 @@ export const CROP_SRC_KEY = 'stencil-crop-src';
 // to the post-crop editor hand-off so a cropped image keeps where it came from.
 export const CROP_META_KEY = 'stencil-crop-meta';
 
-// Open the quick-crop tool as a small in-page modal on the given tab. Falls back to a
-// real tab when the modal can't be injected (restricted page) / the frame is CSP-blocked.
-// `source`/`resource` ride along (via session storage) so the cropped result keeps provenance.
+/**
+ * Open the quick-crop tool as a small in-page modal on the given tab. Falls back
+ * to a real tab when the modal can't be injected (restricted page) / the frame is
+ * CSP-blocked. `source`/`resource` ride along (via session storage) so the cropped
+ * result keeps its provenance.
+ * @param {object} args
+ * @param {string} args.src - The image data/URL to crop.
+ * @param {string} [args.source] - The image's own URL (provenance).
+ * @param {string} [args.resource] - The page URL the image came from (provenance).
+ * @param {number} [args.tabId] - Tab to mount the modal on; null opens a tab.
+ * @returns {Promise<chrome.tabs.Tab|void>} The fallback tab when one is opened.
+ */
 export const launchCrop = async ({ src, source, resource, tabId }) => {
   try {
     await chrome.storage.session.set({ [CROP_SRC_KEY]: src, [CROP_META_KEY]: { source: source || '', resource: resource || '' } });

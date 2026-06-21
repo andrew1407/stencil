@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bgImageUrl, nameFromUrl, videoHasFrame, isHttpUrl } from '../src/lib/pageImages.js';
+import { bgImageUrl, nameFromUrl, videoHasFrame } from '../src/lib/pageImages.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
   assert.equal(bgImageUrl('url("https://a.com/x.png")'), 'https://a.com/x.png');
@@ -25,12 +25,4 @@ test('videoHasFrame: needs decoded data, real dims, not poster-at-0', () => {
   assert.equal(videoHasFrame({ videoWidth: 640, videoHeight: 480, readyState: 4, paused: true, currentTime: 0 }), false);  // poster showing
   assert.equal(videoHasFrame({ videoWidth: 0, videoHeight: 0, readyState: 4, paused: false, currentTime: 1 }), false);     // no dims
   assert.equal(videoHasFrame(null), false);
-});
-
-test('isHttpUrl: only http(s)', () => {
-  assert.equal(isHttpUrl('https://a.com/x.png'), true);
-  assert.equal(isHttpUrl('http://a.com/x.png'), true);
-  assert.equal(isHttpUrl('data:image/png;base64,AA'), false);
-  assert.equal(isHttpUrl('blob:https://a.com/x'), false);
-  assert.equal(isHttpUrl(''), false);
 });

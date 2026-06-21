@@ -2,7 +2,7 @@
 // Owns the right-click context menu (Stencil actions → editor). Covers real <img>
 // (native 'image' context) and CSS background-image elements (detected by the
 // content-script probe, ctxTarget.js).
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl } from '../lib/stencil.js';
 import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../lib/contextMenu.js';
 import { pruneLedger } from '../lib/ledger.js';
 import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
@@ -255,15 +255,6 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
       chrome.contextMenus.update(id, { visible: showPreview }, () => void chrome.runtime.lastError);
   }
 });
-
-// Encode a Blob as a data URL without FileReader (not available in a SW).
-const blobToDataUrl = async (blob) => {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const CHUNK = 0x8000;
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
-  return `data:${blob.type || 'image/jpeg'};base64,${btoa(binary)}`;
-};
 
 // Cap the captured frame's longest side: it rides in the editor launch URL as a
 // data URL, and an un-capped retina crop overflows Chrome's URL limit (about:blank).

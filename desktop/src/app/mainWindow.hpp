@@ -213,6 +213,12 @@ namespace stencil::gui {
     void createProject(const QString& name);
     void saveToActiveProject();
 
+    // Find a loaded project by id, or nullptr when none matches.
+    Project* findProject(const std::string& id);
+    // Persist settings to disk unless this is an incognito window (which never
+    // writes). Centralizes the incognito-gated save used across the toolbar.
+    void persistSettings();
+
     // ── Project name surface (window title + toolbar field). Mirrors the browser's
     // updateProjectTitle + validated inline rename (validateName/nameExists). ──
     // Reflect the active project's name in the window title and the toolbar field.

@@ -4,10 +4,7 @@
 // replace its JS engines (formulaEngine.js, the geometry parts of utils.js, and
 // the page-calc parts of drawingApp.js) with this compiled core. STL-only — no
 // Qt, never linked into the desktop binary (see CMakeLists EMSCRIPTEN branch).
-//
-// emcc is NOT installed in this environment, so this translation unit is
-// build-ready but was not compiled here. See desktop/WASM.md for the build +
-// browser-wiring instructions.
+// See desktop/WASM.md for the build + browser-wiring instructions.
 //
 // extern "C" (not embind) was chosen to keep the surface minimal and ABI-stable:
 // every export is a plain C function over doubles / C strings, which Emscripten
@@ -24,6 +21,24 @@
 #include <vector>
 
 using namespace stencil::core;
+
+namespace {
+  // Marshal a flat [x0,y0,x1,y1,...] array of `count` points into a vector.
+  std::vector<Point> toPoints(const double* pts, int count) {
+    std::vector<Point> v;
+    if (count > 0) v.reserve(count);
+    for (int i = 0; i < count; ++i) v.push_back(Point{pts[2 * i], pts[2 * i + 1]});
+    return v;
+  }
+
+  // Write a CropRect to out[0..3] = {x, y, width, height}.
+  void writeRect(const CropRect& r, double* out) {
+    out[0] = r.x;
+    out[1] = r.y;
+    out[2] = r.width;
+    out[3] = r.height;
+  }
+}
 
 extern "C" {
 
@@ -51,9 +66,7 @@ extern "C" {
   // array of `count` points with the given markerSize, else 0.
   int stencil_shouldCloseShape(const double* pts, int count, double cx,
                                double cy, double markerSize) {
-    std::vector<Point> v;
-    v.reserve(count);
-    for (int i = 0; i < count; ++i) v.push_back(Point{pts[2 * i], pts[2 * i + 1]});
+    const std::vector<Point> v = toPoints(pts, count);
     return shouldCloseShape(v, Point{cx, cy}, markerSize) ? 1 : 0;
   }
 
@@ -121,9 +134,7 @@ extern "C" {
   void stencil_rotatePoints(double* pts, int count, double cx, double cy,
                             double angle) {
     if (!pts || count <= 0) return;
-    std::vector<Point> v;
-    v.reserve(count);
-    for (int i = 0; i < count; ++i) v.push_back(Point{pts[2 * i], pts[2 * i + 1]});
+    std::vector<Point> v = toPoints(pts, count);
     rotatePoints(v, cx, cy, angle);
     for (int i = 0; i < count; ++i) {
       pts[2 * i] = v[i].x;
@@ -134,9 +145,7 @@ extern "C" {
   // Center of the axis-aligned bounding box of a flat point array -> out[0..1].
   // The rotation pivot used by #rotateSelectedLine when no point is focused.
   void stencil_boundingBoxCenter(const double* pts, int count, double* out) {
-    std::vector<Point> v;
-    v.reserve(count > 0 ? count : 0);
-    for (int i = 0; i < count; ++i) v.push_back(Point{pts[2 * i], pts[2 * i + 1]});
+    const std::vector<Point> v = toPoints(pts, count);
     const Point c = boundingBoxCenter(v);
     out[0] = c.x;
     out[1] = c.y;
@@ -178,10 +187,7 @@ extern "C" {
   void stencil_centeredCrop(double imageW, double imageH, double aspectWoverH,
                             double* out) {
     const CropRect r = centeredCrop(imageW, imageH, aspectWoverH);
-    out[0] = r.x;
-    out[1] = r.y;
-    out[2] = r.width;
-    out[3] = r.height;
+    writeRect(r, out);
   }
 
   void stencil_resizeCropFromCorner(double x, double y, double w, double h,
@@ -191,20 +197,14 @@ extern "C" {
     const CropRect r = resizeCropFromCorner(CropRect{x, y, w, h}, corner, cursorX,
                                             cursorY, aspectWoverH, imageW, imageH,
                                             minSize);
-    out[0] = r.x;
-    out[1] = r.y;
-    out[2] = r.width;
-    out[3] = r.height;
+    writeRect(r, out);
   }
 
   void stencil_moveCropClamped(double x, double y, double w, double h, double dx,
                                double dy, double imageW, double imageH,
                                double* out) {
     const CropRect r = moveCropClamped(CropRect{x, y, w, h}, dx, dy, imageW, imageH);
-    out[0] = r.x;
-    out[1] = r.y;
-    out[2] = r.width;
-    out[3] = r.height;
+    writeRect(r, out);
   }
 
   double stencil_cropResizeScale(double oldWidth, double newWidth) {
@@ -220,10 +220,7 @@ extern "C" {
                                      double* out) {
     const CropRect r = rotateCropRectQuarter(CropRect{x, y, w, h}, imageW, imageH,
                                              clockwise != 0);
-    out[0] = r.x;
-    out[1] = r.y;
-    out[2] = r.width;
-    out[3] = r.height;
+    writeRect(r, out);
   }
 
   // out[0] = orientationChanged (0/1), out[1] = scale.

@@ -267,14 +267,14 @@ namespace stencil::gui {
             [this](double v) {
               // Spinboxes are edited in the active unit; store the model in cm.
               settings_.customPageWidth = v / unitFormat().factor;
-              if (!incognito_) fileStore::saveSettings(settings_);
+              persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
             });
     connect(customH_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
               settings_.customPageHeight = v / unitFormat().factor;
-              if (!incognito_) fileStore::saveSettings(settings_);
+              persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
             });
@@ -295,7 +295,7 @@ namespace stencil::gui {
         formulaY_->clear();
         formulaError_->setVisible(false);
       }
-      if (!incognito_) fileStore::saveSettings(settings_);
+      persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm when formulas toggle (GAP-2)
     });
@@ -540,7 +540,7 @@ namespace stencil::gui {
     connect(actTooltip_, &QAction::toggled, this, [this](bool on) {
       settings_.tooltipEnabled = on;
       if (!on) tooltip_->hide();
-      if (!incognito_) fileStore::saveSettings(settings_);
+      persistSettings();
     });
     connect(actQuit_, &QAction::triggered, this, &QWidget::close);
   }
@@ -558,7 +558,7 @@ namespace stencil::gui {
       const bool toRect = canvas_->drawMode() == CanvasWidget::DrawMode::Line;
       canvas_->setDrawMode(toRect ? CanvasWidget::DrawMode::Rect
                                   : CanvasWidget::DrawMode::Line);
-      if (!incognito_) fileStore::saveSettings(settings_);
+      persistSettings();
       notify_->info(QString("Drawing mode: %1")
                         .arg(toRect ? "Rectangle" : "Line"));
     });
@@ -1013,7 +1013,7 @@ namespace stencil::gui {
                             ? CanvasWidget::DrawMode::Line
                             : CanvasWidget::DrawMode::Rect;
       canvas_->setDrawMode(next);
-      if (!incognito_) fileStore::saveSettings(settings_);
+      persistSettings();
     });
     // Echo the canvas draw mode onto the toggle button (drawingApp.js
     // syncDrawModeUI ~1125): label + tooltip per mode.
@@ -1081,7 +1081,7 @@ namespace stencil::gui {
   void MainWindow::onLineStyleControlChanged() {
     canvas_->setDefaults(settings_.defaultColor, settings_.defaultThickness,
                          settings_.defaultMarkerSize, settings_.defaultStyle);
-    if (!incognito_) fileStore::saveSettings(settings_);
+    persistSettings();
   }
 
   // ── Shared apply paths for controls duplicated in the toolbar AND context menu.
@@ -1104,7 +1104,7 @@ namespace stencil::gui {
     }
     if (filterColorAct_) filterColorAct_->setVisible(mode == "custom");
     canvas_->setImageFilter(mode, filterColorValue_);
-    if (!incognito_) fileStore::saveSettings(settings_);
+    persistSettings();
   }
 
   void MainWindow::applyTintColor(const QColor& color) {
@@ -1112,7 +1112,7 @@ namespace stencil::gui {
     settings_.filterColor = color.name(QColor::HexRgb);
     if (filterColorBtn_) updateColorSwatch(filterColorBtn_, color);
     canvas_->setImageFilter(settings_.imageFilter, filterColorValue_);
-    if (!incognito_) fileStore::saveSettings(settings_);
+    persistSettings();
   }
 
   void MainWindow::applyLineStyle(const QString& style) {
@@ -1355,7 +1355,7 @@ namespace stencil::gui {
     const QString c = (code == "in") ? "in" : "cm";
     if (settings_.units == c) return;
     settings_.units = c;
-    if (!incognito_) fileStore::saveSettings(settings_);
+    persistSettings();
     syncUnitControls();
     applyUnitToPageInputs();
     onHovered(lastHoverX_, lastHoverY_);  // status bar + live tooltip
@@ -1396,7 +1396,7 @@ namespace stencil::gui {
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
     }
-    if (!incognito_) fileStore::saveSettings(settings_);
+    persistSettings();
     onHovered(lastHoverX_, lastHoverY_);
     onSelectionChanged();  // refresh panel cm for the new page size (GAP-2)
   }
@@ -1413,7 +1413,7 @@ namespace stencil::gui {
     if (okX && okY) {
       settings_.formulaX = fx;
       settings_.formulaY = fy;
-      if (!incognito_) fileStore::saveSettings(settings_);
+      persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm with the new formulas (GAP-2)
     }
@@ -2192,17 +2192,15 @@ namespace stencil::gui {
       // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
     } else if (dlg.action() == Action::Renew) {
-      const std::string id = dlg.selectedId().toStdString();
-      auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == id; });
-      if (it == projectList_.end()) return;
+      Project* pr = findProject(dlg.selectedId().toStdString());
+      if (!pr) return;
       // Restart the 7-day expiry window from now without touching content.
-      it->meta.updatedAt = nowMs();
+      pr->meta.updatedAt = nowMs();
       // Not gated by incognito: operates on other saved projects, not the
       // incognito editor's content (see S6 scope note above).
       fileStore::saveProjects(projectList_);
       notify_->success(QString("Renewed \"%1\" — expires in 7 days")
-                           .arg(QString::fromStdString(it->meta.name)));
+                           .arg(QString::fromStdString(pr->meta.name)));
     } else if (dlg.action() == Action::New) {
       if (incognito_) {  // S6: no project promotion while incognito
         notify_->info("Incognito mode — saving is disabled");
@@ -2215,24 +2213,22 @@ namespace stencil::gui {
   }
 
   bool MainWindow::loadProjectIntoCanvas(const QString& id) {
-    const std::string sid = id.toStdString();
-    auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                           [&](const Project& p) { return p.meta.id == sid; });
-    if (it == projectList_.end()) return false;
+    Project* pr = findProject(id.toStdString());
+    if (!pr) return false;
     {
       const core::PageSize page = naturalPageCm(pageSize_->currentText(),
                                                 settings_.customPageWidth,
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
     }
-    canvas_->restore(it->imagePath, it->lines, canvas_->scale(), it->cropRect,
-                     it->rotationQuarters);
+    canvas_->restore(pr->imagePath, pr->lines, canvas_->scale(), pr->cropRect,
+                     pr->rotationQuarters);
     activeProjectId_ = id;
-    currentSource_ = QString::fromStdString(it->meta.source);
-    currentResource_ = QString::fromStdString(it->meta.resource);
+    currentSource_ = QString::fromStdString(pr->meta.source);
+    currentResource_ = QString::fromStdString(pr->meta.resource);
     refreshActions();
     notify_->success(
-        QString("Opened \"%1\"").arg(QString::fromStdString(it->meta.name)));
+        QString("Opened \"%1\"").arg(QString::fromStdString(pr->meta.name)));
     return true;
   }
 
@@ -2500,12 +2496,10 @@ namespace stencil::gui {
     // the live current* provenance (e.g. an image just loaded by URL, not yet saved).
     QString src = currentSource_, res = currentResource_;
     if (!activeProjectId_.isEmpty()) {
-      const std::string id = activeProjectId_.toStdString();
-      auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == id; });
-      if (it != projectList_.end()) {
-        src = QString::fromStdString(it->meta.source);
-        res = QString::fromStdString(it->meta.resource);
+      Project* pr = findProject(activeProjectId_.toStdString());
+      if (pr) {
+        src = QString::fromStdString(pr->meta.source);
+        res = QString::fromStdString(pr->meta.resource);
       }
     }
 
@@ -2535,13 +2529,11 @@ namespace stencil::gui {
     currentSource_ = dlg.source();
     currentResource_ = dlg.resource();
     if (!activeProjectId_.isEmpty()) {
-      const std::string id = activeProjectId_.toStdString();
-      auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == id; });
-      if (it != projectList_.end()) {
-        it->meta.source = currentSource_.toStdString();
-        it->meta.resource = currentResource_.toStdString();
-        it->meta.updatedAt = nowMs();
+      Project* pr = findProject(activeProjectId_.toStdString());
+      if (pr) {
+        pr->meta.source = currentSource_.toStdString();
+        pr->meta.resource = currentResource_.toStdString();
+        pr->meta.updatedAt = nowMs();
         fileStore::saveProjects(projectList_);
         notify_->success("Links saved");
         return;
@@ -2588,6 +2580,18 @@ namespace stencil::gui {
     createProject(name.trimmed());
   }
 
+  // Find a loaded project by id, or nullptr when none matches.
+  Project* MainWindow::findProject(const std::string& id) {
+    auto it = std::find_if(projectList_.begin(), projectList_.end(),
+                           [&](const Project& p) { return p.meta.id == id; });
+    return it == projectList_.end() ? nullptr : &*it;
+  }
+
+  // Persist settings to disk unless this is an incognito window (which never writes).
+  void MainWindow::persistSettings() {
+    if (!incognito_) fileStore::saveSettings(settings_);
+  }
+
   // Build a Project from the current canvas, persist it, mark it active, refresh,
   // and notify. Shared by openProjects' New action + newProjectFromCanvas (the
   // incognito guard lives at each call site). pr.meta.name == the passed name.
@@ -2620,27 +2624,25 @@ namespace stencil::gui {
       newProjectFromCanvas();
       return;
     }
-    const std::string id = activeProjectId_.toStdString();
-    auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                           [&](const Project& p) { return p.meta.id == id; });
-    if (it == projectList_.end()) {
+    Project* pr = findProject(activeProjectId_.toStdString());
+    if (!pr) {
       newProjectFromCanvas();
       return;
     }
-    it->imagePath = canvas_->imagePath();
-    it->lines = canvas_->allLines();
-    it->cropRect = canvas_->cropRect();
-    it->rotationQuarters = canvas_->rotationQuarters();
-    it->meta.updatedAt = nowMs();
-    it->meta.hasImage = !it->imagePath.isEmpty();
+    pr->imagePath = canvas_->imagePath();
+    pr->lines = canvas_->allLines();
+    pr->cropRect = canvas_->cropRect();
+    pr->rotationQuarters = canvas_->rotationQuarters();
+    pr->meta.updatedAt = nowMs();
+    pr->meta.hasImage = !pr->imagePath.isEmpty();
     // Keep provenance unless the active image carries its own (a save shouldn't
     // wipe links set via the Links dialog, but a fresh URL-loaded image updates them).
-    if (!currentSource_.isEmpty()) it->meta.source = currentSource_.toStdString();
-    if (!currentResource_.isEmpty()) it->meta.resource = currentResource_.toStdString();
+    if (!currentSource_.isEmpty()) pr->meta.source = currentSource_.toStdString();
+    if (!currentResource_.isEmpty()) pr->meta.resource = currentResource_.toStdString();
     fileStore::saveProjects(projectList_);
     refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(
-        QString("Saved to \"%1\"").arg(QString::fromStdString(it->meta.name)));
+        QString("Saved to \"%1\"").arg(QString::fromStdString(pr->meta.name)));
   }
 
   // ── Project name surface (window title + toolbar field) ──
@@ -2670,17 +2672,14 @@ namespace stencil::gui {
 
   bool MainWindow::renameProjectById(const QString& id, const QString& rawName) {
     const QString name = rawName.trimmed();
-    auto it = std::find_if(projectList_.begin(), projectList_.end(),
-                           [&](const Project& p) {
-                             return QString::fromStdString(p.meta.id) == id;
-                           });
-    if (it == projectList_.end()) return false;
+    Project* pr = findProject(id.toStdString());
+    if (!pr) return false;
     const auto check = checkProjectName(name, id);
     if (!check.ok) {
       notify_->error(QString::fromStdString(check.reason));
       return false;
     }
-    it->meta.name = name.toStdString();
+    pr->meta.name = name.toStdString();
     // The project name is THE name: downloads use projectBaseName(), so there is no
     // separate image name to keep in sync.
     fileStore::saveProjects(projectList_);
