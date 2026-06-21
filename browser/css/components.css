@@ -531,6 +531,22 @@ body.fullscreen-mode #fs-points-panel {
 #install-host:hover #install-menu,
 #install-host:focus-within #install-menu { display: flex; }
 
+/* Touch devices: the desktop download is meaningless, so the button collapses to a
+   single "Install app" affordance — it drops out of the fixed corner into the normal
+   flow at the bottom, and the two-option menu never opens (a tap installs the PWA
+   directly; see installButton.js). */
+@media (hover: none) and (pointer: coarse) {
+    #install-host {
+        position: static;
+        right: auto;
+        bottom: auto;
+        align-items: center;
+        margin: 14px 0 20px;
+    }
+    #install-host:hover #install-menu,
+    #install-host:focus-within #install-menu { display: none; }
+}
+
 #install-menu [role="menuitem"] {
     display: flex;
     align-items: center;

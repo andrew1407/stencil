@@ -85,15 +85,27 @@ const savePins = async (entries) => {
   }
 };
 
+// Serialize every load→modify→save so concurrent pin/unpin calls can't clobber each
+// other. chrome.storage has no atomic read-modify-write, so without this a tight
+// `stencil.pin([...])` batch (or a popup + context-menu race) would lose writes: every
+// call reads the same `before`, and the last set() wins — only one pin survives. Each
+// mutation chains off the previous one's completed write before it reads.
+let pinWriteChain = Promise.resolve();
+
 // Pin (pinned=true) or unpin (pinned=false) one source on a site, persisting the
 // result. No-op write when unpinning something that wasn't pinned. Returns the new list.
 export const setPinned = async ({ source, site, resource, name, kind, pinned }) => {
   const src = norm(source);
   if (!src) return loadPins();   // nothing openable to key on
-  const before = await loadPins();
-  const after = pinned
-    ? addPinEntry(before, { source: src, site, resource, name, kind })
-    : removePinEntry(before, site, src);
-  if (after !== before) await savePins(after);
-  return after;
+  const run = pinWriteChain.then(async () => {
+    const before = await loadPins();
+    const after = pinned
+      ? addPinEntry(before, { source: src, site, resource, name, kind })
+      : removePinEntry(before, site, src);
+    if (after !== before) await savePins(after);
+    return after;
+  });
+  // Keep the queue alive even if one op rejects, so a single failure can't wedge it.
+  pinWriteChain = run.catch(() => {});
+  return run;
 };

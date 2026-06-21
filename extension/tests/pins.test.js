@@ -4,7 +4,23 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry } from '../src/lib/pins.js';
+import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, loadPins, setPinned, PINS_KEY } from '../src/lib/pins.js';
+
+// Minimal chrome.storage.local mock with an awaitable get/set, so the async wrappers
+// (loadPins/setPinned) can be driven from Node. The deferred resolution models real
+// storage latency — the gap during which a concurrent read-modify-write could race.
+const installStorageMock = () => {
+  let store = {};
+  globalThis.chrome = {
+    storage: {
+      local: {
+        get: async (key) => (key in store ? { [key]: store[key] } : {}),
+        set: async (obj) => { await Promise.resolve(); Object.assign(store, obj); },
+      },
+    },
+  };
+  return { reset: () => { store = {}; } };
+};
 
 const pin = (site, source, extra = {}) => ({ site, source, name: source, kind: 'image', t: 1, ...extra });
 
@@ -79,4 +95,37 @@ test('matchPinsForSite + sitesOf group by site, preserving newest-first order', 
   assert.deepEqual(matchPinsForSite(list, 'https://b.com').map((e) => e.source), ['https://cdn/3.png']);
   assert.deepEqual(sitesOf(list), ['https://b.com', 'https://a.com']);   // distinct, first-seen order
   assert.deepEqual(sitesOf([]), []);
+});
+
+test('setPinned serializes concurrent pins so none clobber each other', async () => {
+  installStorageMock();
+  const site = 'https://en.wikipedia.org';
+  // Fire 10 pins concurrently (the `stencil.pin([...])` batch shape). Without the write
+  // queue every call reads the same empty `before` and the last set() wins → 1 survives.
+  await Promise.all(
+    Array.from({ length: 10 }, (_, i) =>
+      setPinned({ source: `https://cdn/img${i}.png`, site, name: `img${i}`, kind: 'image', pinned: true })),
+  );
+  const list = await loadPins();
+  assert.equal(list.length, 10, 'all 10 concurrent pins persisted');
+  assert.equal(new Set(list.map((e) => e.source)).size, 10, 'no pins lost or duplicated');
+});
+
+test('setPinned interleaves concurrent pin + unpin deterministically', async () => {
+  const mock = installStorageMock();
+  mock.reset();
+  const site = 'https://a.com';
+  // Pin three, then concurrently unpin one while pinning a fourth — the unpin must see
+  // the earlier pins (serialized), not an empty stale snapshot.
+  await Promise.all([
+    setPinned({ source: 'https://cdn/1.png', site, pinned: true }),
+    setPinned({ source: 'https://cdn/2.png', site, pinned: true }),
+    setPinned({ source: 'https://cdn/3.png', site, pinned: true }),
+  ]);
+  await Promise.all([
+    setPinned({ source: 'https://cdn/2.png', site, pinned: false }),
+    setPinned({ source: 'https://cdn/4.png', site, pinned: true }),
+  ]);
+  const sources = (await loadPins()).map((e) => e.source).sort();
+  assert.deepEqual(sources, ['https://cdn/1.png', 'https://cdn/3.png', 'https://cdn/4.png']);
 });

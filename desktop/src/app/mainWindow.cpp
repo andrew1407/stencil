@@ -3,6 +3,7 @@
 #include "openImageDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
+#include "incognitoOverlay.hpp"
 #include "cropGeometry.hpp"
 #include "geometry.hpp"
 #include "pageMetrics.hpp"
@@ -125,6 +126,10 @@ namespace stencil::gui {
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
 
     notify_ = new Notifications(scroll_->viewport());
+    // Incognito indicator (dashed frame + badge) pinned to the canvas viewport,
+    // mirroring the browser's body.incognito-mode outline/badge. Hidden until the
+    // incognito action toggles it on.
+    incognitoOverlay_ = new IncognitoOverlay(scroll_->viewport());
     tooltip_ = new CanvasTooltip(this);  // floating hover tooltip (S12)
 
     status_ = new QLabel("Open an image — or create a blank one — to begin", this);
@@ -527,6 +532,7 @@ namespace stencil::gui {
     connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);
     connect(actIncognito_, &QAction::toggled, this, [this](bool on) {
       incognito_ = on;
+      incognitoOverlay_->setActive(on);
       notify_->info(on ? "Incognito mode — this editor won't be saved"
                        : "Incognito off");
       updateProjectTitle();
@@ -1184,6 +1190,7 @@ namespace stencil::gui {
     activeProjectId_.clear();
     if (incognito_ != incognito) {
       incognito_ = incognito;
+      incognitoOverlay_->setActive(incognito);
       actIncognito_->blockSignals(true);
       actIncognito_->setChecked(incognito);
       actIncognito_->blockSignals(false);
@@ -1971,6 +1978,7 @@ namespace stencil::gui {
     qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
     canvas_->setDark(dark);
     canvas_->setAccent(settings_.accentColor);
+    incognitoOverlay_->setTheme(dark, settings_.accentColor);
     actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
 
     QPalette vp;

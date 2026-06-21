@@ -5,10 +5,30 @@
 // returns non-zero on any failed expectation. Built only when Qt is present.
 #include "canvasWidget.hpp"
 #include "imageFilter.hpp"
+#include "incognitoOverlay.hpp"
+#include "theme.hpp"
 
 #include <QApplication>
 #include <QImage>
+#include <QPixmap>
+#include <QWidget>
 #include <cstdio>
+#include <cstdlib>
+
+// Count pixels close to `target` (per-channel tolerance) — used to detect the
+// accent-violet incognito frame/badge in a grabbed widget render.
+static long countNear(const QImage& im, const QColor& target, int tol) {
+  long n = 0;
+  for (int y = 0; y < im.height(); ++y)
+    for (int x = 0; x < im.width(); ++x) {
+      const QColor c = im.pixelColor(x, y);
+      if (std::abs(c.red() - target.red()) <= tol &&
+          std::abs(c.green() - target.green()) <= tol &&
+          std::abs(c.blue() - target.blue()) <= tol)
+        ++n;
+    }
+  return n;
+}
 
 using namespace stencil::gui;
 using stencil::core::CropRect;
@@ -58,6 +78,40 @@ int main(int argc, char** argv) {
   check(qRed(after) == qGreen(after) && qGreen(after) == qBlue(after),
         "bw filter greyscaled the pixel (r==g==b)");
   check(qAlpha(after) == 255, "bw filter preserved alpha");
+
+  // 4) IncognitoOverlay: the viewport-pinned dashed accent frame + badge (port of
+  //    the browser's body.incognito-mode outline/badge). It must paint the accent
+  //    frame/badge AND be transparent everywhere else, so the canvas shows through —
+  //    just like the browser, where the indicator never becomes image content.
+  std::printf("incognito overlay:\n");
+  const QColor accent = stencil::gui::themePalette(false, "violet").accent;
+  const QColor host_bg(0x22, 0x22, 0x22);  // stands in for the dark canvas backdrop
+  QWidget host;
+  host.resize(320, 200);
+  host.setAutoFillBackground(true);
+  { QPalette pl; pl.setColor(QPalette::Window, host_bg); host.setPalette(pl); }
+
+  auto* overlay = new IncognitoOverlay(&host);  // child of the "viewport"
+  overlay->setTheme(/*dark=*/true, "violet");
+
+  // Off: nothing painted, so a grab of the host is all backdrop, no accent.
+  const long offAccent = countNear(host.grab().toImage(), accent, 24);
+  check(offAccent == 0, "overlay paints nothing while inactive");
+
+  overlay->setActive(true);
+  const QImage shot = host.grab().toImage();  // composites overlay over the host
+  const long onAccent = countNear(shot, accent, 24);
+  const long bgShown = countNear(shot, host_bg, 16);
+  std::printf("  host px: accent off=%ld on=%ld | backdrop-through=%ld\n",
+              offAccent, onAccent, bgShown);
+  // The solid 3px dashed frame contributes the clean-accent pixels (the badge pill
+  // is 90%-alpha-blended, outside the tight tolerance); jumping clear of zero proves
+  // the frame paints. Font-independent.
+  check(onAccent > 40, "active overlay paints the dashed accent frame + badge");
+  // Most of the host area must still read as backdrop — proving the overlay is
+  // transparent (the canvas underneath would otherwise be hidden).
+  check(bgShown > 320 * 200 / 2,
+        "overlay is transparent — the canvas shows through everywhere but the frame/badge");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

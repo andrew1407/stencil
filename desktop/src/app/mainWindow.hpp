@@ -37,6 +37,7 @@ namespace stencil::gui {
   class SelectionPanel;
   class Notifications;
   class CanvasTooltip;
+  class IncognitoOverlay;
   class MediaLoader;
   struct LaunchOptions;
 
@@ -249,6 +250,7 @@ namespace stencil::gui {
     SelectionPanel* selPanel_ = nullptr;
     Notifications* notify_ = nullptr;
     CanvasTooltip* tooltip_ = nullptr;
+    IncognitoOverlay* incognitoOverlay_ = nullptr;
     QLabel* status_ = nullptr;
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
