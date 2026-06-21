@@ -242,6 +242,8 @@
     }
     for (const e of scanFiltered()) { const el = e.element; if (el && el.setAttribute) el.setAttribute(HL_ATTR, ''); }
   };
+  // Re-colour an active highlight in place — just rewrite the style rules, no DOM re-scan.
+  const recolorHighlight = () => { const s = document.getElementById(HL_STYLE_ID); if (s) s.textContent = hlStyleText(); };
   const clearHighlight = () => {
     document.querySelectorAll('[' + HL_ATTR + ']').forEach((el) => el.removeAttribute(HL_ATTR));
     document.querySelectorAll('[' + HL_HOVER + ']').forEach((el) => el.removeAttribute(HL_HOVER));
@@ -281,8 +283,7 @@
       const c = typeof d.color === 'string' && d.color ? d.color : hlColor;
       if (c !== hlColor) {
         hlColor = c;
-        // Re-colour an active highlight: drop the style so applyHighlight rebuilds it.
-        if (highlightActive()) { const s = document.getElementById(HL_STYLE_ID); if (s) s.remove(); applyHighlight(); }
+        if (highlightActive()) recolorHighlight();
       }
       return;
     }
@@ -367,8 +368,10 @@
   // with no src/poster/frame, an out-of-range index, a non-target value). Never throws.
   const describeTarget = (target) => {
     let el = null, kind = null, url = '';
+    let listing = null;                                   // scanFiltered() result, computed at most once
+    const entries = () => (listing || (listing = scanFiltered()));
     if (target && target.__stencilEntry) { el = target.element; kind = target.kind; url = target.url; }
-    else if (typeof target === 'number') { const e = scanFiltered()[target]; if (!e) return null; el = e.element; kind = e.kind; url = e.url; }
+    else if (typeof target === 'number') { const e = entries()[target]; if (!e) return null; el = e.element; kind = e.kind; url = e.url; }
     else if (target && target.nodeType === 1) { const r = elementUrl(target); el = target; kind = r.kind; url = r.url; }
     else if (typeof target === 'string' && target) { kind = VIDEO_FMTS.has(formatOf(target)) ? 'video' : 'image'; url = target; }
     else return null;
@@ -384,7 +387,7 @@
       pinned: !!url && pinnedSources.has(url),
       isEdited: !!url && editedSources.has(url),
       // Does it currently appear in stencil.items (i.e. survive the live filters)?
-      listed: scanFiltered().some((e) => (el && e.element === el) || (!!url && e.url === url)),
+      listed: entries().some((e) => (el && e.element === el) || (!!url && e.url === url)),
     };
   };
 

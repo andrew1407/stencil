@@ -383,7 +383,7 @@ export class Storage {
       }
       if (layout.drawMode) this.app.drawMode = layout.drawMode;
       if (Number.isFinite(layout.holdDrawDelay))
-        this.app.holdDrawDelay = Math.max(100, Math.min(3000, Math.round(layout.holdDrawDelay)));
+        this.app.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });   // clamps in one place
       if (layout.selGlowColor) this.app.selGlowColor = layout.selGlowColor;
       if (layout.hoverRingColor) this.app.hoverRingColor = layout.hoverRingColor;
       if (layout.focusRingColor) this.app.focusRingColor = layout.focusRingColor;

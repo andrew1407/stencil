@@ -1,17 +1,10 @@
 // ── Touch gestures: pure classification + pinch math ────────────
-// Helpers for the touchscreen input layer in DrawingApp. Kept DOM-free and
-// time-injected (like ./holdDraw.js) so the decision logic is unit-testable
-// without real TouchEvents. The host (DrawingApp.#wireTouch) owns the DOM
-// listeners, coordinate conversion, timers and rendering; this module only
-// answers "was that a tap or a drag?" and does the pinch arithmetic.
-//
-// All coordinates are in client/screen space (px). Tolerances stay in screen
-// space so they feel the same regardless of zoom level.
+// DOM-free, time-injected helpers for DrawingApp.#wireTouch (the host owns the
+// listeners/timers/rendering) so tap-vs-drag and pinch math stay unit-testable.
+// All coordinates are client/screen px, so tolerances feel the same at any zoom.
 
-// Default thresholds. moveTol: how far a finger may wander and still count as a
-// tap / a stationary long-press. tapMaxMs: a press longer than this is not a tap
-// (it became a hold-to-draw or a drag). longPressMs: stationary press that opens
-// the context menu — matches the hold-draw delay feel.
+// Thresholds: moveTol = wander allowed for a tap/long-press; tapMaxMs = longer
+// press is no longer a tap; longPressMs = stationary press that opens the menu.
 export const TOUCH_DEFAULTS = { moveTol: 8, tapMaxMs: 300, longPressMs: 500 };
 
 export const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
