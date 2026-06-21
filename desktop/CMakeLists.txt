@@ -75,6 +75,7 @@ if(Qt6_FOUND)
     src/app/selectionPanel.cpp
     src/canvas/canvasWidget.cpp
     src/canvas/canvasTooltip.cpp
+    src/canvas/incognitoOverlay.cpp
     src/dialogs/settingsDialog.cpp
     src/dialogs/projectsDialog.cpp
     src/dialogs/blankImageDialog.cpp
@@ -146,6 +147,7 @@ if(Qt6_FOUND)
   add_executable(stencil_image_headless
     tests/imageFixture.headless.cpp
     src/canvas/canvasWidget.cpp
+    src/canvas/incognitoOverlay.cpp
     src/support/theme.cpp)
   target_include_directories(stencil_image_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_compile_definitions(stencil_image_headless PRIVATE

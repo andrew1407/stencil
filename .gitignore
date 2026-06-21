@@ -8,8 +8,11 @@ Thumbs.db
 *.swp
 *~
 
-# Claude Code (local harness state — locks, scheduler/session files)
-.claude/
+# Claude Code: ignore the local harness state (settings.local.json, locks,
+# scheduler/session files) but keep version-controlled skills and agents.
+.claude/*
+!.claude/skills/
+!.claude/agents/
 
 # Node (only used for `node --test`; no deps committed)
 node_modules/
