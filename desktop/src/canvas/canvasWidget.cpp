@@ -1382,49 +1382,33 @@ namespace stencil::gui {
   // ── S7: selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515) ──
 
-  void CanvasWidget::setSelectedLineColor(const QString& color) {
+  void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set) {
     core::Line* line = selectedLine();
     if (!line) return;
-    line->color = color.toStdString();
+    set(*line);
     commitHistory();
     update();
     emit selectionChanged();
+  }
+
+  void CanvasWidget::setSelectedLineColor(const QString& color) {
+    mutateSelectedLine([&](core::Line& line) { line.color = color.toStdString(); });
   }
 
   void CanvasWidget::setSelectedLineThickness(double thickness) {
-    core::Line* line = selectedLine();
-    if (!line) return;
-    line->thickness = thickness;
-    commitHistory();
-    update();
-    emit selectionChanged();
+    mutateSelectedLine([&](core::Line& line) { line.thickness = thickness; });
   }
 
   void CanvasWidget::setSelectedLineMarker(double markerSize) {
-    core::Line* line = selectedLine();
-    if (!line) return;
-    line->markerSize = markerSize;
-    commitHistory();
-    update();
-    emit selectionChanged();
+    mutateSelectedLine([&](core::Line& line) { line.markerSize = markerSize; });
   }
 
   void CanvasWidget::setSelectedLineStyle(const QString& style) {
-    core::Line* line = selectedLine();
-    if (!line) return;
-    line->style = style.toStdString();
-    commitHistory();
-    update();
-    emit selectionChanged();
+    mutateSelectedLine([&](core::Line& line) { line.style = style.toStdString(); });
   }
 
   void CanvasWidget::setSelectedLineFill(const QString& fillColor) {
-    core::Line* line = selectedLine();
-    if (!line) return;
-    line->fillColor = fillColor.toStdString();
-    commitHistory();
-    update();
-    emit selectionChanged();
+    mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); });
   }
 
   // Port of drawingApp.js canvasDblClick delete ~1515: erase the selected line

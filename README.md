@@ -110,3 +110,18 @@ build + ffmpeg runtime). Both compile `core/`, so **build from the repo root**:
 docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser
 docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
 ```
+
+## Claude Code integration
+
+This repo ships a Claude Code **skill** and **agent** for driving Stencil from the editor:
+
+- **`/stencil` skill** ([`.claude/skills/stencil/SKILL.md`](.claude/skills/stencil/SKILL.md)) —
+  headless image/video editing via the Zig CLI (`cli/`), which wraps the shared C++ `core/`.
+  Crop, rotate (quarter-turns), tint/filter (b&w / sepia / duotone), draw a layout, grab a
+  video frame, or make a blank page — for one or more local files or `http(s)` URLs. Because
+  it uses the same core, results match the browser and desktop editors.
+- **`stencil-operator` agent** ([`.claude/agents/stencil-operator.md`](.claude/agents/stencil-operator.md)) —
+  drives any Stencil front-end end-to-end: the headless CLI, the Qt desktop app, the browser
+  editor, and the Chrome extension. It prefers the frozen `window.stencil` scripting facade
+  over clicking through the UI, picks the right surface for each request, and can scan/mark
+  page images, apply layouts, and save projects.

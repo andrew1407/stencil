@@ -11,6 +11,7 @@
 #include <QRectF>
 #include <QElapsedTimer>
 #include <QTimer>
+#include <functional>
 #include <vector>
 
 // The drawing surface. Mirrors browser/js/core/renderer.js (what to draw) and
@@ -186,6 +187,10 @@ namespace stencil::gui {
     bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
+    // Apply `set` to the selected line (if any), then commit history, repaint,
+    // and emit selectionChanged. Backs the setSelectedLine* mutators.
+    void mutateSelectedLine(const std::function<void(core::Line&)>& set);
+
     // S6: drawLine became scale-parameterized so renderToImage can draw the
     // overlay at native resolution (scale 1.0) while the live view uses scale_.
     // `lineIdx` (-1 = the in-progress line) and `highlight` drive the hover/

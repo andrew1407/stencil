@@ -1760,6 +1760,39 @@ export class DrawingApp {
     this.canvas.height = r.height;
   }
 
+  /**
+   * Hide the selection panel and its fullscreen mirror.
+   * @returns {void}
+   */
+  #hideSelectionPanels() {
+    const selPanel = document.getElementById('selection-panel');
+    if (selPanel) selPanel.style.display = 'none';
+    const fsPanel = document.getElementById('fs-selection-panel');
+    if (fsPanel) fsPanel.style.display = 'none';
+  }
+
+  /**
+   * Reset selection/drawing state and refresh every view after the image
+   * geometry changes (rotate or crop): clears the active selection, resets
+   * history to the current lines, refits the viewport, and persists.
+   * @returns {void}
+   */
+  #afterImageGeometryChange() {
+    this.currentLine = null;
+    this.selectedLineIdx = -1;
+    this.coordLineIdx = -1;
+    this.focusedPtIdx = -1;
+    this.#hideSelectionPanels();
+    this.history.reset(this.lines);
+    this.zoomPan.fitToWindow();
+    this.updateInfo();
+    this.renderer.redraw();
+    this.updateButtons();
+    this.updateCoordStatus();
+    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
+    this.storage.save();
+  }
+
   // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0
   // rotates right (CW). The crop window and every line follow the picture so the
   // framing and the drawing stay put relative to the image content.
@@ -1776,23 +1809,7 @@ export class DrawingApp {
     this.rotationQuarters = (((this.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
     this.cropRect = this.#roundRect(rotated);
     this.rebuildCroppedImage();
-
-    this.currentLine = null;
-    this.selectedLineIdx = -1;
-    this.coordLineIdx = -1;
-    this.focusedPtIdx = -1;
-    const selPanel = document.getElementById('selection-panel');
-    if (selPanel) selPanel.style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) fsPanel.style.display = 'none';
-    this.history.reset(this.lines);
-    this.zoomPan.fitToWindow();
-    this.updateInfo();
-    this.renderer.redraw();
-    this.updateButtons();
-    this.updateCoordStatus();
-    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
-    this.storage.save();
+    this.#afterImageGeometryChange();
   }
 
   // Apply a new crop rectangle (image-space). With opts.recalc, existing lines
@@ -1808,23 +1825,7 @@ export class DrawingApp {
     }
     this.cropRect = newRect;
     this.rebuildCroppedImage();
-
-    this.currentLine = null;
-    this.selectedLineIdx = -1;
-    this.coordLineIdx = -1;
-    this.focusedPtIdx = -1;
-    const selPanel = document.getElementById('selection-panel');
-    if (selPanel) selPanel.style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) fsPanel.style.display = 'none';
-    this.history.reset(this.lines);
-    this.zoomPan.fitToWindow();
-    this.updateInfo();
-    this.renderer.redraw();
-    this.updateButtons();
-    this.updateCoordStatus();
-    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
-    this.storage.save();
+    this.#afterImageGeometryChange();
   }
 
   loadJSONFromFile(file) {
@@ -1884,9 +1885,7 @@ export class DrawingApp {
     };
     if (!opts.keepSelection) {
       this.selectedLineIdx = -1;
-      document.getElementById('selection-panel').style.display = 'none';
-      const fsPanel = document.getElementById('fs-selection-panel');
-      if (fsPanel) fsPanel.style.display = 'none';
+      this.#hideSelectionPanels();
     }
     this.undonePoints = []; // stack for redo while drawing
     document.getElementById('start-drawing').classList.add('active');
@@ -2444,13 +2443,9 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.hoveredPtIdx = -1;
     this.focusedPtIdx = -1;
-    document.getElementById('selection-panel').style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) {
-      fsPanel.style.display = 'none';
-      const trigger = document.getElementById('fs-top-trigger');
-      if (trigger) trigger.style.height = '8px';
-    }
+    this.#hideSelectionPanels();
+    const trigger = document.getElementById('fs-top-trigger');
+    if (trigger) trigger.style.height = '8px';
     if (redraw) this.renderer.redraw();
   }
 
@@ -3531,32 +3526,11 @@ export class DrawingApp {
     reader.onload = async event => {
       try {
         const data = JSON.parse(event.target.result);
-
-        const verdict = validateLayout(data, {
-          hasImage: !!this.image,
-          imgW: this.canvas.width,
-          imgH: this.canvas.height,
-          hasExistingLines: !!(this.lines && this.lines.length > 0)
+        await this.#applyValidatedLayout(data, {
+          source: 'uploaded JSON',
+          cancelMsg: 'Upload canceled',
+          successMsg: 'JSON loaded successfully'
         });
-        if (!verdict.ok) {
-          notify('Load an image first', 'fail');
-          return;
-        }
-        if (verdict.needsReplaceConfirm && !(await this.confirm('Replace current layout with uploaded JSON?', { title: 'Replace layout' }))) {
-          notify('Upload canceled', 'fail');
-          return;
-        }
-        if (verdict.needsDimMismatchConfirm && !(await this.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
-          notify('Upload canceled', 'fail');
-          return;
-        }
-
-        this.lines = verdict.lines;
-        this.saveHistory();
-        this.renderer.redraw();
-        this.updateButtons();
-        if (this.lines.length > 0) this.coordTable.update(this.lines[this.lines.length - 1].points);
-        notify('JSON loaded successfully', 'ok');
       } catch (err) {
         notify('Error loading JSON: ' + err.message, 'fail');
       }
@@ -3600,9 +3574,7 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.focusedPtIdx = -1;
     this.hoveredPtIdx = -1;
-    document.getElementById('selection-panel').style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) fsPanel.style.display = 'none';
+    this.#hideSelectionPanels();
     this.saveHistory();
     this.coordTable.update();
     this.renderer.redraw();
@@ -3630,6 +3602,23 @@ export class DrawingApp {
 
   // ── Apply a layout object pasted from the clipboard ──
   async applyPastedLayout(data) {
+    await this.#applyValidatedLayout(data, {
+      source: 'pasted JSON',
+      cancelMsg: 'Layout paste canceled',
+      successMsg: 'Layout pasted from clipboard'
+    });
+  }
+
+  /**
+   * Validate a layout payload and, after any needed confirmations, install it
+   * as the current lines. Shared by JSON file upload and clipboard paste.
+   * @param {object} data - Parsed layout payload (expects a `lines` array).
+   * @param {{source: string, cancelMsg: string, successMsg: string}} opts -
+   *   `source` names the layout's origin in the replace prompt; `cancelMsg` and
+   *   `successMsg` are the toasts shown on cancel and success.
+   * @returns {Promise<void>}
+   */
+  async #applyValidatedLayout(data, { source, cancelMsg, successMsg }) {
     const verdict = validateLayout(data, {
       hasImage: !!this.image,
       imgW: this.canvas.width,
@@ -3640,12 +3629,12 @@ export class DrawingApp {
       notify('Load an image first', 'fail');
       return;
     }
-    if (verdict.needsReplaceConfirm && !(await this.confirm('Replace current layout with pasted JSON?', { title: 'Replace layout' }))) {
-      notify('Layout paste canceled', 'fail');
+    if (verdict.needsReplaceConfirm && !(await this.confirm(`Replace current layout with ${source}?`, { title: 'Replace layout' }))) {
+      notify(cancelMsg, 'fail');
       return;
     }
     if (verdict.needsDimMismatchConfirm && !(await this.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
-      notify('Layout paste canceled', 'fail');
+      notify(cancelMsg, 'fail');
       return;
     }
     this.lines = verdict.lines;
@@ -3653,6 +3642,6 @@ export class DrawingApp {
     this.renderer.redraw();
     this.updateButtons();
     if (this.lines.length > 0) this.coordTable.update(this.lines[this.lines.length - 1].points);
-    notify('Layout pasted from clipboard', 'ok');
+    notify(successMsg, 'ok');
   }
 }

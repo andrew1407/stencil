@@ -49,19 +49,27 @@ namespace stencil::core {
     const std::string unit = s.substr(i);
 
     LengthToken t;
+    t.fromEnd = fromEnd;  // every kind but Delta keeps it; Delta folds it into the sign below
     if (unit == "%") {
-      t.kind = LengthKind::Percent; t.value = value; t.fromEnd = fromEnd;
+      t.kind = LengthKind::Percent;
+      t.value = value;
     } else if (unit == "cm") {
-      t.kind = LengthKind::Cm; t.value = value; t.fromEnd = fromEnd;
+      t.kind = LengthKind::Cm;
+      t.value = value;
     } else if (unit == "mm") {
-      t.kind = LengthKind::Cm; t.value = value / 10.0; t.fromEnd = fromEnd;
+      t.kind = LengthKind::Cm;
+      t.value = value / 10.0;
     } else if (unit == "in") {
-      t.kind = LengthKind::Cm; t.value = value * kCmPerInch; t.fromEnd = fromEnd;
+      t.kind = LengthKind::Cm;
+      t.value = value * kCmPerInch;
     } else if (unit == "px") {
-      t.kind = LengthKind::Px; t.value = value; t.fromEnd = fromEnd;
+      t.kind = LengthKind::Px;
+      t.value = value;
     } else if (unit.empty()) {
       // A bare number is a delta — keep the sign.
-      t.kind = LengthKind::Delta; t.value = fromEnd ? -value : value; t.fromEnd = false;
+      t.kind = LengthKind::Delta;
+      t.value = fromEnd ? -value : value;
+      t.fromEnd = false;
     } else {
       return std::nullopt;  // unknown unit suffix
     }

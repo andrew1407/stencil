@@ -125,5 +125,3 @@ CLI's concern; QImage / canvas rendering, file persistence and the event loop ar
 apps'. The `extern "C"` surfaces ([`wasmApi.cpp`](wasmApi.cpp), [`cliApi.h`](cliApi.h))
 keep that boundary explicit — flat `double*` / RGBA8 buffers and C strings, no embind, no
 host allocation.
-</content>
-</invoke>

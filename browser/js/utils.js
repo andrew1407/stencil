@@ -30,10 +30,14 @@ export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val)
 // Short label for the active unit.
 export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
 
-// Seed the initial display unit from locale (a saved/typed preference overrides).
-// No "measurement system" web API exists, so derive the region via Intl.Locale
-// (maximize() resolves bare "en" → US); only US/Liberia/Myanmar get inches. Never throws.
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
+/**
+ * Seed the initial display unit from locale (a saved/typed preference overrides).
+ * No "measurement system" web API exists, so the region is derived via Intl.Locale
+ * (maximize() resolves bare "en" → US); only US/Liberia/Myanmar get inches. Never throws.
+ * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
+ * @returns {'cm'|'in'} The locale-appropriate display unit.
+ */
 export const defaultUnitFromLocale = (
   nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined),
 ) => {
@@ -51,13 +55,24 @@ export const defaultUnitFromLocale = (
 };
 
 // ── Inline name editor (shared: topbar + projects list) ─────────
-// Live-validated rename wiring. Enables ✓ only when the trimmed value is changed AND
-// valid (rejection reason shown on ✓'s tooltip when disabled). Enter commits (if ✓
-// enabled), Escape cancels. mousedown-preventDefault keeps the input focused so the click
-// fires before any blur handler (callers wire blur→cancel for click-away discard).
-//   opts: { current():string, validate(v):{ok,reason}, commit(v), cancel(), alwaysShow }
-// `alwaysShow` keeps ✓/✗ visible always (projects list); else they appear only once the
-// value differs from the current name (keeps the topbar uncluttered).
+/**
+ * Wire a live-validated inline rename editor. Enables ✓ only when the trimmed
+ * value has changed AND is valid (the rejection reason shows on ✓'s tooltip when
+ * disabled). Enter commits (when ✓ is enabled), Escape cancels. A mousedown
+ * preventDefault keeps the input focused so the click fires before any blur
+ * handler (callers wire blur→cancel for click-away discard).
+ * @param {HTMLInputElement} input - The editable name field.
+ * @param {HTMLElement} acceptBtn - The ✓ commit button.
+ * @param {HTMLElement} cancelBtn - The ✗ cancel button.
+ * @param {object} opts
+ * @param {() => string} opts.current - Returns the current (saved) name.
+ * @param {(v: string) => {ok: boolean, reason?: string}} opts.validate - Validates a candidate name.
+ * @param {(v: string) => void} opts.commit - Commits an accepted name.
+ * @param {() => void} opts.cancel - Cancels editing.
+ * @param {boolean} [opts.alwaysShow=false] - Keep ✓/✗ visible always (projects
+ *   list); otherwise they appear only once the value differs (topbar).
+ * @returns {{refresh: () => void}} Handle exposing a `refresh` to re-run validation.
+ */
 export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate, commit, cancel, alwaysShow = false }) => {
   const refresh = () => {
     const v = input.value.trim();
@@ -95,9 +110,12 @@ export const notify = (msg, type = 'ok') => {
   if (el && typeof el.notify === 'function') el.notify(msg, type);
 };
 
-// True only when the browser can share FILES via the Web Share API (most desktop
-// browsers cannot, even if navigator.share exists for text/URLs). Used to decide
-// whether to show the Share-image action at all — when false it's not rendered.
+/**
+ * Whether the browser can share FILES via the Web Share API (most desktop
+ * browsers cannot, even if navigator.share exists for text/URLs). Used to decide
+ * whether to render the Share-image action at all.
+ * @returns {boolean} True when file sharing is supported.
+ */
 export const supportsShareFiles = () => {
   try {
     return !!(navigator.canShare &&
@@ -108,8 +126,15 @@ export const supportsShareFiles = () => {
 };
 
 // ── Geometry helpers (pure) ─────────────────────────────────────
-// Distance from point (px,py) to the segment a→b. Delegates to the shared C++
-// core (wasm) when loaded; the JS below is the reference + fallback.
+/**
+ * Distance from point (px,py) to the segment a→b. Delegates to the shared C++
+ * core (wasm) when loaded; the JS body is the reference + fallback.
+ * @param {number} px - Point x.
+ * @param {number} py - Point y.
+ * @param {{x: number, y: number}} a - Segment start.
+ * @param {{x: number, y: number}} b - Segment end.
+ * @returns {number} Shortest distance from the point to the segment.
+ */
 export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -120,7 +145,13 @@ export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
 });
 
 // ── Color helpers (pure) ────────────────────────────────────────
-// Convert "#rrggbb" + alpha → "rgba(...)"; passes through values already rgba/named.
+/**
+ * Convert "#rrggbb" + alpha → "rgba(...)". Values that are already rgba/named
+ * pass through unchanged.
+ * @param {string} hex - A "#rrggbb" color (or any non-hex string to pass through).
+ * @param {number} alpha - Alpha channel in [0, 1].
+ * @returns {string} An "rgba(r,g,b,alpha)" string, or `hex` unchanged.
+ */
 export const hexToRgba = (hex, alpha) => {
   if (typeof hex !== 'string' || hex[0] !== '#' || hex.length < 7) return hex;
   const r = parseInt(hex.slice(1, 3), 16);
@@ -129,8 +160,12 @@ export const hexToRgba = (hex, alpha) => {
   return `rgba(${r},${g},${b},${alpha})`;
 };
 
-// Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when
-// loaded and the string is a valid 7-char hex; the JS below is reference + fallback.
+/**
+ * Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when
+ * loaded and the string is a valid 7-char hex; the JS body is reference + fallback.
+ * @param {string} hex - A "#rrggbb" color string.
+ * @returns {{r: number, g: number, b: number}} The 0–255 channel values.
+ */
 export const parseHex = hex => {
   const fn = core.op('parseHex');
   if (fn) {
@@ -145,12 +180,24 @@ export const parseHex = hex => {
 };
 
 // ── Hotkey parsing / matching (pure) ────────────────────────────
+/**
+ * Normalize a KeyboardEvent code/key into a bare key token.
+ * @param {string} code - KeyboardEvent.code (e.g. "KeyA", "Digit0", "ArrowUp").
+ * @param {string} key - KeyboardEvent.key, used as a fallback when `code` is empty.
+ * @returns {string} The normalized key (e.g. "A", "0", "ArrowUp").
+ */
 export const normalizeKey = (code, key) => {
   if (!code) return key || '';
   if (code.startsWith('Key')) return code.slice(3);     // KeyA  -> A
   if (code.startsWith('Digit')) return code.slice(5);   // Digit0 -> 0
   return code;                                          // ArrowUp / Numpad0 / F2 …
 };
+/**
+ * Parse a "Ctrl+Shift+Z" combo string into a structured descriptor.
+ * @param {string} str - The combo string; the last "+"-segment is the key.
+ * @returns {{ctrl: boolean, shift: boolean, alt: boolean, meta: boolean, key: string}|null}
+ *   The parsed combo, or null when `str` is empty/invalid.
+ */
 export const parseHotkey = str => {
   if (!str) return null;
   const parts = str.split('+').map(p => p.trim()).filter(Boolean);
@@ -162,6 +209,12 @@ export const parseHotkey = str => {
     alt: mods.includes('alt'), meta: mods.includes('meta'), key,
   };
 };
+/**
+ * Test whether a KeyboardEvent matches a combo string (modifiers + key).
+ * @param {KeyboardEvent} e - The keyboard event.
+ * @param {string} hkStr - A combo string such as "Ctrl+Shift+Z".
+ * @returns {boolean} True when the event exactly matches the combo.
+ */
 export const matchHotkey = (e, hkStr) => {
   const h = parseHotkey(hkStr);
   if (!h) return false;
@@ -172,6 +225,11 @@ export const matchHotkey = (e, hkStr) => {
   const norm = normalizeKey(e.code, e.key);
   return norm.toLowerCase() === h.key.toLowerCase();
 };
+/**
+ * Build a canonical combo string from a KeyboardEvent (for capturing rebinds).
+ * @param {KeyboardEvent} e - The keyboard event.
+ * @returns {string|null} A combo like "Ctrl+Shift+A", or null for a bare modifier press.
+ */
 export const comboFromEvent = e => {
   if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return null;
   const parts = [];
@@ -183,9 +241,13 @@ export const comboFromEvent = e => {
   return parts.join('+');
 };
 // ── Platform detection / Mac-relative hotkeys (pure) ────────────
-// True on macOS. Prefers the modern userAgentData.platform hint, falls back to
-// navigator.platform / userAgent matching /Mac/i. Safe when nav is undefined
-// (returns false) so it can be imported/called in Node without throwing.
+/**
+ * Whether the platform is macOS. Prefers the modern userAgentData.platform hint,
+ * falls back to navigator.platform / userAgent matching /Mac/i. Safe when `nav`
+ * is undefined (returns false) so it can be called in Node without throwing.
+ * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
+ * @returns {boolean} True on macOS.
+ */
 export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return false;
   const uaPlat = nav.userAgentData && nav.userAgentData.platform;
@@ -195,9 +257,12 @@ export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalT
   return false;
 };
 
-// Best-effort desktop OS for choosing a download: 'mac'/'windows'/'linux', or
-// null when unknown (mobile, Node) so the caller uses a generic releases link.
-// Android matches "Linux" in its UA, so it's excluded explicitly.
+/**
+ * Best-effort desktop OS for choosing a download link. Android matches "Linux"
+ * in its UA, so it is excluded explicitly.
+ * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
+ * @returns {'mac'|'windows'|'linux'|null} The OS, or null when unknown (mobile, Node).
+ */
 export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return null;
   const uaPlat = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || '';
@@ -209,10 +274,15 @@ export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globa
   return null;
 };
 
-// Rewrite a canonical combo for the platform. On Mac, Ctrl-based editing shortcuts
-// (undo/redo/copy/paste, etc.) map to ⌘, so swap the Ctrl token → Meta; and the
-// primary delete key emits Backspace (⌫), so swap a Delete key token → Backspace.
-// Token-aware, case-insensitive, idempotent. No-op when !isMac.
+/**
+ * Rewrite a canonical combo for the platform. On Mac, Ctrl-based editing shortcuts
+ * (undo/redo/copy/paste, etc.) map to ⌘, so the Ctrl token → Meta; and the primary
+ * delete key emits Backspace (⌫), so a Delete key token → Backspace. Token-aware,
+ * case-insensitive, idempotent.
+ * @param {string} combo - The canonical combo string.
+ * @param {boolean} isMac - Whether to apply the Mac remapping.
+ * @returns {string} The platformized combo (unchanged when `!isMac`).
+ */
 export const platformizeCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   return combo.split('+')
@@ -225,9 +295,14 @@ export const platformizeCombo = (combo, isMac) => {
     .join('+');
 };
 
-// Render a combo for DISPLAY only (storage stays canonical). On Mac, map tokens to Apple
-// symbols in ⌃⌥⇧⌘ order then the key, joined with no separator ("Meta+Shift+Z" → "⇧⌘Z",
-// "Alt+ArrowUp" → "⌥↑"). Non-Mac returns the canonical "Ctrl+Shift+Z" form unchanged.
+/**
+ * Render a combo for DISPLAY only (storage stays canonical). On Mac, tokens map to
+ * Apple symbols in ⌃⌥⇧⌘ order then the key, joined with no separator
+ * ("Meta+Shift+Z" → "⇧⌘Z", "Alt+ArrowUp" → "⌥↑").
+ * @param {string} combo - The canonical combo string.
+ * @param {boolean} isMac - Whether to render Apple glyphs.
+ * @returns {string} The display string (the canonical form unchanged when `!isMac`).
+ */
 export const formatCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   const parts = combo.split('+').map(p => p.trim()).filter(Boolean);
@@ -251,14 +326,21 @@ export const formatCombo = (combo, isMac) => {
 };
 
 // ── Unified control tooltip ─────────────────────────────────────
-// Composes an element's `title` from 3 optional parts (base label, hotkey when bound,
-// disabled-reason) so toolbar/menu tooltips stay consistent and live:
-//   • base: data-title wins; else current title with trailing "(…)" hotkey + prior
-//     "— reason" line stripped (cached into data-title so repeated calls stay stable).
-//   • hotkey: data-hk-title = a hotkey id; combo appended as " (…)" platform-formatted via
-//     injected getCombo (avoids importing hotkeys here — that module imports this one).
-//   • reason: data-disabled-reason, shown as a "— reason" line only while el.disabled or
-//     el.classList.contains('ctx-disabled').
+/**
+ * Compose an element's `title` from 3 optional parts so toolbar/menu tooltips
+ * stay consistent and live:
+ *   • base: data-title wins; else the current title with a trailing "(…)" hotkey
+ *     and prior "— reason" line stripped (cached into data-title for stability).
+ *   • hotkey: data-hk-title names a hotkey id; its combo is appended as " (…)",
+ *     platform-formatted via the injected getCombo (avoids importing hotkeys here,
+ *     since that module imports this one).
+ *   • reason: data-disabled-reason, shown as a "— reason" line only while the
+ *     element is disabled or has the `ctx-disabled` class.
+ * @param {HTMLElement} el - The control whose tooltip is composed.
+ * @param {boolean} isMac - Whether to render Mac hotkey glyphs.
+ * @param {(hkId: string) => string} [getCombo] - Resolves a hotkey id to a combo string.
+ * @returns {string} The composed tooltip text.
+ */
 export const composeControlTitle = (el, isMac, getCombo) => {
   let base = el.dataset.title;
   if (base == null) {
@@ -278,6 +360,12 @@ export const composeControlTitle = (el, isMac, getCombo) => {
   return out;
 };
 
+/**
+ * Whether an event target is a text-entry control (so global hotkeys should be
+ * suppressed). Checkbox/radio/file/color/button inputs are NOT typing targets.
+ * @param {EventTarget|null} t - The element to test.
+ * @returns {boolean} True for textareas, text-like inputs, selects, and contentEditable.
+ */
 export const isTypingTarget = t => {
   if (!t) return false;
   const tag = (t.tagName || '').toLowerCase();

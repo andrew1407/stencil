@@ -110,11 +110,18 @@ export class StencilFullscreenLayer extends StencilElement {
       }
     };
 
-    // Keep fs points panel in sync when the coord table updates
+    // Keep fs points panel in sync when the coord table updates. The coord
+    // table mutates per-frame while drawing, so coalesce bursts into a single
+    // rebuild per animation frame instead of re-cloning the panel each mutation.
     const coordBody = document.getElementById('coordinates-body');
     if (coordBody) {
+      let fsPointsRaf = 0;
       new MutationObserver(() => {
-        if (isFullscreen) populateFsPoints();
+        if (!isFullscreen || fsPointsRaf) return;
+        fsPointsRaf = requestAnimationFrame(() => {
+          fsPointsRaf = 0;
+          if (isFullscreen) populateFsPoints();
+        });
       }).observe(coordBody, { childList: true, subtree: true, characterData: true });
     }
 
