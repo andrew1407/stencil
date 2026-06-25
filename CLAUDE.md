@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. Each subproject has its own README with deeper detail; read the relevant one before working in it.
+Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. A fifth subproject, an **MCP server (`mcp/`, Rust)**, wraps the CLI rather than the core. Each subproject has its own README with deeper detail; read the relevant one before working in it.
 
 ```
 core/        C++17, STL-only, GUI-free shared logic (formulas, geometry, color, page metrics, crop, raster, history, projects)
@@ -12,7 +12,10 @@ browser/     vanilla ES-module JS app, no build step — runs core/ compiled to 
 desktop/     C++17 + Qt 6 app — links core/ via add_subdirectory(../core)
 cli/         Zig tool — recompiles core/ sources and drives them over an extern "C" ABI
 extension/   Chrome MV3 extension — scans page images and hands them to browser/ via a URL fragment
+mcp/         Rust MCP server — shells out to the cli/ binary; depends on the CLI's command contract, NOT on core/
 ```
+
+`mcp/` is a thin protocol adapter, not a core consumer: it never links/recompiles `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to it. Its only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output.
 
 ## Commands
 
@@ -24,6 +27,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 | **core** | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j` | `ctest --test-dir core/build --output-on-failure` | single suite: `core/build/stencil_tests -ts=<suite>` (Doctest) |
 | **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j` | `ctest --test-dir build --output-on-failure` (needs Qt; runs headless crop/image tests) | `./build/stencil_gui` |
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
+| **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e tests self-skip without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.

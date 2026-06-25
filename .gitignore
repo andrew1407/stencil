@@ -66,3 +66,10 @@ cli/zig-out/
 cli/.zig-cache/
 cli/zig-pkg/
 .zig-cache/
+
+# Rust MCP server (mcp/) build output. target/ is `cargo build` output; Cargo.lock is
+# committed (this is a binary crate).
+mcp/target/
+# Local server config — secrets/paths per machine. The committed mcp/.env.example is the
+# template; the real mcp/.env is never committed.
+mcp/.env

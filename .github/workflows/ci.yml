@@ -150,3 +150,31 @@ jobs:
       - name: Test
         working-directory: cli
         run: zig build test --summary all
+
+  # ── MCP: Rust server wrapping the Zig CLI over the Model Context Protocol ────────
+  # The server shells out to the `stencil` CLI, so we build that first (Zig pulls in
+  # the core sources) and point STENCIL_CLI at it — this lets the gated end-to-end
+  # tests run a real edit. `cargo test` also runs the pure argv-mapping and stderr-
+  # parsing suites, which need no binary.
+  mcp:
+    name: MCP (Rust build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build the Stencil CLI (for the end-to-end tests)
+        working-directory: cli
+        run: zig build
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        working-directory: mcp
+        run: cargo build --verbose
+      - name: Test
+        working-directory: mcp
+        run: cargo test --verbose
+        env:
+          STENCIL_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
