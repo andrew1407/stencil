@@ -19,6 +19,7 @@ Stencil ships as **three front-ends over one shared logic core**:
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) |
+| **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) |
 
 A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
@@ -32,6 +33,7 @@ graph TD
     CORE -->|"native compile + Qt 6"| DESK["<b>Desktop app</b><br/>C++17 / Qt 6"]
     CORE -->|"compiled into · C ABI"| CLI["<b>CLI</b><br/>Zig + stb_image"]
     WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
+    CLI -->|"shell-out · MCP stdio"| MCP["<b>MCP server</b><br/>Rust — tools for any MCP client"]
 ```
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**
@@ -79,6 +81,12 @@ cli/                  # the command-line tool (Zig)
   build.zig  build.zig.zon
   src/                # args · pipeline · core ABI bridge · image/video/layout I/O
   README.md
+mcp/                  # Model Context Protocol server (Rust) — wraps the CLI
+  Cargo.toml
+  src/                # server · args · pipeline · locate · layout · outcome
+  tests/              # argv mapping · stderr parsing · gated end-to-end
+  Dockerfile
+  README.md
 extension/            # companion Chrome extension (MV3) for the browser editor
   manifest.json
   src/                # background / popup / crop / options / lib
@@ -100,15 +108,18 @@ HTTP client (native TLS) and shells out to the system **ffmpeg** only for video 
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
 - Build, test & run the CLI → [cli/README.md](cli/README.md)
+- Build, test & run the MCP server → [mcp/README.md](mcp/README.md)
 - Load & test the Chrome extension → [extension/README.md](extension/README.md)
 
-**Docker.** The two deployable front-ends ship a multi-stage `Dockerfile`
+**Docker.** Three subprojects ship a multi-stage `Dockerfile`
 ([`browser/`](browser/Dockerfile) — wasm build + nginx; [`cli/`](cli/Dockerfile) — Zig
-build + ffmpeg runtime). Both compile `core/`, so **build from the repo root**:
+build + ffmpeg runtime; [`mcp/`](mcp/Dockerfile) — Zig CLI + Rust server). All compile
+`core/`, so **build from the repo root**:
 
 ```bash
 docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser
 docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
+docker build -f mcp/Dockerfile -t stencil-mcp . && docker run --rm -i -v "$PWD:/work" -w /work stencil-mcp
 ```
 
 ## Claude Code integration
@@ -125,3 +136,8 @@ This repo ships a Claude Code **skill** and **agent** for driving Stencil from t
   editor, and the Chrome extension. It prefers the frozen `window.stencil` scripting facade
   over clicking through the UI, picks the right surface for each request, and can scan/mark
   page images, apply layouts, and save projects.
+
+For a tool-protocol integration that works with **any** MCP client (Claude Code, Claude
+Desktop, or your own agent), the **MCP server** ([`mcp/`](mcp/)) exposes the same editing
+pipeline as `stencil_edit` / `stencil_probe` tools over stdio — register it with
+`claude mcp add stencil -- /path/to/stencil-mcp`. See [mcp/README.md](mcp/README.md).
