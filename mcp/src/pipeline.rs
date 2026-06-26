@@ -11,12 +11,14 @@ use crate::args::{self, EditParams, LayoutArg};
 use crate::locate;
 use crate::outcome;
 
-/// A successful edit: the resolved output path and the final image dimensions.
+/// A successful edit: the resolved output path, the final image dimensions, and any
+/// collaboration-server deliveries the CLI performed (project updated / created).
 #[derive(Debug, Clone)]
 pub struct EditResult {
     pub path: String,
     pub width: u32,
     pub height: u32,
+    pub remotes: Vec<outcome::Remote>,
 }
 
 /// Raw capture from one CLI invocation.
@@ -64,6 +66,7 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, String> {
             path: w.path,
             width: w.width,
             height: w.height,
+            remotes: outcome::parse_remotes(&output.stderr),
         }),
         None => Err(format!(
             "the stencil CLI reported success but printed no 'wrote' line:\n{}",

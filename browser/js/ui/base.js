@@ -59,3 +59,25 @@ export const rowMatches = (text, query) => {
   const q = String(query ?? '').trim().toLowerCase();
   return !q || String(text ?? '').toLowerCase().includes(q);
 };
+
+// Populate a <select> with create targets: "Local" (value "") plus one option per
+// connected server, and show/hide its containing row by whether any server is
+// connected. Returns true when at least one server target exists. Shared by the
+// blank-image + links create modals so console (stencil.blank/load { address }) and
+// UI thread the same address through the same code path (the parity rule).
+export const fillTargetSelect = (selectEl, rowEl, connMgr) => {
+  const urls = connMgr ? connMgr.urls : [];
+  selectEl.innerHTML = '';
+  const local = document.createElement('option');
+  local.value = '';
+  local.textContent = 'Local (this browser)';
+  selectEl.appendChild(local);
+  for (const url of urls) {
+    const opt = document.createElement('option');
+    opt.value = url;
+    opt.textContent = url;
+    selectEl.appendChild(opt);
+  }
+  if (rowEl) rowEl.style.display = urls.length ? '' : 'none';
+  return urls.length > 0;
+};

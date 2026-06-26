@@ -184,6 +184,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="theme-toggle" class="btn-icon" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
                     <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" data-disabled-reason="Load an image to view fullscreen" title="Fullscreen">${icon('maximize')}</button>
                     <button id="projects-btn" class="btn-icon" title="Projects">${icon('layers')}</button>
+                    <button id="connect-btn" class="btn-icon" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
                     <button id="links-btn" class="btn-icon" title="Source &amp; resource links · add image by URL">${icon('link')}</button>
                     <button id="incognito-toggle" class="btn-icon" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
                     <button id="settings-btn" class="btn-icon" title="Keyboard shortcuts">${icon('gear')}</button>

@@ -3,10 +3,11 @@
 A Model Context Protocol (MCP) server that exposes Stencil's
 image/video editing pipeline as tools any MCP client (Claude Code, Claude Desktop, or your
 own agent) can call: load an image, video frame, or blank page, crop / rotate it, draw a
-layout, apply a filter, and write the result — or read an image's dimensions. It is a thin,
-typed adapter that **shells out to the Zig CLI** (`cli/`), which wraps the shared C++ core,
-so results match the browser, desktop, and CLI editors. For the project overview see the
-[repository README](../README.md).
+layout, apply a filter, and write the result — or read an image's dimensions. It can also
+fetch, edit, and publish projects on a Stencil [collaboration server](../server/README.md)
+(even fanning across more than one). It is a thin, typed adapter that **shells out to the Zig
+CLI** (`cli/`), which wraps the shared C++ core, so results match the browser, desktop, and
+CLI editors. For the project overview see the [repository README](../README.md).
 
 ```jsonc
 // register with an MCP client (e.g. Claude Desktop's mcpServers, or `claude mcp add`):
@@ -155,7 +156,7 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 
 | Tool | Purpose | Key parameters |
 |---|---|---|
-| `stencil_edit` | Run the full pipeline, write a file, deliver to surface(s) | `input` \| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface` |
+| `stencil_edit` | Run the full pipeline, write a file, deliver to surface(s), optionally fetch/publish on a collaboration server | `input` \| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface`, `server`, `remote_update`, `remote`, `remote_name` |
 | `stencil_probe` | Read an image's pixel size | `input` |
 
 `stencil_edit` maps directly onto the CLI (`source → crop → rotate → layout → filter →
@@ -178,6 +179,36 @@ encode`):
 - **`surface`** — override the configured default delivery for this call: a single value
   (`"browser"`) or a list (`["cli", "desktop"]`). See [Configuration](#configuration). The
   result includes a per-surface `deliveries` array (each with `ok`, `detail`, and any `url`).
+- **`server`** / **`remote_update`** / **`remote`** / **`remote_name`** — talk to a Stencil
+  [collaboration server](../server/README.md). See [Collaboration server](#collaboration-server)
+  below.
+
+#### Collaboration server
+
+The Stencil [collaboration server](../server/README.md) stores and shares projects across
+every front-end. `stencil_edit` drives the CLI's server client (over the server's REST API),
+so the same tool both fetches a server project to edit and publishes results — no separate
+tool and no extra dependency (the CLI does all the networking with native TLS). The result is
+**always saved locally too**; the server delivery is in addition to the local write.
+
+| Parameter | Effect |
+|---|---|
+| `server` (URL) + `input` (name) | Connect to the server and treat `input` as a **project name**: fetch that project's image and edit it instead of a local file. Incompatible with `blank`. |
+| `remote_update` (bool) | With `server`, write the edited result **back into** the fetched project (updates its stored result image). |
+| `remote` (URL) | Publish the result as a **new** project on this server. Works with any source — a local/web `input`, a `blank`, or a `server`-fetched project. A web `input`'s URL is recorded as the project's source. |
+| `remote_name` (string) | Name for the `remote` project (default: the input image's base name). |
+
+A client may hold **several connections at once**: `server` and `remote` can point at
+**different** servers, so one call can fetch a project from server A and publish (or copy) it
+to server B. The result `server` array reports each delivery the CLI performed — `{ action:
+"updated", id, width, height }` or `{ action: "created", name, id }` — and the human summary
+adds an `↑ server: …` line per delivery.
+
+> The CLI's *interactive* console additionally supports ad-hoc multi-server sessions
+> (`/connect`, `/connections`, `/fetch`, `/sync`, plus live update notices over the raw-TCP
+> edit channel). That is a stdin REPL, not a one-shot command, so it is out of scope for the
+> MCP, which covers the full **headless** server surface: fetch-by-name, update-in-place, and
+> publish-as-new, against one or more servers.
 
 Inline `layout` object (a polyline through `points`; close + fill a shape by repeating the
 first point and setting a non-`transparent` `fillColor`):
@@ -210,6 +241,12 @@ the arguments. The configured `surface` default decides where each result is del
 - "Grab frame 24 of **clip.mp4** as **frame.png** and open it in the browser editor."
 - "Crop **https://example.com/pic.png** to the left half and save it next to my project."
 - "What are the pixel dimensions of **photo.jpg**?"
+- "On the server **http://host:8090**, open the project **Floor plan**, tone it sepia, and
+  save the result back to that project."
+- "Upload **photo.png** to **http://host:8090** as a new project called **Shared**, after
+  rotating it a quarter-turn right."
+- "Fetch **Plans** from **http://a:8090**, crop it to the top half, and publish the result as
+  a new project on **http://b:8090**."
 
 ### Example tool calls
 
@@ -237,6 +274,21 @@ These are the underlying calls a client makes for prompts like the above:
 
 // read an image's dimensions
 { "name": "stencil_probe", "arguments": { "input": "photo.jpg" } }
+
+// fetch the server project "Floor plan", tone it sepia, write the result back to it
+{ "name": "stencil_edit", "arguments": {
+    "server": "http://host:8090", "input": "Floor plan", "filter": "sepia",
+    "remote_update": true, "output": "floor.png" } }
+
+// publish a local image as a NEW server project after rotating it
+{ "name": "stencil_edit", "arguments": {
+    "input": "photo.png", "rotate": 1,
+    "remote": "http://host:8090", "remote_name": "Shared", "output": "out.png" } }
+
+// fetch from one server, publish the result to another (two connections, one call)
+{ "name": "stencil_edit", "arguments": {
+    "server": "http://a:8090", "input": "Plans", "crop": "y2=50%",
+    "remote": "http://b:8090", "remote_name": "Plans (top)", "output": "plans.png" } }
 ```
 
 ## How it works

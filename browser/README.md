@@ -187,6 +187,9 @@ stencil
   .crop({ x2: '-2cm' })
   .apply({ lineColor: '#123456' });
 await stencil.load('https://example.com/clip.webm', { frame: 1.5 });   // grab the frame at 1.5s
+// The "Open Another Image" toolbar modal also accepts a local video file: pick one,
+// choose the frame time, and (with a server connected) the "Save to" target creates
+// the captured frame as a project on that server — the UI peer of load(url,{address}).
 
 // ── Coordinate conversion ──
 stencil.px2Page({ x: 100, y: 100 });   // → { x, y } in page cm (formulas applied)

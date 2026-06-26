@@ -12,6 +12,7 @@ const image = @import("image.zig");
 const layout_mod = @import("layout.zig");
 const video = @import("video.zig");
 const net = @import("net.zig");
+const server = @import("server.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
 
@@ -28,7 +29,37 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     var img: image.Rgba8 = undefined;
     var default_fmt: image.Format = .png;
 
-    if (opts.blank) |blank| {
+    // --server makes -i refer to a server PROJECT (fetched as the source) rather than
+    // a local path; with --remote-update the result is written back to it.
+    var fetch_client: ?server.Client = null;
+    defer if (fetch_client) |*c| c.deinit();
+    var fetched_id: ?[]u8 = null;
+    defer if (fetched_id) |id| gpa.free(id);
+
+    if (opts.server) |url| {
+        const name = opts.input orelse {
+            logo.print("error: --server needs -i <server project name>\n", .{});
+            return error.NoSource;
+        };
+        fetch_client = server.connect(gpa, io, url, null) catch |e| {
+            logo.print("error: could not connect to {s} ({s})\n", .{ url, @errorName(e) });
+            return e;
+        };
+        const id = (fetch_client.?.findProjectIdByName(name) catch |e| {
+            logo.print("error: server lookup failed ({s})\n", .{@errorName(e)});
+            return e;
+        }) orelse {
+            logo.print("error: no server project named \"{s}\"\n", .{name});
+            return error.NoSource;
+        };
+        fetched_id = id;
+        const orig = try fetch_client.?.downloadFile(id, "original");
+        defer gpa.free(orig);
+        img = image.decode(gpa, orig) catch |e| {
+            logo.print("error: could not decode server image ({s})\n", .{@errorName(e)});
+            return e;
+        };
+    } else if (opts.blank) |blank| {
         img = try acquireBlank(gpa, blank);
     } else if (opts.input) |input| {
         const src = try acquireInput(gpa, io, input, opts.frame);
@@ -39,6 +70,13 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         return error.NoSource;
     }
     defer img.deinit(gpa);
+
+    // For --remote (push a NEW project), keep the pre-edit original bytes + dims.
+    var original_bytes: ?[]u8 = null;
+    defer if (original_bytes) |b| gpa.free(b);
+    const orig_w: usize = img.width;
+    const orig_h: usize = img.height;
+    if (opts.remote != null) original_bytes = try image.encode(gpa, img, default_fmt);
 
     // 2) Crop, then rotate by N quarter-turns.
     if (opts.crop) |spec| try applyCropSpec(gpa, &img, spec, opts.album);
@@ -52,12 +90,69 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     // 4) Filter — explicit --filter overrides the layout's filter.
     if (opts.filter orelse layout_filter_buf) |f| applyFilterMode(gpa, &img, f);
 
-    // 5) Encode + write.
+    // 5) Encode + write locally.
     const out = opts.output orelse {
         logo.print("error: no output path given\n", .{});
         return error.NoOutput;
     };
     try writeOutput(gpa, io, img, out, default_fmt);
+
+    // 6) Server result delivery.
+    try deliverToServer(gpa, io, opts, img, default_fmt, fetch_client, fetched_id, original_bytes, orig_w, orig_h);
+}
+
+/// Push the result (and, for a new project, the original) to a server when the
+/// --remote-update / --remote flags ask for it.
+fn deliverToServer(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    opts: args.Options,
+    img: image.Rgba8,
+    fmt: image.Format,
+    fetch_client: ?server.Client,
+    fetched_id: ?[]u8,
+    original_bytes: ?[]u8,
+    orig_w: usize,
+    orig_h: usize,
+) !void {
+    // Mode A: write the result back into the fetched server project.
+    if (opts.remote_update) {
+        if (fetch_client == null or fetched_id == null) {
+            logo.print("error: --remote-update needs --server <url> -i <project>\n", .{});
+            return error.NoRemote;
+        }
+        var c = fetch_client.?;
+        const result = try image.encode(gpa, img, fmt);
+        defer gpa.free(result);
+        try c.uploadFile(fetched_id.?, "result", result, fmt.ext(), img.width, img.height);
+        logo.print("updated server result for project {s} ({d}x{d})\n", .{ fetched_id.?, img.width, img.height });
+    }
+
+    // Mode B: create a NEW project on --remote and upload original + result.
+    if (opts.remote) |rurl| {
+        var c = server.connect(gpa, io, rurl, null) catch |e| {
+            logo.print("error: could not connect to {s} ({s})\n", .{ rurl, @errorName(e) });
+            return e;
+        };
+        defer c.deinit();
+        const name = opts.remote_name orelse baseName(opts.input orelse "image");
+        const source = if (opts.input != null and net.isUrl(opts.input.?)) opts.input.? else "";
+        const id = try c.createProject(name, source);
+        defer gpa.free(id);
+        if (original_bytes) |ob| try c.uploadFile(id, "original", ob, fmt.ext(), orig_w, orig_h);
+        const result = try image.encode(gpa, img, fmt);
+        defer gpa.free(result);
+        try c.uploadFile(id, "result", result, fmt.ext(), img.width, img.height);
+        logo.print("created server project \"{s}\" ({s})\n", .{ name, id });
+    }
+}
+
+/// Last path component without its extension (for the default --remote project name).
+fn baseName(path: []const u8) []const u8 {
+    const slash = std.mem.lastIndexOfAny(u8, path, "/\\");
+    const base = if (slash) |s| path[s + 1 ..] else path;
+    const dot = std.mem.lastIndexOfScalar(u8, base, '.');
+    return if (dot) |d| base[0..d] else base;
 }
 
 // ── steps (each usable standalone by console.zig) ─────────────────────────────

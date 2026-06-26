@@ -21,6 +21,7 @@ import { normalizePageSize } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
+import { requireConnection, createRemoteProject, saveRemoteProject, CONFLICT_MESSAGE } from '../net/remoteSync.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (theme + label match). line = diagonal segment with
@@ -188,6 +189,11 @@ export class DrawingApp {
     // ── Multi-project state ──
     // The active project id mirrors storage.activeId; null = temporary editor.
     this.activeProjectId = null;
+
+    // Link to a server-stored project for the current editing session, or null for
+    // a purely-local one. { address, remoteId, version }; set when a remote project
+    // is opened or a local create targets a server, consumed by saveToServer().
+    this.remoteLink = null;
 
     // ── Components ──
     this.history = new HistoryStack();
@@ -1565,6 +1571,15 @@ export class DrawingApp {
     this.imageSource = opts.source || null;
     this.imageResource = opts.resource || null;
 
+    // Server linkage. opts.remoteId → reopen an EXISTING server project (link the
+    // session, restore its layout below). opts.address WITHOUT a remoteId → CREATE
+    // this freshly-loaded image on that server after it loads. Neither → local only.
+    this.remoteLink = (opts.address && opts.remoteId)
+      ? { address: opts.address, remoteId: opts.remoteId, version: opts.version || 0 }
+      : null;
+    const remoteCreateAddress = (opts.address && !opts.remoteId) ? opts.address : null;
+    const remoteLayout = opts.layout || null;
+
     const reader = new FileReader();
     reader.onload = event => {
       this.originalImage = new Image();
@@ -1597,6 +1612,18 @@ export class DrawingApp {
           this.lines = [];
         }
 
+        // Reopened server project: install its stored layout's lines (no prompts —
+        // it's the project's own layout, not a foreign paste).
+        if (remoteLayout) {
+          const verdict = validateLayout(remoteLayout, {
+            hasImage: true,
+            imgW: this.canvas.width,
+            imgH: this.canvas.height,
+            hasExistingLines: false,
+          });
+          if (verdict.ok) this.lines = verdict.lines;
+        }
+
         this.currentLine = null;
         this.history.reset(this.lines);
         this.zoomPan.fitToWindow();
@@ -1606,6 +1633,14 @@ export class DrawingApp {
         this.updateButtons();
         this.updateCoordStatus();
         this.storage.save();
+
+        // Create-on-server: push this just-loaded original to the chosen server and
+        // link the session so later saves write back. Best-effort — a failure leaves
+        // the project local and surfaces a toast.
+        if (remoteCreateAddress) {
+          try { await this.#createRemoteForSession(remoteCreateAddress, file); }
+          catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
+        }
       };
       this.originalImage.src = event.target.result;
       // Store base64 of the ORIGINAL for persistence (the crop is stored as a
@@ -2965,6 +3000,7 @@ export class DrawingApp {
     if (!this.storage.temporary && this.activeProjectId != null) this.storage.save();
     if (this.storage.loadProject(id)) {
       this.activeProjectId = id;
+      this.remoteLink = null;   // a locally-stored project isn't server-linked
       this.tabs.reportActive(id);
       return true;
     }
@@ -3003,6 +3039,7 @@ export class DrawingApp {
 
   // Start a fresh blank (unsaved) editor.
   newEditor() {
+    this.remoteLink = null;
     this.storage.newTemporary();
     this.tabs.reportActive(null);
   }
@@ -3010,12 +3047,15 @@ export class DrawingApp {
   // Open-image dialog action: replace the current editor with `file`. A non-incognito
   // current project already persists (so it stays in the projects list) — flush it,
   // then reset to a fresh editor and load the new file (as incognito if requested).
-  openImageHere(file, incognito = false) {
+  // `address` (a connected server URL) also creates+links the project on that server
+  // — ignored for incognito (never persisted, so never pushed).
+  openImageHere(file, incognito = false, address = null) {
     if (!file) return;
+    if (address && !incognito) requireConnection(this.connections, address);   // validate up front
     if (!this.storage.incognito) this.storage.save();
     this.newEditor();
     if (incognito) { this.storage.incognito = true; this.updateIncognitoUI(); }
-    this.loadImageFromFile(file);
+    this.loadImageFromFile(file, (address && !incognito) ? { address } : {});
   }
 
   // Open-image dialog action: launch `file` in a NEW browser tab via the #stencil=
@@ -3036,7 +3076,11 @@ export class DrawingApp {
   // console API). width/height in px (clamped 1–8192); omitted → current page size, like the
   // modal. Returns a Promise resolving { width, height } once handed to the loader, rejecting
   // if the canvas can't be encoded — so both callers can report accurately.
-  createBlankImage({ color = '#ffffff', width, height } = {}) {
+  // `address` (a connected server URL) also creates+links the project on that server
+  // (mirrors loadImageFromFile's create-on-server path); validated up front so a bad
+  // target rejects before the local image is replaced.
+  createBlankImage({ color = '#ffffff', width, height, address } = {}) {
+    if (address) requireConnection(this.connections, address);
     const dims = (width != null && height != null)
       ? { width, height }
       : defaultBlankSizePx(this.pageSize === 'custom'
@@ -3052,10 +3096,80 @@ export class DrawingApp {
     return new Promise((resolve, reject) => {
       cnv.toBlob(blob => {
         if (!blob) { reject(new Error('Could not create the image')); return; }
-        this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }));
+        this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }), { address: address || undefined });
         resolve({ width: w, height: h });
       }, 'image/png');
     });
+  }
+
+  // ── Server-backed sessions ───────────────────────────────────────
+  // Create the just-loaded original on `address` and link the session. Reads the
+  // File's raw bytes (the server is codec-free, so dimensions are passed in).
+  async #createRemoteForSession(address, file) {
+    const conn = requireConnection(this.connections, address);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    this.remoteLink = await createRemoteProject(conn, {
+      name: this.imageBaseName || 'Untitled',
+      source: this.imageSource || '',
+      resource: this.imageResource || '',
+      bytes,
+      ext: this.imageExt || 'png',
+      w: this.originalImage ? this.originalImage.width : 0,
+      h: this.originalImage ? this.originalImage.height : 0,
+    });
+    notify(`Saved to ${conn.url}`, 'ok');
+    return this.remoteLink;
+  }
+
+  // Create an EMPTY project on `address` (no image yet) and link the session, so a
+  // later saveToServer() uploads the result. Backs stencil.newEditor({ address }).
+  async createRemoteBlank(address) {
+    const conn = requireConnection(this.connections, address);
+    this.remoteLink = await createRemoteProject(conn, { name: this.imageBaseName || 'Untitled' });
+    return this.remoteLink;
+  }
+
+  // Save the current annotated result + layout back to the linked server project.
+  // Version-guarded; a 409 surfaces a clear "edited elsewhere" toast and leaves the
+  // link untouched so the user can reload. No-op when the session isn't server-linked.
+  async saveToServer() {
+    if (!this.remoteLink) return null;
+    let conn;
+    try {
+      conn = requireConnection(this.connections, this.remoteLink.address);
+    } catch (err) {
+      notify(err.message, 'fail');
+      return null;
+    }
+    const layout = buildLayoutPayload({
+      imageWidth: this.canvas.width,
+      imageHeight: this.canvas.height,
+      lines: this.lines,
+    });
+    const name = this.activeProjectId != null
+      ? (this.storage.store.getMeta(this.activeProjectId)?.name || this.imageBaseName || 'Untitled')
+      : (this.imageBaseName || 'Untitled');
+    let bytes = null;
+    if (this.image) {
+      const off = this.#renderExportCanvas();
+      const blob = await new Promise(res => off.toBlob(res, 'image/png'));
+      if (blob) bytes = new Uint8Array(await blob.arrayBuffer());
+    }
+    try {
+      this.remoteLink = await saveRemoteProject(conn, this.remoteLink, {
+        name,
+        layout,
+        bytes,
+        ext: 'png',
+        w: this.canvas.width,
+        h: this.canvas.height,
+      });
+      notify('Saved to server', 'ok');
+      return this.remoteLink;
+    } catch (err) {
+      notify(err.conflict ? CONFLICT_MESSAGE : `Server save failed — ${err.message}`, 'fail');
+      return null;
+    }
   }
 
   // Permanently delete every saved project, then drop to a blank editor.
@@ -3496,6 +3610,9 @@ export class DrawingApp {
     link.download = `${baseName}-drawing.${outExt}`;
     link.href = offscreen.toDataURL(mime);
     link.click();
+
+    // A server-linked session also writes the annotated result + layout back.
+    if (this.remoteLink) this.saveToServer();
   }
 
   // Share the annotated image via the Web Share API (mobile/PWA). The Share entry

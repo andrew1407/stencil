@@ -1,5 +1,5 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl } from '../lib/stencil.js';
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned } from '../lib/pins.js';
 import { resolveHighlightColor } from '../lib/highlightColor.js';
@@ -7,6 +7,10 @@ import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
 import { icon } from '../lib/icons.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
+import {
+  CONNECTIONS_KEY, loadConnections, collectSharedPins, connectionByUrl,
+  createProject, fetchProjectImage, pinTargetMode, projectRequestFromImage,
+} from '../lib/connections.js';
 
 // Common web image formats always offered in the filter, plus any others the page
 // uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
@@ -27,7 +31,12 @@ const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'vie
 const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
-const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true, showPinned: true };
+const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true, showPinned: true, connections: [], shared: [] };
+
+// How often (ms) the popup re-pulls shared pins from connected servers while it's
+// open. MV3 popups are short-lived, so a light poll-while-open is both simple and
+// correct — no background WS to keep alive. Cleared when the surface unloads.
+const SHARED_POLL_MS = 8000;
 
 // This controller drives three surfaces: the toolbar popup (closes after an action),
 // the docked side panel (src/sidepanel/sidepanel.html), and the DevTools panel
@@ -118,6 +127,8 @@ const scan = async () => {
   }));
   await annotateOpened();
   await annotatePinned();
+  await loadShared();
+  startSharedPolling();
   populateFormats();
   applyFilters();
 };
@@ -160,6 +171,87 @@ const annotatePinned = async () => {
 };
 
 const isPinned = (image) => state.showPinned && !!image.pinned;
+
+// ── Shared pins (connected collaboration servers) ───────────────────────────
+// A server project (with an image) becomes a SHARED pin row: it renders alongside
+// the page's own images with a golden outline + server badge, and its thumbnail /
+// editor hand-off are fetched over the server's Bearer-authed download endpoint.
+const SHARED_POLL = { timer: null };
+
+// Map a shared-pin record (from connections.js) to a row in the popup's image shape.
+// No `src` (the download is authed — a bare <img> can't load it); the thumbnail and
+// open paths resolve the bytes via fetchProjectImage instead. measured:true keeps the
+// size observer off a row that has no probe-able URL.
+const sharedToImage = (pin) => ({
+  kind: 'img',
+  src: '',
+  name: pin.name,
+  w: 0,
+  h: 0,
+  measured: true,
+  shared: true,
+  serverUrl: pin.serverUrl,
+  projectId: pin.projectId,
+  source: pin.source,
+  resource: pin.resource || '',
+  opened: [],
+  pinned: false,
+});
+
+// The connection that owns a shared row (by its server origin), or null.
+const sharedConn = (image) => connectionByUrl(state.connections, image.serverUrl);
+
+// Resolve a shared row's image bytes to a data URL (authed), caching on the row and in
+// the preview cache so the thumbnail, hover preview and editor hand-off share one fetch.
+const sharedDataUrl = async (image) => {
+  if (image._dataUrl) return image._dataUrl;
+  const conn = sharedConn(image);
+  if (!conn) throw new Error('no connection for shared pin');
+  const dataUrl = await blobToDataUrl(await fetchProjectImage(conn, image.projectId));
+  image._dataUrl = dataUrl;
+  if (image.source) previewCache.set(image.source, dataUrl);
+  return dataUrl;
+};
+
+// Set a shared row's thumbnail from its authed data URL; hide the <img> if the fetch
+// fails (unreachable server, or a project with no stored bytes yet).
+const resolveSharedThumb = async (image, thumb) => {
+  try {
+    thumb.src = await sharedDataUrl(image);
+    thumb.style.visibility = 'visible';
+  } catch {
+    thumb.style.visibility = 'hidden';
+  }
+};
+
+// Pull the current shared pins from every connection into state.shared. Best-effort:
+// an unreachable server is skipped (collectSharedPins swallows its error).
+const loadShared = async () => {
+  state.connections = await loadConnections();
+  const pins = await collectSharedPins(state.connections);
+  // Preserve any already-resolved thumbnails across a refresh (match on server+project).
+  const prev = new Map(state.shared.map((s) => [`${s.serverUrl}\n${s.projectId}`, s._dataUrl]));
+  state.shared = pins.map((p) => {
+    const row = sharedToImage(p);
+    row._dataUrl = prev.get(`${row.serverUrl}\n${row.projectId}`) || null;
+    return row;
+  });
+};
+
+// Poll-while-open: refresh shared pins on a light interval so server-side changes show
+// up without a manual rescan. Only runs when at least one server is connected.
+const startSharedPolling = () => {
+  if (SHARED_POLL.timer || !state.connections.length) return;
+  SHARED_POLL.timer = setInterval(async () => {
+    await loadShared();
+    applyFilters();
+  }, SHARED_POLL_MS);
+};
+const stopSharedPolling = () => {
+  if (SHARED_POLL.timer) clearInterval(SHARED_POLL.timer);
+  SHARED_POLL.timer = null;
+};
+window.addEventListener('pagehide', stopSharedPolling);
 
 // Build a checkbox per format (common ones + any extra the page uses). All start
 // checked (= no filtering); the toggle button flips select-all / deselect-all.
@@ -226,7 +318,16 @@ const readFilters = () => {
 
 let filters = {};
 const renderCount = () => {
-  countEl.textContent = state.all.length ? `(${state.filtered.length}/${state.all.length})` : '';
+  const total = state.all.length + state.shared.length;
+  countEl.textContent = total ? `(${state.filtered.length}/${total})` : '';
+};
+
+// Shared pins only obey the text search (name / server source) — the page-image kind /
+// format / size filters don't apply to a remote project. No search = always shown.
+const sharedMatchesSearch = (image, search) => {
+  if (!search) return true;
+  const q = search.toLowerCase();
+  return (image.name || '').toLowerCase().includes(q) || (image.source || '').toLowerCase().includes(q);
 };
 
 // Persist the FILTER controls (search / formats / sizes / include toggles) so they
@@ -273,9 +374,12 @@ const applyFilters = () => {
   const rank = (it) => (isPinned(it) ? 2 : 0) + (state.openedFirst && isOpened(it) ? 1 : 0);
   if (state.showPinned || state.openedFirst)
     state.filtered.sort((a, b) => rank(b) - rank(a));
+  // Shared (server) pins list after the page's own images, newest-first.
+  const sharedRows = state.shared.filter(s => sharedMatchesSearch(s, filters.search));
+  state.filtered = state.filtered.concat(sharedRows);
   listEl.innerHTML = '';
   renderCount();
-  if (!state.all.length) {
+  if (!state.all.length && !sharedRows.length) {
     listEl.innerHTML = '<li class="empty">No images found on this page.</li>';
     return;
   }
@@ -309,7 +413,10 @@ const renderRow = (image) => {
 
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
-  thumb.src = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
+  // Only assign a real src — a shared (server) row has none here (its bytes are fetched
+  // authed below), and assigning '' would point the <img> at the page document.
+  const initSrc = image.src || image.posterUrl || (image.kind === 'video' ? PLAY_THUMB : '');
+  if (initSrc) thumb.src = initSrc;
   thumb.loading = 'lazy';
   // No native title on the thumbnail: hovering shows the floating preview (bindPreview),
   // which a tooltip would cover; the same info stays on the name's title.
@@ -330,6 +437,9 @@ const renderRow = (image) => {
     }
   });
   bindPreview(thumb, image);
+  // Shared (server) rows have no plain src — their download is Bearer-authed, so resolve
+  // the thumbnail through the owning connection instead of letting a bare <img> 404.
+  if (image.shared) resolveSharedThumb(image, thumb);
 
   const meta = document.createElement('div');
   meta.className = 'meta';
@@ -387,6 +497,16 @@ const renderRow = (image) => {
     ob.innerHTML = icon('flag', { size: 12 }) + ' opened';
     ob.title = 'Already opened in an editor — click to resume or add a copy';
     sub.appendChild(ob);
+  }
+  // Shared from a connected server: a golden outline + server badge set it apart from a
+  // local (gray) pin. Clicking it opens the server-stored image in the editor.
+  if (image.shared) {
+    row.classList.add('shared');
+    const sb = document.createElement('span');
+    sb.className = 'badge shared';
+    sb.innerHTML = icon('server', { size: 12 }) + ' server';
+    sb.title = `Shared from ${image.serverUrl}`;
+    sub.appendChild(sb);
   }
   meta.append(name, sub);
 
@@ -496,7 +616,18 @@ const buildMenu = (image) => {
       sep()
     );
   }
-  if (image.kind === 'video') {
+  if (image.shared) {
+    // A shared (server) row: open / crop the server-stored image. No download or
+    // open-in-tab — the bytes live behind the connection's Bearer auth, not a plain URL.
+    menuEl.append(
+      label('Shared from server'),
+      item(icon('pencil', { size: 15 }), 'Open in editor', () => sendToEditor(image, false)),
+      item(icon('incognito', { size: 15 }), 'Editor (incognito)', () => sendToEditor(image, true)),
+      item(icon('monitor', { size: 15 }), 'Open in editor here', () => sendToEditorModal(image, false)),
+      item(icon('monitor', { size: 15 }), 'Editor here (incognito)', () => sendToEditorModal(image, true)),
+      item(icon('crop', { size: 15 }), 'Crop…', () => openCrop(image))
+    );
+  } else if (image.kind === 'video') {
     if (image.videoUrl) menuEl.append(
       item(icon('external', { size: 15 }), 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
       item(icon('download', { size: 15 }), 'Download video', () => download(image.videoUrl))
@@ -665,22 +796,116 @@ const togglePin = async (image) => {
     void row.offsetWidth;   // restart the flash animation if it was mid-run
     row.classList.add('just-pinned');
   }
+  // When pinning (not unpinning) with a server connected, offer to also store the image
+  // as a project on a server — a picker for several connections, a checkbox for one.
+  if (next) await maybeStoreOnServer(image);
 };
+
+// Host label for a server origin (e.g. https://srv:8090 → srv:8090).
+const hostLabel = (origin) => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return origin || '(server)';
+  }
+};
+
+// After a local pin, optionally create a project on a connected server. 'none' (no
+// servers) skips silently; otherwise the user picks a target (or declines) and we POST
+// it through connections.createProject, then refresh the shared pins.
+const maybeStoreOnServer = async (image) => {
+  const mode = pinTargetMode(state.connections);
+  if (mode === 'none') return;
+  const serverUrl = await promptServerTarget(mode);
+  const conn = serverUrl ? connectionByUrl(state.connections, serverUrl) : null;
+  if (!conn) return;
+  try {
+    statusEl.textContent = `Saving to ${hostLabel(conn.url)}…`;
+    await createProject(conn, projectRequestFromImage({ name: image.name, source: sourceOf(image) }, state.activeUrl));
+    statusEl.textContent = `Saved to ${hostLabel(conn.url)}.`;
+    await loadShared();
+    applyFilters();
+  } catch (err) {
+    statusEl.textContent = `Server save failed: ${err.message}`;
+  }
+};
+
+// A small in-popup dialog asking which server (if any) to store the pin on. 'one' shows
+// a single "store on server" checkbox; 'many' a picker. Resolves the chosen server URL,
+// or null to keep it local only.
+const promptServerTarget = (mode) => new Promise((resolve) => {
+  const back = document.createElement('div');
+  back.className = 'dialog-back';
+  const box = document.createElement('div');
+  box.className = 'dialog';
+  const finish = (val) => { back.remove(); resolve(val); };
+
+  const title = document.createElement('div');
+  title.className = 'dialog-title';
+  title.textContent = 'Also store this image on a server?';
+  box.appendChild(title);
+
+  let getValue;
+  if (mode === 'one') {
+    const conn = state.connections[0];
+    const lbl = document.createElement('label');
+    lbl.className = 'dialog-check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    lbl.append(cb, document.createTextNode(` Store on ${hostLabel(conn.url)}`));
+    box.appendChild(lbl);
+    getValue = () => (cb.checked ? conn.url : null);
+  } else {
+    const sel = document.createElement('select');
+    sel.className = 'dialog-select';
+    sel.innerHTML = '<option value="">Local only (don’t store on a server)</option>' +
+      state.connections.map((c) => `<option value="${c.url}">${hostLabel(c.url)}</option>`).join('');
+    box.appendChild(sel);
+    getValue = () => sel.value || null;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'dialog-actions';
+  const skip = document.createElement('button');
+  skip.textContent = 'Skip';
+  skip.addEventListener('click', () => finish(null));
+  const ok = document.createElement('button');
+  ok.className = 'primary';
+  ok.textContent = 'Save';
+  ok.addEventListener('click', () => finish(getValue()));
+  row.append(skip, ok);
+  box.appendChild(row);
+
+  back.appendChild(box);
+  back.addEventListener('click', (e) => { if (e.target === back) finish(null); });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key !== 'Escape') return;
+    document.removeEventListener('keydown', esc);
+    finish(null);
+  });
+  document.body.appendChild(back);
+});
 
 // Provenance attached to every editor hand-off: the image's own URL (or a video's
 // media URL) and the page it was scanned on. `open` ('resume'|'copy') lets the
 // editor switch to an already-opened project or force a fresh numbered copy.
 const handoff = (image, open) => ({
   name: image.name,
-  source: sourceOf(image),
-  resource: state.activeUrl,
+  // A shared (server) row carries the server image URL + its origin page as provenance;
+  // a page image uses its own src + the active tab's URL.
+  source: image.shared ? image.source : sourceOf(image),
+  resource: image.shared ? image.resource : state.activeUrl,
   open
 });
+
+// The image bytes to hand to the editor / crop: a shared row pulls them (authed) from
+// its server, a page image fetches them through the extension's host permissions.
+const imageDataUrl = (image) => image.shared ? sharedDataUrl(image) : fetchAsDataUrl(editableSrc(image));
 
 const sendToEditor = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
-  const dataUrl = await fetchAsDataUrl(editableSrc(image));
+  const dataUrl = await imageDataUrl(image);
   await openEditorTab({ dataUrl, page: { size: page }, incognito, ...handoff(image, open) });
   dismiss();
 };
@@ -690,14 +915,16 @@ const sendToEditor = async (image, incognito, open) => {
 const sendToEditorModal = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
-  const dataUrl = await fetchAsDataUrl(editableSrc(image));
+  const dataUrl = await imageDataUrl(image);
   await launchEditorModal({ dataUrl, page: { size: page }, incognito, tabId: state.activeTabId, ...handoff(image, open) });
   dismiss();
 };
 
 // Crop opens a small in-page modal on the current page (full editor stays a tab).
 const openCrop = async (image) => {
-  await launchCrop({ src: editableSrc(image), source: sourceOf(image), resource: state.activeUrl, tabId: state.activeTabId });
+  const src = image.shared ? await sharedDataUrl(image) : editableSrc(image);
+  const h = handoff(image);
+  await launchCrop({ src, source: h.source, resource: h.resource, tabId: state.activeTabId });
   dismiss();
 };
 
@@ -886,6 +1113,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // re-annotate in place so the gray outline / float updates without a re-scan.
   if (area === 'local' && changes[PINS_KEY] && state.all.length) {
     annotatePinned().then(applyFilters);
+  }
+  // Connections added/removed (Options page, or another surface) — re-pull shared pins
+  // and (re)start polling so the golden-outlined rows appear/disappear without a rescan.
+  if (area === 'local' && changes[CONNECTIONS_KEY]) {
+    loadShared().then(() => {
+      startSharedPolling();
+      applyFilters();
+    });
   }
   // Keep concurrently-open surfaces in lockstep: the popup, side panel, and DevTools
   // panel all run this controller and persist their filter state to the same key, so a

@@ -71,10 +71,18 @@ stencil [options] <output>
 | rotate | `-r, --rotate <int>` | **quarter-turns only**: `int × 90°` (`1`=90° CW, `-1`=90° CCW, `2`=180°). Arbitrary angles aren't supported — say so if asked |
 | draw something on it | `-l, --layout <path\|url>` | layout JSON (see below) |
 | b&w / sepia / tint | `--filter <bw\|sepia\|color>` | a color name or `#hex` makes a duotone tint; **overrides** a filter set inside the layout |
+| edit a **server** project | `--server <url>` | with `-i <name>`, `-i` names a project on the [collaboration server](../../../server/README.md) to fetch + edit (not a local path); incompatible with `--blank` |
+| save back to that project | `--remote-update` | with `--server`, write the result back into the fetched project |
+| publish as a **new** project | `--remote <url>` | upload the result as a new project on a server (any source: local/web `-i`, `--blank`, or a `--server` fetch) |
+| name the new project | `--remote-name <name>` | name for `--remote` (default: input image's base name); a web input's URL is recorded as the project source |
 | (result file) | `<output>` | positional, last; unknown/missing extension auto-filled from input (`png`/`jpg`/`bmp`/`tga`) |
 
 Order doesn't matter to the CLI; the pipeline always runs
-**source → crop → rotate → layout → filter → encode**.
+**source → crop → rotate → layout → filter → encode**, then the result is saved locally
+**and** delivered to any server (`--remote-update` / `--remote`). `--server` and `--remote`
+may point at **different** servers, so one run can fetch a project from one and publish it to
+another. (For an interactive multi-server session — `/connect`, `/fetch`, `/sync`, live
+update notices — use `--console` mode; see `cli/README.md`.)
 
 ### Examples
 ```bash
@@ -86,7 +94,15 @@ cli/zig-out/bin/stencil --blank 800 600 red --layout notes.json --filter sepia o
 cli/zig-out/bin/stencil -i clip.mp4 -f 24 frame.png
 # duotone tint an image fetched from a URL
 cli/zig-out/bin/stencil -i https://example.com/pic.png --filter "#7c3aed" tinted.png
+# fetch server project "Shared", tone it sepia, write the result back to it
+cli/zig-out/bin/stencil --server http://host:8090 -i Shared --filter sepia --remote-update out.png
+# publish a local image as a new server project after rotating it
+cli/zig-out/bin/stencil -i photo.png -r 1 --remote http://host:8090 --remote-name "Shared" out.png
 ```
+
+Note: the `/stencil` skill drives the CLI directly; an MCP client can reach the same
+server-project actions through the `stencil_edit` tool's `server` / `remote_update` /
+`remote` / `remote_name` parameters (see `mcp/README.md`).
 
 ## Drawing / layout
 

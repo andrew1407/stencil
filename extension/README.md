@@ -17,6 +17,31 @@ including a quick page-aspect crop. Vanilla JS, no build step.
   they're shown by default and measured lazily so the size filters can apply once known.
 - **Lazy rendering**: rows are added in batches as you scroll (good for image-heavy pages).
 - Hover a thumbnail for an enlarged preview.
+
+**Server connections & shared pins** (`lib/connections.js`)
+- Connect to one or more [Stencil collaboration servers](../server/README.md) from
+  **Options → Server connections** (URL + optional token). `addServer()` validates/issues a
+  token via `POST /auth/token` and persists the connection in `chrome.storage.local`, so it
+  survives popup reopen and is readable by the side panel / DevTools panel; `removeServer()`
+  drops it. Each connection is listed there with a remove button.
+- Each connected server's stored projects (those with an image) become **shared pins** in
+  the popup list: `loadConnections() → collectSharedPins()` pulls them over REST and they
+  render **after** the page's own images with a **golden outline + server badge** (the
+  `server` icon glyph) to set them apart from local (gray) pins. Their thumbnails and
+  editor/crop hand-off are fetched over the connection's **Bearer-authed** download endpoint
+  (`fetchProjectImage` → `GET /projects/{id}/files/original`), since a bare `<img src>` can't
+  send the token. Clicking a shared row opens the server image in the editor; the `⋯` menu
+  offers open/incognito/here/crop on it.
+- **Real-time refresh:** the popup re-pulls shared pins on a light **poll while open**
+  (`SHARED_POLL_MS`, ~8 s) — MV3 popups are short-lived, so this is simpler and more robust
+  than holding a background `/ws` events socket open. It also reacts to `chrome.storage`
+  connection changes immediately (add/remove a server in Options → the popup updates without
+  a rescan).
+- **Pin target picker:** pinning an image (the 📌 button) always makes the local pin, and —
+  when a server is connected — offers to **also store it on a server** via `createProject`
+  (`POST /projects` with the image's `source`/`resource`): a **checkbox** for a single
+  connection, a **picker** for several (`pinTargetMode` / `connectionByUrl`). The new project
+  shows up as a shared pin on the next poll.
 - **Click** a thumbnail or name → open it in the editor (a quick prompt picks
   incognito vs normal). **Double-click** → quick crop.
 - A `⋯` button opens a floating menu **next to the icon** with: **Download**,
@@ -91,7 +116,7 @@ src/
   sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + popup.css)
   devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
   crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
-  options/  options.html|js     editor URL, open mode, default page size
+  options/  options.html|js     editor URL, page size, pinned-images viewer, server connections
   lib/
     stencil.js       settings, fetch→dataURL, launch-URL builder, launchEditor
     overlay.js       in-page editor modal (also injected into pages)
@@ -99,6 +124,7 @@ src/
     imageScan.js     the page scanner (injected via chrome.scripting)
     filters.js       format / search / size filtering (pure)
     pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
+    connections.js   collaboration-server connections + SHARED pins (REST mirror of server/internal/protocol)
     messages.js      cross-context message `type`/`source` constants (no magic strings)
     theme.css        shared dark-theme palette (linked by popup/crop/options)
 tests/                   node:test unit tests for the pure modules

@@ -13,11 +13,22 @@ import { resolveAxisPx } from '../core/units.js';
 import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
+import { ConnectionManager } from '../net/connectionManager.js';
+import { requireConnection } from '../net/remoteSync.js';
+import { videoFrameDataUrl } from '../core/videoFrame.js';
 
 const str = (v) => (v == null ? '' : String(v));
 
 export const createStencil = (app) => {
-  // ── private state (closure-captured; never a property of any returned object) ──
+  // One ConnectionManager per session, shared with the connection UI via app.connections;
+  // onChange fires a DOM event so the projects modal / connect dialog can refresh.
+  const connMgr = app.connections || (app.connections = new ConnectionManager({
+    onChange: () => {
+      try {
+        window.dispatchEvent(new Event('stencil:connections-changed'));
+      } catch { /* no DOM */ }
+    },
+  }));
   let peers = [];
   try { app.tabs.onPeers((ids) => { peers = Array.isArray(ids) ? ids : []; }); } catch { /* no coordinator */ }
   const openedIds = () => {
@@ -334,32 +345,6 @@ export const createStencil = (app) => {
   });
   const settings = () => guard(settingsAccessors());
 
-  // Decode a video blob URL and capture the frame at `timeSec` to a JPEG data URL.
-  const videoFrameDataUrl = (srcUrl, timeSec) => new Promise((resolve, reject) => {
-    const v = document.createElement('video');
-    v.muted = true; v.preload = 'auto'; v.src = srcUrl;
-    let done = false;
-    const fail = (msg) => { if (!done) { done = true; URL.revokeObjectURL(srcUrl); reject(new Error(msg)); } };
-    v.addEventListener('loadeddata', () => {
-      try { v.currentTime = Math.min(Number(timeSec) || 0, Math.max(0, (v.duration || 0) - 0.01)); }
-      catch { fail('video seek failed'); }
-    });
-    v.addEventListener('seeked', () => {
-      if (done) return;
-      try {
-        const k = Math.min(1, 1920 / Math.max(v.videoWidth, v.videoHeight));
-        const c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(v.videoWidth * k));
-        c.height = Math.max(1, Math.round(v.videoHeight * k));
-        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-        done = true; URL.revokeObjectURL(srcUrl);
-        resolve(c.toDataURL('image/jpeg', 0.92));
-      } catch { fail('video frame capture failed (tainted/cross-origin?)'); }
-    });
-    v.addEventListener('error', () => fail('video failed to load'));
-    setTimeout(() => fail('video frame timeout'), 8000);
-  });
-
   // loadImageFromFile decodes async with no promise; poll until the image is in place.
   const waitForImage = (timeoutMs = 8000) => new Promise((resolve) => {
     const start = Date.now();
@@ -397,6 +382,23 @@ export const createStencil = (app) => {
       const m = app.storage.store.list().find((p) => str(p.name).trim().toLowerCase() === n);
       return m ? makeProject(m.id) : null;
     },
+
+    // ── Server connections ──
+    // Connect one or more collaboration servers for the current session and gain
+    // access to their stored/shared projects. Accepts a URL string, { url, token },
+    // or an array of either. Resolves to the facade for chaining.
+    //   await stencil.connect('http://host:8090')
+    //   await stencil.connect(['a:8090', { url: 'b:8090', token: 't' }])
+    async connect(urlOrUrls) { await connMgr.connect(urlOrUrls); return stencil; },
+    // Close one connection by URL, or (no arg) the most recently opened one.
+    disconnect(url) { connMgr.disconnect(url); return stencil; },
+    // Re-establish the last connected set (re-validates/re-issues tokens).
+    async reconnect() { await connMgr.reconnect(); return stencil; },
+    // Read-only list of connected server URLs.
+    get connections() { return connMgr.urls; },
+    // Aggregated remote projects across every connection (each tagged remote:true
+    // with its serverUrl). Resolves to an array of metadata records.
+    serverProjects() { return connMgr.remoteProjects(); },
 
     // ── Settings / modes ──
     get settings() { return settings(); },
@@ -495,14 +497,35 @@ export const createStencil = (app) => {
     // Fit the image to the window (the toolbar's "fit" button).
     zoomFit() { app.zoomPan.fitToWindow(); return stencil; },
     // Start a fresh blank (unsaved) editor — clears image + lines (the toolbar's clear/new).
-    newEditor() { app.newEditor(); return stencil; },
+    // `opts.address` (a connected server URL) also creates+links an empty project on that
+    // server, so a later save() writes back; resolves to the facade in that case.
+    newEditor(opts = {}) {
+      const address = opts.address || null;
+      if (address) requireConnection(connMgr, address);   // validate before resetting
+      app.newEditor();
+      if (address) return app.createRemoteBlank(address).then(() => stencil);
+      return stencil;
+    },
     // Create a solid-color blank image to draw on (mirrors the blank-image creator).
     // `color` is any CSS color (default white); opts.size = { width, height } in px
-    // (defaults to the current page size). Resolves to the facade once the image loads.
+    // (defaults to the current page size). `opts.address` (a connected server URL)
+    // also creates+links the project on that server. Resolves to the facade once loaded.
     async blank(color = '#ffffff', opts = {}) {
       const size = opts.size || {};
-      await app.createBlankImage({ color, width: size.width, height: size.height });
+      const address = opts.address || null;
+      if (address) requireConnection(connMgr, address);   // validate before replacing
+      const blankOpts = { color, width: size.width, height: size.height };
+      if (address) blankOpts.address = address;
+      await app.createBlankImage(blankOpts);
       await waitForImage();
+      return stencil;
+    },
+    // Save the session: a server-linked project writes its layout + result back to
+    // its origin server (version-guarded); a purely-local one just flushes to storage.
+    // Resolves to the facade.
+    save() {
+      if (app.remoteLink) return app.saveToServer().then(() => stencil);
+      app.storage.save();
       return stencil;
     },
 
@@ -579,6 +602,8 @@ export const createStencil = (app) => {
     // callers can `(await stencil.load(url)).crop(...)`. `source` defaults to the URL.
     // For a video URL (or when `frame` is given), the frame at `frame` seconds is grabbed.
     async load(url, opts = {}) {
+      const address = opts.address || null;
+      if (address) requireConnection(connMgr, address);   // validate before fetching
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`Failed to fetch ${url}: HTTP ${resp.status}`);
       const blob = await resp.blob();
@@ -599,6 +624,7 @@ export const createStencil = (app) => {
 
       const loadOpts = { source: opts.source ?? url, resource: opts.resource ?? '' };
       if (opts.crop) loadOpts.crop = opts.crop;
+      if (address) loadOpts.address = address;   // create+link on that server after load
       app.loadImageFromFile(file, loadOpts);
       await waitForImage();
       return stencil;

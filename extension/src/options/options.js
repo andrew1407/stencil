@@ -1,5 +1,6 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned } from '../lib/pins.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
@@ -173,8 +174,67 @@ const renderPins = async () => {
 };
 
 siteSel.addEventListener('change', renderPins);
-// Live-refresh when pins change anywhere (popup, side panel, page API, another options tab).
+
+// ── Server connections ───────────────────────────────────────────────────────
+// Add (connect + persist) / remove collaboration-server connections. The popup reads
+// the same chrome.storage.local list to render shared pins and offer server pin targets.
+const connUrl = document.getElementById('conn-url');
+const connToken = document.getElementById('conn-token');
+const connStatus = document.getElementById('conn-status');
+const connListEl = document.getElementById('conn-list');
+const connEmptyEl = document.getElementById('conn-empty');
+
+const renderConnections = async () => {
+  const conns = await loadConnections();
+  connListEl.innerHTML = '';
+  for (const c of conns) {
+    const li = document.createElement('li');
+    li.className = 'pin-row';
+    const info = document.createElement('div');
+    info.className = 'pin-info';
+    const name = document.createElement('div');
+    name.className = 'pin-name';
+    name.innerHTML = icon('server', { size: 14 }) + ' ' + hostLabel(c.url);
+    name.title = c.url;
+    info.appendChild(name);
+    const actions = document.createElement('div');
+    actions.className = 'pin-actions';
+    const remove = document.createElement('button');
+    remove.className = 'pin-btn danger';
+    remove.title = 'Remove connection';
+    remove.innerHTML = icon('x', { size: 15 });
+    remove.addEventListener('click', async () => {
+      await removeServer(c.url);
+      renderConnections();
+    });
+    actions.appendChild(remove);
+    li.append(info, actions);
+    connListEl.appendChild(li);
+  }
+  connEmptyEl.hidden = conns.length > 0;
+};
+
+document.getElementById('conn-add').addEventListener('click', async () => {
+  const url = (connUrl.value || '').trim();
+  if (!url) { connStatus.textContent = 'Enter a server URL.'; return; }
+  connStatus.textContent = 'Connecting…';
+  try {
+    await addServer(url, (connToken.value || '').trim());
+    connUrl.value = '';
+    connToken.value = '';
+    connStatus.innerHTML = icon('check', { size: 13 }) + ' Connected';
+    renderConnections();
+    setTimeout(() => { connStatus.textContent = ''; }, 1500);
+  } catch (err) {
+    connStatus.textContent = `Failed: ${err.message}`;
+  }
+});
+
+// Live-refresh when pins or connections change anywhere (popup, side panel, page API,
+// another options tab).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[PINS_KEY]) renderPins();
+  if (area === 'local' && changes[CONNECTIONS_KEY]) renderConnections();
 });
 renderPins();
+renderConnections();

@@ -41,8 +41,14 @@ impl StencilServer {
         → crop → rotate → draw layout → filter → encode) and write the result to a file, \
         then deliver it to the selected surface(s). Provide either `input` (a path or \
         http(s) URL) or `blank` (a fresh canvas), plus any of crop/rotate/layout/filter, an \
-        `output` path, and an optional `surface` override. Returns the written path, final \
-        dimensions, and per-surface delivery notes."
+        `output` path, and an optional `surface` override. To work with a Stencil \
+        collaboration server: set `server` to a server URL and `input` to a project NAME to \
+        fetch and edit it, add `remote_update` to write the result back; or set `remote` (a \
+        server URL) + optional `remote_name` to push the result as a NEW project. `server` \
+        and `remote` may point at different servers, so one call can fetch from one and \
+        publish to another. The result is always saved locally too. Returns the written \
+        path, final dimensions, per-surface delivery notes, and any server projects \
+        updated/created."
     )]
     async fn stencil_edit(
         &self,
@@ -60,9 +66,21 @@ impl StencilServer {
 
         let notes = deliver::deliver(&surfaces, &result, &self.config).await;
 
-        // A human-readable summary: the write line, then one line per surface beyond cli.
+        // A human-readable summary: the write line, then any server deliveries, then one
+        // line per surface beyond cli.
+        use crate::outcome::Remote;
         use std::fmt::Write;
         let mut summary = format!("wrote {} ({}x{})", result.path, result.width, result.height);
+        for remote in &result.remotes {
+            match remote {
+                Remote::Updated { id, width, height } => {
+                    let _ = write!(summary, "\n↑ server: updated project {id} ({width}x{height})");
+                }
+                Remote::Created { name, id } => {
+                    let _ = write!(summary, "\n↑ server: created project \"{name}\" ({id})");
+                }
+            }
+        }
         for note in &notes {
             if note.surface == "cli" {
                 continue;
@@ -85,12 +103,27 @@ impl StencilServer {
                 })
             })
             .collect();
+        // Collaboration-server deliveries (a single call can touch more than one server:
+        // fetch/update one and create on another), each tagged with its action.
+        let server: Vec<_> = result
+            .remotes
+            .iter()
+            .map(|r| match r {
+                Remote::Updated { id, width, height } => serde_json::json!({
+                    "action": "updated", "id": id, "width": width, "height": height,
+                }),
+                Remote::Created { name, id } => serde_json::json!({
+                    "action": "created", "name": name, "id": id,
+                }),
+            })
+            .collect();
         let payload = serde_json::json!({
             "path": result.path,
             "width": result.width,
             "height": result.height,
             "surfaces": surfaces.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             "deliveries": deliveries,
+            "server": server,
         });
 
         Ok(CallToolResult::success(vec![
@@ -137,10 +170,14 @@ impl ServerHandler for StencilServer {
             "Stencil image/video editing. `stencil_edit` runs the full pipeline \
              (source → crop → rotate → layout → filter → encode), writes a file, and \
              delivers it to the configured surface(s) — cli (file), desktop (launch the Qt \
-             app), browser (editor launch URL); pass `surface` to override per call. \
-             `stencil_probe` returns an image's pixel size. Coordinates in layouts and \
-             crops are image pixels. The server shells out to the Stencil CLI, so set \
-             STENCIL_CLI if the binary isn't found in the repo or on PATH."
+             app), browser (editor launch URL); pass `surface` to override per call. It can \
+             also work with Stencil collaboration servers: `server`+`input` fetches a \
+             project by name to edit, `remote_update` writes the result back, and `remote` \
+             (+`remote_name`) publishes the result as a new project — `server` and `remote` \
+             can be different servers in one call. `stencil_probe` returns an image's pixel \
+             size. Coordinates in layouts and crops are image pixels. The server shells out \
+             to the Stencil CLI, so set STENCIL_CLI if the binary isn't found in the repo or \
+             on PATH."
                 .to_string(),
         );
         info

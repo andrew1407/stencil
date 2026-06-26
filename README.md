@@ -20,6 +20,7 @@ Stencil ships as **three front-ends over one shared logic core**:
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) |
+| **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions (WS/TCP, Postgres) | [server/README.md](server/README.md) |
 
 A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
@@ -34,6 +35,9 @@ graph TD
     CORE -->|"compiled into · C ABI"| CLI["<b>CLI</b><br/>Zig + stb_image"]
     WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
     CLI -->|"shell-out · MCP stdio"| MCP["<b>MCP server</b><br/>Rust — tools for any MCP client"]
+    WEB -.->|"connect · REST + WS"| SRV["<b>Collaboration server</b><br/>Go — shared projects + live edit"]
+    DESK -.->|"connect · REST + TCP"| SRV
+    CLI -.->|"connect · REST + TCP"| SRV
 ```
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**
@@ -86,6 +90,11 @@ mcp/                  # Model Context Protocol server (Rust) — wraps the CLI
   src/                # server · args · pipeline · locate · layout · outcome
   tests/              # argv mapping · stderr parsing · gated end-to-end
   Dockerfile
+  README.md
+server/               # collaboration server (Go) — stores/shares projects + live edit
+  cmd/stencil-server/ # entry point (HTTP/WS + raw-TCP listeners)
+  internal/           # protocol · config · auth · filestore · store · bus · redisbus · transport · httpapi · hub
+  Dockerfile  .env.example
   README.md
 extension/            # companion Chrome extension (MV3) for the browser editor
   manifest.json

@@ -120,6 +120,24 @@
 
   <div class="card">
     <div class="pin-head">
+      <h1>Server connections</h1>
+    </div>
+    <p class="sub">Connect to a <a href="../../../server/README.md" style="color:var(--accent-2)">Stencil collaboration server</a>. Its stored projects appear in the popup as <strong>shared pins</strong> (golden outline), and pinning an image lets you store it there too.</p>
+    <label class="f" for="conn-url">Server URL</label>
+    <input id="conn-url" type="text" placeholder="http://localhost:8090">
+    <label class="f" for="conn-token">Access token (optional)</label>
+    <input id="conn-token" type="text" placeholder="leave blank to request a fresh token">
+    <div class="help">A token is validated if you supply one, otherwise one is requested from the server (open issuance / dev mode). Stored in <code>chrome.storage.local</code>.</div>
+    <div class="row">
+      <button id="conn-add">Connect</button>
+      <span id="conn-status" class="saved"></span>
+    </div>
+    <ul id="conn-list" class="pin-list"></ul>
+    <div id="conn-empty" class="pin-empty" hidden>No servers connected yet.</div>
+  </div>
+
+  <div class="card">
+    <div class="pin-head">
       <h1>Pinned images</h1>
       <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
     </div>

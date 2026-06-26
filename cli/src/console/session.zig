@@ -3,6 +3,7 @@
 //! URL/blank/clipboard source is in-memory only and freed when replaced or on session end.
 const std = @import("std");
 const image = @import("../image.zig");
+const server = @import("../server.zig");
 
 const max_states = 64; // original + up to 63 undoable edits; older edits drop off the front
 
@@ -14,9 +15,86 @@ pub const Session = struct {
     states: std.ArrayList(image.Rgba8) = .empty, // [0] = original; the current image is states[cursor]
     cursor: usize = 0,
 
+    // ── Server connections (collaboration) ──
+    servers: std.ArrayList(server.Client) = .empty, // connected servers (REST clients)
+    sync: bool = false, // when on, edits auto-upload the result to the active remote
+    dirty: bool = false, // a pending sync upload coalesced from a burst of edits (see handlers.flushSync)
+    remote_url: ?[]u8 = null, // owned base URL of the active fetched project's server
+    remote_id: ?[]u8 = null, // owned id of the active fetched project
+    events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
+    events_url: ?[]u8 = null, // owned base URL the events feed is connected to
+
+    /// True when a fetched server project is active (a target for sync / manual push).
+    pub fn hasRemote(self: *const Session) bool {
+        return self.remote_id != null and self.remote_url != null;
+    }
+
     pub fn deinit(self: *Session) void {
         self.clearAll();
+        self.closeEvents();
         self.states.deinit(self.gpa);
+        for (self.servers.items) |*c| c.deinit();
+        self.servers.deinit(self.gpa);
+        self.clearRemote();
+    }
+
+    // ── live events feed ──
+    /// Open (or replace) the read-only project-events subscription to `client`'s server.
+    /// Best-effort: a failed connect leaves the feed closed and is not fatal.
+    pub fn openEvents(self: *Session, client: *server.Client) void {
+        self.closeEvents();
+        const conn = server.EditConn.open(self.gpa, client.io, client.base, client.token, "stencil-cli") catch return;
+        const url = self.gpa.dupe(u8, client.base) catch {
+            var c = conn;
+            c.deinit();
+            return;
+        };
+        self.events = conn;
+        self.events_url = url;
+    }
+
+    pub fn closeEvents(self: *Session) void {
+        if (self.events) |*e| e.deinit();
+        self.events = null;
+        if (self.events_url) |u| self.gpa.free(u);
+        self.events_url = null;
+    }
+
+    // ── connection helpers ──
+    pub fn findServer(self: *Session, url: []const u8) ?*server.Client {
+        for (self.servers.items) |*c| {
+            if (std.mem.eql(u8, c.base, url)) return c;
+        }
+        return null;
+    }
+
+    pub fn dropServer(self: *Session, url: []const u8) bool {
+        for (self.servers.items, 0..) |*c, i| {
+            if (std.mem.eql(u8, c.base, url)) {
+                if (self.events_url != null and std.mem.eql(u8, self.events_url.?, url)) self.closeEvents();
+                c.deinit();
+                _ = self.servers.orderedRemove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Record the active remote project (owns copies of url + id).
+    pub fn setRemote(self: *Session, url: []const u8, id: []const u8) !void {
+        const u = try self.gpa.dupe(u8, url);
+        errdefer self.gpa.free(u);
+        const i = try self.gpa.dupe(u8, id);
+        self.clearRemote();
+        self.remote_url = u;
+        self.remote_id = i;
+    }
+
+    pub fn clearRemote(self: *Session) void {
+        if (self.remote_url) |u| self.gpa.free(u);
+        if (self.remote_id) |i| self.gpa.free(i);
+        self.remote_url = null;
+        self.remote_id = null;
     }
 
     pub fn hasImage(self: *Session) bool {

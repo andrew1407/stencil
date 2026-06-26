@@ -48,6 +48,7 @@ test {
     _ = @import("layout.zig");
     _ = @import("video.zig");
     _ = @import("net.zig");
+    _ = @import("server.zig");
     _ = @import("pipeline.zig");
     _ = @import("console.zig");
     _ = @import("theme.zig");

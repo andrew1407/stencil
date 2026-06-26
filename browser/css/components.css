@@ -959,6 +959,29 @@ stencil-fullscreen-layer { display: contents; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
 .project-row.project-incognito { border-color: var(--accent); border-style: dashed; }
 .project-row.project-incognito .project-name { color: var(--accent); }
+/* Server-stored (shared) projects: a golden outline + a small server badge so
+   they're visually distinct from local projects. --remote-gold defaults to the
+   logo yellow; theme.css may override it. */
+:root { --remote-gold: #d4a017; }
+.project-row.project-remote {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
+}
+.project-row.project-remote .project-thumb { border-color: var(--remote-gold); }
+.project-remote-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--remote-gold); font-weight: 600;
+}
+.project-remote-badge .ic { color: var(--remote-gold); }
+
+/* ── Server connections modal ───────────────────────────────────── */
+.connect-row {
+    display: flex; align-items: center; gap: 10px; justify-content: space-between;
+    padding: 6px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 6px; background: var(--input-bg);
+}
+.connect-row .connect-url { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.connect-row .connect-url .ic { color: var(--remote-gold); flex: 0 0 auto; }
 /* Inline rename input shown in place of .project-name */
 .project-name-edit {
     font-weight: 600;

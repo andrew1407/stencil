@@ -220,6 +220,93 @@ export class StencilProjectsModal extends StencilElement {
       return row;
     };
 
+    // Build a row for a server-stored project: golden outline + a server badge.
+    // "Open" fetches the original image bytes + layout from the server and loads
+    // them into the editor (read into a local editing session).
+    const makeRemoteRow = (meta) => {
+      const row = document.createElement('div');
+      row.className = 'project-row project-remote';
+      const thumb = document.createElement('div');
+      thumb.className = 'project-thumb project-thumb-placeholder';
+      thumb.innerHTML = icon('server', { size: 24 });
+      row.appendChild(thumb);
+
+      const info = document.createElement('div');
+      info.className = 'project-info';
+      const name = document.createElement('div');
+      name.className = 'project-name';
+      name.textContent = meta.name || 'Untitled';
+      const sub = document.createElement('div');
+      sub.className = 'project-sub';
+      const badge = document.createElement('span');
+      badge.className = 'project-remote-badge';
+      badge.innerHTML = `${icon('server', { size: 12 })}<span>${meta.serverUrl}</span>`;
+      sub.appendChild(badge);
+      info.append(name, sub);
+      row.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'project-actions';
+      const openBtn = document.createElement('button');
+      openBtn.className = 'project-switch';
+      openBtn.innerHTML = '<span>Open</span>';
+      openBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try { await openRemote(meta); close(); }
+        catch (err) { app.notify?.(`Could not open server project — ${err.message}`, 'fail'); }
+      });
+      // Delete the project on its origin server (the live events feed re-renders the row out).
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'project-remove danger btn-icon';
+      removeBtn.title = 'Delete from server';
+      removeBtn.innerHTML = icon('trash', { size: 15 });
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true }))) return;
+        const conn = app.connections && app.connections.get(meta.serverUrl);
+        if (!conn) { app.notify?.('Not connected to that server', 'fail'); return; }
+        try { await conn.deleteProject(meta.id); render(); }
+        catch (err) { app.notify?.(`Could not delete — ${err.message}`, 'fail'); }
+      });
+      actions.append(openBtn, removeBtn);
+      row.appendChild(actions);
+      return row;
+    };
+
+    // Fetch a remote project's image + layout and load it into the editor.
+    const openRemote = async (meta) => {
+      const conn = app.connections && app.connections.get(meta.serverUrl);
+      if (!conn) throw new Error('not connected');
+      const full = await conn.getProject(meta.id);
+      const blob = await conn.fetchFile(meta.id, 'original');
+      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+      const file = new File([blob], `${meta.name || 'image'}.${ext}`, { type: blob.type || 'image/png' });
+      app.loadImageFromFile(file, {
+        source: full.project?.source || '',
+        resource: full.project?.resource || '',
+        address: meta.serverUrl,
+        remoteId: meta.id,
+        layout: full.layout,
+      });
+    };
+
+    // Remote projects render asynchronously; a token guards against stale appends
+    // when the user types / the set changes mid-fetch.
+    let remoteToken = 0;
+    const renderRemote = async (q) => {
+      const mgr = app.connections;
+      if (!mgr || !mgr.urls.length) return;
+      const myToken = ++remoteToken;
+      let remotes = [];
+      try { remotes = await mgr.remoteProjects(); } catch { return; }
+      if (myToken !== remoteToken || !overlay.classList.contains('modal-open')) return;
+      const matching = remotes.filter((m) => rowMatches(m.name || '', q));
+      // Drop the "no projects" placeholder if we're adding remote rows.
+      const empty = list.querySelector('.info-empty');
+      if (matching.length && empty) empty.remove();
+      for (const meta of matching) list.appendChild(makeRemoteRow(meta));
+    };
+
     const render = () => {
       const q = search.value || '';
       list.innerHTML = '';
@@ -239,6 +326,9 @@ export class StencilProjectsModal extends StencilElement {
         empty.textContent = q.trim() ? 'No matching projects.' : 'No saved projects yet.';
         list.appendChild(empty);
       }
+
+      // Append server-stored projects (golden) once their lists resolve.
+      renderRemote(q);
     };
 
     const { open, close } = wireModalShell(overlay, openBtn, closeBtn, {
@@ -256,6 +346,12 @@ export class StencilProjectsModal extends StencilElement {
       if (!(await app.confirm('Permanently delete ALL saved projects?', { title: 'Delete all projects', danger: true }))) return;
       app.clearAllProjects();
       render();
+    });
+
+    // Re-render when servers connect/disconnect or push live project events, so
+    // the golden remote rows stay current.
+    window.addEventListener('stencil:connections-changed', () => {
+      if (overlay.classList.contains('modal-open')) render();
     });
 
     // Re-render when another tab changes the project set or peer activity.

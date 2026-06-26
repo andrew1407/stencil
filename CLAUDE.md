@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. A fifth subproject, an **MCP server (`mcp/`, Rust)**, wraps the CLI rather than the core. Each subproject has its own README with deeper detail; read the relevant one before working in it.
+Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. A fifth subproject, an **MCP server (`mcp/`, Rust)**, wraps the CLI rather than the core; a sixth, a **collaboration server (`server/`, Go)**, stores/shares projects and hosts live multi-client edit sessions over its own WS/TCP protocol. Each subproject has its own README with deeper detail; read the relevant one before working in it.
 
 ```
 core/        C++17, STL-only, GUI-free shared logic (formulas, geometry, color, page metrics, crop, raster, history, projects)
@@ -13,9 +13,10 @@ desktop/     C++17 + Qt 6 app — links core/ via add_subdirectory(../core)
 cli/         Zig tool — recompiles core/ sources and drives them over an extern "C" ABI
 extension/   Chrome MV3 extension — scans page images and hands them to browser/ via a URL fragment
 mcp/         Rust MCP server — shells out to the cli/ binary; depends on the CLI's command contract, NOT on core/
+server/      Go collaboration server — stores/shares projects + live multi-client edit sessions over WS/TCP; Postgres + a secured file store, NOT on core/
 ```
 
-`mcp/` is a thin protocol adapter, not a core consumer: it never links/recompiles `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to it. Its only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output.
+`mcp/` and `server/` are thin protocol adapters, not core consumers: they never link/recompile `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to them. `mcp/`'s only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output. `server/`'s contract is its REST + WebSocket/TCP wire protocol (`server/internal/protocol`), which the four front-ends mirror to connect, list/share projects, and edit collaboratively; it persists metadata in Postgres and bytes in a custom secured file store, and never touches `core/`.
 
 ## Commands
 
@@ -29,6 +30,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e tests self-skip without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
+| **server** | `cd server && go build ./...` (→ `go run ./cmd/stencil-server`) | `go test ./...` (store/redisbus e2e self-skip without `DATABASE_URL`/`REDIS_URL`; `go test -race ./internal/hub/...`) | needs Postgres (`DATABASE_URL`) + optional Redis (`REDIS_URL`); see `server/.env.example` |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
 - The browser app must be served over HTTP (ES modules refuse `file://`). Override host/port: `ADDR=0.0.0.0 PORT=3000 npm run serve`.
@@ -64,4 +66,4 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 
 ## CI
 
-`.github/workflows/ci.yml` runs six independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), and cli (Zig). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
+`.github/workflows/ci.yml` runs eight independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), mcp (Rust, builds the CLI first for its gated e2e), and **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
