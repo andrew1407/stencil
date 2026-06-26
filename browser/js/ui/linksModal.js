@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define, wireModalShell } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
 
@@ -67,6 +67,11 @@ export class StencilLinksModal extends StencilElement {
                         </span>
                     </div>
                     <div class="vs-row"><label>Resource URL</label><input type="text" id="links-url-resource" placeholder="(optional — page the image is on)"></div>
+                    <!-- Save target: only shown when at least one server is connected. -->
+                    <div class="vs-row" id="links-target-row" style="display:none">
+                        <label title="Load locally or create on a connected server">Save to</label>
+                        <select id="links-target"></select>
+                    </div>
                     <div class="links-preview-wrap" id="links-preview-wrap" style="display:none">
                         <img id="links-preview-img" alt="" style="display:none">
                         <video id="links-preview-video" muted playsinline controls crossorigin="anonymous" style="display:none"></video>
@@ -110,6 +115,8 @@ export class StencilLinksModal extends StencilElement {
     const editSection = $('links-edit-section');
     const addSection = $('links-add-section');
     const footHint = $('links-foot-hint');
+    const targetEl = $('links-target');
+    const targetRow = $('links-target-row');
 
     // 'none' until a preview succeeds; drives what Load captures.
     let previewKind = 'none';
@@ -192,6 +199,9 @@ export class StencilLinksModal extends StencilElement {
         syncLinkFields();
         urlEl.value = '';
         urlResourceEl.value = '';
+        // Target chooser only relevant for the add-by-URL (no image yet) path.
+        if (!hasImage) fillTargetSelect(targetEl, targetRow, app.connections);
+        else if (targetRow) targetRow.style.display = 'none';
         resetPreview();
       },
       onClose: resetPreview,
@@ -306,7 +316,8 @@ export class StencilLinksModal extends StencilElement {
           const blob = await resp.blob();
           file = new File([blob], filenameFromUrl(url, (blob.type.split('/')[1] || 'png')), { type: blob.type || 'image/png' });
         }
-        app.loadImageFromFile(file, { source: url, resource });
+        const address = (targetEl && targetEl.value) || undefined;
+        app.loadImageFromFile(file, { source: url, resource, address });
         close();
         notify('Image loaded from URL', 'ok');
       } catch (err) {

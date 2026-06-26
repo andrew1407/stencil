@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define, wireModalShell } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
@@ -29,6 +29,11 @@ export class StencilBlankImageModal extends StencilElement {
                 <div class="vs-section">Size (px)</div>
                 <div class="vs-row"><label>Width</label><input type="number" id="blank-image-width" min="1" max="8192"></div>
                 <div class="vs-row"><label>Height</label><input type="number" id="blank-image-height" min="1" max="8192"></div>
+                <!-- Save target: only shown when at least one server is connected. -->
+                <div class="vs-row" id="blank-image-target-row" style="display:none">
+                    <label title="Create this image locally or on a connected server">Save to</label>
+                    <select id="blank-image-target"></select>
+                </div>
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Size defaults match the current page size.</span>
@@ -45,6 +50,8 @@ export class StencilBlankImageModal extends StencilElement {
     const widthEl = document.getElementById('blank-image-width');
     const heightEl = document.getElementById('blank-image-height');
     const colorEl = document.getElementById('blank-image-color');
+    const targetEl = document.getElementById('blank-image-target');
+    const targetRow = document.getElementById('blank-image-target-row');
 
     // Page dimensions for size defaults. NOT getPageDimensions(): that swaps to
     // landscape from the CURRENT canvas aspect, meaningless when sizing a new image
@@ -58,6 +65,7 @@ export class StencilBlankImageModal extends StencilElement {
         const px = defaultBlankSizePx(pageDims());
         widthEl.value = px.width;
         heightEl.value = px.height;
+        fillTargetSelect(targetEl, targetRow, app.connections);
       }
     });
 
@@ -78,9 +86,10 @@ export class StencilBlankImageModal extends StencilElement {
         return;
       }
       if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image' }))) return;
-      app.createBlankImage({ color: colorEl.value, width: w, height: h })
+      const address = (targetEl && targetEl.value) || undefined;
+      app.createBlankImage({ color: colorEl.value, width: w, height: h, address })
         .then(() => { close(); notify(`Blank ${w}×${h} image created`, 'ok'); })
-        .catch(() => notify('Could not create the image', 'fail'));
+        .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));
     });
   }
 }

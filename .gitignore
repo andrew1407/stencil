@@ -73,3 +73,10 @@ mcp/target/
 # Local server config — secrets/paths per machine. The committed mcp/.env.example is the
 # template; the real mcp/.env is never committed.
 mcp/.env
+
+# Go collaboration server (server/). Local config + filestore data + any built binary.
+# The committed server/.env.example is the template; the real server/.env is never
+# committed. go.sum IS committed.
+server/.env
+server/data/
+server/stencil-server

@@ -114,7 +114,12 @@ pub fn help() void {
         \\  /exec <action> ...      run a transform by name (crop | rotate | filter | apply)
         \\  /undo   /redo           step back / forward through edits
         \\  /reset                  revert to the original, dropping all edits
-        \\  /save <path>            encode + write to a file (ext fills in if omitted)
+        \\  /save [path]            write to a file; a bare /save pushes to the active server project
+        \\  /connect <url[ url2]>   connect to one or more collaboration servers
+        \\  /connections            list connected servers
+        \\  /disconnect [url]       close a connection (or the most recent)
+        \\  /fetch <name> [url]     load a server project's image to keep editing
+        \\  /sync <on|off>          auto-upload the result to the active project on edit/save
         \\  /copy                   copy the current image to the clipboard (macOS)
         \\  /status                 show the working image (path, size, edit position)
         \\  /theme [name]           list or switch the accent colour (default violet)

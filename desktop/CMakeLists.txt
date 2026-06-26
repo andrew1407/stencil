@@ -66,6 +66,7 @@ if(Qt6_FOUND)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
     ${CMAKE_CURRENT_SOURCE_DIR}/src/io
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     ${CMAKE_CURRENT_SOURCE_DIR}/src/support)
 
   add_executable(stencil_gui
@@ -84,6 +85,8 @@ if(Qt6_FOUND)
     src/dialogs/cropDialog.cpp
     src/dialogs/infoDialog.cpp
     src/dialogs/shortcutsDialog.cpp
+    src/dialogs/connectDialog.cpp
+    src/net/serverClient.cpp
     src/io/fileStore.cpp
     src/io/mediaLoader.cpp
     src/support/theme.cpp

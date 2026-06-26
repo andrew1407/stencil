@@ -1,13 +1,16 @@
 #include "projectsDialog.hpp"
 #include "projectsStore.hpp"
+#include "serverClient.hpp"
 #include <QBrush>
 #include <QColor>
+#include <QFont>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <optional>
@@ -71,9 +74,10 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  ProjectsDialog::ProjectsDialog(const std::vector<Project>& projects,
-                                 long long now, QWidget* parent)
-      : QDialog(parent), projects_(projects), now_(now) {
+  ProjectsDialog::ProjectsDialog(const std::vector<Project>& projects, long long now,
+                                 stencil::net::ConnectionManager* connections,
+                                 QWidget* parent)
+      : QDialog(parent), projects_(projects), now_(now), connections_(connections) {
     setWindowTitle("Projects");
     setMinimumSize(380, 320);
 
@@ -127,15 +131,32 @@ namespace stencil::gui {
     connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
     connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+
+    // Server (shared) projects: list them now and keep them live with a periodic
+    // re-list while the dialog is open. The desktop talks REST only, so this
+    // polling stands in for the browser modal's WebSocket project-event feed.
+    if (connections_ && !connections_->urls().isEmpty()) {
+      refreshRemote();
+      remoteTimer_ = new QTimer(this);
+      remoteTimer_->setInterval(5000);
+      connect(remoteTimer_, &QTimer::timeout, this, &ProjectsDialog::refreshRemote);
+      remoteTimer_->start();
+    }
+  }
+
+  void ProjectsDialog::refreshRemote() {
+    if (!connections_ || remoteBusy_) return;
+    remoteBusy_ = true;
+    remote_ = connections_->sharedProjects();  // synchronous REST (nested event loop)
+    remoteBusy_ = false;
+    refresh();
   }
 
   void ProjectsDialog::refresh() {
+    // Preserve the selected row across a live remote re-list so the polling timer
+    // doesn't yank the user's selection out from under them.
+    const int prevRow = list_->currentRow();
     list_->clear();
-    if (projects_.empty()) {
-      auto* it = new QListWidgetItem("No projects yet", list_);
-      it->setFlags(Qt::NoItemFlags);
-      return;
-    }
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
     for (const auto& pr : projects_) {
       std::size_t pts = 0;
@@ -154,13 +175,47 @@ namespace stencil::gui {
       else if (store.isExpiringSoon(pr.meta, now_))
         it->setForeground(QBrush(QColor("#e0a800")));
     }
-    list_->setCurrentRow(0);
+
+    // Server-stored (shared) projects: a golden row + a server marker so they're
+    // visually distinct from local ones (mirrors the browser's golden outline /
+    // --remote-gold #d4a017). UserRole+1 carries the origin server URL; a non-empty
+    // value marks the row as remote so Open routes to OpenRemote.
+    const QColor gold("#d4a017");
+    const QColor goldBand(212, 160, 23, 38);  // translucent gold fill (the "outline" band)
+    for (const auto& sp : remote_) {
+      QString label = QString::fromUtf8("🖧 %1   —   %2")
+                          .arg(sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name)
+                          .arg(sp.serverUrl);
+      auto* it = new QListWidgetItem(label, list_);
+      it->setData(Qt::UserRole, sp.id);
+      it->setData(Qt::UserRole + 1, sp.serverUrl);
+      it->setForeground(QBrush(gold));
+      it->setBackground(QBrush(goldBand));  // gold band makes shared rows a distinct block
+      QFont f = it->font();
+      f.setBold(true);
+      it->setFont(f);
+      it->setToolTip(QString("Server project on %1").arg(sp.serverUrl));
+    }
+
+    if (list_->count() == 0) {
+      auto* it = new QListWidgetItem("No projects yet", list_);
+      it->setFlags(Qt::NoItemFlags);
+      return;
+    }
+    list_->setCurrentRow(prevRow >= 0 && prevRow < list_->count() ? prevRow : 0);
   }
 
   void ProjectsDialog::openSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
+    const QString server = it->data(Qt::UserRole + 1).toString();
+    if (!server.isEmpty()) {  // golden remote row → fetch + open from the server
+      selectedServerUrl_ = server;
+      action_ = Action::OpenRemote;
+      accept();
+      return;
+    }
     action_ = Action::Open;
     accept();
   }
@@ -168,6 +223,8 @@ namespace stencil::gui {
   void ProjectsDialog::openSelectedInNewWindow() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
+    // New-window / delete / rename / renew apply to LOCAL projects only.
+    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::OpenInNewWindow;
     accept();
@@ -176,6 +233,7 @@ namespace stencil::gui {
   void ProjectsDialog::deleteSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
+    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Delete;
     accept();
@@ -184,6 +242,7 @@ namespace stencil::gui {
   void ProjectsDialog::renameSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
+    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
     const QString id = it->data(Qt::UserRole).toString();
     const auto cur = std::find_if(projects_.begin(), projects_.end(),
                                   [&](const Project& p) {
@@ -203,6 +262,7 @@ namespace stencil::gui {
   void ProjectsDialog::renewSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
+    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Renew;
     accept();

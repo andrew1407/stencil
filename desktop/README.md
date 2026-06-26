@@ -38,14 +38,34 @@ only the Qt GUI and its integration test:
 src/                  # Qt GUI, grouped by role (headers included bare across groups)
   app/                # main.cpp, mainWindow, launchOptions, selectionPanel
   canvas/             # canvasWidget (QPainter rendering) + canvasTooltip
-  dialogs/            # settings / projects / blank / links / crop / info / shortcuts
+  dialogs/            # settings / projects / blank / links / crop / info / shortcuts / connect
   io/                 # fileStore (persistence) + mediaLoader (image/video --src)
+  net/                # serverClient: REST + connection manager for the collaboration server
   support/            # theme, notifications, guiHelpers
 tests/                # Qt headless integration tests (crop + image fixture)
   fixtures/           # sample.png used by the image test
 resources/  packaging/
 CMakeLists.txt        # builds stencil_gui; pulls the core via add_subdirectory(../core)
 ```
+
+### Collaboration server
+
+The **🖧 Servers…** button on the main toolbar (mirroring the browser's connect icon) — also
+**Project ▸ 🖧 Servers…** — opens the connect dialog (`dialogs/connectDialog`), which connects to,
+reconnects, and disconnects one or more [Stencil collaboration servers](../server/README.md)
+through `net/serverClient` (a `QNetworkAccessManager` REST client + a multi-connection
+`ConnectionManager`). The desktop talks to the server over Qt Network (REST) only — **no
+`QWebSocket` / third-party WebSocket dependency**.
+
+Connected servers expose their stored projects in the **Projects** dialog as a **golden band
+(gold fill + bold gold text) with a 🖧 marker**, listed alongside local projects and refreshed live by a short
+periodic re-list while the dialog is open (the REST stand-in for the browser's WebSocket
+project-event feed). **Open** on a golden row downloads the project's original image + layout
+and loads them into the editor, linking the session to `{address, remoteId, version}`. When a
+server is connected, **New Project / Save** offers a target — this computer or a server;
+saving a server-linked session does a version-guarded `PUT` of name + layout (a 409 surfaces
+an "edited elsewhere" message) and uploads the rendered result. Live *co-editing* over a TCP
+edit transport is **not** implemented on the desktop.
 
 ### Architecture parity with the browser app
 

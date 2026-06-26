@@ -21,6 +21,14 @@ pub const Options = struct {
     layout: ?[]const u8 = null,
     filter: ?[]const u8 = null,
     output: ?[]const u8 = null,
+    // ── Server (collaboration server) options ──
+    // --server <url>: -i names a server project, fetched + edited. --remote-update writes
+    // the result back into it. --remote <url> + --remote-name <name>: upload the result as
+    // a NEW project (default name = input image name; a web source URL recorded as source).
+    server: ?[]const u8 = null,
+    remote: ?[]const u8 = null,
+    remote_name: ?[]const u8 = null,
+    remote_update: bool = false,
 };
 
 pub const Error = error{
@@ -85,6 +93,14 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
             opts.layout = try value(&st, "--layout");
         } else if (eq(arg, "--filter")) {
             opts.filter = try value(&st, "--filter");
+        } else if (eq(arg, "--server")) {
+            opts.server = try value(&st, "--server");
+        } else if (eq(arg, "--remote")) {
+            opts.remote = try value(&st, "--remote");
+        } else if (eq(arg, "--remote-name")) {
+            opts.remote_name = try value(&st, "--remote-name");
+        } else if (eq(arg, "--remote-update")) {
+            opts.remote_update = true;
         } else if (arg.len > 1 and arg[0] == '-' and !looksNegativeNumber(arg)) {
             std.debug.print("error: unknown flag '{s}'\n", .{arg});
             return Error.UnknownFlag;
@@ -178,4 +194,23 @@ test "parse: input and blank are mutually exclusive" {
     const a = testing.allocator;
     const argv = [_][:0]const u8{ "-i", "x.png", "--blank", "10", "10" };
     try testing.expectError(Error.DuplicateSource, parse(a, &argv));
+}
+
+test "parse: server options" {
+    const a = testing.allocator;
+    const argv = [_][:0]const u8{
+        "--server",        "http://h:8090", "-i", "proj-name",
+        "--remote-update", "out.png",
+    };
+    const o = try parse(a, &argv);
+    try testing.expectEqualStrings("http://h:8090", o.server.?);
+    try testing.expect(o.remote_update);
+    try testing.expectEqualStrings("proj-name", o.input.?);
+
+    const a2 = [_][:0]const u8{
+        "-i", "in.png", "--remote", "http://h:8090", "--remote-name", "Shared", "out.png",
+    };
+    const o2 = try parse(a, &a2);
+    try testing.expectEqualStrings("http://h:8090", o2.remote.?);
+    try testing.expectEqualStrings("Shared", o2.remote_name.?);
 }

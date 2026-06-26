@@ -69,6 +69,33 @@ pub struct EditParams {
     /// When omitted, the server's configured default is used.
     #[serde(default)]
     pub surface: Option<SurfaceArg>,
+
+    // ── Collaboration server (server/) ──
+    // These drive the CLI's server client: connect over REST, fetch/create projects, and
+    // upload result bytes. The Stencil collaboration server stores/shares projects across
+    // all front-ends; see ../server/README.md for the wire protocol.
+    /// Connect to a collaboration server at this `http(s)://` URL and treat `input` as the
+    /// **name of a project on that server**: the project's image is fetched and edited
+    /// instead of a local file. Requires `input` (the project name); incompatible with
+    /// `blank`. Pair with `remote_update` to write the result back into that project.
+    #[serde(default)]
+    pub server: Option<String>,
+
+    /// With `server`, write the edited result back into the fetched project (updating its
+    /// stored result image). Requires `server` (and therefore `input`).
+    #[serde(default)]
+    pub remote_update: Option<bool>,
+
+    /// Upload the result as a **new** project on the collaboration server at this
+    /// `http(s)://` URL. Works with any source — a local/web `input`, a `blank`, or a
+    /// `server`-fetched project. A web `input`'s URL is recorded as the project's source.
+    #[serde(default)]
+    pub remote: Option<String>,
+
+    /// Name for the `remote` project (defaults to the input image's base name). Ignored
+    /// without `remote`.
+    #[serde(default)]
+    pub remote_name: Option<String>,
 }
 
 /// A per-call surface override: one token or a list.
@@ -159,13 +186,42 @@ pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<
         return Err("`input` and `blank` are mutually exclusive — pass only one".into());
     }
     if params.input.is_none() && params.blank.is_none() {
-        return Err("no source — pass `input` (a path/URL) or `blank`".into());
+        return Err("no source — pass `input` (a path/URL), `blank`, or `server` + `input`".into());
     }
     if params.output.trim().is_empty() {
         return Err("`output` must not be empty".into());
     }
 
+    // Collaboration-server invariants, mirroring the CLI's own checks.
+    if params.server.is_some() {
+        if params.blank.is_some() {
+            return Err(
+                "`server` fetches a project as the source — it can't be combined with `blank`"
+                    .into(),
+            );
+        }
+        if params.input.is_none() {
+            return Err("`server` needs `input` set to the name of the project to fetch".into());
+        }
+    }
+    if params.remote_update.unwrap_or(false) && params.server.is_none() {
+        return Err(
+            "`remote_update` writes back to a fetched project — it needs `server` (and `input`)"
+                .into(),
+        );
+    }
+    if params.remote_name.is_some() && params.remote.is_none() {
+        return Err("`remote_name` names a `remote` upload — set `remote` (a server URL) too".into());
+    }
+
     let mut argv: Vec<String> = Vec::new();
+
+    // `--server <url>` must precede `-i` conceptually (it changes what `-i` means), but the
+    // CLI parses order-independently; keep them adjacent for readability.
+    if let Some(server) = &params.server {
+        argv.push("--server".into());
+        argv.push(server.clone());
+    }
 
     if let Some(input) = &params.input {
         argv.push("-i".into());
@@ -222,6 +278,20 @@ pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<
     if let Some(filter) = &params.filter {
         argv.push("--filter".into());
         argv.push(filter.clone());
+    }
+
+    // Server delivery: write the result back into the fetched project, and/or push it as a
+    // new project. The result is always saved locally too (the positional output below).
+    if params.remote_update.unwrap_or(false) {
+        argv.push("--remote-update".into());
+    }
+    if let Some(remote) = &params.remote {
+        argv.push("--remote".into());
+        argv.push(remote.clone());
+    }
+    if let Some(name) = &params.remote_name {
+        argv.push("--remote-name".into());
+        argv.push(name.clone());
     }
 
     argv.push(params.output.clone());

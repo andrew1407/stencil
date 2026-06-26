@@ -28,6 +28,10 @@ class QMenu;
 class QDragEnterEvent;
 class QDropEvent;
 
+namespace stencil::net {
+  class ConnectionManager;
+}
+
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
 // toolbar.js + the DrawingApp wiring: a toolbar of actions, the canvas in the
 // center, and a status bar that reports pixel and page (cm) coordinates.
@@ -158,6 +162,9 @@ namespace stencil::gui {
     void saveSessionNow();
     void restoreSession();
     void openProjects();
+    // Server connections dialog (mirrors browser connectModal.js): connect to /
+    // disconnect from collaboration servers. Lazily creates the ConnectionManager.
+    void openConnections();
     // Load a saved project (by id) into THIS window's canvas, mirroring the
     // browser switchToProject(): set page size, restore image + lines + crop,
     // mark it active. Returns false if no project with that id exists.
@@ -208,10 +215,25 @@ namespace stencil::gui {
     // projects). No-op off macOS. Called after project-list changes.
     void refreshDockMenu();
     void newProjectFromCanvas();
-    // Shared project-creation: build a Project from the current canvas, persist,
-    // refresh, and notify. Used by openProjects' New action + newProjectFromCanvas.
+    // Project-creation entry point: when ≥1 server is connected it first asks for a
+    // target (this computer vs which server); otherwise it saves locally. Used by
+    // openProjects' New action + newProjectFromCanvas.
     void createProject(const QString& name);
+    // Build a Project from the current canvas, persist locally, mark it active,
+    // refresh, and notify. pr.meta.name == the passed name.
+    void createLocalProject(const QString& name);
+    // Create the project on `serverUrl` (createProject + upload the original image)
+    // and link this session to it so later saves write back. Mirrors the browser's
+    // createRemoteProject (remoteSync.js).
+    void createServerProject(const QString& serverUrl, const QString& name);
     void saveToActiveProject();
+    // Save a server-linked session back: version-guarded PUT of name+layout, then
+    // upload the rendered result. Surfaces a 409 "edited elsewhere" message and
+    // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
+    void saveToServer();
+    // Open a server-stored project: download its original image + layout, load them
+    // into this canvas, and link the session to {serverUrl, id, version}.
+    bool openServerProject(const QString& serverUrl, const QString& id);
 
     // Find a loaded project by id, or nullptr when none matches.
     Project* findProject(const std::string& id);
@@ -329,6 +351,7 @@ namespace stencil::gui {
     QAction* actFullscreen_ = nullptr;
     QAction* actSettings_ = nullptr;
     QAction* actProjects_ = nullptr;
+    QAction* actConnect_ = nullptr;
     QAction* actLinks_ = nullptr;
     QAction* actNewProject_ = nullptr;
     QAction* actSaveProject_ = nullptr;
@@ -407,6 +430,17 @@ namespace stencil::gui {
     core::ProjectsStore projectsStore_;
     std::vector<Project> projectList_;
     QString activeProjectId_;
+    // Collaboration-server connections for this window (lazily created). Owns the
+    // REST clients; shared projects are listed through it.
+    stencil::net::ConnectionManager* connections_ = nullptr;
+    // Server linkage for the current session (empty address = a purely-local
+    // project). Set when a server project is opened or created on a server; drives
+    // saveToActiveProject() to write back via saveToServer(). Mirrors the browser's
+    // DrawingApp.remoteLink { address, remoteId, version }.
+    QString remoteAddress_;
+    QString remoteId_;
+    QString remoteName_;
+    qint64 remoteVersion_ = 0;
     // Provenance of the image currently on the canvas (the image/video's own URL
     // and the page it came from). Set by loadImageByUrl(); cleared on a plain local
     // open / blank image. Folded into the project meta on create/save.

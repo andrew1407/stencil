@@ -109,12 +109,26 @@ stencil [options] <output>
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
 | `--filter <bw\|sepia\|color>` | Apply an image filter. A colour name/`#hex` makes a duotone tint. **Overrides** the layout's filter if both are present. |
 | `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
+| `--server <url>` | Connect to a [collaboration server](../server/README.md); then `-i <name>` names a **server project** to fetch and edit. |
+| `--remote-update` | With `--server`, write the result back into the fetched server project. |
+| `--remote <url>` | Upload the result as a **new** project on a server (for a local/web input). |
+| `--remote-name <name>` | Name for the `--remote` project (default: the input image's base name). A web input's URL is recorded as the project source. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 
 `--input` and `--blank` are mutually exclusive. URL inputs are fetched with Zig's built-in
 HTTP client (no external tool); video input requires `ffmpeg` on `PATH`, and the CLI exits
 with a clear message if it's missing.
+
+**Server examples** (the result is always saved locally too):
+
+```bash
+# Upload a local image as a new shared project, after rotating it:
+stencil -i photo.png -r 1 --remote http://host:8090 --remote-name "Shared" out.png
+
+# Fetch a server project by name, apply a filter, and write the result back:
+stencil --server http://host:8090 -i Shared --filter sepia --remote-update out.png
+```
 
 ### Examples
 
@@ -167,7 +181,12 @@ press copies and arms the exit, so any other key cancels it.
 | `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `filter` \| `apply`). Aliases: `do`, `run`. |
 | `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
-| `/save <path>` | Encode + write the working image to a file (extension filled in if omitted). Alias: `write`. |
+| `/save [path]` | Encode + write the working image to a file (extension filled in if omitted). A **bare** `/save` (no path) pushes the current result to the active server project — the manual counterpart to `/sync`, so you can update the server image on demand when sync is off. Alias: `write`. |
+| `/connect <url[ url2 …]>` | Connect to one or more [collaboration servers](../server/README.md) for the session. |
+| `/connections` | List the connected servers (the active project's server is marked). Alias: `servers`. |
+| `/disconnect [url]` | Close one connection, or the most recently opened when omitted. |
+| `/fetch <name> [url]` | Load a server project's image to keep editing (give a URL when more than one server is connected). Alias: `pull`. |
+| `/sync <on\|off>` | When on, edits auto-upload the result to the active fetched project (debounced: a burst of edits coalesces into one upload, flushed once the input settles), **and** opens a read-only live feed over the server's raw-TCP edit channel (REST port + 1, e.g. `8091`) so that if another client saves the same project you get a `↺ …updated on the server` notice at the prompt. The live feed is plaintext, so it is skipped for `https://` servers (whose edit channel is TLS-wrapped) — REST sync still works over TLS. Off by default; use a bare `/save` to push manually when off. |
 | `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-V** to paste / **Ctrl-C** to copy. |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
 | `/theme [name\|#hex]` | List the accent colours, or switch: a preset name, `default` (violet), or any colour like `#ff5623`. Also repaints the logo. |

@@ -178,3 +178,53 @@ jobs:
         run: cargo test --verbose
         env:
           STENCIL_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
+
+  # ── Server: Go collaboration server (REST + live edit over WS/TCP) ────────────
+  # A protocol adapter like mcp/ — it does NOT compile core/, so no C/C++ or Zig
+  # toolchain is needed. Postgres and Redis run as service containers; the store/
+  # and redisbus/ integration tests pick them up via DATABASE_URL / REDIS_URL
+  # (they self-skip when absent). The hub tests run under -race.
+  server:
+    name: Server (Go build + tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: stencil
+          POSTGRES_PASSWORD: stencil
+          POSTGRES_DB: stencil
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stencil"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Build
+        working-directory: server
+        run: go build ./...
+      - name: Vet
+        working-directory: server
+        run: go vet ./...
+      - name: Test (with race detector)
+        working-directory: server
+        run: go test -race ./...
+        env:
+          DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
+          REDIS_URL: redis://localhost:6379/0

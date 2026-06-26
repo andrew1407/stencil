@@ -17,6 +17,8 @@
 #include "mediaLoader.hpp"
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
+#include "connectDialog.hpp"
+#include "serverClient.hpp"
 #include "selectionPanel.hpp"
 #include "settingsDialog.hpp"
 #include "shortcutsDialog.hpp"
@@ -25,6 +27,7 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QCheckBox>
+#include <QBuffer>
 #include <QClipboard>
 #include <QColorDialog>
 #include <QComboBox>
@@ -98,6 +101,16 @@ namespace stencil::gui {
       if (pageSize == "custom") return {customW, customH};
       const core::PageSize ps = core::namedPageSize(pageSize.toStdString());
       return ps.width > 0 ? ps : core::namedPageSize("A4");
+    }
+
+    // Encode a QImage as PNG bytes for upload (the server is codec-free, so the
+    // desktop hands it already-encoded image bytes + the dimensions separately).
+    QByteArray pngBytes(const QImage& img) {
+      QByteArray out;
+      QBuffer buf(&out);
+      buf.open(QIODevice::WriteOnly);
+      img.save(&buf, "PNG");
+      return out;
     }
   }  // namespace
 
@@ -392,6 +405,9 @@ namespace stencil::gui {
     actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
     actSettings_ = mk("Settings…", "Ctrl+,");
     actProjects_ = mk("Projects…", "Ctrl+Shift+P");
+    actConnect_ = mk("🖧 Servers…", QString());
+    actConnect_->setToolTip(
+        "Connect to collaboration servers — shared projects appear with a golden outline");
     actLinks_ = mk("🔗 Image Links…", QString());
     actNewProject_ = mk("New Project", QString());
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
@@ -493,6 +509,7 @@ namespace stencil::gui {
             &MainWindow::toggleFullscreen);
     connect(actSettings_, &QAction::triggered, this, &MainWindow::openSettings);
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
+    connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);
     connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
     connect(actNewProject_, &QAction::triggered, this,
             &MainWindow::newProjectFromCanvas);
@@ -761,6 +778,7 @@ namespace stencil::gui {
 
     auto* project = menuBar()->addMenu("P&roject");
     project->addAction(actProjects_);
+    project->addAction(actConnect_);
     project->addAction(actNewProject_);
     project->addAction(actSaveProject_);
     project->addSeparator();
@@ -793,6 +811,9 @@ namespace stencil::gui {
     tb->addAction(actOpenAnother_);
     tb->addAction(actNewBlank_);
     tb->addAction(actLinks_);
+    // Connect/Servers affordance on the top bar (mirrors the browser's #connect-btn
+    // icon button) — not just the Project-menu entry, so it is one click away.
+    tb->addAction(actConnect_);
     tb->addAction(actCrop_);
     tb->addAction(actRotateLeft_);
     tb->addAction(actRotateRight_);
@@ -2146,6 +2167,13 @@ namespace stencil::gui {
     notify_->info("Restored last session");
   }
 
+  // ── server connections ──
+  void MainWindow::openConnections() {
+    if (!connections_) connections_ = new stencil::net::ConnectionManager(this);
+    ConnectDialog dlg(connections_, this);
+    dlg.exec();
+  }
+
   // ── projects ──
   void MainWindow::openProjects() {
     // Expiry sweep (one week), mirroring the browser store.
@@ -2167,12 +2195,14 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
 
-    ProjectsDialog dlg(projectList_, nowMs(), this);
+    ProjectsDialog dlg(projectList_, nowMs(), connections_, this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
     if (dlg.action() == Action::Open) {
       loadProjectIntoCanvas(dlg.selectedId());
+    } else if (dlg.action() == Action::OpenRemote) {
+      openServerProject(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::OpenInNewWindow) {
       openProjectInNewWindow(dlg.selectedId());
     } else if (dlg.action() == Action::Delete) {
@@ -2224,11 +2254,71 @@ namespace stencil::gui {
     canvas_->restore(pr->imagePath, pr->lines, canvas_->scale(), pr->cropRect,
                      pr->rotationQuarters);
     activeProjectId_ = id;
+    remoteAddress_.clear();  // a local project is not server-linked
+    remoteId_.clear();
+    remoteName_.clear();
+    remoteVersion_ = 0;
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
     refreshActions();
     notify_->success(
         QString("Opened \"%1\"").arg(QString::fromStdString(pr->meta.name)));
+    return true;
+  }
+
+  // Open a server-stored project: fetch its record (name/version/layout) + the
+  // original image bytes, load them onto this canvas, and link the session so a
+  // later Save writes back. Mirrors the browser projectsModal openRemote().
+  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id) {
+    if (!connections_) return false;
+    stencil::net::ServerClient* c = connections_->find(serverUrl);
+    if (!c) {
+      notify_->error("Not connected to that server");
+      return false;
+    }
+    stencil::net::ServerProject meta;
+    QJsonObject layout;
+    if (!c->getProject(id, meta, layout)) {
+      notify_->error(QString("Could not open server project — %1").arg(c->lastError()));
+      return false;
+    }
+    bool ok = false;
+    const QByteArray bytes = c->downloadFile(id, "original", ok);
+    if (!ok) {
+      notify_->error(QString("Could not download image — %1").arg(c->lastError()));
+      return false;
+    }
+    QImage img;
+    if (!img.loadFromData(bytes)) {
+      notify_->error("Server image could not be decoded");
+      return false;
+    }
+    {
+      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                                settings_.customPageWidth,
+                                                settings_.customPageHeight);
+      canvas_->setPageCm(page.width, page.height);
+    }
+    canvas_->loadFromImage(img);
+    // Adopt the stored layout's lines (image is already loaded; no replace prompt
+    // since this is a fresh open).
+    if (!layout.isEmpty() && layout.value("lines").isArray()) {
+      int lw = 0, lh = 0;
+      core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh);
+      canvas_->setLines(lines);
+    }
+    // Link the session; clear any local-project linkage so saves go to the server.
+    activeProjectId_.clear();
+    remoteAddress_ = serverUrl;
+    remoteId_ = id;
+    remoteName_ = meta.name;
+    remoteVersion_ = meta.version;
+    currentSource_ = meta.source;
+    currentResource_ = meta.resource;
+    refreshActions();
+    notify_->success(QString("Opened \"%1\" from %2")
+                         .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
+                              serverUrl));
     return true;
   }
 
@@ -2592,10 +2682,39 @@ namespace stencil::gui {
     if (!incognito_) fileStore::saveSettings(settings_);
   }
 
-  // Build a Project from the current canvas, persist it, mark it active, refresh,
-  // and notify. Shared by openProjects' New action + newProjectFromCanvas (the
-  // incognito guard lives at each call site). pr.meta.name == the passed name.
+  // Create-project entry point. With ≥1 server connected, ask where to save it:
+  // this computer (local) or one of the connected servers. Otherwise save locally.
+  // The incognito guard lives at each call site. Mirrors the browser's local-vs-
+  // server target choice in the open/blank flows.
   void MainWindow::createProject(const QString& name) {
+    const QStringList servers = connections_ ? connections_->urls() : QStringList();
+    if (servers.isEmpty()) {
+      createLocalProject(name);
+      return;
+    }
+    QStringList targets;
+    targets << tr("This computer (local)");
+    for (const QString& s : servers) targets << tr("Server: %1").arg(s);
+    bool ok = false;
+    const QString choice =
+        QInputDialog::getItem(this, tr("Save project"), tr("Where should it be saved?"),
+                              targets, 0, false, &ok);
+    if (!ok) return;
+    const int idx = targets.indexOf(choice);
+    if (idx <= 0) {
+      createLocalProject(name);
+    } else {
+      createServerProject(servers.at(idx - 1), name);
+    }
+  }
+
+  // Build a Project from the current canvas, persist it, mark it active, refresh,
+  // and notify. pr.meta.name == the passed name.
+  void MainWindow::createLocalProject(const QString& name) {
+    remoteAddress_.clear();  // a freshly created local project is not server-linked
+    remoteId_.clear();
+    remoteName_.clear();
+    remoteVersion_ = 0;
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
     pr.meta.name = name.toStdString();
@@ -2615,9 +2734,95 @@ namespace stencil::gui {
     notify_->success(QString("Created \"%1\"").arg(name));
   }
 
+  // Create the project on `serverUrl` (POST /projects), upload the current image as
+  // the 'original', and link the session so a later Save writes back. Mirrors the
+  // browser's createRemoteProject (remoteSync.js).
+  void MainWindow::createServerProject(const QString& serverUrl, const QString& name) {
+    stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
+    if (!c) {
+      notify_->error("Not connected to that server");
+      return;
+    }
+    const bool hasImage = canvas_->hasImage();
+    const int w = hasImage ? canvas_->imageWidth() : 0;
+    const int h = hasImage ? canvas_->imageHeight() : 0;
+    QString id;
+    qint64 version = 0;
+    if (!c->createProject(name, currentSource_, currentResource_, hasImage, w, h, id, version)) {
+      notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
+      return;
+    }
+    if (hasImage) {
+      const QByteArray bytes = pngBytes(canvas_->image());
+      if (!c->uploadFile(id, "original", bytes, "png", w, h)) {
+        notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
+        // The link is still established below so the user can retry via Save.
+      } else {
+        // The file write bumps the version; re-read it so the next save's guard is
+        // accurate (mirrors remoteSync.currentVersion()).
+        stencil::net::ServerProject meta;
+        QJsonObject lay;
+        if (c->getProject(id, meta, lay)) version = meta.version;
+      }
+    }
+    // Link the session; this is now a server project, not a local one.
+    activeProjectId_.clear();
+    remoteAddress_ = serverUrl;
+    remoteId_ = id;
+    remoteName_ = name;
+    remoteVersion_ = version;
+    refreshActions();
+    notify_->success(QString("Created \"%1\" on %2").arg(name, serverUrl));
+  }
+
+  // Save a server-linked session back: version-guarded name/layout PUT, then upload
+  // the rendered result. A 409 surfaces a clear "edited elsewhere" message and
+  // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
+  void MainWindow::saveToServer() {
+    stencil::net::ServerClient* c =
+        connections_ ? connections_->find(remoteAddress_) : nullptr;
+    if (!c) {
+      notify_->error(
+          QString("Not connected to %1 — reconnect it first").arg(remoteAddress_));
+      return;
+    }
+    const int w = canvas_->imageWidth();
+    const int h = canvas_->imageHeight();
+    const QJsonObject layout =
+        fileStore::buildLayoutJson(w, h, canvas_->allLines());
+    qint64 newVersion = remoteVersion_;
+    bool conflict = false;
+    if (!c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
+                          conflict)) {
+      if (conflict)
+        notify_->error(
+            "This project was edited elsewhere — reload it from the server before "
+            "saving again");
+      else
+        notify_->error(QString("Server save failed — %1").arg(c->lastError()));
+      return;  // leave the link (and its version guard) untouched
+    }
+    remoteVersion_ = newVersion;
+    // Upload the annotated render as the 'result'. The file write bumps the
+    // version, so re-read it to keep the guard accurate for the next save.
+    if (canvas_->hasImage()) {
+      const QByteArray bytes = pngBytes(canvas_->renderToImage(true));
+      if (c->uploadFile(remoteId_, "result", bytes, "png", w, h)) {
+        stencil::net::ServerProject meta;
+        QJsonObject lay;
+        if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
+      }
+    }
+    notify_->success(QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
+  }
+
   void MainWindow::saveToActiveProject() {
     if (incognito_) {  // S6: saving is blocked while incognito
       notify_->info("Incognito mode — saving is disabled");
+      return;
+    }
+    if (!remoteAddress_.isEmpty()) {  // server-linked session → write back to the server
+      saveToServer();
       return;
     }
     if (activeProjectId_.isEmpty()) {

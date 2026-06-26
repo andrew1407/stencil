@@ -90,6 +90,37 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .badge.pinned .ic { vertical-align: -0.16em; }
 .row.pinned { outline: 2px solid var(--muted); outline-offset: -2px; }
 .row.pinned .thumb { border-color: var(--muted); }
+/* Shared-from-a-server cue: a GOLDEN outline + server badge, distinct from the gray
+   local-pin outline above. Marks rows pulled from a connected collaboration server. */
+.badge.shared { color: #f5c518; border-color: #f5c518; font-weight: 600; }
+.badge.shared .ic { vertical-align: -0.16em; }
+.row.shared { outline: 2px solid #f5c518; outline-offset: -2px; }
+.row.shared .thumb { border-color: #f5c518; }
+
+/* In-popup dialog (server pin target picker) */
+.dialog-back {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.5);
+}
+.dialog {
+  width: 280px; max-width: calc(100% - 32px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 12px;
+}
+.dialog-title { font-size: 13px; font-weight: 600; }
+.dialog-check { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; cursor: pointer; }
+.dialog-select {
+  width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 12.5px;
+}
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-actions button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+}
+.dialog-actions button:hover { border-color: var(--accent); }
+.dialog-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 /* Brief accent flash on the just-(un)pinned row, so the eye can follow it as it floats. */
 @keyframes stencil-pin-flash {
   from { background: color-mix(in srgb, var(--accent) 38%, transparent); }
