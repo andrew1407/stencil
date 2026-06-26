@@ -45,11 +45,15 @@ export class StencilConnectModal extends StencilElement {
     const addBtn = $('connect-add');
     const reconnectBtn = $('connect-reconnect');
     const list = $('connect-list');
-    const mgr = app.connections;
+    // Read app.connections lazily on each use: the connection manager is created by
+    // createStencil() AFTER `stencil:ready` wires this modal, so capturing it once here
+    // would pin `undefined` and break Connect forever.
+    const mgr = () => app.connections;
 
     const render = () => {
       list.innerHTML = '';
-      const urls = mgr ? mgr.urls : [];
+      const cm = mgr();
+      const urls = cm ? cm.urls : [];
       if (!urls.length) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
@@ -68,7 +72,7 @@ export class StencilConnectModal extends StencilElement {
         disc.title = 'Disconnect';
         disc.innerHTML = icon('x', { size: 15 });
         disc.addEventListener('click', () => {
-          mgr.disconnect(url);
+          mgr().disconnect(url);
           notify('Disconnected', 'ok');
           render();
         });
@@ -83,7 +87,7 @@ export class StencilConnectModal extends StencilElement {
       const token = tokenEl.value.trim();
       addBtn.disabled = true;
       try {
-        await mgr.connect(token ? { url, token } : url);
+        await mgr().connect(token ? { url, token } : url);
         urlEl.value = '';
         tokenEl.value = '';
         notify('Connected', 'ok');
@@ -99,7 +103,7 @@ export class StencilConnectModal extends StencilElement {
     urlEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connect(); } });
     tokenEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connect(); } });
     reconnectBtn.addEventListener('click', async () => {
-      try { await mgr.reconnect(); notify('Reconnected', 'ok'); }
+      try { await mgr().reconnect(); notify('Reconnected', 'ok'); }
       catch (err) { notify(`Reconnect failed — ${err.message}`, 'fail'); }
       render();
     });
