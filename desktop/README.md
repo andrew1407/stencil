@@ -127,6 +127,18 @@ The shipped binary is still `stencil_gui` — packaging only changes how it's la
 out and where it stores state, not what it is. On macOS, signing/notarization is
 out of scope here; an unsigned `.dmg` warns on first launch.
 
+**App icon.** The macOS bundle's icon is generated at configure time by
+`packaging/make-icns.sh`, which rasterises `../browser/favicon.svg` (the shared
+single-source artwork) into a multi-resolution `stencil.icns` via `sips` +
+`iconutil` and lands it in `Contents/Resources/` with `CFBundleIconFile` wired up.
+Nothing binary is committed — the icon stays derived from the SVG. If `sips`/
+`iconutil` are missing CMake warns and builds iconless.
+This is a flat `.icns`, so it renders full-colour and does **not** follow the
+macOS 26 Dock *tint* appearance — system tinting only applies to layered,
+appearance-aware icons authored as an Icon Composer `.icon` and compiled with
+`actool`, which needs a full Xcode install (the Command Line Tools alone can't
+build it). Adding a tintable layered icon is a future follow-up.
+
 CI builds these for all three platforms on every `v*` tag and attaches them to the
 GitHub release (`.github/workflows/release.yml`); a manual `workflow_dispatch` run
 produces the same packages as downloadable workflow artifacts without cutting a tag.
