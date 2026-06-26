@@ -1,6 +1,11 @@
 //! End-to-end pipeline: acquire a source image (decode a file/URL, grab a video frame,
 //! or synthesise a blank), then crop → rotate → draw the layout → filter, and encode the
 //! result. The C++ core does every pixel/geometry transform; Zig owns I/O and codecs.
+//!
+//! The individual steps are exposed as small `pub` building blocks (acquireInput,
+//! acquireBlank, applyCropSpec, applyRotateBy, applyLayoutSrc, applyFilterMode,
+//! writeOutput) so the interactive console mode (console.zig) can drive the same
+//! transforms one command at a time. `run` is just the one-shot composition of them.
 const std = @import("std");
 const core = @import("core.zig");
 const image = @import("image.zig");
@@ -14,84 +19,107 @@ const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;
 const BLANK_MAX = 8192;
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
-    const dir = std.Io.Dir.cwd();
+/// A decoded source plus the format to fall back to when the output lacks an extension.
+pub const Source = struct { img: image.Rgba8, default_fmt: image.Format };
 
+pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     // 1) Acquire the source as an owned RGBA8 buffer, and note the format to fall back
     //    to when the output path lacks an extension.
     var img: image.Rgba8 = undefined;
     var default_fmt: image.Format = .png;
 
     if (opts.blank) |blank| {
-        img = try makeBlank(gpa, blank);
-        default_fmt = .png;
+        img = try acquireBlank(gpa, blank);
     } else if (opts.input) |input| {
-        const bytes = try loadSource(gpa, io, input, opts.frame);
-        defer gpa.free(bytes);
-        img = image.decode(gpa, bytes) catch |e| {
-            logo.print("error: could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
-            return e;
-        };
-        if (extOf(input)) |e| {
-            if (image.formatFromExt(e)) |f| default_fmt = f;
-        }
+        const src = try acquireInput(gpa, io, input, opts.frame);
+        img = src.img;
+        default_fmt = src.default_fmt;
     } else {
         logo.print("error: no source — pass --input <path|url> or --blank <w h [color]>\n", .{});
         return error.NoSource;
     }
     defer img.deinit(gpa);
 
-    // 2) Page metrics for crop unit/percent handling: A4, oriented to the image.
-    const page = pageForImage(gpa, img.width, img.height);
-    const px_per_cm_x = @as(f64, @floatFromInt(img.width)) / page.w;
-    const px_per_cm_y = @as(f64, @floatFromInt(img.height)) / page.h;
+    // 2) Crop, then rotate by N quarter-turns.
+    if (opts.crop) |spec| try applyCropSpec(gpa, &img, spec, opts.album);
+    try applyRotateBy(gpa, &img, opts.rotate);
 
-    // 3) Crop.
-    if (opts.crop) |spec| {
-        const rect = core.resolveCrop(gpa, spec, @floatFromInt(img.width), @floatFromInt(img.height), px_per_cm_x, px_per_cm_y, page.w, page.h, opts.album) orelse {
-            logo.print("error: could not parse --crop \"{s}\"\n", .{spec});
-            return error.BadCrop;
-        };
-        try cropInPlace(gpa, &img, rect);
-    }
-
-    // 4) Rotate by N quarter-turns.
-    if (@mod(opts.rotate, 4) != 0) {
-        try rotateInPlace(gpa, &img, opts.rotate);
-    }
-
-    // 5) Layout: draw the lines and capture an optional filter (overridable by --filter).
-    var layout_filter: ?[]const u8 = null;
+    // 3) Layout: draw the lines and capture an optional filter (overridable by --filter).
     var layout_filter_buf: ?[]u8 = null;
     defer if (layout_filter_buf) |b| gpa.free(b);
-    if (opts.layout) |src| {
-        const bytes = try loadText(gpa, io, src);
-        defer gpa.free(bytes);
-        var parsed = try layout_mod.parse(gpa, bytes);
-        defer parsed.deinit();
-        for (parsed.lines) |line| {
-            core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), line);
-        }
-        if (parsed.filter) |f| {
-            layout_filter_buf = try gpa.dupe(u8, f);
-            layout_filter = layout_filter_buf;
-        }
-    }
+    if (opts.layout) |src| layout_filter_buf = try applyLayoutSrc(gpa, io, &img, src);
 
-    // 6) Filter — explicit --filter overrides the layout's filter.
-    const chosen_filter = opts.filter orelse layout_filter;
-    if (chosen_filter) |f| {
-        if (f.len != 0 and !std.ascii.eqlIgnoreCase(f, "none")) {
-            const tint = core.parseColor(gpa, f) orelse core.Rgba{ .r = 0, .g = 0, .b = 0, .a = 255 };
-            core.applyFilter(gpa, f, img.pixels, @intCast(img.width * img.height), tint);
-        }
-    }
+    // 4) Filter — explicit --filter overrides the layout's filter.
+    if (opts.filter orelse layout_filter_buf) |f| applyFilterMode(gpa, &img, f);
 
-    // 7) Encode + write.
+    // 5) Encode + write.
     const out = opts.output orelse {
         logo.print("error: no output path given\n", .{});
         return error.NoOutput;
     };
+    try writeOutput(gpa, io, img, out, default_fmt);
+}
+
+// ── steps (each usable standalone by console.zig) ─────────────────────────────
+
+/// Decode an image (or video frame) from a file path or http(s) URL into an owned buffer.
+pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) !Source {
+    const bytes = try loadSource(gpa, io, input, frame);
+    defer gpa.free(bytes);
+    var default_fmt: image.Format = .png;
+    const img = image.decode(gpa, bytes) catch |e| {
+        logo.print("error: could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
+        return e;
+    };
+    if (extOf(input)) |e| {
+        if (image.formatFromExt(e)) |f| default_fmt = f;
+    }
+    return .{ .img = img, .default_fmt = default_fmt };
+}
+
+/// Crop in place using a crop spec string; page metrics are derived from the current dims.
+pub fn applyCropSpec(gpa: std.mem.Allocator, img: *image.Rgba8, spec: []const u8, album: bool) !void {
+    const page = pageForImage(gpa, img.width, img.height);
+    const px_per_cm_x = @as(f64, @floatFromInt(img.width)) / page.w;
+    const px_per_cm_y = @as(f64, @floatFromInt(img.height)) / page.h;
+    const rect = core.resolveCrop(gpa, spec, @floatFromInt(img.width), @floatFromInt(img.height), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
+        logo.print("error: could not parse crop spec \"{s}\"\n", .{spec});
+        return error.BadCrop;
+    };
+    try cropInPlace(gpa, img, rect);
+}
+
+/// Rotate in place by `rotate` quarter-turns. A multiple of four (incl. 0) is a no-op.
+pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
+    if (@mod(rotate, 4) == 0) return;
+    try rotateInPlace(gpa, img, rotate);
+}
+
+/// Draw a layout (file path or URL) onto the image; returns its optional filter name
+/// (owned by the caller) so callers can apply or override it.
+pub fn applyLayoutSrc(gpa: std.mem.Allocator, io: std.Io, img: *image.Rgba8, src: []const u8) !?[]u8 {
+    const bytes = try loadText(gpa, io, src);
+    defer gpa.free(bytes);
+    var parsed = try layout_mod.parse(gpa, bytes);
+    defer parsed.deinit();
+    for (parsed.lines) |line| {
+        core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), line);
+    }
+    if (parsed.filter) |f| return try gpa.dupe(u8, f);
+    return null;
+}
+
+/// Apply an image filter in place. "" / "none" is a no-op; a colour name/#hex tints.
+pub fn applyFilterMode(gpa: std.mem.Allocator, img: *image.Rgba8, mode: []const u8) void {
+    if (mode.len == 0 or std.ascii.eqlIgnoreCase(mode, "none")) return;
+    const tint = core.parseColor(gpa, mode) orelse core.Rgba{ .r = 0, .g = 0, .b = 0, .a = 255 };
+    core.applyFilter(gpa, mode, img.pixels, @intCast(img.width * img.height), tint);
+}
+
+/// Encode the image and write it to `out` (extension filled from `default_fmt` if absent),
+/// then print the canonical `wrote {path} ({w}x{h})` line.
+pub fn writeOutput(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []const u8, default_fmt: image.Format) !void {
+    const dir = std.Io.Dir.cwd();
     const resolved = try resolveOutput(gpa, out, default_fmt);
     defer gpa.free(resolved.path);
 
@@ -135,7 +163,7 @@ fn mapMediaError(e: anyerror) anyerror {
 
 // ── blank synthesis ──────────────────────────────────────────────────────────
 
-fn makeBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
+pub fn acquireBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
     const page = core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
     var w: i64 = undefined;
     var h: i64 = undefined;
