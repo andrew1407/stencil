@@ -12,7 +12,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { resolveAxisPx } from '../core/units.js';
 import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
-import { ACCENTS, isAccent } from '../core/accents.js';
+import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
 
 const str = (v) => (v == null ? '' : String(v));
 
@@ -292,7 +292,6 @@ export const createStencil = (app) => {
 
   // ── Settings namespace (fresh object per access; setters close over app) ──
   const settingsAccessors = () => ({
-    get color() { return app.color; }, set color(v) { app.setColor(toHexColor(v)); },
     get lineColor() { return app.color; }, set lineColor(v) { app.setColor(toHexColor(v)); },
     get thickness() { return app.thickness; }, set thickness(v) { app.setThickness(v); },
     get pointSize() { return app.markerSize; }, set pointSize(v) { app.setMarkerSize(v); },
@@ -307,14 +306,19 @@ export const createStencil = (app) => {
     get pageSize() { return app.pageSize; }, set pageSize(v) { app.setPageSize(v); },            // case-insensitive ('a3' ok)
     get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
-    get theme() { return app.theme; }, set theme(v) { app.setTheme(v); },                        // 'dark' | 'light'
-    // Brand accent preset (see stencil.mainThemes for the valid keys). Setting an
-    // unknown key throws rather than silently falling back.
-    get mainTheme() { return app.accent; },
+    get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
+    // Brand accent: a preset key (see stencil.mainThemes) persists + syncs across tabs; a
+    // hex like '#ff5623' applies a custom colour to THIS page only (not saved, not synced).
+    // Anything else throws rather than silently falling back. The getter returns the active
+    // custom hex if one is set, otherwise the preset key.
+    get mainTheme() { return app.customAccent || app.accent; },
     set mainTheme(v) {
-      const k = str(v).trim().toLowerCase();
-      if (!isAccent(k)) throw new Error(`Unknown theme "${v}". Options: ${ACCENTS.map((a) => a.key).join(', ')}`);
-      app.setAccent(k);
+      const s = str(v).trim();
+      const k = s.toLowerCase();
+      if (isAccent(k)) { app.setAccent(k); return; }
+      const hex = normalizeHex(s);
+      if (hex) { app.setCustomAccent(hex); return; }
+      throw new Error(`Unknown theme "${v}". Use a hex like #ff5623, or one of: ${ACCENTS.map((a) => a.key).join(', ')}`);
     },
     get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
@@ -551,7 +555,7 @@ export const createStencil = (app) => {
     apply(opts = {}) {
       const set = stencil.settings;
       for (const k of [
-        'unit', 'color', 'lineColor', 'pointSize', 'markerSize', 'thickness', 'lineStyle',
+        'unit', 'lineColor', 'pointSize', 'markerSize', 'thickness', 'lineStyle',
         'pointStyle', 'showPoints', 'showLines', 'filter', 'filterColor', 'pageSize', 'drawMode',
         'allowFormulas', 'formulaX', 'formulaY', 'fillColor', 'selectionGlow', 'hoverRing', 'focusRing',
       ]) {
@@ -602,7 +606,7 @@ export const createStencil = (app) => {
   };
 
   // Flatten the settings accessors onto the facade so `stencil.lineColor`/`showPoints`/
-  // `pageSize`/`theme`/… work as well as `stencil.settings.<key>` (same app setters).
+  // `pageSize`/`darkTheme`/… work as well as `stencil.settings.<key>` (same app setters).
   // Copies the get/set descriptors (not values); keys don't collide with facade members.
   Object.defineProperties(stencil, Object.getOwnPropertyDescriptors(settingsAccessors()));
 

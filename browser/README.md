@@ -23,6 +23,8 @@ For the project overview and the desktop (C++/Qt) app, see the
 - Image filters (B&W, sepia, custom tint), zoom/pan, and fit-to-window
 - Undo / redo, drag-and-drop and clipboard paste for images and layout JSON
 - Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
+  (preset brand accents in the Visuals modal; **double-click the logo** for a one-off
+  custom accent colour, applied to that page only — not saved or synced)
 - Session autosave to `localStorage` (image + layout), multi-project storage with a
   one-week expiry sweep
 - Installable as a **PWA** (Progressive Web App): "Install app" button + browser
@@ -117,8 +119,7 @@ clean `{}` (members are non-enumerable) — access and autocomplete still work.
 ```js
 // ── Settings (each is get/set; every key works BOTH on the facade and under .settings,
 //    and mirrors a top-menu control — changes reflect in the toolbar live) ──
-stencil.color            = '#00ffaa';  // current/last-used line color (alias: lineColor)
-stencil.lineColor        = 'red';      // any CSS color works — named / rgb()/hsl() → normalized to hex
+stencil.lineColor        = 'red';      // current/last-used line color — any CSS color (named / rgb()/hsl() → normalized to hex)
 stencil.thickness        = 3;          // line thickness (px)
 stencil.pointSize        = 9;          // marker size (alias: markerSize)
 stencil.markerSize       = 9;          // same as .pointSize
@@ -132,7 +133,9 @@ stencil.unit             = 'in';       // page unit: 'cm' | 'mm' | 'in'
 stencil.pageSize         = 'a3';       // case-insensitive: 'a3' | 'A4' | 'custom'
 stencil.pageWidth        = 30;         // cm; applies when pageSize === 'custom'
 stencil.pageHeight       = 40;         // cm; applies when pageSize === 'custom'
-stencil.theme            = 'dark';     // 'dark' | 'light'
+stencil.darkTheme        = true;       // dark mode on/off (true = dark, false = light)
+stencil.mainTheme        = 'green';    // brand accent: a preset key (see .mainThemes) — persists + syncs across tabs
+stencil.mainTheme        = '#ff5623';  // …or any hex → a custom accent for THIS page only (not saved, not synced)
 stencil.drawMode         = 'rect';     // 'line' | 'rect'
 stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
 stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms

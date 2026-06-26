@@ -13,7 +13,7 @@ import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon } from './accents.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
@@ -198,8 +198,10 @@ export class DrawingApp {
     // Another tab changed the project set: sync the editor if it's our project.
     this.tabs.onProjectsChanged(detail => this.#onRemoteProjectsChange(detail || {}));
     // Another tab changed the accent: repaint our UI live (no re-broadcast) and
-    // let any open Visuals modal resync its swatch.
+    // let any open Visuals modal resync its swatch. A local custom (temp) accent wins —
+    // a peer's preset change must not clobber this page's one-off colour.
     this.tabs.onAccent(key => {
+      if (this.customAccent) return;
       const next = this.#applyAccent(key);
       try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
     });
@@ -506,10 +508,28 @@ export class DrawingApp {
   // setAccent (local change) and the cross-tab listener (remote change, no re-broadcast).
   #applyAccent(key) {
     const next = isAccent(key) ? key : DEFAULT_ACCENT;
+    document.documentElement.style.removeProperty('--accent'); // drop any custom (temp) override
     document.documentElement.setAttribute('data-accent', next);
     try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
     applyAccentFavicon(next);
     return next;
+  }
+
+  // A custom (non-preset) accent applied to THIS page only — the inline --accent override
+  // string, or null when a named preset is active. Set via setCustomAccent.
+  get customAccent() {
+    return document.documentElement.style.getPropertyValue('--accent').trim() || null;
+  }
+  // Apply an arbitrary hex colour as the accent for this page only: NO persistence and NO
+  // cross-tab broadcast (unlike setAccent), so it stays local and vanishes on reload. The
+  // inline --accent overrides the data-accent preset rule; everything else derives from it.
+  // Returns the normalized '#rrggbb', or null when `hex` isn't a valid colour.
+  setCustomAccent(hex) {
+    const norm = normalizeHex(hex);
+    if (!norm) return null;
+    document.documentElement.style.setProperty('--accent', norm);
+    applyFaviconHex(norm);
+    return norm;
   }
 
   #wireTheme() {

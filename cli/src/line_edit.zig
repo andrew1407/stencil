@@ -11,6 +11,16 @@ const logo = @import("logo.zig");
 pub const max_line = 4096; // editing buffer size; commands (URLs, crop specs) fit easily
 pub const max_history = 50; // last-N entered commands kept for Up/Down
 
+// What a readLine() call resolved to. A submitted line carries its length in `buf`; the
+// other variants are key chords the caller acts on (clipboard I/O, exit) so line_edit stays
+// free of session/image knowledge.
+pub const Input = union(enum) {
+    line: usize, // a command line of this many bytes now sits in `buf`
+    eof, // Ctrl-D or a closed tty — leave the console immediately
+    interrupt, // Ctrl-C — caller copies the image and/or confirms exit
+    paste, // Ctrl-V — caller loads an image from the clipboard
+};
+
 // ── command history (a small ring of owned strings, oldest first) ──────────────
 
 pub const History = struct {
@@ -102,9 +112,12 @@ pub const Editor = struct {
         return if (n == 0) null else b[0];
     }
 
-    /// Read one edited line into `buf`. Returns its length, or null to leave the console —
-    /// on Ctrl-C, Ctrl-D, or a closed tty. `completions` are command names for Tab-complete.
-    pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8) ?usize {
+    /// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
+    /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C) or
+    /// `.paste` (Ctrl-V). `armed` carries the single-Ctrl-C exit guard across calls: any key
+    /// but Ctrl-C disarms it, so the caller can require two presses to leave. `completions`
+    /// are command names for Tab-complete.
+    pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool) Input {
         var len: usize = 0;
         var pos: usize = 0;
         var hidx: usize = hist.items.items.len; // == items.len means "the fresh line"
@@ -114,21 +127,26 @@ pub const Editor = struct {
 
         while (true) {
             const ch = self.readByte() orelse {
-                if (len == 0) return null; // closed tty -> end session
+                if (len == 0) return .eof; // closed tty -> end session
                 continue;
             };
+            if (ch != 3) armed.* = false; // any key but Ctrl-C disarms the exit guard
             switch (ch) {
                 '\r', '\n' => {
                     self.writeAll("\r\n");
-                    return len;
+                    return .{ .line = len };
                 },
-                3 => { // Ctrl-C: leave the console
-                    self.writeAll("^C\r\n");
-                    return null;
+                3 => { // Ctrl-C: copy the image and/or confirm exit (the caller decides)
+                    self.writeAll("\r\n");
+                    return .interrupt;
                 },
                 4 => { // Ctrl-D (EOF): leave the console
                     self.writeAll("\r\n");
-                    return null;
+                    return .eof;
+                },
+                22 => { // Ctrl-V: paste an image from the clipboard (the caller loads it)
+                    self.writeAll("\r\n");
+                    return .paste;
                 },
                 21 => { // Ctrl-U: clear the line
                     len = 0;
@@ -158,6 +176,29 @@ pub const Editor = struct {
                     len += 1;
                     self.refresh(prompt, buf[0..len], pos);
                 },
+            }
+        }
+    }
+
+    /// Ask a yes/no question on the raw-mode tty and read a single keypress. 'y' or Enter
+    /// confirm (yes is the default); 'n', Esc or Ctrl-C decline. Used to guard `/upload`.
+    pub fn confirm(self: *Editor, question: []const u8) bool {
+        self.writeAll(logo.accentSeq());
+        self.writeAll(question);
+        self.writeAll(" (Y/n) ");
+        self.writeAll(logo.resetSeq());
+        while (true) {
+            const ch = self.readByte() orelse return false; // closed tty -> treat as decline
+            switch (ch) {
+                'y', 'Y', '\r', '\n' => {
+                    self.writeAll("yes\r\n");
+                    return true;
+                },
+                'n', 'N', 27, 3 => { // 'n', Esc or Ctrl-C
+                    self.writeAll("no\r\n");
+                    return false;
+                },
+                else => {},
             }
         }
     }

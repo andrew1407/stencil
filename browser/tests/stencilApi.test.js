@@ -47,6 +47,7 @@ const makeApp = (over = {}) => {
     showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#000000',
     unit: 'cm', pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7,
     theme: 'dark', drawMode: 'line', holdDrawDelay: 500, allowFormulas: false, formulaX: '', formulaY: '',
+    accent: 'violet', customAccent: null,
     defaultFillColor: '#ffffff', selGlowColor: '#000000', hoverRingColor: '#000000', focusRingColor: '#000000',
     // tooltip + provenance backing fields
     tooltipEnabled: true, tooltipShowPage: true, tooltipShowScreen: true, tooltipShowCoords: true,
@@ -101,6 +102,8 @@ const makeApp = (over = {}) => {
     setImageFilter: rec('setImageFilter'), setFilterColor: rec('setFilterColor'), setUnit: rec('setUnit'),
     setPageSize: rec('setPageSize'), setCustomPageWidth: rec('setCustomPageWidth'), setCustomPageHeight: rec('setCustomPageHeight'),
     setTheme: rec('setTheme'), setDrawMode: rec('setDrawMode'), setHoldDrawDelay: rec('setHoldDrawDelay'), setAllowFormulas: rec('setAllowFormulas'),
+    setAccent(key) { calls.push(['setAccent', key]); app.accent = key; app.customAccent = null; },
+    setCustomAccent(hex) { calls.push(['setCustomAccent', hex]); app.customAccent = hex; return hex; },
     setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
     rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
     startDrawingMode: rec('startDrawingMode'), stopDrawingMode: rec('stopDrawingMode'),
@@ -186,8 +189,10 @@ test('settings flatten onto the facade and onto stencil.settings, both driving a
   stencil.settings.pageSize = 'a3';
   assert.deepEqual(lastCall(app, 'setPageSize'), ['setPageSize', 'a3']);
 
-  stencil.theme = 'light';
+  stencil.darkTheme = false;
   assert.deepEqual(lastCall(app, 'setTheme'), ['setTheme', 'light']);
+  stencil.darkTheme = true;
+  assert.deepEqual(lastCall(app, 'setTheme'), ['setTheme', 'dark']);
 });
 
 // ── Lines ───────────────────────────────────────────────────────────────────────
@@ -450,7 +455,6 @@ test('every documented flattened setting routes to its app setter with the expec
   // canvas-less toHexColor (named colors would pass through unchanged anyway).
   const DIRECT = [
     ['unit', 'setUnit', 'in', 'in'],
-    ['color', 'setColor', '#abcdef', '#abcdef'],
     ['lineColor', 'setColor', '#abcdef', '#abcdef'],
     ['thickness', 'setThickness', 3, 3],
     ['pointSize', 'setMarkerSize', 9, 9],
@@ -464,7 +468,7 @@ test('every documented flattened setting routes to its app setter with the expec
     ['pageSize', 'setPageSize', 'a3', 'a3'],
     ['pageWidth', 'setCustomPageWidth', 30, 30],
     ['pageHeight', 'setCustomPageHeight', 40, 40],
-    ['theme', 'setTheme', 'light', 'light'],
+    ['darkTheme', 'setTheme', true, 'dark'],
     ['allowFormulas', 'setAllowFormulas', true, true],
   ];
   for (const [key, setter, value, expected] of DIRECT) {
@@ -485,6 +489,28 @@ test('every documented flattened setting routes to its app setter with the expec
     stencil[key] = '#123456';
     assert.deepEqual(lastCall(app, 'setVisualColor'), ['setVisualColor', channel, '#123456'], `${key} → setVisualColor`);
   }
+});
+
+// mainTheme: preset keys persist+sync via setAccent; a hex applies a temp page-local accent
+// via setCustomAccent; the getter prefers an active custom hex; junk throws.
+test('mainTheme accepts preset keys and custom hex colours', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.mainTheme, 'violet');         // preset key from app.accent
+
+  stencil.mainTheme = 'GREEN';                        // case-insensitive preset
+  assert.deepEqual(lastCall(app, 'setAccent'), ['setAccent', 'green']);
+  assert.equal(stencil.mainTheme, 'green');
+
+  stencil.mainTheme = '#FF5623';                      // custom hex → normalized, page-local
+  assert.deepEqual(lastCall(app, 'setCustomAccent'), ['setCustomAccent', '#ff5623']);
+  assert.equal(stencil.mainTheme, '#ff5623');         // getter prefers the custom hex
+
+  stencil.mainTheme = 'f50';                          // short hex, no '#'
+  assert.deepEqual(lastCall(app, 'setCustomAccent'), ['setCustomAccent', '#ff5500']);
+
+  assert.throws(() => { stencil.mainTheme = 'notacolour'; }, /Unknown theme/);
 });
 
 // ── Tooltip / imageSize / layout / coordinate conversion / viewport / fullscreen ──

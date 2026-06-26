@@ -51,6 +51,6 @@ test {
     _ = @import("pipeline.zig");
     _ = @import("console.zig");
     _ = @import("theme.zig");
-    _ = @import("lineedit.zig");
+    _ = @import("line_edit.zig");
     _ = @import("clipboard.zig");
 }

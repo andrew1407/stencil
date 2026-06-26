@@ -8,6 +8,7 @@ const theme = @import("../theme.zig");
 const Session = @import("session.zig").Session;
 
 var interactive: bool = false; // true when driving a TTY (enables screen clears + colour)
+var accent_store: [24]u8 = undefined; // stable backing for the current accent label (incl. custom #hex)
 var current_accent: []const u8 = theme.default_key;
 
 // Command words offered by Tab-completion in the interactive editor (canonical names +
@@ -22,9 +23,12 @@ pub fn setInteractive(v: bool) void {
     interactive = v;
 }
 
-/// Adopt a new accent key (the logo's RGB is set separately by the caller).
+/// Adopt a new accent label (a preset key or a custom '#hex'); the logo's RGB is set
+/// separately by the caller. Copied into a stable buffer so a transient '#hex' slice is safe.
 pub fn setAccent(key: []const u8) void {
-    current_accent = key;
+    const n = @min(key.len, accent_store.len);
+    @memcpy(accent_store[0..n], key[0..n]);
+    current_accent = accent_store[0..n];
 }
 
 pub fn promptStr(session: *Session) []const u8 {
@@ -73,16 +77,17 @@ pub fn noImage() void {
 }
 
 pub fn listThemes() void {
-    logo.print("Themes (current: {s}) — '/theme <name>' to switch:\n", .{current_accent});
+    logo.print("Themes (current: {s}) — '/theme <name | #hex | default>' to switch:\n", .{current_accent});
     const on = logo.colorEnabled();
     for (theme.accents) |a| {
         const mark: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, current_accent)) "*" else " ";
+        const tag: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, theme.default_key)) " (default)" else "";
         if (on) {
             var fbuf: [20]u8 = undefined;
             const seq = std.fmt.bufPrint(&fbuf, "\x1b[38;2;{d};{d};{d}m", .{ a.rgb[0], a.rgb[1], a.rgb[2] }) catch "";
-            logo.print(" {s} {s}{s:<8}{s} {s:<12} {s}\n", .{ mark, seq, a.key, logo.resetSeq(), a.label, a.hex });
+            logo.print(" {s} {s}{s}{s}{s}\n", .{ mark, seq, a.key, logo.resetSeq(), tag });
         } else {
-            logo.print(" {s} {s:<8} {s:<12} {s}\n", .{ mark, a.key, a.label, a.hex });
+            logo.print(" {s} {s}{s}\n", .{ mark, a.key, tag });
         }
     }
 }
@@ -90,7 +95,8 @@ pub fn listThemes() void {
 pub fn intro() void {
     logo.print(
         \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
-        \\recall history; '/help' lists commands, '/theme' changes colour, '/exit' leaves.
+        \\recall history; Ctrl-V pastes / Ctrl-C copies an image. '/help' lists commands,
+        \\'/theme' changes colour, '/exit' (or Ctrl-C twice) leaves.
         \\
     , .{});
 }
@@ -114,7 +120,8 @@ pub fn help() void {
         \\  /theme [name]           list or switch the accent colour (default violet)
         \\  /clear                  clear the screen, redraw the logo + image header
         \\  /drop                   forget the working image entirely
-        \\  /help   /exit           show this list / leave (also Ctrl-C or Ctrl-D)
+        \\  /help   /exit           show this list / leave (Ctrl-D, or Ctrl-C twice)
+        \\Shortcuts  Ctrl-V paste an image · Ctrl-C copy the image (twice to exit)
         \\
     , .{});
 }

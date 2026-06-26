@@ -2,11 +2,11 @@
 //! `/command <args>` lines from stdin and apply them to a single in-memory working image,
 //! reusing pipeline.zig's transforms. This file is just the input loop and the verb/action
 //! dispatch; the pieces live in console/ — `session` (undo/redo state), `commands` (grammar),
-//! `ui` (presentation) and `handlers` (the command implementations). On a TTY, lineedit.zig
+//! `ui` (presentation) and `handlers` (the command implementations). On a TTY, line_edit.zig
 //! adds raw-mode line editing; piped input uses a plain reader.
 const std = @import("std");
 const logo = @import("logo.zig");
-const lineedit = @import("lineedit.zig");
+const line_edit = @import("line_edit.zig");
 const session_mod = @import("console/session.zig");
 const commands = @import("console/commands.zig");
 const ui = @import("console/ui.zig");
@@ -26,7 +26,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io) !void {
 
     const stdin_file = std.Io.File.stdin();
     const is_tty = stdin_file.isTty(io) catch false;
-    var editor: ?lineedit.Editor = if (is_tty) (lineedit.Editor.init(stdin_file.handle) catch null) else null;
+    var editor: ?line_edit.Editor = if (is_tty) (line_edit.Editor.init(stdin_file.handle) catch null) else null;
     if (editor) |*ed| {
         ui.setInteractive(true);
         defer ed.deinit();
@@ -37,16 +37,44 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io) !void {
     }
 }
 
-fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *lineedit.Editor) void {
-    var hist = lineedit.History{ .gpa = gpa };
+fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor) void {
+    var hist = line_edit.History{ .gpa = gpa };
     defer hist.deinit();
-    var buf: [lineedit.max_line]u8 = undefined;
+    var buf: [line_edit.max_line]u8 = undefined;
+    var armed = false; // one Ctrl-C copies + arms exit; a second one in a row confirms it
     while (true) {
-        const n = ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions) orelse break; // Ctrl-C / Ctrl-D / EOF
-        const line = buf[0..n];
-        hist.add(line);
-        if (dispatch(session, io, line)) break;
+        switch (ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions, &armed)) {
+            .eof => break, // Ctrl-D / closed tty
+            .interrupt => { // Ctrl-C: copy the image, then require a second press to leave
+                if (armed) break;
+                armed = true;
+                if (session.hasImage()) handlers.doCopy(session, io) catch {};
+                logo.print("press Ctrl-C again to exit\n", .{});
+            },
+            .paste => { // Ctrl-V: load an image from the clipboard
+                handlers.doPaste(session, io) catch |e| logo.print("error: {s}\n", .{@errorName(e)});
+            },
+            .line => |n| {
+                const line = buf[0..n];
+                hist.add(line);
+                if (!confirmUpload(ed, line)) continue; // guard /upload behind a yes/no prompt
+                if (dispatch(session, io, line)) break;
+            },
+        }
     }
+}
+
+// On a TTY, `/upload <src>` asks for a yes/no confirmation before replacing the working
+// image. Returns true to proceed (always, for every non-upload command); false when the
+// user declines. Tests drive `handle` directly and so skip this prompt.
+fn confirmUpload(ed: *line_edit.Editor, line: []const u8) bool {
+    const cmd = commands.parseCommand(line);
+    if (commands.verbOf(cmd.word) != commands.Verb.upload or cmd.arg.len == 0) return true;
+    var qbuf: [512]u8 = undefined;
+    const q = std.fmt.bufPrint(&qbuf, "Upload {s}?", .{cmd.arg}) catch "Upload this source?";
+    if (ed.confirm(q)) return true;
+    logo.print("upload cancelled\n", .{});
+    return false;
 }
 
 fn runPiped(io: std.Io, session: *Session) void {
