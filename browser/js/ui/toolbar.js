@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define } from './base.js';
 import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
+import { accentHex, normalizeHex } from '../core/accents.js';
 // ── Component: toolbar (controls-wrapper + all 8 sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -223,6 +224,60 @@ export class StencilToolbar extends StencilElement {
     new MutationObserver(() => {
       if (hidden) popup.textContent = infoText();
     }).observe(document.getElementById('image-info'), { childList: true, characterData: true, subtree: true });
+
+    wireLogoColorPicker(this.querySelector('.app-logo'), _app);
   }
 }
+
+// Double-click (or double-tap) the logo to open a native colour picker that tints THIS
+// page's accent only — not saved, not synced to other windows, gone on reload. Picking a
+// preset in the Visuals modal later clears it (see DrawingApp#applyAccent).
+function wireLogoColorPicker(logo, app) {
+  if (!logo || !app) return;
+  logo.style.cursor = 'pointer';
+  logo.setAttribute('title', 'Double-click for a temporary accent colour');
+
+  // A tiny, near-invisible colour input parked under the logo. It stays in normal flow
+  // (not display:none / zero-size) so the browser will actually render its native picker.
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.setAttribute('aria-hidden', 'true');
+  picker.tabIndex = -1;
+  picker.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;';
+  logo.insertAdjacentElement('afterend', picker);
+
+  const apply = () => app.setCustomAccent(picker.value); // native colour input yields #rrggbb
+  picker.addEventListener('input', apply);   // live while dragging
+  picker.addEventListener('change', apply);  // final commit
+
+  const open = () => {
+    const cur = app.customAccent || getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    picker.value = normalizeHex(cur) || accentHex(app.accent);
+    // showPicker() is the reliable way to open a picker programmatically (a bare .click()
+    // on a hidden input often won't); fall back to click() on older browsers.
+    try {
+      if (typeof picker.showPicker === 'function') picker.showPicker();
+      else picker.click();
+    } catch {
+      picker.click();
+    }
+  };
+  logo.addEventListener('dblclick', open);
+  // A double-click selects nearby text; clear it so the picker isn't fighting a selection.
+  logo.addEventListener('mousedown', (e) => { if (e.detail > 1) e.preventDefault(); });
+
+  // dblclick is unreliable on touch — detect a double-tap by hand.
+  let lastTap = 0;
+  logo.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 400) {
+      e.preventDefault();
+      lastTap = 0;
+      open();
+    } else {
+      lastTap = now;
+    }
+  });
+}
+
 define('stencil-toolbar', StencilToolbar);

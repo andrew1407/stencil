@@ -7,6 +7,7 @@ const image = @import("../image.zig");
 const pipeline = @import("../pipeline.zig");
 const net = @import("../net.zig");
 const logo = @import("../logo.zig");
+const core = @import("../core.zig");
 const theme = @import("../theme.zig");
 const clipboard = @import("../clipboard.zig");
 const commands = @import("commands.zig");
@@ -167,12 +168,30 @@ fn clipError(verb: []const u8, e: anyerror) void {
 
 pub fn doTheme(session: *Session, arg: []const u8) void {
     if (arg.len == 0) return ui.listThemes();
-    const a = theme.find(arg) orelse {
-        logo.print("error: unknown theme '{s}' — type '/theme' to list them\n", .{arg});
+
+    // A named preset, with 'default' as an alias for the default accent (violet).
+    const key = if (std.ascii.eqlIgnoreCase(arg, "default")) theme.default_key else arg;
+    if (theme.find(key)) |a| {
+        applyAccent(session, a.rgb, a.key, a.hex);
         return;
-    };
-    logo.setAccent(a.rgb);
-    ui.setAccent(a.key);
+    }
+
+    // Otherwise accept any colour the core understands — a '#rrggbb' hex or a CSS name.
+    if (core.parseColor(session.gpa, arg)) |c| {
+        var hexbuf: [8]u8 = undefined;
+        const hex = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ c.r, c.g, c.b }) catch "#??????";
+        applyAccent(session, .{ c.r, c.g, c.b }, hex, hex);
+        return;
+    }
+
+    logo.print("error: unknown theme '{s}' — type '/theme' to list them, or give a colour like #ff5623\n", .{arg});
+}
+
+// Repaint everything in a new accent: the logo's RGB, the stored label, the screen, and a
+// confirmation line. `label` is the preset key or a custom '#hex'; `hex` is shown in the message.
+fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8) void {
+    logo.setAccent(rgb);
+    ui.setAccent(label);
     ui.redraw(session); // repaint the logo outline in the new accent
-    logo.print("theme set to {s} ({s})\n", .{ a.label, a.hex });
+    logo.print("theme set to {s} ({s})\n", .{ label, hex });
 }

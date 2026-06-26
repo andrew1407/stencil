@@ -37,12 +37,21 @@ export const faviconSvg = (hex) =>
   '<circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/>' +
   '</g></svg>';
 
-// Repaint the browser-tab favicon (and the PWA status-bar theme-color) to the
-// chosen accent. The favicon is a static .svg file the browser can't read our CSS
-// var from, so we swap the <link> to an inline data-URL SVG carrying the colour.
-export const applyAccentFavicon = (key) => {
+// Validate/normalize a hex colour: '#rgb' or '#rrggbb' (the leading '#' optional) →
+// '#rrggbb' lower-case, or null when it isn't a hex. Used by the custom (non-preset)
+// accent path — the logo double-click picker and `stencil.mainTheme = '#hex'`.
+export const normalizeHex = (value) => {
+  if (typeof value !== 'string') return null;
+  let h = value.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(h)) h = h.split('').map((c) => c + c).join('');
+  return /^[0-9a-fA-F]{6}$/.test(h) ? '#' + h.toLowerCase() : null;
+};
+
+// Repaint the browser-tab favicon (and the PWA status-bar theme-color) to a literal hex.
+// The favicon is a static .svg file the browser can't read our CSS var from, so we swap
+// the <link> to an inline data-URL SVG carrying the colour.
+export const applyFaviconHex = (hex) => {
   if (typeof document === 'undefined') return;
-  const hex = accentHex(isAccent(key) ? key : DEFAULT_ACCENT);
   let link = document.querySelector('link[rel="icon"]');
   if (!link) {
     link = document.createElement('link');
@@ -54,3 +63,7 @@ export const applyAccentFavicon = (key) => {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', hex);
 };
+
+// Repaint the favicon to a preset accent key (falls back to violet for an unknown key).
+export const applyAccentFavicon = (key) =>
+  applyFaviconHex(accentHex(isAccent(key) ? key : DEFAULT_ACCENT));

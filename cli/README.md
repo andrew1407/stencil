@@ -42,7 +42,7 @@ src/
     commands.zig     #   command grammar (pure parsing: verbs, transforms, /blank, album)
     ui.zig           #   presentation: header, acks, prompt, help, /theme listing
     handlers.zig     #   command implementations over pipeline.zig's steps
-  lineedit.zig       # raw-mode line editor: Up/Down history, cursor keys (TTY only)
+  line_edit.zig      # raw-mode line editor: Up/Down history, cursor keys (TTY only)
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
   clipboard.zig      # /paste + /copy clipboard image I/O (macOS via osascript)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
@@ -150,11 +150,14 @@ stencil --console
 The leading `/` is optional (`crop ...` ≡ `/crop ...`). On a TTY you also get raw-mode line
 editing: **Tab** completes the command word, **Up/Down** recall the last 50 commands,
 Left/Right/Home/End/Backspace edit the line, and the prompt + leading `/command` token
-render in the brand accent.
+render in the brand accent. Two clipboard chords work mid-prompt: **Ctrl-V** pastes an image
+from the clipboard as the working image, and **Ctrl-C** copies the current image to the
+clipboard. To leave, press **Ctrl-C** a second time (or use `/exit` / **Ctrl-D**) — the first
+press copies and arms the exit, so any other key cancels it.
 
 | Command | Effect |
 |---|---|
-| `/upload <path\|url>` | Load an image (or video frame) as the working image. Aliases: `open`, `load`. |
+| `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
 | `/paste` | Load an image from the clipboard (macOS, via `osascript`). |
 | `/blank [w h] [color]` | Create a blank page (default A4 @ 96 dpi, white). Alias: `new`. |
 | `/apply <file.json>` | Draw a layout JSON onto the image. Aliases: `draw`, `layout`. |
@@ -165,13 +168,13 @@ render in the brand accent.
 | `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
 | `/save <path>` | Encode + write the working image to a file (extension filled in if omitted). Alias: `write`. |
-| `/copy` | Copy the current image to the clipboard (macOS). |
+| `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-V** to paste / **Ctrl-C** to copy. |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
-| `/theme [name]` | List the accent colours, or switch to one (default `violet`); also repaints the logo. |
+| `/theme [name\|#hex]` | List the accent colours, or switch: a preset name, `default` (violet), or any colour like `#ff5623`. Also repaints the logo. |
 | `/clear` | Clear the screen and redraw the logo + image header. Alias: `cls`. |
 | `/drop` | Forget the working image entirely. Aliases: `close`, `forget`. |
 | `/help` | List the commands. Aliases: `?`, `h`. |
-| `/exit` | Leave console mode. Aliases: `quit`, `q`, or **Ctrl-C** / **Ctrl-D**. |
+| `/exit` | Leave console mode. Aliases: `quit`, `q`, **Ctrl-D**, or **Ctrl-C** pressed twice. |
 
 `/apply` is **layout-only** now — crop/rotate/filter are their own commands (or `/exec`). The
 image identity is shown as a header just under the logo, refreshed on `/clear`, `/theme` and
