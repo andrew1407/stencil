@@ -105,6 +105,35 @@ if(Qt6_FOUND)
   else()
     message(STATUS "stencil_gui: portable build — state resolves to per-user config dir")
   endif()
+  # App icon: rasterise browser/favicon.svg (the shared single-source artwork) into
+  # a multi-resolution .icns at configure time and drop it in Contents/Resources/.
+  # Without this the bundle ships no CFBundleIconFile, so the Dock/Finder fall back
+  # to a generic icon. macOS-only tools (sips + iconutil) live in make-icns.sh; if
+  # they're somehow absent we just warn and ship iconless (old behaviour) rather
+  # than fail the build.
+  set(STENCIL_BUNDLE_ICON_FILE "")
+  if(APPLE)
+    find_program(STENCIL_SIPS sips)
+    find_program(STENCIL_ICONUTIL iconutil)
+    if(STENCIL_SIPS AND STENCIL_ICONUTIL)
+      set(_icns "${CMAKE_CURRENT_BINARY_DIR}/stencil.icns")
+      execute_process(
+        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make-icns.sh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg" "${_icns}"
+        RESULT_VARIABLE _icns_rc OUTPUT_QUIET)
+      if(_icns_rc EQUAL 0)
+        target_sources(stencil_gui PRIVATE "${_icns}")
+        set_source_files_properties("${_icns}" PROPERTIES
+          MACOSX_PACKAGE_LOCATION Resources)
+        set(STENCIL_BUNDLE_ICON_FILE "stencil.icns")
+        message(STATUS "stencil_gui: bundled app icon ${_icns}")
+      else()
+        message(WARNING "stencil_gui: make-icns.sh failed (rc=${_icns_rc}) — building without an app icon")
+      endif()
+    else()
+      message(WARNING "stencil_gui: sips/iconutil not found — building without an app icon")
+    endif()
+  endif()
   # Ship as a macOS .app bundle and a Windows GUI app (no console window) so the
   # platform deploy tools have the right shape to bundle Qt into.
   # Custom Info.plist adds CFBundleDocumentTypes (image/movie/json) so Finder
@@ -115,6 +144,7 @@ if(Qt6_FOUND)
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.stencil.app"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_ICON_FILE "${STENCIL_BUNDLE_ICON_FILE}"
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/MacOSXBundleInfo.plist.in"
     WIN32_EXECUTABLE TRUE)
   message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
