@@ -36,6 +36,15 @@ src/
   args.zig           # flag parser (+ --help text)
   logo.zig           # ANSI-coloured console logo (echoes browser/favicon.svg)
   pipeline.zig       # orchestration: source -> crop -> rotate -> layout -> filter -> encode
+  console.zig        # interactive --console REPL: input loop + verb/action dispatch
+  console/           # the REPL package, driven by console.zig:
+    session.zig      #   working image + undo/redo snapshot stack
+    commands.zig     #   command grammar (pure parsing: verbs, transforms, /blank, album)
+    ui.zig           #   presentation: header, acks, prompt, help, /theme listing
+    handlers.zig     #   command implementations over pipeline.zig's steps
+  lineedit.zig       # raw-mode line editor: Up/Down history, cursor keys (TTY only)
+  theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
+  clipboard.zig      # /paste + /copy clipboard image I/O (macOS via osascript)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
   image.zig          # stb_image decode/encode (RGBA8 <-> file formats)
   stb_impl.c         # the stb_image / stb_image_write implementation translation unit
@@ -99,6 +108,7 @@ stencil [options] <output>
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
 | `--filter <bw\|sepia\|color>` | Apply an image filter. A colour name/`#hex` makes a duotone tint. **Overrides** the layout's filter if both are present. |
+| `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 
@@ -125,6 +135,58 @@ stencil -i clip.mp4 -f 24 frame.png
 stencil -i wide.png -c "x1=0 x2=1200px" --album out.png
 ```
 
+## Console mode
+
+`stencil --console` (alias `--repl`) skips the one-shot pipeline and instead reads
+`/command <args>` lines from stdin, applying each to a single **in-memory working image**.
+Every edit is snapshotted, so `/undo`, `/redo` and `/reset` walk a full history. It's handy
+for interactively trying a few crops/filters, or for scripting a session by piping commands
+in — it reuses the exact same `core/` transforms as the flag pipeline, so results are identical.
+
+```
+stencil --console
+```
+
+The leading `/` is optional (`crop ...` ≡ `/crop ...`). On a TTY you also get raw-mode line
+editing: **Tab** completes the command word, **Up/Down** recall the last 50 commands,
+Left/Right/Home/End/Backspace edit the line, and the prompt + leading `/command` token
+render in the brand accent.
+
+| Command | Effect |
+|---|---|
+| `/upload <path\|url>` | Load an image (or video frame) as the working image. Aliases: `open`, `load`. |
+| `/paste` | Load an image from the clipboard (macOS, via `osascript`). |
+| `/blank [w h] [color]` | Create a blank page (default A4 @ 96 dpi, white). Alias: `new`. |
+| `/apply <file.json>` | Draw a layout JSON onto the image. Aliases: `draw`, `layout`. |
+| `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` (add `album` to derive the missing axis). |
+| `/rotate <int>` | Rotate `int × 90°` (e.g. `-1`, `2`, `3`). Aliases: `rot`, `turn`. |
+| `/filter <mode>` | `bw` \| `sepia` \| `none` \| a colour name/`#hex` (duotone tint). Shorthands: `/bw`, `/sepia`, `/tint <color>`. |
+| `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `filter` \| `apply`). Aliases: `do`, `run`. |
+| `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
+| `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
+| `/save <path>` | Encode + write the working image to a file (extension filled in if omitted). Alias: `write`. |
+| `/copy` | Copy the current image to the clipboard (macOS). |
+| `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
+| `/theme [name]` | List the accent colours, or switch to one (default `violet`); also repaints the logo. |
+| `/clear` | Clear the screen and redraw the logo + image header. Alias: `cls`. |
+| `/drop` | Forget the working image entirely. Aliases: `close`, `forget`. |
+| `/help` | List the commands. Aliases: `?`, `h`. |
+| `/exit` | Leave console mode. Aliases: `quit`, `q`, or **Ctrl-C** / **Ctrl-D**. |
+
+`/apply` is **layout-only** now — crop/rotate/filter are their own commands (or `/exec`). The
+image identity is shown as a header just under the logo, refreshed on `/clear`, `/theme` and
+after a source change; per-edit feedback is a concise `cropped -> WxH [n/m]` line. A
+**URL / blank / clipboard** source lives only in memory: its buffers are freed when another
+image is loaded, on `/drop`, or when the session ends. Prompts and messages go to **stderr**
+(the CLI's human channel), so a `/save` to stdout-adjacent tooling stays clean. Unknown
+commands and failed steps print an error and keep the session running.
+
+```bash
+# Script a session by piping commands in (no TTY → plain reader, no line editing)
+printf '/upload photo.png\n/crop x1=10%% x2=90%% y1=10%% y2=90%%\n/rotate 1\n/sepia\n/save out.png\n/exit\n' \
+  | stencil --console
+```
+
 ## How it works
 
 ```
@@ -148,11 +210,13 @@ zig build test --summary all
 Two layers run together:
 
 - **Inline unit tests** (in `src/*.zig`) — argument parsing, the C-ABI bridge (colour,
-  crop, rotate, fill, filter), codec round-trips, layout JSON parsing, video/URL detection.
+  crop, rotate, fill, filter), codec round-trips, layout JSON parsing, video/URL detection,
+  and console-mode command parsing (`parseCommand` / `parseAction` / `parseBlank`).
 - **Integration tests** (`tests/*_test.zig`, using `tests/fixtures/`) — decode the PNG
   fixture, crop/rotate it, round-trip every output format, rasterise the layout fixture,
-  and a full **end-to-end** `pipeline.run` (file in → crop + rotate + layout + filter
-  override → file out) that reads the result back and checks its dimensions.
+  a full **end-to-end** `pipeline.run` (file in → crop + rotate + layout + filter override
+  → file out) that reads the result back and checks its dimensions, and a console-mode
+  session driven through `console.handle` (upload → crop → rotate → filter → save → reset).
 
 The core's own geometry/crop/raster logic is additionally covered by its Doctest suite
 (`../core`).

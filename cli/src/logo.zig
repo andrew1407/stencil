@@ -16,9 +16,41 @@ const Ansi = struct {
 
 var use_color: bool = true;
 
+// The brand accent (logo panel outline, prompt, echoed commands). Defaults to violet
+// (#7c3aed); the console's `/theme` swaps it. `accent_slice` caches its SGR escape.
+var accent_rgb: [3]u8 = .{ 124, 58, 237 };
+var accent_buf: [20]u8 = undefined;
+var accent_slice: []const u8 = "";
+
+fn refreshAccent() void {
+    accent_slice = if (use_color)
+        std.fmt.bufPrint(&accent_buf, "\x1b[38;2;{d};{d};{d}m", .{ accent_rgb[0], accent_rgb[1], accent_rgb[2] }) catch ""
+    else
+        "";
+}
+
 /// Enable colour unless NO_COLOR is set (the caller checks the environment).
 pub fn init(no_color: bool) void {
     use_color = !no_color;
+    refreshAccent();
+}
+
+/// Repaint the brand accent (logo outline, prompt, command echo) to an RGB triple.
+pub fn setAccent(rgb: [3]u8) void {
+    accent_rgb = rgb;
+    refreshAccent();
+}
+
+/// SGR escape for the current accent, and the reset; both "" when colour is off. Used by
+/// the line editor to colour the prompt and the typed command.
+pub fn accentSeq() []const u8 {
+    return accent_slice;
+}
+pub fn resetSeq() []const u8 {
+    return c(Ansi.reset);
+}
+pub fn colorEnabled() bool {
+    return use_color;
 }
 
 fn c(comptime code: []const u8) []const u8 {
@@ -108,7 +140,7 @@ fn rule(comptime g: []const u8, width: usize) void {
 }
 
 pub fn banner() void {
-    const p = c(Ansi.purple);
+    const p = accent_slice; // brand accent (violet by default) — themeable via /theme
     const y = c(Ansi.yellow);
     const b = c(Ansi.bold);
     const r = c(Ansi.reset);
@@ -174,6 +206,7 @@ pub fn usage() void {
         \\  -r, --rotate <int>         Rotate int*90 deg (e.g. -1 = -90, 3 = 270)
         \\  -l, --layout <path|url>    Layout JSON to draw onto the image
         \\      --filter <f>           Apply bw | sepia | <color>; overrides the layout filter
+        \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
         \\  -h, --help                 Show this help
         \\
         \\{s}Output{s}
@@ -184,6 +217,7 @@ pub fn usage() void {
         \\  stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
         \\  stencil --blank 800 600 red --layout notes.json --filter sepia out
         \\  stencil -i clip.mp4 -f 24 frame.png
+        \\  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)
         \\
     , .{
         b, r, b, r, b, r, b, r, b, r,

@@ -11,6 +11,7 @@ pub const Blank = struct {
 
 pub const Options = struct {
     help: bool = false,
+    console: bool = false,
     input: ?[]const u8 = null,
     frame: u32 = 0,
     blank: ?Blank = null,
@@ -64,6 +65,8 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
     while (st.next()) |arg| {
         if (eq(arg, "-h") or eq(arg, "--help")) {
             opts.help = true;
+        } else if (eq(arg, "--console") or eq(arg, "--repl")) {
+            opts.console = true;
         } else if (eq(arg, "-i") or eq(arg, "--input")) {
             if (opts.blank != null) return Error.DuplicateSource;
             opts.input = try value(&st, "--input");
@@ -159,6 +162,16 @@ test "parse: blank optional dims and colour" {
     try testing.expect(o2.blank.?.width == null);
     try testing.expectEqualStrings("white", o2.blank.?.color);
     try testing.expectEqualStrings("out.png", o2.output.?);
+}
+
+test "parse: --console / --repl activate console mode" {
+    const a = testing.allocator;
+    const c1 = [_][:0]const u8{"--console"};
+    try testing.expect((try parse(a, &c1)).console);
+    const c2 = [_][:0]const u8{"--repl"};
+    try testing.expect((try parse(a, &c2)).console);
+    const c3 = [_][:0]const u8{ "-i", "in.png", "out.png" };
+    try testing.expect(!(try parse(a, &c3)).console);
 }
 
 test "parse: input and blank are mutually exclusive" {

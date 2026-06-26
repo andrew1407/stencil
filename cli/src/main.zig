@@ -3,6 +3,7 @@
 const std = @import("std");
 const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
+const console = @import("console.zig");
 const logo = @import("logo.zig");
 
 pub fn main(init: std.process.Init) !void {
@@ -26,6 +27,13 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    if (opts.console) {
+        console.run(gpa, io) catch {
+            std.process.exit(1);
+        };
+        return;
+    }
+
     pipeline.run(gpa, io, opts) catch {
         // pipeline.run prints a human-readable reason before failing.
         std.process.exit(1);
@@ -41,4 +49,8 @@ test {
     _ = @import("video.zig");
     _ = @import("net.zig");
     _ = @import("pipeline.zig");
+    _ = @import("console.zig");
+    _ = @import("theme.zig");
+    _ = @import("lineedit.zig");
+    _ = @import("clipboard.zig");
 }

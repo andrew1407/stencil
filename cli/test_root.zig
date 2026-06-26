@@ -9,4 +9,5 @@ test {
     _ = @import("tests/rotate_test.zig");
     _ = @import("tests/layout_filter_test.zig");
     _ = @import("tests/pipeline_e2e_test.zig");
+    _ = @import("tests/console_test.zig");
 }
