@@ -61,6 +61,9 @@ namespace stencil::gui {
     autosave_->setChecked(current.autosave);
     form->addRow("Autosave", autosave_);
 
+    // Note: "Auto-connect to servers on open" now lives in the Servers dialog
+    // (it's a connection preference, persisted via net::connectionStore).
+
     showPoints_ = new QCheckBox(this);
     showPoints_->setChecked(current.showPoints);
     form->addRow("Show points", showPoints_);

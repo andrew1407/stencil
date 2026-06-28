@@ -6,6 +6,26 @@
 export const CONFLICT_MESSAGE =
   'This project was edited elsewhere — reload it from the server before saving again.';
 
+// Live co-edit: should a server `project-event` reload the active editor? True only for an
+// "updated" event for THIS linked project/server with a newer version, when not mid-stroke
+// and outside our own save's echo window. Pure + unit-tested; shared by browser feed + desktop poll.
+export const shouldReloadFromEvent = (msg, link, opts = {}) => {
+  // version<=link.version is the real self-echo guard (our save advances link.version);
+  // echoWindowMs is a SHORT extra guard for the brief save-echo race, kept short so a
+  // peer's change right after our save isn't mistaken for our echo.
+  const { now = Date.now(), lastLocalSaveAt = 0, isDrawing = false, connUrl = null,
+          echoWindowMs = 300 } = opts;
+  if (!link || !msg || msg.type !== 'project-event' || msg.event !== 'updated') return false;
+  const proj = msg.project;
+  if (!proj || proj.id !== link.remoteId) return false;
+  if (connUrl != null && connUrl !== link.address) return false;
+  if (isDrawing) return false;
+  const v = proj.version;
+  if (typeof v !== 'number' || v <= (link.version || 0)) return false;
+  if (now - lastLocalSaveAt < echoWindowMs) return false;
+  return true;
+};
+
 // Resolve + validate the connection for `address` from a ConnectionManager.
 // Throws a clear error when there is no live connection to that server.
 export const requireConnection = (connMgr, address) => {

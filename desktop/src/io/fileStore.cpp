@@ -114,12 +114,18 @@ namespace stencil::gui {
             o.value("width").toDouble(), o.value("height").toDouble()};
   }
 
-  // Build the layout export envelope (browser drawingApp.js:2078-2079).
-  QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines) {
+  // Build the layout export envelope (browser drawingApp.js:2078-2079). The
+  // image filter + custom tint ride along (browser storage.js #buildLayout) so a
+  // reopened project restores the same b&w/sepia/tint result, not just the lines.
+  QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines,
+                                         const QString& imageFilter,
+                                         const QString& filterColor) {
     QJsonObject o;
     o["imageWidth"] = w;
     o["imageHeight"] = h;
     o["lines"] = linesToJson(lines);
+    o["imageFilter"] = imageFilter;
+    o["filterColor"] = filterColor;
     return o;
   }
 

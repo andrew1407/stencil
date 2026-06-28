@@ -78,19 +78,20 @@ namespace stencil::gui {
     });
   }
 
-  // Stack every live toast vertically, centered near the top of the host. The x
-  // is clamped to a small margin so a toast wider than the (briefly narrow)
-  // host is never pushed off the left edge and clipped.
+  // Stack every live toast in the BOTTOM-LEFT of the host (mirrors the browser's
+  // toast position), newest at the bottom, growing upward. Anchored to the bottom so
+  // an eventFilter resize keeps them pinned there.
   void Notifications::reflow() {
     if (!host_) return;
-    int y = 12;
     const auto toasts = host_->findChildren<QLabel*>("toast",
                                                      Qt::FindDirectChildrenOnly);
-    for (QLabel* t : toasts) {
-      const int x = std::max(8, (host_->width() - t->width()) / 2);
-      t->move(x, y);
+    int y = host_->height() - 12;   // bottom margin
+    for (int i = toasts.size() - 1; i >= 0; --i) {
+      QLabel* t = toasts[i];
+      y -= t->height();
+      t->move(12, std::max(8, y));   // left margin
       t->raise();
-      y += t->height() + 8;
+      y -= 8;                        // gap between stacked toasts
     }
   }
 

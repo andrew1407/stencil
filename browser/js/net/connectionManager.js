@@ -29,6 +29,17 @@ export class ServerConnection {
     this._events = null;       // events-feed socket
     this._eventCbs = new Set();
     this.connected = false;
+    this._closing = false;
+    // UI-dot status: 'connecting'|'connected'|'error'; _onStatus (set by ConnectionManager)
+    // re-renders the connections UI on change.
+    this.status = 'connecting';
+    this._onStatus = null;
+  }
+
+  _setStatus(s) {
+    if (this.status === s) return;
+    this.status = s;
+    try { this._onStatus && this._onStatus(this); } catch { /* listener error */ }
   }
 
   // ── REST ──
@@ -57,13 +68,21 @@ export class ServerConnection {
 
   // Acquire/validate a token, then verify access by listing projects.
   async handshake() {
-    if (!this.token) {
-      const r = await this._req('POST', '/auth/token', { body: {} });
-      this.token = r.token;
-    } else {
-      await this._req('GET', '/projects'); // validate
+    this._setStatus('connecting');
+    try {
+      if (!this.token) {
+        const r = await this._req('POST', '/auth/token', { body: {} });
+        this.token = r.token;
+      } else {
+        await this._req('GET', '/projects'); // validate
+      }
+    } catch (err) {
+      this.connected = false;
+      this._setStatus('error');
+      throw err;
     }
     this.connected = true;
+    this._setStatus('connected');
     this._openEvents();
     return this;
   }
@@ -116,12 +135,18 @@ export class ServerConnection {
         let msg; try { msg = JSON.parse(ev.data); } catch { return; }
         if (msg.type === 'project-event') this._emit(msg);
       });
-      ws.addEventListener('close', () => { this._events = null; });
+      ws.addEventListener('close', () => {
+        this._events = null;
+        // An unexpected drop (not a user disconnect) → the live feed is gone; show red.
+        if (!this._closing) { this.connected = false; this._setStatus('error'); }
+      });
     } catch { /* events are best-effort; REST keeps working */ }
   }
 
   close() {
+    this._closing = true;
     this.connected = false;
+    this._setStatus('disconnected');
     try { this._events?.close(); } catch { /* already closed */ }
     this._events = null;
   }
@@ -139,6 +164,8 @@ export class ConnectionManager {
 
   get urls() { return Array.from(this._conns.keys()); }
   get connections() { return Array.from(this._conns.values()); }
+  // Persistable view of the live set: [{ url, token }] (see connectionStore.js).
+  snapshot() { return this.connections.map((c) => ({ url: c.url, token: c.token || '' })); }
   has(url) { return this._conns.has(normalizeUrl(url)); }
   get(url) { return this._conns.get(normalizeUrl(url)) || null; }
   get last() { const u = this.urls; return u.length ? this._conns.get(u[u.length - 1]) : null; }
@@ -154,6 +181,9 @@ export class ConnectionManager {
       const conn = new ServerConnection(norm, {
         token, fetchImpl: this._fetch, WebSocketImpl: this._WS,
       });
+      // Re-render the connections UI whenever this connection's status changes
+      // (connecting → connected, or an unexpected drop → error).
+      conn._onStatus = () => this._onChange({ type: 'status', connection: conn });
       await conn.handshake();
       conn.onEvent((msg, c) => this._onChange({ type: 'event', message: msg, connection: c }));
       this._conns.set(norm, conn);
@@ -178,6 +208,20 @@ export class ConnectionManager {
     for (const c of this._conns.values()) c.close();
     this._conns.clear();
     this._onChange({ type: 'disconnect' });
+    return this;
+  }
+
+  // Re-establish a single connection (re-validating/re-issuing its token), e.g. from
+  // a per-row "reconnect" button after a server blip. No-op for an unknown url.
+  async reconnectOne(url) {
+    const norm = normalizeUrl(url);
+    const conn = this._conns.get(norm);
+    const token = conn ? conn.token : '';
+    if (conn) {
+      conn.close();
+      this._conns.delete(norm);
+    }
+    await this.connect(token ? { url: norm, token } : norm);
     return this;
   }
 

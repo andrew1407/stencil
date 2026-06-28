@@ -201,23 +201,39 @@ const sharedToImage = (pin) => ({
 // The connection that owns a shared row (by its server origin), or null.
 const sharedConn = (image) => connectionByUrl(state.connections, image.serverUrl);
 
-// Resolve a shared row's image bytes to a data URL (authed), caching on the row and in
-// the preview cache so the thumbnail, hover preview and editor hand-off share one fetch.
+// Thumbnail bytes (authed) as a data URL: the edited `result`, falling back to the
+// `original`. Cached on the row. Distinct from the editor hand-off (sharedDataUrl),
+// which needs the untouched original so the editor can re-apply the saved filter/lines.
+const sharedThumbUrl = async (image) => {
+  if (image._thumbUrl) return image._thumbUrl;
+  const conn = sharedConn(image);
+  if (!conn) throw new Error('no connection for shared pin');
+  let blob = null;
+  try { blob = await fetchProjectImage(conn, image.projectId, 'result'); }
+  catch { blob = await fetchProjectImage(conn, image.projectId, 'original'); }
+  const dataUrl = await blobToDataUrl(blob);
+  image._thumbUrl = dataUrl;
+  return dataUrl;
+};
+
+// Original (unedited) bytes as a data URL (authed) for the editor / crop hand-off, so the
+// editor re-opens the raw image and re-applies the saved filter + lines. Cached on the row
+// and in the preview cache so the open/crop paths share one fetch.
 const sharedDataUrl = async (image) => {
   if (image._dataUrl) return image._dataUrl;
   const conn = sharedConn(image);
   if (!conn) throw new Error('no connection for shared pin');
-  const dataUrl = await blobToDataUrl(await fetchProjectImage(conn, image.projectId));
+  const dataUrl = await blobToDataUrl(await fetchProjectImage(conn, image.projectId, 'original'));
   image._dataUrl = dataUrl;
   if (image.source) previewCache.set(image.source, dataUrl);
   return dataUrl;
 };
 
-// Set a shared row's thumbnail from its authed data URL; hide the <img> if the fetch
-// fails (unreachable server, or a project with no stored bytes yet).
+// Set a shared row's thumbnail from its authed EDITED-result data URL; hide the <img> if
+// the fetch fails (unreachable server, or a project with no stored bytes yet).
 const resolveSharedThumb = async (image, thumb) => {
   try {
-    thumb.src = await sharedDataUrl(image);
+    thumb.src = await sharedThumbUrl(image);
     thumb.style.visibility = 'visible';
   } catch {
     thumb.style.visibility = 'hidden';
@@ -229,13 +245,47 @@ const resolveSharedThumb = async (image, thumb) => {
 const loadShared = async () => {
   state.connections = await loadConnections();
   const pins = await collectSharedPins(state.connections);
-  // Preserve any already-resolved thumbnails across a refresh (match on server+project).
-  const prev = new Map(state.shared.map((s) => [`${s.serverUrl}\n${s.projectId}`, s._dataUrl]));
+  // Preserve any already-resolved bytes across a refresh (match on server+project): both
+  // the edited-result thumbnail and the original editor hand-off, so neither re-fetches.
+  const prev = new Map(state.shared.map((s) => [`${s.serverUrl}\n${s.projectId}`, s]));
   state.shared = pins.map((p) => {
     const row = sharedToImage(p);
-    row._dataUrl = prev.get(`${row.serverUrl}\n${row.projectId}`) || null;
+    const old = prev.get(`${row.serverUrl}\n${row.projectId}`);
+    row._dataUrl = old ? old._dataUrl : null;
+    row._thumbUrl = old ? old._thumbUrl : null;
     return row;
   });
+  // The set of ORIGINAL source URLs that exist on a server, so a LOCAL pin of the same
+  // image also shows the golden "on a server" outline (not just the separate shared rows).
+  state.sharedSources = new Set(pins.map((p) => p.origin).filter(Boolean));
+  // origin URL -> Set(serverUrl) + the connected hosts, for the "server pins" filter.
+  state.serverByOrigin = new Map();
+  for (const p of pins) {
+    if (!p.origin) continue;
+    if (!state.serverByOrigin.has(p.origin)) state.serverByOrigin.set(p.origin, new Set());
+    state.serverByOrigin.get(p.origin).add(p.serverUrl);
+  }
+  state.serverHosts = state.connections.map((c) => c.url);
+  syncServerFilterUI();
+};
+
+// Show/populate the popup's "server pins" checkbox + per-server select (only when at
+// least one server is connected). Mirrors the same filter on the options page.
+const syncServerFilterUI = () => {
+  const has = (state.serverHosts || []).length > 0;
+  const wrap = document.getElementById('f-server-pins-wrap');
+  const showServer = document.getElementById('f-server-pins');
+  const sel = document.getElementById('f-server-store');
+  if (wrap) wrap.hidden = !has;
+  if (sel) {
+    sel.hidden = !has || !(showServer && showServer.checked);
+    if (has) {
+      const prev = sel.value || 'all';
+      sel.innerHTML = '<option value="all">Any server</option>'
+        + state.serverHosts.map((u) => `<option value="${u}">${hostLabel(u)}</option>`).join('');
+      sel.value = [...sel.options].some((o) => o.value === prev) ? prev : 'all';
+    }
+  }
 };
 
 // Poll-while-open: refresh shared pins on a light interval so server-side changes show
@@ -374,8 +424,17 @@ const applyFilters = () => {
   const rank = (it) => (isPinned(it) ? 2 : 0) + (state.openedFirst && isOpened(it) ? 1 : 0);
   if (state.showPinned || state.openedFirst)
     state.filtered.sort((a, b) => rank(b) - rank(a));
+  // Server-pins filter: the checkbox shows/hides server-stored items (the golden cue on
+  // local pins, gated below in renderRow, + the shared rows here); the select narrows the
+  // shared rows to one connected server.
+  const showServerEl = document.getElementById('f-server-pins');
+  const storeSel = document.getElementById('f-server-store');
+  state.showServerPins = !showServerEl || showServerEl.checked;
+  const store = (storeSel && !storeSel.hidden) ? storeSel.value : 'all';
   // Shared (server) pins list after the page's own images, newest-first.
-  const sharedRows = state.shared.filter(s => sharedMatchesSearch(s, filters.search));
+  let sharedRows = state.shared.filter(s => sharedMatchesSearch(s, filters.search));
+  if (!state.showServerPins) sharedRows = [];
+  else if (store !== 'all') sharedRows = sharedRows.filter(s => s.serverUrl === store);
   state.filtered = state.filtered.concat(sharedRows);
   listEl.innerHTML = '';
   renderCount();
@@ -478,16 +537,13 @@ const renderRow = (image) => {
   dim.className = 'dim';
   dim.textContent = image.w && image.h ? `${image.w}×${image.h}` : '';
   sub.appendChild(dim);
-  // Pinned on this site: a gray outline + pin tag, floated to the top. Independent of
-  // the opened cue below (an image can be both).
-  if (isPinned(image)) {
-    row.classList.add('pinned');
-    const pb = document.createElement('span');
-    pb.className = 'badge pinned';
-    pb.innerHTML = icon('pin', { size: 12 }) + ' pinned';
-    pb.title = 'Pinned on this site';
-    sub.appendChild(pb);
-  }
+  // Pin status is conveyed by the row OUTLINE COLOUR alone (no text badge): GOLD = stored
+  // on a connected server (a shared row, or a local pin whose image is also on a server,
+  // matched by source URL); GRAY = pinned locally only.
+  const onServer = (state.showServerPins !== false)
+    && (image.shared || (state.sharedSources && state.sharedSources.has(sourceOf(image))));
+  if (onServer) row.classList.add('shared');
+  else if (isPinned(image)) row.classList.add('pinned');
   // Already opened in an editor: a yellow outline + flag. Clicking the row opens
   // the resume/copy chooser (see bindRowGestures / buildMenu).
   if (isOpened(image)) {
@@ -497,16 +553,6 @@ const renderRow = (image) => {
     ob.innerHTML = icon('flag', { size: 12 }) + ' opened';
     ob.title = 'Already opened in an editor — click to resume or add a copy';
     sub.appendChild(ob);
-  }
-  // Shared from a connected server: a golden outline + server badge set it apart from a
-  // local (gray) pin. Clicking it opens the server-stored image in the editor.
-  if (image.shared) {
-    row.classList.add('shared');
-    const sb = document.createElement('span');
-    sb.className = 'badge shared';
-    sb.innerHTML = icon('server', { size: 12 }) + ' server';
-    sb.title = `Shared from ${image.serverUrl}`;
-    sub.appendChild(sb);
   }
   meta.append(name, sub);
 
@@ -520,7 +566,10 @@ const renderRow = (image) => {
     pinBtn.title = image.pinned ? 'Unpin' : 'Pin to top';
     pinBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      togglePin(image);
+      // Unpin directly; when pinning, offer the local / on-server picker (servers
+      // connected) so you can store it remotely without opening the ⋯ menu.
+      if (image.pinned || pinTargetMode(state.connections) === 'none') togglePin(image);
+      else pinWithPrompt(image);
     });
   }
 
@@ -589,26 +638,57 @@ const buildMenu = (image) => {
     d.className = 'sep';
     return d;
   };
-  // Non-clickable sub-category heading (the flat menu's stand-in for a nested submenu).
+  // Non-clickable sub-category heading.
   const label = (text) => {
     const d = document.createElement('div');
     d.className = 'label';
     d.textContent = text;
     return d;
   };
-  // Pin / unpin on the current site (mirrors the row's pin button).
-  if (pinnable(image)) {
-    menuEl.append(
-      item(icon('pin', { size: 15 }), image.pinned ? 'Unpin' : 'Pin to top', () => togglePin(image)),
-      sep()
-    );
-  }
+  // A nested submenu shown as a flyout on hover. Opens to the right; flips to the left
+  // when it would overflow the popup window's right edge (measured on hover).
+  const submenu = (iconHtml, labelText, children) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'submenu';
+    const head = document.createElement('button');
+    head.className = 'submenu-head';
+    head.type = 'button';
+    head.innerHTML = `<span class="ic">${iconHtml}</span><span class="submenu-label">${labelText}</span>`
+      + `<span class="caret">${icon('chevron-right', { size: 12 })}</span>`;
+    const fly = document.createElement('div');
+    fly.className = 'flyout';
+    for (const c of children) fly.append(c);
+    const FLYOUT_W = 176;   // keep in sync with .flyout width in popup.css
+    wrap.addEventListener('mouseenter', () => {
+      const r = head.getBoundingClientRect();
+      wrap.classList.toggle('open-left', r.right + FLYOUT_W > window.innerWidth);
+    });
+    wrap.append(head, fly);
+    return wrap;
+  };
+  // The requested nested actions: Open ▸ / Crop ▸ / Pin ▸. Reused across image, shared,
+  // video-frame and poster contexts.
+  const editSub = (img) => submenu(icon('pencil', { size: 15 }), 'Open', [
+    item(icon('monitor', { size: 15 }), 'Here', () => sendToEditorModal(img, false)),
+    item(icon('external', { size: 15 }), 'In editor', () => sendToEditor(img, false)),
+    item(icon('incognito', { size: 15 }), 'In editor (incognito)', () => sendToEditor(img, true)),
+  ]);
+  const cropSub = (img) => submenu(icon('crop', { size: 15 }), 'Crop', [
+    item(icon('crop', { size: 15 }), 'Here', () => openCrop(img)),
+    item(icon('pencil', { size: 15 }), 'In editor', () => sendToEditor(img, false)),
+    item(icon('incognito', { size: 15 }), 'In editor (incognito)', () => sendToEditor(img, true)),
+  ]);
+  const pinSub = (img) => submenu(icon('pin', { size: 15 }), img.pinned ? 'Pinned' : 'Pin',
+    img.pinned
+      ? [item(icon('pin', { size: 15 }), 'Unpin', () => togglePin(img)),
+         item(icon('server', { size: 15 }), 'Store on server…', () => pinWithPrompt(img))]
+      : [item(icon('pin', { size: 15 }), 'Locally', () => togglePin(img)),
+         item(icon('server', { size: 15 }), 'On server…', () => pinWithPrompt(img))]);
+
   // Already opened: offer to resume the existing editor (switches to the matching
   // project, or lets the user pick when several share this image) or add a fresh
   // numbered copy. Shown first since it's the point of the yellow badge.
   if (isOpened(image)) {
-    // After reconciliation each matched entry carries the live project count for the
-    // source, so they agree — take the max (not a sum, which would multiply duplicates).
     const n = image.opened.reduce((a, e) => Math.max(a, e.count || 1), 0);
     menuEl.append(
       item(icon('refresh', { size: 15 }), `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
@@ -617,61 +697,37 @@ const buildMenu = (image) => {
     );
   }
   if (image.shared) {
-    // A shared (server) row: open / crop the server-stored image. No download or
-    // open-in-tab — the bytes live behind the connection's Bearer auth, not a plain URL.
-    menuEl.append(
-      label('Shared from server'),
-      item(icon('pencil', { size: 15 }), 'Open in editor', () => sendToEditor(image, false)),
-      item(icon('incognito', { size: 15 }), 'Editor (incognito)', () => sendToEditor(image, true)),
-      item(icon('monitor', { size: 15 }), 'Open in editor here', () => sendToEditorModal(image, false)),
-      item(icon('monitor', { size: 15 }), 'Editor here (incognito)', () => sendToEditorModal(image, true)),
-      item(icon('crop', { size: 15 }), 'Crop…', () => openCrop(image))
-    );
+    // A shared (server) row: open / crop the server-stored image. No download/open-in-tab
+    // (bytes behind Bearer auth) and no pin (it's already on the server).
+    menuEl.append(label('Shared from server'), editSub(image), cropSub(image));
   } else if (image.kind === 'video') {
     if (image.videoUrl) menuEl.append(
       item(icon('external', { size: 15 }), 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
       item(icon('download', { size: 15 }), 'Download video', () => download(image.videoUrl))
     );
     if (editableSrc(image)) {
-      // With no decoded frame (unplayed video) these act on the poster instead of a
-      // black frame, via editableSrc() in sendToEditor / openCrop.
       if (image.videoUrl) menuEl.append(sep());
-      menuEl.append(
-        item(icon('pencil', { size: 15 }), 'Open current frame in editor', () => sendToEditor(image, false)),
-        item(icon('incognito', { size: 15 }), 'Frame in editor (incognito)', () => sendToEditor(image, true)),
-        item(icon('monitor', { size: 15 }), 'Open frame in editor here', () => sendToEditorModal(image, false)),
-        item(icon('monitor', { size: 15 }), 'Frame in editor here (incognito)', () => sendToEditorModal(image, true)),
-        item(icon('crop', { size: 15 }), 'Crop current frame', () => openCrop(image))
-      );
+      menuEl.append(label('Current frame'), editSub(image), cropSub(image));
     }
-    // The poster (preview cover) is a normal image independent of the frames — offer
-    // the same open / view / crop actions as the page menu's "Video preview image"
-    // submenu, acting on a synthetic image item for the poster URL.
     if (image.posterUrl) {
       const poster = posterImage(image);
       menuEl.append(
-        sep(),
-        label('Video preview image'),
+        sep(), label('Video preview image'),
         item(icon('external', { size: 15 }), 'Open preview in new tab', () => chrome.tabs.create({ url: poster.src })),
         item(icon('download', { size: 15 }), 'Download preview', () => download(poster.src)),
-        item(icon('pencil', { size: 15 }), 'Open preview in editor', () => sendToEditor(poster, false)),
-        item(icon('incognito', { size: 15 }), 'Preview in editor (incognito)', () => sendToEditor(poster, true)),
-        item(icon('monitor', { size: 15 }), 'Open preview in editor here', () => sendToEditorModal(poster, false)),
-        item(icon('monitor', { size: 15 }), 'Preview here (incognito)', () => sendToEditorModal(poster, true)),
-        item(icon('crop', { size: 15 }), 'Crop preview…', () => openCrop(poster))
+        editSub(poster), cropSub(poster)
       );
     }
+    if (pinnable(image)) menuEl.append(sep(), pinSub(image));
   } else {
     menuEl.append(
       item(icon('download', { size: 15 }), 'Download', () => download(image.src)),
       item(icon('external', { size: 15 }), 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
       sep(),
-      item(icon('pencil', { size: 15 }), 'Open in editor', () => sendToEditor(image, false)),
-      item(icon('incognito', { size: 15 }), 'Editor (incognito)', () => sendToEditor(image, true)),
-      item(icon('monitor', { size: 15 }), 'Open in editor here', () => sendToEditorModal(image, false)),
-      item(icon('monitor', { size: 15 }), 'Editor here (incognito)', () => sendToEditorModal(image, true)),
-      item(icon('crop', { size: 15 }), 'Crop…', () => openCrop(image))
+      editSub(image),
+      cropSub(image)
     );
+    if (pinnable(image)) menuEl.append(pinSub(image));
   }
 };
 
@@ -778,12 +834,11 @@ const download = (src) => chrome.downloads.download({ url: src, filename: filena
 // Pin / unpin an image on this site, then re-render so it floats (or settles back).
 // The storage write also reaches any open side panel / DevTools panel and the page API
 // (entry.pinned) via their storage.onChanged listeners.
-const togglePin = async (image) => {
-  const next = !image.pinned;
-  image.pinned = next;
+const setPinnedState = async (image, pinned) => {
+  image.pinned = pinned;
   await setPinned({
     source: sourceOf(image), site: siteOf(state.activeUrl), resource: state.activeUrl,
-    name: image.name, kind: image.kind, pinned: next,
+    name: image.name, kind: image.kind, pinned,
   });
   applyFilters();           // re-sorts + re-renders: a pinned row floats to the top
   // Follow the row to its new position so it stays in view (and flash it), instead of it
@@ -796,27 +851,13 @@ const togglePin = async (image) => {
     void row.offsetWidth;   // restart the flash animation if it was mid-run
     row.classList.add('just-pinned');
   }
-  // When pinning (not unpinning) with a server connected, offer to also store the image
-  // as a project on a server — a picker for several connections, a checkbox for one.
-  if (next) await maybeStoreOnServer(image);
 };
 
-// Host label for a server origin (e.g. https://srv:8090 → srv:8090).
-const hostLabel = (origin) => {
-  try {
-    return new URL(origin).host;
-  } catch {
-    return origin || '(server)';
-  }
-};
+// Toggle local pin (used by the row's pin button + the menu's Unpin / "Pin locally").
+const togglePin = async (image) => setPinnedState(image, !image.pinned);
 
-// After a local pin, optionally create a project on a connected server. 'none' (no
-// servers) skips silently; otherwise the user picks a target (or declines) and we POST
-// it through connections.createProject, then refresh the shared pins.
-const maybeStoreOnServer = async (image) => {
-  const mode = pinTargetMode(state.connections);
-  if (mode === 'none') return;
-  const serverUrl = await promptServerTarget(mode);
+// Store an already-pinned image on a server as a shared project.
+const storeOnServer = async (image, serverUrl) => {
   const conn = serverUrl ? connectionByUrl(state.connections, serverUrl) : null;
   if (!conn) return;
   try {
@@ -830,10 +871,27 @@ const maybeStoreOnServer = async (image) => {
   }
 };
 
-// A small in-popup dialog asking which server (if any) to store the pin on. 'one' shows
-// a single "store on server" checkbox; 'many' a picker. Resolves the chosen server URL,
-// or null to keep it local only.
-const promptServerTarget = (mode) => new Promise((resolve) => {
+// Pin an image, asking WHERE via the target-selector dialog (Cancel aborts entirely).
+const pinWithPrompt = async (image) => {
+  const target = await promptPinTarget();      // undefined = cancel, '' = local, url = server
+  if (target === undefined) return;            // cancelled — don't pin
+  if (!image.pinned) await setPinnedState(image, true);
+  if (target) await storeOnServer(image, target);
+};
+
+// Host label for a server origin (e.g. https://srv:8090 → srv:8090).
+const hostLabel = (origin) => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return origin || '(server)';
+  }
+};
+
+// In-popup dialog asking WHERE to pin: a single SELECTOR (Pin locally / Store on each
+// connected server) plus Cancel + Pin. Resolves the chosen server URL, '' for local, or
+// undefined when cancelled.
+const promptPinTarget = () => new Promise((resolve) => {
   const back = document.createElement('div');
   back.className = 'dialog-back';
   const box = document.createElement('div');
@@ -842,46 +900,31 @@ const promptServerTarget = (mode) => new Promise((resolve) => {
 
   const title = document.createElement('div');
   title.className = 'dialog-title';
-  title.textContent = 'Also store this image on a server?';
-  box.appendChild(title);
+  title.textContent = 'Where do you want to pin this image?';
 
-  let getValue;
-  if (mode === 'one') {
-    const conn = state.connections[0];
-    const lbl = document.createElement('label');
-    lbl.className = 'dialog-check';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    lbl.append(cb, document.createTextNode(` Store on ${hostLabel(conn.url)}`));
-    box.appendChild(lbl);
-    getValue = () => (cb.checked ? conn.url : null);
-  } else {
-    const sel = document.createElement('select');
-    sel.className = 'dialog-select';
-    sel.innerHTML = '<option value="">Local only (don’t store on a server)</option>' +
-      state.connections.map((c) => `<option value="${c.url}">${hostLabel(c.url)}</option>`).join('');
-    box.appendChild(sel);
-    getValue = () => sel.value || null;
-  }
+  const sel = document.createElement('select');
+  sel.className = 'dialog-select';
+  sel.innerHTML = '<option value="">Pin locally only</option>'
+    + state.connections.map((c) => `<option value="${c.url}">Pin & store on ${hostLabel(c.url)}</option>`).join('');
 
   const row = document.createElement('div');
   row.className = 'dialog-actions';
-  const skip = document.createElement('button');
-  skip.textContent = 'Skip';
-  skip.addEventListener('click', () => finish(null));
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => finish(undefined));
   const ok = document.createElement('button');
   ok.className = 'primary';
-  ok.textContent = 'Save';
-  ok.addEventListener('click', () => finish(getValue()));
-  row.append(skip, ok);
-  box.appendChild(row);
+  ok.textContent = 'Pin';
+  ok.addEventListener('click', () => finish(sel.value));
+  row.append(cancel, ok);
 
+  box.append(title, sel, row);
   back.appendChild(box);
-  back.addEventListener('click', (e) => { if (e.target === back) finish(null); });
+  back.addEventListener('click', (e) => { if (e.target === back) finish(undefined); });   // click-away = cancel
   document.addEventListener('keydown', function esc(e) {
     if (e.key !== 'Escape') return;
     document.removeEventListener('keydown', esc);
-    finish(null);
+    finish(undefined);
   });
   document.body.appendChild(back);
 });
@@ -1025,6 +1068,9 @@ document.getElementById('f-show-pinned').addEventListener('change', async (e) =>
   state.showPinned = e.target.checked;
   applyFilters();
 });
+// Server-pins filter: toggle visibility of server-stored items + per-server narrowing.
+document.getElementById('f-server-pins').addEventListener('change', () => { syncServerFilterUI(); applyFilters(); });
+document.getElementById('f-server-store').addEventListener('change', applyFilters);
 
 // The highlight lives on the page (survives the popup closing), so on open reflect
 // its real state in the checkbox rather than defaulting to unchecked.

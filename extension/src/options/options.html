@@ -39,19 +39,33 @@
     .card + .card { margin-top:20px; }
     .pin-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .pin-head h1 { flex:1 1 auto; }
-    #pin-site { width:auto; min-width:160px; }
+    .pin-filters { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .pin-filters .chk { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; }
+    .pin-filters select { width:auto; min-width:170px; }
+    .pin-filters select:empty, .pin-filters select[hidden] { display:none; }
     .pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
     .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; }
     .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
     .pin-info { flex:1 1 auto; min-width:0; }
     .pin-name { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .conn-status { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--muted); }
+    .conn-status-connected { background:#28a745; }
+    .conn-status-connecting { background:#e0a800; animation:statusPulse 1s ease-in-out infinite; }
+    .conn-status-error { background:#dc3545; }
+    @keyframes statusPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+    /* Golden cue for a pin that is also stored on a connected server. */
+    .pin-row.shared { outline:2px solid #f5c518; outline-offset:-2px; }
+    .pin-row.shared .pin-thumb { border-color:#f5c518; }
+    .pin-badge-server { display:inline-flex; align-items:center; gap:4px; color:#f5c518; font-weight:600; }
+    .pin-badge-server .ic { vertical-align:-0.16em; }
     .pin-sub { display:flex; align-items:center; gap:8px; margin-top:3px; font-size:11px; color:var(--muted); }
     .pin-sub .site { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .pin-kind { text-transform:uppercase; letter-spacing:.03em; border:1px solid var(--line); border-radius:4px; padding:0 5px; }
     .pin-actions { display:flex; gap:6px; flex:0 0 auto; }
-    .pin-btn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:var(--panel); color:var(--muted); border:1px solid var(--line); border-radius:7px; cursor:pointer; }
+    .pin-btn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:var(--panel); color:var(--accent); border:1px solid var(--line); border-radius:7px; cursor:pointer; }
     .pin-btn:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
-    .pin-btn.danger:hover { background:#dc2626; border-color:#dc2626; }
+    .pin-btn.danger { color:#ef4444; }
+    .pin-btn.danger:hover { color:#fff; background:#dc2626; border-color:#dc2626; }
     .pin-empty { color:var(--muted); font-size:13px; margin-top:14px; }
   </style>
 </head>
@@ -122,7 +136,7 @@
     <div class="pin-head">
       <h1>Server connections</h1>
     </div>
-    <p class="sub">Connect to a <a href="../../../server/README.md" style="color:var(--accent-2)">Stencil collaboration server</a>. Its stored projects appear in the popup as <strong>shared pins</strong> (golden outline), and pinning an image lets you store it there too.</p>
+    <p class="sub">Connect to a Stencil collaboration server. Its stored projects appear in the popup as <strong>shared pins</strong> (golden outline), and pinning an image lets you store it there too.</p>
     <label class="f" for="conn-url">Server URL</label>
     <input id="conn-url" type="text" placeholder="http://localhost:8090">
     <label class="f" for="conn-token">Access token (optional)</label>
@@ -130,6 +144,7 @@
     <div class="help">A token is validated if you supply one, otherwise one is requested from the server (open issuance / dev mode). Stored in <code>chrome.storage.local</code>.</div>
     <div class="row">
       <button id="conn-add">Connect</button>
+      <button id="conn-reconnect-all" hidden>Reconnect all</button>
       <span id="conn-status" class="saved"></span>
     </div>
     <ul id="conn-list" class="pin-list"></ul>
@@ -139,7 +154,11 @@
   <div class="card">
     <div class="pin-head">
       <h1>Pinned images</h1>
-      <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
+      <div class="pin-filters">
+        <label class="chk" title="Show pins that are also stored on a connected server (golden outline)"><input type="checkbox" id="pin-show-server" checked> Show server pins</label>
+        <select id="pin-store" title="Filter by the server a pin is stored on"></select>
+        <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
+      </div>
     </div>
     <p class="sub">Images and videos you pinned with the 📌 button, grouped by the site they were pinned on. Pinning floats them to the top of the popup list.</p>
     <ul id="pin-list" class="pin-list"></ul>

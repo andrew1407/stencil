@@ -11,6 +11,11 @@ export const MENU = {
   // Action (toolbar-icon) items — a quick "open a fresh editor" not tied to any image.
   actionOpen: 'stencil-action-open',
   actionOpenIncognito: 'stencil-action-open-incognito',
+  // Nested "Open in editor ▸" submenu parents (one per context group), so the flat list
+  // becomes Open ▸ / Crop / Pin under the Stencil parent.
+  openParent: 'stencil-open-parent',
+  frameOpenParent: 'stencil-frame-open-parent',
+  bgOpenParent: 'stencil-bg-open-parent',
   // Image actions (on <img>).
   open: 'stencil-open',
   openResume: 'stencil-open-resume',
@@ -98,19 +103,22 @@ export const MENU_ITEMS = [
   // → shown on the extension icon's right-click menu, never on a page element.
   { id: MENU.actionOpen, parentId: MENU.root, title: '✎ Open Stencil editor', contexts: ACTION_CONTEXTS },
   { id: MENU.actionOpenIncognito, parentId: MENU.root, title: '🕶 Open Stencil editor (incognito)', contexts: ACTION_CONTEXTS },
-  // Image: a real <img>.
-  { id: MENU.open, parentId: MENU.root, title: '✎ Open image in Stencil editor', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openResume, parentId: MENU.root, title: '↩ Resume in existing Stencil editor', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openIncognito, parentId: MENU.root, title: '🕶 Open in Stencil (incognito)', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: IMAGE_CONTEXTS },
-  { id: MENU.openModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: IMAGE_CONTEXTS },
+  // Image: a real <img>. The five open variants nest under an "Open in editor ▸" parent;
+  // Crop + Pin stay at the top level (single actions).
+  { id: MENU.openParent, parentId: MENU.root, title: '✎ Open in editor', contexts: IMAGE_CONTEXTS },
+  { id: MENU.open, parentId: MENU.openParent, title: '↗ New tab', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openResume, parentId: MENU.openParent, title: '↩ Resume existing editor', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openIncognito, parentId: MENU.openParent, title: '🕶 New tab (incognito)', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openModal, parentId: MENU.openParent, title: '▣ Here', contexts: IMAGE_CONTEXTS },
+  { id: MENU.openModalIncognito, parentId: MENU.openParent, title: '▣ Here (incognito)', contexts: IMAGE_CONTEXTS },
   { id: MENU.crop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: IMAGE_CONTEXTS },
   { id: MENU.pin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: IMAGE_CONTEXTS },
-  // Video: act on the CURRENT FRAME.
-  { id: MENU.frameOpen, parentId: MENU.root, title: '✎ Open current frame in editor', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameOpenIncognito, parentId: MENU.root, title: '🕶 Current frame in editor (incognito)', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameModal, parentId: MENU.root, title: '▣ Open current frame in editor here', contexts: VIDEO_CONTEXTS },
-  { id: MENU.frameModalIncognito, parentId: MENU.root, title: '▣ Current frame here (incognito)', contexts: VIDEO_CONTEXTS },
+  // Video: act on the CURRENT FRAME. Open variants nest under their own parent.
+  { id: MENU.frameOpenParent, parentId: MENU.root, title: '✎ Open current frame', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameOpen, parentId: MENU.frameOpenParent, title: '↗ New tab', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameOpenIncognito, parentId: MENU.frameOpenParent, title: '🕶 New tab (incognito)', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameModal, parentId: MENU.frameOpenParent, title: '▣ Here', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameModalIncognito, parentId: MENU.frameOpenParent, title: '▣ Here (incognito)', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameCrop, parentId: MENU.root, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
   { id: MENU.framePin, parentId: MENU.root, title: '📌 Pin / unpin video', contexts: VIDEO_CONTEXTS },
   // Video: the poster / preview image — a genuine sub-category, kept as a submenu.
@@ -125,11 +133,12 @@ export const MENU_ITEMS = [
   { id: MENU.previewCrop, parentId: MENU.previewParent, title: '✂ Crop preview…', contexts: VIDEO_CONTEXTS, visible: false },
   // Background-image / image-link group: 'all'-context items, default-hidden.
   // The worker reveals this group (only) for background/linked images under the cursor.
-  { id: MENU.bgOpen, parentId: MENU.root, title: '✎ Open image in Stencil editor', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenResume, parentId: MENU.root, title: '↩ Resume in existing Stencil editor', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenIncognito, parentId: MENU.root, title: '🕶 Open in Stencil (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenModal, parentId: MENU.root, title: '▣ Open image in Stencil here', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgOpenModalIncognito, parentId: MENU.root, title: '▣ Open in Stencil here (incognito)', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenParent, parentId: MENU.root, title: '✎ Open in editor', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpen, parentId: MENU.bgOpenParent, title: '↗ New tab', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenResume, parentId: MENU.bgOpenParent, title: '↩ Resume existing editor', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenIncognito, parentId: MENU.bgOpenParent, title: '🕶 New tab (incognito)', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenModal, parentId: MENU.bgOpenParent, title: '▣ Here', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenModalIncognito, parentId: MENU.bgOpenParent, title: '▣ Here (incognito)', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgPin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: ALL_CONTEXTS, visible: false }
 ];
@@ -137,6 +146,7 @@ export const MENU_ITEMS = [
 // The background/link items the worker reveals/hides together. Exported so the SW
 // and tests share one source.
 export const DYNAMIC_ITEMS = [
+  MENU.bgOpenParent,
   MENU.bgOpen, MENU.bgOpenResume, MENU.bgOpenIncognito,
   MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop, MENU.bgPin
 ];

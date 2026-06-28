@@ -4,6 +4,7 @@
 // net::ConnectionManager, so the same connections drive shared-project access.
 #include <QDialog>
 
+class QCheckBox;
 class QLineEdit;
 class QListWidget;
 
@@ -26,6 +27,9 @@ namespace stencil::gui {
     QLineEdit* urlEdit_ = nullptr;
     QLineEdit* tokenEdit_ = nullptr;
     QListWidget* list_ = nullptr;
+    // "Auto-connect on open" — moved here from Settings (it's a connection
+    // preference); persisted to net::connectionStore on toggle.
+    QCheckBox* autoConnect_ = nullptr;
   };
 
 }  // namespace stencil::gui

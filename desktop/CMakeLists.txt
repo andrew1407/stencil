@@ -87,6 +87,7 @@ if(Qt6_FOUND)
     src/dialogs/shortcutsDialog.cpp
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
+    src/net/connectionStore.cpp
     src/io/fileStore.cpp
     src/io/mediaLoader.cpp
     src/support/theme.cpp

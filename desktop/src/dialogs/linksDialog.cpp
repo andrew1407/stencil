@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <QAudioOutput>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QFormLayout>
 #include <QFrame>
@@ -41,8 +42,8 @@ namespace stencil::gui {
   }  // namespace
 
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
-                           bool hasImage, QWidget* parent)
-      : QDialog(parent) {
+                           bool hasImage, const QString& pageSeed, QWidget* parent)
+      : QDialog(parent), pageSeed_(pageSeed == "A4" ? "A4" : "A3") {
     setWindowTitle("Image links");
     setMinimumWidth(480);
 
@@ -135,6 +136,31 @@ namespace stencil::gui {
     previewHint_->setWordWrap(true);
     addForm->addRow(previewHint_);
 
+    // ── Quick pre-load edits (mirrors browser linksModal quick-crop): open the
+    // editor already cropped to a page aspect/orientation, or uncropped. Shown only
+    // once a preview resolves an image/frame. ──
+    quickcropRow_ = new QWidget(this);
+    {
+      auto* qc = new QHBoxLayout(quickcropRow_);
+      qc->setContentsMargins(0, 0, 0, 0);
+      cropPage_ = new QCheckBox("Crop to page", quickcropRow_);
+      cropPage_->setChecked(true);
+      cropPage_->setToolTip("Crop the image to the page aspect on load");
+      cropAlbum_ = new QCheckBox("Album", quickcropRow_);
+      cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
+      cropPageSize_ = new QComboBox(quickcropRow_);
+      cropPageSize_->addItems({"A3", "A4"});
+      cropPageSize_->setToolTip("Page size to crop to");
+      qc->addWidget(cropPage_);
+      qc->addWidget(cropAlbum_);
+      qc->addWidget(cropPageSize_);
+      qc->addStretch(1);
+    }
+    quickcropRow_->setVisible(false);  // shown once a preview succeeds
+    addForm->addRow("Quick edits:", quickcropRow_);
+    // Album / page only matter when cropping to page; grey them out otherwise.
+    connect(cropPage_, &QCheckBox::toggled, this, &LinksDialog::syncQuickcropEnabled);
+
     loadBtn_ = new QPushButton("⬇ Load into editor", this);
     loadBtn_->setEnabled(false);  // enabled once a preview succeeds
     connect(loadBtn_, &QPushButton::clicked, this, &LinksDialog::requestLoad);
@@ -164,6 +190,7 @@ namespace stencil::gui {
                 frameRow_->setVisible(true);
                 applyFrameBounds();  // size the slider / spin box to this video
                 updateVideoPreview();
+                showQuickcrop(frameImage_.width(), frameImage_.height());
                 // Load the video ONCE into a persistent player for live scrubbing
                 // (re-streaming per frame, as the detector does, never seeks reliably).
                 setupScrubPlayer(preview_->resolvedUrl());
@@ -173,6 +200,7 @@ namespace stencil::gui {
                 thumbImage_ = QImage();
                 frameRow_->setVisible(false);
                 showPreview(img, QString("Image %1×%2").arg(img.width()).arg(img.height()));
+                showQuickcrop(img.width(), img.height());
               }
             });
     connect(preview_, &MediaLoader::failed, this, [this](const QString& msg) {
@@ -183,6 +211,7 @@ namespace stencil::gui {
       previewIsVideo_ = false;
       previewLabel_->clear();
       frameRow_->setVisible(false);
+      quickcropRow_->setVisible(false);
       usePreview_->setEnabled(false);
       previewHint_->setText("Could not load that URL — " + msg);
       loadBtn_->setEnabled(false);
@@ -268,6 +297,7 @@ namespace stencil::gui {
     previewLabel_->clear();
     previewHint_->clear();
     frameRow_->setVisible(false);
+    quickcropRow_->setVisible(false);
     usePreview_->setEnabled(false);
     frame_->setEnabled(true);
     frameTotal_->clear();
@@ -401,6 +431,25 @@ namespace stencil::gui {
                           .arg(shown.width()).arg(shown.height()));
   }
 
+  // Reveal the quick-crop row for a previewed image/frame, defaulting the album
+  // toggle to the media's orientation (wider-than-tall ⇒ album) and the page size
+  // to the app's current page (mirrors the browser's showQuickcrop).
+  void LinksDialog::showQuickcrop(int w, int h) {
+    cropPage_->setChecked(true);
+    cropAlbum_->setChecked((w >= h) && (w > 0));
+    const int idx = cropPageSize_->findText(pageSeed_);
+    cropPageSize_->setCurrentIndex(idx < 0 ? 0 : idx);
+    syncQuickcropEnabled();
+    quickcropRow_->setVisible(true);
+  }
+
+  // Album / page size are only meaningful while cropping to page.
+  void LinksDialog::syncQuickcropEnabled() {
+    const bool on = cropPage_->isChecked();
+    cropAlbum_->setEnabled(on);
+    cropPageSize_->setEnabled(on);
+  }
+
   void LinksDialog::requestLoad() {
     if (previewImage_.isNull()) return;  // Load is gated on a successful preview
     loadRequested_ = true;
@@ -412,5 +461,9 @@ namespace stencil::gui {
   QString LinksDialog::urlSource() const { return urlEdit_->text().trimmed(); }
   QString LinksDialog::urlResource() const { return urlResourceEdit_->text().trimmed(); }
   int LinksDialog::urlFrame() const { return frame_->value(); }
+
+  bool LinksDialog::cropToPage() const { return cropPage_->isChecked(); }
+  bool LinksDialog::cropAlbum() const { return cropAlbum_->isChecked(); }
+  QString LinksDialog::cropPageSize() const { return cropPageSize_->currentText(); }
 
 }

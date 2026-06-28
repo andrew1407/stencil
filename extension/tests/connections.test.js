@@ -173,15 +173,36 @@ test('projectRequestFromImage maps name/source/resource with fallbacks', () => {
   assert.deepEqual(projectRequestFromImage(), { name: 'Untitled', source: '', resource: '' });
 });
 
-test('fetchProjectImage GETs the original file with Bearer auth', async () => {
+test('fetchProjectImage defaults to the original file with Bearer auth', async () => {
   let seen = null;
   const f = async (url, init) => {
     seen = { url, headers: init.headers, method: init.method };
     return { ok: true, status: 200, blob: async () => 'IMG_BYTES' };
   };
-  const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', f);
+  const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'original', f);
   assert.equal(blob, 'IMG_BYTES');
   assert.equal(seen.method, 'GET');
   assert.equal(seen.url, 'http://srv:1/projects/p_a/files/original');
   assert.equal(seen.headers.Authorization, 'Bearer tok');
+});
+
+test('fetchProjectImage with kind omitted still hits the original file', async () => {
+  let seen = null;
+  const f = async (url) => {
+    seen = url;
+    return { ok: true, status: 200, blob: async () => 'BYTES' };
+  };
+  await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', undefined, f);
+  assert.equal(seen, 'http://srv:1/projects/p_a/files/original');
+});
+
+test('fetchProjectImage can request the edited result variant', async () => {
+  let seen = null;
+  const f = async (url) => {
+    seen = url;
+    return { ok: true, status: 200, blob: async () => 'RESULT_BYTES' };
+  };
+  const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'result', f);
+  assert.equal(blob, 'RESULT_BYTES');
+  assert.equal(seen, 'http://srv:1/projects/p_a/files/result');
 });

@@ -33,17 +33,34 @@ export class StencilConfirmModal extends StencilElement {
     const cancelBtn = document.getElementById('confirm-modal-cancel');
     const confirmBtn = document.getElementById('confirm-modal-confirm');
 
-    // Resolver for the in-flight ask(); null when no dialog is open.
+    const body = overlay.querySelector('.settings-body');
+
+    // Resolver for the in-flight ask()/choose(); null when no dialog is open.
     let resolveCurrent = null;
+    // When set, the dialog is in "choose" mode: Confirm resolves with the picked
+    // value, Cancel/Close/Escape resolve null (instead of the plain boolean).
+    let choiceSelect = null;
     const settle = (val) => {
       overlay.classList.remove('modal-open');
       document.removeEventListener('keydown', onKey, true);
       const r = resolveCurrent; resolveCurrent = null;
-      if (r) r(val);
+      const sel = choiceSelect; choiceSelect = null;
+      if (sel) sel.parentElement?.remove();   // drop the injected picker row
+      if (r) r(sel ? (val ? sel.value : null) : val);
     };
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); settle(false); }
       else if (e.key === 'Enter') { e.preventDefault(); settle(true); }
+    };
+    // Shared open: set labels/danger, show the overlay, arm the key handler.
+    const beginDialog = (message, opts, defaultTitle) => {
+      document.getElementById('confirm-modal-title-text').textContent = opts.title || defaultTitle;
+      document.getElementById('confirm-modal-message').textContent = message || '';
+      document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'Confirm';
+      document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
+      confirmBtn.classList.toggle('danger', !!opts.danger);
+      overlay.classList.add('modal-open');
+      document.addEventListener('keydown', onKey, true);
     };
 
     closeBtn.addEventListener('click', () => settle(false));
@@ -54,16 +71,48 @@ export class StencilConfirmModal extends StencilElement {
     // Public API consumed by app.confirm().
     this.ask = (message, opts = {}) => new Promise(resolve => {
       // A second ask while one is open: cancel the previous.
-      if (resolveCurrent) { const prev = resolveCurrent; resolveCurrent = null; prev(false); }
+      if (resolveCurrent) {
+        const prev = resolveCurrent;
+        resolveCurrent = null;
+        prev(false);
+      }
       resolveCurrent = resolve;
-      document.getElementById('confirm-modal-title-text').textContent = opts.title || 'Confirm';
-      document.getElementById('confirm-modal-message').textContent = message || '';
-      document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'Confirm';
-      document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
-      confirmBtn.classList.toggle('danger', !!opts.danger);
+      beginDialog(message, opts, 'Confirm');
+      setTimeout(() => confirmBtn.focus(), 30);
+    });
+
+    // Picker variant: same modal with a <select> injected below the message.
+    // Resolves the chosen option value on Confirm, null on Cancel/Close/Escape.
+    // opts: { title, confirmLabel, cancelLabel, options:[{value,label}] }.
+    this.choose = (message, opts = {}) => new Promise(resolve => {
+      if (resolveCurrent) {
+        const prev = resolveCurrent;
+        resolveCurrent = null;
+        prev(choiceSelect ? null : false);
+      }
+      if (choiceSelect) {
+        choiceSelect.parentElement?.remove();
+        choiceSelect = null;
+      }
+      resolveCurrent = resolve;
+      beginDialog(message, opts, 'Choose');
+      // Build the picker row (created here, not in static markup, so the markup tests stay green).
+      const wrap = document.createElement('div');
+      wrap.className = 'confirm-choose-row';
+      const sel = document.createElement('select');
+      sel.className = 'confirm-choose-select';
+      for (const o of (opts.options || [])) {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label != null ? o.label : o.value;
+        sel.appendChild(opt);
+      }
+      wrap.appendChild(sel);
+      body.appendChild(wrap);
+      choiceSelect = sel;
       overlay.classList.add('modal-open');
       document.addEventListener('keydown', onKey, true);
-      setTimeout(() => confirmBtn.focus(), 30);
+      setTimeout(() => sel.focus(), 30);
     });
   }
 }

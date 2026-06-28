@@ -115,9 +115,14 @@ namespace stencil::gui {
     core::Lines linesFromJson(const QJsonArray& arr);
 
     // ── Layout-JSON envelope (browser drawingApp.js:2078-2079 download/upload
-    // layout). buildLayoutJson emits {imageWidth,imageHeight,lines};
-    // parseLayoutJson reads them back, reporting the stored image dimensions.
-    QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines);
+    // layout). buildLayoutJson emits {imageWidth,imageHeight,lines,imageFilter,
+    // filterColor} — the filter/tint ride along so a reopened project (server or
+    // file) restores the same b&w/sepia/tint result, matching the browser layout
+    // blob (storage.js #buildLayout). parseLayoutJson reads the lines back,
+    // reporting the stored image dimensions.
+    QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
+                                const QString& imageFilter = "none",
+                                const QString& filterColor = "#7c3aed");
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut);
 
     QString hotkeysPath();

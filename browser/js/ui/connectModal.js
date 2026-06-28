@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
+import { getAutoConnect, setAutoConnect } from '../net/connectionStore.js';
 
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
@@ -23,14 +24,19 @@ export class StencilConnectModal extends StencilElement {
                 </div>
                 <div class="vs-row">
                     <button id="connect-add" class="btn-icon-text">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
-                    <button id="connect-reconnect" class="btn-icon" title="Reconnect all">${icon('refresh', { size: 15 })}</button>
+                    <button id="connect-reconnect" class="btn-icon-text" title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
+                </div>
+                <div class="vs-row">
+                    <label title="Reconnect saved servers automatically when the editor opens">
+                        <input type="checkbox" id="connect-autoconnect"> Auto-connect on open
+                    </label>
                 </div>
 
                 <div class="vs-section">Connections</div>
                 <div id="connect-list"><!-- filled by JS --></div>
             </div>
             <div class="settings-footer">
-                <span class="footer-hint">Server projects appear in Projects with a golden outline.</span>
+                <span class="footer-hint">Connections are saved and (optionally) restored on open · server projects show a golden outline.</span>
             </div>
         </div>
     `;
@@ -64,9 +70,26 @@ export class StencilConnectModal extends StencilElement {
       for (const url of urls) {
         const row = document.createElement('div');
         row.className = 'connect-row';
+        const conn = cm.get(url);
+        // Connection-status dot: green=connected, yellow=connecting/refreshing, red=error/dropped.
+        const status = conn ? (conn.status || 'connected') : 'error';
+        const statusText = { connected: 'Connected', connecting: 'Connecting…', error: 'Disconnected — not reachable', disconnected: 'Disconnected' }[status] || status;
         const label = document.createElement('span');
         label.className = 'connect-url';
-        label.innerHTML = `${icon('server', { size: 14 })}<span>${url}</span>`;
+        label.title = `${statusText} — ${url}`;
+        label.innerHTML = `<span class="conn-status conn-status-${status}" title="${statusText}"></span>${icon('server', { size: 14 })}<span>${url}</span>`;
+        // Per-row reconnect — re-establish just this server (token re-validated).
+        const recon = document.createElement('button');
+        recon.className = 'connect-reconnect-one btn-icon';
+        recon.title = 'Reconnect this server';
+        recon.innerHTML = icon('refresh', { size: 15 });
+        recon.addEventListener('click', async () => {
+          recon.disabled = true;
+          try { await mgr().reconnectOne(url); notify('Reconnected', 'ok'); }
+          catch (err) { notify(`Reconnect failed — ${err.message}`, 'fail'); }
+          finally { recon.disabled = false; }
+          render();
+        });
         const disc = document.createElement('button');
         disc.className = 'connect-disconnect danger btn-icon';
         disc.title = 'Disconnect';
@@ -76,7 +99,12 @@ export class StencilConnectModal extends StencilElement {
           notify('Disconnected', 'ok');
           render();
         });
-        row.append(label, disc);
+        // Keep reconnect + disconnect grouped tight on the right (their own flex
+        // box), rather than letting the row's space-between fling them apart.
+        const actions = document.createElement('div');
+        actions.className = 'connect-actions';
+        actions.append(recon, disc);
+        row.append(label, actions);
         list.appendChild(row);
       }
     };
@@ -108,7 +136,12 @@ export class StencilConnectModal extends StencilElement {
       render();
     });
 
-    wireModalShell(overlay, $('connect-btn'), $('connect-close'), { onOpen: render });
+    // Auto-connect-on-open toggle: reflect the saved preference and persist changes.
+    const autoEl = $('connect-autoconnect');
+    autoEl.checked = getAutoConnect();
+    autoEl.addEventListener('change', () => setAutoConnect(autoEl.checked));
+
+    wireModalShell(overlay, $('connect-btn'), $('connect-close'), { onOpen: () => { autoEl.checked = getAutoConnect(); render(); } });
 
     // Keep the list live when connections change from the console facade or events.
     window.addEventListener('stencil:connections-changed', () => {

@@ -6,6 +6,7 @@
 // TCP listener) so no third-party dependency is added. This header covers the
 // REST surface (connect/list/create/upload/download) plus a small manager that
 // holds multiple connections for one window.
+#include "connectionStore.hpp"
 #include <QByteArray>
 #include <QObject>
 #include <QString>
@@ -40,6 +41,10 @@ namespace stencil::net {
   // lastError() on failure.
   class ServerClient {
    public:
+    // Connection status for the UI dot: Connecting (yellow) | Connected (green) |
+    // Error (red).
+    enum class Status { Connecting, Connected, Error };
+
     explicit ServerClient(const QString& url);
     ~ServerClient();
 
@@ -58,6 +63,7 @@ namespace stencil::net {
     const QString& base() const { return base_; }
     const QString& token() const { return token_; }
     const QString& lastError() const { return err_; }
+    Status status() const { return status_; }
 
     bool listProjects(QVector<ServerProject>& out);
     // Create a project; on success fills outId/outVersion. hasImage/w/h record the
@@ -74,6 +80,9 @@ namespace stencil::net {
     bool uploadFile(const QString& id, const QString& kind, const QByteArray& bytes,
                     const QString& ext, int w, int h);
     QByteArray downloadFile(const QString& id, const QString& kind, bool& ok);
+    // Delete a project on the server (DELETE /projects/{id}). Returns false +
+    // sets lastError() on failure. Used by the "move to local" flow.
+    bool deleteProject(const QString& id);
 
    private:
     // Perform an HTTP request; returns the body and sets `status`. `method` is an
@@ -85,6 +94,7 @@ namespace stencil::net {
     QString base_;
     QString token_;
     QString err_;
+    Status status_ = Status::Connecting;
   };
 
   // Holds the set of server connections for one window and notifies the UI when
@@ -107,6 +117,10 @@ namespace stencil::net {
     QStringList urls() const;
     ServerClient* find(const QString& url) const;
     const QVector<ServerClient*>& clients() const { return clients_; }
+
+    // Persistable view of the live set as { url, token } (see connectionStore),
+    // so the connect UI can save it on every change and restore it on launch.
+    QVector<SavedServer> snapshot() const;
 
     // Aggregate shared projects (with images) across every connection.
     QVector<ServerProject> sharedProjects() const;

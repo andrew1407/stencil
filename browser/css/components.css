@@ -462,7 +462,9 @@ body.fullscreen-mode #fs-points-panel {
     position: fixed;
     left: 18px;
     bottom: 18px;
-    z-index: 100000;
+    /* Above the modal overlay (z-index 100001) + its backdrop blur, so toasts stay
+       crisp and readable while any dialog is open instead of sitting behind it. */
+    z-index: 100002;
     min-width: 180px;
     max-width: 380px;
     padding: 10px 14px;
@@ -785,6 +787,14 @@ body.fullscreen-mode #fs-points-panel {
 .vs-row label { font-weight: normal; }
 .vs-row input[type="color"] { width: 54px; height: 30px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
+/* "Save to" target selects hold longer option labels ("Local (this browser)",
+   server URLs) — let them size to content instead of clipping at 90px. */
+.vs-row select[id$="-target"] { width: auto; min-width: 150px; max-width: 240px; }
+/* Quick pre-load edits row (links modal): inline checkboxes + a small page select. */
+.links-quickcrop-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.links-inline-check { display: inline-flex; align-items: center; gap: 5px; font-weight: normal; white-space: nowrap; }
+.links-quickcrop-controls select { width: auto; min-width: 64px; }
+.links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled { opacity: .5; }
 /* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accentPicker.js) ──
    A native <select> can't paint a colour rect per option on every OS, so this is
    a small listbox: trigger (current swatch + name) plus a popup of rect+name rows. */
@@ -844,6 +854,13 @@ body.fullscreen-mode #fs-points-panel {
 }
 .accent-dd-opt:hover { background: var(--bg-coord-hover); }
 .accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+/* Custom toolbar selects (customSelect.js): reuse the .accent-dd look but size the
+   trigger to its content (page-size / units are narrow) and match the surrounding
+   native controls (4px radius, 14px). The replaced native <select> is hidden but
+   stays in the DOM as the value source. */
+.cs-native { display: none; }
+.cs-dd .accent-dd-trigger { min-width: 0; gap: 6px; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
+.cs-dd .accent-dd-menu { left: 0; right: auto; min-width: 100%; }
 #vs-reset {
     background: transparent;
     border: 1px solid var(--border-main) !important;
@@ -922,6 +939,16 @@ body.fullscreen-mode #fs-points-panel {
 }
 .info-desc { flex: 1; color: var(--text-info); font-weight: 400; }
 .info-empty { padding: 16px 4px; color: var(--text-muted); font-size: 13px; }
+/* Skeleton placeholder rows shown while server projects load (shimmer keyframe in
+   animations.css), so a modal opens instantly instead of blocking on the network. */
+.project-skeleton { pointer-events: none; cursor: default; }
+.project-skeleton .project-thumb { border: none; }
+.skel {
+    background: linear-gradient(90deg, var(--bg-info) 25%, var(--border-main) 37%, var(--bg-info) 63%);
+    background-size: 200% 100%; animation: shimmerSweep 1.2s linear infinite; border-radius: 4px;
+}
+.skel-line { height: 12px; width: 60%; }
+.skel-line.short { width: 35%; margin-top: 8px; }
 
 /* ── Custom-element hosts ───────────────────────────────────────
    Custom elements default to display:inline. Hosts reusing a styled id/class
@@ -947,15 +974,28 @@ stencil-fullscreen-layer { display: contents; }
     display: flex; align-items: center; justify-content: center;
     background: var(--bg-info); border: 1px solid var(--border-main);
 }
-.project-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.project-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
 .project-thumb-placeholder { font-size: 24px; color: var(--text-muted); }
+/* Magnified hover preview of a row thumbnail — follows the cursor (positioned in JS).
+   z-index must clear the modal overlay (100001), else it renders behind the modal. */
+.project-thumb-zoom {
+    position: fixed; z-index: 100002; display: none; pointer-events: none;
+    padding: 4px; background: var(--input-bg); border-radius: 8px;
+    border: 2px solid var(--remote-gold); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+.project-thumb-zoom img { display: block; max-width: 320px; max-height: 320px; }
 .project-info { flex: 1; min-width: 0; }
 .project-name { font-weight: 600; font-size: 14px; color: var(--text-key); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+/* Flex row so the date, expiry, and the gold server badge sit on one baseline with
+   a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
+.project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
 .project-sub.project-expired { color: var(--danger); font-weight: 600; }
 .project-sub.project-expiring { color: var(--warning); font-weight: 600; }
 .project-open-elsewhere { color: var(--accent); }
 .project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+/* Whole row opens the project on click; "⋯" (and its menu) stop propagation. */
+.project-row.project-clickable { cursor: pointer; }
+.project-row.is-opening { opacity: 0.6; pointer-events: none; }
 .project-switch:disabled { opacity: 0.6; cursor: default; }
 .project-row.project-incognito { border-color: var(--accent); border-style: dashed; }
 .project-row.project-incognito .project-name { color: var(--accent); }
@@ -967,21 +1007,84 @@ stencil-fullscreen-layer { display: contents; }
     border-color: var(--remote-gold);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
 }
-.project-row.project-remote .project-thumb { border-color: var(--remote-gold); }
+/* Golden cue lives on the row block only — the thumbnail keeps its neutral border. */
 .project-remote-badge {
     display: inline-flex; align-items: center; gap: 4px;
     color: var(--remote-gold); font-weight: 600;
 }
 .project-remote-badge .ic { color: var(--remote-gold); }
 
+/* Move-between-storage buttons: gold tint to read as "to/from server". */
+.project-to-server:hover, .project-to-local:hover { color: var(--remote-gold); border-color: var(--remote-gold); }
+.project-to-server:disabled, .project-to-local:disabled { opacity: 0.6; cursor: default; }
+
+/* Per-row "⋯" overflow menu (secondary actions) — floats above the modal. */
+.project-more.is-loading .ic, .project-switch.is-loading .ic { animation: spin 0.8s linear infinite; }
+.project-menu {
+    position: fixed; z-index: 100003; min-width: 184px; padding: 5px;
+    background: var(--bg-container); border: 1px solid var(--border-main); border-radius: 10px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 2px;
+}
+.project-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    background: transparent; border: 0; color: var(--text-main); border-radius: 7px;
+    padding: 8px 10px; font-size: 13px; cursor: pointer; text-align: left;
+}
+.project-menu-item .ic { flex: 0 0 auto; color: var(--text-muted); }
+.project-menu-item:hover { background: var(--accent); color: #fff; }
+.project-menu-item:hover .ic { color: #fff; }
+/* Destructive item: red TEXT on the menu background (a dedicated class, NOT the
+   global `.danger`, which would fill the whole button red). */
+.project-menu-item.is-danger { color: var(--danger); }
+.project-menu-item.is-danger .ic { color: var(--danger); }
+.project-menu-item.is-danger:hover { background: var(--danger); color: #fff; }
+.project-menu-item.is-danger:hover .ic { color: #fff; }
+
+/* Server picker injected into the confirm modal (app.choose). */
+.confirm-choose-row { margin-top: 12px; }
+.confirm-choose-select {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
+    font-size: 13px; cursor: pointer;
+}
+
 /* ── Server connections modal ───────────────────────────────────── */
 .connect-row {
-    display: flex; align-items: center; gap: 10px; justify-content: space-between;
+    display: flex; align-items: center; gap: 10px;
     padding: 6px 10px; border: 1px solid var(--border-main); border-radius: 8px;
     margin-bottom: 6px; background: var(--input-bg);
 }
-.connect-row .connect-url { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.connect-row .connect-url { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Connection-status dot: green=connected, yellow=connecting/refreshing, red=error. */
+.conn-status { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent); }
+.conn-status-connected { background: #28a745; color: #28a745; }
+.conn-status-connecting { background: #e0a800; color: #e0a800; animation: statusPulse 1s ease-in-out infinite; }
+.conn-status-error, .conn-status-disconnected { background: #dc3545; color: #dc3545; }
+@keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.connect-row .connect-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .connect-row .connect-url .ic { color: var(--remote-gold); flex: 0 0 auto; }
+/* Per-row icon buttons (reconnect / disconnect): compact, subtle, bordered — match
+   the links modal's .links-open/.links-clear rather than the chunky filled default;
+   accent/danger only tints on hover. */
+.connect-row .connect-reconnect-one,
+.connect-row .connect-disconnect {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border: 1px solid var(--border-main) !important;
+    border-radius: 4px;
+    background: var(--bg-info);
+    color: var(--text-main);
+    cursor: pointer;
+}
+.connect-row .connect-reconnect-one:hover { background: var(--bg-info); border-color: var(--accent) !important; color: var(--accent); }
+.connect-row .connect-disconnect:hover { background: var(--bg-info); border-color: var(--danger) !important; color: var(--danger); }
+.connect-row .connect-reconnect-one:disabled,
+.connect-row .connect-disconnect:disabled {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    border-color: var(--border-main) !important;
+    cursor: not-allowed;
+}
 /* Inline rename input shown in place of .project-name */
 .project-name-edit {
     font-weight: 600;

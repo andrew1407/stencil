@@ -1,6 +1,34 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx } from '../js/core/layout.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines } from '../js/core/layout.js';
+
+// ── mergeLines (concurrent co-edit conflict resolution) ──
+test('mergeLines: unions distinct lines from both editors', () => {
+  const a = { points: [{ x: 0, y: 0 }], color: '#f00' };  // server-only
+  const shared = { points: [{ x: 1, y: 1 }], color: '#0f0' };
+  const b = { points: [{ x: 2, y: 2 }], color: '#00f' };  // local-only
+  const merged = mergeLines([shared, a], [shared, b]);
+  assert.equal(merged.length, 3);                 // shared not duplicated
+  assert.deepEqual(merged, [shared, a, b]);        // server order first, then new local
+});
+test('mergeLines: identical sets dedupe to one copy', () => {
+  const l = { points: [{ x: 0, y: 0 }], color: '#f00' };
+  assert.deepEqual(mergeLines([l], [l]), [l]);
+});
+test('mergeLines: dedupes the same line regardless of property key order', () => {
+  // A locally-authored line vs its server round-tripped twin (re-serialized key order).
+  const local = { points: [{ x: 1, y: 2 }], color: '#f00', thickness: 2, markerSize: 4, style: 'solid', locked: false, fillColor: 'transparent' };
+  const server = { color: '#f00', style: 'solid', thickness: 2, markerSize: 4, locked: false, fillColor: 'transparent', points: [{ x: 1, y: 2 }] };
+  assert.equal(mergeLines([server], [local]).length, 1);   // must NOT duplicate
+});
+test('mergeLines: handles empty / non-array inputs', () => {
+  const l = { points: [], color: '#f00' };
+  assert.deepEqual(mergeLines([], [l]), [l]);
+  assert.deepEqual(mergeLines([l], []), [l]);
+  assert.deepEqual(mergeLines(null, [l]), [l]);
+  assert.deepEqual(mergeLines([l], null), [l]);
+  assert.deepEqual(mergeLines(undefined, undefined), []);
+});
 
 // ── buildLayoutPayload ──────────────────────────────────────────
 test('buildLayoutPayload passes the lines array through by reference', () => {
