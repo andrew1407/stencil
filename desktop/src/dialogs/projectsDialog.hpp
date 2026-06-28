@@ -9,9 +9,11 @@
 #include <vector>
 
 class QListWidget;
+class QListWidgetItem;
 class QTimer;
 class QNetworkAccessManager;
 class QLabel;
+class QPoint;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -79,6 +81,9 @@ namespace stencil::gui {
     // A uniform 56×56 fallback tile (centered native glyph) shown when a row has no
     // image, so every row is the same height. `remote` picks a network vs file glyph.
     QPixmap placeholderIcon(bool remote) const;
+    // Per-row action menu (the "⋯" kebab + right-click both call this). Selects
+    // `it` first, since the action slots act on the current item.
+    void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
     void openSelected();
     void openSelectedInNewWindow();
     void deleteSelected();

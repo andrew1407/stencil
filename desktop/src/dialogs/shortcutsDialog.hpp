@@ -5,6 +5,9 @@
 #include <QVector>
 
 class QKeySequenceEdit;
+class QLineEdit;
+class QWidget;
+class QAbstractButton;
 
 // Shortcut rebinding dialog (S13). Lists every hotkey id with a QKeySequenceEdit
 // prefilled with its current binding (config default + any saved override), plus
@@ -32,9 +35,16 @@ namespace stencil::gui {
     struct Row {
       QString id;
       QString defaultSeq;
+      QString label;             // for the search filter
       QKeySequenceEdit* edit = nullptr;
+      QWidget* labelWidget = nullptr;
+      QAbstractButton* reset = nullptr;
     };
     QVector<Row> rows_;
+    QLineEdit* search_ = nullptr;
+
+    // Show only rows whose label/id contains `query` (case-insensitive).
+    void applyFilter(const QString& query);
   };
 
 }

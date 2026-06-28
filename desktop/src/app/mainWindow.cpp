@@ -11,6 +11,7 @@
 #include "tooltipRows.hpp"
 #include "zoomPan.hpp"
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include "infoDialog.hpp"
 #include "launchOptions.hpp"
 #include "linksDialog.hpp"
@@ -37,8 +38,11 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QGuiApplication>
+#include <QEasingCurve>
 #include <QEventLoop>
 #include <QHBoxLayout>
+#include <QPropertyAnimation>
+#include <QShowEvent>
 #include <QIcon>
 #include <QImage>
 #include <QImageReader>
@@ -383,29 +387,40 @@ namespace stencil::gui {
       return a;
     };
 
+    // Richer tooltip than mk()'s default while KEEPING the hotkey suffix (browser
+    // composeControlTitle). Matters on the icon-only toolbar, where the tooltip is
+    // the only place the hotkey shows.
+    auto tip = [](QAction* a, const QString& desc) {
+      const QString sc = a->shortcut().toString(QKeySequence::NativeText);
+      a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
+    };
+
     actOpen_ = mk("Open Image…", "Ctrl+O");
     actOpenAnother_ = mk("Open Another Image…", QString());
-    actOpenAnother_->setToolTip(
+    tip(actOpenAnother_,
         "Open another image — replace the current editor or launch it in a new window");
-    actNewBlank_ = mk("🖼 New Blank Image…", QString());
-    actNewBlank_->setToolTip(
+    // Emoji prefixes were removed from these labels now that every action carries
+    // a themed line-art icon (styleActionIcons): the menu shows icon + clean text,
+    // the icon-only toolbar shows the glyph with the label on its tooltip.
+    actNewBlank_ = mk("New Blank Image…", QString());
+    tip(actNewBlank_,
         "Create a blank image (white, black, or any color) to draw on");
-    actCrop_ = mk("✂ Crop Image…", QString());
-    actCrop_->setToolTip(
+    actCrop_ = mk("Crop Image…", QString());
+    tip(actCrop_,
         "Crop the image — pick the page-shaped region to show on the canvas");
     // Non-destructive 90° rotation (browser hotkeys rotateImageLeft=Alt+R,
     // rotateImageRight=Alt+Shift+R). The crop window and lines follow the picture.
-    actRotateLeft_ = mk("↺ Rotate Left", hotkey("rotateImageLeft", "Alt+R"));
-    actRotateLeft_->setToolTip("Rotate the image left (counter-clockwise)");
-    actRotateRight_ = mk("↻ Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
-    actRotateRight_->setToolTip("Rotate the image right (clockwise)");
+    actRotateLeft_ = mk("Rotate Left", hotkey("rotateImageLeft", "Alt+R"));
+    tip(actRotateLeft_, "Rotate the image left (counter-clockwise)");
+    actRotateRight_ = mk("Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
+    tip(actRotateRight_, "Rotate the image right (clockwise)");
     actCycleFilter_ = mk("Cycle Image Filter", hotkey("cycleFilter", "Alt+B"));
-    actCycleFilter_->setToolTip("Cycle the image filter (none → B&W → sepia → tint)");
+    tip(actCycleFilter_, "Cycle the image filter (none → B&W → sepia → tint)");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
-    actStartDraw_ = mk("▶ Start Drawing", hotkey("startDraw", "Alt+A"));
-    actStopDraw_ = mk("■ Stop Drawing", hotkey("stopDraw", "Alt+S"));
+    actStartDraw_ = mk("Start Drawing", hotkey("startDraw", "Alt+A"));
+    actStopDraw_ = mk("Stop Drawing", hotkey("stopDraw", "Alt+S"));
     actNewLine_ = mk("New Line", QString());
     actUndo_ = mk("Undo", hotkey("undo", "Ctrl+Z"));
     actRedo_ = mk("Redo", hotkey("redo", "Ctrl+Shift+Z"));
@@ -428,15 +443,15 @@ namespace stencil::gui {
     actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
     actSettings_ = mk("Settings…", "Ctrl+,");
     actProjects_ = mk("Projects…", "Ctrl+Shift+P");
-    actConnect_ = mk("🖧 Servers…", QString());
-    actConnect_->setToolTip(
+    actConnect_ = mk("Servers…", QString());
+    tip(actConnect_,
         "Connect to collaboration servers — shared projects appear with a golden outline");
-    actLinks_ = mk("🔗 Image Links…", QString());
+    actLinks_ = mk("Image Links…", QString());
     actNewProject_ = mk("New Project", QString());
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
     actSaveSession_ = mk("Save Session", "Ctrl+S");
     actInfo_ = mk("Info && Shortcuts", "F1");
-    actIncognito_ = mk("🕶 Incognito", QString());
+    actIncognito_ = mk("Incognito", QString());
     actTooltip_ = mk("Hover Tooltip", QString());
     actTooltip_->setCheckable(true);
     // Allow-formulas toggle (S11), also reachable from the View menu so the
@@ -835,7 +850,11 @@ namespace stencil::gui {
     // file + drawing + history + zoom. Row 2: page size (+custom) + formulas.
     auto* tb = addToolBar("Main");
     tb->setMovable(false);
-    tb->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    // Icon-only with the shared line-art glyphs (styleActionIcons assigns them) +
+    // the rich tooltips from mk(): compact, browser-faithful chrome that stays
+    // narrow enough to avoid the "»" overflow even with the full action set.
+    tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    tb->setIconSize(QSize(18, 18));
 
     tb->addAction(actOpen_);
     tb->addAction(actOpenAnother_);
@@ -871,12 +890,16 @@ namespace stencil::gui {
     projectName_->setMaximumWidth(260);
     projectName_->setEnabled(false);
     tb->addWidget(projectName_);
+    // Inline-rename confirm/cancel: line-art check / x glyphs (themed in
+    // styleActionIcons) instead of the bare ✓/✗ text, matching the browser's
+    // icon buttons. Icon-only with a tooltip.
     projectNameAccept_ = new QToolButton(this);
-    projectNameAccept_->setText(QString::fromUtf8("✓"));   // ✓
+    projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    projectNameAccept_->setToolTip("Rename (Enter)");
     projectNameAccept_->setVisible(false);
     tb->addWidget(projectNameAccept_);
     projectNameCancel_ = new QToolButton(this);
-    projectNameCancel_->setText(QString::fromUtf8("✗"));   // ✗
+    projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectNameCancel_->setToolTip("Cancel (Esc)");
     projectNameCancel_->setVisible(false);
     tb->addWidget(projectNameCancel_);
@@ -1050,7 +1073,10 @@ namespace stencil::gui {
 
     // Draw-mode toggle (toolbar.js:59 #drawModeToggle). Flips line<->rect.
     drawModeBtn_ = new QToolButton(this);
-    drawModeBtn_->setText("╱ Line");
+    // Icon + label (the glyph is themed in styleActionIcons / the handler below);
+    // the box-drawing prefix is replaced by the shared pencil / filled-rect icon.
+    drawModeBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    drawModeBtn_->setText("Line");
     drawModeBtn_->setToolTip(
         "Drawing mode: Line (click to switch to Rectangle)");
     tb3->addWidget(drawModeBtn_);
@@ -1071,7 +1097,9 @@ namespace stencil::gui {
     connect(canvas_, &CanvasWidget::drawModeChanged, this,
             [this](CanvasWidget::DrawMode mode) {
               const bool rect = mode == CanvasWidget::DrawMode::Rect;
-              drawModeBtn_->setText(rect ? "▭ Rect" : "╱ Line");
+              drawModeBtn_->setText(rect ? "Rect" : "Line");
+              drawModeBtn_->setIcon(
+                  themedIcon(rect ? "rect-filled" : "pencil", iconColor_, 16));
               drawModeBtn_->setToolTip(
                   rect ? "Drawing mode: Rectangle (click to switch to Line)"
                        : "Drawing mode: Line (click to switch to Rectangle)");
@@ -2069,10 +2097,110 @@ namespace stencil::gui {
     incognitoOverlay_->setTheme(dark, settings_.accentColor);
     actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
 
+    // Re-tint the shared line-art icons to the active text color (light/dark/accent).
+    const QColor iconCol = themePalette(dark, settings_.accentColor).textMain;
+    styleActionIcons(dark, iconCol);
+    if (selPanel_) selPanel_->restyleIcons(iconCol);
+
     QPalette vp;
     vp.setColor(QPalette::Window, themePalette(dark).bgPage);
     scroll_->viewport()->setAutoFillBackground(true);
     scroll_->viewport()->setPalette(vp);
+  }
+
+  // Map every action + icon toolbutton to a shared-icon glyph rasterized in
+  // `iconColor` (names mirror browser/js/ui/toolbar.js). Null-guarded.
+  void MainWindow::styleActionIcons(bool dark, const QColor& iconColor) {
+    iconColor_ = iconColor;
+    const QColor accent = accentPrimary(settings_.accentColor);
+    const int s = 18;
+    auto set = [&](QAction* a, const char* name) {
+      if (a) a->setIcon(themedIcon(QString::fromLatin1(name), iconColor, s));
+    };
+    // File / image
+    set(actOpen_, "image");
+    set(actOpenAnother_, "external");
+    set(actNewBlank_, "plus-circle");
+    set(actLinks_, "link");
+    set(actConnect_, "server");
+    set(actCrop_, "crop");
+    set(actRotateLeft_, "rotate-ccw");
+    set(actRotateRight_, "rotate-cw");
+    set(actCycleFilter_, "image");
+    // Drawing / history
+    set(actStartDraw_, "play");
+    set(actStopDraw_, "stop");
+    set(actNewLine_, "plus");
+    set(actUndo_, "undo");
+    set(actRedo_, "redo");
+    set(actDeleteLast_, "minus");
+    set(actDeleteLine_, "trash");
+    set(actDeletePoint_, "x");
+    set(actClearAll_, "trash");
+    set(actDeselect_, "x");
+    // View / zoom
+    set(actZoomIn_, "plus");
+    set(actZoomOut_, "minus");
+    set(actFit_, "fit");
+    set(actShowPoints_, "eye");
+    set(actShowLines_, "eye");
+    set(actPanel_, "layers");
+    set(actFullscreen_, "maximize");
+    set(actTooltip_, "message");
+    set(actAllowFormulas_, "function");
+    set(actUnitCm_, "ruler");
+    set(actUnitIn_, "ruler");
+    set(actIncognito_, "incognito");
+    set(actSettings_, "gear");
+    // Project / data
+    set(actProjects_, "folder");
+    set(actNewProject_, "file-text");
+    set(actSaveProject_, "save");
+    set(actSaveSession_, "clipboard");
+    set(actDownloadJson_, "download");
+    set(actUploadJson_, "upload");
+    set(actCopyLayout_, "copy");
+    set(actPasteLayout_, "paste");
+    set(actSaveImage_, "image");
+    set(actCopyImage_, "copy");
+    set(actPasteImage_, "paste");
+    // Help
+    set(actInfo_, "info");
+    set(actShortcuts_, "help");
+    set(actQuit_, "power");
+    // Context-menu extras
+    set(actDrawModeToggle_, "pencil");
+    set(actDrawRectNow_, "rect-filled");
+    // The theme toggle shows the destination scheme (sun when dark, moon when light),
+    // matching the browser's toggle glyph.
+    if (actTheme_) actTheme_->setIcon(themedIcon(dark ? "sun" : "moon", iconColor, s));
+
+    // Toolbuttons that aren't backed by a QAction.
+    if (projectNameAccept_)
+      projectNameAccept_->setIcon(themedIcon("check", accent, 16));
+    if (projectNameCancel_)
+      projectNameCancel_->setIcon(themedIcon("x", iconColor, 16));
+    if (drawModeBtn_) {
+      const bool rect =
+          canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
+      drawModeBtn_->setIcon(
+          themedIcon(rect ? "rect-filled" : "pencil", iconColor, 16));
+    }
+  }
+
+  // One-shot first-show fade-in (browser appReveal counterpart). Ramps window
+  // opacity — no per-child graphics effect, so the canvas paint path is untouched.
+  void MainWindow::showEvent(QShowEvent* event) {
+    QMainWindow::showEvent(event);
+    if (!firstShow_) return;
+    firstShow_ = false;
+    setWindowOpacity(0.0);
+    auto* fade = new QPropertyAnimation(this, "windowOpacity", this);
+    fade->setDuration(240);
+    fade->setStartValue(0.0);
+    fade->setEndValue(1.0);
+    fade->setEasingCurve(QEasingCurve::OutCubic);
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   // Ctrl+D sets an explicit light/dark and stops following the OS (browser

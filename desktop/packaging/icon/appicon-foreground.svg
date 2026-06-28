@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Stencil">
+  <!-- Foreground layer for the macOS 26 Liquid Glass .icon: TRANSPARENT, just the
+       annotation frame + chart. The .icon's background fill provides the tile, and
+       the OS derives Default/Dark/Clear/Tinted appearances from this single design. -->
+  <rect x="176" y="176" width="672" height="672" rx="84" fill="none" stroke="#7c3aed" stroke-width="16"/>
+  <polyline points="280,752 440,384 600,600 760,272" fill="none" stroke="#FFEB00"
+            stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#FFEB00" stroke="#1a1a1a" stroke-width="16">
+    <circle cx="280" cy="752" r="46"/>
+    <circle cx="440" cy="384" r="46"/>
+    <circle cx="600" cy="600" r="46"/>
+    <circle cx="760" cy="272" r="46"/>
+  </g>
+</svg>

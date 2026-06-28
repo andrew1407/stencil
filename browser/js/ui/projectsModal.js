@@ -137,7 +137,8 @@ export class StencilProjectsModal extends StencilElement {
     };
     const onMenuDocDown = e => { if (openMenu && !openMenu.contains(e.target)) closeMenu(); };
     const onMenuKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } };
-    const showMenu = (anchor, items) => {
+    // Opens under `anchor` (the "⋯" button), or at `point` ({x,y}) for a right-click.
+    const showMenu = (anchor, items, point = null) => {
       closeMenu();
       const menu = document.createElement('div');
       menu.className = 'project-menu';
@@ -152,13 +153,21 @@ export class StencilProjectsModal extends StencilElement {
         menu.appendChild(b);
       }
       document.body.appendChild(menu);
-      // Right-align under the button; flip above / clamp so it stays on-screen.
-      const r = anchor.getBoundingClientRect();
       const mw = menu.offsetWidth;
       const mh = menu.offsetHeight;
-      let x = r.right - mw;
-      let y = r.bottom + 6;
-      if (y + mh > window.innerHeight - 8) y = r.top - mh - 6;
+      let x;
+      let y;
+      if (point) {
+        // Cursor-anchored (right-click): open at the point, flipping left/up near edges.
+        x = point.x + mw > window.innerWidth - 8 ? point.x - mw : point.x;
+        y = point.y + mh > window.innerHeight - 8 ? point.y - mh : point.y;
+      } else {
+        // Button-anchored: right-align under the "⋯", flip above if it would clip.
+        const r = anchor.getBoundingClientRect();
+        x = r.right - mw;
+        y = r.bottom + 6;
+        if (y + mh > window.innerHeight - 8) y = r.top - mh - 6;
+      }
       menu.style.left = `${Math.max(8, x)}px`;
       menu.style.top = `${Math.max(8, y)}px`;
       openMenu = menu;
@@ -309,6 +318,16 @@ export class StencilProjectsModal extends StencilElement {
         // The row opens the project on click; every other action lives behind "⋯".
         const open = () => { if (isActive) return; app.switchToProject(meta.id); close(); };
 
+        // One menu definition, shared by the "⋯" button and a right-click on the row.
+        const menuItems = () => [
+          isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
+          { icon: 'external', label: 'Open in new tab', onClick: () => app.openProjectInNewTab(meta.id) },
+          { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
+          { icon: 'refresh', label: 'Renew expiry', onClick: () => { app.renewProject(meta.id); render(); } },
+          (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
+          { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
+        ];
+
         const actions = document.createElement('div');
         actions.className = 'project-actions';
         const menuBtn = document.createElement('button');
@@ -317,17 +336,16 @@ export class StencilProjectsModal extends StencilElement {
         menuBtn.innerHTML = icon('more', { size: 15 });
         menuBtn.addEventListener('click', e => {
           e.stopPropagation();
-          showMenu(menuBtn, [
-            isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
-            { icon: 'external', label: 'Open in new tab', onClick: () => app.openProjectInNewTab(meta.id) },
-            { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
-            { icon: 'refresh', label: 'Renew expiry', onClick: () => { app.renewProject(meta.id); render(); } },
-            (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
-            { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
-          ]);
+          showMenu(menuBtn, menuItems());
         });
         actions.appendChild(menuBtn);
         row.appendChild(actions);
+
+        // Right-click anywhere on the row opens the same overflow menu at the cursor.
+        row.addEventListener('contextmenu', e => {
+          e.preventDefault();
+          showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
+        });
 
         if (!isActive) row.classList.add('project-clickable');
         row.addEventListener('click', open);
@@ -424,23 +442,30 @@ export class StencilProjectsModal extends StencilElement {
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       };
 
-      // Secondary actions behind the "⋯" overflow menu (matches the local rows).
+      // Secondary actions behind the "⋯" overflow menu (matches the local rows);
+      // shared with the row's right-click context menu.
+      const menuItems = () => [
+        { icon: 'folder', label: 'Open from server', onClick: openFromServer },
+        { icon: 'copy', label: 'Make local copy', onClick: makeLocalCopy },
+        { icon: 'download', label: 'Move to local', onClick: moveToLocal },
+        { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
+      ];
       const menuBtn = document.createElement('button');
       menuBtn.className = 'project-more btn-icon';
       menuBtn.title = 'More actions';
       menuBtn.innerHTML = icon('more', { size: 15 });
       menuBtn.addEventListener('click', e => {
         e.stopPropagation();
-        showMenu(menuBtn, [
-          { icon: 'folder', label: 'Open from server', onClick: openFromServer },
-          { icon: 'copy', label: 'Make local copy', onClick: makeLocalCopy },
-          { icon: 'download', label: 'Move to local', onClick: moveToLocal },
-          { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
-        ]);
+        showMenu(menuBtn, menuItems());
       });
 
       actions.append(menuBtn);
       row.appendChild(actions);
+      // Right-click anywhere on the row opens the same overflow menu at the cursor.
+      row.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
+      });
       row.classList.add('project-clickable');
       row.addEventListener('click', openFromServer);
       return row;

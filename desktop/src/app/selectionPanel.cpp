@@ -1,5 +1,6 @@
 #include "selectionPanel.hpp"
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
@@ -9,6 +10,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QListWidget>
+#include <QPalette>
 #include <QPixmap>
 #include <QPushButton>
 #include <QSpinBox>
@@ -65,7 +67,7 @@ namespace stencil::gui {
     fillSwatch_ = new QPushButton(fillGroup_);  // selFill
     fillSwatch_->setToolTip("Area fill color");
     setSwatchColor(fillSwatch_, currentFill_);
-    fillClear_ = new QPushButton("✕", fillGroup_);  // selFillClear (✕)
+    fillClear_ = new QPushButton(fillGroup_);  // selFillClear (x icon)
     fillClear_->setToolTip("Clear fill (make transparent)");
     fillRow->addWidget(fillEnabled_);
     fillRow->addWidget(fillSwatch_);
@@ -73,28 +75,37 @@ namespace stencil::gui {
     fillRow->addStretch(1);
     form->addRow("Fill:", fillGroup_);
 
-    // Delete line + selDeselect (drawingApp.js:195 deselectLine).
+    // Delete line + selDeselect (drawingApp.js:195 deselectLine). Delete is the
+    // danger action — given the red treatment via objectName (styled in theme.cpp,
+    // matching the browser's --danger delete button); icons set in restyleIcons().
     auto* btnRow = new QHBoxLayout();
-    deleteLine_ = new QPushButton("\U0001F5D1 Delete Line", editor_);
-    deselectBtn_ = new QPushButton("✕ Deselect", editor_);  // selDeselect
+    deleteLine_ = new QPushButton("Delete Line", editor_);
+    deleteLine_->setObjectName("dangerButton");
+    deselectBtn_ = new QPushButton("Deselect", editor_);  // selDeselect
     btnRow->addWidget(deleteLine_);
     btnRow->addWidget(deselectBtn_);
     form->addRow(btnRow);
 
     layout->addWidget(editor_);
 
-    layout->addWidget(new QLabel("<b>Points</b>", body));
+    // Section headers styled like the browser's panel captions (muted + spaced).
+    auto* ptsHdr = new QLabel("POINTS", body);
+    ptsHdr->setObjectName("panelSectionHeader");
+    layout->addWidget(ptsHdr);
     points_ = new QListWidget(body);
     points_->setAlternatingRowColors(true);
     points_->installEventFilter(this);
     layout->addWidget(points_, 1);
 
-    layout->addWidget(new QLabel("<b>Measurements</b>", body));
+    auto* measHdr = new QLabel("MEASUREMENTS", body);
+    measHdr->setObjectName("panelSectionHeader");
+    layout->addWidget(measHdr);
     measurements_ = new QLabel("No selection", body);
     measurements_->setWordWrap(true);
     layout->addWidget(measurements_);
 
     setWidget(body);
+    restyleIcons(palette().color(QPalette::WindowText));
 
     connect(points_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
       emit pointActivated(points_->row(it));
@@ -174,6 +185,14 @@ namespace stencil::gui {
 
   void SelectionPanel::setSwatchColor(QPushButton* btn, const QColor& color) {
     setColorSwatch(btn, color);  // QPushButton derives from QAbstractButton
+  }
+
+  void SelectionPanel::restyleIcons(const QColor& iconColor) {
+    // Delete is a red danger button, so its glyph stays white for contrast; the
+    // others follow the theme text color (re-applied on each light/dark switch).
+    if (deleteLine_) deleteLine_->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
+    if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", iconColor, 15));
+    if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 14));
   }
 
   void SelectionPanel::showLine(const core::Line* line,
