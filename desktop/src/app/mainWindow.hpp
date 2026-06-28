@@ -156,6 +156,9 @@ namespace stencil::gui {
     void scrollTo(int x, int y);
     void setZoomAnchored(double newScale, const QPoint& cursorInViewport);
     void applyTheme();
+    // Assign shared line-art icons to every action + icon toolbutton, tinted to the
+    // theme text color. Re-run from applyTheme() on each light/dark/accent change.
+    void styleActionIcons(bool dark, const QColor& iconColor);
     void toggleTheme();
     void applySettings(const Settings& s, bool persist);
     void openSettings();
@@ -316,6 +319,9 @@ namespace stencil::gui {
     // routed through openPathFromOS — the Photoshop-style drop-to-open.
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    // First-show fade-in (a gentle window-opacity ramp), mirroring the browser
+    // container's appReveal animation. Runs once; later shows are instant.
+    void showEvent(QShowEvent* event) override;
 
     // ── core widgets ──
     CanvasWidget* canvas_ = nullptr;
@@ -520,6 +526,12 @@ namespace stencil::gui {
     bool incognito_ = false;
     double lastHoverX_ = 0.0;
     double lastHoverY_ = 0.0;
+    // The text color the toolbar/menu icons were last rasterized in (set by
+    // styleActionIcons). Lets live handlers re-icon a widget in the current theme
+    // color without recomputing the palette (e.g. the draw-mode toggle).
+    QColor iconColor_{Qt::black};
+    // Guards the one-shot first-show fade (see showEvent).
+    bool firstShow_ = true;
 
     // ── launch options (CLI) ──
     // Async resolver for --src (image / URL / video frame); created on first use.

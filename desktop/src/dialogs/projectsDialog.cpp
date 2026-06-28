@@ -1,7 +1,11 @@
 #include "projectsDialog.hpp"
+#include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include "projectsStore.hpp"
 #include "serverClient.hpp"
+#include <QAction>
 #include <QBrush>
+#include <QMenu>
 #include <QColor>
 #include <QFont>
 #include <QDialogButtonBox>
@@ -92,20 +96,45 @@ namespace stencil::gui {
       return edit->text().trimmed();
     }
 
+    // The "⋯" kebab strip — shared by the delegate (paint) and eventFilter (hit-test).
+    QRect kebabZone(const QRect& rowRect) {
+      const int w = 30;
+      return QRect(rowRect.right() - w, rowRect.top(), w, rowRect.height());
+    }
+
     // Paints a rounded golden outline around server (shared) rows — the desktop analogue
-    // of the browser's `.project-remote` border. A row is remote when UserRole+1 is set.
-    class RemoteOutlineDelegate : public QStyledItemDelegate {
+    // of the browser's `.project-remote` border — plus a vertical "⋯" kebab on every
+    // real row (the browser modal's per-row "more actions" button).
+    class ProjectRowDelegate : public QStyledItemDelegate {
      public:
       using QStyledItemDelegate::QStyledItemDelegate;
       void paint(QPainter* p, const QStyleOptionViewItem& opt,
                  const QModelIndex& idx) const override {
         QStyledItemDelegate::paint(p, opt, idx);
-        if (idx.data(Qt::UserRole + 1).toString().isEmpty()) return;
+        const bool remote = !idx.data(Qt::UserRole + 1).toString().isEmpty();
+        if (remote) {
+          p->save();
+          p->setRenderHint(QPainter::Antialiasing, true);
+          p->setBrush(Qt::NoBrush);
+          p->setPen(QPen(QColor("#d4a017"), 2));
+          p->drawRoundedRect(QRectF(opt.rect).adjusted(1, 1, -1, -1), 6, 6);
+          p->restore();
+        }
+        // Kebab dots only on real (selectable) rows — skip "No projects yet" /
+        // "Loading…" placeholders, which carry no project id.
+        if (idx.data(Qt::UserRole).isNull()) return;
+        const QRect zone = kebabZone(opt.rect);
+        const bool active = opt.state & (QStyle::State_Selected | QStyle::State_MouseOver);
+        QColor dot = opt.palette.color(active ? QPalette::HighlightedText
+                                              : QPalette::PlaceholderText);
         p->save();
         p->setRenderHint(QPainter::Antialiasing, true);
-        p->setBrush(Qt::NoBrush);
-        p->setPen(QPen(QColor("#d4a017"), 2));
-        p->drawRoundedRect(QRectF(opt.rect).adjusted(1, 1, -1, -1), 6, 6);
+        p->setPen(Qt::NoPen);
+        p->setBrush(dot);
+        const int cx = zone.center().x();
+        const int cy = zone.center().y();
+        for (int dy = -6; dy <= 6; dy += 6)
+          p->drawEllipse(QPointF(cx, cy + dy), 1.6, 1.6);
         p->restore();
       }
     };
@@ -145,11 +174,22 @@ namespace stencil::gui {
     // result/original image (server); size the list's icon column to fit them.
     list_->setIconSize(QSize(56, 56));
     list_->setSpacing(6);  // vertical gaps so rows read as separate cards
-    // Golden outline (not fill) around shared rows, mirroring the browser modal.
-    list_->setItemDelegate(new RemoteOutlineDelegate(list_));
-    // Hover-magnify: track moves over the viewport to pop a larger preview.
+    // Golden outline (not fill) around shared rows + the per-row "⋯" kebab,
+    // mirroring the browser modal.
+    list_->setItemDelegate(new ProjectRowDelegate(list_));
+    // Hover-magnify + kebab clicks: track moves over the viewport to pop a larger
+    // preview, and catch left-clicks on the "⋯" zone (handled in eventFilter).
     list_->viewport()->setMouseTracking(true);
     list_->viewport()->installEventFilter(this);
+    // Right-click anywhere on a row opens the same actions as the "⋯" kebab.
+    list_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(list_, &QListWidget::customContextMenuRequested, this,
+            [this](const QPoint& pos) {
+              QListWidgetItem* it = list_->itemAt(pos);
+              if (!it || it->data(Qt::UserRole).isNull()) return;
+              list_->setCurrentItem(it);
+              showRowMenu(it, list_->viewport()->mapToGlobal(pos));
+            });
     layout->addWidget(list_, 1);
     refresh();
 
@@ -344,6 +384,20 @@ namespace stencil::gui {
 
   bool ProjectsDialog::eventFilter(QObject* obj, QEvent* ev) {
     if (list_ && obj == list_->viewport()) {
+      // Left-click on the "⋯" kebab strip pops the row's menu (consume it so it
+      // doesn't also start a drag/selection); it's the right-click menu's twin.
+      if (ev->type() == QEvent::MouseButtonPress) {
+        auto* me = static_cast<QMouseEvent*>(ev);
+        const QPoint vpos = me->position().toPoint();
+        QListWidgetItem* it = list_->itemAt(vpos);
+        if (me->button() == Qt::LeftButton && it &&
+            !it->data(Qt::UserRole).isNull() &&
+            kebabZone(list_->visualItemRect(it)).contains(vpos)) {
+          list_->setCurrentItem(it);
+          showRowMenu(it, me->globalPosition().toPoint());
+          return true;
+        }
+      }
       if (ev->type() == QEvent::MouseMove) {
         const QPoint vpos = static_cast<QMouseEvent*>(ev)->position().toPoint();
         QListWidgetItem* it = list_->itemAt(vpos);
@@ -469,6 +523,40 @@ namespace stencil::gui {
       return;
     }
     list_->setCurrentRow(prevRow >= 0 && prevRow < list_->count() ? prevRow : 0);
+  }
+
+  void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
+    const QColor ico = palette().color(QPalette::WindowText);
+    const bool haveServers = connections_ && !connections_->urls().isEmpty();
+    QMenu menu(this);
+    // Same actions/order as the browser modal's overflow menu (slots act on the current row).
+    if (remote) {
+      menu.addAction(themedIcon("folder", ico, 16), "Open from server", this,
+                     &ProjectsDialog::openSelected);
+      menu.addAction(themedIcon("copy", ico, 16), "Make local copy", this,
+                     &ProjectsDialog::makeLocalCopySelected);
+      menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
+                     &ProjectsDialog::moveToLocalSelected);
+    } else {
+      menu.addAction(themedIcon("folder", ico, 16), "Open", this,
+                     &ProjectsDialog::openSelected);
+      menu.addAction(themedIcon("external", ico, 16), "Open in new window", this,
+                     &ProjectsDialog::openSelectedInNewWindow);
+      menu.addAction(themedIcon("pencil", ico, 16), "Rename", this,
+                     &ProjectsDialog::renameSelected);
+      menu.addAction(themedIcon("refresh", ico, 16), "Renew expiry", this,
+                     &ProjectsDialog::renewSelected);
+      if (haveServers)
+        menu.addAction(themedIcon("server", ico, 16), "Move to server", this,
+                       &ProjectsDialog::moveToServerSelected);
+      menu.addSeparator();
+      // Destructive: a red trash glyph echoes the browser's red "Remove" item.
+      menu.addAction(themedIcon("trash", QColor("#dc3545"), 16), "Remove", this,
+                     &ProjectsDialog::deleteSelected);
+    }
+    menu.exec(globalPos);
   }
 
   void ProjectsDialog::openSelected() {

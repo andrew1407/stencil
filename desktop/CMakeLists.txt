@@ -49,10 +49,14 @@ enable_testing()
 # later at `cpack` with "Cannot find CPack config file" (CPackConfig.cmake is emitted
 # by include(CPack) below, which lives in this Qt6_FOUND block).
 option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packaging)" OFF)
+# Svg is needed by support/iconSet.cpp, which rasterizes the shared SVG icon set
+# (ported from browser/js/ui/icons.js) into themed toolbar/menu QIcons. qt6-qtsvg
+# is already an effective dependency — the window/taskbar icon (appicon.svg) is
+# drawn by the same module's SVG icon engine.
 if(STENCIL_REQUIRE_QT)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia Svg)
 else()
-  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia)
+  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia Svg)
 endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
@@ -93,11 +97,12 @@ if(Qt6_FOUND)
     src/support/theme.cpp
     src/support/notifications.cpp
     src/support/guiHelpers.cpp
+    src/support/iconSet.cpp
     resources/app.qrc
   )
   target_include_directories(stencil_gui PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_gui
-    PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia)
+    PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg)
   if(STENCIL_DEV_STATE_DIR)
     # Repo-local, gitignored runtime state dir (settings / session / projects).
     target_compile_definitions(stencil_gui PRIVATE
@@ -134,6 +139,37 @@ if(Qt6_FOUND)
     else()
       message(WARNING "stencil_gui: sips/iconutil not found — building without an app icon")
     endif()
+
+    # Themed AppIcon (macOS 26 "Icon & widget style": Default / Dark / Tinted, with
+    # Clear OS-derived). Compiles an asset catalog from the three appicon-*.svg
+    # variants into Assets.car via `actool` and sets CFBundleIconName so the OS can
+    # recolor the Dock/Finder icon. actool ships ONLY with full Xcode (not the
+    # Command Line Tools), so this is best-effort: when it's absent we keep the plain
+    # .icns above. The CFBundleIconName key is added POST_BUILD with PlistBuddy only
+    # when Assets.car was produced — setting it without the car would blank the icon.
+    set(STENCIL_BUNDLE_ICON_NAME "")
+    find_program(STENCIL_ACTOOL actool
+      HINTS "$ENV{DEVELOPER_DIR}/usr/bin"
+            "/Applications/Xcode.app/Contents/Developer/usr/bin")
+    if(STENCIL_SIPS AND STENCIL_ACTOOL)
+      set(_car "${CMAKE_CURRENT_BINARY_DIR}/Assets.car")
+      execute_process(
+        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/packaging/make-appicon-assets.sh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon"
+                "${CMAKE_CURRENT_BINARY_DIR}" "${STENCIL_ACTOOL}"
+        RESULT_VARIABLE _car_rc OUTPUT_QUIET ERROR_QUIET)
+      if(_car_rc EQUAL 0 AND EXISTS "${_car}")
+        target_sources(stencil_gui PRIVATE "${_car}")
+        set_source_files_properties("${_car}" PROPERTIES
+          MACOSX_PACKAGE_LOCATION Resources)
+        set(STENCIL_BUNDLE_ICON_NAME "AppIcon")
+        message(STATUS "stencil_gui: bundled themed AppIcon (Assets.car) — dark/tinted aware")
+      else()
+        message(STATUS "stencil_gui: themed AppIcon skipped (actool rc=${_car_rc}) — plain .icns only")
+      endif()
+    else()
+      message(STATUS "stencil_gui: actool not found (needs full Xcode) — plain .icns only, no OS icon theming")
+    endif()
   endif()
   # Ship as a macOS .app bundle and a Windows GUI app (no console window) so the
   # platform deploy tools have the right shape to bundle Qt into.
@@ -148,6 +184,17 @@ if(Qt6_FOUND)
     MACOSX_BUNDLE_ICON_FILE "${STENCIL_BUNDLE_ICON_FILE}"
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/MacOSXBundleInfo.plist.in"
     WIN32_EXECUTABLE TRUE)
+  # Point CFBundleIconName at the compiled Assets.car so macOS uses the themed
+  # AppIcon. Done POST_BUILD (after CMake assembles Info.plist) and only when the
+  # car was built — Delete-then-Add makes it idempotent across rebuilds.
+  if(STENCIL_BUNDLE_ICON_NAME)
+    add_custom_command(TARGET stencil_gui POST_BUILD
+      COMMAND /bin/sh -c
+        "PL=\"$<TARGET_BUNDLE_CONTENT_DIR:stencil_gui>/Info.plist\"; \
+         /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' \"$PL\" 2>/dev/null; \
+         /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string ${STENCIL_BUNDLE_ICON_NAME}' \"$PL\""
+      VERBATIM)
+  endif()
   message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
 
   # Headless functional check of the crop integration (CanvasWidget + cropGeometry).

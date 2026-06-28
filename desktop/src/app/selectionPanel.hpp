@@ -25,6 +25,11 @@ namespace stencil::gui {
    public:
     explicit SelectionPanel(QWidget* parent = nullptr);
 
+    // Re-tint the panel's line-art button icons (trash / x) to the active theme
+    // text color. Called from MainWindow::applyTheme so they track light/dark,
+    // like the toolbar icons (MainWindow::styleActionIcons).
+    void restyleIcons(const QColor& iconColor);
+
     // Refresh from the currently selected line (nullptr = nothing selected) and
     // which point within it is focused (-1 = none). cmRows carries the per-point
     // page (cm) coordinates already run through MainWindow's pageCoords converter

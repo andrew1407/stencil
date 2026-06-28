@@ -143,42 +143,130 @@ namespace stencil::gui {
   QString buildStylesheet(bool dark, const QString& accentKey) {
     const Palette p = themePalette(dark, accentKey);
     auto c = [](const QColor& q) { return q.name(); };
+    // rgba() string for accent tints — QSS has no color-mix, so the browser's
+    // translucent accent hovers/focus rings are reproduced with alpha over the
+    // surface beneath. Lets one accent recolour every hover state harmoniously.
+    auto rgba = [](const QColor& q, double a) {
+      return QString("rgba(%1,%2,%3,%4)")
+          .arg(q.red())
+          .arg(q.green())
+          .arg(q.blue())
+          .arg(a, 0, 'f', 3);
+    };
+    const QColor accent2 = p.textKey;  // the derived hover/active accent shade
+    // Subtle vertical gradients give the toolbar/buttons depth without leaving
+    // the flat browser aesthetic; the ends are tiny value steps off the surface.
+    const QColor ctrlTop = dark ? p.bgControls.lighter(108) : p.bgControls.lighter(102);
+    const QColor ctrlBot = dark ? p.bgControls : p.bgControls.darker(104);
+    const QColor btnTop = dark ? p.bgContainer.lighter(118) : p.bgContainer;
+    const QColor btnBot = dark ? p.bgContainer : p.bgContainer.darker(106);
 
-    // One stylesheet covering the widgets the app uses. Kept close to the CSS:
-    // page backdrop, light-grey controls, violet accent, themed inputs + lists.
+    // One stylesheet covering the widgets the app uses. Tracks browser/css —
+    // page backdrop, gradient controls, the brand accent, rounded inputs/lists,
+    // accent-tinted hovers + focus rings — so the desktop matches the web look.
     return QString(R"(
       QMainWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
-      QToolBar { background: %BG_CONTROLS%; border: 0; border-bottom: 1px solid %BORDER%; spacing: 4px; padding: 3px; }
-      QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; }
-      QMenuBar::item { background: transparent; padding: 4px 10px; }
-      QMenuBar::item:selected { background: %ACCENT%; color: white; }
-      QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; }
+
+      /* ── Toolbars: gradient surface, hairline divider, rounded icon buttons ── */
+      QToolBar {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %CTRL_TOP%, stop:1 %CTRL_BOT%);
+        border: 0; border-bottom: 1px solid %BORDER%;
+        spacing: 3px; padding: 4px 6px;
+      }
+      QToolBar::separator {
+        width: 1px; background: %BORDER%; margin: 5px 6px; border-radius: 1px;
+      }
+      QToolBar QLabel { color: %MUTED%; background: transparent; padding: 0 2px; }
+      QToolButton {
+        color: %TEXT%; background: transparent; padding: 5px 7px;
+        border: 1px solid transparent; border-radius: 7px;
+      }
+      QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton:pressed { background: %ACCENT_SOFT2%; }
+      QToolButton:checked {
+        background: %ACCENT_SOFT2%; border-color: %ACCENT%; color: %ACCENT2%;
+      }
+      QToolButton:disabled { color: %MUTED%; background: transparent; }
+      QToolButton::menu-indicator { image: none; }
+
+      /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */
+      QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }
+      QMenuBar::item { background: transparent; padding: 5px 11px; border-radius: 6px; }
+      QMenuBar::item:selected { background: %ACCENT_SOFT2%; color: %ACCENT2%; }
+      QMenuBar::item:pressed { background: %ACCENT%; color: white; }
+      QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
+      QMenu::item { padding: 6px 26px 6px 24px; border-radius: 6px; margin: 1px 2px; }
       QMenu::item:selected { background: %ACCENT%; color: white; }
-      QMenu::separator { height: 1px; background: %BORDER%; margin: 4px 8px; }
+      QMenu::item:disabled { color: %MUTED%; }
+      QMenu::separator { height: 1px; background: %BORDER%; margin: 5px 10px; }
+      QMenu::icon { padding-left: 6px; }
+      QMenu::indicator { width: 16px; height: 16px; left: 6px; }
+
+      /* ── Status bar ── */
       QStatusBar { background: %BG_CONTROLS%; color: %TEXT%; border-top: 1px solid %BORDER%; }
+      QStatusBar::item { border: 0; }
       QStatusBar QLabel { color: %TEXT%; }
       QLabel { color: %TEXT%; background: transparent; }
-      QToolButton { color: %TEXT%; background: transparent; padding: 4px 8px; border-radius: 4px; }
-      QToolButton:hover { background: %BORDER%; }
-      QToolButton:disabled { color: %MUTED%; }
-      QPushButton { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 4px; padding: 5px 12px; }
-      QPushButton:hover { border-color: %ACCENT%; }
-      QPushButton:default { background: %ACCENT%; color: white; border-color: %ACCENT%; }
-      QPushButton:disabled { color: %MUTED%; }
+
+      /* ── Push buttons: gradient face, accent lift on hover, gradient primary ── */
+      QPushButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %BTN_TOP%, stop:1 %BTN_BOT%);
+        color: %TEXT%; border: 1px solid %BORDER%; border-radius: 7px;
+        padding: 6px 14px; min-height: 18px;
+      }
+      QPushButton:hover { border-color: %ACCENT%; background: %ACCENT_SOFT%; }
+      QPushButton:pressed { background: %ACCENT_SOFT2%; }
+      /* Accent CTA — only the affirmative action button (objectName via makeButtonBox). */
+      QPushButton#primaryButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT%, stop:1 %ACCENT2%);
+        color: white; border-color: %ACCENT2%;
+      }
+      QPushButton#primaryButton:hover {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT2%, stop:1 %ACCENT2%);
+      }
+      /* #primaryButton repeated: its id selector outranks QPushButton:disabled, so the disabled face needs its own rule. */
+      QPushButton:disabled, QPushButton#primaryButton:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
+      /* Danger button (e.g. the selection panel's Delete Line) — the browser's
+         --danger red treatment, tuned per theme. */
+      QPushButton#dangerButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %DANGER%, stop:1 %DANGER2%);
+        color: white; border-color: %DANGER2%;
+      }
+      QPushButton#dangerButton:hover { background: %DANGER2%; }
+      /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS"),
+         mirroring the browser's uppercased panel headers. */
+      QLabel#panelSectionHeader {
+        color: %MUTED%; font-weight: bold; font-size: 11px; letter-spacing: 1px;
+        padding: 6px 0 2px 0;
+      }
+
+      /* ── Text inputs / combos / spinboxes: rounded, accent focus ring ── */
       QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
-        border-radius: 4px; padding: 2px 6px; min-height: 20px;
+        border-radius: 7px; padding: 3px 8px; min-height: 20px;
+        selection-background-color: %ACCENT%; selection-color: white;
       }
-      QComboBox QAbstractItemView { background: %INPUT_BG%; color: %INPUT_TEXT%; selection-background-color: %ACCENT%; }
-      QCheckBox { color: %TEXT%; }
-      QRadioButton { color: %TEXT%; }
+      QComboBox:hover, QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover { border-color: %ACCENT_RING%; }
+      QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+        border: 2px solid %ACCENT%; padding: 2px 7px;
+      }
+      QComboBox::drop-down { border: 0; width: 18px; }
+      QComboBox QAbstractItemView {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 3px; outline: none;
+        selection-background-color: %ACCENT%; selection-color: white;
+      }
+      QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 16px; border: 0; background: transparent; }
+
+      QCheckBox { color: %TEXT%; spacing: 7px; }
+      QRadioButton { color: %TEXT%; spacing: 7px; }
       /* Checkboxes/radios follow the brand accent (matches the browser
          accent-color: var(--accent)): an empty themed box, filled with the
          accent when checked. */
       QCheckBox::indicator, QRadioButton::indicator {
-        width: 16px; height: 16px; border: 1px solid %ACCENT%; background: transparent;
+        width: 16px; height: 16px; border: 1px solid %ACCENT%; background: %INPUT_BG%;
       }
-      QCheckBox::indicator { border-radius: 3px; }
+      QCheckBox::indicator { border-radius: 4px; }
       QRadioButton::indicator { border-radius: 9px; }
       QCheckBox::indicator:checked {
         background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/check.png);
@@ -186,23 +274,69 @@ namespace stencil::gui {
       QRadioButton::indicator:checked {
         background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
       }
-      QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT%; }
+      QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
+
+      /* ── Dock (selection panel) ── */
       QDockWidget { color: %TEXT%; titlebar-close-icon: none; }
-      QDockWidget::title { background: %BG_CONTROLS%; padding: 5px; border-bottom: 1px solid %BORDER%; }
+      QDockWidget::title {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %CTRL_TOP%, stop:1 %CTRL_BOT%);
+        padding: 7px 10px; border-bottom: 1px solid %BORDER%; font-weight: 600;
+      }
+
+      /* ── Lists / tables ── */
       QListWidget, QTableWidget, QTreeWidget {
         background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%;
-        alternate-background-color: %BG_CONTROLS%;
+        border-radius: 8px; alternate-background-color: %BG_CONTROLS%; outline: none;
       }
-      QListWidget::item:selected, QTableWidget::item:selected { background: %ACCENT%; color: white; }
-      QHeaderView::section { background: %ACCENT%; color: white; border: 0; padding: 4px; }
+      QListWidget::item, QTreeWidget::item { padding: 4px; border-radius: 6px; }
+      QListWidget::item:hover, QTreeWidget::item:hover { background: %ACCENT_SOFT%; }
+      QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected { background: %ACCENT%; color: white; }
+      QHeaderView::section {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT%, stop:1 %ACCENT2%);
+        color: white; border: 0; padding: 5px 6px;
+      }
+      QTableWidget { gridline-color: %BORDER%; }
+
       QDialog { background: %BG_CONTAINER%; color: %TEXT%; }
-      QScrollBar:vertical { background: transparent; width: 12px; }
-      QScrollBar::handle:vertical { background: %BORDER%; border-radius: 6px; min-height: 24px; }
-      QScrollBar:horizontal { background: transparent; height: 12px; }
-      QScrollBar::handle:horizontal { background: %BORDER%; border-radius: 6px; min-width: 24px; }
+      QGroupBox {
+        border: 1px solid %BORDER%; border-radius: 8px; margin-top: 8px; padding-top: 6px;
+      }
+      QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: %MUTED%; }
+      QTabWidget::pane { border: 1px solid %BORDER%; border-radius: 8px; top: -1px; }
+      QTabBar::tab {
+        background: transparent; color: %MUTED%; padding: 6px 14px;
+        border: 0; border-bottom: 2px solid transparent;
+      }
+      QTabBar::tab:hover { color: %TEXT%; }
+      QTabBar::tab:selected { color: %ACCENT2%; border-bottom: 2px solid %ACCENT%; }
+
+      /* ── Scrollbars: slim, rounded, accent-tinted on hover ── */
+      QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
+      QScrollBar::handle:vertical { background: %BORDER%; border-radius: 5px; min-height: 28px; }
+      QScrollBar::handle:vertical:hover { background: %ACCENT_RING%; }
+      QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
+      QScrollBar::handle:horizontal { background: %BORDER%; border-radius: 5px; min-width: 28px; }
+      QScrollBar::handle:horizontal:hover { background: %ACCENT_RING%; }
       QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
-      QToolTip { background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %BORDER%; padding: 4px; }
+      QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+
+      QToolTip {
+        background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %ACCENT_RING%;
+        border-radius: 6px; padding: 5px 8px;
+      }
     )")
+        .replace("%CTRL_TOP%", c(ctrlTop))
+        .replace("%CTRL_BOT%", c(ctrlBot))
+        .replace("%BTN_TOP%", c(btnTop))
+        .replace("%BTN_BOT%", c(btnBot))
+        .replace("%ACCENT_SOFT2%", rgba(p.accent, dark ? 0.30 : 0.20))
+        .replace("%ACCENT_SOFT%", rgba(p.accent, dark ? 0.18 : 0.11))
+        .replace("%ACCENT_RING%", rgba(p.accent, 0.45))
+        .replace("%ACCENT2%", c(accent2))
+        // Status reds mirror browser/css/theme.css --danger/--danger-2 (per theme).
+        .replace("%DANGER2%", dark ? QStringLiteral("#e8455a") : QStringLiteral("#b71d30"))
+        .replace("%DANGER%", dark ? QStringLiteral("#f0697a") : QStringLiteral("#d6293e"))
+        .replace("%DISABLED_BG%", c(dark ? p.bgControls : p.bgContainer.darker(108)))
         .replace("%BG_PAGE%", c(p.bgPage))
         .replace("%BG_CONTAINER%", c(p.bgContainer))
         .replace("%BG_CONTROLS%", c(p.bgControls))
@@ -230,6 +364,8 @@ namespace stencil::gui {
     q.setColor(QPalette::ToolTipText, p.textMain);
     q.setColor(QPalette::Highlight, p.accent);
     q.setColor(QPalette::HighlightedText, QColor("#ffffff"));
+    // Link = accent-2 (browser --text-key): key-chip text + hyperlinks, readable on every theme.
+    q.setColor(QPalette::Link, p.textKey);
     q.setColor(QPalette::PlaceholderText, p.textMuted);
     q.setColor(QPalette::Disabled, QPalette::Text, p.textMuted);
     q.setColor(QPalette::Disabled, QPalette::ButtonText, p.textMuted);

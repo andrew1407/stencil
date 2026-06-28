@@ -1,6 +1,7 @@
 #include "connectDialog.hpp"
 
 #include "connectionStore.hpp"
+#include "iconSet.hpp"
 #include "serverClient.hpp"
 
 #include <QCheckBox>
@@ -30,33 +31,6 @@ namespace stencil::gui {
     // browser's --remote-gold), so shared servers read the same on every front-end.
     const QColor kGold("#d4a017");
 
-    // A minimal two-unit "server rack" glyph (the desktop analogue of the browser's
-    // `server` icon): two stacked rounded units each with a status LED, stroked in
-    // `color`. Used for the header and the per-connection markers.
-    QPixmap serverGlyph(int size, const QColor& color) {
-      QPixmap pm(size, size);
-      pm.fill(Qt::transparent);
-      QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing, true);
-      p.setPen(QPen(color, qMax(1.0, size * 0.08)));
-      p.setBrush(Qt::NoBrush);
-      const qreal m = size * 0.14;
-      const qreal w = size - 2 * m;
-      const qreal h = size * 0.30;
-      const qreal r = size * 0.09;
-      const QRectF top(m, m, w, h);
-      const QRectF bot(m, size - m - h, w, h);
-      p.drawRoundedRect(top, r, r);
-      p.drawRoundedRect(bot, r, r);
-      p.setBrush(color);
-      p.setPen(Qt::NoPen);
-      const qreal d = size * 0.07;
-      const qreal lx = m + size * 0.12;
-      p.drawEllipse(QPointF(lx, top.center().y()), d, d);
-      p.drawEllipse(QPointF(lx, bot.center().y()), d, d);
-      return pm;
-    }
-
     // A filled status dot: green=connected, amber=connecting, red=error — mirrors the
     // browser's connection-status dot.
     QPixmap statusDot(stencil::net::ServerClient::Status s) {
@@ -70,20 +44,6 @@ namespace stencil::gui {
       p.setPen(Qt::NoPen);
       p.setBrush(c);
       p.drawEllipse(2, 2, 8, 8);
-      return pm;
-    }
-
-    // A red "✕" glyph (the browser's danger-tinted disconnect icon). QStyle's
-    // SP_DialogCloseButton renders near-black on macOS — invisible on the dark row.
-    QPixmap crossGlyph(int size, const QColor& color) {
-      QPixmap pm(size, size);
-      pm.fill(Qt::transparent);
-      QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing, true);
-      p.setPen(QPen(color, qMax(1.5, size * 0.13), Qt::SolidLine, Qt::RoundCap));
-      const qreal m = size * 0.28;
-      p.drawLine(QPointF(m, m), QPointF(size - m, size - m));
-      p.drawLine(QPointF(size - m, m), QPointF(m, size - m));
       return pm;
     }
 
@@ -112,8 +72,9 @@ namespace stencil::gui {
 
     // ── Header: server icon + title, Close at the right (mirrors the browser modal).
     auto* header = new QHBoxLayout;
+    const QColor txt = palette().color(QPalette::WindowText);
     auto* iconLbl = new QLabel;
-    iconLbl->setPixmap(serverGlyph(22, palette().color(QPalette::WindowText)));
+    iconLbl->setPixmap(themedIcon("server", txt, 22).pixmap(22, 22));
     header->addWidget(iconLbl);
     auto* titleLbl = new QLabel(tr("Servers"));
     QFont tf = titleLbl->font();
@@ -123,7 +84,7 @@ namespace stencil::gui {
     header->addWidget(titleLbl);
     header->addStretch(1);
     auto* closeBtn = new QPushButton(tr("Close"));
-    closeBtn->setIcon(style()->standardIcon(QStyle::SP_DialogCloseButton));
+    closeBtn->setIcon(themedIcon("x", txt, 15));
     header->addWidget(closeBtn);
     root->addLayout(header);
     root->addWidget(hLine());
@@ -146,12 +107,13 @@ namespace stencil::gui {
     // Connect (left) + Reconnect all (right), grouped on one row.
     auto* actions = new QHBoxLayout;
     auto* connectBtn = new QPushButton(tr("Connect"));
-    connectBtn->setIcon(style()->standardIcon(QStyle::SP_DialogApplyButton));
+    // White glyph: Connect is the default button (accent-filled in the theme QSS).
+    connectBtn->setIcon(themedIcon("link", QColor("#ffffff"), 15));
     connectBtn->setDefault(true);
     actions->addWidget(connectBtn);
     actions->addStretch(1);
     auto* reconnectAllBtn = new QPushButton(tr("Reconnect all"));
-    reconnectAllBtn->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+    reconnectAllBtn->setIcon(themedIcon("refresh", txt, 15));
     reconnectAllBtn->setToolTip(tr("Re-establish every connection (re-validate / reissue tokens)"));
     actions->addWidget(reconnectAllBtn);
     root->addLayout(actions);
@@ -246,12 +208,13 @@ namespace stencil::gui {
                                                                             : tr("Disconnected"));
       h->addWidget(dot);
       auto* mark = new QLabel;
-      mark->setPixmap(serverGlyph(16, kGold));
+      mark->setPixmap(themedIcon("server", kGold, 16).pixmap(16, 16));
       h->addWidget(mark);
       h->addWidget(new QLabel(url), 1);
-      auto* recon = mkIconBtn(style()->standardIcon(QStyle::SP_BrowserReload),
+      const QColor rowTxt = palette().color(QPalette::WindowText);
+      auto* recon = mkIconBtn(themedIcon("refresh", rowTxt, 16),
                               tr("Reconnect this server"));
-      auto* disc = mkIconBtn(QIcon(crossGlyph(16, QColor("#dc3545"))), tr("Disconnect"));
+      auto* disc = mkIconBtn(themedIcon("x", QColor("#dc3545"), 16), tr("Disconnect"));
       h->addWidget(recon);
       h->addWidget(disc);
       QObject::connect(recon, &QPushButton::clicked, this, [this, url] {

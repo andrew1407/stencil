@@ -49,11 +49,13 @@ int main(int argc, char** argv) {
   StencilApplication app(argc, argv);
   app.setApplicationName("Stencil");
   app.setOrganizationName("Stencil");
-  // Window/taskbar icon: the browser app's favicon, embedded as a Qt resource
-  // and drawn by the SVG icon engine, instead of the OS default. The desktop
-  // file name lets Wayland/X11 taskbars map the window to this icon.
+  // Window/taskbar icon: the browser app's favicon as a Qt resource. Skipped on
+  // macOS, where setWindowIcon() would shadow the bundle's themed AppIcon in the
+  // Dock (macOS windows have no title-bar icon); desktop-file is X11/Wayland-only.
+#ifndef Q_OS_MACOS
   app.setWindowIcon(QIcon(QStringLiteral(":/icons/appicon.svg")));
   app.setDesktopFileName(QStringLiteral("stencil"));
+#endif
   // Fusion honors widget-level QSS + palettes uniformly across the whole app,
   // unlike the native Adwaita/gtk style on Fedora which leaves the menubar /
   // toolbar unthemed. Set it before constructing the window (S14).

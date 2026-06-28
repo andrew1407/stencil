@@ -1,0 +1,94 @@
+# Stencil — local multi-service stack.
+#
+#   docker compose up --build            # db + redis + collab server + browser app
+#   docker compose up --build server     # just the collab server (+ its db/redis deps)
+#   docker compose --profile mcp run --rm mcp   # one-off MCP server over stdio
+#
+# Build contexts differ per image (see each Dockerfile's header):
+#   - server  builds from ./server  (standalone Go module, does NOT compile core/)
+#   - browser/mcp build from the repo root (.) because they compile core/
+#
+# After `up`, the pieces are reachable on the host at:
+#   browser app  -> http://localhost:8080
+#   REST + WS    -> http://localhost:8090   (point the front-ends here to connect)
+#   raw-TCP edit -> tcp://localhost:8091    (desktop QTcpSocket / CLI live sync)
+#
+# Override any value via a sibling .env file or the shell environment, e.g.
+#   ADMIN_TOKEN=secret CORS_ORIGINS=http://localhost:8080 docker compose up
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stencil
+      POSTGRES_PASSWORD: stencil
+      POSTGRES_DB: stencil
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stencil -d stencil"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Exposed for poking at the DB from the host; the server reaches it over the
+    # compose network as `db:5432` regardless.
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+
+  server:
+    build:
+      context: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      LISTEN_ADDR: ":8090"
+      TCP_ADDR: ":8091"
+      DATABASE_URL: "postgres://stencil:stencil@db:5432/stencil?sslmode=disable"
+      # Drop REDIS_URL (set it empty) to fall back to the in-process bus.
+      REDIS_URL: "${REDIS_URL-redis://redis:6379/0}"
+      FILESTORE_ROOT: "/data/filestore"
+      # Dev defaults: open token issuance + permissive CORS. Lock these down for
+      # anything real, e.g. ADMIN_TOKEN=... CORS_ORIGINS=http://localhost:8080
+      ADMIN_TOKEN: "${ADMIN_TOKEN-}"
+      CORS_ORIGINS: "${CORS_ORIGINS-*}"
+    volumes:
+      - filestore:/data/filestore
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+
+  browser:
+    build:
+      # Repo root: the browser image compiles core/ -> wasm before serving.
+      context: .
+      dockerfile: browser/Dockerfile
+    ports:
+      - "8080:80"
+
+  # MCP server speaks over stdio, so it is not a long-running `up` service.
+  # Start it on demand and wire its stdin/stdout into an MCP client:
+  #   docker compose --profile mcp run --rm -i mcp
+  mcp:
+    profiles: ["mcp"]
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    stdin_open: true
+    tty: false
+
+volumes:
+  pgdata:
+  filestore:

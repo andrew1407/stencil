@@ -1,7 +1,9 @@
 #include "linksDialog.hpp"
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include "mediaLoader.hpp"
 #include <algorithm>
+#include <QPalette>
 #include <QAudioOutput>
 #include <QCheckBox>
 #include <QComboBox>
@@ -46,6 +48,10 @@ namespace stencil::gui {
       : QDialog(parent), pageSeed_(pageSeed == "A4" ? "A4" : "A3") {
     setWindowTitle("Image links");
     setMinimumWidth(480);
+    const QColor txt = palette().color(QPalette::WindowText);
+    // Theme muted tone for hint/secondary text (browser --text-muted).
+    const QString mutedCss =
+        QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
 
     auto* layout = new QVBoxLayout(this);
 
@@ -55,9 +61,11 @@ namespace stencil::gui {
 
     sourceEdit_ = new QLineEdit(source, this);
     sourceEdit_->setPlaceholderText("(empty — local upload)");
-    auto* srcOpen = new QPushButton("↗", this);
+    auto* srcOpen = new QPushButton(this);
+    srcOpen->setIcon(themedIcon("external", txt, 15));
     srcOpen->setToolTip("Open source in the default browser");
-    auto* srcClear = new QPushButton("✕", this);
+    auto* srcClear = new QPushButton(this);
+    srcClear->setIcon(themedIcon("x", txt, 15));
     srcClear->setToolTip("Remove source link");
     connect(srcOpen, &QPushButton::clicked, this, [this] { openInBrowser(sourceEdit_); });
     connect(srcClear, &QPushButton::clicked, this, [this] { sourceEdit_->clear(); });
@@ -65,9 +73,11 @@ namespace stencil::gui {
 
     resourceEdit_ = new QLineEdit(resource, this);
     resourceEdit_->setPlaceholderText("(empty)");
-    auto* resOpen = new QPushButton("↗", this);
+    auto* resOpen = new QPushButton(this);
+    resOpen->setIcon(themedIcon("external", txt, 15));
     resOpen->setToolTip("Open resource page in the default browser");
-    auto* resClear = new QPushButton("✕", this);
+    auto* resClear = new QPushButton(this);
+    resClear->setIcon(themedIcon("x", txt, 15));
     resClear->setToolTip("Remove resource link");
     connect(resOpen, &QPushButton::clicked, this, [this] { openInBrowser(resourceEdit_); });
     connect(resClear, &QPushButton::clicked, this, [this] { resourceEdit_->clear(); });
@@ -81,7 +91,8 @@ namespace stencil::gui {
     // URL + an inline Preview button (mirrors the browser modal's 👁 Preview).
     urlEdit_ = new QLineEdit(this);
     urlEdit_->setPlaceholderText("https://… (image or video)");
-    auto* previewBtn = new QPushButton("👁 Preview", this);
+    auto* previewBtn = new QPushButton("Preview", this);
+    previewBtn->setIcon(themedIcon("eye", txt, 15));
     previewBtn->setToolTip("Fetch and show the image / first video frame");
     auto* urlRow = new QHBoxLayout;
     urlRow->addWidget(urlEdit_, 1);
@@ -119,7 +130,7 @@ namespace stencil::gui {
     frame_->setToolTip("Exact frame number (validated against the video length)");
     frameH->addWidget(frame_);
     frameTotal_ = new QLabel(frameRow_);
-    frameTotal_->setStyleSheet("color: gray;");
+    frameTotal_->setStyleSheet(mutedCss);
     frameH->addWidget(frameTotal_);
     frameV->addLayout(frameH);
     usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", frameRow_);
@@ -132,7 +143,7 @@ namespace stencil::gui {
     addForm->addRow(frameRow_);
 
     previewHint_ = new QLabel(this);
-    previewHint_->setStyleSheet("color: gray; font-size: 11px;");
+    previewHint_->setStyleSheet(mutedCss + " font-size: 11px;");
     previewHint_->setWordWrap(true);
     addForm->addRow(previewHint_);
 
@@ -161,7 +172,11 @@ namespace stencil::gui {
     // Album / page only matter when cropping to page; grey them out otherwise.
     connect(cropPage_, &QCheckBox::toggled, this, &LinksDialog::syncQuickcropEnabled);
 
-    loadBtn_ = new QPushButton("⬇ Load into editor", this);
+    loadBtn_ = new QPushButton("Load into editor", this);
+    // The real call-to-action in add-by-URL mode → accent primary (white glyph on the
+    // accent gradient, like the Connect dialog's Connect button).
+    loadBtn_->setObjectName("primaryButton");
+    loadBtn_->setIcon(themedIcon("download", QColor("#ffffff"), 15));
     loadBtn_->setEnabled(false);  // enabled once a preview succeeds
     connect(loadBtn_, &QPushButton::clicked, this, &LinksDialog::requestLoad);
     addForm->addRow(QString(), loadBtn_);
@@ -169,7 +184,7 @@ namespace stencil::gui {
 
     auto* hint = new QLabel(
         "Downloads bypass page CORS, so any reachable image/video URL works.", this);
-    hint->setStyleSheet("color: gray; font-size: 11px;");
+    hint->setStyleSheet(mutedCss + " font-size: 11px;");
     hint->setWordWrap(true);
     layout->addWidget(hint);
 
@@ -254,7 +269,16 @@ namespace stencil::gui {
     hint->setVisible(!hasImage);
 
     auto* box = makeButtonBox(this, QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    box->button(QDialogButtonBox::Ok)->setText(hasImage ? "Save links" : "Close");
+    auto* okBtn = box->button(QDialogButtonBox::Ok);
+    okBtn->setText(hasImage ? "Save links" : "Close");
+    // In add-by-URL mode the accept button is really just "Close" (the CTA is "Load
+    // into editor"), so strip the accent-primary treatment makeButtonBox gave it.
+    if (!hasImage) {
+      okBtn->setObjectName(QString());
+      okBtn->setDefault(false);
+      okBtn->setAutoDefault(false);
+      okBtn->setIcon(themedIcon("x", txt, 15));
+    }
     layout->addWidget(box);
   }
 
