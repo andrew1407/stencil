@@ -17,8 +17,9 @@ pub const max_history = 50; // last-N entered commands kept for Up/Down
 pub const Input = union(enum) {
     line: usize, // a command line of this many bytes now sits in `buf`
     eof, // Ctrl-D or a closed tty — leave the console immediately
-    interrupt, // Ctrl-C — caller copies the image and/or confirms exit
-    paste, // Ctrl-V — caller loads an image from the clipboard
+    interrupt, // Ctrl-C — caller confirms exit (twice)
+    copy, // Ctrl-Alt-C — caller copies the image to the clipboard
+    paste, // Ctrl-Alt-V — caller loads an image from the clipboard
 };
 
 // ── command history (a small ring of owned strings, oldest first) ──────────────
@@ -113,10 +114,11 @@ pub const Editor = struct {
     }
 
     /// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
-    /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C) or
-    /// `.paste` (Ctrl-V). `armed` carries the single-Ctrl-C exit guard across calls: any key
-    /// but Ctrl-C disarms it, so the caller can require two presses to leave. `completions`
-    /// are command names for Tab-complete.
+    /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C, exit),
+    /// `.copy` (Ctrl-Alt-C) or `.paste` (Ctrl-Alt-V). The Alt-modified chords arrive as an
+    /// ESC prefix (the Meta convention) followed by the Ctrl byte. `armed` carries the
+    /// two-Ctrl-C exit guard across calls: any key but Ctrl-C disarms it, so the caller can
+    /// require two presses to leave. `completions` are command names for Tab-complete.
     pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool) Input {
         var len: usize = 0;
         var pos: usize = 0;
@@ -136,17 +138,13 @@ pub const Editor = struct {
                     self.writeAll("\r\n");
                     return .{ .line = len };
                 },
-                3 => { // Ctrl-C: copy the image and/or confirm exit (the caller decides)
+                3 => { // Ctrl-C: confirm exit (the caller requires two presses)
                     self.writeAll("\r\n");
                     return .interrupt;
                 },
                 4 => { // Ctrl-D (EOF): leave the console
                     self.writeAll("\r\n");
                     return .eof;
-                },
-                22 => { // Ctrl-V: paste an image from the clipboard (the caller loads it)
-                    self.writeAll("\r\n");
-                    return .paste;
                 },
                 21 => { // Ctrl-U: clear the line
                     len = 0;
@@ -168,7 +166,21 @@ pub const Editor = struct {
                     len -= 1;
                     self.refresh(prompt, buf[0..len], pos);
                 },
-                27 => self.escape(prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len),
+                27 => { // ESC: a nav sequence (arrows/Home/End/Del), or an Alt-modified chord
+                    const nxt = self.readByte() orelse continue; // lone ESC: ignore
+                    switch (nxt) {
+                        3 => { // Ctrl-Alt-C: copy the image to the clipboard
+                            self.writeAll("\r\n");
+                            return .copy;
+                        },
+                        22 => { // Ctrl-Alt-V: paste an image from the clipboard
+                            self.writeAll("\r\n");
+                            return .paste;
+                        },
+                        '[', 'O' => self.escape(prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len),
+                        else => {}, // other Alt-combo: ignore
+                    }
+                },
                 else => if (ch >= 0x20 and len < buf.len) { // printable: insert at cursor
                     if (pos < len) std.mem.copyBackwards(u8, buf[pos + 1 .. len + 1], buf[pos..len]);
                     buf[pos] = ch;
@@ -203,10 +215,9 @@ pub const Editor = struct {
         }
     }
 
-    // Handle an ESC-introduced sequence (arrow keys, Home/End, Delete).
+    // Handle an ESC-introduced navigation sequence (arrow keys, Home/End, Delete). The caller
+    // (readLine) has already consumed the ESC and the '[' / 'O' intro byte.
     fn escape(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
-        const intro = self.readByte() orelse return;
-        if (intro != '[' and intro != 'O') return;
         const code = self.readByte() orelse return;
         switch (code) {
             'A' => self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, true),

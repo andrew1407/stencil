@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
-import { getAutoConnect, setAutoConnect } from '../net/connectionStore.js';
+import { getAutoConnect, setAutoConnect, getSyncToServer, setSyncToServer } from '../net/connectionStore.js';
 
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
@@ -29,6 +29,11 @@ export class StencilConnectModal extends StencilElement {
                 <div class="vs-row">
                     <label title="Reconnect saved servers automatically when the editor opens">
                         <input type="checkbox" id="connect-autoconnect"> Auto-connect on open
+                    </label>
+                </div>
+                <div class="vs-row">
+                    <label title="When off, edits to a fetched server project stay in this session only — never pushed to the server or saved locally (download or 'Make local copy' to keep them)">
+                        <input type="checkbox" id="connect-sync"> Sync changes to server
                     </label>
                 </div>
 
@@ -140,8 +145,11 @@ export class StencilConnectModal extends StencilElement {
     const autoEl = $('connect-autoconnect');
     autoEl.checked = getAutoConnect();
     autoEl.addEventListener('change', () => setAutoConnect(autoEl.checked));
+    const syncEl = $('connect-sync');
+    syncEl.checked = getSyncToServer();
+    syncEl.addEventListener('change', () => setSyncToServer(syncEl.checked));
 
-    wireModalShell(overlay, $('connect-btn'), $('connect-close'), { onOpen: () => { autoEl.checked = getAutoConnect(); render(); } });
+    wireModalShell(overlay, $('connect-btn'), $('connect-close'), { onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); render(); } });
 
     // Keep the list live when connections change from the console facade or events.
     window.addEventListener('stencil:connections-changed', () => {

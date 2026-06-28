@@ -121,6 +121,10 @@ namespace stencil::gui {
     // Adopt an in-memory image (clipboard paste / generated): replaces the
     // current image, clears the file path, and resets lines/history/scale.
     void loadFromImage(const QImage& img);
+    // Adopt an in-memory image with a known geometry (a reopened server project):
+    // applies rotation FIRST, then the crop (which lives in rotated-original space),
+    // mirroring restore() for the in-memory case. A zero-width crop default-crops.
+    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
 
     // ── selected-line mutators + delete (S7; port of applySelectionChange
     // ~1674 and canvasDblClick delete ~1515) ──

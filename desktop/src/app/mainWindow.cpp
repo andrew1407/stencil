@@ -494,7 +494,6 @@ namespace stencil::gui {
       canvas_->rotateImage(clockwise);
       fitToWindow();
       refreshActions();
-      notify_->success(clockwise ? "Rotated right" : "Rotated left");
     };
     connect(actRotateLeft_, &QAction::triggered, this, [rotate] { rotate(false); });
     connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
@@ -1508,7 +1507,8 @@ namespace stencil::gui {
   }
 
   void MainWindow::scheduleRemotePush() {
-    if (incognito_ || remoteReloading_ || remoteAddress_.isEmpty()) return;
+    // Sync off → a fetched project is edit-in-memory only: never auto-push to peers.
+    if (incognito_ || remoteReloading_ || remoteAddress_.isEmpty() || !settings_.syncToServer) return;
     remotePushTimer_->start(600);   // debounce a burst of edits into one save
   }
 
@@ -1525,6 +1525,7 @@ namespace stencil::gui {
   // or reload our own change.
   void MainWindow::pollRemoteForUpdate() {
     if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
+    if (!settings_.syncToServer) return;  // sync off — don't pull peer changes over local edits
     if (remotePushing_ || (remotePushTimer_ && remotePushTimer_->isActive())) return;
     stencil::net::ServerClient* c =
         connections_ ? connections_->find(remoteAddress_) : nullptr;
@@ -2177,6 +2178,9 @@ namespace stencil::gui {
 
   void MainWindow::saveSessionNow() {
     if (incognito_) return;  // S6: skip session writes while incognito
+    // Sync off + a fetched server project = edit-in-memory only: don't persist the
+    // restore blob either (the session is "stored nowhere").
+    if (!remoteAddress_.isEmpty() && !settings_.syncToServer) return;
     Session s;
     s.imagePath = canvas_->imagePath();
     s.pageSize = pageSize_->currentText();
@@ -2309,6 +2313,8 @@ namespace stencil::gui {
       moveLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::MoveToLocal) {
       moveServerProjectToLocal(dlg.selectedServerUrl(), dlg.selectedId());
+    } else if (dlg.action() == Action::MakeLocalCopy) {
+      makeLocalCopyOfServerProject(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::Delete) {
       // Block removing a project that's open in another window (matches the browser's
       // "open in another tab" guard).
@@ -2525,14 +2531,15 @@ namespace stencil::gui {
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
     }
-    canvas_->loadFromImage(img);
-    // Adopt the stored layout's lines (image is already loaded; no replace prompt
-    // since this is a fresh open).
-    if (!layout.isEmpty() && layout.value("lines").isArray()) {
-      int lw = 0, lh = 0;
-      core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh);
-      canvas_->setLines(lines);
-    }
+    // Restore the project's geometry (rotation + crop) from the layout, then adopt its
+    // lines. Rotation applies before the crop (the crop lives in rotated-original space);
+    // an empty/old layout default-crops and stays un-rotated.
+    int lw = 0, lh = 0;
+    core::CropRect crop;
+    int rot = 0;
+    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot);
+    canvas_->loadFromImage(img, crop, rot);
+    if (!lines.empty()) canvas_->setLines(lines);
     // Restore the project's saved filter/tint (an empty layout resets to "none" + the
     // default tint, so the previously-open project's filter doesn't bleed onto this image).
     QString filter, tint;
@@ -2639,7 +2646,8 @@ namespace stencil::gui {
     // Push the annotated layout (lines + the filter the desktop applies on open) so the
     // server holds the full project, not just the original.
     const QJsonObject layout = fileStore::buildLayoutJson(
-        w, h, pr->lines, settings_.imageFilter, settings_.filterColor);
+        w, h, pr->lines, settings_.imageFilter, settings_.filterColor,
+        pr->cropRect, pr->rotationQuarters);
     qint64 newVersion = version;
     bool conflict = false;
     c->updateProject(newId, name, layout, version, newVersion, conflict);
@@ -2659,28 +2667,51 @@ namespace stencil::gui {
   // Server → local: download the project's image + layout, persist it as a new local
   // project, then delete it from the server. Mirrors moveProjectToLocal().
   void MainWindow::moveServerProjectToLocal(const QString& serverUrl, const QString& id) {
+    QString newId;
+    if (!importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/true, "", &newId))
+      return;
+    refreshActions();
+    refreshDockMenu();
+    notify_->success("Moved to local storage");
+  }
+
+  void MainWindow::makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id) {
+    QString newId;
+    if (!importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/false, "-local", &newId))
+      return;
+    refreshActions();
+    refreshDockMenu();
+    loadProjectIntoCanvas(newId);   // open the detached copy (clears the remote link)
+    notify_->success("Local copy created");
+  }
+
+  // Shared body: fetch a server project's image + layout (incl. crop/rotation), persist a
+  // fresh detached local project; optionally delete the server copy. Errors are reported.
+  bool MainWindow::importServerProjectToLocal(const QString& serverUrl, const QString& id,
+                                              bool removeFromServer, const QString& nameSuffix,
+                                              QString* newIdOut) {
     stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
     if (!c) {
       notify_->error("Not connected to that server");
-      return;
+      return false;
     }
     stencil::net::ServerProject meta;
     QJsonObject layout;
     if (!c->getProject(id, meta, layout)) {
       notify_->error(QString("Could not fetch server project — %1").arg(c->lastError()));
-      return;
+      return false;
     }
     bool ok = false;
     QByteArray bytes = c->downloadFile(id, "original", ok);
     if (!ok || bytes.isEmpty()) bytes = fetchUrlBytes(meta.source);  // extension-added: only a web URL
     if (bytes.isEmpty()) {
-      notify_->error("Server project has no image to move");
-      return;
+      notify_->error("Server project has no image");
+      return false;
     }
     QImage img;
     if (!img.loadFromData(bytes)) {
       notify_->error("Server image could not be decoded");
-      return;
+      return false;
     }
     // Persist the bytes to a file under the state dir so the local project reloads its
     // pixels on open (local projects reference an on-disk imagePath).
@@ -2691,27 +2722,23 @@ namespace stencil::gui {
     const QString path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";
     if (!img.save(path, "PNG")) {
       notify_->error("Could not write the image to local storage");
-      return;
+      return false;
     }
-    pr.meta.name = (meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name).toStdString();
+    const QString baseName = meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name;
+    pr.meta.name = (baseName + nameSuffix).toStdString();
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.meta.hasImage = true;
     pr.meta.source = meta.source.toStdString();
     pr.meta.resource = meta.resource.toStdString();
     pr.imagePath = path;
-    int lw = 0;
-    int lh = 0;
-    if (!layout.isEmpty() && layout.value("lines").isArray())
-      pr.lines = fileStore::parseLayoutJson(layout, lw, lh);
+    int lw = 0, lh = 0;
+    pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters);
     projectList_.push_back(pr);
     fileStore::saveProjects(projectList_);
-    // Now remove it from the server.
-    if (!c->deleteProject(id))
+    if (removeFromServer && !c->deleteProject(id))
       notify_->error(QString("Copied locally, but server delete failed — %1").arg(c->lastError()));
-    refreshActions();
-    refreshDockMenu();
-    notify_->success(QString("Moved \"%1\" to local storage")
-                         .arg(QString::fromStdString(pr.meta.name)));
+    if (newIdOut) *newIdOut = QString::fromStdString(pr.meta.id);
+    return true;
   }
 
   // ── launch options (CLI) ──
@@ -3198,6 +3225,7 @@ namespace stencil::gui {
   // the rendered result. A 409 surfaces a clear "edited elsewhere" message and
   // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
   void MainWindow::saveToServer() {
+    if (!settings_.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
     stencil::net::ServerClient* c =
         connections_ ? connections_->find(remoteAddress_) : nullptr;
     if (!c) {
@@ -3219,7 +3247,8 @@ namespace stencil::gui {
     for (int attempt = 0; attempt < 6 && !committed; ++attempt) {
       const QJsonObject layout =
           fileStore::buildLayoutJson(w, h, canvas_->allLines(),
-                                     settings_.imageFilter, settings_.filterColor);
+                                     settings_.imageFilter, settings_.filterColor,
+                                     canvas_->cropRect(), canvas_->rotationQuarters());
       bool conflict = false;
       if (c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
                            conflict)) {
@@ -3276,8 +3305,10 @@ namespace stencil::gui {
         if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
       }
     }
-    notify_->success(merged ? QStringLiteral("Merged changes from another editor")
-                            : QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
+    // Don't announce another client's incoming change; just confirm our own save. (`merged`
+    // still drives the union-merge retry loop above; it only affected this message.)
+    (void)merged;
+    notify_->success(QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
   }
 
   void MainWindow::saveToActiveProject() {
@@ -3286,6 +3317,11 @@ namespace stencil::gui {
       return;
     }
     if (!remoteAddress_.isEmpty()) {  // server-linked session → write back to the server
+      if (!settings_.syncToServer) {
+        notify_->info(
+            "Sync off — not saved. Export the image/layout or use Make local copy to keep changes.");
+        return;
+      }
       saveToServer();
       return;
     }

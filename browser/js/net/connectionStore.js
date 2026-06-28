@@ -6,6 +6,7 @@
 
 const SERVERS_KEY = 'drawingApp_servers';
 const AUTOCONNECT_KEY = 'drawingApp_autoConnectServers';
+const SYNC_KEY = 'drawingApp_syncToServer';
 
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 
@@ -42,6 +43,25 @@ export const getAutoConnect = () => {
 export const setAutoConnect = (on) => {
   try {
     ls()?.setItem(AUTOCONNECT_KEY, on ? '1' : '0');
+  } catch {
+    /* ignore — preference just won't persist */
+  }
+};
+
+// "Sync changes to server" defaults ON: edits to a fetched server project push live to
+// peers. An explicit '0' makes a fetched project edit-in-memory only — never pushed AND
+// never auto-saved locally; the user can download it or "Make local copy" to persist.
+export const getSyncToServer = () => {
+  try {
+    return ls()?.getItem(SYNC_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+
+export const setSyncToServer = (on) => {
+  try {
+    ls()?.setItem(SYNC_KEY, on ? '1' : '0');
   } catch {
     /* ignore — preference just won't persist */
   }

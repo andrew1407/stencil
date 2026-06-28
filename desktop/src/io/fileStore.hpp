@@ -28,6 +28,10 @@ namespace stencil::gui {
     // localStorage drawingApp_accent / stencil_accent.
     QString accentColor = "violet";
     bool autosave = true;
+    // "Sync changes to server" (default on). When off, edits to a fetched server
+    // project stay in this session only — never pushed to the server nor autosaved
+    // locally; the user can export them or "Make local copy" to keep them.
+    bool syncToServer = true;
     bool showPoints = true;
     bool showLines = true;
     QString defaultColor = "#FFFF00";
@@ -114,16 +118,19 @@ namespace stencil::gui {
     QJsonArray linesToJson(const core::Lines& lines);
     core::Lines linesFromJson(const QJsonArray& arr);
 
-    // ── Layout-JSON envelope (browser drawingApp.js:2078-2079 download/upload
-    // layout). buildLayoutJson emits {imageWidth,imageHeight,lines,imageFilter,
-    // filterColor} — the filter/tint ride along so a reopened project (server or
-    // file) restores the same b&w/sepia/tint result, matching the browser layout
-    // blob (storage.js #buildLayout). parseLayoutJson reads the lines back,
-    // reporting the stored image dimensions.
+    // ── Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
+    // Emits {imageWidth,imageHeight,lines,imageFilter,filterColor} plus optional
+    // cropRect (rotated-image pixels) + rotationQuarters, so a reopened project
+    // restores its filter and exact geometry. cropRect is omitted when empty and
+    // rotationQuarters when 0, keeping old file exports byte-identical; parseLayoutJson
+    // fills the out-pointers when supplied, leaving them untouched when absent.
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
-                                const QString& filterColor = "#7c3aed");
-    core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut);
+                                const QString& filterColor = "#7c3aed",
+                                const core::CropRect& cropRect = {},
+                                int rotationQuarters = 0);
+    core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
+                                core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
     QString hotkeysPath();
     // Shortcut overrides (id -> key sequence), layered over hotkeysConfig.json

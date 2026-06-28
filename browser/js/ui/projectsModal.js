@@ -407,6 +407,15 @@ export class StencilProjectsModal extends StencilElement {
         try { await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); }
         catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
       };
+      // Make a detached local copy ("<name>-local"), leaving the server copy in place, and open it.
+      const makeLocalCopy = async () => {
+        try {
+          const newId = await app.copyServerProjectToLocal(meta);
+          notify('Local copy created', 'ok');
+          app.switchToProject(newId);
+          close();
+        } catch (err) { notify(`Could not make a local copy — ${err.message}`, 'fail'); }
+      };
       const deleteFromServer = async () => {
         if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true }))) return;
         const conn = app.connections && app.connections.get(meta.serverUrl);
@@ -424,6 +433,7 @@ export class StencilProjectsModal extends StencilElement {
         e.stopPropagation();
         showMenu(menuBtn, [
           { icon: 'folder', label: 'Open from server', onClick: openFromServer },
+          { icon: 'copy', label: 'Make local copy', onClick: makeLocalCopy },
           { icon: 'download', label: 'Move to local', onClick: moveToLocal },
           { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
         ]);

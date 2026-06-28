@@ -41,21 +41,23 @@ fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *li
     var hist = line_edit.History{ .gpa = gpa };
     defer hist.deinit();
     var buf: [line_edit.max_line]u8 = undefined;
-    var armed = false; // one Ctrl-C copies + arms exit; a second one in a row confirms it
+    var armed = false; // one Ctrl-C arms exit; a second one in a row confirms it
     while (true) {
         // A TTY read always blocks, so this is the burst-settled boundary: flush any
         // pending sync upload and surface any concurrent server edits before the prompt.
         handlers.flushSync(session, false);
-        handlers.pollEvents(session);
+        handlers.pollEvents(session, io);
         switch (ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions, &armed)) {
             .eof => break, // Ctrl-D / closed tty
-            .interrupt => { // Ctrl-C: copy the image, then require a second press to leave
+            .interrupt => { // Ctrl-C: require a second press in a row to leave
                 if (armed) break;
                 armed = true;
-                if (session.hasImage()) handlers.doCopy(session, io) catch {};
                 logo.print("press Ctrl-C again to exit\n", .{});
             },
-            .paste => { // Ctrl-V: load an image from the clipboard
+            .copy => { // Ctrl-Alt-C: copy the image to the clipboard
+                if (session.hasImage()) handlers.doCopy(session, io) catch {};
+            },
+            .paste => { // Ctrl-Alt-V: load an image from the clipboard
                 handlers.doPaste(session, io) catch |e| logo.print("error: {s}\n", .{@errorName(e)});
             },
             .line => |n| {
@@ -102,7 +104,7 @@ fn runPiped(io: std.Io, session: *Session) void {
         // Coalesce a piped burst: defer the sync upload while more commands are still
         // buffered, flushing once the reader's buffer drains (the burst has settled).
         handlers.flushSync(session, r.bufferedLen() != 0);
-        handlers.pollEvents(session);
+        handlers.pollEvents(session, io);
     }
     handlers.flushSync(session, false); // final flush at end-of-stream
 }
@@ -141,7 +143,9 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .theme => handlers.doTheme(session, cmd.arg),
         .connect => try handlers.doConnect(session, io, cmd.arg),
         .disconnect => try handlers.doDisconnect(session, cmd.arg),
+        .reconnect => try handlers.doReconnect(session, io, cmd.arg),
         .connections => handlers.doConnections(session),
+        .projects => try handlers.doProjects(session, io, cmd.arg),
         .fetch => try handlers.doFetch(session, cmd.arg),
         .sync => handlers.doSync(session, cmd.arg),
     } else if (commands.actionOf(cmd.word, cmd.arg)) |action| {

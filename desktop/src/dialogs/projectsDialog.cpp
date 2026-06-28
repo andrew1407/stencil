@@ -173,9 +173,12 @@ namespace stencil::gui {
     toServerBtn->setToolTip("Store the selected local project on a server, then remove the local copy");
     auto* toLocalBtn = new QPushButton(QString::fromUtf8("⇩ To local"), this);
     toLocalBtn->setToolTip("Copy the selected server project to local storage, then remove it from the server");
+    auto* copyLocalBtn = new QPushButton(QString::fromUtf8("⧉ Local copy"), this);
+    copyLocalBtn->setToolTip("Make a local copy (\"<name>-local\") of the selected server project and open it, leaving the server copy in place");
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     toServerBtn->setVisible(haveServers);
     toLocalBtn->setVisible(haveServers);
+    copyLocalBtn->setVisible(haveServers);
     auto* delBtn = new QPushButton("Delete", this);
     auto* closeBtn = new QPushButton("Close", this);
     openBtn->setDefault(true);
@@ -188,6 +191,7 @@ namespace stencil::gui {
     row->addWidget(renewBtn);
     row->addWidget(toServerBtn);
     row->addWidget(toLocalBtn);
+    row->addWidget(copyLocalBtn);
     row->addWidget(delBtn);
     row->addWidget(closeBtn);
     layout->addLayout(row);
@@ -201,6 +205,7 @@ namespace stencil::gui {
     connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
     connect(toServerBtn, &QPushButton::clicked, this, &ProjectsDialog::moveToServerSelected);
     connect(toLocalBtn, &QPushButton::clicked, this, &ProjectsDialog::moveToLocalSelected);
+    connect(copyLocalBtn, &QPushButton::clicked, this, &ProjectsDialog::makeLocalCopySelected);
     connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
 
@@ -529,6 +534,17 @@ namespace stencil::gui {
     selectedId_ = it->data(Qt::UserRole).toString();
     selectedServerUrl_ = server;
     action_ = Action::MoveToLocal;
+    accept();
+  }
+
+  void ProjectsDialog::makeLocalCopySelected() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    const QString server = it->data(Qt::UserRole + 1).toString();
+    if (server.isEmpty()) return;  // server (golden) rows only
+    selectedId_ = it->data(Qt::UserRole).toString();
+    selectedServerUrl_ = server;
+    action_ = Action::MakeLocalCopy;
     accept();
   }
 

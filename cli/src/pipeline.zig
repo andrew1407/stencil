@@ -174,14 +174,34 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
 
 /// Crop in place using a crop spec string; page metrics are derived from the current dims.
 pub fn applyCropSpec(gpa: std.mem.Allocator, img: *image.Rgba8, spec: []const u8, album: bool) !void {
-    const page = pageForImage(gpa, img.width, img.height);
-    const px_per_cm_x = @as(f64, @floatFromInt(img.width)) / page.w;
-    const px_per_cm_y = @as(f64, @floatFromInt(img.height)) / page.h;
-    const rect = core.resolveCrop(gpa, spec, @floatFromInt(img.width), @floatFromInt(img.height), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
-        logo.print("error: could not parse crop spec \"{s}\"\n", .{spec});
-        return error.BadCrop;
-    };
+    const rect = resolveCropSpec(gpa, img.width, img.height, spec, album) orelse return error.BadCrop;
     try cropInPlace(gpa, img, rect);
+}
+
+/// Resolve a crop spec to a pixel rect within a `w`×`h` image (page metrics derived from the
+/// dims), without cropping — for the console's structured model, which records the rect rather
+/// than baking. Prints + returns null on a bad spec.
+pub fn resolveCropSpec(gpa: std.mem.Allocator, w: usize, h: usize, spec: []const u8, album: bool) ?core.Rect {
+    const page = pageForImage(gpa, w, h);
+    const px_per_cm_x = @as(f64, @floatFromInt(w)) / page.w;
+    const px_per_cm_y = @as(f64, @floatFromInt(h)) / page.h;
+    return core.resolveCrop(gpa, spec, @floatFromInt(w), @floatFromInt(h), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
+        logo.print("error: could not parse crop spec \"{s}\"\n", .{spec});
+        return null;
+    };
+}
+
+/// Crop in place to an explicit pixel rect (clamped to the image bounds). Used when rebuilding
+/// the console's derived view from its recorded crop.
+pub fn cropToRect(gpa: std.mem.Allocator, img: *image.Rgba8, rect: core.Rect) !void {
+    const iw: i32 = @intCast(img.width);
+    const ih: i32 = @intCast(img.height);
+    var r = rect;
+    r.w = std.math.clamp(r.w, 1, iw);
+    r.h = std.math.clamp(r.h, 1, ih);
+    r.x = std.math.clamp(r.x, 0, iw - r.w);
+    r.y = std.math.clamp(r.y, 0, ih - r.h);
+    try cropInPlace(gpa, img, r);
 }
 
 /// Rotate in place by `rotate` quarter-turns. A multiple of four (incl. 0) is a no-op.
@@ -238,6 +258,12 @@ fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32)
 fn loadText(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
     if (net.isUrl(src)) return net.fetch(gpa, io, src) catch |e| return mapMediaError(e);
     return readLocal(gpa, io, src);
+}
+
+/// Load a layout JSON document (file path or http(s) URL) as raw bytes — for the console's
+/// structured model, which records the lines rather than baking them. Prints on failure.
+pub fn loadLayoutBytes(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
+    return loadText(gpa, io, src);
 }
 
 fn readLocal(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {

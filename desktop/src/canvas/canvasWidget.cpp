@@ -1379,6 +1379,33 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  // Adopt an in-memory image WITH a known geometry (a reopened server project).
+  // Rotation is set before the crop is applied (the crop rect lives in rotated-
+  // original space); a zero-width crop falls back to the default centered crop.
+  void CanvasWidget::loadFromImage(const QImage& img, const core::CropRect& cropRect,
+                                   int rotationQuarters) {
+    if (img.isNull()) return;
+    originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
+    rotationQuarters_ = ((rotationQuarters % 4) + 4) % 4;  // before defaultCropRect/rebuild
+    cropRect_ = cropRect.width > 0 ? cropRect : defaultCropRect();
+    rebuildCroppedFromOriginal();
+    imagePath_.clear();
+    lines_.clear();
+    currentLine_ = core::Line{};
+    applyDefaultsToCurrent();
+    selectedPoint_ = -1;
+    selectedLineIdx_ = -1;
+    continueLineIdx_ = continueInsertIdx_ = -1;
+    scale_ = 1.0;
+    filterDirty_ = true;
+    history_.reset(lines_);
+    setFixedSize(QSize(qRound(image_.width() * scale_),
+                       qRound(image_.height() * scale_)));
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
   // ── S7: selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515) ──
 
