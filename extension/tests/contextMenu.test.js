@@ -10,12 +10,21 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
   assert.ok(root && root.title === 'Stencil' && !root.parentId);
   // Exactly one item has no parent: the root.
   assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.root]);
-  // Distinct parents used: the root and the Preview submenu parent.
+  // Distinct parents used: the root, the three "Open in editor ▸" group parents, and the
+  // Preview submenu parent.
   const parents = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))].sort();
-  assert.deepEqual(parents, [MENU.previewParent, MENU.root].sort());
+  assert.deepEqual(parents,
+    [MENU.openParent, MENU.frameOpenParent, MENU.bgOpenParent, MENU.previewParent, MENU.root].sort());
   // previewParent hangs off root; its 6 actions hang off it.
   assert.equal(MENU_ITEMS.find(i => i.id === MENU.previewParent).parentId, MENU.root);
   assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.previewParent).length, 6);
+  // The image open variants nest under the "Open in editor ▸" parent (which is on root).
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.openParent).parentId, MENU.root);
+  for (const id of [MENU.open, MENU.openResume, MENU.openIncognito, MENU.openModal, MENU.openModalIncognito])
+    assert.equal(MENU_ITEMS.find(i => i.id === id).parentId, MENU.openParent);
+  // Crop + Pin stay at the top level (single actions, not grouped).
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.crop).parentId, MENU.root);
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.pin).parentId, MENU.root);
 
   // Native items are scoped to native contexts: image actions on <img>, frame + preview
   // on <video>. None is on 'page'/'all' (only the root carries 'all'), so they never
@@ -36,11 +45,12 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
 
 test('MENU_ITEMS: dynamic background/link group hangs off the Stencil parent on the all-context, default-hidden', () => {
   const bg = MENU_ITEMS.filter(i => DYNAMIC_ITEMS.includes(i.id));
-  // 7 image-equivalent actions (open / resume / incognito / 2× modal / crop / pin).
-  assert.equal(bg.length, 7);
-  assert.equal(DYNAMIC_ITEMS.length, 7);
-  // Each hangs off the root parent on the 'all' context so it CAN show on a background div…
-  assert.ok(bg.every(i => i.parentId === MENU.root && i.contexts.includes('all')));
+  // The "Open in editor ▸" parent + 5 nested open variants + crop + pin = 8.
+  assert.equal(bg.length, 8);
+  assert.equal(DYNAMIC_ITEMS.length, 8);
+  // Each hangs off the root (parent + crop/pin) or the bg "Open" parent, on 'all', so the
+  // group CAN show on a background div…
+  assert.ok(bg.every(i => (i.parentId === MENU.root || i.parentId === MENU.bgOpenParent) && i.contexts.includes('all')));
   // …and every item carries its own visible:false, so the worker reveals them one by one.
   assert.ok(bg.every(i => i.visible === false));
 });

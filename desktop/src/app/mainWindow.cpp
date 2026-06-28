@@ -18,6 +18,7 @@
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
 #include "connectDialog.hpp"
+#include "connectionStore.hpp"
 #include "serverClient.hpp"
 #include "selectionPanel.hpp"
 #include "settingsDialog.hpp"
@@ -36,14 +37,20 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QGuiApplication>
+#include <QEventLoop>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QImage>
 #include <QImageReader>
 #include <QLineEdit>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPixmap>
+#include <QSet>
 #include <QUrl>
 #include <QStyleHints>
+#include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -163,6 +170,16 @@ namespace stencil::gui {
     autosaveTimer_->setSingleShot(true);
     connect(autosaveTimer_, &QTimer::timeout, this, &MainWindow::saveSessionNow);
 
+    // Live co-edit: debounced push of local edits + periodic poll for peer changes.
+    remotePushTimer_ = new QTimer(this);
+    remotePushTimer_->setSingleShot(true);
+    connect(remotePushTimer_, &QTimer::timeout, this, [this] {
+      if (!remoteAddress_.isEmpty()) saveToServer();
+    });
+    remotePollTimer_ = new QTimer(this);
+    remotePollTimer_->setInterval(2000);
+    connect(remotePollTimer_, &QTimer::timeout, this, &MainWindow::pollRemoteForUpdate);
+
     buildActions();
     buildContextActions();  // S11: nested context-menu submenu actions
     buildMenus();
@@ -176,6 +193,10 @@ namespace stencil::gui {
     settings_ = fileStore::loadSettings();
     applySettings(settings_, false);
     if (restoreLast) restoreSession();  // skipped for a blank incognito editor
+    // Auto-connect saved servers (if the preference is on) only for the primary restored
+    // window; deferred so the window paints before the synchronous REST handshakes run.
+    if (restoreLast)
+      QTimer::singleShot(0, this, &MainWindow::autoConnectServers);
     refreshActions();
     onSelectionChanged();
     updateStatusIdle();
@@ -378,6 +399,8 @@ namespace stencil::gui {
     actRotateLeft_->setToolTip("Rotate the image left (counter-clockwise)");
     actRotateRight_ = mk("↻ Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
     actRotateRight_->setToolTip("Rotate the image right (clockwise)");
+    actCycleFilter_ = mk("Cycle Image Filter", hotkey("cycleFilter", "Alt+B"));
+    actCycleFilter_->setToolTip("Cycle the image filter (none → B&W → sepia → tint)");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -475,6 +498,14 @@ namespace stencil::gui {
     };
     connect(actRotateLeft_, &QAction::triggered, this, [rotate] { rotate(false); });
     connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
+    // Cycle the image filter (Alt+B) — mirrors the browser's cycleFilter hotkey:
+    // none → bw → sepia → custom(tint). applyImageFilter marks it dirty + syncs.
+    connect(actCycleFilter_, &QAction::triggered, this, [this] {
+      if (!canvas_->hasImage()) return;
+      static const QStringList order{"none", "bw", "sepia", "custom"};
+      const int cur = order.indexOf(settings_.imageFilter);
+      applyImageFilter(order[(cur + 1) % order.size()]);
+    });
     connect(actStartDraw_, &QAction::triggered, canvas_,
             &CanvasWidget::startDrawingMode);
     connect(actStopDraw_, &QAction::triggered, canvas_,
@@ -1126,6 +1157,8 @@ namespace stencil::gui {
     if (filterColorAct_) filterColorAct_->setVisible(mode == "custom");
     canvas_->setImageFilter(mode, filterColorValue_);
     persistSettings();
+    if (!remoteReloading_) filterDirty_ = true;   // user changed the filter
+    scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
   }
 
   void MainWindow::applyTintColor(const QColor& color) {
@@ -1134,6 +1167,8 @@ namespace stencil::gui {
     if (filterColorBtn_) updateColorSwatch(filterColorBtn_, color);
     canvas_->setImageFilter(settings_.imageFilter, filterColorValue_);
     persistSettings();
+    if (!remoteReloading_) filterDirty_ = true;   // user changed the tint
+    scheduleRemotePush();   // live co-edit: push tint changes to peers
   }
 
   void MainWindow::applyLineStyle(const QString& style) {
@@ -1469,6 +1504,36 @@ namespace stencil::gui {
     refreshActions();
     onSelectionChanged();
     scheduleAutosave();
+    scheduleRemotePush();   // live co-edit: push the edit to the server for peers
+  }
+
+  void MainWindow::scheduleRemotePush() {
+    if (incognito_ || remoteReloading_ || remoteAddress_.isEmpty()) return;
+    remotePushTimer_->start(600);   // debounce a burst of edits into one save
+  }
+
+  void MainWindow::startRemotePoll() {
+    if (remotePollTimer_ && !remoteAddress_.isEmpty()) remotePollTimer_->start();
+  }
+
+  void MainWindow::stopRemotePoll() {
+    if (remotePollTimer_) remotePollTimer_->stop();
+  }
+
+  // One poll tick: if a peer bumped the linked project's version, reload the canvas.
+  // Skipped while a local edit is pending/in-flight so we never clobber the user's work
+  // or reload our own change.
+  void MainWindow::pollRemoteForUpdate() {
+    if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
+    if (remotePushing_ || (remotePushTimer_ && remotePushTimer_->isActive())) return;
+    stencil::net::ServerClient* c =
+        connections_ ? connections_->find(remoteAddress_) : nullptr;
+    if (!c) return;
+    stencil::net::ServerProject meta;
+    QJsonObject layout;
+    if (!c->getProject(remoteId_, meta, layout)) return;
+    if (meta.version > remoteVersion_)
+      openServerProject(remoteAddress_, remoteId_, /*silent=*/true);
   }
 
   void MainWindow::onSelectionChanged() {
@@ -1736,7 +1801,8 @@ namespace stencil::gui {
         this, "Export layout JSON", suggested, "JSON (*.json)");
     if (path.isEmpty()) return;
     const QJsonObject obj = fileStore::buildLayoutJson(
-        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines());
+        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
+        settings_.imageFilter, settings_.filterColor);
     // Indented, matching the browser's JSON.stringify(data, null, 2).
     const QByteArray bytes =
         QJsonDocument(obj).toJson(QJsonDocument::Indented);
@@ -2168,9 +2234,38 @@ namespace stencil::gui {
   }
 
   // ── server connections ──
+  stencil::net::ConnectionManager* MainWindow::ensureConnections() {
+    if (!connections_) {
+      connections_ = new stencil::net::ConnectionManager(this);
+      // Persist the live set on every change (connect / disconnect / reconnect) so
+      // it survives relaunch — the desktop analogue of the browser connectionManager
+      // onChange → saveServers.
+      connect(connections_, &stencil::net::ConnectionManager::changed, this, [this] {
+        stencil::net::connectionStore::saveServers(connections_->snapshot());
+      });
+    }
+    return connections_;
+  }
+
+  void MainWindow::autoConnectServers() {
+    if (!stencil::net::connectionStore::getAutoConnect()) return;
+    const QVector<stencil::net::SavedServer> saved =
+        stencil::net::connectionStore::loadSavedServers();
+    if (saved.isEmpty()) return;
+    stencil::net::ConnectionManager* mgr = ensureConnections();
+    int failed = 0;
+    for (const auto& srv : saved) {
+      QString err;
+      if (!mgr->connectTo(srv.url, srv.token, err)) ++failed;  // a dead server stays absent
+    }
+    if (failed > 0)
+      notify_->info(QString("Couldn't reach %1 saved server%2")
+                        .arg(failed)
+                        .arg(failed == 1 ? "" : "s"));
+  }
+
   void MainWindow::openConnections() {
-    if (!connections_) connections_ = new stencil::net::ConnectionManager(this);
-    ConnectDialog dlg(connections_, this);
+    ConnectDialog dlg(ensureConnections(), this);
     dlg.exec();
   }
 
@@ -2195,7 +2290,7 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
 
-    ProjectsDialog dlg(projectList_, nowMs(), connections_, this);
+    ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(), this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
@@ -2205,7 +2300,30 @@ namespace stencil::gui {
       openServerProject(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::OpenInNewWindow) {
       openProjectInNewWindow(dlg.selectedId());
+    } else if (dlg.action() == Action::MoveToServer) {
+      // Can't move a project that's open in another window — it would vanish there.
+      if (projectOpenInOtherWindow(dlg.selectedId())) {
+        notify_->error("That project is open in another window — close it there first");
+        return;
+      }
+      moveLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId());
+    } else if (dlg.action() == Action::MoveToLocal) {
+      moveServerProjectToLocal(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::Delete) {
+      // Block removing a project that's open in another window (matches the browser's
+      // "open in another tab" guard).
+      if (projectOpenInOtherWindow(dlg.selectedId())) {
+        notify_->error("That project is open in another window — close it there first");
+        return;
+      }
+      // Confirm the destructive remove (the browser modal asks too).
+      const Project* pr = findProject(dlg.selectedId().toStdString());
+      const QString nm = pr ? QString::fromStdString(pr->meta.name) : QStringLiteral("this project");
+      if (QMessageBox::question(
+              this, "Remove project",
+              QString("Remove \"%1\"? This cannot be undone.").arg(nm),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
       const std::string id = dlg.selectedId().toStdString();
       projectList_.erase(
           std::remove_if(projectList_.begin(), projectList_.end(),
@@ -2242,6 +2360,45 @@ namespace stencil::gui {
     }
   }
 
+  // See buildProjectThumbs() in the header. The active project renders from the live
+  // canvas (current, possibly unsaved edits); the rest composite offscreen from their
+  // stored image+crop+rotation+lines. A pathless source has no pixels to reload.
+  QHash<QString, QPixmap> MainWindow::buildProjectThumbs() const {
+    QHash<QString, QPixmap> out;
+    // Rendered larger than the 56px row icon so the dialog's hover-magnify preview
+    // stays crisp; the list downscales it for the icon column via setIconSize.
+    constexpr int kThumb = 320;
+    const bool dark = resolveDark(settings_.themeMode);
+    // One reusable offscreen renderer (never shown), themed + flagged to match the
+    // editor so the previews look like what the user would see on open.
+    CanvasWidget off;
+    off.setDark(dark);
+    off.setAccent(settings_.accentColor);
+    off.setShowPoints(settings_.showPoints);
+    off.setShowLines(settings_.showLines);
+    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    off.setPageCm(page.width, page.height);
+    for (const auto& pr : projectList_) {
+      const QString id = QString::fromStdString(pr.meta.id);
+      QImage rendered;
+      if (id == activeProjectId_ && canvas_->hasImage()) {
+        rendered = canvas_->renderToImage(/*withOverlay=*/true);  // live edited result
+      } else if (!pr.imagePath.isEmpty()) {
+        off.restore(pr.imagePath, pr.lines, 1.0, pr.cropRect, pr.rotationQuarters);
+        // Local projects don't persist a per-project filter; the canvas applies the
+        // global filter on open, so the preview uses it too (what you'd see on open).
+        off.setImageFilter(settings_.imageFilter, filterColorValue_);
+        rendered = off.renderToImage(/*withOverlay=*/true);
+      }
+      if (rendered.isNull()) continue;
+      out.insert(id, QPixmap::fromImage(rendered.scaled(
+                         kThumb, kThumb, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+    }
+    return out;
+  }
+
   bool MainWindow::loadProjectIntoCanvas(const QString& id) {
     Project* pr = findProject(id.toStdString());
     if (!pr) return false;
@@ -2258,6 +2415,7 @@ namespace stencil::gui {
     remoteId_.clear();
     remoteName_.clear();
     remoteVersion_ = 0;
+    stopRemotePoll();   // no longer a server session
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
     refreshActions();
@@ -2268,9 +2426,71 @@ namespace stencil::gui {
 
   // Open a server-stored project: fetch its record (name/version/layout) + the
   // original image bytes, load them onto this canvas, and link the session so a
+  namespace {
+    // A stable value key for a line, for dedup when merging two editors' layouts on a
+    // save conflict (mirrors the browser's JSON-stringify dedup in mergeLines).
+    QString lineKey(const core::Line& l) {
+      QString k = QString("%1|%2|%3|%4|%5|%6")
+                      .arg(QString::fromStdString(l.color))
+                      .arg(l.thickness).arg(l.markerSize)
+                      .arg(QString::fromStdString(l.style))
+                      .arg(l.locked ? 1 : 0)
+                      .arg(QString::fromStdString(l.fillColor));
+      for (const auto& p : l.points) k += QString(";%1,%2").arg(p.x).arg(p.y);
+      return k;
+    }
+
+    // Synchronously GET an http(s) URL's bytes (no auth), with a timeout. Used to open
+    // a server project whose image lives only at its `source` web URL (an
+    // extension-added project that never uploaded bytes). One user-triggered open, so
+    // blocking briefly is fine; the timeout guards against an unreachable host.
+    QByteArray fetchUrlBytes(const QString& url) {
+      const QUrl u(url);
+      if (!u.isValid() || (u.scheme() != "http" && u.scheme() != "https")) return {};
+      QNetworkAccessManager nam;
+      QNetworkRequest req(u);
+      req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                       QNetworkRequest::NoLessSafeRedirectPolicy);
+      QNetworkReply* reply = nam.get(req);
+      QEventLoop loop;
+      QTimer timeout;
+      timeout.setSingleShot(true);
+      QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+      QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+      timeout.start(10000);
+      loop.exec();
+      QByteArray out;
+      if (reply->isFinished() && reply->error() == QNetworkReply::NoError)
+        out = reply->readAll();
+      reply->abort();
+      reply->deleteLater();
+      return out;
+    }
+
+    // Sets a bool flag true for the current scope, clearing it on exit — re-entrancy
+    // guard for the remote reload/push paths.
+    struct ScopedFlag {
+      bool& f;
+      explicit ScopedFlag(bool& b) : f(b) { f = true; }
+      ~ScopedFlag() { f = false; }
+    };
+
+    // Read a layout's saved filter/tint (legacy blackAndWhite → "bw"); an absent or empty
+    // layout yields "none" + the default tint.
+    void parseLayoutFilter(const QJsonObject& layout, const QString& defTint,
+                           QString& filter, QString& tint) {
+      filter = layout.value("imageFilter")
+                   .toString(layout.value("blackAndWhite").toBool(false) ? "bw" : "none");
+      tint = layout.value("filterColor").toString(defTint);
+    }
+  }  // namespace
+
   // later Save writes back. Mirrors the browser projectsModal openRemote().
-  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id) {
+  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id, bool silent) {
     if (!connections_) return false;
+    // Loading the canvas below emits changed() — guard so it isn't taken for a user
+    // edit and pushed straight back (feedback loop).
+    ScopedFlag reloadGuard{remoteReloading_};
     stencil::net::ServerClient* c = connections_->find(serverUrl);
     if (!c) {
       notify_->error("Not connected to that server");
@@ -2283,10 +2503,16 @@ namespace stencil::gui {
       return false;
     }
     bool ok = false;
-    const QByteArray bytes = c->downloadFile(id, "original", ok);
-    if (!ok) {
-      notify_->error(QString("Could not download image — %1").arg(c->lastError()));
-      return false;
+    QByteArray bytes = c->downloadFile(id, "original", ok);
+    if (!ok || bytes.isEmpty()) {
+      // No stored bytes on the server (e.g. an extension-added project that only
+      // recorded the image's web URL) — fetch that source URL directly. Qt Network
+      // has no browser-style CORS limit.
+      bytes = fetchUrlBytes(meta.source);
+      if (bytes.isEmpty()) {
+        notify_->error(QString("Could not download image — %1").arg(c->lastError()));
+        return false;
+      }
     }
     QImage img;
     if (!img.loadFromData(bytes)) {
@@ -2307,6 +2533,12 @@ namespace stencil::gui {
       core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh);
       canvas_->setLines(lines);
     }
+    // Restore the project's saved filter/tint (an empty layout resets to "none" + the
+    // default tint, so the previously-open project's filter doesn't bleed onto this image).
+    QString filter, tint;
+    parseLayoutFilter(layout, settings_.filterColor, filter, tint);
+    applyTintColor(QColor(tint));
+    applyImageFilter(filter);
     // Link the session; clear any local-project linkage so saves go to the server.
     activeProjectId_.clear();
     remoteAddress_ = serverUrl;
@@ -2315,10 +2547,13 @@ namespace stencil::gui {
     remoteVersion_ = meta.version;
     currentSource_ = meta.source;
     currentResource_ = meta.resource;
+    filterDirty_ = false;   // we just adopted the server/project filter
     refreshActions();
-    notify_->success(QString("Opened \"%1\" from %2")
-                         .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
-                              serverUrl));
+    startRemotePoll();   // live co-edit: watch for peers changing this project
+    if (!silent)
+      notify_->success(QString("Opened \"%1\" from %2")
+                           .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
+                                serverUrl));
     return true;
   }
 
@@ -2332,6 +2567,151 @@ namespace stencil::gui {
       notify_->error("Could not open the project in a new window");
       win->close();
     }
+  }
+
+  bool MainWindow::projectOpenInOtherWindow(const QString& id) const {
+    if (id.isEmpty()) return false;
+    for (QWidget* w : QApplication::topLevelWidgets()) {
+      auto* mw = qobject_cast<MainWindow*>(w);
+      if (mw && mw != this && mw->activeProjectId_ == id) return true;
+    }
+    return false;
+  }
+
+  // Local → server: create the project on `serverUrl`, upload its original image, push
+  // the annotated layout, then drop the local copy. Mirrors the browser's
+  // moveProjectToServer() (drawingApp.js).
+  void MainWindow::moveLocalProjectToServer(const QString& serverUrl, const QString& id) {
+    stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
+    if (!c) {
+      notify_->error("Not connected to that server");
+      return;
+    }
+    Project* pr = findProject(id.toStdString());
+    if (!pr) {
+      notify_->error("Project not found");
+      return;
+    }
+    // Gather the original image bytes + dimensions: from the live canvas when this is
+    // the active project (latest edits), else from the project's stored image file.
+    QByteArray bytes;
+    QString ext = "png";
+    int w = 0;
+    int h = 0;
+    if (id == activeProjectId_ && canvas_->hasImage()) {
+      const QImage img = canvas_->image();
+      bytes = pngBytes(img);
+      w = img.width();
+      h = img.height();
+    } else if (!pr->imagePath.isEmpty()) {
+      const QImage img(pr->imagePath);
+      if (img.isNull()) {
+        notify_->error("Could not read the project image");
+        return;
+      }
+      w = img.width();
+      h = img.height();
+      QFile f(pr->imagePath);
+      if (f.open(QIODevice::ReadOnly)) {
+        bytes = f.readAll();
+        f.close();
+        const QString suf = QFileInfo(pr->imagePath).suffix().toLower();
+        if (!suf.isEmpty()) ext = suf;
+      }
+      if (bytes.isEmpty()) bytes = pngBytes(img);  // unreadable file → re-encode the decoded image
+    } else {
+      notify_->error("This project has no stored image to move");
+      return;
+    }
+    const QString name = QString::fromStdString(pr->meta.name);
+    QString newId;
+    qint64 version = 0;
+    if (!c->createProject(name, QString::fromStdString(pr->meta.source),
+                          QString::fromStdString(pr->meta.resource), true, w, h, newId, version)) {
+      notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
+      return;
+    }
+    if (!c->uploadFile(newId, "original", bytes, ext, w, h)) {
+      notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
+      // Leave the server project (the user can retry) but keep the local copy too.
+      return;
+    }
+    // Push the annotated layout (lines + the filter the desktop applies on open) so the
+    // server holds the full project, not just the original.
+    const QJsonObject layout = fileStore::buildLayoutJson(
+        w, h, pr->lines, settings_.imageFilter, settings_.filterColor);
+    qint64 newVersion = version;
+    bool conflict = false;
+    c->updateProject(newId, name, layout, version, newVersion, conflict);
+    // The local copy is now redundant — remove it.
+    const std::string sid = id.toStdString();
+    projectList_.erase(
+        std::remove_if(projectList_.begin(), projectList_.end(),
+                       [&](const Project& p) { return p.meta.id == sid; }),
+        projectList_.end());
+    if (activeProjectId_ == id) activeProjectId_.clear();
+    fileStore::saveProjects(projectList_);
+    refreshActions();
+    refreshDockMenu();
+    notify_->success(QString("Moved \"%1\" to %2").arg(name, serverUrl));
+  }
+
+  // Server → local: download the project's image + layout, persist it as a new local
+  // project, then delete it from the server. Mirrors moveProjectToLocal().
+  void MainWindow::moveServerProjectToLocal(const QString& serverUrl, const QString& id) {
+    stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
+    if (!c) {
+      notify_->error("Not connected to that server");
+      return;
+    }
+    stencil::net::ServerProject meta;
+    QJsonObject layout;
+    if (!c->getProject(id, meta, layout)) {
+      notify_->error(QString("Could not fetch server project — %1").arg(c->lastError()));
+      return;
+    }
+    bool ok = false;
+    QByteArray bytes = c->downloadFile(id, "original", ok);
+    if (!ok || bytes.isEmpty()) bytes = fetchUrlBytes(meta.source);  // extension-added: only a web URL
+    if (bytes.isEmpty()) {
+      notify_->error("Server project has no image to move");
+      return;
+    }
+    QImage img;
+    if (!img.loadFromData(bytes)) {
+      notify_->error("Server image could not be decoded");
+      return;
+    }
+    // Persist the bytes to a file under the state dir so the local project reloads its
+    // pixels on open (local projects reference an on-disk imagePath).
+    Project pr;
+    pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
+    const QString imgDir = fileStore::stateDir() + "/images";
+    QDir().mkpath(imgDir);
+    const QString path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";
+    if (!img.save(path, "PNG")) {
+      notify_->error("Could not write the image to local storage");
+      return;
+    }
+    pr.meta.name = (meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name).toStdString();
+    pr.meta.createdAt = pr.meta.updatedAt = nowMs();
+    pr.meta.hasImage = true;
+    pr.meta.source = meta.source.toStdString();
+    pr.meta.resource = meta.resource.toStdString();
+    pr.imagePath = path;
+    int lw = 0;
+    int lh = 0;
+    if (!layout.isEmpty() && layout.value("lines").isArray())
+      pr.lines = fileStore::parseLayoutJson(layout, lw, lh);
+    projectList_.push_back(pr);
+    fileStore::saveProjects(projectList_);
+    // Now remove it from the server.
+    if (!c->deleteProject(id))
+      notify_->error(QString("Copied locally, but server delete failed — %1").arg(c->lastError()));
+    refreshActions();
+    refreshDockMenu();
+    notify_->success(QString("Moved \"%1\" to local storage")
+                         .arg(QString::fromStdString(pr.meta.name)));
   }
 
   // ── launch options (CLI) ──
@@ -2441,6 +2821,10 @@ namespace stencil::gui {
       }
       canvas_->loadFromImage(image);  // remote image / video frame (in-memory)
     }
+    // Quick pre-load crop (links modal): override the default page-aspect auto-crop
+    // with the chosen page + orientation, or load the full frame uncropped. Applies
+    // equally to still images and extracted video frames. Consumed once.
+    applyQuickCrop();
     // A new image's provenance replaces the previous one (a plain --src/OS open
     // carries none, so both clear). Saved to the project on the next create/save.
     currentSource_ = provSource;
@@ -2455,6 +2839,34 @@ namespace stencil::gui {
       pendingLaunchLayout_.clear();
       applyLayoutFromSource(src);
     }
+  }
+
+  // Override the just-loaded image's default page-aspect crop with the quick-crop
+  // choice from the load-by-URL dialog (extends the existing auto-crop with an
+  // orientation override + page choice + a no-crop path). Mirrors the browser's
+  // defaultCropRect(albumOverride) / noCrop load opts. No-op for Auto / no image.
+  void MainWindow::applyQuickCrop() {
+    const QuickCropOpts opts = pendingCrop_;
+    pendingCrop_ = {};  // consume regardless of outcome
+    if (!canvas_->hasImage() || opts.mode == QuickCropOpts::Mode::Auto) return;
+    // A freshly loaded image is un-rotated, so the original IS the crop's pixel space.
+    const QImage& orig = canvas_->originalImage();
+    const double iw = orig.width();
+    const double ih = orig.height();
+    if (iw <= 0 || ih <= 0) return;
+    if (opts.mode == QuickCropOpts::Mode::None) {
+      canvas_->applyCrop({0.0, 0.0, iw, ih}, /*recalc=*/false);  // full frame, uncropped
+      return;
+    }
+    // Page mode: reflect the chosen page in the toolbar control (keeps coords/crop
+    // dialog consistent), then crop to that page in the chosen orientation.
+    if (!opts.page.isEmpty()) pageSize_->setCurrentText(opts.page);  // → onPageSizeChanged
+    const core::PageSize pg = naturalPageCm(pageSize_->currentText(),
+                                            settings_.customPageWidth,
+                                            settings_.customPageHeight);
+    canvas_->setPageCm(pg.width, pg.height);
+    const double aspect = core::cropAspect(pg.width, pg.height, opts.album);
+    canvas_->applyCrop(core::centeredCrop(iw, ih, aspect), /*recalc=*/false);
   }
 
   // Load a layout JSON from a local path or an http(s) URL, then adopt it through
@@ -2593,10 +3005,16 @@ namespace stencil::gui {
       }
     }
 
-    LinksDialog dlg(src, res, canvas_->hasImage(), this);
+    LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize, this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     if (dlg.loadRequested()) {
+      // Quick pre-load edits: crop to the chosen page aspect/orientation, or load
+      // the full frame uncropped — consumed once by onLaunchImageLoaded.
+      if (dlg.cropToPage())
+        pendingCrop_ = {QuickCropOpts::Mode::Page, dlg.cropAlbum(), dlg.cropPageSize()};
+      else
+        pendingCrop_ = {QuickCropOpts::Mode::None, false, QString()};
       // The dialog already fetched and decoded the exact image/frame for its
       // preview — adopt those pixels directly (no second download/seek) so what
       // was previewed is exactly what loads. Fall back to a fresh resolve only if
@@ -2715,6 +3133,7 @@ namespace stencil::gui {
     remoteId_.clear();
     remoteName_.clear();
     remoteVersion_ = 0;
+    stopRemotePoll();   // no longer a server session
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
     pr.meta.name = name.toStdString();
@@ -2786,23 +3205,67 @@ namespace stencil::gui {
           QString("Not connected to %1 — reconnect it first").arg(remoteAddress_));
       return;
     }
+    // Guard the poll for the push duration (its nested REST event loop can pump the
+    // poll timer) so we don't reload our own in-flight change.
+    ScopedFlag pushGuard{remotePushing_};
     const int w = canvas_->imageWidth();
     const int h = canvas_->imageHeight();
-    const QJsonObject layout =
-        fileStore::buildLayoutJson(w, h, canvas_->allLines());
+    // Concurrent co-edit: on a version-guard conflict, merge the server's latest lines
+    // with ours and retry — looping so a tight race (incl. the result upload's extra
+    // version bump) still converges with both editors' annotations intact.
     qint64 newVersion = remoteVersion_;
-    bool conflict = false;
-    if (!c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
-                          conflict)) {
-      if (conflict)
-        notify_->error(
-            "This project was edited elsewhere — reload it from the server before "
-            "saving again");
-      else
+    bool committed = false;
+    bool merged = false;
+    for (int attempt = 0; attempt < 6 && !committed; ++attempt) {
+      const QJsonObject layout =
+          fileStore::buildLayoutJson(w, h, canvas_->allLines(),
+                                     settings_.imageFilter, settings_.filterColor);
+      bool conflict = false;
+      if (c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
+                           conflict)) {
+        remoteVersion_ = newVersion;
+        committed = true;
+        break;
+      }
+      if (!conflict) {
         notify_->error(QString("Server save failed — %1").arg(c->lastError()));
-      return;  // leave the link (and its version guard) untouched
+        return;
+      }
+      // Pull the peer's latest, union-merge their lines into ours (deduped), adopt the
+      // server version, and loop to retry.
+      stencil::net::ServerProject meta;
+      QJsonObject srvLayout;
+      if (!c->getProject(remoteId_, meta, srvLayout)) break;  // give up below
+      int sw = 0, sh = 0;
+      core::Lines mlines = fileStore::parseLayoutJson(srvLayout, sw, sh);
+      QSet<QString> seen;
+      for (const auto& l : mlines) seen.insert(lineKey(l));
+      for (const auto& l : canvas_->allLines()) {
+        const QString k = lineKey(l);
+        if (!seen.contains(k)) { mlines.push_back(l); seen.insert(k); }
+      }
+      {  // apply merged lines (+ peer filter) locally without re-triggering a push
+        ScopedFlag g{remoteReloading_};
+        canvas_->setLines(mlines);
+        // Adopt the peer's filter UNLESS this user changed their own, so a line-only
+        // edit doesn't clobber the peer's filter change (the scalar can't merge).
+        if (!filterDirty_) {
+          QString sf, st;
+          parseLayoutFilter(srvLayout, settings_.filterColor, sf, st);
+          applyTintColor(QColor(st));
+          applyImageFilter(sf);
+        }
+      }
+      remoteVersion_ = meta.version;
+      merged = true;
     }
-    remoteVersion_ = newVersion;
+    if (!committed) {
+      notify_->error(
+          "This project was edited elsewhere — reload it from the server before "
+          "saving again");
+      return;
+    }
+    filterDirty_ = false;   // our filter (if any) is now the server's
     // Upload the annotated render as the 'result'. The file write bumps the
     // version, so re-read it to keep the guard accurate for the next save.
     if (canvas_->hasImage()) {
@@ -2813,7 +3276,8 @@ namespace stencil::gui {
         if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
       }
     }
-    notify_->success(QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
+    notify_->success(merged ? QStringLiteral("Merged changes from another editor")
+                            : QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
   }
 
   void MainWindow::saveToActiveProject() {
@@ -2897,16 +3361,24 @@ namespace stencil::gui {
   void MainWindow::updateProjectTitle() {
     QString name;
     bool editable = false;
+    const bool remote = !remoteId_.isEmpty();
     if (incognito_) {
       name = "Incognito";
     } else if (!activeProjectId_.isEmpty()) {
       name = activeProjectName();
       editable = !name.isEmpty();
+    } else if (remote) {
+      name = remoteName_;   // server-linked session (no local project id)
     }
     if (name.isEmpty() && canvas_ && canvas_->hasImage())
       name = canvas_->imageBaseName();   // show the image name until it's a saved project
     setWindowTitle(name.isEmpty() ? QStringLiteral("Stencil")
                                   : QString("%1 — Stencil").arg(name));
+    // Server-editing indicator: a golden frame around the canvas (mirrors the browser
+    // badge/outline), so a server-backed session is unmistakable.
+    if (scroll_)
+      scroll_->setStyleSheet(remote ? "QScrollArea{border:2px solid #d4a017;}"
+                                    : QString());
     // Don't clobber the field while the user is typing in it.
     if (projectName_ && !projectName_->hasFocus()) {
       projectName_->setText(name);

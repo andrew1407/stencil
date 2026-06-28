@@ -4,7 +4,7 @@ import {
   normalizeUrl, wsUrl, ServerConnection, ConnectionManager, REMOTE_FLAG,
 } from '../js/net/connectionManager.js';
 import {
-  requireConnection, createRemoteProject, saveRemoteProject, CONFLICT_MESSAGE,
+  requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent, CONFLICT_MESSAGE,
 } from '../js/net/remoteSync.js';
 
 // ── A fake fetch backed by an in-memory server model ──
@@ -173,6 +173,28 @@ test('reconnect re-establishes the last set', async () => {
   await mgr.connect(['a:1', 'b:2']);
   await mgr.reconnect();
   assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
+});
+
+test('snapshot exposes the live set as {url, token} for persistence', async () => {
+  const { fetchImpl } = makeFakeServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  await mgr.connect({ url: 'a:1', token: 'tkn-a' });
+  await mgr.connect('b:2'); // token issued by handshake → 'issued-token'
+  assert.deepEqual(mgr.snapshot(), [
+    { url: 'http://a:1', token: 'tkn-a' },
+    { url: 'http://b:2', token: 'issued-token' },
+  ]);
+});
+
+test('reconnectOne re-establishes a single connection, keeping the rest', async () => {
+  const { fetchImpl } = makeFakeServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  await mgr.connect(['a:1', 'b:2']);
+  await mgr.reconnectOne('a:1');
+  assert.deepEqual(mgr.urls.sort(), ['http://a:1', 'http://b:2']);
+  // unknown url just connects it fresh rather than throwing
+  await mgr.reconnectOne('c:3');
+  assert.ok(mgr.has('http://c:3'));
 });
 
 test('remoteProjects aggregates across connections and survives an unreachable one', async () => {
@@ -394,4 +416,65 @@ test('connect modal + toolbar button are composed into the layout exactly once',
   }
   // The server icon glyph is registered and used by the toolbar button.
   assert.ok(markup.includes('ic-server'), 'server icon should be present');
+});
+
+test('connectionStore persists the server set and the auto-connect preference', async () => {
+  // Provide a minimal localStorage so the otherwise-inert store reads/writes.
+  const mem = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k),
+  };
+  try {
+    const store = await import('../js/net/connectionStore.js');
+    // default: nothing saved, auto-connect on
+    assert.deepEqual(store.loadSavedServers(), []);
+    assert.equal(store.getAutoConnect(), true);
+    // round-trips the slimmed {url, token} set
+    store.saveServers([{ url: 'http://a:1', token: 't1', extra: 'dropped' }, { bad: true }]);
+    assert.deepEqual(store.loadSavedServers(), [{ url: 'http://a:1', token: 't1' }]);
+    // explicit opt-out persists and is honoured
+    store.setAutoConnect(false);
+    assert.equal(store.getAutoConnect(), false);
+    store.setAutoConnect(true);
+    assert.equal(store.getAutoConnect(), true);
+  } finally {
+    delete globalThis.localStorage;
+  }
+});
+// ── Live co-edit: shouldReloadFromEvent (the reload decision) ──
+const LINK = { address: 'http://localhost:8090', remoteId: 'p1', version: 5 };
+const evt = (over = {}) => ({ type: 'project-event', event: 'updated', project: { id: 'p1', version: 7 }, ...over });
+const OPTS = { now: 100000, lastLocalSaveAt: 0, isDrawing: false, connUrl: 'http://localhost:8090' };
+
+test('shouldReloadFromEvent: reloads on a peer update with a newer version', () => {
+  assert.equal(shouldReloadFromEvent(evt(), LINK, OPTS), true);
+});
+test('shouldReloadFromEvent: ignores a version <= our own', () => {
+  assert.equal(shouldReloadFromEvent(evt({ project: { id: 'p1', version: 5 } }), LINK, OPTS), false);
+  assert.equal(shouldReloadFromEvent(evt({ project: { id: 'p1', version: 4 } }), LINK, OPTS), false);
+});
+test('shouldReloadFromEvent: ignores a different project', () => {
+  assert.equal(shouldReloadFromEvent(evt({ project: { id: 'other', version: 7 } }), LINK, OPTS), false);
+});
+test('shouldReloadFromEvent: ignores non-updated and non-project events', () => {
+  assert.equal(shouldReloadFromEvent(evt({ event: 'created' }), LINK, OPTS), false);
+  assert.equal(shouldReloadFromEvent({ type: 'pong' }, LINK, OPTS), false);
+  assert.equal(shouldReloadFromEvent(null, LINK, OPTS), false);
+});
+test('shouldReloadFromEvent: never reloads a local-only session', () => {
+  assert.equal(shouldReloadFromEvent(evt(), null, OPTS), false);
+});
+test('shouldReloadFromEvent: holds off while drawing', () => {
+  assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, isDrawing: true }), false);
+});
+test('shouldReloadFromEvent: suppresses our own save echo, reloads after the short window', () => {
+  // now=100000, echo window 300ms: 100ms ago → our echo → suppressed.
+  assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, lastLocalSaveAt: 99900 }), false);
+  // 1000ms ago → a peer change made right after our save → reload (not dropped).
+  assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, lastLocalSaveAt: 99000 }), true);
+});
+test('shouldReloadFromEvent: ignores events from a different server', () => {
+  assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, connUrl: 'http://other:8090' }), false);
 });

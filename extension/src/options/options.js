@@ -1,6 +1,6 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned } from '../lib/pins.js';
-import { CONNECTIONS_KEY, loadConnections, addServer, removeServer } from '../lib/connections.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
@@ -107,9 +107,12 @@ const recoverThumb = (img, source, kind) => {
   });
 };
 
-const renderPinRow = (pin) => {
+const renderPinRow = (pin, serverSources) => {
   const li = document.createElement('li');
   li.className = 'pin-row';
+  // Golden outline + server badge when this pinned image is also stored on a server.
+  const onServer = !!(serverSources && pin.source && serverSources.has(pin.source));
+  if (onServer) li.classList.add('shared');
 
   const thumb = document.createElement('img');
   thumb.className = 'pin-thumb';
@@ -157,23 +160,70 @@ const renderPinRow = (pin) => {
   return li;
 };
 
+const storeSel = document.getElementById('pin-store');
+const showServerChk = document.getElementById('pin-show-server');
+
+// Cached cross-reference of which connected servers store each pinned source URL.
+// Drives the gold outline + the "stored on" filter; refreshed on load + connection changes.
+const emptyServerPins = () => ({ sources: new Set(), byOrigin: new Map(), hosts: [] });
+let serverPins = emptyServerPins();
+
+const refreshServerPins = async () => {
+  try {
+    const conns = await loadConnections();
+    if (!conns.length) { serverPins = emptyServerPins(); return; }
+    const sources = new Set();
+    const byOrigin = new Map();   // origin URL -> Set(serverUrl)
+    for (const p of await collectSharedPins(conns)) {
+      if (!p.origin) continue;
+      sources.add(p.origin);
+      if (!byOrigin.has(p.origin)) byOrigin.set(p.origin, new Set());
+      byOrigin.get(p.origin).add(p.serverUrl);
+    }
+    serverPins = { sources, byOrigin, hosts: conns.map((c) => c.url) };
+  } catch { serverPins = emptyServerPins(); }
+};
+
 const renderPins = async () => {
   const pins = await loadPins();
   const sites = sitesOf(pins);
 
-  // Keep the chosen site if it still has pins; else fall back to "all".
-  const prev = siteSel.value || 'all';
+  // Site filter (where the image was pinned). Keep the chosen site if it still has pins.
+  const prevSite = siteSel.value || 'all';
   siteSel.innerHTML = `<option value="all">All sites (${pins.length})</option>` +
     sites.map((s) => `<option value="${s}">${hostLabel(s)} (${matchPinsForSite(pins, s).length})</option>`).join('');
-  siteSel.value = (prev === 'all' || sites.includes(prev)) ? prev : 'all';
+  siteSel.value = (prevSite === 'all' || sites.includes(prevSite)) ? prevSite : 'all';
 
-  const shown = siteSel.value === 'all' ? pins : matchPinsForSite(pins, siteSel.value);
+  // Storage filter (which server a pin is stored on) — populated from connected servers,
+  // hidden (with the "show server pins" checkbox) when none are connected.
+  const hasServers = serverPins.hosts.length > 0;
+  showServerChk.closest('.chk').hidden = !hasServers;
+  storeSel.hidden = !hasServers || !showServerChk.checked;
+  if (hasServers) {
+    const prevStore = storeSel.value || 'all';
+    storeSel.innerHTML = '<option value="all">Any storage</option><option value="local">Local only</option>' +
+      serverPins.hosts.map((u) => `<option value="${u}">On ${hostLabel(u)}</option>`).join('');
+    storeSel.value = [...storeSel.options].some((o) => o.value === prevStore) ? prevStore : 'all';
+  }
+
+  const serversOf = (p) => serverPins.byOrigin.get(p.source) || null;   // Set<serverUrl> | null
+  let shown = siteSel.value === 'all' ? pins : matchPinsForSite(pins, siteSel.value);
+  shown = shown.filter((p) => {
+    const servers = serversOf(p);
+    if (!showServerChk.checked && servers) return false;                 // hide server pins
+    if (!showServerChk.checked) return true;
+    if (storeSel.value === 'local') return !servers;                     // local only
+    if (storeSel.value !== 'all') return !!servers && servers.has(storeSel.value);  // a specific server
+    return true;
+  });
   pinListEl.innerHTML = '';
-  shown.forEach((p) => pinListEl.appendChild(renderPinRow(p)));
+  shown.forEach((p) => pinListEl.appendChild(renderPinRow(p, serverPins.sources)));
   pinEmptyEl.hidden = pins.length > 0;
 };
 
 siteSel.addEventListener('change', renderPins);
+storeSel.addEventListener('change', renderPins);
+showServerChk.addEventListener('change', renderPins);
 
 // ── Server connections ───────────────────────────────────────────────────────
 // Add (connect + persist) / remove collaboration-server connections. The popup reads
@@ -194,11 +244,30 @@ const renderConnections = async () => {
     info.className = 'pin-info';
     const name = document.createElement('div');
     name.className = 'pin-name';
-    name.innerHTML = icon('server', { size: 14 }) + ' ' + hostLabel(c.url);
+    // Status dot: yellow while we probe, green if reachable, red if not.
+    const dot = document.createElement('span');
+    dot.className = 'conn-status conn-status-connecting';
+    dot.title = 'Checking…';
+    name.append(dot);
+    name.insertAdjacentHTML('beforeend', icon('server', { size: 14 }) + ' ' + hostLabel(c.url));
     name.title = c.url;
     info.appendChild(name);
+    // Probe reachability (auth-checked via GET /projects) and recolor the dot.
+    listProjects(c)
+      .then(() => { dot.className = 'conn-status conn-status-connected'; dot.title = 'Connected'; })
+      .catch(() => { dot.className = 'conn-status conn-status-error'; dot.title = 'Not reachable'; });
     const actions = document.createElement('div');
     actions.className = 'pin-actions';
+    const reconnect = document.createElement('button');
+    reconnect.className = 'pin-btn';
+    reconnect.title = 'Reconnect (re-validate / reissue the token)';
+    reconnect.innerHTML = icon('refresh', { size: 15 });
+    reconnect.addEventListener('click', async () => {
+      dot.className = 'conn-status conn-status-connecting';
+      dot.title = 'Reconnecting…';
+      try { await reconnectServer(c.url); } catch { /* stays red on re-probe */ }
+      renderConnections();
+    });
     const remove = document.createElement('button');
     remove.className = 'pin-btn danger';
     remove.title = 'Remove connection';
@@ -207,12 +276,23 @@ const renderConnections = async () => {
       await removeServer(c.url);
       renderConnections();
     });
-    actions.appendChild(remove);
+    actions.append(reconnect, remove);
     li.append(info, actions);
     connListEl.appendChild(li);
   }
   connEmptyEl.hidden = conns.length > 0;
+  const reconnectAll = document.getElementById('conn-reconnect-all');
+  if (reconnectAll) reconnectAll.hidden = conns.length === 0;
 };
+
+// Reconnect every saved server (re-validate / reissue tokens), then re-render the dots.
+document.getElementById('conn-reconnect-all').addEventListener('click', async () => {
+  const conns = await loadConnections();
+  connStatus.textContent = 'Reconnecting…';
+  await Promise.all(conns.map((c) => reconnectServer(c.url).catch(() => {})));
+  connStatus.textContent = '';
+  renderConnections();
+});
 
 document.getElementById('conn-add').addEventListener('click', async () => {
   const url = (connUrl.value || '').trim();
@@ -234,7 +314,11 @@ document.getElementById('conn-add').addEventListener('click', async () => {
 // another options tab).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[PINS_KEY]) renderPins();
-  if (area === 'local' && changes[CONNECTIONS_KEY]) renderConnections();
+  // A connection change can flip which pins are server-stored → refresh the cross-ref.
+  if (area === 'local' && changes[CONNECTIONS_KEY]) {
+    renderConnections();
+    refreshServerPins().then(renderPins);
+  }
 });
-renderPins();
+refreshServerPins().then(renderPins);
 renderConnections();

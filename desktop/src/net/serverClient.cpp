@@ -54,33 +54,31 @@ namespace stencil::net {
   }
 
   bool ServerClient::connect(const QString& token) {
-    if (base_.isEmpty()) {
-      err_ = "empty server URL";
+    status_ = Status::Connecting;
+    const auto fail = [this](const QString& msg) {
+      err_ = msg;
+      status_ = Status::Error;
       return false;
-    }
+    };
+    if (base_.isEmpty()) return fail("empty server URL");
     int status = 0;
     if (token.isEmpty()) {
       const QByteArray body =
           request("POST", "/auth/token", "{}", "application/json", status);
-      if (status < 200 || status >= 300) {
-        err_ = QString("token request failed (HTTP %1)").arg(status);
-        return false;
-      }
+      if (status < 200 || status >= 300)
+        return fail(QString("token request failed (HTTP %1)").arg(status));
       const QJsonObject obj = QJsonDocument::fromJson(body).object();
       token_ = obj.value("token").toString();
-      if (token_.isEmpty()) {
-        err_ = "server returned no token";
-        return false;
-      }
+      if (token_.isEmpty()) return fail("server returned no token");
     } else {
       token_ = token;
       request("GET", "/projects", {}, {}, status);
       if (status < 200 || status >= 300) {
-        err_ = QString("token rejected (HTTP %1)").arg(status);
         token_.clear();
-        return false;
+        return fail(QString("token rejected (HTTP %1)").arg(status));
       }
     }
+    status_ = Status::Connected;
     return true;
   }
 
@@ -223,6 +221,16 @@ namespace stencil::net {
     return data;
   }
 
+  bool ServerClient::deleteProject(const QString& id) {
+    int status = 0;
+    request("DELETE", QString("/projects/%1").arg(id), {}, {}, status);
+    if (status < 200 || status >= 300) {
+      err_ = QString("delete failed (HTTP %1)").arg(status);
+      return false;
+    }
+    return true;
+  }
+
   // ── ConnectionManager ──
 
   ConnectionManager::ConnectionManager(QObject* parent) : QObject(parent) {}
@@ -294,6 +302,13 @@ namespace stencil::net {
     for (auto* c : clients_)
       if (c->base() == base) return c;
     return nullptr;
+  }
+
+  QVector<SavedServer> ConnectionManager::snapshot() const {
+    QVector<SavedServer> out;
+    out.reserve(clients_.size());
+    for (auto* c : clients_) out.push_back({c->base(), c->token()});
+    return out;
   }
 
   QVector<ServerProject> ConnectionManager::sharedProjects() const {

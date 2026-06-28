@@ -210,6 +210,14 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     display: inline-block;
     /* No border here — border is on viewport */
 }
+/* Golden frame while editing a project stored on a server (mirrors the projects
+   modal's remote rows), so server-backed editing is unmistakable. Recolours the
+   viewport's own border + a soft glow — on the viewport (not the inner container)
+   so the scroll overflow can't clip it. */
+.canvas-viewport.remote-editing {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--remote-gold) 25%, transparent);
+}
 .coord-status {
     margin-top: 8px;
     font-family: monospace;

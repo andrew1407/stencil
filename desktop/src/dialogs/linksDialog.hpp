@@ -10,6 +10,7 @@ class QLabel;
 class QWidget;
 class QPushButton;
 class QCheckBox;
+class QComboBox;
 class QSlider;
 class QTimer;
 class QMediaPlayer;
@@ -33,9 +34,11 @@ namespace stencil::gui {
    public:
     // `source`/`resource` seed the current-links fields. `hasImage` selects the
     // mode: with an image loaded the dialog only edits its links; with no image it
-    // only offers the add-by-URL loader (the URL becomes the source).
+    // only offers the add-by-URL loader (the URL becomes the source). `pageSeed`
+    // ("A3"/"A4") preselects the quick-crop page size.
     explicit LinksDialog(const QString& source, const QString& resource,
-                         bool hasImage, QWidget* parent = nullptr);
+                         bool hasImage, const QString& pageSeed = "A3",
+                         QWidget* parent = nullptr);
 
     // Edited current-image links (read on a plain OK).
     QString source() const;
@@ -48,6 +51,14 @@ namespace stencil::gui {
     QString urlSource() const;
     QString urlResource() const;
     int urlFrame() const;
+
+    // Quick pre-load edits (mirrors browser linksModal): open the editor already
+    // cropped to a page aspect/orientation, or uncropped. Read on loadRequested().
+    // cropToPage() off ⇒ load the full frame; on ⇒ crop to cropPageSize() in
+    // album() (landscape) or portrait orientation.
+    bool cropToPage() const;
+    bool cropAlbum() const;
+    QString cropPageSize() const;
 
     // The image/frame decoded for the preview — null until a preview succeeds.
     // Load is only enabled once this is set, so on loadRequested() it is non-null.
@@ -71,6 +82,8 @@ namespace stencil::gui {
     void teardownScrubPlayer();
     void seekScrub(int frame);    // seek the persistent player to a frame and render it
     void onScrubFrame(const QVideoFrame& frame);  // adopt a rendered frame into the preview
+    void showQuickcrop(int w, int h);  // reveal + default the quick-crop row for a preview
+    void syncQuickcropEnabled();       // album/page enabled only while cropping to page
 
     QLineEdit* sourceEdit_ = nullptr;
     QLineEdit* resourceEdit_ = nullptr;
@@ -83,6 +96,13 @@ namespace stencil::gui {
     QWidget* frameRow_ = nullptr;       // "Video frame" controls — shown only for video
     QLabel* previewLabel_ = nullptr;    // the rendered image/frame
     QLabel* previewHint_ = nullptr;     // status / dimensions / errors
+    // Quick pre-load edits row (shown once a preview resolves): crop-to-page toggle,
+    // album/portrait toggle, and the page-size choice.
+    QWidget* quickcropRow_ = nullptr;
+    QCheckBox* cropPage_ = nullptr;
+    QCheckBox* cropAlbum_ = nullptr;
+    QComboBox* cropPageSize_ = nullptr;
+    QString pageSeed_ = "A3";
     QPushButton* loadBtn_ = nullptr;
     MediaLoader* preview_ = nullptr;    // detects image vs video, grabs the first frame
     QTimer* fetchTimer_ = nullptr;      // debounce seeks while scrubbing

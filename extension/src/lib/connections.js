@@ -16,6 +16,9 @@ export const normalizeUrl = (raw) => {
 // `shared`/`serverUrl`/`projectId` drive the golden outline and route opens.
 export const sharedPinFromProject = (proj, serverUrl) => ({
   source: `${serverUrl}/projects/${proj.id}/files/original`,
+  // The project's ORIGINAL web source URL (what was pinned), so a local pin of the
+  // same image can be matched to its server copy and shown with the golden outline.
+  origin: proj.source || '',
   site: serverUrl,
   resource: proj.resource || '',
   name: proj.name || 'Untitled',
@@ -117,10 +120,10 @@ export const listProjects = async (conn, f = fetchImpl()) => {
 export const createProject = async (conn, { name, source = '', resource = '' }, f = fetchImpl()) =>
   req(conn, 'POST', '/projects', { body: { name, source, resource, hasImage: true }, fetch: f });
 
-// Fetch a shared project's original image bytes (authed) as a Blob — the endpoint is
-// Bearer-protected, so a bare <img src> can't load it; callers convert to a data URL.
-export const fetchProjectImage = async (conn, projectId, f = fetchImpl()) => {
-  const resp = await req(conn, 'GET', `/projects/${projectId}/files/original`, { raw: true, fetch: f });
+// Fetch a shared project's bytes as a Blob (Bearer-authed, so callers data-URL them).
+// kind: 'original' (unedited, default — editor re-opens it to re-apply filter/lines) | 'result' (baked preview).
+export const fetchProjectImage = async (conn, projectId, kind = 'original', f = fetchImpl()) => {
+  const resp = await req(conn, 'GET', `/projects/${projectId}/files/${kind}`, { raw: true, fetch: f });
   return resp.blob();
 };
 
@@ -163,6 +166,22 @@ export const collectSharedPins = async (connections, f = fetchImpl()) => {
 // Connect and persist; returns the updated connection list.
 export const addServer = async (rawUrl, token = '', f = fetchImpl()) => {
   const conn = await connect(rawUrl, token, f);
+  const next = upsertConnection(await loadConnections(), conn);
+  await saveConnections(next);
+  return next;
+};
+
+// Re-establish a persisted connection: re-validate its token, or issue a fresh one if
+// that's rejected. Persists any new token. Throws if the server is unreachable.
+export const reconnectServer = async (rawUrl, f = fetchImpl()) => {
+  const url = normalizeUrl(rawUrl);
+  const existing = (await loadConnections()).find((c) => c.url === url);
+  let conn;
+  try {
+    conn = await connect(url, existing ? existing.token : '', f);  // re-validate token
+  } catch {
+    conn = await connect(url, '', f);  // token stale/rejected → request a fresh one
+  }
   const next = upsertConnection(await loadConnections(), conn);
   await saveConnections(next);
   return next;

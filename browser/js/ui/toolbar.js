@@ -21,6 +21,7 @@ export class StencilToolbar extends StencilElement {
                 </svg>
                 <button id="toggle-controls" class="btn-icon-text" data-hk-title="toggleControls" data-title="Hide controls" title="Hide controls">${icon('chevron-up')}<span>Controls</span></button>
                 <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
+                    <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
                     <input id="project-name-input" type="text" placeholder="No project" title="Project name — double-click to rename" readonly disabled
                         style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text);background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
                     <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
@@ -118,9 +119,9 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <div class="zoom-controls">
                         <button id="zoom-out" class="btn-icon" data-title="Zoom out" data-disabled-reason="Load an image to zoom" title="Zoom out">${icon('minus')}</button>
+                        <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom" title="Zoom in">${icon('plus')}</button>
                         <input type="number" id="zoom-input" value="100" min="5" max="500" data-title="Zoom %" data-disabled-reason="Load an image to zoom" title="Zoom % (Enter to apply)">
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>
-                        <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom" title="Zoom in">${icon('plus')}</button>
                         <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom" title="Fit to window">${icon('fit')}</button>
                     </div>
                 </div>

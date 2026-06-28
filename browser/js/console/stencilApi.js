@@ -14,7 +14,9 @@ import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
 import { ConnectionManager } from '../net/connectionManager.js';
+import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { requireConnection } from '../net/remoteSync.js';
+import { notify } from '../utils.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
 
 const str = (v) => (v == null ? '' : String(v));
@@ -22,13 +24,34 @@ const str = (v) => (v == null ? '' : String(v));
 export const createStencil = (app) => {
   // One ConnectionManager per session, shared with the connection UI via app.connections;
   // onChange fires a DOM event so the projects modal / connect dialog can refresh.
+  const firstInit = !app.connections;
   const connMgr = app.connections || (app.connections = new ConnectionManager({
-    onChange: () => {
+    onChange: (change) => {
+      // Persist the live set so it survives reloads (connectionStore.js), then let
+      // the connect/projects UI refresh off the same DOM event.
+      try { saveServers(connMgr.snapshot()); } catch { /* storage blocked */ }
+      // Live co-edit: forward a server project-event to the editor so it can reload the
+      // active project when a peer changes it.
+      if (change && change.type === 'event' && change.message?.type === 'project-event') {
+        try { app.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }
+      }
       try {
         window.dispatchEvent(new Event('stencil:connections-changed'));
       } catch { /* no DOM */ }
     },
   }));
+  // On first boot, optionally re-establish the saved server set (the "auto-connect on
+  // open" preference, default on). Connect each independently so one dead server doesn't
+  // block the rest, and report the unreachable count in the corner toast.
+  if (firstInit && getAutoConnect()) {
+    const saved = loadSavedServers();
+    if (saved.length) {
+      Promise.allSettled(saved.map((s) => connMgr.connect(s))).then((results) => {
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed) notify(`Couldn't reach ${failed} saved server${failed === 1 ? '' : 's'}`, 'info');
+      });
+    }
+  }
   let peers = [];
   try { app.tabs.onPeers((ids) => { peers = Array.isArray(ids) ? ids : []; }); } catch { /* no coordinator */ }
   const openedIds = () => {

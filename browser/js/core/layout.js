@@ -4,11 +4,34 @@
 
 // Build the layout export payload. `lines` passed by reference (no copy) so JSON.stringify
 // output stays byte-identical to the old inline literals in downloadJSON/copyLayoutToClipboard.
-export const buildLayoutPayload = ({ imageWidth, imageHeight, lines }) => ({
-  imageWidth,
-  imageHeight,
-  lines
-});
+// imageFilter/filterColor are optional and omitted when absent (file-export bytes unchanged);
+// saveToServer passes them so the filter round-trips to peers and on reopen, not just baked in.
+export const buildLayoutPayload = ({ imageWidth, imageHeight, lines, imageFilter, filterColor }) => {
+  const out = { imageWidth, imageHeight, lines };
+  if (imageFilter != null) out.imageFilter = imageFilter;
+  if (filterColor != null) out.filterColor = filterColor;
+  return out;
+};
+
+// Order-independent dedupe key for a line (fixed field order; matches desktop lineKey),
+// so a local line dedupes against its server round-tripped twin. JSON-fallback for non-objects.
+const lineDedupeKey = (l) => {
+  if (!l || typeof l !== 'object') return JSON.stringify(l);
+  const pts = Array.isArray(l.points) ? l.points.map((p) => `${p && p.x},${p && p.y}`).join(';') : '';
+  return [l.color, l.thickness, l.markerSize, l.style, l.locked ? 1 : 0, l.fillColor, pts].join('|');
+};
+
+// Union-merge for co-edit conflicts: server lines first, then any local line not already
+// present (order-independent) — keeps both editors' annotations without duplicating round-trips.
+export const mergeLines = (serverLines, localLines) => {
+  const out = Array.isArray(serverLines) ? serverLines.slice() : [];
+  const seen = new Set(out.map(lineDedupeKey));
+  for (const l of Array.isArray(localLines) ? localLines : []) {
+    const k = lineDedupeKey(l);
+    if (!seen.has(k)) { out.push(l); seen.add(k); }
+  }
+  return out;
+};
 
 // Decide what to do with an incoming layout object (upload or paste). Pure: DOM/confirm()/
 // saveHistory/redraw stay in the calling method, which reads needsReplaceConfirm then

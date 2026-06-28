@@ -39,6 +39,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .search { width: 100%; }
 .frow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
+.frow select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
+.frow select[hidden] { display: none; }
 .dlbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
 .num { width: 56px; }
 .num::placeholder { color: #6b7180; }
@@ -59,7 +61,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .status { padding: 8px 12px; color: var(--muted); font-size: 12px; }
 .status:empty { display: none; }
 
-.list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+.list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; scrollbar-gutter: stable; }
 
 .row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; }
 .row:hover { background: var(--panel); }
@@ -82,20 +84,17 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .badge.poster { color: #38bdf8; border-color: #38bdf8; }
 /* Already-opened-in-an-editor cue: yellow flag + row outline. */
 .badge.opened { color: #1b1b1b; background: var(--yellow); border-color: var(--yellow); font-weight: 600; }
-.row.opened { outline: 2px solid var(--yellow); outline-offset: -2px; }
-.row.opened .thumb { border-color: var(--yellow); }
+.row.opened { outline: 1.5px solid var(--yellow); outline-offset: -1px; }
 /* Pinned cue: gray pin tag + row outline. An image can be both pinned and opened; the
    two pin/opened badges disambiguate, so the outline colour alone need not encode both. */
 .badge.pinned { color: var(--text); border-color: var(--muted); font-weight: 600; }
 .badge.pinned .ic { vertical-align: -0.16em; }
-.row.pinned { outline: 2px solid var(--muted); outline-offset: -2px; }
-.row.pinned .thumb { border-color: var(--muted); }
-/* Shared-from-a-server cue: a GOLDEN outline + server badge, distinct from the gray
-   local-pin outline above. Marks rows pulled from a connected collaboration server. */
+.row.pinned { outline: 1.5px solid var(--muted); outline-offset: -1px; }
+/* Shared-from-a-server cue: a GOLDEN row outline + server badge, distinct from the gray
+   local-pin outline above. Marks rows that are stored on a connected server. */
 .badge.shared { color: #f5c518; border-color: #f5c518; font-weight: 600; }
 .badge.shared .ic { vertical-align: -0.16em; }
-.row.shared { outline: 2px solid #f5c518; outline-offset: -2px; }
-.row.shared .thumb { border-color: #f5c518; }
+.row.shared { outline: 1.5px solid #f5c518; outline-offset: -1px; }
 
 /* In-popup dialog (server pin target picker) */
 .dialog-back {
@@ -113,7 +112,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 8px; font-size: 12.5px;
 }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Vertical list of pin targets: "Pin locally" + one button per connected server. */
+.dialog-actions { display: flex; flex-direction: column; gap: 8px; }
 .dialog-actions button {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
@@ -167,3 +167,16 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   padding: 5px 9px 3px; color: var(--muted);
   font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
 }
+/* Nested submenu shown as a flyout on hover; flips left near the window's right edge. */
+.action-menu .submenu { position: relative; }
+.action-menu .submenu-head { justify-content: space-between; }
+.action-menu .submenu-head .submenu-label { flex: 1 1 auto; }
+.action-menu .submenu-head .caret { flex: 0 0 auto; color: var(--muted); }
+.action-menu .submenu:hover > .submenu-head { background: var(--accent); color: #fff; }
+.action-menu .flyout {
+  position: absolute; top: -5px; left: 100%; margin-left: -2px; min-width: 172px; display: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); z-index: 21;
+}
+.action-menu .submenu.open-left > .flyout { left: auto; right: 100%; margin: 0 -2px 0 0; }
+.action-menu .submenu:hover > .flyout { display: block; }

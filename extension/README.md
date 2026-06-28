@@ -27,11 +27,15 @@ including a quick page-aspect crop. Vanilla JS, no build step.
 - Each connected server's stored projects (those with an image) become **shared pins** in
   the popup list: `loadConnections() → collectSharedPins()` pulls them over REST and they
   render **after** the page's own images with a **golden outline + server badge** (the
-  `server` icon glyph) to set them apart from local (gray) pins. Their thumbnails and
-  editor/crop hand-off are fetched over the connection's **Bearer-authed** download endpoint
-  (`fetchProjectImage` → `GET /projects/{id}/files/original`), since a bare `<img src>` can't
-  send the token. Clicking a shared row opens the server image in the editor; the `⋯` menu
-  offers open/incognito/here/crop on it.
+  `server` icon glyph) to set them apart from local (gray) pins. Their bytes are fetched over
+  the connection's **Bearer-authed** download endpoint (`fetchProjectImage` →
+  `GET /projects/{id}/files/{kind}`), since a bare `<img src>` can't send the token. The
+  **thumbnail** pulls the edited **`result`** variant (the project's saved filter + lines
+  baked in — what the editor exported), falling back to the **`original`** when no result was
+  ever saved; the **editor/crop hand-off** always pulls the **`original`** so the editor can
+  re-apply the saved filter/lines (the `result` has them baked in and couldn't be re-edited).
+  Clicking a shared row opens the (original) server image in the editor; the `⋯` menu offers
+  open/incognito/here/crop on it.
 - **Real-time refresh:** the popup re-pulls shared pins on a light **poll while open**
   (`SHARED_POLL_MS`, ~8 s) — MV3 popups are short-lived, so this is simpler and more robust
   than holding a background `/ws` events socket open. It also reacts to `chrome.storage`

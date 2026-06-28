@@ -24,6 +24,7 @@ class QJsonObject;
 class QActionGroup;
 class QWidgetAction;
 class QImage;
+class QPixmap;
 class QMenu;
 class QDragEnterEvent;
 class QDropEvent;
@@ -162,9 +163,22 @@ namespace stencil::gui {
     void saveSessionNow();
     void restoreSession();
     void openProjects();
+    // Build id -> edited-result preview pixmaps for the local project list, shown as
+    // the Projects dialog's row icons. Each is rendered through the same canvas/export
+    // path the editor uses (filtered image + drawn lines): the active project from the
+    // live canvas (current unsaved edits), the rest composited offscreen from their
+    // stored image+crop+rotation+lines. Pathless (in-memory) sources get no preview.
+    QHash<QString, QPixmap> buildProjectThumbs() const;
     // Server connections dialog (mirrors browser connectModal.js): connect to /
     // disconnect from collaboration servers. Lazily creates the ConnectionManager.
     void openConnections();
+    // Lazily build the window's ConnectionManager, wiring its changed() signal to
+    // persist the live server set (connectionStore) so it survives relaunch.
+    stencil::net::ConnectionManager* ensureConnections();
+    // Startup auto-connect (mirrors the browser's "auto-connect on open"): when the
+    // preference is on, re-establish the saved server set best-effort. Gated to the
+    // primary restored window so spawned windows don't each reconnect.
+    void autoConnectServers();
     // Load a saved project (by id) into THIS window's canvas, mirroring the
     // browser switchToProject(): set page size, restore image + lines + crop,
     // mark it active. Returns false if no project with that id exists.
@@ -173,6 +187,16 @@ namespace stencil::gui {
     // (the desktop counterpart of the browser's "open in new tab"). The new
     // window owns itself (WA_DeleteOnClose) and reads projects from disk.
     void openProjectInNewWindow(const QString& id);
+    // Move a LOCAL project onto `serverUrl` (create + upload original + push layout),
+    // then remove the local copy. Mirrors the browser's moveProjectToServer().
+    void moveLocalProjectToServer(const QString& serverUrl, const QString& id);
+    // Move a SERVER project into local storage (download bytes + layout, persist as a
+    // local project), then delete it from the server. Mirrors moveProjectToLocal().
+    void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
+    // True if `id` is the active project in some OTHER open window — used to block
+    // removing/moving a project that's open elsewhere (the desktop analogue of the
+    // browser's "open in another tab" guard).
+    bool projectOpenInOtherWindow(const QString& id) const;
     // "Open another image" outcomes. Open here: replace this editor's image
     // (saving the current content first unless incognito), adopting the chosen
     // incognito mode. New window: launch a fresh window loading the image (via
@@ -188,6 +212,10 @@ namespace stencil::gui {
     // non-empty for a local file, so it survives session/project saves), then
     // apply any pending --layout. Wired to MediaLoader::loaded.
     void onLaunchImageLoaded(const QImage& image, const QString& localPath);
+    // Apply (and consume) pendingCrop_ to the just-loaded image: a Page crop to the
+    // chosen page+orientation, a None full-frame crop, or nothing for Auto (the
+    // default page-aspect crop applied at load). Mirrors the browser's load opts.
+    void applyQuickCrop();
     // Launch support: load a layout JSON from a local path or URL and adopt it
     // (shared applyLayoutJson guards apply). Used for --layout after --src loads.
     void applyLayoutFromSource(const QString& src);
@@ -232,8 +260,17 @@ namespace stencil::gui {
     // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
     void saveToServer();
     // Open a server-stored project: download its original image + layout, load them
-    // into this canvas, and link the session to {serverUrl, id, version}.
-    bool openServerProject(const QString& serverUrl, const QString& id);
+    // into this canvas, and link the session to {serverUrl, id, version}. `silent`
+    // suppresses the "Opened …" toast (used by the live-co-edit poll, which reloads
+    // repeatedly when peers change the project).
+    bool openServerProject(const QString& serverUrl, const QString& id, bool silent = false);
+    // Live co-edit. scheduleRemotePush: debounce saveToServer() after a local edit.
+    // start/stopRemotePoll: periodic version check while a remote session is open.
+    // pollRemoteForUpdate: one tick — reload the canvas if a peer bumped the version.
+    void scheduleRemotePush();
+    void startRemotePoll();
+    void stopRemotePoll();
+    void pollRemoteForUpdate();
 
     // Find a loaded project by id, or nullptr when none matches.
     Project* findProject(const std::string& id);
@@ -283,6 +320,16 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
+    // Live co-edit: debounced server push after a local edit + a poll that reloads when
+    // a peer changes the linked project. Flags guard against self-triggering.
+    QTimer* remotePushTimer_ = nullptr;
+    QTimer* remotePollTimer_ = nullptr;
+    bool remotePushing_ = false;
+    bool remoteReloading_ = false;
+    // True when THIS user changed the filter since the last sync — a save then imposes
+    // our filter; otherwise a line-only save preserves the shared server filter (so it
+    // doesn't clobber a peer's filter change). Cleared on save / reload.
+    bool filterDirty_ = false;
 
     // ── Project-name field (toolbar) + its inline-rename ✓/✗ buttons. Mirrors the
     // browser topbar name field: shows the active project name, validated inline. ──
@@ -329,6 +376,7 @@ namespace stencil::gui {
     QAction* actCrop_ = nullptr;
     QAction* actRotateLeft_ = nullptr;
     QAction* actRotateRight_ = nullptr;
+    QAction* actCycleFilter_ = nullptr;
     QAction* actStartDraw_ = nullptr;
     QAction* actStopDraw_ = nullptr;
     QAction* actNewLine_ = nullptr;
@@ -450,6 +498,17 @@ namespace stencil::gui {
     // onLaunchImageLoaded() once the async load succeeds.
     QString pendingProvSource_;
     QString pendingProvResource_;
+    // Pending quick pre-load crop for an in-flight load (set by openLinks, consumed
+    // once in onLaunchImageLoaded). Mirrors the browser linksModal load opts: Auto =
+    // the default page-aspect auto-crop; Page = crop to `page` in `album`/portrait
+    // orientation; None = load the full frame uncropped.
+    struct QuickCropOpts {
+      enum class Mode { Auto, Page, None };
+      Mode mode = Mode::Auto;
+      bool album = false;
+      QString page;  // "A3"/"A4" (empty keeps the current page)
+    };
+    QuickCropOpts pendingCrop_;
     bool incognito_ = false;
     double lastHoverX_ = 0.0;
     double lastHoverY_ = 0.0;

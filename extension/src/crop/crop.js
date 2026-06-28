@@ -112,9 +112,11 @@ const resetCrop = () => {
 };
 
 // ── Zoom ──
+const VIEWPORT_PAD = 10;   // keep in sync with .viewport padding in crop.css
 const fitToWindow = () => {
-  const vw = viewport.clientWidth - 4;
-  const vh = viewport.clientHeight - 4 || Math.round(window.innerHeight * 0.72);
+  // clientWidth/Height include the padding, so subtract both gutters (plus a small fudge).
+  const vw = viewport.clientWidth - VIEWPORT_PAD * 2 - 4;
+  const vh = (viewport.clientHeight - VIEWPORT_PAD * 2 - 4) || Math.round(window.innerHeight * 0.72);
   state.fitScale = Math.min(vw / state.imgW, vh / state.imgH) || 1;
   state.zoom = 1;
   applyZoom();

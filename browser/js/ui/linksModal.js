@@ -72,6 +72,19 @@ export class StencilLinksModal extends StencilElement {
                         <label title="Load locally or create on a connected server">Save to</label>
                         <select id="links-target"></select>
                     </div>
+                    <!-- Quick pre-load edits: open the editor already cropped to a page
+                         aspect/orientation. Shown once a preview succeeds. -->
+                    <div class="vs-row links-quickcrop" id="links-quickcrop-row" style="display:none">
+                        <label title="Open the editor already cropped to the page aspect">Quick edits</label>
+                        <span class="links-quickcrop-controls">
+                            <label class="links-inline-check" title="Crop the image to the page aspect on load"><input type="checkbox" id="links-crop-page" checked> Crop to page</label>
+                            <label class="links-inline-check" title="Landscape orientation (off = portrait)"><input type="checkbox" id="links-crop-album"> Album</label>
+                            <select id="links-crop-pagesize" title="Page size to crop to">
+                                <option value="A3">A3</option>
+                                <option value="A4">A4</option>
+                            </select>
+                        </span>
+                    </div>
                     <div class="links-preview-wrap" id="links-preview-wrap" style="display:none">
                         <img id="links-preview-img" alt="" style="display:none">
                         <video id="links-preview-video" muted playsinline controls crossorigin="anonymous" style="display:none"></video>
@@ -117,6 +130,27 @@ export class StencilLinksModal extends StencilElement {
     const footHint = $('links-foot-hint');
     const targetEl = $('links-target');
     const targetRow = $('links-target-row');
+    const quickcropRow = $('links-quickcrop-row');
+    const cropPageEl = $('links-crop-page');
+    const cropAlbumEl = $('links-crop-album');
+    const cropPageSizeEl = $('links-crop-pagesize');
+
+    // Album only matters when cropping to page; grey it out otherwise.
+    const syncQuickcropEnabled = () => {
+      cropAlbumEl.disabled = !cropPageEl.checked;
+      cropPageSizeEl.disabled = !cropPageEl.checked;
+    };
+    cropPageEl.addEventListener('change', syncQuickcropEnabled);
+
+    // Reveal the quick-edit row for a previewed image/frame and default the album
+    // toggle + page size to sensible values (orientation auto-matches the media).
+    const showQuickcrop = (w, h) => {
+      cropPageEl.checked = true;
+      cropAlbumEl.checked = (w || 0) >= (h || 0);
+      cropPageSizeEl.value = (app.pageSize === 'A4') ? 'A4' : 'A3';
+      syncQuickcropEnabled();
+      quickcropRow.style.display = '';
+    };
 
     // 'none' until a preview succeeds; drives what Load captures.
     let previewKind = 'none';
@@ -132,6 +166,7 @@ export class StencilLinksModal extends StencilElement {
       previewVideo.style.display = 'none';
       previewVideo.removeAttribute('src');
       previewVideo.load?.();
+      quickcropRow.style.display = 'none';
       frameRow.style.display = 'none';
       frameNum.value = '0';
       frameTotal.textContent = '';
@@ -264,6 +299,7 @@ export class StencilLinksModal extends StencilElement {
         previewKind = 'image';
         previewImg.style.display = 'block';
         previewHint.textContent = `Image ${previewImg.naturalWidth}×${previewImg.naturalHeight}`;
+        showQuickcrop(previewImg.naturalWidth, previewImg.naturalHeight);
         loadBtn.disabled = false;
       };
       previewImg.onerror = () => {
@@ -279,6 +315,7 @@ export class StencilLinksModal extends StencilElement {
           frameTotal.textContent = maxFrame ? `/ ${maxFrame}` : '';
           reflectFrame(0);
           frameRow.style.display = 'flex';
+          showQuickcrop(previewVideo.videoWidth, previewVideo.videoHeight);
           previewHint.textContent = videoFrameHint(0);
           loadBtn.disabled = false;
         };
@@ -317,7 +354,12 @@ export class StencilLinksModal extends StencilElement {
           file = new File([blob], filenameFromUrl(url, (blob.type.split('/')[1] || 'png')), { type: blob.type || 'image/png' });
         }
         const address = (targetEl && targetEl.value) || undefined;
-        app.loadImageFromFile(file, { source: url, resource, address });
+        // Quick pre-load edits: crop to the chosen page aspect/orientation, or load
+        // the full frame uncropped when "Crop to page" is off.
+        const cropOpts = cropPageEl.checked
+          ? { page: cropPageSizeEl.value, album: cropAlbumEl.checked }
+          : { noCrop: true };
+        app.loadImageFromFile(file, { source: url, resource, address, ...cropOpts });
         close();
         notify('Image loaded from URL', 'ok');
       } catch (err) {

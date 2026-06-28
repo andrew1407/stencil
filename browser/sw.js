@@ -1,10 +1,8 @@
 // ── Service worker: offline app shell + runtime cache ───────────
-// No build step / generated manifest. Precaches the critical shell on install, then
-// serves every same-origin GET stale-while-revalidate (cache answers instantly,
-// background fetch refreshes for next time). Bump VERSION to force a clean
-// re-precache and evict the old cache on activate.
-const VERSION = 'v7';
-const CACHE = `stencil-${VERSION}`;
+// Network-first on every same-origin GET, so the live file always wins and the cache
+// is only the offline fallback — no version bumping needed for freshness. The name is
+// fixed; activate still evicts any other (legacy) cache so old versions clean up.
+const CACHE = 'stencil';
 
 // Critical shell: enough to boot the app offline. The rest of the module graph
 // (ui/, core/, config/, the optional wasm) is filled in at runtime on first use.
@@ -46,14 +44,15 @@ self.addEventListener('fetch', e => {
 
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const cached = await cache.match(req);
-    const network = fetch(req)
-      .then(res => {
-        // Only store complete, same-origin responses (skip opaque/partial/errors).
-        if (res && res.ok && res.type === 'basic') cache.put(req, res.clone());
-        return res;
-      })
-      .catch(() => cached);                          // offline → fall back to cache
-    return cached || network;                        // cache-first, refresh behind
+    try {
+      const res = await fetch(req);                  // network-first: always try live
+      // Cache complete, same-origin responses for offline (skip opaque/partial/errors).
+      if (res && res.ok && res.type === 'basic') cache.put(req, res.clone());
+      return res;
+    } catch {
+      const cached = await cache.match(req);          // offline → fall back to cache
+      if (cached) return cached;
+      throw new Error('offline and not cached');
+    }
   })());
 });

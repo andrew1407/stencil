@@ -94,6 +94,14 @@ export class Storage {
       // extension-launch "resume" match can use it without reading the payload.
       source: this.app.imageSource || null,
       resource: this.app.imageResource || null,
+      // Server linkage (set when this session was opened from / pushed to a server),
+      // so the projects list can show this row as the SAME project as its golden
+      // remote row instead of a duplicate. Null for purely-local projects.
+      address: this.app.remoteLink?.address || null,
+      remoteId: this.app.remoteLink?.remoteId || null,
+      // Last-known server version (LWW guard), so reopening a server-linked project
+      // from the list restores the link without a stale-version save conflict.
+      remoteVersion: this.app.remoteLink?.version || 0,
     };
     this.#upsertWithQuota(meta, { image: this.app.imageDataUrl || null, layout });
 
@@ -236,16 +244,19 @@ export class Storage {
   #makeThumbnail() {
     if (!this.app.image) return null;
     try {
+      // Render the EDITED result (filter + lines), not the raw original, so the
+      // projects list previews match what the user actually drew/filtered.
+      const src = this.app.renderResultCanvas();
       const max = 160;
-      const iw = this.app.image.width;
-      const ih = this.app.image.height;
+      const iw = src.width;
+      const ih = src.height;
       const scale = Math.min(1, max / Math.max(iw, ih));
       const w = Math.max(1, Math.round(iw * scale));
       const h = Math.max(1, Math.round(ih * scale));
       const offscreen = document.createElement('canvas');
       offscreen.width = w;
       offscreen.height = h;
-      offscreen.getContext('2d').drawImage(this.app.image, 0, 0, w, h);
+      offscreen.getContext('2d').drawImage(src, 0, 0, w, h);
       return offscreen.toDataURL('image/jpeg', 0.6);
     } catch {
       return null;

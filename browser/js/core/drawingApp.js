@@ -14,14 +14,15 @@ import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex } from './accents.js';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
 import { normalizePageSize } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
-import { requireConnection, createRemoteProject, saveRemoteProject, CONFLICT_MESSAGE } from '../net/remoteSync.js';
+import { enhanceSelect } from '../ui/customSelect.js';
+import { requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (theme + label match). line = diagonal segment with
@@ -75,6 +76,15 @@ export class DrawingApp {
   #thicknessSaveTimer = null;
   #saveStatusTimer = null;
   #rotateSaveTimer = null;
+  // Live co-edit: debounced server push on edit; timestamp of our last server save (to
+  // ignore the server's echo of our own change); guard while a reload is applying.
+  #remoteSyncTimer = null;
+  #lastRemoteSaveAt = 0;
+  #reloadingRemote = false;
+  // True when THIS user changed the filter since the last sync — so a save imposes our
+  // filter (our intent wins), but a save that's only line edits preserves the shared
+  // server filter instead of clobbering a peer's filter change.
+  #filterDirty = false;
 
   constructor() {
     this.canvas = document.getElementById('canvas');
@@ -326,6 +336,11 @@ export class DrawingApp {
     });
     const unitSel = document.getElementById('unit-select');
     if (unitSel) unitSel.addEventListener('change', e => this.setUnit(e.target.value));
+    // Swap the native popups (whose position macOS controls) for custom dropdowns
+    // anchored below the control. The native <select>s stay as the state source, so
+    // the change listeners above and every setVal('page-size'|'unit-select') keep working.
+    enhanceSelect(document.getElementById('page-size'));
+    enhanceSelect(unitSel);
     document.getElementById('show-points').addEventListener('change', e => this.setShowPoints(e.target.checked));
     document.getElementById('show-lines').addEventListener('change', e => this.setShowLines(e.target.checked));
   }
@@ -425,12 +440,20 @@ export class DrawingApp {
         }
         return;
       }
-      if (await this.confirm('Clear this project (image + lines) from storage?', { title: 'Clear project', danger: true })) {
+      // A server-linked project only clears its LOCAL copy — the server keeps it.
+      // Say so up front, and confirm the user really wants to drop the open project.
+      const server = this.remoteLink?.address;
+      const msg = server
+        ? `Remove the local copy of this project? It is stored on the server ${server} and will stay there.`
+        : 'Clear this project (image + lines) from storage?';
+      if (await this.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true })) {
         const id = this.activeProjectId;
         this.storage.store.remove(id);
         this.storage.newTemporary();
+        this.remoteLink = null;   // dropped the local session → no server link to save back to
         this.tabs.reportActive(null);
         this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
+        if (server) notify(`Local copy removed — still on the server ${server}`, 'info');
         this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
       }
     });
@@ -574,14 +597,11 @@ export class DrawingApp {
         this.renderer.redraw();
       },
       cycleFilter: () => {
-        const sel = document.getElementById('image-filter');
         const opts = ['none', 'bw', 'sepia', 'custom'];
-        const cur = opts.indexOf(sel.value);
-        sel.value = opts[(cur + 1) % opts.length];
-        this.imageFilter = sel.value;
-        const filterColorPicker = document.getElementById('filter-color');
-        if (filterColorPicker) filterColorPicker.style.display = (this.imageFilter === 'custom') ? 'inline-block' : 'none';
-        this.renderer.redraw();
+        const cur = opts.indexOf(this.imageFilter);
+        // Route through setImageFilter so the cycle marks the filter dirty + syncs to
+        // the server (it used to set the value inline and never push).
+        this.setImageFilter(opts[(cur + 1) % opts.length]);
       },
       resetZoom: () => this.zoomPan.fitToWindow(),
       toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
@@ -1544,6 +1564,16 @@ export class DrawingApp {
   // the default centered page-aspect crop (external-launch path). opts.source/opts.resource —
   // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
   loadImageFromFile(file, opts = {}) {
+    // A different server project becomes its own local project: flush the active one and
+    // reset to blank so the promote below makes a distinct record (skip same-project reload / incognito).
+    const switchingRemote = !!opts.remoteId
+      && (!this.remoteLink || this.remoteLink.remoteId !== opts.remoteId);
+    if (switchingRemote && !this.storage.temporary && this.activeProjectId != null
+        && !this.storage.incognito) {
+      this.storage.save();
+      this.storage.newTemporary();
+      this.activeProjectId = null;
+    }
     // A temporary editor receiving its first image becomes a real project (the final
     // storage.save() persists it; other tabs see it). Exception: incognito editors stay
     // unsaved — do NOT promote, image/lines live in memory only.
@@ -1588,7 +1618,23 @@ export class DrawingApp {
         // detection; original kept, working canvas shows only this region. opts.crop
         // (external-launch) overrides. Fresh image starts un-rotated; crop in original space.
         this.rotationQuarters = 0;
-        this.cropRect = opts.crop ? this.#roundRect(opts.crop) : this.defaultCropRect();
+        // Quick pre-load edits (load-by-URL modal): opts.page sets page size before the
+        // auto-crop, opts.album forces orientation, opts.noCrop loads the full frame.
+        if (opts.page) {
+          const n = normalizePageSize(opts.page);
+          if (n) {
+            this.pageSize = n;
+            setVal('page-size', n);
+          }
+        }
+        if (opts.crop) {
+          this.cropRect = this.#roundRect(opts.crop);
+        } else if (opts.noCrop) {
+          const { w: iw, h: ih } = this.#rotatedOriginalDims();
+          this.cropRect = this.#roundRect({ x: 0, y: 0, width: iw, height: ih }, iw, ih);
+        } else {
+          this.cropRect = this.defaultCropRect(opts.album);
+        }
         this.rebuildCroppedImage();
 
         // If pending lines exist from a previous session where image couldn't be stored,
@@ -1612,16 +1658,22 @@ export class DrawingApp {
           this.lines = [];
         }
 
-        // Reopened server project: install its stored layout's lines (no prompts —
-        // it's the project's own layout, not a foreign paste).
-        if (remoteLayout) {
-          const verdict = validateLayout(remoteLayout, {
-            hasImage: true,
-            imgW: this.canvas.width,
-            imgH: this.canvas.height,
-            hasExistingLines: false,
-          });
-          if (verdict.ok) this.lines = verdict.lines;
+        // Reopened server project: adopt its stored lines + filter/tint (no paste prompts);
+        // no stored layout resets the filter to 'none' so the prior project's filter doesn't
+        // bleed in (matches desktop openServerProject).
+        if (opts.remoteId) {
+          if (remoteLayout) {
+            const verdict = validateLayout(remoteLayout, {
+              hasImage: true,
+              imgW: this.canvas.width,
+              imgH: this.canvas.height,
+              hasExistingLines: false,
+            });
+            if (verdict.ok) this.lines = verdict.lines;
+            this.#adoptServerFilter(remoteLayout);
+          } else {
+            this.#adoptServerFilter({});   // no saved filter — reset to 'none'
+          }
         }
 
         this.currentLine = null;
@@ -1751,9 +1803,12 @@ export class DrawingApp {
   // The default centered crop for the loaded original: page aspect in the
   // orientation matching the image (album when wider than tall). Public so the
   // storage layer can default-crop legacy projects saved before cropping existed.
-  defaultCropRect() {
+  // `albumOverride` (optional) forces album (true) / portrait (false) orientation;
+  // omitted, orientation auto-matches the image (wider-than-tall ⇒ album).
+  defaultCropRect(albumOverride) {
     const { w: iw, h: ih } = this.#rotatedOriginalDims();
-    const aspect = cropAspect(this.#pageCmDims().width, this.#pageCmDims().height, isAlbumOrientation(iw, ih));
+    const isAlbum = (albumOverride == null) ? isAlbumOrientation(iw, ih) : !!albumOverride;
+    const aspect = cropAspect(this.#pageCmDims().width, this.#pageCmDims().height, isAlbum);
     return this.#roundRect(centeredCrop(iw, ih, aspect), iw, ih);
   }
 
@@ -2817,6 +2872,90 @@ export class DrawingApp {
   saveHistory() {
     this.history.push(this.lines);
     this.storage.save();
+    this.scheduleRemoteSync();
+  }
+
+  // Live co-edit (send): debounce a save-back to the server after an edit so peers on
+  // the same project get a `project-event` and reload. No-op for local-only projects.
+  scheduleRemoteSync() {
+    if (!this.remoteLink || this.#reloadingRemote) return;
+    clearTimeout(this.#remoteSyncTimer);
+    this.#remoteSyncTimer = setTimeout(() => {
+      if (this.remoteLink && !this.#reloadingRemote) this.saveToServer();
+    }, 700);
+  }
+
+  // Live co-edit (receive): a server project-event for the project we're editing —
+  // reload from the server when it's a genuine peer change. Wired from the connection
+  // event feed (stencilApi onChange).
+  onServerProjectEvent(msg, conn) {
+    if (!shouldReloadFromEvent(msg, this.remoteLink, {
+      lastLocalSaveAt: this.#lastRemoteSaveAt,
+      isDrawing: this.isDrawing,
+      connUrl: conn ? conn.url : null,
+    })) return;
+    this.reloadRemoteActive();
+  }
+
+  // Re-fetch the active server project (image + layout) and apply it, so a peer's saved
+  // change shows live. Uses original/source as the base + re-applies the stored layout
+  // (lines + filter) — never the baked `result` (would double-draw). Guarded so the
+  // reload's own redraws don't trigger a push back.
+  async reloadRemoteActive() {
+    const link = this.remoteLink;
+    if (!link || this.#reloadingRemote) return;
+    const conn = this.connections && this.connections.get(link.address);
+    if (!conn) return;
+    this.#reloadingRemote = true;
+    try {
+      const full = await conn.getProject(link.remoteId);
+      const src = full.project?.source || '';
+      const blob = await this.#fetchRemoteOriginal(conn, link.remoteId, src);
+      if (!blob) return;
+      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+      const file = new File([blob], `${this.imageBaseName || 'image'}.${ext}`, { type: blob.type || 'image/png' });
+      this.loadImageFromFile(file, {
+        source: src,
+        resource: full.project?.resource || '',
+        address: link.address,
+        remoteId: link.remoteId,
+        version: full.project?.version || link.version,
+        layout: full.layout,
+      });
+      notify('Updated from server', 'ok');
+    } catch { notify("Couldn't refresh from server — showing the last loaded version", 'info'); }
+    finally {
+      setTimeout(() => { this.#reloadingRemote = false; }, 250);
+    }
+  }
+
+  // Fetch a server project's original bytes, falling back to its http(s) source URL
+  // (CORS) when the server stores none. Returns a Blob or null.
+  async #fetchRemoteOriginal(conn, remoteId, src) {
+    let blob = null;
+    try { blob = await conn.fetchFile(remoteId, 'original'); } catch {}
+    if (!blob && /^https?:/i.test(src || '')) {
+      const resp = await fetch(src, { mode: 'cors' });
+      if (resp.ok) blob = await resp.blob();
+    }
+    return blob;
+  }
+
+  // Adopt a server layout's filter/tint into the editor + filter UI, and clear the
+  // dirty flag (the server's filter is now ours). Used by conflict-merge so a line-only
+  // edit preserves a peer's filter change instead of clobbering it.
+  #adoptServerFilter(layout) {
+    if (!layout) return;
+    this.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');
+    if (layout.filterColor) this.filterColor = layout.filterColor;
+    setVal('image-filter', this.imageFilter);
+    setRadioGroup('ctxFilter', this.imageFilter);
+    const fp = document.getElementById('filter-color');
+    if (fp) {
+      fp.value = this.filterColor;
+      fp.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
+    }
+    this.#filterDirty = false;
   }
 
   undo() {
@@ -2957,6 +3096,16 @@ export class DrawingApp {
       if (a) a.style.display = 'none';
       if (c) c.style.display = 'none';
     }
+    // Server-editing indicator: a golden badge by the name + a golden outline on the
+    // canvas, so it's obvious this session is editing a project stored on a server.
+    const remote = this.remoteLink;
+    const badge = document.getElementById('project-remote-badge');
+    if (badge) {
+      badge.style.display = remote ? 'inline-flex' : 'none';
+      if (remote) badge.title = `Editing a project stored on ${remote.address}`;
+    }
+    const canvasViewport = document.getElementById('canvas-viewport');
+    if (canvasViewport) canvasViewport.classList.toggle('remote-editing', !!remote);
   }
 
   updateInfo() {
@@ -3000,8 +3149,14 @@ export class DrawingApp {
     if (!this.storage.temporary && this.activeProjectId != null) this.storage.save();
     if (this.storage.loadProject(id)) {
       this.activeProjectId = id;
-      this.remoteLink = null;   // a locally-stored project isn't server-linked
+      // Restore the remote link from meta so a reopened server-backed project keeps its
+      // identity (outline + write-back); purely-local projects clear it.
+      const meta = this.storage.store.getMeta(id);
+      this.remoteLink = (meta && meta.remoteId && meta.address)
+        ? { address: meta.address, remoteId: meta.remoteId, version: meta.remoteVersion || 0 }
+        : null;
       this.tabs.reportActive(id);
+      this.updateProjectTitle();   // reflect (or clear) the remote badge + outline now
       return true;
     }
     return false;
@@ -3035,6 +3190,17 @@ export class DrawingApp {
     const el = document.getElementById('confirm-modal-overlay');
     if (el && typeof el.ask === 'function') return el.ask(message, opts);
     return Promise.resolve(typeof window !== 'undefined' && window.confirm ? window.confirm(message) : true);
+  }
+
+  // Promise-based single-choice picker (shares the confirm modal). Resolves the
+  // chosen option value, or null on cancel. opts.options: [{ value, label }].
+  // Used to pick a target server when moving a project to a server.
+  choose(message, opts = {}) {
+    const el = document.getElementById('confirm-modal-overlay');
+    if (el && typeof el.choose === 'function') return el.choose(message, opts);
+    // No modal (tests / pre-wire): fall back to the first option, if any.
+    const first = (opts.options || [])[0];
+    return Promise.resolve(first ? first.value : null);
   }
 
   // Start a fresh blank (unsaved) editor.
@@ -3130,8 +3296,8 @@ export class DrawingApp {
   }
 
   // Save the current annotated result + layout back to the linked server project.
-  // Version-guarded; a 409 surfaces a clear "edited elsewhere" toast and leaves the
-  // link untouched so the user can reload. No-op when the session isn't server-linked.
+  // On a 409 version conflict, pull latest, union-merge the peer's lines with ours, and
+  // retry until convergence (handles the result-upload's extra bump). No-op when local-only.
   async saveToServer() {
     if (!this.remoteLink) return null;
     let conn;
@@ -3141,35 +3307,61 @@ export class DrawingApp {
       notify(err.message, 'fail');
       return null;
     }
-    const layout = buildLayoutPayload({
-      imageWidth: this.canvas.width,
-      imageHeight: this.canvas.height,
-      lines: this.lines,
-    });
     const name = this.activeProjectId != null
       ? (this.storage.store.getMeta(this.activeProjectId)?.name || this.imageBaseName || 'Untitled')
       : (this.imageBaseName || 'Untitled');
-    let bytes = null;
-    if (this.image) {
+    const renderBytes = async () => {
+      if (!this.image) return null;
       const off = this.#renderExportCanvas();
       const blob = await new Promise(res => off.toBlob(res, 'image/png'));
-      if (blob) bytes = new Uint8Array(await blob.arrayBuffer());
-    }
-    try {
-      this.remoteLink = await saveRemoteProject(conn, this.remoteLink, {
-        name,
-        layout,
-        bytes,
-        ext: 'png',
-        w: this.canvas.width,
-        h: this.canvas.height,
+      return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+    };
+    const MAX_TRIES = 6;
+    for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
+      const layout = buildLayoutPayload({
+        imageWidth: this.canvas.width,
+        imageHeight: this.canvas.height,
+        lines: this.lines,
+        imageFilter: this.imageFilter,
+        filterColor: this.filterColor,
       });
-      notify('Saved to server', 'ok');
-      return this.remoteLink;
-    } catch (err) {
-      notify(err.conflict ? CONFLICT_MESSAGE : `Server save failed — ${err.message}`, 'fail');
-      return null;
+      const bytes = await renderBytes();
+      this.#lastRemoteSaveAt = Date.now();   // open the echo-suppression window
+      try {
+        this.remoteLink = await saveRemoteProject(conn, this.remoteLink, {
+          name, layout, bytes, ext: 'png', w: this.canvas.width, h: this.canvas.height,
+        });
+        this.#lastRemoteSaveAt = Date.now();
+        this.#filterDirty = false;   // our filter (if any) is now the server's
+        notify(attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
+        return this.remoteLink;
+      } catch (err) {
+        if (!err || !err.conflict) {
+          notify(`Server save failed — ${err.message}`, 'fail');
+          return null;
+        }
+        // Conflict: a peer saved first. Merge their latest lines into ours, adopt the
+        // server version, and loop to retry — re-merging each time so repeated bumps
+        // (the unguarded result upload) can't drop our edit.
+        try {
+          const full = await conn.getProject(this.remoteLink.remoteId);
+          this.remoteLink = { ...this.remoteLink, version: full.project?.version ?? this.remoteLink.version };
+          const sl = full.layout || {};
+          const serverLines = Array.isArray(sl.lines) ? sl.lines : [];
+          this.lines = mergeLines(serverLines, this.lines);
+          // Adopt the peer's filter UNLESS this user just changed their own — so a
+          // line-only edit doesn't clobber a peer's filter change (the scalar can't merge).
+          if (!this.#filterDirty) this.#adoptServerFilter(sl);
+          this.history.push(this.lines);
+          this.renderer.redraw();
+        } catch { /* fetch failed; loop retries with current state */ }
+      }
     }
+    // Couldn't win the race after several merges — reload so the user sees a consistent
+    // state (our pending lines were already merged into the server's by an earlier pass).
+    notify('Sync conflict — reloaded latest from the server', 'info');
+    this.reloadRemoteActive();
+    return null;
   }
 
   // Permanently delete every saved project, then drop to a blank editor.
@@ -3258,7 +3450,9 @@ export class DrawingApp {
     const tintRow = document.getElementById('ctx-tint-row');
     if (tintRow) tintRow.classList.toggle('ctx-tint-visible', this.imageFilter === 'custom');
     this.renderer.redraw();
+    this.#filterDirty = true;   // user changed the filter → our filter wins on save
     this.storage.save();
+    this.scheduleRemoteSync();
     return this;
   }
 
@@ -3268,7 +3462,7 @@ export class DrawingApp {
     const ctxTint = document.getElementById('ctx-tint-color');
     if (ctxTint) ctxTint.value = this.filterColor;
     this.renderer.redraw();
-    if (persist) this.storage.save();
+    if (persist) { this.#filterDirty = true; this.storage.save(); this.scheduleRemoteSync(); }
     return this;
   }
 
@@ -3515,6 +3709,101 @@ export class DrawingApp {
     this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
   }
 
+  // ── Move a project between local storage and a server ────────────
+  // Local → server: create the project on `address` (original bytes + annotated
+  // layout), then drop the local copy. Flushes the active project first so the
+  // server gets the latest edits. Returns the new remote id.
+  async moveProjectToServer(id, address) {
+    const conn = requireConnection(this.connections, address);
+    if (id === this.activeProjectId && !this.storage.temporary) this.storage.save();   // flush latest
+    const proj = this.storage.store.get(id);
+    if (!proj) throw new Error('Project not found');
+    const meta = this.storage.store.getMeta(id) || {};
+    const payload = proj.payload || {};
+    const layout = payload.layout || {};
+    // Decode the stored original (a data URL) to raw bytes for the codec-free server.
+    let bytes = null;
+    let ext = meta.imageExt || layout.imageExt || 'png';
+    const w = layout.imageWidth || meta.imageW || 0;
+    const h = layout.imageHeight || meta.imageH || 0;
+    if (payload.image) {
+      const blob = await (await fetch(payload.image)).blob();
+      bytes = new Uint8Array(await blob.arrayBuffer());
+      if (blob.type && blob.type.includes('/')) ext = blob.type.split('/')[1];
+    }
+    const name = meta.name || layout.imageBaseName || 'Untitled';
+    const link = await createRemoteProject(conn, {
+      name,
+      source: meta.source || layout.imageSource || '',
+      resource: meta.resource || layout.imageResource || '',
+      bytes, ext, w, h,
+    });
+    // Push the annotated layout (lines + filter) so the server holds the full project.
+    await saveRemoteProject(conn, link, {
+      name,
+      layout: buildLayoutPayload({
+        imageWidth: w, imageHeight: h,
+        lines: layout.lines || [],
+        imageFilter: layout.imageFilter,
+        filterColor: layout.filterColor,
+      }),
+    });
+    // Local copy is now redundant — remove it (drops to a blank editor if it was active).
+    this.removeProject(id);
+    return link.remoteId;
+  }
+
+  // Server → local: fetch the server project's image + layout, save it as a new
+  // local project, then delete it from the server. `meta` is a remote-project meta
+  // ({ id, serverUrl, name, source }). Returns the new local project id.
+  async moveProjectToLocal(meta) {
+    const conn = requireConnection(this.connections, meta.serverUrl);
+    const full = await conn.getProject(meta.id);
+    const src = full.project?.source || meta.source || '';
+    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    const dataUrl = blob ? await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => rej(new Error('could not read image bytes'));
+      r.readAsDataURL(blob);
+    }) : null;
+    const sl = full.layout || {};
+    const newId = this.storage.store.createId();
+    const name = full.project?.name || meta.name || 'Untitled';
+    const localMeta = {
+      id: newId,
+      name,
+      thumbnail: dataUrl,
+      createdAt: Date.now(),
+      hasImage: !!dataUrl,
+      imageW: sl.imageWidth || 0,
+      imageH: sl.imageHeight || 0,
+      source: src || null,
+      resource: full.project?.resource || null,
+      address: null,
+      remoteId: null,
+      remoteVersion: 0,
+    };
+    this.storage.store.upsert(localMeta, {
+      image: dataUrl,
+      layout: {
+        imageWidth: sl.imageWidth || 0,
+        imageHeight: sl.imageHeight || 0,
+        lines: Array.isArray(sl.lines) ? sl.lines : [],
+        imageFilter: sl.imageFilter || 'none',
+        filterColor: sl.filterColor || '#7c3aed',
+        imageBaseName: name,
+        imageExt: (blob && blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : 'png',
+        imageSource: src || null,
+        imageResource: full.project?.resource || null,
+      },
+    });
+    // Now remove it from the server (the live feed re-renders its golden row out).
+    await conn.deleteProject(meta.id);
+    this.tabs.projectsChanged({ id: newId, action: PROJECT_ACTION.UPDATED });
+    return newId;
+  }
+
   // ── Cross-tab reactions + incognito mode ─────────────────────────
   // True only while the editor is blank (no project, no image, no lines) — the
   // window when incognito can be toggled, since adding content auto-saves.
@@ -3592,6 +3881,11 @@ export class DrawingApp {
     this.ctx = savedCtx;
     return offscreen;
   }
+
+  // Public: the composited "result" canvas (filtered image + drawn lines/points),
+  // i.e. what download/copy/share/save-to-server emit. Used for project thumbnails
+  // so previews show the EDITED result, not the untouched original.
+  renderResultCanvas() { return this.#renderExportCanvas(); }
 
   saveImage() {
     if (!this.image) {
