@@ -61,6 +61,13 @@ namespace stencil::gui {
     autosave_->setChecked(current.autosave);
     form->addRow("Autosave", autosave_);
 
+    syncToServer_ = new QCheckBox(this);
+    syncToServer_->setChecked(current.syncToServer);
+    syncToServer_->setToolTip(
+        "When off, edits to a fetched server project stay in this session only — "
+        "never pushed to the server or saved locally (export or 'Make local copy' to keep them).");
+    form->addRow("Sync changes to server", syncToServer_);
+
     // Note: "Auto-connect to servers on open" now lives in the Servers dialog
     // (it's a connection preference, persisted via net::connectionStore).
 
@@ -142,6 +149,7 @@ namespace stencil::gui {
     s.themeMode = theme_->currentData().toString();
     s.accentColor = accent_->currentData().toString();
     s.autosave = autosave_->isChecked();
+    s.syncToServer = syncToServer_->isChecked();
     s.showPoints = showPoints_->isChecked();
     s.showLines = showLines_->isChecked();
     s.defaultColor = colorHex_;

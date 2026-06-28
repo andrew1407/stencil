@@ -9,7 +9,7 @@ const testing = std.testing;
 const sample = @embedFile("fixtures/sample.png");
 
 fn cur(session: *console.Session) image.Rgba8 {
-    return session.states.items[session.cursor];
+    return session.current().*;
 }
 
 test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
@@ -30,10 +30,10 @@ test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
 
     // A transform before a source is loaded is a no-op (no image), not a crash.
     try testing.expect(!try console.handle(&session, io, "/filter sepia"));
-    try testing.expectEqual(@as(usize, 0), session.states.items.len);
+    try testing.expectEqual(@as(usize, 0), session.stateCount());
 
     try testing.expect(!try console.handle(&session, io, "/upload " ++ in));
-    try testing.expectEqual(@as(usize, 1), session.states.items.len);
+    try testing.expectEqual(@as(usize, 1), session.stateCount());
     try testing.expectEqual(@as(usize, 16), cur(&session).width);
     try testing.expectEqual(@as(usize, 12), cur(&session).height);
     try testing.expect(!session.temp); // a local file is not a temporary in-memory source
@@ -59,7 +59,7 @@ test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
 
     // A fresh edit from here drops the (rotate) redo state and becomes the latest.
     _ = try console.handle(&session, io, "/filter sepia");
-    try testing.expectEqual(session.states.items.len, session.cursor + 1);
+    try testing.expectEqual(session.stateCount(), session.cursor + 1);
 
     _ = try console.handle(&session, io, "/save " ++ out);
     const bytes = try dir.readFileAlloc(io, out, a, .limited(1 << 20));
@@ -71,12 +71,12 @@ test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
 
     // Reset returns to the original and clears history.
     _ = try console.handle(&session, io, "/reset");
-    try testing.expectEqual(@as(usize, 1), session.states.items.len);
+    try testing.expectEqual(@as(usize, 1), session.stateCount());
     try testing.expectEqual(@as(usize, 16), cur(&session).width);
 
     // Drop forgets the image entirely.
     _ = try console.handle(&session, io, "/drop");
-    try testing.expectEqual(@as(usize, 0), session.states.items.len);
+    try testing.expectEqual(@as(usize, 0), session.stateCount());
 
     try testing.expect(try console.handle(&session, io, "/exit")); // exit ends the session
 }
@@ -91,7 +91,7 @@ test "console: blank creates a temporary in-memory source" {
     defer session.deinit();
 
     _ = try console.handle(&session, io, "/blank 64 48 red");
-    try testing.expectEqual(@as(usize, 1), session.states.items.len);
+    try testing.expectEqual(@as(usize, 1), session.stateCount());
     try testing.expect(session.temp);
     try testing.expectEqual(@as(usize, 64), cur(&session).width);
     try testing.expectEqual(@as(usize, 48), cur(&session).height);

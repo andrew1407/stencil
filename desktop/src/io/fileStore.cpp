@@ -119,21 +119,30 @@ namespace stencil::gui {
   // reopened project restores the same b&w/sepia/tint result, not just the lines.
   QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines,
                                          const QString& imageFilter,
-                                         const QString& filterColor) {
+                                         const QString& filterColor,
+                                         const core::CropRect& cropRect,
+                                         int rotationQuarters) {
     QJsonObject o;
     o["imageWidth"] = w;
     o["imageHeight"] = h;
     o["lines"] = linesToJson(lines);
     o["imageFilter"] = imageFilter;
     o["filterColor"] = filterColor;
+    // Geometry is optional on the wire: omit a non-crop and a zero rotation so callers
+    // that don't pass them (file export) stay byte-identical to the old envelope.
+    if (cropRect.width > 0 && cropRect.height > 0) o["cropRect"] = cropRectToJson(cropRect);
+    if (rotationQuarters != 0) o["rotationQuarters"] = rotationQuarters;
     return o;
   }
 
   // Read the layout envelope back, reporting stored image size (browser
-  // drawingApp.js:2111 dimension check).
-  core::Lines fileStore::parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut) {
+  // drawingApp.js:2111 dimension check) and, when requested, crop/rotation.
+  core::Lines fileStore::parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
+                                         core::CropRect* cropOut, int* rotOut) {
     wOut = o.value("imageWidth").toInt(0);
     hOut = o.value("imageHeight").toInt(0);
+    if (cropOut && o.contains("cropRect")) *cropOut = cropRectFromJson(o.value("cropRect").toObject());
+    if (rotOut) *rotOut = o.value("rotationQuarters").toInt(0);
     return linesFromJson(o.value("lines").toArray());
   }
 
@@ -164,6 +173,7 @@ namespace stencil::gui {
     }
     s.accentColor = o.value("accentColor").toString(s.accentColor);
     s.autosave = o.value("autosave").toBool(s.autosave);
+    s.syncToServer = o.value("syncToServer").toBool(s.syncToServer);
     s.showPoints = o.value("showPoints").toBool(s.showPoints);
     s.showLines = o.value("showLines").toBool(s.showLines);
     s.defaultColor = o.value("defaultColor").toString(s.defaultColor);
@@ -190,6 +200,7 @@ namespace stencil::gui {
     o["themeMode"] = s.themeMode;
     o["accentColor"] = s.accentColor;
     o["autosave"] = s.autosave;
+    o["syncToServer"] = s.syncToServer;
     o["showPoints"] = s.showPoints;
     o["showLines"] = s.showLines;
     o["defaultColor"] = s.defaultColor;

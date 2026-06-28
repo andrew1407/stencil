@@ -1,5 +1,6 @@
 import { ProjectsStore, shouldPersist } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
+import { getSyncToServer } from '../net/connectionStore.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
 // app state, compresses the image, regenerates a thumbnail, reads payloads back into the
@@ -72,6 +73,15 @@ export class Storage {
 
   // Persist the active project. No-op (with a throttled hint) in temp mode.
   save() {
+    // Sync off + a fetched server project = edit-in-memory only: don't persist locally
+    // either (the project is "stored nowhere" — download or "Make local copy" to keep it).
+    if (this.app.remoteLink && !getSyncToServer()) {
+      if (!this.#tempStatusTimer) {
+        this.app.showSaveStatus('Sync off — not saved', 'var(--warning)', 'info');
+        this.#tempStatusTimer = setTimeout(() => { this.#tempStatusTimer = null; }, 1500);
+      }
+      return;
+    }
     if (!shouldPersist(this.activeId, this.temporary)) {
       // Throttle the "not saved" hint so rapid edits don't spam the status line.
       if (!this.#tempStatusTimer) {

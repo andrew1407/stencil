@@ -7,6 +7,7 @@ import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, P
 import { pruneLedger } from '../lib/ledger.js';
 import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
 import { MSG } from '../lib/messages.js';
+import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/actionIcon.js';
 
 // Rebuild the menu from scratch; removeAll first avoids "duplicate id" on repeated
 // builds. onInstalled/onStartup aren't reliable per reload, so this also runs at
@@ -146,17 +147,21 @@ chrome.runtime.onInstalled.addListener(() => {
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
   setUpPageApi();
+  applyAccentActionIcon();
 });
 chrome.runtime.onStartup.addListener(() => {
   buildMenus();
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
   setUpPageApi();
+  applyAccentActionIcon();
 });
 
 // Also set up on every worker start (onInstalled/onStartup don't fire on every wake).
 setUpEditorBridge();
 registerPageApi();   // re-asserts registration (injection into open tabs only on explicit toggle/startup)
+applyAccentActionIcon();   // tint the toolbar icon's outline to the saved accent
+watchAccentActionIcon();   // …and re-tint it whenever the accent changes
 
 // What the probe last resolved under the cursor, per tab (ready { url } for a
 // background or captured frame). Needed because info.srcUrl is absent (backgrounds)

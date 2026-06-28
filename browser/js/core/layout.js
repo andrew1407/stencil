@@ -4,12 +4,15 @@
 
 // Build the layout export payload. `lines` passed by reference (no copy) so JSON.stringify
 // output stays byte-identical to the old inline literals in downloadJSON/copyLayoutToClipboard.
-// imageFilter/filterColor are optional and omitted when absent (file-export bytes unchanged);
-// saveToServer passes them so the filter round-trips to peers and on reopen, not just baked in.
-export const buildLayoutPayload = ({ imageWidth, imageHeight, lines, imageFilter, filterColor }) => {
+// imageFilter/filterColor/cropRect/rotationQuarters are optional and omitted when absent
+// (file-export bytes unchanged); saveToServer passes them so the filter and geometry
+// round-trip to peers and on reopen, not just baked into the result raster.
+export const buildLayoutPayload = ({ imageWidth, imageHeight, lines, imageFilter, filterColor, cropRect, rotationQuarters }) => {
   const out = { imageWidth, imageHeight, lines };
   if (imageFilter != null) out.imageFilter = imageFilter;
   if (filterColor != null) out.filterColor = filterColor;
+  if (cropRect != null) out.cropRect = cropRect;
+  if (rotationQuarters != null) out.rotationQuarters = rotationQuarters;
   return out;
 };
 

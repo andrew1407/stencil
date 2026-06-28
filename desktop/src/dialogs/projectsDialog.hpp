@@ -37,8 +37,10 @@ namespace stencil::gui {
     //   (read selectedId() + selectedServerUrl()).
     // MoveToLocal: copy a SERVER project into local storage, then delete it from the
     //   server (read selectedServerUrl() + selectedId()).
+    // MakeLocalCopy: copy a SERVER project into local storage (named "<name>-local")
+    //   and open it, leaving the server copy in place (read selectedServerUrl()+selectedId()).
     enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Renew, NewBlank,
-                        OpenRemote, MoveToServer, MoveToLocal };
+                        OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy };
 
     // `now` (epoch ms) is the reference point for the per-row expiry labels and
     // their warning/expired colouring; the caller passes its clock so the dialog
@@ -84,6 +86,8 @@ namespace stencil::gui {
     void moveToServerSelected();
     // Move the selected SERVER project into local storage.
     void moveToLocalSelected();
+    // Make a detached local copy of the selected SERVER project (server copy kept).
+    void makeLocalCopySelected();
     void renameSelected();
     void renewSelected();
     void createNew();

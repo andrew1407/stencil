@@ -164,15 +164,17 @@ stencil --console
 The leading `/` is optional (`crop ...` ≡ `/crop ...`). On a TTY you also get raw-mode line
 editing: **Tab** completes the command word, **Up/Down** recall the last 50 commands,
 Left/Right/Home/End/Backspace edit the line, and the prompt + leading `/command` token
-render in the brand accent. Two clipboard chords work mid-prompt: **Ctrl-V** pastes an image
-from the clipboard as the working image, and **Ctrl-C** copies the current image to the
-clipboard. To leave, press **Ctrl-C** a second time (or use `/exit` / **Ctrl-D**) — the first
-press copies and arms the exit, so any other key cancels it.
+render in the brand accent. Two clipboard chords work mid-prompt: **Ctrl-Alt-V** pastes an
+image from the clipboard as the working image, and **Ctrl-Alt-C** copies the current image to
+the clipboard. (These arrive as a Meta/ESC prefix, so on macOS the terminal's Option key must
+be set to send Meta/Esc+ — Terminal.app: *Use Option as Meta key*; iTerm2: Option key → *Esc+*.
+Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twice (or use
+`/exit` / **Ctrl-D**) — the first press arms the exit, so any other key cancels it.
 
 | Command | Effect |
 |---|---|
 | `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
-| `/paste` | Load an image from the clipboard (macOS, via `osascript`). |
+| `/paste` | Load an image from the clipboard (macOS, via `osascript`). Also bound to **Ctrl-Alt-V**. |
 | `/blank [w h] [color]` | Create a blank page (default A4 @ 96 dpi, white). Alias: `new`. |
 | `/apply <file.json>` | Draw a layout JSON onto the image. Aliases: `draw`, `layout`. |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` (add `album` to derive the missing axis). |
@@ -183,11 +185,13 @@ press copies and arms the exit, so any other key cancels it.
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
 | `/save [path]` | Encode + write the working image to a file (extension filled in if omitted). A **bare** `/save` (no path) pushes the current result to the active server project — the manual counterpart to `/sync`, so you can update the server image on demand when sync is off. Alias: `write`. |
 | `/connect <url[ url2 …]>` | Connect to one or more [collaboration servers](../server/README.md) for the session. |
-| `/connections` | List the connected servers (the active project's server is marked). Alias: `servers`. |
+| `/connections` | List the connected servers, each with a live reachability status (`[connected]`, `[unreachable]`, or `[auth expired — /reconnect]` from a quick probe) and a marker for the active project's server. Alias: `servers`. |
+| `/projects [url]` | List a server's projects as an aligned table (`NAME` / `SIZE` / `CHANGED`, plus a `SERVER` column when listing across more than one server). With no URL it lists **every** connected server's projects; with a URL, just that one. Projects with no stored dimensions show `-` for size. Open one with `/fetch <name>`. Alias: `ls`. |
 | `/disconnect [url]` | Close one connection, or the most recently opened when omitted. |
-| `/fetch <name> [url]` | Load a server project's image to keep editing (give a URL when more than one server is connected). Alias: `pull`. |
-| `/sync <on\|off>` | When on, edits auto-upload the result to the active fetched project (debounced: a burst of edits coalesces into one upload, flushed once the input settles), **and** opens a read-only live feed over the server's raw-TCP edit channel (REST port + 1, e.g. `8091`) so that if another client saves the same project you get a `↺ …updated on the server` notice at the prompt. The live feed is plaintext, so it is skipped for `https://` servers (whose edit channel is TLS-wrapped) — REST sync still works over TLS. Off by default; use a bare `/save` to push manually when off. |
-| `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-V** to paste / **Ctrl-C** to copy. |
+| `/reconnect [url]` | Re-establish one connection by URL, or **all** of them when omitted: re-issue the auth token and, for the active project's server while syncing, revive the live edit-events feed (the one socket that goes stale when the server bounces or the connection drops). Alias: `refresh`. |
+| `/fetch <name> [url]` | Load a server project's image to keep editing (give a URL when more than one server is connected); a stored b&w/sepia/tint **filter** is re-applied on load. Alias: `pull`. |
+| `/sync [on\|off]` | **Live-editing mode** for the active fetched project (off by default); a bare `/sync` with no argument toggles it. When on it works in both directions: your edits auto-upload the result (debounced — a burst of edits coalesces into one upload, flushed once the input settles), **and** a live feed over the server's raw-TCP edit channel (REST port + 1, e.g. `8091`) **auto-pulls** a peer's change into your working image the moment they save (it replaces the working image and resets the undo history to that point, showing `↺ pulled "…" from the server (changed 5s ago)`). If you have your own unsynced local edits when a peer's change arrives, it does **not** clobber them — you get `↺ "…" changed on the server (… ago) — you have local edits; '/save' to push yours or '/fetch' to take theirs`. The feed is plaintext, so it is skipped for `https://` servers (whose edit channel is TLS-wrapped) — REST sync still works over TLS. Use a bare `/save` to push manually when sync is off, and `/reconnect` to revive the feed after a drop. Beyond uploading the rendered `result`, a sync **also writes the image filter into the project layout** (`imageFilter`/`filterColor`, preserving any peer's lines + geometry), so a `/filter bw\|sepia\|tint` shows live in open browser/desktop editors (which render `original` + layout). *(Syncing the CLI's own `/crop`, `/rotate` and `/apply` line drawings as structured layout is not yet implemented — those still bake into the `result` only.)* |
+| `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-Alt-C** (paste is **Ctrl-Alt-V**). |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
 | `/theme [name\|#hex]` | List the accent colours, or switch: a preset name, `default` (violet), or any colour like `#ff5623`. Also repaints the logo. |
 | `/clear` | Clear the screen and redraw the logo + image header. Alias: `cls`. |

@@ -23,6 +23,7 @@ import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGesture
 import { icon } from '../ui/icons.js';
 import { enhanceSelect } from '../ui/customSelect.js';
 import { requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
+import { getSyncToServer } from '../net/connectionStore.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (theme + label match). line = diagonal segment with
@@ -1616,8 +1617,12 @@ export class DrawingApp {
       this.originalImage.onload = async () => {
         // Auto-crop center to the page aspect (cut surplus sides) via album/portrait
         // detection; original kept, working canvas shows only this region. opts.crop
-        // (external-launch) overrides. Fresh image starts un-rotated; crop in original space.
-        this.rotationQuarters = 0;
+        // (external-launch) overrides. A reopened server project restores its saved
+        // rotation + crop from the layout — rotation FIRST, because the crop rect lives
+        // in rotated-original pixel space (#roundRect/defaultCropRect read rotationQuarters).
+        this.rotationQuarters = (remoteLayout && Number.isInteger(remoteLayout.rotationQuarters))
+          ? remoteLayout.rotationQuarters
+          : 0;
         // Quick pre-load edits (load-by-URL modal): opts.page sets page size before the
         // auto-crop, opts.album forces orientation, opts.noCrop loads the full frame.
         if (opts.page) {
@@ -1627,7 +1632,9 @@ export class DrawingApp {
             setVal('page-size', n);
           }
         }
-        if (opts.crop) {
+        if (remoteLayout && remoteLayout.cropRect) {
+          this.cropRect = this.#roundRect(remoteLayout.cropRect);
+        } else if (opts.crop) {
           this.cropRect = this.#roundRect(opts.crop);
         } else if (opts.noCrop) {
           const { w: iw, h: ih } = this.#rotatedOriginalDims();
@@ -1901,6 +1908,7 @@ export class DrawingApp {
     this.updateCoordStatus();
     this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
     this.storage.save();
+    this.scheduleRemoteSync(); // crop/rotate change the layout's geometry — push it to peers too
   }
 
   // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0
@@ -2876,9 +2884,10 @@ export class DrawingApp {
   }
 
   // Live co-edit (send): debounce a save-back to the server after an edit so peers on
-  // the same project get a `project-event` and reload. No-op for local-only projects.
+  // the same project get a `project-event` and reload. No-op for local-only projects,
+  // and when the "Sync changes to server" setting is off (edit-in-memory only).
   scheduleRemoteSync() {
-    if (!this.remoteLink || this.#reloadingRemote) return;
+    if (!this.remoteLink || this.#reloadingRemote || !getSyncToServer()) return;
     clearTimeout(this.#remoteSyncTimer);
     this.#remoteSyncTimer = setTimeout(() => {
       if (this.remoteLink && !this.#reloadingRemote) this.saveToServer();
@@ -2889,6 +2898,7 @@ export class DrawingApp {
   // reload from the server when it's a genuine peer change. Wired from the connection
   // event feed (stencilApi onChange).
   onServerProjectEvent(msg, conn) {
+    if (!getSyncToServer()) return; // sync off — don't auto-pull peer changes
     if (!shouldReloadFromEvent(msg, this.remoteLink, {
       lastLocalSaveAt: this.#lastRemoteSaveAt,
       isDrawing: this.isDrawing,
@@ -3300,6 +3310,7 @@ export class DrawingApp {
   // retry until convergence (handles the result-upload's extra bump). No-op when local-only.
   async saveToServer() {
     if (!this.remoteLink) return null;
+    if (!getSyncToServer()) return null; // sync off — fetched project stays edit-in-memory only
     let conn;
     try {
       conn = requireConnection(this.connections, this.remoteLink.address);
@@ -3324,6 +3335,8 @@ export class DrawingApp {
         lines: this.lines,
         imageFilter: this.imageFilter,
         filterColor: this.filterColor,
+        cropRect: this.cropRect,
+        rotationQuarters: this.rotationQuarters,
       });
       const bytes = await renderBytes();
       this.#lastRemoteSaveAt = Date.now();   // open the echo-suppression window
@@ -3746,6 +3759,8 @@ export class DrawingApp {
         lines: layout.lines || [],
         imageFilter: layout.imageFilter,
         filterColor: layout.filterColor,
+        cropRect: layout.cropRect,
+        rotationQuarters: layout.rotationQuarters,
       }),
     });
     // Local copy is now redundant — remove it (drops to a blank editor if it was active).
@@ -3757,6 +3772,18 @@ export class DrawingApp {
   // local project, then delete it from the server. `meta` is a remote-project meta
   // ({ id, serverUrl, name, source }). Returns the new local project id.
   async moveProjectToLocal(meta) {
+    return this.#importServerProjectToLocal(meta, { removeFromServer: true });
+  }
+
+  // Make a detached LOCAL copy of a server project, leaving the server copy in place,
+  // named "<name>-local". Returns the new local project id; the caller opens it.
+  async copyServerProjectToLocal(meta) {
+    return this.#importServerProjectToLocal(meta, { removeFromServer: false, nameSuffix: '-local' });
+  }
+
+  // Shared body of move/copy server→local: fetch image + layout, persist a fresh detached
+  // local project (crop/rotation included), optionally delete the server copy.
+  async #importServerProjectToLocal(meta, { removeFromServer = false, nameSuffix = '' } = {}) {
     const conn = requireConnection(this.connections, meta.serverUrl);
     const full = await conn.getProject(meta.id);
     const src = full.project?.source || meta.source || '';
@@ -3769,7 +3796,7 @@ export class DrawingApp {
     }) : null;
     const sl = full.layout || {};
     const newId = this.storage.store.createId();
-    const name = full.project?.name || meta.name || 'Untitled';
+    const name = (full.project?.name || meta.name || 'Untitled') + nameSuffix;
     const localMeta = {
       id: newId,
       name,
@@ -3792,14 +3819,16 @@ export class DrawingApp {
         lines: Array.isArray(sl.lines) ? sl.lines : [],
         imageFilter: sl.imageFilter || 'none',
         filterColor: sl.filterColor || '#7c3aed',
+        cropRect: sl.cropRect || null,
+        rotationQuarters: sl.rotationQuarters || 0,
         imageBaseName: name,
         imageExt: (blob && blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : 'png',
         imageSource: src || null,
         imageResource: full.project?.resource || null,
       },
     });
-    // Now remove it from the server (the live feed re-renders its golden row out).
-    await conn.deleteProject(meta.id);
+    // Remove from the server only for a move (the live feed re-renders its golden row out).
+    if (removeFromServer) await conn.deleteProject(meta.id);
     this.tabs.projectsChanged({ id: newId, action: PROJECT_ACTION.UPDATED });
     return newId;
   }

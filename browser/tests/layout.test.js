@@ -63,6 +63,28 @@ test('buildLayoutPayload serializes byte-identically to the old inline literal',
     assert.strictEqual(JSON.stringify(payload, null, 2), expected);
 });
 
+test('buildLayoutPayload includes crop/rotation/filter only when provided', () => {
+    const full = buildLayoutPayload({
+        imageWidth: 10, imageHeight: 20, lines: [],
+        imageFilter: 'bw', filterColor: '#7c3aed',
+        cropRect: { x: 1, y: 2, width: 3, height: 4 }, rotationQuarters: 3,
+    });
+    assert.deepStrictEqual(full.cropRect, { x: 1, y: 2, width: 3, height: 4 });
+    assert.strictEqual(full.rotationQuarters, 3);
+    assert.strictEqual(full.imageFilter, 'bw');
+    assert.strictEqual(full.filterColor, '#7c3aed');
+
+    // Absent → omitted entirely (keeps file-export bytes stable).
+    const bare = buildLayoutPayload({ imageWidth: 10, imageHeight: 20, lines: [] });
+    assert.ok(!('cropRect' in bare));
+    assert.ok(!('rotationQuarters' in bare));
+    assert.ok(!('imageFilter' in bare));
+
+    // rotationQuarters 0 is a meaningful value → kept (not dropped as falsy).
+    const zeroRot = buildLayoutPayload({ imageWidth: 1, imageHeight: 1, lines: [], rotationQuarters: 0 });
+    assert.strictEqual(zeroRot.rotationQuarters, 0);
+});
+
 // ── validateLayout ──────────────────────────────────────────────
 test('validateLayout rejects when no image is loaded', () => {
     const r = validateLayout({ lines: [] }, { hasImage: false, imgW: 10, imgH: 10, hasExistingLines: false });

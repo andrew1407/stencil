@@ -193,6 +193,14 @@ namespace stencil::gui {
     // Move a SERVER project into local storage (download bytes + layout, persist as a
     // local project), then delete it from the server. Mirrors moveProjectToLocal().
     void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
+    // Make a detached LOCAL copy of a server project ("<name>-local"), leaving the
+    // server copy in place, and open it. Mirrors the browser copyServerProjectToLocal().
+    void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id);
+    // Shared body of the two above: fetch image + layout (incl. crop/rotation), persist a
+    // fresh local project; optionally delete the server copy. Returns its new id via newIdOut.
+    bool importServerProjectToLocal(const QString& serverUrl, const QString& id,
+                                    bool removeFromServer, const QString& nameSuffix,
+                                    QString* newIdOut);
     // True if `id` is the active project in some OTHER open window — used to block
     // removing/moving a project that's open elsewhere (the desktop analogue of the
     // browser's "open in another tab" guard).

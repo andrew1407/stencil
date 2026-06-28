@@ -10,6 +10,7 @@ pub const Error = error{
     HttpFailed,
     Unauthorized,
     NotFound,
+    Conflict, // 409: a stale version on a layout PUT (a peer saved first) — caller retries
     BadResponse,
     NotConnected,
     TlsNotSupported,
@@ -83,6 +84,115 @@ pub fn findIdByName(gpa: std.mem.Allocator, body: []const u8, name: []const u8) 
     return null;
 }
 
+/// A project reference resolved from a list: its id plus the current server version.
+/// The version seeds the console's last-writer-wins guard so it knows which incoming
+/// edit events are genuinely newer than what it already holds. Caller owns `id`.
+pub const ProjectRef = struct { id: []u8, version: i64 };
+
+/// Like findIdByName, but also captures the project's monotonic edit version.
+pub fn findProjectByName(gpa: std.mem.Allocator, body: []const u8, name: []const u8) !?ProjectRef {
+    const T = struct {
+        projects: []const struct { id: []const u8, name: []const u8, version: i64 = 0 },
+    };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    for (p.value.projects) |proj| {
+        if (std.ascii.eqlIgnoreCase(proj.name, name))
+            return ProjectRef{ .id = try gpa.dupe(u8, proj.id), .version = proj.version };
+    }
+    return null;
+}
+
+/// Parse a single-project body ({ "project": { ..., "version": N } }) for its version.
+pub fn parseProjectVersion(gpa: std.mem.Allocator, body: []const u8) !i64 {
+    const T = struct { project: struct { version: i64 = 0 } };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    return p.value.project.version;
+}
+
+/// A crop rectangle in rotated-original pixels, for the layout envelope (kept core-free here).
+pub const CropRect = struct { x: i64, y: i64, w: i64, h: i64 };
+
+/// Build a browser-compatible layout JSON envelope:
+/// {imageWidth,imageHeight,lines[,imageFilter][,filterColor][,cropRect][,rotationQuarters]}.
+/// `lines_json` is a ready JSON array string ("[]" when empty). The optional fields are
+/// omitted when empty/zero, matching browser layout.js buildLayoutPayload. Pure; caller owns.
+pub fn buildLayout(
+    gpa: std.mem.Allocator,
+    w: i64,
+    h: i64,
+    lines_json: []const u8,
+    filter_mode: []const u8,
+    filter_color: []const u8,
+    crop: ?CropRect,
+    rotation: i32,
+) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(gpa);
+    const head = try std.fmt.allocPrint(gpa, "{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":{s}", .{ w, h, if (lines_json.len == 0) "[]" else lines_json });
+    defer gpa.free(head);
+    try out.appendSlice(gpa, head);
+    if (filter_mode.len != 0 and !std.ascii.eqlIgnoreCase(filter_mode, "none")) {
+        const esc = try jsonEscape(gpa, filter_mode);
+        defer gpa.free(esc);
+        const s = try std.fmt.allocPrint(gpa, ",\"imageFilter\":\"{s}\"", .{esc});
+        defer gpa.free(s);
+        try out.appendSlice(gpa, s);
+    }
+    if (filter_color.len != 0) {
+        const esc = try jsonEscape(gpa, filter_color);
+        defer gpa.free(esc);
+        const s = try std.fmt.allocPrint(gpa, ",\"filterColor\":\"{s}\"", .{esc});
+        defer gpa.free(s);
+        try out.appendSlice(gpa, s);
+    }
+    if (crop) |cr| {
+        const s = try std.fmt.allocPrint(gpa, ",\"cropRect\":{{\"x\":{d},\"y\":{d},\"width\":{d},\"height\":{d}}}", .{ cr.x, cr.y, cr.w, cr.h });
+        defer gpa.free(s);
+        try out.appendSlice(gpa, s);
+    }
+    if (rotation != 0) {
+        const s = try std.fmt.allocPrint(gpa, ",\"rotationQuarters\":{d}", .{rotation});
+        defer gpa.free(s);
+        try out.appendSlice(gpa, s);
+    }
+    try out.append(gpa, '}');
+    return out.toOwnedSlice(gpa);
+}
+
+/// One project as shown by `/projects`: name + image size + last-change timestamp. Owns `name`.
+pub const ProjectInfo = struct { name: []u8, updated_at: i64, w: i64, h: i64 };
+
+/// Parse a { "projects": [...] } list body into an owned slice of ProjectInfo. Free with
+/// freeProjectList. Pure — unit-tested without a socket.
+pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo {
+    const T = struct {
+        projects: []const struct {
+            name: []const u8 = "",
+            updatedAt: i64 = 0,
+            imageW: i64 = 0,
+            imageH: i64 = 0,
+        },
+    };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    var list: std.ArrayList(ProjectInfo) = .empty;
+    errdefer freeProjectList(gpa, list.toOwnedSlice(gpa) catch &.{});
+    for (p.value.projects) |proj| {
+        const nm = try gpa.dupe(u8, proj.name);
+        errdefer gpa.free(nm);
+        try list.append(gpa, .{ .name = nm, .updated_at = proj.updatedAt, .w = proj.imageW, .h = proj.imageH });
+    }
+    return list.toOwnedSlice(gpa);
+}
+
+/// Free a slice returned by parseProjectList (each owned name, then the slice).
+pub fn freeProjectList(gpa: std.mem.Allocator, items: []ProjectInfo) void {
+    for (items) |it| gpa.free(it.name);
+    gpa.free(items);
+}
+
 // ── REST client ──────────────────────────────────────────────────────────────
 
 pub const Client = struct {
@@ -129,10 +239,32 @@ pub const Client = struct {
         return findIdByName(self.gpa, body, name);
     }
 
+    /// Resolve a project name to its id + current version (for the LWW pull guard).
+    pub fn findProjectRef(self: *Client, name: []const u8) !?ProjectRef {
+        const body = try self.listProjects();
+        defer self.gpa.free(body);
+        return findProjectByName(self.gpa, body, name);
+    }
+
+    /// List the server's projects as owned ProjectInfo records (free with freeProjectList).
+    pub fn listProjectInfos(self: *Client) ![]ProjectInfo {
+        const body = try self.listProjects();
+        defer self.gpa.free(body);
+        return parseProjectList(self.gpa, body);
+    }
+
     pub fn getProject(self: *Client, id: []const u8) ![]u8 {
         const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
         defer self.gpa.free(path);
         return self.request(.GET, path, null, null);
+    }
+
+    /// Read just the active project's current server version (used after a push so our
+    /// own echoed update event is recognised as ours, not mistaken for a peer's change).
+    pub fn getProjectVersion(self: *Client, id: []const u8) !i64 {
+        const body = try self.getProject(id);
+        defer self.gpa.free(body);
+        return parseProjectVersion(self.gpa, body);
     }
 
     pub fn downloadFile(self: *Client, id: []const u8, kind: []const u8) ![]u8 {
@@ -156,6 +288,19 @@ pub const Client = struct {
         const body = try self.request(.POST, "/projects", json, "application/json");
         defer self.gpa.free(body);
         return parseProjectId(self.gpa, body);
+    }
+
+    /// PUT a layout for `id`, version-guarded (a stale version yields Error.Conflict). The
+    /// name is left untouched (omitted from the body). Mirrors the browser/desktop layout
+    /// save — the structured `{lines, imageFilter, filterColor, cropRect, rotationQuarters}`
+    /// is what open GUI editors render, so this is how CLI edits show up live for peers.
+    pub fn updateProject(self: *Client, id: []const u8, layout_json: []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"layout\":{s},\"version\":{d}}}", .{ layout_json, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
     }
 
     /// Upload raw image bytes for a project (kind = original|result). The server is
@@ -226,6 +371,7 @@ fn rawRequest(
     const code = @intFromEnum(result.status);
     if (code == 401) return Error.Unauthorized;
     if (code == 404) return Error.NotFound;
+    if (code == 409) return Error.Conflict;
     if (code < 200 or code >= 300) return Error.HttpFailed;
     return gpa.dupe(u8, body.written());
 }
@@ -288,10 +434,15 @@ pub fn hostAndPort(base: []const u8) HostPort {
 }
 
 /// A parsed project-update event from the global feed. Caller owns id + name.
+/// `version` is the server's monotonic edit counter (used internally as the pull guard,
+/// never shown to the user); `updated_at` is the change's epoch-ms timestamp (0 when the
+/// frame omits it); `deleted` is true for a "deleted" event rather than an edit.
 pub const Event = struct {
     id: []u8,
     name: []u8,
     version: i64,
+    updated_at: i64 = 0,
+    deleted: bool = false,
     pub fn deinit(self: *Event, gpa: std.mem.Allocator) void {
         gpa.free(self.id);
         gpa.free(self.name);
@@ -308,6 +459,7 @@ pub fn parseEvent(gpa: std.mem.Allocator, json: []const u8) !?Event {
             id: []const u8 = "",
             name: []const u8 = "",
             version: i64 = 0,
+            updatedAt: i64 = 0,
         } = null,
     };
     var p = std.json.parseFromSlice(T, gpa, json, .{ .ignore_unknown_fields = true }) catch return null;
@@ -317,7 +469,29 @@ pub fn parseEvent(gpa: std.mem.Allocator, json: []const u8) !?Event {
     const id = try gpa.dupe(u8, proj.id);
     errdefer gpa.free(id);
     const name = try gpa.dupe(u8, proj.name);
-    return Event{ .id = id, .name = name, .version = proj.version };
+    return Event{
+        .id = id,
+        .name = name,
+        .version = proj.version,
+        .updated_at = proj.updatedAt,
+        .deleted = std.mem.eql(u8, p.value.event, "deleted"),
+    };
+}
+
+/// Render an epoch-ms timestamp as a short human "… ago" string relative to `now_ms`,
+/// writing into `buf` and returning the used slice (or a static fallback). A zero/missing
+/// or future timestamp reads as "just now". Pure — unit-tested.
+pub fn formatAgo(buf: []u8, now_ms: i64, then_ms: i64) []const u8 {
+    if (then_ms <= 0) return "just now";
+    const delta = if (now_ms > then_ms) now_ms - then_ms else 0;
+    const secs = @divTrunc(delta, 1000);
+    if (secs < 5) return "just now";
+    if (secs < 60) return std.fmt.bufPrint(buf, "{d}s ago", .{secs}) catch "moments ago";
+    const mins = @divTrunc(secs, 60);
+    if (mins < 60) return std.fmt.bufPrint(buf, "{d}m ago", .{mins}) catch "a while ago";
+    const hours = @divTrunc(mins, 60);
+    if (hours < 24) return std.fmt.bufPrint(buf, "{d}h ago", .{hours}) catch "a while ago";
+    return std.fmt.bufPrint(buf, "{d}d ago", .{@divTrunc(hours, 24)}) catch "a while ago";
 }
 
 /// A read-only subscription to a server's global project-events feed over the raw-TCP
@@ -502,18 +676,89 @@ test "hostAndPort splits host + port, defaulting by scheme" {
 test "parseEvent returns updated project-events, ignores other frames" {
     const a = testing.allocator;
 
-    // A project-event frame yields an owned id/name/version.
-    const body = "{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p_x_y\",\"name\":\"Notes\",\"version\":7}}";
+    // A project-event frame yields an owned id/name/version + the change timestamp.
+    const body = "{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p_x_y\",\"name\":\"Notes\",\"version\":7,\"updatedAt\":1700000000000}}";
     var ev = (try parseEvent(a, body)).?;
     defer ev.deinit(a);
     try testing.expectEqualStrings("p_x_y", ev.id);
     try testing.expectEqualStrings("Notes", ev.name);
     try testing.expectEqual(@as(i64, 7), ev.version);
+    try testing.expectEqual(@as(i64, 1700000000000), ev.updated_at);
+    try testing.expect(!ev.deleted);
+
+    // A "deleted" event is flagged; updatedAt absent defaults to 0.
+    var del = (try parseEvent(a, "{\"type\":\"project-event\",\"event\":\"deleted\",\"project\":{\"id\":\"p_z\",\"name\":\"Gone\",\"version\":3}}")).?;
+    defer del.deinit(a);
+    try testing.expect(del.deleted);
+    try testing.expectEqual(@as(i64, 0), del.updated_at);
 
     // Non-event frames (welcome, synced, hello echoes) are ignored.
     try testing.expect((try parseEvent(a, "{\"type\":\"welcome\",\"version\":1}")) == null);
     try testing.expect((try parseEvent(a, "{\"type\":\"project-event\"}")) == null); // no project
     try testing.expect((try parseEvent(a, "not json")) == null);
+}
+
+test "formatAgo renders short relative times, just-now for fresh/unknown/future" {
+    var buf: [32]u8 = undefined;
+    const now: i64 = 1_000_000_000_000;
+    try testing.expectEqualStrings("just now", formatAgo(&buf, now, 0)); // missing timestamp
+    try testing.expectEqualStrings("just now", formatAgo(&buf, now, now + 5000)); // future clamps
+    try testing.expectEqualStrings("just now", formatAgo(&buf, now, now - 2000)); // < 5s
+    try testing.expectEqualStrings("30s ago", formatAgo(&buf, now, now - 30_000));
+    try testing.expectEqualStrings("5m ago", formatAgo(&buf, now, now - 5 * 60_000));
+    try testing.expectEqualStrings("3h ago", formatAgo(&buf, now, now - 3 * 60 * 60_000));
+    try testing.expectEqualStrings("2d ago", formatAgo(&buf, now, now - 2 * 24 * 60 * 60_000));
+}
+
+test "findProjectByName captures id + version; parseProjectVersion reads a single project" {
+    const a = testing.allocator;
+    const list =
+        "{\"projects\":[{\"id\":\"p_1_a\",\"name\":\"Alpha\",\"version\":4},{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}]}";
+    const ref = (try findProjectByName(a, list, "beta")).?;
+    defer a.free(ref.id);
+    try testing.expectEqualStrings("p_2_b", ref.id);
+    try testing.expectEqual(@as(i64, 9), ref.version);
+    try testing.expect((try findProjectByName(a, list, "missing")) == null);
+
+    const v = try parseProjectVersion(a, "{\"project\":{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}}");
+    try testing.expectEqual(@as(i64, 9), v);
+}
+
+test "buildLayout emits optional fields only when set" {
+    const a = testing.allocator;
+    // Bare: just dims + empty lines (no filter/crop/rotation).
+    const bare = try buildLayout(a, 10, 20, "", "none", "", null, 0);
+    defer a.free(bare);
+    try testing.expectEqualStrings("{\"imageWidth\":10,\"imageHeight\":20,\"lines\":[]}", bare);
+
+    // Full: filter + color + crop + rotation, with a ready lines array passed through.
+    const full = try buildLayout(a, 5, 6, "[{\"x\":1}]", "custom", "#7c3aed", .{ .x = 1, .y = 2, .w = 3, .h = 4 }, 3);
+    defer a.free(full);
+    try testing.expect(std.mem.indexOf(u8, full, "\"lines\":[{\"x\":1}]") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "\"imageFilter\":\"custom\"") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "\"filterColor\":\"#7c3aed\"") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "\"cropRect\":{\"x\":1,\"y\":2,\"width\":3,\"height\":4}") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "\"rotationQuarters\":3") != null);
+}
+
+test "parseProjectList yields owned name/size/updatedAt records" {
+    const a = testing.allocator;
+    const body =
+        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000}," ++
+        "{\"id\":\"p2\",\"name\":\"Beta\",\"imageW\":1024,\"imageH\":768,\"updatedAt\":0}]}";
+    const items = try parseProjectList(a, body);
+    defer freeProjectList(a, items);
+    try testing.expectEqual(@as(usize, 2), items.len);
+    try testing.expectEqualStrings("Alpha", items[0].name);
+    try testing.expectEqual(@as(i64, 800), items[0].w);
+    try testing.expectEqual(@as(i64, 600), items[0].h);
+    try testing.expectEqual(@as(i64, 1700000000000), items[0].updated_at);
+    try testing.expectEqualStrings("Beta", items[1].name);
+
+    // An empty list parses to an empty (non-null) slice.
+    const none = try parseProjectList(a, "{\"projects\":[]}");
+    defer freeProjectList(a, none);
+    try testing.expectEqual(@as(usize, 0), none.len);
 }
 
 test "EditConn frame buffer handles partial, multiple, and skipped frames" {

@@ -26,6 +26,7 @@ namespace stencil::gui {
     QComboBox* theme_ = nullptr;
     QComboBox* accent_ = nullptr;
     QCheckBox* autosave_ = nullptr;
+    QCheckBox* syncToServer_ = nullptr;
     QCheckBox* showPoints_ = nullptr;
     QCheckBox* showLines_ = nullptr;
     QPushButton* color_ = nullptr;
