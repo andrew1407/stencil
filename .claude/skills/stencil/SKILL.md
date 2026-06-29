@@ -104,6 +104,25 @@ Note: the `/stencil` skill drives the CLI directly; an MCP client can reach the 
 server-project actions through the `stencil_edit` tool's `server` / `remote_update` /
 `remote` / `remote_name` parameters (see `mcp/README.md`).
 
+## Interactive REPL & Python alternatives
+
+Two non-one-shot ways to drive the *same* `core/`, when they fit the request better than a
+single CLI call:
+
+- **Interactive console (REPL).** `cli/zig-out/bin/stencil --console` (alias `--repl`) opens a
+  session on one in-memory working image, applying `/command` lines: `/upload`, `/blank`,
+  `/crop`, `/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, `/layout` (export),
+  plus the server verbs `/connect` / `/fetch` / `/sync`. Reach for it to try a few crops/filters
+  interactively or to script a session by piping `/command` lines in — same transforms as the
+  flag pipeline, so results are identical. See `cli/README.md` → *Console mode*.
+- **Python (`pystencil`).** A stdlib-only package that drives the same core via ctypes — prefer
+  it when the user wants Python or a chainable script over shell. It mirrors the CLI flags
+  one-shot (`python3 -m pystencil -i in.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 --filter sepia
+  out.png`; also `--blank`, `--layout`, and `--repl`), or use the chainable API:
+  `Editor().load("in.jpg").crop("…").rotate_right().apply_filter("sepia").save("out.png")`.
+  No third-party deps; PNG/BMP are native but **JPEG decode falls back to the Zig CLI**. The
+  native lib builds on demand (force it with `python3 build.py`). See `pystencil/README.md`.
+
 ## Drawing / layout
 
 "What to draw" → a layout JSON passed with `--layout`. The schema mirrors the

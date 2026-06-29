@@ -34,11 +34,13 @@ graph TD
     CORE -->|"Emscripten → WebAssembly"| WEB["<b>Browser app</b><br/>vanilla ES modules, no build step"]
     CORE -->|"native compile + Qt 6"| DESK["<b>Desktop app</b><br/>C++17 / Qt 6"]
     CORE -->|"compiled into · C ABI"| CLI["<b>CLI</b><br/>Zig + stb_image"]
+    CORE -->|"recompiled · C ABI via ctypes"| PY["<b>Python package</b><br/>pystencil — stdlib only"]
     WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
     CLI -->|"shell-out · MCP stdio"| MCP["<b>MCP server</b><br/>Rust — tools for any MCP client"]
     WEB -.->|"connect · REST + WS"| SRV["<b>Collaboration server</b><br/>Go — shared projects + live edit"]
     DESK -.->|"connect · REST + TCP"| SRV
     CLI -.->|"connect · REST + TCP"| SRV
+    PY -.->|"connect · REST + TCP"| SRV
 ```
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**

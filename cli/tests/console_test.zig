@@ -119,6 +119,39 @@ test "console: /layout exports the structured layout JSON to a file" {
     try testing.expect(parsed.value.object.get("lines").?.array.items.len >= 1);
 }
 
+test "console: /formula sets validated formulas that ride the exported layout" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const out = "stencil_console_formula.json";
+    defer dir.deleteFile(io, out) catch {};
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    _ = try console.handle(&session, io, "/blank 64 48 white");
+    _ = try console.handle(&session, io, "/formula x x*2 + 1");
+    _ = try console.handle(&session, io, "/formula y y/3");
+    // An invalid expression is rejected and leaves the prior value intact.
+    _ = try console.handle(&session, io, "/formula x foo(x)");
+    try testing.expectEqualStrings("x*2 + 1", session.formula_x);
+    try testing.expectEqualStrings("y/3", session.formula_y);
+    try testing.expect(session.allow_formulas);
+
+    _ = try console.handle(&session, io, "/layout " ++ out);
+    const bytes = try dir.readFileAlloc(io, out, a, .limited(1 << 20));
+    defer a.free(bytes);
+    var parsed = try std.json.parseFromSlice(std.json.Value, a, bytes, .{});
+    defer parsed.deinit();
+    const obj = parsed.value.object;
+    try testing.expectEqualStrings("x*2 + 1", obj.get("formulaX").?.string);
+    try testing.expectEqualStrings("y/3", obj.get("formulaY").?.string);
+    try testing.expect(obj.get("allowFormulas").?.bool);
+}
+
 test "console: blank creates a temporary in-memory source" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

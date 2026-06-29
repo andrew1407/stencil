@@ -308,6 +308,7 @@ namespace stencil::gui {
               persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
+              scheduleRemotePush();  // page format rides the layout — push it to peers
             });
     connect(customH_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
@@ -315,6 +316,7 @@ namespace stencil::gui {
               persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
+              scheduleRemotePush();
             });
     // Formula controls (S11). The toolbar checkbox is the single source of
     // truth; the View ▸ Allow Formulas action just drives it (and is kept in
@@ -326,16 +328,13 @@ namespace stencil::gui {
         QSignalBlocker ba(actAllowFormulas_);
         actAllowFormulas_->setChecked(on);
       }
-      if (!on) {  // browser clears the expressions when disabling
-        settings_.formulaX.clear();
-        settings_.formulaY.clear();
-        formulaX_->clear();
-        formulaY_->clear();
-        formulaError_->setVisible(false);
-      }
+      // Toggling only shows/hides the inputs + gates whether formulas apply to the conversion
+      // (pageCm passes allowFormulas) — the expressions are KEPT so re-enabling restores them.
+      if (!on) formulaError_->setVisible(false);
       persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm when formulas toggle (GAP-2)
+      scheduleRemotePush();  // formulas ride the layout — push to peers
     });
     connect(actAllowFormulas_, &QAction::toggled, this,
             [this](bool on) { allowFormulas_->setChecked(on); });
@@ -1249,14 +1248,95 @@ namespace stencil::gui {
   // incognito flag, then either replace this editor or launch the image in a new
   // window. The dialog returns the chosen outcome; we dispatch accordingly.
   void MainWindow::openAnotherImage() {
-    OpenImageDialog dlg(this);
+    OpenImageDialog dlg(this, canReplaceActive());
     if (dlg.exec() != QDialog::Accepted) return;
     const QString path = dlg.path();
     if (path.isEmpty()) return;
-    if (dlg.outcome() == OpenImageDialog::Outcome::NewWindow)
-      openImageInNewWindow(path, dlg.incognito());
-    else
-      openImageHere(path, dlg.incognito());
+    switch (dlg.outcome()) {
+      case OpenImageDialog::Outcome::NewWindow:
+        openImageInNewWindow(path, dlg.incognito());
+        break;
+      case OpenImageDialog::Outcome::Replace:
+        replaceProjectImage(path, dlg.rename(), dlg.keepAnnotations());
+        break;
+      default:
+        openImageHere(path, dlg.incognito());
+        break;
+    }
+  }
+
+  // True when the current editor holds a saved/linked project whose image can be swapped in
+  // place (not a blank or incognito session — there's nothing to keep the same).
+  bool MainWindow::canReplaceActive() const {
+    return canvas_->hasImage() && !incognito_
+        && (!activeProjectId_.isEmpty() || !remoteAddress_.isEmpty());
+  }
+
+  // Replace the CURRENT project's image in place (same local id / server link), instead of
+  // making a new project. `rename` adopts the new file's name; `keepAnnotations` keeps the
+  // existing lines over the new image. Server sessions also re-upload the `original`.
+  void MainWindow::replaceProjectImage(const QString& path, bool rename, bool keepAnnotations) {
+    const core::Lines kept = keepAnnotations ? canvas_->allLines() : core::Lines{};
+    if (!loadLocalImageReset(path)) return;   // loadImage clears lines + provenance, keeps binding
+    if (keepAnnotations && !kept.empty()) canvas_->setLines(kept);
+    if (rename) {
+      const QString newName = QFileInfo(path).completeBaseName();
+      if (!remoteAddress_.isEmpty()) {
+        remoteName_ = newName;
+      } else if (Project* pr = findProject(activeProjectId_.toStdString())) {
+        pr->meta.name = newName.toStdString();
+      }
+      updateProjectTitle();
+    }
+    // Server-linked: re-upload the new original (saveToServer only pushes the result), then
+    // saveToActiveProject pushes the layout + rendered result.
+    if (!remoteAddress_.isEmpty()) replaceServerOriginal();
+    saveToActiveProject();
+  }
+
+  // Re-upload the linked server project's `original` with the current canvas image, refreshing
+  // the version guard. No-op when not server-linked or sync is off (matches edit-in-memory).
+  void MainWindow::replaceServerOriginal() {
+    if (remoteAddress_.isEmpty() || !settings_.syncToServer) return;
+    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
+    if (!c || !canvas_->hasImage()) return;
+    const int w = canvas_->imageWidth();
+    const int h = canvas_->imageHeight();
+    if (c->uploadFile(remoteId_, "original", pngBytes(canvas_->image()), "png", w, h)) {
+      stencil::net::ServerProject meta;
+      QJsonObject lay;
+      if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
+    }
+  }
+
+  // Publish the current incognito session to a server: create the project there, upload the
+  // original, link the session, leave incognito, then push the annotated layout + result.
+  // Mirrors the browser's publishIncognitoToServer (a server-backed project is not incognito).
+  void MainWindow::publishIncognitoToServer(const QString& serverUrl) {
+    if (!canvas_->hasImage()) {
+      notify_->error("Open an image first");
+      return;
+    }
+    // Leave incognito first so the create/save paths persist normally.
+    if (incognito_) {
+      incognito_ = false;
+      incognitoOverlay_->setActive(false);
+      actIncognito_->blockSignals(true);
+      actIncognito_->setChecked(false);
+      actIncognito_->blockSignals(false);
+    }
+    QString name = canvas_->imageBaseName();
+    if (name.isEmpty()) name = QStringLiteral("Untitled");
+    createServerProject(serverUrl, name);   // create + upload original + link the session
+    if (remoteId_.isEmpty()) return;          // creation failed (already notified)
+    // Push the annotated layout + result now, regardless of the sync toggle (explicit publish).
+    const bool savedSync = settings_.syncToServer;
+    settings_.syncToServer = true;
+    saveToServer();
+    settings_.syncToServer = savedSync;
+    startRemotePoll();   // live co-edit: watch for peers changing this project
+    refreshActions();
+    updateProjectTitle();
   }
 
   // Replace this editor's image with `path`. Mirrors the browser's openImageHere:
@@ -1482,6 +1562,7 @@ namespace stencil::gui {
     persistSettings();
     onHovered(lastHoverX_, lastHoverY_);
     onSelectionChanged();  // refresh panel cm for the new page size (GAP-2)
+    scheduleRemotePush();  // page format rides the layout — push to peers
   }
 
   // Validate fx/fy at input time and apply them (S11; drawingApp.js
@@ -1499,6 +1580,7 @@ namespace stencil::gui {
       persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm with the new formulas (GAP-2)
+      scheduleRemotePush();  // formulas ride the layout — push to peers
     }
   }
 
@@ -2439,10 +2521,54 @@ namespace stencil::gui {
         return;
       }
       moveLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId());
+    } else if (dlg.action() == Action::CopyToServer) {
+      copyLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
     } else if (dlg.action() == Action::MoveToLocal) {
+      // Move-to-local is allowed even if a peer/other client has the project open (the
+      // server delete just ends their live link — they keep their in-memory copy).
       moveServerProjectToLocal(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::MakeLocalCopy) {
-      makeLocalCopyOfServerProject(dlg.selectedServerUrl(), dlg.selectedId());
+      makeLocalCopyOfServerProject(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
+    } else if (dlg.action() == Action::BatchMoveToServer) {
+      for (const auto& pr : dlg.batchItems()) moveLocalProjectToServer(dlg.selectedServerUrl(), pr.first);
+    } else if (dlg.action() == Action::BatchCopyToServer) {
+      for (const auto& pr : dlg.batchItems()) copyLocalProjectToServer(dlg.selectedServerUrl(), pr.first, QString());
+    } else if (dlg.action() == Action::BatchMoveToLocal) {
+      for (const auto& pr : dlg.batchItems()) moveServerProjectToLocal(pr.second, pr.first);
+    } else if (dlg.action() == Action::BatchCopyToLocal) {
+      // Bulk copy without opening each (empty name → keeps the server project's name).
+      for (const auto& pr : dlg.batchItems()) {
+        QString nid;
+        importServerProjectToLocal(pr.second, pr.first, /*removeFromServer=*/false, QString(), &nid);
+      }
+      refreshActions();
+      refreshDockMenu();
+      notify_->success(QString("Made %1 local copy(ies)").arg(dlg.batchItems().size()));
+    } else if (dlg.action() == Action::BatchRemove) {
+      const auto items = dlg.batchItems();
+      if (QMessageBox::question(
+              this, "Remove projects",
+              QString("Remove %1 selected project(s)? Server projects are deleted from the server.")
+                  .arg(items.size()),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+      for (const auto& pr : items) {
+        const QString id = pr.first;
+        const QString server = pr.second;
+        if (server.isEmpty()) {
+          const std::string sid = id.toStdString();
+          projectList_.erase(
+              std::remove_if(projectList_.begin(), projectList_.end(),
+                             [&](const Project& p) { return p.meta.id == sid; }),
+              projectList_.end());
+          if (activeProjectId_ == id) activeProjectId_.clear();
+        } else if (auto* c = connections_ ? connections_->find(server) : nullptr) {
+          c->deleteProject(id);
+        }
+      }
+      fileStore::saveProjects(projectList_);
+      refreshActions();
+      refreshDockMenu();
     } else if (dlg.action() == Action::Delete) {
       // Block removing a project that's open in another window (matches the browser's
       // "open in another tab" guard).
@@ -2653,6 +2779,8 @@ namespace stencil::gui {
       notify_->error("Server image could not be decoded");
       return false;
     }
+    // Adopt the project's page format + formulas before sizing the canvas page below.
+    adoptServerLayoutMeta(layout);
     {
       const core::PageSize page = naturalPageCm(pageSize_->currentText(),
                                                 settings_.customPageWidth,
@@ -2692,6 +2820,67 @@ namespace stencil::gui {
     return true;
   }
 
+  // The current page format + x/y formulas (from global settings) as a layout-envelope meta.
+  fileStore::LayoutMeta MainWindow::currentLayoutMeta() const {
+    fileStore::LayoutMeta m;
+    m.pageSize = settings_.pageSize;
+    m.customPageWidth = settings_.customPageWidth;
+    m.customPageHeight = settings_.customPageHeight;
+    m.allowFormulas = settings_.allowFormulas;
+    m.formulaX = settings_.formulaX;
+    m.formulaY = settings_.formulaY;
+    return m;
+  }
+
+  // Adopt a fetched layout's page format + formulas into the toolbar + settings (only the keys
+  // it carries, so older projects keep the user's current page/formulas). Signals blocked.
+  void MainWindow::adoptServerLayoutMeta(const QJsonObject& layout) {
+    if (layout.contains("pageSize")) {
+      const fileStore::LayoutMeta m = fileStore::parseLayoutMeta(layout);
+      if (m.customPageWidth > 0) settings_.customPageWidth = m.customPageWidth;
+      if (m.customPageHeight > 0) settings_.customPageHeight = m.customPageHeight;
+      {
+        QSignalBlocker bs(pageSize_);
+        const int idx = pageSize_->findText(m.pageSize);
+        if (idx >= 0) pageSize_->setCurrentIndex(idx);
+      }
+      settings_.pageSize = pageSize_->currentText();
+      if (customGroupAct_) customGroupAct_->setVisible(settings_.pageSize == "custom");
+      if (customW_ && customH_) {
+        QSignalBlocker bw(customW_), bh(customH_);
+        const double f = unitFormat().factor;
+        customW_->setValue(settings_.customPageWidth * f);
+        customH_->setValue(settings_.customPageHeight * f);
+      }
+    }
+    if (layout.contains("allowFormulas") || layout.contains("formulaX") ||
+        layout.contains("formulaY")) {
+      const bool allow = layout.value("allowFormulas").toBool(false);
+      // Keep the expressions regardless of the toggle (allow only gates visibility + applying).
+      const QString fx = layout.value("formulaX").toString();
+      const QString fy = layout.value("formulaY").toString();
+      settings_.allowFormulas = allow;
+      settings_.formulaX = fx;
+      settings_.formulaY = fy;
+      {
+        QSignalBlocker ba(allowFormulas_);
+        allowFormulas_->setChecked(allow);
+      }
+      if (actAllowFormulas_) {
+        QSignalBlocker b(actAllowFormulas_);
+        actAllowFormulas_->setChecked(allow);
+      }
+      if (formulaGroupAct_) formulaGroupAct_->setVisible(allow);
+      {
+        QSignalBlocker bx(formulaX_), by(formulaY_);
+        formulaX_->setText(fx);
+        formulaY_->setText(fy);
+      }
+      if (formulaError_) formulaError_->setVisible(false);
+    }
+    persistSettings();
+  }
+
   void MainWindow::openProjectInNewWindow(const QString& id) {
     // A fresh window loads the saved projects from disk in its constructor, so it
     // already knows this project. It owns itself and is destroyed on close.
@@ -2713,6 +2902,70 @@ namespace stencil::gui {
     return false;
   }
 
+  // Gather a local project's original image bytes + dimensions: from the live canvas when it's
+  // the active project (latest edits), else from its stored image file. False + notify when
+  // there's no usable image.
+  bool MainWindow::localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext,
+                                        int& w, int& h) {
+    ext = "png";
+    if (QString::fromStdString(pr.meta.id) == activeProjectId_ && canvas_->hasImage()) {
+      const QImage img = canvas_->image();
+      bytes = pngBytes(img);
+      w = img.width();
+      h = img.height();
+      return true;
+    }
+    if (pr.imagePath.isEmpty()) {
+      notify_->error("This project has no stored image");
+      return false;
+    }
+    const QImage img(pr.imagePath);
+    if (img.isNull()) {
+      notify_->error("Could not read the project image");
+      return false;
+    }
+    w = img.width();
+    h = img.height();
+    QFile f(pr.imagePath);
+    if (f.open(QIODevice::ReadOnly)) {
+      bytes = f.readAll();
+      f.close();
+      const QString suf = QFileInfo(pr.imagePath).suffix().toLower();
+      if (!suf.isEmpty()) ext = suf;
+    }
+    if (bytes.isEmpty()) bytes = pngBytes(img);  // unreadable file → re-encode the decoded image
+    return true;
+  }
+
+  // Create `pr` on the server under `name`: upload the original bytes, then push the annotated
+  // layout (lines + filter + page/formulas) so the server holds the full project. Reports the
+  // new id/version via out-params; false + notify on failure.
+  bool MainWindow::createServerFromLocal(stencil::net::ServerClient* c, const Project& pr,
+                                         const QString& name, const QByteArray& bytes,
+                                         const QString& ext, int w, int h,
+                                         QString& newIdOut, qint64& newVersionOut) {
+    QString newId;
+    qint64 version = 0;
+    if (!c->createProject(name, QString::fromStdString(pr.meta.source),
+                          QString::fromStdString(pr.meta.resource), true, w, h, newId, version)) {
+      notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
+      return false;
+    }
+    if (!c->uploadFile(newId, "original", bytes, ext, w, h)) {
+      notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
+      return false;
+    }
+    const QJsonObject layout = fileStore::buildLayoutJson(
+        w, h, pr.lines, settings_.imageFilter, settings_.filterColor,
+        pr.cropRect, pr.rotationQuarters, currentLayoutMeta());
+    qint64 newVersion = version;
+    bool conflict = false;
+    c->updateProject(newId, name, layout, version, newVersion, conflict);
+    newIdOut = newId;
+    newVersionOut = newVersion;
+    return true;
+  }
+
   // Local → server: create the project on `serverUrl`, upload its original image, push
   // the annotated layout, then drop the local copy. Mirrors the browser's
   // moveProjectToServer() (drawingApp.js).
@@ -2727,85 +2980,88 @@ namespace stencil::gui {
       notify_->error("Project not found");
       return;
     }
-    // Gather the original image bytes + dimensions: from the live canvas when this is
-    // the active project (latest edits), else from the project's stored image file.
     QByteArray bytes;
-    QString ext = "png";
+    QString ext;
     int w = 0;
     int h = 0;
-    if (id == activeProjectId_ && canvas_->hasImage()) {
-      const QImage img = canvas_->image();
-      bytes = pngBytes(img);
-      w = img.width();
-      h = img.height();
-    } else if (!pr->imagePath.isEmpty()) {
-      const QImage img(pr->imagePath);
-      if (img.isNull()) {
-        notify_->error("Could not read the project image");
-        return;
-      }
-      w = img.width();
-      h = img.height();
-      QFile f(pr->imagePath);
-      if (f.open(QIODevice::ReadOnly)) {
-        bytes = f.readAll();
-        f.close();
-        const QString suf = QFileInfo(pr->imagePath).suffix().toLower();
-        if (!suf.isEmpty()) ext = suf;
-      }
-      if (bytes.isEmpty()) bytes = pngBytes(img);  // unreadable file → re-encode the decoded image
-    } else {
-      notify_->error("This project has no stored image to move");
-      return;
-    }
+    if (!localProjectOriginal(*pr, bytes, ext, w, h)) return;
     const QString name = QString::fromStdString(pr->meta.name);
     QString newId;
-    qint64 version = 0;
-    if (!c->createProject(name, QString::fromStdString(pr->meta.source),
-                          QString::fromStdString(pr->meta.resource), true, w, h, newId, version)) {
-      notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
-      return;
-    }
-    if (!c->uploadFile(newId, "original", bytes, ext, w, h)) {
-      notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
-      // Leave the server project (the user can retry) but keep the local copy too.
-      return;
-    }
-    // Push the annotated layout (lines + the filter the desktop applies on open) so the
-    // server holds the full project, not just the original.
-    const QJsonObject layout = fileStore::buildLayoutJson(
-        w, h, pr->lines, settings_.imageFilter, settings_.filterColor,
-        pr->cropRect, pr->rotationQuarters);
-    qint64 newVersion = version;
-    bool conflict = false;
-    c->updateProject(newId, name, layout, version, newVersion, conflict);
+    qint64 newVersion = 0;
+    if (!createServerFromLocal(c, *pr, name, bytes, ext, w, h, newId, newVersion)) return;
     // The local copy is now redundant — remove it.
     const std::string sid = id.toStdString();
+    const bool wasActive = (activeProjectId_ == id);
     projectList_.erase(
         std::remove_if(projectList_.begin(), projectList_.end(),
                        [&](const Project& p) { return p.meta.id == sid; }),
         projectList_.end());
-    if (activeProjectId_ == id) activeProjectId_.clear();
     fileStore::saveProjects(projectList_);
+    // If it was the open project, keep the editor open and LINK the live session to the new
+    // server project (golden frame) instead of orphaning the canvas.
+    if (wasActive) {
+      activeProjectId_.clear();
+      remoteAddress_ = serverUrl;
+      remoteId_ = newId;
+      remoteName_ = name;
+      remoteVersion_ = newVersion;
+      startRemotePoll();
+      updateProjectTitle();
+    }
     refreshActions();
     refreshDockMenu();
     notify_->success(QString("Moved \"%1\" to %2").arg(name, serverUrl));
   }
 
+  // Local → server COPY: create a new server project from a local one (default name
+  // "<name>-copy"), leaving the local project in place. Mirrors browser copyProjectToServer.
+  void MainWindow::copyLocalProjectToServer(const QString& serverUrl, const QString& id,
+                                            const QString& name) {
+    stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
+    if (!c) {
+      notify_->error("Not connected to that server");
+      return;
+    }
+    Project* pr = findProject(id.toStdString());
+    if (!pr) {
+      notify_->error("Project not found");
+      return;
+    }
+    QByteArray bytes;
+    QString ext;
+    int w = 0;
+    int h = 0;
+    if (!localProjectOriginal(*pr, bytes, ext, w, h)) return;
+    const QString copyName = name.trimmed().isEmpty()
+                                 ? (QString::fromStdString(pr->meta.name) + "-copy")
+                                 : name.trimmed();
+    QString newId;
+    qint64 newVersion = 0;
+    if (!createServerFromLocal(c, *pr, copyName, bytes, ext, w, h, newId, newVersion)) return;
+    refreshActions();
+    refreshDockMenu();
+    notify_->success(QString("Copied \"%1\" to %2").arg(copyName, serverUrl));
+  }
+
   // Server → local: download the project's image + layout, persist it as a new local
   // project, then delete it from the server. Mirrors moveProjectToLocal().
   void MainWindow::moveServerProjectToLocal(const QString& serverUrl, const QString& id) {
+    // If this server project is the open remote session, follow it to local so the editor
+    // stays open + focused instead of pointing at the deleted server id.
+    const bool wasOpen = (remoteId_ == id && remoteAddress_ == serverUrl);
     QString newId;
     if (!importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/true, "", &newId))
       return;
+    if (wasOpen) loadProjectIntoCanvas(newId);   // rebind the editor to the new local project
     refreshActions();
     refreshDockMenu();
     notify_->success("Moved to local storage");
   }
 
-  void MainWindow::makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id) {
+  void MainWindow::makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id,
+                                                const QString& name) {
     QString newId;
-    if (!importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/false, "-local", &newId))
+    if (!importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/false, name, &newId))
       return;
     refreshActions();
     refreshDockMenu();
@@ -2814,9 +3070,10 @@ namespace stencil::gui {
   }
 
   // Shared body: fetch a server project's image + layout (incl. crop/rotation), persist a
-  // fresh detached local project; optionally delete the server copy. Errors are reported.
+  // fresh detached local project; optionally delete the server copy. `name` (when non-empty)
+  // overrides the server's name (used for the copy's "<name>-copy"). Errors are reported.
   bool MainWindow::importServerProjectToLocal(const QString& serverUrl, const QString& id,
-                                              bool removeFromServer, const QString& nameSuffix,
+                                              bool removeFromServer, const QString& name,
                                               QString* newIdOut) {
     stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
     if (!c) {
@@ -2853,7 +3110,7 @@ namespace stencil::gui {
       return false;
     }
     const QString baseName = meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name;
-    pr.meta.name = (baseName + nameSuffix).toStdString();
+    pr.meta.name = (name.trimmed().isEmpty() ? baseName : name.trimmed()).toStdString();
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.meta.hasImage = true;
     pr.meta.source = meta.source.toStdString();
@@ -3376,7 +3633,8 @@ namespace stencil::gui {
       const QJsonObject layout =
           fileStore::buildLayoutJson(w, h, canvas_->allLines(),
                                      settings_.imageFilter, settings_.filterColor,
-                                     canvas_->cropRect(), canvas_->rotationQuarters());
+                                     canvas_->cropRect(), canvas_->rotationQuarters(),
+                                     currentLayoutMeta());
       bool conflict = false;
       if (c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
                            conflict)) {
@@ -3440,8 +3698,23 @@ namespace stencil::gui {
   }
 
   void MainWindow::saveToActiveProject() {
-    if (incognito_) {  // S6: saving is blocked while incognito
-      notify_->info("Incognito mode — saving is disabled");
+    if (incognito_) {  // S6: no local save while incognito…
+      const QStringList servers = connections_ ? connections_->urls() : QStringList();
+      if (servers.isEmpty() || !canvas_->hasImage()) {
+        notify_->info("Incognito mode — saving is disabled");
+        return;
+      }
+      // …but it CAN be published to a server (it then becomes a normal server-backed project
+      // and leaves incognito), mirroring the browser's incognito "Save to server".
+      QString target = servers.first();
+      if (servers.size() > 1) {
+        bool ok = false;
+        target = QInputDialog::getItem(this, tr("Save to server"),
+                                       tr("Publish this incognito project to which server?"),
+                                       servers, 0, false, &ok);
+        if (!ok) return;
+      }
+      publishIncognitoToServer(target);
       return;
     }
     if (!remoteAddress_.isEmpty()) {  // server-linked session → write back to the server

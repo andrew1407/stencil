@@ -2,6 +2,7 @@
 
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
+#include "formulaParser.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
 #include "pageMetrics.hpp"
@@ -122,6 +123,18 @@ extern "C" {
     line.locked = locked != 0;
     if (fillColor) line.fillColor = fillColor;
     rasterizeLine(buf, w, h, line);
+  }
+
+  int stencil_cli_validateFormula(const char* expr, int var) {
+    static const FormulaParser fp;
+    return fp.validate(std::string(expr ? expr : ""), static_cast<char>(var)) ? 1 : 0;
+  }
+
+  double stencil_cli_applyFormula(const char* expr, int var, double value,
+                                  int allowFormulas) {
+    static const FormulaParser fp;
+    return fp.apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
+                    allowFormulas != 0);
   }
 
 }  // extern "C"

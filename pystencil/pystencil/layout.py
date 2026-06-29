@@ -112,6 +112,13 @@ class Layout:
     filter_color: Optional[str] = None
     crop_rect: Optional[dict] = None
     rotation_quarters: Optional[int] = None
+    # Page format + x/y coordinate-transform formulas (the browser applies them).
+    page_size: Optional[str] = None
+    custom_page_width: Optional[float] = None
+    custom_page_height: Optional[float] = None
+    allow_formulas: Optional[bool] = None
+    formula_x: Optional[str] = None
+    formula_y: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialize, omitting optional fields that are ``None``.
@@ -132,6 +139,18 @@ class Layout:
             out["cropRect"] = self.crop_rect
         if self.rotation_quarters is not None:
             out["rotationQuarters"] = self.rotation_quarters
+        if self.page_size is not None:
+            out["pageSize"] = self.page_size
+        if self.custom_page_width is not None:
+            out["customPageWidth"] = self.custom_page_width
+        if self.custom_page_height is not None:
+            out["customPageHeight"] = self.custom_page_height
+        if self.allow_formulas is not None:
+            out["allowFormulas"] = self.allow_formulas
+        if self.formula_x is not None:
+            out["formulaX"] = self.formula_x
+        if self.formula_y is not None:
+            out["formulaY"] = self.formula_y
         return out
 
     def to_json(self, indent: Optional[int] = None) -> str:

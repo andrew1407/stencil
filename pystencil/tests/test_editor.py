@@ -147,6 +147,28 @@ class EditorTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_set_formula_validates_applies_and_serializes(self) -> None:
+        ed = Editor().blank(200, 100)
+        ed.set_formula("x", "x*2 + 1").set_formula("y", "y/3")
+        self.assertTrue(ed.allow_formulas)
+        # evaluation goes through the shared parser
+        self.assertEqual(ed.apply_formula("x", 10.0), 21.0)
+        self.assertEqual(ed.apply_formula("y", 9.0), 3.0)
+        # the formulas ride the saved layout
+        d = ed.layout().to_dict()
+        self.assertEqual(d["allowFormulas"], True)
+        self.assertEqual(d["formulaX"], "x*2 + 1")
+        self.assertEqual(d["formulaY"], "y/3")
+        # toggling off keeps the expressions but stops applying them
+        ed.set_allow_formulas(False)
+        self.assertEqual(ed.apply_formula("x", 10.0), 10.0)
+        off = ed.layout().to_dict()
+        self.assertNotIn("allowFormulas", off)  # omitted when off
+        self.assertEqual(off["formulaX"], "x*2 + 1")  # expression kept
+        # an invalid expression is rejected
+        with self.assertRaises(ValueError):
+            ed.set_formula("x", "foo(x)")
+
 
 if __name__ == "__main__":
     unittest.main()

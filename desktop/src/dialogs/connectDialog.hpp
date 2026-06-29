@@ -3,10 +3,14 @@
 // collaboration servers, list them, and disconnect. Backed by the window's
 // net::ConnectionManager, so the same connections drive shared-project access.
 #include <QDialog>
+#include <QSet>
+#include <QString>
 
 class QCheckBox;
+class QLabel;
 class QLineEdit;
 class QListWidget;
+class QWidget;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -22,6 +26,8 @@ namespace stencil::gui {
    private:
     void rebuildList();
     void doConnect();
+    // Show/hide the batch toolbar + update its count from the current selection.
+    void updateBatchBar();
 
     stencil::net::ConnectionManager* manager_;
     QLineEdit* urlEdit_ = nullptr;
@@ -30,6 +36,10 @@ namespace stencil::gui {
     // "Auto-connect on open" — moved here from Settings (it's a connection
     // preference); persisted to net::connectionStore on toggle.
     QCheckBox* autoConnect_ = nullptr;
+    // Multi-select: urls checked for a batch reconnect/disconnect, + the toolbar.
+    QSet<QString> selected_;
+    QWidget* batchBar_ = nullptr;
+    QLabel* batchCount_ = nullptr;
   };
 
 }  // namespace stencil::gui

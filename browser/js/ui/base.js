@@ -65,8 +65,10 @@ export const rowMatches = (text, query) => {
 // connected. Returns true when at least one server target exists. Shared by the
 // blank-image + links create modals so console (stencil.blank/load { address }) and
 // UI thread the same address through the same code path (the parity rule).
-export const fillTargetSelect = (selectEl, rowEl, connMgr) => {
-  const urls = connMgr ? connMgr.urls : [];
+// `allow` false (e.g. incognito) suppresses every server target — only Local, row hidden —
+// so incognito content can't be created on a server from the create/upload flows.
+export const fillTargetSelect = (selectEl, rowEl, connMgr, allow = true) => {
+  const urls = (allow && connMgr) ? connMgr.urls : [];
   selectEl.innerHTML = '';
   const local = document.createElement('option');
   local.value = '';

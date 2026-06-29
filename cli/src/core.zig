@@ -118,6 +118,20 @@ pub fn rasterizeLine(buf: []u8, w: i32, h: i32, line: LineDraw) void {
         line.fill_color.ptr);
 }
 
+/// Validate a single-variable formula (`var_name` is 'x' or 'y'). Empty = valid (identity).
+pub fn validateFormula(allocator: std.mem.Allocator, expr: []const u8, var_name: u8) bool {
+    const z = allocator.dupeZ(u8, expr) catch return false;
+    defer allocator.free(z);
+    return c.stencil_cli_validateFormula(z.ptr, @as(c_int, var_name)) != 0;
+}
+
+/// Apply a formula to `value` ('x'/'y' variable). Identity when disabled, empty, or invalid.
+pub fn applyFormula(allocator: std.mem.Allocator, expr: []const u8, var_name: u8, value: f64, allow: bool) f64 {
+    const z = allocator.dupeZ(u8, expr) catch return value;
+    defer allocator.free(z);
+    return c.stencil_cli_applyFormula(z.ptr, @as(c_int, var_name), value, @intFromBool(allow));
+}
+
 const testing = std.testing;
 
 test "parseColor: names, hex, rejects junk" {
@@ -138,6 +152,16 @@ test "resolveCrop + rotate helpers" {
     try testing.expectEqual(@as(i32, 3), normalizeQuarters(-1));
     const d = rotatedDims(4, 2, 1);
     try testing.expect(d.w == 2 and d.h == 4);
+}
+
+test "formula validate + apply through the ABI" {
+    const a = testing.allocator;
+    try testing.expect(validateFormula(a, "x*2", 'x'));
+    try testing.expect(validateFormula(a, "", 'x')); // empty = identity = valid
+    try testing.expect(!validateFormula(a, "foo(x)", 'x')); // unknown ident = invalid
+    try testing.expectEqual(@as(f64, 20), applyFormula(a, "x*2", 'x', 10, true));
+    try testing.expectEqual(@as(f64, 10), applyFormula(a, "x*2", 'x', 10, false)); // disabled = identity
+    try testing.expectEqual(@as(f64, 10), applyFormula(a, "bad(", 'x', 10, true)); // invalid = identity
 }
 
 test "namedPageSize + blank fill round trips through the ABI" {

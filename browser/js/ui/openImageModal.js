@@ -37,10 +37,19 @@ export class StencilOpenImageModal extends StencilElement {
                     <label title="Open here locally or create on a connected server">Save to</label>
                     <select id="open-image-target"></select>
                 </div>
+                <!-- Replace options: only shown when a saved/linked project can be replaced. -->
+                <div class="vs-row" id="open-image-replace-row" style="display:none">
+                    <label title="Swap this project's image, keeping the same project">Replace</label>
+                    <span class="oi-replace">
+                        <label><input type="checkbox" id="open-image-rename"> Rename project to the new image</label>
+                        <label><input type="checkbox" id="open-image-keep" checked> Keep existing annotations</label>
+                    </span>
+                </div>
             </div>
             <div class="settings-footer">
                 <span class="footer-hint"></span>
                 <button id="open-image-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span>Cancel</span></button>
+                <button id="open-image-replace" class="btn-icon-text" disabled style="display:none">${icon('refresh', { size: 14 })}<span>Replace image</span></button>
                 <button id="open-image-here" class="btn-icon-text" disabled>${icon('image', { size: 14 })}<span>Open here</span></button>
                 <button id="open-image-newtab" class="btn-icon-text" disabled>${icon('external', { size: 14 })}<span>Open in new tab</span></button>
             </div>
@@ -57,10 +66,19 @@ export class StencilOpenImageModal extends StencilElement {
     const incog = document.getElementById('open-image-incognito');
     const hereBtn = document.getElementById('open-image-here');
     const newTabBtn = document.getElementById('open-image-newtab');
+    const replaceBtn = document.getElementById('open-image-replace');
+    const replaceRow = document.getElementById('open-image-replace-row');
+    const renameEl = document.getElementById('open-image-rename');
+    const keepEl = document.getElementById('open-image-keep');
     const targetEl = document.getElementById('open-image-target');
     const targetRow = document.getElementById('open-image-target-row');
     const frameEl = document.getElementById('open-image-frame');
     const frameRow = document.getElementById('open-image-frame-row');
+
+    // Replace-in-place only applies to a saved local or server-linked project (not a blank /
+    // incognito session — there's nothing to keep the same).
+    const canReplace = () => !!(app.image && !app.storage.incognito
+      && (app.activeProjectId != null || app.remoteLink));
 
     // The toolbar's "Open another image" button is this modal's open trigger.
     const { open, close } = wireModalShell(overlay, document.getElementById('open-image-btn'), closeBtn, {
@@ -70,18 +88,31 @@ export class StencilOpenImageModal extends StencilElement {
         hereBtn.disabled = true;
         newTabBtn.disabled = true;
         frameRow.style.display = 'none';
-        fillTargetSelect(targetEl, targetRow, app.connections);
+        const replaceable = canReplace();
+        renameEl.checked = false;
+        keepEl.checked = true;
+        replaceRow.style.display = replaceable ? '' : 'none';
+        replaceBtn.style.display = replaceable ? '' : 'none';
+        replaceBtn.disabled = true;
+        // Incognito: never offer a server target (incognito content isn't created on a server).
+        fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
       }
     });
     // Cancel is just another close path.
     cancelBtn.addEventListener('click', close);
 
-    // Both actions are inert until a file is chosen; the frame-time row appears for video.
+    // Toggling incognito hides/shows the server target — the two are mutually exclusive.
+    incog.addEventListener('change', () => {
+      fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
+    });
+
+    // All actions are inert until a file is chosen; the frame-time row appears for video.
     fileEl.addEventListener('change', () => {
       const file = fileEl.files && fileEl.files[0];
       const has = !!file;
       hereBtn.disabled = !has;
       newTabBtn.disabled = !has;
+      replaceBtn.disabled = !has || !canReplace();
       frameRow.style.display = has && isVideoFile(file) ? '' : 'none';
     });
 
@@ -112,6 +143,14 @@ export class StencilOpenImageModal extends StencilElement {
       const resolved = await resolveFile(file);
       if (!resolved) return;
       app.openImageNewTab(resolved, incog.checked);
+      close();
+    });
+    replaceBtn.addEventListener('click', async () => {
+      const file = fileEl.files && fileEl.files[0];
+      if (!file || !canReplace()) return;
+      const resolved = await resolveFile(file);
+      if (!resolved) return;
+      app.replaceProjectImage(resolved, { rename: renameEl.checked, keepAnnotations: keepEl.checked });
       close();
     });
   }

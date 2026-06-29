@@ -15,7 +15,7 @@
   window.__stencilEditorBridge = true;
 
   // mirror of lib/messages.js (classic content script — can't import)
-  const MSG = { REGISTRY: 'stencil-registry' };
+  const MSG = { REGISTRY: 'stencil-registry', PAGE_PIN: 'stencil-page-pin' };
   // Must match ProjectsStore.REGISTRY_KEY in browser/js/core/projectsStore.js.
   const REGISTRY_KEY = 'stencil_projects_v1';
 
@@ -49,5 +49,24 @@
   window.addEventListener('stencil:registry-changed', publishRegistry);
   window.addEventListener('storage', (e) => {
     if (!e || e.key == null || e.key === REGISTRY_KEY) publishRegistry();
+  });
+
+  // Editor → extension UNPIN relay. When a project's image changes, the editor app posts a
+  // same-window message; forward it to the SW as a PAGE_PIN with pin:false (which removes the
+  // pin via setPinned/removePinEntry). `resource` is required so the SW computes the right
+  // (site, source) pin key — the editor passes the OLD image's source/resource.
+  window.addEventListener('message', (e) => {
+    if (e.source !== window) return;                       // same-document page → bridge only
+    const m = e && e.data;
+    if (!m || m.source !== 'stencil-editor-bridge' || m.type !== 'unpin') return;
+    try {
+      chrome.runtime.sendMessage({
+        type: MSG.PAGE_PIN, pin: false,
+        source: m.pinSource || '', resource: m.resource || '',
+        name: m.name || '', kind: m.kind || 'image',
+      });
+    } catch {
+      /* worker asleep / extension context invalidated — a stale pin is harmless */
+    }
   });
 })();

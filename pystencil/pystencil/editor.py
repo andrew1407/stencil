@@ -95,6 +95,10 @@ class Editor:
         # Optional provenance metadata (mirrors the server project's source/resource fields).
         self._source: Optional[str] = None
         self._resource: Optional[str] = None
+        # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
+        self._allow_formulas: bool = False
+        self._formula_x: str = ""
+        self._formula_y: str = ""
 
     # ── core access ────────────────────────────────────────────────────────────
     def _get_core(self) -> Core:
@@ -327,6 +331,39 @@ class Editor:
             )
         return self.set_filter_color(mode.strip())
 
+    # ── formulas (x/y coordinate transform) ─────────────────────────────────────
+    def set_formula(self, axis: str, expr: str) -> "Editor":
+        """Set the x or y coordinate-transform formula (validated by the shared parser; raises
+        ValueError on a bad expression). A non-empty formula enables formulas. The expression
+        rides the saved layout, where the browser applies it; use apply_formula() to evaluate."""
+        ax = "y" if axis == "y" else "x"
+        expr = (expr or "").strip()
+        if expr and not self._get_core().validate_formula(expr, ax):
+            raise ValueError(f"invalid {ax} formula: {expr!r}")
+        if ax == "y":
+            self._formula_y = expr
+        else:
+            self._formula_x = expr
+        if expr:
+            self._allow_formulas = True
+        return self
+
+    def set_allow_formulas(self, on: bool) -> "Editor":
+        """Toggle whether formulas apply (keeps the expressions, so re-enabling restores them)."""
+        self._allow_formulas = bool(on)
+        return self
+
+    @property
+    def allow_formulas(self) -> bool:
+        """Whether the x/y formulas are currently applied."""
+        return self._allow_formulas
+
+    def apply_formula(self, axis: str, value: float) -> float:
+        """Apply the current x or y formula to a coordinate (identity when off/empty/invalid)."""
+        ax = "y" if axis == "y" else "x"
+        expr = self._formula_y if ax == "y" else self._formula_x
+        return self._get_core().apply_formula(expr, ax, value, self._allow_formulas)
+
     def draw(self, layout: LayoutLike) -> "Editor":
         """APPEND the lines from a layout to the drawing (mirror ``session.addLines``)."""
         self._require_original()
@@ -463,6 +500,10 @@ class Editor:
             filter_color=filter_color,
             crop_rect=crop_rect,
             rotation_quarters=rotation_quarters,
+            # allowFormulas only when on; expressions kept whenever non-empty (preserve on off).
+            allow_formulas=True if self._allow_formulas else None,
+            formula_x=self._formula_x or None,
+            formula_y=self._formula_y or None,
         )
 
     def save_layout(self, path: Optional[str] = None) -> str:

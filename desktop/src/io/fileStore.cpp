@@ -121,7 +121,8 @@ namespace stencil::gui {
                                          const QString& imageFilter,
                                          const QString& filterColor,
                                          const core::CropRect& cropRect,
-                                         int rotationQuarters) {
+                                         int rotationQuarters,
+                                         const LayoutMeta& meta) {
     QJsonObject o;
     o["imageWidth"] = w;
     o["imageHeight"] = h;
@@ -132,6 +133,13 @@ namespace stencil::gui {
     // that don't pass them (file export) stay byte-identical to the old envelope.
     if (cropRect.width > 0 && cropRect.height > 0) o["cropRect"] = cropRectToJson(cropRect);
     if (rotationQuarters != 0) o["rotationQuarters"] = rotationQuarters;
+    // Page format + formulas (server save only): omit-when-default so file exports stay stable.
+    if (!meta.pageSize.isEmpty()) o["pageSize"] = meta.pageSize;
+    if (meta.customPageWidth != 0) o["customPageWidth"] = meta.customPageWidth;
+    if (meta.customPageHeight != 0) o["customPageHeight"] = meta.customPageHeight;
+    if (meta.allowFormulas) o["allowFormulas"] = true;
+    if (!meta.formulaX.isEmpty()) o["formulaX"] = meta.formulaX;
+    if (!meta.formulaY.isEmpty()) o["formulaY"] = meta.formulaY;
     return o;
   }
 
@@ -144,6 +152,18 @@ namespace stencil::gui {
     if (cropOut && o.contains("cropRect")) *cropOut = cropRectFromJson(o.value("cropRect").toObject());
     if (rotOut) *rotOut = o.value("rotationQuarters").toInt(0);
     return linesFromJson(o.value("lines").toArray());
+  }
+
+  // Read the page format + x/y formulas out of a layout (absent fields stay at defaults).
+  fileStore::LayoutMeta fileStore::parseLayoutMeta(const QJsonObject& o) {
+    LayoutMeta m;
+    m.pageSize = o.value("pageSize").toString();
+    m.customPageWidth = o.value("customPageWidth").toDouble(0);
+    m.customPageHeight = o.value("customPageHeight").toDouble(0);
+    m.allowFormulas = o.value("allowFormulas").toBool(false);
+    m.formulaX = o.value("formulaX").toString();
+    m.formulaY = o.value("formulaY").toString();
+    return m;
   }
 
   QString fileStore::stateDir() {

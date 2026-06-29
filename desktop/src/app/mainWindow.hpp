@@ -4,6 +4,7 @@
 #include "projectsStore.hpp"
 #include "tooltipRows.hpp"
 #include "fileStore.hpp"
+#include <QByteArray>
 #include <QColor>
 #include <QHash>
 #include <QMainWindow>
@@ -31,6 +32,7 @@ class QDropEvent;
 
 namespace stencil::net {
   class ConnectionManager;
+  class ServerClient;
 }
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
@@ -193,16 +195,28 @@ namespace stencil::gui {
     // Move a LOCAL project onto `serverUrl` (create + upload original + push layout),
     // then remove the local copy. Mirrors the browser's moveProjectToServer().
     void moveLocalProjectToServer(const QString& serverUrl, const QString& id);
+    // Copy a LOCAL project to `serverUrl` (default name "<name>-copy"), leaving the local one
+    // in place. Mirrors the browser copyProjectToServer().
+    void copyLocalProjectToServer(const QString& serverUrl, const QString& id, const QString& name);
+    // Shared body of move/copy-to-server. localProjectOriginal gathers a local project's
+    // original bytes + dims (live canvas when active, else the stored file); false + notify when
+    // there's nothing usable. createServerFromLocal creates `pr` on `c` under `name` (upload +
+    // annotated layout), reporting the new id/version; false + notify on failure.
+    bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
+    bool createServerFromLocal(stencil::net::ServerClient* c, const Project& pr,
+                               const QString& name, const QByteArray& bytes, const QString& ext,
+                               int w, int h, QString& newIdOut, qint64& newVersionOut);
     // Move a SERVER project into local storage (download bytes + layout, persist as a
     // local project), then delete it from the server. Mirrors moveProjectToLocal().
     void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
-    // Make a detached LOCAL copy of a server project ("<name>-local"), leaving the
-    // server copy in place, and open it. Mirrors the browser copyServerProjectToLocal().
-    void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id);
+    // Make a detached LOCAL copy of a server project (name defaults to "<name>-copy" via the
+    // dialog), leaving the server copy in place, and open it. Mirrors copyServerProjectToLocal().
+    void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id, const QString& name);
     // Shared body of the two above: fetch image + layout (incl. crop/rotation), persist a
-    // fresh local project; optionally delete the server copy. Returns its new id via newIdOut.
+    // fresh local project; `name` overrides the server name when non-empty. Optionally deletes
+    // the server copy. Returns its new id via newIdOut.
     bool importServerProjectToLocal(const QString& serverUrl, const QString& id,
-                                    bool removeFromServer, const QString& nameSuffix,
+                                    bool removeFromServer, const QString& name,
                                     QString* newIdOut);
     // True if `id` is the active project in some OTHER open window — used to block
     // removing/moving a project that's open elsewhere (the desktop analogue of the
@@ -214,6 +228,16 @@ namespace stencil::gui {
     // applyLaunchOptions, the --src/--incognito path), leaving this one untouched.
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
+    // Replace outcome: swap the CURRENT project's image in place (same local id / server
+    // link), optionally renaming the project + keeping the existing annotations. Server
+    // sessions also re-upload the `original` (replaceServerOriginal). canReplaceActive()
+    // gates the outcome (a saved/linked, non-incognito project must be open).
+    bool canReplaceActive() const;
+    void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
+    void replaceServerOriginal();
+    // Publish the current incognito session to a server: create + upload original + link the
+    // session, leave incognito, then push the layout + result. Mirrors the browser.
+    void publishIncognitoToServer(const QString& serverUrl);
     // Load a local file as a fresh image (resets page + provenance); returns success.
     bool loadLocalImageReset(const QString& path);
     // Launch support: open a saved project by NAME (case-insensitive; first
@@ -275,6 +299,13 @@ namespace stencil::gui {
     // suppresses the "Opened …" toast (used by the live-co-edit poll, which reloads
     // repeatedly when peers change the project).
     bool openServerProject(const QString& serverUrl, const QString& id, bool silent = false);
+    // The current page format + x/y formulas (from global settings) as a layout-envelope meta,
+    // passed to buildLayoutJson on server save so they round-trip to the browser/peers.
+    fileStore::LayoutMeta currentLayoutMeta() const;
+    // Adopt a fetched layout's page format + formulas into the toolbar + settings (only the
+    // fields it carries), so a reopened server project shows its saved page and a later save
+    // re-emits them instead of clobbering with the desktop's global default.
+    void adoptServerLayoutMeta(const QJsonObject& layout);
     // Live co-edit. scheduleRemotePush: debounce saveToServer() after a local edit.
     // start/stopRemotePoll: periodic version check while a remote session is open.
     // pollRemoteForUpdate: one tick — reload the canvas if a peer bumped the version.

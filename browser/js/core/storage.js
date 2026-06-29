@@ -429,7 +429,9 @@ export class Storage {
           this.app.cropRect = layout.cropRect || this.app.defaultCropRect();
           this.app.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
-          this.app.history.reset(this.app.lines, 0);
+          // Empty lines → step -1 (no phantom undo on a brand-new/blank project); only seed
+          // a current snapshot when there are real lines to undo back to (matches line ~156).
+          this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
 
           if (layout.zoom) {
             this.app.zoomPan.setZoom(layout.zoom);

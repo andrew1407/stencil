@@ -65,6 +65,14 @@ pub const Session = struct {
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
 
+    // Page format + x/y formulas, round-tripped through a fetched layout (owned; CLI preserves).
+    page_size: []u8 = &.{}, // "" | "A3" | "A4" | "custom"
+    custom_page_w: f64 = 0, // cm; 0 = unset
+    custom_page_h: f64 = 0,
+    allow_formulas: bool = false,
+    formula_x: []u8 = &.{}, // "" = identity transform
+    formula_y: []u8 = &.{},
+
     /// True when a fetched server project is active (a target for sync / manual push).
     pub fn hasRemote(self: *const Session) bool {
         return self.remote_id != null and self.remote_url != null;
@@ -281,7 +289,37 @@ pub const Session = struct {
         self.history.items[0].deinit(self.gpa);
         self.history.items[0] = st;
         self.cursor = 0;
+        self.adoptLayoutMeta(layout_bytes); // page format + formulas (project-level, round-tripped)
         self.rebuild() catch {};
+    }
+
+    /// Parse the page format + x/y formulas out of a fetched layout (best-effort; cleared on miss).
+    fn adoptLayoutMeta(self: *Session, layout_bytes: []const u8) void {
+        self.clearFormat();
+        var parsed = std.json.parseFromSlice(std.json.Value, self.gpa, layout_bytes, .{}) catch return;
+        defer parsed.deinit();
+        if (parsed.value != .object) return;
+        const obj = parsed.value.object;
+        if (jsonStr(obj, "pageSize")) |ps| self.page_size = self.gpa.dupe(u8, ps) catch &.{};
+        self.custom_page_w = jsonNum(obj, "customPageWidth");
+        self.custom_page_h = jsonNum(obj, "customPageHeight");
+        if (obj.get("allowFormulas")) |v| {
+            if (v == .bool) self.allow_formulas = v.bool;
+        }
+        if (jsonStr(obj, "formulaX")) |fx| self.formula_x = self.gpa.dupe(u8, fx) catch &.{};
+        if (jsonStr(obj, "formulaY")) |fy| self.formula_y = self.gpa.dupe(u8, fy) catch &.{};
+    }
+
+    /// The project-level page format + formulas as a PageMeta view (borrows the owned slices).
+    fn pageMeta(self: *Session) server.PageMeta {
+        return .{
+            .page_size = self.page_size,
+            .custom_w = self.custom_page_w,
+            .custom_h = self.custom_page_h,
+            .allow_formulas = self.allow_formulas,
+            .formula_x = self.formula_x,
+            .formula_y = self.formula_y,
+        };
     }
 
     /// Build the browser-compatible layout JSON for the current state (caller owns it).
@@ -292,7 +330,29 @@ pub const Session = struct {
             .{ .x = c.x, .y = c.y, .w = c.w, .h = c.h }
         else
             null;
-        return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation);
+        return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, self.pageMeta());
+    }
+
+    /// Page-format label shown next to the px size, e.g. "A4 21×29.7cm" (picked size, else
+    /// the A4-derived default oriented to the image). Owned by the caller.
+    pub fn pageFormatLabel(self: *Session) ![]u8 {
+        const img = self.current();
+        var name: []const u8 = "A4";
+        var dims = pipeline.pageForImage(self.gpa, img.width, img.height);
+        if (self.page_size.len != 0) {
+            name = self.page_size;
+            if (std.ascii.eqlIgnoreCase(self.page_size, "custom")) {
+                if (self.custom_page_w > 0 and self.custom_page_h > 0)
+                    dims = .{ .w = self.custom_page_w, .h = self.custom_page_h };
+            } else if (core.namedPageSize(self.gpa, self.page_size)) |p| {
+                // Orient to the image (landscape swap), matching browser getPageDimensions.
+                dims = if (img.width > img.height)
+                    .{ .w = @max(p.w, p.h), .h = @min(p.w, p.h) }
+                else
+                    .{ .w = @min(p.w, p.h), .h = @max(p.w, p.h) };
+            }
+        }
+        return std.fmt.allocPrint(self.gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
     }
 
     pub fn undo(self: *Session) bool {
@@ -334,6 +394,42 @@ pub const Session = struct {
         self.label = null;
         self.temp = false;
         self.default_fmt = .png;
+        self.clearFormat();
+    }
+
+    /// Set the x or y transform formula (validated via the shared parser; a non-empty
+    /// expression enables formulas). Returns false on an invalid expression, state unchanged.
+    pub fn setFormula(self: *Session, axis: u8, expr: []const u8) !bool {
+        if (expr.len != 0 and !core.validateFormula(self.gpa, expr, axis)) return false;
+        const dup = try self.gpa.dupe(u8, expr);
+        const slot = if (axis == 'y') &self.formula_y else &self.formula_x;
+        if (slot.len != 0) self.gpa.free(slot.*);
+        slot.* = dup;
+        if (expr.len != 0) self.allow_formulas = true;
+        return true;
+    }
+
+    /// Toggle whether formulas apply on the saved layout (keeps the expressions).
+    pub fn setAllowFormulas(self: *Session, on: bool) void {
+        self.allow_formulas = on;
+    }
+
+    /// Clear both formula expressions and disable formulas (keeps the page format).
+    pub fn clearFormulas(self: *Session) void {
+        if (self.formula_x.len != 0) self.gpa.free(self.formula_x);
+        if (self.formula_y.len != 0) self.gpa.free(self.formula_y);
+        self.formula_x = &.{};
+        self.formula_y = &.{};
+        self.allow_formulas = false;
+    }
+
+    /// Reset the page format + formulas to "unset" (frees owned strings).
+    pub fn clearFormat(self: *Session) void {
+        self.clearFormulas();
+        if (self.page_size.len != 0) self.gpa.free(self.page_size);
+        self.page_size = &.{};
+        self.custom_page_w = 0;
+        self.custom_page_h = 0;
     }
 };
 

@@ -87,6 +87,49 @@ pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
     logo.print("wrote {s} (layout)\n", .{path});
 }
 
+fn printFormula(session: *Session) void {
+    const fx = if (session.formula_x.len != 0) session.formula_x else "(identity)";
+    const fy = if (session.formula_y.len != 0) session.formula_y else "(identity)";
+    logo.print("formulas {s}: x -> {s}, y -> {s}\n", .{ if (session.allow_formulas) "on" else "off", fx, fy });
+}
+
+/// `/formula [x|y <expr> | on | off | clear]` — the x/y coordinate-transform formulas that
+/// ride the saved layout (validated with the shared parser; the browser applies them, the CLI
+/// preserves + round-trips). Bare `/formula` shows the current state.
+pub fn doFormula(session: *Session, arg: []const u8) !void {
+    const trimmed = std.mem.trim(u8, arg, " \t");
+    if (trimmed.len == 0) return printFormula(session);
+    // Split into the sub-command word + the remainder (the expression, which may have spaces).
+    var i: usize = 0;
+    while (i < trimmed.len and trimmed[i] != ' ' and trimmed[i] != '\t') : (i += 1) {}
+    const sub = trimmed[0..i];
+    const expr = std.mem.trim(u8, trimmed[i..], " \t");
+    const eq = std.ascii.eqlIgnoreCase;
+    if (eq(sub, "on")) {
+        session.setAllowFormulas(true);
+        printFormula(session);
+    } else if (eq(sub, "off")) {
+        session.setAllowFormulas(false);
+        logo.print("formulas off (expressions kept)\n", .{});
+    } else if (eq(sub, "clear") or eq(sub, "none")) {
+        session.clearFormulas();
+        logo.print("formulas cleared\n", .{});
+    } else if (eq(sub, "x") or eq(sub, "y")) {
+        const axis: u8 = if (eq(sub, "y")) 'y' else 'x';
+        const ok = session.setFormula(axis, expr) catch {
+            logo.print("error: out of memory\n", .{});
+            return;
+        };
+        if (!ok) {
+            logo.print("error: invalid {c} formula: {s}\n", .{ axis, expr });
+            return;
+        }
+        printFormula(session);
+    } else {
+        logo.print("usage: /formula [x|y <expr> | on | off | clear]   (e.g. '/formula x x*2 + 1')\n", .{});
+    }
+}
+
 // ── server connections ─────────────────────────────────────────────────────────
 
 /// `/connect <url[ url2 ...]>` — open one or more server connections for the session.

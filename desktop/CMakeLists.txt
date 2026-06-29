@@ -238,6 +238,17 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_image_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Layout-envelope test: the page format + x/y formulas round-trip through
+  # fileStore::buildLayoutJson <-> parseLayoutMeta (server save/load parity with browser + CLI).
+  add_executable(stencil_layout_headless
+    tests/layoutMeta.headless.cpp
+    src/io/fileStore.cpp)
+  target_include_directories(stencil_layout_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_layout_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_layout_headless COMMAND stencil_layout_headless)
+  set_tests_properties(stencil_layout_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # ── Distributable packaging ───────────────────────────────────────────────
   # `cmake --install build` lays the app out under the install prefix; the Qt
   # deploy script then copies the Qt libraries + plugins next to it (macdeployqt /
