@@ -69,6 +69,24 @@ pub fn doSave(session: *Session, io: std.Io, arg: []const u8) !void {
     }
 }
 
+/// `/layout [path]` — export the current structured layout JSON to a local file (distinct
+/// from `/apply`, which *draws* a layout onto the image). With a `.json` path it writes there
+/// exactly; a non-`.json` path is a directory/prefix and gets "<path>/<project>.json"; a bare
+/// `/layout` writes "<project>.json" in the cwd (project = the working image's base name).
+pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
+    if (!session.hasImage()) return ui.noImage();
+    const json = try session.currentLayoutJson();
+    defer session.gpa.free(json);
+    const name = commands.projectBaseName(session.label orelse "layout");
+    const path = try commands.layoutTarget(session.gpa, arg, name);
+    defer session.gpa.free(path);
+    std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = json }) catch |e| {
+        logo.print("error: could not write layout to {s} ({s})\n", .{ path, @errorName(e) });
+        return;
+    };
+    logo.print("wrote {s} (layout)\n", .{path});
+}
+
 // ── server connections ─────────────────────────────────────────────────────────
 
 /// `/connect <url[ url2 ...]>` — open one or more server connections for the session.

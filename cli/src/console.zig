@@ -130,6 +130,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .upload => try handlers.doUpload(session, io, cmd.arg),
         .blank => try handlers.doBlank(session, cmd.arg),
         .save => try handlers.doSave(session, io, cmd.arg),
+        .layout => try handlers.doLayout(session, io, cmd.arg),
         .exec => {
             try handlers.runAction(session, io, commands.parseAction(cmd.arg));
             handlers.markDirty(session); // debounced; flushed at the prompt boundary

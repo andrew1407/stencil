@@ -16,9 +16,10 @@ var current_accent: []const u8 = theme.default_key;
 pub const completions = [_][]const u8{
     "upload",      "paste",    "blank",       "apply",    "crop",   "rotate",
     "filter",      "bw",       "sepia",       "tint",     "none",   "exec",
-    "undo",        "redo",     "reset",       "save",     "connect", "connections",
-    "disconnect",  "reconnect", "projects",   "fetch",    "sync",   "copy",
-    "status",      "theme",    "clear",       "drop",     "help",   "exit",
+    "undo",        "redo",     "reset",       "save",     "layout", "connect",
+    "connections", "disconnect", "reconnect", "projects", "fetch",  "sync",
+    "copy",        "status",   "theme",       "clear",    "drop",   "help",
+    "exit",
 };
 
 pub fn setInteractive(v: bool) void {
@@ -138,6 +139,7 @@ pub fn help() void {
 
     helpSection(a, r, "Save");
     helpRow(a, r, "/save [path]", "write to a file; a bare /save pushes to the active server project");
+    helpRow(a, r, "/layout [path]", "save the layout JSON (bare = <project>.json; a dir saves <project>.json there)");
     helpRow(a, r, "/copy", "copy the current image to the clipboard (macOS)");
 
     helpSection(a, r, "Connections");

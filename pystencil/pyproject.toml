@@ -1,0 +1,25 @@
+# pystencil — packaging metadata.
+#
+# Deliberately minimal and dependency-free: pystencil is a stdlib-only mirror of the
+# browser/CLI editor that drives the SAME C++ core via ctypes, so there is nothing to
+# install from PyPI. The native shared library is produced out-of-band by `build.py`
+# (it recompiles core/), not by a wheel build hook, which keeps this purely declarative.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pystencil"
+version = "0.1.0"
+description = "Stdlib-only Python mirror of the Stencil editor, driving the shared C++ core via ctypes"
+readme = "README.md"
+requires-python = ">=3.9"
+# No dependencies: stdlib only (ctypes, zlib, json, struct, urllib, ssl, …).
+dependencies = []
+
+[project.scripts]
+# The one-shot pipeline + /command REPL, same entry as `python -m pystencil`.
+stencil-py = "pystencil.cli:main"
+
+[tool.setuptools]
+packages = ["pystencil"]
