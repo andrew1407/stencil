@@ -969,6 +969,23 @@ stencil-fullscreen-layer { display: contents; }
 .project-row:hover { background: var(--bg-info); }
 .project-row.project-active { border-color: var(--text-key); }
 .project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
+.project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
+.project-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Filter dropdown sits beside the search field. */
+.modal-search-bar { display: flex; align-items: center; gap: 8px; }
+.modal-search-bar .modal-search { flex: 1; }
+.modal-filter {
+    flex: 0 0 auto; padding: 6px 8px; border-radius: 6px;
+    background: var(--input-bg); color: var(--input-text); border: 1px solid var(--border-main);
+}
+/* Batch-select toolbar — appears once rows are checked. */
+.projects-batch-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 18px; border-bottom: 1px solid var(--border-main); background: var(--bg-info);
+}
+.projects-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); }
+.projects-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.projects-batch-actions button:disabled { opacity: 0.45; cursor: default; }
 .project-thumb {
     width: 56px; height: 56px; flex: 0 0 56px; border-radius: 6px; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
@@ -1047,6 +1064,12 @@ stencil-fullscreen-layer { display: contents; }
     border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
     font-size: 13px; cursor: pointer;
 }
+/* Text input injected into the confirm modal (app.prompt — copy-with-name). */
+.confirm-prompt-input {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
+    font-size: 13px;
+}
 
 /* ── Server connections modal ───────────────────────────────────── */
 .connect-row {
@@ -1054,6 +1077,16 @@ stencil-fullscreen-layer { display: contents; }
     padding: 6px 10px; border: 1px solid var(--border-main); border-radius: 8px;
     margin-bottom: 6px; background: var(--input-bg);
 }
+.connect-row.connect-selected { border-color: var(--accent); background: var(--bg-info); }
+.connect-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Batch-select toolbar for connections (mirrors the projects batch bar). */
+.connect-batch-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--bg-info);
+    border: 1px solid var(--border-main);
+}
+.connect-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); }
+.connect-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .connect-row .connect-url { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Connection-status dot: green=connected, yellow=connecting/refreshing, red=error. */
 .conn-status { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent); }

@@ -313,6 +313,22 @@ export const createStencil = (app) => {
         return project;
       },
       open() { if (id != null) app.switchToProject(id); return project; },
+      // Permanently remove this project (an incognito editor can't be removed — close() it).
+      remove() {
+        if (incognito) throw new Error('Cannot remove an incognito editor — use close()');
+        app.removeProject(id);
+        return null;
+      },
+      // Move this LOCAL project to a server (it becomes server-backed). Returns the remote id.
+      moveToServer(address) {
+        if (incognito) throw new Error('Cannot move an incognito editor — use stencil.publishIncognito(address)');
+        return app.moveProjectToServer(id, address);
+      },
+      // Copy this LOCAL project to a server, leaving the local one in place. opts: { name }.
+      copyToServer(address, opts = {}) {
+        if (incognito) throw new Error('Cannot copy an incognito editor — use stencil.publishIncognito(address)');
+        return app.copyProjectToServer(id, address, opts);
+      },
     };
     project = guard(project);   // reassign so chained returns hand back the guarded proxy
     return project;
@@ -422,6 +438,13 @@ export const createStencil = (app) => {
     // Aggregated remote projects across every connection (each tagged remote:true
     // with its serverUrl). Resolves to an array of metadata records.
     serverProjects() { return connMgr.remoteProjects(); },
+    // Move/copy a SERVER project (a record from serverProjects(), shape { serverUrl, id, … })
+    // to local storage, or copy it into an incognito session (opts.newTab opens a new tab).
+    moveServerProjectToLocal(meta) { return app.moveProjectToLocal(meta); },
+    copyServerProjectToLocal(meta, opts = {}) { return app.copyServerProjectToLocal(meta, opts); },
+    copyServerProjectToIncognito(meta, opts = {}) { return app.copyServerProjectToIncognito(meta, opts); },
+    // Publish the current incognito session to a server (becomes a normal server project).
+    publishIncognito(address) { return app.publishIncognitoToServer(address); },
 
     // ── Settings / modes ──
     get settings() { return settings(); },

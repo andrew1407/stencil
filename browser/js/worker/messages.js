@@ -11,6 +11,8 @@ export const MSG = Object.freeze({
   BYE: 'bye',                           // a tab is going away
   TABCOUNT: 'tabcount',                 // worker → tab: live tab count
   PEERS: 'peers',                       // worker → tab: active ids across tabs
+  INCOGNITO: 'incognito',               // a tab's incognito session changed (set/cleared)
+  INCOGNITOS: 'incognitos',             // worker → tab: OTHER tabs' incognito sessions
 });
 
 // What happened to the project set, carried on a PROJECTS_CHANGED message so a

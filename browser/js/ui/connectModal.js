@@ -38,6 +38,15 @@ export class StencilConnectModal extends StencilElement {
                 </div>
 
                 <div class="vs-section">Connections</div>
+                <!-- Batch-select toolbar: appears once one or more connections are checked. -->
+                <div class="connect-batch-bar" id="connect-batch-bar" style="display:none">
+                    <span class="connect-batch-count" id="connect-batch-count">0 selected</span>
+                    <span class="connect-batch-actions">
+                        <button id="connect-batch-reconnect" class="btn-icon-text" title="Reconnect the selected servers">${icon('refresh', { size: 13 })}<span>Reconnect</span></button>
+                        <button id="connect-batch-disconnect" class="danger btn-icon-text" title="Disconnect (and forget) the selected servers">${icon('x', { size: 13 })}<span>Disconnect</span></button>
+                        <button id="connect-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
+                    </span>
+                </div>
                 <div id="connect-list"><!-- filled by JS --></div>
             </div>
             <div class="settings-footer">
@@ -61,20 +70,49 @@ export class StencilConnectModal extends StencilElement {
     // would pin `undefined` and break Connect forever.
     const mgr = () => app.connections;
 
+    // ── Multi-select state ──
+    const selected = new Set();   // urls checked for a batch action
+    const batchBar = $('connect-batch-bar');
+    const batchCount = $('connect-batch-count');
+    const batchBtns = {
+      reconnect: $('connect-batch-reconnect'),
+      disconnect: $('connect-batch-disconnect'),
+      clear: $('connect-batch-clear'),
+    };
+    const updateBatchBar = () => {
+      batchBar.style.display = selected.size ? '' : 'none';
+      batchCount.textContent = `${selected.size} selected`;
+    };
+
     const render = () => {
       list.innerHTML = '';
       const cm = mgr();
       const urls = cm ? cm.urls : [];
+      // Drop any selected urls that are no longer connected (e.g. removed elsewhere).
+      for (const u of [...selected]) if (!urls.includes(u)) selected.delete(u);
       if (!urls.length) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
         empty.textContent = 'No servers connected.';
         list.appendChild(empty);
+        updateBatchBar();
         return;
       }
       for (const url of urls) {
         const row = document.createElement('div');
         row.className = 'connect-row';
+        // Multi-select checkbox for batch reconnect/disconnect.
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'connect-select';
+        cb.checked = selected.has(url);
+        cb.title = 'Select for batch action';
+        cb.addEventListener('change', () => {
+          if (cb.checked) selected.add(url); else selected.delete(url);
+          row.classList.toggle('connect-selected', cb.checked);
+          updateBatchBar();
+        });
+        if (cb.checked) row.classList.add('connect-selected');
         const conn = cm.get(url);
         // Connection-status dot: green=connected, yellow=connecting/refreshing, red=error/dropped.
         const status = conn ? (conn.status || 'connected') : 'error';
@@ -109,10 +147,25 @@ export class StencilConnectModal extends StencilElement {
         const actions = document.createElement('div');
         actions.className = 'connect-actions';
         actions.append(recon, disc);
-        row.append(label, actions);
+        row.append(cb, label, actions);
         list.appendChild(row);
       }
+      updateBatchBar();
     };
+
+    // ── Batch actions over the checked connections ──
+    const runConnBatch = async (fn, okMsg, failMsg) => {
+      let done = 0;
+      for (const url of [...selected]) {
+        try { await fn(url); done++; } catch (err) { notify(`${failMsg} ${url} — ${err.message}`, 'fail'); }
+      }
+      selected.clear();
+      render();
+      if (done) notify(`${okMsg} (${done})`, 'ok');
+    };
+    batchBtns.clear.addEventListener('click', () => { selected.clear(); render(); });
+    batchBtns.reconnect.addEventListener('click', () => runConnBatch(u => mgr().reconnectOne(u), 'Reconnected', 'Reconnect failed'));
+    batchBtns.disconnect.addEventListener('click', () => runConnBatch(async (u) => mgr().disconnect(u), 'Disconnected', 'Disconnect failed'));
 
     const connect = async () => {
       const url = urlEl.value.trim();

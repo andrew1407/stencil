@@ -114,8 +114,36 @@ pub fn parseProjectVersion(gpa: std.mem.Allocator, body: []const u8) !i64 {
 /// A crop rectangle in rotated-original pixels, for the layout envelope (kept core-free here).
 pub const CropRect = struct { x: i64, y: i64, w: i64, h: i64 };
 
+/// Page format + x/y formulas round-tripped through the layout (CLI preserves, doesn't edit).
+/// Empty strings / zero dims are omitted from the JSON.
+pub const PageMeta = struct {
+    page_size: []const u8 = "", // "" | "A3" | "A4" | "custom"
+    custom_w: f64 = 0, // cm; 0 = unset
+    custom_h: f64 = 0,
+    allow_formulas: bool = false,
+    formula_x: []const u8 = "", // "" = identity transform
+    formula_y: []const u8 = "",
+};
+
+/// Append `,"key":"<escaped value>"` to the layout buffer.
+fn appendJsonStr(gpa: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8, val: []const u8) !void {
+    const esc = try jsonEscape(gpa, val);
+    defer gpa.free(esc);
+    const s = try std.fmt.allocPrint(gpa, ",\"{s}\":\"{s}\"", .{ key, esc });
+    defer gpa.free(s);
+    try out.appendSlice(gpa, s);
+}
+
+/// Append `,"key":<number>` to the layout buffer.
+fn appendJsonNum(gpa: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8, val: anytype) !void {
+    const s = try std.fmt.allocPrint(gpa, ",\"{s}\":{d}", .{ key, val });
+    defer gpa.free(s);
+    try out.appendSlice(gpa, s);
+}
+
 /// Build a browser-compatible layout JSON envelope:
-/// {imageWidth,imageHeight,lines[,imageFilter][,filterColor][,cropRect][,rotationQuarters]}.
+/// {imageWidth,imageHeight,lines[,imageFilter][,filterColor][,cropRect][,rotationQuarters]
+///  [,pageSize][,customPageWidth][,customPageHeight][,allowFormulas][,formulaX][,formulaY]}.
 /// `lines_json` is a ready JSON array string ("[]" when empty). The optional fields are
 /// omitted when empty/zero, matching browser layout.js buildLayoutPayload. Pure; caller owns.
 pub fn buildLayout(
@@ -127,36 +155,29 @@ pub fn buildLayout(
     filter_color: []const u8,
     crop: ?CropRect,
     rotation: i32,
+    meta: PageMeta,
 ) ![]u8 {
     var out: std.ArrayList(u8) = .empty;
     errdefer out.deinit(gpa);
     const head = try std.fmt.allocPrint(gpa, "{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":{s}", .{ w, h, if (lines_json.len == 0) "[]" else lines_json });
     defer gpa.free(head);
     try out.appendSlice(gpa, head);
-    if (filter_mode.len != 0 and !std.ascii.eqlIgnoreCase(filter_mode, "none")) {
-        const esc = try jsonEscape(gpa, filter_mode);
-        defer gpa.free(esc);
-        const s = try std.fmt.allocPrint(gpa, ",\"imageFilter\":\"{s}\"", .{esc});
-        defer gpa.free(s);
-        try out.appendSlice(gpa, s);
-    }
-    if (filter_color.len != 0) {
-        const esc = try jsonEscape(gpa, filter_color);
-        defer gpa.free(esc);
-        const s = try std.fmt.allocPrint(gpa, ",\"filterColor\":\"{s}\"", .{esc});
-        defer gpa.free(s);
-        try out.appendSlice(gpa, s);
-    }
+    if (filter_mode.len != 0 and !std.ascii.eqlIgnoreCase(filter_mode, "none"))
+        try appendJsonStr(gpa, &out, "imageFilter", filter_mode);
+    if (filter_color.len != 0)
+        try appendJsonStr(gpa, &out, "filterColor", filter_color);
     if (crop) |cr| {
         const s = try std.fmt.allocPrint(gpa, ",\"cropRect\":{{\"x\":{d},\"y\":{d},\"width\":{d},\"height\":{d}}}", .{ cr.x, cr.y, cr.w, cr.h });
         defer gpa.free(s);
         try out.appendSlice(gpa, s);
     }
-    if (rotation != 0) {
-        const s = try std.fmt.allocPrint(gpa, ",\"rotationQuarters\":{d}", .{rotation});
-        defer gpa.free(s);
-        try out.appendSlice(gpa, s);
-    }
+    if (rotation != 0) try appendJsonNum(gpa, &out, "rotationQuarters", rotation);
+    if (meta.page_size.len != 0) try appendJsonStr(gpa, &out, "pageSize", meta.page_size);
+    if (meta.custom_w != 0) try appendJsonNum(gpa, &out, "customPageWidth", meta.custom_w);
+    if (meta.custom_h != 0) try appendJsonNum(gpa, &out, "customPageHeight", meta.custom_h);
+    if (meta.allow_formulas) try out.appendSlice(gpa, ",\"allowFormulas\":true");
+    if (meta.formula_x.len != 0) try appendJsonStr(gpa, &out, "formulaX", meta.formula_x);
+    if (meta.formula_y.len != 0) try appendJsonStr(gpa, &out, "formulaY", meta.formula_y);
     try out.append(gpa, '}');
     return out.toOwnedSlice(gpa);
 }
@@ -726,19 +747,47 @@ test "findProjectByName captures id + version; parseProjectVersion reads a singl
 
 test "buildLayout emits optional fields only when set" {
     const a = testing.allocator;
-    // Bare: just dims + empty lines (no filter/crop/rotation).
-    const bare = try buildLayout(a, 10, 20, "", "none", "", null, 0);
+    // Bare: just dims + empty lines (no filter/crop/rotation/page/formula).
+    const bare = try buildLayout(a, 10, 20, "", "none", "", null, 0, .{});
     defer a.free(bare);
     try testing.expectEqualStrings("{\"imageWidth\":10,\"imageHeight\":20,\"lines\":[]}", bare);
 
     // Full: filter + color + crop + rotation, with a ready lines array passed through.
-    const full = try buildLayout(a, 5, 6, "[{\"x\":1}]", "custom", "#7c3aed", .{ .x = 1, .y = 2, .w = 3, .h = 4 }, 3);
+    const full = try buildLayout(a, 5, 6, "[{\"x\":1}]", "custom", "#7c3aed", .{ .x = 1, .y = 2, .w = 3, .h = 4 }, 3, .{});
     defer a.free(full);
     try testing.expect(std.mem.indexOf(u8, full, "\"lines\":[{\"x\":1}]") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"imageFilter\":\"custom\"") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"filterColor\":\"#7c3aed\"") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"cropRect\":{\"x\":1,\"y\":2,\"width\":3,\"height\":4}") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"rotationQuarters\":3") != null);
+}
+
+test "buildLayout round-trips page format + formulas (omit-when-default)" {
+    const a = testing.allocator;
+    // A custom page + x/y formulas survive into the envelope.
+    const meta = PageMeta{
+        .page_size = "custom",
+        .custom_w = 15,
+        .custom_h = 25,
+        .allow_formulas = true,
+        .formula_x = "x*2",
+        .formula_y = "y+1",
+    };
+    const got = try buildLayout(a, 1, 1, "", "none", "", null, 0, meta);
+    defer a.free(got);
+    try testing.expect(std.mem.indexOf(u8, got, "\"pageSize\":\"custom\"") != null);
+    try testing.expect(std.mem.indexOf(u8, got, "\"customPageWidth\":15") != null);
+    try testing.expect(std.mem.indexOf(u8, got, "\"customPageHeight\":25") != null);
+    try testing.expect(std.mem.indexOf(u8, got, "\"allowFormulas\":true") != null);
+    try testing.expect(std.mem.indexOf(u8, got, "\"formulaX\":\"x*2\"") != null);
+    try testing.expect(std.mem.indexOf(u8, got, "\"formulaY\":\"y+1\"") != null);
+
+    // A named page with formulas off: pageSize kept, no formula keys, no allowFormulas.
+    const named = try buildLayout(a, 1, 1, "", "none", "", null, 0, .{ .page_size = "A4" });
+    defer a.free(named);
+    try testing.expect(std.mem.indexOf(u8, named, "\"pageSize\":\"A4\"") != null);
+    try testing.expect(std.mem.indexOf(u8, named, "allowFormulas") == null);
+    try testing.expect(std.mem.indexOf(u8, named, "formulaX") == null);
 }
 
 test "parseProjectList yields owned name/size/updatedAt records" {

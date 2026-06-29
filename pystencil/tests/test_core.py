@@ -93,6 +93,16 @@ class CoreTest(unittest.TestCase):
     def test_get_core_singleton(self) -> None:
         self.assertIs(get_core(), get_core())
 
+    def test_formula_validate_and_apply(self) -> None:
+        c = get_core()
+        self.assertTrue(c.validate_formula("x*2 + 1", "x"))
+        self.assertTrue(c.validate_formula("", "x"))  # empty = identity = valid
+        self.assertFalse(c.validate_formula("foo(x)", "x"))  # unknown ident = invalid
+        self.assertEqual(c.apply_formula("x*2", "x", 10.0, True), 20.0)
+        self.assertEqual(c.apply_formula("x*2", "x", 10.0, False), 10.0)  # disabled = identity
+        self.assertEqual(c.apply_formula("y/3", "y", 9.0, True), 3.0)
+        self.assertEqual(c.apply_formula("bad(", "x", 10.0, True), 10.0)  # invalid = identity
+
 
 if __name__ == "__main__":
     unittest.main()

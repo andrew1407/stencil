@@ -118,17 +118,31 @@ namespace stencil::gui {
     QJsonArray linesToJson(const core::Lines& lines);
     core::Lines linesFromJson(const QJsonArray& arr);
 
+    // Page format + x/y formulas carried in the server layout (omitted when at defaults).
+    struct LayoutMeta {
+      QString pageSize;             // "" = omit; else "A3" | "A4" | "custom"
+      double customPageWidth = 0;   // cm; 0 = unset
+      double customPageHeight = 0;
+      bool allowFormulas = false;
+      QString formulaX;             // "" = identity transform
+      QString formulaY;
+    };
+
     // ── Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
     // Emits {imageWidth,imageHeight,lines,imageFilter,filterColor} plus optional
     // cropRect (rotated-image pixels) + rotationQuarters, so a reopened project
     // restores its filter and exact geometry. cropRect is omitted when empty and
     // rotationQuarters when 0, keeping old file exports byte-identical; parseLayoutJson
     // fills the out-pointers when supplied, leaving them untouched when absent.
+    // `meta` adds the page format + formulas (server save passes it; file export omits it).
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
                                 const QString& filterColor = "#7c3aed",
                                 const core::CropRect& cropRect = {},
-                                int rotationQuarters = 0);
+                                int rotationQuarters = 0,
+                                const LayoutMeta& meta = {});
+    // Read the page format + formulas back out of a layout envelope (fields absent → defaults).
+    LayoutMeta parseLayoutMeta(const QJsonObject& o);
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 

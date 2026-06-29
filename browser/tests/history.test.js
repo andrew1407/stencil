@@ -63,6 +63,19 @@ test('reset initializes from base lines', () => {
     assert.strictEqual(h.canUndo(), false);
 });
 
+test('explicit baseStep=0 on empty lines is a phantom-undo trap; callers must pass -1', () => {
+    // The project-restore path (storage.js) forces an explicit baseStep. Passing 0 with no
+    // lines seeds a phantom snapshot, so a brand-new/blank project shows an enabled Undo.
+    const trap = new HistoryStack();
+    trap.reset([], 0);
+    assert.strictEqual(trap.canUndo(), true);  // the bug: undo available on a blank
+    // The fix: guard the step (lines.length ? 0 : -1), so empty lines stay non-undoable.
+    const fixed = new HistoryStack();
+    fixed.reset([], [].length ? 0 : -1);
+    assert.strictEqual(fixed.canUndo(), false);
+    assert.strictEqual(fixed.canRedo(), false);
+});
+
 test('reset with empty lines leaves NO redo (no stray redo step after a blank)', () => {
     const h = new HistoryStack();
     h.push([{ id: 'a' }]);  // simulate prior edits

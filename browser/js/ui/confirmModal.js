@@ -40,13 +40,20 @@ export class StencilConfirmModal extends StencilElement {
     // When set, the dialog is in "choose" mode: Confirm resolves with the picked
     // value, Cancel/Close/Escape resolve null (instead of the plain boolean).
     let choiceSelect = null;
+    // When set, the dialog is in "prompt" mode: Confirm resolves the trimmed text.
+    let promptInput = null;
     const settle = (val) => {
       overlay.classList.remove('modal-open');
       document.removeEventListener('keydown', onKey, true);
       const r = resolveCurrent; resolveCurrent = null;
-      const sel = choiceSelect; choiceSelect = null;
-      if (sel) sel.parentElement?.remove();   // drop the injected picker row
-      if (r) r(sel ? (val ? sel.value : null) : val);
+      const selEl = choiceSelect; choiceSelect = null;
+      const inp = promptInput; promptInput = null;
+      if (selEl) selEl.parentElement?.remove();   // drop the injected picker row
+      if (inp) inp.parentElement?.remove();       // drop the injected prompt row
+      if (!r) return;
+      if (selEl) r(val ? selEl.value : null);
+      else if (inp) r(val ? inp.value.trim() : null);
+      else r(val);
     };
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); settle(false); }
@@ -68,14 +75,28 @@ export class StencilConfirmModal extends StencilElement {
     confirmBtn.addEventListener('click', () => settle(true));
     overlay.addEventListener('mousedown', e => { if (e.target === overlay) settle(false); });
 
-    // Public API consumed by app.confirm().
-    this.ask = (message, opts = {}) => new Promise(resolve => {
-      // A second ask while one is open: cancel the previous.
+    // Cancel any in-flight dialog before a new one opens, dropping its injected row. A picker/
+    // prompt resolves null (its cancel value); a plain ask resolves false.
+    const dismissPrevious = () => {
       if (resolveCurrent) {
         const prev = resolveCurrent;
         resolveCurrent = null;
-        prev(false);
+        prev(choiceSelect || promptInput ? null : false);
       }
+      if (choiceSelect) { choiceSelect.parentElement?.remove(); choiceSelect = null; }
+      if (promptInput) { promptInput.parentElement?.remove(); promptInput = null; }
+    };
+    // Build a one-element row (select or input) and inject it below the message.
+    const injectRow = (el) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'confirm-choose-row';
+      wrap.appendChild(el);
+      body.appendChild(wrap);
+    };
+
+    // Public API consumed by app.confirm().
+    this.ask = (message, opts = {}) => new Promise(resolve => {
+      dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Confirm');
       setTimeout(() => confirmBtn.focus(), 30);
@@ -85,20 +106,10 @@ export class StencilConfirmModal extends StencilElement {
     // Resolves the chosen option value on Confirm, null on Cancel/Close/Escape.
     // opts: { title, confirmLabel, cancelLabel, options:[{value,label}] }.
     this.choose = (message, opts = {}) => new Promise(resolve => {
-      if (resolveCurrent) {
-        const prev = resolveCurrent;
-        resolveCurrent = null;
-        prev(choiceSelect ? null : false);
-      }
-      if (choiceSelect) {
-        choiceSelect.parentElement?.remove();
-        choiceSelect = null;
-      }
+      dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Choose');
-      // Build the picker row (created here, not in static markup, so the markup tests stay green).
-      const wrap = document.createElement('div');
-      wrap.className = 'confirm-choose-row';
+      // The picker row is created here, not in static markup, so the markup tests stay green.
       const sel = document.createElement('select');
       sel.className = 'confirm-choose-select';
       for (const o of (opts.options || [])) {
@@ -107,12 +118,25 @@ export class StencilConfirmModal extends StencilElement {
         opt.textContent = o.label != null ? o.label : o.value;
         sel.appendChild(opt);
       }
-      wrap.appendChild(sel);
-      body.appendChild(wrap);
+      injectRow(sel);
       choiceSelect = sel;
-      overlay.classList.add('modal-open');
-      document.addEventListener('keydown', onKey, true);
       setTimeout(() => sel.focus(), 30);
+    });
+
+    // Text-prompt variant: a single <input> below the message. Resolves the trimmed text on
+    // Confirm, null on Cancel/Close/Escape. opts: { title, confirmLabel, defaultValue }.
+    this.prompt = (message, opts = {}) => new Promise(resolve => {
+      dismissPrevious();
+      resolveCurrent = resolve;
+      beginDialog(message, opts, 'Enter a name');
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'confirm-prompt-input';
+      inp.value = opts.defaultValue || '';
+      inp.addEventListener('keydown', e => e.stopPropagation());   // keep the modal's Enter/Esc, but let typing through
+      injectRow(inp);
+      promptInput = inp;
+      setTimeout(() => { inp.focus(); inp.select(); }, 30);
     });
   }
 }

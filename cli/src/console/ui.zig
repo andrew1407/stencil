@@ -16,10 +16,10 @@ var current_accent: []const u8 = theme.default_key;
 pub const completions = [_][]const u8{
     "upload",      "paste",    "blank",       "apply",    "crop",   "rotate",
     "filter",      "bw",       "sepia",       "tint",     "none",   "exec",
-    "undo",        "redo",     "reset",       "save",     "layout", "connect",
-    "connections", "disconnect", "reconnect", "projects", "fetch",  "sync",
-    "copy",        "status",   "theme",       "clear",    "drop",   "help",
-    "exit",
+    "undo",        "redo",     "reset",       "save",     "layout", "formula",
+    "connect",     "connections", "disconnect", "reconnect", "projects", "fetch",
+    "sync",        "copy",     "status",      "theme",    "clear",  "drop",
+    "help",        "exit",
 };
 
 pub fn setInteractive(v: bool) void {
@@ -48,21 +48,28 @@ pub fn status(session: *Session) void {
     const img = session.current();
     const tag = if (session.temp) "  [in-memory, temporary]" else "";
     const n = session.stateCount();
+    // Page format shown next to the px size (best-effort).
+    const fmt = session.pageFormatLabel() catch null;
+    defer if (fmt) |f| session.gpa.free(f);
+    const fmt_s = if (fmt) |f| f else "";
     if (n > 1) {
-        logo.print("image: {s} ({d}x{d}){s}  [{d}/{d}]\n", .{ session.label.?, img.width, img.height, tag, session.cursor + 1, n });
+        logo.print("image: {s} ({d}x{d} px · {s}){s}  [{d}/{d}]\n", .{ session.label.?, img.width, img.height, fmt_s, tag, session.cursor + 1, n });
     } else {
-        logo.print("image: {s} ({d}x{d}){s}\n", .{ session.label.?, img.width, img.height, tag });
+        logo.print("image: {s} ({d}x{d} px · {s}){s}\n", .{ session.label.?, img.width, img.height, fmt_s, tag });
     }
 }
 
-// A concise per-action acknowledgement (not the full identity header): "<verb> -> WxH [n/m]".
+// A concise per-action acknowledgement (not the full identity header): "<verb> -> WxH · fmt [n/m]".
 pub fn ack(session: *Session, verb: []const u8) void {
     const img = session.current();
     const n = session.stateCount();
+    const fmt = session.pageFormatLabel() catch null;
+    defer if (fmt) |f| session.gpa.free(f);
+    const fmt_s = if (fmt) |f| f else "";
     if (n > 1) {
-        logo.print("{s} -> {d}x{d}  [{d}/{d}]\n", .{ verb, img.width, img.height, session.cursor + 1, n });
+        logo.print("{s} -> {d}x{d} px · {s}  [{d}/{d}]\n", .{ verb, img.width, img.height, fmt_s, session.cursor + 1, n });
     } else {
-        logo.print("{s} -> {d}x{d}\n", .{ verb, img.width, img.height });
+        logo.print("{s} -> {d}x{d} px · {s}\n", .{ verb, img.width, img.height, fmt_s });
     }
 }
 
@@ -140,6 +147,7 @@ pub fn help() void {
     helpSection(a, r, "Save");
     helpRow(a, r, "/save [path]", "write to a file; a bare /save pushes to the active server project");
     helpRow(a, r, "/layout [path]", "save the layout JSON (bare = <project>.json; a dir saves <project>.json there)");
+    helpRow(a, r, "/formula [x|y <expr>|on|off|clear]", "set the x/y coord-transform formulas (saved in the layout)");
     helpRow(a, r, "/copy", "copy the current image to the clipboard (macOS)");
 
     helpSection(a, r, "Connections");

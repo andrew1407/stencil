@@ -37,6 +37,24 @@ export class StencilProjectsModal extends StencilElement {
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
+                <select id="projects-filter" class="modal-filter" title="Filter projects">
+                    <option value="all">All</option>
+                    <option value="local">Local</option>
+                    <option value="server">Server</option>
+                    <option value="incognito">Incognito tabs</option>
+                </select>
+            </div>
+            <!-- Batch-select toolbar: appears once one or more rows are checked. -->
+            <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
+                <span class="projects-batch-count" id="projects-batch-count">0 selected</span>
+                <span class="projects-batch-actions">
+                    <button id="projects-batch-move-server" class="btn-icon-text" title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
+                    <button id="projects-batch-copy-server" class="btn-icon-text" title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
+                    <button id="projects-batch-move-local" class="btn-icon-text" title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
+                    <button id="projects-batch-copy-local" class="btn-icon-text" title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
+                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove</span></button>
+                    <button id="projects-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
+                </span>
             </div>
             <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
             <div class="settings-footer">
@@ -58,10 +76,64 @@ export class StencilProjectsModal extends StencilElement {
     const list = document.getElementById('projects-list');
     const newEditorBtn = document.getElementById('projects-new-editor');
     const clearAllBtn = document.getElementById('projects-clear-all');
+    const filterEl = document.getElementById('projects-filter');
+    const batchBar = document.getElementById('projects-batch-bar');
+    const batchCount = document.getElementById('projects-batch-count');
     const store = app.storage.store;
 
     let peers = []; // active project ids open in OTHER tabs
+    let incognitoPeers = []; // incognito sessions open in OTHER tabs ({ peerId, name, updatedAt })
+    let filterMode = 'all';
     const hasServers = () => !!app.connections?.urls?.length;
+    // Live blob URLs for the current render's remote thumbnails. Kept alive (not revoked on
+    // load) so the hover-magnify zoom can reuse them; freed at the start of the next render.
+    const remoteObjectUrls = new Set();
+
+    // ── Multi-select state ──
+    // selected: key -> { kind:'local'|'remote', id, serverUrl, isServer, meta }. A local meta
+    // with a remoteId+address is a server-backed project (isServer); a pure-local one isn't.
+    const selected = new Map();
+    const localKey = (id) => `local:${id}`;
+    const remoteKey = (m) => `remote:${m.serverUrl}:${m.id}`;
+    const isServerMeta = (m) => !!(m && m.remoteId && m.address);
+    const sel = () => Array.from(selected.values());
+    // Batch eligibility: move/copy-to-server wants only pure-local rows; move/copy-to-local
+    // wants only pure-remote (not-yet-local) rows.
+    const onlyLocalMovable = () => selected.size > 0 && sel().every(s => s.kind === 'local' && !s.isServer);
+    const onlyRemoteMovable = () => selected.size > 0 && sel().every(s => s.kind === 'remote');
+
+    const batchBtns = {
+      moveServer: document.getElementById('projects-batch-move-server'),
+      copyServer: document.getElementById('projects-batch-copy-server'),
+      moveLocal: document.getElementById('projects-batch-move-local'),
+      copyLocal: document.getElementById('projects-batch-copy-local'),
+      remove: document.getElementById('projects-batch-remove'),
+      clear: document.getElementById('projects-batch-clear'),
+    };
+    const updateBatchBar = () => {
+      batchBar.style.display = selected.size ? '' : 'none';
+      batchCount.textContent = `${selected.size} selected`;
+      const local = onlyLocalMovable();
+      const remote = onlyRemoteMovable();
+      batchBtns.moveServer.disabled = !(local && hasServers());
+      batchBtns.copyServer.disabled = !(local && hasServers());
+      batchBtns.moveLocal.disabled = !remote;
+      batchBtns.copyLocal.disabled = !remote;
+    };
+    const clearSelection = () => { selected.clear(); updateBatchBar(); };
+    const toggleSelect = (key, entry, on) => {
+      if (on) selected.set(key, entry);
+      else selected.delete(key);
+      updateBatchBar();
+    };
+
+    // Pick a connected server (auto when only one). Returns an address or null (cancelled).
+    const pickServer = async (message) => {
+      const urls = app.connections?.urls || [];
+      if (!urls.length) return null;
+      if (urls.length === 1) return urls[0];
+      return app.choose(message, { title: 'Choose server', confirmLabel: 'OK', options: urls.map(u => ({ value: u, label: u })) });
+    };
 
     const fmtDate = ts => {
       if (!ts) return '';
@@ -178,9 +250,20 @@ export class StencilProjectsModal extends StencilElement {
     };
 
     // Build a single row element for a project meta (or the temp synthetic row).
+    // After a move re-sorts the list, keep the moved item visible + focused so it doesn't
+    // appear to "jump away". Rows carry data-id; scroll the matching one into view.
+    const scrollRowIntoView = (id) => {
+      if (id == null) return;
+      requestAnimationFrame(() => {
+        const el = list.querySelector(`[data-id="${id}"]`);
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+      });
+    };
+
     const makeRow = (meta, opts = {}) => {
       const row = document.createElement('div');
       row.className = 'project-row';
+      if (!opts.temp && meta && meta.id != null) row.dataset.id = meta.id;
       if (opts.temp) row.classList.add('project-temp');
       if (opts.incognito) row.classList.add('project-incognito');
       if (!opts.temp && meta.id === app.activeProjectId) row.classList.add('project-active');
@@ -188,6 +271,22 @@ export class StencilProjectsModal extends StencilElement {
       // it IS that server project (opened/saved), shown once with its real thumbnail.
       const serverLinked = !opts.temp && meta && meta.remoteId && meta.address;
       if (serverLinked) row.classList.add('project-remote');
+
+      // Multi-select checkbox (saved rows only; the synthetic temp/incognito row has none).
+      if (!opts.temp) {
+        const key = localKey(meta.id);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'project-select';
+        cb.checked = selected.has(key);
+        if (cb.checked) row.classList.add('project-selected');
+        cb.addEventListener('click', e => e.stopPropagation());   // don't open the row
+        cb.addEventListener('change', () => {
+          toggleSelect(key, { kind: 'local', id: meta.id, serverUrl: meta.address || null, isServer: isServerMeta(meta), meta }, cb.checked);
+          row.classList.toggle('project-selected', cb.checked);
+        });
+        row.appendChild(cb);
+      }
 
       const thumbWrap = document.createElement('div');
       thumbWrap.className = 'project-thumb';
@@ -294,16 +393,24 @@ export class StencilProjectsModal extends StencilElement {
           let address = urls[0];
           if (urls.length > 1) {
             address = await app.choose(
-              `Move "${meta.name || 'Untitled'}" to which server? The local copy will be removed.`,
+              `Move "${meta.name || 'Untitled'}" to which server? It becomes a server-backed project.`,
               { title: 'Move to server', confirmLabel: 'Move', options: urls.map(u => ({ value: u, label: u })) });
             if (!address) return;
           } else if (!(await app.confirm(
-            `Move "${meta.name || 'Untitled'}" to server ${address}? The local copy will be removed.`,
+            `Move "${meta.name || 'Untitled'}" to server ${address}? It becomes a server-backed project.`,
             { title: 'Move to server', confirmLabel: 'Move' }))) {
             return;
           }
-          try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); }
+          try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
           catch (err) { notify(`Could not move to server — ${err.message}`, 'fail'); }
+        };
+        const copyToServer = async () => {
+          const address = await pickServer(`Copy "${meta.name || 'Untitled'}" to which server?`);
+          if (!address) return;
+          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
+          if (name == null) return;
+          try { await app.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
+          catch (err) { notify(`Could not copy to server — ${err.message}`, 'fail'); }
         };
         const removeRow = async () => {
           if (openElsewhere()) { notify('Open in another tab — close it there first', 'fail'); return; }
@@ -325,6 +432,7 @@ export class StencilProjectsModal extends StencilElement {
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
           { icon: 'refresh', label: 'Renew expiry', onClick: () => { app.renewProject(meta.id); render(); } },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
+          (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
           { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
         ];
 
@@ -349,6 +457,29 @@ export class StencilProjectsModal extends StencilElement {
 
         if (!isActive) row.classList.add('project-clickable');
         row.addEventListener('click', open);
+      } else if (opts.incognito && hasServers()) {
+        // The incognito session has no menu, but it CAN be published to a server (it then
+        // becomes a normal server-backed project and leaves incognito).
+        const saveToServer = async () => {
+          const urls = app.connections.urls;
+          let address = urls[0];
+          if (urls.length > 1) {
+            address = await app.choose('Save this incognito project to which server?',
+              { title: 'Save to server', confirmLabel: 'Save', options: urls.map(u => ({ value: u, label: u })) });
+            if (!address) return;
+          }
+          try { await app.publishIncognitoToServer(address); render(); }
+          catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
+        };
+        const actions = document.createElement('div');
+        actions.className = 'project-actions';
+        const btn = document.createElement('button');
+        btn.className = 'project-more btn-icon';
+        btn.title = 'Save to server';
+        btn.innerHTML = icon('server', { size: 15 });
+        btn.addEventListener('click', e => { e.stopPropagation(); saveToServer(); });
+        actions.appendChild(btn);
+        row.appendChild(actions);
       }
       return row;
     };
@@ -359,6 +490,22 @@ export class StencilProjectsModal extends StencilElement {
     const makeRemoteRow = (meta) => {
       const row = document.createElement('div');
       row.className = 'project-row project-remote';
+      if (meta && meta.id != null) row.dataset.id = meta.id;
+      // Multi-select checkbox (server projects are the move/copy-to-local batch targets).
+      {
+        const key = remoteKey(meta);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'project-select';
+        cb.checked = selected.has(key);
+        if (cb.checked) row.classList.add('project-selected');
+        cb.addEventListener('click', e => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          toggleSelect(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta }, cb.checked);
+          row.classList.toggle('project-selected', cb.checked);
+        });
+        row.appendChild(cb);
+      }
       const thumb = document.createElement('div');
       thumb.className = 'project-thumb project-thumb-placeholder';
       thumb.innerHTML = icon('server', { size: 24 });
@@ -370,7 +517,9 @@ export class StencilProjectsModal extends StencilElement {
         const img = document.createElement('img');
         img.alt = '';
         img.src = src;
-        if (revoke) img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
+        // Keep blob URLs alive for the hover-magnify zoom (which reuses img.src); they're
+        // revoked at the NEXT render instead of on load, so the preview isn't a broken image.
+        if (revoke) remoteObjectUrls.add(src);
         thumb.innerHTML = '';
         thumb.classList.remove('project-thumb-placeholder');
         thumb.appendChild(img);
@@ -422,17 +571,32 @@ export class StencilProjectsModal extends StencilElement {
         if (!(await app.confirm(
           `Move "${meta.name || 'Untitled'}" to local storage? It will be removed from the server.`,
           { title: 'Move to local', confirmLabel: 'Move' }))) return;
-        try { await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); }
+        try { const newId = await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
         catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
       };
-      // Make a detached local copy ("<name>-local"), leaving the server copy in place, and open it.
-      const makeLocalCopy = async () => {
+      // Detached local copy (prompts a name, default "<name>-copy"), leaving the server copy
+      // in place; opens the new local project.
+      const copyToLocal = async () => {
+        const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
+        if (name == null) return;
         try {
-          const newId = await app.copyServerProjectToLocal(meta);
+          const newId = await app.copyServerProjectToLocal(meta, { name });
           notify('Local copy created', 'ok');
           app.switchToProject(newId);
           close();
         } catch (err) { notify(`Could not make a local copy — ${err.message}`, 'fail'); }
+      };
+      // Incognito copy (no saving): load the project's content as an incognito session, in
+      // this tab or a new one.
+      const copyToIncognito = async () => {
+        const where = await app.choose(`Open an incognito copy of "${meta.name || 'Untitled'}" where?`,
+          { title: 'Incognito copy', confirmLabel: 'Open', options: [
+            { value: 'here', label: 'This tab (replace current)' },
+            { value: 'newtab', label: 'New tab' },
+          ] });
+        if (!where) return;
+        try { await app.copyServerProjectToIncognito(meta, { newTab: where === 'newtab' }); if (where === 'here') close(); }
+        catch (err) { notify(`Could not open an incognito copy — ${err.message}`, 'fail'); }
       };
       const deleteFromServer = async () => {
         if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true }))) return;
@@ -446,7 +610,8 @@ export class StencilProjectsModal extends StencilElement {
       // shared with the row's right-click context menu.
       const menuItems = () => [
         { icon: 'folder', label: 'Open from server', onClick: openFromServer },
-        { icon: 'copy', label: 'Make local copy', onClick: makeLocalCopy },
+        { icon: 'copy', label: 'Copy to local…', onClick: copyToLocal },
+        { icon: 'incognito', label: 'Copy to incognito…', onClick: copyToIncognito },
         { icon: 'download', label: 'Move to local', onClick: moveToLocal },
         { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
       ];
@@ -541,50 +706,131 @@ export class StencilProjectsModal extends StencilElement {
       }
     };
 
+    // A read-only row for an incognito session open in ANOTHER tab (informational — its
+    // in-memory content can't be reached from here).
+    const makeIncognitoPeerRow = (p) => {
+      const row = document.createElement('div');
+      row.className = 'project-row project-incognito';
+      const thumb = document.createElement('div');
+      thumb.className = 'project-thumb project-thumb-placeholder';
+      thumb.innerHTML = icon('incognito', { size: 24 });
+      row.appendChild(thumb);
+      const info = document.createElement('div');
+      info.className = 'project-info';
+      const name = document.createElement('div');
+      name.className = 'project-name';
+      name.textContent = p.name || 'Incognito (unsaved)';
+      const sub = document.createElement('div');
+      sub.className = 'project-sub';
+      sub.textContent = 'Incognito · open in another tab';
+      info.append(name, sub);
+      row.appendChild(info);
+      return row;
+    };
+
+    const emptyLabelFor = (mode) =>
+      mode === 'incognito' ? 'No incognito tabs.'
+        : mode === 'server' ? 'No server projects.'
+          : mode === 'local' ? 'No local projects.'
+            : 'No saved projects yet.';
+
     const render = () => {
       const q = search.value || '';
       hideZoom();
       closeMenu();   // a rebuilt list invalidates any open row menu
+      // Free the previous render's remote thumbnail blob URLs (kept alive for the hover-zoom).
+      for (const u of remoteObjectUrls) URL.revokeObjectURL(u);
+      remoteObjectUrls.clear();
       list.innerHTML = '';
+      const showLocal = filterMode === 'all' || filterMode === 'local';
+      const showServer = filterMode === 'all' || filterMode === 'server';
+      const showIncog = filterMode === 'all' || filterMode === 'incognito';
 
-      // Synthetic current-tab temporary/incognito row (always for this tab).
-      if (app.storage.temporary) {
+      // Synthetic current-tab temporary/incognito row. In the incognito filter only a real
+      // incognito session qualifies (a plain temporary editor does not).
+      if (showIncog && app.storage.temporary) {
         const label = app.storage.incognito ? 'incognito (unsaved)' : 'temporary (unsaved)';
-        if (rowMatches(label, q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
+        const qualifies = filterMode === 'incognito' ? app.storage.incognito : true;
+        if (qualifies && rowMatches(label, q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
+      }
+      // Incognito sessions open in OTHER tabs (read-only).
+      if (showIncog) {
+        for (const p of incognitoPeers)
+          if (rowMatches(p.name || 'Incognito', q)) list.appendChild(makeIncognitoPeerRow(p));
       }
 
-      const projects = store.list().filter(m => rowMatches(m.name || '', q));
-      for (const meta of projects) list.appendChild(makeRow(meta));
+      // Saved projects: pure-local rows under Local/All; server-linked (golden) under Server/All.
+      const all = store.list().filter(m => rowMatches(m.name || '', q));
+      const localLinked = all.filter(m => isServerMeta(m));
+      if (showLocal) for (const meta of all.filter(m => !isServerMeta(m))) list.appendChild(makeRow(meta));
+      if (showServer) for (const meta of localLinked) list.appendChild(makeRow(meta));
 
-      // Server-linked local rows already represent their remote project; collect
-      // their keys so renderRemote() doesn't append a duplicate golden row.
-      const claimed = new Set(
-        projects
-          .filter(m => m.remoteId && m.address)
-          .map(m => `${m.address}|${m.remoteId}`));
+      // Server-linked local rows already represent their remote project; collect their keys so
+      // renderRemote() doesn't append a duplicate golden row.
+      const claimed = new Set(localLinked.map(m => `${m.address}|${m.remoteId}`));
 
-      // If servers are connected, show shimmering skeleton rows while their listing
-      // is in flight (renderRemote replaces them) — never a misleading "no projects"
-      // flash. With no servers, show the real empty message immediately.
-      if (hasServers()) {
+      // Server rows: skeletons while the listing loads (renderRemote replaces them). Only when
+      // the filter shows servers and at least one is connected.
+      if (showServer && hasServers()) {
         list.appendChild(makeSkeletonRow());
         list.appendChild(makeSkeletonRow());
+        renderRemote(q, claimed);
       } else if (list.children.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
-        empty.textContent = q.trim() ? 'No matching projects.' : 'No saved projects yet.';
+        empty.textContent = q.trim() ? 'No matching projects.' : emptyLabelFor(filterMode);
         list.appendChild(empty);
       }
 
-      // Append server-stored projects (golden) once their lists resolve.
-      renderRemote(q, claimed);
+      updateBatchBar();
     };
 
     const { open, close } = wireModalShell(overlay, openBtn, closeBtn, {
-      onOpen: () => { search.value = ''; render(); }
+      onOpen: () => { search.value = ''; clearSelection(); render(); }
     });
 
     attachSearchFilter(search, render);
+    filterEl.addEventListener('change', () => { filterMode = filterEl.value; render(); });
+
+    // ── Batch actions over the checked rows ──
+    const runBatch = async (fn, okMsg, failMsg) => {
+      let done = 0;
+      for (const s of sel()) {
+        try { await fn(s); done++; } catch (err) { notify(`${failMsg} — ${err.message}`, 'fail'); }
+      }
+      clearSelection();
+      render();
+      if (done) notify(`${okMsg} (${done})`, 'ok');
+    };
+    batchBtns.clear.addEventListener('click', () => { clearSelection(); render(); });
+    batchBtns.remove.addEventListener('click', async () => {
+      if (!selected.size) return;
+      if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true }))) return;
+      await runBatch(async (s) => {
+        if (s.kind === 'remote') {
+          const conn = app.connections?.get(s.serverUrl);
+          if (conn) await conn.deleteProject(s.id);
+        } else { app.removeProject(s.id); }
+      }, 'Removed', 'Could not remove');
+    });
+    batchBtns.moveServer.addEventListener('click', async () => {
+      const address = await pickServer('Move the selected projects to which server?');
+      if (!address) return;
+      await runBatch(s => app.moveProjectToServer(s.id, address), 'Moved to server', 'Could not move');
+    });
+    batchBtns.copyServer.addEventListener('click', async () => {
+      const address = await pickServer('Copy the selected projects to which server?');
+      if (!address) return;
+      await runBatch(s => app.copyProjectToServer(s.id, address), 'Copied to server', 'Could not copy');
+    });
+    batchBtns.moveLocal.addEventListener('click', async () => {
+      if (!selected.size) return;
+      if (!(await app.confirm(`Move ${selected.size} server project(s) to local? They will be removed from the server.`, { title: 'Move to local', confirmLabel: 'Move' }))) return;
+      await runBatch(s => app.moveProjectToLocal(s.meta), 'Moved to local', 'Could not move');
+    });
+    batchBtns.copyLocal.addEventListener('click', async () => {
+      await runBatch(s => app.copyServerProjectToLocal(s.meta), 'Copied to local', 'Could not copy');
+    });
 
     newEditorBtn.addEventListener('click', async () => {
       if (!(await app.confirm('Discard current editor and start a new blank (unsaved) editor?', { title: 'New editor' }))) return;
@@ -607,6 +853,11 @@ export class StencilProjectsModal extends StencilElement {
     app.tabs.onProjectsChanged(() => { if (overlay.classList.contains('modal-open')) render(); });
     app.tabs.onPeers(ids => {
       peers = ids || [];
+      if (overlay.classList.contains('modal-open')) render();
+    });
+    // Incognito sessions open in OTHER tabs (for the "Incognito tabs" filter).
+    app.tabs.onIncognitoPeers(list => {
+      incognitoPeers = list || [];
       if (overlay.classList.contains('modal-open')) render();
     });
 

@@ -174,6 +174,17 @@ class Core:
             _cstr,
         ]
 
+        lib.stencil_cli_validateFormula.restype = ctypes.c_int
+        lib.stencil_cli_validateFormula.argtypes = [_cstr, ctypes.c_int]
+
+        lib.stencil_cli_applyFormula.restype = ctypes.c_double
+        lib.stencil_cli_applyFormula.argtypes = [
+            _cstr,
+            ctypes.c_int,
+            ctypes.c_double,
+            ctypes.c_int,
+        ]
+
     # ── colour ────────────────────────────────────────────────────────────────
     def parse_color(self, spec: str) -> Optional[Tuple[int, int, int, int]]:
         """Parse a CSS colour to an (r,g,b,a) 0..255 tuple, or None if unrecognized."""
@@ -368,6 +379,25 @@ class Core:
             _encode(style),
             ctypes.c_int(1 if locked else 0),
             _encode(fill_color),
+        )
+
+    # ── formula (coordinate transform) ──────────────────────────────────────────
+    def validate_formula(self, expr: str, var: str = "x") -> bool:
+        """True if `expr` is a valid single-variable formula in `var` ('x'/'y'); empty = identity."""
+        return bool(self._lib.stencil_cli_validateFormula(_encode(expr), ord(var[:1] or "x")))
+
+    def apply_formula(
+        self, expr: str, var: str, value: float, allow: bool = True
+    ) -> float:
+        """Apply `expr` to `value` (the same FormulaParser the browser uses). Returns `value`
+        unchanged when allow is False, expr is empty, or evaluation fails (identity-on-error)."""
+        return float(
+            self._lib.stencil_cli_applyFormula(
+                _encode(expr),
+                ord(var[:1] or "x"),
+                ctypes.c_double(value),
+                ctypes.c_int(1 if allow else 0),
+            )
         )
 
 

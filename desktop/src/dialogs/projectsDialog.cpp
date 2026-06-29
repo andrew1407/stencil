@@ -3,8 +3,10 @@
 #include "iconSet.hpp"
 #include "projectsStore.hpp"
 #include "serverClient.hpp"
+#include <QAbstractItemView>
 #include <QAction>
 #include <QBrush>
+#include <QComboBox>
 #include <QMenu>
 #include <QColor>
 #include <QFont>
@@ -108,6 +110,14 @@ namespace stencil::gui {
     class ProjectRowDelegate : public QStyledItemDelegate {
      public:
       using QStyledItemDelegate::QStyledItemDelegate;
+      // Cap the row width to the viewport so long "<name> — <url>" labels ELIDE instead of
+      // forcing a horizontal scrollbar (which clipped the row at narrow window widths).
+      QSize sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& idx) const override {
+        QSize s = QStyledItemDelegate::sizeHint(opt, idx);
+        if (const auto* av = qobject_cast<const QAbstractItemView*>(opt.widget))
+          s.setWidth(av->viewport()->width());
+        return s;
+      }
       void paint(QPainter* p, const QStyleOptionViewItem& opt,
                  const QModelIndex& idx) const override {
         QStyledItemDelegate::paint(p, opt, idx);
@@ -158,7 +168,9 @@ namespace stencil::gui {
       : QDialog(parent), projects_(projects), now_(now), connections_(connections),
         thumbs_(thumbs) {
     setWindowTitle("Projects");
-    setMinimumSize(380, 320);
+    // Twice the previous width so the "<name> — <url>" labels fit without eliding early.
+    setMinimumSize(760, 320);
+    resize(900, 560);
 
     // Most-recently-updated first, matching the browser store ordering.
     std::sort(projects_.begin(), projects_.end(),
@@ -169,11 +181,62 @@ namespace stencil::gui {
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel("<b>Saved projects</b>", this));
 
+    // Filter row: All / Local / Server (mirrors the browser modal's filter dropdown).
+    {
+      auto* frow = new QHBoxLayout;
+      frow->addWidget(new QLabel("Show:", this));
+      filter_ = new QComboBox(this);
+      filter_->addItem("All", "all");
+      filter_->addItem("Local", "local");
+      filter_->addItem("Server", "server");
+      frow->addWidget(filter_, 1);
+      layout->addLayout(frow);
+      connect(filter_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
+    }
+
+    // Batch-select toolbar — appears once one or more rows are checked. Buttons enable by
+    // selection homogeneity (all-local → To/Server-copy; all-server → To/Local-copy).
+    {
+      const bool haveServers = connections_ && !connections_->urls().isEmpty();
+      batchBar_ = new QWidget(this);
+      auto* bh = new QHBoxLayout(batchBar_);
+      bh->setContentsMargins(0, 0, 0, 0);
+      batchCount_ = new QLabel("0 selected", this);
+      bh->addWidget(batchCount_);
+      bh->addStretch(1);
+      batchToServer_ = new QPushButton(QString::fromUtf8("⇧ To server"), this);
+      batchCopyServer_ = new QPushButton(QString::fromUtf8("⧉ Server copy"), this);
+      batchToLocal_ = new QPushButton(QString::fromUtf8("⇩ To local"), this);
+      batchCopyLocal_ = new QPushButton(QString::fromUtf8("⧉ Local copy"), this);
+      auto* batchRemove = new QPushButton("Remove", this);
+      auto* batchClear = new QPushButton("Clear", this);
+      batchToServer_->setVisible(haveServers);
+      batchCopyServer_->setVisible(haveServers);
+      batchToLocal_->setVisible(haveServers);
+      batchCopyLocal_->setVisible(haveServers);
+      bh->addWidget(batchToServer_);
+      bh->addWidget(batchCopyServer_);
+      bh->addWidget(batchToLocal_);
+      bh->addWidget(batchCopyLocal_);
+      bh->addWidget(batchRemove);
+      bh->addWidget(batchClear);
+      batchBar_->setVisible(false);
+      layout->addWidget(batchBar_);
+      connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToServer); });
+      connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToServer); });
+      connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToLocal); });
+      connect(batchCopyLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToLocal); });
+      connect(batchRemove, &QPushButton::clicked, this, [this] { runBatch(Action::BatchRemove); });
+      connect(batchClear, &QPushButton::clicked, this, [this] { checked_.clear(); refresh(); });
+    }
+
     list_ = new QListWidget(this);
     // Row icons hold each project's edited-result preview (local) or its stored
     // result/original image (server); size the list's icon column to fit them.
     list_->setIconSize(QSize(56, 56));
     list_->setSpacing(6);  // vertical gaps so rows read as separate cards
+    // Rows fit the viewport (the delegate clamps their width + elides) — never scroll sideways.
+    list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     // Golden outline (not fill) around shared rows + the per-row "⋯" kebab,
     // mirroring the browser modal.
     list_->setItemDelegate(new ProjectRowDelegate(list_));
@@ -193,60 +256,26 @@ namespace stencil::gui {
     layout->addWidget(list_, 1);
     refresh();
 
-    connect(list_, &QListWidget::itemDoubleClicked, this,
-            &ProjectsDialog::openSelected);
+    connect(list_, &QListWidget::itemDoubleClicked, this, &ProjectsDialog::openSelected);
+    // Per-row checkbox toggled → update the batch selection.
+    connect(list_, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
 
+    // Bottom row: only the create actions + Close. Per-row actions (Open / Rename / Renew /
+    // To-server / copy / Delete …) live on the "⋯" kebab + right-click menu, and multi-row
+    // actions on the batch toolbar above — so they're not duplicated here.
     auto* row = new QHBoxLayout;
     auto* newBtn = new QPushButton("New Project", this);
     auto* blankBtn = new QPushButton("🖼 Blank Image", this);
     blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
-    auto* openBtn = new QPushButton("Open", this);
-    auto* openNewWinBtn = new QPushButton("↗ New Window", this);
-    openNewWinBtn->setToolTip("Open the selected project in a new window");
-    auto* renameBtn = new QPushButton("✎ Rename", this);
-    renameBtn->setToolTip("Rename the selected project");
-    auto* renewBtn = new QPushButton("🔄 Renew", this);
-    renewBtn->setToolTip("Reset the 7-day expiry to start from now");
-    // Move-between-storage buttons: local → server, and server → local. Shown only
-    // when at least one server is connected; each acts on the matching row kind.
-    auto* toServerBtn = new QPushButton(QString::fromUtf8("⇧ To server"), this);
-    toServerBtn->setToolTip("Store the selected local project on a server, then remove the local copy");
-    auto* toLocalBtn = new QPushButton(QString::fromUtf8("⇩ To local"), this);
-    toLocalBtn->setToolTip("Copy the selected server project to local storage, then remove it from the server");
-    auto* copyLocalBtn = new QPushButton(QString::fromUtf8("⧉ Local copy"), this);
-    copyLocalBtn->setToolTip("Make a local copy (\"<name>-local\") of the selected server project and open it, leaving the server copy in place");
-    const bool haveServers = connections_ && !connections_->urls().isEmpty();
-    toServerBtn->setVisible(haveServers);
-    toLocalBtn->setVisible(haveServers);
-    copyLocalBtn->setVisible(haveServers);
-    auto* delBtn = new QPushButton("Delete", this);
     auto* closeBtn = new QPushButton("Close", this);
-    openBtn->setDefault(true);
     row->addWidget(newBtn);
     row->addWidget(blankBtn);
     row->addStretch(1);
-    row->addWidget(openBtn);
-    row->addWidget(openNewWinBtn);
-    row->addWidget(renameBtn);
-    row->addWidget(renewBtn);
-    row->addWidget(toServerBtn);
-    row->addWidget(toLocalBtn);
-    row->addWidget(copyLocalBtn);
-    row->addWidget(delBtn);
     row->addWidget(closeBtn);
     layout->addLayout(row);
 
     connect(newBtn, &QPushButton::clicked, this, &ProjectsDialog::createNew);
     connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
-    connect(openBtn, &QPushButton::clicked, this, &ProjectsDialog::openSelected);
-    connect(openNewWinBtn, &QPushButton::clicked, this,
-            &ProjectsDialog::openSelectedInNewWindow);
-    connect(renameBtn, &QPushButton::clicked, this, &ProjectsDialog::renameSelected);
-    connect(renewBtn, &QPushButton::clicked, this, &ProjectsDialog::renewSelected);
-    connect(toServerBtn, &QPushButton::clicked, this, &ProjectsDialog::moveToServerSelected);
-    connect(toLocalBtn, &QPushButton::clicked, this, &ProjectsDialog::moveToLocalSelected);
-    connect(copyLocalBtn, &QPushButton::clicked, this, &ProjectsDialog::makeLocalCopySelected);
-    connect(delBtn, &QPushButton::clicked, this, &ProjectsDialog::deleteSelected);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
 
     // Server (shared) projects: list them now and keep them live with a periodic
@@ -384,6 +413,9 @@ namespace stencil::gui {
 
   bool ProjectsDialog::eventFilter(QObject* obj, QEvent* ev) {
     if (list_ && obj == list_->viewport()) {
+      // On a width change, recompute item sizeHints so rows re-clamp + re-elide to the new
+      // viewport width (the delegate caps width to the viewport).
+      if (ev->type() == QEvent::Resize) list_->doItemsLayout();
       // Left-click on the "⋯" kebab strip pops the row's menu (consume it so it
       // doesn't also start a drag/selection); it's the right-click menu's twin.
       if (ev->type() == QEvent::MouseButtonPress) {
@@ -446,6 +478,7 @@ namespace stencil::gui {
     // Preserve the selected row across a live remote re-list so the polling timer
     // doesn't yank the user's selection out from under them.
     const int prevRow = list_->currentRow();
+    building_ = true;   // ignore the itemChanged storm from setCheckState below
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
     for (const auto& pr : projects_) {
@@ -459,6 +492,10 @@ namespace stencil::gui {
       if (!expiry.isEmpty()) label += QString("   ·   %1").arg(expiry);
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, QString::fromStdString(pr.meta.id));
+      // Multi-select checkbox (key "|<id>" — empty server marks a local row).
+      it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
+      it->setCheckState(checked_.contains("|" + QString::fromStdString(pr.meta.id))
+                            ? Qt::Checked : Qt::Unchecked);
       // Edited-result preview (filtered image + drawn lines), pre-rendered by the
       // caller through the same canvas/export path. Absent for pathless (in-memory)
       // sources, whose pixels aren't reloadable from disk — those fall back to a
@@ -490,6 +527,8 @@ namespace stencil::gui {
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, sp.id);
       it->setData(Qt::UserRole + 1, sp.serverUrl);
+      it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
+      it->setCheckState(checked_.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
       it->setForeground(QBrush(gold));
       QFont f = it->font();
       f.setBold(true);
@@ -520,9 +559,83 @@ namespace stencil::gui {
     if (list_->count() == 0) {
       auto* it = new QListWidgetItem("No projects yet", list_);
       it->setFlags(Qt::NoItemFlags);
+      building_ = false;
+      updateBatchBar();
       return;
     }
     list_->setCurrentRow(prevRow >= 0 && prevRow < list_->count() ? prevRow : 0);
+    applyFilter();   // re-hide rows the current filter excludes (survives the live re-list)
+    building_ = false;
+    updateBatchBar();
+  }
+
+  // A row's checkbox toggled → update the checked set + the batch toolbar.
+  void ProjectsDialog::onItemChanged(QListWidgetItem* it) {
+    if (building_ || !it || it->data(Qt::UserRole).isNull()) return;
+    const QString key = QString("%1|%2").arg(it->data(Qt::UserRole + 1).toString(),
+                                             it->data(Qt::UserRole).toString());
+    if (it->checkState() == Qt::Checked) checked_.insert(key);
+    else checked_.remove(key);
+    updateBatchBar();
+  }
+
+  // Show/hide the batch toolbar + enable buttons by selection homogeneity (all-local rows
+  // can go to a server; all-server rows can come to local).
+  void ProjectsDialog::updateBatchBar() {
+    if (!batchBar_) return;
+    int locals = 0, remotes = 0;
+    for (const QString& k : checked_) {
+      if (k.startsWith('|')) ++locals; else ++remotes;
+    }
+    const int n = checked_.size();
+    batchBar_->setVisible(n > 0);
+    if (batchCount_) batchCount_->setText(tr("%1 selected").arg(n));
+    const bool haveServers = connections_ && !connections_->urls().isEmpty();
+    const bool allLocal = n > 0 && remotes == 0;
+    const bool allRemote = n > 0 && locals == 0;
+    if (batchToServer_) batchToServer_->setEnabled(allLocal && haveServers);
+    if (batchCopyServer_) batchCopyServer_->setEnabled(allLocal && haveServers);
+    if (batchToLocal_) batchToLocal_->setEnabled(allRemote);
+    if (batchCopyLocal_) batchCopyLocal_->setEnabled(allRemote);
+  }
+
+  // Resolve the checked rows into (id, serverUrl) pairs, pick a target server for the
+  // to-server actions, then accept() so the main window applies the batch.
+  void ProjectsDialog::runBatch(Action act) {
+    batchItems_.clear();
+    for (const QString& k : checked_) {
+      const int bar = k.indexOf('|');
+      batchItems_.append({ k.mid(bar + 1), k.left(bar) });  // (id, serverUrl)
+    }
+    if (batchItems_.isEmpty()) return;
+    if (act == Action::BatchMoveToServer || act == Action::BatchCopyToServer) {
+      if (!connections_ || connections_->urls().isEmpty()) return;
+      const QStringList urls = connections_->urls();
+      QString target = urls.first();
+      if (urls.size() > 1) {
+        bool ok = false;
+        target = QInputDialog::getItem(this, tr("To server"),
+                                       tr("Move/copy the selected projects to which server?"),
+                                       urls, 0, false, &ok);
+        if (!ok || target.isEmpty()) return;
+      }
+      selectedServerUrl_ = target;
+    }
+    action_ = act;
+    accept();
+  }
+
+  // Hide rows the storage filter excludes. Placeholders (no project id) always show.
+  void ProjectsDialog::applyFilter() {
+    if (!filter_) return;
+    const QString mode = filter_->currentData().toString();
+    for (int i = 0; i < list_->count(); ++i) {
+      QListWidgetItem* it = list_->item(i);
+      if (it->data(Qt::UserRole).isNull()) continue;
+      const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
+      const bool show = mode == "all" || (mode == "local" && !remote) || (mode == "server" && remote);
+      it->setHidden(!show);
+    }
   }
 
   void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
@@ -535,7 +648,7 @@ namespace stencil::gui {
     if (remote) {
       menu.addAction(themedIcon("folder", ico, 16), "Open from server", this,
                      &ProjectsDialog::openSelected);
-      menu.addAction(themedIcon("copy", ico, 16), "Make local copy", this,
+      menu.addAction(themedIcon("copy", ico, 16), "Copy to local…", this,
                      &ProjectsDialog::makeLocalCopySelected);
       menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
                      &ProjectsDialog::moveToLocalSelected);
@@ -548,9 +661,12 @@ namespace stencil::gui {
                      &ProjectsDialog::renameSelected);
       menu.addAction(themedIcon("refresh", ico, 16), "Renew expiry", this,
                      &ProjectsDialog::renewSelected);
-      if (haveServers)
+      if (haveServers) {
         menu.addAction(themedIcon("server", ico, 16), "Move to server", this,
                        &ProjectsDialog::moveToServerSelected);
+        menu.addAction(themedIcon("copy", ico, 16), "Copy to server…", this,
+                       &ProjectsDialog::copyToServerSelected);
+      }
       menu.addSeparator();
       // Destructive: a red trash glyph echoes the browser's red "Remove" item.
       menu.addAction(themedIcon("trash", QColor("#dc3545"), 16), "Remove", this,
@@ -614,6 +730,37 @@ namespace stencil::gui {
     accept();
   }
 
+  void ProjectsDialog::copyToServerSelected() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
+    if (!connections_ || connections_->urls().isEmpty()) return;
+    const QStringList urls = connections_->urls();
+    QString target = urls.first();
+    if (urls.size() > 1) {
+      bool ok = false;
+      target = QInputDialog::getItem(this, "Copy to server",
+                                     "Copy this project to which server?", urls, 0, false, &ok);
+      if (!ok || target.isEmpty()) return;
+    }
+    const QString id = it->data(Qt::UserRole).toString();
+    const auto cur = std::find_if(projects_.begin(), projects_.end(),
+                                  [&](const Project& p) {
+                                    return QString::fromStdString(p.meta.id) == id;
+                                  });
+    const QString base = cur != projects_.end() ? QString::fromStdString(cur->meta.name)
+                                                : QStringLiteral("Untitled");
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, "Copy to server", "Name for the server copy:",
+                                               QLineEdit::Normal, base + "-copy", &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+    selectedId_ = id;
+    selectedServerUrl_ = target;
+    newName_ = name.trimmed();
+    action_ = Action::CopyToServer;
+    accept();
+  }
+
   void ProjectsDialog::moveToLocalSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
@@ -630,8 +777,17 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const QString server = it->data(Qt::UserRole + 1).toString();
     if (server.isEmpty()) return;  // server (golden) rows only
-    selectedId_ = it->data(Qt::UserRole).toString();
+    const QString id = it->data(Qt::UserRole).toString();
+    QString base = QStringLiteral("Untitled");
+    for (const auto& sp : remote_)
+      if (sp.id == id && sp.serverUrl == server) { base = sp.name.isEmpty() ? base : sp.name; break; }
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, "Copy to local", "Name for the local copy:",
+                                               QLineEdit::Normal, base + "-copy", &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+    selectedId_ = id;
     selectedServerUrl_ = server;
+    newName_ = name.trimmed();
     action_ = Action::MakeLocalCopy;
     accept();
   }

@@ -65,7 +65,8 @@ export class StencilBlankImageModal extends StencilElement {
         const px = defaultBlankSizePx(pageDims());
         widthEl.value = px.width;
         heightEl.value = px.height;
-        fillTargetSelect(targetEl, targetRow, app.connections);
+        // Incognito: never offer a server target (incognito content isn't created on a server).
+        fillTargetSelect(targetEl, targetRow, app.connections, !app.storage.incognito);
       }
     });
 

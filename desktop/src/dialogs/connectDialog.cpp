@@ -130,6 +130,46 @@ namespace stencil::gui {
 
     // ── Connections.
     root->addWidget(sectionLabel(tr("Connections")));
+
+    // Batch-select toolbar — appears once one or more connections are checked.
+    batchBar_ = new QWidget;
+    {
+      auto* bh = new QHBoxLayout(batchBar_);
+      bh->setContentsMargins(0, 0, 0, 0);
+      batchCount_ = new QLabel(tr("0 selected"));
+      bh->addWidget(batchCount_);
+      bh->addStretch(1);
+      auto* reSel = new QPushButton(tr("Reconnect"));
+      reSel->setIcon(themedIcon("refresh", txt, 15));
+      reSel->setToolTip(tr("Reconnect the selected servers"));
+      auto* discSel = new QPushButton(tr("Disconnect"));
+      discSel->setIcon(themedIcon("x", QColor("#dc3545"), 15));
+      discSel->setToolTip(tr("Disconnect (and forget) the selected servers"));
+      auto* clrSel = new QPushButton(tr("Clear"));
+      bh->addWidget(reSel);
+      bh->addWidget(discSel);
+      bh->addWidget(clrSel);
+      QObject::connect(reSel, &QPushButton::clicked, this, [this] {
+        for (const QString& u : selected_) {
+          QString err;
+          manager_->reconnect(u, err);
+        }
+        selected_.clear();
+        rebuildList();
+      });
+      QObject::connect(discSel, &QPushButton::clicked, this, [this] {
+        for (const QString& u : selected_) manager_->disconnectFrom(u);
+        selected_.clear();
+        rebuildList();
+      });
+      QObject::connect(clrSel, &QPushButton::clicked, this, [this] {
+        selected_.clear();
+        rebuildList();
+      });
+    }
+    batchBar_->setVisible(false);
+    root->addWidget(batchBar_);
+
     list_ = new QListWidget;
     list_->setSpacing(4);
     root->addWidget(list_, 1);
@@ -173,14 +213,24 @@ namespace stencil::gui {
     rebuildList();
   }
 
+  void ConnectDialog::updateBatchBar() {
+    if (!batchBar_) return;
+    batchBar_->setVisible(!selected_.isEmpty());
+    if (batchCount_) batchCount_->setText(tr("%1 selected").arg(selected_.size()));
+  }
+
   void ConnectDialog::rebuildList() {
     if (!manager_ || !list_) return;
     list_->clear();
     const QStringList urls = manager_->urls();
+    // Drop any selected urls that are no longer connected.
+    for (const QString& u : selected_.values())
+      if (!urls.contains(u)) selected_.remove(u);
     if (urls.isEmpty()) {
       auto* empty = new QListWidgetItem(tr("No servers connected."), list_);
       empty->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
       empty->setFlags(Qt::NoItemFlags);
+      updateBatchBar();
       return;
     }
     // A compact, bordered icon button (browser's per-row .connect-reconnect-one /
@@ -199,6 +249,15 @@ namespace stencil::gui {
       auto* h = new QHBoxLayout(row);
       h->setContentsMargins(8, 4, 8, 4);
       h->setSpacing(8);
+      // Multi-select checkbox for batch reconnect/disconnect.
+      auto* cb = new QCheckBox;
+      cb->setChecked(selected_.contains(url));
+      cb->setToolTip(tr("Select for batch action"));
+      QObject::connect(cb, &QCheckBox::toggled, this, [this, url](bool on) {
+        if (on) selected_.insert(url); else selected_.remove(url);
+        updateBatchBar();
+      });
+      h->addWidget(cb);
       stencil::net::ServerClient* cl = manager_->find(url);
       const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::Error;
       auto* dot = new QLabel;
@@ -232,6 +291,7 @@ namespace stencil::gui {
       item->setSizeHint(row->sizeHint());
       list_->setItemWidget(item, row);
     }
+    updateBatchBar();
   }
 
 }  // namespace stencil::gui

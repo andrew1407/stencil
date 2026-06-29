@@ -69,6 +69,14 @@ void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                const char* color, double thickness, double markerSize,
                                const char* style, int locked, const char* fillColor);
 
+/* ── Coordinate-transform formula (same FormulaParser the browser applies) ────── */
+/* `var` is the ASCII code of the single variable ('x' or 'y'). */
+/* Validate a formula: 1 if valid (empty = identity), else 0. */
+int stencil_cli_validateFormula(const char* expr, int var);
+/* Apply `expr` to `value`. Returns `value` unchanged when allowFormulas==0, `expr` is
+ * empty, or evaluation fails / is non-finite (identity-on-error, like the browser). */
+double stencil_cli_applyFormula(const char* expr, int var, double value, int allowFormulas);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

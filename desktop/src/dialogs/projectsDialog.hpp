@@ -3,17 +3,22 @@
 #include "serverClient.hpp"
 #include <QDialog>
 #include <QHash>
+#include <QPair>
 #include <QPixmap>
 #include <QSet>
 #include <QString>
+#include <QVector>
 #include <vector>
 
 class QListWidget;
 class QListWidgetItem;
+class QComboBox;
 class QTimer;
 class QNetworkAccessManager;
 class QLabel;
 class QPoint;
+class QPushButton;
+class QWidget;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -41,8 +46,16 @@ namespace stencil::gui {
     //   server (read selectedServerUrl() + selectedId()).
     // MakeLocalCopy: copy a SERVER project into local storage (named "<name>-local")
     //   and open it, leaving the server copy in place (read selectedServerUrl()+selectedId()).
+    // CopyToServer: copy a LOCAL project to a server, leaving the local one in place
+    //   (read selectedId() + selectedServerUrl() + newName()).
+    // MakeLocalCopy now carries newName() (the copy's name, default "<name>-copy").
+    // Batch* act on the checked rows (read batchItems()): BatchRemove (any), BatchMoveToServer
+    //   / BatchCopyToServer (local-only checked + selectedServerUrl()), BatchMoveToLocal /
+    //   BatchCopyToLocal (server-only checked).
     enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Renew, NewBlank,
-                        OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy };
+                        OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
+                        BatchRemove, BatchMoveToServer, BatchCopyToServer,
+                        BatchMoveToLocal, BatchCopyToLocal };
 
     // `now` (epoch ms) is the reference point for the per-row expiry labels and
     // their warning/expired colouring; the caller passes its clock so the dialog
@@ -59,6 +72,8 @@ namespace stencil::gui {
     QString selectedId() const { return selectedId_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
+    // For Batch* actions: the checked rows as (id, serverUrl) pairs (serverUrl empty = local).
+    const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
 
    protected:
     // Hover-magnify: watch the list viewport so hovering a row's thumbnail pops a
@@ -89,10 +104,18 @@ namespace stencil::gui {
     void deleteSelected();
     // Move the selected LOCAL project to a server (pick one if several connected).
     void moveToServerSelected();
+    // Copy the selected LOCAL project to a server (local copy kept), prompting a name.
+    void copyToServerSelected();
     // Move the selected SERVER project into local storage.
     void moveToLocalSelected();
-    // Make a detached local copy of the selected SERVER project (server copy kept).
+    // Make a detached local copy of the selected SERVER project (server copy kept), prompting a name.
     void makeLocalCopySelected();
+    // Re-apply the storage filter (All / Local / Server) to the visible rows.
+    void applyFilter();
+    // Multi-select: collect the checked rows + show/enable the batch toolbar; run a batch action.
+    void onItemChanged(QListWidgetItem* it);
+    void updateBatchBar();
+    void runBatch(Action act);
     void renameSelected();
     void renewSelected();
     void createNew();
@@ -121,6 +144,18 @@ namespace stencil::gui {
     // projects…" placeholder so the dialog can open instantly (remote fetch deferred).
     bool remoteLoaded_ = false;
     QListWidget* list_ = nullptr;
+    QComboBox* filter_ = nullptr;   // All / Local / Server row filter
+    // Multi-select: checked row keys ("serverUrl|id"; serverUrl empty = local), the batch
+    // toolbar + its buttons, and the resolved (id, serverUrl) pairs for the chosen batch action.
+    QSet<QString> checked_;
+    QWidget* batchBar_ = nullptr;
+    QLabel* batchCount_ = nullptr;
+    QPushButton* batchToServer_ = nullptr;
+    QPushButton* batchCopyServer_ = nullptr;
+    QPushButton* batchToLocal_ = nullptr;
+    QPushButton* batchCopyLocal_ = nullptr;
+    bool building_ = false;   // suppress itemChanged while refresh() sets check states
+    QVector<QPair<QString, QString>> batchItems_;
     Action action_ = Action::None;
     QString selectedId_;
     QString selectedServerUrl_;

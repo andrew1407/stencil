@@ -242,7 +242,9 @@ pub fn writeOutput(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []
     defer gpa.free(encoded);
     try dir.writeFile(io, .{ .sub_path = resolved.path, .data = encoded });
 
-    logo.print("wrote {s} ({d}x{d})\n", .{ resolved.path, img.width, img.height });
+    // Report the px size alongside the page format it fits (A4 base, oriented to the image).
+    const page = pageForImage(gpa, img.width, img.height);
+    logo.print("wrote {s} ({d}x{d} px · A4 {d}×{d}cm)\n", .{ resolved.path, img.width, img.height, page.w, page.h });
 }
 
 // ── source acquisition ───────────────────────────────────────────────────────
@@ -331,7 +333,7 @@ fn rotateInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
 
 // ── page + output helpers ────────────────────────────────────────────────────
 
-fn pageForImage(gpa: std.mem.Allocator, w: usize, h: usize) core.Page {
+pub fn pageForImage(gpa: std.mem.Allocator, w: usize, h: usize) core.Page {
     const base = core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
     // Landscape image -> lay the page on its side, mirroring core pageDimensions.
     if (w > h) return .{ .w = @max(base.w, base.h), .h = @min(base.w, base.h) };

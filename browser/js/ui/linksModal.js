@@ -234,8 +234,9 @@ export class StencilLinksModal extends StencilElement {
         syncLinkFields();
         urlEl.value = '';
         urlResourceEl.value = '';
-        // Target chooser only relevant for the add-by-URL (no image yet) path.
-        if (!hasImage) fillTargetSelect(targetEl, targetRow, app.connections);
+        // Target chooser only for the add-by-URL (no image yet) path, and never while
+        // incognito (incognito content isn't created on a server).
+        if (!hasImage) fillTargetSelect(targetEl, targetRow, app.connections, !app.storage.incognito);
         else if (targetRow) targetRow.style.display = 'none';
         resetPreview();
       },

@@ -85,6 +85,35 @@ test('buildLayoutPayload includes crop/rotation/filter only when provided', () =
     assert.strictEqual(zeroRot.rotationQuarters, 0);
 });
 
+test('buildLayoutPayload includes page format + formulas only when provided', () => {
+    const full = buildLayoutPayload({
+        imageWidth: 10, imageHeight: 20, lines: [],
+        pageSize: 'custom', customPageWidth: 15, customPageHeight: 25,
+        allowFormulas: true, formulaX: 'x*2', formulaY: 'y+1',
+    });
+    assert.strictEqual(full.pageSize, 'custom');
+    assert.strictEqual(full.customPageWidth, 15);
+    assert.strictEqual(full.customPageHeight, 25);
+    assert.strictEqual(full.allowFormulas, true);
+    assert.strictEqual(full.formulaX, 'x*2');
+    assert.strictEqual(full.formulaY, 'y+1');
+
+    // Absent → omitted entirely (file-export/clipboard bytes stay stable).
+    const bare = buildLayoutPayload({ imageWidth: 10, imageHeight: 20, lines: [] });
+    assert.ok(!('pageSize' in bare));
+    assert.ok(!('customPageWidth' in bare));
+    assert.ok(!('customPageHeight' in bare));
+    assert.ok(!('allowFormulas' in bare));
+    assert.ok(!('formulaX' in bare));
+    assert.ok(!('formulaY' in bare));
+
+    // allowFormulas:false and empty formulas are meaningful → kept (not dropped as falsy).
+    const off = buildLayoutPayload({ imageWidth: 1, imageHeight: 1, lines: [], allowFormulas: false, formulaX: '', formulaY: '' });
+    assert.strictEqual(off.allowFormulas, false);
+    assert.strictEqual(off.formulaX, '');
+    assert.strictEqual(off.formulaY, '');
+});
+
 // ── validateLayout ──────────────────────────────────────────────
 test('validateLayout rejects when no image is loaded', () => {
     const r = validateLayout({ lines: [] }, { hasImage: false, imgW: 10, imgH: 10, hasExistingLines: false });

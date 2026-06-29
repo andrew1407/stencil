@@ -82,6 +82,7 @@ export class DrawingApp {
   #remoteSyncTimer = null;
   #lastRemoteSaveAt = 0;
   #reloadingRemote = false;
+  #remoteSyncPending = false;   // a push deferred during a reload, flushed when it settles
   // True when THIS user changed the filter since the last sync — so a save imposes our
   // filter (our intent wins), but a save that's only line edits preserves the shared
   // server filter instead of clobbering a peer's filter change.
@@ -364,6 +365,7 @@ export class DrawingApp {
         setVal('ctx-formula-y', fyVal);
         this.#refreshFormulaCoords();
         this.storage.save();
+        this.scheduleRemoteSync();   // push the formula change to peers/server
       }
     };
     document.getElementById('allow-formulas').addEventListener('change', e => this.setAllowFormulas(e.target.checked));
@@ -1565,6 +1567,12 @@ export class DrawingApp {
   // the default centered page-aspect crop (external-launch path). opts.source/opts.resource —
   // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
   loadImageFromFile(file, opts = {}) {
+    const replaceInPlace = !!opts.replaceInPlace;
+    // Replacing an existing project's image in place: capture what must survive the swap —
+    // the annotations to keep, and the OLD image's pin identity to clear — before they're overwritten.
+    const keptLines = (replaceInPlace && opts.keepAnnotations) ? this.lines : null;
+    const oldImageSource = this.imageSource;
+    const oldImageResource = this.imageResource;
     // A different server project becomes its own local project: flush the active one and
     // reset to blank so the promote below makes a distinct record (skip same-project reload / incognito).
     const switchingRemote = !!opts.remoteId
@@ -1578,7 +1586,7 @@ export class DrawingApp {
     // A temporary editor receiving its first image becomes a real project (the final
     // storage.save() persists it; other tabs see it). Exception: incognito editors stay
     // unsaved — do NOT promote, image/lines live in memory only.
-    if ((this.storage.temporary || this.activeProjectId == null) && !this.storage.incognito) {
+    if (!replaceInPlace && (this.storage.temporary || this.activeProjectId == null) && !this.storage.incognito) {
       this.storage.promoteTemporaryToProject();
       this.tabs.reportActive(this.activeProjectId);
     }
@@ -1605,10 +1613,15 @@ export class DrawingApp {
     // Server linkage. opts.remoteId → reopen an EXISTING server project (link the
     // session, restore its layout below). opts.address WITHOUT a remoteId → CREATE
     // this freshly-loaded image on that server after it loads. Neither → local only.
-    this.remoteLink = (opts.address && opts.remoteId)
-      ? { address: opts.address, remoteId: opts.remoteId, version: opts.version || 0 }
-      : null;
-    const remoteCreateAddress = (opts.address && !opts.remoteId) ? opts.address : null;
+    // Keep the existing link when replacing in place; otherwise (re)derive it from opts.
+    if (!replaceInPlace) {
+      this.remoteLink = (opts.address && opts.remoteId)
+        ? { address: opts.address, remoteId: opts.remoteId, version: opts.version || 0 }
+        : null;
+    }
+    // Incognito never creates on a server — drop a create-on-server address (central guard
+    // covering openImageHere / createBlankImage / the console API).
+    const remoteCreateAddress = (opts.address && !opts.remoteId && !this.storage.incognito) ? opts.address : null;
     const remoteLayout = opts.layout || null;
 
     const reader = new FileReader();
@@ -1632,6 +1645,8 @@ export class DrawingApp {
             setVal('page-size', n);
           }
         }
+        // Restore the project's page format before the crop (defaultCropRect uses the aspect).
+        if ((opts.remoteId || opts.adoptLayout) && remoteLayout) this.#adoptServerPageFormat(remoteLayout);
         if (remoteLayout && remoteLayout.cropRect) {
           this.cropRect = this.#roundRect(remoteLayout.cropRect);
         } else if (opts.crop) {
@@ -1644,9 +1659,14 @@ export class DrawingApp {
         }
         this.rebuildCroppedImage();
 
+        // Replacing in place: keep the existing annotations (when asked) over the new image,
+        // else start clean — never run the pending-lines re-upload flow.
+        if (replaceInPlace) {
+          this.lines = keptLines || [];
+        }
         // If pending lines exist from a previous session where image couldn't be stored,
         // apply them automatically when user re-uploads an image of matching (crop) size
-        if (this.pendingLines && this.pendingLines.length > 0) {
+        else if (this.pendingLines && this.pendingLines.length > 0) {
           const ps = this.pendingImageSize;
           if (!ps || (ps.w === this.canvas.width && ps.h === this.canvas.height)) {
             this.lines = this.pendingLines;
@@ -1665,10 +1685,10 @@ export class DrawingApp {
           this.lines = [];
         }
 
-        // Reopened server project: adopt its stored lines + filter/tint (no paste prompts);
-        // no stored layout resets the filter to 'none' so the prior project's filter doesn't
-        // bleed in (matches desktop openServerProject).
-        if (opts.remoteId) {
+        // Reopened server project (or an adoptLayout incognito copy): adopt its stored lines +
+        // filter/tint (no paste prompts); no stored layout resets the filter to 'none' so the
+        // prior project's filter doesn't bleed in (matches desktop openServerProject).
+        if (opts.remoteId || opts.adoptLayout) {
           if (remoteLayout) {
             const verdict = validateLayout(remoteLayout, {
               hasImage: true,
@@ -1678,8 +1698,10 @@ export class DrawingApp {
             });
             if (verdict.ok) this.lines = verdict.lines;
             this.#adoptServerFilter(remoteLayout);
+            this.#adoptServerFormulas(remoteLayout);
           } else {
-            this.#adoptServerFilter({});   // no saved filter — reset to 'none'
+            this.#adoptServerFilter({});     // no saved filter — reset to 'none'
+            this.#adoptServerFormulas({});   // no saved formulas — reset to off
           }
         }
 
@@ -1693,6 +1715,17 @@ export class DrawingApp {
         this.updateCoordStatus();
         this.storage.save();
 
+        // Replace-in-place post-steps: optional rename, unpin the OLD image, push the new
+        // original to the server when this project is server-linked.
+        if (replaceInPlace) {
+          if (opts.rename) {
+            if (this.activeProjectId != null) this.renameProject(this.activeProjectId, this.imageBaseName);
+            this.updateProjectTitle();
+          }
+          this.#requestUnpin(oldImageSource, oldImageResource, this.imageBaseName);
+          if (this.remoteLink) await this.#replaceServerOriginal(file);
+        }
+
         // Create-on-server: push this just-loaded original to the chosen server and
         // link the session so later saves write back. Best-effort — a failure leaves
         // the project local and surfaces a toast.
@@ -1700,6 +1733,7 @@ export class DrawingApp {
           try { await this.#createRemoteForSession(remoteCreateAddress, file); }
           catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
         }
+        this.#reportIncognitoSession();   // refresh our incognito peer entry with the new name
       };
       this.originalImage.src = event.target.result;
       // Store base64 of the ORIGINAL for persistence (the crop is stored as a
@@ -2887,10 +2921,14 @@ export class DrawingApp {
   // the same project get a `project-event` and reload. No-op for local-only projects,
   // and when the "Sync changes to server" setting is off (edit-in-memory only).
   scheduleRemoteSync() {
-    if (!this.remoteLink || this.#reloadingRemote || !getSyncToServer()) return;
+    if (!this.remoteLink || !getSyncToServer()) return;
+    // Mid-reload: defer (don't drop) the push; reloadRemoteActive flushes it when it settles.
+    if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
     clearTimeout(this.#remoteSyncTimer);
     this.#remoteSyncTimer = setTimeout(() => {
-      if (this.remoteLink && !this.#reloadingRemote) this.saveToServer();
+      if (!this.remoteLink || !getSyncToServer()) return;
+      if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
+      this.saveToServer();
     }, 700);
   }
 
@@ -2935,7 +2973,14 @@ export class DrawingApp {
       notify('Updated from server', 'ok');
     } catch { notify("Couldn't refresh from server — showing the last loaded version", 'info'); }
     finally {
-      setTimeout(() => { this.#reloadingRemote = false; }, 250);
+      setTimeout(() => {
+        this.#reloadingRemote = false;
+        // Flush an edit that landed during the reload, so client and server reconverge.
+        if (this.#remoteSyncPending) {
+          this.#remoteSyncPending = false;
+          this.scheduleRemoteSync();
+        }
+      }, 250);
     }
   }
 
@@ -2966,6 +3011,45 @@ export class DrawingApp {
       fp.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
     }
     this.#filterDirty = false;
+  }
+
+  // Restore a server layout's page format (A3/A4/custom + cm dims) into state + the page UI.
+  #adoptServerPageFormat(layout) {
+    if (!layout) return;
+    const n = normalizePageSize(layout.pageSize);
+    if (n) {
+      this.pageSize = n;
+      setVal('page-size', n);
+      const cg = document.getElementById('custom-size-group');
+      if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
+    }
+    if (Number.isFinite(layout.customPageWidth)) {
+      this.customPageWidth = layout.customPageWidth;
+      setVal('custom-page-width', cmToUnit(layout.customPageWidth, this.unit));
+    }
+    if (Number.isFinite(layout.customPageHeight)) {
+      this.customPageHeight = layout.customPageHeight;
+      setVal('custom-page-height', cmToUnit(layout.customPageHeight, this.unit));
+    }
+  }
+
+  // Restore a server layout's x/y formulas into state + the formula UI. The expressions are
+  // kept regardless of the toggle (allow only gates visibility + whether they're applied).
+  #adoptServerFormulas(layout) {
+    const allow = !!(layout && layout.allowFormulas);
+    this.allowFormulas = allow;
+    const cb = document.getElementById('allow-formulas');
+    if (cb) cb.checked = allow;
+    this.#syncFormulaUI(allow);
+    const fx = layout && typeof layout.formulaX === 'string' ? layout.formulaX : '';
+    const fy = layout && typeof layout.formulaY === 'string' ? layout.formulaY : '';
+    this.formulaX = fx;
+    this.formulaY = fy;
+    setVal('formula-x', this.formulaX);
+    setVal('formula-y', this.formulaY);
+    setVal('ctx-formula-x', this.formulaX);
+    setVal('ctx-formula-y', this.formulaY);
+    this.#showFormulaError(false);
   }
 
   undo() {
@@ -3167,6 +3251,8 @@ export class DrawingApp {
         : null;
       this.tabs.reportActive(id);
       this.updateProjectTitle();   // reflect (or clear) the remote badge + outline now
+      // Server-linked: pull the latest so a reopen shows peers' newest state, not stale cache.
+      if (this.remoteLink && getSyncToServer()) this.reloadRemoteActive();
       return true;
     }
     return false;
@@ -3213,25 +3299,36 @@ export class DrawingApp {
     return Promise.resolve(first ? first.value : null);
   }
 
+  // Promise-based text prompt (shares the confirm modal). Resolves the trimmed string, or
+  // null on cancel. opts: { title, confirmLabel, defaultValue }. Used for copy-with-name.
+  prompt(message, opts = {}) {
+    const el = document.getElementById('confirm-modal-overlay');
+    if (el && typeof el.prompt === 'function') return el.prompt(message, opts);
+    return Promise.resolve(opts.defaultValue ?? null);
+  }
+
   // Start a fresh blank (unsaved) editor.
   newEditor() {
     this.remoteLink = null;
     this.storage.newTemporary();
     this.tabs.reportActive(null);
+    this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
   }
 
   // Open-image dialog action: replace the current editor with `file`. A non-incognito
   // current project already persists (so it stays in the projects list) — flush it,
   // then reset to a fresh editor and load the new file (as incognito if requested).
-  // `address` (a connected server URL) also creates+links the project on that server
-  // — ignored for incognito (never persisted, so never pushed).
+  // `address` (a connected server URL) creates+links the project on that server. Incognito
+  // wins over a server target: incognito content is never created on a server (publish an
+  // open incognito session explicitly via publishIncognitoToServer instead).
   openImageHere(file, incognito = false, address = null) {
     if (!file) return;
-    if (address && !incognito) requireConnection(this.connections, address);   // validate up front
+    const toServer = !!address && !incognito;
+    if (toServer) requireConnection(this.connections, address);   // validate up front
     if (!this.storage.incognito) this.storage.save();
     this.newEditor();
     if (incognito) { this.storage.incognito = true; this.updateIncognitoUI(); }
-    this.loadImageFromFile(file, (address && !incognito) ? { address } : {});
+    this.loadImageFromFile(file, toServer ? { address } : {});
   }
 
   // Open-image dialog action: launch `file` in a NEW browser tab via the #stencil=
@@ -3248,6 +3345,15 @@ export class DrawingApp {
     reader.readAsDataURL(file);
   }
 
+  // Open-image dialog action: replace the CURRENT project's image in place (same project id /
+  // server link) instead of creating a new project. `rename` adopts the new file's name
+  // (default off); `keepAnnotations` keeps the existing lines over the new image (default on).
+  // Any image change unpins the now-stale extension pin (handled in loadImageFromFile).
+  replaceProjectImage(file, { rename = false, keepAnnotations = true } = {}) {
+    if (!file) return;
+    this.loadImageFromFile(file, { replaceInPlace: true, rename, keepAnnotations });
+  }
+
   // Create a solid-color blank image and load it (blank-image creator's core, shared with the
   // console API). width/height in px (clamped 1–8192); omitted → current page size, like the
   // modal. Returns a Promise resolving { width, height } once handed to the loader, rejecting
@@ -3256,6 +3362,7 @@ export class DrawingApp {
   // (mirrors loadImageFromFile's create-on-server path); validated up front so a bad
   // target rejects before the local image is replaced.
   createBlankImage({ color = '#ffffff', width, height, address } = {}) {
+    if (this.storage.incognito) address = undefined;   // incognito never creates on a server
     if (address) requireConnection(this.connections, address);
     const dims = (width != null && height != null)
       ? { width, height }
@@ -3321,24 +3428,10 @@ export class DrawingApp {
     const name = this.activeProjectId != null
       ? (this.storage.store.getMeta(this.activeProjectId)?.name || this.imageBaseName || 'Untitled')
       : (this.imageBaseName || 'Untitled');
-    const renderBytes = async () => {
-      if (!this.image) return null;
-      const off = this.#renderExportCanvas();
-      const blob = await new Promise(res => off.toBlob(res, 'image/png'));
-      return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
-    };
     const MAX_TRIES = 6;
     for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
-      const layout = buildLayoutPayload({
-        imageWidth: this.canvas.width,
-        imageHeight: this.canvas.height,
-        lines: this.lines,
-        imageFilter: this.imageFilter,
-        filterColor: this.filterColor,
-        cropRect: this.cropRect,
-        rotationQuarters: this.rotationQuarters,
-      });
-      const bytes = await renderBytes();
+      const layout = this.#currentLayoutPayload();
+      const bytes = await this.#renderResultBytes();
       this.#lastRemoteSaveAt = Date.now();   // open the echo-suppression window
       try {
         this.remoteLink = await saveRemoteProject(conn, this.remoteLink, {
@@ -3375,6 +3468,97 @@ export class DrawingApp {
     notify('Sync conflict — reloaded latest from the server', 'info');
     this.reloadRemoteActive();
     return null;
+  }
+
+  // The current editor state as a server layout payload (lines + filter + geometry + page +
+  // formulas). Shared by saveToServer / publishIncognitoToServer / replaceProjectImage.
+  #currentLayoutPayload() {
+    return buildLayoutPayload({
+      imageWidth: this.canvas.width,
+      imageHeight: this.canvas.height,
+      lines: this.lines,
+      imageFilter: this.imageFilter,
+      filterColor: this.filterColor,
+      cropRect: this.cropRect,
+      rotationQuarters: this.rotationQuarters,
+      pageSize: this.pageSize,
+      customPageWidth: this.customPageWidth,
+      customPageHeight: this.customPageHeight,
+      allowFormulas: this.allowFormulas,
+      formulaX: this.formulaX,
+      formulaY: this.formulaY,
+    });
+  }
+
+  // Ask the browser extension (if installed) to UNPIN an image — fired on any in-project image
+  // change, since the project no longer holds that image. Posts a same-window message the editor
+  // bridge content script relays to the extension; a harmless no-op when no extension is present.
+  // `resource` (the page the image was pinned on) is what keys the extension's pin entry.
+  #requestUnpin(source, resource, name) {
+    if (!source && !resource) return;   // nothing identifiable to unpin
+    try {
+      window.postMessage({
+        source: 'stencil-editor-bridge', type: 'unpin',
+        pinSource: source || '', resource: resource || source || '', name: name || '', kind: 'image',
+      }, '*');
+    } catch { /* postMessage unavailable (non-DOM context) — nothing to do */ }
+  }
+
+  // Replace the linked server project's stored `original` with `file`'s bytes, then push the
+  // new layout + rendered result. All-or-nothing on the sync toggle (matches edit-in-memory).
+  async #replaceServerOriginal(file) {
+    if (!this.remoteLink || !getSyncToServer()) return;
+    try {
+      const conn = requireConnection(this.connections, this.remoteLink.address);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await conn.putFile(this.remoteLink.remoteId, 'original', bytes, {
+        ext: this.imageExt || 'png',
+        w: this.originalImage ? this.originalImage.width : 0,
+        h: this.originalImage ? this.originalImage.height : 0,
+      });
+      await this.saveToServer();   // push the new layout + rendered result
+    } catch (err) { notify(`Could not update the server image — ${err.message}`, 'fail'); }
+  }
+
+  // Render the annotated result to PNG bytes (the server's `result` blob), or null if no image.
+  async #renderResultBytes() {
+    if (!this.image) return null;
+    const off = this.#renderExportCanvas();
+    const blob = await new Promise(res => off.toBlob(res, 'image/png'));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  }
+
+  // Publish the current incognito session to a server: create the project there, push the
+  // annotated layout + rendered result, then LINK the session so it becomes a normal
+  // server-backed project (incognito turns off). Still no local record — only the server
+  // holds it, and getSyncToServer() drives later auto-sync. Returns the new remote link.
+  async publishIncognitoToServer(address) {
+    const conn = requireConnection(this.connections, address);
+    if (!this.image || !this.imageDataUrl) throw new Error('Open an image first');
+    // Decode the original (a data URL) to raw bytes for the codec-free server.
+    const blob = await (await fetch(this.imageDataUrl)).blob();
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const ext = (blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : (this.imageExt || 'png');
+    const name = this.imageBaseName || 'Untitled';
+    const link = await createRemoteProject(conn, {
+      name, source: this.imageSource || '', resource: this.imageResource || '',
+      bytes, ext,
+      w: this.originalImage ? this.originalImage.width : 0,
+      h: this.originalImage ? this.originalImage.height : 0,
+    });
+    // Push the annotated layout + result so the server holds the full project (explicit
+    // publish, independent of the sync toggle).
+    this.remoteLink = await saveRemoteProject(conn, link, {
+      name,
+      layout: this.#currentLayoutPayload(),
+      bytes: await this.#renderResultBytes(), ext: 'png', w: this.canvas.width, h: this.canvas.height,
+    });
+    // Leave incognito: it's now a normal server-backed session (no local persistence).
+    this.storage.incognito = false;
+    this.updateIncognitoUI();
+    this.updateProjectTitle();
+    notify(`Published to ${conn.url}`, 'ok');
+    return this.remoteLink;
   }
 
   // Permanently delete every saved project, then drop to a blank editor.
@@ -3489,6 +3673,7 @@ export class DrawingApp {
     this.coordTable.update();
     this.renderer.redraw();
     this.storage.save();
+    this.scheduleRemoteSync();   // page format rides the layout — push it to peers/server too
     return this;
   }
 
@@ -3502,6 +3687,7 @@ export class DrawingApp {
     this.coordTable.update();
     this.renderer.redraw();
     this.storage.save();
+    this.scheduleRemoteSync();
     return this;
   }
 
@@ -3513,6 +3699,7 @@ export class DrawingApp {
     this.coordTable.update();
     this.renderer.redraw();
     this.storage.save();
+    this.scheduleRemoteSync();
     return this;
   }
 
@@ -3556,16 +3743,14 @@ export class DrawingApp {
     this.allowFormulas = !!b;
     const cb = document.getElementById('allow-formulas');
     if (cb) cb.checked = this.allowFormulas;
+    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
+    // coordinate conversion (pixelToPageCoords passes allowFormulas) — the expressions are
+    // KEPT so re-enabling restores them.
     this.#syncFormulaUI(this.allowFormulas);
-    if (!this.allowFormulas) {
-      this.formulaX = '';
-      this.formulaY = '';
-      this.#showFormulaError(false);
-      setVal('formula-x', '');
-      setVal('formula-y', '');
-    }
+    if (!this.allowFormulas) this.#showFormulaError(false);
     this.#refreshFormulaCoords();
     this.storage.save();
+    this.scheduleRemoteSync();   // formulas ride the layout — push them to peers/server too
     return this;
   }
 
@@ -3581,6 +3766,7 @@ export class DrawingApp {
     this.#showFormulaError(false);
     this.#refreshFormulaCoords();
     this.storage.save();
+    this.scheduleRemoteSync();
     return this;
   }
 
@@ -3722,11 +3908,11 @@ export class DrawingApp {
     this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
   }
 
-  // ── Move a project between local storage and a server ────────────
-  // Local → server: create the project on `address` (original bytes + annotated
-  // layout), then drop the local copy. Flushes the active project first so the
-  // server gets the latest edits. Returns the new remote id.
-  async moveProjectToServer(id, address) {
+  // ── Move / copy a project between local storage and a server ──────
+  // Create a NEW server project from a local project's content (original bytes + annotated
+  // layout) under `name`. Shared by move (then links the local) and copy (leaves local as-is).
+  // Returns { link, proj, meta }. Flushes the active project first so the server gets latest.
+  async #createServerFromLocal(id, address, name = null) {
     const conn = requireConnection(this.connections, address);
     if (id === this.activeProjectId && !this.storage.temporary) this.storage.save();   // flush latest
     const proj = this.storage.store.get(id);
@@ -3744,16 +3930,16 @@ export class DrawingApp {
       bytes = new Uint8Array(await blob.arrayBuffer());
       if (blob.type && blob.type.includes('/')) ext = blob.type.split('/')[1];
     }
-    const name = meta.name || layout.imageBaseName || 'Untitled';
+    const projName = (name && name.trim()) || meta.name || layout.imageBaseName || 'Untitled';
     const link = await createRemoteProject(conn, {
-      name,
+      name: projName,
       source: meta.source || layout.imageSource || '',
       resource: meta.resource || layout.imageResource || '',
       bytes, ext, w, h,
     });
     // Push the annotated layout (lines + filter) so the server holds the full project.
     await saveRemoteProject(conn, link, {
-      name,
+      name: projName,
       layout: buildLayoutPayload({
         imageWidth: w, imageHeight: h,
         lines: layout.lines || [],
@@ -3761,10 +3947,38 @@ export class DrawingApp {
         filterColor: layout.filterColor,
         cropRect: layout.cropRect,
         rotationQuarters: layout.rotationQuarters,
+        pageSize: layout.pageSize,
+        customPageWidth: layout.customPageWidth,
+        customPageHeight: layout.customPageHeight,
+        allowFormulas: layout.allowFormulas,
+        formulaX: layout.formulaX,
+        formulaY: layout.formulaY,
       }),
     });
-    // Local copy is now redundant — remove it (drops to a blank editor if it was active).
-    this.removeProject(id);
+    return { link, proj, meta };
+  }
+
+  // Local → server: create the project on `address`, then LINK the local copy to it (keeping
+  // the editor open + the row in place). Returns the new remote id.
+  async moveProjectToServer(id, address) {
+    const { link, proj, meta } = await this.#createServerFromLocal(id, address);
+    const linkedMeta = { ...meta, id, address: link.address, remoteId: link.remoteId, remoteVersion: link.version };
+    this.storage.store.upsert(linkedMeta, proj.payload || {});
+    if (id === this.activeProjectId) {
+      this.remoteLink = { address: link.address, remoteId: link.remoteId, version: link.version };
+      this.updateProjectTitle();   // reflect the golden remote outline now
+    }
+    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    return link.remoteId;
+  }
+
+  // Local → server COPY: create a new server project from the local one (default name
+  // "<name>-copy") and LEAVE the local project untouched. Returns the new remote id.
+  async copyProjectToServer(id, address, { name } = {}) {
+    const base = this.storage.store.getMeta(id)?.name || 'Untitled';
+    const copyName = (name && name.trim()) || `${base}-copy`;
+    const { link } = await this.#createServerFromLocal(id, address, copyName);
+    this.tabs.projectsChanged({ action: PROJECT_ACTION.UPDATED });   // refresh the remote rows
     return link.remoteId;
   }
 
@@ -3772,34 +3986,76 @@ export class DrawingApp {
   // local project, then delete it from the server. `meta` is a remote-project meta
   // ({ id, serverUrl, name, source }). Returns the new local project id.
   async moveProjectToLocal(meta) {
-    return this.#importServerProjectToLocal(meta, { removeFromServer: true });
+    // If the moved server project is the open session (or its local cache), follow it to the
+    // new local id so the editor stays open + focused instead of pointing at a deleted server id.
+    const openCacheId = (this.remoteLink && this.remoteLink.remoteId === meta.id
+      && this.remoteLink.address === meta.serverUrl) ? this.activeProjectId : null;
+    const newId = await this.#importServerProjectToLocal(meta, { removeFromServer: true });
+    if (openCacheId != null) {
+      if (openCacheId !== newId) this.storage.store.remove(openCacheId);   // drop the now-stale cache
+      this.switchToProject(newId);
+    }
+    return newId;
   }
 
-  // Make a detached LOCAL copy of a server project, leaving the server copy in place,
-  // named "<name>-local". Returns the new local project id; the caller opens it.
-  async copyServerProjectToLocal(meta) {
-    return this.#importServerProjectToLocal(meta, { removeFromServer: false, nameSuffix: '-local' });
+  // Make a detached LOCAL copy of a server project, leaving the server copy in place. Default
+  // name "<name>-copy" (override via `name`). Returns the new local project id; caller opens it.
+  async copyServerProjectToLocal(meta, { name } = {}) {
+    return this.#importServerProjectToLocal(meta, { removeFromServer: false, copy: true, name });
   }
 
-  // Shared body of move/copy server→local: fetch image + layout, persist a fresh detached
-  // local project (crop/rotation included), optionally delete the server copy.
-  async #importServerProjectToLocal(meta, { removeFromServer = false, nameSuffix = '' } = {}) {
+  // Copy a server project into an INCOGNITO session (no local record, no server link). Current
+  // tab: replace the editor with the image + annotations as incognito. New tab: hand off the
+  // image via the external-launch URL (image only — the launch payload carries no annotations).
+  async copyServerProjectToIncognito(meta, { newTab = false } = {}) {
     const conn = requireConnection(this.connections, meta.serverUrl);
     const full = await conn.getProject(meta.id);
     const src = full.project?.source || meta.source || '';
     const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
-    const dataUrl = blob ? await new Promise((res, rej) => {
+    if (!blob) throw new Error('no image bytes on the server');
+    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+    const name = full.project?.name || meta.name || 'Untitled';
+    if (newTab) {
+      const dataUrl = await this.#blobToDataUrl(blob);
+      const url = buildExternalLaunchUrl(location.origin + location.pathname, { dataUrl, name, incognito: true });
+      window.open(url, '_blank');
+      return;
+    }
+    const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
+    if (!this.storage.incognito) this.storage.save();   // flush any current project first
+    this.newEditor();
+    this.storage.incognito = true;
+    this.updateIncognitoUI();
+    // adoptLayout applies the lines/filter/crop/page/formulas without linking (no remoteId).
+    this.loadImageFromFile(file, { source: src, resource: full.project?.resource || '', layout: full.layout, adoptLayout: true });
+  }
+
+  // Read a Blob into a data URL (used by the new-tab incognito hand-off).
+  #blobToDataUrl(blob) {
+    return new Promise((res, rej) => {
       const r = new FileReader();
       r.onload = () => res(r.result);
       r.onerror = () => rej(new Error('could not read image bytes'));
       r.readAsDataURL(blob);
-    }) : null;
+    });
+  }
+
+  // Shared body of move/copy server→local: fetch image + layout, persist a fresh detached
+  // local project (crop/rotation included), optionally delete the server copy. `copy` defaults
+  // the name to "<base>-copy"; an explicit `name` overrides.
+  async #importServerProjectToLocal(meta, { removeFromServer = false, copy = false, name = null } = {}) {
+    const conn = requireConnection(this.connections, meta.serverUrl);
+    const full = await conn.getProject(meta.id);
+    const src = full.project?.source || meta.source || '';
+    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    const dataUrl = blob ? await this.#blobToDataUrl(blob) : null;
     const sl = full.layout || {};
     const newId = this.storage.store.createId();
-    const name = (full.project?.name || meta.name || 'Untitled') + nameSuffix;
+    const base = full.project?.name || meta.name || 'Untitled';
+    const projName = (name && name.trim()) || (copy ? `${base}-copy` : base);
     const localMeta = {
       id: newId,
-      name,
+      name: projName,
       thumbnail: dataUrl,
       createdAt: Date.now(),
       hasImage: !!dataUrl,
@@ -3821,7 +4077,14 @@ export class DrawingApp {
         filterColor: sl.filterColor || '#7c3aed',
         cropRect: sl.cropRect || null,
         rotationQuarters: sl.rotationQuarters || 0,
-        imageBaseName: name,
+        // Carry page format + formulas so the detached local copy keeps them.
+        pageSize: sl.pageSize || 'A3',
+        customPageWidth: sl.customPageWidth || 21,
+        customPageHeight: sl.customPageHeight || 29.7,
+        allowFormulas: !!sl.allowFormulas,
+        formulaX: sl.formulaX || '',
+        formulaY: sl.formulaY || '',
+        imageBaseName: projName,
         imageExt: (blob && blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : 'png',
         imageSource: src || null,
         imageResource: full.project?.resource || null,
@@ -3857,6 +4120,16 @@ export class DrawingApp {
       btn.classList.toggle('active', this.storage.incognito);
     }
     document.body.classList.toggle('incognito-mode', this.storage.incognito);
+    this.#reportIncognitoSession();   // keep other tabs' "incognito tabs" list current
+  }
+
+  // Broadcast this tab's incognito session (or null) to peers, for the projects modal's
+  // "Incognito tabs" filter. Best-effort — tabs may not have a coordinator.
+  #reportIncognitoSession() {
+    const session = this.storage.incognito
+      ? { name: this.imageBaseName || 'Incognito (unsaved)', updatedAt: Date.now() }
+      : null;
+    try { this.tabs.reportIncognito(session); } catch { /* no coordinator */ }
   }
 
   // Another tab changed the project set. If it touched OUR active project, sync.

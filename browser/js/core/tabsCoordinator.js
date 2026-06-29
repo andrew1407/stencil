@@ -16,8 +16,10 @@ export class TabsCoordinator {
   #peersCbs = new Set();
   #projectsChangedCbs = new Set();
   #accentCbs = new Set();
+  #incognitoCbs = new Set();
 
   #activeId = null;
+  #incognito = null;           // this tab's incognito session ({ name, updatedAt }) or null
   #lastTabCount = { count: 1, youAreOnly: true };
   #readyResolve = null;
   #readyPromise = null;
@@ -26,6 +28,7 @@ export class TabsCoordinator {
   // BroadcastChannel roll-call bookkeeping
   #peerSeen = new Set();       // peer ids that answered the roll-call
   #peerActive = new Map();     // peerId -> activeId
+  #peerIncognito = new Map();  // peerId -> { name, updatedAt } (OTHER tabs' incognito sessions)
 
   constructor() {
     this.#readyPromise = new Promise(resolve => { this.#readyResolve = resolve; });
@@ -41,6 +44,7 @@ export class TabsCoordinator {
   onPeers(cb) { this.#peersCbs.add(cb); return () => this.#peersCbs.delete(cb); }
   onProjectsChanged(cb) { this.#projectsChangedCbs.add(cb); return () => this.#projectsChangedCbs.delete(cb); }
   onAccent(cb) { this.#accentCbs.add(cb); return () => this.#accentCbs.delete(cb); }
+  onIncognitoPeers(cb) { this.#incognitoCbs.add(cb); return () => this.#incognitoCbs.delete(cb); }
 
   whenReady() { return this.#readyPromise; }
 
@@ -49,6 +53,14 @@ export class TabsCoordinator {
     this.#activeId = id ?? null;
     if (this.#port) return this.#post({ type: MSG.ACTIVE, activeId: this.#activeId });
     if (this.#channel) this.#channel.postMessage({ type: MSG.ACTIVE, peerId: this.#peerId, activeId: this.#activeId });
+  }
+
+  // Report this tab's incognito session (a small { name, updatedAt }) or null when it ends,
+  // so other tabs can list "incognito open in another tab".
+  reportIncognito(session) {
+    this.#incognito = session || null;
+    if (this.#port) return this.#post({ type: MSG.INCOGNITO, session: this.#incognito });
+    if (this.#channel) this.#channel.postMessage({ type: MSG.INCOGNITO, peerId: this.#peerId, session: this.#incognito });
   }
 
   // Tell every other tab the main accent changed so they repaint live. The key
@@ -104,6 +116,7 @@ export class TabsCoordinator {
       return;
     }
     if (data.type === MSG.PEERS) return this.#emitPeers(data.activeIds || []);
+    if (data.type === MSG.INCOGNITOS) return this.#emitIncognitoPeers(data.sessions || []);
     if (data.type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
     if (data.type === MSG.ACCENT) return this.#emitAccent(data.key);
   }
@@ -123,7 +136,7 @@ export class TabsCoordinator {
 
     // Roll call: announce presence and ask who else is here. Peers reply with
     // HERE. After a short window we estimate count/youAreOnly best-effort.
-    this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId });
+    this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
     setTimeout(() => {
       const count = this.#peerSeen.size;
       this.#lastTabCount = { count, youAreOnly: count <= 1 };
@@ -148,15 +161,19 @@ export class TabsCoordinator {
     if (type === MSG.HELLO) {
       this.#peerSeen.add(peerId);
       if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
-      // Reply so the newcomer can count us, and share our active project.
-      this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId });
+      this.#setPeerIncognito(peerId, data.incognito);
+      // Reply so the newcomer can count us, and share our active + incognito state.
+      this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
       this.#recountChannel();
+      this.#emitIncognitoFromMap();
       return;
     }
     if (type === MSG.HERE) {
       this.#peerSeen.add(peerId);
       if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
+      this.#setPeerIncognito(peerId, data.incognito);
       this.#recountChannel();
+      this.#emitIncognitoFromMap();
       return;
     }
     if (type === MSG.ACTIVE) {
@@ -166,14 +183,30 @@ export class TabsCoordinator {
       this.#emitPeersFromMap();
       return;
     }
+    if (type === MSG.INCOGNITO) {
+      this.#peerSeen.add(peerId);
+      this.#setPeerIncognito(peerId, data.session);
+      this.#emitIncognitoFromMap();
+      return;
+    }
     if (type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
     if (type === MSG.ACCENT) return this.#emitAccent(data.key);
     if (type === MSG.BYE) {
       this.#peerSeen.delete(peerId);
       this.#peerActive.delete(peerId);
+      this.#peerIncognito.delete(peerId);
       this.#recountChannel();
+      this.#emitIncognitoFromMap();
       return;
     }
+  }
+
+  #setPeerIncognito(peerId, session) {
+    if (session) this.#peerIncognito.set(peerId, session);
+    else this.#peerIncognito.delete(peerId);
+  }
+  #emitIncognitoFromMap() {
+    this.#emitIncognitoPeers(Array.from(this.#peerIncognito.values()));
   }
 
   #recountChannel() {
@@ -219,6 +252,15 @@ export class TabsCoordinator {
     for (const cb of this.#accentCbs) {
       try {
         cb(key);
+      } catch {
+        /* one subscriber threw — isolate it so the others still get notified */
+      }
+    }
+  }
+  #emitIncognitoPeers(sessions) {
+    for (const cb of this.#incognitoCbs) {
+      try {
+        cb(sessions);
       } catch {
         /* one subscriber threw — isolate it so the others still get notified */
       }

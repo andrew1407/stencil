@@ -85,6 +85,21 @@ Use the CLI directly with `Bash` (build with `zig build` in `cli/` if the binary
 missing) when you need to script many files or post-process results; use the skill when a
 single clean translation of the request is enough.
 
+**Interactive REPL** — `stencil --console` (alias `--repl`) opens a session on one in-memory
+working image, applying `/command` lines (`/upload`, `/blank`, `/crop`, `/rotate`, `/filter`,
+`/apply`, `/undo`, `/redo`, `/reset`, `/save`, `/layout`, plus the server verbs below). Reach
+for it to try a few edits interactively or to script a session by piping commands in — same
+core transforms as the flag pipeline.
+
+**Python alternative (`pystencil`, same core, headless)** — a stdlib-only package that drives
+the *same* `core/` over ctypes; prefer it when the user wants Python or a chainable script
+rather than shell. It mirrors the CLI flags one-shot (`python3 -m pystencil -i … -c … -r …
+--filter … out.png`; also `--blank`, `--layout`, `--repl`), or use the chainable `Editor` API
+(`Editor().load(...).crop(...).rotate_right().apply_filter(...).save(...)` + `save_layout(...)`).
+It also connects to the collaboration server (fetch / edit / publish, section 5). PNG/BMP are
+native; **JPEG decode falls back to the Zig CLI**. The native lib builds on demand (`python3
+build.py` forces it). See `pystencil/README.md`.
+
 ---
 
 ## 2) Browser app (over chrome-devtools, `window.stencil`)

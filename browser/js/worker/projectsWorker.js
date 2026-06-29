@@ -5,7 +5,7 @@
 // ids, and relay "projects changed" re-render pings.
 import { MSG } from './messages.js';
 
-// port -> { activeId }
+// port -> { activeId, incognito }   (incognito = { name, updatedAt } or null)
 const ports = new Map();
 
 const tabcountMsg = () => ({
@@ -35,16 +35,26 @@ const broadcast = (msg, except = null) => {
   }
 };
 
+// Each port is told the OTHER ports' incognito sessions (so a tab never lists its own).
+const sendIncognitos = () => {
+  for (const port of ports.keys()) {
+    const sessions = [];
+    for (const [p, s] of ports) if (p !== port && s.incognito) sessions.push(s.incognito);
+    post(port, { type: MSG.INCOGNITOS, sessions });
+  }
+};
+
 const drop = port => {
   if (!ports.has(port)) return;
   ports.delete(port);
   broadcast(tabcountMsg());
   broadcast(peersMsg());
+  sendIncognitos();
 };
 
 self.onconnect = e => {
   const port = e.ports[0];
-  ports.set(port, { activeId: null });
+  ports.set(port, { activeId: null, incognito: null });
   port.start();
 
   port.onmessage = ev => {
@@ -55,12 +65,19 @@ self.onconnect = e => {
       post(port, tabcountMsg());
       broadcast(tabcountMsg());
       post(port, peersMsg());
+      sendIncognitos();
       return;
     }
     if (type === MSG.ACTIVE) {
       const state = ports.get(port);
       if (state) state.activeId = data.activeId ?? null;
       broadcast(peersMsg());
+      return;
+    }
+    if (type === MSG.INCOGNITO) {
+      const state = ports.get(port);
+      if (state) state.incognito = data.session || null;
+      sendIncognitos();
       return;
     }
     // Relay (with its id/action detail) to OTHER tabs so they re-render their
