@@ -19,6 +19,7 @@ Stencil ships as **three front-ends over one shared logic core**:
 | **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) |
+| **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes (no third-party deps) | [pystencil/README.md](pystencil/README.md) |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) |
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions (WS/TCP, Postgres) | [server/README.md](server/README.md) |
 
@@ -85,6 +86,11 @@ cli/                  # the command-line tool (Zig)
   build.zig  build.zig.zon
   src/                # args · pipeline · core ABI bridge · image/video/layout I/O
   README.md
+pystencil/            # stdlib-only Python package — drives core/ via ctypes (no deps)
+  build.py            # compiles core/ + cliApi.cpp into a shared lib for ctypes
+  pystencil/          # core binding · codecs · image · layout · editor · server · cli
+  tests/              # codecs · layout · core · editor · server · cli (unittest)
+  README.md
 mcp/                  # Model Context Protocol server (Rust) — wraps the CLI
   Cargo.toml
   src/                # server · args · pipeline · locate · layout · outcome
@@ -117,6 +123,7 @@ HTTP client (native TLS) and shells out to the system **ffmpeg** only for video 
 - Build & run the browser app → [browser/README.md](browser/README.md)
 - Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
 - Build, test & run the CLI → [cli/README.md](cli/README.md)
+- Build & test the Python package → [pystencil/README.md](pystencil/README.md) (`cd pystencil && python3 build.py && python3 -m unittest discover -s tests`)
 - Build, test & run the MCP server → [mcp/README.md](mcp/README.md)
 - Load & test the Chrome extension → [extension/README.md](extension/README.md)
 

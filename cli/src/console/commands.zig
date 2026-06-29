@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, blank, save, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, fetch, sync };
+pub const Verb = enum { upload, blank, save, layout, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, fetch, sync };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -32,6 +32,7 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "upload") or eq(w, "open") or eq(w, "load")) return .upload;
     if (eq(w, "blank") or eq(w, "new")) return .blank;
     if (eq(w, "save") or eq(w, "write")) return .save;
+    if (eq(w, "layout") or eq(w, "exportlayout") or eq(w, "savelayout")) return .layout;
     if (eq(w, "exec") or eq(w, "do") or eq(w, "run")) return .exec;
     if (eq(w, "undo") or eq(w, "u")) return .undo;
     if (eq(w, "redo") or eq(w, "r")) return .redo;
@@ -72,7 +73,7 @@ pub fn actionOf(word: []const u8, arg: []const u8) ?Action {
     if (eq(word, "bw") or eq(word, "b&w") or eq(word, "grayscale") or eq(word, "greyscale") or eq(word, "gray") or eq(word, "grey")) return .{ .kind = .filter, .arg = "bw" };
     if (eq(word, "sepia")) return .{ .kind = .filter, .arg = "sepia" };
     if (eq(word, "none")) return .{ .kind = .filter, .arg = "none" };
-    if (eq(word, "apply") or eq(word, "draw") or eq(word, "layout")) return .{ .kind = .layout, .arg = arg };
+    if (eq(word, "apply") or eq(word, "draw")) return .{ .kind = .layout, .arg = arg };
     return null;
 }
 
@@ -134,6 +135,28 @@ pub fn stripAlbum(gpa: std.mem.Allocator, spec: []const u8, album: *bool) ![]u8 
     return out.toOwnedSlice(gpa);
 }
 
+// The project's base name for a `/layout` export: the file name of `label` (after the last
+// '/' or '\\') with its extension dropped, falling back to "layout" when empty.
+pub fn projectBaseName(label: []const u8) []const u8 {
+    var name = label;
+    if (std.mem.lastIndexOfAny(u8, name, "/\\")) |i| name = name[i + 1 ..];
+    if (std.mem.lastIndexOfScalar(u8, name, '.')) |i| name = name[0..i];
+    if (name.len == 0) return "layout";
+    return name;
+}
+
+// Resolve where `/layout [arg]` writes its JSON (caller owns the returned path):
+//   - arg ends with ".json" (case-insensitive) → exactly that path.
+//   - arg non-empty without ".json"            → "<arg>/<name>.json" (no doubled '/').
+//   - arg empty                                → "<name>.json" in the cwd.
+pub fn layoutTarget(gpa: std.mem.Allocator, arg: []const u8, name: []const u8) ![]u8 {
+    const a = std.mem.trim(u8, arg, " \t");
+    if (a.len == 0) return std.fmt.allocPrint(gpa, "{s}.json", .{name});
+    if (std.ascii.endsWithIgnoreCase(a, ".json")) return gpa.dupe(u8, a);
+    const sep: []const u8 = if (a[a.len - 1] == '/') "" else "/";
+    return std.fmt.allocPrint(gpa, "{s}{s}{s}.json", .{ a, sep, name });
+}
+
 const testing = std.testing;
 
 test "parseCommand: slash prefix, bare words, verb + arg split" {
@@ -183,7 +206,49 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(actionOf("rotate", "-1").?.kind == .rotate);
     try testing.expectEqualStrings("sepia", actionOf("sepia", "").?.arg);
     try testing.expect(actionOf("apply", "n.json").?.kind == .layout);
+    try testing.expect(actionOf("draw", "n.json").?.kind == .layout);
     try testing.expect(actionOf("frob", "") == null);
+
+    // `layout` is now an export verb, not an alias of the draw action.
+    try testing.expect(verbOf("layout").? == .layout);
+    try testing.expect(verbOf("savelayout").? == .layout);
+    try testing.expect(verbOf("exportlayout").? == .layout);
+    try testing.expect(actionOf("layout", "n.json") == null);
+}
+
+test "projectBaseName: basename without extension, fallback to layout" {
+    try testing.expectEqualStrings("photo", projectBaseName("photo.png"));
+    try testing.expectEqualStrings("photo", projectBaseName("/a/b/photo.png"));
+    try testing.expectEqualStrings("photo", projectBaseName("a\\b\\photo.png")); // Windows-style separators
+    try testing.expectEqualStrings("photo.tar", projectBaseName("photo.tar.gz")); // drop only the last extension
+    try testing.expectEqualStrings("blank", projectBaseName("blank"));
+    try testing.expectEqualStrings("layout", projectBaseName(""));
+    try testing.expectEqualStrings("layout", projectBaseName("/a/b/.png")); // empty base after dropping ext
+}
+
+test "layoutTarget: .json passthrough, directory join, bare default" {
+    const a = testing.allocator;
+
+    // Ends with .json (any case) → exactly that path.
+    const t1 = try layoutTarget(a, "out.json", "photo");
+    defer a.free(t1);
+    try testing.expectEqualStrings("out.json", t1);
+    const t1b = try layoutTarget(a, "Sub/Out.JSON", "photo");
+    defer a.free(t1b);
+    try testing.expectEqualStrings("Sub/Out.JSON", t1b);
+
+    // Non-empty without .json → treated as a directory/prefix.
+    const t2 = try layoutTarget(a, "dir", "photo");
+    defer a.free(t2);
+    try testing.expectEqualStrings("dir/photo.json", t2);
+    const t2b = try layoutTarget(a, "dir/", "photo"); // no doubled slash
+    defer a.free(t2b);
+    try testing.expectEqualStrings("dir/photo.json", t2b);
+
+    // Empty → "<name>.json" in the cwd.
+    const t3 = try layoutTarget(a, "", "photo");
+    defer a.free(t3);
+    try testing.expectEqualStrings("photo.json", t3);
 }
 
 test "parseAction: exec dispatch and layout fallback" {

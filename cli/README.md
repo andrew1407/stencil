@@ -176,7 +176,7 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 | `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
 | `/paste` | Load an image from the clipboard (macOS, via `osascript`). Also bound to **Ctrl-Alt-V**. |
 | `/blank [w h] [color]` | Create a blank page (default A4 @ 96 dpi, white). Alias: `new`. |
-| `/apply <file.json>` | Draw a layout JSON onto the image. Aliases: `draw`, `layout`. |
+| `/apply <file.json>` | Draw a layout JSON onto the image. Alias: `draw`. |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` (add `album` to derive the missing axis). |
 | `/rotate <int>` | Rotate `int × 90°` (e.g. `-1`, `2`, `3`). Aliases: `rot`, `turn`. |
 | `/filter <mode>` | `bw` \| `sepia` \| `none` \| a colour name/`#hex` (duotone tint). Shorthands: `/bw`, `/sepia`, `/tint <color>`. |
@@ -184,6 +184,7 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 | `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
 | `/save [path]` | Encode + write the working image to a file (extension filled in if omitted). A **bare** `/save` (no path) pushes the current result to the active server project — the manual counterpart to `/sync`, so you can update the server image on demand when sync is off. Alias: `write`. |
+| `/layout [path]` | **Export** the current structured layout JSON (lines + filter + crop + rotation) to a local file — distinct from `/apply`, which *draws* a layout onto the image. A `path` ending in `.json` (case-insensitive) is written verbatim; a non-`.json` `path` is treated as a directory/prefix and gets `<path>/<project>.json` (a trailing `/` is not doubled); a **bare** `/layout` writes `<project>.json` in the cwd. `project` is the working image's base name (its file name minus the extension), falling back to `layout`. Aliases: `savelayout`, `exportlayout`. |
 | `/connect <url[ url2 …]>` | Connect to one or more [collaboration servers](../server/README.md) for the session. |
 | `/connections` | List the connected servers, each with a live reachability status (`[connected]`, `[unreachable]`, or `[auth expired — /reconnect]` from a quick probe) and a marker for the active project's server. Alias: `servers`. |
 | `/projects [url]` | List a server's projects as an aligned table (`NAME` / `SIZE` / `CHANGED`, plus a `SERVER` column when listing across more than one server). With no URL it lists **every** connected server's projects; with a URL, just that one. Projects with no stored dimensions show `-` for size. Open one with `/fetch <name>`. Alias: `ls`. |

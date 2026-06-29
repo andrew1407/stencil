@@ -14,6 +14,7 @@ cli/         Zig tool — recompiles core/ sources and drives them over an exter
 extension/   Chrome MV3 extension — scans page images and hands them to browser/ via a URL fragment
 mcp/         Rust MCP server — shells out to the cli/ binary; depends on the CLI's command contract, NOT on core/
 server/      Go collaboration server — stores/shares projects + live multi-client edit sessions over WS/TCP; Postgres + a secured file store, NOT on core/
+pystencil/   stdlib-only Python package — recompiles core/ sources and drives them over the extern "C" ABI via ctypes
 ```
 
 `mcp/` and `server/` are thin protocol adapters, not core consumers: they never link/recompile `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to them. `mcp/`'s only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output. `server/`'s contract is its REST + WebSocket/TCP wire protocol (`server/internal/protocol`), which the four front-ends mirror to connect, list/share projects, and edit collaboratively; it persists metadata in Postgres and bytes in a custom secured file store, and never touches `core/`.
@@ -47,7 +48,7 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 
 3. **One deliberate divergence: no `eval`.** `browser/js/core/formulaEngine.js` evaluates `f(x,y)` with `new Function(...)`; `core/parse/formulaParser` is a real recursive-descent parser (`+ - * / ** ( )`, single variable, `**` right-associative, empty = identity, div-by-zero/overflow = invalid). When wasm is loaded the browser uses the parser; keep the two contracts aligned (same operators, precedence, identity-on-error).
 
-4. **The CLI recompiles core sources, it does not link the CMake library.** The file list in `cli/build.zig` **must stay in sync** with `STENCIL_CORE_SOURCES` in `core/CMakeLists.txt`. Adding/removing/renaming a core `.cpp` means editing both.
+4. **The CLI and the Python package recompile core sources, they do not link the CMake library.** The file list in `cli/build.zig` **and** the source list in `pystencil/build.py` **must stay in sync** with `STENCIL_CORE_SOURCES` in `core/CMakeLists.txt`. Adding/removing/renaming a core `.cpp` means editing all three.
 
 5. **`core/` is STL-only, codec-free, GUI-free.** It moves bytes and numbers over flat `double*`/RGBA8 buffers + C strings (`core/wasmApi.cpp` for the browser, `core/cliApi.{h,cpp}` for the CLI — no embind, no host allocation). Everything platform-specific lives in the adapters: image codecs/HTTP/video/JSON are the Zig CLI's job; QImage/canvas rendering, persistence, and the event loop are the GUI apps'. Don't pull Qt, a codec, or DOM access into `core/`.
 

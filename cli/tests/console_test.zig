@@ -81,6 +81,44 @@ test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
     try testing.expect(try console.handle(&session, io, "/exit")); // exit ends the session
 }
 
+test "console: /layout exports the structured layout JSON to a file" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const layout_in = "stencil_console_layout_in.json";
+    const out = "stencil_console_layout.json";
+    try dir.writeFile(io, .{
+        .sub_path = layout_in,
+        .data =
+        \\{"lines":[{"points":[{"x":1,"y":2},{"x":3,"y":4}],"color":"#ff0000","width":2}]}
+        ,
+    });
+    defer dir.deleteFile(io, layout_in) catch {};
+    defer dir.deleteFile(io, out) catch {};
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    // A blank page + a drawn layout, then export the layout JSON.
+    _ = try console.handle(&session, io, "/blank 64 48 white");
+    _ = try console.handle(&session, io, "/apply " ++ layout_in);
+    _ = try console.handle(&session, io, "/layout " ++ out);
+
+    const bytes = try dir.readFileAlloc(io, out, a, .limited(1 << 20));
+    defer a.free(bytes);
+
+    // It parses as JSON and carries the structured "lines" array.
+    var parsed = try std.json.parseFromSlice(std.json.Value, a, bytes, .{});
+    defer parsed.deinit();
+    try testing.expect(parsed.value == .object);
+    try testing.expect(parsed.value.object.get("lines") != null);
+    try testing.expect(parsed.value.object.get("lines").? == .array);
+    try testing.expect(parsed.value.object.get("lines").?.array.items.len >= 1);
+}
+
 test "console: blank creates a temporary in-memory source" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

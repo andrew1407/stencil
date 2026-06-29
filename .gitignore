@@ -80,3 +80,11 @@ mcp/.env
 server/.env
 server/data/
 server/stencil-server
+
+# Python package (pystencil/): on-demand compiled core artifact + Python build cruft.
+pystencil/pystencil/_native/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.pytest_cache/
