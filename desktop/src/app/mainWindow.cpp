@@ -72,6 +72,7 @@
 #include <QPalette>
 #include <QRandomGenerator>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -161,8 +162,10 @@ namespace stencil::gui {
 
     pageSize_ = new QComboBox(this);
     pageSize_->addItems({"A3", "A4", "custom"});  // S10 custom page
+    pageSize_->setToolTip("Page format used for cm/inch measurements (A3, A4, or custom)");
     zoom_ = new QComboBox(this);
     zoom_->addItems({"25%", "50%", "75%", "100%", "150%", "200%", "400%"});
+    zoom_->setToolTip("Zoom level — pick a preset or type an exact percent");
     // Editable so the user can type an exact percent, but NoInsert so reflecting
     // a programmatic zoom (Ctrl+wheel) never appends list items — mirrors browser
     // zoomPan.js setZoom (a clamped numeric percent, never an accumulating list).
@@ -346,6 +349,8 @@ namespace stencil::gui {
             [this](int i) { canvas_->selectPoint(i); });
     connect(selPanel_, &SelectionPanel::pointDeleteRequested, this,
             [this](int i) { canvas_->deletePoint(i); });
+    connect(selPanel_, &SelectionPanel::pointCoordChanged, this,
+            [this](int i, int axis, double v) { canvas_->setPointCoord(i, axis, v); });
 
     // ── selection-panel inline line editor → canvas mutators (Step 10).
     // Mirrors browser/js/core/drawingApp.js:181-195 applySelectionChange /
@@ -394,17 +399,21 @@ namespace stencil::gui {
       a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
     };
 
-    actOpen_ = mk("Open Image…", "Ctrl+O");
-    actOpenAnother_ = mk("Open Another Image…", QString());
+    actOpen_ = mk("Open Image…", hotkey("loadImage", "Ctrl+O"));
+    actOpenAnother_ = mk("Open Another Image…",
+                         hotkey("openAnotherImage", "Ctrl+Shift+O"));
     tip(actOpenAnother_,
         "Open another image — replace the current editor or launch it in a new window");
     // Emoji prefixes were removed from these labels now that every action carries
     // a themed line-art icon (styleActionIcons): the menu shows icon + clean text,
     // the icon-only toolbar shows the glyph with the label on its tooltip.
-    actNewBlank_ = mk("New Blank Image…", QString());
+    // New Blank / New Line have no entry in the shared hotkeysConfig.json
+    // registry, so their (browser-coordinated) defaults are set literally here
+    // rather than through hotkey(); they're not listed in the Customize dialog.
+    actNewBlank_ = mk("New Blank Image…", "Ctrl+Shift+B");
     tip(actNewBlank_,
         "Create a blank image (white, black, or any color) to draw on");
-    actCrop_ = mk("Crop Image…", QString());
+    actCrop_ = mk("Crop Image…", hotkey("cropImage", "Ctrl+Shift+X"));
     tip(actCrop_,
         "Crop the image — pick the page-shaped region to show on the canvas");
     // Non-destructive 90° rotation (browser hotkeys rotateImageLeft=Alt+R,
@@ -420,7 +429,7 @@ namespace stencil::gui {
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
     actStartDraw_ = mk("Start Drawing", hotkey("startDraw", "Alt+A"));
     actStopDraw_ = mk("Stop Drawing", hotkey("stopDraw", "Alt+S"));
-    actNewLine_ = mk("New Line", QString());
+    actNewLine_ = mk("New Line", "Alt+N");
     actUndo_ = mk("Undo", hotkey("undo", "Ctrl+Z"));
     actRedo_ = mk("Redo", hotkey("redo", "Ctrl+Shift+Z"));
     actDeleteLast_ = mk("Delete Last Point", "Backspace");
@@ -437,20 +446,21 @@ namespace stencil::gui {
     actFit_ = mk("Fit to Window", hotkey("resetZoom", "Alt+0"));
     actShowPoints_ = mk("Show Points", hotkey("togglePoints", "Alt+P"));
     actShowLines_ = mk("Show Lines", hotkey("toggleLines", "Alt+L"));
-    actTheme_ = mk("Dark Theme", "Ctrl+D");
+    actTheme_ = mk("Dark Theme", hotkey("toggleTheme", "Ctrl+D"));
     actPanel_ = mk("Selection Panel", hotkey("togglePointsList", "Alt+X"));
     actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
     actSettings_ = mk("Settings…", "Ctrl+,");
-    actProjects_ = mk("Projects…", "Ctrl+Shift+P");
-    actConnect_ = mk("Servers…", QString());
+    actProjects_ = mk("Projects…", hotkey("openProjects", "Ctrl+Shift+P"));
+    actConnect_ = mk("Servers…", hotkey("openServers", "Ctrl+Shift+K"));
     tip(actConnect_,
         "Connect to collaboration servers — shared projects appear with a golden outline");
-    actLinks_ = mk("Image Links…", QString());
-    actNewProject_ = mk("New Project", QString());
+    actLinks_ = mk("Image Links…", hotkey("openLinks", "Ctrl+Shift+L"));
+    // New Project has no shared hotkeysConfig.json entry; literal default here.
+    actNewProject_ = mk("New Project", "Ctrl+Shift+N");
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
     actSaveSession_ = mk("Save Session", "Ctrl+S");
-    actInfo_ = mk("Info && Shortcuts", "F1");
-    actIncognito_ = mk("Incognito", QString());
+    actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
+    actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Ctrl+Shift+G"));
     actTooltip_ = mk("Hover Tooltip", QString());
     actTooltip_->setCheckable(true);
     // Allow-formulas toggle (S11), also reachable from the View menu so the
@@ -463,11 +473,11 @@ namespace stencil::gui {
     // Data actions (S9). The clipboard hotkeys come from hotkeysConfig.json
     // (copyImage=Ctrl+C, copyLayout=Alt+J, paste=Ctrl+V) so a rebind re-applies
     // live; the JSON file export/import are menu-only (no browser hotkey).
-    actDownloadJson_ = mk("Export Layout JSON…", QString());
-    actUploadJson_ = mk("Import Layout JSON…", QString());
-    actCopyLayout_ = mk("Copy Layout JSON", hotkey("copyLayout", "Alt+J"));
+    actDownloadJson_ = mk("Export Layout JSON…", hotkey("downloadJson", "Ctrl+Shift+J"));
+    actUploadJson_ = mk("Import Layout JSON…", hotkey("uploadJson", "Ctrl+Shift+U"));
+    actCopyLayout_ = mk("Copy Layout JSON", hotkey("copyLayout", "Ctrl+Alt+C"));
     actPasteLayout_ = mk("Paste Layout JSON", QString());
-    actSaveImage_ = mk("Save Image…", QString());
+    actSaveImage_ = mk("Save Image…", hotkey("saveImage", "Ctrl+Shift+D"));
     actCopyImage_ = mk("Copy Image to Clipboard", hotkey("copyImage", "Ctrl+C"));
     // Single Ctrl+V entrypoint (paste hotkey): image takes priority over a layout
     // JSON text payload, mirroring the browser paste listener (drawingApp.js
@@ -589,6 +599,21 @@ namespace stencil::gui {
     hotkeyActions_["copyImage"] = actCopyImage_;
     hotkeyActions_["copyLayout"] = actCopyLayout_;
     hotkeyActions_["paste"] = actPasteImage_;
+    // File / project hotkeys whose defaults live in the shared hotkeysConfig.json
+    // (coordinated with the browser), wired so a rebind re-applies live and they
+    // appear in the Customize Shortcuts dialog.
+    hotkeyActions_["openAnotherImage"] = actOpenAnother_;
+    hotkeyActions_["cropImage"] = actCrop_;
+    hotkeyActions_["saveImage"] = actSaveImage_;
+    hotkeyActions_["downloadJson"] = actDownloadJson_;
+    hotkeyActions_["uploadJson"] = actUploadJson_;
+    hotkeyActions_["openServers"] = actConnect_;
+    hotkeyActions_["openLinks"] = actLinks_;
+    hotkeyActions_["toggleIncognito"] = actIncognito_;
+    hotkeyActions_["loadImage"] = actOpen_;
+    hotkeyActions_["openProjects"] = actProjects_;
+    hotkeyActions_["toggleTheme"] = actTheme_;
+    hotkeyActions_["openHelp"] = actInfo_;
 
     connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);
     connect(actIncognito_, &QAction::toggled, this, [this](bool on) {
@@ -714,7 +739,8 @@ namespace stencil::gui {
     tintColorAction_ = new QAction("Tint Color…", this);
     connect(tintColorAction_, &QAction::triggered, this, [this] {
       const QColor c =
-          QColorDialog::getColor(filterColorValue_, this, "Tint color");
+          QColorDialog::getColor(filterColorValue_, this, "Tint color",
+                                 QColorDialog::DontUseNativeDialog);
       if (c.isValid()) applyTintColor(c);
     });
 
@@ -826,6 +852,14 @@ namespace stencil::gui {
     project->addAction(actNewProject_);
     project->addAction(actSaveProject_);
     project->addSeparator();
+    // Per-project name colour lives here (not as a toolbar swatch): pick a custom colour or
+    // revert to the theme default. Enabled only with an active project (see updateProjectTitle).
+    actProjectColor_ = project->addAction("Project &colour…", this, [this] { chooseProjectColor(); });
+    actProjectColorClear_ =
+        project->addAction("Use theme &default colour", this, [this] { setActiveProjectColor(QString()); });
+    actProjectColor_->setEnabled(false);
+    actProjectColorClear_->setEnabled(false);
+    project->addSeparator();
     project->addAction(actLinks_);
 
     auto* help = menuBar()->addMenu("&Help");
@@ -862,6 +896,11 @@ namespace stencil::gui {
     // Connect/Servers affordance on the top bar (mirrors the browser's #connect-btn
     // icon button) — not just the Project-menu entry, so it is one click away.
     tb->addAction(actConnect_);
+    // Incognito as a checkable toolbar icon (mirrors the browser's #incognito-toggle):
+    // bound to the SAME actIncognito_ as the View-menu entry, so toggle state, the
+    // active highlight (QAction checked), and the disabled-when-an-image-is-loaded
+    // gating (refreshActions) stay in lockstep across both surfaces.
+    tb->addAction(actIncognito_);
     tb->addAction(actCrop_);
     tb->addAction(actRotateLeft_);
     tb->addAction(actRotateRight_);
@@ -884,11 +923,35 @@ namespace stencil::gui {
     tb->addWidget(new QLabel("  Project: ", this));
     projectName_ = new QLineEdit(this);
     projectName_->setPlaceholderText("No project");
-    projectName_->setToolTip("Project name — type to rename");
+    projectName_->setToolTip("Project name — double-click (or ✎) to rename");
     projectName_->setMinimumWidth(150);
     projectName_->setMaximumWidth(260);
     projectName_->setEnabled(false);
+    projectName_->setReadOnly(true);  // browser-like: read-only until edit mode (✎ / double-click)
     tb->addWidget(projectName_);
+    // Browser-style affordances beside the name: a ✎ rename pencil (focuses + selects the field)
+    // and a 🎨 colour icon (flat — NOT a filled swatch — opening choose / theme-default). Both
+    // are themed line-art glyphs (styleActionIcons) and enable only with an active project.
+    projectNameEdit_ = new QToolButton(this);
+    projectNameEdit_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    projectNameEdit_->setAutoRaise(true);
+    projectNameEdit_->setToolTip("Rename project");
+    projectNameEdit_->setEnabled(false);
+    projectNameEditAction_ = tb->addWidget(projectNameEdit_);
+    connect(projectNameEdit_, &QToolButton::clicked, this, [this] { enterNameEdit(); });
+    projectColorBtn_ = new QToolButton(this);
+    projectColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    projectColorBtn_->setAutoRaise(true);
+    projectColorBtn_->setToolTip("Project name colour — right-click to reset to default");
+    projectColorBtn_->setEnabled(false);
+    projectColorBtnAction_ = tb->addWidget(projectColorBtn_);
+    // Click opens a small menu (browser parity): "Choose colour…" + "Use theme default colour".
+    // The menu runs its own loop and fully closes before we open the picker (deferred), so no stray
+    // grab dismisses the dialog. Right-click still resets straight to the theme default.
+    connect(projectColorBtn_, &QToolButton::clicked, this, [this] { showProjectColorMenu(); });
+    projectColorBtn_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(projectColorBtn_, &QToolButton::customContextMenuRequested, this,
+            [this](const QPoint&) { setActiveProjectColor(QString()); });
     // Inline-rename confirm/cancel: line-art check / x glyphs (themed in
     // styleActionIcons) instead of the bare ✓/✗ text, matching the browser's
     // icon buttons. Icon-only with a tooltip.
@@ -896,21 +959,29 @@ namespace stencil::gui {
     projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectNameAccept_->setToolTip("Rename (Enter)");
     projectNameAccept_->setVisible(false);
-    tb->addWidget(projectNameAccept_);
+    projectNameAcceptAction_ = tb->addWidget(projectNameAccept_);
+    projectNameAcceptAction_->setVisible(false);
     projectNameCancel_ = new QToolButton(this);
     projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectNameCancel_->setToolTip("Cancel (Esc)");
     projectNameCancel_->setVisible(false);
-    tb->addWidget(projectNameCancel_);
+    projectNameCancelAction_ = tb->addWidget(projectNameCancel_);
+    projectNameCancelAction_->setVisible(false);
+    // The per-project name colour control is NOT a toolbar swatch — it lives in the Project
+    // menubar menu (actProjectColor_ / actProjectColorClear_). projectColorBtn_ stays null; the
+    // active project's colour is still visible because the name field itself is painted in it.
     // textEdited fires only on USER edits (not programmatic setText), so updating the
     // field from updateProjectTitle() never re-triggers validation.
     connect(projectName_, &QLineEdit::textEdited, this,
             [this](const QString&) { refreshProjectNameButtons(); });
     connect(projectName_, &QLineEdit::returnPressed, this, [this] {
-      if (projectNameAccept_->isVisible() && projectNameAccept_->isEnabled()) commitProjectName();
+      if (nameEditing_) commitProjectName();  // commit (no-op if unchanged) + leave edit mode
     });
     connect(projectNameAccept_, &QToolButton::clicked, this, [this] { commitProjectName(); });
     connect(projectNameCancel_, &QToolButton::clicked, this, [this] { cancelProjectName(); });
+    // Escape cancels the edit; clicking away (focus-out) reverts any uncommitted text — both via
+    // the event filter below, so the user can always leave the field (Enter still commits).
+    projectName_->installEventFilter(this);
   }
 
   void MainWindow::buildPageFormulaToolbar() {
@@ -945,6 +1016,7 @@ namespace stencil::gui {
       customW_->setSingleStep(0.1);
       customW_->setDecimals(1);
       customW_->setValue(21.0);
+      customW_->setToolTip("Custom page width in the selected units");
       // Width-tightening (S8 req 7): keep the custom-page spinboxes compact
       // (browser style width:96px, toolbar.js:110/112).
       customW_->setMaximumWidth(96);
@@ -954,6 +1026,7 @@ namespace stencil::gui {
       customH_->setSingleStep(0.1);
       customH_->setDecimals(1);
       customH_->setValue(29.7);
+      customH_->setToolTip("Custom page height in the selected units");
       customH_->setMaximumWidth(96);
       customH_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       cl->addWidget(customW_);
@@ -971,6 +1044,8 @@ namespace stencil::gui {
 
     // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
     allowFormulas_ = new QCheckBox("f(x,y)", this);
+    allowFormulas_->setToolTip(
+        "Enable x/y coordinate transform formulas applied to the points table");
     tb2->addWidget(allowFormulas_);
     formulaGroup_ = new QWidget(this);
     {
@@ -979,12 +1054,14 @@ namespace stencil::gui {
       fl->setSpacing(2);
       formulaX_ = new QLineEdit(formulaGroup_);
       formulaX_->setPlaceholderText("x(x)=");
+      formulaX_->setToolTip("Transform formula for x — e.g. x*2 + 1 (empty = identity)");
       // Width-tightening (S8 req 7): compact f(x,y) inputs (browser width:90px,
       // toolbar.js:119/120) with a Fixed policy so they don't stretch.
       formulaX_->setMaximumWidth(90);
       formulaX_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       formulaY_ = new QLineEdit(formulaGroup_);
       formulaY_->setPlaceholderText("y(y)=");
+      formulaY_->setToolTip("Transform formula for y — e.g. y/2 (empty = identity)");
       formulaY_->setMaximumWidth(90);
       formulaY_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       formulaError_ = new QLabel("⚠ invalid", formulaGroup_);
@@ -1022,6 +1099,7 @@ namespace stencil::gui {
     imageFilter_->addItem("B&W", "bw");
     imageFilter_->addItem("Sepia", "sepia");
     imageFilter_->addItem("Tint", "custom");
+    imageFilter_->setToolTip("Image filter: none, black & white, sepia, or tint");
     tb3->addWidget(imageFilter_);
 
     // Tint swatch (toolbar.js:30 #filterColor), hidden unless the "custom" filter
@@ -1107,8 +1185,8 @@ namespace stencil::gui {
     // Default line color (drawingApp.js:155): pick a color, store as the default
     // and push to the canvas.
     connect(lineColorBtn_, &QToolButton::clicked, this, [this] {
-      const QColor c = QColorDialog::getColor(lineColorValue_, this,
-                                              "Line color");
+      const QColor c = QColorDialog::getColor(lineColorValue_, this, "Line color",
+                                              QColorDialog::DontUseNativeDialog);
       if (!c.isValid()) return;
       lineColorValue_ = c;
       updateColorSwatch(lineColorBtn_, c);
@@ -1147,8 +1225,8 @@ namespace stencil::gui {
             });
     // Tint color (drawingApp.js:240-249): pick the custom duotone tint.
     connect(filterColorBtn_, &QToolButton::clicked, this, [this] {
-      const QColor c = QColorDialog::getColor(filterColorValue_, this,
-                                              "Tint color");
+      const QColor c = QColorDialog::getColor(filterColorValue_, this, "Tint color",
+                                              QColorDialog::DontUseNativeDialog);
       if (c.isValid()) applyTintColor(c);
     });
   }
@@ -1252,16 +1330,13 @@ namespace stencil::gui {
     if (dlg.exec() != QDialog::Accepted) return;
     const QString path = dlg.path();
     if (path.isEmpty()) return;
-    switch (dlg.outcome()) {
-      case OpenImageDialog::Outcome::NewWindow:
-        openImageInNewWindow(path, dlg.incognito());
-        break;
-      case OpenImageDialog::Outcome::Replace:
-        replaceProjectImage(path, dlg.rename(), dlg.keepAnnotations());
-        break;
-      default:
-        openImageHere(path, dlg.incognito());
-        break;
+    const OpenImageDialog::Outcome outcome = dlg.outcome();
+    if (outcome == OpenImageDialog::Outcome::NewWindow) {
+      openImageInNewWindow(path, dlg.incognito());
+    } else if (outcome == OpenImageDialog::Outcome::Replace) {
+      replaceProjectImage(path, dlg.rename(), dlg.keepAnnotations());
+    } else {
+      openImageHere(path, dlg.incognito());
     }
   }
 
@@ -1648,7 +1723,10 @@ namespace stencil::gui {
   }
 
   void MainWindow::onSelectionChanged() {
-    const core::Line* line = canvas_->panelLine();
+    // No image → no points panel at all (restored lines from a prior session must not show
+    // floating points over the empty "Open an image" canvas).
+    const bool hasImg = canvas_->hasImage();
+    const core::Line* line = hasImg ? canvas_->panelLine() : nullptr;
     // Per-point page (cm) coords via the same pageCoords converter the status bar
     // and tooltip use, so formulas (S11) + custom page (S10) apply identically in
     // the panel. Mirrors browser/js/core/coordTable.js (px + cm per point).
@@ -1668,8 +1746,8 @@ namespace stencil::gui {
     // Points/coord table follows panelLine() (browser's always-on coordTable),
     // but the inline editor is gated on a real selection (selectedLine(), null
     // when selectedLineIdx_ < 0) so its mutators are never inert.
-    selPanel_->showLine(line, canvas_->selectedLine(), canvas_->selectedPoint(),
-                        cmRows);
+    selPanel_->showLine(line, hasImg ? canvas_->selectedLine() : nullptr,
+                        hasImg ? canvas_->selectedPoint() : -1, cmRows);
   }
 
   // Canvas right-click menu — mirrors the grouping of browser/js/ui/contextMenu.js
@@ -1959,8 +2037,13 @@ namespace stencil::gui {
       notify_->error("No layout to copy");  // drawingApp.js:2183
       return;
     }
+    // Copy the FULL layout (Ctrl+Alt+C): lines + filter/tint + crop + rotation +
+    // page meta, matching the server-save envelope so every applied edit travels.
     const QJsonObject obj = fileStore::buildLayoutJson(
-        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines());
+        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
+        settings_.imageFilter, settings_.filterColor,
+        canvas_->cropRect(), canvas_->rotationQuarters(),
+        currentLayoutMeta());
     const QByteArray txt =
         QJsonDocument(obj).toJson(QJsonDocument::Indented);
     QGuiApplication::clipboard()->setText(QString::fromUtf8(txt));
@@ -2151,13 +2234,20 @@ namespace stencil::gui {
       return;
     }
     const int step = (mods & Qt::ShiftModifier) ? 22 : 7;
-    int dx = 0, dy = 0;
-    switch (event->key()) {
-      case Qt::Key_Left:  dx = -step; break;
-      case Qt::Key_Right: dx =  step; break;
-      case Qt::Key_Up:    dy = -step; break;
-      case Qt::Key_Down:  dy =  step; break;
-      default: QMainWindow::keyPressEvent(event); return;
+    int dx = 0;
+    int dy = 0;
+    const int key = event->key();
+    if (key == Qt::Key_Left) {
+      dx = -step;
+    } else if (key == Qt::Key_Right) {
+      dx = step;
+    } else if (key == Qt::Key_Up) {
+      dy = -step;
+    } else if (key == Qt::Key_Down) {
+      dy = step;
+    } else {
+      QMainWindow::keyPressEvent(event);
+      return;
     }
     scrollTo(scroll_->horizontalScrollBar()->value() + dx,
              scroll_->verticalScrollBar()->value() + dy);
@@ -2194,7 +2284,6 @@ namespace stencil::gui {
   // `iconColor` (names mirror browser/js/ui/toolbar.js). Null-guarded.
   void MainWindow::styleActionIcons(bool dark, const QColor& iconColor) {
     iconColor_ = iconColor;
-    const QColor accent = accentPrimary(settings_.accentColor);
     const int s = 18;
     auto set = [&](QAction* a, const char* name) {
       if (a) a->setIcon(themedIcon(QString::fromLatin1(name), iconColor, s));
@@ -2257,11 +2346,16 @@ namespace stencil::gui {
     // matching the browser's toggle glyph.
     if (actTheme_) actTheme_->setIcon(themedIcon(dark ? "sun" : "moon", iconColor, s));
 
-    // Toolbuttons that aren't backed by a QAction.
+    // Toolbuttons that aren't backed by a QAction. The rename confirm/cancel mirror the browser's
+    // green ✓ / red ✗ inline-edit buttons.
     if (projectNameAccept_)
-      projectNameAccept_->setIcon(themedIcon("check", accent, 16));
+      projectNameAccept_->setIcon(themedIcon("check", QColor("#2e9e4f"), 16));
     if (projectNameCancel_)
-      projectNameCancel_->setIcon(themedIcon("x", iconColor, 16));
+      projectNameCancel_->setIcon(themedIcon("x", QColor("#d6293e"), 16));
+    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon (flat line-art glyphs
+    // following the theme text colour — not a filled swatch).
+    if (projectNameEdit_) projectNameEdit_->setIcon(themedIcon("pencil", iconColor, 15));
+    if (projectColorBtn_) projectColorBtn_->setIcon(themedIcon("palette", iconColor, 15));
     if (drawModeBtn_) {
       const bool rect =
           canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
@@ -2569,6 +2663,26 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
       refreshActions();
       refreshDockMenu();
+    } else if (dlg.action() == Action::ClearAll) {
+      // Remove ALL local projects (server projects are untouched), mirroring the browser modal's
+      // "Clear All". Confirmed because it's destructive.
+      const int n = static_cast<int>(projectList_.size());
+      if (n == 0) {
+        notify_->info("No local projects to clear");
+        return;
+      }
+      if (QMessageBox::question(
+              this, "Clear all projects",
+              QString("Remove all %1 local project(s)? This cannot be undone. Server projects are not affected.")
+                  .arg(n),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+      projectList_.clear();
+      activeProjectId_.clear();
+      fileStore::saveProjects(projectList_);
+      refreshActions();
+      refreshDockMenu();
+      notify_->success(QString("Cleared %1 local project(s)").arg(n));
     } else if (dlg.action() == Action::Delete) {
       // Block removing a project that's open in another window (matches the browser's
       // "open in another tab" guard).
@@ -2596,6 +2710,18 @@ namespace stencil::gui {
       refreshActions();
       refreshDockMenu();  // drop it from the Dock "recent" list
       notify_->info("Project deleted");
+    } else if (dlg.action() == Action::SetColor) {
+      // Set/clear a project's accent colour (local meta or server PUT), then repaint
+      // the active name if it's the one that changed.
+      if (setProjectColorById(dlg.selectedId(), dlg.selectedServerUrl(), dlg.selectedColor())) {
+        if (dlg.selectedServerUrl().isEmpty() && activeProjectId_ == dlg.selectedId())
+          updateProjectTitle();
+        else if (!dlg.selectedServerUrl().isEmpty() && remoteId_ == dlg.selectedId()
+                 && remoteAddress_ == dlg.selectedServerUrl()) {
+          remoteColor_ = normalizeProjectColor(dlg.selectedColor()).value_or(QString());
+          updateProjectTitle();
+        }
+      }
     } else if (dlg.action() == Action::Rename) {
       // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
@@ -2674,6 +2800,7 @@ namespace stencil::gui {
     remoteAddress_.clear();  // a local project is not server-linked
     remoteId_.clear();
     remoteName_.clear();
+    remoteColor_.clear();
     remoteVersion_ = 0;
     stopRemotePoll();   // no longer a server session
     currentSource_ = QString::fromStdString(pr->meta.source);
@@ -2807,6 +2934,7 @@ namespace stencil::gui {
     remoteAddress_ = serverUrl;
     remoteId_ = id;
     remoteName_ = meta.name;
+    remoteColor_ = meta.color;
     remoteVersion_ = meta.version;
     currentSource_ = meta.source;
     currentResource_ = meta.resource;
@@ -2986,9 +3114,15 @@ namespace stencil::gui {
     int h = 0;
     if (!localProjectOriginal(*pr, bytes, ext, w, h)) return;
     const QString name = QString::fromStdString(pr->meta.name);
+    // Carry the project's accent colour onto the server copy (create can't set it).
+    const QString localColor = QString::fromStdString(pr->meta.color);
     QString newId;
     qint64 newVersion = 0;
     if (!createServerFromLocal(c, *pr, name, bytes, ext, w, h, newId, newVersion)) return;
+    if (!localColor.isEmpty()) {
+      bool colorConflict = false;
+      c->updateProjectColor(newId, localColor, newVersion, newVersion, colorConflict);
+    }
     // The local copy is now redundant — remove it.
     const std::string sid = id.toStdString();
     const bool wasActive = (activeProjectId_ == id);
@@ -3004,6 +3138,7 @@ namespace stencil::gui {
       remoteAddress_ = serverUrl;
       remoteId_ = newId;
       remoteName_ = name;
+      remoteColor_ = localColor;
       remoteVersion_ = newVersion;
       startRemotePoll();
       updateProjectTitle();
@@ -3544,6 +3679,7 @@ namespace stencil::gui {
     remoteAddress_.clear();  // a freshly created local project is not server-linked
     remoteId_.clear();
     remoteName_.clear();
+    remoteColor_.clear();
     remoteVersion_ = 0;
     stopRemotePoll();   // no longer a server session
     Project pr;
@@ -3601,6 +3737,7 @@ namespace stencil::gui {
     remoteAddress_ = serverUrl;
     remoteId_ = id;
     remoteName_ = name;
+    remoteColor_.clear();   // a freshly created server project has no custom colour yet
     remoteVersion_ = version;
     refreshActions();
     notify_->success(QString("Created \"%1\" on %2").arg(name, serverUrl));
@@ -3806,6 +3943,7 @@ namespace stencil::gui {
       editable = !name.isEmpty();
     } else if (remote) {
       name = remoteName_;   // server-linked session (no local project id)
+      editable = !name.isEmpty();   // server projects are renameable too (pushed via commitProjectName)
     }
     if (name.isEmpty() && canvas_ && canvas_->hasImage())
       name = canvas_->imageBaseName();   // show the image name until it's a saved project
@@ -3816,39 +3954,284 @@ namespace stencil::gui {
     if (scroll_)
       scroll_->setStyleSheet(remote ? "QScrollArea{border:2px solid #d4a017;}"
                                     : QString());
+    // Per-project accent: the toolbar name field is painted in the project's colour by
+    // applyProjectNameStyle below (empty => theme default). The window title is OS-drawn,
+    // so only the field is tinted — mirroring the browser's coloured #project-name-input.
+    const bool hasProject = !incognito_ && (!activeProjectId_.isEmpty() || remote);
     // Don't clobber the field while the user is typing in it.
     if (projectName_ && !projectName_->hasFocus()) {
       projectName_->setText(name);
       projectName_->setEnabled(editable);
+      projectName_->setReadOnly(true);  // back to read-only after any edit (enter edit via ✎/dbl-click)
       projectName_->setPlaceholderText(
           incognito_ ? QStringLiteral("Incognito (unsaved)") : QStringLiteral("No project"));
+      // Custom colour when set; otherwise the shared neutral grey (#80868f), readable on
+      // light and dark — mirrors the browser's --project-name-fg (Qt has no text-shadow). The
+      // read-only look carries NO border/focus ring (applyProjectNameStyle); the bordered input
+      // appears only in edit mode.
+      applyProjectNameStyle(false);
       refreshProjectNameButtons();
     }
+    // Project-colour menu actions + the toolbar 🎨 icon enable with an active project; the ✎
+    // rename pencil only when the name is editable (a saved, non-incognito project).
+    if (actProjectColor_) actProjectColor_->setEnabled(hasProject);
+    if (actProjectColorClear_) actProjectColorClear_->setEnabled(hasProject);
+    if (projectColorBtn_) projectColorBtn_->setEnabled(hasProject);
+    if (projectNameEdit_) projectNameEdit_->setEnabled(editable);
   }
 
+  // Browser-like: the ✓/✗ buttons show only IN edit mode; the ✎ pencil shows only OUT of it.
+  // ✓ is enabled only for a changed, valid name (its tooltip carries the reason when disabled).
   void MainWindow::refreshProjectNameButtons() {
     if (!projectName_ || !projectNameAccept_ || !projectNameCancel_) return;
+    const bool editable = projectName_->isEnabled();
+    // Toggle the QWidgetActions (not the widgets) so the toolbar actually re-lays-out. In edit
+    // mode only ✓/✗ show; out of it only ✎ + 🎨 show — exactly like the browser topbar.
+    if (projectNameAcceptAction_) projectNameAcceptAction_->setVisible(nameEditing_);
+    if (projectNameCancelAction_) projectNameCancelAction_->setVisible(nameEditing_);
+    if (projectNameEditAction_) projectNameEditAction_->setVisible(editable && !nameEditing_);
+    if (projectColorBtnAction_) projectColorBtnAction_->setVisible(editable && !nameEditing_);
+    if (!nameEditing_) return;
     const QString v = projectName_->text().trimmed();
-    const bool changed = projectName_->isEnabled() && v != activeProjectName();
-    projectNameAccept_->setVisible(changed);
-    projectNameCancel_->setVisible(changed);
-    if (!changed) return;
-    const auto check = checkProjectName(v, activeProjectId_);
-    projectNameAccept_->setEnabled(check.ok);
-    projectNameAccept_->setToolTip(check.ok ? QStringLiteral("Save name (Enter)")
-                                            : QString::fromStdString(check.reason));
+    // Compare against the CURRENT name — remoteName_ for a server-linked session (no local id),
+    // else the local name.
+    const QString current = !remoteId_.isEmpty() ? remoteName_ : activeProjectName();
+    const bool changed = v != current;
+    bool ok = changed;
+    QString reason = changed ? QStringLiteral("Save name (Enter)") : QStringLiteral("No change");
+    if (changed && remoteId_.isEmpty()) {
+      const auto check = checkProjectName(v, activeProjectId_);
+      ok = check.ok;
+      if (!ok) reason = QString::fromStdString(check.reason);
+    } else if (changed) {  // server project: uniqueness is the server's job
+      ok = !v.isEmpty();
+      if (!ok) reason = QStringLiteral("Enter a name");
+    }
+    projectNameAccept_->setEnabled(ok);
+    projectNameAccept_->setToolTip(reason);
+  }
+
+  void MainWindow::enterNameEdit() {
+    if (!projectName_ || !projectName_->isEnabled() || nameEditing_) return;
+    nameEditing_ = true;
+    projectName_->setReadOnly(false);
+    applyProjectNameStyle(true);  // show the accent-outlined input look
+    projectName_->setFocus();
+    projectName_->selectAll();
+    refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
 
   void MainWindow::commitProjectName() {
-    if (!activeProjectId_.isEmpty())
+    const QString newName = projectName_->text().trimmed();
+    // Server-linked session (no local id): push the rename straight to the server so peers see it
+    // live, version-guarded — mirrors setActiveProjectColor's remote branch. Otherwise rename the
+    // local project. (Previously a server project couldn't be renamed at all from the toolbar.)
+    if (!remoteId_.isEmpty()) {
+      stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
+      if (!newName.isEmpty() && newName != remoteName_ && c) {
+        stencil::net::ServerProject meta;
+        QJsonObject lay;
+        qint64 newVersion = 0;
+        bool conflict = false;
+        if (c->getProject(remoteId_, meta, lay) &&
+            c->updateProjectName(remoteId_, newName, meta.version, newVersion, conflict)) {
+          remoteName_ = newName;
+          remoteVersion_ = newVersion;
+          notify_->success(QString("Renamed to \"%1\"").arg(newName));
+        } else {
+          notify_->error(QString("Rename failed: %1").arg(c ? c->lastError() : QStringLiteral("not connected")));
+        }
+      }
+    } else if (!activeProjectId_.isEmpty()) {
       renameProjectById(activeProjectId_, projectName_->text());
+    }
+    nameEditing_ = false;   // leave edit mode → field back to read-only, ✎ returns
     projectName_->clearFocus();
     updateProjectTitle();   // force the field/title back to the stored name
   }
 
   void MainWindow::cancelProjectName() {
+    nameEditing_ = false;   // leave edit mode
     projectName_->clearFocus();
     updateProjectTitle();   // revert the field to the stored name
+  }
+
+  bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
+    if (obj == projectName_) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::MouseButtonDblClick) {
+        // Double-click a read-only name → enter edit mode (browser parity).
+        if (!nameEditing_) {
+          enterNameEdit();
+          return true;
+        }
+      } else if (t == QEvent::KeyPress) {
+        if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+          // Escape always drops focus (clears the outline). If mid-edit, revert too.
+          if (nameEditing_) cancelProjectName();
+          else projectName_->clearFocus();
+          return true;
+        }
+      } else if (t == QEvent::FocusOut) {
+        // Clicking away leaves the edit: revert. Deferred so a click on ✓ commits first
+        // (after which the field no longer has focus AND nameEditing_ is already false → no-op).
+        if (nameEditing_) {
+          QTimer::singleShot(0, this, [this] {
+            if (nameEditing_ && projectName_ && !projectName_->hasFocus()) cancelProjectName();
+          });
+        }
+      }
+    }
+    return QMainWindow::eventFilter(obj, event);
+  }
+
+  // ── Per-project accent colour ──
+
+  QString MainWindow::activeProjectColor() const {
+    if (activeProjectId_.isEmpty()) return {};
+    for (const auto& p : projectList_)
+      if (QString::fromStdString(p.meta.id) == activeProjectId_)
+        return QString::fromStdString(p.meta.color);
+    return {};
+  }
+
+  // The colour of the project this editor is bound to: the linked server record for a
+  // server session (no local id), else the active local project. (Does not consider
+  // incognito — callers that paint apply that gate themselves.)
+  QString MainWindow::currentProjectColor() const {
+    return !remoteId_.isEmpty() ? remoteColor_ : activeProjectColor();
+  }
+
+  std::optional<QString> MainWindow::normalizeProjectColor(const QString& color) const {
+    if (color.isEmpty()) return QString();   // explicit clear → theme default
+    const QColor c(color);
+    if (!c.isValid()) return std::nullopt;   // reject an unparseable colour
+    return c.name().toLower();               // canonical "#rrggbb" lower-case
+  }
+
+  void MainWindow::chooseProjectColor() {
+    // Direct modal picker — identical to the line-colour button, which works cleanly. (Earlier
+    // menu/InstantPopup/singleShot variants left a stray mouse grab that closed the dialog.)
+    const QString cur = currentProjectColor();
+    const QColor seed = (!cur.isEmpty() && QColor(cur).isValid())
+                            ? QColor(cur)
+                            : accentPrimary(settings_.accentColor);
+    // DontUseNativeDialog: the macOS native NSColorPanel is a shared floating panel that the
+    // app-wide event filter / focus changes dismiss on mouse-move — Qt's own modal dialog runs a
+    // self-contained nested loop and stays put. (Same reason native pickers misbehave here.)
+    const QColor picked =
+        QColorDialog::getColor(seed, this, "Project name colour", QColorDialog::DontUseNativeDialog);
+    if (!picked.isValid()) return;   // user cancelled
+    setActiveProjectColor(picked.name());
+  }
+
+  // Browser-style 🎨 popup: a tiny menu rather than opening the picker directly. Always offers
+  // "Choose colour…"; offers "Use theme default colour" only when a custom colour is currently set.
+  void MainWindow::showProjectColorMenu() {
+    const QString cur = currentProjectColor();
+    const bool hasCustom = !cur.isEmpty();
+    QMenu menu(this);
+    QAction* pick = menu.addAction("Choose colour…");
+    // "Use theme default colour" is only meaningful when a custom colour is set — hide it
+    // entirely (not just disable) when the project is already on the theme default.
+    QAction* def = hasCustom ? menu.addAction("Use theme default colour") : nullptr;
+    QAction* chosen =
+        menu.exec(projectColorBtn_->mapToGlobal(QPoint(0, projectColorBtn_->height())));
+    if (chosen == pick) {
+      // Defer so the menu's mouse grab is fully released before the modal picker opens — a live
+      // grab is exactly what dismissed the dialog in the earlier direct-popup attempts.
+      QTimer::singleShot(0, this, [this] { chooseProjectColor(); });
+    } else if (def && chosen == def) {   // guard: dismissed menu yields null, which != def here
+      setActiveProjectColor(QString());
+    }
+  }
+
+  // Paint the name field for its mode. Editing → accent-outlined input (focus ring visible);
+  // read-only → a plain title with NO border/focus ring (matches the browser's title look), so a
+  // stray single-click focus never shows an editable-looking box. Project colour is kept in both.
+  void MainWindow::applyProjectNameStyle(bool editing) {
+    if (!projectName_) return;
+    const QString color = incognito_ ? QString() : currentProjectColor();
+    const QColor c(color);
+    const QString fg =
+        (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#80868f");
+    if (editing) {
+      const QColor accent = accentPrimary(settings_.accentColor);
+      projectName_->setStyleSheet(
+          QString("QLineEdit{color:%1;border:1px solid %2;border-radius:6px;"
+                  "background:palette(base);padding:2px 6px;}"
+                  "QLineEdit:focus{border:1px solid %2;}")
+              .arg(fg, accent.name()));
+    } else {
+      projectName_->setStyleSheet(
+          QString("QLineEdit{color:%1;border:1px solid transparent;background:transparent;}"
+                  "QLineEdit:focus{border:1px solid transparent;}")
+              .arg(fg));
+    }
+  }
+
+  void MainWindow::setActiveProjectColor(const QString& color) {
+    const auto norm = normalizeProjectColor(color);
+    if (!norm) {
+      notify_->error("Invalid colour");
+      return;
+    }
+    // A server-linked session has no local id: push the colour straight to the server.
+    if (!remoteId_.isEmpty()) {
+      if (setProjectColorById(remoteId_, remoteAddress_, *norm)) {
+        remoteColor_ = *norm;
+        updateProjectTitle();
+      }
+      return;
+    }
+    if (activeProjectId_.isEmpty()) {
+      notify_->info("Open or save a project first");
+      return;
+    }
+    if (setProjectColorById(activeProjectId_, QString(), *norm)) updateProjectTitle();
+  }
+
+  bool MainWindow::setProjectColorById(const QString& id, const QString& serverUrl,
+                                       const QString& color) {
+    const auto norm = normalizeProjectColor(color);
+    if (!norm) {
+      notify_->error("Invalid colour");
+      return false;
+    }
+    // Server project: version-guarded PUT UpdateProject{color}. Refresh our linked
+    // version when it's the open session so a later save doesn't 409.
+    if (!serverUrl.isEmpty()) {
+      stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
+      if (!c) {
+        notify_->error("Not connected to that server");
+        return false;
+      }
+      stencil::net::ServerProject meta;
+      QJsonObject lay;
+      if (!c->getProject(id, meta, lay)) {
+        notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
+        return false;
+      }
+      qint64 newVersion = 0;
+      bool conflict = false;
+      if (!c->updateProjectColor(id, *norm, meta.version, newVersion, conflict)) {
+        notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
+        return false;
+      }
+      if (remoteId_ == id && remoteAddress_ == serverUrl) remoteVersion_ = newVersion;
+      notify_->success(norm->isEmpty() ? QStringLiteral("Colour reset to theme default")
+                                       : QString("Colour set to %1").arg(*norm));
+      return true;
+    }
+    // Local project: update the meta + persist.
+    Project* pr = findProject(id.toStdString());
+    if (!pr) return false;
+    pr->meta.color = norm->toStdString();
+    fileStore::saveProjects(projectList_);
+    refreshDockMenu();
+    notify_->success(norm->isEmpty() ? QStringLiteral("Colour reset to theme default")
+                                     : QString("Colour set to %1").arg(*norm));
+    return true;
   }
 
   void MainWindow::openInfo() {

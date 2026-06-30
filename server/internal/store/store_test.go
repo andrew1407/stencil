@@ -62,12 +62,15 @@ func TestProjectCRUDAndList(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()
 
-	a, err := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Alpha", Source: "http://x/a.png"})
+	a, err := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Alpha", Source: "http://x/a.png", Color: "#ff8800"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a.ID == "" || a.Version != 0 || a.Name != "Alpha" {
 		t.Fatalf("bad created project: %+v", a)
+	}
+	if a.Color != "#ff8800" {
+		t.Fatalf("color not persisted on create: %q", a.Color)
 	}
 	b, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Beta"})
 
@@ -84,7 +87,7 @@ func TestProjectCRUDAndList(t *testing.T) {
 	}
 
 	got, err := s.GetProject(ctx, a.ID)
-	if err != nil || got.Source != "http://x/a.png" {
+	if err != nil || got.Source != "http://x/a.png" || got.Color != "#ff8800" {
 		t.Fatalf("get project: %v %+v", err, got)
 	}
 	if _, err := s.GetProject(ctx, "p_missing_x"); !errors.Is(err, ErrNotFound) {
@@ -105,7 +108,7 @@ func TestUpdateProjectLWW(t *testing.T) {
 	p, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "P"})
 
 	layout := json.RawMessage(`{"lines":[{"x":1}]}`)
-	upd, err := s.UpdateProject(ctx, p.ID, nil, layout, p.Version)
+	upd, err := s.UpdateProject(ctx, p.ID, nil, nil, layout, p.Version)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -116,13 +119,55 @@ func TestUpdateProjectLWW(t *testing.T) {
 	if !sameJSON(t, upd.Layout, layout) {
 		t.Fatalf("layout not persisted: %s", upd.Layout)
 	}
+	// nil color leaves it unchanged (still empty here).
+	if upd.Color != "" {
+		t.Fatalf("nil color should not set a value, got %q", upd.Color)
+	}
 	// Stale version is rejected.
-	if _, err := s.UpdateProject(ctx, p.ID, nil, layout, 0); !errors.Is(err, ErrConflict) {
+	if _, err := s.UpdateProject(ctx, p.ID, nil, nil, layout, 0); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale update should conflict, got %v", err)
 	}
 	// Unknown project is not-found, not conflict.
-	if _, err := s.UpdateProject(ctx, "p_missing_x", nil, layout, 0); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateProject(ctx, "p_missing_x", nil, nil, layout, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing update should be not-found, got %v", err)
+	}
+}
+
+// TestUpdateProjectColor exercises the COALESCE color path: a non-nil pointer
+// sets the colour, nil leaves it untouched, and an empty string clears it.
+func TestUpdateProjectColor(t *testing.T) {
+	s := requireStore(t)
+	ctx := context.Background()
+	p, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "C", Color: "#112233"})
+
+	// Set a new colour, leave name/layout untouched (nil).
+	red := "#ff0000"
+	upd, err := s.UpdateProject(ctx, p.ID, nil, &red, nil, p.Version)
+	if err != nil {
+		t.Fatalf("update color: %v", err)
+	}
+	if upd.Color != "#ff0000" || upd.Name != "C" {
+		t.Fatalf("color update changed wrong fields: %+v", upd)
+	}
+
+	// nil color preserves the value while bumping version via a name change.
+	name := "C2"
+	upd, err = s.UpdateProject(ctx, p.ID, &name, nil, nil, upd.Version)
+	if err != nil {
+		t.Fatalf("update name: %v", err)
+	}
+	if upd.Color != "#ff0000" || upd.Name != "C2" {
+		t.Fatalf("nil color should be preserved: %+v", upd)
+	}
+
+	// Empty string explicitly clears the colour (theme fallback).
+	empty := ""
+	upd, err = s.UpdateProject(ctx, p.ID, nil, &empty, nil, upd.Version)
+	if err != nil {
+		t.Fatalf("clear color: %v", err)
+	}
+	if upd.Color != "" {
+		t.Fatalf("empty color should clear, got %q", upd.Color)
 	}
 }
 

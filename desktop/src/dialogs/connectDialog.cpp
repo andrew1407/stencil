@@ -84,6 +84,7 @@ namespace stencil::gui {
     header->addWidget(titleLbl);
     header->addStretch(1);
     auto* closeBtn = new QPushButton(tr("Close"));
+    closeBtn->setToolTip(tr("Close this dialog"));
     closeBtn->setIcon(themedIcon("x", txt, 15));
     header->addWidget(closeBtn);
     root->addLayout(header);
@@ -97,16 +98,19 @@ namespace stencil::gui {
     form->addWidget(new QLabel(tr("URL")), 0, 0);
     urlEdit_ = new QLineEdit;
     urlEdit_->setPlaceholderText("http://host:8090");
+    urlEdit_->setToolTip(tr("Collaboration server URL, e.g. http://host:8090"));
     form->addWidget(urlEdit_, 0, 1);
     form->addWidget(new QLabel(tr("Token")), 1, 0);
     tokenEdit_ = new QLineEdit;
     tokenEdit_->setPlaceholderText(tr("(optional)"));
+    tokenEdit_->setToolTip(tr("Optional access token for a secured server"));
     form->addWidget(tokenEdit_, 1, 1);
     root->addLayout(form);
 
     // Connect (left) + Reconnect all (right), grouped on one row.
     auto* actions = new QHBoxLayout;
     auto* connectBtn = new QPushButton(tr("Connect"));
+    connectBtn->setToolTip(tr("Connect to the server at the URL above"));
     // White glyph: Connect is the default button (accent-filled in the theme QSS).
     connectBtn->setIcon(themedIcon("link", QColor("#ffffff"), 15));
     connectBtn->setDefault(true);
@@ -146,6 +150,7 @@ namespace stencil::gui {
       discSel->setIcon(themedIcon("x", QColor("#dc3545"), 15));
       discSel->setToolTip(tr("Disconnect (and forget) the selected servers"));
       auto* clrSel = new QPushButton(tr("Clear"));
+      clrSel->setToolTip(tr("Clear the current selection"));
       bh->addWidget(reSel);
       bh->addWidget(discSel);
       bh->addWidget(clrSel);

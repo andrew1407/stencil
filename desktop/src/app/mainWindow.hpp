@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QMainWindow>
 #include <QString>
+#include <optional>
 #include <vector>
 
 class QAction;
@@ -117,6 +118,8 @@ namespace stencil::gui {
     void pasteImage();
 
    private:
+    // Catches Escape + focus-out on the project-name field so the user can always leave the edit.
+    bool eventFilter(QObject* obj, QEvent* event) override;
     void buildActions();
     // S11: construct the persistent grouped actions + QWidgetActions used by the
     // nested right-click context menu (style/filter submenus, tooltip rows, the
@@ -334,8 +337,34 @@ namespace stencil::gui {
                                                     const QString& exceptId) const;
     // Validate + rename a project by id; notifies on rejection. Returns true on success.
     bool renameProjectById(const QString& id, const QString& name);
+    // The active project's name colour ("#rrggbb"), or empty when none / theme default.
+    QString activeProjectColor() const;
+    // The colour of the bound project: the server record for a server session, else the
+    // active local project. Ignores incognito (painting callers gate that themselves).
+    QString currentProjectColor() const;
+    // Pop a colour picker seeded with the active project's colour, then apply it.
+    void chooseProjectColor();
+    // Browser-like 🎨 popup: a menu offering "Choose colour…" (opens the picker) and
+    // "Use theme default colour" (enabled only when a custom colour is set) — instead of
+    // opening the picker directly.
+    void showProjectColorMenu();
+    // Set the ACTIVE editor's project colour (local id or server-linked session):
+    // validates ("" = clear, else QColor(str).isValid() → "#rrggbb" lower-case),
+    // persists, repaints the name, and pushes UpdateProject{color} for a server project.
+    void setActiveProjectColor(const QString& color);
+    // Set a colour on a project BY id (the Projects dialog "Set colour" path). For a
+    // server project (serverUrl non-empty) it PUTs UpdateProject{color}; else it
+    // updates the local meta + persists. Returns true on success.
+    bool setProjectColorById(const QString& id, const QString& serverUrl, const QString& color);
+    // Normalise a colour for storage: "" stays "" (clear); a QColor-valid string
+    // returns "#rrggbb" lower-case; anything else returns nullopt (reject the set).
+    std::optional<QString> normalizeProjectColor(const QString& color) const;
     // Live-update the ✓/✗ visibility + ✓ enabled-state/tooltip as the field is edited.
     void refreshProjectNameButtons();
+    // Style the name field for its mode: editing shows an accent-outlined input; read-only shows
+    // a plain title with NO border/focus ring (browser parity). Keeps the project colour.
+    void applyProjectNameStyle(bool editing);
+    void enterNameEdit();   // browser-like: switch the read-only name field into edit mode
     void commitProjectName();
     void cancelProjectName();
     void openInfo();
@@ -379,8 +408,19 @@ namespace stencil::gui {
     // ── Project-name field (toolbar) + its inline-rename ✓/✗ buttons. Mirrors the
     // browser topbar name field: shows the active project name, validated inline. ──
     QLineEdit* projectName_ = nullptr;
+    QToolButton* projectNameEdit_ = nullptr;    // ✎ rename affordance (enters edit mode)
+    bool nameEditing_ = false;                  // true while the name field is in edit mode
     QToolButton* projectNameAccept_ = nullptr;
     QToolButton* projectNameCancel_ = nullptr;
+    // Per-project accent swatch next to the name field (browser's color control):
+    // its popup chooses a custom name colour or reverts to the theme accent.
+    QToolButton* projectColorBtn_ = nullptr;
+    // QToolBar::addWidget wraps each button in a QWidgetAction; show/hide must toggle THESE
+    // actions (not just the widgets) or the toolbar ignores it. Used by refreshProjectNameButtons.
+    QAction* projectNameEditAction_ = nullptr;
+    QAction* projectColorBtnAction_ = nullptr;
+    QAction* projectNameAcceptAction_ = nullptr;
+    QAction* projectNameCancelAction_ = nullptr;
 
     // ── inline toolbar widget groups (S10 custom page, S11 formulas) ──
     // The QWidgetAction handle (…Act_) is toggled, not the widget, so the
@@ -448,6 +488,8 @@ namespace stencil::gui {
     QAction* actLinks_ = nullptr;
     QAction* actNewProject_ = nullptr;
     QAction* actSaveProject_ = nullptr;
+    QAction* actProjectColor_ = nullptr;       // Project menu: pick the active project's name colour
+    QAction* actProjectColorClear_ = nullptr;  // Project menu: revert it to the theme default
     QAction* actSaveSession_ = nullptr;
     QAction* actInfo_ = nullptr;
     QAction* actIncognito_ = nullptr;
@@ -533,6 +575,9 @@ namespace stencil::gui {
     QString remoteAddress_;
     QString remoteId_;
     QString remoteName_;
+    // The linked server project's accent colour ("#rrggbb" or empty). Kept in step
+    // with the server record so a server session paints its name like a local one.
+    QString remoteColor_;
     qint64 remoteVersion_ = 0;
     // Provenance of the image currently on the canvas (the image/video's own URL
     // and the page it came from). Set by loadImageByUrl(); cleared on a plain local

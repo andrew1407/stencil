@@ -249,6 +249,17 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_layout_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # fileStore::projectToJson <-> projectFromJson per-project `color` round-trip
+  # (browser/server colour-persistence parity).
+  add_executable(stencil_projectcolor_headless
+    tests/projectColor.headless.cpp
+    src/io/fileStore.cpp)
+  target_include_directories(stencil_projectcolor_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projectcolor_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_projectcolor_headless COMMAND stencil_projectcolor_headless)
+  set_tests_properties(stencil_projectcolor_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # ── Distributable packaging ───────────────────────────────────────────────
   # `cmake --install build` lays the app out under the install prefix; the Qt
   # deploy script then copies the Qt libraries + plugins next to it (macdeployqt /

@@ -53,6 +53,14 @@ test('sharedPinFromProject marks shared + carries serverUrl/projectId', () => {
   assert.match(pin.source, /\/projects\/p_a_b\/files\/original$/);
 });
 
+test('sharedPinFromProject carries the project color (defaulting to "")', () => {
+  const tinted = sharedPinFromProject({ id: 'p_c', name: 'Tinted', color: '#12ab34', hasImage: true }, 'http://srv:1');
+  assert.equal(tinted.color, '#12ab34');
+  // No color on the project → "" (the popup falls back to the neutral muted grey).
+  const plain = sharedPinFromProject({ id: 'p_d', name: 'Plain' }, 'http://srv:1');
+  assert.equal(plain.color, '');
+});
+
 test('sharedPinsFromProjects keeps only image projects', () => {
   const pins = sharedPinsFromProjects([
     { id: 'p1', name: 'A', hasImage: true },

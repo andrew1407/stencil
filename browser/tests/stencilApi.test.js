@@ -112,6 +112,12 @@ const makeApp = (over = {}) => {
     downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
     newEditor: rec('newEditor'), updateIncognitoUI: rec('updateIncognitoUI'),
     renameProject: rec('renameProject'), renewProject: rec('renewProject'),
+    setProjectColor(id, color) {
+      calls.push(['setProjectColor', id, color]);
+      const m = app._metas.find((x) => x.id === id);
+      if (m) m.color = color;
+      return m || null;
+    },
     closeProject: rec('closeProject'), switchToProject: rec('switchToProject'),
     toggleFullscreen() { calls.push(['toggleFullscreen']); bodyFullscreen = !bodyFullscreen; },
     pixelToPageCoords(x, y) { calls.push(['pixelToPageCoords', x, y]); return { x: x / 10, y: y / 10 }; },
@@ -303,6 +309,45 @@ test('project.name setter validates empty + duplicate names and routes to rename
   assert.throws(() => { p.name = 'Beta'; }, /already exists/);   // collides with id 2
   p.name = 'Gamma';
   assert.deepEqual(lastCall(app, 'renameProject'), ['renameProject', 1, 'Gamma']);
+});
+
+test('stencil.projectColor reads the active meta colour and validates on set', () => {
+  const app = withProjects();
+  app._metas = [{ id: 1, name: 'Alpha', color: '#ec4899' }, { id: 2, name: 'Beta' }];
+  const stencil = createStencil(app);
+
+  // Getter: active project's colour, or '' when unset.
+  assert.equal(stencil.projectColor, '#ec4899');
+  app._metas[0].color = '';
+  assert.equal(stencil.projectColor, '');
+
+  // Setter: a valid hex routes to setProjectColor; junk throws; '' clears.
+  stencil.projectColor = '#0EA5E9';
+  assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '#0EA5E9']);
+  stencil.projectColor = '';
+  assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '']);
+  assert.throws(() => { stencil.projectColor = 'not-a-colour'; }, /Invalid project colour/);
+});
+
+test('stencil.projectColor throws with no active project', () => {
+  const app = makeApp();   // activeProjectId null
+  const stencil = createStencil(app);
+  assert.equal(stencil.projectColor, '');
+  assert.throws(() => { stencil.projectColor = '#fff'; }, /No active project/);
+});
+
+test('project.color get/set validates hex and routes to setProjectColor', () => {
+  const app = withProjects();
+  app._metas = [{ id: 1, name: 'Alpha', color: '#16a34a' }, { id: 2, name: 'Beta' }];
+  const stencil = createStencil(app);
+
+  const p = stencil.getProjectByName('alpha');
+  assert.equal(p.color, '#16a34a');
+  p.color = '#abc';                       // normalises in DrawingApp; facade passes the trimmed value
+  assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '#abc']);
+  p.color = '';                           // clear is allowed
+  assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '']);
+  assert.throws(() => { p.color = 'zzz'; }, /Invalid project colour/);
 });
 
 test('project.renew/open/close route to app and return the project for chaining', () => {

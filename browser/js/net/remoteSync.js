@@ -49,11 +49,12 @@ const currentVersion = async (conn, id, fallback) => {
 
 // Create a project on `conn` and (when image bytes are given) upload the original.
 // Returns the session link { address, remoteId, version } to persist on the editor.
-export const createRemoteProject = async (conn, { name, source, resource, bytes, ext, w, h } = {}) => {
+export const createRemoteProject = async (conn, { name, source, resource, color, bytes, ext, w, h } = {}) => {
   const rec = await conn.createProject({
     name: name || 'Untitled',
     source: source || '',
     resource: resource || '',
+    color: color || '',
     hasImage: !!bytes,
   });
   let version = rec && rec.version != null ? rec.version : 0;

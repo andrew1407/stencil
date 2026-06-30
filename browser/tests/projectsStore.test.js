@@ -271,6 +271,29 @@ test('rename updates meta.name, no-op on unknown id', () => {
   assert.strictEqual(s.rename('missing', 'x'), null);
 });
 
+test('setColor sets/clears meta.color in place, no-op on unknown id', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'p' }), { image: null, layout: {} });
+  // Set a colour.
+  assert.strictEqual(s.setColor('a', '#ec4899').color, '#ec4899');
+  assert.strictEqual(s.getMeta('a').color, '#ec4899');
+  // Clearing back to '' (theme fallback) is a valid set.
+  assert.strictEqual(s.setColor('a', '').color, '');
+  assert.strictEqual(s.getMeta('a').color, '');
+  // Unknown id → null, registry untouched.
+  assert.strictEqual(s.setColor('missing', '#000000'), null);
+});
+
+test('upsert round-trips a project colour in meta (persistence)', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'p', color: '#0ea5e9' }), { image: null, layout: {} });
+  assert.strictEqual(s.getMeta('a').color, '#0ea5e9');
+  // A later upsert that omits color does NOT silently inherit — the caller (storage.save)
+  // is responsible for re-supplying it; here we prove setColor persists independently.
+  s.setColor('a', '#16a34a');
+  assert.strictEqual(s.list().find(m => m.id === 'a').color, '#16a34a');
+});
+
 test('findByImage matches by source URL, falls back to base name', () => {
   const s = new ProjectsStore(makeShim());
   s.upsert(meta('a', { name: 'img', source: 'https://x/i.png', updatedAt: 100 }), { image: null, layout: {} });

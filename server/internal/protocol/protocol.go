@@ -23,6 +23,7 @@ type ProjectRecord struct {
 	ImageH    int    `json:"imageH"`
 	Source    string `json:"source,omitempty"`   // media URL (provenance)
 	Resource  string `json:"resource,omitempty"` // origin web page (provenance)
+	Color     string `json:"color,omitempty"`    // custom accent "#rrggbb" or "" (theme default)
 
 	// Server-only storage fields.
 	OriginalPath    string          `json:"originalPath,omitempty"`    // filestore-relative
@@ -58,6 +59,7 @@ type CreateProjectRequest struct {
 	Name            string          `json:"name,omitempty"`
 	Source          string          `json:"source,omitempty"`
 	Resource        string          `json:"resource,omitempty"`
+	Color           string          `json:"color,omitempty"`
 	HasImage        bool            `json:"hasImage,omitempty"`
 	ImageW          int             `json:"imageW,omitempty"`
 	ImageH          int             `json:"imageH,omitempty"`
@@ -69,6 +71,7 @@ type CreateProjectRequest struct {
 // last-writer-wins update: a stale version is rejected with ErrConflict.
 type UpdateProjectRequest struct {
 	Name    *string         `json:"name,omitempty"`
+	Color   *string         `json:"color,omitempty"` // nil => unchanged (like Name)
 	Layout  json.RawMessage `json:"layout,omitempty"`
 	Version int64           `json:"version"`
 }

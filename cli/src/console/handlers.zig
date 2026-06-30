@@ -216,7 +216,7 @@ fn reconnectAt(session: *Session, io: std.Io, i: usize) bool {
     const is_active = session.remote_url != null and std.mem.eql(u8, session.remote_url.?, base);
     session.servers.items[i].deinit();
     session.servers.items[i] = fresh;
-    if (was_events or (session.sync and is_active)) session.openEvents(&session.servers.items[i]);
+    if (was_events or is_active) session.openEvents(&session.servers.items[i]); // feed stays open even with sync off
     logo.print("reconnected to {s}\n", .{base});
     return true;
 }
@@ -287,14 +287,16 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
     logo.print("use '/fetch <name>' to open a project\n", .{});
 }
 
-/// One rendered project row; all fields owned so rows outlive the per-server lists they came from.
-const ProjectRow = struct { name: []u8, size: []u8, changed: []u8, server: []const u8 };
+/// One rendered project row; all fields owned so rows outlive the per-server lists they came
+/// from. `color` is the project's custom name colour ("" = none → paint in the theme accent).
+const ProjectRow = struct { name: []u8, size: []u8, changed: []u8, color: []u8, server: []const u8 };
 
 fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
     for (rows.items) |r| {
         gpa.free(r.name);
         gpa.free(r.size);
         gpa.free(r.changed);
+        gpa.free(r.color);
     }
     rows.deinit(gpa);
 }
@@ -316,7 +318,9 @@ fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: 
         var tb: [32]u8 = undefined;
         const changed = try gpa.dupe(u8, server.formatAgo(&tb, now, p.updated_at));
         errdefer gpa.free(changed);
-        try rows.append(gpa, .{ .name = name, .size = size, .changed = changed, .server = if (multi) client.base else "" });
+        const color = try gpa.dupe(u8, p.color);
+        errdefer gpa.free(color);
+        try rows.append(gpa, .{ .name = name, .size = size, .changed = changed, .color = color, .server = if (multi) client.base else "" });
     }
 }
 
@@ -330,16 +334,20 @@ fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool) vo
         sw = @max(sw, r.size.len);
         cw = @max(cw, r.changed.len);
     }
-    printRow(gpa, "NAME", nw, "SIZE", sw, "CHANGED", cw, if (multi) "SERVER" else null);
-    for (rows) |r| printRow(gpa, r.name, nw, r.size, sw, r.changed, cw, if (multi) r.server else null);
+    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
+    for (rows) |r| {
+        var buf: [20]u8 = undefined;
+        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.changed, cw, if (multi) r.server else null);
+    }
 }
 
-/// Print one table row, padding each non-final column to its width. Best-effort.
-fn printRow(gpa: std.mem.Allocator, name: []const u8, nw: usize, size: []const u8, sw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
+/// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
+/// column ("" = plain). Best-effort.
+fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(gpa);
     appendCol(gpa, &line, "  ", 0); // 2-space indent (no padding)
-    appendCol(gpa, &line, name, nw);
+    appendName(gpa, &line, name, name_seq, nw);
     appendCol(gpa, &line, size, sw);
     if (srv) |s| {
         appendCol(gpa, &line, changed, cw);
@@ -357,6 +365,146 @@ fn appendCol(gpa: std.mem.Allocator, line: *std.ArrayList(u8), text: []const u8,
     if (width == 0) return;
     var i = text.len;
     while (i < width + 2) : (i += 1) line.append(gpa, ' ') catch return;
+}
+
+/// Like appendCol for the NAME column, wrapping the (visible) name in `seq`…reset when a colour
+/// is given. Padding is computed from the VISIBLE name length — the SGR escapes have zero
+/// display width — so the columns stay aligned. Best-effort.
+fn appendName(gpa: std.mem.Allocator, line: *std.ArrayList(u8), name: []const u8, seq: []const u8, width: usize) void {
+    const on = seq.len != 0;
+    if (on) line.appendSlice(gpa, seq) catch {};
+    line.appendSlice(gpa, name) catch return;
+    if (on) line.appendSlice(gpa, logo.resetSeq()) catch {};
+    var i = name.len;
+    while (i < width + 2) : (i += 1) line.append(gpa, ' ') catch return;
+}
+
+/// `/project-color [#hex | name | clear]` — show or set the active server project's custom
+/// name colour (the colour `/projects` paints its name in; empty = the theme accent). With no
+/// argument it prints the current colour rendered in that colour; a '#hex'/CSS-name is validated
+/// via the core colour parser, normalised to "#rrggbb", and PUT to the server; 'clear'/'none'/
+/// 'default' resets it to "" (theme fallback).
+pub fn doProjectColor(session: *Session, arg: []const u8) !void {
+    if (!session.hasRemote()) {
+        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
+        return;
+    }
+    const client = session.findServer(session.remote_url.?) orelse {
+        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
+        return;
+    };
+    const id = session.remote_id.?;
+    const trimmed = std.mem.trim(u8, arg, " \t");
+
+    // No argument: read and show the project's current colour, rendered in it.
+    if (trimmed.len == 0) {
+        const color = client.getProjectColor(id) catch |e| {
+            logo.print("error: could not read the project colour ({s})\n", .{@errorName(e)});
+            return;
+        };
+        defer session.gpa.free(color);
+        printProjectColor("project colour", color);
+        return;
+    }
+
+    // Otherwise resolve the new colour: a clear/reset keyword → "", else a validated #rrggbb.
+    var hexbuf: [8]u8 = undefined;
+    var color: []const u8 = "";
+    if (!isClearWord(trimmed)) {
+        const col = core.parseColor(session.gpa, trimmed) orelse {
+            logo.print("error: invalid colour '{s}' — give a '#rrggbb' / name, or 'clear'\n", .{trimmed});
+            return;
+        };
+        color = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ col.r, col.g, col.b }) catch "#000000";
+    }
+
+    if (!putProjectField(session, client, id, color, .color)) return; // message already printed
+    session.setRemoteColor(color) catch {}; // so the status header repaints the name in it
+    if (color.len == 0) {
+        logo.print("project colour cleared (neutral grey)\n", .{});
+    } else {
+        printProjectColor("project colour set to", color);
+    }
+    ui.status(session); // reprint "image: <name> …" with the name in its new colour
+}
+
+/// A reset keyword for `/project-color`: clears the custom colour back to the theme accent.
+fn isClearWord(s: []const u8) bool {
+    const eq = std.ascii.eqlIgnoreCase;
+    return eq(s, "clear") or eq(s, "none") or eq(s, "default");
+}
+
+const ProjectField = enum { color, name };
+
+/// Version-guarded PUT of one project metadata field (colour or name) with a 409 retry (a peer
+/// saved first → re-read the version and retry), mirroring pushLayout. Advances the LWW guard so
+/// the server's echo of our own change isn't mistaken for a peer edit. Returns success; prints on
+/// a hard failure.
+fn putProjectField(session: *Session, client: *server.Client, id: []const u8, value: []const u8, field: ProjectField) bool {
+    var tries: u8 = 0;
+    while (tries < 4) : (tries += 1) {
+        const res = switch (field) {
+            .color => client.updateProjectColor(id, value, session.remote_version),
+            .name => client.updateProjectName(id, value, session.remote_version),
+        };
+        res catch |e| {
+            if (e == server.Error.Conflict) {
+                if (client.getProjectVersion(id)) |v| {
+                    session.remote_version = v;
+                    continue; // re-read won the race; retry the PUT
+                } else |_| return false;
+            }
+            switch (field) {
+                .color => logo.print("error: could not set the project colour ({s})\n", .{@errorName(e)}),
+                .name => logo.print("error: could not rename the project ({s})\n", .{@errorName(e)}),
+            }
+            return false;
+        };
+        if (client.getProjectVersion(id)) |v| {
+            session.remote_version = v;
+        } else |_| {}
+        return true;
+    }
+    return false;
+}
+
+/// `/rename <new name>` — rename the active fetched project, pushed live to the server
+/// (version-guarded). Updates the displayed label + reprints the header.
+pub fn doRename(session: *Session, arg: []const u8) !void {
+    if (!session.hasRemote()) {
+        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
+        return;
+    }
+    const client = session.findServer(session.remote_url.?) orelse {
+        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
+        return;
+    };
+    const name = std.mem.trim(u8, arg, " \t");
+    if (name.len == 0) {
+        logo.print("error: give a new name — '/rename <name>'\n", .{});
+        return;
+    }
+    if (!putProjectField(session, client, session.remote_id.?, name, .name)) return;
+    session.setLabel(name) catch {};
+    logo.print("renamed to \"{s}\"\n", .{name});
+    ui.status(session); // reprint "image: <name> …" with the new name
+}
+
+/// Print "<label>: <colour>" with the colour rendered in itself (truecolor) when colour is on
+/// and the hex parses; an empty colour reads as "(none — neutral grey)".
+fn printProjectColor(label: []const u8, color: []const u8) void {
+    if (color.len == 0) {
+        logo.print("{s}: (none — neutral grey)\n", .{label});
+        return;
+    }
+    var buf: [20]u8 = undefined;
+    if (logo.colorEnabled()) {
+        if (theme.sgrForHex(color, &buf)) |seq| {
+            logo.print("{s}: {s}{s}{s}\n", .{ label, seq, color, logo.resetSeq() });
+            return;
+        }
+    }
+    logo.print("{s}: {s}\n", .{ label, color });
 }
 
 /// `/fetch <project name> [url]` — load a server project's image to continue editing.
@@ -409,10 +557,17 @@ pub fn doFetch(session: *Session, arg: []const u8) !void {
     try session.loadImage(img, name, true, .png);
     try session.setRemote(client.base, ref.id);
     session.remote_version = ref.version; // seed the LWW guard for live auto-pull
+    // Adopt the project's custom name colour so the status header paints "<name>" in it.
+    if (client.getProjectColor(ref.id)) |c| {
+        defer session.gpa.free(c);
+        session.setRemoteColor(c) catch {};
+    } else |_| {
+        session.setRemoteColor("") catch {};
+    }
     adoptServerLayout(session, client, ref.id); // show the project's stored crop/rotation/filter/lines
-    // While syncing, open a live read-only events feed so concurrent saves by other
-    // clients to this project are surfaced (see pollEvents). Best-effort.
-    if (session.sync) session.openEvents(client);
+    // Open the live read-only events feed ALWAYS (not just when syncing) so a peer's name/colour
+    // change updates the header even with sync off; sync only gates auto-pulling layout edits.
+    session.openEvents(client);
     ui.redraw(session);
     logo.print("fetched \"{s}\" from {s} (sync {s})\n", .{ name, client.base, if (session.sync) "on" else "off" });
 }
@@ -434,13 +589,13 @@ pub fn doSync(session: *Session, arg: []const u8) void {
     logo.print("sync {s}\n", .{if (session.sync) "on" else "off"});
     if (session.sync and session.remote_id == null)
         logo.print("  (no active server project yet — use '/fetch <name>')\n", .{});
-    // Open/close the live events feed to match the sync state for the active project.
-    if (session.sync) {
+    // The live events feed stays open whenever a project is active (so a peer's name/colour change
+    // updates the header even with sync off) — sync only gates auto-pulling layout edits. Ensure
+    // it's open here in case sync was toggled before a project existed.
+    if (session.events == null) {
         if (session.remote_url) |u| {
             if (session.findServer(u)) |client| session.openEvents(client);
         }
-    } else {
-        session.closeEvents();
     }
 }
 
@@ -461,35 +616,81 @@ pub fn pullAction(remote_active: bool, ids_match: bool, deleted: bool, ev_versio
     return .pull;
 }
 
-/// Drain pending project-update events from the live feed and act on ones touching the
-/// active project: auto-pull a peer's newer image into the working session (live editing),
-/// or — when we have unsynced local edits — warn instead of clobbering them. Each message
-/// shows when the change happened, never an internal version number. Called at the REPL
-/// prompt boundary; best-effort and never blocks.
-pub fn pollEvents(session: *Session, io: std.Io) void {
-    if (session.events == null) return;
+/// Clear the current terminal line ONCE before emitting async output at the prompt (tracked via
+/// `done`), so the caller only repaints — and a no-op poll prints nothing → no idle flicker.
+fn clearPromptLine(done: *bool) void {
+    if (done.*) return;
+    logo.print("\r\x1b[K", .{});
+    done.* = true;
+}
+
+/// Drain pending project-update events from the live feed and act on ones touching the active
+/// project: auto-pull a peer's newer image into the working session (live editing), reflect a
+/// peer's name/colour change in the header, or — when we have unsynced local edits — warn instead
+/// of clobbering them. Each message shows when the change happened, never an internal version
+/// number. Called at the REPL prompt boundary; best-effort and never blocks. Returns true if it
+/// printed anything (so the line editor repaints the prompt only then — no idle flicker otherwise).
+pub fn pollEvents(session: *Session, io: std.Io) bool {
+    if (session.events == null) return false;
     const now = std.Io.Clock.real.now(io).toMilliseconds();
+    var printed = false;
     while (session.events.?.poll() catch null) |ev| {
         var e = ev;
         defer e.deinit(session.gpa);
         const ids_match = session.remote_id != null and std.mem.eql(u8, e.id, session.remote_id.?);
         switch (pullAction(session.hasRemote(), ids_match, e.deleted, e.version, session.remote_version, session.dirty)) {
             .ignore => {},
-            .deleted => logo.print("✗ \"{s}\" was deleted on the server\n", .{e.name}),
+            .deleted => {
+                clearPromptLine(&printed);
+                logo.print("✗ \"{s}\" was deleted on the server\n", .{e.name});
+            },
+            .pull => {
+                session.remote_version = e.version;
+                if (session.sync) {
+                    // Live editing: pull the peer's image + layout (also refreshes name + colour, reprints).
+                    clearPromptLine(&printed);
+                    pullActive(session, &e, now);
+                } else if (applyMetaUpdate(session, e.name)) {
+                    // Sync off: never pull image/layout edits, but always reflect a peer's NAME/COLOUR.
+                    // Refresh the WHOLE view rather than stacking a new "image: …" line under the old one.
+                    printed = true;
+                    ui.redraw(session);
+                }
+            },
             .warn_dirty => {
-                session.remote_version = e.version; // record it so we warn only once per change
+                session.remote_version = e.version;
+                _ = applyMetaUpdate(session, e.name); // metadata is cheap and clobbers nothing
+                clearPromptLine(&printed);
                 var tb: [32]u8 = undefined;
                 logo.print(
                     "↺ \"{s}\" changed on the server ({s}) — you have local edits; '/save' to push yours or '/fetch' to take theirs\n",
                     .{ e.name, server.formatAgo(&tb, now, e.updated_at) },
                 );
             },
-            .pull => {
-                session.remote_version = e.version;
-                pullActive(session, &e, now);
-            },
         }
     }
+    return printed;
+}
+
+/// Refresh the active project's displayed name + colour from a peer's metadata change. `name` is
+/// the event's (canonical) name; the colour is re-read from the server. Returns true when either
+/// actually changed (so the caller only reprints on a real change). Cheap — no image download.
+fn applyMetaUpdate(session: *Session, name: []const u8) bool {
+    var changed = false;
+    if (name.len != 0 and (session.label == null or !std.mem.eql(u8, session.label.?, name))) {
+        session.setLabel(name) catch {};
+        changed = true;
+    }
+    const client = session.findServer(session.remote_url.?) orelse return changed;
+    if (client.getProjectColor(session.remote_id.?)) |c| {
+        defer session.gpa.free(c);
+        const old = session.remote_color orelse "";
+        if (!std.mem.eql(u8, old, c)) {
+            session.setRemoteColor(c) catch {};
+            changed = true;
+        }
+    } else |_| {}
+    return changed;
 }
 
 /// Replace the working image with the active project's latest server image (a peer's edit).
@@ -513,6 +714,11 @@ fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
         return;
     };
     adoptServerLayout(session, client, session.remote_id.?); // apply the peer's crop/rotation/filter/lines
+    // A peer may also have recoloured the project — refresh so the header repaints in it.
+    if (client.getProjectColor(session.remote_id.?)) |c| {
+        defer session.gpa.free(c);
+        session.setRemoteColor(c) catch {};
+    } else |_| {}
     session.dirty = false; // the working image now matches the server
     var tb: [32]u8 = undefined;
     ui.redraw(session);

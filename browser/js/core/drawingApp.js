@@ -13,7 +13,7 @@ import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex } from './accents.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
@@ -398,6 +398,8 @@ export class DrawingApp {
         this.#nameEditing = true;
         nameInput.readOnly = false;
         if (nameEdit) nameEdit.style.display = 'none';
+        const colorBtn = document.getElementById('project-color-btn');
+        if (colorBtn) colorBtn.style.display = 'none';
         nameAccept.style.display = '';
         nameCancel.style.display = '';
         this.#nameEditor?.refresh();     // set ✓ enabled/disabled for the starting value
@@ -419,6 +421,62 @@ export class DrawingApp {
       // A real click-away (the ✓/✗ buttons prevent their own mousedown, so they don't
       // blur) discards the in-progress rename.
       nameInput.addEventListener('blur', () => { if (this.#nameEditing) endEdit(); });
+    }
+    // Project-colour swatch: a native colour picker that paints the project NAME. Live while
+    // dragging; a right-click (or holding Alt at open) clears the colour back to the theme accent.
+    const colorBtn = document.getElementById('project-color-btn');
+    const colorInput = document.getElementById('project-color-input');
+    if (colorBtn && colorInput) {
+      const apply = () => {
+        if (this.activeProjectId != null) this.setProjectColor(this.activeProjectId, colorInput.value);
+      };
+      colorInput.addEventListener('input', apply);   // live while dragging
+      colorInput.addEventListener('change', apply);  // final commit
+      const openPicker = () => {
+        const cur = this.storage.store.getMeta(this.activeProjectId)?.color || '';
+        colorInput.value = normalizeHex(cur) || accentHex(this.accent);
+        try {
+          if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
+          else colorInput.click();
+        } catch {
+          colorInput.click();
+        }
+      };
+      // Click opens a small menu so resetting to the neutral default is a visible choice — not a
+      // hidden right-click: "Choose colour…" opens the native picker, "Default (no colour)" clears
+      // it. (Right-click still clears as a shortcut.)
+      colorBtn.addEventListener('click', e => {
+        if (this.activeProjectId == null || this.storage.incognito) return;
+        e.stopPropagation();
+        const open = document.getElementById('project-color-menu');
+        if (open) { open.remove(); return; }   // toggle off
+        const menu = document.createElement('div');
+        menu.id = 'project-color-menu';
+        menu.className = 'project-menu';
+        const item = (ic, label, onClick) => {
+          const b = document.createElement('button');
+          b.className = 'project-menu-item btn-icon-text';
+          b.innerHTML = `${icon(ic, { size: 15 })}<span>${label}</span>`;
+          b.addEventListener('click', ev => { ev.stopPropagation(); menu.remove(); onClick(); });
+          menu.appendChild(b);
+        };
+        item('palette', 'Choose colour…', openPicker);
+        if (this.storage.store.getMeta(this.activeProjectId)?.color)
+          item('x', 'Default (no colour)', () => this.setProjectColor(this.activeProjectId, ''));
+        document.body.appendChild(menu);
+        const r = colorBtn.getBoundingClientRect();
+        const mw = menu.offsetWidth;
+        menu.style.left = `${Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8))}px`;
+        menu.style.top = `${r.bottom + 6}px`;
+        const close = () => { menu.remove(); document.removeEventListener('mousedown', onDoc, true); };
+        const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
+        setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
+      });
+      // Right-click the swatch clears the custom colour (back to the neutral default).
+      colorBtn.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        if (this.activeProjectId != null) this.setProjectColor(this.activeProjectId, '');
+      });
     }
     document.getElementById('start-drawing').addEventListener('click', () => this.startDrawingMode());
     document.getElementById('stop-drawing').addEventListener('click', () => this.stopDrawingMode());
@@ -581,6 +639,11 @@ export class DrawingApp {
   }
 
   #wireKeyboard() {
+    // Click a control by id only when it exists and isn't disabled (mirrors a real UI click).
+    const clickIfActive = id => {
+      const el = document.getElementById(id);
+      if (el && !el.disabled) el.click();
+    };
     // Keyboard shortcuts — dispatched via the hotkeys registry
     const HK_HANDLERS = {
       undo: () => { if (!document.getElementById('undo').disabled) this.undo(); },
@@ -627,7 +690,21 @@ export class DrawingApp {
       deletePoint: () => {
         if (this.isDrawing) return;
         if (this.coordLineIdx >= 0 && this.focusedPtIdx >= 0) this.removePoint(this.coordLineIdx, this.focusedPtIdx);
-      }
+      },
+      // Toolbar/menu openers — each just drives the matching button so the shortcut and the
+      // click path stay identical (clickIfActive skips a disabled control, like the UI does).
+      loadImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
+      openAnotherImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
+      saveImage: () => clickIfActive('save-image'),
+      cropImage: () => clickIfActive('crop-image'),
+      downloadJson: () => clickIfActive('download-json'),
+      uploadJson: () => clickIfActive('upload-json-btn'),
+      openProjects: () => clickIfActive('projects-btn'),
+      openServers: () => clickIfActive('connect-btn'),
+      openLinks: () => clickIfActive('links-btn'),
+      toggleTheme: () => clickIfActive('theme-toggle'),
+      toggleIncognito: () => clickIfActive('incognito-toggle'),
+      openHelp: () => clickIfActive('info-btn')
     };
     document.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;
@@ -672,7 +749,7 @@ export class DrawingApp {
       if (this.mouseOverCanvas && !this.isZoomRectDragging && !this.isPanning &&
         !this.isDraggingPoint && !this.isDraggingSegment && !this.isDraggingLine) {
         if (mods.altKey)                         this.canvas.style.cursor = 'grab';
-        else if (mods.ctrlKey && !mods.shiftKey) this.canvas.style.cursor = 'copy';
+        else if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) this.canvas.style.cursor = 'copy';
         else if (mods.shiftKey)                  this.canvas.style.cursor = 'zoom-in';
         else                                     this.canvas.style.cursor = 'crosshair';
       }
@@ -859,6 +936,9 @@ export class DrawingApp {
       if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
       // No image → nothing to zoom/thicken/rotate; let plain scroll pass through.
       if (!this.image) return;
+      // Only act when the wheel is over the canvas viewport — otherwise Ctrl/Alt+wheel over a
+      // panel, the projects list, the coord table, etc. would hijack the scroll to zoom the canvas.
+      if (!viewport || !viewport.contains(e.target)) return;
 
       // Alt+wheel → adjust thickness of the line under the cursor
       // (point's line if hovering a point, else the hovered line).
@@ -1714,6 +1794,15 @@ export class DrawingApp {
         this.updateButtons();
         this.updateCoordStatus();
         this.storage.save();
+
+        // Adopt a reopened server project's accent colour into the local meta (local-only —
+        // the server already holds it), then repaint the name. The field is applied even when
+        // empty so a peer CLEARING the colour propagates here too (was gated on truthy, which
+        // silently dropped clears); empty restores the neutral-grey fallback.
+        if ((opts.remoteId || opts.adoptLayout) && opts.color != null && this.activeProjectId != null) {
+          this.storage.store.setColor(this.activeProjectId, normalizeHex(opts.color) || '');
+          this.updateProjectTitle();
+        }
 
         // Replace-in-place post-steps: optional rename, unpin the OLD image, push the new
         // original to the server when this project is server-linked.
@@ -2965,11 +3054,21 @@ export class DrawingApp {
       this.loadImageFromFile(file, {
         source: src,
         resource: full.project?.resource || '',
+        color: full.project?.color || '',
         address: link.address,
         remoteId: link.remoteId,
         version: full.project?.version || link.version,
         layout: full.layout,
       });
+      // Adopt a peer's RENAME too (local-only — the server already holds it; use the store
+      // directly, not renameProject, so we don't echo the change back to the server).
+      const peerName = full.project?.name;
+      if (peerName && this.activeProjectId != null &&
+          peerName !== this.storage.store.getMeta(this.activeProjectId)?.name) {
+        this.storage.store.rename(this.activeProjectId, peerName);
+        this.imageBaseName = peerName;
+        this.updateProjectTitle();
+      }
       notify('Updated from server', 'ok');
     } catch { notify("Couldn't refresh from server — showing the last loaded version", 'info'); }
     finally {
@@ -3181,6 +3280,27 @@ export class DrawingApp {
       input.placeholder = editable ? 'Untitled' : (this.storage.incognito ? 'Incognito (unsaved)' : 'No project');
       if (editBtn && !this.#nameEditing) editBtn.style.display = editable ? '' : 'none';
       this.#nameEditor?.refresh();                      // set ✓ enabled/disabled state
+    }
+    // Paint the name field in the project's custom colour; with no custom colour it falls back to
+    // ONE fixed neutral grey in BOTH themes, with a theme-flipped shadow (dark on light, light on
+    // dark) for legibility. The grey + shadow are set explicitly here (not via a CSS var) so a
+    // stale-cached theme.css can never leave the name colourless/shadowless. Show the colour swatch
+    // only for a saved (non-incognito) project.
+    if (input) {
+      const projColor = (editable && this.activeProjectId != null)
+        ? (this.storage.store.getMeta(this.activeProjectId)?.color || '')
+        : '';
+      // Custom colour overrides the CSS default grey (--project-name-fg); clearing the inline
+      // colour when unset lets CSS supply the grey. The legibility shadow is left ENTIRELY to CSS
+      // (--project-name-shadow, a theme-flipped contrasting outline) so it re-flips live when the
+      // theme is toggled — setting it inline here would freeze it to the paint-time theme.
+      input.style.color = projColor || '';
+      input.style.textShadow = '';
+      const colorBtn = document.getElementById('project-color-btn');
+      if (colorBtn && !this.#nameEditing) {
+        colorBtn.style.display = editable ? '' : 'none';
+        colorBtn.style.color = projColor || 'var(--text-muted)';
+      }
     }
     // Outside edit mode (no project, incognito, post-commit, click-away) the ✓/✗
     // rename controls must never linger — they belong to edit mode only.
@@ -3892,7 +4012,61 @@ export class DrawingApp {
         this.updateProjectTitle();   // refresh tab title + topbar field
       }
       this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+      // Push the rename to the server immediately (like setProjectColor), so peers see it live
+      // — previously a rename only reached the server on the next layout save.
+      this.#pushProjectFieldToServer(id, { name: clean }, 'Could not rename the project on the server');
     }
+    return meta;
+  }
+
+  // Push a single field change (rename / colour) to the collaboration server for a
+  // server-linked project. The active project uses its live remoteLink (and adopts the bumped
+  // version); a non-active linked project uses its stored meta. Version-guarded + best-effort
+  // (no-op when not linked / sync off) — a failure only notifies with `failMsg`.
+  async #pushProjectFieldToServer(id, fields, failMsg) {
+    if (!getSyncToServer()) return;
+    const active = id === this.activeProjectId && !!this.remoteLink;
+    const meta = this.storage.store.getMeta(id) || {};
+    const address = active ? this.remoteLink.address : meta.address;
+    const remoteId = active ? this.remoteLink.remoteId : meta.remoteId;
+    const version = active ? this.remoteLink.version : (meta.remoteVersion || 0);
+    if (!address || !remoteId) return;
+    let conn;
+    try {
+      conn = requireConnection(this.connections, address);
+    } catch (err) {
+      notify(err.message, 'fail');
+      return;
+    }
+    try {
+      const rec = await conn.updateProject(remoteId, { ...fields, version });
+      if (active && rec && rec.version != null) this.remoteLink = { ...this.remoteLink, version: rec.version };
+    } catch (err) {
+      notify(`${failMsg} — ${err.message}`, 'fail');
+    }
+  }
+
+  // Set (or clear) a project's accent colour — the custom colour its NAME is painted in
+  // wherever it appears. An empty/whitespace `color` clears it (back to the theme accent);
+  // a valid hex is normalised to "#rrggbb". Invalid hex is rejected (keeps the old colour).
+  // Persists to the registry, repaints the active-project UI, notifies peers, and pushes the
+  // colour to the server for a server-linked project. Returns updated meta (null for unknown id).
+  setProjectColor(id, color) {
+    const raw = String(color == null ? '' : color).trim();
+    let next = '';   // empty → explicit clear (theme fallback)
+    if (raw) {
+      next = normalizeHex(raw);
+      if (!next) {
+        notify(`“${color}” is not a valid hex colour`, 'fail');
+        return null;
+      }
+    }
+    const meta = this.storage.store.setColor(id, next);
+    if (!meta) return null;
+    if (id === this.activeProjectId) this.updateProjectTitle();
+    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    // Best-effort server push for a server-linked project (no-op when not linked).
+    this.#pushProjectFieldToServer(id, { color: next }, 'Could not set project colour on the server');
     return meta;
   }
 
@@ -3935,6 +4109,7 @@ export class DrawingApp {
       name: projName,
       source: meta.source || layout.imageSource || '',
       resource: meta.resource || layout.imageResource || '',
+      color: meta.color || '',
       bytes, ext, w, h,
     });
     // Push the annotated layout (lines + filter) so the server holds the full project.
@@ -4056,6 +4231,7 @@ export class DrawingApp {
     const localMeta = {
       id: newId,
       name: projName,
+      color: full.project?.color || '',
       thumbnail: dataUrl,
       createdAt: Date.now(),
       hasImage: !!dataUrl,
@@ -4156,8 +4332,12 @@ export class DrawingApp {
       notify('This project was closed from another tab', 'info');
       return;
     }
-    if (action === PROJECT_ACTION.UPDATED && id === this.activeProjectId && this.#isIdle())
-      this.storage.syncActiveFromStorage();
+    if (action === PROJECT_ACTION.UPDATED && id === this.activeProjectId) {
+      if (this.#isIdle()) this.storage.syncActiveFromStorage();
+      // A colour change lives in the registry meta (not the payload syncActiveFromStorage
+      // reloads), so always repaint the name from the freshly-read meta.
+      this.updateProjectTitle();
+    }
   }
 
   // Render the image (with its current filter) plus all visible lines/points onto a
@@ -4236,11 +4416,9 @@ export class DrawingApp {
       return;
     }
 
-    const data = buildLayoutPayload({
-      imageWidth: this.canvas.width,
-      imageHeight: this.canvas.height,
-      lines: this.lines
-    });
+    // Export the FULL layout (lines + filter/crop/rotation/page/formulas), matching the
+    // clipboard copy and the server payload so a download round-trips every applied edit.
+    const data = this.#currentLayoutPayload();
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -4273,19 +4451,19 @@ export class DrawingApp {
   }
 
   // ── Clipboard: copy current image (with active filter) ──
+  // The write() MUST run synchronously inside the Cmd/Ctrl+C user gesture, so the clipboard
+  // gets a Promise-valued ClipboardItem and resolves the PNG blob behind it. Deferring write()
+  // into the async toBlob callback loses the user-activation → NotAllowedError on macOS WebKit
+  // (and intermittently Chrome), so nothing copies. See FEATURE 3 in the change contract.
   copyImageToClipboard() {
     if (!this.image) { notify('No image to copy', 'fail'); return; }
     try {
       const off = this.#renderExportCanvas();
-      off.toBlob(async blob => {
-        if (!blob) { notify('Image encode failed', 'fail'); return; }
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          notify('Image copied to clipboard', 'ok');
-        } catch (err) {
-          notify('Copy failed: ' + (err.message || err), 'fail');
-        }
-      }, 'image/png');
+      const blobP = new Promise((res, rej) =>
+        off.toBlob(b => b ? res(b) : rej(new Error('Image encode failed')), 'image/png'));
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
+        .then(() => notify('Image copied to clipboard', 'ok'))
+        .catch(err => notify('Copy failed: ' + (err.message || err), 'fail'));
     } catch (e) {
       notify('Copy failed: ' + e.message, 'fail');
     }
@@ -4316,16 +4494,14 @@ export class DrawingApp {
   }
 
   // ── Clipboard: copy layout JSON text ──
+  // Copies the FULL layout — lines plus every applied edit (filter/tint, crop, rotation, page
+  // format, formulas) via #currentLayoutPayload, so a paste reproduces the whole editor state.
   copyLayoutToClipboard() {
     if (!this.lines || this.lines.length === 0) {
       notify('No layout to copy', 'fail');
       return;
     }
-    const data = buildLayoutPayload({
-      imageWidth: this.canvas.width,
-      imageHeight: this.canvas.height,
-      lines: this.lines
-    });
+    const data = this.#currentLayoutPayload();
     const txt = JSON.stringify(data, null, 2);
     navigator.clipboard.writeText(txt).then(
       () => notify('Layout JSON copied', 'ok'),

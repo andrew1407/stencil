@@ -17,8 +17,8 @@ pub const completions = [_][]const u8{
     "upload",      "paste",    "blank",       "apply",    "crop",   "rotate",
     "filter",      "bw",       "sepia",       "tint",     "none",   "exec",
     "undo",        "redo",     "reset",       "save",     "layout", "formula",
-    "connect",     "connections", "disconnect", "reconnect", "projects", "fetch",
-    "sync",        "copy",     "status",      "theme",    "clear",  "drop",
+    "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "rename",
+    "fetch",       "sync",     "copy",        "status",   "theme",  "clear",   "drop",
     "help",        "exit",
 };
 
@@ -52,11 +52,24 @@ pub fn status(session: *Session) void {
     const fmt = session.pageFormatLabel() catch null;
     defer if (fmt) |f| session.gpa.free(f);
     const fmt_s = if (fmt) |f| f else "";
+    // Paint a fetched project's name in its custom colour (or the neutral default), so the header
+    // mirrors the /projects table and the GUI front-ends. Plain for local/temp images.
+    var cbuf: [20]u8 = undefined;
+    const seq = nameColorSeq(session, &cbuf);
+    const rst = if (seq.len != 0) logo.resetSeq() else "";
     if (n > 1) {
-        logo.print("image: {s} ({d}x{d} px · {s}){s}  [{d}/{d}]\n", .{ session.label.?, img.width, img.height, fmt_s, tag, session.cursor + 1, n });
+        logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}  [{d}/{d}]\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag, session.cursor + 1, n });
     } else {
-        logo.print("image: {s} ({d}x{d} px · {s}){s}\n", .{ session.label.?, img.width, img.height, fmt_s, tag });
+        logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag });
     }
+}
+
+/// The SGR escape painting the active project's name in its custom colour (or the neutral default)
+/// — but only for a fetched server project. "" otherwise (local/temp images), so the name prints
+/// plain. theme.nameSeq applies the no-colour-mode gate.
+fn nameColorSeq(session: *Session, buf: []u8) []const u8 {
+    if (!session.hasRemote()) return "";
+    return theme.nameSeq(session.remote_color orelse "", buf);
 }
 
 // A concise per-action acknowledgement (not the full identity header): "<verb> -> WxH · fmt [n/m]".
@@ -156,6 +169,8 @@ pub fn help() void {
     helpRow(a, r, "/disconnect [url]", "close a connection (or the most recent)");
     helpRow(a, r, "/reconnect [url]", "re-establish one connection (or all) and the live feed");
     helpRow(a, r, "/projects [url]", "list projects on a server (or all connected servers)");
+    helpRow(a, r, "/project-color [#hex]", "show or set the active project's name colour (clear = neutral grey)");
+    helpRow(a, r, "/rename <name>", "rename the active server project (pushed live to peers)");
     helpRow(a, r, "/fetch <name> [url]", "load a server project's image to keep editing");
     helpRow(a, r, "/sync [on|off]", "live mode (bare /sync toggles): push edits + pull peers' changes");
 

@@ -95,6 +95,9 @@ class Editor:
         # Optional provenance metadata (mirrors the server project's source/resource fields).
         self._source: Optional[str] = None
         self._resource: Optional[str] = None
+        # Custom per-project accent colour painting the project name; "" = theme fallback
+        # (mirrors ProjectMeta.color / the server ProjectRecord `color` field).
+        self._color: str = ""
         # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
         self._allow_formulas: bool = False
         self._formula_x: str = ""
@@ -189,6 +192,8 @@ class Editor:
         self._name = name or "layout"
         self._source = source
         self._resource = resource
+        # A fresh source is a fresh project, so its custom accent resets to "".
+        self._color = ""
         self._history = [_Snapshot()]
         self._cursor = 0
 
@@ -540,6 +545,30 @@ class Editor:
     def name(self) -> str:
         """The project name (image basename without extension; "layout"/"blank" fallbacks)."""
         return self._name
+
+    @property
+    def project_color(self) -> str:
+        """The project's custom accent colour ("#rrggbb"), or "" for the theme fallback."""
+        return self._color
+
+    def set_project_color(self, color: str) -> "Editor":
+        """Set the project's custom accent colour (normalised to lower-case "#rrggbb").
+
+        An empty/blank value clears it back to "" (theme fallback); any other value is
+        parsed by the shared core and rejected with ValueError when unrecognised — the
+        same contract the browser's normalizeHex and the CLI's /project-color enforce.
+        Push the result to a server project via
+        ``ServerConnection.update_project(..., color=editor.project_color)``.
+        """
+        spec = (color or "").strip()
+        if not spec:
+            self._color = ""
+            return self
+        parsed = self._get_core().parse_color(spec)
+        if parsed is None:
+            raise ValueError("invalid project colour: %r" % color)
+        self._color = "#%02x%02x%02x" % (parsed[0], parsed[1], parsed[2])
+        return self
 
     def has_image(self) -> bool:
         """True once a source has been loaded (an original image is present)."""

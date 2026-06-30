@@ -49,6 +49,17 @@ test('isMacPlatform true via userAgentData.platform', () => {
 test('isMacPlatform true via navigator.platform MacIntel', () => {
     assert.strictEqual(isMacPlatform({ platform: 'MacIntel' }), true);
 });
+test('isMacPlatform: empty userAgentData.platform falls through to navigator.platform', () => {
+    // Some Chromium builds report platform === '' (reduced UA-CH) even on macOS —
+    // the empty string must not short-circuit to a false negative.
+    assert.strictEqual(isMacPlatform({ userAgentData: { platform: '' }, platform: 'MacIntel' }), true);
+    assert.strictEqual(isMacPlatform({
+        userAgentData: { platform: '' },
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    }), true);
+    // …and still correctly false on a non-Mac with an empty platform hint.
+    assert.strictEqual(isMacPlatform({ userAgentData: { platform: '' }, platform: 'Win32' }), false);
+});
 test('isMacPlatform true via Mac userAgent string', () => {
     assert.strictEqual(isMacPlatform({
         userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',

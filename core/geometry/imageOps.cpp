@@ -37,12 +37,23 @@ namespace stencil::core {
 
     for (int y = 0; y < h; ++y) {
       for (int x = 0; x < w; ++x) {
-        int ox = x, oy = y;
+        int ox = x;
+        int oy = y;
         switch (q) {
-          case 1: ox = h - 1 - y; oy = x;             break;  // 90° clockwise
-          case 2: ox = w - 1 - x; oy = h - 1 - y;     break;  // 180°
-          case 3: ox = y;         oy = w - 1 - x;     break;  // 270° clockwise
-          default: break;                                     // 0° — identity
+          case 1:  // 90° clockwise
+            ox = h - 1 - y;
+            oy = x;
+            break;
+          case 2:  // 180°
+            ox = w - 1 - x;
+            oy = h - 1 - y;
+            break;
+          case 3:  // 270° clockwise
+            ox = y;
+            oy = w - 1 - x;
+            break;
+          default:  // 0° — identity
+            break;
         }
         const std::uint8_t* s = src + (static_cast<std::size_t>(y) * w + x) * 4;
         std::uint8_t* o = dst + (static_cast<std::size_t>(oy) * outW + ox) * 4;

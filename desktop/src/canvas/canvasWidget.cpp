@@ -505,6 +505,18 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  void CanvasWidget::setPointCoord(int index, int axis, double value) {
+    core::Line* line = mutablePanelLine();
+    if (!line || index < 0 || index >= static_cast<int>(line->points.size())) return;
+    if (!std::isfinite(value)) return;
+    if (axis == 0) line->points[index].x = value;
+    else line->points[index].y = value;
+    if (line != &currentLine_) commitHistory();  // committed line → undoable edit
+    update();
+    emit changed();
+    emit selectionChanged();  // refresh the panel's coord display (cm column, length)
+  }
+
   void CanvasWidget::deselect() {
     selectedPoint_ = -1;
     selectedLineIdx_ = -1;  // S2
@@ -1136,16 +1148,13 @@ namespace stencil::gui {
     if (t == QEvent::KeyPress || t == QEvent::KeyRelease) {
       auto* ke = static_cast<QKeyEvent*>(event);
       if (!ke->isAutoRepeat()) {
-        switch (ke->key()) {
-          case Qt::Key_Shift:
-          case Qt::Key_Control:
-          case Qt::Key_Alt:
-          case Qt::Key_AltGr:
-          case Qt::Key_Meta:
-            refreshHoverForModifiers();
-            break;
-          default:
-            break;
+        const int key = ke->key();
+        if (key == Qt::Key_Shift
+            || key == Qt::Key_Control
+            || key == Qt::Key_Alt
+            || key == Qt::Key_AltGr
+            || key == Qt::Key_Meta) {
+          refreshHoverForModifiers();
         }
       }
     }

@@ -25,6 +25,11 @@ namespace stencil::core {
     // add-by-URL flow. Mirrors the browser project's source/resource fields.
     std::string source;
     std::string resource;
+    // Optional per-project accent colour used to paint the project's NAME
+    // wherever it appears. Normalised lower-case "#rrggbb", or empty = no
+    // custom colour (fall back to the active theme accent). Mirrors the
+    // browser project's `color` field.
+    std::string color;
   };
 
   class ProjectsStore {

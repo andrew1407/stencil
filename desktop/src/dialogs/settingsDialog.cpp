@@ -24,6 +24,7 @@ namespace stencil::gui {
     auto* form = new QFormLayout;
 
     theme_ = new QComboBox(this);
+    theme_->setToolTip("Light/dark appearance — System follows the OS scheme");
     // Tri-state theme to match the browser: System (auto) follows the OS scheme.
     theme_->addItem("System (auto)", "system");
     theme_->addItem("Light", "light");
@@ -35,6 +36,7 @@ namespace stencil::gui {
     form->addRow("Theme", theme_);
 
     accent_ = new QComboBox(this);
+    accent_->setToolTip("Accent colour used for highlights across the app");
     // Brand-accent presets (theme.hpp) — violet first/default. Same choices as
     // the browser/extension main-theme dropdowns. Each item carries a rounded
     // colour swatch icon so the actual colour shows next to the name.
@@ -59,6 +61,7 @@ namespace stencil::gui {
 
     autosave_ = new QCheckBox(this);
     autosave_->setChecked(current.autosave);
+    autosave_->setToolTip("Automatically save the session as you edit");
     form->addRow("Autosave", autosave_);
 
     syncToServer_ = new QCheckBox(this);
@@ -73,35 +76,42 @@ namespace stencil::gui {
 
     showPoints_ = new QCheckBox(this);
     showPoints_->setChecked(current.showPoints);
+    showPoints_->setToolTip("Show point markers on lines by default");
     form->addRow("Show points", showPoints_);
 
     showLines_ = new QCheckBox(this);
     showLines_->setChecked(current.showLines);
+    showLines_->setToolTip("Show line strokes by default");
     form->addRow("Show lines", showLines_);
 
     color_ = new QPushButton(colorHex_, this);
     color_->setStyleSheet(QString("background:%1").arg(colorHex_));
+    color_->setToolTip("Default colour for newly drawn lines — click to change");
     connect(color_, &QPushButton::clicked, this, &SettingsDialog::pickColor);
     form->addRow("Default color", color_);
 
     thickness_ = new QDoubleSpinBox(this);
     thickness_->setRange(1, 20);  // LIMITS.thickMin/thickMax
     thickness_->setValue(current.defaultThickness);
+    thickness_->setToolTip("Default stroke thickness for new lines (px)");
     form->addRow("Default thickness", thickness_);
 
     markerSize_ = new QDoubleSpinBox(this);
     markerSize_->setRange(1, 30);  // LIMITS.markerMin/markerMax
     markerSize_->setValue(current.defaultMarkerSize);
+    markerSize_->setToolTip("Default point marker size for new lines (px)");
     form->addRow("Default marker size", markerSize_);
 
     style_ = new QComboBox(this);
     style_->addItems({"solid", "dashed", "dotted"});
     style_->setCurrentText(current.defaultStyle);
+    style_->setToolTip("Default stroke style for new lines");
     form->addRow("Default style", style_);
 
     page_ = new QComboBox(this);
     page_->addItems({"A3", "A4", "custom"});  // S10
     page_->setCurrentText(current.pageSize);
+    page_->setToolTip("Default page format for cm/inch measurements");
     form->addRow("Page size", page_);
 
     customW_ = new QDoubleSpinBox(this);
@@ -109,6 +119,7 @@ namespace stencil::gui {
     customW_->setSingleStep(0.1);
     customW_->setDecimals(1);
     customW_->setValue(current.customPageWidth);
+    customW_->setToolTip("Custom page width in cm (used when page size is custom)");
     form->addRow("Custom width (cm)", customW_);
 
     customH_ = new QDoubleSpinBox(this);
@@ -116,6 +127,7 @@ namespace stencil::gui {
     customH_->setSingleStep(0.1);
     customH_->setDecimals(1);
     customH_->setValue(current.customPageHeight);
+    customH_->setToolTip("Custom page height in cm (used when page size is custom)");
     form->addRow("Custom height (cm)", customH_);
 
     holdDelay_ = new QSpinBox(this);
@@ -136,8 +148,8 @@ namespace stencil::gui {
   }
 
   void SettingsDialog::pickColor() {
-    const QColor c = QColorDialog::getColor(QColor(colorHex_), this,
-                                            "Default line color");
+    const QColor c = QColorDialog::getColor(QColor(colorHex_), this, "Default line color",
+                                            QColorDialog::DontUseNativeDialog);
     if (!c.isValid()) return;
     colorHex_ = c.name().toUpper();
     color_->setText(colorHex_);

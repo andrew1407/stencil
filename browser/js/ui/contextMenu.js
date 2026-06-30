@@ -21,7 +21,7 @@ export class StencilContextMenu extends StencilElement {
                 <div class="ctx-item ctx-sub-item" id="ctx-share-img" style="display:none;"><span class="ctx-icon">${icon('share')}</span><span class="ctx-label">Share Image</span></div>
                 <div class="ctx-sep"></div>
                 <div class="ctx-sub-label">Layout (JSON)</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Alt+J</span></div>
+                <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Ctrl+Alt+C</span></div>
                 <div class="ctx-item ctx-sub-item" id="ctx-paste-layout"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Layout</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span></div>
                 <div class="ctx-item ctx-sub-item" id="ctx-dl-layout"><span class="ctx-icon">${icon('file-text')}</span><span class="ctx-label">Download Layout</span></div>
                 <div class="ctx-item ctx-sub-item" id="ctx-ul-layout"><span class="ctx-icon">${icon('upload')}</span><span class="ctx-label">Upload Layout</span></div>
@@ -40,7 +40,7 @@ export class StencilContextMenu extends StencilElement {
         <!-- Toggles -->
         <div class="ctx-item" id="ctx-show-points"><span class="ctx-check" id="ctx-chk-points">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Points</span><span class="ctx-hotkey" data-hk="togglePoints">Alt+P</span></div>
         <div class="ctx-item" id="ctx-show-lines"><span class="ctx-check" id="ctx-chk-lines">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Lines</span><span class="ctx-hotkey" data-hk="toggleLines">Alt+L</span></div>
-        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">${icon('trash')}</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clear-all-lines">Alt+W</span></div>
+        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">${icon('trash')}</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clearAllLines">Alt+W</span></div>
         <div class="ctx-sep"></div>
         <!-- Style submenu -->
         <div class="ctx-item" id="ctx-style-menu">
@@ -636,6 +636,11 @@ export class StencilContextMenu extends StencilElement {
     document.getElementById('ctx-formula-x').addEventListener('input', ctxValidateAndApply);
     document.getElementById('ctx-formula-y').addEventListener('input', ctxValidateAndApply);
     menu.addEventListener('mousedown', e => e.stopPropagation());
+
+    // Format the data-hk shortcut spans (hardcoded "Ctrl+C"/"Alt+J" in the markup) right away
+    // so macOS shows ⌘/⌥ from the very first paint — not only after the menu is first opened
+    // (which is when syncState's poll would otherwise be the first to call updateCtxHints).
+    hotkeys.updateCtxHints();
   }
 }
 define('stencil-context-menu', StencilContextMenu);

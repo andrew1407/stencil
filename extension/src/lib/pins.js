@@ -51,13 +51,21 @@ export const addPinEntry = (entries, rec) => {
   const k = pinKey(rec.site, rec.source);
   const i = list.findIndex((e) => pinKey(e.site, e.source) === k);
   if (i !== -1) list.splice(i, 1);
-  list.unshift({
+  const kind = norm(rec.kind) || 'image';
+  const entry = {
     source: norm(rec.source), site: norm(rec.site), resource: norm(rec.resource),
-    name: norm(rec.name), kind: norm(rec.kind) || 'image', t: rec.t || Date.now(),
-  });
+    name: norm(rec.name), kind, t: rec.t || Date.now(),
+  };
+  // Only project pins carry the custom accent `color` (the popup paints the name with it);
+  // plain image/video pins never do.
+  if (kind === 'project') entry.color = norm(rec.color);
+  list.unshift(entry);
   if (list.length > MAX_PINS) list.length = MAX_PINS;
   return list;
 };
+
+// Pure: a pinned project's name colour — its custom `color`, or `fallback` when empty/unset.
+export const projectNameColor = (color, fallback) => norm(color) || fallback;
 
 // Pure: remove the pin for (site, source); returns a new list (same ref array when
 // nothing matched, so callers can skip a needless write).

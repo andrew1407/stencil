@@ -1002,7 +1002,7 @@ stencil-fullscreen-layer { display: contents; }
 }
 .project-thumb-zoom img { display: block; max-width: 320px; max-height: 320px; }
 .project-info { flex: 1; min-width: 0; }
-.project-name { font-weight: 600; font-size: 14px; color: var(--text-key); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-name { font-weight: 600; font-size: 14px; color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Flex row so the date, expiry, and the gold server badge sit on one baseline with
    a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
 .project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
@@ -1200,3 +1200,25 @@ body.incognito-mode .canvas-section::after {
     font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
     pointer-events: none;
 }
+
+/* ── Instant custom tooltip (js/ui/tooltip.js) ──
+   Replaces the slow, disabled-control-skipping native `title` popup. Fixed-position,
+   pointer-events:none so it never eats hover; pre-line so a "— reason" second line wraps. */
+#app-tooltip {
+    position: fixed;
+    z-index: 100003;
+    max-width: 320px;
+    padding: 5px 9px;
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: pre-line;
+    color: var(--text-main);
+    background: var(--bg-info);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 90ms ease;
+}
+#app-tooltip.visible { opacity: 1; }

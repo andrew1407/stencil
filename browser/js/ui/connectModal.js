@@ -12,7 +12,7 @@ export class StencilConnectModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>${icon('server', { size: 18 })} Servers</h2>
-                <button class="app-modal-close btn-icon-text" id="connect-close">${icon('x', { size: 14 })}<span>Close</span></button>
+                <button class="app-modal-close btn-icon-text" id="connect-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
                 <div class="vs-section">Connect a server</div>
@@ -23,7 +23,7 @@ export class StencilConnectModal extends StencilElement {
                     <input type="text" id="connect-token" placeholder="(optional)">
                 </div>
                 <div class="vs-row">
-                    <button id="connect-add" class="btn-icon-text">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
+                    <button id="connect-add" class="btn-icon-text" title="Connect to the server at the URL above">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
                     <button id="connect-reconnect" class="btn-icon-text" title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
                 </div>
                 <div class="vs-row">

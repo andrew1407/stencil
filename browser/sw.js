@@ -2,7 +2,7 @@
 // Network-first on every same-origin GET, so the live file always wins and the cache
 // is only the offline fallback — no version bumping needed for freshness. The name is
 // fixed; activate still evicts any other (legacy) cache so old versions clean up.
-const CACHE = 'stencil';
+const CACHE = 'stencil-v2';
 
 // Critical shell: enough to boot the app offline. The rest of the module graph
 // (ui/, core/, config/, the optional wasm) is filled in at runtime on first use.

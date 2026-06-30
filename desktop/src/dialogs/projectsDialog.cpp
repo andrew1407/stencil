@@ -9,6 +9,7 @@
 #include <QComboBox>
 #include <QMenu>
 #include <QColor>
+#include <QColorDialog>
 #include <QFont>
 #include <QDialogButtonBox>
 #include <QEvent>
@@ -24,6 +25,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QApplication>
+#include <QFontMetrics>
 #include <QPainter>
 #include <QPalette>
 #include <QPixmap>
@@ -120,7 +123,51 @@ namespace stencil::gui {
       }
       void paint(QPainter* p, const QStyleOptionViewItem& opt,
                  const QModelIndex& idx) const override {
-        QStyledItemDelegate::paint(p, opt, idx);
+        // Real rows: let the base paint the background/selection/icon but NOT the text, so we can
+        // colour just the project NAME (status/custom colour) while the trailing "— <url>" /
+        // metadata keeps the default text colour. Placeholder rows draw normally.
+        QStyleOptionViewItem o(opt);
+        initStyleOption(&o, idx);
+        const QString full = o.text;
+        const bool realRow = !idx.data(Qt::UserRole).isNull();
+        QStyle* st = o.widget ? o.widget->style() : QApplication::style();
+        if (!realRow) {
+          QStyledItemDelegate::paint(p, o, idx);  // placeholder rows: default rendering
+        } else {
+          // Draw bg/selection/icon WITHOUT the text via the style directly. (Calling
+          // QStyledItemDelegate::paint re-runs initStyleOption internally, re-adding the text we
+          // cleared — which double-drew it as a ghosted overlay.) Then we paint the name+rest.
+          QStyleOptionViewItem bg(o);
+          bg.text.clear();
+          st->drawControl(QStyle::CE_ItemViewItem, &bg, p, o.widget);
+        }
+        if (realRow && !full.isEmpty()) {
+          // The exact text rect the base would use (after the icon), minus the kebab strip.
+          const QRect tr = st->subElementRect(QStyle::SE_ItemViewItemText, &o, o.widget)
+                               .adjusted(0, 0, -34, 0);  // leave room for the 30px kebab strip
+          const QString name = idx.data(Qt::UserRole + 3).toString();
+          const QString rest = (!name.isEmpty() && full.startsWith(name)) ? full.mid(name.size())
+                                                                          : QString();
+          const QString nameStr = name.isEmpty() ? full : name;
+          const bool sel = o.state & QStyle::State_Selected;
+          const QColor def = o.palette.color(sel ? QPalette::HighlightedText : QPalette::Text);
+          QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
+          if (sel || !nameCol.isValid()) nameCol = def;   // selection forces highlighted text
+          const QFontMetrics fm(o.font);
+          p->save();
+          p->setFont(o.font);
+          const QString nameDraw = fm.elidedText(nameStr, Qt::ElideRight, tr.width());
+          p->setPen(nameCol);
+          p->drawText(tr, Qt::AlignVCenter | Qt::TextSingleLine, nameDraw);
+          const int nameW = fm.horizontalAdvance(nameDraw);
+          if (!rest.isEmpty() && nameDraw == name && nameW < tr.width()) {
+            const QRect rr = tr.adjusted(nameW, 0, 0, 0);
+            p->setPen(def);
+            p->drawText(rr, Qt::AlignVCenter | Qt::TextSingleLine,
+                        fm.elidedText(rest, Qt::ElideRight, rr.width()));
+          }
+          p->restore();
+        }
         const bool remote = !idx.data(Qt::UserRole + 1).toString().isEmpty();
         if (remote) {
           p->save();
@@ -181,17 +228,26 @@ namespace stencil::gui {
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel("<b>Saved projects</b>", this));
 
-    // Filter row: All / Local / Server (mirrors the browser modal's filter dropdown).
+    // Filter row: a compact "Show:" dropdown (All / Local / all-servers / a specific connected
+    // server) + a name search box that takes the remaining width (mirrors the browser modal).
     {
       auto* frow = new QHBoxLayout;
       frow->addWidget(new QLabel("Show:", this));
       filter_ = new QComboBox(this);
-      filter_->addItem("All", "all");
-      filter_->addItem("Local", "local");
-      filter_->addItem("Server", "server");
-      frow->addWidget(filter_, 1);
+      filter_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+      filter_->setMaximumWidth(260);
+      filter_->setToolTip("Filter the list: all, local only, or a specific server");
+      rebuildFilterOptions();
+      frow->addWidget(filter_);                       // natural width — no stretch (was full-width)
+      frow->addSpacing(8);
+      search_ = new QLineEdit(this);
+      search_->setPlaceholderText(tr("Search projects…"));
+      search_->setClearButtonEnabled(true);
+      search_->setToolTip("Filter projects by name (case-insensitive)");
+      frow->addWidget(search_, 1);                    // the search field takes the remaining width
       layout->addLayout(frow);
       connect(filter_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
+      connect(search_, &QLineEdit::textChanged, this, [this](const QString&) { applyFilter(); });
     }
 
     // Batch-select toolbar — appears once one or more rows are checked. Buttons enable by
@@ -205,11 +261,17 @@ namespace stencil::gui {
       bh->addWidget(batchCount_);
       bh->addStretch(1);
       batchToServer_ = new QPushButton(QString::fromUtf8("⇧ To server"), this);
+      batchToServer_->setToolTip("Move the checked local projects to a server");
       batchCopyServer_ = new QPushButton(QString::fromUtf8("⧉ Server copy"), this);
+      batchCopyServer_->setToolTip("Copy the checked local projects to a server");
       batchToLocal_ = new QPushButton(QString::fromUtf8("⇩ To local"), this);
+      batchToLocal_->setToolTip("Move the checked server projects to local storage");
       batchCopyLocal_ = new QPushButton(QString::fromUtf8("⧉ Local copy"), this);
+      batchCopyLocal_->setToolTip("Copy the checked server projects to local storage");
       auto* batchRemove = new QPushButton("Remove", this);
+      batchRemove->setToolTip("Remove the checked projects");
       auto* batchClear = new QPushButton("Clear", this);
+      batchClear->setToolTip("Clear the current checkbox selection");
       batchToServer_->setVisible(haveServers);
       batchCopyServer_->setVisible(haveServers);
       batchToLocal_->setVisible(haveServers);
@@ -231,6 +293,7 @@ namespace stencil::gui {
     }
 
     list_ = new QListWidget(this);
+    list_->setObjectName("projectsList");  // scopes the clearer row-checkbox style (theme.cpp)
     // Row icons hold each project's edited-result preview (local) or its stored
     // result/original image (server); size the list's icon column to fit them.
     list_->setIconSize(QSize(56, 56));
@@ -265,17 +328,27 @@ namespace stencil::gui {
     // actions on the batch toolbar above — so they're not duplicated here.
     auto* row = new QHBoxLayout;
     auto* newBtn = new QPushButton("New Project", this);
+    newBtn->setToolTip("Create a new empty project from the current canvas");
     auto* blankBtn = new QPushButton("🖼 Blank Image", this);
     blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
+    auto* clearAllBtn = new QPushButton("Clear All", this);
+    clearAllBtn->setObjectName("dangerButton");  // red danger styling (mirrors the browser modal)
+    clearAllBtn->setToolTip("Remove all local projects (server projects are not affected)");
     auto* closeBtn = new QPushButton("Close", this);
+    closeBtn->setToolTip("Close this dialog");
     row->addWidget(newBtn);
     row->addWidget(blankBtn);
     row->addStretch(1);
+    row->addWidget(clearAllBtn);
     row->addWidget(closeBtn);
     layout->addLayout(row);
 
     connect(newBtn, &QPushButton::clicked, this, &ProjectsDialog::createNew);
     connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
+    connect(clearAllBtn, &QPushButton::clicked, this, [this] {
+      action_ = Action::ClearAll;  // the main window confirms + clears local projects
+      accept();
+    });
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
 
     // Server (shared) projects: list them now and keep them live with a periodic
@@ -478,6 +551,9 @@ namespace stencil::gui {
     // Preserve the selected row across a live remote re-list so the polling timer
     // doesn't yank the user's selection out from under them.
     const int prevRow = list_->currentRow();
+    // Keep the "Show:" per-server entries in step if servers were connected/disconnected.
+    if (filter_ && connections_ && connections_->urls() != knownServerUrls_)
+      rebuildFilterOptions();
     building_ = true;   // ignore the itemChanged storm from setCheckState below
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
@@ -492,6 +568,7 @@ namespace stencil::gui {
       if (!expiry.isEmpty()) label += QString("   ·   %1").arg(expiry);
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, QString::fromStdString(pr.meta.id));
+      it->setData(Qt::UserRole + 3, QString::fromStdString(pr.meta.name));  // search key (name)
       // Multi-select checkbox (key "|<id>" — empty server marks a local row).
       it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
       it->setCheckState(checked_.contains("|" + QString::fromStdString(pr.meta.id))
@@ -507,19 +584,25 @@ namespace stencil::gui {
       } else {
         it->setIcon(QIcon(placeholderIcon(false)));
       }
-      // Red once expired, amber within a day of expiry — mirrors the browser CSS.
-      if (store.isExpired(pr.meta, now_))
-        it->setForeground(QBrush(QColor("#dc3545")));
-      else if (store.isExpiringSoon(pr.meta, now_))
-        it->setForeground(QBrush(QColor("#e0a800")));
+      // The NAME colour (UserRole+4) — the delegate paints ONLY the name in it, leaving the
+      // "— N line(s)…" metadata in the default text colour. Red once expired, amber within a day
+      // of expiry (mirrors the browser CSS; warnings win over the swatch), else the per-project
+      // colour, else the shared neutral grey (matching --project-name-fg + the CLI default).
+      const QString pcol = QString::fromStdString(pr.meta.color);
+      const QColor custom(pcol);
+      QColor nameCol;
+      if (store.isExpired(pr.meta, now_)) nameCol = QColor("#dc3545");
+      else if (store.isExpiringSoon(pr.meta, now_)) nameCol = QColor("#e0a800");
+      else if (!pcol.isEmpty() && custom.isValid()) nameCol = custom;
+      else nameCol = QColor("#80868f");
+      it->setData(Qt::UserRole + 4, nameCol);
     }
 
-    // Server-stored (shared) projects: a golden outline (painted by the delegate) +
-    // bold gold text so they're visually distinct from local ones (mirrors the
-    // browser's golden outline / --remote-gold #d4a017). UserRole+1 carries the
-    // origin server URL; a non-empty value marks the row as remote so Open routes to
-    // OpenRemote (and tells the delegate to draw the outline).
-    const QColor gold("#d4a017");
+    // Server-stored (shared) projects: distinguished by the golden row OUTLINE (painted by the
+    // delegate) + the server badge — NOT by gold/bold text (which read as garish). The name uses
+    // the same neutral grey / custom-colour treatment as local rows, mirroring the browser modal.
+    // UserRole+1 carries the origin server URL; a non-empty value marks the row as remote so Open
+    // routes to OpenRemote (and tells the delegate to draw the outline).
     for (const auto& sp : remote_) {
       QString label = QString("%1   —   %2")
                           .arg(sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name)
@@ -527,12 +610,15 @@ namespace stencil::gui {
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, sp.id);
       it->setData(Qt::UserRole + 1, sp.serverUrl);
+      it->setData(Qt::UserRole + 3, sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name);  // search key
       it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
       it->setCheckState(checked_.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
-      it->setForeground(QBrush(gold));
-      QFont f = it->font();
-      f.setBold(true);
-      it->setFont(f);
+      // The NAME colour (UserRole+4) — the delegate paints ONLY the name in it, so the "— <url>"
+      // suffix stays the default colour. Per-project colour when set, else the shared neutral grey
+      // (same as local rows + the browser default — not gold). The gold outline marks server rows.
+      const QColor custom(sp.color);
+      it->setData(Qt::UserRole + 4,
+                  (!sp.color.isEmpty() && custom.isValid()) ? custom : QColor("#80868f"));
       it->setToolTip(QString("Server project on %1").arg(sp.serverUrl));
       // Edited preview: the project's rendered `result` (falling back to the
       // `original` if it was never saved), mirroring the browser modal's
@@ -597,6 +683,22 @@ namespace stencil::gui {
     if (batchCopyServer_) batchCopyServer_->setEnabled(allLocal && haveServers);
     if (batchToLocal_) batchToLocal_->setEnabled(allRemote);
     if (batchCopyLocal_) batchCopyLocal_->setEnabled(allRemote);
+    // Explain why the homogeneity-gated buttons are disabled (mirrors the
+    // project-name accept-button reason pattern). Enabled buttons keep their
+    // descriptive tooltip set at construction.
+    const QString toServerReason =
+        !haveServers ? QStringLiteral("Connect to a server first")
+                     : QStringLiteral("Check only local projects to move/copy them to a server");
+    const QString toLocalReason =
+        QStringLiteral("Check only server projects to move/copy them to local storage");
+    if (batchToServer_ && !batchToServer_->isEnabled())
+      batchToServer_->setToolTip(toServerReason);
+    if (batchCopyServer_ && !batchCopyServer_->isEnabled())
+      batchCopyServer_->setToolTip(toServerReason);
+    if (batchToLocal_ && !batchToLocal_->isEnabled())
+      batchToLocal_->setToolTip(toLocalReason);
+    if (batchCopyLocal_ && !batchCopyLocal_->isEnabled())
+      batchCopyLocal_->setToolTip(toLocalReason);
   }
 
   // Resolve the checked rows into (id, serverUrl) pairs, pick a target server for the
@@ -626,14 +728,39 @@ namespace stencil::gui {
   }
 
   // Hide rows the storage filter excludes. Placeholders (no project id) always show.
+  void ProjectsDialog::rebuildFilterOptions() {
+    if (!filter_) return;
+    const QString prev = filter_->currentData().toString();  // preserve the selection
+    filter_->blockSignals(true);
+    filter_->clear();
+    filter_->addItem(tr("All"), "all");
+    filter_->addItem(tr("Local"), "local");
+    const QStringList urls = connections_ ? connections_->urls() : QStringList();
+    if (!urls.isEmpty()) {
+      filter_->addItem(tr("All servers"), "server");
+      for (const QString& u : urls) filter_->addItem(u, u);  // one entry per specific server URL
+    }
+    knownServerUrls_ = urls;
+    const int idx = filter_->findData(prev.isEmpty() ? QStringLiteral("all") : prev);
+    filter_->setCurrentIndex(idx < 0 ? 0 : idx);
+    filter_->blockSignals(false);
+  }
+
   void ProjectsDialog::applyFilter() {
     if (!filter_) return;
     const QString mode = filter_->currentData().toString();
+    const QString needle = search_ ? search_->text().trimmed() : QString();
     for (int i = 0; i < list_->count(); ++i) {
       QListWidgetItem* it = list_->item(i);
-      if (it->data(Qt::UserRole).isNull()) continue;
-      const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
-      const bool show = mode == "all" || (mode == "local" && !remote) || (mode == "server" && remote);
+      if (it->data(Qt::UserRole).isNull()) continue;  // skip "Loading…"/"No projects" placeholders
+      const QString srv = it->data(Qt::UserRole + 1).toString();
+      const bool remote = !srv.isEmpty();
+      bool show = true;
+      if (mode == "local") show = !remote;
+      else if (mode == "server") show = remote;          // any server
+      else if (mode != "all") show = (srv == mode);      // a specific server URL
+      if (show && !needle.isEmpty())                     // name search (case-insensitive substring)
+        show = it->data(Qt::UserRole + 3).toString().contains(needle, Qt::CaseInsensitive);
       it->setHidden(!show);
     }
   }
@@ -652,6 +779,11 @@ namespace stencil::gui {
                      &ProjectsDialog::makeLocalCopySelected);
       menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
                      &ProjectsDialog::moveToLocalSelected);
+      menu.addSeparator();
+      menu.addAction(themedIcon("image", ico, 16), "Set colour…", this,
+                     &ProjectsDialog::setColorSelected);
+      menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
+                     &ProjectsDialog::clearColorSelected);
     } else {
       menu.addAction(themedIcon("folder", ico, 16), "Open", this,
                      &ProjectsDialog::openSelected);
@@ -667,6 +799,11 @@ namespace stencil::gui {
         menu.addAction(themedIcon("copy", ico, 16), "Copy to server…", this,
                        &ProjectsDialog::copyToServerSelected);
       }
+      menu.addSeparator();
+      menu.addAction(themedIcon("image", ico, 16), "Set colour…", this,
+                     &ProjectsDialog::setColorSelected);
+      menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
+                     &ProjectsDialog::clearColorSelected);
       menu.addSeparator();
       // Destructive: a red trash glyph echoes the browser's red "Remove" item.
       menu.addAction(themedIcon("trash", QColor("#dc3545"), 16), "Remove", this,
@@ -819,6 +956,49 @@ namespace stencil::gui {
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Renew;
     accept();
+  }
+
+  QString ProjectsDialog::currentRowColor() const {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return {};
+    const QString id = it->data(Qt::UserRole).toString();
+    const QString server = it->data(Qt::UserRole + 1).toString();
+    if (!server.isEmpty()) {  // server row → read the cached record
+      for (const auto& sp : remote_)
+        if (sp.id == id && sp.serverUrl == server) return sp.color;
+      return {};
+    }
+    for (const auto& p : projects_)  // local row → read the project meta
+      if (QString::fromStdString(p.meta.id) == id) return QString::fromStdString(p.meta.color);
+    return {};
+  }
+
+  // Resolve the selected row's (id, serverUrl) and emit a SetColor action with `color`
+  // ("" = clear to the theme default). Shared by the set / clear colour menu entries.
+  void ProjectsDialog::emitSetColor(QListWidgetItem* it, const QString& color) {
+    selectedId_ = it->data(Qt::UserRole).toString();
+    selectedServerUrl_ = it->data(Qt::UserRole + 1).toString();
+    selectedColor_ = color;
+    action_ = Action::SetColor;
+    accept();
+  }
+
+  void ProjectsDialog::setColorSelected() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    const QString cur = currentRowColor();
+    const QColor seed = (!cur.isEmpty() && QColor(cur).isValid()) ? QColor(cur)
+                                                                  : QColor("#7c3aed");
+    const QColor picked = QColorDialog::getColor(seed, this, "Project name colour",
+                                                 QColorDialog::DontUseNativeDialog);
+    if (!picked.isValid()) return;   // cancelled
+    emitSetColor(it, picked.name());
+  }
+
+  void ProjectsDialog::clearColorSelected() {
+    auto* it = list_->currentItem();
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    emitSetColor(it, QString());   // clear → theme default
   }
 
   void ProjectsDialog::createBlank() {

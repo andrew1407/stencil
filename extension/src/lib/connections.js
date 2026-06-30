@@ -22,6 +22,8 @@ export const sharedPinFromProject = (proj, serverUrl) => ({
   site: serverUrl,
   resource: proj.resource || '',
   name: proj.name || 'Untitled',
+  // Project's custom accent colour ("#rrggbb", or "" = default) for the popup's pin-row name.
+  color: proj.color || '',
   kind: 'image',
   t: proj.updatedAt || 0,
   shared: true,

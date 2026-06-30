@@ -24,7 +24,9 @@ namespace stencil::gui {
     path_ = new QLineEdit(this);
     path_->setReadOnly(true);
     path_->setPlaceholderText("No file chosen");
+    path_->setToolTip("The chosen image file (use Choose File… to pick one)");
     auto* browse = new QPushButton("Choose File…", this);
+    browse->setToolTip("Browse for an image file to open");
     connect(browse, &QPushButton::clicked, this, &OpenImageDialog::browse);
     fileRow->addWidget(path_, 1);
     fileRow->addWidget(browse);
@@ -32,13 +34,16 @@ namespace stencil::gui {
 
     // Incognito: edit without saving (mirrors the browser checkbox).
     incognito_ = new QCheckBox("Edit without saving", this);
+    incognito_->setToolTip("Open the image in incognito mode — edits are not saved");
     form->addRow("Incognito:", incognito_);
 
     // Replace options: only shown when a saved/linked project can be replaced. Rename is
     // off by default; keeping the existing annotations is on (mirrors the browser modal).
     if (canReplace_) {
       rename_ = new QCheckBox("Rename project to the new image", this);
+      rename_->setToolTip("Adopt the new file's name for this project");
       keep_ = new QCheckBox("Keep existing annotations", this);
+      keep_->setToolTip("Keep the current lines over the replacement image");
       keep_->setChecked(true);
       auto* opts = new QVBoxLayout;
       opts->addWidget(rename_);
@@ -65,13 +70,16 @@ namespace stencil::gui {
     auto* btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
     auto* cancel = new QPushButton("Cancel", this);
+    cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     here_ = new QPushButton("Open here", this);
+    here_->setToolTip("Open the chosen image in this editor (makes a new project)");
     connect(here_, &QPushButton::clicked, this, [this] {
       outcome_ = Outcome::Here;
       accept();
     });
     newWindow_ = new QPushButton("Open in new window", this);
+    newWindow_->setToolTip("Open the chosen image in a new window (this editor stays)");
     connect(newWindow_, &QPushButton::clicked, this, [this] {
       outcome_ = Outcome::NewWindow;
       accept();
@@ -79,6 +87,7 @@ namespace stencil::gui {
     btnRow->addWidget(cancel);
     if (canReplace_) {
       replace_ = new QPushButton("Replace image", this);
+      replace_->setToolTip("Swap this project's image in place (same project)");
       connect(replace_, &QPushButton::clicked, this, [this] {
         outcome_ = Outcome::Replace;
         accept();
@@ -100,12 +109,23 @@ namespace stencil::gui {
     refreshButtons();
   }
 
-  // All action buttons stay disabled until a file is chosen.
+  // All action buttons stay disabled until a file is chosen. When disabled, the
+  // tooltip explains why (follows the project-name accept-button pattern).
   void OpenImageDialog::refreshButtons() {
     const bool has = !path_->text().isEmpty();
     here_->setEnabled(has);
     newWindow_->setEnabled(has);
     if (replace_) replace_->setEnabled(has);
+    if (!has) {
+      const QString reason = "Choose an image file first";
+      here_->setToolTip(reason);
+      newWindow_->setToolTip(reason);
+      if (replace_) replace_->setToolTip(reason);
+    } else {
+      here_->setToolTip("Open the chosen image in this editor (makes a new project)");
+      newWindow_->setToolTip("Open the chosen image in a new window (this editor stays)");
+      if (replace_) replace_->setToolTip("Swap this project's image in place (same project)");
+    }
   }
 
   QString OpenImageDialog::path() const { return path_->text(); }

@@ -62,6 +62,7 @@ pub const Session = struct {
     remote_url: ?[]u8 = null, // owned base URL of the active fetched project's server
     remote_id: ?[]u8 = null, // owned id of the active fetched project
     remote_version: i64 = 0, // last server version we hold for the active project (LWW guard for auto-pull)
+    remote_color: ?[]u8 = null, // owned active project's custom name colour ("#rrggbb"); null/"" = default
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
 
@@ -147,11 +148,27 @@ pub const Session = struct {
         self.remote_id = i;
     }
 
+    /// Replace the displayed label (e.g. after a rename), owned copy.
+    pub fn setLabel(self: *Session, name: []const u8) !void {
+        const dup = try self.gpa.dupe(u8, name);
+        if (self.label) |l| self.gpa.free(l);
+        self.label = dup;
+    }
+
+    /// Set the active project's custom name colour ("#rrggbb" or "" to clear), owned copy.
+    pub fn setRemoteColor(self: *Session, color: []const u8) !void {
+        const c = try self.gpa.dupe(u8, color);
+        if (self.remote_color) |old| self.gpa.free(old);
+        self.remote_color = c;
+    }
+
     pub fn clearRemote(self: *Session) void {
         if (self.remote_url) |u| self.gpa.free(u);
         if (self.remote_id) |i| self.gpa.free(i);
+        if (self.remote_color) |c| self.gpa.free(c);
         self.remote_url = null;
         self.remote_id = null;
+        self.remote_color = null;
         self.remote_version = 0;
     }
 

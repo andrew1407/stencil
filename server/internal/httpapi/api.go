@@ -21,7 +21,7 @@ type ProjectStore interface {
 	ListProjects(ctx context.Context) ([]protocol.ProjectRecord, error)
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
 	CreateProject(ctx context.Context, ownerSession string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error)
-	UpdateProject(ctx context.Context, id string, name *string, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
+	UpdateProject(ctx context.Context, id string, name *string, color *string, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
 	SetFile(ctx context.Context, id, kind, relPath string, w, h int) (protocol.ProjectRecord, error)
 	DeleteProject(ctx context.Context, id string) error
 }

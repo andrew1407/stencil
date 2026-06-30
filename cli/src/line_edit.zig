@@ -58,6 +58,13 @@ pub const Editor = struct {
     fd_in: std.posix.fd_t,
     fd_out: std.posix.fd_t,
     orig: std.posix.termios,
+    // Optional idle hook: invoked when the input read times out (no key for ~idle_ms) so the REPL
+    // can poll the live events feed and surface a peer's change while the user sits at the prompt.
+    // readLine clears the prompt line before the call and redraws it after.
+    idle_cb: ?*const fn (*anyopaque) bool = null,  // returns true if it printed → repaint the prompt
+    idle_ctx: ?*anyopaque = null,
+
+    const ByteResult = union(enum) { byte: u8, idle, closed };
 
     /// Put `tty_fd` into raw mode (no canonical line editing, no echo, no signal keys).
     pub fn init(tty_fd: std.posix.fd_t) !Editor {
@@ -113,6 +120,17 @@ pub const Editor = struct {
         return if (n == 0) null else b[0];
     }
 
+    // Like readByte but waits at most `timeout_ms` (−1 = forever); returns `.idle` on timeout so
+    // the main loop can run its idle hook between keystrokes without blocking on input.
+    fn pollByte(self: *Editor, timeout_ms: i32) ByteResult {
+        var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
+        const ready = std.posix.poll(&pfd, timeout_ms) catch return .closed;
+        if (ready == 0) return .idle;
+        var b: [1]u8 = undefined;
+        const n = std.posix.read(self.fd_in, &b) catch return .closed;
+        return if (n == 0) .closed else .{ .byte = b[0] };
+    }
+
     /// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
     /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C, exit),
     /// `.copy` (Ctrl-Alt-C) or `.paste` (Ctrl-Alt-V). The Alt-modified chords arrive as an
@@ -128,9 +146,25 @@ pub const Editor = struct {
         self.refresh(prompt, buf[0..0], 0);
 
         while (true) {
-            const ch = self.readByte() orelse {
-                if (len == 0) return .eof; // closed tty -> end session
-                continue;
+            // Poll with a timeout only when an idle hook is set, so we can refresh the live title
+            // between keystrokes; otherwise block normally. On idle: clear the line, run the hook
+            // (which may print a peer's change above), then redraw the prompt + in-progress input.
+            const ch = blk: {
+                switch (self.pollByte(if (self.idle_cb != null) 500 else -1)) {
+                    .closed => {
+                        if (len == 0) return .eof;
+                        continue;
+                    },
+                    // Only repaint when the hook actually printed something (it clears the line
+                    // itself first) — otherwise stay silent so the idle prompt never flickers.
+                    .idle => {
+                        if (self.idle_cb) |cb| {
+                            if (cb(self.idle_ctx.?)) self.refresh(prompt, buf[0..len], pos);
+                        }
+                        continue;
+                    },
+                    .byte => |b| break :blk b,
+                }
             };
             if (ch != 3) armed.* = false; // any key but Ctrl-C disarms the exit guard
             switch (ch) {

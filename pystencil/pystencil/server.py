@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import json
 import ssl
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 
 # Default port the collaboration server listens on (server/.env.example). Used
@@ -58,6 +59,69 @@ class ServerError(Exception):
         self.code = code
         self.message = message
         self.status = status
+
+
+# Project-metadata fields a watcher reports on. version is the server's monotonic
+# edit counter (any save bumps it); name/color are the user-visible metadata. A change
+# in any of these marks a project "updated" — the same fields the browser/desktop pick
+# up when they reload a peer's change.
+_WATCHED_FIELDS = ("version", "name", "color")
+_FIELD_DEFAULT = {"version": 0, "name": "", "color": ""}
+
+
+def diff_projects(prev: list, curr: list) -> list:
+    """Diff two `GET /projects` lists into project-change events. Pure (no network),
+    so it's unit-tested without a server — the building block for poll-based watching.
+
+    Returns a list of dicts ``{id, kind, fields, project}`` where ``kind`` is
+    ``'created'`` | ``'updated'`` | ``'deleted'`` and ``fields`` lists which of
+    name/color/version changed (only for 'updated'; empty for created/deleted).
+    `project` is the current record (the prior record for a deletion).
+    """
+    prev_by = {p.get("id"): p for p in (prev or []) if p.get("id")}
+    curr_by = {p.get("id"): p for p in (curr or []) if p.get("id")}
+    changes: list = []
+    for pid, new in curr_by.items():
+        old = prev_by.get(pid)
+        if old is None:
+            changes.append({"id": pid, "kind": "created", "fields": [], "project": new})
+            continue
+        fields = [
+            f for f in _WATCHED_FIELDS
+            if old.get(f, _FIELD_DEFAULT[f]) != new.get(f, _FIELD_DEFAULT[f])
+        ]
+        if fields:
+            changes.append({"id": pid, "kind": "updated", "fields": fields, "project": new})
+    for pid, old in prev_by.items():
+        if pid not in curr_by:
+            changes.append({"id": pid, "kind": "deleted", "fields": [], "project": old})
+    return changes
+
+
+def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> None:
+    """Shared blocking poll loop for the *_changes watchers. Seeds a silent baseline
+    from `fetch()`, then every `interval` seconds re-fetches and fires on_change for
+    each diff. A failed fetch is skipped (keeps the baseline) so a transient outage
+    doesn't look like mass deletes. `stop` (a threading.Event or None) ends the loop;
+    when given, its .wait() makes the sleep interruptible so stop() returns promptly.
+    """
+    try:
+        baseline = fetch()
+    except Exception:
+        baseline = []
+    while not (stop is not None and stop.is_set()):
+        if stop is not None:
+            if stop.wait(interval):
+                break
+        else:
+            time.sleep(interval)
+        try:
+            current = fetch()
+        except Exception:
+            continue  # transient error — keep the baseline, retry next tick
+        for change in diff_projects(baseline, current):
+            on_change(change)
+        baseline = current
 
 
 class ServerConnection:
@@ -185,9 +249,39 @@ class ServerConnection:
         r = self._request("GET", "/projects")
         return (r or {}).get("projects", []) or []
 
+    # ── project-change tracking (poll-based) ──
+    # This client stays REST-only (no /ws feed), so "listening" for a peer's name/color
+    # change is modelled as polling, exactly like the desktop's QTimer poll. Two flavours:
+    # poll_project_changes() is one-shot (the caller owns the loop), watch_projects() is a
+    # ready-made blocking loop. Use get_project(id)'s version to confirm a single project.
+    def poll_project_changes(self, previous: list | None = None) -> tuple:
+        """One-shot poll: fetch the current project list and diff it against `previous`.
+
+        Returns ``(current_list, changes)`` (see diff_projects for the change shape).
+        Pass the prior list back in on the next call to detect what moved; a first call
+        with ``previous=None`` reports every project as 'created', so seed a baseline with
+        list_projects() when you only want subsequent changes.
+        """
+        current = self.list_projects()
+        return current, diff_projects(previous, current)
+
+    def watch_projects(self, on_change, *, interval: float = 2.0, stop=None) -> None:
+        """Block, polling every `interval` s, calling on_change(change) per project
+        create/update/delete — mirroring the desktop poll loop. The first list seeds the
+        baseline silently (only later changes fire). Pass a threading.Event as `stop`
+        (and/or run this in a thread) to end it; without one it loops forever.
+        """
+        _poll_loop(self.list_projects, on_change, interval, stop)
+
     def get_project(self, pid: str) -> dict:
         """GET /projects/{id} → {project, layout?, originalContent?}."""
         return self._request("GET", "/projects/" + urllib.parse.quote(str(pid)))
+
+    def _project_record(self, pid: str) -> Optional[dict]:
+        """Fetch a project and unwrap its ProjectRecord from the {project: ...} envelope."""
+        full = self.get_project(pid)
+        proj = (full or {}).get("project") if isinstance(full, dict) else None
+        return proj if isinstance(proj, dict) else None
 
     def create_project(self, **kw: Any) -> dict:
         """POST /projects → the created ProjectRecord (id, version, …).
@@ -203,19 +297,42 @@ class ServerConnection:
         pid: str,
         layout: Any = None,
         name: str | None = None,
+        color: str | None = None,
         version: int = 0,
     ) -> dict:
         """PUT /projects/{id} → the updated ProjectRecord.
 
         version guards the last-writer-wins update; a stale version yields a
-        409 which surfaces as ServerError(code="conflict").
+        409 which surfaces as ServerError(code="conflict"). `color` rides the
+        same nil-means-unchanged contract as `name` (UpdateProjectRequest.Color
+        is *string): pass "" to clear the custom accent, a "#rrggbb" hex to set
+        it, or leave it None to keep the server's current value.
         """
         body: dict[str, Any] = {"version": version}
         if name is not None:
             body["name"] = name
+        if color is not None:
+            body["color"] = color
         if layout is not None:
             body["layout"] = layout
         return self._request("PUT", "/projects/" + urllib.parse.quote(str(pid)), body=body)
+
+    def rename_project(self, pid: str, name: str) -> dict:
+        """Rename a server project (PUT name), reading its current version first so the
+        last-writer-wins guard is satisfied. The server broadcasts the change to every connected
+        client, so other front-ends (browser/desktop/CLI) pick the new name up live. A 409 (lost
+        race) surfaces as ServerError(code="conflict")."""
+        version = self._current_version(pid, 0)
+        return self.update_project(pid, name=name, version=version)
+
+    def get_project_color(self, pid: str) -> str:
+        """GET /projects/{id} and return its ProjectRecord `color`.
+
+        Mirrors the browser reading record.color off the fetched project; an
+        unset/missing value comes back as "" (theme fallback).
+        """
+        proj = self._project_record(pid)
+        return (proj.get("color", "") or "") if proj else ""
 
     def delete_project(self, pid: str) -> None:
         """DELETE /projects/{id} (204 No Content)."""
@@ -241,9 +358,8 @@ class ServerConnection:
         """Re-read a project's version after a file write (which bumps it but
         returns none of its own), mirroring remoteSync.js currentVersion."""
         try:
-            full = self.get_project(pid)
-            proj = (full or {}).get("project") if isinstance(full, dict) else None
-            v = proj.get("version") if isinstance(proj, dict) else None
+            proj = self._project_record(pid)
+            v = proj.get("version") if proj else None
             return fallback if v is None else int(v)
         except Exception:
             return fallback
@@ -293,15 +409,17 @@ class ServerConnection:
         layout: Any,
         image: Any = None,
         name: str | None = None,
+        color: str | None = None,
     ) -> dict:
-        """Version-guarded save-back (layout/name) plus optional result upload.
+        """Version-guarded save-back (layout/name/color) plus optional result upload.
 
         Port of remoteSync.js saveRemoteProject: update → putFile('result'). A
         409 (lost last-writer-wins race) is surfaced as ServerError(code=
-        "conflict"). Returns the refreshed project record.
+        "conflict"). Returns the refreshed project record. `color` follows the
+        same nil-means-unchanged contract as `name`.
         """
         try:
-            rec = self.update_project(pid, layout=layout, name=name, version=version)
+            rec = self.update_project(pid, layout=layout, name=name, color=color, version=version)
         except ServerError as err:
             if err.status == 409 or err.code == "conflict":
                 raise ServerError(
@@ -402,6 +520,22 @@ class ConnectionManager:
                 # Skip an unreachable/erroring server, like the browser does.
                 pass
         return out
+
+    # ── aggregate project-change tracking (poll-based) ──
+    # The session-wide analogue of ServerConnection.watch_projects: polls every connected
+    # server and reports name/color/version changes across all of them, the way the
+    # extension popup tracks its pinned projects as a set rather than one active project.
+    def poll_project_changes(self, previous: list | None = None) -> tuple:
+        """One-shot poll across every connection. Returns ``(current_list, changes)``
+        (see diff_projects). Pass the prior list back to detect what moved."""
+        current = self.remote_projects()
+        return current, diff_projects(previous, current)
+
+    def watch_projects(self, on_change, *, interval: float = 2.0, stop=None) -> None:
+        """Block, polling every connected server every `interval` s, calling
+        on_change(change) per project create/update/delete across all of them. The first
+        poll seeds the baseline silently. Pass a threading.Event as `stop` to end it."""
+        _poll_loop(self.remote_projects, on_change, interval, stop)
 
 
 def _one_spec(item: Any) -> tuple[Any, str]:

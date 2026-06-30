@@ -22,6 +22,9 @@ namespace stencil::net {
   struct ServerProject {
     QString id;
     QString name;
+    // Per-project accent color ("#rrggbb" or empty = theme default). Mirrors
+    // protocol.ProjectRecord.Color so the shared name colour survives a re-list.
+    QString color;
     bool hasImage = false;
     int imageW = 0;
     int imageH = 0;
@@ -77,6 +80,15 @@ namespace stencil::net {
     // false with `conflict` set; on success fills `newVersion`.
     bool updateProject(const QString& id, const QString& name, const QJsonObject& layout,
                        qint64 version, qint64& newVersion, bool& conflict);
+    // Version-guarded color-only update (PUT /projects/{id} with just `color`).
+    // `color` is "#rrggbb" or "" (clear); the server COALESCEs name/layout so they
+    // stay untouched. On a 409 returns false with `conflict` set.
+    bool updateProjectColor(const QString& id, const QString& color, qint64 version,
+                            qint64& newVersion, bool& conflict);
+    // Rename a server project (PUT {name, version}); the server COALESCEs colour/layout so they
+    // stay untouched. On a 409 returns false with `conflict` set. Mirrors updateProjectColor.
+    bool updateProjectName(const QString& id, const QString& name, qint64 version,
+                           qint64& newVersion, bool& conflict);
     bool uploadFile(const QString& id, const QString& kind, const QByteArray& bytes,
                     const QString& ext, int w, int h);
     QByteArray downloadFile(const QString& id, const QString& kind, bool& ok);
