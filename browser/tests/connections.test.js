@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   normalizeUrl, wsUrl, ServerConnection, ConnectionManager, REMOTE_FLAG,
+  isLoopbackHost, isInsecureRemote,
 } from '../js/net/connectionManager.js';
 import {
   requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent, CONFLICT_MESSAGE,
@@ -102,11 +103,27 @@ class FakeWS {
   fire(t, data) { (this._l[t] || []).forEach((cb) => cb(data)); }
 }
 
-test('normalizeUrl coerces scheme and strips trailing slash', () => {
-  assert.equal(normalizeUrl('host:8090'), 'http://host:8090');
+test('normalizeUrl is secure by default: bare remote → https, loopback → http', () => {
+  // Bare REMOTE host defaults to https (don't leak a token over cleartext).
+  assert.equal(normalizeUrl('host:8090'), 'https://host:8090');
+  // Loopback keeps plaintext http (dev servers; bytes never leave the machine).
+  assert.equal(normalizeUrl('localhost:8090'), 'http://localhost:8090');
+  assert.equal(normalizeUrl('127.0.0.1:8090'), 'http://127.0.0.1:8090');
+  // An explicit scheme is preserved (deliberate opt-in), trailing slash stripped.
   assert.equal(normalizeUrl('http://host:8090/'), 'http://host:8090');
   assert.equal(normalizeUrl('  https://h:1/  '), 'https://h:1');
   assert.throws(() => normalizeUrl(''));
+});
+
+test('isLoopbackHost / isInsecureRemote classify the connection', () => {
+  assert.equal(isLoopbackHost('localhost'), true);
+  assert.equal(isLoopbackHost('127.0.0.1'), true);
+  assert.equal(isLoopbackHost('::1'), true);
+  assert.equal(isLoopbackHost('example.com'), false);
+  // Only cleartext-to-a-remote-host is flagged insecure.
+  assert.equal(isInsecureRemote('http://example.com:8090'), true);
+  assert.equal(isInsecureRemote('http://localhost:8090'), false);
+  assert.equal(isInsecureRemote('https://example.com:8090'), false);
 });
 
 test('wsUrl maps http(s) origin to ws(s)/ws', () => {
@@ -150,9 +167,9 @@ test('ConnectionManager connects multiple servers and dedupes', async () => {
   let changes = 0;
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS, onChange: () => { changes++; } });
 
-  await mgr.connect(['a:1', 'b:2']);
+  await mgr.connect(['http://a:1', 'http://b:2']);
   assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
-  await mgr.connect('a:1'); // already connected → no duplicate
+  await mgr.connect('http://a:1'); // already connected → no duplicate
   assert.equal(mgr.urls.length, 2);
   assert.ok(changes >= 2);
 });
@@ -160,7 +177,7 @@ test('ConnectionManager connects multiple servers and dedupes', async () => {
 test('disconnect with no arg drops the most recent connection', async () => {
   const { fetchImpl } = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect(['a:1', 'b:2']);
+  await mgr.connect(['http://a:1', 'http://b:2']);
   mgr.disconnect();
   assert.deepEqual(mgr.urls, ['http://a:1']);
   mgr.disconnect('http://a:1');
@@ -170,7 +187,7 @@ test('disconnect with no arg drops the most recent connection', async () => {
 test('reconnect re-establishes the last set', async () => {
   const { fetchImpl } = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect(['a:1', 'b:2']);
+  await mgr.connect(['http://a:1', 'http://b:2']);
   await mgr.reconnect();
   assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
 });
@@ -178,8 +195,8 @@ test('reconnect re-establishes the last set', async () => {
 test('snapshot exposes the live set as {url, token} for persistence', async () => {
   const { fetchImpl } = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect({ url: 'a:1', token: 'tkn-a' });
-  await mgr.connect('b:2'); // token issued by handshake → 'issued-token'
+  await mgr.connect({ url: 'http://a:1', token: 'tkn-a' });
+  await mgr.connect('http://b:2'); // token issued by handshake → 'issued-token'
   assert.deepEqual(mgr.snapshot(), [
     { url: 'http://a:1', token: 'tkn-a' },
     { url: 'http://b:2', token: 'issued-token' },
@@ -189,11 +206,11 @@ test('snapshot exposes the live set as {url, token} for persistence', async () =
 test('reconnectOne re-establishes a single connection, keeping the rest', async () => {
   const { fetchImpl } = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect(['a:1', 'b:2']);
-  await mgr.reconnectOne('a:1');
+  await mgr.connect(['http://a:1', 'http://b:2']);
+  await mgr.reconnectOne('http://a:1');
   assert.deepEqual(mgr.urls.sort(), ['http://a:1', 'http://b:2']);
   // unknown url just connects it fresh rather than throwing
-  await mgr.reconnectOne('c:3');
+  await mgr.reconnectOne('http://c:3');
   assert.ok(mgr.has('http://c:3'));
 });
 
@@ -206,7 +223,7 @@ test('remoteProjects aggregates across connections and survives an unreachable o
     return (host === 'a:1' ? a.fetchImpl : b.fetchImpl)(url, init);
   };
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect(['a:1', 'b:2']);
+  await mgr.connect(['http://a:1', 'http://b:2']);
   // Force one connection to fail on list by swapping its fetch.
   mgr.get('http://a:1')._fetch = () => { throw new Error('boom'); };
   const list = await mgr.remoteProjects();
@@ -240,7 +257,7 @@ test('stencil facade exposes the connection surface and chains', async () => {
   const stencil = createStencil(app);
 
   assert.deepEqual(stencil.connections, []);
-  const ret = await stencil.connect('srv:8090');
+  const ret = await stencil.connect('http://srv:8090');
   assert.equal(ret, stencil, 'connect resolves to the facade for chaining');
   assert.deepEqual(stencil.connections, ['http://srv:8090']);
 
@@ -261,7 +278,7 @@ const connectOne = async (server, url = 'http://srv:9') => {
 test('requireConnection validates a live connection or throws clearly', async () => {
   const server = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS });
-  await mgr.connect('srv:8090');
+  await mgr.connect('http://srv:8090');
   assert.equal(requireConnection(mgr, 'http://srv:8090').url, 'http://srv:8090');
   assert.throws(() => requireConnection(mgr, 'http://nope:1'), /Not connected/);
   assert.throws(() => requireConnection(null, 'x'), /No server connections/);
@@ -346,7 +363,7 @@ test('facade blank({ address }) validates the target and threads it to createBla
     createBlankImage(opts) { app._blankOpts = opts; return Promise.resolve({ width: 2, height: 2 }); },
   });
   const stencil = createStencil(app);
-  await stencil.connect('srv:8090');
+  await stencil.connect('http://srv:8090');
 
   // Unknown address rejects BEFORE any local work runs.
   await assert.rejects(() => stencil.blank('#fff', { address: 'http://nope:1' }), /Not connected/);
@@ -373,7 +390,7 @@ test('facade newEditor({ address }) creates+links an empty server project', asyn
     },
   });
   const stencil = createStencil(app);
-  await stencil.connect('srv:8090');
+  await stencil.connect('http://srv:8090');
 
   // newEditor validates synchronously (it returns the facade, not a promise, locally).
   assert.throws(() => stencil.newEditor({ address: 'http://nope:1' }), /Not connected/);
@@ -470,7 +487,7 @@ test('shouldReloadFromEvent: holds off while drawing', () => {
   assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, isDrawing: true }), false);
 });
 test('shouldReloadFromEvent: suppresses our own save echo, reloads after the short window', () => {
-  // now=100000, echo window 300ms: 100ms ago → our echo → suppressed.
+  // now=100000, echo window 150ms: 100ms ago → our echo → suppressed.
   assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, lastLocalSaveAt: 99900 }), false);
   // 1000ms ago → a peer change made right after our save → reload (not dropped).
   assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, lastLocalSaveAt: 99000 }), true);

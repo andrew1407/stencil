@@ -34,6 +34,7 @@ class QDropEvent;
 namespace stencil::net {
   class ConnectionManager;
   class ServerClient;
+  class LiveFeed;
 }
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
@@ -187,6 +188,9 @@ namespace stencil::gui {
     // preference is on, re-establish the saved server set best-effort. Gated to the
     // primary restored window so spawned windows don't each reconnect.
     void autoConnectServers();
+    // Surface a security notice for any live connection that talks plaintext http to a
+    // remote host (bearer token + image bytes sent in the clear). Called after connect.
+    void warnInsecureConnections();
     // Load a saved project (by id) into THIS window's canvas, mirroring the
     // browser switchToProject(): set page size, restore image + lines + crop,
     // mark it active. Returns false if no project with that id exists.
@@ -310,12 +314,17 @@ namespace stencil::gui {
     // re-emits them instead of clobbering with the desktop's global default.
     void adoptServerLayoutMeta(const QJsonObject& layout);
     // Live co-edit. scheduleRemotePush: debounce saveToServer() after a local edit.
-    // start/stopRemotePoll: periodic version check while a remote session is open.
-    // pollRemoteForUpdate: one tick — reload the canvas if a peer bumped the version.
+    // start/stopRemotePoll: subscribe/unsubscribe the live push feed + the version-check
+    // backstop while a remote session is open. pollRemoteForUpdate: one backstop tick —
+    // reload the canvas if a peer bumped the version. ensureLiveFeed: (re)point the push
+    // feed at the active server. onRemoteProjectEvent: a push frame arrived — coalesce a
+    // reload (the desktop analogue of the browser's onServerProjectEvent).
     void scheduleRemotePush();
     void startRemotePoll();
     void stopRemotePoll();
     void pollRemoteForUpdate();
+    void ensureLiveFeed();
+    void onRemoteProjectEvent(const QString& id, qint64 version, bool deleted);
 
     // Find a loaded project by id, or nullptr when none matches.
     Project* findProject(const std::string& id);
@@ -398,6 +407,15 @@ namespace stencil::gui {
     // a peer changes the linked project. Flags guard against self-triggering.
     QTimer* remotePushTimer_ = nullptr;
     QTimer* remotePollTimer_ = nullptr;
+    // Live push feed (raw-TCP project-events subscription) + a short single-shot timer
+    // that coalesces a burst of peer events into one reload, off the socket-read slot.
+    stencil::net::LiveFeed* liveFeed_ = nullptr;
+    QTimer* remoteReloadTimer_ = nullptr;
+    // Start of the current push debounce burst (epoch ms; 0 = none) — caps the trailing
+    // debounce with a max-wait so continuous editing still flushes to peers.
+    qint64 remotePushBurstStart_ = 0;
+    // A peer change arrived while a reload was in flight — apply one more pass when it ends.
+    bool remoteReloadPending_ = false;
     bool remotePushing_ = false;
     bool remoteReloading_ = false;
     // True when THIS user changed the filter since the last sync — a save then imposes

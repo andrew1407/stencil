@@ -14,7 +14,7 @@ export const shouldReloadFromEvent = (msg, link, opts = {}) => {
   // echoWindowMs is a SHORT extra guard for the brief save-echo race, kept short so a
   // peer's change right after our save isn't mistaken for our echo.
   const { now = Date.now(), lastLocalSaveAt = 0, isDrawing = false, connUrl = null,
-          echoWindowMs = 300 } = opts;
+          echoWindowMs = 150 } = opts;
   if (!link || !msg || msg.type !== 'project-event' || msg.event !== 'updated') return false;
   const proj = msg.project;
   if (!proj || proj.id !== link.remoteId) return false;

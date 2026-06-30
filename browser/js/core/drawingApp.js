@@ -80,9 +80,11 @@ export class DrawingApp {
   // Live co-edit: debounced server push on edit; timestamp of our last server save (to
   // ignore the server's echo of our own change); guard while a reload is applying.
   #remoteSyncTimer = null;
+  #remoteSyncFirstAt = 0;       // start of the current debounce burst (for the max-wait cap)
   #lastRemoteSaveAt = 0;
   #reloadingRemote = false;
   #remoteSyncPending = false;   // a push deferred during a reload, flushed when it settles
+  #remoteReloadPending = false; // a peer change that landed mid-reload, applied when it settles
   // True when THIS user changed the filter since the last sync — so a save imposes our
   // filter (our intent wins), but a save that's only line edits preserves the shared
   // server filter instead of clobbering a peer's filter change.
@@ -3013,12 +3015,18 @@ export class DrawingApp {
     if (!this.remoteLink || !getSyncToServer()) return;
     // Mid-reload: defer (don't drop) the push; reloadRemoteActive flushes it when it settles.
     if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
+    // Trailing debounce (coalesce a burst of edits into one save) but capped by a max-wait so
+    // CONTINUOUS editing still flushes to peers every ~1.5s instead of starving until a pause.
+    const now = Date.now();
+    if (!this.#remoteSyncFirstAt) this.#remoteSyncFirstAt = now;
+    const wait = Math.max(0, Math.min(350, 1500 - (now - this.#remoteSyncFirstAt)));
     clearTimeout(this.#remoteSyncTimer);
     this.#remoteSyncTimer = setTimeout(() => {
+      this.#remoteSyncFirstAt = 0;
       if (!this.remoteLink || !getSyncToServer()) return;
       if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
       this.saveToServer();
-    }, 700);
+    }, wait);
   }
 
   // Live co-edit (receive): a server project-event for the project we're editing —
@@ -3031,6 +3039,9 @@ export class DrawingApp {
       isDrawing: this.isDrawing,
       connUrl: conn ? conn.url : null,
     })) return;
+    // Mid-reload: another peer change arrived while we're applying one. Queue a single
+    // follow-up pass (collapse to latest) rather than dropping it; the settle block runs it.
+    if (this.#reloadingRemote) { this.#remoteReloadPending = true; return; }
     this.reloadRemoteActive();
   }
 
@@ -3074,12 +3085,19 @@ export class DrawingApp {
     finally {
       setTimeout(() => {
         this.#reloadingRemote = false;
-        // Flush an edit that landed during the reload, so client and server reconverge.
+        // A local edit landed during the reload → flush it (our push supersedes; the server's
+        // last-writer-wins resolves it), and drop any queued reload since our save will
+        // re-broadcast the merged state. Otherwise, if a peer change queued mid-reload,
+        // apply one more pass so we converge to the latest.
         if (this.#remoteSyncPending) {
           this.#remoteSyncPending = false;
+          this.#remoteReloadPending = false;
           this.scheduleRemoteSync();
+        } else if (this.#remoteReloadPending) {
+          this.#remoteReloadPending = false;
+          this.reloadRemoteActive();
         }
-      }, 250);
+      }, 120);
     }
   }
 

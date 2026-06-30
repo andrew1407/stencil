@@ -51,8 +51,16 @@ namespace stencil::net {
     explicit ServerClient(const QString& url);
     ~ServerClient();
 
-    // Normalize 'host:8090' / 'http://host:8090/' to a clean origin.
+    // Normalize 'host:8090' / 'http://host:8090/' to a clean origin. Secure by default:
+    // a bare host (no scheme) gets https, EXCEPT loopback hosts, which keep http (dev
+    // servers run plaintext on localhost and the traffic never leaves the machine).
     static QString normalizeBase(const QString& raw);
+    // True for a loopback/localhost host (127.0.0.0/8, ::1, "localhost", "*.localhost"),
+    // where plaintext http is safe because the bytes never hit the network.
+    static bool isLoopbackHost(const QString& host);
+    // True when `base` would send the bearer token + image bytes in CLEARTEXT to a remote
+    // host (scheme http and not loopback) — the UI warns on these.
+    static bool isInsecureRemote(const QString& base);
 
     // Validate a supplied token (GET /projects) or issue a fresh one
     // (POST /auth/token). Returns true when the connection is usable.
