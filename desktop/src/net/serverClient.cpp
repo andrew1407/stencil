@@ -1,6 +1,7 @@
 #include "serverClient.hpp"
 
 #include <QEventLoop>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -17,12 +18,29 @@ namespace stencil::net {
 
   ServerClient::~ServerClient() { delete nam_; }
 
+  bool ServerClient::isLoopbackHost(const QString& host) {
+    if (host.isEmpty()) return false;
+    if (host.compare("localhost", Qt::CaseInsensitive) == 0) return true;
+    if (host.endsWith(".localhost", Qt::CaseInsensitive)) return true;
+    const QHostAddress addr(host);
+    return !addr.isNull() && addr.isLoopback();  // 127.0.0.0/8, ::1
+  }
+
+  bool ServerClient::isInsecureRemote(const QString& base) {
+    const QUrl u(base);
+    return u.scheme().compare("http", Qt::CaseInsensitive) == 0 && !isLoopbackHost(u.host());
+  }
+
   QString ServerClient::normalizeBase(const QString& raw) {
     QString s = raw.trimmed();
     if (s.isEmpty()) return s;
     if (!s.startsWith("http://", Qt::CaseInsensitive) &&
         !s.startsWith("https://", Qt::CaseInsensitive)) {
-      s = "http://" + s;
+      // Secure by default: a bare host gets https, EXCEPT loopback (localhost dev servers
+      // speak plaintext http and never leave the machine). An explicit "http://<remote>"
+      // still works — the user opts into cleartext and the UI warns about it.
+      const QString host = QUrl("http://" + s).host();
+      s = (isLoopbackHost(host) ? QStringLiteral("http://") : QStringLiteral("https://")) + s;
     }
     QUrl u(s);
     // Keep scheme + authority only (drop any path / trailing slash).
@@ -35,6 +53,9 @@ namespace stencil::net {
                                    int& status) {
     status = 0;
     QNetworkRequest req{QUrl(base_ + path)};
+    // Bound every request so a hung/malicious server can't freeze the UI thread (the call
+    // below blocks on a nested event loop); the reply then finishes with a timeout error.
+    req.setTransferTimeout(20000);
     if (!token_.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
     if (!contentType.isEmpty())

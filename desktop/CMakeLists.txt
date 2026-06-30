@@ -91,6 +91,7 @@ if(Qt6_FOUND)
     src/dialogs/shortcutsDialog.cpp
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
+    src/net/liveFeed.cpp
     src/net/connectionStore.cpp
     src/io/fileStore.cpp
     src/io/mediaLoader.cpp
@@ -258,6 +259,18 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_projectcolor_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_projectcolor_headless COMMAND stencil_projectcolor_headless)
   set_tests_properties(stencil_projectcolor_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Live push-feed check (net/liveFeed) — drives LiveFeed against a mock QTcpServer that
+  # speaks the NDJSON project-events protocol. Links Qt6::Network for QTcpServer/QTcpSocket.
+  add_executable(stencil_livefeed_headless
+    tests/liveFeed.headless.cpp
+    src/net/liveFeed.cpp
+    src/net/serverClient.cpp)
+  target_include_directories(stencil_livefeed_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_livefeed_headless PRIVATE stencil_core Qt6::Network)
+  add_test(NAME stencil_livefeed_headless COMMAND stencil_livefeed_headless)
+  set_tests_properties(stencil_livefeed_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # ── Distributable packaging ───────────────────────────────────────────────

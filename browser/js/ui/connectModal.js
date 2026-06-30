@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
 import { getAutoConnect, setAutoConnect, getSyncToServer, setSyncToServer } from '../net/connectionStore.js';
+import { normalizeUrl, isInsecureRemote } from '../net/connectionManager.js';
 
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
@@ -177,6 +178,8 @@ export class StencilConnectModal extends StencilElement {
         urlEl.value = '';
         tokenEl.value = '';
         notify('Connected', 'ok');
+        if (isInsecureRemote(normalizeUrl(url)))
+          notify('Insecure connection: plaintext http — your access token and images are sent unencrypted. Use https on untrusted networks.', 'fail');
         render();
       } catch (err) {
         notify(`Could not connect — ${err.message}`, 'fail');

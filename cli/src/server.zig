@@ -20,12 +20,44 @@ pub const Error = error{
 
 /// Normalize a server URL to a clean origin: add http:// if no scheme, drop any
 /// path/trailing slash. Caller owns the returned slice.
+/// Extract the host from a bare authority ("host:port", "[::1]:port", or "host").
+fn bareHost(s: []const u8) []const u8 {
+    if (s.len > 0 and s[0] == '[') {
+        if (std.mem.indexOfScalar(u8, s, ']')) |close| return s[1..close];
+    }
+    if (std.mem.indexOfScalar(u8, s, ':')) |colon| return s[0..colon];
+    return s;
+}
+
+/// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
+/// http is safe because the bytes never leave the machine.
+pub fn isLoopbackHost(raw: []const u8) bool {
+    // Strip any IPv6 brackets so "[::1]" matches (mirrors the browser/desktop classifiers).
+    const host = if (raw.len >= 2 and raw[0] == '[' and raw[raw.len - 1] == ']') raw[1 .. raw.len - 1] else raw;
+    if (std.ascii.eqlIgnoreCase(host, "localhost")) return true;
+    if (host.len > ".localhost".len and std.ascii.eqlIgnoreCase(host[host.len - ".localhost".len ..], ".localhost")) return true;
+    if (std.mem.eql(u8, host, "::1")) return true;
+    if (std.mem.startsWith(u8, host, "127.")) return true;
+    return false;
+}
+
+/// True when `base` would send the bearer token + image bytes in CLEARTEXT to a remote
+/// host (http scheme and not loopback) — connect() warns on these.
+pub fn isInsecureRemote(base: []const u8) bool {
+    if (!std.ascii.startsWithIgnoreCase(base, "http://")) return false;
+    return !isLoopbackHost(hostAndPort(base).host);
+}
+
 pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
     var s = std.mem.trim(u8, url, " \t\r\n");
     var buf: []u8 = undefined;
     var owned = false;
     if (!std.ascii.startsWithIgnoreCase(s, "http://") and !std.ascii.startsWithIgnoreCase(s, "https://")) {
-        buf = try std.fmt.allocPrint(gpa, "http://{s}", .{s});
+        // Secure by default: a bare REMOTE host gets https; loopback keeps plaintext http
+        // (localhost dev servers, traffic never leaves the machine). An explicit scheme is
+        // preserved, so "http://<remote>" still works — the user opts into cleartext.
+        const scheme = if (isLoopbackHost(bareHost(s))) "http://" else "https://";
+        buf = try std.fmt.allocPrint(gpa, "{s}{s}", .{ scheme, s });
         owned = true;
         s = buf;
     }
@@ -395,6 +427,8 @@ pub const Client = struct {
 pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?[]const u8) !Client {
     const base = try normalizeBase(gpa, url);
     errdefer gpa.free(base);
+    if (isInsecureRemote(base))
+        std.debug.print("warning: connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
 
     var token: []u8 = undefined;
     if (token_opt) |t| {
@@ -662,10 +696,14 @@ pub const EditConn = struct {
 
 const testing = std.testing;
 
-test "normalizeBase adds scheme and strips path/slash" {
+test "normalizeBase is secure by default and strips path/slash" {
     const a = testing.allocator;
     const cases = [_]struct { in: []const u8, out: []const u8 }{
-        .{ .in = "host:8090", .out = "http://host:8090" },
+        // Bare REMOTE host → https (don't leak a token over cleartext); loopback → http.
+        .{ .in = "host:8090", .out = "https://host:8090" },
+        .{ .in = "localhost:8090", .out = "http://localhost:8090" },
+        .{ .in = "127.0.0.1:8090", .out = "http://127.0.0.1:8090" },
+        // An explicit scheme is preserved (deliberate opt-in); path/slash stripped.
         .{ .in = "http://host:8090/", .out = "http://host:8090" },
         .{ .in = "  https://h:1/projects  ", .out = "https://h:1" },
         .{ .in = "http://h:2", .out = "http://h:2" },
@@ -675,6 +713,19 @@ test "normalizeBase adds scheme and strips path/slash" {
         defer a.free(got);
         try testing.expectEqualStrings(c.out, got);
     }
+}
+
+test "isLoopbackHost and isInsecureRemote classify the connection" {
+    try testing.expect(isLoopbackHost("localhost"));
+    try testing.expect(isLoopbackHost("127.0.0.1"));
+    try testing.expect(isLoopbackHost("::1"));
+    try testing.expect(isLoopbackHost("[::1]"));  // bracketed IPv6 (parity with the other front-ends)
+    try testing.expect(!isLoopbackHost("example.com"));
+    // Only cleartext-to-a-remote-host is insecure.
+    try testing.expect(isInsecureRemote("http://example.com:8090"));
+    try testing.expect(!isInsecureRemote("http://localhost:8090"));
+    try testing.expect(!isInsecureRemote("http://127.0.0.1:8090"));
+    try testing.expect(!isInsecureRemote("https://example.com:8090"));
 }
 
 test "helloFrame and frame are newline-delimited" {

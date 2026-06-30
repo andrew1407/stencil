@@ -10,20 +10,30 @@ namespace stencil::core {
 
   namespace {
 
-    // Source-over blend one pixel. `coverage` (0..1) is the geometric coverage; it is
-    // combined with the colour's own alpha. Out-of-bounds writes are ignored.
+    // round(v / 255) for v in [0, 65535], without a divide. Exact over that range,
+    // which covers c*a + d*(255-a) since the two weights sum to 255 (max 255*255).
+    inline std::uint8_t div255(int v) {
+      v += 128;  // round-to-nearest bias
+      return static_cast<std::uint8_t>((v + (v >> 8)) >> 8);
+    }
+
+    // Source-over blend one pixel. `coverage` (0..1) is the geometric coverage, combined
+    // with the colour's own alpha. Out-of-bounds writes are ignored. Integer fixed-point:
+    // the effective alpha is quantised to 8 bits and channels blend via the divide-free
+    // div255 above (one multiply-add per channel, no double math / lround), matching the
+    // old double path to within ~1 LSB per blend.
     void blendPixel(std::uint8_t* buf, int w, int h, int x, int y, const Rgba& c,
                     double coverage) {
       if (x < 0 || x >= w || y < 0 || y >= h) return;
-      double ea = coverage * (c.a / 255.0);
-      if (ea <= 0.0) return;
-      if (ea > 1.0) ea = 1.0;
+      int a = static_cast<int>(coverage * c.a + 0.5);  // effective alpha, 0..255
+      if (a <= 0) return;
+      if (a > 255) a = 255;
+      const int ia = 255 - a;
       std::uint8_t* p = buf + (static_cast<std::size_t>(y) * w + x) * 4;
-      const double inv = 1.0 - ea;
-      p[0] = static_cast<std::uint8_t>(std::lround(c.r * ea + p[0] * inv));
-      p[1] = static_cast<std::uint8_t>(std::lround(c.g * ea + p[1] * inv));
-      p[2] = static_cast<std::uint8_t>(std::lround(c.b * ea + p[2] * inv));
-      p[3] = static_cast<std::uint8_t>(std::lround(255.0 * ea + p[3] * inv));
+      p[0] = div255(c.r * a + p[0] * ia);
+      p[1] = div255(c.g * a + p[1] * ia);
+      p[2] = div255(c.b * a + p[2] * ia);
+      p[3] = div255(255 * a + p[3] * ia);
     }
 
     // Stamp a filled, anti-aliased disc of `radius` centred at (cx,cy).
@@ -34,12 +44,24 @@ namespace stencil::core {
       const int x1 = static_cast<int>(std::ceil(cx + radius + 1.0));
       const int y0 = static_cast<int>(std::floor(cy - radius - 1.0));
       const int y1 = static_cast<int>(std::ceil(cy + radius + 1.0));
+      // Coverage = clamp(radius + 0.5 - d, 0, 1) only needs d in the 1px AA rim. Compare
+      // squared distances to skip the sqrt for the full interior (cov 1) and empty exterior
+      // (cov 0) — byte-identical to evaluating the formula at every pixel.
+      const double rIn = radius - 0.5;
+      const double rInSq = rIn > 0.0 ? rIn * rIn : -1.0;
+      const double rOut = radius + 0.5;
+      const double rOutSq = rOut * rOut;
       for (int y = y0; y <= y1; ++y) {
         for (int x = x0; x <= x1; ++x) {
           const double dx = (x + 0.5) - cx;
           const double dy = (y + 0.5) - cy;
-          const double d = std::sqrt(dx * dx + dy * dy);
-          const double cov = std::clamp(radius + 0.5 - d, 0.0, 1.0);
+          const double dsq = dx * dx + dy * dy;
+          if (dsq >= rOutSq) continue;                  // exterior: cov == 0
+          if (dsq <= rInSq) {                            // interior: cov == 1
+            blendPixel(buf, w, h, x, y, c, 1.0);
+            continue;
+          }
+          const double cov = radius + 0.5 - std::sqrt(dsq);  // rim only
           if (cov > 0.0) blendPixel(buf, w, h, x, y, c, cov);
         }
       }
@@ -53,13 +75,22 @@ namespace stencil::core {
       const int x1 = static_cast<int>(std::ceil(cx + outer));
       const int y0 = static_cast<int>(std::floor(cy - outer));
       const int y1 = static_cast<int>(std::ceil(cy + outer));
+      // Non-zero coverage only within [radius - half, radius + half] of the centre,
+      // where half = lineWidth/2 + 0.5. Cull the interior and outer field by squared
+      // distance so the sqrt runs only on the ring band itself.
+      const double half = lineWidth * 0.5 + 0.5;
+      const double bandOut = radius + half;
+      const double bandOutSq = bandOut * bandOut;
+      const double bandIn = radius - half;
+      const double bandInSq = bandIn > 0.0 ? bandIn * bandIn : -1.0;
       for (int y = y0; y <= y1; ++y) {
         for (int x = x0; x <= x1; ++x) {
           const double dx = (x + 0.5) - cx;
           const double dy = (y + 0.5) - cy;
-          const double d = std::sqrt(dx * dx + dy * dy);
-          const double cov = std::clamp(lineWidth * 0.5 + 0.5 - std::abs(d - radius),
-                                        0.0, 1.0);
+          const double dsq = dx * dx + dy * dy;
+          if (dsq >= bandOutSq || dsq <= bandInSq) continue;  // outside the band
+          const double d = std::sqrt(dsq);
+          const double cov = std::clamp(half - std::abs(d - radius), 0.0, 1.0);
           if (cov > 0.0) blendPixel(buf, w, h, x, y, c, cov);
         }
       }

@@ -20,6 +20,7 @@
 #include "projectsDialog.hpp"
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
+#include "liveFeed.hpp"
 #include "serverClient.hpp"
 #include "selectionPanel.hpp"
 #include "settingsDialog.hpp"
@@ -181,11 +182,37 @@ namespace stencil::gui {
     remotePushTimer_ = new QTimer(this);
     remotePushTimer_->setSingleShot(true);
     connect(remotePushTimer_, &QTimer::timeout, this, [this] {
+      remotePushBurstStart_ = 0;   // burst flushed — start a fresh max-wait window next edit
       if (!remoteAddress_.isEmpty()) saveToServer();
     });
     remotePollTimer_ = new QTimer(this);
-    remotePollTimer_->setInterval(2000);
+    remotePollTimer_->setInterval(2000);   // backstop behind the live push feed
     connect(remotePollTimer_, &QTimer::timeout, this, &MainWindow::pollRemoteForUpdate);
+    // Coalesce a burst of live-feed events into one reload, and run it off the socket
+    // read slot (openServerProject spins a nested event loop, so a direct call would
+    // re-enter). Re-checked against remoteVersion_ at fire time.
+    remoteReloadTimer_ = new QTimer(this);
+    remoteReloadTimer_->setSingleShot(true);
+    connect(remoteReloadTimer_, &QTimer::timeout, this, [this] {
+      if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
+      if (!settings_.syncToServer) return;
+      if (remoteReloading_) { remoteReloadPending_ = true; return; }  // nested-loop guard
+      // A local edit is pending/in-flight — don't clobber it; retry shortly (our push wins
+      // last-writer-wins, then we reload the merged result).
+      if (remotePushing_ || (remotePushTimer_ && remotePushTimer_->isActive())) {
+        remoteReloadPending_ = true;
+        remoteReloadTimer_->start(150);
+        return;
+      }
+      remoteReloadPending_ = false;
+      openServerProject(remoteAddress_, remoteId_, /*silent=*/true);
+      // Events that landed during the reload's nested event loop queued a pending flag —
+      // converge to the latest with one more pass.
+      if (remoteReloadPending_) {
+        remoteReloadPending_ = false;
+        remoteReloadTimer_->start(40);
+      }
+    });
 
     buildActions();
     buildContextActions();  // S11: nested context-menu submenu actions
@@ -1694,15 +1721,57 @@ namespace stencil::gui {
   void MainWindow::scheduleRemotePush() {
     // Sync off → a fetched project is edit-in-memory only: never auto-push to peers.
     if (incognito_ || remoteReloading_ || remoteAddress_.isEmpty() || !settings_.syncToServer) return;
-    remotePushTimer_->start(600);   // debounce a burst of edits into one save
+    // Trailing debounce (coalesce a burst of edits into one save) capped by a max-wait, so
+    // continuous editing still flushes to peers every ~1.5s instead of starving until a pause.
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (remotePushBurstStart_ == 0) remotePushBurstStart_ = now;
+    const int wait = std::clamp<int>(1500 - static_cast<int>(now - remotePushBurstStart_), 0, 350);
+    remotePushTimer_->start(wait);
   }
 
   void MainWindow::startRemotePoll() {
     if (remotePollTimer_ && !remoteAddress_.isEmpty()) remotePollTimer_->start();
+    // Subscribe the live push feed so peer edits arrive in tens of ms; the poll above is
+    // now just a backstop (https servers / a dropped socket).
+    ensureLiveFeed();
   }
 
   void MainWindow::stopRemotePoll() {
     if (remotePollTimer_) remotePollTimer_->stop();
+    if (remoteReloadTimer_) remoteReloadTimer_->stop();
+    if (liveFeed_) liveFeed_->unsubscribe();
+  }
+
+  // Lazily build the push feed and (re)point it at the active server, authenticating with
+  // that connection's token. A no-op when the session isn't server-linked or the server
+  // isn't connected. subscribe() is idempotent for the same origin (token refresh only).
+  void MainWindow::ensureLiveFeed() {
+    if (remoteAddress_.isEmpty()) return;
+    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
+    if (!c) return;
+    if (!liveFeed_) {
+      liveFeed_ = new stencil::net::LiveFeed(this);
+      connect(liveFeed_, &stencil::net::LiveFeed::projectUpdated,
+              this, &MainWindow::onRemoteProjectEvent);
+    }
+    liveFeed_->subscribe(remoteAddress_, c->token());
+  }
+
+  // A live-feed push frame arrived. Reload (debounced) when it's a genuine peer change to
+  // the project we're editing — newer version, not our own echo, not mid-push. Mirrors the
+  // browser's onServerProjectEvent + shouldReloadFromEvent guards; the actual reload runs
+  // from remoteReloadTimer_ so it lands off this slot and coalesces a burst.
+  void MainWindow::onRemoteProjectEvent(const QString& id, qint64 version, bool deleted) {
+    if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
+    if (id != remoteId_ || deleted) return;
+    if (!settings_.syncToServer) return;
+    if (version <= remoteVersion_) return;  // our own save echo, or stale
+    // A reload is mid-flight (its nested loop is pumping this slot): queue one more pass
+    // rather than dropping the change — the reload's tail re-arms from remoteReloadPending_.
+    if (remoteReloading_) { remoteReloadPending_ = true; return; }
+    // Coalesce a burst of peer events into a single debounced reload. The timer slot
+    // re-checks the push guards at fire time (state may change within the window).
+    if (remoteReloadTimer_) remoteReloadTimer_->start(40);
   }
 
   // One poll tick: if a peer bumped the linked project's version, reload the canvas.
@@ -2570,11 +2639,25 @@ namespace stencil::gui {
       notify_->info(QString("Couldn't reach %1 saved server%2")
                         .arg(failed)
                         .arg(failed == 1 ? "" : "s"));
+    warnInsecureConnections();
+  }
+
+  void MainWindow::warnInsecureConnections() {
+    if (!connections_) return;
+    QStringList insecure;
+    for (auto* c : connections_->clients())
+      if (stencil::net::ServerClient::isInsecureRemote(c->base())) insecure << c->base();
+    if (insecure.isEmpty()) return;
+    notify_->error(
+        QString("Insecure connection: %1 uses plaintext http — your access token and "
+                "images are sent unencrypted. Use https on untrusted networks.")
+            .arg(insecure.join(", ")));
   }
 
   void MainWindow::openConnections() {
     ConnectDialog dlg(ensureConnections(), this);
     dlg.exec();
+    warnInsecureConnections();  // the dialog may have added a plaintext-remote connection
   }
 
   // ── projects ──
