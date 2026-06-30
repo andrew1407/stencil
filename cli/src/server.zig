@@ -182,8 +182,10 @@ pub fn buildLayout(
     return out.toOwnedSlice(gpa);
 }
 
-/// One project as shown by `/projects`: name + image size + last-change timestamp. Owns `name`.
-pub const ProjectInfo = struct { name: []u8, updated_at: i64, w: i64, h: i64 };
+/// One project as shown by `/projects`: name + image size + last-change timestamp, plus the
+/// project's custom name colour ("" = none, paint the name in the theme accent). Owns `name`
+/// and `color`.
+pub const ProjectInfo = struct { name: []u8, updated_at: i64, w: i64, h: i64, color: []u8 };
 
 /// Parse a { "projects": [...] } list body into an owned slice of ProjectInfo. Free with
 /// freeProjectList. Pure — unit-tested without a socket.
@@ -194,6 +196,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
             updatedAt: i64 = 0,
             imageW: i64 = 0,
             imageH: i64 = 0,
+            color: []const u8 = "",
         },
     };
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
@@ -203,15 +206,29 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
     for (p.value.projects) |proj| {
         const nm = try gpa.dupe(u8, proj.name);
         errdefer gpa.free(nm);
-        try list.append(gpa, .{ .name = nm, .updated_at = proj.updatedAt, .w = proj.imageW, .h = proj.imageH });
+        const col = try gpa.dupe(u8, proj.color);
+        errdefer gpa.free(col);
+        try list.append(gpa, .{ .name = nm, .updated_at = proj.updatedAt, .w = proj.imageW, .h = proj.imageH, .color = col });
     }
     return list.toOwnedSlice(gpa);
 }
 
-/// Free a slice returned by parseProjectList (each owned name, then the slice).
+/// Free a slice returned by parseProjectList (each owned name + colour, then the slice).
 pub fn freeProjectList(gpa: std.mem.Allocator, items: []ProjectInfo) void {
-    for (items) |it| gpa.free(it.name);
+    for (items) |it| {
+        gpa.free(it.name);
+        gpa.free(it.color);
+    }
     gpa.free(items);
+}
+
+/// Parse a single-project body ({ "project": { ..., "color": "#rrggbb" } }) for its custom
+/// name colour ("" when absent/empty). Caller owns the returned slice.
+pub fn parseProjectColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
+    const T = struct { project: struct { color: []const u8 = "" } };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    return gpa.dupe(u8, p.value.project.color);
 }
 
 // ── REST client ──────────────────────────────────────────────────────────────
@@ -319,6 +336,41 @@ pub const Client = struct {
         const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
         defer self.gpa.free(path);
         const payload = try std.fmt.allocPrint(self.gpa, "{{\"layout\":{s},\"version\":{d}}}", .{ layout_json, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
+    }
+
+    /// Read the active project's current custom name colour ("" = none/theme accent).
+    pub fn getProjectColor(self: *Client, id: []const u8) ![]u8 {
+        const body = try self.getProject(id);
+        defer self.gpa.free(body);
+        return parseProjectColor(self.gpa, body);
+    }
+
+    /// PUT a project's custom name colour ("#rrggbb" or "" to clear), version-guarded (a stale
+    /// version yields Error.Conflict). Mirrors UpdateProjectRequest{color} — only the colour is
+    /// sent (the layout/name are left untouched), so it rides the same EventUpdated fan-out.
+    pub fn updateProjectColor(self: *Client, id: []const u8, color: []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        const esc = try jsonEscape(self.gpa, color);
+        defer self.gpa.free(esc);
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"color\":\"{s}\",\"version\":{d}}}", .{ esc, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
+    }
+
+    /// PUT a project's name, version-guarded (a stale version yields Error.Conflict). Mirrors
+    /// UpdateProjectRequest{name} — only the name is sent (colour/layout untouched), riding the
+    /// same EventUpdated fan-out so peers see the rename live.
+    pub fn updateProjectName(self: *Client, id: []const u8, name: []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        const esc = try jsonEscape(self.gpa, name);
+        defer self.gpa.free(esc);
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"name\":\"{s}\",\"version\":{d}}}", .{ esc, version });
         defer self.gpa.free(payload);
         const body = try self.request(.PUT, path, payload, "application/json");
         self.gpa.free(body);
@@ -532,8 +584,17 @@ pub const EditConn = struct {
         // the live feed rather than dial the wrong port. REST/sync still work over TLS.
         if (std.ascii.startsWithIgnoreCase(base, "https://")) return Error.TlsNotSupported;
         const hp = hostAndPort(base);
-        var addr = try std.Io.net.IpAddress.resolve(io, hp.host, editPort(hp.port));
-        var stream = try addr.connect(io, .{ .mode = .stream });
+        const port = editPort(hp.port);
+        // IpAddress.resolve only parses IP LITERALS (it ParseFails on a hostname like
+        // "localhost"), so fall back to a DNS lookup via HostName for names. Without this the
+        // events feed silently never opened for the common localhost server.
+        var stream = if (std.Io.net.IpAddress.resolve(io, hp.host, port)) |lit| s: {
+            var addr = lit;
+            break :s try addr.connect(io, .{ .mode = .stream });
+        } else |_| s: {
+            const hn = try std.Io.net.HostName.init(hp.host);
+            break :s try hn.connect(io, port, .{ .mode = .stream });
+        };
         errdefer stream.close(io);
         const fd = stream.socket.handle;
         // 100ms receive timeout: a drain returns promptly (EAGAIN) when no events pend.
@@ -790,10 +851,10 @@ test "buildLayout round-trips page format + formulas (omit-when-default)" {
     try testing.expect(std.mem.indexOf(u8, named, "formulaX") == null);
 }
 
-test "parseProjectList yields owned name/size/updatedAt records" {
+test "parseProjectList yields owned name/size/updatedAt/color records" {
     const a = testing.allocator;
     const body =
-        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000}," ++
+        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000,\"color\":\"#ff5623\"}," ++
         "{\"id\":\"p2\",\"name\":\"Beta\",\"imageW\":1024,\"imageH\":768,\"updatedAt\":0}]}";
     const items = try parseProjectList(a, body);
     defer freeProjectList(a, items);
@@ -802,12 +863,25 @@ test "parseProjectList yields owned name/size/updatedAt records" {
     try testing.expectEqual(@as(i64, 800), items[0].w);
     try testing.expectEqual(@as(i64, 600), items[0].h);
     try testing.expectEqual(@as(i64, 1700000000000), items[0].updated_at);
+    try testing.expectEqualStrings("#ff5623", items[0].color);
     try testing.expectEqualStrings("Beta", items[1].name);
+    try testing.expectEqualStrings("", items[1].color); // no custom colour → empty
 
     // An empty list parses to an empty (non-null) slice.
     const none = try parseProjectList(a, "{\"projects\":[]}");
     defer freeProjectList(a, none);
     try testing.expectEqual(@as(usize, 0), none.len);
+}
+
+test "parseProjectColor reads a single project's colour, empty when absent" {
+    const a = testing.allocator;
+    const c = try parseProjectColor(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"color\":\"#7c3aed\"}}");
+    defer a.free(c);
+    try testing.expectEqualStrings("#7c3aed", c);
+
+    const none = try parseProjectColor(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}");
+    defer a.free(none);
+    try testing.expectEqualStrings("", none);
 }
 
 test "EditConn frame buffer handles partial, multiple, and skipped frames" {

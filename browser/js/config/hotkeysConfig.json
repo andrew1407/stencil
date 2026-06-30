@@ -17,9 +17,21 @@
   { "id": "rotateImageLeft", "label": "Rotate Image Left", "default": "Alt+R" },
   { "id": "rotateImageRight", "label": "Rotate Image Right", "default": "Alt+Shift+R" },
   { "id": "copyImage", "label": "Copy Image to Clipboard", "default": "Ctrl+C" },
-  { "id": "copyLayout", "label": "Copy Layout JSON", "default": "Alt+J" },
+  { "id": "copyLayout", "label": "Copy Layout JSON", "default": "Ctrl+Alt+C" },
   { "id": "paste", "label": "Paste (Image or Layout)", "default": "Ctrl+V" },
   { "id": "clearAllLines", "label": "Clear All Lines", "default": "Alt+W" },
   { "id": "deleteLine", "label": "Delete Selected Line", "default": "Alt+Delete" },
-  { "id": "deletePoint", "label": "Delete Selected Point", "default": "Alt+Shift+Delete" }
+  { "id": "deletePoint", "label": "Delete Selected Point", "default": "Alt+Shift+Delete" },
+  { "id": "loadImage", "label": "Load / Open Image", "default": "Ctrl+O" },
+  { "id": "openAnotherImage", "label": "Open Another Image", "default": "Ctrl+Shift+O" },
+  { "id": "saveImage", "label": "Download Image", "default": "Ctrl+Shift+D" },
+  { "id": "cropImage", "label": "Crop Image", "default": "Ctrl+Shift+X" },
+  { "id": "downloadJson", "label": "Download Layout JSON", "default": "Ctrl+Shift+J" },
+  { "id": "uploadJson", "label": "Upload Layout JSON", "default": "Ctrl+Shift+U" },
+  { "id": "openProjects", "label": "Open Projects", "default": "Ctrl+Shift+P" },
+  { "id": "openServers", "label": "Open Servers / Connect", "default": "Ctrl+Shift+K" },
+  { "id": "openLinks", "label": "Open Image Links", "default": "Ctrl+Shift+L" },
+  { "id": "toggleTheme", "label": "Toggle Dark / Light Theme", "default": "Ctrl+D" },
+  { "id": "toggleIncognito", "label": "Toggle Incognito", "default": "Ctrl+Shift+G" },
+  { "id": "openHelp", "label": "Controls & Shortcuts Help", "default": "F1" }
 ]

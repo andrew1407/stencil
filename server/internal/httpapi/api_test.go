@@ -78,7 +78,7 @@ func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.
 	id := "p_t" + strconv.FormatInt(int64(f.seq), 36) + "_a"
 	rec := protocol.ProjectRecord{
 		ID: id, Name: req.Name, CreatedAt: 100, UpdatedAt: 100 + int64(f.seq),
-		Source: req.Source, Resource: req.Resource, OriginalContent: req.OriginalContent,
+		Source: req.Source, Resource: req.Resource, Color: req.Color, OriginalContent: req.OriginalContent,
 		Layout: req.Layout, OwnerSession: owner,
 	}
 	if rec.Name == "" {
@@ -88,7 +88,7 @@ func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.
 	return rec, nil
 }
 
-func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
+func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, color *string, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p, ok := f.projects[id]
@@ -100,6 +100,9 @@ func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, la
 	}
 	if name != nil {
 		p.Name = *name
+	}
+	if color != nil {
+		p.Color = *color
 	}
 	if len(layout) > 0 {
 		p.Layout = layout
@@ -256,6 +259,49 @@ func TestProjectLifecycleHTTP(t *testing.T) {
 	}
 	if rec := do(t, api, http.MethodGet, "/projects/"+created.ID, tok, nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("get deleted should 404, got %d", rec.Code)
+	}
+}
+
+// TestProjectColorHTTP round-trips the per-project color over REST without a
+// database (the fakeStore mirrors the COALESCE semantics): create with a color,
+// update it, and clear it with an explicit empty string.
+func TestProjectColorHTTP(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tok := issueToken(t, api, "")
+
+	// Create carries the color through.
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Tinted","color":"#ff8800"}`))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: code %d body %s", rec.Code, rec.Body.String())
+	}
+	var created protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &created)
+	if created.Color != "#ff8800" {
+		t.Fatalf("create did not carry color: %+v", created)
+	}
+
+	// Update sets a new color (name omitted -> unchanged).
+	rec = do(t, api, http.MethodPut, "/projects/"+created.ID, tok, []byte(`{"version":0,"color":"#00ff00"}`))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("color update: code %d body %s", rec.Code, rec.Body.String())
+	}
+	var updated protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &updated)
+	if updated.Color != "#00ff00" || updated.Name != "Tinted" {
+		t.Fatalf("color update changed wrong fields: %+v", updated)
+	}
+
+	// Explicit empty string clears the color (theme fallback).
+	rec = do(t, api, http.MethodPut, "/projects/"+created.ID, tok, []byte(`{"version":1,"color":""}`))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("color clear: code %d body %s", rec.Code, rec.Body.String())
+	}
+	// Color has json omitempty, so a cleared "" drops out of the response body;
+	// decode into a fresh struct so a stale value cannot mask the clear.
+	var cleared protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &cleared)
+	if cleared.Color != "" {
+		t.Fatalf("empty color should clear, got %q", cleared.Color)
 	}
 }
 

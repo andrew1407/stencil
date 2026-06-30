@@ -7,10 +7,13 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QListWidget>
+#include <QPainter>
 #include <QPalette>
+#include <QStyledItemDelegate>
+#include <QTableWidget>
 #include <QPixmap>
 #include <QPushButton>
 #include <QSpinBox>
@@ -19,6 +22,34 @@
 #include <cmath>
 
 namespace stencil::gui {
+
+  namespace {
+    // Points-table columns: index · X(px, editable) · Y(px, editable) · page(cm, read-only) · 🗑.
+    enum PointCol { ColIndex = 0, ColX, ColY, ColPage, ColDel, ColCount };
+
+    // Paints a selected row as a flat accent OUTLINE (not a filled background); hover tint + cell
+    // text come from QSS / the base. Mirrors the browser row treatment but with an outline.
+    class PointRowDelegate : public QStyledItemDelegate {
+     public:
+      using QStyledItemDelegate::QStyledItemDelegate;
+      void paint(QPainter* p, const QStyleOptionViewItem& opt,
+                 const QModelIndex& idx) const override {
+        // The selection FILL is made transparent via QSS (selection-background-color); here we
+        // just stroke an accent outline around the selected row on top of the normal item paint.
+        QStyledItemDelegate::paint(p, opt, idx);
+        if (!(opt.state & QStyle::State_Selected)) return;
+        p->save();
+        p->setRenderHint(QPainter::Antialiasing, false);
+        p->setPen(QPen(opt.palette.color(QPalette::Highlight), 2));
+        const QRect r = opt.rect.adjusted(0, 1, 0, -1);
+        p->drawLine(r.topLeft(), r.topRight());
+        p->drawLine(r.bottomLeft(), r.bottomRight());
+        if (idx.column() == ColIndex) p->drawLine(r.topLeft(), r.bottomLeft());
+        if (idx.column() == ColCount - 1) p->drawLine(r.topRight(), r.bottomRight());
+        p->restore();
+      }
+    };
+  }
 
   SelectionPanel::SelectionPanel(QWidget* parent)
       : QDockWidget("Selection", parent) {
@@ -43,11 +74,13 @@ namespace stencil::gui {
     // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
     thickness_ = new QSpinBox(editor_);
     thickness_->setRange(1, 20);
+    thickness_->setToolTip("Thickness of the selected line (px)");
     form->addRow("Thickness:", thickness_);
 
     // selMarkerSize — drawingApp.js:1547 / :183 (min 1, max 30)
     markerSize_ = new QSpinBox(editor_);
     markerSize_->setRange(1, 30);
+    markerSize_->setToolTip("Point marker size of the selected line (px)");
     form->addRow("Marker Size:", markerSize_);
 
     // selStyle — drawingApp.js:1548 / :184
@@ -55,6 +88,7 @@ namespace stencil::gui {
     style_->addItem("Solid", "solid");
     style_->addItem("Dashed", "dashed");
     style_->addItem("Dotted", "dotted");
+    style_->setToolTip("Stroke style of the selected line (solid, dashed, dotted)");
     form->addRow("Style:", style_);
 
     // selFillGroup — locked-area fill, hidden unless line.locked
@@ -81,7 +115,9 @@ namespace stencil::gui {
     auto* btnRow = new QHBoxLayout();
     deleteLine_ = new QPushButton("Delete Line", editor_);
     deleteLine_->setObjectName("dangerButton");
+    deleteLine_->setToolTip("Delete the selected line");
     deselectBtn_ = new QPushButton("Deselect", editor_);  // selDeselect
+    deselectBtn_->setToolTip("Clear the current selection");
     btnRow->addWidget(deleteLine_);
     btnRow->addWidget(deselectBtn_);
     form->addRow(btnRow);
@@ -92,9 +128,28 @@ namespace stencil::gui {
     auto* ptsHdr = new QLabel("POINTS", body);
     ptsHdr->setObjectName("panelSectionHeader");
     layout->addWidget(ptsHdr);
-    points_ = new QListWidget(body);
+    points_ = new QTableWidget(0, ColCount, body);
+    points_->setObjectName("pointsTable");
+    points_->setItemDelegate(new PointRowDelegate(points_));  // outline-style selection
+    points_->setHorizontalHeaderLabels({"#", "X", "Y", "Page", QString()});
+    points_->verticalHeader()->setVisible(false);
+    points_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    points_->setSelectionMode(QAbstractItemView::SingleSelection);
+    points_->setShowGrid(false);
     points_->setAlternatingRowColors(true);
+    points_->setWordWrap(false);
+    // Only the X/Y px cells are editable (via double-click); # / page / 🗑 stay read-only.
+    points_->setEditTriggers(QAbstractItemView::DoubleClicked |
+                             QAbstractItemView::EditKeyPressed);
     points_->installEventFilter(this);
+    auto* hh = points_->horizontalHeader();
+    hh->setSectionResizeMode(ColIndex, QHeaderView::ResizeToContents);
+    hh->setSectionResizeMode(ColX, QHeaderView::Stretch);
+    hh->setSectionResizeMode(ColY, QHeaderView::Stretch);
+    hh->setSectionResizeMode(ColPage, QHeaderView::Stretch);
+    hh->setSectionResizeMode(ColDel, QHeaderView::Fixed);
+    points_->setColumnWidth(ColDel, 34);
+    hh->setHighlightSections(false);
     layout->addWidget(points_, 1);
 
     auto* measHdr = new QLabel("MEASUREMENTS", body);
@@ -107,8 +162,18 @@ namespace stencil::gui {
     setWidget(body);
     restyleIcons(palette().color(QPalette::WindowText));
 
-    connect(points_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
-      emit pointActivated(points_->row(it));
+    // Click a row (not the 🗑 column) → focus that point on the canvas.
+    connect(points_, &QTableWidget::cellClicked, this, [this](int row, int col) {
+      if (col != ColDel) emit pointActivated(row);
+    });
+    // A committed X/Y edit → forward to the canvas (guarded against showLine's repopulation).
+    connect(points_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* it) {
+      if (updating_ || !it) return;
+      const int col = it->column();
+      if (col != ColX && col != ColY) return;
+      bool ok = false;
+      const double v = it->text().toDouble(&ok);
+      if (ok) emit pointCoordChanged(it->row(), col == ColX ? 0 : 1, v);
     });
 
     // ── inline-editor wiring — each lambda early-returns while showLine is
@@ -118,7 +183,8 @@ namespace stencil::gui {
     // selColor: open a color dialog, repaint swatch, emit (drawingApp.js:181).
     connect(colorSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = QColorDialog::getColor(currentColor_, this, "Line color");
+      const QColor c = QColorDialog::getColor(currentColor_, this, "Line color",
+                                              QColorDialog::DontUseNativeDialog);
       if (!c.isValid()) return;
       currentColor_ = c;
       setSwatchColor(colorSwatch_, c);
@@ -152,7 +218,8 @@ namespace stencil::gui {
     // selFill: choosing a color implies enabled=true (drawingApp.js:186-189).
     connect(fillSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = QColorDialog::getColor(currentFill_, this, "Area fill color");
+      const QColor c = QColorDialog::getColor(currentFill_, this, "Area fill color",
+                                              QColorDialog::DontUseNativeDialog);
       if (!c.isValid()) return;
       currentFill_ = c;
       setSwatchColor(fillSwatch_, c);
@@ -193,12 +260,19 @@ namespace stencil::gui {
     if (deleteLine_) deleteLine_->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
     if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", iconColor, 15));
     if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 14));
+    // Re-theme the per-row 🗑 buttons too (new ones in showLine use the stored colour).
+    iconColor_ = iconColor;
+    if (points_) {
+      for (int r = 0; r < points_->rowCount(); ++r)
+        if (auto* b = qobject_cast<QPushButton*>(points_->cellWidget(r, ColDel)))
+          b->setIcon(themedIcon("trash", iconColor_, 14));
+    }
   }
 
   void SelectionPanel::showLine(const core::Line* line,
                                 const core::Line* editorLine, int selectedPoint,
                                 const std::vector<QString>& cmRows) {
-    points_->clear();
+    points_->setRowCount(0);  // clear rows (NOT clear() — that would drop the header labels)
 
     // Populate the inline editor from the *selected* line only, suppressing the
     // control change handlers while we do so (drawingApp.js:1544-1564). The
@@ -238,20 +312,43 @@ namespace stencil::gui {
       return;
     }
 
+    // Build the editable points table. `updating_` suppresses the itemChanged handler while we
+    // set cell text (only a USER edit should fire pointCoordChanged). X/Y are editable px cells
+    // (double-click); the page (cm) column is read-only and pre-formatted by the caller; each row
+    // ends with a 🗑 button. Mirrors browser coordTable.js.
+    updating_ = true;
+    points_->setRowCount(static_cast<int>(line->points.size()));
     for (std::size_t i = 0; i < line->points.size(); ++i) {
       const auto& p = line->points[i];
-      // px first (rounded like coordTable.js), then the page coord (already
-      // formatted with its unit label by the caller) so formulas / custom page /
-      // unit show here exactly as on the status bar + tooltip.
-      QString row = QString("%1.  %2, %3 px")
-                        .arg(i + 1)
-                        .arg(p.x, 0, 'f', 1)
-                        .arg(p.y, 0, 'f', 1);
-      if (i < cmRows.size()) row += "   " + cmRows[i];
-      points_->addItem(row);
+      const int r = static_cast<int>(i);
+      auto* idx = new QTableWidgetItem(QString::number(i + 1));
+      idx->setFlags(Qt::ItemIsEnabled);
+      idx->setTextAlignment(Qt::AlignCenter);
+      points_->setItem(r, ColIndex, idx);
+      auto* xi = new QTableWidgetItem(QString::number(p.x, 'f', 1));
+      xi->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+      xi->setToolTip("Double-click to edit X (px)");
+      points_->setItem(r, ColX, xi);
+      auto* yi = new QTableWidgetItem(QString::number(p.y, 'f', 1));
+      yi->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+      yi->setToolTip("Double-click to edit Y (px)");
+      points_->setItem(r, ColY, yi);
+      auto* pg = new QTableWidgetItem(i < cmRows.size() ? cmRows[i] : QString());
+      pg->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+      points_->setItem(r, ColPage, pg);
+      auto* del = new QPushButton(points_);
+      del->setObjectName("pointDelBtn");
+      del->setFlat(true);
+      del->setCursor(Qt::PointingHandCursor);
+      del->setToolTip("Remove point");
+      del->setIcon(themedIcon("trash", iconColor_, 14));
+      connect(del, &QPushButton::clicked, this, [this, r] { emit pointDeleteRequested(r); });
+      points_->setCellWidget(r, ColDel, del);
     }
-    if (selectedPoint >= 0 && selectedPoint < points_->count())
-      points_->setCurrentRow(selectedPoint);
+    if (selectedPoint >= 0 && selectedPoint < points_->rowCount())
+      points_->selectRow(selectedPoint);
+    points_->resizeRowsToContents();
+    updating_ = false;
 
     // Total polyline length in pixels (consecutive euclidean distances).
     double total = 0.0;

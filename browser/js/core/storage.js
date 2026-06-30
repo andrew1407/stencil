@@ -95,6 +95,9 @@ export class Storage {
     const meta = {
       id: this.activeId,
       name: this.store.getMeta(this.activeId)?.name || this.app.imageBaseName || 'Untitled',
+      // Per-project accent colour: preserved across saves (set only via setProjectColor).
+      // "" => no custom colour (theme fallback).
+      color: this.store.getMeta(this.activeId)?.color || '',
       thumbnail: this.#makeThumbnail(),
       createdAt: this.store.getMeta(this.activeId)?.createdAt ?? Date.now(),
       hasImage: !!this.app.imageDataUrl,

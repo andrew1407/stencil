@@ -275,6 +275,17 @@ namespace stencil::gui {
         background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
       }
       QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
+      /* Projects-list row checkboxes: a light, clearly-outlined box so it reads on BOTH a dark
+         row and the purple selected row (the default dark-fill box vanished on dark rows). Unified
+         look in every state; checked fills with the accent + a tick. */
+      QListWidget#projectsList::indicator {
+        width: 16px; height: 16px; border-radius: 4px;
+        border: 1px solid #b8bcc6; background: #eef0f4;
+      }
+      QListWidget#projectsList::indicator:hover { border-color: %ACCENT%; }
+      QListWidget#projectsList::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/check.png);
+      }
 
       /* ── Dock (selection panel) ── */
       QDockWidget { color: %TEXT%; titlebar-close-icon: none; }
@@ -296,6 +307,24 @@ namespace stencil::gui {
         color: white; border: 0; padding: 5px 6px;
       }
       QTableWidget { gridline-color: %BORDER%; }
+      /* Points table (SelectionPanel): roomy cells, no grid clutter, hover tint, and an outline
+         (not a fill) for the selected row — the delegate (PointRowDelegate) draws the outline. */
+      QTableWidget#pointsTable {
+        gridline-color: transparent;
+        selection-background-color: transparent;  /* the delegate strokes an outline instead */
+        selection-color: %TEXT%;
+      }
+      QTableWidget#pointsTable::item { padding: 5px 6px; }
+      QTableWidget#pointsTable::item:hover { background: %ACCENT_SOFT%; }
+      /* Kill BOTH selection fills (row panel via selection-background-color above + the per-item
+         fill here, which would otherwise inherit the generic ::item:selected accent) so only the
+         delegate's outline shows. */
+      QTableWidget#pointsTable::item:selected { background: transparent; color: %TEXT%; }
+      QTableWidget#pointsTable::item:selected:hover { background: %ACCENT_SOFT%; }
+      QPushButton#pointDelBtn {
+        background: transparent; border: none; border-radius: 6px; padding: 2px;
+      }
+      QPushButton#pointDelBtn:hover { background: %ACCENT_SOFT%; }
 
       QDialog { background: %BG_CONTAINER%; color: %TEXT%; }
       QGroupBox {

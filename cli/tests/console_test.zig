@@ -152,6 +152,22 @@ test "console: /formula sets validated formulas that ride the exported layout" {
     try testing.expect(obj.get("allowFormulas").?.bool);
 }
 
+test "console: /project-color without an active server project is a graceful no-op" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    // No connection / no fetched project: both the show and set forms report an error and
+    // return false (the session keeps running), never touching the network or crashing.
+    try testing.expect(!try console.handle(&session, io, "/project-color"));
+    try testing.expect(!try console.handle(&session, io, "/project-color #ff5623"));
+    try testing.expect(!session.hasRemote());
+}
+
 test "console: blank creates a temporary in-memory source" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

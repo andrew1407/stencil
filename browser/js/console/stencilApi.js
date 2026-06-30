@@ -287,6 +287,14 @@ export const createStencil = (app) => {
         if (store().nameExists(clean, id)) throw new Error(`A project named "${clean}" already exists`);
         if (!app.renameProject(id, clean)) throw new Error(`Could not rename project ${id}`);
       },
+      // Custom accent colour painting this project's name: "#rrggbb" or '' (theme accent).
+      get color() { return incognito ? '' : (meta()?.color ?? ''); },
+      set color(v) {
+        if (incognito) throw new Error('Cannot colour an incognito editor');
+        const s = str(v).trim();
+        if (s && !normalizeHex(s)) throw new Error(`Invalid project colour "${v}" — use a hex like #ff5623, or '' to clear`);
+        if (app.setProjectColor(id, s) == null) throw new Error(`Could not set colour on project ${id}`);
+      },
       get imageName() {
         if (isActive()) return app.imageBaseName ?? null;
         return store().get(id)?.payload?.layout?.imageBaseName ?? null;
@@ -371,6 +379,20 @@ export const createStencil = (app) => {
       throw new Error(`Unknown theme "${v}". Use a hex like #ff5623, or one of: ${ACCENTS.map((a) => a.key).join(', ')}`);
     },
     get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
+    // Active project's accent colour — the custom colour its NAME is painted in. Getter
+    // returns the stored "#rrggbb" or '' (no custom colour → theme accent). Setter routes to
+    // DrawingApp.setProjectColor: '' clears it, a valid hex sets it, anything else throws.
+    get projectColor() {
+      const id = app.activeProjectId;
+      return id != null ? (app.storage.store.getMeta(id)?.color || '') : '';
+    },
+    set projectColor(v) {
+      const id = app.activeProjectId;
+      if (id == null) throw new Error('No active project to colour');
+      const s = str(v).trim();
+      if (s && !normalizeHex(s)) throw new Error(`Invalid project colour "${v}" — use a hex like #ff5623, or '' to clear`);
+      app.setProjectColor(id, s);
+    },
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
     get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.setHoldDrawDelay(v); },

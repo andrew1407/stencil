@@ -29,10 +29,12 @@ namespace stencil::gui {
 
     // Colors mirror the browser toast variants (info/success/error).
     QString bg;
-    switch (level) {
-      case Level::Success: bg = "#28a745"; break;
-      case Level::Error:   bg = "#dc3545"; break;
-      case Level::Info:    bg = "#7c3aed"; break;
+    if (level == Level::Success) {
+      bg = "#28a745";
+    } else if (level == Level::Error) {
+      bg = "#dc3545";
+    } else if (level == Level::Info) {
+      bg = "#7c3aed";
     }
 
     auto* toast = new QLabel(text, host_);

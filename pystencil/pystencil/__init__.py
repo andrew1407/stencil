@@ -17,7 +17,7 @@ from .core import Core, get_core
 from .image import Image
 from .layout import Point, Line, Layout
 from .editor import Editor
-from .server import ServerConnection, ConnectionManager
+from .server import ServerConnection, ConnectionManager, diff_projects
 
 # `Stencil` is the friendly alias for the Editor facade (mirrors window.stencil).
 Stencil = Editor
@@ -33,6 +33,7 @@ __all__ = [
     "Stencil",
     "ServerConnection",
     "ConnectionManager",
+    "diff_projects",
     "codecs",
     "__version__",
 ]

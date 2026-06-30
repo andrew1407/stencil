@@ -25,6 +25,7 @@ namespace stencil::gui {
     // Live search box (mirrors the browser shortcuts modal), magnifier-prefixed.
     search_ = new QLineEdit(this);
     search_->setPlaceholderText("Search shortcuts…");
+    search_->setToolTip("Filter the shortcut list by name");
     search_->setClearButtonEnabled(true);
     search_->addAction(themedIcon("search", palette().color(QPalette::PlaceholderText), 16),
                        QLineEdit::LeadingPosition);
@@ -38,6 +39,7 @@ namespace stencil::gui {
       const QString labelText = e.label.isEmpty() ? e.id : e.label;
       auto* lbl = new QLabel(labelText, inner);
       auto* edit = new QKeySequenceEdit(QKeySequence(e.currentSeq), inner);
+      edit->setToolTip("Click and press a new key combination to rebind");
       // Reset = a small refresh icon button (restores the config default for this
       // row, dropping the override), replacing the wide "Reset" text button.
       auto* reset = new QToolButton(inner);

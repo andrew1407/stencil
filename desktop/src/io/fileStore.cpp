@@ -280,24 +280,28 @@ namespace stencil::gui {
 
   void fileStore::clearSession() { QFile::remove(sessionPath()); }
 
+  Project fileStore::projectFromJson(const QJsonObject& o) {
+    Project pr;
+    pr.meta.id = o.value("id").toString().toStdString();
+    pr.meta.name = o.value("name").toString().toStdString();
+    pr.meta.createdAt = o.value("createdAt").toVariant().toLongLong();
+    pr.meta.updatedAt = o.value("updatedAt").toVariant().toLongLong();
+    pr.imagePath = o.value("imagePath").toString();
+    pr.meta.hasImage = !pr.imagePath.isEmpty();
+    pr.meta.source = o.value("source").toString().toStdString();
+    pr.meta.resource = o.value("resource").toString().toStdString();
+    // Per-project accent color (empty = theme default). Mirrors the browser record.
+    pr.meta.color = o.value("color").toString().toStdString();
+    pr.lines = linesFromJson(o.value("lines").toArray());
+    pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
+    pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
+    return pr;
+  }
+
   std::vector<Project> fileStore::loadProjects() {
     std::vector<Project> out;
-    for (const auto& v : readJson(projectsPath()).array()) {
-      const QJsonObject o = v.toObject();
-      Project pr;
-      pr.meta.id = o.value("id").toString().toStdString();
-      pr.meta.name = o.value("name").toString().toStdString();
-      pr.meta.createdAt = o.value("createdAt").toVariant().toLongLong();
-      pr.meta.updatedAt = o.value("updatedAt").toVariant().toLongLong();
-      pr.imagePath = o.value("imagePath").toString();
-      pr.meta.hasImage = !pr.imagePath.isEmpty();
-      pr.meta.source = o.value("source").toString().toStdString();
-      pr.meta.resource = o.value("resource").toString().toStdString();
-      pr.lines = linesFromJson(o.value("lines").toArray());
-      pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
-      pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
-      out.push_back(std::move(pr));
-    }
+    for (const auto& v : readJson(projectsPath()).array())
+      out.push_back(projectFromJson(v.toObject()));
     return out;
   }
 
@@ -318,22 +322,26 @@ namespace stencil::gui {
     writeJson(hotkeysPath(), QJsonDocument(o));
   }
 
+  QJsonObject fileStore::projectToJson(const Project& pr) {
+    QJsonObject o;
+    o["id"] = QString::fromStdString(pr.meta.id);
+    o["name"] = QString::fromStdString(pr.meta.name);
+    o["createdAt"] = QString::number(pr.meta.createdAt).toLongLong();
+    o["updatedAt"] = QString::number(pr.meta.updatedAt).toLongLong();
+    o["imagePath"] = pr.imagePath;
+    if (!pr.meta.source.empty()) o["source"] = QString::fromStdString(pr.meta.source);
+    if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
+    // Per-project accent color: omit when empty so a plain project's bytes are unchanged.
+    if (!pr.meta.color.empty()) o["color"] = QString::fromStdString(pr.meta.color);
+    o["lines"] = linesToJson(pr.lines);
+    if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
+    if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
+    return o;
+  }
+
   void fileStore::saveProjects(const std::vector<Project>& projects) {
     QJsonArray arr;
-    for (const auto& pr : projects) {
-      QJsonObject o;
-      o["id"] = QString::fromStdString(pr.meta.id);
-      o["name"] = QString::fromStdString(pr.meta.name);
-      o["createdAt"] = QString::number(pr.meta.createdAt).toLongLong();
-      o["updatedAt"] = QString::number(pr.meta.updatedAt).toLongLong();
-      o["imagePath"] = pr.imagePath;
-      if (!pr.meta.source.empty()) o["source"] = QString::fromStdString(pr.meta.source);
-      if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
-      o["lines"] = linesToJson(pr.lines);
-      if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
-      if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
-      arr.append(o);
-    }
+    for (const auto& pr : projects) arr.append(projectToJson(pr));
     writeJson(projectsPath(), QJsonDocument(arr));
   }
 

@@ -77,8 +77,10 @@ test('dynamic containers are present and empty/placeholder', () => {
 });
 
 test('context-menu data-hk attributes are present', () => {
+    // Every data-hk must match a real hotkey registry id so formatCombo can render
+    // it (mac glyphs incl.) — 'clearAllLines', not the legacy 'clear-all-lines'.
     const hks = ['copyImage', 'copyLayout', 'fullscreen', 'resetZoom', 'startDraw',
-                 'togglePoints', 'toggleLines', 'clear-all-lines', 'cycleFilter'];
+                 'togglePoints', 'toggleLines', 'clearAllLines', 'cycleFilter'];
     for (const hk of hks) {
         assert.ok(markup.includes(`data-hk="${hk}"`), `data-hk="${hk}" present`);
     }

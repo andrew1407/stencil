@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, loadPins, setPinned, PINS_KEY } from '../src/lib/pins.js';
+import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, loadPins, setPinned, projectNameColor, PINS_KEY } from '../src/lib/pins.js';
 
 // Minimal chrome.storage.local mock with an awaitable get/set, so the async wrappers
 // (loadPins/setPinned) can be driven from Node. The deferred resolution models real
@@ -67,6 +67,27 @@ test('addPinEntry normalizes fields and defaults kind/timestamp', () => {
   assert.equal(e.name, 'x');
   assert.equal(e.kind, 'image');           // defaulted
   assert.equal(typeof e.t, 'number');      // stamped
+});
+
+test('addPinEntry carries color only for kind "project"', () => {
+  // A project pin keeps its custom accent colour…
+  const [proj] = addPinEntry([], { source: 'srv/p1', site: 'http://s', name: 'Shot', kind: 'project', color: '#ff0066' });
+  assert.equal(proj.kind, 'project');
+  assert.equal(proj.color, '#ff0066');
+  // …an unset project colour normalizes to "" (theme default), not undefined.
+  const [bare] = addPinEntry([], { source: 'srv/p2', site: 'http://s', name: 'Bare', kind: 'project' });
+  assert.equal(bare.color, '');
+  // A plain image pin never carries a color field (the popup leaves it theme-coloured).
+  const [img] = addPinEntry([], pin('http://a.com', 'https://cdn/x.png', { color: '#ff0066' }));
+  assert.equal('color' in img, false);
+});
+
+test('projectNameColor returns the custom hex, or the neutral-grey fallback when empty', () => {
+  assert.equal(projectNameColor('#12ab34', 'var(--project-name-fg)'), '#12ab34');
+  assert.equal(projectNameColor('  #12ab34  ', 'var(--project-name-fg)'), '#12ab34');   // trimmed
+  assert.equal(projectNameColor('', 'var(--project-name-fg)'), 'var(--project-name-fg)'); // empty → fallback
+  assert.equal(projectNameColor(null, 'var(--project-name-fg)'), 'var(--project-name-fg)');
+  assert.equal(projectNameColor(undefined, '#888'), '#888');
 });
 
 test('addPinEntry caps the list at 500 (newest kept)', () => {

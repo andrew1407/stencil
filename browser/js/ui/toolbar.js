@@ -23,10 +23,12 @@ export class StencilToolbar extends StencilElement {
                 <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
                     <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
                     <input id="project-name-input" type="text" placeholder="No project" title="Project name — double-click to rename" readonly disabled
-                        style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text);background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
+                        style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
                     <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
                     <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
                     <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" title="Cancel" style="display:none;">${icon('x', { size: 14 })}</button>
+                    <button id="project-color-btn" class="name-edit-btn" type="button" title="Project colour — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
+                    <input id="project-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                 </span>
                 <span id="hints-btn" style="display:none;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
                     ?
@@ -42,13 +44,13 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <!-- File input is the hidden picker target; shown affordances below toggle on image state. -->
                     <input type="file" id="image-upload" accept="image/*" style="display:none;">
-                    <button id="load-image-btn" class="btn-icon-text" data-title="Load an image" title="Load an image">${icon('image')}<span>Load Image</span></button>
+                    <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Load an image" title="Load an image">${icon('image')}<span>Load Image</span></button>
                     <!-- Image actions (shown only when an image is loaded). #save-image moved here from Data. -->
                     <span id="image-actions" style="display:none;align-items:center;gap:4px;">
-                        <button id="save-image" class="btn-icon" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
+                        <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
                         <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
                         <button id="share-image" class="btn-icon" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
-                        <button id="open-image-btn" class="btn-icon" data-title="Open another image" title="Open another image…">${icon('external')}</button>
+                        <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image" title="Open another image…">${icon('external')}</button>
                     </span>
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
                     <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
@@ -58,7 +60,7 @@ export class StencilToolbar extends StencilElement {
                         <option value="custom">Tint</option>
                     </select>
                     <input type="color" id="filter-color" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
-                    <button id="crop-image" class="btn-icon-text" data-title="Crop image" data-disabled-reason="Load an image to crop" title="Crop image — pick the page-shaped region to show on the canvas">${icon('crop')}<span>Crop</span></button>
+                    <button id="crop-image" class="btn-icon-text" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop" title="Crop image — pick the page-shaped region to show on the canvas">${icon('crop')}<span>Crop</span></button>
                     <button id="rotate-left" class="btn-icon" data-hk-title="rotateImageLeft" data-title="Rotate image left" data-disabled-reason="Load an image to rotate" title="Rotate image left">${icon('rotate-ccw')}</button>
                     <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate" title="Rotate image right">${icon('rotate-cw')}</button>
                 </div>
@@ -167,11 +169,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
-                    <button id="download-json" class="btn-icon-text" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}<span>JSON</span></button>
-                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy Layout JSON" data-disabled-reason="Draw at least one line to copy" title="Copy Layout JSON">${icon('copy')}</button>
+                    <button id="download-json" class="btn-icon-text" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}<span>JSON</span></button>
+                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy" title="Copy full Layout JSON (lines + all applied edits)">${icon('copy')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
-                    <button id="upload-json-btn" class="btn-icon" title="Upload Layout JSON">${icon('upload')}</button>
-                    <button id="clear-storage" class="danger btn-icon" title="Clear saved storage">${icon('trash')}</button>
+                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" title="Upload Layout JSON">${icon('upload')}</button>
+                    <button id="clear-storage" class="danger btn-icon" data-title="Clear saved storage" title="Clear saved storage">${icon('trash')}</button>
                     <span id="save-status" style="font-size:12px;color:#555;min-width:70px;"></span>
                 </div>
             </div>
@@ -182,15 +184,15 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">App</div>
                 <div class="ctrl-section-row">
-                    <button id="theme-toggle" class="btn-icon" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
+                    <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
                     <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" data-disabled-reason="Load an image to view fullscreen" title="Fullscreen">${icon('maximize')}</button>
-                    <button id="projects-btn" class="btn-icon" title="Projects">${icon('layers')}</button>
-                    <button id="connect-btn" class="btn-icon" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
-                    <button id="links-btn" class="btn-icon" title="Source &amp; resource links · add image by URL">${icon('link')}</button>
-                    <button id="incognito-toggle" class="btn-icon" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
-                    <button id="settings-btn" class="btn-icon" title="Keyboard shortcuts">${icon('gear')}</button>
-                    <button id="visuals-btn" class="btn-icon" title="Default visuals &amp; highlight styles">${icon('palette')}</button>
-                    <button id="info-btn" class="btn-icon" title="Controls &amp; shortcuts help">${icon('help')}</button>
+                    <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects" title="Projects">${icon('layers')}</button>
+                    <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
+                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links · add image by URL" title="Source &amp; resource links · add image by URL">${icon('link')}</button>
+                    <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
+                    <button id="settings-btn" class="btn-icon" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
+                    <button id="visuals-btn" class="btn-icon" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>
+                    <button id="info-btn" class="btn-icon" data-hk-title="openHelp" data-title="Controls &amp; shortcuts help" title="Controls &amp; shortcuts help">${icon('help')}</button>
                 </div>
             </div>
 

@@ -25,8 +25,11 @@ namespace stencil::gui {
     // browser modal's preset chips + <input type=color>.
     auto* colorRow = new QHBoxLayout;
     white_ = new QRadioButton("White", this);
+    white_->setToolTip("Fill the blank image with white");
     black_ = new QRadioButton("Black", this);
+    black_->setToolTip("Fill the blank image with black");
     custom_ = new QRadioButton("Custom:", this);
+    custom_->setToolTip("Fill the blank image with the picked custom color");
     white_->setChecked(true);
     customSwatch_ = new QToolButton(this);
     customSwatch_->setToolTip("Pick a custom fill color");
@@ -46,10 +49,12 @@ namespace stencil::gui {
     width_->setRange(1, 8192);
     width_->setSuffix(" px");
     width_->setValue(defaultWidthPx);
+    width_->setToolTip("Blank image width in pixels (1–8192)");
     height_ = new QSpinBox(this);
     height_->setRange(1, 8192);
     height_->setSuffix(" px");
     height_->setValue(defaultHeightPx);
+    height_->setToolTip("Blank image height in pixels (1–8192)");
     form->addRow("Width:", width_);
     form->addRow("Height:", height_);
     layout->addLayout(form);
@@ -64,7 +69,8 @@ namespace stencil::gui {
   }
 
   void BlankImageDialog::pickCustomColor() {
-    const QColor c = QColorDialog::getColor(customColor_, this, "Fill color");
+    const QColor c = QColorDialog::getColor(customColor_, this, "Fill color",
+                                            QColorDialog::DontUseNativeDialog);
     if (!c.isValid()) return;
     customColor_ = c;
     custom_->setChecked(true);

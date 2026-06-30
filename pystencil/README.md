@@ -222,6 +222,34 @@ A `ConnectionManager` holds several connections at once (`connect`/`disconnect`/
 `ServerError(code="conflict")` (HTTP 409). Self-signed TLS is opt-in via an `ssl` context
 option; the default verifies normally.
 
+**Watching for project changes.** This client is REST-only (no `/ws` feed), so it tracks a
+peer's name/colour/version changes by **polling** — the same model as the desktop's poll timer.
+`diff_projects(prev, curr)` is a pure diff into `{id, kind, fields, project}` events
+(`kind` = `created`/`updated`/`deleted`; `fields` names which of `name`/`color`/`version`
+moved). `poll_project_changes(previous)` is one-shot (you own the loop); `watch_projects` is a
+ready-made blocking loop — both exist on a single `ServerConnection` and, aggregated across
+every server, on `ConnectionManager`:
+
+```python
+import threading
+
+stop = threading.Event()
+def on_change(c):
+    if c["kind"] == "updated" and "color" in c["fields"]:
+        print(c["id"], "recoloured →", c["project"].get("color") or "(default)")
+
+# blocking loop (run in a thread); the first poll seeds a silent baseline
+t = threading.Thread(target=mgr.watch_projects, kwargs={"on_change": on_change,
+                                                        "interval": 2.0, "stop": stop})
+t.start()
+# … later …
+stop.set(); t.join()
+
+# or drive the polling yourself:
+prev = None
+prev, changes = conn.poll_project_changes(prev)   # repeat on your own schedule
+```
+
 ## Command line
 
 `python -m pystencil` (installed as **`stencil-py`**) runs a one-shot pipeline, or a

@@ -61,6 +61,7 @@ namespace stencil::gui {
 
     sourceEdit_ = new QLineEdit(source, this);
     sourceEdit_->setPlaceholderText("(empty — local upload)");
+    sourceEdit_->setToolTip("Source URL the image came from");
     auto* srcOpen = new QPushButton(this);
     srcOpen->setIcon(themedIcon("external", txt, 15));
     srcOpen->setToolTip("Open source in the default browser");
@@ -73,6 +74,7 @@ namespace stencil::gui {
 
     resourceEdit_ = new QLineEdit(resource, this);
     resourceEdit_->setPlaceholderText("(empty)");
+    resourceEdit_->setToolTip("Resource page URL associated with the image");
     auto* resOpen = new QPushButton(this);
     resOpen->setIcon(themedIcon("external", txt, 15));
     resOpen->setToolTip("Open resource page in the default browser");
@@ -91,6 +93,7 @@ namespace stencil::gui {
     // URL + an inline Preview button (mirrors the browser modal's 👁 Preview).
     urlEdit_ = new QLineEdit(this);
     urlEdit_->setPlaceholderText("https://… (image or video)");
+    urlEdit_->setToolTip("Image or video URL to fetch and preview");
     auto* previewBtn = new QPushButton("Preview", this);
     previewBtn->setIcon(themedIcon("eye", txt, 15));
     previewBtn->setToolTip("Fetch and show the image / first video frame");
@@ -101,6 +104,7 @@ namespace stencil::gui {
 
     urlResourceEdit_ = new QLineEdit(this);
     urlResourceEdit_->setPlaceholderText("(optional — page the image is on)");
+    urlResourceEdit_->setToolTip("Optional resource page URL to record with the loaded image");
     addForm->addRow("Resource URL:", urlResourceEdit_);
 
     // Preview area: the decoded image/frame plus a status line.
@@ -178,6 +182,7 @@ namespace stencil::gui {
     loadBtn_->setObjectName("primaryButton");
     loadBtn_->setIcon(themedIcon("download", QColor("#ffffff"), 15));
     loadBtn_->setEnabled(false);  // enabled once a preview succeeds
+    loadBtn_->setToolTip("Preview an image or video URL first");
     connect(loadBtn_, &QPushButton::clicked, this, &LinksDialog::requestLoad);
     addForm->addRow(QString(), loadBtn_);
     layout->addWidget(addBox);
@@ -438,6 +443,7 @@ namespace stencil::gui {
         kPreviewMaxW, kPreviewMaxH, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     previewHint_->setText(hint);
     loadBtn_->setEnabled(true);
+    loadBtn_->setToolTip("Load the previewed image into the editor");
   }
 
   // For a video, show either the embedded preview image (when chosen and available)

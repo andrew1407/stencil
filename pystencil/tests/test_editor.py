@@ -169,6 +169,38 @@ class EditorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ed.set_formula("x", "foo(x)")
 
+    def test_project_color_default_is_empty(self) -> None:
+        ed = self._blank()
+        self.assertEqual(ed.project_color, "")
+
+    def test_set_project_color_normalizes_to_hex(self) -> None:
+        ed = self._blank()
+        # A CSS name and a #rgb shorthand both land as a lower-case #rrggbb.
+        ed.set_project_color("red")
+        self.assertEqual(ed.project_color, "#ff0000")
+        ed.set_project_color("#0F0")
+        self.assertEqual(ed.project_color, "#00ff00")
+
+    def test_set_project_color_empty_clears(self) -> None:
+        ed = self._blank().set_project_color("#123456")
+        self.assertEqual(ed.project_color, "#123456")
+        ed.set_project_color("")
+        self.assertEqual(ed.project_color, "")
+        ed.set_project_color("#123456").set_project_color("   ")
+        self.assertEqual(ed.project_color, "")
+
+    def test_set_project_color_rejects_invalid(self) -> None:
+        ed = self._blank().set_project_color("#abcdef")
+        with self.assertRaises(ValueError):
+            ed.set_project_color("not-a-color")
+        # The previous valid colour is kept on rejection.
+        self.assertEqual(ed.project_color, "#abcdef")
+
+    def test_load_resets_project_color(self) -> None:
+        ed = self._blank().set_project_color("#abcdef")
+        ed.blank(8, 8)
+        self.assertEqual(ed.project_color, "")
+
 
 if __name__ == "__main__":
     unittest.main()

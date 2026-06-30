@@ -251,7 +251,11 @@ export const comboFromEvent = e => {
 export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return false;
   const uaPlat = nav.userAgentData && nav.userAgentData.platform;
-  if (typeof uaPlat === 'string') return /mac/i.test(uaPlat);
+  // Only trust userAgentData.platform when it is NON-EMPTY: some Chromium builds
+  // (and reduced User-Agent-Client-Hints contexts) report platform === '' even on
+  // macOS. An empty string is still a string, so testing it would short-circuit to
+  // a false negative — fall through to navigator.platform / userAgent instead.
+  if (typeof uaPlat === 'string' && uaPlat) return /mac/i.test(uaPlat);
   if (typeof nav.platform === 'string' && /mac/i.test(nav.platform)) return true;
   if (typeof nav.userAgent === 'string' && /Mac/i.test(nav.userAgent)) return true;
   return false;

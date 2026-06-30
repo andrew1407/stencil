@@ -91,6 +91,10 @@ namespace stencil::gui {
     int selectedPoint() const { return selectedPoint_; }
     void selectPoint(int index);
     void deletePoint(int index);
+    // Set one coordinate (axis 0 = x, 1 = y) of the panel line's point `index` to `value` px
+    // (image space). Port of browser drawingApp.js setPointCoord — the inline edit in the
+    // points table. No clamping (mirrors the browser); commits history for a committed line.
+    void setPointCoord(int index, int axis, double value);
     void deselect();
 
     // ── selected-line + draw-mode state (S2) ──

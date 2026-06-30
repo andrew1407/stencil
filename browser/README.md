@@ -136,6 +136,7 @@ stencil.pageHeight       = 40;         // cm; applies when pageSize === 'custom'
 stencil.darkTheme        = true;       // dark mode on/off (true = dark, false = light)
 stencil.mainTheme        = 'green';    // brand accent: a preset key (see .mainThemes) — persists + syncs across tabs
 stencil.mainTheme        = '#ff5623';  // …or any hex → a custom accent for THIS page only (not saved, not synced)
+stencil.projectColor     = '#ec4899';  // active project's accent colour: paints its NAME everywhere ('' = neutral grey)
 stencil.drawMode         = 'rect';     // 'line' | 'rect'
 stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
 stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms
@@ -205,6 +206,7 @@ const p = stencil.getProjectByName('Floor plan');
 p.id; p.incognito; p.isOpened; p.isExpired; p.expiresAt; p.layout;   // getters
 p.size;                                // { image: { width, height } }
 p.name = 'Floor plan v2';              // get/set; throws on a duplicate name
+p.color = '#ec4899';                   // get/set the project's accent colour ('' clears → neutral grey)
 p.imageName = 'plan.png';              // get/set (active project only)
 p.source = 'https://example.com/x.png';   // get/set provenance link (updates live)
 p.resource = 'https://example.com/page';  // get/set the page the image came from

@@ -110,6 +110,12 @@ namespace stencil::gui {
     std::vector<Project> loadProjects();
     void saveProjects(const std::vector<Project>& projects);
 
+    // One project <-> JSON (a projects.json array element). Promoted from the .cpp
+    // so the per-project `color` round-trip is unit-testable without touching disk.
+    // Mirrors the browser project record (projectsStore.js / storage.js).
+    QJsonObject projectToJson(const Project& pr);
+    Project projectFromJson(const QJsonObject& o);
+
     // ── Line <-> JSON helpers (promoted from the .cpp anon namespace so the
     // layout-import/export data actions can reuse them). Mirror the browser
     // line object fields (storage.js).

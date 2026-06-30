@@ -14,10 +14,19 @@ const remoteThumbBlob = (conn, meta) => {
     // Drop any stale-version entry for this project so we hold ~one blob per project.
     for (const k of remoteThumbCache.keys())
       if (k.startsWith(`${id}|`)) remoteThumbCache.delete(k);
-    // Prefer the edited `result`, fall back to the `original`, null if neither loads.
-    p = conn.fetchFile(meta.id, 'result')
-      .catch(() => conn.fetchFile(meta.id, 'original'))
-      .catch(() => null);
+    // Fetch only files the record says exist (resultPath/originalPath), preferring the edited
+    // `result`. A project with neither (no bytes uploaded) resolves to null with NO request, so
+    // the console isn't spammed with 404s for files the server doesn't have.
+    const hasResult = !!meta.resultPath;
+    const hasOriginal = !!meta.originalPath;
+    if (hasResult)
+      p = conn.fetchFile(meta.id, 'result')
+        .catch(() => (hasOriginal ? conn.fetchFile(meta.id, 'original') : null))
+        .catch(() => null);
+    else if (hasOriginal)
+      p = conn.fetchFile(meta.id, 'original').catch(() => null);
+    else
+      p = Promise.resolve(null);
     remoteThumbCache.set(key, p);
   }
   return p;
@@ -33,7 +42,7 @@ export class StencilProjectsModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>${icon('layers', { size: 18 })} Projects</h2>
-                <button class="app-modal-close btn-icon-text" id="projects-close">${icon('x', { size: 14 })}<span>Close</span></button>
+                <button class="app-modal-close btn-icon-text" id="projects-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
                 <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
@@ -60,8 +69,8 @@ export class StencilProjectsModal extends StencilElement {
             <div class="settings-footer">
                 <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
                 <button id="projects-blank-image" class="btn-icon-text" title="Create a blank image to draw on">${icon('image')}<span>Blank image</span></button>
-                <button id="projects-new-editor" class="btn-icon-text">${icon('plus-circle')}<span>New editor</span></button>
-                <button id="projects-clear-all" class="danger btn-icon-text">${icon('trash')}<span>Clear All</span></button>
+                <button id="projects-new-editor" class="btn-icon-text" title="Open a new empty editor in another tab">${icon('plus-circle')}<span>New editor</span></button>
+                <button id="projects-clear-all" class="danger btn-icon-text" title="Delete every saved project">${icon('trash')}<span>Clear All</span></button>
             </div>
         </div>
     `;
@@ -307,6 +316,10 @@ export class StencilProjectsModal extends StencilElement {
       const name = document.createElement('div');
       name.className = 'project-name';
       name.textContent = opts.incognito ? 'Incognito (unsaved)' : (opts.temp ? 'Temporary (unsaved)' : (meta.name || 'Untitled'));
+      // A saved project's custom colour overrides the default grey, but KEEPS the theme-flipped
+      // shadow (from .project-name CSS) so even a light custom colour stays legible on a light
+      // theme. Empty → CSS keeps the fixed grey + the same shadow.
+      if (!opts.temp && meta.color) name.style.color = meta.color;
       info.appendChild(name);
 
       // Inline rename: swap the name div for an input (✎ button or double-click).
@@ -319,10 +332,17 @@ export class StencilProjectsModal extends StencilElement {
         input.className = 'project-name-edit';
         input.type = 'text';
         input.value = meta.name || 'Untitled';
+        input.title = 'Project name';
         const accept = document.createElement('button');
-        accept.type = 'button'; accept.className = 'name-edit-btn name-edit-accept'; accept.innerHTML = icon('check', { size: 14 });
+        accept.type = 'button';
+        accept.className = 'name-edit-btn name-edit-accept';
+        accept.innerHTML = icon('check', { size: 14 });
+        accept.title = 'Save name (Enter)';
         const cancel = document.createElement('button');
-        cancel.type = 'button'; cancel.className = 'name-edit-btn name-edit-cancel'; cancel.innerHTML = icon('x', { size: 14 }); cancel.title = 'Cancel';
+        cancel.type = 'button';
+        cancel.className = 'name-edit-btn name-edit-cancel';
+        cancel.innerHTML = icon('x', { size: 14 });
+        cancel.title = 'Cancel (Esc)';
         wrap.append(input, accept, cancel);
         name.replaceWith(wrap);
         input.focus();
@@ -422,14 +442,36 @@ export class StencilProjectsModal extends StencilElement {
           render();
         };
 
-        // The row opens the project on click; every other action lives behind "⋯".
-        const open = () => { if (isActive) return; app.switchToProject(meta.id); close(); };
+        // The row opens the project on click; clicking the already-active project just
+        // closes the modal (it's already open in this tab). Other actions live behind "⋯".
+        const open = () => { if (!isActive) app.switchToProject(meta.id); close(); };
+
+        // Per-row colour: a throwaway native colour picker paints the project name. A second
+        // "Clear colour" item (shown only when a colour is set) resets it to the theme accent.
+        const pickColor = () => {
+          const picker = document.createElement('input');
+          picker.type = 'color';
+          picker.value = meta.color || '#7c3aed';
+          picker.style.cssText = 'position:fixed;left:-9999px;width:1px;height:1px;opacity:0;';
+          document.body.appendChild(picker);
+          const apply = () => { app.setProjectColor(meta.id, picker.value); meta.color = picker.value; render(); };
+          picker.addEventListener('change', () => { apply(); picker.remove(); });
+          try {
+            if (typeof picker.showPicker === 'function') picker.showPicker();
+            else picker.click();
+          } catch {
+            picker.click();
+          }
+        };
+        const clearColor = () => { app.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
         // One menu definition, shared by the "⋯" button and a right-click on the row.
         const menuItems = () => [
           isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
           { icon: 'external', label: 'Open in new tab', onClick: () => app.openProjectInNewTab(meta.id) },
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
+          { icon: 'palette', label: 'Set colour…', onClick: pickColor },
+          meta.color ? { icon: 'x', label: 'Clear colour', onClick: clearColor } : null,
           { icon: 'refresh', label: 'Renew expiry', onClick: () => { app.renewProject(meta.id); render(); } },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
           (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
@@ -455,7 +497,7 @@ export class StencilProjectsModal extends StencilElement {
           showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
         });
 
-        if (!isActive) row.classList.add('project-clickable');
+        row.classList.add('project-clickable');
         row.addEventListener('click', open);
       } else if (opts.incognito && hasServers()) {
         // The incognito session has no menu, but it CAN be published to a server (it then
@@ -480,6 +522,12 @@ export class StencilProjectsModal extends StencilElement {
         btn.addEventListener('click', e => { e.stopPropagation(); saveToServer(); });
         actions.appendChild(btn);
         row.appendChild(actions);
+      }
+      if (opts.temp) {
+        // The synthetic "Current tab" row is whatever's already open here — there's nothing
+        // to switch to, so a click just closes the modal (inner buttons stop-propagate).
+        row.classList.add('project-clickable');
+        row.addEventListener('click', close);
       }
       return row;
     };
@@ -540,6 +588,8 @@ export class StencilProjectsModal extends StencilElement {
       const name = document.createElement('div');
       name.className = 'project-name';
       name.textContent = meta.name || 'Untitled';
+      // Server projects carry `color` in their ProjectRecord — paint the name with it.
+      if (meta.color) name.style.color = meta.color;
       const sub = document.createElement('div');
       sub.className = 'project-sub';
       const badge = document.createElement('span');
@@ -662,6 +712,7 @@ export class StencilProjectsModal extends StencilElement {
       app.loadImageFromFile(file, {
         source: src,
         resource: full.project?.resource || '',
+        color: full.project?.color || '',
         address: meta.serverUrl,
         remoteId: meta.id,
         version: full.project?.version || 0,

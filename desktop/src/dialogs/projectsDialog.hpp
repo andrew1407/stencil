@@ -13,6 +13,7 @@
 class QListWidget;
 class QListWidgetItem;
 class QComboBox;
+class QLineEdit;
 class QTimer;
 class QNetworkAccessManager;
 class QLabel;
@@ -52,10 +53,13 @@ namespace stencil::gui {
     // Batch* act on the checked rows (read batchItems()): BatchRemove (any), BatchMoveToServer
     //   / BatchCopyToServer (local-only checked + selectedServerUrl()), BatchMoveToLocal /
     //   BatchCopyToLocal (server-only checked).
+    // SetColor: set (or clear) a project's accent colour — read selectedId() +
+    //   selectedServerUrl() (empty = local) + selectedColor() ("" = theme default).
     enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Renew, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
+                        SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
-                        BatchMoveToLocal, BatchCopyToLocal };
+                        BatchMoveToLocal, BatchCopyToLocal, ClearAll };
 
     // `now` (epoch ms) is the reference point for the per-row expiry labels and
     // their warning/expired colouring; the caller passes its clock so the dialog
@@ -72,6 +76,8 @@ namespace stencil::gui {
     QString selectedId() const { return selectedId_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
+    // For SetColor: the chosen colour ("#rrggbb"), or "" to clear to the theme default.
+    QString selectedColor() const { return selectedColor_; }
     // For Batch* actions: the checked rows as (id, serverUrl) pairs (serverUrl empty = local).
     const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
 
@@ -110,14 +116,26 @@ namespace stencil::gui {
     void moveToLocalSelected();
     // Make a detached local copy of the selected SERVER project (server copy kept), prompting a name.
     void makeLocalCopySelected();
-    // Re-apply the storage filter (All / Local / Server) to the visible rows.
+    // Re-apply the storage filter (All / Local / Server / a specific server) + the search
+    // text to the visible rows.
     void applyFilter();
+    // (Re)populate the "Show:" combo with All / Local / All-servers + one entry per connected
+    // server, preserving the current selection. Called when the connected-server set changes.
+    void rebuildFilterOptions();
     // Multi-select: collect the checked rows + show/enable the batch toolbar; run a batch action.
     void onItemChanged(QListWidgetItem* it);
     void updateBatchBar();
     void runBatch(Action act);
     void renameSelected();
     void renewSelected();
+    // Pop a colour picker (seeded with the row's current colour) and emit SetColor.
+    void setColorSelected();
+    // Clear the row's colour back to the theme default (emit SetColor with "").
+    void clearColorSelected();
+    // Resolve `it`'s (id, serverUrl), set the SetColor result fields, and accept().
+    void emitSetColor(QListWidgetItem* it, const QString& color);
+    // The selected row's current colour ("#rrggbb" or "") — local meta or server record.
+    QString currentRowColor() const;
     void createNew();
     void createBlank();
 
@@ -144,7 +162,9 @@ namespace stencil::gui {
     // projects…" placeholder so the dialog can open instantly (remote fetch deferred).
     bool remoteLoaded_ = false;
     QListWidget* list_ = nullptr;
-    QComboBox* filter_ = nullptr;   // All / Local / Server row filter
+    QComboBox* filter_ = nullptr;   // All / Local / Server / per-server row filter
+    QLineEdit* search_ = nullptr;   // name search box (mirrors the browser modal)
+    QStringList knownServerUrls_;   // last server set the filter combo was built from
     // Multi-select: checked row keys ("serverUrl|id"; serverUrl empty = local), the batch
     // toolbar + its buttons, and the resolved (id, serverUrl) pairs for the chosen batch action.
     QSet<QString> checked_;
@@ -160,6 +180,7 @@ namespace stencil::gui {
     QString selectedId_;
     QString selectedServerUrl_;
     QString newName_;
+    QString selectedColor_;
   };
 
 }

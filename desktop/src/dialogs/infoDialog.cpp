@@ -29,6 +29,7 @@ namespace stencil::gui {
     // Live search box (mirrors the browser info modal's filter).
     search_ = new QLineEdit(this);
     search_->setPlaceholderText("Search shortcuts and tips…");
+    search_->setToolTip("Filter the shortcuts and tips by keyword");
     search_->setClearButtonEnabled(true);
     search_->addAction(themedIcon("search", palette().color(QPalette::PlaceholderText), 16),
                        QLineEdit::LeadingPosition);

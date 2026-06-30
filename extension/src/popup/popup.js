@@ -1,7 +1,7 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl } from '../lib/stencil.js';
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
-import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned } from '../lib/pins.js';
+import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned, projectNameColor } from '../lib/pins.js';
 import { resolveHighlightColor } from '../lib/highlightColor.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
@@ -194,6 +194,8 @@ const sharedToImage = (pin) => ({
   projectId: pin.projectId,
   source: pin.source,
   resource: pin.resource || '',
+  // Project's custom accent colour ("#rrggbb", or "" = default) for painting the row name.
+  color: pin.color || '',
   opened: [],
   pinned: false,
 });
@@ -451,6 +453,10 @@ const applyFilters = () => {
   state.filtered.forEach(renderRow);
 };
 
+// A row that represents a project (a shared server-project row, or a local pin with kind
+// 'project') — only these recolour their name; plain page images/pins keep the theme colour.
+const isProjectRow = (image) => !!image.shared || image.kind === 'project';
+
 // ── Rows ──
 const renderRow = (image) => {
   const li = document.createElement('li');
@@ -506,6 +512,12 @@ const renderRow = (image) => {
   name.className = 'name clickable';
   name.textContent = image.name;
   name.title = title;
+  // Project rows paint the name in the project's custom `color`, or a fixed neutral grey when
+  // unset. Values are inlined (not a CSS var) so a stale-cached theme.css can't blank the name.
+  if (isProjectRow(image)) {
+    name.style.color = projectNameColor(image.color, '#80868f');
+    name.style.textShadow = '0 1px 2px rgba(0,0,0,0.55)';
+  }
 
   // Click → open in editor; double-click → quick crop (videos act on their frame).
   bindRowGestures(thumb, image);

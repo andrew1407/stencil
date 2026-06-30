@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS projects (
     image_h          integer NOT NULL DEFAULT 0,
     source           text    NOT NULL DEFAULT '',   -- media URL (provenance)
     resource         text    NOT NULL DEFAULT '',   -- origin web page (provenance)
+    color            text    NOT NULL DEFAULT '',   -- custom name accent "#rrggbb" or "" (theme default)
     original_path    text    NOT NULL DEFAULT '',   -- filestore-relative original
     result_path      text    NOT NULL DEFAULT '',   -- filestore-relative rendered result
     original_content text    NOT NULL DEFAULT '',   -- original payload kept for re-fetch

@@ -383,6 +383,10 @@ input[type="color"] {
    explicit — double-click the name or click the ✎ that appears on hover (only for a
    saved project). The field shows its editable border/background only in edit mode. */
 .project-name-field { position: relative; }
+/* Default name colour + the theme-flipped legibility outline come from CSS (so they re-flip live
+   on a theme toggle); JS only sets an inline colour for a custom per-project colour. Fallbacks
+   keep it visible even if theme.css is cached stale. */
+#project-name-input { color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); }
 #project-name-input:read-only { cursor: default; }
 #project-name-input:not(:read-only) { border-color: var(--border-main); background: var(--bg-info); cursor: text; }
 #project-name-input:not(:read-only):focus { outline: none; border-color: var(--accent, #7c3aed); }
@@ -392,6 +396,11 @@ input[type="color"] {
    reveals it when it's actually actionable. */
 .name-edit-pencil { visibility: hidden; }
 .project-name-field:hover .name-edit-pencil { visibility: visible; }
+/* Palette (project-colour) button hover-reveals with the ✎ pencil — hidden until you hover
+   the name field, so it doesn't sit in the bar permanently. JS still gates display: on a
+   saved project; visibility (not display) keeps the row width stable so nothing shifts. */
+#project-color-btn { visibility: hidden; }
+.project-name-field:hover #project-color-btn { visibility: visible; }
 /* Inline rename accept(✓)/cancel(✗) buttons (topbar + projects list). */
 .name-edit-btn { border: 1px solid var(--border-main); background: var(--bg-info); border-radius: 5px; padding: 2px 7px; font-size: 12px; line-height: 1; cursor: pointer; }
 .name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }

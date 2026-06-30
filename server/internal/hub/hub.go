@@ -25,7 +25,7 @@ import (
 // Store is the project persistence the hub needs for snapshots.
 type Store interface {
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
-	UpdateProject(ctx context.Context, id string, name *string, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
+	UpdateProject(ctx context.Context, id string, name *string, color *string, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
 }
 
 const (

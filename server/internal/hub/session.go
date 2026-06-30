@@ -187,7 +187,7 @@ func (s *session) handleEdit(m *member, msg protocol.WSMessage) {
 func (s *session) handleSave(m *member, msg protocol.WSMessage) {
 	ctx, cancel := context.WithTimeout(s.hub.ctx, opTimeout)
 	defer cancel()
-	rec, err := s.hub.store.UpdateProject(ctx, s.id, nil, msg.Layout, msg.Version)
+	rec, err := s.hub.store.UpdateProject(ctx, s.id, nil, nil, msg.Layout, msg.Version)
 	switch {
 	case errors.Is(err, store.ErrConflict):
 		s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeConflict, Message: "stale version; reload"})

@@ -65,7 +65,7 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	if !a.decodeJSON(w, r, &req) {
 		return
 	}
-	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), req.Name, req.Layout, req.Version)
+	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), req.Name, req.Color, req.Layout, req.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")

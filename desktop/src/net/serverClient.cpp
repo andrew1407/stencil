@@ -106,6 +106,7 @@ namespace stencil::net {
       ServerProject p;
       p.id = o.value("id").toString();
       p.name = o.value("name").toString();
+      p.color = o.value("color").toString();
       p.hasImage = o.value("hasImage").toBool();
       p.imageW = o.value("imageW").toInt();
       p.imageH = o.value("imageH").toInt();
@@ -156,6 +157,7 @@ namespace stencil::net {
     const QJsonObject p = root.value("project").toObject();
     meta.id = p.value("id").toString();
     meta.name = p.value("name").toString();
+    meta.color = p.value("color").toString();
     meta.hasImage = p.value("hasImage").toBool();
     meta.imageW = p.value("imageW").toInt();
     meta.imageH = p.value("imageH").toInt();
@@ -188,6 +190,56 @@ namespace stencil::net {
     }
     if (status < 200 || status >= 300) {
       err_ = QString("update failed (HTTP %1)").arg(status);
+      return false;
+    }
+    newVersion =
+        static_cast<qint64>(QJsonDocument::fromJson(body).object().value("version").toDouble());
+    return true;
+  }
+
+  bool ServerClient::updateProjectColor(const QString& id, const QString& color,
+                                        qint64 version, qint64& newVersion, bool& conflict) {
+    conflict = false;
+    QJsonObject obj;
+    // Always send `color` (even ""), so an explicit clear reaches the server; name +
+    // layout are omitted, so the server's COALESCE leaves them unchanged.
+    obj.insert("color", color);
+    obj.insert("version", static_cast<double>(version));
+    int status = 0;
+    const QByteArray body = request("PUT", QString("/projects/%1").arg(id),
+                                    QJsonDocument(obj).toJson(QJsonDocument::Compact),
+                                    "application/json", status);
+    if (status == 409) {
+      conflict = true;
+      err_ = "stale version (edited elsewhere)";
+      return false;
+    }
+    if (status < 200 || status >= 300) {
+      err_ = QString("update failed (HTTP %1)").arg(status);
+      return false;
+    }
+    newVersion =
+        static_cast<qint64>(QJsonDocument::fromJson(body).object().value("version").toDouble());
+    return true;
+  }
+
+  bool ServerClient::updateProjectName(const QString& id, const QString& name,
+                                       qint64 version, qint64& newVersion, bool& conflict) {
+    conflict = false;
+    QJsonObject obj;
+    obj.insert("name", name);  // colour + layout omitted → the server's COALESCE leaves them
+    obj.insert("version", static_cast<double>(version));
+    int status = 0;
+    const QByteArray body = request("PUT", QString("/projects/%1").arg(id),
+                                    QJsonDocument(obj).toJson(QJsonDocument::Compact),
+                                    "application/json", status);
+    if (status == 409) {
+      conflict = true;
+      err_ = "stale version (edited elsewhere)";
+      return false;
+    }
+    if (status < 200 || status >= 300) {
+      err_ = QString("rename failed (HTTP %1)").arg(status);
       return false;
     }
     newVersion =

@@ -17,15 +17,14 @@ export const parseLengthToken = (token) => {
   if (!m) return null;
   const fromEnd = m[1] === '-';
   const value = parseFloat(m[2]);
-  switch (m[3]) {
-    case '%': return { kind: 'percent', value, fromEnd };
-    case 'cm': return { kind: 'cm', value, fromEnd };
-    case 'mm': return { kind: 'cm', value: value / 10, fromEnd };
-    case 'in': return { kind: 'cm', value: value * CM_PER_INCH, fromEnd };
-    case 'px': return { kind: 'px', value, fromEnd };
-    // A bare number string is a delta, like a real number — keep the sign.
-    default: return { kind: 'delta', value: fromEnd ? -value : value };
-  }
+  const unit = m[3];
+  if (unit === '%') return { kind: 'percent', value, fromEnd };
+  if (unit === 'cm') return { kind: 'cm', value, fromEnd };
+  if (unit === 'mm') return { kind: 'cm', value: value / 10, fromEnd };
+  if (unit === 'in') return { kind: 'cm', value: value * CM_PER_INCH, fromEnd };
+  if (unit === 'px') return { kind: 'px', value, fromEnd };
+  // A bare number string is a delta, like a real number — keep the sign.
+  return { kind: 'delta', value: fromEnd ? -value : value };
 };
 
 // Resolve a token to an ABSOLUTE pixel coordinate on an axis. lengthPx = total axis length
@@ -45,12 +44,11 @@ export const resolveAxisPx = (token, { lengthPx, pxPerCm, currentPx = 0 }) => {
 // Normalize a page-size argument to the canonical 'A3' | 'A4' | 'custom' the model
 // uses, accepting any case ('a3', 'Custom', …). Returns null for anything else.
 export const normalizePageSize = (s) => {
-  switch (String(s || '').trim().toLowerCase()) {
-    case 'a3': return 'A3';
-    case 'a4': return 'A4';
-    case 'custom': return 'custom';
-    default: return null;
-  }
+  const v = String(s || '').trim().toLowerCase();
+  if (v === 'a3') return 'A3';
+  if (v === 'a4') return 'A4';
+  if (v === 'custom') return 'custom';
+  return null;
 };
 
 // True when a token is a relative delta (a bare number) rather than an absolute

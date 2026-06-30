@@ -5,7 +5,7 @@
 #include <QString>
 #include <vector>
 
-class QListWidget;
+class QTableWidget;
 class QLabel;
 class QSpinBox;
 class QComboBox;
@@ -47,7 +47,10 @@ namespace stencil::gui {
 
    signals:
     void pointActivated(int index);        // user clicked / double-clicked a row
-    void pointDeleteRequested(int index);  // user pressed Delete on a row
+    void pointDeleteRequested(int index);  // user pressed Delete or clicked the row's 🗑
+    // Inline coord edit: a px X/Y cell was committed (axis 0 = x, 1 = y). Forwarded to the
+    // canvas's setPointCoord (mirrors browser coordTable.js double-click-to-edit).
+    void pointCoordChanged(int index, int axis, double value);
 
     // Inline-editor signals — MainWindow forwards these to the canvas's
     // setSelectedLine* mutators (browser/js/core/drawingApp.js:181-195).
@@ -67,8 +70,9 @@ namespace stencil::gui {
     // toolbar's MainWindow::updateColorSwatch; browser uses <input type=color>).
     void setSwatchColor(QPushButton* btn, const QColor& color);
 
-    QListWidget* points_ = nullptr;
+    QTableWidget* points_ = nullptr;
     QLabel* measurements_ = nullptr;
+    QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
 
     // Inline line editor (above the points list). Browser selectionPanel.js
     // ids: selColor / selThickness / selMarkerSize / selStyle / selFillGroup /

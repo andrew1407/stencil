@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QFileOpenEvent>
 #include <QIcon>
+#include <QProxyStyle>
 #include <QStringList>
 #include <QStyleFactory>
 
@@ -42,6 +43,21 @@ namespace {
     QStringList pending_;
   };
 
+  // Tooltips at the default ~700ms wake-up delay read as "not showing"; this proxy makes them
+  // appear almost immediately on hover (matching the browser's instant control tooltips) while
+  // deferring everything else to the wrapped base style (Fusion).
+  class SnappyTooltipStyle : public QProxyStyle {
+   public:
+    using QProxyStyle::QProxyStyle;
+    int styleHint(StyleHint hint, const QStyleOption* opt = nullptr,
+                  const QWidget* w = nullptr,
+                  QStyleHintReturn* ret = nullptr) const override {
+      if (hint == SH_ToolTip_WakeUpDelay) return 120;     // ms (was ~700)
+      if (hint == SH_ToolTip_FallAsleepDelay) return 0;
+      return QProxyStyle::styleHint(hint, opt, w, ret);
+    }
+  };
+
 }  // namespace
 
 // Entry point for the desktop app — the counterpart of browser/js/index.js.
@@ -59,8 +75,9 @@ int main(int argc, char** argv) {
   // Fusion honors widget-level QSS + palettes uniformly across the whole app,
   // unlike the native Adwaita/gtk style on Fedora which leaves the menubar /
   // toolbar unthemed. Set it before constructing the window (S14).
+  // Wrap Fusion in the snappy-tooltip proxy (QProxyStyle takes ownership of the base style).
   if (auto* fusion = QStyleFactory::create("Fusion")) {
-    QApplication::setStyle(fusion);
+    QApplication::setStyle(new SnappyTooltipStyle(fusion));
   }
   // Parse CLI launch options before the window so --help/bad args exit cleanly,
   // then apply them after show() (the image/URL/video + layout resolution is

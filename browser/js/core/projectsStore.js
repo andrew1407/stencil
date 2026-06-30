@@ -142,6 +142,19 @@ export class ProjectsStore {
     return arr[i];
   }
 
+  // Set a project's accent colour in its registry meta in place. `color` is "" (no
+  // custom colour → theme fallback) or a normalised "#rrggbb"; the DrawingApp setter
+  // validates before calling. No-op (returns null) when the id is unknown. Like
+  // rename(), leaves the payload + updatedAt untouched.
+  setColor(id, color) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    arr[i].color = color;
+    this.#writeRegistry(arr);
+    return arr[i];
+  }
+
   // Projects from the same image, most-recently-updated first. Match = identical non-empty
   // `source` URL; when `source` is empty, fall back to base-name match (so a local "photo"
   // still groups with copies). Drives the extension-launch "resume" path + copy-numbering below.
@@ -298,6 +311,7 @@ export class ProjectsStore {
     const meta = {
       id,
       name: safeLayout.imageBaseName || 'Untitled 1',
+      color: '',
       thumbnail: null,
       createdAt: now,
       updatedAt: now,

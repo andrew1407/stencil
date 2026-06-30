@@ -76,6 +76,14 @@ divergence, the eval-free recursive-descent `formulaParser` that replaces the br
 `new Function(...)` — are documented with the core: see
 [`../core/README.md`](../core/README.md).
 
+Like the browser app, each project carries an optional **accent colour** that paints its
+name everywhere it appears — the toolbar project-name field, the window title field, and
+the rows in the Projects window. Set or clear it from the swatch button next to the
+project name or the per-row "Set colour…" / "Clear colour" actions in the Projects window
+(empty = a neutral muted grey, readable on light and dark). The colour is saved with the project and, for a
+server-backed project, pushed to the collaboration server so every connected client
+(browser/desktop/CLI) re-renders the name in it.
+
 ## Build
 
 ```bash
