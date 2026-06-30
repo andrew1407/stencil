@@ -1,6 +1,7 @@
 // ── Stencil server connections (client side) ────────────────────────────────
 // Each ServerConnection owns a token, a live /ws events feed, and the REST surface
 // (server/internal/protocol); fetch + WebSocket are injected for `node --test`.
+import { Emitter } from '../core/emitter.js';
 
 // Remote project ids are namespaced so they never collide with local base36 ids;
 // each remote meta carries `serverUrl` with `remote: true` (golden outline in the UI).
@@ -51,7 +52,7 @@ export class ServerConnection {
     this._WS = WebSocketImpl || globalThis.WebSocket;
     this.clientId = clientId || ('c_' + Math.random().toString(36).slice(2, 10));
     this._events = null;       // events-feed socket
-    this._eventCbs = new Set();
+    this._bus = new Emitter(); // 'event' channel: live project-event messages
     this.connected = false;
     this._closing = false;
     // UI-dot status: 'connecting'|'connected'|'error'; _onStatus (set by ConnectionManager)
@@ -143,9 +144,9 @@ export class ServerConnection {
   tagRemote(p) { return { ...p, [REMOTE_FLAG]: true, serverUrl: this.url }; }
 
   // ── live events feed (project created/updated/deleted) ──
-  onEvent(cb) { this._eventCbs.add(cb); return () => this._eventCbs.delete(cb); }
+  onEvent(cb) { return this._bus.on('event', cb); }
 
-  _emit(msg) { for (const cb of this._eventCbs) { try { cb(msg, this); } catch { /* listener error */ } } }
+  _emit(msg) { this._bus.emit('event', msg, this); }
 
   _openEvents() {
     if (!this._WS) return; // no WebSocket (e.g. some test envs) — REST still works
