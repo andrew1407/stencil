@@ -3,6 +3,7 @@
 // else single-tab assumptions. Never touches localStorage — only relays small control
 // messages so the projects UI knows tab count, peers, and when another tab changed projects.
 import { MSG } from '../worker/messages.js';
+import { Emitter } from './emitter.js';
 
 const CHANNEL_NAME = 'stencil_projects';
 const READY_TIMEOUT_MS = 400;
@@ -12,11 +13,7 @@ export class TabsCoordinator {
   #port = null;
   #channel = null;
   #peerId = Math.random().toString(36).slice(2);
-  #tabCountCbs = new Set();
-  #peersCbs = new Set();
-  #projectsChangedCbs = new Set();
-  #accentCbs = new Set();
-  #incognitoCbs = new Set();
+  #bus = new Emitter();   // channels: tabCount | peers | projectsChanged | accent | incognitoPeers
 
   #activeId = null;
   #incognito = null;           // this tab's incognito session ({ name, updatedAt }) or null
@@ -40,11 +37,11 @@ export class TabsCoordinator {
   }
 
   // ── subscriptions ─────────────────────────────────────────────
-  onTabCount(cb) { this.#tabCountCbs.add(cb); return () => this.#tabCountCbs.delete(cb); }
-  onPeers(cb) { this.#peersCbs.add(cb); return () => this.#peersCbs.delete(cb); }
-  onProjectsChanged(cb) { this.#projectsChangedCbs.add(cb); return () => this.#projectsChangedCbs.delete(cb); }
-  onAccent(cb) { this.#accentCbs.add(cb); return () => this.#accentCbs.delete(cb); }
-  onIncognitoPeers(cb) { this.#incognitoCbs.add(cb); return () => this.#incognitoCbs.delete(cb); }
+  onTabCount(cb) { return this.#bus.on('tabCount', cb); }
+  onPeers(cb) { return this.#bus.on('peers', cb); }
+  onProjectsChanged(cb) { return this.#bus.on('projectsChanged', cb); }
+  onAccent(cb) { return this.#bus.on('accent', cb); }
+  onIncognitoPeers(cb) { return this.#bus.on('incognitoPeers', cb); }
 
   whenReady() { return this.#readyPromise; }
 
@@ -220,52 +217,12 @@ export class TabsCoordinator {
     this.#emitPeers(Array.from(this.#peerActive.values()).filter(id => id != null));
   }
 
-  // ── emit helpers ──────────────────────────────────────────────
-  #emitTabCount() {
-    for (const cb of this.#tabCountCbs) {
-      try {
-        cb(this.#lastTabCount);
-      } catch {
-        /* one subscriber threw — isolate it so the others still get notified */
-      }
-    }
-  }
-  #emitPeers(ids) {
-    for (const cb of this.#peersCbs) {
-      try {
-        cb(ids);
-      } catch {
-        /* one subscriber threw — isolate it so the others still get notified */
-      }
-    }
-  }
-  #emitProjectsChanged(detail = {}) {
-    for (const cb of this.#projectsChangedCbs) {
-      try {
-        cb(detail);
-      } catch {
-        /* one subscriber threw — isolate it so the others still get notified */
-      }
-    }
-  }
-  #emitAccent(key) {
-    for (const cb of this.#accentCbs) {
-      try {
-        cb(key);
-      } catch {
-        /* one subscriber threw — isolate it so the others still get notified */
-      }
-    }
-  }
-  #emitIncognitoPeers(sessions) {
-    for (const cb of this.#incognitoCbs) {
-      try {
-        cb(sessions);
-      } catch {
-        /* one subscriber threw — isolate it so the others still get notified */
-      }
-    }
-  }
+  // ── emit helpers (thin wrappers over the shared bus) ──────────
+  #emitTabCount() { this.#bus.emit('tabCount', this.#lastTabCount); }
+  #emitPeers(ids) { this.#bus.emit('peers', ids); }
+  #emitProjectsChanged(detail = {}) { this.#bus.emit('projectsChanged', detail); }
+  #emitAccent(key) { this.#bus.emit('accent', key); }
+  #emitIncognitoPeers(sessions) { this.#bus.emit('incognitoPeers', sessions); }
 
   #resolveReady() {
     if (this.#resolvedReady) return;
