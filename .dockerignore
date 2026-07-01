@@ -21,6 +21,12 @@ browser/js/wasm
 desktop
 extension
 
+# .NET bot: build output + local config. NEVER ship .env (it holds the bot token);
+# the token is supplied at runtime via -e TELEGRAM_BOT_TOKEN.
+**/.env
+bot/**/bin
+bot/**/obj
+
 # Docs / editor
 **/*.md
 .claude

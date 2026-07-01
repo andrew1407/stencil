@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. A fifth subproject, an **MCP server (`mcp/`, Rust)**, wraps the CLI rather than the core; a sixth, a **collaboration server (`server/`, Go)**, stores/shares projects and hosts live multi-client edit sessions over its own WS/TCP protocol. Each subproject has its own README with deeper detail; read the relevant one before working in it.
+Stencil is an image-annotation / drawing tool shipped as **one shared C++ logic core (`core/`) feeding four front-ends**: a browser app (vanilla ES modules), a desktop app (Qt 6), a CLI (Zig), and a companion Chrome extension (MV3) that feeds images into the browser editor. A fifth subproject, an **MCP server (`mcp/`, Rust)**, wraps the CLI rather than the core; a sixth, a **collaboration server (`server/`, Go)**, stores/shares projects and hosts live multi-client edit sessions over its own WS/TCP protocol; a seventh, a **stdlib-only Python package (`pystencil/`)**, recompiles the core and drives it via ctypes; and an eighth, a **Telegram bot (`bot/`, .NET)**, wraps the CLI + server REST behind a chat UI. Each subproject has its own README with deeper detail; read the relevant one before working in it.
 
 ```
 core/        C++17, STL-only, GUI-free shared logic (formulas, geometry, color, page metrics, crop, raster, history, projects)
@@ -15,9 +15,10 @@ extension/   Chrome MV3 extension — scans page images and hands them to browse
 mcp/         Rust MCP server — shells out to the cli/ binary; depends on the CLI's command contract, NOT on core/
 server/      Go collaboration server — stores/shares projects + live multi-client edit sessions over WS/TCP; Postgres + a secured file store, NOT on core/
 pystencil/   stdlib-only Python package — recompiles core/ sources and drives them over the extern "C" ABI via ctypes
+bot/         .NET Telegram bot (clean architecture) — shells out to the cli/ binary + speaks server/ REST, NOT on core/
 ```
 
-`mcp/` and `server/` are thin protocol adapters, not core consumers: they never link/recompile `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to them. `mcp/`'s only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output. `server/`'s contract is its REST + WebSocket/TCP wire protocol (`server/internal/protocol`), which the four front-ends mirror to connect, list/share projects, and edit collaboratively; it persists metadata in Postgres and bytes in a custom secured file store, and never touches `core/`.
+`mcp/`, `server/` and `bot/` are thin protocol adapters, not core consumers: they never link/recompile `core/`, so the parity contract below (STL-only core, source-list sync, wasm/JS-fallback alignment) does **not** extend to them. `mcp/`'s only contract is the CLI's documented flags and its `wrote {path} ({w}x{h})`/`error:` stderr output. `bot/` shares that same CLI contract (it ports `mcp/`'s argv/outcome adapters) plus the server REST routes it ports from `pystencil`. `server/`'s contract is its REST + WebSocket/TCP wire protocol (`server/internal/protocol`), which the four front-ends mirror to connect, list/share projects, and edit collaboratively; it persists metadata in Postgres and bytes in a custom secured file store, and never touches `core/`.
 
 ## Commands
 
@@ -32,6 +33,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e tests self-skip without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
 | **server** | `cd server && go build ./...` (→ `go run ./cmd/stencil-server`) | `go test ./...` (store/redisbus e2e self-skip without `DATABASE_URL`/`REDIS_URL`; `go test -race ./internal/hub/...`) | needs Postgres (`DATABASE_URL`) + optional Redis (`REDIS_URL`); see `server/.env.example` |
+| **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token/server/CLI/Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` in `bot/.env` + the CLI) |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
 - The browser app must be served over HTTP (ES modules refuse `file://`). Override host/port: `ADDR=0.0.0.0 PORT=3000 npm run serve`.
@@ -67,4 +69,4 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 
 ## CI
 
-`.github/workflows/ci.yml` runs eight independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), mcp (Rust, builds the CLI first for its gated e2e), and **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
+`.github/workflows/ci.yml` runs nine independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), mcp (Rust, builds the CLI first for its gated e2e), **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests), and **bot** (.NET build + the offline xUnit suite for the Telegram bot). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.

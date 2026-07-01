@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Stencil.TelegramBot.Application/Stencil.TelegramBot.Application.csproj" />
+    <Project Path="src/Stencil.TelegramBot.Bot/Stencil.TelegramBot.Bot.csproj" />
+    <Project Path="src/Stencil.TelegramBot.Domain/Stencil.TelegramBot.Domain.csproj" />
+    <Project Path="src/Stencil.TelegramBot.Infrastructure/Stencil.TelegramBot.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Stencil.TelegramBot.Tests/Stencil.TelegramBot.Tests.csproj" />
+  </Folder>
+</Solution>

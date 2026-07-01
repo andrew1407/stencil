@@ -88,3 +88,10 @@ __pycache__/
 *.egg-info/
 dist/
 .pytest_cache/
+
+# .NET Telegram bot (bot/): build output + per-machine config. bin/ and obj/ are
+# `dotnet build` output; the committed bot/.env.example is the template, the real
+# bot/.env (holding the bot token) is never committed.
+bot/**/bin/
+bot/**/obj/
+bot/.env
