@@ -11,7 +11,7 @@ An image annotation / drawing tool: load an image, draw polylines and rectangles
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
 optional `f(x,y)` formula transforms, and save your work.
 
-Stencil ships as **three front-ends over one shared logic core**:
+Stencil ships as **one shared logic core with a family of front-ends and services**:
 
 | App | Path | Stack | Docs |
 |---|---|---|---|
@@ -170,3 +170,8 @@ For a tool-protocol integration that works with **any** MCP client (Claude Code,
 Desktop, or your own agent), the **MCP server** ([`mcp/`](mcp/)) exposes the same editing
 pipeline as `stencil_edit` / `stencil_probe` tools over stdio — register it with
 `claude mcp add stencil -- /path/to/stencil-mcp`. See [mcp/README.md](mcp/README.md).
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). The software is provided "AS IS",
+without warranties or conditions of any kind.

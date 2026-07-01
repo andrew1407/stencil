@@ -116,6 +116,17 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
   admin token.
 - WebSocket/TCP connections must authenticate with a `hello` token before joining
   any session; unauthenticated connections are closed.
+- **Authorization is coarse by design: a valid token grants access to _every_
+  project.** This is the intended shared-collaboration model — there is no
+  per-project ownership check, so any client holding any valid token can
+  read/write/delete any project (REST) and join/edit/save any session (WS/TCP).
+  Treat a token as full access to the whole server, and issue tokens only to
+  clients you trust with all projects.
+- **Production hardening.** The dev defaults are deliberately permissive: when
+  `ADMIN_TOKEN` is empty, `POST /auth/token` issues tokens to anyone, and
+  `CORS_ORIGINS` defaults to `*`. For anything beyond localhost/dev, **set
+  `ADMIN_TOKEN`** to gate token issuance and **set `CORS_ORIGINS`** to an explicit
+  allowlist of your front-end origins.
 - The file store never touches a client-supplied filename: paths are derived from
   a validated project-id allowlist plus a fixed `original`/`result` kind, run
   through `safeJoin` (clean + root-prefix re-check + symlink-escape guard), and
