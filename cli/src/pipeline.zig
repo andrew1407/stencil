@@ -250,6 +250,13 @@ pub fn writeOutput(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []
 // ── source acquisition ───────────────────────────────────────────────────────
 
 fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) ![]u8 {
+    // Only http(s) URLs and local paths are accepted. Reject any other scheme up front so a
+    // `.mp4`-looking `ftp://`/`file://`/`rtmp://` string can never be handed to ffmpeg, whose
+    // protocol surface is far wider than our in-process fetcher.
+    if (net.hasForeignScheme(input)) {
+        logo.print("error: unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
+        return error.UnsupportedScheme;
+    }
     if (video.looksLikeVideo(input)) {
         return video.extractFrame(gpa, io, input, frame) catch |e| return mapMediaError(e);
     }

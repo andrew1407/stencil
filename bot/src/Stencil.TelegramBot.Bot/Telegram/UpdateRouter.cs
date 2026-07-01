@@ -6,6 +6,7 @@ using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Infrastructure.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -26,6 +27,8 @@ public sealed class UpdateRouter
     private readonly IEditingService _editing;
     private readonly ISessionStore _store;
     private readonly ITelegramBotClient _bot;
+    private readonly UserGate _gate;
+    private readonly BotOptions _options;
     private readonly ILogger<UpdateRouter> _logger;
 
     public UpdateRouter(
@@ -34,6 +37,8 @@ public sealed class UpdateRouter
         IEditingService editing,
         ISessionStore store,
         ITelegramBotClient bot,
+        UserGate gate,
+        BotOptions options,
         ILogger<UpdateRouter> logger)
     {
         _handlers = handlers;
@@ -41,15 +46,26 @@ public sealed class UpdateRouter
         _editing = editing;
         _store = store;
         _bot = bot;
+        _gate = gate;
+        _options = options;
         _logger = logger;
     }
 
     /// <summary>Route one incoming message (slash command, photo, or document).</summary>
+    /// <remarks>
+    /// The whole route runs under the user's <see cref="UserGate"/> so a burst of updates from the
+    /// same user is processed one at a time — the session's read-modify-write edits can't race and
+    /// lose each other. Different users are unaffected (independent gates).
+    /// </remarks>
     public async Task HandleMessageAsync(Message message, CancellationToken ct)
     {
         long chatId = message.Chat.Id;
         long userId = message.From?.Id ?? chatId;
-        await SafeAsync(chatId, () => RouteMessageAsync(userId, chatId, message, ct), ct);
+        await SafeAsync(chatId, async () =>
+        {
+            using IDisposable gate = await _gate.AcquireAsync(userId, ct);
+            await RouteMessageAsync(userId, chatId, message, ct);
+        }, ct);
     }
 
     /// <summary>Route one non-message update — only callback queries are acted on here.</summary>
@@ -60,7 +76,12 @@ public sealed class UpdateRouter
             return;
         }
         long chatId = query.Message?.Chat.Id ?? query.From.Id;
-        await SafeAsync(chatId, () => _callbacks.HandleAsync(query, ct), ct);
+        long userId = query.From.Id;
+        await SafeAsync(chatId, async () =>
+        {
+            using IDisposable gate = await _gate.AcquireAsync(userId, ct);
+            await _callbacks.HandleAsync(query, ct);
+        }, ct);
     }
 
     /// <summary>The message-shape switch, run inside the error guard.</summary>
@@ -286,21 +307,34 @@ public sealed class UpdateRouter
         }
     }
 
-    /// <summary>Download a Telegram file's bytes into memory.</summary>
+    /// <summary>Download a Telegram file's bytes into memory, capped at the configured limit.</summary>
     private async Task<byte[]> DownloadBytesAsync(string fileId, CancellationToken ct)
     {
         using MemoryStream stream = new();
-        await _bot.GetInfoAndDownloadFile(fileId, stream, ct);
+        await using (CappingWriteStream capped = new(stream, _options.MaxDownloadBytes))
+        {
+            await _bot.GetInfoAndDownloadFile(fileId, capped, ct);
+        }
         return stream.ToArray();
     }
 
-    /// <summary>Download a Telegram file to a fresh temp path with the given extension.</summary>
+    /// <summary>
+    /// Download a Telegram file to a fresh temp path with the given extension, capped at the
+    /// configured limit. A partial file from an over-limit or failed download is cleaned up.
+    /// </summary>
     private async Task<string> DownloadToTempAsync(string fileId, string extension, CancellationToken ct)
     {
         string path = Path.Combine(Path.GetTempPath(), $"stencil-bot-{Guid.NewGuid():N}{extension}");
-        await using (FileStream stream = File.Create(path))
+        try
         {
-            await _bot.GetInfoAndDownloadFile(fileId, stream, ct);
+            await using FileStream stream = File.Create(path);
+            await using CappingWriteStream capped = new(stream, _options.MaxDownloadBytes);
+            await _bot.GetInfoAndDownloadFile(fileId, capped, ct);
+        }
+        catch
+        {
+            TryDelete(path);
+            throw;
         }
         return path;
     }

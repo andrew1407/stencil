@@ -12,14 +12,22 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 /// faithful port of <c>mcp/src/pipeline.rs</c>. All pixel work happens in the CLI/core, so
 /// output is identical to the browser, desktop, CLI and Python front-ends by construction.
 /// </summary>
+/// <remarks>
+/// Every edit and probe is a separate OS process, so a burst of concurrent users could otherwise
+/// spawn an unbounded pile of them. A process-wide semaphore (sized by
+/// <see cref="BotOptions.MaxConcurrentCli"/>) caps how many run at once; excess spawns wait their
+/// turn. This adapter is a DI singleton, so the gate is shared across all users.
+/// </remarks>
 public sealed class ProcessStencilCli : IStencilCli
 {
     private readonly BotOptions _options;
+    private readonly SemaphoreSlim _spawnGate;
 
     /// <summary>Create the adapter bound to the given configuration (for the CLI path).</summary>
     public ProcessStencilCli(BotOptions options)
     {
         _options = options;
+        _spawnGate = new SemaphoreSlim(options.MaxConcurrentCli, options.MaxConcurrentCli);
     }
 
     /// <summary>
@@ -79,40 +87,52 @@ public sealed class ProcessStencilCli : IStencilCli
         }
     }
 
-    /// <summary>Locate the CLI and run it with the given argv, capturing stderr.</summary>
+    /// <summary>
+    /// Locate the CLI and run it with the given argv, capturing stderr. Bounded by
+    /// <see cref="_spawnGate"/> so no more than <see cref="BotOptions.MaxConcurrentCli"/> processes
+    /// run concurrently across the whole bot.
+    /// </summary>
     private async Task<CliOutput> SpawnAsync(IReadOnlyList<string> argv, CancellationToken ct)
     {
-        string bin = StencilCliLocator.FindCli(_options.CliPath);
-        ProcessStartInfo info = new()
-        {
-            FileName = bin,
-            UseShellExecute = false,
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-        };
-        foreach (string arg in argv)
-        {
-            info.ArgumentList.Add(arg);
-        }
-        info.Environment["NO_COLOR"] = "1";
-
-        using Process process = new() { StartInfo = info };
+        await _spawnGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            process.Start();
+            string bin = StencilCliLocator.FindCli(_options.CliPath);
+            ProcessStartInfo info = new()
+            {
+                FileName = bin,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+            };
+            foreach (string arg in argv)
+            {
+                info.ArgumentList.Add(arg);
+            }
+            info.Environment["NO_COLOR"] = "1";
+
+            using Process process = new() { StartInfo = info };
+            try
+            {
+                process.Start();
+            }
+            catch (Exception e)
+            {
+                throw new StencilCliException($"failed to run the stencil CLI ({bin}): {e.Message}");
+            }
+
+            Task<string> stderrTask = process.StandardError.ReadToEndAsync(ct);
+            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            string stderr = await stderrTask.ConfigureAwait(false);
+            await stdoutTask.ConfigureAwait(false);
+
+            return new CliOutput(process.ExitCode == 0, stderr);
         }
-        catch (Exception e)
+        finally
         {
-            throw new StencilCliException($"failed to run the stencil CLI ({bin}): {e.Message}");
+            _spawnGate.Release();
         }
-
-        Task<string> stderrTask = process.StandardError.ReadToEndAsync(ct);
-        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-        string stderr = await stderrTask.ConfigureAwait(false);
-        await stdoutTask.ConfigureAwait(false);
-
-        return new CliOutput(process.ExitCode == 0, stderr);
     }
 
     /// <summary>Best-effort cleanup of the throwaway probe file.</summary>

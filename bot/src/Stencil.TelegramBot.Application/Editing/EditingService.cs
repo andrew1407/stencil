@@ -46,6 +46,9 @@ public sealed class EditingService : IEditingService
     /// <inheritdoc />
     public async Task<UserSession> SetImageFromUrlAsync(long userId, string url, string label, CancellationToken ct = default)
     {
+        // The bot is open to any Telegram user, so vet the link before the CLI fetches it:
+        // reject non-http(s) schemes, bare local paths, and private/loopback/metadata hosts.
+        await RemoteImageUrl.ValidateAsync(url, ct);
         var session = await _store.GetAsync(userId, ct);
         var output = _workspace.NewFilePath(userId, ".png");
         var request = new EditRequest

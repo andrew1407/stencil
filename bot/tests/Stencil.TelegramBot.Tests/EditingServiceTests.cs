@@ -217,6 +217,17 @@ public sealed class EditingServiceTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ExtractFrameAsync(UserId, 0));
     }
 
+    [Theory]
+    [InlineData("http://127.0.0.1/secret.png")] // SSRF to loopback
+    [InlineData("ftp://example.com/a.png")]      // non-http scheme
+    [InlineData("/etc/passwd.png")]              // bare local path (LFI)
+    public async Task SetImageFromUrlRejectsUnsafeSourcesWithoutInvokingTheCli(string url)
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.SetImageFromUrlAsync(UserId, url, "img"));
+        Assert.Equal(0, _cli.EditCalls); // the CLI never fetched it
+    }
+
     [Fact]
     public async Task ExportLayoutJsonEmitsExpectedFields()
     {
