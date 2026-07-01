@@ -32,10 +32,12 @@ TelegramBotClient client = new(options.BotToken);
 services.AddSingleton(client);
 services.AddSingleton<ITelegramBotClient>(client);
 services.AddSingleton<SyncRegistry>();
+services.AddSingleton<UserGate>();
 services.AddSingleton<CommandHandlers>();
 services.AddSingleton<CallbackAction>();
 services.AddSingleton<UpdateRouter>();
 services.AddSingleton<SyncWatcher>();
+services.AddSingleton<WorkspaceJanitor>();
 
 await using ServiceProvider provider = services.BuildServiceProvider();
 ILogger<Program> logger = provider.GetRequiredService<ILogger<Program>>();
@@ -60,6 +62,10 @@ bot.OnError += (exception, source) =>
 // Background live-sync poller (auto-pull peers' changes for /sync-enabled users).
 SyncWatcher watcher = provider.GetRequiredService<SyncWatcher>();
 Task syncLoop = watcher.RunAsync(cts.Token);
+
+// Background sweeper that clears orphaned per-user scratch files once they age past the TTL.
+WorkspaceJanitor janitor = provider.GetRequiredService<WorkspaceJanitor>();
+Task janitorLoop = janitor.RunAsync(cts.Token);
 
 Telegram.Bot.Types.User me = await bot.GetMe(cts.Token);
 logger.LogInformation("@{Username} started", me.Username);

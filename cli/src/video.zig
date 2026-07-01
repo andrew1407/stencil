@@ -28,11 +28,19 @@ pub fn extractFrame(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: 
     var filter_buf: [48]u8 = undefined;
     const select = try std.fmt.bufPrint(&filter_buf, "select=eq(n\\,{d})", .{frame});
 
+    // Constrain ffmpeg's protocol surface (it defaults to file/http/ftp/rtmp/concat/… and can
+    // chase playlist/demuxer references). A local source only needs `file`; a remote http(s)
+    // source is denied `file` so a malicious playlist can't pivot into reading local files.
+    const remote = std.ascii.startsWithIgnoreCase(src, "http://") or
+        std.ascii.startsWithIgnoreCase(src, "https://");
+    const whitelist = if (remote) "http,https,tcp,tls,crypto" else "file";
+
     const argv = [_][]const u8{
-        "ffmpeg",     "-nostdin", "-loglevel", "error",
-        "-i",         src,        "-vf",       select,
-        "-frames:v",  "1",        "-f",        "image2pipe",
-        "-vcodec",    "png",      "-",
+        "ffmpeg",     "-nostdin",           "-loglevel", "error",
+        "-protocol_whitelist", whitelist,   "-i",        src,
+        "-vf",        select,               "-frames:v", "1",
+        "-f",         "image2pipe",         "-vcodec",   "png",
+        "-",
     };
 
     const res = std.process.run(gpa, io, .{ .argv = &argv }) catch |e| switch (e) {

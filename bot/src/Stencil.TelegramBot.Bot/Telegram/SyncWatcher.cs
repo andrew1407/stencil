@@ -21,6 +21,7 @@ public sealed class SyncWatcher
     private readonly ISessionStore _store;
     private readonly CommandHandlers _handlers;
     private readonly ITelegramBotClient _bot;
+    private readonly UserGate _gate;
     private readonly ILogger<SyncWatcher> _logger;
 
     public SyncWatcher(
@@ -29,6 +30,7 @@ public sealed class SyncWatcher
         ISessionStore store,
         CommandHandlers handlers,
         ITelegramBotClient bot,
+        UserGate gate,
         ILogger<SyncWatcher> logger)
     {
         _registry = registry;
@@ -36,6 +38,7 @@ public sealed class SyncWatcher
         _store = store;
         _handlers = handlers;
         _bot = bot;
+        _gate = gate;
         _logger = logger;
     }
 
@@ -72,6 +75,9 @@ public sealed class SyncWatcher
     {
         foreach (var (userId, chatId) in _registry.Entries())
         {
+            // Hold the user's gate for the whole pull so a background refresh can't interleave with
+            // (and clobber, or be clobbered by) an interactive edit the same user sends mid-tick.
+            using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             UserSession session = await _store.GetAsync(userId, ct);
             if (!session.SyncEnabled || session.ActiveProjectId is null)
             {

@@ -11,6 +11,24 @@ pub fn isUrl(s: []const u8) bool {
         std.ascii.startsWithIgnoreCase(s, "https://");
 }
 
+/// True when `s` carries a URL scheme (`scheme://…`) OTHER than http/https — e.g.
+/// `ftp://`, `file://`, `rtmp://`. These must never reach ffmpeg (whose protocol surface is
+/// far wider than this in-process http(s) client), so the pipeline rejects them up front.
+/// A bare local path (no scheme) or an http(s) URL returns false.
+pub fn hasForeignScheme(s: []const u8) bool {
+    if (isUrl(s)) return false;
+    const sep = std.mem.indexOf(u8, s, "://") orelse return false;
+    if (sep == 0) return false;
+    // Only treat the prefix as a scheme when it is ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ),
+    // so a path that merely contains "://" is not misread as a foreign URL.
+    for (s[0..sep], 0..) |c, i| {
+        const ok = std.ascii.isAlphabetic(c) or
+            (i > 0 and (std.ascii.isDigit(c) or c == '+' or c == '-' or c == '.'));
+        if (!ok) return false;
+    }
+    return true;
+}
+
 /// GET `url`, returning the owned response body bytes.
 pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8) ![]u8 {
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
@@ -41,4 +59,17 @@ test "isUrl" {
     try testing.expect(isUrl("https://example.com/a.png"));
     try testing.expect(isUrl("HTTP://x"));
     try testing.expect(!isUrl("/local/path.png"));
+}
+
+test "hasForeignScheme" {
+    // Foreign schemes are rejected …
+    try testing.expect(hasForeignScheme("ftp://host/clip.mp4"));
+    try testing.expect(hasForeignScheme("file:///etc/passwd.mp4"));
+    try testing.expect(hasForeignScheme("rtmp://host/live"));
+    // … while http(s) URLs and bare local paths are not.
+    try testing.expect(!hasForeignScheme("https://example.com/v.mp4"));
+    try testing.expect(!hasForeignScheme("http://h/v.webm?token=1"));
+    try testing.expect(!hasForeignScheme("/home/me/clip.mp4"));
+    try testing.expect(!hasForeignScheme("clip.mp4"));
+    try testing.expect(!hasForeignScheme("a/b://c")); // not a scheme prefix
 }
