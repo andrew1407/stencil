@@ -36,13 +36,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Cross-platform Qt install. The main CI uses the distro package on Linux,
-      # but a release matrix spans three OSes, so we use the standard Qt install
-      # action here to get an identical Qt across all of them.
+      # Cross-platform Qt install: one identical Qt across all three OSes (the main
+      # CI uses the distro package on Linux). 6.9 is the floor — the macos-latest
+      # runner moved to macOS 26 (Tahoe), whose SDK dropped AGL; Qt <= 6.9.1 still
+      # links `-framework AGL` in Qt6::Gui, failing any Widgets/Gui link. Fixed in
+      # 6.8.4 / 6.9.2 (QTBUG-137687).
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.*'
+          version: '6.9.*'
           # qtmultimedia backs the --src video-frame grab; the desktop CMakeLists
           # requires the Multimedia component, so it must be installed alongside
           # qtbase or STENCIL_REQUIRE_QT configure fails to find Qt6Multimedia.
