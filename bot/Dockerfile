@@ -32,8 +32,11 @@ RUN cd cli && zig build -Doptimize=ReleaseFast
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src/bot
 COPY bot/ ./
-# Restores project-local NuGet packages (Telegram.Bot, StackExchange.Redis, …) on demand.
-RUN dotnet publish src/Stencil.TelegramBot.Bot/Stencil.TelegramBot.Bot.csproj -c Release -o /app
+# nuget.config (copied above) pins globalPackagesFolder to ./packages, so this restore
+# pulls Telegram.Bot, StackExchange.Redis, … into an image-local bot/packages/ folder
+# rather than any global cache. --packages is passed too so it holds even if the config
+# is ever dropped.
+RUN dotnet publish src/Stencil.TelegramBot.Bot/Stencil.TelegramBot.Bot.csproj -c Release -o /app --packages packages
 
 # ---- Stage 3: runtime ------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/runtime:10.0

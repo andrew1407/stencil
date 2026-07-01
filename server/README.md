@@ -33,6 +33,16 @@ Standard library for everything except, by design decision:
 HTTP routing, JSON, crypto (tokens, hashing), TLS, and the TCP transport are all
 stdlib.
 
+These three modules (and their transitive `// indirect` deps) are **vendored locally**:
+run `go mod vendor` once to populate `server/vendor/`, and every `go build`/`go test`
+uses that copy automatically instead of the machine-global module cache (`~/go/pkg/mod`).
+The folder is git-ignored (node_modules-style) — re-run `go mod vendor` after changing
+`go.mod`. `go.sum` stays committed. To prove a build never leaves the vendored copy:
+
+```bash
+GOFLAGS=-mod=vendor GOPROXY=off go build ./...   # offline, from server/vendor/
+```
+
 ## Layout
 
 ```

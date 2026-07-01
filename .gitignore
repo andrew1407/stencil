@@ -76,10 +76,13 @@ mcp/.env
 
 # Go collaboration server (server/). Local config + filestore data + any built binary.
 # The committed server/.env.example is the template; the real server/.env is never
-# committed. go.sum IS committed.
+# committed. go.sum IS committed. vendor/ is the local dependency copy produced by
+# `go mod vendor` (node_modules-style: regenerated on demand, not committed); Go builds
+# use it automatically instead of the machine-global module cache (~/go/pkg/mod).
 server/.env
 server/data/
 server/stencil-server
+server/vendor/
 
 # Python package (pystencil/): on-demand compiled core artifact + Python build cruft.
 pystencil/pystencil/_native/
@@ -91,7 +94,10 @@ dist/
 
 # .NET Telegram bot (bot/): build output + per-machine config. bin/ and obj/ are
 # `dotnet build` output; the committed bot/.env.example is the template, the real
-# bot/.env (holding the bot token) is never committed.
+# bot/.env (holding the bot token) is never committed. packages/ is the repo-local
+# NuGet restore folder (see bot/nuget.config): node_modules-style, refilled by
+# `dotnet restore` instead of the machine-global ~/.nuget/packages cache — not committed.
 bot/**/bin/
 bot/**/obj/
 bot/.env
+bot/packages/
