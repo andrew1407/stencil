@@ -1,0 +1,10 @@
+# The server image's build context is server/ (`docker build -t stencil-server server/`),
+# so the repo-root .dockerignore does not apply here. Keep the context clean and let the
+# image resolve dependencies into its own module cache (never a host cache):
+.env
+data
+stencil-server
+
+# Local dependency copy from `go mod vendor` — git-ignored and NOT shipped; the image
+# uses `go mod download` into its own layer, so a stale local vendor/ must not leak in.
+vendor

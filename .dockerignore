@@ -22,10 +22,15 @@ desktop
 extension
 
 # .NET bot: build output + local config. NEVER ship .env (it holds the bot token);
-# the token is supplied at runtime via -e TELEGRAM_BOT_TOKEN.
+# the token is supplied at runtime via -e TELEGRAM_BOT_TOKEN. packages/ is the host's
+# local NuGet restore cache — the image restores its own copy, so keep it out of context.
 **/.env
 bot/**/bin
 bot/**/obj
+bot/packages
+
+# Go server: local dependency copy from `go mod vendor` (not shipped in these images).
+server/vendor
 
 # Docs / editor
 **/*.md
