@@ -228,3 +228,27 @@ jobs:
         env:
           DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
           REDIS_URL: redis://localhost:6379/0
+
+  # ── Bot: .NET Telegram bot (clean architecture over the CLI + server REST) ─────
+  # A protocol adapter like mcp/ — it shells out to the `stencil` CLI and speaks the
+  # server's REST contract, and does NOT compile core/. The test suite is fully
+  # offline (no token, server, CLI binary or Redis), so this job only needs the
+  # .NET SDK. Restored NuGet packages are project-local <PackageReference>s.
+  bot:
+    name: Bot (.NET build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        working-directory: bot
+        run: dotnet restore Stencil.TelegramBot.slnx
+      - name: Build
+        working-directory: bot
+        run: dotnet build Stencil.TelegramBot.slnx --no-restore --configuration Release
+      - name: Test
+        working-directory: bot
+        run: dotnet test Stencil.TelegramBot.slnx --no-build --configuration Release --verbosity normal

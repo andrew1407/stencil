@@ -22,6 +22,7 @@ Stencil ships as **three front-ends over one shared logic core**:
 | **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes (no third-party deps) | [pystencil/README.md](pystencil/README.md) |
 | **MCP server** | [`mcp/`](mcp/) | Rust, exposes the CLI's pipeline as MCP tools | [mcp/README.md](mcp/README.md) |
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions (WS/TCP, Postgres) | [server/README.md](server/README.md) |
+| **Telegram bot** | [`bot/`](bot/) | .NET (C#), clean architecture; chat-driven editing — shells out to the CLI + speaks the server REST | [bot/README.md](bot/README.md) |
 
 A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
@@ -37,10 +38,12 @@ graph TD
     CORE -->|"recompiled · C ABI via ctypes"| PY["<b>Python package</b><br/>pystencil — stdlib only"]
     WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
     CLI -->|"shell-out · MCP stdio"| MCP["<b>MCP server</b><br/>Rust — tools for any MCP client"]
+    CLI -->|"shell-out · Telegram Bot API"| BOT["<b>Telegram bot</b><br/>.NET — chat-driven editing"]
     WEB -.->|"connect · REST + WS"| SRV["<b>Collaboration server</b><br/>Go — shared projects + live edit"]
     DESK -.->|"connect · REST + TCP"| SRV
     CLI -.->|"connect · REST + TCP"| SRV
     PY -.->|"connect · REST + TCP"| SRV
+    BOT -.->|"connect · REST"| SRV
 ```
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**
@@ -110,6 +113,11 @@ extension/            # companion Chrome extension (MV3) for the browser editor
   tests/              # node:test unit tests (pure filtering + crop geometry)
   package.json
   README.md
+bot/                  # Telegram bot (.NET, clean architecture) — wraps the CLI + server REST
+  src/                # Domain · Application · Infrastructure · Bot (host)
+  tests/              # xUnit suite (offline: no token/server/CLI/Redis)
+  assets/             # raster icon + 640×360 description photo for @BotFather
+  .env.example  README.md
 ```
 
 ## Development
@@ -127,17 +135,20 @@ HTTP client (native TLS) and shells out to the system **ffmpeg** only for video 
 - Build, test & run the CLI → [cli/README.md](cli/README.md)
 - Build & test the Python package → [pystencil/README.md](pystencil/README.md) (`cd pystencil && python3 build.py && python3 -m unittest discover -s tests`)
 - Build, test & run the MCP server → [mcp/README.md](mcp/README.md)
+- Build, test & run the Telegram bot → [bot/README.md](bot/README.md) (`cd bot && dotnet test Stencil.TelegramBot.slnx`)
 - Load & test the Chrome extension → [extension/README.md](extension/README.md)
 
-**Docker.** Three subprojects ship a multi-stage `Dockerfile`
+**Docker.** Four subprojects ship a multi-stage `Dockerfile`
 ([`browser/`](browser/Dockerfile) — wasm build + nginx; [`cli/`](cli/Dockerfile) — Zig
-build + ffmpeg runtime; [`mcp/`](mcp/Dockerfile) — Zig CLI + Rust server). All compile
-`core/`, so **build from the repo root**:
+build + ffmpeg runtime; [`mcp/`](mcp/Dockerfile) — Zig CLI + Rust server;
+[`bot/`](bot/Dockerfile) — Zig CLI + .NET Telegram bot). All compile `core/`, so **build
+from the repo root**:
 
 ```bash
 docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser
 docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
 docker build -f mcp/Dockerfile -t stencil-mcp . && docker run --rm -i -v "$PWD:/work" -w /work stencil-mcp
+docker build -f bot/Dockerfile -t stencil-bot . && docker run --rm -e TELEGRAM_BOT_TOKEN=123:abc stencil-bot
 ```
 
 ## Claude Code integration
