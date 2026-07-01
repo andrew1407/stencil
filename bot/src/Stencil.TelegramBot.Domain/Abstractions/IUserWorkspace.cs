@@ -18,4 +18,14 @@ public interface IUserWorkspace
 
     /// <summary>Delete every file for a user (called on /reset).</summary>
     void Clear(long userId);
+
+    /// <summary>The ids of every user that currently has a scratch directory on disk.</summary>
+    IReadOnlyList<long> ActiveUserIds();
+
+    /// <summary>
+    /// Delete a user's scratch files that are not in <paramref name="keep"/> and were last written
+    /// before <paramref name="cutoffUtc"/> — the orphaned render/layout artifacts a session no
+    /// longer references. Referenced files are kept regardless of age. Returns the number deleted.
+    /// </summary>
+    int PruneStale(long userId, IReadOnlyCollection<string> keep, DateTime cutoffUtc);
 }

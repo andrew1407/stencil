@@ -95,6 +95,17 @@ bot/
   working image.
 - **Sessions** live in Redis when `REDIS_URL` is set (the same store the Go server uses for
   fan-out), else in an in-memory map — so dev and tests need no external services.
+- **Load handling.** Session edits are read-modify-write, so a `UserGate` serializes each user's
+  updates (both interactive routing and the background sync pull) — one user's bursts can't race
+  and lose edits, while different users stay concurrent. A process-wide semaphore
+  (`STENCIL_BOT_MAX_CONCURRENT_CLI`) caps how many CLI processes run at once, so a crowd of
+  simultaneous edits queues instead of forking an unbounded pile of processes. Both are
+  single-instance; scaling out would move them to a distributed lock/limiter.
+- **Resource bounds.** Outbound REST calls carry a timeout (`STENCIL_BOT_HTTP_TIMEOUT_SECONDS`)
+  and `/url` host resolution a 5s cap, so a slow peer can't wedge a handler; Telegram downloads are
+  size-capped (`STENCIL_BOT_MAX_DOWNLOAD_MB`) to bound memory/disk; and a background `WorkspaceJanitor`
+  sweeps each user's orphaned render/layout artifacts once they age past
+  `STENCIL_BOT_WORKSPACE_TTL_MINUTES` (the session's live image/video are never swept).
 
 ## Configuration
 
@@ -113,6 +124,10 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state |
 | `STENCIL_BOT_DATA_DIR` | `<temp>/stencil-bot` | Scratch dir for working images |
 | `STENCIL_TLS_INSECURE` | `false` | Accept self-signed certs for `https` servers (dev) |
+| `STENCIL_BOT_MAX_CONCURRENT_CLI` | CPU count | Cap on concurrent CLI processes (per-process) |
+| `STENCIL_BOT_HTTP_TIMEOUT_SECONDS` | `30` | Per-request timeout for server REST calls |
+| `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram download |
+| `STENCIL_BOT_WORKSPACE_TTL_MINUTES` | `60` | Age after which orphaned scratch files are swept |
 
 ## Build · test · run
 

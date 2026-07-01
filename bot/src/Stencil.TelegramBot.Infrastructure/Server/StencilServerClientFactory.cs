@@ -1,5 +1,6 @@
 using System.Net.Security;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
@@ -16,15 +17,26 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     // and never disposed, so a per-call handler would leak its whole connection pool.
     private readonly Lazy<SocketsHttpHandler> _verifying = new(() => new SocketsHttpHandler());
     private readonly Lazy<SocketsHttpHandler> _insecure = new(CreateInsecureHandler);
+    private readonly TimeSpan _timeout;
+
+    /// <summary>Build the factory, taking the per-request REST timeout from configuration.</summary>
+    public StencilServerClientFactory(BotOptions options)
+    {
+        _timeout = options.ServerHttpTimeout;
+    }
 
     /// <summary>
     /// Create a client for <paramref name="url"/> over an <see cref="HttpClient"/> whose server
-    /// certificate validation is bypassed when <paramref name="verifyTls"/> is false.
+    /// certificate validation is bypassed when <paramref name="verifyTls"/> is false. The client
+    /// carries the configured request timeout so a slow server can't block a handler indefinitely.
     /// </summary>
     public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true)
     {
         SocketsHttpHandler handler = (verifyTls ? _verifying : _insecure).Value;
-        HttpClient http = new(handler, disposeHandler: false);
+        HttpClient http = new(handler, disposeHandler: false)
+        {
+            Timeout = _timeout,
+        };
         return new HttpStencilServerClient(http, NormalizeUrl(url), token);
     }
 

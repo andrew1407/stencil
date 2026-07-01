@@ -59,6 +59,77 @@ public sealed class UserWorkspace : IUserWorkspace
         }
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<long> ActiveUserIds()
+    {
+        if (!Directory.Exists(_options.DataDir))
+        {
+            return Array.Empty<long>();
+        }
+        List<long> ids = new();
+        foreach (string dir in Directory.EnumerateDirectories(_options.DataDir))
+        {
+            if (long.TryParse(Path.GetFileName(dir), out long userId))
+            {
+                ids.Add(userId);
+            }
+        }
+        return ids;
+    }
+
+    /// <inheritdoc />
+    public int PruneStale(long userId, IReadOnlyCollection<string> keep, DateTime cutoffUtc)
+    {
+        string dir = Path.Combine(_options.DataDir, userId.ToString());
+        if (!Directory.Exists(dir))
+        {
+            return 0;
+        }
+        HashSet<string> kept = new(keep.Select(NormalizePath), StringComparer.Ordinal);
+        int deleted = 0;
+        foreach (string file in Directory.EnumerateFiles(dir))
+        {
+            if (kept.Contains(NormalizePath(file)))
+            {
+                continue; // still referenced by the session — never sweep it
+            }
+            if (File.GetLastWriteTimeUtc(file) >= cutoffUtc)
+            {
+                continue; // too recent — could be an in-flight render being sent right now
+            }
+            try
+            {
+                File.Delete(file);
+                deleted++;
+            }
+            catch
+            {
+                // Best effort — a file we couldn't delete this pass is retried next sweep.
+            }
+        }
+        TryRemoveIfEmpty(dir);
+        return deleted;
+    }
+
+    /// <summary>Canonicalise a path for reference comparison (absolute, OS-native separators).</summary>
+    private static string NormalizePath(string path) => Path.GetFullPath(path);
+
+    /// <summary>Remove a now-empty user directory so abandoned users leave nothing behind.</summary>
+    private static void TryRemoveIfEmpty(string dir)
+    {
+        try
+        {
+            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+            {
+                Directory.Delete(dir);
+            }
+        }
+        catch
+        {
+            // Harmless — a directory we couldn't remove is retried next sweep.
+        }
+    }
+
     /// <summary>Normalise an extension to a leading-dot form (<c>png</c> → <c>.png</c>); blank ⇒ none.</summary>
     private static string NormalizeExtension(string extension)
     {
