@@ -216,15 +216,27 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          # go.sum lives under server/, not the repo root — point the built-in module
+          # download cache at it so caching keys correctly.
+          cache-dependency-path: server/go.sum
+      # vendor/ is git-ignored (the local dependency model), so materialize it on the
+      # runner and build/vet/test with -mod=vendor. This exercises the same vendored
+      # path used for local dev and fails if go.mod requires a module the vendor tree
+      # can't supply; `go mod verify` checks the modules against go.sum.
+      - name: Vendor dependencies
+        working-directory: server
+        run: |
+          go mod vendor
+          go mod verify
       - name: Build
         working-directory: server
-        run: go build ./...
+        run: go build -mod=vendor ./...
       - name: Vet
         working-directory: server
-        run: go vet ./...
+        run: go vet -mod=vendor ./...
       - name: Test (with race detector)
         working-directory: server
-        run: go test -race ./...
+        run: go test -race -mod=vendor ./...
         env:
           DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
           REDIS_URL: redis://localhost:6379/0
@@ -233,7 +245,8 @@ jobs:
   # A protocol adapter like mcp/ — it shells out to the `stencil` CLI and speaks the
   # server's REST contract, and does NOT compile core/. The test suite is fully
   # offline (no token, server, CLI binary or Redis), so this job only needs the
-  # .NET SDK. Restored NuGet packages are project-local <PackageReference>s.
+  # .NET SDK. bot/nuget.config restores the <PackageReference>s into a repo-local
+  # bot/packages/ folder (git-ignored) rather than the global ~/.nuget cache.
   bot:
     name: Bot (.NET build + tests)
     runs-on: ubuntu-latest
@@ -243,6 +256,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      # bot/nuget.config restores into a repo-local bot/packages/ folder; cache it keyed
+      # on the project files so unchanged dependencies skip the download on re-runs.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: bot/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('bot/**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
       - name: Restore
         working-directory: bot
         run: dotnet restore Stencil.TelegramBot.slnx

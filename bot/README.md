@@ -38,11 +38,21 @@ You: /create Shared   → publishes the result as a new server project
 > recompiles `core/`, so the `core/` source-list parity rules don't apply to it — its only
 > contracts are the CLI's documented flags and the server's REST routes.
 
-### Packages are added locally, not globally
+### Packages are installed locally, not globally
 
-Every dependency is a per-project `<PackageReference>` in the relevant `.csproj` (restored
-into the solution), **not** a global `dotnet tool`. That keeps the bot self-contained and
-reproducible. If you ever need to re-add one, do it against the project, e.g.:
+Every dependency is a per-project `<PackageReference>` in the relevant `.csproj`, **not** a
+global `dotnet tool`. On top of that, [`bot/nuget.config`](nuget.config) redirects
+`globalPackagesFolder` to a repo-local **`bot/packages/`** folder, so `dotnet restore` fills
+it there instead of the machine-global `~/.nuget/packages` cache. The folder is git-ignored
+(node_modules-style) and rebuilt on demand:
+
+```bash
+cd bot
+dotnet restore Stencil.TelegramBot.slnx   # populates bot/packages/ (never ~/.nuget)
+```
+
+That keeps the bot's dependencies self-contained and off the global cache. If you ever need
+to re-add one, do it against the project, e.g.:
 
 ```bash
 # from bot/ — adds a local <PackageReference> to that project's .csproj
