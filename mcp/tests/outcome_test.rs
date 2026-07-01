@@ -18,6 +18,13 @@ fn parses_success_line_among_banner_noise() {
 }
 
 #[test]
+fn parses_success_line_with_page_metadata() {
+    let w = parse_wrote("wrote /tmp/rotated.png (12x16 px · A4 21×29.7cm)\n").unwrap();
+    assert_eq!(w.path, "/tmp/rotated.png");
+    assert_eq!((w.width, w.height), (12, 16));
+}
+
+#[test]
 fn handles_path_containing_a_paren() {
     let w = parse_wrote("wrote /tmp/my (final) shot.png (1920x1080)").unwrap();
     assert_eq!(w.path, "/tmp/my (final) shot.png");

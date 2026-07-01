@@ -2,7 +2,8 @@
 //!
 //! The CLI writes everything — banner, usage, errors, and the success line — to **stderr**
 //! (stdout stays empty; the result is a written file). On success it prints exactly one
-//! line `wrote {path} ({w}x{h})`. On failure it prints one or more `error: …` lines. We run
+//! line `wrote {path} ({w}x{h} px · {page})` (the page-format suffix is informational; older
+//! builds printed a bare `({w}x{h})`). On failure it prints one or more `error: …` lines. We run
 //! the child with `NO_COLOR=1` so this text is free of ANSI escapes.
 
 /// A parsed success line: the resolved output path (extension auto-filled) and final size.
@@ -13,21 +14,23 @@ pub struct Wrote {
     pub height: u32,
 }
 
-/// Find and parse the `wrote {path} ({w}x{h})` line, if present.
+/// Find and parse the `wrote {path} ({w}x{h} …)` line, if present.
 pub fn parse_wrote(stderr: &str) -> Option<Wrote> {
     for line in stderr.lines() {
         let line = line.trim();
         let Some(rest) = line.strip_prefix("wrote ") else {
             continue;
         };
-        // Split off the trailing " (WxH)" — rfind so paths containing " (" still work.
+        // Split off the trailing " (WxH …)" — rfind so paths containing " (" still work.
         let Some(open) = rest.rfind(" (") else {
             continue;
         };
         let path = rest[..open].to_string();
-        let Some(dims) = rest[open + 2..].strip_suffix(')') else {
+        let Some(tail) = rest[open + 2..].strip_suffix(')') else {
             continue;
         };
+        // The dims are the leading token; newer builds append " px · {page}" metadata.
+        let dims = tail.split_whitespace().next().unwrap_or(tail);
         let Some((w, h)) = dims.split_once('x') else {
             continue;
         };
