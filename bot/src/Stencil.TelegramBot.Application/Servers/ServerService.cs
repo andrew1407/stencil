@@ -35,6 +35,10 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<ServerConnectionInfo> ConnectAsync(long userId, string url, string? token, bool verifyTls, CancellationToken ct = default)
     {
+        // The bot is open to any Telegram user, so vet the target before issuing any REST call:
+        // localhost/LAN collaboration servers are intended, but link-local / cloud-metadata
+        // (169.254.169.254, fe80::/10, …) hosts are an SSRF-only target and are rejected.
+        await RemoteImageUrl.ValidateServerUrlAsync(url, ct);
         var session = await _store.GetAsync(userId, ct);
         var client = _factory.Create(url, token, verifyTls);
         var effectiveToken = await client.ConnectAsync(token, ct);
