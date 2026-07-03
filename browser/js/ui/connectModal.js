@@ -17,23 +17,21 @@ export class StencilConnectModal extends StencilElement {
             </div>
             <div class="settings-body">
                 <div class="vs-section">Connect a server</div>
-                <div class="vs-row"><label title="Server URL, e.g. http://host:8090">URL</label>
+                <div class="vs-row vs-field"><label title="Server URL, e.g. http://host:8090">URL</label>
                     <input type="text" id="connect-url" placeholder="http://host:8090">
                 </div>
-                <div class="vs-row"><label title="Optional access token (issued otherwise)">Token</label>
+                <div class="vs-row vs-field"><label title="Optional access token (issued otherwise)">Token</label>
                     <input type="text" id="connect-token" placeholder="(optional)">
                 </div>
                 <div class="vs-row">
                     <button id="connect-add" class="btn-icon-text" title="Connect to the server at the URL above">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
                     <button id="connect-reconnect" class="btn-icon-text" title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
                 </div>
-                <div class="vs-row">
-                    <label title="Reconnect saved servers automatically when the editor opens">
+                <div class="vs-row vs-checks">
+                    <label class="vs-inline-check" title="Reconnect saved servers automatically when the editor opens">
                         <input type="checkbox" id="connect-autoconnect"> Auto-connect on open
                     </label>
-                </div>
-                <div class="vs-row">
-                    <label title="When off, edits to a fetched server project stay in this session only — never pushed to the server or saved locally (download or 'Make local copy' to keep them)">
+                    <label class="vs-inline-check" title="When off, edits to a fetched server project stay in this session only — never pushed to the server or saved locally (download or 'Make local copy' to keep them)">
                         <input type="checkbox" id="connect-sync"> Sync changes to server
                     </label>
                 </div>

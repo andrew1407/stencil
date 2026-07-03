@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizeUrl, sharedPinFromProject, sharedPinsFromProjects, mergePins,
+  normalizeUrl, isLoopbackHost, sharedPinFromProject, sharedPinsFromProjects, mergePins,
   upsertConnection, dropConnection, connect, listProjects, collectSharedPins,
   addServer, removeServer, loadConnections, CONNECTIONS_KEY,
   pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
@@ -37,10 +37,19 @@ const fakeFetch = (opts = {}) => {
   };
 };
 
-test('normalizeUrl coerces scheme + strips path', () => {
-  assert.equal(normalizeUrl('host:8090'), 'http://host:8090');
+test('normalizeUrl is secure by default: bare remote → https, loopback → http', () => {
+  assert.equal(normalizeUrl('host:8090'), 'https://host:8090');
+  assert.equal(normalizeUrl('localhost:8090'), 'http://localhost:8090');
+  assert.equal(normalizeUrl('127.0.0.1:8090'), 'http://127.0.0.1:8090');
   assert.equal(normalizeUrl('http://h:1/projects'), 'http://h:1');
   assert.throws(() => normalizeUrl(''));
+});
+
+test('isLoopbackHost classifies hosts like the browser client', () => {
+  assert.equal(isLoopbackHost('localhost'), true);
+  assert.equal(isLoopbackHost('127.0.0.1'), true);
+  assert.equal(isLoopbackHost('::1'), true);
+  assert.equal(isLoopbackHost('example.com'), false);
 });
 
 test('sharedPinFromProject marks shared + carries serverUrl/projectId', () => {
@@ -96,7 +105,7 @@ test('upsertConnection / dropConnection key on url', () => {
 
 test('connect issues a token when none supplied', async () => {
   const conn = await connect('srv:8090', '', fakeFetch());
-  assert.equal(conn.url, 'http://srv:8090');
+  assert.equal(conn.url, 'https://srv:8090');
   assert.equal(conn.token, 'tk');
 });
 
@@ -132,10 +141,10 @@ test('addServer / removeServer persist to chrome.storage', async () => {
   await addServer('srv:8090', '', f);
   let stored = (await loadConnections());
   assert.equal(stored.length, 1);
-  assert.equal(stored[0].url, 'http://srv:8090');
+  assert.equal(stored[0].url, 'https://srv:8090');
   assert.equal(mock.peek()[CONNECTIONS_KEY][0].token, 'tk');
 
-  const after = await removeServer('http://srv:8090');
+  const after = await removeServer('https://srv:8090');
   assert.equal(after.length, 0);
   mock.reset();
 });
