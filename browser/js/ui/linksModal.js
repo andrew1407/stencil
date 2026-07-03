@@ -41,17 +41,17 @@ export class StencilLinksModal extends StencilElement {
                 <!-- Edit the current image's links. Shown only when an image is loaded. -->
                 <div id="links-edit-section">
                     <div class="vs-section">Project</div>
-                    <div class="vs-row"><label>Name</label><input type="text" id="links-name" placeholder="Untitled"></div>
+                    <div class="vs-row vs-field"><label>Name</label><input type="text" id="links-name" placeholder="Untitled"></div>
 
                     <div class="vs-section">Links</div>
-                    <div class="vs-row"><label title="The image/video's own URL">Source</label>
+                    <div class="vs-row vs-field"><label title="The image/video's own URL">Source</label>
                         <span class="links-field">
                             <input type="text" id="links-source" placeholder="(empty — local upload)">
                             <button id="links-source-open" class="links-open btn-icon" title="Open source in a new tab">${icon('external', { size: 14 })}</button>
                             <button id="links-source-clear" class="links-clear danger btn-icon" title="Remove source link">${icon('x', { size: 14 })}</button>
                         </span>
                     </div>
-                    <div class="vs-row"><label title="The web page the image was found on">Resource</label>
+                    <div class="vs-row vs-field"><label title="The web page the image was found on">Resource</label>
                         <span class="links-field">
                             <input type="text" id="links-resource" placeholder="(empty)">
                             <button id="links-resource-open" class="links-open btn-icon" title="Open resource page in a new tab">${icon('external', { size: 14 })}</button>
@@ -63,13 +63,13 @@ export class StencilLinksModal extends StencilElement {
                 <!-- Load a NEW image by URL. Shown only when the editor has no image yet. -->
                 <div id="links-add-section">
                     <div class="vs-section">Add image by URL</div>
-                    <div class="vs-row"><label title="The image/video's own URL — becomes the source link">Image / video URL</label>
+                    <div class="vs-row vs-field"><label title="The image/video's own URL — becomes the source link">Image / video URL</label>
                         <span class="links-field">
                             <input type="text" id="links-url" placeholder="https://… (image or video)">
                             <button id="links-preview" class="links-open btn-icon-text" title="Preview">${icon('eye', { size: 14 })}<span>Preview</span></button>
                         </span>
                     </div>
-                    <div class="vs-row"><label>Resource URL</label><input type="text" id="links-url-resource" placeholder="(optional — page the image is on)"></div>
+                    <div class="vs-row vs-field"><label>Resource URL</label><input type="text" id="links-url-resource" placeholder="(optional — page the image is on)"></div>
                     <!-- Save target: only shown when at least one server is connected. -->
                     <div class="vs-row" id="links-target-row" style="display:none">
                         <label title="Load locally or create on a connected server">Save to</label>

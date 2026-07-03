@@ -45,9 +45,12 @@ namespace stencil::gui {
       keep_ = new QCheckBox("Keep existing annotations", this);
       keep_->setToolTip("Keep the current lines over the replacement image");
       keep_->setChecked(true);
-      auto* opts = new QVBoxLayout;
+      // One row, like the browser modal's inline checkbox group.
+      auto* opts = new QHBoxLayout;
+      opts->setSpacing(18);
       opts->addWidget(rename_);
       opts->addWidget(keep_);
+      opts->addStretch(1);
       form->addRow("Replace:", opts);
     }
     layout->addLayout(form);

@@ -4,11 +4,28 @@
 
 export const CONNECTIONS_KEY = 'stencil-connections';
 
-// Normalize 'host:8090' / 'http://host:8090/' to a clean origin.
+// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
+// http is safe because the bytes never leave the machine. Port of the browser's
+// connectionManager.js isLoopbackHost.
+export const isLoopbackHost = (host) => {
+  if (!host) return false;
+  const h = host.toLowerCase().replace(/^\[|\]$/g, ''); // strip any IPv6 brackets
+  if (h === 'localhost' || h.endsWith('.localhost')) return true;
+  if (h === '::1') return true;
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
+};
+
+// Normalize 'host:8090' / 'http://host:8090/' to a clean origin. Secure by default
+// (matches the browser's normalizeUrl): a bare REMOTE host gets https; loopback keeps
+// http (dev servers run plaintext on localhost). An explicit scheme is preserved — the
+// user opts into cleartext.
 export const normalizeUrl = (raw) => {
   let s = String(raw == null ? '' : raw).trim();
   if (!s) throw new Error('Server URL is required');
-  if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
+  if (!/^https?:\/\//i.test(s)) {
+    const host = new URL('http://' + s).hostname;
+    s = (isLoopbackHost(host) ? 'http://' : 'https://') + s;
+  }
   return new URL(s).origin;
 };
 

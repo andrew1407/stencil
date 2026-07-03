@@ -14,13 +14,22 @@ from pystencil.server import (
     ServerConnection,
     ServerError,
     diff_projects,
+    is_loopback_host,
     normalize_url,
 )
 
 
 class NormalizeUrlTest(unittest.TestCase):
-    def test_adds_default_scheme(self) -> None:
-        self.assertEqual(normalize_url("host:8090"), "http://host:8090")
+    def test_secure_by_default_scheme(self) -> None:
+        self.assertEqual(normalize_url("host:8090"), "https://host:8090")
+        self.assertEqual(normalize_url("localhost:8090"), "http://localhost:8090")
+        self.assertEqual(normalize_url("127.0.0.1:8090"), "http://127.0.0.1:8090")
+
+    def test_is_loopback_host(self) -> None:
+        self.assertTrue(is_loopback_host("localhost"))
+        self.assertTrue(is_loopback_host("127.0.0.1"))
+        self.assertTrue(is_loopback_host("::1"))
+        self.assertFalse(is_loopback_host("example.com"))
 
     def test_strips_path_and_trailing_slash(self) -> None:
         self.assertEqual(normalize_url("http://host:8090/"), "http://host:8090")
@@ -30,7 +39,7 @@ class NormalizeUrlTest(unittest.TestCase):
         self.assertEqual(normalize_url("https://example.com:8443/api"), "https://example.com:8443")
 
     def test_trims_whitespace(self) -> None:
-        self.assertEqual(normalize_url("  example.com  "), "http://example.com")
+        self.assertEqual(normalize_url("  example.com  "), "https://example.com")
 
     def test_empty_raises(self) -> None:
         with self.assertRaises(ValueError):
@@ -158,11 +167,11 @@ class ConnectionManagerUnitTest(unittest.TestCase):
     def test_normalizes_and_dedupes(self) -> None:
         mgr = ConnectionManager()
         # Directly seed the internal map (no network) to exercise the views.
-        c = ServerConnection("http://a:8090", token="t")
+        c = ServerConnection("https://a:8090", token="t")
         mgr._conns[c.base] = c
-        self.assertEqual(mgr.connections, ["http://a:8090"])
+        self.assertEqual(mgr.connections, ["https://a:8090"])
         self.assertTrue(mgr.has("a:8090"))
-        self.assertIs(mgr.get("http://a:8090/"), c)
+        self.assertIs(mgr.get("https://a:8090/"), c)
 
     def test_disconnect_last(self) -> None:
         mgr = ConnectionManager()
