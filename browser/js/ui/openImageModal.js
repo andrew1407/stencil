@@ -41,8 +41,8 @@ export class StencilOpenImageModal extends StencilElement {
                 <div class="vs-row" id="open-image-replace-row" style="display:none">
                     <label title="Swap this project's image, keeping the same project">Replace</label>
                     <span class="oi-replace">
-                        <label><input type="checkbox" id="open-image-rename"> Rename project to the new image</label>
-                        <label><input type="checkbox" id="open-image-keep" checked> Keep existing annotations</label>
+                        <label class="vs-inline-check"><input type="checkbox" id="open-image-rename"> Rename project to the new image</label>
+                        <label class="vs-inline-check"><input type="checkbox" id="open-image-keep" checked> Keep existing annotations</label>
                     </span>
                 </div>
             </div>

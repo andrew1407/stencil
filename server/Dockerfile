@@ -15,7 +15,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stencil
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/stencil-server /usr/local/bin/stencil-server
-# HTTP/WS and raw-TCP edit ports.
+# HTTP/WS and raw-TCP edit ports. Plaintext by default (dev); for anything
+# beyond localhost mount a cert/key and set TLS_CERT/TLS_KEY — one pair secures
+# HTTPS + WSS and the TCP edit channel (see README "Security").
 EXPOSE 8090 8091
 VOLUME ["/data"]
 ENV FILESTORE_ROOT=/data/filestore
