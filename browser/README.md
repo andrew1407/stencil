@@ -19,8 +19,10 @@ For the project overview and the desktop (C++/Qt) app, see the
   starting from an empty canvas
 - Per-line color, thickness, marker size, and style (solid / dashed / dotted)
 - Editable points table with pixel ↔ page (cm) coordinate conversion and optional
-  `f(x,y)` formula transforms
-- Image filters (B&W, sepia, custom tint), zoom/pan, and fit-to-window
+  `f(x,y)` formula transforms; page formats cover the full ISO A/B/C series (A0–C10,
+  searchable selector) plus a custom size
+- Image filters (B&W, sepia, invert, contour edges, custom tint), zoom/pan, and
+  fit-to-window
 - Undo / redo, drag-and-drop and clipboard paste for images and layout JSON
 - Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
   (preset brand accents in the Visuals modal; **double-click the logo** for a one-off
@@ -127,10 +129,10 @@ stencil.lineStyle        = 'dashed';   // 'solid' | 'dashed' | 'dotted'
 stencil.pointStyle       = true;       // points visible? (alias: showPoints)
 stencil.showPoints       = true;       // show point markers
 stencil.showLines        = true;       // show connecting lines
-stencil.filter           = 'sepia';    // image filter: 'none' | 'bw' | 'sepia' | 'custom'
+stencil.filter           = 'sepia';    // image filter: 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom'
 stencil.filterColor      = '#7c3aed';  // tint color when filter === 'custom'
 stencil.unit             = 'in';       // page unit: 'cm' | 'mm' | 'in'
-stencil.pageSize         = 'a3';       // case-insensitive: 'a3' | 'A4' | 'custom'
+stencil.pageSize         = 'b5';       // case-insensitive: any ISO A/B/C name ('a3', 'B5', 'c10') or 'custom'
 stencil.pageWidth        = 30;         // cm; applies when pageSize === 'custom'
 stencil.pageHeight       = 40;         // cm; applies when pageSize === 'custom'
 stencil.darkTheme        = true;       // dark mode on/off (true = dark, false = light)

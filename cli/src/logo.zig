@@ -196,7 +196,9 @@ pub fn usage() void {
         \\
         \\{s}Source (choose one){s}
         \\  -i, --input <path|url>     Image or video file/URL to load
-        \\      --blank <w h [color]>  Create a blank page (color: name or #hex, default white)
+        \\      --blank [fmt] [w h] [color]
+        \\                             Create a blank page: a page format (a0..c10, e.g. b5)
+        \\                             OR explicit dims, default A4; color name/#hex (white)
         \\
         \\{s}Options{s}
         \\  -f, --frame <n>            Video frame index to grab (default 0)
@@ -205,7 +207,8 @@ pub fn usage() void {
         \\      --album                With one crop axis, derive the other (landscape)
         \\  -r, --rotate <int>         Rotate int*90 deg (e.g. -1 = -90, 3 = 270)
         \\  -l, --layout <path|url>    Layout JSON to draw onto the image
-        \\      --filter <f>           Apply bw | sepia | <color>; overrides the layout filter
+        \\      --filter <f>           Apply bw | sepia | invert | contour | <color>;
+        \\                             overrides the layout filter
         \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
         \\  -h, --help                 Show this help
         \\
@@ -216,6 +219,7 @@ pub fn usage() void {
         \\{s}Examples{s}
         \\  stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
         \\  stencil --blank 800 600 red --layout notes.json --filter sepia out
+        \\  stencil --blank b5 pink page.png
         \\  stencil -i clip.mp4 -f 24 frame.png
         \\  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)
         \\

@@ -16,12 +16,12 @@ modes over the shared core, driving an :class:`~pystencil.editor.Editor`:
 
 * **Console / REPL** (``--console`` / ``--repl``): reads ``/command <args>``
   lines mirroring the Zig console grammar (``cli/src/console/commands.zig``):
-  ``/upload`` (``/open``/``/load``), ``/blank`` (``/new``), ``/crop``,
-  ``/rotate`` (``/rot``), ``/filter`` (+ ``/bw`` ``/sepia`` ``/none``),
-  ``/apply`` (``/draw``), ``/layout`` (export), ``/save``, ``/undo`` ``/redo``
-  ``/reset``, ``/status``, ``/connect``, ``/projects``, ``/fetch``, ``/help``,
-  ``/exit``. Messages go to stderr, the CLI's human channel, exactly like the
-  Zig REPL.
+  ``/upload`` (``/open``/``/load``), ``/blank`` (``/new``), ``/format``,
+  ``/crop``, ``/rotate`` (``/rot``), ``/filter`` (+ ``/bw`` ``/sepia``
+  ``/none``), ``/apply`` (``/draw``), ``/layout`` (export), ``/save``,
+  ``/undo`` ``/redo`` ``/reset``, ``/status``, ``/connect``, ``/projects``,
+  ``/fetch``, ``/help``, ``/exit``. Messages go to stderr, the CLI's human
+  channel, exactly like the Zig REPL.
 
 Both modes reuse the exact same ``core/`` transforms as the browser and Zig
 front-ends, so results are identical by construction.
@@ -55,29 +55,41 @@ def _is_int(tok: str) -> bool:
         return False
 
 
-def _consume_blank(tokens: Sequence[str]) -> Tuple[Optional[int], Optional[int], str, List[str]]:
-    """Parse ``[w h] [color]`` from a --blank token list (port of args.parseBlank).
+def _consume_blank(
+    tokens: Sequence[str],
+) -> Tuple[Optional[str], Optional[int], Optional[int], str, List[str]]:
+    """Parse ``[format] [w h] [color]`` from a --blank token list (port of args.parseBlank).
 
-    Returns ``(width, height, color, leftover)``. A leading integer requires a
-    matching height (else it is malformed). A colour is consumed only when the
-    core recognizes it. Any remaining tokens are returned as ``leftover`` so the
-    caller can recover an output path that argparse greedily swallowed.
+    Returns ``(page, width, height, color, leftover)``. An optional leading page-format
+    token names the page (case-insensitive, e.g. "b5"); it is mutually exclusive with an
+    explicit ``w h`` pair. A leading integer requires a matching height (else it is
+    malformed). A colour is consumed only when the core recognizes it. Any remaining
+    tokens are returned as ``leftover`` so the caller can recover an output path that
+    argparse greedily swallowed.
     """
     from .core import get_core
 
     core = get_core()
+    page: Optional[str] = None
     width: Optional[int] = None
     height: Optional[int] = None
     color = "white"
     i = 0
     toks = list(tokens)
-    if toks and _is_int(toks[0]):
+    if toks and not _is_int(toks[0]):
+        page = core.canonical_page_format(toks[0])
+        if page is not None:
+            i = 1
+    if i < len(toks) and _is_int(toks[i]):
+        # A format token and explicit dimensions are mutually exclusive (pinned).
+        if page is not None:
+            raise ValueError("--blank takes a page format or explicit w h, not both")
         # A width is only meaningful paired with a height.
-        if len(toks) < 2 or not _is_int(toks[1]):
+        if i + 1 >= len(toks) or not _is_int(toks[i + 1]):
             raise ValueError("--blank width needs a matching height")
-        width = int(toks[0])
-        height = int(toks[1])
-        i = 2
+        width = int(toks[i])
+        height = int(toks[i + 1])
+        i += 2
     if i < len(toks):
         tok = toks[i]
         # Only swallow the colour when it is one (and not a flag), like the Zig parser.
@@ -85,7 +97,7 @@ def _consume_blank(tokens: Sequence[str]) -> Tuple[Optional[int], Optional[int],
             color = tok
             i += 1
     leftover = toks[i:]
-    return (width, height, color, leftover)
+    return (page, width, height, color, leftover)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -96,20 +108,24 @@ def _build_parser() -> argparse.ArgumentParser:
         "(Python port of the Zig CLI).",
     )
     p.add_argument("-i", "--input", help="image source: a file path or http(s):// URL")
-    # --blank takes 0..3 trailing tokens ([w h] [color]); we disentangle them (and any
-    # greedily-swallowed output path) in _consume_blank.
+    # --blank takes 0..3 trailing tokens ([format] [w h] [color]); we disentangle them
+    # (and any greedily-swallowed output path) in _consume_blank.
     p.add_argument(
         "--blank",
         nargs="*",
         metavar="TOKEN",
-        help="create a blank page: [w h] [color] (default A4 @ 96dpi, white)",
+        help="create a blank page: [format] [w h] [color] (default A4 @ 96dpi, white)",
     )
     p.add_argument("-f", "--frame", type=int, default=0, help="video frame index (parity only)")
     p.add_argument("-c", "--crop", help='crop spec, e.g. "x1=10%% x2=90%% y1=10%% y2=90%%"')
     p.add_argument("--album", action="store_true", help="derive the missing crop axis from the page")
     p.add_argument("-r", "--rotate", type=int, default=0, help="rotate by N quarter-turns (N×90°)")
     p.add_argument("-l", "--layout", help="layout JSON (path or URL) to DRAW onto the image")
-    p.add_argument("--filter", dest="filter", help="bw | sepia | none | a colour name/#hex (duotone)")
+    p.add_argument(
+        "--filter",
+        dest="filter",
+        help="bw | sepia | invert | contour | none | a colour name/#hex (duotone)",
+    )
     p.add_argument("--save-layout", dest="save_layout", help="export the structured layout JSON here")
     p.add_argument(
         "--console",
@@ -132,12 +148,14 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
         err.write("error: --input and --blank are mutually exclusive\n")
         return 2
     if args.blank is not None:
-        width, height, color, blank_leftover = _consume_blank(args.blank)
-        editor.blank(width, height, color)
+        page, width, height, color, blank_leftover = _consume_blank(args.blank)
+        editor.blank(width, height, color, page=page or "A4")
     elif args.input is not None:
         editor.load(args.input, frame=args.frame)
     else:
-        err.write("error: no source — pass --input <path|url> or --blank [w h] [color]\n")
+        err.write(
+            "error: no source — pass --input <path|url> or --blank [format] [w h] [color]\n"
+        )
         return 2
 
     # An output path argparse swallowed into --blank's token list takes precedence
@@ -195,10 +213,11 @@ def _parse_command(line: str) -> Tuple[str, str]:
 # Console help text, mirroring the Zig REPL's command listing.
 _HELP = """commands:
   /upload <path|url>     load an image (aliases: open, load)
-  /blank [w h] [color]   create a blank page (alias: new)
+  /blank [f] [w h] [color]  create a blank page, f = a page format (alias: new)
+  /format [name|custom w h]  list the page formats / set the session's format
   /crop <spec> [album]   crop, e.g. x1=10% x2=90% y1=10% y2=90%
   /rotate <int>          rotate int×90° (aliases: rot, turn)
-  /filter <mode>         bw | sepia | none | colour (also: /bw /sepia /none /tint)
+  /filter <mode>         bw | sepia | invert | contour | none | colour (also: /bw /sepia /none /tint)
   /apply <path|url>      draw a layout JSON onto the image (alias: draw)
   /layout [path]         EXPORT the structured layout JSON
   /save [path]           write the working image to a file
@@ -247,14 +266,20 @@ class _Repl:
             self._cmd_upload(arg)
         elif w in ("blank", "new"):
             self._cmd_blank(arg)
+        elif w == "format":
+            self._cmd_format(arg)
         elif w == "crop":
             self._cmd_crop(arg)
         elif w in ("rotate", "rot", "turn"):
             self._editor.rotate(int(arg))
             self._say_status_brief("rotated")
         elif w == "filter":
-            self._editor.apply_filter(arg)
-            self._say_status_brief("filtered")
+            if not arg:
+                # Bare /filter lists the possible variants instead of erroring.
+                self._cmd_filter_variants()
+            else:
+                self._editor.apply_filter(arg)
+                self._say_status_brief("filtered")
         elif w in ("bw", "sepia", "none"):
             self._editor.apply_filter(w)
             self._say_status_brief("filtered")
@@ -303,11 +328,98 @@ class _Repl:
         self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))
 
     def _cmd_blank(self, arg: str) -> None:
+        from .core import get_core
+
+        core = get_core()
         tokens = arg.split() if arg else []
-        width, height, color, _ = _consume_blank(tokens)
-        self._editor.blank(width, height, color)
+        page, width, height, color, _ = _consume_blank(tokens)
+        # Capture the session's /format pick up front (port of the Zig console's doBlank,
+        # which captures it before loadImage → clearAll → clearFormat wipes it).
+        prev_page = core.canonical_page_format(self._editor.page_format)
+        prev_custom = self._editor.page_format.lower() == "custom"
+        prev_w = self._editor.custom_page_width
+        prev_h = self._editor.custom_page_height
+        custom_w = custom_h = 0.0
+        if page is None and width is None:
+            # No explicit format/dims: the session's /format choice drives the default
+            # page (mirroring the Zig console, where page_size drives /blank).
+            if prev_custom and prev_w > 0 and prev_h > 0:
+                custom_w, custom_h = prev_w, prev_h
+                width, height = core.default_blank_size_px(custom_w, custom_h)
+            else:
+                # An unknown adopted name — or "custom" without both cm dims — maps to
+                # None → the default A4 blank, exactly like the console's fall-through
+                # (canonicalPageFormat -> null) in doBlank.
+                page = prev_page
+        self._editor.blank(width, height, color, page=page or "A4")
+        # Keep the page the blank was actually created on as the session's picked
+        # format, so it drives the next bare /blank and the exported layout's pageSize
+        # (mirror of the Zig console's doBlank -> session.setPageSize). Explicit dims
+        # size the blank but keep the previous /format pick, matching the console and
+        # the Telegram bot; only an unusable pick (unknown name / dimension-less
+        # custom) ends up cleared.
+        if page is not None:
+            self._editor.set_page_format(page)
+        elif custom_w > 0 and custom_h > 0:
+            self._editor.set_page_format("custom", custom_w, custom_h)
+        elif prev_page is not None:
+            self._editor.set_page_format(prev_page)
+        elif prev_custom and prev_w > 0 and prev_h > 0:
+            self._editor.set_page_format("custom", prev_w, prev_h)
+        else:
+            self._editor.set_page_format("")
         w, h = self._editor.image_size
         self._say("blank %dx%d (%s)" % (w, h, color))
+
+    def _cmd_format(self, arg: str) -> None:
+        """/format: bare lists the formats; a name sets; ``custom <w> <h>`` sets custom."""
+        from .core import get_core
+
+        core = get_core()
+        parts = arg.split()
+        if not parts:
+            # List every named format with its portrait cm size, marking the current one.
+            current = self._editor.page_format
+            for name in core.page_formats():
+                wcm, hcm = core.named_page_size(name) or (0.0, 0.0)
+                marker = "*" if name == current else " "
+                self._say("%s %-4s %g×%gcm" % (marker, name, wcm, hcm))
+            self._say("%s custom <w> <h>  a custom page in cm"
+                      % ("*" if current == "custom" else " "))
+            return
+        if parts[0].lower() == "custom":
+            # One error path for unparsable, NaN/inf and out-of-range dims, mirroring
+            # the Zig console's parseCmDim (0.1–500 cm; float() accepts "nan"/"inf",
+            # so set_page_format's range check must also gate the REPL input).
+            try:
+                wcm, hcm = float(parts[1]), float(parts[2])
+                self._editor.set_page_format("custom", wcm, hcm)
+            except (IndexError, ValueError):
+                self._say(
+                    "error: custom takes width + height in cm (0.1-500) — e.g. '/format custom 21 29.7'"
+                )
+                return
+            self._say("page format custom (%g×%gcm)" % (wcm, hcm))
+            return
+        try:
+            self._editor.set_page_format(parts[0])
+        except ValueError:
+            self._say("error: unknown page format '%s' — type '/format' to list formats"
+                      % parts[0])
+            return
+        name = self._editor.page_format
+        wcm, hcm = core.named_page_size(name) or (0.0, 0.0)
+        self._say("page format %s (%g×%gcm)" % (name, wcm, hcm))
+
+    def _cmd_filter_variants(self) -> None:
+        """Bare /filter: list the possible modes (a bare required-arg command never errors)."""
+        self._say("filters:")
+        self._say("  bw        black & white")
+        self._say("  sepia     warm sepia tone")
+        self._say("  invert    negative colours")
+        self._say("  contour   edge outline (dark lines on white)")
+        self._say("  none      remove the filter")
+        self._say("  <colour>  a colour name/#hex duotone tint")
 
     def _cmd_crop(self, arg: str) -> None:
         # Pull a standalone "album"/"--album" token out of the spec (port of stripAlbum).

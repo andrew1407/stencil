@@ -79,6 +79,102 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PageFormatAccumulatesOnTheEditState()
+    {
+        await _service.SetPageFormatAsync(UserId, "B5");
+        UserSession named = await _store.GetAsync(UserId);
+        Assert.Equal("B5", named.Edits.PageFormat);
+        Assert.Null(named.Edits.CustomPageWidth);
+        Assert.False(named.Edits.IsEmpty);
+
+        await _service.SetPageFormatAsync(UserId, "custom", 10, 15.5);
+        UserSession custom = await _store.GetAsync(UserId);
+        Assert.Equal("custom", custom.Edits.PageFormat);
+        Assert.Equal(10, custom.Edits.CustomPageWidth);
+        Assert.Equal(15.5, custom.Edits.CustomPageHeight);
+
+        await _service.SetPageFormatAsync(UserId, "A4"); // back to named — the custom dims drop
+        UserSession back = await _store.GetAsync(UserId);
+        Assert.Equal("A4", back.Edits.PageFormat);
+        Assert.Null(back.Edits.CustomPageWidth);
+    }
+
+    [Fact]
+    public async Task StoredFormatIsTheBlankDefaultPageAndSurvivesTheReset()
+    {
+        await _service.SetPageFormatAsync(UserId, "B5");
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
+
+        Assert.Equal("B5", _cli.LastRequest!.Blank!.Page); // rides --blank as the default page
+        Assert.Equal("B5", session.Edits.PageFormat);      // …and stays set for the layout save
+    }
+
+    [Fact]
+    public async Task ExplicitBlankPageWinsOverTheStoredFormat()
+    {
+        await _service.SetPageFormatAsync(UserId, "B5");
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
+
+        Assert.Equal("A5", _cli.LastRequest!.Blank!.Page);
+        Assert.Equal("A5", session.Edits.PageFormat);
+    }
+
+    [Fact]
+    public async Task CustomFormatRidesTheBlankFlagAsPixelDims()
+    {
+        await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
+
+        // --blank takes named formats only, so custom cm dims convert to pixels the same
+        // way the CLI console does (defaultBlankSizePx: cm / 2.54 * 96 dpi, rounded).
+        Assert.Null(_cli.LastRequest!.Blank!.Page);
+        Assert.Equal(378, _cli.LastRequest!.Blank!.Width);   // 10 cm @ 96 dpi
+        Assert.Equal(567, _cli.LastRequest!.Blank!.Height);  // 15 cm @ 96 dpi
+        Assert.Equal("custom", session.Edits.PageFormat);    // …and the layout still carries it
+        Assert.Equal(10, session.Edits.CustomPageWidth);
+        Assert.Equal(15, session.Edits.CustomPageHeight);
+    }
+
+    [Fact]
+    public async Task CustomFormatWithoutDimsIsNotCarriedOntoTheDefaultBlank()
+    {
+        // A "custom" format missing its cm dims can't drive the raster, so the blank falls
+        // back to the CLI's default page and must not be mislabeled custom in the layout.
+        await _service.SetPageFormatAsync(UserId, "custom", null, null);
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
+
+        Assert.Null(_cli.LastRequest!.Blank!.Page);
+        Assert.Null(_cli.LastRequest!.Blank!.Width);
+        Assert.Null(_cli.LastRequest!.Blank!.Height);
+        Assert.Null(session.Edits.PageFormat);
+    }
+
+    [Fact]
+    public async Task ExplicitBlankPageWinsOverTheStoredCustomFormat()
+    {
+        await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
+
+        Assert.Equal("A5", _cli.LastRequest!.Blank!.Page);
+        Assert.Null(_cli.LastRequest!.Blank!.Width);
+        Assert.Equal("A5", session.Edits.PageFormat);
+        Assert.Null(session.Edits.CustomPageWidth);
+    }
+
+    [Fact]
+    public async Task ExplicitBlankDimensionsKeepTheStoredFormat()
+    {
+        await _service.SetPageFormatAsync(UserId, "B5");
+        UserSession session = await _service.BlankAsync(UserId, new BlankSpec(800, 600));
+
+        Assert.Null(_cli.LastRequest!.Blank!.Page); // explicit w/h — no page token injected
+        Assert.Equal(800, _cli.LastRequest!.Blank!.Width);
+        // Explicit dims size the blank but preserve the /format pick across the reset,
+        // matching the CLI console's doBlank (see console_test.zig's bot-parity test).
+        Assert.Equal("B5", session.Edits.PageFormat);
+    }
+
+    [Fact]
     public async Task FilterNoneClearsTheFilter()
     {
         await _service.BlankAsync(UserId, new BlankSpec());

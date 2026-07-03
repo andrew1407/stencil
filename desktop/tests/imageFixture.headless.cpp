@@ -79,6 +79,32 @@ int main(int argc, char** argv) {
         "bw filter greyscaled the pixel (r==g==b)");
   check(qAlpha(after) == 255, "bw filter preserved alpha");
 
+  // 3b) Contour through the real canvas cache path (rebuildFilteredImage →
+  //     core::applyContourRGBA on an RGBA8888 copy). A uniform image has no
+  //     edges, so every Sobel magnitude is 0 and the output is pure white with
+  //     alpha preserved — exactly what the core yields on the same pixels.
+  std::printf("contour filter:\n");
+  canvas.setImageFilter("contour", QColor("#7c3aed"));
+  const QImage contour = canvas.renderToImage(/*withOverlay=*/false);
+  check(contour.width() == 8 && contour.height() == 6,
+        "contour render keeps the cropped size");
+  bool allWhiteOpaque = true;
+  for (int y = 0; y < contour.height(); ++y)
+    for (int x = 0; x < contour.width(); ++x) {
+      const QRgb c = contour.pixel(x, y);
+      allWhiteOpaque = allWhiteOpaque && qRed(c) == 255 && qGreen(c) == 255 &&
+                       qBlue(c) == 255 && qAlpha(c) == 255;
+    }
+  check(allWhiteOpaque,
+        "contour of a uniform image is all white with alpha preserved");
+  // Byte-parity with the core entry point on the same uniform pixels.
+  QImage ref(8, 6, QImage::Format_RGBA8888);
+  ref.fill(QColor(0x33, 0x66, 0xcc));
+  stencil::core::applyContourRGBA(ref.bits(), ref.width(), ref.height());
+  check(ref.pixelColor(3, 2) == QColor(Qt::white),
+        "core applyContourRGBA agrees (uniform → white)");
+  canvas.setImageFilter("none", QColor("#7c3aed"));  // reset for later sections
+
   // 4) IncognitoOverlay: the viewport-pinned dashed accent frame + badge (port of
   //    the browser's body.incognito-mode outline/badge). It must paint the accent
   //    frame/badge AND be transparent everywhere else, so the canvas shows through —

@@ -71,9 +71,10 @@ extern "C" {
   }
 
   // ── page metrics (drawingApp.js getPageDimensions / pixelToPageCoords) ──
-  // `name` is "A3" | "A4" | "custom"; custom* used only when name=="custom".
-  // Results are written to outW/outH (page cm) for pageDimensions, and
-  // outX/outY (page cm, raw) for pixelToPageRaw.
+  // `name` is any canonical ISO format name from stencil_pageFormats ("A0".."C10")
+  // or "custom"; custom* used only when name=="custom". Results are written to
+  // outW/outH (page cm) for pageDimensions, and outX/outY (page cm, raw) for
+  // pixelToPageRaw.
   void stencil_pageDimensions(const char* name, int canvasW, int canvasH,
                               double customW, double customH, double* outW,
                               double* outH) {
@@ -90,6 +91,11 @@ extern "C" {
     *outX = p.x;
     *outY = p.y;
   }
+
+  // The canonical page-format names ("A0 A1 … C10", space-separated, no
+  // "custom") in the canonical A/B/C-series order. Static storage — the
+  // browser reads it as a string, never frees it.
+  const char* stencil_pageFormats(void) { return pageFormatNames(); }
 
   // ── formula engine (formulaEngine.js validate / apply / evaluate) ──
   // varName is the ASCII code of 'x' or 'y'.
@@ -120,12 +126,22 @@ extern "C" {
   // ── image filters (renderer.js drawImageWithFilter / #applyTintFilter) ──
   // Apply a filter in place to an interleaved RGBA8 buffer of `pixelCount`
   // pixels (a canvas ImageData.data layout). `mode`: 0 none, 1 bw, 2 sepia,
-  // 3 custom; tint* are used only for the custom duotone. Alpha is preserved.
+  // 3 custom, 4 invert, 5 contour (a no-op here — contour needs dimensions,
+  // use stencil_applyContourRGBA); tint* are used only for the custom duotone.
+  // Alpha is preserved.
   void stencil_applyFilterRGBA(int mode, std::uint8_t* data, int pixelCount,
                                int tintR, int tintG, int tintB) {
     applyFilterRGBA(static_cast<FilterMode>(mode), data,
                     pixelCount < 0 ? 0 : static_cast<std::size_t>(pixelCount),
                     tintR, tintG, tintB);
+  }
+
+  // Sobel edge detection ("contour") in place on a w x h RGBA8 buffer: dark
+  // edges on a white page, alpha preserved. Pinned integer math — the JS
+  // fallback (contourFilter.js) must stay byte-identical. Degenerate sizes /
+  // null data are a no-op.
+  void stencil_applyContourRGBA(std::uint8_t* data, int w, int h) {
+    applyContourRGBA(data, w, h);
   }
 
   // ── geometry transforms (drawingApp.js #rotateSelectedLine) ──

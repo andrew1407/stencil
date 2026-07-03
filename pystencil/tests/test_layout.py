@@ -147,6 +147,47 @@ class LayoutSerializationTests(unittest.TestCase):
         self.assertIsNone(layout.filter_color)
         self.assertIsNone(layout.crop_rect)
         self.assertIsNone(layout.rotation_quarters)
+        self.assertIsNone(layout.page_size)
+        self.assertIsNone(layout.custom_page_width)
+        self.assertIsNone(layout.custom_page_height)
+
+    def test_from_dict_parses_page_fields(self):
+        """from_dict mirrors to_dict: the page format survives a parse."""
+        d = {
+            "imageWidth": 4,
+            "imageHeight": 4,
+            "lines": [],
+            "pageSize": "custom",
+            "customPageWidth": 10.5,
+            "customPageHeight": 14.8,
+        }
+        layout = Layout.from_dict(d)
+        self.assertEqual(layout.page_size, "custom")
+        self.assertEqual(layout.custom_page_width, 10.5)
+        self.assertEqual(layout.custom_page_height, 14.8)
+
+    def test_page_fields_round_trip(self):
+        """A layout carrying a named page format round-trips through JSON."""
+        layout = Layout(image_width=10, image_height=20, page_size="B5")
+        out = layout.to_dict()
+        self.assertEqual(out["pageSize"], "B5")
+        self.assertNotIn("customPageWidth", out)
+        self.assertEqual(Layout.from_json(layout.to_json()), layout)
+
+    def test_formula_fields_round_trip(self):
+        """The x/y formula trio parses back too (full to_dict/from_dict symmetry)."""
+        layout = Layout(
+            image_width=1,
+            image_height=1,
+            allow_formulas=True,
+            formula_x="x*2",
+            formula_y="y/3",
+        )
+        restored = Layout.from_json(layout.to_json())
+        self.assertEqual(restored, layout)
+        self.assertTrue(restored.allow_formulas)
+        self.assertEqual(restored.formula_x, "x*2")
+        self.assertEqual(restored.formula_y, "y/3")
 
     def test_parse_is_alias_for_from_json(self):
         """parse() and from_json() produce equal results."""

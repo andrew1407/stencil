@@ -42,3 +42,27 @@ test "pipeline: file in -> crop+rotate+layout+filter -> file out" {
     try testing.expectEqual(@as(usize, 12), img.width);
     try testing.expectEqual(@as(usize, 8), img.height);
 }
+
+test "pipeline: the wrote-line page label follows the effective page state" {
+    const a = testing.allocator;
+
+    // Precedence: an applied layout's pageSize beats --blank's pick, else "" (A4 default).
+    try testing.expectEqualStrings("B5", pipeline.effectivePageName("B5", "A4"));
+    try testing.expectEqualStrings("A6", pipeline.effectivePageName(null, "A6"));
+    try testing.expectEqualStrings("", pipeline.effectivePageName(null, null));
+
+    // A named format is oriented to the image (B5 is 17.6×25cm; a landscape image swaps it).
+    const b5 = try pipeline.pageLabelAlloc(a, "B5", 0, 0, 800, 600);
+    defer a.free(b5);
+    try testing.expectEqualStrings("B5 25×17.6cm", b5);
+
+    // A custom page reports its real cm dims — never an A4 fallback.
+    const custom = try pipeline.pageLabelAlloc(a, "custom", 10, 15, 378, 567);
+    defer a.free(custom);
+    try testing.expectEqualStrings("custom 10×15cm", custom);
+
+    // Nothing picked → the A4-derived default oriented to the (portrait) image.
+    const def = try pipeline.pageLabelAlloc(a, "", 0, 0, 600, 800);
+    defer a.free(def);
+    try testing.expectEqualStrings("A4 21×29.7cm", def);
+}

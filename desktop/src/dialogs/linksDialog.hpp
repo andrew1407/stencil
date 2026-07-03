@@ -35,9 +35,12 @@ namespace stencil::gui {
     // `source`/`resource` seed the current-links fields. `hasImage` selects the
     // mode: with an image loaded the dialog only edits its links; with no image it
     // only offers the add-by-URL loader (the URL becomes the source). `pageSeed`
-    // ("A3"/"A4") preselects the quick-crop page size.
+    // (a canonical format name, e.g. "A3"/"B5") preselects the quick-crop page
+    // size (unknown names — incl. "custom" — fall back to A3); `units` is the
+    // display unit ("cm"/"in") the page-size option labels render in.
     explicit LinksDialog(const QString& source, const QString& resource,
                          bool hasImage, const QString& pageSeed = "A3",
+                         const QString& units = "cm",
                          QWidget* parent = nullptr);
 
     // Edited current-image links (read on a plain OK).
@@ -102,7 +105,7 @@ namespace stencil::gui {
     QCheckBox* cropPage_ = nullptr;
     QCheckBox* cropAlbum_ = nullptr;
     QComboBox* cropPageSize_ = nullptr;
-    QString pageSeed_ = "A3";
+    QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
     QPushButton* loadBtn_ = nullptr;
     MediaLoader* preview_ = nullptr;    // detects image vs video, grabs the first frame
     QTimer* fetchTimer_ = nullptr;      // debounce seeks while scrubbing

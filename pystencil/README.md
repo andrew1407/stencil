@@ -102,7 +102,7 @@ ed = Editor()
 ed.load("photo.jpg")                              # path | http(s) URL | bytes | Image
 ed.crop("x1=10% x2=90% y1=10% y2=90%")            # crop spec (px/cm/mm/in/%/bare-px edges)
 ed.rotate_right()                                 # quarter-turn clockwise (= rotate(+1))
-ed.apply_filter("sepia")                                # "bw" | "sepia" | "none" | a colour → duotone
+ed.apply_filter("sepia")                          # "bw" | "sepia" | "invert" | "contour" | "none" | a colour → duotone
 
 # Draw a red triangle over the result (coordinates are image pixels).
 ed.draw(Layout(
@@ -128,13 +128,22 @@ Mirrors the browser's `window.stencil` and the CLI's console session.
 | Group | Methods |
 |---|---|
 | Source | `load(src, *, frame=, name=, source=, resource=)`, `blank(width=, height=, color="#ffffff", page="A4")` |
-| Edits (chainable) | `rotate(q)`, `rotate_left()`, `rotate_right()`, `crop(spec=None, *, x1=, y1=, x2=, y2=, album=False)`, `set_filter(mode)`, `set_filter_color(color)`, `apply_filter(mode)`, `draw(layout)`, `apply_layout(layout)` |
+| Edits (chainable) | `rotate(q)`, `rotate_left()`, `rotate_right()`, `crop(spec=None, *, x1=, y1=, x2=, y2=, album=False)`, `set_filter(mode)`, `set_filter_color(color)`, `apply_filter(mode)`, `set_page_format(name, width=, height=)`, `draw(layout)`, `apply_layout(layout)` |
 | History | `undo() -> bool`, `redo() -> bool`, `reset()` |
 | Render / save | `result() -> Image`, `save(path, fmt=None) -> Image`, `layout() -> Layout`, `save_layout(path=None) -> str` |
-| Introspection | `image_size -> (w, h)`, `name -> str`, `has_image() -> bool` |
+| Introspection | `image_size -> (w, h)`, `name -> str`, `page_format -> str`, `has_image() -> bool` |
 
 `load` accepts a local path, an `http(s)://` URL (fetched with `urllib`), raw `bytes`, or
-an existing `Image`. `crop` takes either a spec string or `x1/y1/x2/y2` edge kwargs and
+an existing `Image`. `blank`'s `page` is any ISO A/B/C format name (case-insensitive,
+`A0`–`A10`, `B0`–`B10`, `C0`–`C10`); an unknown name quietly falls back to A4, mirroring
+the CLI console. `apply_filter` takes the CLI's filter vocabulary — `bw` / `sepia` /
+`invert` / `contour` / `none`, or any colour name/#hex for a custom duotone tint (`invert`
+and `contour` are matched before the colour fallback). `set_page_format` picks the
+project's page format (stored canonical, e.g. `"b5"` → `"B5"`; `"custom"` needs
+`width`/`height` in cm within 0.1–500, NaN/inf rejected — the console's `parseCmDim`
+range) — it rides the saved layout as `pageSize`/`customPageWidth`/`customPageHeight` and
+round-trips through `apply_layout`, like every other client.
+`crop` takes either a spec string or `x1/y1/x2/y2` edge kwargs and
 resolves it through the core's `resolve_crop` with the same px-per-cm / page logic as the
 CLI's `pipeline.zig`; the crop composes in rotated-original space. `draw` **appends** lines
 from a `Layout` / dict / JSON string / list of `Line`; `apply_layout` **adopts** a layout's
@@ -174,8 +183,10 @@ again = Layout.from_json(text)              # tolerant: missing fields → defau
 
 Line defaults match the rest of the project: `color="#FFFF00"`, `thickness=2.0`,
 `marker_size=4.0`, `style="solid"`, `locked=False`, `fill_color="transparent"`. The
-optional layout fields `imageFilter` / `filterColor` / `cropRect` / `rotationQuarters` are
-emitted only when set.
+optional layout fields `imageFilter` / `filterColor` / `cropRect` / `rotationQuarters` /
+`pageSize` / `customPageWidth` / `customPageHeight` / the formula trio are emitted only
+when set, and `from_dict`/`from_json` parse them all back, so a layout round-trips its
+page format like every other client.
 
 ### `Core` / `get_core()` — the ctypes binding
 
@@ -188,12 +199,14 @@ from pystencil import get_core
 
 core = get_core()
 core.parse_color("rebeccapurple")           # -> (102, 51, 153, 255)
-core.named_page_size("A4")                   # -> (21.0, 29.7) cm
+core.page_formats()                          # -> ["A0", "A1", ..., "C10"] (33 ISO names)
+core.named_page_size("B5")                   # -> (17.6, 25.0) cm
 core.default_blank_size_px(21.0, 29.7)       # -> (794, 1123) px @ 96 dpi
 core.rotated_dims(800, 600, 1)               # -> (600, 800)
 # in-place ops mutate the bytearray you pass:
 buf = bytearray(b"\xff\x00\x00\xff" * (w * h))
 core.apply_filter("bw", buf, w * h)
+core.apply_contour(buf, w, h)                # Sobel edge detection (needs dimensions)
 core.rasterize_line(buf, w, h, [(10, 10), (90, 90)], color="#00ff00")
 ```
 
@@ -262,12 +275,24 @@ python3 -m pystencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 --filter
 # blank page + a drawn layout
 python3 -m pystencil --blank 800 600 red --layout notes.json out.png
 
+# a named-format blank page: [format] [w h] [color] (format and w h are exclusive)
+python3 -m pystencil --blank b5 pink out.png
+
 # interactive REPL: /command lines applied to one in-memory working image
 python3 -m pystencil --repl
 ```
 
-REPL commands mirror the CLI console — `/upload`, `/blank`, `/crop`, `/rotate`, `/filter`,
-`/apply`, `/undo`, `/redo`, `/reset`, `/save`, and `/layout`. The **`/layout [path]`**
+REPL commands mirror the CLI console — `/upload`, `/blank`, `/format`, `/crop`, `/rotate`,
+`/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, and `/layout`. `/blank` takes the
+same `[format] [w h] [color]` grammar as `--blank`, and the page the blank is created on
+becomes the session's picked format (so `/blank b5` drives the next bare `/blank` and the
+exported layout's `pageSize`, while a dims-only blank clears it — exactly like the Zig
+console); **`/format`** bare lists every page
+format with its size (the current one marked), `/format <name>` sets the session's format
+(case-insensitive; it drives the `/blank` default page and the layout's `pageSize`), and
+`/format custom <w> <h>` picks a custom page in cm. A bare `/filter` lists the filter
+variants (`bw`, `sepia`, `invert`, `contour`, `none`, or a colour) instead of erroring.
+The **`/layout [path]`**
 command writes the current structured layout JSON, with path semantics **identical** to the
 Python `Editor.save_layout` and the Zig [CLI](../cli/README.md):
 

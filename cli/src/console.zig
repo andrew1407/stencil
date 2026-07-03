@@ -142,13 +142,18 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .blank => try handlers.doBlank(session, cmd.arg),
         .save => try handlers.doSave(session, io, cmd.arg),
         .layout => try handlers.doLayout(session, io, cmd.arg),
+        // Formulas / the page format ride the layout, so a real change syncs to the server —
+        // but the bare listing and rejected-argument paths mutate nothing and stay clean
+        // (marking them dirty would upload an unchanged project and ping every peer).
         .formula => {
-            try handlers.doFormula(session, cmd.arg);
-            handlers.markDirty(session); // formulas ride the layout — sync to the server
+            if (handlers.doFormula(session, cmd.arg)) handlers.markDirty(session);
+        },
+        .format => {
+            if (handlers.doFormat(session, cmd.arg)) handlers.markDirty(session);
         },
         .exec => {
-            try handlers.runAction(session, io, commands.parseAction(cmd.arg));
-            handlers.markDirty(session); // debounced; flushed at the prompt boundary
+            // Dirty only on a recorded edit; debounced, flushed at the prompt boundary.
+            if (handlers.doExec(session, io, cmd.arg)) handlers.markDirty(session);
         },
         .undo => handlers.doStep(session, session.undo(), "undone", "nothing to undo (at the original)"),
         .redo => handlers.doStep(session, session.redo(), "redone", "nothing to redo (at the latest edit)"),
@@ -164,11 +169,12 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .projects => try handlers.doProjects(session, io, cmd.arg),
         .project_color => try handlers.doProjectColor(session, cmd.arg),
         .rename => try handlers.doRename(session, cmd.arg),
-        .fetch => try handlers.doFetch(session, cmd.arg),
+        .fetch => try handlers.doFetch(session, io, cmd.arg),
         .sync => handlers.doSync(session, cmd.arg),
     } else if (commands.actionOf(cmd.word, cmd.arg)) |action| {
-        try handlers.runAction(session, io, action);
-        handlers.markDirty(session); // debounced; flushed at the prompt boundary
+        // Dirty only on a recorded edit (usage/error paths change nothing); debounced,
+        // flushed at the prompt boundary.
+        if (handlers.runAction(session, io, action)) handlers.markDirty(session);
     } else {
         logo.print("error: unknown command '{s}' — type 'help' for the command list\n", .{cmd.word});
     }

@@ -142,12 +142,18 @@ namespace stencil::gui {
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
     QString hotkey(const QString& id, const QString& fallback) const;
+    // The canonical page-format value ("A4"/"custom") behind the toolbar combo's
+    // display label (the item data — the label text carries the physical size).
+    QString pageSizeValue() const;
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
     // Active display unit derived from settings_.units (cm default, else inches).
     core::UnitFormat unitFormat() const;
     // Apply the current unit to the custom page spinboxes + their suffix label.
     void applyUnitToPageInputs();
+    // Re-render the page-format combo's option labels in the current unit
+    // (values/data untouched, so the selection and handlers are unaffected).
+    void applyUnitToPageCombo();
     // Single entry point for changing units: persists, syncs both UI surfaces
     // (View ▸ Units menu + toolbar combo), and refreshes every length readout.
     void applyUnits(const QString& code);
@@ -555,6 +561,8 @@ namespace stencil::gui {
     QAction* actFilterNone_ = nullptr;
     QAction* actFilterBW_ = nullptr;
     QAction* actFilterSepia_ = nullptr;
+    QAction* actFilterInvert_ = nullptr;
+    QAction* actFilterContour_ = nullptr;
     QAction* actFilterCustom_ = nullptr;
     QAction* tintColorAction_ = nullptr;
 
@@ -614,7 +622,7 @@ namespace stencil::gui {
       enum class Mode { Auto, Page, None };
       Mode mode = Mode::Auto;
       bool album = false;
-      QString page;  // "A3"/"A4" (empty keeps the current page)
+      QString page;  // canonical format name ("A3"/"B5"…; empty keeps the current page)
     };
     QuickCropOpts pendingCrop_;
     bool incognito_ = false;

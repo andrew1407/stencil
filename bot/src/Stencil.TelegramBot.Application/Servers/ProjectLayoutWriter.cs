@@ -9,9 +9,11 @@ namespace Stencil.TelegramBot.Application.Servers;
 /// <summary>
 /// Builds the project layout JSON to save back to the server. The counterpart of
 /// <see cref="ProjectLayoutMapper"/>: it starts from the project's existing layout (so fields
-/// the bot doesn't model — <c>cropRect</c>, <c>pageSize</c>, formulas — are preserved) and
-/// overwrites the fields the bot owns from the current <see cref="EditState"/>: <c>lines</c>,
+/// the bot doesn't model — <c>cropRect</c>, formulas — are preserved) and overwrites the
+/// fields the bot owns from the current <see cref="EditState"/>: <c>lines</c>,
 /// <c>imageFilter</c>/<c>filterColor</c>, <c>rotationQuarters</c>, and the working dimensions.
+/// <c>pageSize</c> is preserved too unless the user picked one with <c>/format</c>
+/// (<see cref="EditState.PageFormat"/>), which then overrides it.
 /// </summary>
 /// <remarks>
 /// Pure (no I/O), so it's unit-tested. The result matches the browser's <c>buildLayoutPayload</c>
@@ -37,6 +39,17 @@ public static class ProjectLayoutWriter
             root["filterColor"] = color;
         }
 
+        // A /format choice overrides the fetched layout's page; otherwise it is preserved as-is.
+        if (edits.PageFormat is string page)
+        {
+            root["pageSize"] = page;
+            if (page == "custom" && edits.CustomPageWidth is double pw && edits.CustomPageHeight is double ph)
+            {
+                root["customPageWidth"] = pw;
+                root["customPageHeight"] = ph;
+            }
+        }
+
         root["rotationQuarters"] = edits.Rotate;
         root["imageWidth"] = resultWidth;
         root["imageHeight"] = resultHeight;
@@ -49,7 +62,8 @@ public static class ProjectLayoutWriter
 
     /// <summary>
     /// Map the bot's filter spec to the browser's <c>imageFilter</c>/<c>filterColor</c> pair:
-    /// <c>bw</c>/<c>sepia</c> stay named; any colour becomes a <c>custom</c> tint; null is <c>none</c>.
+    /// <c>bw</c>/<c>sepia</c>/<c>invert</c>/<c>contour</c> stay named; any colour becomes a
+    /// <c>custom</c> tint; null is <c>none</c>.
     /// </summary>
     private static (string Mode, string? Color) FilterFields(string? filter)
     {
@@ -64,6 +78,14 @@ public static class ProjectLayoutWriter
         if (filter.Equals("sepia", StringComparison.OrdinalIgnoreCase))
         {
             return ("sepia", null);
+        }
+        if (filter.Equals("invert", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("invert", null);
+        }
+        if (filter.Equals("contour", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("contour", null);
         }
         return ("custom", filter);
     }

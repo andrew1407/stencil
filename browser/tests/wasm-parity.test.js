@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../js/core/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
+import { applyContourRGBA } from '../js/core/contourFilter.js';
+import constants from '../js/config/constants.json' with { type: 'json' };
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS,
   cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
@@ -107,6 +109,20 @@ wtest('pageDimensions + pixelToPageRaw: wasm matches JS (landscape swap, scaling
   assert.deepStrictEqual(pixelToPageRaw(50, 25, dims, 100, 50), { x: 10.5, y: 14.85 });
 });
 
+wtest('pageFormats: wasm name list equals the PAGE_SIZES table keys (set equality)', () => {
+  const names = core.op('pageFormats')().split(' ');
+  const keys = Object.keys(constants.PAGE_SIZES);
+  assert.deepStrictEqual([...names].sort(), [...keys].sort());
+});
+
+wtest('pageDimensions: every named format matches PAGE_SIZES (portrait + landscape swap)', () => {
+  const pageDimensions = core.op('pageDimensions');
+  for (const [name, ps] of Object.entries(constants.PAGE_SIZES)) {
+    assert.deepStrictEqual(pageDimensions(name, 100, 200, 0, 0), { width: ps.width, height: ps.height }, `${name} portrait`);
+    assert.deepStrictEqual(pageDimensions(name, 200, 100, 0, 0), { width: ps.height, height: ps.width }, `${name} landscape`);
+  }
+});
+
 wtest('shouldCloseShape: wasm matches the JS close gate (flat point array)', () => {
   const fn = core.op('shouldCloseShape');
   const sq = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
@@ -172,4 +188,37 @@ wtest('applyFilterRGBA custom: grayscale+tint in one pass, alpha preserved (pixe
   assert.strictEqual(data[3], 200);
   assert.ok(data[4] >= 253 && data[5] >= 253 && data[6] >= 254);
   assert.strictEqual(data[7], 128);
+});
+
+wtest('applyFilterRGBA invert: flips every channel, alpha preserved', () => {
+  const fn = core.op('applyFilterRGBA');
+  const data = new Uint8ClampedArray([10, 20, 30, 200, 255, 0, 128, 128]);
+  fn('invert', data, 2, 0, 0, 0);   // tint ignored for invert
+  assert.deepStrictEqual([...data], [245, 235, 225, 200, 0, 255, 127, 128]);
+});
+
+wtest('applyContourRGBA: wasm matches the JS fallback byte-for-byte on a gradient', () => {
+  // Small deterministic fixture with distinct horizontal/vertical/diagonal ramps
+  // and per-pixel alphas — the pinned integer Sobel must agree exactly.
+  const w = 8, h = 6;
+  const fixture = () => {
+    const d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = (y * w + x) * 4;
+        d[p] = x * 30;              // horizontal ramp
+        d[p + 1] = y * 40;          // vertical ramp
+        d[p + 2] = (x * y * 7) % 256;
+        d[p + 3] = 100 + x + y;     // distinct alphas (must survive untouched)
+      }
+    }
+    return d;
+  };
+  const wasmBuf = fixture();
+  const jsBuf = fixture();
+  core.op('applyContourRGBA')(wasmBuf, w, h);
+  applyContourRGBA(jsBuf, w, h);
+  assert.deepStrictEqual([...wasmBuf], [...jsBuf]);
+  // Sanity: the filter actually ran (a gradient produces some non-255 output).
+  assert.ok([...wasmBuf].some((v, i) => i % 4 !== 3 && v !== 255));
 });

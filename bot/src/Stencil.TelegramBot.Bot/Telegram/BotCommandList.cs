@@ -13,12 +13,13 @@ public static class BotCommandList
     public static IReadOnlyList<TgCommand> All() =>
     [
         new("help", "Show the commands and menu"),
-        new("blank", "Start a blank canvas: [w h] [color]"),
+        new("blank", "Start a blank canvas: [format] [w h] [color]"),
+        new("format", "Page format: <name> | custom <w> <h> (bare lists)"),
         new("url", "Load an image from a link"),
         new("frame", "Grab a video frame: [n]"),
         new("crop", "Crop, e.g. x1=10% x2=90% y1=10% y2=90%"),
-        new("rotate", "Rotate 90° × n (default 1)"),
-        new("filter", "bw | sepia | none | color"),
+        new("rotate", "Rotate 90° × n, e.g. 1, 2 or -1"),
+        new("filter", "bw | sepia | invert | contour | none | color"),
         new("draw", "Draw line|rect|poly x1,y1 x2,y2 …"),
         new("color", "Set the pen colour"),
         new("thickness", "Set the pen stroke width"),

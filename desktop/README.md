@@ -287,6 +287,16 @@ The desktop app mirrors the browser app's interaction surface:
   (embedded as a Qt resource) with **tooltips** showing label + shortcut.
 - **Right-click context menu** on the canvas (New Line, Delete Last Point, Clear
   All, Deselect).
+- **Page formats** — the toolbar page selector offers the full ISO 216/269
+  series (A0–A10, B0–B10, C0–C10) plus a custom W×H size. Every option shows its
+  physical size in the active display unit (cm/in), and the toolbar combo is
+  searchable: type to filter the list (e.g. `b5`), case-insensitively. The same
+  option list backs the Settings dialog and the Image Links quick-crop picker.
+- **Image filters** — none / B&W / sepia / invert / contour / custom duotone
+  tint, from the Style toolbar row, the canvas context menu, or the Alt+B
+  cycle (none → B&W → sepia → invert → contour → tint). Contour runs the
+  core's Sobel edge detection (dark edges on white); every mode produces the
+  same pixels as the browser app by construction (shared `core/` math).
 - **Selection panel** dock — the active line's points and live measurements (point
   count, segment count, total length).
 - **Settings** dialog (theme, autosave, show points/lines, default visuals, page
@@ -300,5 +310,5 @@ The desktop app mirrors the browser app's interaction surface:
   `STENCIL_STATE_DIR` build define; the directory is in `.gitignore`).
 
 > Out of scope: rectangle/area drawing, the editable coordinate table, the per-line
-> styling panel, image filters, drag-and-drop, the fullscreen overlay layer, and
+> styling panel, drag-and-drop, the fullscreen overlay layer, and
 > clipboard copy/paste of the image + layout JSON.

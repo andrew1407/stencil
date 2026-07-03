@@ -2,7 +2,9 @@
 //! (browser/js/core/layout.js → buildLayoutPayload): { imageWidth, imageHeight, lines }
 //! where each line matches core models.hpp (points, color, thickness, markerSize,
 //! style, locked, fillColor). An optional top-level "filter" is honoured unless the
-//! CLI's --filter overrides it. Everything is owned by an internal arena.
+//! CLI's --filter overrides it; an optional "pageSize" (+ custom cm dims) is surfaced
+//! so the wrote line can report the page the layout targets. Everything is owned by
+//! an internal arena.
 const std = @import("std");
 const core = @import("core.zig");
 
@@ -11,6 +13,9 @@ pub const Layout = struct {
     image_width: ?f64 = null,
     image_height: ?f64 = null,
     filter: ?[]const u8 = null,
+    page_size: ?[]const u8 = null, // top-level "pageSize": a named format ("A0".."C10") or "custom"
+    custom_page_w: f64 = 0, // "customPageWidth"/"customPageHeight" in cm; 0 = unset
+    custom_page_h: f64 = 0,
     lines: []core.LineDraw = &.{},
 
     pub fn deinit(self: *Layout) void {
@@ -58,6 +63,11 @@ pub fn parse(gpa: std.mem.Allocator, bytes: []const u8) !Layout {
     if (obj.get("filter")) |v| {
         if (v == .string) layout.filter = try a.dupeZ(u8, v.string);
     }
+    if (obj.get("pageSize")) |v| {
+        if (v == .string) layout.page_size = try a.dupeZ(u8, v.string);
+    }
+    layout.custom_page_w = fieldF64(obj, "customPageWidth", 0);
+    layout.custom_page_h = fieldF64(obj, "customPageHeight", 0);
 
     var lines: std.ArrayList(core.LineDraw) = .empty;
     if (obj.get("lines")) |lines_v| {
@@ -101,6 +111,7 @@ test "parse layout json into drawable lines" {
     const a = testing.allocator;
     const json =
         \\{ "imageWidth": 10, "imageHeight": 20, "filter": "bw",
+        \\  "pageSize": "custom", "customPageWidth": 10, "customPageHeight": 15,
         \\  "lines": [ { "points": [{"x":1,"y":2},{"x":3,"y":4}],
         \\              "color": "red", "thickness": 3, "locked": true } ] }
     ;
@@ -110,4 +121,7 @@ test "parse layout json into drawable lines" {
     try testing.expectEqual(@as(usize, 4), L.lines[0].points.len);
     try testing.expect(L.lines[0].locked);
     try testing.expectEqualStrings("bw", L.filter.?);
+    try testing.expectEqualStrings("custom", L.page_size.?);
+    try testing.expectEqual(@as(f64, 10), L.custom_page_w);
+    try testing.expectEqual(@as(f64, 15), L.custom_page_h);
 }

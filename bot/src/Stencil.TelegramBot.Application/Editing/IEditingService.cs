@@ -44,6 +44,13 @@ public interface IEditingService
     /// <summary>Set the filter, or clear it when given null/empty/"none".</summary>
     Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default);
 
+    /// <summary>
+    /// Set the session's page format: a canonical ISO name (e.g. <c>B5</c>) or <c>custom</c>
+    /// with <paramref name="widthCm"/>/<paramref name="heightCm"/> in cm. A named format is the
+    /// <c>/blank</c> default page; either kind rides the saved project layout's <c>pageSize</c>.
+    /// </summary>
+    Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default);
+
     /// <summary>Apply a whole drawing layout to the edit state (replaces any current lines).</summary>
     Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, CancellationToken ct = default);
 

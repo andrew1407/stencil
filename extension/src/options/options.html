@@ -92,10 +92,8 @@
     <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>
 
     <label class="f" for="page">Default page size (crop aspect)</label>
-    <select id="page">
-      <option value="A3">A3</option>
-      <option value="A4">A4</option>
-    </select>
+    <!-- Options are generated from the shared ISO format table (see options.js). -->
+    <select id="page"></select>
 
     <label class="f" for="markOpened">Already-opened images</label>
     <label style="display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">

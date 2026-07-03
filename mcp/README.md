@@ -163,7 +163,9 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 encode`):
 
 - **`input`** — a local path or `http(s)://` URL to an image or video. Mutually exclusive
-  with **`blank`** (`{ width?, height?, color? }`; omit `width`/`height` for A4 @ 96dpi).
+  with **`blank`** (`{ page?, width?, height?, color? }`; `page` is an ISO format name —
+  `A0`–`A10`, `B0`–`B10`, `C0`–`C10`, case-insensitive — mutually exclusive with explicit
+  `width`/`height`; omit all of them for A4 @ 96dpi).
 - **`crop`** — either a spec string (`"x1=10% x2=90% y1=10% y2=90%"`) or an object of edges
   (`{ x1, x2, y1, y2 }`). Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a
   bare pixel delta; a leading `-` measures from the far edge. `album: true` derives a missing
@@ -171,8 +173,8 @@ encode`):
 - **`rotate`** — quarter-turns clockwise (`1` = 90°, `-1` = −90°, `2` = 180°).
 - **`layout`** — a path/URL string, **or an inline layout object** (same schema the browser
   exports); coordinates are image pixels. The server writes inline layouts to a temp file.
-- **`filter`** — `bw`, `sepia`, or a CSS color / `#hex` (duotone tint); overrides a filter
-  baked into the layout.
+- **`filter`** — `bw`, `sepia`, `invert`, `contour`, or a CSS color / `#hex` (duotone
+  tint); overrides a filter baked into the layout.
 - **`output`** — the result path (extension auto-filled from the input format). `overwrite`
   defaults to `false`, so the server won't clobber an existing file unless asked.
 - **`frame`** — video frame index (0-based); needs `ffmpeg` on `PATH`.
@@ -238,6 +240,7 @@ the arguments. The configured `surface` default decides where each result is del
 - "Give **logo.png** a duotone **#7c3aed** tint."
 - "Create a blank red 800×600 canvas, draw a blue rectangle around the middle, tone it
   sepia, and save as **card.png**."
+- "Make a blank **B5** page and save it as **page.png**."
 - "Grab frame 24 of **clip.mp4** as **frame.png** and open it in the browser editor."
 - "Crop **https://example.com/pic.png** to the left half and save it next to my project."
 - "What are the pixel dimensions of **photo.jpg**?"
@@ -263,6 +266,9 @@ These are the underlying calls a client makes for prompts like the above:
     "layout": { "lines": [ { "points": [ {"x":100,"y":100}, {"x":700,"y":100},
       {"x":700,"y":500}, {"x":100,"y":500}, {"x":100,"y":100} ], "color": "#00f" } ] },
     "output": "card.png" } }
+
+// blank B5 page (ISO format name instead of pixel dims)
+{ "name": "stencil_edit", "arguments": { "blank": { "page": "B5" }, "output": "page.png" } }
 
 // grab the 24th frame of a video
 { "name": "stencil_edit", "arguments": { "input": "clip.mp4", "frame": 24, "output": "frame.png" } }

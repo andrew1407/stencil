@@ -4,7 +4,7 @@
 //!
 //! The individual steps are exposed as small `pub` building blocks (acquireInput,
 //! acquireBlank, applyCropSpec, applyRotateBy, applyLayoutSrc, applyFilterMode,
-//! writeOutput) so the interactive console mode (console.zig) can drive the same
+//! writeOutputLabeled) so the interactive console mode (console.zig) can drive the same
 //! transforms one command at a time. `run` is just the one-shot composition of them.
 const std = @import("std");
 const core = @import("core.zig");
@@ -66,7 +66,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         img = src.img;
         default_fmt = src.default_fmt;
     } else {
-        logo.print("error: no source — pass --input <path|url> or --blank <w h [color]>\n", .{});
+        logo.print("error: no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
         return error.NoSource;
     }
     defer img.deinit(gpa);
@@ -82,20 +82,25 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     if (opts.crop) |spec| try applyCropSpec(gpa, &img, spec, opts.album);
     try applyRotateBy(gpa, &img, opts.rotate);
 
-    // 3) Layout: draw the lines and capture an optional filter (overridable by --filter).
-    var layout_filter_buf: ?[]u8 = null;
-    defer if (layout_filter_buf) |b| gpa.free(b);
-    if (opts.layout) |src| layout_filter_buf = try applyLayoutSrc(gpa, io, &img, src);
+    // 3) Layout: draw the lines and capture the optional filter + page pick it carries.
+    var applied = AppliedLayout{};
+    defer applied.deinit(gpa);
+    if (opts.layout) |src| applied = try applyLayoutSrc(gpa, io, &img, src);
 
     // 4) Filter — explicit --filter overrides the layout's filter.
-    if (opts.filter orelse layout_filter_buf) |f| applyFilterMode(gpa, &img, f);
+    if (opts.filter orelse applied.filter) |f| applyFilterMode(gpa, &img, f);
 
     // 5) Encode + write locally.
     const out = opts.output orelse {
         logo.print("error: no output path given\n", .{});
         return error.NoOutput;
     };
-    try writeOutput(gpa, io, img, out, default_fmt);
+    // The page reported in the `wrote` line follows the effective page state: an applied
+    // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
+    const page_name = effectivePageName(applied.page_size, if (opts.blank) |b| b.page else null);
+    const page_label = try pageLabelAlloc(gpa, page_name, applied.custom_page_w, applied.custom_page_h, img.width, img.height);
+    defer gpa.free(page_label);
+    try writeOutputLabeled(gpa, io, img, out, default_fmt, page_label);
 
     // 6) Server result delivery.
     try deliverToServer(gpa, io, opts, img, default_fmt, fetch_client, fetched_id, original_bytes, orig_w, orig_h);
@@ -210,9 +215,26 @@ pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !vo
     try rotateInPlace(gpa, img, rotate);
 }
 
-/// Draw a layout (file path or URL) onto the image; returns its optional filter name
-/// (owned by the caller) so callers can apply or override it.
-pub fn applyLayoutSrc(gpa: std.mem.Allocator, io: std.Io, img: *image.Rgba8, src: []const u8) !?[]u8 {
+/// What an applied layout carried besides its lines: the optional filter (overridable by
+/// --filter) and the optional page pick (pageSize + custom cm dims) the wrote line reports.
+/// The slices are owned by the caller.
+pub const AppliedLayout = struct {
+    filter: ?[]u8 = null,
+    page_size: ?[]u8 = null, // a named format ("A0".."C10") or "custom"
+    custom_page_w: f64 = 0, // cm; only meaningful with page_size "custom"
+    custom_page_h: f64 = 0,
+
+    pub fn deinit(self: *AppliedLayout, gpa: std.mem.Allocator) void {
+        if (self.filter) |f| gpa.free(f);
+        if (self.page_size) |p| gpa.free(p);
+        self.* = .{};
+    }
+};
+
+/// Draw a layout (file path or URL) onto the image; returns its optional filter name and
+/// page pick (owned by the caller) so callers can apply/override the filter and report the
+/// page the layout targets.
+pub fn applyLayoutSrc(gpa: std.mem.Allocator, io: std.Io, img: *image.Rgba8, src: []const u8) !AppliedLayout {
     const bytes = try loadText(gpa, io, src);
     defer gpa.free(bytes);
     var parsed = try layout_mod.parse(gpa, bytes);
@@ -220,20 +242,34 @@ pub fn applyLayoutSrc(gpa: std.mem.Allocator, io: std.Io, img: *image.Rgba8, src
     for (parsed.lines) |line| {
         core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), line);
     }
-    if (parsed.filter) |f| return try gpa.dupe(u8, f);
-    return null;
+    var applied = AppliedLayout{ .custom_page_w = parsed.custom_page_w, .custom_page_h = parsed.custom_page_h };
+    errdefer applied.deinit(gpa);
+    if (parsed.filter) |f| applied.filter = try gpa.dupe(u8, f);
+    if (parsed.page_size) |p| applied.page_size = try gpa.dupe(u8, p);
+    return applied;
 }
 
-/// Apply an image filter in place. "" / "none" is a no-op; a colour name/#hex tints.
+/// Apply an image filter in place. "" / "none" is a no-op; "invert" and "contour" are named
+/// modes (checked before the colour fallback); any other colour name/#hex tints.
 pub fn applyFilterMode(gpa: std.mem.Allocator, img: *image.Rgba8, mode: []const u8) void {
     if (mode.len == 0 or std.ascii.eqlIgnoreCase(mode, "none")) return;
+    if (std.ascii.eqlIgnoreCase(mode, "contour")) {
+        // Contour is an edge-detection convolution, not a per-pixel map — it needs the dims.
+        core.applyContour(img.pixels, @intCast(img.width), @intCast(img.height));
+        return;
+    }
+    if (std.ascii.eqlIgnoreCase(mode, "invert")) {
+        core.applyFilter(gpa, "invert", img.pixels, @intCast(img.width * img.height), .{ .r = 0, .g = 0, .b = 0, .a = 255 });
+        return;
+    }
     const tint = core.parseColor(gpa, mode) orelse core.Rgba{ .r = 0, .g = 0, .b = 0, .a = 255 };
     core.applyFilter(gpa, mode, img.pixels, @intCast(img.width * img.height), tint);
 }
 
-/// Encode the image and write it to `out` (extension filled from `default_fmt` if absent),
-/// then print the canonical `wrote {path} ({w}x{h})` line.
-pub fn writeOutput(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []const u8, default_fmt: image.Format) !void {
+/// Encode the image, write it to `out` (extension filled from `default_fmt` if absent), and
+/// print the canonical `wrote {path} ({w}x{h} px · {page})` line with the given page label
+/// (built via pageLabelAlloc, or the console's session label — both share that derivation).
+pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []const u8, default_fmt: image.Format, page_label: []const u8) !void {
     const dir = std.Io.Dir.cwd();
     const resolved = try resolveOutput(gpa, out, default_fmt);
     defer gpa.free(resolved.path);
@@ -242,9 +278,7 @@ pub fn writeOutput(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []
     defer gpa.free(encoded);
     try dir.writeFile(io, .{ .sub_path = resolved.path, .data = encoded });
 
-    // Report the px size alongside the page format it fits (A4 base, oriented to the image).
-    const page = pageForImage(gpa, img.width, img.height);
-    logo.print("wrote {s} ({d}x{d} px · A4 {d}×{d}cm)\n", .{ resolved.path, img.width, img.height, page.w, page.h });
+    logo.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
 }
 
 // ── source acquisition ───────────────────────────────────────────────────────
@@ -294,7 +328,8 @@ fn mapMediaError(e: anyerror) anyerror {
 // ── blank synthesis ──────────────────────────────────────────────────────────
 
 pub fn acquireBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
-    const page = core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
+    // Explicit dims win; else the picked page format; else the default A4.
+    const page = core.namedPageSize(gpa, blank.page orelse "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
     var w: i64 = undefined;
     var h: i64 = undefined;
     if (blank.width != null and blank.height != null) {
@@ -341,10 +376,42 @@ fn rotateInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
 // ── page + output helpers ────────────────────────────────────────────────────
 
 pub fn pageForImage(gpa: std.mem.Allocator, w: usize, h: usize) core.Page {
-    const base = core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
+    return namedPageForImage(gpa, "A4", w, h);
+}
+
+/// A named page format's cm dims oriented to a `w`×`h` image (landscape swap, mirroring
+/// core pageDimensions); an unknown name falls back to the A4 dims.
+pub fn namedPageForImage(gpa: std.mem.Allocator, name: []const u8, w: usize, h: usize) core.Page {
+    const base = core.namedPageSize(gpa, name) orelse
+        core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
     // Landscape image -> lay the page on its side, mirroring core pageDimensions.
     if (w > h) return .{ .w = @max(base.w, base.h), .h = @min(base.w, base.h) };
     return .{ .w = @min(base.w, base.h), .h = @max(base.w, base.h) };
+}
+
+/// The page name the one-shot `wrote` line reports against: an applied layout's pageSize
+/// wins, then --blank's picked format, else "" (→ the A4 default). Pure; unit-tested.
+pub fn effectivePageName(layout_page: ?[]const u8, blank_page: ?[]const u8) []const u8 {
+    return layout_page orelse (blank_page orelse "");
+}
+
+/// The page label printed next to the px size ("<name> <w>×<h>cm"): a named pick oriented
+/// to the image, "custom <w>×<h>cm" for explicit cm dims, or the A4-derived default when
+/// nothing is picked (empty name). The ONE derivation shared by the one-shot wrote line and
+/// the console's header/save label (Session.pageFormatLabel). Caller owns the result.
+pub fn pageLabelAlloc(gpa: std.mem.Allocator, page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) ![]u8 {
+    var name: []const u8 = "A4";
+    var dims = pageForImage(gpa, w, h);
+    if (page_size.len != 0) {
+        name = page_size;
+        if (std.ascii.eqlIgnoreCase(page_size, "custom")) {
+            // Custom dims are reported as picked (never orientation-swapped to the image).
+            if (custom_w > 0 and custom_h > 0) dims = .{ .w = custom_w, .h = custom_h };
+        } else {
+            dims = namedPageForImage(gpa, page_size, w, h);
+        }
+    }
+    return std.fmt.allocPrint(gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
 }
 
 const Resolved = struct { path: []u8, fmt: image.Format };

@@ -80,6 +80,9 @@ class Core:
         lib.stencil_cli_namedPageSize.restype = ctypes.c_int
         lib.stencil_cli_namedPageSize.argtypes = [_cstr, _dblp, _dblp]
 
+        lib.stencil_cli_pageFormats.restype = _cstr
+        lib.stencil_cli_pageFormats.argtypes = []
+
         lib.stencil_cli_defaultBlankSizePx.restype = None
         lib.stencil_cli_defaultBlankSizePx.argtypes = [
             ctypes.c_double,
@@ -158,6 +161,9 @@ class Core:
             ctypes.c_int,
         ]
 
+        lib.stencil_cli_applyContour.restype = None
+        lib.stencil_cli_applyContour.argtypes = [_u8p, ctypes.c_int, ctypes.c_int]
+
         # The double* parameter here is the one that MUST be typed or the call corrupts.
         lib.stencil_cli_rasterizeLine.restype = None
         lib.stencil_cli_rasterizeLine.argtypes = [
@@ -216,6 +222,20 @@ class Core:
         if not ok:
             return None
         return (wcm.value, hcm.value)
+
+    def page_formats(self) -> List[str]:
+        """The canonical page-format names ("A0".."C10", no "custom") in canonical order."""
+        raw = self._lib.stencil_cli_pageFormats()
+        return raw.decode("utf-8").split() if raw else []
+
+    def canonical_page_format(self, name: str) -> Optional[str]:
+        """Canonical page-format name matched case-insensitively ("b5" → "B5"), or None
+        (never "custom") for anything unknown — port of the CLI's canonicalPageFormat."""
+        low = (name or "").strip().lower()
+        for fmt in self.page_formats():
+            if fmt.lower() == low:
+                return fmt
+        return None
 
     def default_blank_size_px(
         self, wcm: float, hcm: float, dpi: float = 96.0
@@ -336,7 +356,8 @@ class Core:
         pixel_count: int,
         tint: Tuple[int, int, int] = (0, 0, 0),
     ) -> None:
-        """Apply "none"|"bw"|"sepia"|<duotone> in place to a pixel_count RGBA8 buffer."""
+        """Apply "none"|"bw"|"sepia"|"invert"|<duotone> in place to a pixel_count RGBA8
+        buffer. "contour" is a no-op here (it needs dimensions) — use apply_contour."""
         self._lib.stencil_cli_applyFilter(
             _encode(mode),
             ctypes.cast(_buf_view(data), _u8p),
@@ -344,6 +365,15 @@ class Core:
             ctypes.c_int(tint[0]),
             ctypes.c_int(tint[1]),
             ctypes.c_int(tint[2]),
+        )
+
+    def apply_contour(self, data: bytearray, width: int, height: int) -> None:
+        """Sobel edge detection ("contour") in place on a width x height RGBA8 buffer:
+        dark edges on a white page, alpha preserved. Degenerate dims are a no-op."""
+        self._lib.stencil_cli_applyContour(
+            ctypes.cast(_buf_view(data), _u8p),
+            ctypes.c_int(width),
+            ctypes.c_int(height),
         )
 
     # ── rasterise a layout line ───────────────────────────────────────────────

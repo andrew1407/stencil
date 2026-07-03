@@ -17,7 +17,8 @@ public static class CliArgvBuilder
     /// <summary>
     /// Build the argv for one edit. Throws <see cref="StencilCliException"/> when the
     /// source/output/blank invariants are violated (exactly one of input/blank; non-empty
-    /// output; blank width and height together or both omitted).
+    /// output; blank width and height together or both omitted; a blank page format and
+    /// explicit width/height are mutually exclusive).
     /// </summary>
     public static IReadOnlyList<string> BuildArgv(EditRequest req)
     {
@@ -49,7 +50,16 @@ public static class CliArgvBuilder
             argv.Add("--blank");
             bool hasWidth = blank.Width is not null;
             bool hasHeight = blank.Height is not null;
-            if (hasWidth && hasHeight)
+            if (blank.Page is not null && (hasWidth || hasHeight))
+            {
+                throw new StencilCliException(
+                    "`blank.page` and `blank.width`/`blank.height` are mutually exclusive — the format names the size");
+            }
+            if (blank.Page is not null)
+            {
+                argv.Add(blank.Page);
+            }
+            else if (hasWidth && hasHeight)
             {
                 argv.Add(blank.Width!.Value.ToString());
                 argv.Add(blank.Height!.Value.ToString());

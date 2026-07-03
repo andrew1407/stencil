@@ -1,10 +1,11 @@
 // ── Quick crop page ─────────────────────────────────────────────────────────
 // Mirrors the editor's crop model: a rect in ORIGINAL-image pixels whose aspect is locked
-// to the page (A3/A4/custom). Drag to move, resize corner-only, scroll to zoom. Then "Keep
-// original" (full image + crop rect) or "Cut cropped part" (bake the region), opening a tab.
+// to the page (any ISO A/B/C format, or custom). Drag to move, resize corner-only, scroll to
+// zoom. Then "Keep original" (full image + crop rect) or "Cut cropped part" (bake the
+// region), opening a tab.
 import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
-  roundRect, isAlbumOrientation, pageDims
+  roundRect, isAlbumOrientation, pageDims, pageSizeOptions
 } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
@@ -59,7 +60,7 @@ const init = async () => {
   } catch {
     /* default */
   }
-  syncPageButtons();
+  syncPageControls();
   try {
     state.dataUrl = await fetchAsDataUrl(state.srcUrl);
   } catch (err) {
@@ -222,8 +223,13 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerup', () => { drag = null; });
 
 // ── Controls ──
-const syncPageButtons = () => {
-  document.querySelectorAll('#page-seg button').forEach(b => b.classList.toggle('active', b.dataset.page === state.page));
+// Page-size select: Custom… first, then every ISO A/B/C format from the shared
+// table (canonical order), labelled with its cm dimensions.
+const pageSel = document.getElementById('page-select');
+pageSel.innerHTML = '<option value="custom">Custom…</option>' + pageSizeOptions();
+
+const syncPageControls = () => {
+  pageSel.value = state.page;
   document.getElementById('custom-dims').hidden = state.page !== 'custom';
 };
 
@@ -239,11 +245,9 @@ const onCustom = () => {
   if (state.page === 'custom') resetCrop();
 };
 
-document.getElementById('page-seg').addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  state.page = b.dataset.page;
-  syncPageButtons();
+pageSel.addEventListener('change', () => {
+  state.page = pageSel.value;
+  syncPageControls();
   resetCrop();
 });
 document.getElementById('orient-seg').addEventListener('click', (e) => {

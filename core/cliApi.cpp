@@ -34,6 +34,8 @@ extern "C" {
     return 1;
   }
 
+  const char* stencil_cli_pageFormats(void) { return pageFormatNames(); }
+
   void stencil_cli_defaultBlankSizePx(double pageWcm, double pageHcm, double dpi,
                                       int* outW, int* outH) {
     const SizePx s = defaultBlankSizePx(PageSize{pageWcm, pageHcm}, dpi);
@@ -105,6 +107,10 @@ extern "C" {
     if (pixelCount <= 0) return;
     const FilterMode fm = filterModeFromString(mode ? std::string(mode) : std::string());
     applyFilterRGBA(fm, data, static_cast<std::size_t>(pixelCount), tintR, tintG, tintB);
+  }
+
+  void stencil_cli_applyContour(uint8_t* data, int width, int height) {
+    applyContourRGBA(data, width, height);
   }
 
   void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,

@@ -3,7 +3,9 @@
 // or a unit string ('3cm', '-4in', '50%', '-60%'). A leading '-' on a UNIT/PERCENT token means
 // "measured from the axis END" (image/page edge), NOT a negative length; on a bare number '-'
 // keeps its arithmetic meaning (leftward/upward move). All pure + unit-tested; no DOM.
-import { CM_PER_INCH } from '../utils.js';
+import { CM_PER_INCH, cmToUnit, unitLabel } from '../utils.js';
+import constants from '../config/constants.json' with { type: 'json' };
+const { PAGE_SIZES } = constants;
 
 // Parse a token into { kind, value, fromEnd }: 'delta' = relative px move (value keeps its
 // sign); 'px'|'cm' = absolute length (cm already converted from in/mm); 'percent' = 0..100
@@ -41,15 +43,36 @@ export const resolveAxisPx = (token, { lengthPx, pxPerCm, currentPx = 0 }) => {
   return t.fromEnd ? lengthPx - px : px;
 };
 
-// Normalize a page-size argument to the canonical 'A3' | 'A4' | 'custom' the model
-// uses, accepting any case ('a3', 'Custom', …). Returns null for anything else.
-export const normalizePageSize = (s) => {
-  const v = String(s || '').trim().toLowerCase();
-  if (v === 'a3') return 'A3';
-  if (v === 'a4') return 'A4';
-  if (v === 'custom') return 'custom';
-  return null;
+// Lowercased name → canonical casing, derived from the PAGE_SIZES table keys plus
+// 'custom' — a new format added to the table is accepted here automatically.
+const PAGE_NAME_BY_LOWER = Object.fromEntries(
+  [...Object.keys(PAGE_SIZES), 'custom'].map((n) => [n.toLowerCase(), n]),
+);
+
+// Normalize a page-size argument to the canonical name the model uses ('A0'…'C10'
+// or 'custom'), accepting any case ('a3', 'b5', 'Custom', …). Returns null for
+// anything else.
+export const normalizePageSize = (s) =>
+  PAGE_NAME_BY_LOWER[String(s || '').trim().toLowerCase()] ?? null;
+
+// Selector label for a named page format in the given display unit, e.g.
+// "A4 (21 × 29.7 cm)" / "A4 (8.27 × 11.69 in)" (≤2 decimals, trailing zeros
+// trimmed). Shared by the toolbar/links-modal option lists and applyUnitToUI's
+// unit-change re-render. Unknown names (incl. 'custom') echo back unchanged.
+export const pageFormatLabel = (name, unit = 'cm') => {
+  const ps = PAGE_SIZES[name];
+  if (!ps) return name;
+  const fmt = (cm) => +cmToUnit(cm, unit).toFixed(2);
+  return `${name} (${fmt(ps.width)} × ${fmt(ps.height)} ${unitLabel(unit)})`;
 };
+
+// <option> markup for every named format in the PAGE_SIZES table (canonical order),
+// labelled via pageFormatLabel — the one builder behind the toolbar #page-size and
+// links-modal quick-crop selects (callers prepend extras such as Custom…).
+export const pageFormatOptions = (unit = 'cm') =>
+  Object.keys(PAGE_SIZES)
+    .map((n) => `<option value="${n}">${pageFormatLabel(n, unit)}</option>`)
+    .join('\n');
 
 // True when a token is a relative delta (a bare number) rather than an absolute
 // position — callers that "move" vs "set" branch on this.

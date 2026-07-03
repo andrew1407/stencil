@@ -19,8 +19,13 @@ extern "C" {
 int stencil_cli_parseColor(const char* spec, int* r, int* g, int* b, int* a);
 
 /* ── Page sizing ────────────────────────────────────────────────────────────── */
-/* Named page size in cm (e.g. "A4"). Writes *wcm,*hcm; returns 1 if known, else 0. */
+/* Named page size in cm (any ISO A/B/C name, e.g. "A4" or "B5"). Writes *wcm,*hcm;
+ * returns 1 if known, else 0. */
 int stencil_cli_namedPageSize(const char* name, double* wcm, double* hcm);
+
+/* Space-separated canonical page-format names ("A0 A1 ... A10 B0 ... C10", no
+ * "custom") in the canonical A/B/C-series order. Static storage — do not free. */
+const char* stencil_cli_pageFormats(void);
 
 /* Default blank-image pixel size for a page (cm) rendered at `dpi` (CSS 96 default). */
 void stencil_cli_defaultBlankSizePx(double pageWcm, double pageHcm, double dpi,
@@ -56,9 +61,16 @@ void stencil_cli_fillRGBA(uint8_t* dst, int pixelCount, int r, int g, int b, int
 
 /* ── Filter ─────────────────────────────────────────────────────────────────── */
 /* Apply an image filter in place to a `pixelCount`-pixel RGBA8 buffer. `mode` is
- * "none" | "bw" | "sepia" | any other (a custom duotone toward tintR,tintG,tintB). */
+ * "none" | "bw" | "sepia" | "invert" | any other (a custom duotone toward
+ * tintR,tintG,tintB). "contour" is a no-op here — it needs dimensions, use
+ * stencil_cli_applyContour below. */
 void stencil_cli_applyFilter(const char* mode, uint8_t* data, int pixelCount,
                              int tintR, int tintG, int tintB);
+
+/* Sobel edge detection ("contour") in place on a width x height RGBA8 buffer:
+ * dark edges on a white page, alpha preserved. Null data / non-positive
+ * dimensions are a no-op. */
+void stencil_cli_applyContour(uint8_t* data, int width, int height);
 
 /* ── Rasterise a layout line ────────────────────────────────────────────────── */
 /* Burn one polyline into an RGBA8 buffer (w x h). `pts` holds nPts (x,y) pairs

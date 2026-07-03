@@ -6,6 +6,7 @@
 // codes, char-code var names) rather than the already-tested core math.
 #include "doctest.h"
 #include <cstdint>
+#include <string>
 
 // Prototypes of the exported C surface (wasmApi.cpp has no header by design —
 // it is an ABI boundary, not a C++ API).
@@ -17,10 +18,12 @@ extern "C" {
                               double*);
   void stencil_pixelToPageRaw(double, double, double, double, int, int, double*,
                               double*);
+  const char* stencil_pageFormats(void);
   int stencil_formulaValidate(const char*, int);
   double stencil_formulaApply(const char*, int, double, int);
   int stencil_formulaEvaluate(const char*, int, double, double*);
   void stencil_applyFilterRGBA(int, std::uint8_t*, int, int, int, int);
+  void stencil_applyContourRGBA(std::uint8_t*, int, int);
   void stencil_rotatePoints(double*, int, double, double, double);
   void stencil_boundingBoxCenter(const double*, int, double*);
   double stencil_clampScale(double);
@@ -80,6 +83,14 @@ TEST_SUITE("wasmApi") {
     CHECK(y == doctest::Approx(14.85));   // 100/200 * 29.7
   }
 
+  TEST_CASE("stencil_pageFormats returns the canonical name list") {
+    const std::string names = stencil_pageFormats();
+    CHECK(names ==
+          "A0 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 "
+          "B0 B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 "
+          "C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 C10");
+  }
+
   TEST_CASE("stencil_formula* take the var name as a char code") {
     const int x = static_cast<int>('x');
     CHECK(stencil_formulaValidate("x + 1", x) == 1);
@@ -110,6 +121,29 @@ TEST_SUITE("wasmApi") {
     std::uint8_t buf2[] = {1, 2, 3, 4};
     stencil_applyFilterRGBA(0, buf2, 1, 9, 9, 9);
     CHECK(buf2[0] == 1);
+    // mode 4 (invert) flips the channels.
+    std::uint8_t buf3[] = {12, 34, 56, 10};
+    stencil_applyFilterRGBA(/*invert=*/4, buf3, 1, 0, 0, 0);
+    CHECK(buf3[0] == 243);
+    CHECK(buf3[1] == 221);
+    CHECK(buf3[2] == 199);
+    CHECK(buf3[3] == 10);  // alpha preserved
+  }
+
+  TEST_CASE("stencil_applyContourRGBA edge-detects a w x h buffer in place") {
+    // Uniform 2x2 -> no gradients -> all white, alphas kept.
+    std::uint8_t buf[] = {100, 150, 200, 1, 100, 150, 200, 2,
+                          100, 150, 200, 3, 100, 150, 200, 4};
+    stencil_applyContourRGBA(buf, 2, 2);
+    for (int i = 0; i < 4; ++i) {
+      CHECK(buf[i * 4 + 0] == 255);
+      CHECK(buf[i * 4 + 3] == i + 1);  // alpha preserved
+    }
+    // Degenerate dimensions / null data are a no-op.
+    std::uint8_t buf2[] = {1, 2, 3, 4};
+    stencil_applyContourRGBA(buf2, 0, 1);
+    CHECK(buf2[0] == 1);
+    stencil_applyContourRGBA(nullptr, 2, 2);  // must not crash
   }
 
   TEST_CASE("stencil_rotatePoints rotates a flat array in place") {

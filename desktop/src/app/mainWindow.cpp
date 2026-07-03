@@ -11,6 +11,7 @@
 #include "tooltipRows.hpp"
 #include "zoomPan.hpp"
 #include "guiHelpers.hpp"
+#include "searchCombo.hpp"
 #include "iconSet.hpp"
 #include "infoDialog.hpp"
 #include "launchOptions.hpp"
@@ -161,9 +162,17 @@ namespace stencil::gui {
     status_ = new QLabel("Open an image — or create a blank one — to begin", this);
     statusBar()->addWidget(status_);
 
-    pageSize_ = new QComboBox(this);
-    pageSize_->addItems({"A3", "A4", "custom"});  // S10 custom page
-    pageSize_->setToolTip("Page format used for cm/inch measurements (A3, A4, or custom)");
+    // S10 custom page + the full ISO 216/269 A/B/C series. Items carry the
+    // canonical value ("custom"/"A4") as DATA (read via pageSizeValue()); labels
+    // add the physical size in the active display unit and are re-rendered by
+    // applyUnitToPageCombo() when the unit changes. SearchComboBox opens the
+    // browser-style themed popup with the pinned "Search…" filter (the port of
+    // enhanceSelect({ search: true }) on #page-size) — the trigger itself stays
+    // a plain, non-editable combo.
+    pageSize_ = new SearchComboBox(this);
+    fillPageSizeCombo(pageSize_, /*includeCustom=*/true);
+    pageSize_->setToolTip(
+        "Page format used for cm/inch measurements (ISO A/B/C series, or custom)");
     zoom_ = new QComboBox(this);
     zoom_->addItems({"25%", "50%", "75%", "100%", "150%", "200%", "400%"});
     zoom_->setToolTip("Zoom level — pick a preset or type an exact percent");
@@ -328,9 +337,11 @@ namespace stencil::gui {
       const double pct = s.trimmed().toDouble(&ok);
       if (ok) setZoom(pct / 100.0, false);
     });
-    // Page size + custom inputs (S10).
-    connect(pageSize_, &QComboBox::currentTextChanged, this,
-            [this](const QString&) { onPageSizeChanged(); });
+    // Page size + custom inputs (S10). Index-based (not text): the editable
+    // search field mutates the text on every keystroke, but a page change is
+    // only a change of the selected item.
+    connect(pageSize_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int) { onPageSizeChanged(); });
     connect(customW_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
               // Spinboxes are edited in the active unit; store the model in cm.
@@ -450,7 +461,8 @@ namespace stencil::gui {
     actRotateRight_ = mk("Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
     tip(actRotateRight_, "Rotate the image right (clockwise)");
     actCycleFilter_ = mk("Cycle Image Filter", hotkey("cycleFilter", "Alt+B"));
-    tip(actCycleFilter_, "Cycle the image filter (none → B&W → sepia → tint)");
+    tip(actCycleFilter_,
+        "Cycle the image filter (none → B&W → sepia → invert → contour → tint)");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -549,10 +561,12 @@ namespace stencil::gui {
     connect(actRotateLeft_, &QAction::triggered, this, [rotate] { rotate(false); });
     connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
     // Cycle the image filter (Alt+B) — mirrors the browser's cycleFilter hotkey:
-    // none → bw → sepia → custom(tint). applyImageFilter marks it dirty + syncs.
+    // none → bw → sepia → invert → contour → custom(tint). applyImageFilter
+    // marks it dirty + syncs.
     connect(actCycleFilter_, &QAction::triggered, this, [this] {
       if (!canvas_->hasImage()) return;
-      static const QStringList order{"none", "bw", "sepia", "custom"};
+      static const QStringList order{"none",   "bw",      "sepia",
+                                     "invert", "contour", "custom"};
       const int cur = order.indexOf(settings_.imageFilter);
       applyImageFilter(order[(cur + 1) % order.size()]);
     });
@@ -760,6 +774,8 @@ namespace stencil::gui {
     actFilterNone_ = mkFilter("None", "none");
     actFilterBW_ = mkFilter("Black && White", "bw");
     actFilterSepia_ = mkFilter("Sepia", "sepia");
+    actFilterInvert_ = mkFilter("Invert", "invert");
+    actFilterContour_ = mkFilter("Contour", "contour");
     actFilterCustom_ = mkFilter("Custom Tint", "custom");
     // Tint color picker (contextMenu.js:518-526): pick the duotone tint, persist,
     // re-apply when the active filter is custom.
@@ -1125,8 +1141,11 @@ namespace stencil::gui {
     imageFilter_->addItem("No Filter", "none");
     imageFilter_->addItem("B&W", "bw");
     imageFilter_->addItem("Sepia", "sepia");
+    imageFilter_->addItem("Invert", "invert");
+    imageFilter_->addItem("Contour", "contour");
     imageFilter_->addItem("Tint", "custom");
-    imageFilter_->setToolTip("Image filter: none, black & white, sepia, or tint");
+    imageFilter_->setToolTip(
+        "Image filter: none, black & white, sepia, invert, contour, or tint");
     tb3->addWidget(imageFilter_);
 
     // Tint swatch (toolbar.js:30 #filterColor), hidden unless the "custom" filter
@@ -1327,7 +1346,7 @@ namespace stencil::gui {
   // Load a local file as a fresh image, page-sized to the current page setting, clearing
   // any source/resource provenance. Notifies + refreshes actions. Returns whether it loaded.
   bool MainWindow::loadLocalImageReset(const QString& path) {
-    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
     canvas_->setPageCm(page.width, page.height);
@@ -1501,7 +1520,7 @@ namespace stencil::gui {
     QImage img(dlg.widthPx(), dlg.heightPx(), QImage::Format_RGB32);
     img.fill(dlg.color());
     {
-      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+      const core::PageSize page = naturalPageCm(pageSizeValue(),
                                                 settings_.customPageWidth,
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
@@ -1525,7 +1544,7 @@ namespace stencil::gui {
       return;
     }
     const core::PageSize page = naturalPageCm(
-        pageSize_->currentText(), settings_.customPageWidth, settings_.customPageHeight);
+        pageSizeValue(), settings_.customPageWidth, settings_.customPageHeight);
     canvas_->setPageCm(page.width, page.height);
 
     const core::CropRect cur = canvas_->cropRect();
@@ -1554,9 +1573,23 @@ namespace stencil::gui {
       notify_->success("Image cropped");
   }
 
+  // The canonical page-format value ("A4"/"custom") behind the combo's display
+  // label — the item DATA, never the label text (which carries the physical
+  // size in the display unit and, while searching, whatever the user typed).
+  QString MainWindow::pageSizeValue() const {
+    return pageSize_->currentData().toString();
+  }
+
+  // Re-render the page-format combo labels in the active display unit. Items,
+  // data, and the selection are untouched, so no change handlers fire.
+  void MainWindow::applyUnitToPageCombo() {
+    if (!pageSize_) return;
+    fillPageSizeCombo(pageSize_, /*includeCustom=*/true, settings_.units);
+  }
+
   // Page dimensions for the current selection, honoring custom W x H (S10).
   core::PageSize MainWindow::currentPageDimensions() const {
-    return core::pageDimensions(pageSize_->currentText().toStdString(),
+    return core::pageDimensions(pageSizeValue().toStdString(),
                                 canvas_->imageWidth(), canvas_->imageHeight(),
                                 settings_.customPageWidth,
                                 settings_.customPageHeight);
@@ -1622,6 +1655,7 @@ namespace stencil::gui {
     settings_.units = c;
     persistSettings();
     syncUnitControls();
+    applyUnitToPageCombo();  // page-format labels re-render in the new unit
     applyUnitToPageInputs();
     onHovered(lastHoverX_, lastHoverY_);  // status bar + live tooltip
     onSelectionChanged();                 // selection panel rows
@@ -1651,12 +1685,12 @@ namespace stencil::gui {
 
   // Show/hide the custom inputs and recompute when the page size changes (S10).
   void MainWindow::onPageSizeChanged() {
-    const bool custom = pageSize_->currentText() == "custom";
+    const bool custom = pageSizeValue() == "custom";
     if (customGroupAct_) customGroupAct_->setVisible(custom);
-    settings_.pageSize = pageSize_->currentText();
+    settings_.pageSize = pageSizeValue();
     // Keep the canvas's default-crop aspect in sync with the selected page.
     {
-      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+      const core::PageSize page = naturalPageCm(pageSizeValue(),
                                                 settings_.customPageWidth,
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
@@ -1872,6 +1906,8 @@ namespace stencil::gui {
     filter->addAction(actFilterNone_);
     filter->addAction(actFilterBW_);
     filter->addAction(actFilterSepia_);
+    filter->addAction(actFilterInvert_);
+    filter->addAction(actFilterContour_);
     filter->addAction(actFilterCustom_);
     filter->addSeparator();
     filter->addAction(tintColorAction_);
@@ -2470,11 +2506,13 @@ namespace stencil::gui {
       actTooltip_->setChecked(s.tooltipEnabled);
     }
     syncUnitControls();
+    applyUnitToPageCombo();  // page-format labels in the restored unit
     canvas_->setShowPoints(s.showPoints);
     canvas_->setShowLines(s.showLines);
     {
       QSignalBlocker b(pageSize_);
-      pageSize_->setCurrentText(s.pageSize);
+      const int idx = pageSize_->findData(s.pageSize);
+      if (idx >= 0) pageSize_->setCurrentIndex(idx);
     }
     // Sync custom page-size inputs (S10) in the active display unit.
     if (customW_) {
@@ -2556,7 +2594,7 @@ namespace stencil::gui {
     if (!remoteAddress_.isEmpty() && !settings_.syncToServer) return;
     Session s;
     s.imagePath = canvas_->imagePath();
-    s.pageSize = pageSize_->currentText();
+    s.pageSize = pageSizeValue();
     s.scale = canvas_->scale();
     s.lines = canvas_->allLines();
     s.customPageWidth = settings_.customPageWidth;
@@ -2586,7 +2624,8 @@ namespace stencil::gui {
                      sess->rotationQuarters);
     {
       QSignalBlocker b(pageSize_);
-      pageSize_->setCurrentText(sess->pageSize);
+      const int idx = pageSize_->findData(sess->pageSize);
+      if (idx >= 0) pageSize_->setCurrentIndex(idx);
     }
     // Apply the persisted filter / tint / draw mode to the canvas (S8; browser
     // storage.js restore ~410-421). Settings/UI are reseeded under blockers so
@@ -2845,7 +2884,7 @@ namespace stencil::gui {
     off.setAccent(settings_.accentColor);
     off.setShowPoints(settings_.showPoints);
     off.setShowLines(settings_.showLines);
-    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
     off.setPageCm(page.width, page.height);
@@ -2872,7 +2911,7 @@ namespace stencil::gui {
     Project* pr = findProject(id.toStdString());
     if (!pr) return false;
     {
-      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+      const core::PageSize page = naturalPageCm(pageSizeValue(),
                                                 settings_.customPageWidth,
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
@@ -2992,7 +3031,7 @@ namespace stencil::gui {
     // Adopt the project's page format + formulas before sizing the canvas page below.
     adoptServerLayoutMeta(layout);
     {
-      const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+      const core::PageSize page = naturalPageCm(pageSizeValue(),
                                                 settings_.customPageWidth,
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
@@ -3052,10 +3091,10 @@ namespace stencil::gui {
       if (m.customPageHeight > 0) settings_.customPageHeight = m.customPageHeight;
       {
         QSignalBlocker bs(pageSize_);
-        const int idx = pageSize_->findText(m.pageSize);
+        const int idx = pageSize_->findData(m.pageSize);
         if (idx >= 0) pageSize_->setCurrentIndex(idx);
       }
-      settings_.pageSize = pageSize_->currentText();
+      settings_.pageSize = pageSizeValue();
       if (customGroupAct_) customGroupAct_->setVisible(settings_.pageSize == "custom");
       if (customW_ && customH_) {
         QSignalBlocker bw(customW_), bh(customH_);
@@ -3436,7 +3475,7 @@ namespace stencil::gui {
     pendingProvSource_.clear();
     pendingProvResource_.clear();
 
-    const core::PageSize page = naturalPageCm(pageSize_->currentText(),
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
     canvas_->setPageCm(page.width, page.height);
@@ -3490,8 +3529,11 @@ namespace stencil::gui {
     }
     // Page mode: reflect the chosen page in the toolbar control (keeps coords/crop
     // dialog consistent), then crop to that page in the chosen orientation.
-    if (!opts.page.isEmpty()) pageSize_->setCurrentText(opts.page);  // → onPageSizeChanged
-    const core::PageSize pg = naturalPageCm(pageSize_->currentText(),
+    if (!opts.page.isEmpty()) {
+      const int idx = pageSize_->findData(opts.page);
+      if (idx >= 0) pageSize_->setCurrentIndex(idx);  // → onPageSizeChanged
+    }
+    const core::PageSize pg = naturalPageCm(pageSizeValue(),
                                             settings_.customPageWidth,
                                             settings_.customPageHeight);
     canvas_->setPageCm(pg.width, pg.height);
@@ -3635,7 +3677,8 @@ namespace stencil::gui {
       }
     }
 
-    LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize, this);
+    LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize,
+                    settings_.units, this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     if (dlg.loadRequested()) {

@@ -48,11 +48,8 @@
     <aside class="panel">
       <div class="group">
         <label class="lbl">Page</label>
-        <div class="seg" id="page-seg">
-          <button data-page="A3" class="active">A3</button>
-          <button data-page="A4">A4</button>
-          <button data-page="custom">Custom</button>
-        </div>
+        <!-- Options are generated from the shared ISO format table (see crop.js). -->
+        <select id="page-select" class="page-select"></select>
         <div id="custom-dims" class="custom-dims" hidden>
           <input id="custom-w" class="num" type="number" min="0.1" step="0.1" value="21">
           <span class="times">×</span>

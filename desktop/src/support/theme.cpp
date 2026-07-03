@@ -353,6 +353,33 @@ namespace stencil::gui {
         background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 5px 8px;
       }
+
+      /* ── Searchable combo popup (SearchComboBox, e.g. the page-format picker):
+         the desktop rendering of the browser's .accent-dd-menu panel — rounded
+         container, a pinned .accent-dd-search input over a hairline divider,
+         hover/selected-tinted option rows, and the muted "no match" row. ── */
+      QWidget#searchComboPopup {
+        background: %BG_CONTAINER%; border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QWidget#searchComboSearchRow {
+        background: transparent; border: 0; border-bottom: 1px solid %BORDER%;
+      }
+      QLineEdit#searchComboSearch {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 4px 8px; font-size: 13px;
+      }
+      QLineEdit#searchComboSearch:focus { border: 1px solid %ACCENT%; }
+      QListView#searchComboList {
+        background: transparent; border: 0; outline: none;
+      }
+      QListView#searchComboList::item {
+        color: %TEXT%; padding: 6px 9px; border-radius: 5px;
+      }
+      QListView#searchComboList::item:hover { background: %ACCENT_SOFT%; }
+      QListView#searchComboList::item:selected {
+        background: %ACCENT_SOFT2%; color: %TEXT%;
+      }
+      QLabel#searchComboNoMatch { color: %MUTED%; padding: 6px 9px; }
     )")
         .replace("%CTRL_TOP%", c(ctrlTop))
         .replace("%CTRL_BOT%", c(ctrlBot))

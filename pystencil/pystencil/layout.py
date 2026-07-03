@@ -174,6 +174,12 @@ class Layout:
             filter_color=_opt_str(d.get("filterColor")),
             crop_rect=d.get("cropRect") if isinstance(d.get("cropRect"), dict) else None,
             rotation_quarters=_opt_int(d.get("rotationQuarters")),
+            page_size=_opt_str(d.get("pageSize")),
+            custom_page_width=_opt_float(d.get("customPageWidth")),
+            custom_page_height=_opt_float(d.get("customPageHeight")),
+            allow_formulas=_opt_bool(d.get("allowFormulas")),
+            formula_x=_opt_str(d.get("formulaX")),
+            formula_y=_opt_str(d.get("formulaY")),
         )
 
     @classmethod
@@ -235,3 +241,20 @@ def _opt_int(v: Any) -> Optional[int]:
         return int(v)
     except (TypeError, ValueError):
         return None
+
+
+def _opt_float(v: Any) -> Optional[float]:
+    """Pass through a float-ish optional, keeping ``None`` as ``None``."""
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _opt_bool(v: Any) -> Optional[bool]:
+    """Pass through a real JSON bool, keeping everything else as ``None``."""
+    if isinstance(v, bool):
+        return v
+    return None

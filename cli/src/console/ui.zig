@@ -5,6 +5,7 @@
 const std = @import("std");
 const logo = @import("../logo.zig");
 const theme = @import("../theme.zig");
+const core = @import("../core.zig");
 const Session = @import("session.zig").Session;
 
 var interactive: bool = false; // true when driving a TTY (enables screen clears + colour)
@@ -15,8 +16,9 @@ var current_accent: []const u8 = theme.default_key;
 // transform shorthands), roughly in the order they appear in `help`.
 pub const completions = [_][]const u8{
     "upload",      "paste",    "blank",       "apply",    "crop",   "rotate",
-    "filter",      "bw",       "sepia",       "tint",     "none",   "exec",
-    "undo",        "redo",     "reset",       "save",     "layout", "formula",
+    "filter",      "bw",       "sepia",       "invert",   "contour", "tint",
+    "none",        "exec",     "undo",        "redo",     "reset",  "save",
+    "layout",      "formula",  "format",
     "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "rename",
     "fetch",       "sync",     "copy",        "status",   "theme",  "clear",   "drop",
     "help",        "exit",
@@ -115,6 +117,34 @@ pub fn listThemes() void {
     }
 }
 
+/// `/filter` with no argument: list the accepted modes (short list, not one error line).
+pub fn listFilters() void {
+    logo.print("Filters — '/filter <mode>' to apply:\n", .{});
+    logo.print("   bw        greyscale\n", .{});
+    logo.print("   sepia     warm brown tone\n", .{});
+    logo.print("   invert    negative (flip every channel)\n", .{});
+    logo.print("   contour   edge detection (dark edges on white)\n", .{});
+    logo.print("   none      remove the filter\n", .{});
+    logo.print("   <colour>  a name or #hex makes a duotone tint (e.g. '/filter teal')\n", .{});
+}
+
+/// `/format` with no argument: list every named page format with its cm size, marking the
+/// session's current pick (the same pattern as listThemes), plus the custom-variant hint.
+pub fn listFormats(session: *Session) void {
+    // The effective pick: an explicit format, else the A4 default the session falls back to.
+    const current: []const u8 = if (session.page_size.len != 0) session.page_size else "A4";
+    logo.print("Page formats (current: {s}) — '/format <name>' to switch:\n", .{current});
+    var it = std.mem.tokenizeScalar(u8, core.pageFormats(), ' ');
+    while (it.next()) |name| {
+        const mark: []const u8 = if (std.ascii.eqlIgnoreCase(name, current)) "*" else " ";
+        const tag: []const u8 = if (std.mem.eql(u8, name, "A4")) " (default)" else "";
+        const p = core.namedPageSize(session.gpa, name) orelse continue;
+        logo.print(" {s} {s:<4} {d:>5} × {d:>5} cm{s}\n", .{ mark, name, p.w, p.h, tag });
+    }
+    const cmark: []const u8 = if (std.ascii.eqlIgnoreCase("custom", current)) "*" else " ";
+    logo.print(" {s} custom — set with '/format custom <w> <h>' (cm)\n", .{cmark});
+}
+
 pub fn intro() void {
     logo.print(
         \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
@@ -146,13 +176,14 @@ pub fn help() void {
     helpSection(a, r, "Image");
     helpRow(a, r, "/upload <path|url>", "load an image or video frame as the working image");
     helpRow(a, r, "/paste", "load an image from the clipboard (macOS)");
-    helpRow(a, r, "/blank [w h] [color]", "create a blank page (default A4 @ 96dpi, white)");
+    helpRow(a, r, "/blank [fmt] [w h] [color]", "create a blank page (default: the picked format or A4, white)");
+    helpRow(a, r, "/format [name|custom w h]", "list the page formats or pick one (drives /blank + the layout)");
 
     helpSection(a, r, "Edit");
     helpRow(a, r, "/apply <file.json>", "draw a layout JSON onto the image");
     helpRow(a, r, "/crop <spec> [album]", "crop, e.g. \"x1=10% x2=90% y1=10% y2=90%\"");
     helpRow(a, r, "/rotate <int>", "rotate int*90 degrees (e.g. -1, 2, 3)");
-    helpRow(a, r, "/filter <mode>", "bw | sepia | none | a colour name/#hex (duotone tint)");
+    helpRow(a, r, "/filter <mode>", "bw | sepia | invert | contour | none | a colour name/#hex (tint)");
     helpRow(a, r, "/exec <action> ...", "run a transform by name (crop | rotate | filter | apply)");
     helpRow(a, r, "/undo   /redo", "step back / forward through edits");
     helpRow(a, r, "/reset", "revert to the original, dropping all edits");
