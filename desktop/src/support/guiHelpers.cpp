@@ -1,13 +1,18 @@
 #include "guiHelpers.hpp"
+#include "pageMetrics.hpp"
 #include <QAbstractButton>
 #include <QColor>
+#include <QComboBox>
 #include <QDialog>
 #include <QIcon>
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSignalBlocker>
+#include <QStringList>
 #include <QtMath>
+#include <cmath>
 
 namespace stencil::gui {
 
@@ -50,6 +55,36 @@ namespace stencil::gui {
     pr.drawRoundedRect(QRectF(1.0, 1.0, 18.0, 18.0), 5.0, 5.0);
     pr.end();
     btn->setIcon(QIcon(chip));
+  }
+
+  void fillPageSizeCombo(QComboBox* combo, bool includeCustom,
+                         const QString& units) {
+    if (!combo) return;
+    const bool inches = (units == QLatin1String("in"));
+    const double factor = inches ? 1.0 / 2.54 : 1.0;
+    const QString unitLabel = inches ? QStringLiteral("in") : QStringLiteral("cm");
+    // ≤2 decimals, trailing zeros trimmed ("21", "29.7", "8.27") — the shared
+    // option-label contract with the browser page dropdown.
+    const auto num = [](double v) {
+      return QString::number(std::round(v * 100.0) / 100.0);
+    };
+    // Label-only re-render must never fire the callers' change handlers.
+    const QSignalBlocker block(combo);
+    if (combo->count() == 0) {  // first fill: items in canonical order
+      if (includeCustom)
+        combo->addItem(QStringLiteral("Custom…"), QStringLiteral("custom"));
+      const QStringList names = QString::fromLatin1(core::pageFormatNames())
+                                    .split(' ', Qt::SkipEmptyParts);
+      for (const QString& n : names) combo->addItem(n, n);
+    }
+    for (int i = 0; i < combo->count(); ++i) {
+      const QString name = combo->itemData(i).toString();
+      if (name == QLatin1String("custom")) continue;  // label stays "Custom…"
+      const core::PageSize ps = core::namedPageSize(name.toStdString());
+      combo->setItemText(i, QString("%1 (%2 × %3 %4)")
+                                .arg(name, num(ps.width * factor),
+                                     num(ps.height * factor), unitLabel));
+    }
   }
 
 }

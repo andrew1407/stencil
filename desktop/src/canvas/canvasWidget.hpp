@@ -308,8 +308,8 @@ namespace stencil::gui {
     int continueLineIdx_ = -1;
     int continueInsertIdx_ = -1;
 
-    // S3: image filter (none | bw | sepia | custom tint) cache. filteredImage_
-    // is rebuilt lazily on paint when filterDirty_ is set.
+    // S3: image filter (none | bw | sepia | invert | contour | custom tint)
+    // cache. filteredImage_ is rebuilt lazily on paint when filterDirty_ is set.
     QString imageFilter_ = "none";
     QColor filterColor_{"#7c3aed"};
     QImage filteredImage_;

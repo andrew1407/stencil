@@ -66,8 +66,8 @@ pub const Session = struct {
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
 
-    // Page format + x/y formulas, round-tripped through a fetched layout (owned; CLI preserves).
-    page_size: []u8 = &.{}, // "" | "A3" | "A4" | "custom"
+    // Page format + x/y formulas, set via /format or round-tripped through a fetched layout.
+    page_size: []u8 = &.{}, // "" | a named format ("A0".."C10") | "custom"
     custom_page_w: f64 = 0, // cm; 0 = unset
     custom_page_h: f64 = 0,
     allow_formulas: bool = false,
@@ -146,6 +146,14 @@ pub const Session = struct {
         self.clearRemote();
         self.remote_url = u;
         self.remote_id = i;
+    }
+
+    /// Set the picked page format (canonical "A0".."C10" or "custom"), owned copy. It drives
+    /// the header label, the layout `pageSize` written on save/sync, and the /blank default.
+    pub fn setPageSize(self: *Session, name: []const u8) !void {
+        const dup = try self.gpa.dupe(u8, name);
+        if (self.page_size.len != 0) self.gpa.free(self.page_size);
+        self.page_size = dup;
     }
 
     /// Replace the displayed label (e.g. after a rename), owned copy.
@@ -350,26 +358,12 @@ pub const Session = struct {
         return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, self.pageMeta());
     }
 
-    /// Page-format label shown next to the px size, e.g. "A4 21×29.7cm" (picked size, else
-    /// the A4-derived default oriented to the image). Owned by the caller.
+    /// Page-format label shown next to the px size, e.g. "A4 21×29.7cm" (picked size oriented
+    /// to the image, or "custom <w>×<h>cm"). Shares the one derivation with the one-shot
+    /// pipeline's wrote line (pipeline.pageLabelAlloc). Owned by the caller.
     pub fn pageFormatLabel(self: *Session) ![]u8 {
         const img = self.current();
-        var name: []const u8 = "A4";
-        var dims = pipeline.pageForImage(self.gpa, img.width, img.height);
-        if (self.page_size.len != 0) {
-            name = self.page_size;
-            if (std.ascii.eqlIgnoreCase(self.page_size, "custom")) {
-                if (self.custom_page_w > 0 and self.custom_page_h > 0)
-                    dims = .{ .w = self.custom_page_w, .h = self.custom_page_h };
-            } else if (core.namedPageSize(self.gpa, self.page_size)) |p| {
-                // Orient to the image (landscape swap), matching browser getPageDimensions.
-                dims = if (img.width > img.height)
-                    .{ .w = @max(p.w, p.h), .h = @min(p.w, p.h) }
-                else
-                    .{ .w = @min(p.w, p.h), .h = @max(p.w, p.h) };
-            }
-        }
-        return std.fmt.allocPrint(self.gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
+        return pipeline.pageLabelAlloc(self.gpa, self.page_size, self.custom_page_w, self.custom_page_h, img.width, img.height);
     }
 
     pub fn undo(self: *Session) bool {

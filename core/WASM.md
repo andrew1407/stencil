@@ -42,23 +42,29 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `core/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
 | `utils.js` `distToSegment` | `stencil_distToSegment` |
 | `utils.js` `parseHex` (also feeds `hexToRgba`) | `stencil_parseHex` |
-| `drawingApp.js` `getPageDimensions` / `pixelToPageCoords` (raw) | `stencil_pageDimensions`, `stencil_pixelToPageRaw` |
+| `drawingApp.js` `getPageDimensions` / `pixelToPageCoords` (raw) | `stencil_pageDimensions`, `stencil_pixelToPageRaw` (`stencil_pageFormats` lists the ISO names) |
 | `drawingApp.js` `#shouldCloseShape` gate | `stencil_shouldCloseShape` |
 | `renderer.js` `drawImageWithFilter` (custom duotone) | `stencil_applyFilterRGBA` |
+| `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
 | `zoomPan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
 
-The bw/sepia filters stay on the browser's native CSS `ctx.filter` (GPU-fast,
-exact); only the custom duotone — which the JS already did as a per-pixel loop —
-routes through `stencil_applyFilterRGBA` (grayscale + tint in one pass).
+The bw/sepia/invert filters stay on the browser's native CSS `ctx.filter`
+(GPU-fast, exact); the custom duotone — which the JS already did as a per-pixel
+loop — routes through `stencil_applyFilterRGBA` (grayscale + tint in one pass),
+and the contour filter — a Sobel convolution over the whole image — through
+`stencil_applyContourRGBA`.
 
 The image-filter math lives once in `core/color/imageFilter.{hpp,cpp}`
-(`filterPixel` / `applyFilterRGBA`); the desktop canvas routes its bw / sepia /
-duotone-tint pixels through it, and `stencil_applyFilterRGBA` is the same code
-for the browser. `applyFilterRGBA` takes a canvas `ImageData.data` buffer
-(interleaved RGBA8) and filters it in place, preserving alpha — so the browser
-computes grayscale + tint in one pass instead of a CSS `grayscale()` followed by a
-per-pixel tint.
+(`filterPixel` / `applyFilterRGBA` / `applyContourRGBA`); the desktop canvas
+routes its bw / sepia / invert / duotone-tint pixels through it, and
+`stencil_applyFilterRGBA` is the same code for the browser. `applyFilterRGBA`
+takes a canvas `ImageData.data` buffer (interleaved RGBA8) and filters it in
+place, preserving alpha — so the browser computes grayscale + tint in one pass
+instead of a CSS `grayscale()` followed by a per-pixel tint. `applyContourRGBA`
+takes the same buffer plus its width × height and burns dark Sobel edges onto a
+white page with pinned integer-only math, so the JS fallback
+(`browser/js/core/contourFilter.js`) stays byte-identical.
 
 (`historyStack.js` and `projectsStore.js` remain available in the core; add
 wrappers to `wasmApi.cpp` the same way if the browser should consume them too.

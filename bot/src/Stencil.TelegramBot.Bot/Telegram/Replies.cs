@@ -24,12 +24,13 @@ public static class Replies
         sb.AppendLine("Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.");
         sb.AppendLine();
         sb.AppendLine("Image commands:");
-        sb.AppendLine("/blank [w h] [color] — start a blank canvas");
+        sb.AppendLine("/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink");
+        sb.AppendLine("/format [name | custom w h] — page format for /blank and the saved layout (bare = list)");
         sb.AppendLine("/url <link> — load an http(s) image");
         sb.AppendLine("/frame [n] — grab frame n of the loaded video (needs ffmpeg)");
         sb.AppendLine("/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%");
-        sb.AppendLine("/rotate [n] — rotate n quarter-turns clockwise (default 1)");
-        sb.AppendLine("/filter <bw|sepia|none|color> — recolour / tint (a colour = duotone)");
+        sb.AppendLine("/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1");
+        sb.AppendLine("/filter <bw|sepia|invert|contour|none|color> — recolour / tint (a colour = duotone)");
         sb.AppendLine("/undo · /redo — step back / forward one edit   /reset — clear all edits");
         sb.AppendLine("/drop — discard the working image");
         sb.AppendLine("/image — re-render and re-send the current result image");
@@ -106,6 +107,58 @@ public static class Replies
         return sb.ToString();
     }
 
+    /// <summary>The filter variants for a bare <c>/filter</c> (mirrors the CLI console's list).</summary>
+    public static string FilterVariants() =>
+        """
+        Filter the image: /filter <mode>
+        bw — black & white
+        sepia — sepia tone
+        invert — invert the colours
+        contour — edge-detect outline
+        none — clear the filter
+        …or a colour name/#hex for a duotone tint, e.g. /filter #ff5623
+        """;
+
+    /// <summary>The quarter-turn variants for a bare <c>/rotate</c>.</summary>
+    public static string RotateVariants() =>
+        """
+        Rotate by quarter-turns: /rotate <n>
+        /rotate 1 — 90° clockwise
+        /rotate 2 — 180°
+        /rotate -1 — 90° counter-clockwise
+        """;
+
+    /// <summary>The crop-spec vocabulary for a bare <c>/crop</c> (and the Crop… button).</summary>
+    public static string CropUsage() =>
+        """
+        Crop: /crop <spec> [album]
+        Edges: x1= x2= y1= y2= — each a % of the image, px, or cm.
+        e.g. /crop x1=10% x2=90% y1=10% y2=90%
+        Add 'album' to derive a missing axis from the page proportion (landscape).
+        """;
+
+    /// <summary>Usage hint for <c>/connect</c> (a bare command and the Connect… button).</summary>
+    public static string ConnectUsage() =>
+        "Use /connect <url> [token] to connect to a server, e.g. /connect http://localhost:8090";
+
+    /// <summary>
+    /// All named page formats with their portrait cm sizes (canonical order), plus the custom
+    /// variant — the bare <c>/format</c> reply.
+    /// </summary>
+    public static string PageFormatList()
+    {
+        StringBuilder sb = new();
+        sb.AppendLine("Page formats (portrait, cm) — set one with /format <name>:");
+        foreach (var (name, w, h) in PageFormats.All)
+        {
+            sb.AppendLine($"{name} ({PageFormats.Cm(w)}×{PageFormats.Cm(h)} cm)");
+        }
+        sb.AppendLine();
+        sb.AppendLine("Custom dims: /format custom <w> <h> (cm), e.g. /format custom 10 15.");
+        sb.Append("The chosen format is the /blank default page and rides the saved project layout.");
+        return sb.ToString();
+    }
+
     /// <summary>A full description of the current pen.</summary>
     public static string PenText(LineStyle pen)
     {
@@ -142,6 +195,12 @@ public static class Replies
         if (edits.Filter is not null)
         {
             parts.Add($"filter {edits.Filter}");
+        }
+        if (edits.PageFormat is not null)
+        {
+            parts.Add(edits.PageFormat == "custom" && edits.CustomPageWidth is double pw && edits.CustomPageHeight is double ph
+                ? $"page custom {PageFormats.Cm(pw)}×{PageFormats.Cm(ph)}cm"
+                : $"page {edits.PageFormat}");
         }
         if (edits.Layout is not null)
         {

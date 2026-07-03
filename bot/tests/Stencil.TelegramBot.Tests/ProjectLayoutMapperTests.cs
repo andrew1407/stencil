@@ -50,6 +50,8 @@ public sealed class ProjectLayoutMapperTests
     [Theory]
     [InlineData("bw")]
     [InlineData("sepia")]
+    [InlineData("invert")]
+    [InlineData("contour")]
     public void NamedFiltersMapThrough(string mode)
     {
         var layout = Parse($$"""{ "imageFilter": "{{mode}}", "lines": [] }""");

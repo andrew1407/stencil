@@ -1,6 +1,9 @@
 import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
+import { pageFormatOptions } from '../core/units.js';
+import constants from '../config/constants.json' with { type: 'json' };
+const { PAGE_SIZES } = constants;
 
 // ── Component: source/resource links modal ──────────────────────
 // Opened from the toolbar 🔗 button: view/edit a project's provenance (source image
@@ -79,9 +82,11 @@ export class StencilLinksModal extends StencilElement {
                         <span class="links-quickcrop-controls">
                             <label class="links-inline-check" title="Crop the image to the page aspect on load"><input type="checkbox" id="links-crop-page" checked> Crop to page</label>
                             <label class="links-inline-check" title="Landscape orientation (off = portrait)"><input type="checkbox" id="links-crop-album"> Album</label>
+                            <!-- Every named ISO format (no custom — a quick crop needs a fixed aspect).
+                                 Labels here are the boot-time default; applyUnitToUI re-renders them
+                                 in the active display unit (same contract as the toolbar #page-size). -->
                             <select id="links-crop-pagesize" title="Page size to crop to">
-                                <option value="A3">A3</option>
-                                <option value="A4">A4</option>
+                                ${pageFormatOptions()}
                             </select>
                         </span>
                     </div>
@@ -147,7 +152,7 @@ export class StencilLinksModal extends StencilElement {
     const showQuickcrop = (w, h) => {
       cropPageEl.checked = true;
       cropAlbumEl.checked = (w || 0) >= (h || 0);
-      cropPageSizeEl.value = (app.pageSize === 'A4') ? 'A4' : 'A3';
+      cropPageSizeEl.value = PAGE_SIZES[app.pageSize] ? app.pageSize : 'A3';   // custom/unknown → A3
       syncQuickcropEnabled();
       quickcropRow.style.display = '';
     };

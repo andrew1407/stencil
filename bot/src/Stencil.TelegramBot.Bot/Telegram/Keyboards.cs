@@ -72,7 +72,7 @@ public static class Keyboards
             BackRow(),
         });
 
-    /// <summary>Filter submenu: B&amp;W · Sepia · custom Tint · None, plus Back.</summary>
+    /// <summary>Filter submenu: B&amp;W · Sepia · Invert · Contour · custom Tint · None, plus Back.</summary>
     public static InlineKeyboardMarkup FilterSubmenu() =>
         new(new[]
         {
@@ -80,6 +80,11 @@ public static class Keyboards
             {
                 InlineKeyboardButton.WithCallbackData("⚫ B&W", "f:bw"),
                 InlineKeyboardButton.WithCallbackData("🟤 Sepia", "f:sepia"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🌓 Invert", "f:invert"),
+                InlineKeyboardButton.WithCallbackData("〰️ Contour", "f:contour"),
             },
             new[]
             {

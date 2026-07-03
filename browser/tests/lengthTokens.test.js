@@ -39,11 +39,14 @@ test('resolveAxisPx: deltas add to current; absolutes from start/end', () => {
   assert.equal(resolveAxisPx('nope', ctx), null);
 });
 
-test('normalizePageSize: case-insensitive, else null', () => {
+test('normalizePageSize: case-insensitive over the whole ISO table, else null', () => {
   assert.equal(normalizePageSize('a3'), 'A3');
   assert.equal(normalizePageSize('A4'), 'A4');
+  assert.equal(normalizePageSize('B5'), 'B5');
+  assert.equal(normalizePageSize('a10'), 'A10');
+  assert.equal(normalizePageSize('c10'), 'C10');
   assert.equal(normalizePageSize('Custom'), 'custom');
-  assert.equal(normalizePageSize('A5'), null);
+  assert.equal(normalizePageSize('D4'), null);
   assert.equal(normalizePageSize(''), null);
 });
 

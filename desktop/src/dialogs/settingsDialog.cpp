@@ -109,8 +109,14 @@ namespace stencil::gui {
     form->addRow("Default style", style_);
 
     page_ = new QComboBox(this);
-    page_->addItems({"A3", "A4", "custom"});  // S10
-    page_->setCurrentText(current.pageSize);
+    // S10 — same options as the toolbar combo: Custom… + the full ISO A/B/C
+    // series, labels with physical sizes in the user's display unit, item data
+    // = the canonical name (read back via currentData in result()).
+    fillPageSizeCombo(page_, /*includeCustom=*/true, current.units);
+    {
+      const int idx = page_->findData(current.pageSize);
+      page_->setCurrentIndex(idx >= 0 ? idx : page_->findData("A3"));
+    }
     page_->setToolTip("Default page format for cm/inch measurements");
     form->addRow("Page size", page_);
 
@@ -168,7 +174,7 @@ namespace stencil::gui {
     s.defaultThickness = thickness_->value();
     s.defaultMarkerSize = markerSize_->value();
     s.defaultStyle = style_->currentText();
-    s.pageSize = page_->currentText();
+    s.pageSize = page_->currentData().toString();
     s.customPageWidth = customW_->value();
     s.customPageHeight = customH_->value();
     s.holdDrawDelay = holdDelay_->value();

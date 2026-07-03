@@ -358,10 +358,10 @@ export const createStencil = (app) => {
     get pointStyle() { return app.showPoints; }, set pointStyle(v) { app.setShowPoints(v); },   // points visible?
     get showPoints() { return app.showPoints; }, set showPoints(v) { app.setShowPoints(v); },
     get showLines() { return app.showLines; }, set showLines(v) { app.setShowLines(v); },
-    get filter() { return app.imageFilter; }, set filter(v) { app.setImageFilter(v); },
+    get filter() { return app.imageFilter; }, set filter(v) { app.setImageFilter(v); },   // 'none'|'bw'|'sepia'|'invert'|'contour'|'custom'
     get filterColor() { return app.filterColor; }, set filterColor(v) { app.setFilterColor(toHexColor(v)); },
     get unit() { return app.unit; }, set unit(v) { app.setUnit(v); },
-    get pageSize() { return app.pageSize; }, set pageSize(v) { app.setPageSize(v); },            // case-insensitive ('a3' ok)
+    get pageSize() { return app.pageSize; }, set pageSize(v) { app.setPageSize(v); },            // case-insensitive: any ISO name A0–C10 ('a3', 'b5', …) or 'custom'
     get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
     get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off

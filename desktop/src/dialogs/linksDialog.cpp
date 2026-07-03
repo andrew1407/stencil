@@ -44,8 +44,9 @@ namespace stencil::gui {
   }  // namespace
 
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
-                           bool hasImage, const QString& pageSeed, QWidget* parent)
-      : QDialog(parent), pageSeed_(pageSeed == "A4" ? "A4" : "A3") {
+                           bool hasImage, const QString& pageSeed,
+                           const QString& units, QWidget* parent)
+      : QDialog(parent), pageSeed_(pageSeed) {
     setWindowTitle("Image links");
     setMinimumWidth(480);
     const QColor txt = palette().color(QPalette::WindowText);
@@ -164,7 +165,9 @@ namespace stencil::gui {
       cropAlbum_ = new QCheckBox("Album", quickcropRow_);
       cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
       cropPageSize_ = new QComboBox(quickcropRow_);
-      cropPageSize_->addItems({"A3", "A4"});
+      // Every named ISO format (labels with sizes, data = the canonical name).
+      // No "custom" here — the quick crop needs a fixed page aspect.
+      fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units);
       cropPageSize_->setToolTip("Page size to crop to");
       qc->addWidget(cropPage_);
       qc->addWidget(cropAlbum_);
@@ -467,8 +470,8 @@ namespace stencil::gui {
   void LinksDialog::showQuickcrop(int w, int h) {
     cropPage_->setChecked(true);
     cropAlbum_->setChecked((w >= h) && (w > 0));
-    const int idx = cropPageSize_->findText(pageSeed_);
-    cropPageSize_->setCurrentIndex(idx < 0 ? 0 : idx);
+    const int idx = cropPageSize_->findData(pageSeed_);
+    cropPageSize_->setCurrentIndex(idx < 0 ? cropPageSize_->findData("A3") : idx);
     syncQuickcropEnabled();
     quickcropRow_->setVisible(true);
   }
@@ -494,6 +497,8 @@ namespace stencil::gui {
 
   bool LinksDialog::cropToPage() const { return cropPage_->isChecked(); }
   bool LinksDialog::cropAlbum() const { return cropAlbum_->isChecked(); }
-  QString LinksDialog::cropPageSize() const { return cropPageSize_->currentText(); }
+  QString LinksDialog::cropPageSize() const {
+    return cropPageSize_->currentData().toString();
+  }
 
 }

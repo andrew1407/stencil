@@ -87,7 +87,7 @@ bot/
       Workspace/     UserWorkspace        (per-user scratch dir for working images)
       Configuration/ BotOptions · DotEnv
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
-      Program.cs · Telegram/{UpdateRouter, CommandParser, CommandHandlers, CallbackAction, Keyboards, Replies}
+      Program.cs · Telegram/{UpdateRouter, CommandParser, CommandHandlers, CallbackAction, Keyboards, Replies, PageFormats}
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
 ```
@@ -144,7 +144,7 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 63 offline tests — no token/server/CLI/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 208 offline tests — no token/server/CLI/Redis needed
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
 
@@ -159,7 +159,10 @@ never reads `TELEGRAM_BOT_TOKEN`.
 ## Chat surface
 
 Every slash command has a matching inline **button** (the buttons mirror the commands, like
-the browser toolbar mirrors the console).
+the browser toolbar mirrors the console). A command that needs arguments, sent bare, replies
+with its possible values (or a usage line with a concrete example) instead of failing — e.g.
+`/filter` lists the modes with the filter submenu, `/rotate` lists the quarter-turn variants,
+`/format` lists every page format, and `/fetch` lists the fetchable projects.
 
 **Sources** — set the working image by sending a **photo** or an **image file** (compressed
 or uncompressed both work), or by pasting an **image link** (a bare `http(s)` URL loads like
@@ -174,12 +177,13 @@ onto the image.
 | Command | Effect |
 |---|---|
 | `/start`, `/help` | Greeting / full command list + the main menu |
-| `/blank [w h] [color]` | Start a blank canvas (default A4 @ 96 dpi, white) |
+| `/blank [format] [w h] [color]` | Start a blank canvas: a named ISO format (e.g. `b5`) **or** pixel dims (default A4 @ 96 dpi, white) |
+| `/format [name\|custom w h]` | Set the page format (A0–C10, case-insensitive, or custom cm dims) — the `/blank` default page (custom cm dims convert to pixels at 96 dpi, like the CLI console), written into the saved layout's `pageSize`; bare lists all 33 formats |
 | `/url <link>` | Load an `http(s)` image |
 | `/frame [n]` | Grab frame `n` of the loaded video (needs `ffmpeg` on `PATH`) |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` |
-| `/rotate [n]` | Rotate `n` quarter-turns clockwise (default 1) |
-| `/filter <bw\|sepia\|none\|color>` | Black & white, sepia, clear, or a duotone tint |
+| `/rotate <n>` | Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`) |
+| `/filter <bw\|sepia\|invert\|contour\|none\|color>` | Black & white, sepia, invert, edge-detect contour, clear, or a duotone tint |
 | `/reset` · `/drop` | Clear pending edits (keep image) · forget the image entirely |
 | `/image` · `/json` | Download the rendered result · download the layout JSON |
 | `/status` | Show the working image, pending edits, pen and active project |

@@ -40,6 +40,15 @@ public sealed class CliOutcomeParserTests
     }
 
     [Fact]
+    public void PageSuffixLabelIsInformationalWhateverTheFormat()
+    {
+        // The page label reflects the page actually used (e.g. a /blank b5) — still ignored here.
+        RenderResult? result = CliOutcomeParser.ParseWrote("wrote /tmp/out.png (665x945 px · B5 17.6×25cm)");
+        Assert.NotNull(result);
+        Assert.Equal((665, 945), (result!.Width, result.Height));
+    }
+
+    [Fact]
     public void HandlesPathContainingAParen()
     {
         RenderResult? result = CliOutcomeParser.ParseWrote("wrote /tmp/my (final) shot.png (1920x1080)");

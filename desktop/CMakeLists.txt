@@ -98,6 +98,7 @@ if(Qt6_FOUND)
     src/support/theme.cpp
     src/support/notifications.cpp
     src/support/guiHelpers.cpp
+    src/support/searchCombo.cpp
     src/support/iconSet.cpp
     resources/app.qrc
   )

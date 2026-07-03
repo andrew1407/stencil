@@ -861,6 +861,33 @@ body.fullscreen-mode #fs-points-panel {
 .cs-native { display: none; }
 .cs-dd .accent-dd-trigger { min-width: 0; gap: 6px; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
 .cs-dd .accent-dd-menu { left: 0; right: auto; min-width: 100%; }
+/* Searchable dropdown popups (enhanceSelect { search: true }, e.g. #page-size): a
+   .modal-search-style input pinned above the scrolling option rows, plus the
+   "no match" placeholder row shown when the query filters everything out. */
+.accent-dd-search-row {
+    position: sticky;
+    top: -4px;               /* cancel the menu's 4px padding so it pins flush */
+    z-index: 1;
+    margin: -4px -4px 4px;
+    padding: 8px;
+    background: var(--bg-container);
+    border-bottom: 1px solid var(--border-main);
+}
+.accent-dd-search {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 13px;
+}
+.accent-dd-no-match {
+    padding: 6px 9px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    cursor: default;
+}
 #vs-reset {
     background: transparent;
     border: 1px solid var(--border-main) !important;

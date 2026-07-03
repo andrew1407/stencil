@@ -21,8 +21,8 @@ pub struct Layout {
     /// Source image height in pixels (advisory).
     #[serde(rename = "imageHeight", skip_serializing_if = "Option::is_none")]
     pub image_height: Option<f64>,
-    /// Filter baked into the layout (`bw`/`sepia`/a color). A top-level `filter`
-    /// argument to `stencil_edit` overrides this.
+    /// Filter baked into the layout (`bw`/`sepia`/`invert`/`contour`/a color). A top-level
+    /// `filter` argument to `stencil_edit` overrides this.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
     /// The polylines to burn into the image.

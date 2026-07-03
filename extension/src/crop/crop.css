@@ -55,6 +55,10 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .btn-icon-text { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ic { flex: 0 0 auto; }
 
+.page-select { width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px; cursor: pointer; }
+.page-select:hover { border-color: var(--accent); }
+
 .custom-dims { display: flex; align-items: center; gap: 6px; }
 .custom-dims[hidden] { display: none; }
 .num { width: 84px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);

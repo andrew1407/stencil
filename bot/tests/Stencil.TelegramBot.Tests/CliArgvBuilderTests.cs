@@ -89,6 +89,31 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
+    public void BlankWithPageFormatAndColor()
+    {
+        EditRequest req = new()
+        {
+            Blank = new BlankSpec(Color: "pink", Page: "B5"),
+            Output = "page.png",
+        };
+        Assert.Equal(
+            new[] { "--blank", "B5", "pink", "page.png" },
+            CliArgvBuilder.BuildArgv(req));
+    }
+
+    [Fact]
+    public void BlankPageAndDimensionsAreMutuallyExclusive()
+    {
+        EditRequest req = new()
+        {
+            Blank = new BlankSpec(800, 600, Page: "A5"),
+            Output = "out.png",
+        };
+        StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildArgv(req));
+        Assert.Contains("mutually exclusive", ex.Message);
+    }
+
+    [Fact]
     public void FrameFlagForVideo()
     {
         EditRequest req = new()

@@ -30,12 +30,51 @@ pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
 }
 
 pub fn doBlank(session: *Session, arg: []const u8) !void {
-    const blank = commands.parseBlank(session.gpa, arg) orelse {
-        logo.print("error: blank takes '[w h] [color]' — e.g. '/blank 800 600 white'\n", .{});
+    var blank = commands.parseBlank(session.gpa, arg) orelse {
+        logo.print("error: blank takes '[format] [w h] [color]' (a page format and explicit dims are exclusive) — e.g. '/blank 800 600 white' or '/blank b5 pink'\n", .{});
         return;
     };
+    // Capture the session's /format pick before the load wipes it (loadImage → clearAll →
+    // clearFormat). The canonical slice is static (core-owned), so it survives the load.
+    const prev_page: ?[]const u8 = core.canonicalPageFormat(session.page_size);
+    const prev_custom = std.ascii.eqlIgnoreCase(session.page_size, "custom");
+    const prev_w = session.custom_page_w;
+    const prev_h = session.custom_page_h;
+    // A bare size (no format, no dims) defaults to the session's picked page format (set via
+    // /format or a fetched layout).
+    var custom_w: f64 = 0;
+    var custom_h: f64 = 0;
+    if (blank.page == null and blank.width == null and session.page_size.len != 0) {
+        if (prev_custom) {
+            custom_w = prev_w;
+            custom_h = prev_h;
+            if (custom_w > 0 and custom_h > 0) {
+                const s = core.defaultBlankSizePx(custom_w, custom_h, 96.0);
+                blank.width = @intCast(s.w);
+                blank.height = @intCast(s.h);
+            }
+        } else {
+            blank.page = prev_page;
+        }
+    }
     const img = try pipeline.acquireBlank(session.gpa, blank);
     try session.loadImage(img, "blank", true, .png);
+    // Keep the page the blank was actually created on as the session's picked format. Explicit
+    // dims size the blank but keep the previous /format pick (matching the Telegram bot, which
+    // preserves its session PageFormat across an explicit-dims /blank).
+    if (blank.page) |p| {
+        session.setPageSize(p) catch {};
+    } else if (custom_w > 0 and custom_h > 0) {
+        session.setPageSize("custom") catch {};
+        session.custom_page_w = custom_w;
+        session.custom_page_h = custom_h;
+    } else if (prev_page) |p| {
+        session.setPageSize(p) catch {};
+    } else if (prev_custom and prev_w > 0 and prev_h > 0) {
+        session.setPageSize("custom") catch {};
+        session.custom_page_w = prev_w;
+        session.custom_page_h = prev_h;
+    }
     ui.redraw(session);
 }
 
@@ -62,7 +101,11 @@ pub fn doSave(session: *Session, io: std.Io, arg: []const u8) !void {
             session.dirty = false; // a manual push satisfies any pending sync
         },
         .local => {
-            pipeline.writeOutput(session.gpa, io, session.current().*, arg, session.default_fmt) catch return;
+            // The wrote line reports the page actually used — the same label the session
+            // header shows (named pick oriented to the image, or "custom <w>×<h>cm").
+            const page_label = try session.pageFormatLabel();
+            defer session.gpa.free(page_label);
+            pipeline.writeOutputLabeled(session.gpa, io, session.current().*, arg, session.default_fmt, page_label) catch return;
             // When syncing, a local save also queues a push of the result to the active project.
             markDirty(session);
         },
@@ -95,10 +138,14 @@ fn printFormula(session: *Session) void {
 
 /// `/formula [x|y <expr> | on | off | clear]` — the x/y coordinate-transform formulas that
 /// ride the saved layout (validated with the shared parser; the browser applies them, the CLI
-/// preserves + round-trips). Bare `/formula` shows the current state.
-pub fn doFormula(session: *Session, arg: []const u8) !void {
+/// preserves + round-trips). Bare `/formula` shows the current state. Returns true when the
+/// formula state actually changed (so the caller only queues a sync on a real edit).
+pub fn doFormula(session: *Session, arg: []const u8) bool {
     const trimmed = std.mem.trim(u8, arg, " \t");
-    if (trimmed.len == 0) return printFormula(session);
+    if (trimmed.len == 0) {
+        printFormula(session);
+        return false;
+    }
     // Split into the sub-command word + the remainder (the expression, which may have spaces).
     var i: usize = 0;
     while (i < trimmed.len and trimmed[i] != ' ' and trimmed[i] != '\t') : (i += 1) {}
@@ -118,16 +165,69 @@ pub fn doFormula(session: *Session, arg: []const u8) !void {
         const axis: u8 = if (eq(sub, "y")) 'y' else 'x';
         const ok = session.setFormula(axis, expr) catch {
             logo.print("error: out of memory\n", .{});
-            return;
+            return false;
         };
         if (!ok) {
             logo.print("error: invalid {c} formula: {s}\n", .{ axis, expr });
-            return;
+            return false;
         }
         printFormula(session);
     } else {
         logo.print("usage: /formula [x|y <expr> | on | off | clear]   (e.g. '/formula x x*2 + 1')\n", .{});
+        return false;
     }
+    return true;
+}
+
+/// `/format [name | custom <w> <h>]` — show or set the session's page format. Bare lists
+/// every named format with its cm size (current marked); a name (case-insensitive) picks it;
+/// `custom <w> <h>` sets explicit cm dims. The pick drives the header label, the layout
+/// `pageSize` written on save/sync, and the `/blank` default page. Returns true when the
+/// pick actually changed (so a bare listing / rejected name never queues a sync).
+pub fn doFormat(session: *Session, arg: []const u8) bool {
+    const trimmed = std.mem.trim(u8, arg, " \t");
+    if (trimmed.len == 0) {
+        ui.listFormats(session);
+        return false;
+    }
+
+    var it = std.mem.tokenizeAny(u8, trimmed, " \t");
+    const head = it.next().?;
+    if (std.ascii.eqlIgnoreCase(head, "custom")) {
+        const w = parseCmDim(it.next());
+        const h = parseCmDim(it.next());
+        if (w == null or h == null or it.next() != null) {
+            logo.print("error: custom takes width + height in cm (0.1–500) — e.g. '/format custom 21 29.7'\n", .{});
+            return false;
+        }
+        session.setPageSize("custom") catch return false;
+        session.custom_page_w = w.?;
+        session.custom_page_h = h.?;
+        logo.print("page format set to custom ({d}×{d}cm)\n", .{ w.?, h.? });
+        return true;
+    }
+
+    const name = core.canonicalPageFormat(head) orelse {
+        logo.print("error: unknown page format '{s}' — type '/format' to list them\n", .{head});
+        return false;
+    };
+    if (it.next() != null) {
+        logo.print("error: /format takes one name — e.g. '/format b5' (or '/format custom <w> <h>')\n", .{});
+        return false;
+    }
+    const p = core.namedPageSize(session.gpa, name) orelse return false;
+    session.setPageSize(name) catch return false;
+    logo.print("page format set to {s} ({d}×{d}cm)\n", .{ name, p.w, p.h });
+    return true;
+}
+
+/// A `/format custom` dimension token: cm as a positive float within the shared
+/// custom-page range (0.1–500 cm, mirroring the browser/desktop inputs).
+fn parseCmDim(tok: ?[]const u8) ?f64 {
+    const t = tok orelse return null;
+    const v = std.fmt.parseFloat(f64, t) catch return null;
+    if (!(v >= 0.1 and v <= 500)) return null; // also rejects NaN
+    return v;
 }
 
 // ── server connections ─────────────────────────────────────────────────────────
@@ -481,7 +581,7 @@ pub fn doRename(session: *Session, arg: []const u8) !void {
     };
     const name = std.mem.trim(u8, arg, " \t");
     if (name.len == 0) {
-        logo.print("error: give a new name — '/rename <name>'\n", .{});
+        logo.print("error: give a new name — e.g. '/rename MyProject'\n", .{});
         return;
     }
     if (!putProjectField(session, client, session.remote_id.?, name, .name)) return;
@@ -507,10 +607,16 @@ fn printProjectColor(label: []const u8, color: []const u8) void {
     logo.print("{s}: {s}\n", .{ label, color });
 }
 
-/// `/fetch <project name> [url]` — load a server project's image to continue editing.
-pub fn doFetch(session: *Session, arg: []const u8) !void {
+/// `/fetch <project name> [url]` — load a server project's image to continue editing. A
+/// bare `/fetch` shows what there is to fetch: the projects table, plus the usage hint.
+pub fn doFetch(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
-        logo.print("error: fetch needs a project name — e.g. '/fetch MyProject'\n", .{});
+        if (session.servers.items.len == 0) {
+            logo.print("error: no connections — '/connect <url>' first\n", .{});
+            return;
+        }
+        try doProjects(session, io, "");
+        logo.print("usage: /fetch <name> [url] — e.g. '/fetch MyProject'\n", .{});
         return;
     }
     var it = std.mem.tokenizeAny(u8, arg, " \t");
@@ -830,13 +936,18 @@ fn extractLayoutObject(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
 // rebuilds the derived view — so the exact edit serializes to a browser-compatible layout and
 // shows live in open GUI editors, not just baked into the result raster.
 
-/// Map a /filter argument ("bw"|"sepia"|"none"|<colour>) onto the layout filter and apply it.
-/// Returns false for an unrecognized argument (the caller reports the error).
+/// Map a /filter argument ("bw"|"sepia"|"invert"|"contour"|"none"|<colour>) onto the layout
+/// filter and apply it. The named modes are checked before the colour fallback. Returns
+/// false for an unrecognized argument (the caller reports the error).
 fn applyFilterArg(session: *Session, arg: []const u8) bool {
     if (std.ascii.eqlIgnoreCase(arg, "bw")) {
         session.setFilter("bw", "") catch {};
     } else if (std.ascii.eqlIgnoreCase(arg, "sepia")) {
         session.setFilter("sepia", "") catch {};
+    } else if (std.ascii.eqlIgnoreCase(arg, "invert")) {
+        session.setFilter("invert", "") catch {};
+    } else if (std.ascii.eqlIgnoreCase(arg, "contour")) {
+        session.setFilter("contour", "") catch {};
     } else if (std.ascii.eqlIgnoreCase(arg, "none")) {
         session.setFilter("none", "") catch {};
     } else if (core.parseColor(session.gpa, arg)) |col| {
@@ -849,59 +960,89 @@ fn applyFilterArg(session: *Session, arg: []const u8) bool {
     return true;
 }
 
-pub fn runAction(session: *Session, io: std.Io, action: Action) !void {
-    if (!session.hasImage()) return ui.noImage();
+/// `/exec <action> <args>` — run a transform by name; a bare `/exec` lists the action words.
+/// Returns true when the action really edited the image (see runAction).
+pub fn doExec(session: *Session, io: std.Io, arg: []const u8) bool {
+    if (std.mem.trim(u8, arg, " \t").len == 0) {
+        logo.print("usage: /exec <action> <args> — actions: crop | rotate | filter | apply (e.g. '/exec rotate 1')\n", .{});
+        return false;
+    }
+    return runAction(session, io, commands.parseAction(arg));
+}
+
+/// Run one transform. Returns true only when a new edit state was actually recorded — the
+/// usage/listing, no-image, bad-argument and full-turn paths mutate nothing, so the caller
+/// never queues a sync upload for them.
+pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
+    // A bare transform lists its variants / usage instead of acting (no image needed) — so
+    // `/crop` never silently records a full-image crop and `/filter` shows what it takes.
+    if (action.arg.len == 0) switch (action.kind) {
+        .crop => {
+            logo.print("usage: /crop <spec> [album] — edges x1= x2= y1= y2= with %, px, cm/mm/in, or a bare pixel delta; omit an edge to keep the image bound\n", .{});
+            logo.print("       e.g. '/crop x1=10% x2=90% y1=10% y2=90%' (add 'album' to derive a missing axis from the page, landscape)\n", .{});
+            return false;
+        },
+        .rotate => {
+            logo.print("usage: /rotate <int> — quarter-turns: 1 = 90° cw, 2 = 180°, -1 = 90° ccw, 3 = 270° (e.g. '/rotate -1')\n", .{});
+            return false;
+        },
+        .filter => {
+            ui.listFilters();
+            return false;
+        },
+        .layout => {
+            logo.print("error: apply needs a path or URL to a layout JSON — e.g. '/apply notes.json'\n", .{});
+            return false;
+        },
+    };
+    if (!session.hasImage()) {
+        ui.noImage();
+        return false;
+    }
     switch (action.kind) {
         .crop => {
             var album = false;
-            const spec = commands.stripAlbum(session.gpa, action.arg, &album) catch return;
+            const spec = commands.stripAlbum(session.gpa, action.arg, &album) catch return false;
             defer session.gpa.free(spec);
             const cur = session.current();
-            const rect = pipeline.resolveCropSpec(session.gpa, cur.width, cur.height, spec, album) orelse return;
-            session.applyCrop(rect) catch return;
+            const rect = pipeline.resolveCropSpec(session.gpa, cur.width, cur.height, spec, album) orelse return false;
+            session.applyCrop(rect) catch return false;
             ui.ack(session, "cropped");
         },
         .rotate => {
             const n = std.fmt.parseInt(i32, action.arg, 10) catch {
                 logo.print("error: rotate needs an integer (quarter-turns), e.g. '/rotate -1'\n", .{});
-                return;
+                return false;
             };
             if (@mod(n, 4) == 0) {
                 logo.print("rotate {d} is a full turn — no change\n", .{n});
-                return;
+                return false;
             }
-            session.applyRotate(n) catch return;
+            session.applyRotate(n) catch return false;
             ui.ack(session, "rotated");
         },
         .filter => {
-            if (action.arg.len == 0) {
-                logo.print("error: filter needs a mode — 'bw', 'sepia', 'none', or a colour\n", .{});
-                return;
-            }
             if (!applyFilterArg(session, action.arg)) {
-                logo.print("error: unknown filter \"{s}\" — 'bw', 'sepia', 'none', or a colour\n", .{action.arg});
-                return;
+                logo.print("error: unknown filter \"{s}\" — 'bw', 'sepia', 'invert', 'contour', 'none', or a colour\n", .{action.arg});
+                return false;
             }
             ui.ack(session, action.arg);
         },
         .layout => {
-            if (action.arg.len == 0) {
-                logo.print("error: apply needs a path or URL to a layout JSON\n", .{});
-                return;
-            }
-            const bytes = pipeline.loadLayoutBytes(session.gpa, io, action.arg) catch return; // msg printed
+            const bytes = pipeline.loadLayoutBytes(session.gpa, io, action.arg) catch return false; // msg printed
             defer session.gpa.free(bytes);
-            session.addLines(bytes) catch return;
+            session.addLines(bytes) catch return false;
             // Adopt the layout file's embedded filter, if any (layout.zig top-level "filter").
             var L = layout_mod.parse(session.gpa, bytes) catch {
                 ui.ack(session, "drawn");
-                return;
+                return true; // the lines were added even if the filter parse failed
             };
             defer L.deinit();
             if (L.filter) |f| _ = applyFilterArg(session, f);
             ui.ack(session, "drawn");
         },
     }
+    return true;
 }
 
 // ── history / clipboard / theme / session ──────────────────────────────────────

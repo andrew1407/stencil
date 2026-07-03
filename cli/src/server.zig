@@ -149,7 +149,7 @@ pub const CropRect = struct { x: i64, y: i64, w: i64, h: i64 };
 /// Page format + x/y formulas round-tripped through the layout (CLI preserves, doesn't edit).
 /// Empty strings / zero dims are omitted from the JSON.
 pub const PageMeta = struct {
-    page_size: []const u8 = "", // "" | "A3" | "A4" | "custom"
+    page_size: []const u8 = "", // "" | a named format ("A0".."C10") | "custom"
     custom_w: f64 = 0, // cm; 0 = unset
     custom_h: f64 = 0,
     allow_formulas: bool = false,

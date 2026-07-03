@@ -46,6 +46,42 @@ public sealed class ProjectLayoutWriterTests
         Assert.Equal(1, el.GetProperty("lines").GetArrayLength());
     }
 
+    [Theory]
+    [InlineData("invert")]
+    [InlineData("contour")]
+    public void InvertAndContourStayNamedFilters(string mode)
+    {
+        var edits = new EditState { Filter = mode };
+        var root = ProjectLayoutWriter.Build(baseLayoutJson: null, edits, 100, 100);
+        JsonElement el = JsonSerializer.Deserialize<JsonElement>(root.ToJsonString());
+
+        Assert.Equal(mode, el.GetProperty("imageFilter").GetString()); // NOT coerced to custom
+        Assert.False(el.TryGetProperty("filterColor", out _));
+    }
+
+    [Fact]
+    public void PageFormatOverridesTheFetchedPageSize()
+    {
+        string baseLayout = """{ "pageSize": "A4", "lines": [] }""";
+        var edits = new EditState { PageFormat = "B5" };
+        var root = ProjectLayoutWriter.Build(baseLayout, edits, 100, 100);
+        JsonElement el = JsonSerializer.Deserialize<JsonElement>(root.ToJsonString());
+
+        Assert.Equal("B5", el.GetProperty("pageSize").GetString());
+    }
+
+    [Fact]
+    public void CustomPageFormatCarriesItsCmDimensions()
+    {
+        var edits = new EditState { PageFormat = "custom", CustomPageWidth = 10, CustomPageHeight = 15.5 };
+        var root = ProjectLayoutWriter.Build(baseLayoutJson: null, edits, 100, 100);
+        JsonElement el = JsonSerializer.Deserialize<JsonElement>(root.ToJsonString());
+
+        Assert.Equal("custom", el.GetProperty("pageSize").GetString());
+        Assert.Equal(10, el.GetProperty("customPageWidth").GetDouble());
+        Assert.Equal(15.5, el.GetProperty("customPageHeight").GetDouble());
+    }
+
     [Fact]
     public void BuildsAFreshLayoutWhenNoBaseIsGiven()
     {

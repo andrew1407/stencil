@@ -17,7 +17,7 @@ import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, apply
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
-import { normalizePageSize } from './units.js';
+import { normalizePageSize, pageFormatLabel } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
@@ -343,7 +343,8 @@ export class DrawingApp {
     // Swap the native popups (whose position macOS controls) for custom dropdowns
     // anchored below the control. The native <select>s stay as the state source, so
     // the change listeners above and every setVal('page-size'|'unit-select') keep working.
-    enhanceSelect(document.getElementById('page-size'));
+    // Page size gets a search bar (33 ISO formats — scrolling alone is too slow).
+    enhanceSelect(document.getElementById('page-size'), { search: true });
     enhanceSelect(unitSel);
     document.getElementById('show-points').addEventListener('change', e => this.setShowPoints(e.target.checked));
     document.getElementById('show-lines').addEventListener('change', e => this.setShowLines(e.target.checked));
@@ -665,7 +666,7 @@ export class DrawingApp {
         this.renderer.redraw();
       },
       cycleFilter: () => {
-        const opts = ['none', 'bw', 'sepia', 'custom'];
+        const opts = ['none', 'bw', 'sepia', 'invert', 'contour', 'custom'];
         const cur = opts.indexOf(this.imageFilter);
         // Route through setImageFilter so the cycle marks the filter dirty + syncs to
         // the server (it used to set the value inline and never push).
@@ -1909,7 +1910,7 @@ export class DrawingApp {
   // Apply a page size handed in by the external launch and reflect it in the UI.
   // page.width/height are in cm (only used for the 'custom' size).
   #setExternalPage(page) {
-    const size = page.size === 'A4' ? 'A4' : page.size === 'custom' ? 'custom' : 'A3';
+    const size = normalizePageSize(page.size) || 'A3';
     this.pageSize = size;
     if (size === 'custom') {
       const w = parseFloat(page.width), h = parseFloat(page.height);
@@ -2874,6 +2875,24 @@ export class DrawingApp {
     const lbl = unitLabel(this.unit);
     const sel = document.getElementById('unit-select');
     if (sel) sel.value = this.unit;
+    // Named page-size option labels ("A4 (21 × 29.7 cm)") re-render in the active unit.
+    // Re-asserting the model value routes through enhanceSelect's wrapped setter, which
+    // refreshes the visible dropdown trigger to the relabelled option (and, at boot,
+    // moves the select off its markup default — Custom… is the FIRST option — onto the
+    // app's default page).
+    const psSel = document.getElementById('page-size');
+    if (psSel) {
+      for (const opt of psSel.options)
+        if (opt.value !== 'custom') opt.textContent = pageFormatLabel(opt.value, this.unit);
+      psSel.value = this.pageSize;
+    }
+    // The links-modal quick-crop page selector shares the same option-label contract
+    // (desktop's LinksDialog renders it in the live unit too) — keep it in lockstep.
+    const qcSel = document.getElementById('links-crop-pagesize');
+    if (qcSel) {
+      for (const opt of qcSel.options)
+        opt.textContent = pageFormatLabel(opt.value, this.unit);
+    }
     const w = document.getElementById('custom-page-width');
     const h = document.getElementById('custom-page-height');
     if (w) w.value = +cmToUnit(this.customPageWidth, this.unit).toFixed(2);
@@ -3803,7 +3822,7 @@ export class DrawingApp {
 
   setPageSize(size) {
     const n = normalizePageSize(size);
-    if (!n) throw new Error(`Unknown page size: ${size} (use 'A3', 'A4', or 'custom')`);
+    if (!n) throw new Error(`Unknown page size: ${size} (use a named ISO format (A0–C10) or 'custom')`);
     this.pageSize = n;
     setVal('page-size', n);
     const cg = document.getElementById('custom-size-group');

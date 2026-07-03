@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, blank, save, layout, formula, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, rename, fetch, sync };
+pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, rename, fetch, sync };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -34,6 +34,7 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "save") or eq(w, "write")) return .save;
     if (eq(w, "layout") or eq(w, "exportlayout") or eq(w, "savelayout")) return .layout;
     if (eq(w, "formula") or eq(w, "formulas")) return .formula;
+    if (eq(w, "format") or eq(w, "formats")) return .format;
     if (eq(w, "exec") or eq(w, "do") or eq(w, "run")) return .exec;
     if (eq(w, "undo") or eq(w, "u")) return .undo;
     if (eq(w, "redo") or eq(w, "r")) return .redo;
@@ -75,6 +76,8 @@ pub fn actionOf(word: []const u8, arg: []const u8) ?Action {
     if (eq(word, "tint") or eq(word, "color") or eq(word, "colour")) return .{ .kind = .filter, .arg = arg };
     if (eq(word, "bw") or eq(word, "b&w") or eq(word, "grayscale") or eq(word, "greyscale") or eq(word, "gray") or eq(word, "grey")) return .{ .kind = .filter, .arg = "bw" };
     if (eq(word, "sepia")) return .{ .kind = .filter, .arg = "sepia" };
+    if (eq(word, "invert")) return .{ .kind = .filter, .arg = "invert" };
+    if (eq(word, "contour")) return .{ .kind = .filter, .arg = "contour" };
     if (eq(word, "none")) return .{ .kind = .filter, .arg = "none" };
     if (eq(word, "apply") or eq(word, "draw")) return .{ .kind = .layout, .arg = arg };
     return null;
@@ -94,16 +97,25 @@ fn eqIgnoreCase(a: []const u8, b: []const u8) bool {
     return std.ascii.eqlIgnoreCase(a, b);
 }
 
-// `blank: [w h] [color]` — optional integer pair followed by an optional colour. Returns
-// null only when the tokens are present but malformed (e.g. one dimension, or junk).
+// `blank: [format] [w h] [color]` — an optional page-format name (case-insensitive, stored
+// canonical), or an optional integer pair, followed by an optional colour. A format token
+// and explicit dims are mutually exclusive. Returns null only when the tokens are present
+// but malformed (e.g. one dimension, format + dims, or junk).
 pub fn parseBlank(gpa: std.mem.Allocator, arg: []const u8) ?args.Blank {
     var b = args.Blank{};
     var it = std.mem.tokenizeAny(u8, arg, " \t");
-    const first = it.next();
+    var first = it.next();
     if (first == null) return b; // no args → default page, white
 
-    // If the first token is a number, a width/height pair is required.
+    // An optional leading page-format name ("a4", "B5", …).
+    if (core.canonicalPageFormat(first.?)) |name| {
+        b.page = name;
+        first = it.next() orelse return b;
+    }
+
+    // If the (next) token is a number, a width/height pair is required.
     if (std.fmt.parseInt(u32, first.?, 10)) |w| {
+        if (b.page != null) return null; // a format names the size — no explicit dims with it
         const second = it.next() orelse return null;
         const h = std.fmt.parseInt(u32, second, 10) catch return null;
         b.width = w;
@@ -207,9 +219,17 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("fetch").? == .fetch);
     try testing.expect(verbOf("sync").? == .sync);
 
+    // /format is a session verb (page format), not a transform.
+    try testing.expect(verbOf("format").? == .format);
+    try testing.expect(verbOf("formats").? == .format);
+    try testing.expect(verbOf("formula").? == .formula); // and doesn't shadow /formula
+
     try testing.expect(actionOf("crop", "x1=0").?.kind == .crop);
     try testing.expect(actionOf("rotate", "-1").?.kind == .rotate);
     try testing.expectEqualStrings("sepia", actionOf("sepia", "").?.arg);
+    try testing.expectEqualStrings("invert", actionOf("invert", "").?.arg);
+    try testing.expectEqualStrings("contour", actionOf("Contour", "").?.arg);
+    try testing.expect(actionOf("invert", "").?.kind == .filter);
     try testing.expect(actionOf("apply", "n.json").?.kind == .layout);
     try testing.expect(actionOf("draw", "n.json").?.kind == .layout);
     try testing.expect(actionOf("frob", "") == null);
@@ -291,6 +311,26 @@ test "parseBlank: dims, colour, and rejects" {
     try testing.expect(parseBlank(a, "800") == null); // lone dimension
     try testing.expect(parseBlank(a, "800 600 notacolour") == null);
     try testing.expect(parseBlank(a, "red extra") == null);
+}
+
+test "parseBlank: leading page-format token, canonical + exclusive with dims" {
+    const a = testing.allocator;
+    const b1 = parseBlank(a, "b5").?;
+    try testing.expectEqualStrings("B5", b1.page.?);
+    try testing.expect(b1.width == null);
+    try testing.expectEqualStrings("white", b1.color);
+
+    const b2 = parseBlank(a, "A5 pink").?;
+    try testing.expectEqualStrings("A5", b2.page.?);
+    try testing.expectEqualStrings("pink", b2.color);
+
+    const b3 = parseBlank(a, "800 600 red").?; // dims still work without a format
+    try testing.expect(b3.page == null);
+    try testing.expectEqual(@as(u32, 800), b3.width.?);
+
+    try testing.expect(parseBlank(a, "b5 800 600") == null); // format + dims are exclusive
+    try testing.expect(parseBlank(a, "b5 notacolour") == null);
+    try testing.expect(parseBlank(a, "b5 red extra") == null);
 }
 
 test "stripAlbum: removes the modifier and sets the flag" {

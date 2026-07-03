@@ -43,6 +43,35 @@ class CoreTest(unittest.TestCase):
         self.assertAlmostEqual(wcm, 21.0, places=4)
         self.assertAlmostEqual(hcm, 29.7, places=4)
 
+    def test_named_page_size_b5_c5(self) -> None:
+        # ISO 216 B / ISO 269 C series entries from the shared table.
+        self.assertEqual(self.core.named_page_size("B5"), (17.6, 25.0))
+        self.assertEqual(self.core.named_page_size("C5"), (16.2, 22.9))
+        # Exact case-sensitive match, like the core: "b5" is unknown.
+        self.assertIsNone(self.core.named_page_size("b5"))
+
+    def test_page_formats(self) -> None:
+        # 33 canonical names in A0..A10, B0..B10, C0..C10 order — no "custom".
+        formats = self.core.page_formats()
+        self.assertEqual(len(formats), 33)
+        self.assertEqual(formats[:11], ["A%d" % i for i in range(11)])
+        self.assertEqual(formats[11], "B0")
+        self.assertEqual(formats[22], "C0")
+        self.assertEqual(formats[-1], "C10")
+        self.assertNotIn("custom", formats)
+        # Every listed name resolves through named_page_size.
+        for name in formats:
+            self.assertIsNotNone(self.core.named_page_size(name), name)
+
+    def test_canonical_page_format(self) -> None:
+        # Case-insensitive match to the canonical spelling; unknown names (and
+        # "custom", which is not a named format) map to None; whitespace is trimmed.
+        self.assertEqual(self.core.canonical_page_format("b5"), "B5")
+        self.assertEqual(self.core.canonical_page_format(" A4 "), "A4")
+        self.assertIsNone(self.core.canonical_page_format("Z9"))
+        self.assertIsNone(self.core.canonical_page_format("custom"))
+        self.assertIsNone(self.core.canonical_page_format(""))
+
     def test_fill_and_bw_filter(self) -> None:
         # One pixel filled (200,100,50,255); "bw" collapses it to luma 117 on all channels.
         buf = bytearray(4)
@@ -53,6 +82,36 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(buf[1], 117)
         self.assertEqual(buf[2], 117)
         self.assertEqual(buf[3], 255)
+
+    def test_invert_filter(self) -> None:
+        # "invert" negates every colour channel and preserves alpha.
+        buf = bytearray(4)
+        self.core.fill_rgba(buf, 1, 200, 100, 50, 128)
+        self.core.apply_filter("invert", buf, 1)
+        self.assertEqual(list(buf), [55, 155, 205, 128])
+
+    def test_apply_contour_uniform_is_white(self) -> None:
+        # 3x2 of one colour: every Sobel gradient is 0, so mag 0 -> 255 everywhere
+        # (port of the core's applyContourRGBA uniform-image test).
+        buf = bytearray()
+        for i in range(6):
+            buf += bytes((100, 150, 200, 40 + i))
+        self.core.apply_contour(buf, 3, 2)
+        for i in range(6):
+            self.assertEqual(list(buf[i * 4 : i * 4 + 4]), [255, 255, 255, 40 + i])
+
+    def test_apply_contour_hard_edge(self) -> None:
+        # 4x1: black, black, white, white — the hand-computed Sobel fixture from
+        # core/tests/imageFilter.test.cpp (gy = 0; gx = 4 * (l(x+1) - l(x-1)) with
+        # clamped columns), so the outputs are 255, 0, 0, 255 with alphas kept.
+        buf = bytearray(
+            (0, 0, 0, 10, 0, 0, 0, 20, 255, 255, 255, 30, 255, 255, 255, 40)
+        )
+        self.core.apply_contour(buf, 4, 1)
+        self.assertEqual(
+            list(buf),
+            [255, 255, 255, 10, 0, 0, 0, 20, 0, 0, 0, 30, 255, 255, 255, 40],
+        )
 
     def test_rotated_dims(self) -> None:
         self.assertEqual(self.core.rotated_dims(4, 2, 1), (2, 4))

@@ -46,8 +46,8 @@ class _Snapshot:
 
     ``rotation`` is 0..3 clockwise quarter-turns applied to the original FIRST; ``crop``
     is an ``(x, y, w, h)`` rect in rotated-original pixel space (or ``None``); the filter
-    is a mode string ("none"|"bw"|"sepia"|"custom") plus a custom hex colour; ``lines`` is
-    the list of drawn :class:`Line` objects.
+    is a mode string ("none"|"bw"|"sepia"|"custom"|"invert"|"contour") plus a custom hex
+    colour; ``lines`` is the list of drawn :class:`Line` objects.
     """
 
     rotation: int = 0
@@ -102,6 +102,11 @@ class Editor:
         self._allow_formulas: bool = False
         self._formula_x: str = ""
         self._formula_y: str = ""
+        # Page format (project-level; rides the layout like the CLI session's page_size).
+        # "" = unset (the layout omits pageSize); custom dims are cm, 0 = unset.
+        self._page_size: str = ""
+        self._custom_page_width: float = 0.0
+        self._custom_page_height: float = 0.0
 
     # ── core access ────────────────────────────────────────────────────────────
     def _get_core(self) -> Core:
@@ -163,12 +168,16 @@ class Editor:
 
         With no explicit size, the dimensions come from the named ``page`` size rendered
         at the core's default DPI (``default_blank_size_px(named_page_size(page))``), so a
-        blank A4 matches the CLI/browser blank exactly. ``color`` is any CSS colour the
-        core understands; an unparseable colour falls back to opaque white.
+        blank A4 matches the CLI/browser blank exactly. ``page`` is any ISO A/B/C name
+        (case-insensitive, e.g. "b5"); an unknown name quietly falls back to A4 —
+        mirroring the Zig console, whose ``canonicalPageFormat`` maps unknown names to
+        null and blanks on the default A4 page. ``color`` is any CSS colour the core
+        understands; an unparseable colour falls back to opaque white.
         """
         core = self._get_core()
         if width is None or height is None:
-            size = core.named_page_size(page) or _A4_FALLBACK
+            canonical = core.canonical_page_format(page)
+            size = (core.named_page_size(canonical) if canonical else None) or _A4_FALLBACK
             default_w, default_h = core.default_blank_size_px(size[0], size[1])
             if width is None:
                 width = default_w
@@ -295,7 +304,8 @@ class Editor:
         return self
 
     def set_filter(self, mode: str) -> "Editor":
-        """Set the filter mode ("none"|"bw"|"sepia"|"custom"), keeping any custom colour."""
+        """Set the filter mode ("none"|"bw"|"sepia"|"custom"|"invert"|"contour"),
+        keeping any custom colour."""
         self._require_original()
         cur = self._current()
         nxt = cur.copy()
@@ -321,18 +331,20 @@ class Editor:
     def apply_filter(self, mode: str) -> "Editor":
         """Convenience filter setter mirroring the CLI's ``/filter`` (``applyFilterArg``).
 
-        "bw"/"sepia"/"none" set those modes directly; anything else is treated as a colour
-        — parsed by the core and stored as a custom #rrggbb duotone tint. An unrecognized
+        "bw"/"sepia"/"invert"/"contour"/"none" set those modes directly (the named modes
+        are checked BEFORE the colour fallback); anything else is treated as a colour —
+        parsed by the core and stored as a custom #rrggbb duotone tint. An unrecognized
         value raises ``ValueError``.
         """
         low = mode.strip().lower()
-        if low in ("bw", "sepia", "none"):
+        if low in ("bw", "sepia", "invert", "contour", "none"):
             return self.set_filter(low)
         core = self._get_core()
         parsed = core.parse_color(mode.strip())
         if parsed is None:
             raise ValueError(
-                "unknown filter %r — use 'bw', 'sepia', 'none', or a colour" % mode
+                "unknown filter %r — use 'bw', 'sepia', 'invert', 'contour', 'none', "
+                "or a colour" % mode
             )
         return self.set_filter_color(mode.strip())
 
@@ -369,6 +381,70 @@ class Editor:
         expr = self._formula_y if ax == "y" else self._formula_x
         return self._get_core().apply_formula(expr, ax, value, self._allow_formulas)
 
+    # ── page format (project-level; rides the layout) ───────────────────────────
+    def set_page_format(
+        self,
+        name: str,
+        width: Optional[float] = None,
+        height: Optional[float] = None,
+    ) -> "Editor":
+        """Set the project's page format (mirror the console's ``/format``).
+
+        A named format is matched case-insensitively and stored canonical ("b5" → "B5");
+        ``"custom"`` needs ``width``/``height`` in cm within the shared custom-page range
+        (0.1–500 cm, mirroring the console's ``parseCmDim`` and the browser/desktop
+        inputs; NaN/Infinity are rejected too, so an exported layout stays valid JSON).
+        An empty name clears the format back to unset (the layout omits ``pageSize``
+        again). Unknown names raise ``ValueError`` listing the valid formats. The format
+        rides the saved layout (``pageSize``/``customPageWidth``/``customPageHeight``),
+        like every other client.
+        """
+        spec = (name or "").strip()
+        if not spec:
+            self._page_size = ""
+            self._custom_page_width = 0.0
+            self._custom_page_height = 0.0
+            return self
+        if spec.lower() == "custom":
+            w = float(width or 0.0)
+            h = float(height or 0.0)
+            # Pinned custom-page range (port of the console's parseCmDim): 0.1–500 cm.
+            # The inclusive comparisons are False for NaN, so NaN/inf never get stored
+            # (json.dumps would otherwise emit non-RFC-8259 `NaN` in the layout).
+            if not (0.1 <= w <= 500.0 and 0.1 <= h <= 500.0):
+                raise ValueError(
+                    "custom page format needs width + height in cm within 0.1-500"
+                )
+            self._page_size = "custom"
+            self._custom_page_width = w
+            self._custom_page_height = h
+            return self
+        canonical = self._get_core().canonical_page_format(spec)
+        if canonical is None:
+            raise ValueError(
+                "unknown page format %r — valid names: %s"
+                % (name, ", ".join(self._get_core().page_formats()))
+            )
+        self._page_size = canonical
+        self._custom_page_width = 0.0
+        self._custom_page_height = 0.0
+        return self
+
+    @property
+    def page_format(self) -> str:
+        """The page format name ("A4"/"B5"/.../"custom"), or "" when unset."""
+        return self._page_size
+
+    @property
+    def custom_page_width(self) -> float:
+        """The custom page width in cm (0.0 when unset / a named format is picked)."""
+        return self._custom_page_width
+
+    @property
+    def custom_page_height(self) -> float:
+        """The custom page height in cm (0.0 when unset / a named format is picked)."""
+        return self._custom_page_height
+
     def draw(self, layout: LayoutLike) -> "Editor":
         """APPEND the lines from a layout to the drawing (mirror ``session.addLines``)."""
         self._require_original()
@@ -404,6 +480,11 @@ class Editor:
             filter_color=L.filter_color or "",
             lines=list(L.lines),
         )
+        # The page format is project-level: adopt it raw and unvalidated, exactly like
+        # the CLI session's adoptLayoutMeta (an unknown stored name round-trips as-is).
+        self._page_size = L.page_size or ""
+        self._custom_page_width = L.custom_page_width or 0.0
+        self._custom_page_height = L.custom_page_height or 0.0
         self._push(snapshot)
         return self
 
@@ -449,13 +530,17 @@ class Editor:
             cx, cy, cw, ch = self._clamp_rect(snap.crop, img.width, img.height)
             data = core.crop_image_rgba(img.data, img.width, img.height, cx, cy, cw, ch)
             img = Image(cw, ch, data)
-        # 3. filter in place (custom uses the hex colour as the duotone arg, else the mode)
+        # 3. filter in place (custom uses the hex colour as the duotone arg, else the mode;
+        #    contour is dimensioned Sobel edge detection, so it takes its own entry point)
         if snap.filter_mode and snap.filter_mode.lower() != "none":
-            is_custom = snap.filter_mode.lower() == "custom"
-            arg = snap.filter_color if is_custom else snap.filter_mode
-            if arg:
-                tint = core.parse_color(arg) or (0, 0, 0, 255)
-                core.apply_filter(arg, img.data, img.pixel_count, (tint[0], tint[1], tint[2]))
+            if snap.filter_mode.lower() == "contour":
+                core.apply_contour(img.data, img.width, img.height)
+            else:
+                is_custom = snap.filter_mode.lower() == "custom"
+                arg = snap.filter_color if is_custom else snap.filter_mode
+                if arg:
+                    tint = core.parse_color(arg) or (0, 0, 0, 255)
+                    core.apply_filter(arg, img.data, img.pixel_count, (tint[0], tint[1], tint[2]))
         # 4. rasterize each drawn line in place
         for line in snap.lines:
             points = [(p.x, p.y) for p in line.points]
@@ -505,6 +590,10 @@ class Editor:
             filter_color=filter_color,
             crop_rect=crop_rect,
             rotation_quarters=rotation_quarters,
+            # Page format only when picked; custom dims only when set (mirror pageMeta()).
+            page_size=self._page_size or None,
+            custom_page_width=self._custom_page_width or None,
+            custom_page_height=self._custom_page_height or None,
             # allowFormulas only when on; expressions kept whenever non-empty (preserve on off).
             allow_formulas=True if self._allow_formulas else None,
             formula_x=self._formula_x or None,

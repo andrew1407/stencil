@@ -55,10 +55,10 @@ class StencilCore {
     'stencil_parseHex', 'stencil_distToSegment', 'stencil_formulaValidate',
     'stencil_formulaApply', 'stencil_clampScale', 'stencil_shouldCloseShape',
     'stencil_isAlbumOrientation', 'stencil_cropAspect', 'stencil_cropResizeScale',
-    'stencil_pageDimensions', 'stencil_pixelToPageRaw', 'stencil_rotatePoints',
-    'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA', 'stencil_centeredCrop',
-    'stencil_resizeCropFromCorner', 'stencil_moveCropClamped', 'stencil_cropChange',
-    'stencil_rotateCropRectQuarter',
+    'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
+    'stencil_rotatePoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
+    'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
+    'stencil_moveCropClamped', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
   ];
 
   // Names of required exports the instantiated module does not expose as callables.
@@ -84,8 +84,8 @@ class StencilCore {
   get opNames() {
     return [
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
-      'pageDimensions', 'pixelToPageRaw', 'rotatePoints', 'boundingBoxCenter',
-      'clampScale', 'shouldCloseShape', 'applyFilterRGBA',
+      'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'boundingBoxCenter',
+      'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
       'moveCropClamped', 'cropResizeScale', 'cropChange',
     ];
@@ -114,6 +114,7 @@ class StencilCore {
     const cIsAlbum        = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
     const cCropAspect     = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
     const cCropResizeScale = core.cwrap('stencil_cropResizeScale', 'number', ['number', 'number']);
+    const cPageFormats    = core.cwrap('stencil_pageFormats', 'string', []);
 
     // ccall'd exports that read/write through pointers.
     const cPageDims   = (name, cw, ch, cuW, cuH, out) =>
@@ -126,6 +127,8 @@ class StencilCore {
       core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
     const cFilter     = (mode, ptr, n, r, g, b) =>
       core.ccall('stencil_applyFilterRGBA', null, ['number', 'number', 'number', 'number', 'number', 'number'], [mode, ptr, n, r, g, b]);
+    const cContour    = (ptr, w, h) =>
+      core.ccall('stencil_applyContourRGBA', null, ['number', 'number', 'number'], [ptr, w, h]);
     const cCenteredCrop = (iw, ih, aspect, out) =>
       core.ccall('stencil_centeredCrop', null, ['number', 'number', 'number', 'number'], [iw, ih, aspect, out]);
     const cResizeCorner = (x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out) =>
@@ -162,7 +165,7 @@ class StencilCore {
     };
 
     // FilterMode enum codes (must match core/imageFilter.hpp).
-    const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3 };
+    const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
     return {
       parseHex(hex) {
@@ -210,6 +213,12 @@ class StencilCore {
         }
       },
 
+      // Space-separated canonical page-format names ("A0 … C10", no "custom") —
+      // the wasm twin of the PAGE_SIZES table keys in config/constants.json.
+      pageFormats() {
+        return cPageFormats();
+      },
+
       pixelToPageRaw(x, y, dims, cw, ch) {
         const out = core._malloc(2 * F64);
         try {
@@ -255,6 +264,20 @@ class StencilCore {
         try {
           core.HEAPU8.set(data, ptr);
           cFilter(code, ptr, pixelCount, r, g, b);
+          data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
+        } finally {
+          core._free(ptr);
+        }
+      },
+
+      // Contour needs the pixel neighborhood, so it crosses the ABI with
+      // width/height instead of applyFilterRGBA's flat pixel count.
+      applyContourRGBA(data, width, height) {
+        const bytes = width * height * 4;
+        const ptr = core._malloc(bytes);
+        try {
+          core.HEAPU8.set(data, ptr);
+          cContour(ptr, width, height);
           data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
         } finally {
           core._free(ptr);

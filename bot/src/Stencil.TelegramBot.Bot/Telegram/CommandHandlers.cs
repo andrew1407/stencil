@@ -63,8 +63,9 @@ public sealed class CommandHandlers
             "create" => CreateAsync(userId, chatId, cmd, ct),
             "save" => SaveAsync(userId, chatId, ct),
             "sync" => SyncAsync(userId, chatId, cmd, ct),
-            "projectcolor" or "project_color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
+            "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
             "blank" => BlankAsync(userId, chatId, cmd, ct),
+            "format" => FormatAsync(userId, chatId, cmd, ct),
             "url" => UrlAsync(userId, chatId, cmd, ct),
             "frame" => FrameAsync(userId, chatId, cmd, ct),
             "crop" => CropAsync(userId, chatId, cmd, ct),
@@ -110,7 +111,7 @@ public sealed class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /connect <url> [token]", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ConnectUsage(), cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
@@ -157,12 +158,19 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Load a project as the working image: <c>/fetch &lt;name|id&gt;</c>.</summary>
+    /// <summary>Load a project as the working image: <c>/fetch &lt;name|id&gt;</c> (bare lists them).</summary>
     private async Task FetchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /fetch <project name or id>", cancellationToken: ct);
+            // Bare /fetch: list the fetchable projects (as tappable buttons) plus the usage hint.
+            IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, null, ct);
+            string text = $"{Replies.ProjectsText(projects)}\n\nUsage: /fetch <project name or id>";
+            await _bot.SendMessage(
+                chatId,
+                text,
+                replyMarkup: projects.Count == 0 ? null : Keyboards.ProjectList(projects),
+                cancellationToken: ct);
             return;
         }
         UserSession session = await _servers.FetchAsync(userId, cmd.ArgumentText, null, ct);
@@ -191,13 +199,20 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Start a blank canvas: <c>/blank [w h] [color]</c>.</summary>
+    /// <summary>Start a blank canvas: <c>/blank [format] [w h] [color]</c>.</summary>
     private async Task BlankAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
+        string? page = null;
         int? width = null;
         int? height = null;
         string? color = null;
         IReadOnlyList<string> args = cmd.Args;
+        // An optional leading named page format (case-insensitive), e.g. /blank b5 pink.
+        if (args.Count >= 1 && PageFormats.TryGet(args[0], out string canonical, out _, out _))
+        {
+            page = canonical;
+            args = args.Skip(1).ToList();
+        }
         if (args.Count >= 2 && int.TryParse(args[0], out int w) && int.TryParse(args[1], out int h))
         {
             width = w;
@@ -211,9 +226,42 @@ public sealed class CommandHandlers
         {
             color = args[0];
         }
-        BlankSpec spec = new(width, height, color);
+        // A format plus explicit dims is rejected by CliArgvBuilder (mutually exclusive).
+        BlankSpec spec = new(width, height, color, page);
         await _editing.BlankAsync(userId, spec, ct);
         await RenderAndSendAsync(userId, chatId, ct);
+    }
+
+    /// <summary>Show or set the page format: <c>/format [name | custom &lt;w&gt; &lt;h&gt;]</c>.</summary>
+    private async Task FormatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Args.Count == 0)
+        {
+            await _bot.SendMessage(chatId, Replies.PageFormatList(), cancellationToken: ct);
+            return;
+        }
+        string first = cmd.Args[0];
+        if (first.Equals("custom", StringComparison.OrdinalIgnoreCase))
+        {
+            if (cmd.Args.Count < 3
+                || !double.TryParse(cmd.Args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double w)
+                || !double.TryParse(cmd.Args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double h)
+                || w <= 0 || h <= 0)
+            {
+                await _bot.SendMessage(chatId, "Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15", cancellationToken: ct);
+                return;
+            }
+            await _editing.SetPageFormatAsync(userId, "custom", w, h, ct);
+            await _bot.SendMessage(chatId, $"Page format set to custom ({PageFormats.Cm(w)}×{PageFormats.Cm(h)} cm) — saved into the project layout.", cancellationToken: ct);
+            return;
+        }
+        if (!PageFormats.TryGet(first, out string name, out double wcm, out double hcm))
+        {
+            await _bot.SendMessage(chatId, $"Unknown page format '{first}' — type /format to list formats.", cancellationToken: ct);
+            return;
+        }
+        await _editing.SetPageFormatAsync(userId, name, null, null, ct);
+        await _bot.SendMessage(chatId, $"Page format set to {name} ({PageFormats.Cm(wcm)}×{PageFormats.Cm(hcm)} cm) — the /blank default, saved into the project layout.", cancellationToken: ct);
     }
 
     /// <summary>Crop the working image: <c>/crop &lt;spec&gt; [album]</c>.</summary>
@@ -229,10 +277,7 @@ public sealed class CommandHandlers
         }
         if (spec.Length == 0)
         {
-            await _bot.SendMessage(
-                chatId,
-                "Usage: /crop <spec> [album], e.g. /crop x1=10% x2=90% y1=10% y2=90%",
-                cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.CropUsage(), cancellationToken: ct);
             return;
         }
         await _editing.SetCropAsync(userId, spec, album, ct);
@@ -244,7 +289,7 @@ public sealed class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /url <http(s) image link>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /url <http(s) image link>, e.g. /url https://example.com/photo.png", cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
@@ -333,7 +378,7 @@ public sealed class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /color <#hex|name>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /color <#hex|name>, e.g. /color #ff5623", cancellationToken: ct);
             return;
         }
         await _editing.ConfigurePenAsync(userId, color: cmd.Args[0], thickness: null, markerSize: null, style: null, fill: null, ct);
@@ -357,7 +402,7 @@ public sealed class CommandHandlers
     {
         if (!TryParseNonNegative(cmd.Args, out double value))
         {
-            await _bot.SendMessage(chatId, "Usage: /markers <n> (radius in pixels; 0 hides markers)", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /markers <n> (radius in pixels; 0 hides markers), e.g. /markers 6", cancellationToken: ct);
             return;
         }
         await _editing.ConfigurePenAsync(userId, color: null, thickness: null, markerSize: value, style: null, fill: null, ct);
@@ -379,7 +424,7 @@ public sealed class CommandHandlers
         string style = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
         if (style is not ("solid" or "dashed" or "dotted"))
         {
-            await _bot.SendMessage(chatId, "Usage: /style <solid|dashed|dotted>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /style <solid|dashed|dotted>, e.g. /style dashed", cancellationToken: ct);
             return;
         }
         await _editing.ConfigurePenAsync(userId, color: null, thickness: null, markerSize: null, style: style, fill: null, ct);
@@ -391,7 +436,7 @@ public sealed class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /fill <#hex|name|none>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /fill <#hex|name|none>, e.g. /fill #00ff00 (none clears it)", cancellationToken: ct);
             return;
         }
         string fill = cmd.Args[0];
@@ -472,24 +517,27 @@ public sealed class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Rotate clockwise: <c>/rotate [n]</c> quarter-turns (default 1).</summary>
+    /// <summary>Rotate clockwise: <c>/rotate &lt;n&gt;</c> quarter-turns (bare lists the variants).</summary>
     private async Task RotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        int turns = 1;
-        if (cmd.Args.Count >= 1 && int.TryParse(cmd.Args[0], out int n))
+        if (cmd.Args.Count == 0 || !int.TryParse(cmd.Args[0], out int turns))
         {
-            turns = n;
+            await _bot.SendMessage(chatId, Replies.RotateVariants(), cancellationToken: ct);
+            return;
         }
         await _editing.RotateAsync(userId, turns, ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Set or clear the filter: <c>/filter &lt;bw|sepia|none|color&gt;</c>.</summary>
+    /// <summary>
+    /// Set or clear the filter: <c>/filter &lt;bw|sepia|invert|contour|none|color&gt;</c>
+    /// (bare lists the variants plus the filter submenu).
+    /// </summary>
     private async Task FilterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /filter <bw|sepia|none|color>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.FilterVariants(), replyMarkup: Keyboards.FilterSubmenu(), cancellationToken: ct);
             return;
         }
         await _editing.SetFilterAsync(userId, cmd.ArgumentText, ct);
@@ -548,7 +596,7 @@ public sealed class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Usage: /project-color <#hex|name|clear>", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Usage: /project-color <#hex|name|clear>, e.g. /project-color #ff5623", cancellationToken: ct);
             return;
         }
         string arg = cmd.Args[0];

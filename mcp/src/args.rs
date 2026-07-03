@@ -48,8 +48,8 @@ pub struct EditParams {
     #[serde(default)]
     pub layout: Option<LayoutArg>,
 
-    /// Image filter: `bw`, `sepia`, or a CSS color / `#hex` for a duotone tint. Overrides
-    /// any filter baked into the layout.
+    /// Image filter: `bw`, `sepia`, `invert`, `contour`, or a CSS color / `#hex` for a
+    /// duotone tint. Overrides any filter baked into the layout.
     #[serde(default)]
     pub filter: Option<String>,
 
@@ -118,9 +118,14 @@ impl EditParams {
     }
 }
 
-/// A blank-canvas spec. Provide `width` and `height` together, or omit both for A4 @ 96dpi.
+/// A blank-canvas spec. Provide `width` and `height` together, or a `page` format name,
+/// or omit all of them for A4 @ 96dpi.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct Blank {
+    /// ISO page format name (`A0`–`A10`, `B0`–`B10`, `C0`–`C10`; case-insensitive).
+    /// Defaults to A4 @ 96dpi. Mutually exclusive with `width`/`height`.
+    #[serde(default)]
+    pub page: Option<String>,
     #[serde(default)]
     pub width: Option<u32>,
     #[serde(default)]
@@ -159,6 +164,75 @@ impl Crop {
                 .join(" "),
         }
     }
+}
+
+/// The ISO page-format names the CLI's core recognizes: `A0`–`A10`, `B0`–`B10`,
+/// `C0`–`C10` (ISO 216 A/B + ISO 269 C series), matched case-insensitively. Mirrors
+/// `canonicalPageFormat` in `cli/src/core.zig` / `pageFormatNames` in
+/// `core/page/pageMetrics.cpp`.
+const PAGE_FORMATS: [&str; 33] = [
+    "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", //
+    "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", //
+    "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10",
+];
+
+/// Whether `name` is a known page-format token (case-insensitive). The CLI's `--blank`
+/// parser silently skips an unrecognized token — it would fall through to the positional
+/// output slot and the blank would come out A4 with no error — so the server must reject
+/// unknown names before they reach argv.
+fn is_page_format(name: &str) -> bool {
+    PAGE_FORMATS.iter().any(|f| f.eq_ignore_ascii_case(name))
+}
+
+/// The CSS Color Module Level 4 extended colour keywords the CLI's core recognizes.
+/// Mirrors the `namedColors` table in `core/color/colorNames.cpp` (which `parseColor`
+/// consults after trying `transparent` and `#hex`).
+const COLOR_NAMES: [&str; 148] = [
+    "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", //
+    "bisque", "black", "blanchedalmond", "blue", "blueviolet", "brown", //
+    "burlywood", "cadetblue", "chartreuse", "chocolate", "coral", "cornflowerblue", //
+    "cornsilk", "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", //
+    "darkgray", "darkgrey", "darkgreen", "darkkhaki", "darkmagenta", "darkolivegreen", //
+    "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue", //
+    "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", //
+    "dimgray", "dimgrey", "dodgerblue", "firebrick", "floralwhite", "forestgreen", //
+    "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", //
+    "grey", "green", "greenyellow", "honeydew", "hotpink", "indianred", //
+    "indigo", "ivory", "khaki", "lavender", "lavenderblush", "lawngreen", //
+    "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrodyellow", "lightgray", //
+    "lightgrey", "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", //
+    "lightslategray", "lightslategrey", "lightsteelblue", "lightyellow", "lime", "limegreen", //
+    "linen", "magenta", "maroon", "mediumaquamarine", "mediumblue", "mediumorchid", //
+    "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise",
+    "mediumvioletred", //
+    "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", //
+    "oldlace", "olive", "olivedrab", "orange", "orangered", "orchid", //
+    "palegoldenrod", "palegreen", "paleturquoise", "palevioletred", "papayawhip", "peachpuff", //
+    "peru", "pink", "plum", "powderblue", "purple", "rebeccapurple", //
+    "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", //
+    "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue", //
+    "slategray", "slategrey", "snow", "springgreen", "steelblue", "tan", //
+    "teal", "thistle", "tomato", "turquoise", "violet", "wheat", //
+    "white", "whitesmoke", "yellow", "yellowgreen",
+];
+
+/// Whether `spec` is a colour the CLI's `parseColor` accepts (`cli/src/core.zig` →
+/// `parseColor` in `core/color/colorNames.cpp`): after trimming and ASCII-lowercasing,
+/// `transparent`, `#` + 3/4/6/8 hex digits, or a CSS named colour. Like an unknown page
+/// token, an unparseable colour is silently skipped by the CLI's `--blank` parser — the
+/// blank would come out white with no error — so the server must reject it before argv.
+fn is_color(spec: &str) -> bool {
+    let s = spec.trim().to_ascii_lowercase();
+    if s.is_empty() {
+        return false;
+    }
+    if s == "transparent" {
+        return true;
+    }
+    if let Some(hex) = s.strip_prefix('#') {
+        return matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|b| b.is_ascii_hexdigit());
+    }
+    COLOR_NAMES.contains(&s.as_str())
 }
 
 /// A layout argument: a path/URL the CLI reads, or an inline layout object the server
@@ -230,6 +304,25 @@ pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<
 
     if let Some(blank) = &params.blank {
         argv.push("--blank".into());
+        if let Some(page) = &blank.page {
+            // Mirrors the CLI's own rule: a format token and explicit dims can't combine.
+            if blank.width.is_some() || blank.height.is_some() {
+                return Err(
+                    "`blank.page` and `blank.width`/`blank.height` are mutually exclusive — \
+                     name a page format or give pixel dims, not both"
+                        .into(),
+                );
+            }
+            // The CLI would silently drop an unknown token (yielding a default A4 blank),
+            // so validate the name here and fail loudly instead.
+            if !is_page_format(page) {
+                return Err(format!(
+                    "`blank.page` \"{page}\" is not a known page format — use an ISO name \
+                     (A0–A10, B0–B10, C0–C10, case-insensitive)"
+                ));
+            }
+            argv.push(page.clone());
+        }
         match (blank.width, blank.height) {
             (Some(w), Some(h)) => {
                 argv.push(w.to_string());
@@ -244,6 +337,15 @@ pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<
             }
         }
         if let Some(color) = &blank.color {
+            // Same trap as the page token: the CLI leaves an unparseable colour unconsumed
+            // (it would land in the positional output slot and the blank would come out
+            // white with no error), so fail loudly here instead.
+            if !is_color(color) {
+                return Err(format!(
+                    "`blank.color` \"{color}\" is not a recognized color — use a CSS color \
+                     name, `transparent`, or `#hex` (3/4/6/8 hex digits)"
+                ));
+            }
             argv.push(color.clone());
         }
     }
