@@ -71,6 +71,8 @@ export class StencilContextMenu extends StencilElement {
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="none"> None</label>
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="bw"> Black &amp; White</label>
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="sepia"> Sepia</label>
+                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="invert"> Invert</label>
+                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="contour"> Contour</label>
                     <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="custom"> Custom Tint</label>
                 </div>
                 <div id="ctx-tint-row">

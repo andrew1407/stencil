@@ -1,11 +1,22 @@
 import { hexToRgba, parseHex } from '../utils.js';
 import { core } from './stencilCore.js';
+import { applyContourRGBA } from './contourFilter.js';
 // ── Renderer: image filter + line/point drawing ─────────────────
 // canvas setLineDash patterns for the two non-solid line styles.
 const DASH_PATTERN = [10, 5];
 const DOT_PATTERN = [2, 5];
 
 export class Renderer {
+  // One-slot cache for the expensive pixel-transform filters ('contour' Sobel and
+  // the 'custom' duotone): an offscreen canvas holding the filtered image, keyed on
+  // the exact (image, filter, tint) identity that produced it. Object identity is a
+  // sufficient key because every pixel change (load/crop/rotate/replace) routes
+  // through rebuildCroppedImage(), which swaps app.image for a fresh canvas. redraw()
+  // fires on every hover/drag/zoom repaint, so without this the full getImageData →
+  // convolution/tint → putImageData pipeline would rerun per mousemove (mirrors the
+  // desktop's filteredImage_/filterDirty_ cache in canvasWidget.cpp).
+  #filtered = null;   // { image, filter, color, canvas }
+
   constructor(app) {
     this.app = app;
   }
@@ -20,21 +31,19 @@ export class Renderer {
       ctx.filter = 'sepia(100%)';
       ctx.drawImage(this.app.image, 0, 0);
       ctx.filter = 'none';
+    } else if (this.app.imageFilter === 'invert') {
+      ctx.filter = 'invert(100%)';
+      ctx.drawImage(this.app.image, 0, 0);
+      ctx.filter = 'none';
+    } else if (this.app.imageFilter === 'contour') {
+      // Sobel edge detection needs the pixel neighborhood, so no CSS filter exists
+      // for it: blit the cached filtered copy (rebuilt only when the image changes).
+      ctx.filter = 'none';
+      ctx.drawImage(this.#filteredCanvas('contour', null), 0, 0);
     } else if (this.app.imageFilter === 'custom') {
       const color = this.app.filterColor || '#7c3aed';
-      const filter = core.op('applyFilterRGBA');
-      if (filter) {
-        // Shared C++ core (wasm): grayscale + duotone tint in one pass over the
-        // original pixels — no CSS grayscale prepass needed.
-        ctx.filter = 'none';
-        ctx.drawImage(this.app.image, 0, 0);
-        this.#applyWasmFilter(ctx, filter, 'custom', color);
-      } else {
-        ctx.filter = 'grayscale(100%)';
-        ctx.drawImage(this.app.image, 0, 0);
-        ctx.filter = 'none';
-        this.#applyTintFilter(ctx, color);
-      }
+      ctx.filter = 'none';
+      ctx.drawImage(this.#filteredCanvas('custom', color), 0, 0);
     } else {
       ctx.drawImage(this.app.image, 0, 0);
     }
@@ -208,6 +217,39 @@ export class Renderer {
     this.app.ctx.stroke();
   }
 
+  // Return an image-sized offscreen canvas with `filter` ('contour' | 'custom')
+  // applied to the current image, rebuilding it only when the (image, filter, tint)
+  // key changed since the last call. `color` is the tint hex for 'custom', null for
+  // 'contour' (so a tint change invalidates but a contour redraw never does).
+  #filteredCanvas(filter, color) {
+    const image = this.app.image;
+    const c = this.#filtered;
+    if (c && c.image === image && c.filter === filter && c.color === color) return c.canvas;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const fctx = canvas.getContext('2d');
+    if (filter === 'contour') {
+      fctx.drawImage(image, 0, 0);
+      this.#applyContourFilter(fctx);
+    } else {
+      const wasmFilter = core.op('applyFilterRGBA');
+      if (wasmFilter) {
+        // Shared C++ core (wasm): grayscale + duotone tint in one pass over the
+        // original pixels — no CSS grayscale prepass needed.
+        fctx.drawImage(image, 0, 0);
+        this.#applyWasmFilter(fctx, wasmFilter, 'custom', color);
+      } else {
+        fctx.filter = 'grayscale(100%)';
+        fctx.drawImage(image, 0, 0);
+        fctx.filter = 'none';
+        this.#applyTintFilter(fctx, color);
+      }
+    }
+    this.#filtered = { image, filter, color, canvas };
+    return canvas;
+  }
+
   // Run the shared C++ core (wasm) filter over the canvas pixels in place, using
   // the resolved core.op('applyFilterRGBA') fn passed by the caller. mode
   // 'custom' computes grayscale + duotone tint in a single pass.
@@ -217,6 +259,19 @@ export class Renderer {
     const h = ctx.canvas.height;
     const imageData = ctx.getImageData(0, 0, w, h);
     filter(mode, imageData.data, w * h, r, g, b);
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  // Contour (Sobel edges, dark on white) over the drawn original, in place: the
+  // shared C++ core (wasm) when loaded, else the byte-identical JS reference in
+  // contourFilter.js. Unlike the per-pixel filters this one needs width/height.
+  #applyContourFilter(ctx) {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const fn = core.op('applyContourRGBA');
+    if (fn) fn(imageData.data, w, h);
+    else applyContourRGBA(imageData.data, w, h);
     ctx.putImageData(imageData, 0, 0);
   }
 

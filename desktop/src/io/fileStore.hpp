@@ -38,7 +38,7 @@ namespace stencil::gui {
     double defaultThickness = 2.0;
     double defaultMarkerSize = 4.0;
     QString defaultStyle = "solid";   // solid | dashed | dotted
-    QString pageSize = "A3";          // A3 | A4 | custom
+    QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     // Custom page dimensions in cm (browser DEFAULT_PAGE 21 x 29.7).
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
@@ -52,7 +52,8 @@ namespace stencil::gui {
     // Hover tooltip over the canvas (browser tooltipEnabled, default true).
     bool tooltipEnabled = true;
     // Image filter + custom tint (browser drawingApp.js:83-84). "none" | "bw" |
-    // "sepia" | "custom"; filterColor is the custom duotone tint.
+    // "sepia" | "invert" | "contour" | "custom"; filterColor is the custom
+    // duotone tint.
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
     // Hold-to-draw hold/dwell delay in ms (browser holdDrawDelay; clamped 100–3000).
@@ -66,7 +67,7 @@ namespace stencil::gui {
     QString pageSize = "A3";
     double scale = 1.0;
     core::Lines lines;
-    // Carry a custom page across restart (A3/A4 ride along in pageSize).
+    // Carry a custom page across restart (named formats ride along in pageSize).
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
     // Image filter / tint / draw mode ride along in the layout blob (browser
@@ -126,7 +127,7 @@ namespace stencil::gui {
 
     // Page format + x/y formulas carried in the server layout (omitted when at defaults).
     struct LayoutMeta {
-      QString pageSize;             // "" = omit; else "A3" | "A4" | "custom"
+      QString pageSize;             // "" = omit; else a named ISO format | "custom"
       double customPageWidth = 0;   // cm; 0 = unset
       double customPageHeight = 0;
       bool allowFormulas = false;

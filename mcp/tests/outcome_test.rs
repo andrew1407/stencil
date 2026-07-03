@@ -25,6 +25,14 @@ fn parses_success_line_with_page_metadata() {
 }
 
 #[test]
+fn parses_success_line_with_any_page_name_suffix() {
+    // The page label names the format actually used (e.g. from `--blank b5`), not always A4.
+    let w = parse_wrote("wrote /tmp/page.png (665x945 px · B5 17.6×25cm)\n").unwrap();
+    assert_eq!(w.path, "/tmp/page.png");
+    assert_eq!((w.width, w.height), (665, 945));
+}
+
+#[test]
 fn handles_path_containing_a_paren() {
     let w = parse_wrote("wrote /tmp/my (final) shot.png (1920x1080)").unwrap();
     assert_eq!(w.path, "/tmp/my (final) shot.png");

@@ -67,6 +67,26 @@ public sealed class EditingService : IEditingService
     public async Task<UserSession> BlankAsync(long userId, BlankSpec spec, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
+        // A stored /format becomes the default page when the spec names neither a page nor
+        // explicit dims. The CLI's --blank only takes named format tokens, so a stored
+        // "custom" rides as explicit pixel dims instead, converted from the stored cm the
+        // same way the CLI console does (core defaultBlankSizePx: cm / 2.54 * 96 dpi,
+        // rounded, never below 1 px) — the raster must match the layout's declared page.
+        var customConverted = false;
+        if (spec.Page is null && spec.Width is null && spec.Height is null
+            && session.Edits.PageFormat is string stored)
+        {
+            if (stored != "custom")
+            {
+                spec = spec with { Page = stored };
+            }
+            else if (session.Edits.CustomPageWidth is double cw && cw > 0
+                && session.Edits.CustomPageHeight is double ch && ch > 0)
+            {
+                spec = spec with { Width = CmToBlankPx(cw), Height = CmToBlankPx(ch) };
+                customConverted = true;
+            }
+        }
         var output = _workspace.NewFilePath(userId, ".png");
         var request = new EditRequest
         {
@@ -76,8 +96,44 @@ public sealed class EditingService : IEditingService
         };
         var result = await _cli.EditAsync(request, ct);
         var updated = ResetToImage(session, result.Path, result.Size, "blank");
+        // Carry a page format onto the fresh canvas so a later /save writes the layout's
+        // pageSize: the page the blank was made with (an explicit token, the injected stored
+        // format, or the converted custom cm dims) wins; a blank made from explicit pixel
+        // dims keeps the previous /format pick instead, mirroring the CLI console's doBlank
+        // restore order (a stored "custom" is only restorable when both cm dims are set).
+        if (spec.Page is string page)
+        {
+            updated = updated with { Edits = WithPageFormat(updated.Edits, page, null, null) };
+        }
+        else if (customConverted)
+        {
+            updated = updated with
+            {
+                Edits = WithPageFormat(updated.Edits, "custom", session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
+            };
+        }
+        else if (session.Edits.PageFormat is string prior
+            && (prior != "custom"
+                || (session.Edits.CustomPageWidth is > 0 && session.Edits.CustomPageHeight is > 0)))
+        {
+            updated = updated with
+            {
+                Edits = WithPageFormat(updated.Edits, prior, session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
+            };
+        }
         await _store.SaveAsync(updated, ct);
         return updated;
+    }
+
+    /// <summary>
+    /// Convert a page dimension in cm to blank-canvas pixels exactly like the core's
+    /// <c>defaultBlankSizePx</c> (mirrored by the CLI console and pystencil REPL):
+    /// <c>cm / 2.54 * 96</c>, rounded half-up, never below 1 px.
+    /// </summary>
+    private static int CmToBlankPx(double cm)
+    {
+        var px = (int)(cm / 2.54 * 96.0 + 0.5);
+        return px < 1 ? 1 : px;
     }
 
     /// <inheritdoc />
@@ -91,6 +147,19 @@ public sealed class EditingService : IEditingService
     /// <inheritdoc />
     public Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default) =>
         ApplyEditAsync(userId, edits => edits with { Filter = NormalizeFilter(filter) }, ct);
+
+    /// <inheritdoc />
+    public Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default) =>
+        ApplyEditAsync(userId, edits => WithPageFormat(edits, format, widthCm, heightCm), ct);
+
+    /// <summary>Set the page format on an edit state; cm dims only ride a <c>custom</c> format.</summary>
+    private static EditState WithPageFormat(EditState edits, string format, double? widthCm, double? heightCm) =>
+        edits with
+        {
+            PageFormat = format,
+            CustomPageWidth = format == "custom" ? widthCm : null,
+            CustomPageHeight = format == "custom" ? heightCm : null,
+        };
 
     /// <inheritdoc />
     public Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, CancellationToken ct = default) =>

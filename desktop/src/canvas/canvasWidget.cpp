@@ -295,12 +295,26 @@ namespace stencil::gui {
     update();  // single repaint for both
   }
 
-  // Rebuild filteredImage_ from image_ per the active filter. bw/sepia/custom
-  // mirror the CSS filters the browser applies on the canvas context.
+  // Rebuild filteredImage_ from image_ per the active filter. bw/sepia/invert/
+  // custom mirror the CSS/pixel filters the browser applies on the canvas
+  // context; contour routes through core::applyContourRGBA (a convolution, not
+  // a per-pixel map).
   void CanvasWidget::rebuildFilteredImage() {
     filterDirty_ = false;
     if (image_.isNull() || imageFilter_ == "none") {
       filteredImage_ = QImage();
+      return;
+    }
+    const core::FilterMode mode =
+        core::filterModeFromString(imageFilter_.toStdString());
+    if (mode == core::FilterMode::Contour) {
+      // Contour is a Sobel convolution over the whole w×h grid, so it can't go
+      // through the per-pixel loop below. Hand core::applyContourRGBA a
+      // Format_RGBA8888 copy — the interleaved R,G,B,A byte order its luma math
+      // expects (ARGB32's packed layout would feed it swapped channels).
+      QImage rgba = image_.convertToFormat(QImage::Format_RGBA8888);
+      core::applyContourRGBA(rgba.bits(), rgba.width(), rgba.height());
+      filteredImage_ = rgba;
       return;
     }
     QImage img = image_.convertToFormat(QImage::Format_ARGB32);
@@ -310,8 +324,6 @@ namespace stencil::gui {
     // Per-pixel color math lives once in core::filterPixel (shared with the
     // WebAssembly browser build); here we only walk the QImage scanlines and
     // unpack/repack QRgb. The tint channels are read only for the custom mode.
-    const core::FilterMode mode =
-        core::filterModeFromString(imageFilter_.toStdString());
     const int tr = filterColor_.red();
     const int tg = filterColor_.green();
     const int tb = filterColor_.blue();

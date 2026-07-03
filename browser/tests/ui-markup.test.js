@@ -112,6 +112,36 @@ test('value defaults preserved', () => {
     assert.ok(markup.includes('id="custom-page-height" value="29.7"'), 'customPageHeight default');
 });
 
+test('filter selects offer every mode (toolbar options + ctx-menu radios)', () => {
+    // Scope option checks to the #image-filter select itself — the page-size select
+    // also has an <option value="custom">, which would otherwise mask a missing Tint.
+    const filterSel = markup.slice(markup.indexOf('id="image-filter"'));
+    const filterOptions = filterSel.slice(0, filterSel.indexOf('</select>'));
+    for (const v of ['none', 'bw', 'sepia', 'invert', 'contour', 'custom']) {
+        assert.ok(filterOptions.includes(`<option value="${v}"`), `filter option ${v} present`);
+        assert.ok(markup.includes(`name="ctxFilter" value="${v}"`), `ctxFilter radio ${v} present`);
+    }
+    assert.ok(filterOptions.includes('<option value="custom">Tint</option>'), 'Tint option present');
+    assert.ok(markup.includes('value="invert"> Invert'), 'Invert radio label');
+    assert.ok(markup.includes('value="contour"> Contour'), 'Contour radio label');
+});
+
+test('page-size select: Custom… first, then the ISO formats labelled with sizes', () => {
+    const sel = markup.slice(markup.indexOf('id="page-size"'));
+    const custom = sel.indexOf('<option value="custom">Custom…</option>');
+    assert.ok(custom !== -1, 'Custom… option present');
+    assert.ok(custom < sel.indexOf('<option value="A0">'), 'Custom… before the named formats');
+    // Spot-check the "<name> (<w> × <h> cm)" labels across the three series
+    // (trailing zeros trimmed; values from PAGE_SIZES in constants.json).
+    assert.ok(markup.includes('<option value="A4">A4 (21 × 29.7 cm)</option>'), 'A4 label');
+    assert.ok(markup.includes('<option value="B5">B5 (17.6 × 25 cm)</option>'), 'B5 label');
+    assert.ok(markup.includes('<option value="C10">C10 (2.8 × 4 cm)</option>'), 'C10 label');
+    // The quick-crop select (links modal) lists the named formats but never custom.
+    const links = markup.slice(markup.indexOf('id="links-crop-pagesize"'), markup.indexOf('id="links-preview-wrap"'));
+    assert.ok(links.includes('<option value="A0">'), 'quick-crop lists named formats');
+    assert.ok(!links.includes('value="custom"'), 'quick-crop has no custom option');
+});
+
 test('HTML entities preserved (not decoded)', () => {
     assert.ok(markup.includes('B&amp;W'), 'B&amp;W entity preserved');
     assert.ok(markup.includes('Black &amp; White'), 'Black &amp; White entity preserved');

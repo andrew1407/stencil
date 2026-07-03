@@ -51,13 +51,13 @@ geometry/
 color/
   color               # hex parse (#rrggbb) + hexToRgba — port of utils.js colour helpers
   colorNames          # CSS keyword / #rgb..#rrggbbaa / 'transparent' → RGBA resolver
-  imageFilter         # bw / sepia / duotone-tint per-pixel math (canonical, shared)
+  imageFilter         # bw / sepia / invert / duotone-tint per-pixel math + Sobel contour (canonical, shared)
 parse/
   formulaParser       # safe recursive-descent f(x)/f(y) parser (the eval-free replacement)
   lengthTokens        # '3cm' '-4in' '50%' '120px' bare-number length tokens
   cropSpec            # parse + resolve the CLI crop string ("x1=.. x2=.. y1=.. y2=..")
 page/
-  pageMetrics         # pixel ↔ page (cm) conversion + the PAGE_SIZES table
+  pageMetrics         # pixel ↔ page (cm) conversion + the PAGE_SIZES table (full ISO A0–C10)
   tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   localeUnit          # metric vs imperial default display unit (cm / in)
   hotkeyFormat        # portable key-sequence ("Ctrl+Shift+Z") → native / macOS (⇧⌘Z) display

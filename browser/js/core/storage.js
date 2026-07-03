@@ -1,6 +1,7 @@
 import { ProjectsStore, shouldPersist } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
+import { normalizePageSize } from './units.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
 // app state, compresses the image, regenerates a thumbnail, reads payloads back into the
@@ -322,12 +323,15 @@ export class Storage {
       const imageDataUrl = (payload && payload.image) || null;
       const targetId = this.activeId; // capture for stale-load guard
 
-      // Restore UI settings
-      if (layout.pageSize) {
-        this.app.pageSize = layout.pageSize;
-        document.getElementById('page-size').value = layout.pageSize;
+      // Restore UI settings. The page size goes through the same validator as the
+      // other adoption paths — an unknown stored name keeps the current page rather
+      // than poisoning getPageDimensions with an off-table string.
+      const pageSize = normalizePageSize(layout.pageSize);
+      if (pageSize) {
+        this.app.pageSize = pageSize;
+        document.getElementById('page-size').value = pageSize;
         const cg = document.getElementById('custom-size-group');
-        if (cg) cg.style.display = layout.pageSize === 'custom' ? 'inline-flex' : 'none';
+        if (cg) cg.style.display = pageSize === 'custom' ? 'inline-flex' : 'none';
       }
       if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
       if (layout.customPageHeight) this.app.customPageHeight = layout.customPageHeight;

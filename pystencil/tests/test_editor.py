@@ -73,6 +73,37 @@ class EditorTests(unittest.TestCase):
         img = ed.result()
         self.assertTrue(_grayscale_pixels(img.data, img.pixel_count))
 
+    def test_filter_invert_negates_channels(self):
+        # #3060c0 = (48, 96, 192) -> inverted (207, 159, 63), alpha untouched.
+        ed = Editor().blank(4, 4, color="#3060c0")
+        ed.set_filter("invert")
+        img = ed.result()
+        for i in range(img.pixel_count):
+            d = i * 4
+            self.assertEqual(
+                (img.data[d], img.data[d + 1], img.data[d + 2], img.data[d + 3]),
+                (207, 159, 63, 255),
+            )
+
+    def test_filter_contour_uniform_is_white(self):
+        # A uniform page has no edges, so the contour filter renders it all white.
+        ed = Editor().blank(6, 5, color="#3060c0")
+        ed.set_filter("contour")
+        img = ed.result()
+        for i in range(img.pixel_count):
+            d = i * 4
+            self.assertEqual(
+                (img.data[d], img.data[d + 1], img.data[d + 2]), (255, 255, 255)
+            )
+
+    def test_apply_filter_accepts_new_named_modes(self):
+        # invert/contour are named modes (checked before the colour fallback), not tints.
+        ed = self._blank()
+        ed.apply_filter("Invert")
+        self.assertEqual(ed.layout().to_dict()["imageFilter"], "invert")
+        ed.apply_filter("contour")
+        self.assertEqual(ed.layout().to_dict()["imageFilter"], "contour")
+
     def test_draw_adds_line_and_pixels(self):
         ed = self._blank()
         layout = Layout(
@@ -168,6 +199,71 @@ class EditorTests(unittest.TestCase):
         # an invalid expression is rejected
         with self.assertRaises(ValueError):
             ed.set_formula("x", "foo(x)")
+
+    def test_blank_named_page_b5(self) -> None:
+        from pystencil.core import get_core
+
+        # A named page picks its default pixel size from the core's table (@ 96 dpi);
+        # the name is matched case-insensitively ("b5" -> "B5").
+        expected = get_core().default_blank_size_px(17.6, 25.0)
+        self.assertEqual(Editor().blank(page="B5").image_size, expected)
+        self.assertEqual(Editor().blank(page="b5").image_size, expected)
+
+    def test_blank_unknown_page_falls_back_to_a4(self) -> None:
+        # An unknown page name quietly blanks on A4 (mirror of the Zig console's
+        # canonicalPageFormat -> null -> default A4 blank; pinned per-consumer fallback).
+        self.assertEqual(
+            Editor().blank(page="Z9").image_size, Editor().blank(page="A4").image_size
+        )
+
+    def test_page_format_unset_by_default(self) -> None:
+        ed = self._blank()
+        self.assertEqual(ed.page_format, "")
+        self.assertNotIn("pageSize", ed.layout().to_dict())
+
+    def test_set_page_format_rides_the_layout(self) -> None:
+        ed = self._blank()
+        ed.set_page_format("b5")
+        self.assertEqual(ed.page_format, "B5")
+        d = ed.layout().to_dict()
+        self.assertEqual(d["pageSize"], "B5")
+        self.assertNotIn("customPageWidth", d)
+        ed.set_page_format("custom", 10.0, 15.0)
+        d = ed.layout().to_dict()
+        self.assertEqual(d["pageSize"], "custom")
+        self.assertEqual(d["customPageWidth"], 10.0)
+        self.assertEqual(d["customPageHeight"], 15.0)
+        with self.assertRaises(ValueError):
+            ed.set_page_format("Z9")
+        with self.assertRaises(ValueError):
+            ed.set_page_format("custom")  # custom needs positive dims
+
+    def test_set_page_format_custom_pins_cm_range(self) -> None:
+        # Custom dims mirror the console's parseCmDim: 0.1–500 cm, NaN/inf rejected
+        # (a stored NaN would make the exported layout invalid RFC-8259 JSON).
+        ed = self._blank()
+        for w, h in (
+            (float("nan"), float("nan")),
+            (float("inf"), 10.0),
+            (1000.0, 1000.0),
+            (0.05, 10.0),
+            (10.0, 501.0),
+        ):
+            with self.assertRaises(ValueError):
+                ed.set_page_format("custom", w, h)
+        # The boundaries themselves are accepted (inclusive range).
+        ed.set_page_format("custom", 0.1, 500.0)
+        self.assertEqual(ed.custom_page_width, 0.1)
+        self.assertEqual(ed.custom_page_height, 500.0)
+
+    def test_apply_layout_adopts_page_format(self) -> None:
+        # The page format round-trips: layout() -> apply_layout() on a fresh editor.
+        src = self._blank().set_page_format("custom", 10.0, 15.0)
+        ed = Editor().blank(8, 8)
+        ed.apply_layout(src.layout().to_dict())
+        self.assertEqual(ed.page_format, "custom")
+        self.assertEqual(ed.custom_page_width, 10.0)
+        self.assertEqual(ed.custom_page_height, 15.0)
 
     def test_project_color_default_is_empty(self) -> None:
         ed = self._blank()

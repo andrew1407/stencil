@@ -101,13 +101,13 @@ stencil [options] <output>
 | Flag | Description |
 |---|---|
 | `-i, --input <path\|url>` | Image or video source (file or `http(s)://` URL) |
-| `--blank [w h] [color]` | Create a blank page; omit `w h` for the default A4 size, color is a name or `#hex` (default white) |
+| `--blank [format] [w h] [color]` | Create a blank page; a leading page-format name (`a0`…`a10`, `b0`…`b10`, `c0`…`c10`, case-insensitive) **or** explicit `w h` picks the size (they are mutually exclusive; omit both for the default A4), color is a name or `#hex` (default white) |
 | `-f, --frame <n>` | Video frame index to grab (default 0) |
 | `-c, --crop "<spec>"` | Crop, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel delta. Omit an edge to keep the image bound. |
 | `--album` | When only one crop axis is given, derive the other from the page proportion (landscape) |
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
-| `--filter <bw\|sepia\|color>` | Apply an image filter. A colour name/`#hex` makes a duotone tint. **Overrides** the layout's filter if both are present. |
+| `--filter <bw\|sepia\|invert\|contour\|color>` | Apply an image filter (`invert` = negative, `contour` = edge detection). A colour name/`#hex` makes a duotone tint. **Overrides** the layout's filter if both are present. |
 | `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
 | `--server <url>` | Connect to a [collaboration server](../server/README.md); then `-i <name>` names a **server project** to fetch and edit. |
 | `--remote-update` | With `--server`, write the result back into the fetched server project. |
@@ -142,6 +142,9 @@ stencil --blank 800 600 red --layout notes.json --filter sepia out
 # Default-size (A4 @ 96 dpi) blank in a custom colour
 stencil --blank "#102030" page.png
 
+# Blank on a named page format (B5 @ 96 dpi), pink
+stencil --blank b5 pink page.png
+
 # Grab the 24th frame of a video
 stencil -i clip.mp4 -f 24 frame.png
 
@@ -175,12 +178,13 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 |---|---|
 | `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
 | `/paste` | Load an image from the clipboard (macOS, via `osascript`). Also bound to **Ctrl-Alt-V**. |
-| `/blank [w h] [color]` | Create a blank page (default A4 @ 96 dpi, white). Alias: `new`. |
+| `/blank [format] [w h] [color]` | Create a blank page (default: the picked page format — see `/format` — else A4, @ 96 dpi, white). A leading page-format name picks the page (`/blank b5 pink`); a format and explicit `w h` are mutually exclusive (explicit dims size the blank and keep the current `/format` pick). Alias: `new`. |
+| `/format [name\|custom w h]` | A **bare** `/format` lists every page format (`A0`…`C10`) with its cm size, current marked; a name (case-insensitive, e.g. `/format b5`) picks the session's page format, and `custom <w> <h>` sets explicit cm dims. The pick shows in the image header, is written into saved/synced layouts (`pageSize`), and sets the `/blank` default page. Alias: `formats`. |
 | `/apply <file.json>` | Draw a layout JSON onto the image. Alias: `draw`. |
-| `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` (add `album` to derive the missing axis). |
-| `/rotate <int>` | Rotate `int × 90°` (e.g. `-1`, `2`, `3`). Aliases: `rot`, `turn`. |
-| `/filter <mode>` | `bw` \| `sepia` \| `none` \| a colour name/`#hex` (duotone tint). Shorthands: `/bw`, `/sepia`, `/tint <color>`. |
-| `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `filter` \| `apply`). Aliases: `do`, `run`. |
+| `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` (add `album` to derive the missing axis). A **bare** `/crop` prints the spec vocabulary + an example (it never silently crops). |
+| `/rotate <int>` | Rotate `int × 90°` (e.g. `-1`, `2`, `3`); a **bare** `/rotate` lists the variants. Aliases: `rot`, `turn`. |
+| `/filter <mode>` | `bw` \| `sepia` \| `invert` \| `contour` \| `none` \| a colour name/`#hex` (duotone tint). A **bare** `/filter` lists the modes. Shorthands: `/bw`, `/sepia`, `/invert`, `/contour`, `/tint <color>`. |
+| `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `filter` \| `apply`); a **bare** `/exec` lists the action words. Aliases: `do`, `run`. |
 | `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
 | `/save [path]` | Encode + write the working image to a file (extension filled in if omitted). A **bare** `/save` (no path) pushes the current result to the active server project — the manual counterpart to `/sync`, so you can update the server image on demand when sync is off. Alias: `write`. |
@@ -190,8 +194,8 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 | `/projects [url]` | List a server's projects as an aligned table (`NAME` / `SIZE` / `CHANGED`, plus a `SERVER` column when listing across more than one server). With no URL it lists **every** connected server's projects; with a URL, just that one. Projects with no stored dimensions show `-` for size. Each project's `NAME` is printed in its own per-project colour (set with `/project-color`), falling back to the theme accent when unset. Open one with `/fetch <name>`. Alias: `ls`. |
 | `/disconnect [url]` | Close one connection, or the most recently opened when omitted. |
 | `/reconnect [url]` | Re-establish one connection by URL, or **all** of them when omitted: re-issue the auth token and, for the active project's server while syncing, revive the live edit-events feed (the one socket that goes stale when the server bounces or the connection drops). Alias: `refresh`. |
-| `/fetch <name> [url]` | Load a server project's image to keep editing (give a URL when more than one server is connected); a stored b&w/sepia/tint **filter** is re-applied on load. Alias: `pull`. |
-| `/sync [on\|off]` | **Live-editing mode** for the active fetched project (off by default); a bare `/sync` with no argument toggles it. When on it works in both directions: your edits auto-upload the result (debounced — a burst of edits coalesces into one upload, flushed once the input settles), **and** a live feed over the server's raw-TCP edit channel (REST port + 1, e.g. `8091`) **auto-pulls** a peer's change into your working image the moment they save (it replaces the working image and resets the undo history to that point, showing `↺ pulled "…" from the server (changed 5s ago)`). If you have your own unsynced local edits when a peer's change arrives, it does **not** clobber them — you get `↺ "…" changed on the server (… ago) — you have local edits; '/save' to push yours or '/fetch' to take theirs`. The feed is plaintext, so it is skipped for `https://` servers (whose edit channel is TLS-wrapped) — REST sync still works over TLS. Use a bare `/save` to push manually when sync is off, and `/reconnect` to revive the feed after a drop. Beyond uploading the rendered `result`, a sync **also writes the image filter into the project layout** (`imageFilter`/`filterColor`, preserving any peer's lines + geometry), so a `/filter bw\|sepia\|tint` shows live in open browser/desktop editors (which render `original` + layout). *(Syncing the CLI's own `/crop`, `/rotate` and `/apply` line drawings as structured layout is not yet implemented — those still bake into the `result` only.)* |
+| `/fetch <name> [url]` | Load a server project's image to keep editing (give a URL when more than one server is connected); a stored **filter** (b&w/sepia/invert/contour/tint) is re-applied on load. A **bare** `/fetch` renders the projects table (what there is to fetch) + a usage hint. Alias: `pull`. |
+| `/sync [on\|off]` | **Live-editing mode** for the active fetched project (off by default); a bare `/sync` with no argument toggles it. When on it works in both directions: your edits auto-upload the result (debounced — a burst of edits coalesces into one upload, flushed once the input settles), **and** a live feed over the server's raw-TCP edit channel (REST port + 1, e.g. `8091`) **auto-pulls** a peer's change into your working image the moment they save (it replaces the working image and resets the undo history to that point, showing `↺ pulled "…" from the server (changed 5s ago)`). If you have your own unsynced local edits when a peer's change arrives, it does **not** clobber them — you get `↺ "…" changed on the server (… ago) — you have local edits; '/save' to push yours or '/fetch' to take theirs`. The feed is plaintext, so it is skipped for `https://` servers (whose edit channel is TLS-wrapped) — REST sync still works over TLS. Use a bare `/save` to push manually when sync is off, and `/reconnect` to revive the feed after a drop. Beyond uploading the rendered `result`, a sync **also writes the image filter into the project layout** (`imageFilter`/`filterColor`, preserving any peer's lines + geometry), so a `/filter bw\|sepia\|invert\|contour\|tint` shows live in open browser/desktop editors (which render `original` + layout). *(Syncing the CLI's own `/crop`, `/rotate` and `/apply` line drawings as structured layout is not yet implemented — those still bake into the `result` only.)* |
 | `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-Alt-C** (paste is **Ctrl-Alt-V**). |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
 | `/project-color [#hex\|name\|clear]` | Get or set the **active fetched project's** accent colour — the colour its NAME is painted in (here in the `/projects` table, and across the browser/desktop editors). With no argument, prints the current colour rendered in that colour; with a value (`#ff5623`, a CSS colour name, validated via the core colour parser) sets it and pushes the change to the server (LWW-guarded, so it syncs to every client with the project open); `clear`/`none`/`default` resets it to the neutral grey. Needs an active server project (`/fetch` first). |

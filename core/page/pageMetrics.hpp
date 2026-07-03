@@ -18,8 +18,13 @@ namespace stencil::core {
     int height = 0;
   };
 
-  // Named page sizes (cm). Returns {0,0} for an unknown name.
+  // Named page sizes (cm) — the full ISO 216 A/B + ISO 269 C series, "A0".."C10"
+  // (exact case-sensitive match). Returns {0,0} for an unknown name.
   PageSize namedPageSize(const std::string& name);
+
+  // Space-separated canonical page-format names ("A0 A1 … A10 B0 … B10 C0 … C10"),
+  // in that canonical series order. Excludes "custom". Static storage — never freed.
+  const char* pageFormatNames();
 
   // Page dimensions for the current image, swapping to landscape when the image
   // is wider than tall. `name == "custom"` uses the provided custom dimensions.

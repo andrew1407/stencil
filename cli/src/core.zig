@@ -29,6 +29,23 @@ pub fn parseColor(allocator: std.mem.Allocator, spec: []const u8) ?Rgba {
     return .{ .r = toByte(r), .g = toByte(g), .b = toByte(b), .a = toByte(a) };
 }
 
+/// The canonical page-format names ("A0 A1 … C10"), space-separated, in canonical order.
+/// A static string owned by the core — no allocation, valid for the program's lifetime.
+pub fn pageFormats() []const u8 {
+    return std.mem.span(c.stencil_cli_pageFormats());
+}
+
+/// Resolve a page-format name case-insensitively to its canonical spelling ("b5" -> "B5").
+/// null when the name is not a known format ("custom" included — it is not a named size).
+/// The result slices into the core's static name list, so it never dangles.
+pub fn canonicalPageFormat(name: []const u8) ?[]const u8 {
+    var it = std.mem.tokenizeScalar(u8, pageFormats(), ' ');
+    while (it.next()) |n| {
+        if (std.ascii.eqlIgnoreCase(n, name)) return n;
+    }
+    return null;
+}
+
 /// Named page size in cm (e.g. "A4"). null if unknown.
 pub fn namedPageSize(allocator: std.mem.Allocator, name: []const u8) ?Page {
     const z = allocator.dupeZ(u8, name) catch return null;
@@ -93,11 +110,17 @@ pub fn fillRGBA(dst: []u8, pixel_count: i32, color: Rgba) void {
     c.stencil_cli_fillRGBA(dst.ptr, pixel_count, color.r, color.g, color.b, color.a);
 }
 
-/// Apply an image filter in place. `mode` is "bw"|"sepia"|"none"|a custom colour.
+/// Apply an image filter in place. `mode` is "bw"|"sepia"|"invert"|"none"|a custom colour.
 pub fn applyFilter(allocator: std.mem.Allocator, mode: []const u8, data: []u8, pixel_count: i32, tint: Rgba) void {
     const z = allocator.dupeZ(u8, mode) catch return;
     defer allocator.free(z);
     c.stencil_cli_applyFilter(z.ptr, data.ptr, pixel_count, tint.r, tint.g, tint.b);
+}
+
+/// Sobel contour (edge-detection) filter in place — dark edges on white, alpha preserved.
+/// Unlike applyFilter it needs the image dimensions (it reads pixel neighbourhoods).
+pub fn applyContour(data: []u8, width: i32, height: i32) void {
+    c.stencil_cli_applyContour(data.ptr, width, height);
 }
 
 /// One layout line, ready to rasterise. Strings are null-terminated for the C ABI.
@@ -172,4 +195,41 @@ test "namedPageSize + blank fill round trips through the ABI" {
     fillRGBA(&px, 2, .{ .r = 10, .g = 20, .b = 30, .a = 40 });
     try testing.expectEqual(@as(u8, 10), px[0]);
     try testing.expectEqual(@as(u8, 40), px[7]);
+}
+
+test "pageFormats lists the canonical names; canonicalPageFormat normalizes case" {
+    const a = testing.allocator;
+    const names = pageFormats();
+    try testing.expect(std.mem.startsWith(u8, names, "A0 A1 "));
+    try testing.expect(std.mem.indexOf(u8, names, "B5") != null);
+    try testing.expect(std.mem.indexOf(u8, names, "C10") != null);
+    try testing.expect(std.mem.indexOf(u8, names, "custom") == null);
+
+    try testing.expectEqualStrings("B5", canonicalPageFormat("b5").?);
+    try testing.expectEqualStrings("A10", canonicalPageFormat("a10").?);
+    try testing.expect(canonicalPageFormat("custom") == null);
+    try testing.expect(canonicalPageFormat("nope") == null);
+    try testing.expect(canonicalPageFormat("") == null);
+    // Every canonical name resolves to a size through the ABI.
+    const b5 = namedPageSize(a, canonicalPageFormat("B5").?).?;
+    try testing.expectApproxEqAbs(@as(f64, 17.6), b5.w, 0.01);
+    try testing.expectApproxEqAbs(@as(f64, 25.0), b5.h, 0.01);
+}
+
+test "invert + contour filters through the ABI" {
+    const a = testing.allocator;
+    // Invert flips each channel; alpha untouched.
+    var px = [_]u8{ 10, 20, 30, 40 };
+    applyFilter(a, "invert", &px, 1, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
+    try testing.expectEqual(@as(u8, 245), px[0]);
+    try testing.expectEqual(@as(u8, 235), px[1]);
+    try testing.expectEqual(@as(u8, 225), px[2]);
+    try testing.expectEqual(@as(u8, 40), px[3]);
+    // Contour on a flat image finds no edges -> uniform white, alpha preserved.
+    var flat = [_]u8{ 90, 90, 90, 200 } ** 4; // 2x2, all identical
+    applyContour(&flat, 2, 2);
+    try testing.expectEqual(@as(u8, 255), flat[0]);
+    try testing.expectEqual(@as(u8, 255), flat[1]);
+    try testing.expectEqual(@as(u8, 255), flat[2]);
+    try testing.expectEqual(@as(u8, 200), flat[3]);
 }

@@ -4,6 +4,7 @@ const std = @import("std");
 const core = @import("core.zig");
 
 pub const Blank = struct {
+    page: ?[]const u8 = null, // named page format ("A4".."C10", canonical); null = default
     width: ?u32 = null,
     height: ?u32 = null,
     color: []const u8 = "white",
@@ -112,13 +113,25 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
     return opts;
 }
 
-// --blank consumes an optional `width height` pair (both must be integers; omit to use
-// the default page size) followed by an optional colour. Tokens are only consumed when
-// they match, so `--blank out.png`, `--blank red out.png` and `--blank 800 600 red out`
-// all parse without swallowing the output path.
+// --blank consumes an optional page-format name ("a4", "B5", …; case-insensitive, stored
+// canonical), or an optional `width height` pair (both must be integers; omit both for the
+// default page size), followed by an optional colour. Tokens are only consumed when they
+// match, so `--blank out.png`, `--blank b5 out.png` and `--blank 800 600 red out` all
+// parse without swallowing the output path.
 fn parseBlank(allocator: std.mem.Allocator, st: *ParseState) Error!Blank {
     var b = Blank{};
+    if (st.i < st.argv.len) {
+        if (core.canonicalPageFormat(st.argv[st.i])) |name| {
+            b.page = name;
+            st.i += 1;
+        }
+    }
     if (peekU32(st)) |w| {
+        // A format token names the size, so it excludes explicit dims.
+        if (b.page != null) {
+            std.debug.print("error: --blank takes a page format OR explicit dims, not both\n", .{});
+            return Error.BadNumber;
+        }
         b.width = w;
         st.i += 1;
         // A width is only meaningful with a height; require the pair together.
@@ -175,9 +188,30 @@ test "parse: blank optional dims and colour" {
 
     const a2 = [_][:0]const u8{ "--blank", "out.png" };
     const o2 = try parse(a, &a2);
+    try testing.expect(o2.blank.?.page == null);
     try testing.expect(o2.blank.?.width == null);
     try testing.expectEqualStrings("white", o2.blank.?.color);
     try testing.expectEqualStrings("out.png", o2.output.?);
+}
+
+test "parse: blank optional page-format token" {
+    const a = testing.allocator;
+    // A leading format name (any case) picks the page; the colour still parses after it.
+    const a1 = [_][:0]const u8{ "--blank", "b5", "pink", "out.png" };
+    const o1 = try parse(a, &a1);
+    try testing.expectEqualStrings("B5", o1.blank.?.page.?);
+    try testing.expect(o1.blank.?.width == null);
+    try testing.expectEqualStrings("pink", o1.blank.?.color);
+    try testing.expectEqualStrings("out.png", o1.output.?);
+
+    const a2 = [_][:0]const u8{ "--blank", "A5", "out.png" };
+    const o2 = try parse(a, &a2);
+    try testing.expectEqualStrings("A5", o2.blank.?.page.?);
+    try testing.expectEqualStrings("out.png", o2.output.?);
+
+    // A format token and explicit dims are mutually exclusive.
+    const a3 = [_][:0]const u8{ "--blank", "b5", "800", "600", "out.png" };
+    try testing.expectError(Error.BadNumber, parse(a, &a3));
 }
 
 test "parse: --console / --repl activate console mode" {

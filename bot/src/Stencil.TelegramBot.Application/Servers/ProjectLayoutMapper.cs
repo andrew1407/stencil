@@ -57,8 +57,9 @@ public static class ProjectLayoutMapper
     }
 
     /// <summary>
-    /// Map <c>imageFilter</c> (<c>none</c>/<c>bw</c>/<c>sepia</c>/<c>custom</c>) to the CLI filter
-    /// argument; a <c>custom</c> tint resolves to its <c>filterColor</c>.
+    /// Map <c>imageFilter</c> (<c>none</c>/<c>bw</c>/<c>sepia</c>/<c>invert</c>/<c>contour</c>/
+    /// <c>custom</c>) to the CLI filter argument; a <c>custom</c> tint resolves to its
+    /// <c>filterColor</c>.
     /// </summary>
     private static string? ReadFilter(JsonElement layout)
     {
@@ -74,6 +75,14 @@ public static class ProjectLayoutMapper
         if (mode.Equals("sepia", StringComparison.OrdinalIgnoreCase))
         {
             return "sepia";
+        }
+        if (mode.Equals("invert", StringComparison.OrdinalIgnoreCase))
+        {
+            return "invert";
+        }
+        if (mode.Equals("contour", StringComparison.OrdinalIgnoreCase))
+        {
+            return "contour";
         }
         if (mode.Equals("custom", StringComparison.OrdinalIgnoreCase))
         {

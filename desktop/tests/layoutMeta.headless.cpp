@@ -65,6 +65,18 @@ int main(int argc, char** argv) {
     check(!o.contains("formulaX"), "formulas-off: no formulaX key");
   }
 
+  // A B-series name rides the same pageSize field unchanged — the envelope is
+  // name-agnostic, so the full ISO A/B/C table needs no fileStore changes.
+  {
+    fileStore::LayoutMeta m;
+    m.pageSize = "B5";
+    const QJsonObject o = fileStore::buildLayoutJson(
+        1, 1, noLines, "none", "#7c3aed", stencil::core::CropRect{}, 0, m);
+    check(o.value("pageSize").toString() == "B5", "B5 pageSize emitted");
+    const fileStore::LayoutMeta r = fileStore::parseLayoutMeta(o);
+    check(r.pageSize == "B5", "B5 pageSize round-trips");
+  }
+
   std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
   return failures ? 1 : 0;
 }

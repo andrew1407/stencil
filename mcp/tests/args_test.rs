@@ -84,6 +84,72 @@ fn blank_default_size() {
 }
 
 #[test]
+fn blank_page_format_and_color() {
+    // The page token rides argv verbatim; the CLI normalizes the case.
+    let p = params(json!({ "blank": { "page": "b5", "color": "pink" }, "output": "page.png" }));
+    assert_eq!(
+        build_argv(&p, None).unwrap(),
+        ["--blank", "b5", "pink", "page.png"]
+    );
+}
+
+#[test]
+fn blank_unknown_page_name_is_rejected() {
+    // The CLI silently skips an unrecognized --blank token (it would become a positional
+    // output and the blank would come out A4), so the server must reject it up front.
+    for bad in ["Letter", "legal", "A11", "A01", "D4", "custom", " A4 ", ""] {
+        let p = params(json!({ "blank": { "page": bad }, "output": "page.png" }));
+        let err = build_argv(&p, None).unwrap_err();
+        assert!(err.contains("not a known page format"), "{bad:?} got: {err}");
+    }
+}
+
+#[test]
+fn blank_page_names_accepted_case_insensitively() {
+    for good in ["A0", "a4", "b10", "C7", "c10"] {
+        let p = params(json!({ "blank": { "page": good }, "output": "page.png" }));
+        assert_eq!(
+            build_argv(&p, None).unwrap(),
+            ["--blank", good, "page.png"],
+            "page name {good:?} should be accepted"
+        );
+    }
+}
+
+#[test]
+fn blank_colors_accepted() {
+    // Mirrors the core's parseColor grammar: named / transparent / #hex (3/4/6/8 digits).
+    for good in ["red", "REBECCAPURPLE", "transparent", "#abc", "#AbCd", "#102030", "#102030ff"] {
+        let p = params(json!({ "blank": { "color": good }, "output": "page.png" }));
+        assert_eq!(
+            build_argv(&p, None).unwrap(),
+            ["--blank", good, "page.png"],
+            "color {good:?} should be accepted"
+        );
+    }
+}
+
+#[test]
+fn blank_unknown_color_is_rejected() {
+    // The CLI leaves an unparseable --blank colour unconsumed (it would fall to the
+    // positional output slot and the blank would come out white), so reject it up front.
+    for bad in ["pinkk", "notacolour", "#12", "#12345", "#gggggg", "rgb(1,2,3)", ""] {
+        let p = params(json!({ "blank": { "color": bad }, "output": "page.png" }));
+        let err = build_argv(&p, None).unwrap_err();
+        assert!(err.contains("not a recognized color"), "{bad:?} got: {err}");
+    }
+}
+
+#[test]
+fn blank_page_and_dims_are_rejected() {
+    let p = params(json!({
+        "blank": { "page": "B5", "width": 800, "height": 600 }, "output": "out.png"
+    }));
+    let err = build_argv(&p, None).unwrap_err();
+    assert!(err.contains("mutually exclusive"), "got: {err}");
+}
+
+#[test]
 fn frame_flag_for_video() {
     let p = params(json!({ "input": "clip.mp4", "frame": 24, "output": "f.png" }));
     assert_eq!(

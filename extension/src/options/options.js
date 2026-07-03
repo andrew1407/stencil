@@ -1,4 +1,5 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
+import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
@@ -63,6 +64,10 @@ hlMode.addEventListener('change', () => {
   syncHlCustomRow();
 });
 hlColor.addEventListener('input', () => { hlColor.dataset.touched = '1'; });
+
+// Default page size — every ISO A/B/C format from the shared table (canonical
+// order), labelled with its cm dimensions; the stored value is the bare name.
+document.getElementById('page').innerHTML = pageSizeOptions();
 
 (async () => {
   const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil } = await getSettings();

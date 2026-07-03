@@ -81,7 +81,8 @@ same `popup.js` controller, which targets `chrome.devtools.inspectedWindow.tabId
 
 **Quick crop** — mirrors the editor's crop model (a page-aspect rectangle in
 original-image pixels; drag inside to move, corner-only resize, **scroll/buttons to
-zoom**). Page size **A3 / A4 / Custom** (custom takes width × height in cm). Then
+zoom**). Page size is any **ISO A/B/C format (A0–A10, B0–B10, C0–C10) or Custom**
+(custom takes width × height in cm). Then
 choose **Keep original** (full image + crop applied, lossless/movable) or **Cut
 cropped part** (bake the region into a new image). Both honour an **incognito**
 checkbox; the chosen page size is carried into the editor.
@@ -96,7 +97,9 @@ editor with the payload in the URL **fragment**:
 http://localhost:8080/#stencil=<encodeURIComponent(JSON)>
 ```
 
-`JSON = { dataUrl, name, crop?, page?: {size:'A3'|'A4'|'custom', width?, height?}, incognito? }`.
+`JSON = { dataUrl, name, crop?, page?: {size, width?, height?}, incognito? }` —
+`page.size` is any ISO format name (`'A0'`…`'A10'`, `'B0'`…`'B10'`, `'C0'`…`'C10'`)
+or `'custom'` (custom carries `width`/`height` in cm).
 The fragment never reaches the server. The editor consumes it in
 `DrawingApp.applyExternalLaunch()` (`browser/js/core/drawingApp.js`), applies the
 page size, loads the image (with the crop), then strips the fragment.

@@ -39,7 +39,7 @@ public sealed class CallbackAction
         // Arg-requiring or help-only buttons can't act on their own — reply with guidance.
         if (data == "connect")
         {
-            await _bot.SendMessage(chatId, "Use /connect <url> [token] to connect to a server.", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.ConnectUsage(), cancellationToken: ct);
             return;
         }
         if (data == "drawhelp")
@@ -49,12 +49,12 @@ public sealed class CallbackAction
         }
         if (data == "crophelp")
         {
-            await _bot.SendMessage(chatId, "Crop with /crop <spec>, e.g. /crop x1=10% x2=90% y1=10% y2=90% (add 'album' to derive the missing axis).", cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.CropUsage(), cancellationToken: ct);
             return;
         }
         if (data == "tinthelp")
         {
-            await _bot.SendMessage(chatId, "Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W and Sepia have their own buttons; None clears it.)", cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W, Sepia, Invert and Contour have their own buttons; None clears it.)", cancellationToken: ct);
             return;
         }
         // Group buttons swap the inline keyboard in place (submenu navigation), no edit performed.
@@ -87,6 +87,8 @@ public sealed class CallbackAction
             "rotneg90" => new BotCommand("rotate", "-1", ["-1"]),
             "f:bw" => new BotCommand("filter", "bw", ["bw"]),
             "f:sepia" => new BotCommand("filter", "sepia", ["sepia"]),
+            "f:invert" => new BotCommand("filter", "invert", ["invert"]),
+            "f:contour" => new BotCommand("filter", "contour", ["contour"]),
             "f:none" => new BotCommand("filter", "none", ["none"]),
             // All other tokens are bare verbs (help/projects/create/save/status/image/json/
             // reset/undoline/clearlines), dispatched as-is.

@@ -3,6 +3,7 @@ import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { accentHex, normalizeHex } from '../core/accents.js';
+import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all 8 sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -57,6 +58,8 @@ export class StencilToolbar extends StencilElement {
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
                         <option value="sepia">Sepia</option>
+                        <option value="invert">Invert</option>
+                        <option value="contour">Contour</option>
                         <option value="custom">Tint</option>
                     </select>
                     <input type="color" id="filter-color" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
@@ -135,10 +138,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Page</div>
                 <div class="ctrl-section-row">
+                    <!-- Custom… first, then every named ISO format from PAGE_SIZES with its
+                         physical size (re-rendered in the active unit by applyUnitToUI). -->
                     <select id="page-size" title="Page size">
-                        <option value="A3">A3</option>
-                        <option value="A4">A4</option>
                         <option value="custom">Custom…</option>
+                        ${pageFormatOptions()}
                     </select>
                     <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">Units:</label>
                     <select id="unit-select" title="Display units (cm / inches)">

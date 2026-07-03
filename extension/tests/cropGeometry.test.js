@@ -2,8 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
-  roundRect, isAlbumOrientation, pageDims, PAGE_SIZES
+  roundRect, isAlbumOrientation, pageDims, pageSizeLabel, pageSizeOptions, PAGE_SIZES
 } from '../src/lib/cropGeometry.js';
+// The editor's table, straight from the same repo — the drift guard below pins the
+// extension's hand-copied PAGE_SIZES to it.
+import browserConstants from '../../browser/js/config/constants.json' with { type: 'json' };
 
 test('cropAspect: A3 album vs portrait, invalid → 1', () => {
   assert.ok(Math.abs(cropAspect(29.7, 42, true) - 42 / 29.7) < 1e-9);
@@ -42,9 +45,46 @@ test('roundRect: integers, clamped inside the image', () => {
   assert.deepEqual(r, { x: 0, y: 0, width: 300, height: 200 });
 });
 
-test('isAlbumOrientation + pageDims (incl. custom)', () => {
+test('isAlbumOrientation + pageDims (incl. custom, unknown → A4)', () => {
   assert.equal(isAlbumOrientation(100, 50), true);
   assert.equal(isAlbumOrientation(50, 100), false);
   assert.deepEqual(pageDims('A4'), PAGE_SIZES.A4);
+  assert.deepEqual(pageDims('B5'), PAGE_SIZES.B5);
+  assert.deepEqual(pageDims('C5'), PAGE_SIZES.C5);
   assert.deepEqual(pageDims('custom', 30, 40), { width: 30, height: 40 });
+  assert.deepEqual(pageDims('nope'), PAGE_SIZES.A4);
+});
+
+test('PAGE_SIZES: the full ISO A/B/C table in canonical order', () => {
+  const names = [];
+  for (const series of ['A', 'B', 'C'])
+    for (let i = 0; i <= 10; i++) names.push(`${series}${i}`);
+  assert.deepEqual(Object.keys(PAGE_SIZES), names);
+  // A3/A4 keep their historical values exactly; spot-check the new series.
+  assert.deepEqual(PAGE_SIZES.A3, { width: 29.7, height: 42 });
+  assert.deepEqual(PAGE_SIZES.A4, { width: 21, height: 29.7 });
+  assert.deepEqual(PAGE_SIZES.A10, { width: 2.6, height: 3.7 });
+  assert.deepEqual(PAGE_SIZES.B5, { width: 17.6, height: 25 });
+  assert.deepEqual(PAGE_SIZES.C5, { width: 16.2, height: 22.9 });
+  assert.deepEqual(PAGE_SIZES.C10, { width: 2.8, height: 4 });
+  // Every format is portrait with positive cm dims.
+  for (const { width, height } of Object.values(PAGE_SIZES))
+    assert.ok(width > 0 && width < height);
+});
+
+test('PAGE_SIZES matches the browser editor table exactly (drift guard)', () => {
+  assert.deepEqual(PAGE_SIZES, browserConstants.PAGE_SIZES);
+});
+
+test('pageSizeLabel: name + cm dims; unknown names pass through', () => {
+  assert.equal(pageSizeLabel('A4'), 'A4 (21 × 29.7 cm)');
+  assert.equal(pageSizeLabel('B5'), 'B5 (17.6 × 25 cm)');
+  assert.equal(pageSizeLabel('nope'), 'nope');
+});
+
+test('pageSizeOptions: one labelled <option> per named format, canonical order', () => {
+  const html = pageSizeOptions();
+  assert.ok(html.startsWith('<option value="A0">A0 (84.1 × 118.9 cm)</option>'));
+  assert.ok(html.includes('<option value="A4">A4 (21 × 29.7 cm)</option>'));
+  assert.equal((html.match(/<option /g) || []).length, Object.keys(PAGE_SIZES).length);
 });
