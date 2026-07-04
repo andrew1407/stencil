@@ -36,15 +36,9 @@ graph TD
     TS --> SRV
     TC --> CLI
     SRV -.-> STACK
-
-    click WEB "../browser/README.md#architecture" "Browser app architecture"
-    click EXT "../extension/README.md#architecture" "Chrome extension architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
-    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture). Desktop (Qt) e2e lives
+> **Surface diagrams:** [browser](../browser/README.md#architecture) · [extension](../extension/README.md#architecture) · [server](../server/README.md#architecture) · [cli](../cli/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture). Desktop (Qt) e2e lives
 > elsewhere — see the [known gaps](#known-gaps-deliberate) below.
 
 ## Layout

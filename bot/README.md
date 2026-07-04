@@ -83,13 +83,9 @@ graph TD
     INFRA -->|"shell-out · NO_COLOR=1 (ports mcp adapters)"| CLI
     INFRA -->|"REST (ports the pystencil client)"| SRV
     INFRA -.->|"per-user sessions"| RD
-
-    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture).
+> **Surface diagrams:** [cli](../cli/README.md#architecture) · [server](../server/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture).
 
 Five projects, dependencies pointing inward (`Domain` has no project references):
 

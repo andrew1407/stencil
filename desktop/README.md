@@ -24,13 +24,9 @@ graph TD
     MAIN --> CANVAS
     MAIN --> DLG
     NET -.->|"connect · REST only (QNetworkAccessManager, no WS)"| SRV
-
-    click CORE "../core/README.md#architecture" "Shared core architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture).
+> **Surface diagrams:** [core](../core/README.md#architecture) · [server](../server/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture).
 
 ## Dependencies
 
