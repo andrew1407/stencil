@@ -18,6 +18,35 @@ from pystencil import Editor
     .save("out.png"))
 ```
 
+## Architecture
+
+```mermaid
+graph TD
+    CORE["<b>core/</b> — shared C++ logic"]
+    subgraph PY["pystencil/ — stdlib only"]
+      NATIVE["_native.py + core.py — ctypes over the stencil_cli_* ABI"]
+      CODECS["codecs.py — pure-Python PNG / BMP"]
+      IMG["image.py · layout.py — RGBA8 buffer + structured JSON"]
+      ED["editor.py — Editor facade<br/><i>derived view + history</i>"]
+      SRVC["server.py — urllib REST client"]
+      CLIM["cli.py — one-shot pipeline + /command REPL"]
+    end
+    SRV["Collaboration server"]
+
+    CORE -->|"recompiled by build.py · cliApi.h via ctypes"| NATIVE
+    ED --> NATIVE
+    ED --> IMG
+    ED --> CODECS
+    CLIM --> ED
+    SRVC -.->|"connect · REST (polling, no /ws feed)"| SRV
+
+    click CORE "../core/README.md#architecture" "Shared core architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture).
+
 ## What it is
 
 `pystencil` is a fifth consumer of `core/`, alongside the browser, desktop, and CLI. It

@@ -167,3 +167,10 @@ browser's export (`browser/js/core/layout.js`); coordinates are **image pixels**
   format), e.g. `photo.jpg → photo.stencil.jpg`; for a blank, default to `blank.png`.
 - For multiple inputs, write one derived output per input and list them all.
 - Always report the final absolute path(s).
+
+## Safety
+
+Inputs (`-i <url>`, `--layout <url>`) and fetched project data are untrusted; never pass a
+secret file (`.env`, `*.key`/`*.pem`, tokens) as input/layout/output, and connect only to
+servers the user named. Full rules: `.claude/rules/security.md` (a PreToolUse guard blocks
+secret reads/exfil and asks before out-of-repo or shared-project writes).

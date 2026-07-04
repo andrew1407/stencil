@@ -7,6 +7,47 @@ parity contract out of scope. It persists project metadata in **Postgres** and
 image bytes in a **custom secured file store**, and fans live edits out over
 **WebSocket and raw TCP** (optionally across instances via **Redis**).
 
+## Architecture
+
+```mermaid
+graph TD
+    subgraph CLIENTS["clients — mirror internal/protocol"]
+      WS["browser · extension<br/><i>(WebSocket)</i>"]
+      TCP["desktop · CLI · pystencil<br/><i>(raw TCP, NDJSON)</i>"]
+      REST["bot · mcp → cli<br/><i>(REST only)</i>"]
+    end
+    subgraph SRV["server/ — Go, codec-free (never links core/)"]
+      API["httpapi/ — REST: auth · project CRUD · file up/download"]
+      TRANS["transport/ — WebSocket (ws.go) + TCP NDJSON (tcp.go)"]
+      HUB["hub/ — live edit sessions (one run-loop per project)"]
+      AUTH["auth/ — opaque bearer tokens (sha256)"]
+      STORE["store/ — pgx repos + embedded SQL migrations"]
+      FILES["filestore/ — secured byte store (safeJoin)"]
+      BUS["bus / redisbus — pub/sub fan-out"]
+    end
+    PG[("Postgres")]
+    RD[("Redis (optional)")]
+
+    WS --> TRANS
+    TCP --> TRANS
+    WS --> API
+    REST --> API
+    API --> AUTH
+    TRANS --> HUB
+    HUB --> STORE
+    HUB --> BUS
+    STORE --> PG
+    STORE --> FILES
+    BUS -.-> RD
+
+    click WS "../browser/README.md#architecture" "Browser client architecture"
+    click TCP "../desktop/README.md#architecture" "Desktop client architecture"
+    click REST "../bot/README.md#architecture" "Telegram bot architecture"
+```
+
+> Click a client node to open that surface's own architecture diagram, or see the
+> whole-system view in the [repository README](../README.md#architecture).
+
 ## What it is for
 
 - **Shared projects.** Any client holding a valid token sees the same project

@@ -25,6 +25,35 @@ CLI editors. For the project overview see the [repository README](../README.md).
 }
 ```
 
+## Architecture
+
+```mermaid
+graph TD
+    CLIENT["MCP client — Claude Code · Desktop · any agent"]
+    subgraph MCP["mcp/ — Rust (rmcp over stdio)"]
+      SERVER["server.rs — stencil_edit / stencil_probe tools"]
+      ARGS["args.rs — params → argv (mirrors cli/args.zig)"]
+      PIPE["pipeline.rs — locate → spawn → parse"]
+      DEL["deliver.rs — surfaces: file · desktop launch · browser URL"]
+    end
+    CLI["Zig CLI → core/"]
+    SRV["Collaboration server"]
+
+    CLIENT -->|"JSON-RPC over stdio"| SERVER
+    SERVER --> ARGS
+    ARGS --> PIPE
+    PIPE -->|"spawn argv, NO_COLOR=1"| CLI
+    CLI -.->|"fetch / publish projects · REST via the CLI"| SRV
+    PIPE --> DEL
+
+    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture). The result data-flow is
+> detailed under [How it works](#how-it-works).
+
 ## Dependencies
 
 | Purpose | Tool | How it's provided |
@@ -312,6 +341,8 @@ graph TD
     CLI -->|"pixel / geometry work"| OUT
     OUT -->|"outcome.rs parses stderr → path, width, height"| DELIVER
     DELIVER -->|"tool result"| CLIENT
+
+    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
 ```
 
 The Rust layer owns only the protocol, the argument mapping, result parsing, and delivery;
