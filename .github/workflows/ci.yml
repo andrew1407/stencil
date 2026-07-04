@@ -247,6 +247,54 @@ jobs:
   # offline (no token, server, CLI binary or Redis), so this job only needs the
   # .NET SDK. bot/nuget.config restores the <PackageReference>s into a repo-local
   # bot/packages/ folder (git-ignored) rather than the global ~/.nuget cache.
+  # ── E2E: Playwright smoke tests across every surface, backed by docker-compose ─
+  # A net-new, standalone Node/Playwright harness (e2e/) — it does NOT compile core/.
+  # Drives the browser app + the MV3 extension in a real Chromium, and black-boxes the
+  # Go server's REST/WS/TCP protocol against the actual binary. The backing stack
+  # (Postgres + Redis + server) comes up via the repo-root docker-compose.yml, which
+  # ubuntu-latest can run out of the box. Kept separate from the nine unit jobs so a
+  # slow/flaky browser run never blocks them. The whole run is wrapped in xvfb because
+  # the extension project loads an unpacked MV3 extension (headed Chromium).
+  e2e:
+    name: E2E (Playwright + compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # The CLI e2e project drives the real Zig binary (the contract mcp/ + bot/ share),
+      # so build it here; the project self-skips if the binary is absent.
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build the Stencil CLI
+        working-directory: cli
+        run: zig build
+      - name: Install harness deps
+        working-directory: e2e
+        run: npm ci
+      - name: Install Chromium + system deps
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Bring up the backing stack (db + redis + server)
+        run: docker compose up -d --wait db redis server
+      - name: Run E2E
+        working-directory: e2e
+        # xvfb gives the headed extension context a display; harmless for the others.
+        run: xvfb-run -a npm test
+        env:
+          E2E_STACK: '1'
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
   bot:
     name: Bot (.NET build + tests)
     runs-on: ubuntu-latest
@@ -273,3 +321,38 @@ jobs:
       - name: Test
         working-directory: bot
         run: dotnet test Stencil.TelegramBot.slnx --no-build --configuration Release --verbosity normal
+
+  # ── Docker images: assert every shipped Dockerfile still builds ───────────────
+  # The unit/e2e jobs above exercise behavior; this one guards the *packaging*. The
+  # e2e job already builds + runs the server image via docker-compose, but the other
+  # four Dockerfiles have no other build coverage, so a broken FROM/COPY/context in
+  # any of them would otherwise ship unnoticed. browser/cli/mcp/bot compile core/ so
+  # their build context is the REPO ROOT (see each Dockerfile header); server is a
+  # standalone Go module built from ./server. No push — building is the whole test.
+  # fail-fast: false so one broken image still reports the others.
+  docker-images:
+    name: Docker images (build)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: stencil-browser
+            dockerfile: browser/Dockerfile
+            context: .
+          - image: stencil-cli
+            dockerfile: cli/Dockerfile
+            context: .
+          - image: stencil-mcp
+            dockerfile: mcp/Dockerfile
+            context: .
+          - image: stencil-bot
+            dockerfile: bot/Dockerfile
+            context: .
+          - image: stencil-server
+            dockerfile: server/Dockerfile
+            context: server
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build ${{ matrix.image }}
+        run: docker build -f ${{ matrix.dockerfile }} -t ${{ matrix.image }}:ci ${{ matrix.context }}
