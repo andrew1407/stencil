@@ -1,0 +1,86 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Edit(**/.env)",
+      "Write(**/.env)",
+      "Read(**/openInConfig.json)",
+      "Edit(**/openInConfig.json)",
+      "Write(**/openInConfig.json)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gcloud/**)",
+      "Read(~/.gnupg/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(chmod -R 777 *)"
+    ],
+    "allow": [
+      "Bash(npm run serve)",
+      "Bash(npm run serve:*)",
+      "Bash(npm test)",
+      "Bash(npm run build-wasm)",
+      "Bash(node --test:*)",
+      "Bash(zig build:*)",
+      "Bash(cli/zig-out/bin/stencil:*)",
+      "Bash(./zig-out/bin/stencil:*)",
+      "Bash(./build/stencil_gui:*)",
+      "Bash(nohup ./build/stencil_gui:*)",
+      "Bash(cmake -S . -B build -DCMAKE_BUILD_TYPE=Release)",
+      "Bash(cmake --build build -j)",
+      "Bash(sips:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch)",
+      "Bash(ctest:*)",
+      "Bash(go build ./...)",
+      "Bash(go test:*)",
+      "Bash(go vet:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__select_page",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__close_page",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__fill_form",
+      "mcp__chrome-devtools__hover",
+      "mcp__chrome-devtools__type_text",
+      "mcp__chrome-devtools__press_key",
+      "mcp__chrome-devtools__handle_dialog",
+      "mcp__chrome-devtools__upload_file",
+      "mcp__chrome-devtools__resize_page",
+      "mcp__chrome-devtools__emulate"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|NotebookEdit|mcp__chrome-devtools__evaluate_script|mcp__chrome-devtools__upload_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

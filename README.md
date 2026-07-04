@@ -29,6 +29,8 @@ lists, searches and filters every image on any web page and opens a chosen image
 Stencil editor (new tab) — with a quick in-page crop modal. Manifest V3, vanilla JS, no
 build step.
 
+## Architecture
+
 ```mermaid
 graph TD
     CORE["<b>core/</b> — shared logic<br/>C++17, STL-only, GUI-free<br/><i>formulas · geometry · color · page metrics · crop · raster · history · projects</i>"]
@@ -37,6 +39,7 @@ graph TD
     CORE -->|"compiled into · C ABI"| CLI["<b>CLI</b><br/>Zig + stb_image"]
     CORE -->|"recompiled · C ABI via ctypes"| PY["<b>Python package</b><br/>pystencil — stdlib only"]
     WEB -.->|"if wasm is unavailable"| FB["behavior-identical<br/>JS fallback"]
+    EXT["<b>Chrome extension</b><br/>MV3 — scans page images"] -->|"feeds images · via URL fragment"| WEB
     CLI -->|"shell-out · MCP stdio"| MCP["<b>MCP server</b><br/>Rust — tools for any MCP client"]
     CLI -->|"shell-out · Telegram Bot API"| BOT["<b>Telegram bot</b><br/>.NET — chat-driven editing"]
     WEB -.->|"connect · REST + WS"| SRV["<b>Collaboration server</b><br/>Go — shared projects + live edit"]
@@ -44,7 +47,21 @@ graph TD
     CLI -.->|"connect · REST + TCP"| SRV
     PY -.->|"connect · REST + TCP"| SRV
     BOT -.->|"connect · REST"| SRV
+
+    click CORE "core/README.md#architecture" "Shared core architecture"
+    click WEB "browser/README.md#architecture" "Browser app architecture"
+    click DESK "desktop/README.md#architecture" "Desktop app architecture"
+    click CLI "cli/README.md#architecture" "CLI architecture"
+    click PY "pystencil/README.md#architecture" "Python package architecture"
+    click EXT "extension/README.md#architecture" "Chrome extension architecture"
+    click MCP "mcp/README.md#architecture" "MCP server architecture"
+    click BOT "bot/README.md#architecture" "Telegram bot architecture"
+    click SRV "server/README.md#architecture" "Collaboration server architecture"
 ```
+
+> Click any node to open that surface's own architecture diagram. The cross-surface
+> [`e2e/`](e2e/) harness (not shown — it drives the built artifacts, not a runtime
+> component) has its own [architecture diagram](e2e/README.md#architecture).
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**
 — the formula parser, geometry, color, pixel↔page conversion, crop, a line rasteriser,

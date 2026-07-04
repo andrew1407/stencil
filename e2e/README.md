@@ -11,6 +11,42 @@ and the actual Go server binary over its REST/WS/TCP wire protocol.
 Like `mcp/`, `server/`, and `bot/`, this harness is an external adapter — it **never
 compiles or links `core/`**, so it sits outside the parity contract in the repo `CLAUDE.md`.
 
+## Architecture
+
+```mermaid
+graph TD
+    subgraph E2E["e2e/ — Node/Playwright smoke harness (drives the real artifacts)"]
+      HELP["helpers/ — static-server · boot · serverApi · wire (WS/TCP)"]
+      TB["tests/browser — window.stencil + real pointer drawing"]
+      TE["tests/extension — scan + hand-off"]
+      TF["tests/fullstack — multi-client collaboration"]
+      TS["tests/server — REST + WS + TCP"]
+      TC["tests/cli — Zig binary black-box"]
+    end
+    WEB["Browser app"]
+    EXT["Chrome extension (unpacked)"]
+    SRV["Collaboration server binary"]
+    CLI["Zig CLI binary"]
+    STACK["docker compose — db + redis + server<br/><i>(only when E2E_STACK=1)</i>"]
+
+    TB --> WEB
+    TE --> EXT
+    TF --> WEB
+    TF --> SRV
+    TS --> SRV
+    TC --> CLI
+    SRV -.-> STACK
+
+    click WEB "../browser/README.md#architecture" "Browser app architecture"
+    click EXT "../extension/README.md#architecture" "Chrome extension architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture). Desktop (Qt) e2e lives
+> elsewhere — see the [known gaps](#known-gaps-deliberate) below.
+
 ## Layout
 
 ```

@@ -71,3 +71,17 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 ## CI
 
 `.github/workflows/ci.yml` runs eleven independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests, **including the `stencil_mainwindow_gui` QtTest e2e**), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), mcp (Rust, builds the CLI first for its gated e2e), **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests), **bot** (.NET build + the offline xUnit suite for the Telegram bot), **e2e** (Node/Playwright — brings up db+redis+server via docker compose and drives the real browser app + unpacked extension + server binary over their wire protocols; see `e2e/README.md`), and **docker-images** (a matrix that `docker build`s all five shipped Dockerfiles — browser/cli/mcp/bot from the repo root, server from `./server` — so a broken image never ships; behavior is covered elsewhere, this guards packaging). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
+
+## AI harness rules
+
+Project rules for AI agents live in `.claude/rules/` (auto-loaded; path-scoped ones fire
+when you touch matching files):
+
+- `security.md` — driving Stencil's network-facing surfaces safely. Enforced by a
+  cross-platform PreToolUse hook (`.claude/hooks/guard.mjs`) that blocks secret reads and
+  exfil-shaped commands/scripts and asks before out-of-repo or shared-project writes, backed
+  by a `deny` list in `.claude/settings.json`.
+- `no-dependencies.md` — this repo adds no deps, bundlers, or build steps; use the built-in
+  tooling.
+- `core-changes.md` (scoped to `core/`, `cli/build.zig`, `pystencil/build.py`) — the 3-file
+  source-list sync and the wasm/JS parity obligation.

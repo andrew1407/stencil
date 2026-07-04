@@ -5,6 +5,33 @@ on the current page and lets you download it, open it in a tab, or send it to th
 [Stencil browser editor](../browser/) — as an **in-page modal** by default —
 including a quick page-aspect crop. Vanilla JS, no build step.
 
+## Architecture
+
+```mermaid
+graph TD
+    subgraph EXT["extension/ — Chrome MV3, vanilla JS"]
+      SCAN["lib/imageScan.js — scan &lt;img&gt; / &lt;svg&gt; / bg / &lt;video&gt;"]
+      SURF["surfaces — popup · side panel · DevTools panel · context menu"]
+      CROP["crop/ — quick page-aspect crop"]
+      CONN["lib/connections.js — server REST mirror"]
+      PAGEAPI["content/pageApiMain.js — window.stencil (opt-in)"]
+    end
+    WEB["Browser editor"]
+    SRV["Collaboration server"]
+
+    SCAN --> SURF
+    SURF -->|"hand-off · URL fragment (dataUrl)"| WEB
+    CROP -->|"Open in editor"| WEB
+    PAGEAPI --> SURF
+    CONN -.->|"shared pins · REST + Bearer token"| SRV
+
+    click WEB "../browser/README.md#architecture" "Browser editor architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture).
+
 ## Features
 
 **Toolbar popup** (click the extension icon)

@@ -11,6 +11,40 @@ stencil --blank 800 600 red --layout notes.json --filter sepia out
 stencil -i clip.mp4 -f 24 frame.png
 ```
 
+## Architecture
+
+```mermaid
+graph TD
+    CORE["<b>core/</b> — shared C++ logic"]
+    subgraph CLIP["cli/ — Zig"]
+      ARGS["args.zig — flag parser"]
+      PIPE["pipeline.zig — source → crop → rotate → layout → filter → encode"]
+      COREZ["core.zig — @cImport(cliApi.h) typed wrappers"]
+      IO["image · video · net · layout<br/><i>stb_image · ffmpeg · std.http · std.json</i>"]
+      REPL["console/ — interactive REPL + server sync"]
+    end
+    SRV["Collaboration server"]
+    MCP["MCP server"]
+    BOT["Telegram bot"]
+
+    CORE -->|"recompiled by build.zig · cliApi.h"| COREZ
+    PIPE --> COREZ
+    PIPE --> IO
+    REPL --> PIPE
+    REPL -.->|"connect · REST + raw-TCP live edit"| SRV
+    MCP -->|"shell-out"| PIPE
+    BOT -->|"shell-out"| PIPE
+
+    click CORE "../core/README.md#architecture" "Shared core architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+    click MCP "../mcp/README.md#architecture" "MCP server architecture"
+    click BOT "../bot/README.md#architecture" "Telegram bot architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture). The [pipeline data-flow](#how-it-works)
+> is detailed below.
+
 ## Dependencies
 
 | Purpose | Tool | How it's provided |
