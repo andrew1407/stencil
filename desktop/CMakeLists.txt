@@ -54,9 +54,9 @@ option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packagi
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
 # drawn by the same module's SVG icon engine.
 if(STENCIL_REQUIRE_QT)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia Svg)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia Svg Test)
 else()
-  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia Svg)
+  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia Svg Test)
 endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
@@ -73,8 +73,9 @@ if(Qt6_FOUND)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     ${CMAKE_CURRENT_SOURCE_DIR}/src/support)
 
-  add_executable(stencil_gui
-    src/app/main.cpp
+  # The full GUI translation-unit set MINUS the entry point (main.cpp), shared between
+  # the app and the MainWindow GUI e2e test target below so the two never drift.
+  set(STENCIL_GUI_SOURCES
     src/app/mainWindow.cpp
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
@@ -103,7 +104,11 @@ if(Qt6_FOUND)
     src/support/guiHelpers.cpp
     src/support/searchCombo.cpp
     src/support/iconSet.cpp
-    resources/app.qrc
+    resources/app.qrc)
+
+  add_executable(stencil_gui
+    src/app/main.cpp
+    ${STENCIL_GUI_SOURCES}
   )
   target_include_directories(stencil_gui PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_gui
@@ -215,6 +220,19 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_crop_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_crop_headless COMMAND stencil_crop_headless)
   set_tests_properties(stencil_crop_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # GUI end-to-end (Qt Test framework): drives the REAL MainWindow — load via the OS-open
+  # path, trigger the actual Rotate/Undo/Start-Drawing QActions, and send real mouse clicks
+  # to the live canvas. Links the whole GUI (STENCIL_GUI_SOURCES) + Qt6::Test. Offscreen.
+  add_executable(stencil_mainwindow_gui
+    tests/mainWindow.gui.cpp
+    ${STENCIL_GUI_SOURCES})
+  target_include_directories(stencil_mainwindow_gui PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_mainwindow_gui PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test)
+  add_test(NAME stencil_mainwindow_gui COMMAND stencil_mainwindow_gui)
+  set_tests_properties(stencil_mainwindow_gui PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # Hold-to-draw + selection-delete headless check (CanvasWidget public API).

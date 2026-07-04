@@ -18,6 +18,12 @@ Thumbs.db
 node_modules/
 npm-debug.log*
 
+# E2E harness (e2e/): Playwright deps + generated reports/traces. The suites and
+# helpers are committed; the report artifacts and installed browsers are not.
+e2e/playwright-report/
+e2e/test-results/
+e2e/blob-report/
+
 # Logs / temp
 *.log
 *.tmp

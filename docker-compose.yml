@@ -45,6 +45,17 @@ services:
     ports:
       - "6379:6379"
 
+  # The server image is distroless :nonroot (UID 65532) and can't chown its own
+  # data dir. A freshly-created named volume is root-owned, so the nonroot server
+  # can't write uploaded files (→ 500 "could not store file"). This one-shot init
+  # hands the volume to that UID before the server starts, keeping the server
+  # itself nonroot. Idempotent: a no-op once ownership is already correct.
+  filestore-init:
+    image: alpine:3.20
+    command: ["chown", "-R", "65532:65532", "/data/filestore"]
+    volumes:
+      - filestore:/data/filestore
+
   server:
     build:
       context: ./server
@@ -53,6 +64,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      filestore-init:
+        condition: service_completed_successfully
     environment:
       LISTEN_ADDR: ":8090"
       TCP_ADDR: ":8091"

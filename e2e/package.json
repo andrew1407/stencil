@@ -1,0 +1,17 @@
+{
+  "name": "stencil-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end smoke tests for Stencil: browser app + MV3 extension (Playwright) and the Go collaboration server (REST/WS/TCP), backed by docker-compose.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --project=browser-app --project=extension",
+    "test:stack": "E2E_STACK=1 playwright test --project=fullstack --project=server-protocol",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "ws": "^8.18.0"
+  }
+}
