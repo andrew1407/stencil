@@ -83,8 +83,9 @@ browser/              # the browser app
   package.json
   README.md
 desktop/              # the desktop app (links the shared core via add_subdirectory)
-  gui/                # Qt widgets (mirrors the browser UI)
-  tests/              # Qt headless crop integration test
+  src/                # Qt GUI by role: app · canvas · dialogs · io · net · support
+  tests/              # Qt offscreen headless tests + the QtTest MainWindow GUI e2e
+  resources/  packaging/
   CMakeLists.txt
   README.md
 cli/                  # the command-line tool (Zig)
@@ -118,7 +119,15 @@ bot/                  # Telegram bot (.NET, clean architecture) — wraps the CL
   tests/              # xUnit suite (offline: no token/server/CLI/Redis)
   assets/             # raster icon + 640×360 description photo for @BotFather
   .env.example  README.md
+e2e/                  # cross-surface Playwright smoke harness (drives the REAL artifacts)
+  helpers/  fixtures/ # static server + stack compose + boot/REST/WS-TCP wire clients
+  tests/              # browser · extension · fullstack · server · cli flows
+  playwright.config.js  package.json  README.md
 ```
+
+> The **desktop app's own end-to-end test** is a QtTest target that lives with the desktop
+> build (`desktop/tests/mainWindow.gui.cpp`), not in `e2e/` — it drives the real `MainWindow`
+> offscreen. The `e2e/` harness covers the browser, extension, and server surfaces.
 
 ## Development
 
@@ -137,18 +146,30 @@ HTTP client (native TLS) and shells out to the system **ffmpeg** only for video 
 - Build, test & run the MCP server → [mcp/README.md](mcp/README.md)
 - Build, test & run the Telegram bot → [bot/README.md](bot/README.md) (`cd bot && dotnet test Stencil.TelegramBot.slnx`)
 - Load & test the Chrome extension → [extension/README.md](extension/README.md)
+- Run the cross-surface e2e smoke harness → [e2e/README.md](e2e/README.md) (`cd e2e && npm test`; UI-only: `npm run test:ui`, full stack: `E2E_STACK=1 npm test`)
 
-**Docker.** Four subprojects ship a multi-stage `Dockerfile`
+**Docker.** Five subprojects ship a multi-stage `Dockerfile`
 ([`browser/`](browser/Dockerfile) — wasm build + nginx; [`cli/`](cli/Dockerfile) — Zig
 build + ffmpeg runtime; [`mcp/`](mcp/Dockerfile) — Zig CLI + Rust server;
-[`bot/`](bot/Dockerfile) — Zig CLI + .NET Telegram bot). All compile `core/`, so **build
-from the repo root**:
+[`bot/`](bot/Dockerfile) — Zig CLI + .NET Telegram bot; [`server/`](server/Dockerfile) —
+Go collaboration server). The first four compile `core/`, so **build them from the repo
+root** (note the `-f`); the **server** image builds from its own `./server` context (a
+standalone Go module — it does not compile `core/`):
 
 ```bash
 docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 8080:80 stencil-browser
 docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
 docker build -f mcp/Dockerfile -t stencil-mcp . && docker run --rm -i -v "$PWD:/work" -w /work stencil-mcp
 docker build -f bot/Dockerfile -t stencil-bot . && docker run --rm -e TELEGRAM_BOT_TOKEN=123:abc stencil-bot
+docker build -t stencil-server ./server   # server builds from its own context, not the repo root
+```
+
+For the full local stack — Postgres + Redis + the collaboration server (plus the browser
+app and an on-demand `mcp` profile) — the repo-root [`docker-compose.yml`](docker-compose.yml)
+wires it together; it also backs the full-stack [`e2e/`](e2e/) suite:
+
+```bash
+docker compose up --build server   # collab server on :8090 (REST/WS) + :8091 (TCP), with its db/redis
 ```
 
 ## Claude Code integration

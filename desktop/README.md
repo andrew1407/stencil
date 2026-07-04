@@ -168,15 +168,33 @@ ctest --test-dir ../core/build --output-on-failure   # or ../core/build/stencil_
 Doctest is a single header (pinned **v2.4.11**), fetched into `../core/third_party/doctest.h`
 at configure time with SHA-256 verification — nothing to commit or install.
 
-The **desktop** build registers two Qt offscreen CTest cases of its own:
+The **desktop** build registers several Qt offscreen CTest cases of its own. Most exercise a
+component in isolation; `stencil_mainwindow_gui` is a full GUI **end-to-end** built with the
+**Qt Test framework** — it drives the real `MainWindow`:
 
+- `stencil_mainwindow_gui` — GUI e2e (QtTest): loads an image via the OS-open path, then
+  drives the **real, shared QActions** (menu bar / toolbar / context menu reuse the same
+  objects) and sends real mouse clicks to the live canvas, asserting on observable widget
+  state. Five flows: action-enablement on load, a **Rotate** round-trip (asserting the
+  quarter-turn W↔H dimension swap, not just the counter), **draw → New Line → Undo → Redo**
+  (exact point count + history availability), a **filter** action landing on the canvas
+  (exclusive group), and **Clear All Lines** emptying it. It verifies MainWindow's *action
+  wiring* end-to-end; the underlying canvas *logic* is covered by the isolated headless
+  suites below.
 - `stencil_crop_headless` — crop canvas integration (`CanvasWidget` + the core crop geometry).
 - `stencil_image_headless` — loads a real PNG from `tests/fixtures/` and runs it through the
   load → crop → core image-filter path (the desktop analogue of the CLI's fixture tests).
+- plus `stencil_holddraw_headless`, `stencil_layout_headless`, `stencil_projectcolor_headless`,
+  `stencil_deeplink_headless`, and `stencil_livefeed_headless`.
 
 ```bash
-ctest --test-dir build --output-on-failure   # runs both headless tests (needs Qt)
+ctest --test-dir build --output-on-failure   # runs every headless test (needs Qt)
 ```
+
+> **Where desktop e2e lives.** This QtTest target is the desktop app's only end-to-end test;
+> the repo's cross-surface [`e2e/`](../e2e/) Playwright harness deliberately does **not** cover
+> desktop (a native Qt binary is not a wire-protocol surface it can drive) — it exercises the
+> browser app, the Chrome extension, and the Go server binary instead. The two are complementary.
 
 ## Run the GUI
 

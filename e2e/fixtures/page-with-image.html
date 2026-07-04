@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stencil E2E — host page</title>
+  <style>
+    /* A background-image element for the scanner's CSS-background path. */
+    #bg { width: 40px; height: 40px; background-image: url("/__e2e__/pixel.png"); }
+  </style>
+</head>
+<body>
+  <h1>Host page for the extension scanner</h1>
+  <!-- A real http(s) image (served by the harness) so it is a trackable source for pins
+       and a realistic fetch target for the editor hand-off. -->
+  <img id="target" alt="target" width="40" height="40" src="/__e2e__/pixel.png">
+  <div id="bg"></div>
+</body>
+</html>
