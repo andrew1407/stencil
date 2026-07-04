@@ -55,6 +55,9 @@ public sealed record UserSession
     public string? ActiveProjectId { get; init; }
     public string? ActiveProjectName { get; init; }
 
+    /// <summary>The active project's creation time (epoch ms), shown in /status. 0 when none.</summary>
+    public long ActiveProjectCreatedAt { get; init; }
+
     /// <summary>Version last seen for the active project — the LWW guard for save-back.</summary>
     public long ActiveProjectVersion { get; init; }
 

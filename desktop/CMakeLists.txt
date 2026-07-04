@@ -85,6 +85,7 @@ if(Qt6_FOUND)
     src/dialogs/settingsDialog.cpp
     src/dialogs/projectsDialog.cpp
     src/dialogs/blankImageDialog.cpp
+    src/dialogs/expirationDialog.cpp
     src/dialogs/openImageDialog.cpp
     src/dialogs/linksDialog.cpp
     src/dialogs/cropDialog.cpp

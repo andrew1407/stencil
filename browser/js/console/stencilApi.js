@@ -12,6 +12,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { resolveAxisPx } from '../core/units.js';
 import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
+import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
@@ -271,8 +272,32 @@ export const createStencil = (app) => {
       get id() { return id; },
       get incognito() { return incognito; },
       get isOpened() { return incognito ? true : openedIds().has(id); },
+      // Expiration (local projects). expiresAt is epoch ms or null (kept forever).
+      // Set with a number (ms), a Date, or a parseable string; 0/null = keep forever.
       get expiresAt() { const m = meta(); return m ? store().expiresAt(m) : null; },
+      set expiresAt(v) {
+        if (incognito) throw new Error('Cannot set expiration on an incognito editor');
+        if (v == null || v === 0) { app.setProjectExpiration(id, { expiresAt: 0 }); return; }
+        const ms = v instanceof Date ? v.getTime() : (typeof v === 'number' ? v : new Date(v).getTime());
+        if (!Number.isFinite(ms)) throw new Error(`Invalid expiration "${v}" — use ms, a Date, or 0 to keep forever`);
+        if (ms < Date.now()) throw new Error('Expiration cannot be in the past');
+        if (app.setProjectExpiration(id, { expiresAt: ms }) == null) throw new Error(`Could not set expiration on project ${id}`);
+      },
       get isExpired() { const m = meta(); return m ? store().isExpired(m) : false; },
+      // Refresh preset used by renew() and the open-time auto-refresh.
+      get refreshPeriod() { return meta()?.refreshPeriod ?? DEFAULT_PERIOD; },
+      set refreshPeriod(v) {
+        if (incognito) throw new Error('Cannot set a refresh period on an incognito editor');
+        const p = str(v);
+        if (!PERIOD_ORDER.includes(p)) throw new Error(`Invalid refresh period "${v}" — one of ${PERIOD_ORDER.join(', ')}`);
+        if (app.setProjectExpiration(id, { refreshPeriod: p }) == null) throw new Error(`Could not set refresh period on project ${id}`);
+      },
+      // When true, opening the project restamps its expiration to now + refreshPeriod.
+      get autoRefresh() { return meta()?.autoRefresh !== false; },
+      set autoRefresh(v) {
+        if (incognito) throw new Error('Cannot set auto-refresh on an incognito editor');
+        if (app.setProjectExpiration(id, { autoRefresh: !!v }) == null) throw new Error(`Could not set auto-refresh on project ${id}`);
+      },
       // { image: { width, height } } (image null when unknown).
       get size() {
         if (isActive() && app.image) return { image: { width: app.image.width, height: app.image.height } };
@@ -313,6 +338,12 @@ export const createStencil = (app) => {
       get resource() { return isActive() ? (app.imageResource ?? null) : (meta()?.resource ?? null); },
       set resource(v) { setLink('resource', 'imageResource', v); },
       renew() { app.renewProject(id); return project; },
+      // Remove the expiration date so the project is kept forever.
+      keepForever() {
+        if (incognito) throw new Error('Cannot change expiration on an incognito editor');
+        app.setProjectExpiration(id, { expiresAt: 0 });
+        return project;
+      },
       // Close this project's editor (keeps the saved project). `fully` also closes the
       // browser tab/window if it's the active one here.
       close({ fully = false } = {}) {

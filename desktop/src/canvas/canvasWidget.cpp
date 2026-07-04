@@ -15,6 +15,7 @@
 #include <QPointF>
 #include <QPolygonF>
 #include <QTransform>
+#include <QNativeGestureEvent>
 #include <QWheelEvent>
 
 namespace stencil::gui {
@@ -1326,6 +1327,25 @@ namespace stencil::gui {
 
     // Plain wheel: let the scroll area handle it.
     event->ignore();
+  }
+
+  // Trackpad pinch (macOS/Wayland native gesture). Ctrl+wheel is keyboard-driven;
+  // a two-finger pinch arrives as a QEvent::NativeGesture instead (QWidget has no
+  // dedicated virtual for it) and was previously unhandled, so trackpad zoom did
+  // nothing. value() is the incremental scale delta per event; multiply the current
+  // scale by (1 + delta), anchored at the cursor.
+  bool CanvasWidget::event(QEvent* e) {
+    if (e->type() == QEvent::NativeGesture) {
+      auto* g = static_cast<QNativeGestureEvent*>(e);
+      if (g->gestureType() == Qt::ZoomNativeGesture) {
+        const double factor = 1.0 + g->value();
+        if (factor > 0.0 && factor != 1.0)
+          emit zoomByFactorAt(factor, g->position().toPoint());
+        g->accept();
+        return true;
+      }
+    }
+    return QWidget::event(e);
   }
 
   // ── S6: render-to-image + image accessors + loadFromImage ──

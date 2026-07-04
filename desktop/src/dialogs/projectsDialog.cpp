@@ -6,6 +6,9 @@
 #include <QAbstractItemView>
 #include <QAction>
 #include <QBrush>
+#include <QDate>
+#include <QDateTime>
+#include <QLocale>
 #include <QComboBox>
 #include <QMenu>
 #include <QColor>
@@ -58,6 +61,14 @@ namespace stencil::gui {
       if (days < 0) days = 0;
       return days <= 1 ? QString("expires in 1 day")
                        : QString("expires in %1 days").arg(days);
+    }
+
+    // "Created <localized short date>" for a project's createdAt (epoch ms), or
+    // empty when unset. Shown on local + server rows so the create date is visible.
+    QString createdText(long long createdAt) {
+      if (createdAt <= 0) return QString();
+      const QDate d = QDateTime::fromMSecsSinceEpoch(createdAt).date();
+      return QString("Created %1").arg(QLocale().toString(d, QLocale::ShortFormat));
     }
 
     // Modal name prompt with live validation (mirrors the browser's validated inline
@@ -565,6 +576,8 @@ namespace stencil::gui {
                           .arg(QString::fromStdString(pr.meta.name))
                           .arg(pr.lines.size())
                           .arg(pts);
+      const QString created = createdText(pr.meta.createdAt);
+      if (!created.isEmpty()) label += QString("   ·   %1").arg(created);
       if (!expiry.isEmpty()) label += QString("   ·   %1").arg(expiry);
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, QString::fromStdString(pr.meta.id));
@@ -607,6 +620,8 @@ namespace stencil::gui {
       QString label = QString("%1   —   %2")
                           .arg(sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name)
                           .arg(sp.serverUrl);
+      const QString spCreated = createdText(sp.createdAt);
+      if (!spCreated.isEmpty()) label += QString("   ·   %1").arg(spCreated);
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, sp.id);
       it->setData(Qt::UserRole + 1, sp.serverUrl);
@@ -791,8 +806,8 @@ namespace stencil::gui {
                      &ProjectsDialog::openSelectedInNewWindow);
       menu.addAction(themedIcon("pencil", ico, 16), "Rename", this,
                      &ProjectsDialog::renameSelected);
-      menu.addAction(themedIcon("refresh", ico, 16), "Renew expiry", this,
-                     &ProjectsDialog::renewSelected);
+      menu.addAction(themedIcon("calendar", ico, 16), "Expiration…", this,
+                     &ProjectsDialog::expirationSelected);
       if (haveServers) {
         menu.addAction(themedIcon("server", ico, 16), "Move to server", this,
                        &ProjectsDialog::moveToServerSelected);
@@ -949,12 +964,12 @@ namespace stencil::gui {
     accept();
   }
 
-  void ProjectsDialog::renewSelected() {
+  void ProjectsDialog::expirationSelected() {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
     selectedId_ = it->data(Qt::UserRole).toString();
-    action_ = Action::Renew;
+    action_ = Action::Expiration;
     accept();
   }
 

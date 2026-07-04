@@ -15,6 +15,14 @@ static ProjectMeta mk(const std::string& id, const std::string& name,
   return m;
 }
 
+// Like mk, but also seeds an explicit expiresAt for the stored-expiry tests.
+static ProjectMeta mkE(const std::string& id, const std::string& name,
+                       long long updatedAt, long long expiresAt) {
+  ProjectMeta m = mk(id, name, updatedAt);
+  m.expiresAt = expiresAt;
+  return m;
+}
+
 TEST_CASE("shouldPersist only with an active, non-temporary project") {
   CHECK(ProjectsStore::shouldPersist(std::string("p_1"), false));
   CHECK_FALSE(ProjectsStore::shouldPersist(std::string("p_1"), true));
@@ -51,65 +59,93 @@ TEST_CASE("touch bumps updatedAt; returns false for missing id") {
   CHECK_FALSE(s.touch("nope", 999));
 }
 
-TEST_CASE("expiry: one week boundary") {
+TEST_CASE("periodMs / addPeriod presets (fixed durations)") {
+  constexpr long long DAY = 24LL * 60 * 60 * 1000;
+  CHECK(ProjectsStore::periodMs("day") == DAY);
+  CHECK(ProjectsStore::periodMs("week") == 7 * DAY);
+  CHECK(ProjectsStore::periodMs("week") == ProjectsStore::EXPIRY_MS);
+  CHECK(ProjectsStore::periodMs("fortnight") == 14 * DAY);
+  CHECK(ProjectsStore::periodMs("month") == 30 * DAY);
+  CHECK(ProjectsStore::periodMs("3month") == 90 * DAY);
+  CHECK(ProjectsStore::periodMs("6month") == 180 * DAY);
+  CHECK(ProjectsStore::periodMs("year") == 365 * DAY);
+  // Unknown / empty falls back to one week.
+  CHECK(ProjectsStore::periodMs("") == 7 * DAY);
+  CHECK(ProjectsStore::periodMs("decade") == 7 * DAY);
+  CHECK(ProjectsStore::addPeriod(1000, "day") == 1000 + DAY);
+}
+
+TEST_CASE("expiry keyed on stored expiresAt; 0 == keep forever") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  ProjectMeta fresh = mk("fresh", "F", now - 1000);
-  ProjectMeta old = mk("old", "O", now - ProjectsStore::EXPIRY_MS - 1);
+  ProjectMeta fresh = mkE("fresh", "F", now, now + 1000);
+  ProjectMeta old = mkE("old", "O", now, now - 1);
+  ProjectMeta keep = mkE("keep", "K", now, 0);  // never expires
   CHECK_FALSE(s.isExpired(fresh, now));
   CHECK(s.isExpired(old, now));
-  CHECK(s.expiresAt(fresh).value() == fresh.updatedAt + ProjectsStore::EXPIRY_MS);
+  CHECK_FALSE(s.isExpired(keep, now));  // keep forever
+  CHECK(s.expiresAt(fresh).value() == now + 1000);
+  CHECK(s.expiresAt(keep) == std::nullopt);  // keep forever → no date
 }
 
 TEST_CASE("isExpiringSoon: within a day of expiry, but not once expired") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
   // Expires in half a day → inside the warning window.
-  ProjectMeta soon =
-      mk("soon", "S", now - ProjectsStore::EXPIRY_MS + ProjectsStore::WARN_MS / 2);
+  ProjectMeta soon = mkE("soon", "S", now, now + ProjectsStore::WARN_MS / 2);
   CHECK(s.isExpiringSoon(soon, now));
   // Expires in two days → outside the window.
-  ProjectMeta later =
-      mk("later", "L", now - ProjectsStore::EXPIRY_MS + 2 * ProjectsStore::WARN_MS);
+  ProjectMeta later = mkE("later", "L", now, now + 2 * ProjectsStore::WARN_MS);
   CHECK_FALSE(s.isExpiringSoon(later, now));
   // Already expired → false (expired takes precedence in the UI).
-  ProjectMeta old = mk("old", "O", now - ProjectsStore::EXPIRY_MS - 1);
+  ProjectMeta old = mkE("old", "O", now, now - 1);
   CHECK(s.isExpired(old, now));
   CHECK_FALSE(s.isExpiringSoon(old, now));
+  // Keep forever → never "expiring soon".
+  ProjectMeta keep = mkE("keep", "K", now, 0);
+  CHECK_FALSE(s.isExpiringSoon(keep, now));
 }
 
 TEST_CASE("isExpiringSoon boundary: inclusive at exactly WARN_MS remaining") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  ProjectMeta edge =
-      mk("edge", "E", now - ProjectsStore::EXPIRY_MS + ProjectsStore::WARN_MS);
+  ProjectMeta edge = mkE("edge", "E", now, now + ProjectsStore::WARN_MS);
   CHECK(s.isExpiringSoon(edge, now));
-  ProjectMeta justOut =
-      mk("out", "O", now - ProjectsStore::EXPIRY_MS + ProjectsStore::WARN_MS + 1);
+  ProjectMeta justOut = mkE("out", "O", now, now + ProjectsStore::WARN_MS + 1);
   CHECK_FALSE(s.isExpiringSoon(justOut, now));
 }
 
-TEST_CASE("touch renews the expiry window from now") {
+TEST_CASE("setExpiration sets fields exactly, no updatedAt bump") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  s.upsert(mk("a", "A", 0), now - ProjectsStore::EXPIRY_MS + 1000);  // nearly due
-  CHECK(s.isExpiringSoon(*s.getMeta("a"), now));
-  CHECK(s.touch("a", now));  // renew
-  CHECK_FALSE(s.isExpiringSoon(*s.getMeta("a"), now));
-  CHECK_FALSE(s.isExpired(*s.getMeta("a"), now));
-  CHECK(s.expiresAt(*s.getMeta("a")).value() == now + ProjectsStore::EXPIRY_MS);
+  s.upsert(mkE("a", "A", now, now + 1000), now);  // nearly due
+  // Renew via addPeriod, as the Refresh button / open-time snap do.
+  CHECK(s.setExpiration("a", ProjectsStore::addPeriod(now, "month"), "month", true));
+  const auto m = *s.getMeta("a");
+  CHECK(m.expiresAt == now + ProjectsStore::periodMs("month"));
+  CHECK(m.refreshPeriod == "month");
+  CHECK(m.autoRefresh);
+  CHECK(m.updatedAt == now);  // setExpiration must NOT bump updatedAt
+  CHECK_FALSE(s.isExpired(m, now));
+  // Empty period normalises to the default.
+  CHECK(s.setExpiration("a", 0, "", false));
+  CHECK(s.getMeta("a")->refreshPeriod == ProjectsStore::DEFAULT_PERIOD);
+  CHECK(s.getMeta("a")->expiresAt == 0);  // keep forever
+  CHECK_FALSE(s.setExpiration("missing", 0, "week", true));
 }
 
 TEST_CASE("sweepExpired removes only expired and returns their ids") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  s.upsert(mk("fresh", "F", 0), now);
-  s.upsert(mk("old", "O", 0), now - ProjectsStore::EXPIRY_MS - 1);
+  s.upsert(mkE("fresh", "F", now, now + ProjectsStore::EXPIRY_MS), now);
+  s.upsert(mkE("old", "O", now, now - 1), now);
+  s.upsert(mkE("keep", "K", now, 0), now);  // keep forever, must survive
   const auto removed = s.sweepExpired(now);
   REQUIRE(removed.size() == 1);
   CHECK(removed[0] == "old");
-  CHECK(s.list().size() == 1);
+  CHECK(s.list().size() == 2);
   CHECK(s.getMeta("old") == std::nullopt);
+  CHECK(s.getMeta("keep") != std::nullopt);
 }
 
 TEST_CASE("defaultName is one past the highest Untitled index") {

@@ -14,6 +14,8 @@
 #include <functional>
 #include <vector>
 
+class QNativeGestureEvent;  // not transitively declared by <QWidget> (unlike QWheelEvent)
+
 // The drawing surface. Mirrors browser/js/core/renderer.js (what to draw) and
 // zoomPan.js (scale), implemented with QPainter. Drawing/geometry decisions reuse
 // stencil::core; only the paint calls are Qt-specific.
@@ -34,6 +36,10 @@ namespace stencil::gui {
     void restore(const QString& path, const core::Lines& lines, double scale,
                  const core::CropRect& cropRect = {}, int rotationQuarters = 0);
     const QString& imagePath() const { return imagePath_; }
+    // Adopt an on-disk path for the current in-memory original (pixels unchanged).
+    // Used when a generated/remote/video image is written to the state dir so the
+    // project + session can reload it later.
+    void setImagePath(const QString& path) { imagePath_ = path; }
     bool hasImage() const { return !image_.isNull(); }
     int imageWidth() const { return image_.width(); }
     int imageHeight() const { return image_.height(); }
@@ -175,6 +181,9 @@ namespace stencil::gui {
     void panBy(int dx, int dy, bool fast);          // S7 drag pan
     void fitRequested();                            // S7 double-click fit
     void zoomAtCursor(int dir, const QPoint& posInWidget, bool fast);  // S8
+    // Trackpad pinch (macOS native gesture): a continuous scale factor about the
+    // cursor. MainWindow multiplies the current scale by it, anchored at posInWidget.
+    void zoomByFactorAt(double factor, const QPoint& posInWidget);
     void zoomToRect(const QRectF& imageRect);       // S9 (image-space rect)
 
    public slots:
@@ -188,6 +197,7 @@ namespace stencil::gui {
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    bool event(QEvent* event) override;  // intercepts QEvent::NativeGesture (trackpad pinch)
     void leaveEvent(QEvent* event) override;
     // App-wide filter: a modifier key (Shift/Ctrl/Alt) pressed or released while
     // the cursor is over the canvas re-applies the hover state so the tooltip and

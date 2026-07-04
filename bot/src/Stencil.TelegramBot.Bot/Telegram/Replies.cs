@@ -81,6 +81,11 @@ public static class Replies
         {
             string name = session.ActiveProjectName ?? session.ActiveProjectId;
             sb.AppendLine($"Active project: {name} @ {session.ActiveServerUrl} (v{session.ActiveProjectVersion})");
+            string created = FmtDate(session.ActiveProjectCreatedAt);
+            if (created.Length != 0)
+            {
+                sb.AppendLine($"  created {created}");
+            }
         }
         else
         {
@@ -243,7 +248,9 @@ public static class Replies
             string size = p.Record.HasImage ? $" {p.Record.ImageW}x{p.Record.ImageH}" : "";
             string dot = ColorDot(p.Record.Color);
             string prefix = dot.Length == 0 ? "•" : dot;
-            sb.AppendLine($"{prefix} {p.Record.Name}{size} @ {Host(p.ServerUrl)}");
+            string created = FmtDate(p.Record.CreatedAt);
+            string createdBit = created.Length == 0 ? "" : $" · created {created}";
+            sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit} @ {Host(p.ServerUrl)}");
         }
         return sb.ToString().TrimEnd();
     }
@@ -309,4 +316,8 @@ public static class Replies
         }
         return url;
     }
+
+    /// <summary>Format an epoch-ms timestamp as an ISO date (UTC), or "" when unset.</summary>
+    public static string FmtDate(long ms) =>
+        ms <= 0 ? "" : DateTimeOffset.FromUnixTimeMilliseconds(ms).ToString("yyyy-MM-dd");
 }

@@ -4151,6 +4151,15 @@ export class DrawingApp {
     return meta;
   }
 
+  // Set a project's expiration fields exactly (from the expiration modal / facade).
+  // opts: { expiresAt (0 = keep forever), refreshPeriod, autoRefresh }. Broadcasts so
+  // the projects list + any open expiration dialog in other tabs re-render.
+  setProjectExpiration(id, opts = {}) {
+    const meta = this.storage.store.setExpiration(id, opts);
+    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    return meta;
+  }
+
   // Close a project's editor (without deleting the saved project). Active in THIS tab →
   // blank editor; open in ANOTHER tab → ask it to via a CLOSE broadcast. `fully` also closes
   // this tab/window (best-effort — only script-opened windows can self-close).
