@@ -34,6 +34,7 @@ public static class Replies
         sb.AppendLine("/undo · /redo — step back / forward one edit   /reset — clear all edits");
         sb.AppendLine("/drop — discard the working image");
         sb.AppendLine("/image — re-render and re-send the current result image");
+        sb.AppendLine("/layout <json | link> — apply a layout JSON (or upload the .json file)");
         sb.AppendLine("/json — download the layout JSON");
         sb.AppendLine("/status — show the working image, edits and connections");
         sb.AppendLine();

@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
+import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, hasTextSelection, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -16,14 +16,16 @@ import { hotkeys } from './hotkeys.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
-import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl } from './deepLink.js';
+import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect } from '../ui/customSelect.js';
 import { requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
-import { getSyncToServer } from '../net/connectionStore.js';
+import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
+import { normalizeUrl } from '../net/connectionManager.js';
+import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
 // the button's text color (theme + label match). line = diagonal segment with
@@ -248,10 +250,23 @@ export class DrawingApp {
     // link above, the chooser must stay closed so it doesn't pop over the imported image.
     // Read before the fragment is consumed/stripped in applyExternalLaunch().
     this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
+    // "Open in…" targets (desktop scheme + optional Telegram bot username). Seeded with
+    // defaults so the toolbar button gates correctly before the async config load; the
+    // fetch then refreshes the gating (e.g. reveals Telegram availability).
+    this.openInConfig = { ...OPEN_IN_DEFAULTS };
+    loadOpenInConfig().then(cfg => { this.openInConfig = cfg; this.updateButtons(); });
     // Reflect the initial (imageless) state: undo/redo + fullscreen start disabled.
     this.updateButtons();
     this.applyUnitToUI();
   }
+
+  // Whether the current session can be handed to another app. Desktop needs a configured
+  // URL scheme (opens any project — server ref or inline). Telegram needs a bot username
+  // AND a server project (a 64-char t.me start payload can't carry image bytes). Drives
+  // both the toolbar #open-in-btn visibility and the modal's per-button hiding.
+  openInDesktopAvailable() { return !!this.openInConfig?.desktopScheme; }
+  openInTelegramAvailable() { return !!this.openInConfig?.telegramBotUsername && !!this.remoteLink; }
+  openInAvailable() { return this.openInDesktopAvailable() || this.openInTelegramAvailable(); }
 
   // Slim orchestrator: wire each cohesive control group in source order so
   // document-level listener dispatch order stays identical to before the split.
@@ -698,6 +713,7 @@ export class DrawingApp {
       // click path stay identical (clickIfActive skips a disabled control, like the UI does).
       loadImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
       openAnotherImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
+      openIn: () => clickIfActive('open-in-btn'),
       saveImage: () => clickIfActive('save-image'),
       cropImage: () => clickIfActive('crop-image'),
       downloadJson: () => clickIfActive('download-json'),
@@ -717,6 +733,9 @@ export class DrawingApp {
         if (!matchHotkey(e, combo)) continue;
         // Skip 'paste' here — let the browser fire its native paste event
         if (def.id === 'paste') return;
+        // With text selected, let the native Ctrl+C / Ctrl+Alt+C copy that text instead
+        // of hijacking for copy-image / copy-layout (the user is copying a URL/label).
+        if ((def.id === 'copyImage' || def.id === 'copyLayout') && hasTextSelection()) return;
         e.preventDefault();
         const fn = HK_HANDLERS[def.id];
         if (fn) fn();
@@ -1835,12 +1854,16 @@ export class DrawingApp {
     reader.readAsDataURL(file);
   }
 
-  // ── External launch (browser extension) ──────────────────────────
-  // Extension hands off an image via URL fragment `#stencil=<encodeURIComponent(JSON)>`,
-  // shape { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }. Fragment
-  // (not query) keeps the payload off server/logs; consumed once, stripped, routed through the
-  // normal upload. `open:'resume'` switches to an existing same-source project (cross-origin, so
-  // the extension can't dedup itself); else import a new project, auto-numbered "name (N)".
+  // ── External launch (browser extension / other front-ends) ───────
+  // Extension, desktop app and Telegram bot hand a session off via URL fragment
+  // `#stencil=<encodeURIComponent(JSON)>`, shape { dataUrl? | src? | server?, name?, crop?,
+  // page?, source?, resource?, open?, incognito?, layout? } (see normalizeLaunchPayload for
+  // the schema/precedence). Fragment (not query) keeps the payload off server/logs; consumed
+  // once, stripped, routed through the normal upload. `server:{url,id}` opens a server project
+  // (connecting like a fresh client — no token rides the link); `layout` restores annotations/
+  // filter/crop/page for inline hand-offs. `open:'resume'` switches to an existing same-source
+  // project (cross-origin, so the extension can't dedup itself); else import a new project,
+  // auto-numbered "name (N)".
   applyExternalLaunch() {
     const hash = location.hash || '';
     const marker = '#stencil=';
@@ -1855,26 +1878,33 @@ export class DrawingApp {
       notify('Stencil: could not read the shared image', 'fail');
       return;
     }
-    if (!payload || typeof payload.dataUrl !== 'string') return;
+    const launch = normalizeLaunchPayload(payload);
+    if (!launch) return;
 
     // Page size must be applied BEFORE loading so the crop aspect and pixel↔page
-    // conversion match the size the image was cropped for in the extension.
-    if (payload.page && typeof payload.page === 'object') this.#setExternalPage(payload.page);
+    // conversion match the size the image was cropped for by the sender.
+    if (launch.page) this.#setExternalPage(launch.page);
 
-    if (payload.incognito) {
+    if (launch.incognito) {
       this.storage.incognito = true;
       this.updateIncognitoUI();
     }
 
-    const name = typeof payload.name === 'string' && payload.name ? payload.name : 'image.png';
-    const crop = payload.crop && typeof payload.crop === 'object' ? payload.crop : null;
-    const source = typeof payload.source === 'string' && payload.source ? payload.source : null;
-    const resource = typeof payload.resource === 'string' && payload.resource ? payload.resource : null;
+    if (launch.kind === 'server') {
+      this.#applyServerLaunch(launch)
+        .catch(err => notify(`Could not open the server project — ${err.message}`, 'fail'));
+      return;
+    }
+
+    const name = launch.name || 'image.png';
+    const crop = launch.crop;
+    const source = launch.source;
+    const resource = launch.resource;
 
     // Resume: if we hold project(s) for this source, switch instead of re-importing.
     // Several matches → open the projects list to pick. No match (stale ledger / expired
     // project) falls through to a fresh import.
-    if (payload.open === 'resume' && !this.storage.incognito && (source || name)) {
+    if (launch.open === 'resume' && !this.storage.incognito && (source || name)) {
       const baseName = this.#stripExt(name);
       const matches = this.storage.store.findByImage(source, baseName);
       if (matches.length && this.switchToProject(matches[0].id)) {
@@ -1893,11 +1923,84 @@ export class DrawingApp {
     opts.source = source;
     opts.resource = resource;
     if (!this.storage.incognito && source) opts.name = this.storage.store.copyName(this.#stripExt(name), source);
+    // An inline layout (desktop/bot hand-off) restores annotations + filter + crop + page.
+    if (launch.layout) {
+      opts.layout = launch.layout;
+      opts.adoptLayout = true;
+    }
 
-    fetch(payload.dataUrl)
-      .then(r => r.blob())
+    // `src` launches carry an http(s) image URL instead of inline bytes (kept short for
+    // links sent through chat). The fetch is best-effort: the host must allow CORS.
+    const imageUrl = launch.kind === 'src' ? launch.src : launch.dataUrl;
+    if (launch.kind === 'src' && !opts.source) opts.source = launch.src;
+    fetch(imageUrl, launch.kind === 'src' ? { mode: 'cors' } : undefined)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
       .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), opts))
       .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
+  }
+
+  // Open a server project referenced by an external launch: connect to the server the
+  // way a user would from the connect modal (reuse the live connection, else a saved
+  // token, else mint one via POST /auth/token), then open the project — as an unlinked
+  // incognito copy when the launch asked for incognito, else as the normal linked open.
+  async #applyServerLaunch(launch) {
+    let url;
+    try { url = normalizeUrl(launch.server.url); } catch { throw new Error('bad server URL'); }
+    if (!this.connections.has(url)) {
+      const saved = loadSavedServers().find(s => {
+        try { return normalizeUrl(s.url) === url; } catch { return false; }
+      });
+      // A link can name ANY server — don't let a drive-by URL silently add a
+      // (persisted) connection to an origin this browser has never used. Known
+      // origins (live or saved) skip the prompt.
+      if (!saved && !(await this.confirm(
+        `This link opens a shared project on ${url}. Connect to that server?`,
+        { title: 'Open shared project', confirmLabel: 'Connect' }))) {
+        return;
+      }
+      try {
+        await this.connections.connect({ url, token: (saved && saved.token) || '' });
+      } catch (err) {
+        // The normal connect error path: surface the failure and open the connect modal
+        // so the user can supply a token / fix the URL.
+        notify(`Could not connect to ${url} — ${err.message}`, 'fail');
+        document.getElementById('connect-btn')?.click();
+        return;
+      }
+    }
+    if (launch.incognito) {
+      await this.copyServerProjectToIncognito({ serverUrl: url, id: launch.server.id }, {});
+    } else {
+      await this.openRemoteProject({ serverUrl: url, id: launch.server.id });
+    }
+  }
+
+  // Fetch a remote project's image + layout and load it into the editor, linking the
+  // session for live co-edit. If a local project is already linked to this server
+  // project, just switch to it — never create a duplicate local copy or re-download.
+  // `meta` needs { serverUrl, id }; name/source enrich the fallback filename.
+  async openRemoteProject(meta) {
+    const linked = this.storage.store.list().find(m => m.remoteId === meta.id && m.address === meta.serverUrl);
+    if (linked) { this.switchToProject(linked.id); return; }
+    const conn = requireConnection(this.connections, meta.serverUrl);
+    const full = await conn.getProject(meta.id);
+    // Prefer the server's stored original bytes; if it holds none, fetch the `source`
+    // URL directly (cross-origin, so it needs CORS — which typical image hosts send).
+    const src = full.project?.source || meta.source || '';
+    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    if (!blob) throw new Error('no image bytes on the server');
+    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+    const name = full.project?.name || meta.name || 'image';
+    const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
+    this.loadImageFromFile(file, {
+      source: src,
+      resource: full.project?.resource || '',
+      color: full.project?.color || '',
+      address: meta.serverUrl,
+      remoteId: meta.id,
+      version: full.project?.version || 0,
+      layout: full.layout,
+    });
   }
 
   // Base name without its file extension (for project naming / source matching).
@@ -3279,6 +3382,11 @@ export class DrawingApp {
     if (loadBtn) loadBtn.style.display = hasImage ? 'none' : '';
     const imgActions = document.getElementById('image-actions');
     if (imgActions) imgActions.style.display = hasImage ? 'inline-flex' : 'none';
+    // "Open in…" hides entirely when neither target is available (nothing to open into),
+    // so it never shows a dead/greyed control. Availability tracks the loaded config +
+    // whether this is a server project (see openInAvailable).
+    const openInBtn = document.getElementById('open-in-btn');
+    if (openInBtn) openInBtn.style.display = (hasImage && this.openInAvailable()) ? '' : 'none';
     // Recompose tooltips so the reason line appears/clears with the disabled state
     // (and hotkey buttons keep their combo). Covers every control carrying either
     // a hotkey id or a disabled-reason.
@@ -3625,6 +3733,32 @@ export class DrawingApp {
     notify('Sync conflict — reloaded latest from the server', 'info');
     this.reloadRemoteActive();
     return null;
+  }
+
+  // The current session as an "Open in…" hand-off payload (the #stencil= fragment shape):
+  // a server reference for a linked session (the receiver re-fetches — no bytes, no token),
+  // else the inline image + full layout. Consumed by the Open-in modal for the desktop
+  // stencil:// link and by anything that mirrors this session into another front-end.
+  openInLaunchPayload({ incognito = false } = {}) {
+    const p = this.remoteLink
+      ? {
+        server: {
+          url: this.remoteLink.address,
+          id: this.remoteLink.remoteId,
+          version: this.remoteLink.version || 0,
+        },
+      }
+      : {
+        dataUrl: this.imageDataUrl,
+        name: `${this.imageBaseName || 'image'}.${this.imageExt || 'png'}`,
+        layout: this.#currentLayoutPayload(),
+      };
+    if (!this.remoteLink) {
+      if (this.imageSource) p.source = this.imageSource;
+      if (this.imageResource) p.resource = this.imageResource;
+    }
+    if (incognito) p.incognito = true;
+    return p;
   }
 
   // The current editor state as a server layout payload (lines + filter + geometry + page +

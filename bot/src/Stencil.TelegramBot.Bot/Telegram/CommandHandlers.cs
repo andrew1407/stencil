@@ -10,6 +10,7 @@ using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -29,6 +30,7 @@ public sealed class CommandHandlers
     private readonly ITelegramBotClient _bot;
     private readonly BotOptions _options;
     private readonly SyncRegistry _sync;
+    private readonly LayoutFetcher _layoutFetcher;
     private readonly ILogger<CommandHandlers> _logger;
 
     public CommandHandlers(
@@ -38,6 +40,7 @@ public sealed class CommandHandlers
         ITelegramBotClient bot,
         BotOptions options,
         SyncRegistry sync,
+        LayoutFetcher layoutFetcher,
         ILogger<CommandHandlers> logger)
     {
         _editing = editing;
@@ -46,6 +49,7 @@ public sealed class CommandHandlers
         _bot = bot;
         _options = options;
         _sync = sync;
+        _layoutFetcher = layoutFetcher;
         _logger = logger;
     }
 
@@ -53,7 +57,7 @@ public sealed class CommandHandlers
     public Task DispatchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>
         cmd.Verb switch
         {
-            "start" => StartAsync(chatId, ct),
+            "start" => StartAsync(userId, chatId, cmd, ct),
             "help" => HelpAsync(chatId, ct),
             "connect" => ConnectAsync(userId, chatId, cmd, ct),
             "disconnect" => DisconnectAsync(userId, chatId, cmd, ct),
@@ -88,19 +92,117 @@ public sealed class CommandHandlers
             "reset" => ResetAsync(userId, chatId, ct),
             "drop" => DropAsync(userId, chatId, ct),
             "image" => ImageAsync(userId, chatId, ct),
+            "layout" => LayoutAsync(userId, chatId, cmd, ct),
             "json" => JsonAsync(userId, chatId, ct),
             "status" => StatusAsync(userId, chatId, ct),
             "cancel" => CancelAsync(chatId, ct),
             _ => UnknownAsync(chatId, ct),
         };
 
-    /// <summary>Greet the user and show the main menu.</summary>
-    private Task StartAsync(long chatId, CancellationToken ct) =>
-        _bot.SendMessage(
+    /// <summary>
+    /// Greet the user — or, when the message carries a deep-link start payload (a
+    /// t.me/&lt;bot&gt;?start=&lt;payload&gt; link from the browser/desktop "Open in…"), connect to
+    /// the referenced server like a fresh client and open the project.
+    /// </summary>
+    private async Task StartAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.ArgumentText.Length > 0
+            && DeepLinkCodec.TryDecode(cmd.ArgumentText, out string serverUrl, out string projectId))
+        {
+            await OpenDeepLinkedProjectAsync(userId, chatId, serverUrl, projectId, ct);
+            return;
+        }
+        await _bot.SendMessage(
             chatId,
             "Welcome to Stencil. Send a photo to start editing, or tap a button below.",
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Open a deep-linked server project: reuse the session's connection to that origin, else
+    /// connect tokenless (the server mints one — no token ever rides the link), then fetch and
+    /// render. Failures reply with the manual /connect + /fetch recipe.
+    /// </summary>
+    private async Task OpenDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
+        string projectId, CancellationToken ct)
+    {
+        try
+        {
+            UserSession session = await _store.GetAsync(userId, ct);
+            if (session.FindConnection(serverUrl) is null)
+            {
+                await _servers.ConnectAsync(userId, serverUrl, token: null, !_options.TlsInsecure, ct);
+            }
+            UserSession updated = await _servers.FetchAsync(userId, projectId, serverUrl, ct);
+            await _bot.SendMessage(
+                chatId,
+                $"Loaded shared project '{updated.ActiveProjectName}' from {serverUrl}.",
+                cancellationToken: ct);
+            await RenderAndSendAsync(userId, chatId, ct, mutating: false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await _bot.SendMessage(
+                chatId,
+                $"Couldn't open the shared project — {ex.Message}\n\n"
+                + $"Try manually:\n/connect {serverUrl} [token]\n/fetch {projectId}",
+                cancellationToken: ct);
+        }
+    }
+
+    /// <summary>
+    /// Apply a layout to the working image: <c>/layout &lt;json | http(s) url to a .json&gt;</c> —
+    /// the command-line sibling of uploading a .json document. URLs are SSRF-vetted like /url.
+    /// </summary>
+    private async Task LayoutAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.ArgumentText.Length == 0)
+        {
+            await _bot.SendMessage(
+                chatId,
+                "Usage: /layout <layout JSON | link to a layout .json>, e.g. "
+                + "/layout {\"imageWidth\":800,\"imageHeight\":600,\"lines\":[…]} — "
+                + "or just upload the .json file.",
+                cancellationToken: ct);
+            return;
+        }
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (!session.HasImage)
+        {
+            await _bot.SendMessage(chatId, "Upload an image (or use /blank) before applying a layout.", cancellationToken: ct);
+            return;
+        }
+        byte[] bytes;
+        bool isUrl = cmd.Args.Count == 1
+            && Uri.TryCreate(cmd.Args[0], UriKind.Absolute, out Uri? uri)
+            && uri.Scheme is "http" or "https";
+        if (isUrl)
+        {
+            // Same guard as /url: the bot is open to any Telegram user, so reject
+            // loopback/private/metadata hosts before fetching.
+            await RemoteImageUrl.ValidateAsync(cmd.Args[0], ct);
+            byte[]? fetched = await _layoutFetcher.FetchAsync(cmd.Args[0], ct);
+            if (fetched is null)
+            {
+                await _bot.SendMessage(chatId, "Could not fetch the layout from that link.", cancellationToken: ct);
+                return;
+            }
+            bytes = fetched;
+        }
+        else
+        {
+            bytes = Encoding.UTF8.GetBytes(cmd.ArgumentText);
+        }
+        StencilLayout? layout = StencilLayoutParser.Parse(bytes);
+        if (layout is null)
+        {
+            await _bot.SendMessage(chatId, "That isn't a valid Stencil layout JSON.", cancellationToken: ct);
+            return;
+        }
+        await _editing.ApplyLayoutAsync(userId, layout, ct);
+        await RenderAndSendAsync(userId, chatId, ct);
+    }
 
     /// <summary>Show the full command help plus the main menu.</summary>
     private Task HelpAsync(long chatId, CancellationToken ct) =>

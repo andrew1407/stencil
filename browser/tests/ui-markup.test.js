@@ -48,14 +48,20 @@ const IDS = [
     // Open-another-image modal (stencil-open-image-modal).
     'open-image-modal-overlay', 'open-image-close', 'open-image-file', 'open-image-incognito',
     'open-image-cancel', 'open-image-here', 'open-image-newtab',
+    // Open-in-another-app modal (stencil-open-in-modal) + its toolbar trigger. The
+    // #open-in-telegram button is always in the markup but hidden until the local
+    // openInConfig.json (loaded async) provides a bot username.
+    'open-in-btn', 'open-in-modal-overlay', 'open-in-close', 'open-in-status-row', 'open-in-status',
+    'open-in-incognito', 'open-in-fallback-row', 'open-in-fallback-cmds', 'open-in-fallback-copy',
+    'open-in-hint', 'open-in-cancel', 'open-in-desktop', 'open-in-telegram',
     // Generic confirm modal (stencil-confirm-modal) replacing native confirm().
     'confirm-modal-overlay', 'confirm-modal-close', 'confirm-modal-title', 'confirm-modal-title-text',
     'confirm-modal-message', 'confirm-modal-cancel', 'confirm-modal-cancel-text',
     'confirm-modal-confirm', 'confirm-modal-confirm-text'
 ];
 
-test('fixture has exactly 183 IDs', () => {
-    assert.strictEqual(IDS.length, 183);
+test('fixture has exactly 196 IDs', () => {
+    assert.strictEqual(IDS.length, 196);
 });
 
 test('every static body ID is present exactly once', () => {

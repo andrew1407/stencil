@@ -540,6 +540,7 @@ export const createStencil = (app) => {
     copyImage() { app.copyImageToClipboard(); return stencil; }, // alias of copyImageToClipboard
     copyImageToClipboard() { app.copyImageToClipboard(); return stencil; },
     shareImage() { app.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
+    openIn() { document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
     downloadLayout() { app.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
     set layout(data) { app.applyPastedLayout(data); },

@@ -7,6 +7,7 @@ class QCheckBox;
 class QDoubleSpinBox;
 class QSpinBox;
 class QPushButton;
+class QLineEdit;
 
 // Settings editor. Mirrors browser/js/ui/settingsModal.js (theme, autosave,
 // visibility toggles and the default line visuals). Construct with the current
@@ -37,6 +38,8 @@ namespace stencil::gui {
     QDoubleSpinBox* customW_ = nullptr;
     QDoubleSpinBox* customH_ = nullptr;
     QSpinBox* holdDelay_ = nullptr;
+    QLineEdit* browserUrl_ = nullptr;   // "Open in…" browser-app base URL
+    QLineEdit* botUsername_ = nullptr;  // "Open in…" Telegram bot username
     QString colorHex_;
   };
 

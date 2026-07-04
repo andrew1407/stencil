@@ -37,6 +37,20 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>${MACOSX_BUNDLE_COPYRIGHT}</string>
+	<!-- stencil:// deep links (cross-front-end "Open in…"): opening one sends the
+	     app a QFileOpenEvent whose url() is set (see gui/main.cpp). Registered by
+	     LaunchServices when the app is installed (not when run from build/). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>stencil</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

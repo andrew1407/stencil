@@ -30,6 +30,7 @@ class QPixmap;
 class QMenu;
 class QDragEnterEvent;
 class QDropEvent;
+class QUrl;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -68,6 +69,12 @@ namespace stencil::gui {
     // the window. Sniffs the suffix: *.json → layout, else image/video → --src.
     // `frame` selects the video frame (0 = first).
     void openPathFromOS(const QString& path, int frame = 0);
+
+    // Open a stencil:// deep link handed in by the OS (macOS QFileOpenEvent url,
+    // Linux argv %u): parse it (launchOptions parseStencilUrl) and apply it like
+    // launch options — a server-project reference connects + opens; inline
+    // src/layout load like --src/--layout. Malformed links just notify.
+    void openStencilUrl(const QUrl& url);
 
    private slots:
     void openImage();
@@ -310,8 +317,25 @@ namespace stencil::gui {
     // Open a server-stored project: download its original image + layout, load them
     // into this canvas, and link the session to {serverUrl, id, version}. `silent`
     // suppresses the "Opened …" toast (used by the live-co-edit poll, which reloads
-    // repeatedly when peers change the project).
-    bool openServerProject(const QString& serverUrl, const QString& id, bool silent = false);
+    // repeatedly when peers change the project). link=false adopts the content only —
+    // no session link, no live co-edit, nothing pushed back — the desktop analogue of
+    // the browser's copyServerProjectToIncognito (used by incognito deep links).
+    bool openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
+                           bool link = true);
+    // Deep-link support: connect to `serverUrl` the way a user would from the
+    // Servers dialog (reuse the live connection, else a saved token, else mint one
+    // via POST /auth/token), then open project `id` — unlinked when `incognito`.
+    // On connect failure notifies and opens the Servers dialog (the normal path).
+    void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito);
+    // "Open in…" (browser app / Telegram bot) dialog for the current session —
+    // the desktop counterpart of the browser's open-in modal (openInModal.js).
+    void openInAnotherApp();
+    // Adopt a full layout envelope (crop + rotation + filter + lines + page/formulas,
+    // in the ORIGINAL image's pixel space) onto `img` and show it — the shared body of
+    // opening a server project and of an inline browser→desktop "Open in…" hand-off.
+    // Unlike applyLayoutJson (the lines-only file-import path), this restores the crop,
+    // rotation and filter too, so no dimension-mismatch prompt and nothing is dropped.
+    void loadImageWithLayout(const QImage& img, const QJsonObject& layout);
     // The current page format + x/y formulas (from global settings) as a layout-envelope meta,
     // passed to buildLayoutJson on server save so they round-trip to the browser/peers.
     fileStore::LayoutMeta currentLayoutMeta() const;
@@ -518,6 +542,7 @@ namespace stencil::gui {
     QAction* actInfo_ = nullptr;
     QAction* actIncognito_ = nullptr;
     QAction* actShortcuts_ = nullptr;
+    QAction* actOpenIn_ = nullptr;   // "Open In…" (browser / Telegram) — see openInAnotherApp
     QAction* actQuit_ = nullptr;
 
     // ── Data actions (S9; browser toolbar.js Image/Layout buttons + the paste
@@ -640,6 +665,9 @@ namespace stencil::gui {
     MediaLoader* mediaLoader_ = nullptr;
     // A --layout source held until the --src image has loaded, then applied once.
     QString pendingLaunchLayout_;
+    // Inline layout JSON from a stencil:// deep link, applied once the src image
+    // has loaded (the in-URL sibling of pendingLaunchLayout_).
+    QString pendingLaunchLayoutJson_;
 
     // macOS Dock menu, shared across all windows (last setAsDockMenu wins, so a
     // single app-lifetime menu avoids dangling when a window closes). Owned by the

@@ -1,6 +1,8 @@
 #include "mainWindow.hpp"
 #include "blankImageDialog.hpp"
+#include "deepLink.hpp"
 #include "openImageDialog.hpp"
+#include "openInDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
 #include "incognitoOverlay.hpp"
@@ -36,6 +38,7 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QDoubleSpinBox>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -494,6 +497,9 @@ namespace stencil::gui {
     tip(actConnect_,
         "Connect to collaboration servers — shared projects appear with a golden outline");
     actLinks_ = mk("Image Links…", hotkey("openLinks", "Ctrl+Shift+L"));
+    actOpenIn_ = mk("Open In…", hotkey("openIn", "Ctrl+Shift+E"));
+    tip(actOpenIn_,
+        "Open the current project in the browser app or the Telegram bot");
     // New Project has no shared hotkeysConfig.json entry; literal default here.
     actNewProject_ = mk("New Project", "Ctrl+Shift+N");
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
@@ -606,6 +612,7 @@ namespace stencil::gui {
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
     connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);
     connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
+    connect(actOpenIn_, &QAction::triggered, this, &MainWindow::openInAnotherApp);
     connect(actNewProject_, &QAction::triggered, this,
             &MainWindow::newProjectFromCanvas);
     connect(actSaveProject_, &QAction::triggered, this,
@@ -904,6 +911,7 @@ namespace stencil::gui {
     actProjectColorClear_->setEnabled(false);
     project->addSeparator();
     project->addAction(actLinks_);
+    project->addAction(actOpenIn_);
 
     auto* help = menuBar()->addMenu("&Help");
     help->addAction(actInfo_);
@@ -939,6 +947,8 @@ namespace stencil::gui {
     // Connect/Servers affordance on the top bar (mirrors the browser's #connect-btn
     // icon button) — not just the Project-menu entry, so it is one click away.
     tb->addAction(actConnect_);
+    // "Open in…" (browser / Telegram) — mirrors the browser's #open-in-btn.
+    tb->addAction(actOpenIn_);
     // Incognito as a checkable toolbar icon (mirrors the browser's #incognito-toggle):
     // bound to the SAME actIncognito_ as the View-menu entry, so toggle state, the
     // active highlight (QAction checked), and the disabled-when-an-image-is-loaded
@@ -1742,6 +1752,17 @@ namespace stencil::gui {
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
+    // "Open in…" mirrors the browser's #open-in-btn gating: hidden entirely when no
+    // target is available (no browser URL, and no Telegram bot / not a server project),
+    // otherwise enabled only with an image loaded.
+    if (actOpenIn_) {
+      const bool serverProj = !remoteAddress_.isEmpty() && !remoteId_.isEmpty();
+      const bool browserAvail = !settings_.browserBaseUrl.trimmed().isEmpty();
+      const bool telegramAvail = !settings_.telegramBotUsername.trimmed().isEmpty() && serverProj;
+      const bool anyAvail = browserAvail || telegramAvail;
+      actOpenIn_->setVisible(anyAvail);
+      actOpenIn_->setEnabled(hasImg && anyAvail);
+    }
     updateProjectTitle();   // keep the window title + toolbar name field in sync
   }
 
@@ -2399,6 +2420,7 @@ namespace stencil::gui {
     set(actNewBlank_, "plus-circle");
     set(actLinks_, "link");
     set(actConnect_, "server");
+    set(actOpenIn_, "monitor");
     set(actCrop_, "crop");
     set(actRotateLeft_, "rotate-ccw");
     set(actRotateRight_, "rotate-cw");
@@ -2928,6 +2950,7 @@ namespace stencil::gui {
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
     refreshActions();
+    fitToWindow();   // fit the opened project to the window (matches the browser)
     notify_->success(
         QString("Opened \"%1\"").arg(QString::fromStdString(pr->meta.name)));
     return true;
@@ -2994,8 +3017,36 @@ namespace stencil::gui {
     }
   }  // namespace
 
+  // Adopt a full layout envelope onto `img` (crop + rotation + filter + lines +
+  // page/formulas). Shared by openServerProject and the inline browser→desktop
+  // "Open in…" hand-off so both restore the exact session — not just the lines.
+  void MainWindow::loadImageWithLayout(const QImage& img, const QJsonObject& layout) {
+    // Adopt the page format + formulas before sizing the canvas page below.
+    adoptServerLayoutMeta(layout);
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+    // Restore geometry (rotation + crop) from the layout, then adopt the lines. Rotation
+    // applies before the crop (the crop lives in rotated-original space); an empty/old
+    // layout default-crops and stays un-rotated.
+    int lw = 0, lh = 0;
+    core::CropRect crop;
+    int rot = 0;
+    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot);
+    canvas_->loadFromImage(img, crop, rot);
+    if (!lines.empty()) canvas_->setLines(lines);
+    // Restore the saved filter/tint (an empty layout resets to "none" + the default tint,
+    // so a prior image's filter — or the desktop's default filter — doesn't bleed in).
+    QString filter, tint;
+    parseLayoutFilter(layout, settings_.filterColor, filter, tint);
+    applyTintColor(QColor(tint));
+    applyImageFilter(filter);
+  }
+
   // later Save writes back. Mirrors the browser projectsModal openRemote().
-  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id, bool silent) {
+  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id, bool silent,
+                                     bool link) {
     if (!connections_) return false;
     // Loading the canvas below emits changed() — guard so it isn't taken for a user
     // edit and pushed straight back (feedback loop).
@@ -3028,41 +3079,35 @@ namespace stencil::gui {
       notify_->error("Server image could not be decoded");
       return false;
     }
-    // Adopt the project's page format + formulas before sizing the canvas page below.
-    adoptServerLayoutMeta(layout);
-    {
-      const core::PageSize page = naturalPageCm(pageSizeValue(),
-                                                settings_.customPageWidth,
-                                                settings_.customPageHeight);
-      canvas_->setPageCm(page.width, page.height);
-    }
-    // Restore the project's geometry (rotation + crop) from the layout, then adopt its
-    // lines. Rotation applies before the crop (the crop lives in rotated-original space);
-    // an empty/old layout default-crops and stays un-rotated.
-    int lw = 0, lh = 0;
-    core::CropRect crop;
-    int rot = 0;
-    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot);
-    canvas_->loadFromImage(img, crop, rot);
-    if (!lines.empty()) canvas_->setLines(lines);
-    // Restore the project's saved filter/tint (an empty layout resets to "none" + the
-    // default tint, so the previously-open project's filter doesn't bleed onto this image).
-    QString filter, tint;
-    parseLayoutFilter(layout, settings_.filterColor, filter, tint);
-    applyTintColor(QColor(tint));
-    applyImageFilter(filter);
+    // Adopt the full layout (page/formulas + geometry + lines + filter) onto the image.
+    loadImageWithLayout(img, layout);
     // Link the session; clear any local-project linkage so saves go to the server.
+    // Unlinked (incognito deep-link) opens adopt the content only: no remote link,
+    // no live co-edit, nothing ever pushed back — mirroring the browser's
+    // copyServerProjectToIncognito semantics.
     activeProjectId_.clear();
-    remoteAddress_ = serverUrl;
-    remoteId_ = id;
-    remoteName_ = meta.name;
-    remoteColor_ = meta.color;
-    remoteVersion_ = meta.version;
+    if (link) {
+      remoteAddress_ = serverUrl;
+      remoteId_ = id;
+      remoteName_ = meta.name;
+      remoteColor_ = meta.color;
+      remoteVersion_ = meta.version;
+    } else {
+      remoteAddress_.clear();
+      remoteId_.clear();
+      remoteName_.clear();
+      remoteColor_.clear();
+      remoteVersion_ = 0;
+      stopRemotePoll();
+    }
     currentSource_ = meta.source;
     currentResource_ = meta.resource;
     filterDirty_ = false;   // we just adopted the server/project filter
     refreshActions();
-    startRemotePoll();   // live co-edit: watch for peers changing this project
+    // Fit the freshly-opened image to the window (matches the browser's switchToProject).
+    // Skipped for a silent live-poll reload so a peer's edit doesn't reset the user's zoom/pan.
+    if (!silent) fitToWindow();
+    if (link) startRemotePoll();   // live co-edit: watch for peers changing this project
     if (!silent)
       notify_->success(QString("Opened \"%1\" from %2")
                            .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
@@ -3404,12 +3449,21 @@ namespace stencil::gui {
       applySettings(settings_, /*persist=*/true);
     }
 
-    // Primary content priority: --project > --src > a bare positional file.
+    // Primary content priority: --project > a stencil:// server reference >
+    // --src > a bare positional file.
     if (!opts.project.isEmpty()) {
       if (!openProjectByName(opts.project))
         notify_->error(QString("No project named \"%1\"").arg(opts.project));
+    } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
+      // Queued so the connect + download run on the event loop after show().
+      const QString url = opts.serverUrl, id = opts.serverProjectId;
+      const bool incog = opts.incognito;
+      QTimer::singleShot(0, this, [this, url, id, incog] {
+        openServerLaunch(url, id, incog);
+      });
     } else if (!opts.src.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;  // applied after the image loads
+      pendingLaunchLayoutJson_ = opts.layoutJson;
       openImageSource(opts.src, opts.frame);
     } else if (!opts.file.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;
@@ -3421,6 +3475,144 @@ namespace stencil::gui {
     if (opts.projects) QTimer::singleShot(0, this, &MainWindow::openProjects);
   }
 
+  // A stencil:// deep link arriving on a RUNNING app (macOS QFileOpenEvent url).
+  // Same fields as a launch, minus the theme/projects extras.
+  void MainWindow::openStencilUrl(const QUrl& url) {
+    const LaunchOptions opts = parseStencilUrl(url);
+    if (opts.empty()) {
+      notify_->error("Could not read the stencil:// link");
+      return;
+    }
+    applyLaunchOptions(opts);
+  }
+
+  // Deep-link server open: connect like a fresh manual client, then open the project.
+  void MainWindow::openServerLaunch(const QString& serverUrl, const QString& id,
+                                    bool incognito) {
+    // normalizeBase throws no exceptions but yields "" on junk — guard it.
+    const QString url = stencil::net::ServerClient::normalizeBase(serverUrl);
+    if (url.isEmpty()) {
+      notify_->error("Bad server URL in the link");
+      return;
+    }
+    if (incognito && actIncognito_->isEnabled()) actIncognito_->setChecked(true);
+    auto* mgr = ensureConnections();
+    if (!mgr->find(url)) {
+      // Reuse the saved token for this origin (the browser's saved-servers parity);
+      // else connect tokenless and the server mints one (POST /auth/token).
+      QString token;
+      bool known = false;
+      for (const auto& s : stencil::net::connectionStore::loadSavedServers()) {
+        if (stencil::net::ServerClient::normalizeBase(s.url) == url) {
+          token = s.token;
+          known = true;
+          break;
+        }
+      }
+      // A deep link can name ANY server — don't let a drive-by stencil:// URL
+      // silently add a (persisted) connection to an origin this machine has never
+      // used. Known origins (live or saved) skip the prompt.
+      if (!known
+          && QMessageBox::question(
+                 this, "Open shared project",
+                 QString("This link opens a shared project on %1.\nConnect to that server?")
+                     .arg(url)) != QMessageBox::Yes) {
+        return;
+      }
+      QString err;
+      if (!mgr->connectTo(url, token, err)) {
+        // The normal connect path: surface the failure and open the Servers dialog
+        // so the user can supply a token / fix the URL.
+        notify_->error(QString("Could not connect to %1 — %2").arg(url, err));
+        openConnections();
+        return;
+      }
+      warnInsecureConnections();
+    }
+    openServerProject(url, id, /*silent=*/false, /*link=*/!incognito);
+  }
+
+  // "Open in…" — mirror the current session into the browser app or the Telegram
+  // bot. A server-linked session sends only the server reference (the receiver
+  // connects like a fresh client — no token in any link); a local/incognito session
+  // embeds the image + full layout inline in the browser fragment. Telegram is
+  // server-projects-only (image bytes can't ride a 64-char start payload).
+  void MainWindow::openInAnotherApp() {
+    if (!canvas_->hasImage()) {
+      notify_->error("Load an image first");
+      return;
+    }
+    const bool serverProject = !remoteAddress_.isEmpty() && !remoteId_.isEmpty();
+    const QString botUsername = settings_.telegramBotUsername.trimmed();
+    const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
+    const bool telegramAvailable = !botUsername.isEmpty() && serverProject;
+    if (!browserAvailable && !telegramAvailable) {
+      // Shouldn't happen (actOpenIn_ is hidden when nothing's available), but guard.
+      notify_->info("Nothing to open into — set a browser URL in Settings "
+                    "(or a Telegram bot for server projects).");
+      return;
+    }
+    OpenInDialog dlg(this, serverProject, remoteAddress_, browserAvailable, telegramAvailable, incognito_);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const bool incog = dlg.incognito();
+
+    if (dlg.outcome() == OpenInDialog::Outcome::Telegram) {
+      if (!serverProject) return;  // the dialog disables this outcome anyway
+      const QString payload = deepLink::encodeTelegramStartPayload(remoteAddress_, remoteId_);
+      if (payload.isEmpty()) {
+        // 64-char overflow (very long host): hand over the manual recipe instead
+        // of a dead link, and open the bot chat.
+        QMessageBox::information(
+            this, "Link too long for Telegram",
+            QString("The server address doesn't fit a Telegram start link.\n"
+                    "Open the bot chat and paste:\n\n/connect %1\n/fetch %2")
+                .arg(remoteAddress_, remoteId_));
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
+        return;
+      }
+      QDesktopServices::openUrl(QUrl(deepLink::buildTelegramLink(botUsername, payload)));
+      return;
+    }
+
+    // Browser app.
+    QJsonObject payload;
+    if (serverProject) {
+      QJsonObject server;
+      server["url"] = remoteAddress_;
+      server["id"] = remoteId_;
+      if (remoteVersion_ > 0) server["version"] = remoteVersion_;
+      payload["server"] = server;
+    } else {
+      QByteArray png;
+      QBuffer buf(&png);
+      buf.open(QIODevice::WriteOnly);
+      canvas_->originalImage().save(&buf, "PNG");
+      payload["dataUrl"] =
+          QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64());
+      payload["name"] = projectBaseName() + ".png";
+      payload["layout"] = fileStore::buildLayoutJson(
+          canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
+          settings_.imageFilter, settings_.filterColor, canvas_->cropRect(),
+          canvas_->rotationQuarters(), currentLayoutMeta());
+      if (!currentSource_.isEmpty()) payload["source"] = currentSource_;
+      if (!currentResource_.isEmpty()) payload["resource"] = currentResource_;
+    }
+    if (incog) payload["incognito"] = true;
+
+    const QString url =
+        deepLink::buildBrowserLaunchUrl(settings_.browserBaseUrl, payload);
+    // Inline hand-offs ride the OS launcher's argv, which tolerates far less than an
+    // in-page URL: refuse absurd payloads, warn on large ones (server links stay tiny).
+    if (!serverProject && url.size() > 1000000) {
+      notify_->error(
+          "Image too large to hand off inline — save it to a server and share the server link");
+      return;
+    }
+    if (!serverProject && url.size() > 200000)
+      notify_->info("Large image — the hand-off may fail; prefer saving to a server");
+    QDesktopServices::openUrl(QUrl(url));
+  }
+
   // Lazily construct + wire the async --src resolver (image / URL / video frame).
   void MainWindow::ensureMediaLoader() {
     if (mediaLoader_) return;
@@ -3429,6 +3621,7 @@ namespace stencil::gui {
             &MainWindow::onLaunchImageLoaded);
     connect(mediaLoader_, &MediaLoader::failed, this, [this](const QString& msg) {
       pendingLaunchLayout_.clear();
+      pendingLaunchLayoutJson_.clear();
       pendingProvSource_.clear();
       pendingProvResource_.clear();
       notify_->error(msg);
@@ -3436,6 +3629,29 @@ namespace stencil::gui {
   }
 
   void MainWindow::openImageSource(const QString& src, int frame) {
+    // Inline data: URL (a browser→desktop stencil:// hand-off): decode directly —
+    // MediaLoader resolves paths/URLs/video, not data URIs.
+    if (src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
+      const int comma = src.indexOf(QLatin1Char(','));
+      QImage img;
+      bool ok = comma > 0;
+      if (ok) {
+        const QString meta = src.left(comma);
+        const QByteArray payload = src.mid(comma + 1).toUtf8();
+        const QByteArray bytes = meta.contains(QLatin1String(";base64"), Qt::CaseInsensitive)
+                                     ? QByteArray::fromBase64(payload)
+                                     : QByteArray::fromPercentEncoding(payload);
+        ok = img.loadFromData(bytes);
+      }
+      if (!ok) {
+        pendingLaunchLayout_.clear();
+        pendingLaunchLayoutJson_.clear();
+        notify_->error("Could not decode the inline image");
+        return;
+      }
+      onLaunchImageLoaded(img, QString());
+      return;
+    }
     ensureMediaLoader();
     notify_->info("Opening…");
     mediaLoader_->load(src, frame);
@@ -3475,6 +3691,33 @@ namespace stencil::gui {
     pendingProvSource_.clear();
     pendingProvResource_.clear();
 
+    // Inline full-layout hand-off (browser→desktop "Open in…" of a local/incognito
+    // project): the layout describes crop + rotation + filter + lines + page in the
+    // ORIGINAL image's space, so adopt it exactly like a server project — NOT the
+    // default auto-crop + lines-only import, which would prompt on a dimension mismatch,
+    // drop the lines, and ignore the filter. The image always arrives in-memory (a
+    // data: URL decoded in openImageSource), so `image` is set here.
+    if (!pendingLaunchLayoutJson_.isEmpty()) {
+      const QString json = pendingLaunchLayoutJson_;
+      pendingLaunchLayoutJson_.clear();
+      pendingLaunchLayout_.clear();   // an inline layout supersedes any --layout source
+      QJsonParseError err{};
+      const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &err);
+      if (err.error == QJsonParseError::NoError && doc.isObject() && !image.isNull()) {
+        loadImageWithLayout(image, doc.object());
+        currentSource_ = provSource;
+        currentResource_ = provResource;
+        refreshActions();
+        fitToWindow();
+        notify_->success("Opened from Stencil");
+        return;
+      }
+      notify_->error("Invalid layout in the stencil:// link"
+                     + (err.error != QJsonParseError::NoError ? QStringLiteral(": ") + err.errorString()
+                                                              : QString()));
+      // Fall through to a plain image load below.
+    }
+
     const core::PageSize page = naturalPageCm(pageSizeValue(),
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
@@ -3502,7 +3745,9 @@ namespace stencil::gui {
     fitToWindow();
     notify_->success("Image opened");
 
-    // --layout: apply now that an image exists (applyLayoutJson needs one).
+    // --layout: apply now that an image exists (applyLayoutJson needs one). This is the
+    // path/URL --layout variant; the inline stencil:// layout is handled up top via the
+    // full-adoption branch.
     if (!pendingLaunchLayout_.isEmpty()) {
       const QString src = pendingLaunchLayout_;
       pendingLaunchLayout_.clear();

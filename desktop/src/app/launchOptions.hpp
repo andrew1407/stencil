@@ -2,6 +2,7 @@
 #include <QString>
 
 class QCoreApplication;
+class QUrl;
 
 // Command-line launch options for the desktop app (the executable counterpart of
 // the browser's URL deep-links — applyExternalLaunch '#stencil=' and
@@ -48,17 +49,39 @@ namespace stencil::gui {
     // suffix-sniffing open path as drag-and-drop. Lower priority than --src.
     QString file;
 
+    // ── stencil:// deep-link fields (parseStencilUrl) ──
+    // serverUrl+serverProjectId: open that project from that collaboration server,
+    // connecting like a fresh client (reuse a saved token, else mint one via
+    // POST /auth/token — no token ever rides the link). Wins over src/file.
+    QString serverUrl;
+    QString serverProjectId;
+    qint64 serverVersion = 0;
+    // Inline layout JSON (the `layout=` query param), applied once the src image
+    // loads — the in-URL variant of --layout for browser→desktop hand-offs.
+    QString layoutJson;
+
     // True when nothing was requested (a plain launch) — applyLaunchOptions then
     // does nothing and the normal session-restore stands.
     bool empty() const {
       return !hasTheme && project.isEmpty() && src.isEmpty() && layout.isEmpty() &&
-             !projects && !incognito && file.isEmpty();
+             !projects && !incognito && file.isEmpty() && serverUrl.isEmpty() &&
+             serverProjectId.isEmpty() && layoutJson.isEmpty();
     }
   };
 
   // Parse the application's arguments into LaunchOptions. Uses QCommandLineParser
   // (exact long-option matching, so --project and --projects stay distinct) and
-  // tolerates malformed values by falling back to defaults.
+  // tolerates malformed values by falling back to defaults. A stencil:// positional
+  // (the OS scheme handler's argv form on Linux) routes through parseStencilUrl.
   LaunchOptions parseLaunchOptions(const QCoreApplication& app);
+
+  // Parse a `stencil://open?…` deep link (the inbound side of the cross-front-end
+  // "Open in…" feature; grammar mirrored by browser/js/core/deepLink.js
+  // buildStencilSchemeUrl). Recognized query params: server=<origin|host[:port]> +
+  // id=<projectId> [+ version=<n>] | src=<http(s) url|data:> [+ layout=<inline JSON>]
+  // [+ frame=<n>], plus incognito=1. server+id win over src; unknown params are
+  // ignored; a non-stencil URL yields empty options. src is restricted to web/data
+  // sources — links are remotely clickable, so local paths never ride them.
+  LaunchOptions parseStencilUrl(const QUrl& url);
 
 }

@@ -58,6 +58,12 @@ namespace stencil::gui {
     QString filterColor = "#7c3aed";
     // Hold-to-draw hold/dwell delay in ms (browser holdDrawDelay; clamped 100–3000).
     int holdDrawDelay = 500;
+    // "Open in…" targets: the browser app's base URL (opened via QDesktopServices
+    // with the #stencil= fragment) and the Telegram bot's username for t.me deep
+    // links (empty hides the Telegram option). Desktop-only settings — the browser
+    // keeps its equivalents in js/config/openInConfig.json.
+    QString browserBaseUrl = "http://localhost:8080";
+    QString telegramBotUsername;
   };
 
   // The autosaved in-progress drawing ("last edited points"), restored on launch.

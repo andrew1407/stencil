@@ -208,6 +208,7 @@ counterpart of the browser app's URL deep-links (`#stencil=` / `?open=`):
 | `--layout <path\|url>` | A layout JSON applied once the `--src` image loads successfully (local file or URL). Ignored without an image. |
 | `--projects` | Open the Projects window at launch. |
 | `<file>` (positional) | A bare image / video / layout-JSON path — the form an OS file-association or "Open With" passes. `*.json` is applied as a layout, anything else opened as an image/video. Lower priority than `--src`. |
+| `stencil://…` (positional) | A `stencil://open?…` deep link (the argv form a Linux scheme handler passes via `%u`). See **Deep links** below. |
 | `--help` | Show the full option list. |
 
 Examples:
@@ -242,6 +243,32 @@ and video frames are adopted in-memory (like a clipboard paste), so they carry n
 on-disk path; a local image `--src` keeps its path for session / project saves.
 Video support reads **direct** media files/URLs (it does not resolve streaming
 *page* links such as a YouTube watch URL).
+
+### Deep links (`stencil://`) and "Open In…"
+
+The desktop app registers the **`stencil://` URL scheme** (macOS via
+`CFBundleURLTypes` in the bundle plist, Linux via `x-scheme-handler/stencil` in the
+`.desktop` file; Windows registration is not shipped yet). Opening a link launches a
+fresh window — the same "separate client" a user would open manually:
+
+```
+stencil://open?server=<origin|host[:port]>&id=<projectId>[&version=<n>][&incognito=1]
+stencil://open?src=<http(s) url|data:…>[&layout=<inline JSON>][&frame=<n>][&incognito=1]
+```
+
+A `server`+`id` link connects to that collaboration server like a fresh client —
+reusing a saved token for the origin, else minting one via `POST /auth/token` (no
+token ever rides a link) — and opens the project; with `incognito=1` it opens an
+unlinked incognito copy (nothing pushed back). A `src` link opens an image (http(s)
+URL or inline `data:` URL — never a local path; links are remotely clickable) and
+applies the inline `layout` JSON once loaded. Connecting to a server the machine has
+never used first asks for confirmation, so a drive-by link can't silently add one.
+
+Outbound, **Project ▸ Open In…** (also on the toolbar) mirrors the current session
+the other way: into the **browser app** (the `#stencil=` fragment; base URL set in
+Settings → "Browser app URL") or the **Telegram bot** (server projects only; set
+Settings → "Telegram bot" to your bot's username). The browser's `launch.html`
+bounce page carries bot→desktop links, since chat apps only linkify http(s).
 
 ### OS-shell integration
 
