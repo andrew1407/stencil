@@ -30,14 +30,9 @@ graph TD
     COREJS -.->|"if wasm unavailable"| FB
     EXT -->|"feeds images · via URL fragment"| IDX
     COREJS -.->|"connect · REST + WS"| SRV
-
-    click CORE "../core/README.md#architecture" "Shared core architecture"
-    click EXT "../extension/README.md#architecture" "Chrome extension architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture).
+> **Surface diagrams:** [core](../core/README.md#architecture) · [extension](../extension/README.md#architecture) · [server](../server/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture).
 
 ## Features
 

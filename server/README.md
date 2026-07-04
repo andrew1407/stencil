@@ -39,14 +39,9 @@ graph TD
     STORE --> PG
     STORE --> FILES
     BUS -.-> RD
-
-    click WS "../browser/README.md#architecture" "Browser client architecture"
-    click TCP "../desktop/README.md#architecture" "Desktop client architecture"
-    click REST "../bot/README.md#architecture" "Telegram bot architecture"
 ```
 
-> Click a client node to open that surface's own architecture diagram, or see the
-> whole-system view in the [repository README](../README.md#architecture).
+> **Client diagrams:** [browser](../browser/README.md#architecture) · [desktop](../desktop/README.md#architecture) · [bot](../bot/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture).
 
 ## What it is for
 

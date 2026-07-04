@@ -18,15 +18,9 @@ graph TD
     CORE -->|"add_subdirectory(../core) + Qt 6"| DESK["<b>Desktop</b> (C++17 / Qt 6)"]
     CORE -->|"recompiled by build.zig · cliApi.h"| CLI["<b>CLI</b> (Zig + stb_image)"]
     CORE -->|"recompiled by build.py · cliApi.h via ctypes"| PY["<b>Python</b> (pystencil — stdlib only)"]
-
-    click WEB "../browser/README.md#architecture" "Browser app architecture"
-    click DESK "../desktop/README.md#architecture" "Desktop app architecture"
-    click CLI "../cli/README.md#architecture" "CLI architecture"
-    click PY "../pystencil/README.md#architecture" "Python package architecture"
 ```
 
-> Click a consumer to open its own architecture diagram, or see the whole-system view in
-> the [repository README](../README.md#architecture).
+> **Consumer diagrams:** [browser](../browser/README.md#architecture) · [desktop](../desktop/README.md#architecture) · [cli](../cli/README.md#architecture) · [python](../pystencil/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture).
 
 - **Desktop** ([`../desktop/`](../desktop/)) links the static `stencil_core` library via
   `add_subdirectory(../core)`.

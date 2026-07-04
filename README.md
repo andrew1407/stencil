@@ -47,21 +47,9 @@ graph TD
     CLI -.->|"connect · REST + TCP"| SRV
     PY -.->|"connect · REST + TCP"| SRV
     BOT -.->|"connect · REST"| SRV
-
-    click CORE "core/README.md#architecture" "Shared core architecture"
-    click WEB "browser/README.md#architecture" "Browser app architecture"
-    click DESK "desktop/README.md#architecture" "Desktop app architecture"
-    click CLI "cli/README.md#architecture" "CLI architecture"
-    click PY "pystencil/README.md#architecture" "Python package architecture"
-    click EXT "extension/README.md#architecture" "Chrome extension architecture"
-    click MCP "mcp/README.md#architecture" "MCP server architecture"
-    click BOT "bot/README.md#architecture" "Telegram bot architecture"
-    click SRV "server/README.md#architecture" "Collaboration server architecture"
 ```
 
-> Click any node to open that surface's own architecture diagram. The cross-surface
-> [`e2e/`](e2e/) harness (not shown — it drives the built artifacts, not a runtime
-> component) has its own [architecture diagram](e2e/README.md#architecture).
+> **Per-surface diagrams:** [core](core/README.md#architecture) · [browser](browser/README.md#architecture) · [desktop](desktop/README.md#architecture) · [cli](cli/README.md#architecture) · [python](pystencil/README.md#architecture) · [extension](extension/README.md#architecture) · [mcp](mcp/README.md#architecture) · [bot](bot/README.md#architecture) · [server](server/README.md#architecture) · [e2e](e2e/README.md#architecture). The cross-surface [`e2e/`](e2e/) harness drives the built artifacts, not a runtime component, so it isn't shown as a node above.
 
 The front-ends deliberately mirror each other's architecture. The **pure, GUI-free logic**
 — the formula parser, geometry, color, pixel↔page conversion, crop, a line rasteriser,

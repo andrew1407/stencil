@@ -45,13 +45,9 @@ graph TD
     PIPE -->|"spawn argv, NO_COLOR=1"| CLI
     CLI -.->|"fetch / publish projects · REST via the CLI"| SRV
     PIPE --> DEL
-
-    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture). The result data-flow is
+> **Surface diagrams:** [cli](../cli/README.md#architecture) · [server](../server/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture). The result data-flow is
 > detailed under [How it works](#how-it-works).
 
 ## Dependencies
@@ -341,8 +337,6 @@ graph TD
     CLI -->|"pixel / geometry work"| OUT
     OUT -->|"outcome.rs parses stderr → path, width, height"| DELIVER
     DELIVER -->|"tool result"| CLIENT
-
-    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
 ```
 
 The Rust layer owns only the protocol, the argument mapping, result parsing, and delivery;
