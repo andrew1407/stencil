@@ -6,6 +6,39 @@ modules** — no build step, no bundler, no third-party runtime dependencies.
 For the project overview and the desktop (C++/Qt) app, see the
 [repository README](../README.md).
 
+## Architecture
+
+```mermaid
+graph TD
+    CORE["<b>core/</b> — shared C++ logic"]
+    WASM["js/wasm/stencilCore.js<br/><i>generated from core/, gitignored</i>"]
+    subgraph APP["browser/ — vanilla ES modules, no build step"]
+      IDX["js/index.js — bootstraps DrawingApp"]
+      COREJS["js/core/ — DrawingApp + collaborators<br/><i>renderer · storage · history · zoom/pan · projects</i>"]
+      UI["js/ui/ — string-returning components<br/><i>composed by layout()</i>"]
+      API["js/console/ — window.stencil facade"]
+    end
+    FB["behavior-identical JS fallback<br/><i>used when wasm absent / under node --test</i>"]
+    EXT["Chrome extension"]
+    SRV["Collaboration server"]
+
+    CORE -->|"Emscripten → WebAssembly · wasmApi.cpp"| WASM
+    WASM --> COREJS
+    IDX --> COREJS
+    IDX --> UI
+    IDX --> API
+    COREJS -.->|"if wasm unavailable"| FB
+    EXT -->|"feeds images · via URL fragment"| IDX
+    COREJS -.->|"connect · REST + WS"| SRV
+
+    click CORE "../core/README.md#architecture" "Shared core architecture"
+    click EXT "../extension/README.md#architecture" "Chrome extension architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture).
+
 ## Features
 
 - Draw polylines and lockable, fillable rectangles/areas over an uploaded image

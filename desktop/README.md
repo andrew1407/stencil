@@ -4,6 +4,34 @@ The desktop front-end of Stencil: a C++17 + Qt 6 port that shares its pure logic
 with the browser app. For the project overview see the
 [repository README](../README.md).
 
+## Architecture
+
+```mermaid
+graph TD
+    CORE["<b>core/</b> — shared C++ logic<br/><i>add_subdirectory(../core), STL-only</i>"]
+    subgraph APP["desktop/ — C++17 + Qt 6"]
+      MAIN["app/ — main · MainWindow · launchOptions · selectionPanel"]
+      CANVAS["canvas/ — CanvasWidget (QPainter) + tooltip"]
+      DLG["dialogs/ — settings · projects · blank · crop · connect · …"]
+      IO["io/ — fileStore (persistence) · mediaLoader"]
+      NET["net/ — serverClient (REST)"]
+      SUP["support/ — theme · notifications · guiHelpers"]
+    end
+    SRV["Collaboration server"]
+
+    CORE -->|"linked static lib · pixel / geometry / page math"| CANVAS
+    CORE --> DLG
+    MAIN --> CANVAS
+    MAIN --> DLG
+    NET -.->|"connect · REST only (QNetworkAccessManager, no WS)"| SRV
+
+    click CORE "../core/README.md#architecture" "Shared core architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture).
+
 ## Dependencies
 
 Per the project's dependency policy, only **two** third-party libraries are used:

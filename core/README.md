@@ -7,7 +7,9 @@ project storage. It never includes Qt, touches the DOM, or links a codec — pur
 functions over plain values and caller-owned RGBA8 buffers. For the project overview
 see the [repository README](../README.md).
 
-One implementation, three consumers:
+## Architecture
+
+One implementation, four consumers:
 
 ```mermaid
 graph TD
@@ -15,12 +17,23 @@ graph TD
     CORE -->|"emcmake → WebAssembly · wasmApi.cpp"| WEB["<b>Browser</b> (vanilla ES modules)"]
     CORE -->|"add_subdirectory(../core) + Qt 6"| DESK["<b>Desktop</b> (C++17 / Qt 6)"]
     CORE -->|"recompiled by build.zig · cliApi.h"| CLI["<b>CLI</b> (Zig + stb_image)"]
+    CORE -->|"recompiled by build.py · cliApi.h via ctypes"| PY["<b>Python</b> (pystencil — stdlib only)"]
+
+    click WEB "../browser/README.md#architecture" "Browser app architecture"
+    click DESK "../desktop/README.md#architecture" "Desktop app architecture"
+    click CLI "../cli/README.md#architecture" "CLI architecture"
+    click PY "../pystencil/README.md#architecture" "Python package architecture"
 ```
+
+> Click a consumer to open its own architecture diagram, or see the whole-system view in
+> the [repository README](../README.md#architecture).
 
 - **Desktop** ([`../desktop/`](../desktop/)) links the static `stencil_core` library via
   `add_subdirectory(../core)`.
 - **CLI** ([`../cli/`](../cli/)) recompiles the same `.cpp` sources from `build.zig` and
   drives them over the [`cliApi.h`](cliApi.h) `extern "C"` ABI.
+- **Python** ([`../pystencil/`](../pystencil/)) likewise recompiles the same `.cpp` sources
+  from `build.py` and drives them over [`cliApi.h`](cliApi.h) via `ctypes` — stdlib only.
 - **Browser** ([`../browser/`](../browser/)) compiles [`wasmApi.cpp`](wasmApi.cpp) to
   **WebAssembly** and runs that compiled C++ at runtime, with a behavior-identical JS
   fallback when wasm isn't built — see [WASM.md](WASM.md).
@@ -28,8 +41,9 @@ graph TD
 ## Dependencies
 
 By design the core sits at the **bottom of the dependency policy**: the apps add at most
-Qt 6 (desktop), Zig + stb_image (CLI) or nothing (browser), but the core itself depends on
-**only the C++17 standard library** — plus one header for its own tests.
+Qt 6 (desktop), Zig + stb_image (CLI), Python + `ctypes` (pystencil), or nothing (browser),
+but the core itself depends on **only the C++17 standard library** — plus one header for its
+own tests.
 
 | Purpose | Library | How it's provided |
 |---|---|---|

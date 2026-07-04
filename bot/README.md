@@ -61,7 +61,35 @@ dotnet add src/Stencil.TelegramBot.Bot package Telegram.Bot
 
 Do **not** `dotnet tool install -g` anything for this bot.
 
-## Architecture (clean architecture)
+## Architecture
+
+A **clean-architecture** .NET app that shells out to the CLI and speaks the server's REST:
+
+```mermaid
+graph TD
+    subgraph BOT["bot/ — .NET, clean architecture (deps point inward)"]
+      PRES["Bot — Telegram presentation + console host"]
+      APP["Application — Editing · Servers use-cases"]
+      INFRA["Infrastructure — Cli · Server · Sessions · Workspace"]
+      DOMAIN["Domain — entities · abstractions<br/><i>(the frozen contract)</i>"]
+      PRES --> APP
+      APP --> DOMAIN
+      INFRA --> DOMAIN
+    end
+    CLI["Zig CLI"]
+    SRV["Collaboration server"]
+    RD[("Redis (optional)")]
+
+    INFRA -->|"shell-out · NO_COLOR=1 (ports mcp adapters)"| CLI
+    INFRA -->|"REST (ports the pystencil client)"| SRV
+    INFRA -.->|"per-user sessions"| RD
+
+    click CLI "../cli/README.md#architecture" "Zig CLI architecture"
+    click SRV "../server/README.md#architecture" "Collaboration server architecture"
+```
+
+> Click a node to open that surface's own architecture diagram, or see the whole-system
+> view in the [repository README](../README.md#architecture).
 
 Five projects, dependencies pointing inward (`Domain` has no project references):
 
