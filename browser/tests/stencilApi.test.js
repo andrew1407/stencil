@@ -112,6 +112,12 @@ const makeApp = (over = {}) => {
     downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
     newEditor: rec('newEditor'), updateIncognitoUI: rec('updateIncognitoUI'),
     renameProject: rec('renameProject'), renewProject: rec('renewProject'),
+    setProjectExpiration(id, opts) {
+      calls.push(['setProjectExpiration', id, opts]);
+      const m = app._metas.find((x) => x.id === id);
+      if (m) Object.assign(m, opts);
+      return m || null;
+    },
     setProjectColor(id, color) {
       calls.push(['setProjectColor', id, color]);
       const m = app._metas.find((x) => x.id === id);
@@ -361,6 +367,30 @@ test('project.renew/open/close route to app and return the project for chaining'
   assert.deepEqual(lastCall(app, 'switchToProject'), ['switchToProject', 2]);
   p.close({ fully: true });
   assert.deepEqual(lastCall(app, 'closeProject'), ['closeProject', 2, { fully: true }]);
+});
+
+test('project expiration facade: expiresAt/refreshPeriod/autoRefresh/keepForever route to app', () => {
+  const app = withProjects();
+  const stencil = createStencil(app);
+  const p = stencil.getProjectByName('beta');
+
+  const future = Date.now() + 10 * 24 * 60 * 60 * 1000;
+  p.expiresAt = future;
+  assert.deepEqual(lastCall(app, 'setProjectExpiration'), ['setProjectExpiration', 2, { expiresAt: future }]);
+  assert.throws(() => { p.expiresAt = Date.now() - 1000; }, /past/);
+  assert.throws(() => { p.expiresAt = 'not-a-date'; }, /Invalid expiration/);
+
+  p.refreshPeriod = 'month';
+  assert.deepEqual(lastCall(app, 'setProjectExpiration'), ['setProjectExpiration', 2, { refreshPeriod: 'month' }]);
+  assert.equal(p.refreshPeriod, 'month');
+  assert.throws(() => { p.refreshPeriod = 'decade'; }, /Invalid refresh period/);
+
+  p.autoRefresh = false;
+  assert.deepEqual(lastCall(app, 'setProjectExpiration'), ['setProjectExpiration', 2, { autoRefresh: false }]);
+  assert.equal(p.autoRefresh, false);
+
+  assert.equal(p.keepForever(), p);
+  assert.deepEqual(lastCall(app, 'setProjectExpiration'), ['setProjectExpiration', 2, { expiresAt: 0 }]);
 });
 
 test('incognito project: synthetic name + mutating links/name throw', () => {

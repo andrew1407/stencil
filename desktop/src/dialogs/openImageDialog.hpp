@@ -5,11 +5,15 @@
 class QLineEdit;
 class QCheckBox;
 class QPushButton;
+class QSpinBox;
+class QWidget;
 
 // "Open another image" dialog. Mirrors browser/js/ui/openImageModal.js: pick an
-// image file + an incognito flag, then choose to replace the current editor
-// ("Open here") or launch it in a new window ("Open in new window"). exec(); on
-// QDialog::Accepted read outcome()/path()/incognito() (rejected = canceled).
+// image OR video file, or a web URL, + an incognito flag, then choose to replace
+// the current editor ("Open here") or launch it in a new window. A video source
+// (local or URL) reveals a frame index to grab. exec(); on QDialog::Accepted read
+// outcome()/source()/incognito() (rejected = canceled). A URL or video source is
+// resolved asynchronously (via MediaLoader), so it only offers Here / NewWindow.
 namespace stencil::gui {
 
   class OpenImageDialog : public QDialog {
@@ -21,7 +25,11 @@ namespace stencil::gui {
     // options (only meaningful when a saved/linked project is open).
     explicit OpenImageDialog(QWidget* parent = nullptr, bool canReplace = false);
 
-    QString path() const;
+    // The chosen source: the URL when one is typed, else the browsed local path.
+    QString source() const;
+    bool isUrl() const;     // a URL was typed (vs a local file)
+    bool isVideo() const;   // the source is a video (local or URL) → grab a frame
+    int frame() const;      // 0-based video frame to grab (ignored for still images)
     bool incognito() const;
     bool rename() const;
     bool keepAnnotations() const;
@@ -32,6 +40,9 @@ namespace stencil::gui {
     void refreshButtons();
 
     QLineEdit* path_ = nullptr;
+    QLineEdit* url_ = nullptr;
+    QSpinBox* frame_ = nullptr;
+    QWidget* frameRow_ = nullptr;
     QCheckBox* incognito_ = nullptr;
     QCheckBox* rename_ = nullptr;
     QCheckBox* keep_ = nullptr;

@@ -224,6 +224,7 @@ public sealed class EditingService : IEditingService
             ActiveServerUrl = null,
             ActiveProjectId = null,
             ActiveProjectName = null,
+            ActiveProjectCreatedAt = 0,
             ActiveProjectVersion = 0,
             ActiveProjectLayoutJson = null,
         };
@@ -459,6 +460,7 @@ public sealed class EditingService : IEditingService
             ActiveServerUrl = null,
             ActiveProjectId = null,
             ActiveProjectName = null,
+            ActiveProjectCreatedAt = 0,
             ActiveProjectVersion = 0,
             ActiveProjectLayoutJson = null,
         };

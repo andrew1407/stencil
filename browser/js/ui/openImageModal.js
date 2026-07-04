@@ -20,6 +20,9 @@ export class StencilOpenImageModal extends StencilElement {
             <div class="settings-body">
                 <div class="vs-section">Image or video file</div>
                 <div class="vs-row"><label>Choose</label><input type="file" id="open-image-file" accept="image/*,video/*"></div>
+                <!-- …or a web URL. Typing one takes precedence over the file above; a video URL
+                     reveals the frame-time row just like a chosen video file. -->
+                <div class="vs-row"><label title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)" style="flex:1"></div>
                 <!-- Frame time: only shown when a video is chosen (a still frame is captured). -->
                 <div class="vs-row" id="open-image-frame-row" style="display:none">
                     <label title="Capture the frame at this time (seconds)">Frame (s)</label>
@@ -63,6 +66,7 @@ export class StencilOpenImageModal extends StencilElement {
     const closeBtn = document.getElementById('open-image-close');
     const cancelBtn = document.getElementById('open-image-cancel');
     const fileEl = document.getElementById('open-image-file');
+    const urlEl = document.getElementById('open-image-url');
     const incog = document.getElementById('open-image-incognito');
     const hereBtn = document.getElementById('open-image-here');
     const newTabBtn = document.getElementById('open-image-newtab');
@@ -84,6 +88,7 @@ export class StencilOpenImageModal extends StencilElement {
     const { open, close } = wireModalShell(overlay, document.getElementById('open-image-btn'), closeBtn, {
       onOpen: () => {
         fileEl.value = '';
+        urlEl.value = '';
         incog.checked = false;
         hereBtn.disabled = true;
         newTabBtn.disabled = true;
@@ -106,49 +111,84 @@ export class StencilOpenImageModal extends StencilElement {
       fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
     });
 
-    // All actions are inert until a file is chosen; the frame-time row appears for video.
-    fileEl.addEventListener('change', () => {
-      const file = fileEl.files && fileEl.files[0];
-      const has = !!file;
+    // A source is either a chosen file or a typed URL (mutually exclusive). A URL
+    // ending in a known video extension is treated as a video, like a video file.
+    const VIDEO_URL = /\.(mp4|mov|webm|mkv|avi|m4v|mpe?g)(\?|#|$)/i;
+    const urlVal = () => urlEl.value.trim();
+    const chosenFile = () => fileEl.files && fileEl.files[0];
+    const hasSource = () => !!chosenFile() || urlVal() !== '';
+    const isVideoSource = () => {
+      const f = chosenFile();
+      if (urlVal()) return VIDEO_URL.test(urlVal());
+      return !!f && isVideoFile(f);
+    };
+
+    // Re-evaluate the action buttons + frame row after any file/URL change. A URL or
+    // video can't replace-in-place (nothing to keep the same is fine, but the fetch is
+    // async and always a fresh open) — so Replace only lights for a local image file.
+    const refresh = () => {
+      const has = hasSource();
       hereBtn.disabled = !has;
       newTabBtn.disabled = !has;
-      replaceBtn.disabled = !has || !canReplace();
-      frameRow.style.display = has && isVideoFile(file) ? '' : 'none';
-    });
+      replaceBtn.disabled = !has || !!urlVal() || isVideoSource() || !canReplace();
+      frameRow.style.display = isVideoSource() ? '' : 'none';
+    };
+    // Typing a URL clears a chosen file and vice-versa (mirrors the desktop dialog).
+    fileEl.addEventListener('change', () => { if (chosenFile()) urlEl.value = ''; refresh(); });
+    urlEl.addEventListener('input', () => { if (urlVal()) fileEl.value = ''; refresh(); });
 
-    // A video file is converted to a captured still frame first (reusing the same
+    // Fetch a URL's bytes into a File (same-origin / data: / CORS-enabled), mirroring
+    // the Links modal's honest fetch path (a canvas readback would taint without CORS).
+    const fetchUrlToFile = async (url) => {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const ext = (blob.type.split('/')[1] || url.split(/[?#]/)[0].split('.').pop() || 'png').slice(0, 5);
+      const name = (url.split(/[?#]/)[0].split('/').pop() || 'image').replace(/\.[a-z0-9]+$/i, '') + '.' + ext;
+      return new File([blob], name, { type: blob.type || 'image/png' });
+    };
+
+    // A video source is converted to a captured still frame first (reusing the same
     // capture as the scripting facade); image files pass through unchanged.
-    const resolveFile = async (file) => {
+    const toFrameIfVideo = async (file) => {
       if (!isVideoFile(file)) return file;
+      return await videoFileToImageFile(file, Number(frameEl && frameEl.value) || 0);
+    };
+
+    // Resolve the current source (file or URL) to a still-image File, or null on error
+    // (already notified). URLs are fetched first, then treated exactly like a file.
+    const resolveSource = async () => {
       try {
-        return await videoFileToImageFile(file, Number(frameEl && frameEl.value) || 0);
+        const url = urlVal();
+        const file = url ? await fetchUrlToFile(url) : chosenFile();
+        if (!file) return null;
+        return await toFrameIfVideo(file);
       } catch (e) {
-        notify(`Could not capture a video frame — ${e.message}`, 'err');
+        notify(urlVal()
+          ? `Could not load that URL — ${e.message}. Cross-origin URLs need CORS headers; try the extension or desktop app.`
+          : `Could not capture a video frame — ${e.message}`, 'fail');
         return null;
       }
     };
 
     hereBtn.addEventListener('click', async () => {
-      const file = fileEl.files && fileEl.files[0];
-      if (!file) return;
+      if (!hasSource()) return;
       const address = (targetEl && targetEl.value) || null;
-      const resolved = await resolveFile(file);
+      const resolved = await resolveSource();
       if (!resolved) return;
       app.openImageHere(resolved, incog.checked, address);
       close();
     });
     newTabBtn.addEventListener('click', async () => {
-      const file = fileEl.files && fileEl.files[0];
-      if (!file) return;
-      const resolved = await resolveFile(file);
+      if (!hasSource()) return;
+      const resolved = await resolveSource();
       if (!resolved) return;
       app.openImageNewTab(resolved, incog.checked);
       close();
     });
     replaceBtn.addEventListener('click', async () => {
-      const file = fileEl.files && fileEl.files[0];
-      if (!file || !canReplace()) return;
-      const resolved = await resolveFile(file);
+      if (!chosenFile() || !canReplace()) return;  // replace is local-image only
+      const resolved = await resolveSource();
       if (!resolved) return;
       app.replaceProjectImage(resolved, { rename: renameEl.checked, keepAnnotations: keepEl.checked });
       close();

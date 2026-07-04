@@ -389,12 +389,13 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
 
 /// One rendered project row; all fields owned so rows outlive the per-server lists they came
 /// from. `color` is the project's custom name colour ("" = none → paint in the theme accent).
-const ProjectRow = struct { name: []u8, size: []u8, changed: []u8, color: []u8, server: []const u8 };
+const ProjectRow = struct { name: []u8, size: []u8, created: []u8, changed: []u8, color: []u8, server: []const u8 };
 
 fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
     for (rows.items) |r| {
         gpa.free(r.name);
         gpa.free(r.size);
+        gpa.free(r.created);
         gpa.free(r.changed);
         gpa.free(r.color);
     }
@@ -418,9 +419,13 @@ fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: 
         var tb: [32]u8 = undefined;
         const changed = try gpa.dupe(u8, server.formatAgo(&tb, now, p.updated_at));
         errdefer gpa.free(changed);
+        // Created date, shown relatively like CHANGED (reuses tb after `changed`
+        // is already its own allocation).
+        const created = try gpa.dupe(u8, server.formatAgo(&tb, now, p.created_at));
+        errdefer gpa.free(created);
         const color = try gpa.dupe(u8, p.color);
         errdefer gpa.free(color);
-        try rows.append(gpa, .{ .name = name, .size = size, .changed = changed, .color = color, .server = if (multi) client.base else "" });
+        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .changed = changed, .color = color, .server = if (multi) client.base else "" });
     }
 }
 
@@ -428,27 +433,30 @@ fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: 
 fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool) void {
     var nw: usize = "NAME".len;
     var sw: usize = "SIZE".len;
+    var crw: usize = "CREATED".len;
     var cw: usize = "CHANGED".len;
     for (rows) |r| {
         nw = @max(nw, r.name.len);
         sw = @max(sw, r.size.len);
+        crw = @max(crw, r.created.len);
         cw = @max(cw, r.changed.len);
     }
-    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
+    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
     for (rows) |r| {
         var buf: [20]u8 = undefined;
-        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.changed, cw, if (multi) r.server else null);
+        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.changed, cw, if (multi) r.server else null);
     }
 }
 
 /// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
 /// column ("" = plain). Best-effort.
-fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
+fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(gpa);
     appendCol(gpa, &line, "  ", 0); // 2-space indent (no padding)
     appendName(gpa, &line, name, name_seq, nw);
     appendCol(gpa, &line, size, sw);
+    appendCol(gpa, &line, created, crw);
     if (srv) |s| {
         appendCol(gpa, &line, changed, cw);
         appendCol(gpa, &line, s, 0); // final column, no trailing pad

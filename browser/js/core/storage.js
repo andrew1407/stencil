@@ -1,4 +1,4 @@
-import { ProjectsStore, shouldPersist } from './projectsStore.js';
+import { ProjectsStore, shouldPersist, addPeriod, DEFAULT_PERIOD } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { normalizePageSize } from './units.js';
@@ -101,6 +101,11 @@ export class Storage {
       color: this.store.getMeta(this.activeId)?.color || '',
       thumbnail: this.#makeThumbnail(),
       createdAt: this.store.getMeta(this.activeId)?.createdAt ?? Date.now(),
+      // Expiration is owned by the expiration modal / open-time snap; a plain edit
+      // just carries the existing values forward (new projects default to a week).
+      expiresAt: this.store.getMeta(this.activeId)?.expiresAt ?? addPeriod(Date.now(), DEFAULT_PERIOD),
+      refreshPeriod: this.store.getMeta(this.activeId)?.refreshPeriod ?? DEFAULT_PERIOD,
+      autoRefresh: this.store.getMeta(this.activeId)?.autoRefresh ?? true,
       hasImage: !!this.app.imageDataUrl,
       imageW: this.app.canvas.width,
       imageH: this.app.canvas.height,
@@ -312,7 +317,19 @@ export class Storage {
     this.incognito = false;
     this.app.activeProjectId = id;
     this.loadPayloadIntoApp(proj.payload);
+    this.#autoRefreshOnOpen(id);
     return true;
+  }
+
+  // When a project has "refresh on open" enabled and an expiration set, opening it
+  // restarts its window: expiresAt = now + its refresh period. Keep-forever
+  // (expiresAt 0) is left untouched. Broadcasts so other tabs re-render the date.
+  #autoRefreshOnOpen(id) {
+    const meta = this.store.getMeta(id);
+    if (!meta || !meta.autoRefresh || !meta.expiresAt) return;
+    const period = meta.refreshPeriod || DEFAULT_PERIOD;
+    this.store.setExpiration(id, { expiresAt: addPeriod(Date.now(), period), refreshPeriod: period });
+    this.#scheduleSyncBroadcast();
   }
 
   // Apply a payload {image, layout} into app state + DOM. Factored out of the

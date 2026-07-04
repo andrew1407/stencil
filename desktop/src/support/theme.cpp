@@ -186,7 +186,12 @@ namespace stencil::gui {
       QToolButton:checked {
         background: %ACCENT_SOFT2%; border-color: %ACCENT%; color: %ACCENT2%;
       }
-      QToolButton:disabled { color: %MUTED%; background: transparent; }
+      /* Disabled: a filled, low-contrast "inactive" chip (matches QPushButton:disabled)
+         so a greyed toolbar button reads clearly. The :checked:disabled override is
+         higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
+         image is loaded) drops its accent highlight instead of looking still-active. */
+      QToolButton:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
+      QToolButton:checked:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
       QToolButton::menu-indicator { image: none; }
 
       /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */

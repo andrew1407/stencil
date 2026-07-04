@@ -160,6 +160,7 @@ public sealed class ServerService : IServerService
                 ActiveServerUrl = connection.Url,
                 ActiveProjectId = full.Project.Id,
                 ActiveProjectName = full.Project.Name,
+                ActiveProjectCreatedAt = full.Project.CreatedAt,
                 ActiveProjectVersion = full.Project.Version,
                 ActiveProjectLayoutJson = full.Layout?.GetRawText(),
             };
@@ -195,6 +196,7 @@ public sealed class ServerService : IServerService
             ActiveServerUrl = connection.Url,
             ActiveProjectId = record.Id,
             ActiveProjectName = record.Name,
+            ActiveProjectCreatedAt = record.CreatedAt,
             ActiveProjectVersion = record.Version,
             ActiveProjectLayoutJson = null, // bot-created: no prior layout to preserve
         };

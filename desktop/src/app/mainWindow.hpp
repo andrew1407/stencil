@@ -248,6 +248,10 @@ namespace stencil::gui {
     // applyLaunchOptions, the --src/--incognito path), leaving this one untouched.
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
+    // Same two outcomes for a URL / local video source, which resolves asynchronously
+    // via MediaLoader (openImageSource) rather than a synchronous local-image load.
+    void openSourceHere(const QString& src, int frame, bool incognito);
+    void openSourceInNewWindow(const QString& src, int frame, bool incognito);
     // Replace outcome: swap the CURRENT project's image in place (same local id / server
     // link), optionally renaming the project + keeping the existing annotations. Server
     // sessions also re-upload the `original` (replaceServerOriginal). canReplaceActive()
@@ -303,8 +307,15 @@ namespace stencil::gui {
     // openProjects' New action + newProjectFromCanvas.
     void createProject(const QString& name);
     // Build a Project from the current canvas, persist locally, mark it active,
-    // refresh, and notify. pr.meta.name == the passed name.
-    void createLocalProject(const QString& name);
+    // refresh, and (when announce) notify. pr.meta.name == the passed name. A
+    // pathless canvas (blank / remote / video frame) is written to the state dir
+    // first so the project keeps its pixels.
+    void createLocalProject(const QString& name, bool announce = true);
+    // Auto-persist the freshly-loaded canvas as a local project so it appears in
+    // Projects immediately (browser parity: the active editor is always a saved
+    // project). No-op while incognito, already bound to a project/server session,
+    // or with no image. Called from the fresh-load entry points.
+    void adoptCanvasAsLocalProject();
     // Create the project on `serverUrl` (createProject + upload the original image)
     // and link this session to it so later saves write back. Mirrors the browser's
     // createRemoteProject (remoteSync.js).
