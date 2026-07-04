@@ -55,7 +55,7 @@ namespace stencil::gui {
     //   BatchCopyToLocal (server-only checked).
     // SetColor: set (or clear) a project's accent colour — read selectedId() +
     //   selectedServerUrl() (empty = local) + selectedColor() ("" = theme default).
-    enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Renew, NewBlank,
+    enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Expiration, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
                         SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
@@ -127,7 +127,7 @@ namespace stencil::gui {
     void updateBatchBar();
     void runBatch(Action act);
     void renameSelected();
-    void renewSelected();
+    void expirationSelected();
     // Pop a colour picker (seeded with the row's current colour) and emit SetColor.
     void setColorSelected();
     // Clear the row's colour back to the theme default (emit SetColor with "").

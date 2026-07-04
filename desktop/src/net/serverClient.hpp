@@ -30,6 +30,7 @@ namespace stencil::net {
     int imageH = 0;
     QString source;
     QString resource;
+    qint64 createdAt = 0;
     qint64 updatedAt = 0;
     // Monotonic edit version (LWW guard); echoed back on PUT to detect a 409.
     qint64 version = 0;

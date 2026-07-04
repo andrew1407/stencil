@@ -1282,3 +1282,117 @@ body.incognito-mode .canvas-section::after {
     transition: opacity 90ms ease;
 }
 #app-tooltip.visible { opacity: 1; }
+
+/* ── Expiration modal ─────────────────────────────────────────── */
+.exp-modal .exp-project {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 10px;
+}
+.exp-period-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.exp-modal .vs-row.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.exp-calendar {
+    margin: 10px auto 0;
+    max-width: 320px;
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--bg-controls);
+}
+.exp-calendar.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.exp-cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.exp-cal-head .btn-icon:disabled { opacity: 0.35; cursor: default; }
+.exp-cal-title {
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--text-main);
+}
+.exp-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+.exp-cal-w {
+    text-align: center;
+    font-size: 0.64rem;
+    color: var(--text-muted);
+    padding: 1px 0;
+}
+.exp-cal-cell {
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-label);
+    font-size: 0.74rem;
+    cursor: pointer;
+    padding: 0;
+}
+.exp-cal-cell:hover:not(.is-past):not(.exp-cal-empty) {
+    background: var(--bg-coord-hover);
+}
+.exp-cal-empty {
+    cursor: default;
+}
+.exp-cal-cell.is-past {
+    color: var(--disabled-text);
+    cursor: not-allowed;
+}
+/* Today + expiry: soft, theme-tinted outlines (lighter than the raw accent). */
+.exp-cal-cell.is-today {
+    outline: none;
+    border-color: color-mix(in srgb, var(--success) 55%, transparent);
+    color: var(--text-main);
+}
+.exp-cal-cell.is-expiry {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--text-main);
+    font-weight: 600;
+}
+.exp-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+.exp-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.exp-legend-item b {
+    color: var(--text-main);
+}
+.exp-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1.5px solid transparent;
+    display: inline-block;
+}
+.exp-swatch-today { border-color: color-mix(in srgb, var(--success) 55%, transparent); }
+.exp-swatch-expiry {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}

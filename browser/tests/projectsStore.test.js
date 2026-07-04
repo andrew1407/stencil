@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import {
   ProjectsStore, shouldPersist, baseProjectName, EXPIRY_MS, WARN_MS,
   REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
+  periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD,
 } from '../js/core/projectsStore.js';
 
 // Map-backed localStorage shim. Exposes keys() for the store's enumeration,
@@ -130,30 +131,48 @@ test('clearAll removes project keys + registry, preserves theme/hotkeys', () => 
   assert.strictEqual(shim.getItem('drawingApp_hotkeys'), '{"x":1}');
 });
 
-test('isExpired boundary: false at exactly EXPIRY_MS, true at +1', () => {
+test('periodMs / addPeriod presets (fixed durations); mirror core', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  assert.strictEqual(periodMs('day'), DAY);
+  assert.strictEqual(periodMs('week'), 7 * DAY);
+  assert.strictEqual(periodMs('week'), EXPIRY_MS);
+  assert.strictEqual(periodMs('fortnight'), 14 * DAY);
+  assert.strictEqual(periodMs('month'), 30 * DAY);
+  assert.strictEqual(periodMs('3month'), 90 * DAY);
+  assert.strictEqual(periodMs('6month'), 180 * DAY);
+  assert.strictEqual(periodMs('year'), 365 * DAY);
+  // Unknown / empty → one week.
+  assert.strictEqual(periodMs(''), 7 * DAY);
+  assert.strictEqual(periodMs('decade'), 7 * DAY);
+  assert.strictEqual(addPeriod(1000, 'day'), 1000 + DAY);
+  assert.strictEqual(PERIOD_MS.week, EXPIRY_MS);
+});
+
+test('expiry keyed on stored expiresAt; 0/absent == keep forever', () => {
   const s = new ProjectsStore(makeShim());
   const now = 1_000_000_000;
-  const m = meta('a', { updatedAt: now - EXPIRY_MS });
-  assert.strictEqual(s.isExpired(m, now), false);
-  const m2 = meta('a', { updatedAt: now - EXPIRY_MS - 1 });
-  assert.strictEqual(s.isExpired(m2, now), true);
+  assert.strictEqual(s.isExpired(meta('a', { expiresAt: now + 1000 }), now), false);
+  assert.strictEqual(s.isExpired(meta('a', { expiresAt: now - 1 }), now), true);
+  assert.strictEqual(s.isExpired(meta('a', { expiresAt: 0 }), now), false); // keep forever
+  assert.strictEqual(s.expiresAt(meta('a', { expiresAt: now + 1000 })), now + 1000);
+  assert.strictEqual(s.expiresAt(meta('a', { expiresAt: 0 })), null); // keep forever
 });
 
 test('isExpiringSoon: true within WARN_MS of expiry, false when further out', () => {
   const s = new ProjectsStore(makeShim());
   const now = 1_000_000_000;
-  // Expires in 12h → within the 1-day warning window.
-  const soon = meta('a', { updatedAt: now - EXPIRY_MS + (WARN_MS / 2) });
+  const soon = meta('a', { expiresAt: now + (WARN_MS / 2) });
   assert.strictEqual(s.isExpiringSoon(soon, now), true);
-  // Expires in 2 days → outside the warning window.
-  const later = meta('b', { updatedAt: now - EXPIRY_MS + (2 * WARN_MS) });
+  const later = meta('b', { expiresAt: now + (2 * WARN_MS) });
   assert.strictEqual(s.isExpiringSoon(later, now), false);
+  // Keep forever → never "soon".
+  assert.strictEqual(s.isExpiringSoon(meta('c', { expiresAt: 0 }), now), false);
 });
 
 test('isExpiringSoon: false once already expired (gets the expired treatment)', () => {
   const s = new ProjectsStore(makeShim());
   const now = 1_000_000_000;
-  const expired = meta('a', { updatedAt: now - EXPIRY_MS - 1 });
+  const expired = meta('a', { expiresAt: now - 1 });
   assert.strictEqual(s.isExpired(expired, now), true);
   assert.strictEqual(s.isExpiringSoon(expired, now), false);
 });
@@ -161,27 +180,35 @@ test('isExpiringSoon: false once already expired (gets the expired treatment)', 
 test('isExpiringSoon boundary: true at exactly WARN_MS remaining, false just past', () => {
   const s = new ProjectsStore(makeShim());
   const now = 1_000_000_000;
-  // Exactly WARN_MS until expiry → inclusive, soon.
-  const edge = meta('a', { updatedAt: now - EXPIRY_MS + WARN_MS });
+  const edge = meta('a', { expiresAt: now + WARN_MS });
   assert.strictEqual(s.isExpiringSoon(edge, now), true);
-  // One ms more remaining → outside the window.
-  const justOut = meta('b', { updatedAt: now - EXPIRY_MS + WARN_MS + 1 });
+  const justOut = meta('b', { expiresAt: now + WARN_MS + 1 });
   assert.strictEqual(s.isExpiringSoon(justOut, now), false);
 });
 
-test('renew restarts the expiry window from now', () => {
+test('setExpiration sets fields exactly, no updatedAt bump', () => {
   const s = new ProjectsStore(makeShim());
-  s.upsert(meta('a'), { image: null, layout: {} });
-  // Age it to one second from expiry.
+  s.upsert(meta('a', { updatedAt: 5000 }), { image: null, layout: {} });
+  const updatedAt = s.getMeta('a').updatedAt;
+  const m = s.setExpiration('a', { expiresAt: 9999, refreshPeriod: 'month', autoRefresh: false });
+  assert.strictEqual(m.expiresAt, 9999);
+  assert.strictEqual(m.refreshPeriod, 'month');
+  assert.strictEqual(m.autoRefresh, false);
+  assert.strictEqual(s.getMeta('a').updatedAt, updatedAt); // unchanged
+  // Empty period normalises to the default; keep-forever via 0.
+  s.setExpiration('a', { expiresAt: 0, refreshPeriod: '' });
+  assert.strictEqual(s.getMeta('a').refreshPeriod, DEFAULT_PERIOD);
+  assert.strictEqual(s.getMeta('a').expiresAt, 0);
+  assert.strictEqual(s.setExpiration('missing', { expiresAt: 1 }), null);
+});
+
+test('renew sets expiresAt = now + refresh period (not updatedAt)', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { refreshPeriod: 'month', expiresAt: 1 }), { image: null, layout: {} });
   const now = 1_000_000_000;
-  s.touch('a', now - EXPIRY_MS + 1000);
-  assert.strictEqual(s.isExpiringSoon(s.getMeta('a'), now), true);
-  // Renewing stamps updatedAt = now, so it's neither expiring soon nor expired.
   const renewed = s.renew('a', now);
-  assert.strictEqual(renewed.updatedAt, now);
-  assert.strictEqual(s.isExpiringSoon(s.getMeta('a'), now), false);
+  assert.strictEqual(renewed.expiresAt, now + periodMs('month'));
   assert.strictEqual(s.isExpired(s.getMeta('a'), now), false);
-  assert.strictEqual(s.expiresAt(s.getMeta('a')), now + EXPIRY_MS);
 });
 
 test('renew returns null for a missing project', () => {
@@ -189,18 +216,31 @@ test('renew returns null for a missing project', () => {
   assert.strictEqual(s.renew('nope', 123), null);
 });
 
-test('sweepExpired removes only expired and returns their ids', () => {
+test('sweepExpired removes only expired, keeps keep-forever, returns ids', () => {
   const shim = makeShim();
   const s = new ProjectsStore(shim);
   const now = 10 * EXPIRY_MS;
-  s.upsert(meta('fresh'), { image: null, layout: {} });
-  s.touch('fresh', now - 1000);
-  s.upsert(meta('old'), { image: null, layout: {} });
-  s.touch('old', now - EXPIRY_MS - 5000);
+  s.upsert(meta('fresh', { expiresAt: now + EXPIRY_MS }), { image: null, layout: {} });
+  s.upsert(meta('old', { expiresAt: now - 5000 }), { image: null, layout: {} });
+  s.upsert(meta('keep', { expiresAt: 0 }), { image: null, layout: {} }); // keep forever
   const removed = s.sweepExpired(now);
   assert.deepStrictEqual(removed, ['old']);
   assert.ok(s.getMeta('fresh'));
+  assert.ok(s.getMeta('keep'));
   assert.strictEqual(s.getMeta('old'), null);
+});
+
+test('normalizeMeta default-fills legacy projects (expiresAt = updatedAt + week)', () => {
+  const shim = makeShim();
+  // Write a legacy registry entry with no expiration fields.
+  shim.setItem(REGISTRY_KEY, JSON.stringify([
+    { id: 'leg', name: 'Legacy', createdAt: 1000, updatedAt: 2000 },
+  ]));
+  const s = new ProjectsStore(shim);
+  const m = s.getMeta('leg');
+  assert.strictEqual(m.expiresAt, 2000 + EXPIRY_MS);
+  assert.strictEqual(m.refreshPeriod, DEFAULT_PERIOD);
+  assert.strictEqual(m.autoRefresh, true);
 });
 
 test('migrateLegacy creates one project, sets flag; second call no-op', () => {

@@ -17,6 +17,15 @@ namespace stencil::core {
     std::string name;
     long long createdAt = 0;   // epoch milliseconds
     long long updatedAt = 0;   // epoch milliseconds
+    // Explicit expiration, epoch milliseconds. 0 == "keep forever" (never
+    // expires). New/legacy projects are seeded with a real value by the
+    // creation / migration code in the adapters; the store never invents one.
+    long long expiresAt = 0;
+    // Preset used by the Refresh button and the open-time auto-refresh:
+    // one of day/week/fortnight/month/3month/6month/year. Empty == week.
+    std::string refreshPeriod = "week";
+    // When true, opening the project restamps expiresAt = openTime + period.
+    bool autoRefresh = true;
     bool hasImage = false;
     int imageW = 0;
     int imageH = 0;
@@ -34,10 +43,21 @@ namespace stencil::core {
 
   class ProjectsStore {
    public:
-    // One week, matching EXPIRY_MS in the browser store.
+    // One week — the default refresh period, matching EXPIRY_MS in the browser
+    // store. Also the ms length of the "week" preset (see periodMs).
     static constexpr long long EXPIRY_MS = 7LL * 24 * 60 * 60 * 1000;
     // Warn once a project is within a day of expiry (browser WARN_MS).
     static constexpr long long WARN_MS = 24LL * 60 * 60 * 1000;
+    // The default refresh preset name.
+    static constexpr const char* DEFAULT_PERIOD = "week";
+
+    // Milliseconds for a refresh preset. Fixed durations (month=30d, year=365d,
+    // …) so the C++ and JS ports stay identical with no calendar library.
+    // Unknown / empty falls back to one week. Mirrors browser projectsStore.js.
+    static long long periodMs(const std::string& period);
+    // from + periodMs(period). The custom-calendar pick sets an exact date
+    // instead; only the presets use this fixed-duration arithmetic.
+    static long long addPeriod(long long from, const std::string& period);
 
     // Persist only when there is an active, non-temporary project to write to.
     static bool shouldPersist(const std::optional<std::string>& activeId,
@@ -59,6 +79,12 @@ namespace stencil::core {
     // Bump updatedAt without otherwise changing the entry. False if not found.
     bool touch(const std::string& id, long long now);
 
+    // Set a project's expiration fields exactly (no snap, no updatedAt bump).
+    // expiresAt == 0 means "keep forever". This is what the expiration modal
+    // calls. False if the id is not found.
+    bool setExpiration(const std::string& id, long long expiresAt,
+                       const std::string& refreshPeriod, bool autoRefresh);
+
     // Remove one project. No-op if absent.
     void remove(const std::string& id);
 
@@ -66,6 +92,7 @@ namespace stencil::core {
     void clearAll();
 
     // ── expiry ──
+    // All keyed on the stored expiresAt; expiresAt == 0 == "keep forever".
     bool isExpired(const ProjectMeta& meta, long long now) const;
     std::optional<long long> expiresAt(const ProjectMeta& meta) const;
 

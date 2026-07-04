@@ -375,7 +375,9 @@ export class StencilProjectsModal extends StencilElement {
       if (opts.temp) {
         sub.textContent = opts.incognito ? 'Current tab · incognito · never saved' : 'Current tab · not saved to storage';
       } else {
-        const bits = [fmtDate(meta.updatedAt)];
+        const bits = [];
+        if (meta.createdAt) bits.push(`Created ${fmtDate(meta.createdAt)}`);
+        bits.push(fmtDate(meta.updatedAt));
         const exp = expiryLabel(meta);
         if (exp.text) bits.push(exp.text);
         sub.textContent = bits.join(' · ');
@@ -472,7 +474,7 @@ export class StencilProjectsModal extends StencilElement {
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
           { icon: 'palette', label: 'Set colour…', onClick: pickColor },
           meta.color ? { icon: 'x', label: 'Clear colour', onClick: clearColor } : null,
-          { icon: 'refresh', label: 'Renew expiry', onClick: () => { app.renewProject(meta.id); render(); } },
+          { icon: 'calendar', label: 'Expiration…', onClick: () => document.querySelector('stencil-expiration-modal')?.openFor(meta.id) },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
           (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
           { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
@@ -592,6 +594,14 @@ export class StencilProjectsModal extends StencilElement {
       if (meta.color) name.style.color = meta.color;
       const sub = document.createElement('div');
       sub.className = 'project-sub';
+      // Server projects carry createdAt in their ProjectRecord — show it (they have
+      // no local expiry). Shown before the server badge.
+      if (meta.createdAt) {
+        const created = document.createElement('span');
+        created.className = 'project-created';
+        created.textContent = `Created ${fmtDate(meta.createdAt)} · `;
+        sub.appendChild(created);
+      }
       const badge = document.createElement('span');
       badge.className = 'project-remote-badge';
       badge.innerHTML = `${icon('server', { size: 12 })}<span>${meta.serverUrl}</span>`;

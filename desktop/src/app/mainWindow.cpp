@@ -1,5 +1,6 @@
 #include "mainWindow.hpp"
 #include "blankImageDialog.hpp"
+#include "expirationDialog.hpp"
 #include "deepLink.hpp"
 #include "openImageDialog.hpp"
 #include "openInDialog.hpp"
@@ -73,6 +74,8 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QKeyEvent>
+#include <QNativeGestureEvent>
+#include <QWheelEvent>
 #include <QKeySequence>
 #include <QPalette>
 #include <QRandomGenerator>
@@ -151,6 +154,10 @@ namespace stencil::gui {
     scroll_->setAlignment(Qt::AlignCenter);
     scroll_->setFrameShape(QFrame::NoFrame);
     setCentralWidget(scroll_);
+    // The canvas is sized to the image, so a zoomed-out image leaves margin around it
+    // that belongs to the viewport, not the canvas. Filter the viewport so Ctrl+wheel /
+    // trackpad pinch there still zoom (otherwise you can't zoom a small image back up).
+    scroll_->viewport()->installEventFilter(this);
 
     selPanel_ = new SelectionPanel(this);
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
@@ -322,6 +329,13 @@ namespace stencil::gui {
               const QPoint inVp =
                   canvas_->mapTo(scroll_->viewport(), posInWidget);
               setZoomAnchored(target, inVp);
+            });
+    connect(canvas_, &CanvasWidget::zoomByFactorAt, this,
+            [this](double factor, const QPoint& posInWidget) {
+              // Trackpad pinch: scale continuously about the cursor (same anchored
+              // path as Ctrl+wheel, but a smooth factor rather than a fixed step).
+              const QPoint inVp = canvas_->mapTo(scroll_->viewport(), posInWidget);
+              setZoomAnchored(canvas_->scale() * factor, inVp);
             });
     connect(canvas_, &CanvasWidget::zoomToRect, this,
             [this](const QRectF& r) {
@@ -1375,7 +1389,8 @@ namespace stencil::gui {
     const QString path = QFileDialog::getOpenFileName(
         this, "Open image", QString(), "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
     if (path.isEmpty()) return;
-    loadLocalImageReset(path);
+    activeProjectId_.clear();  // File>Open starts a fresh editor (a new project)
+    if (loadLocalImageReset(path)) adoptCanvasAsLocalProject();
   }
 
   // "Open another image" (mirrors browser openImageModal.js): pick a file + an
@@ -1384,16 +1399,61 @@ namespace stencil::gui {
   void MainWindow::openAnotherImage() {
     OpenImageDialog dlg(this, canReplaceActive());
     if (dlg.exec() != QDialog::Accepted) return;
-    const QString path = dlg.path();
-    if (path.isEmpty()) return;
+    const QString src = dlg.source();
+    if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.outcome();
-    if (outcome == OpenImageDialog::Outcome::NewWindow) {
-      openImageInNewWindow(path, dlg.incognito());
-    } else if (outcome == OpenImageDialog::Outcome::Replace) {
-      replaceProjectImage(path, dlg.rename(), dlg.keepAnnotations());
-    } else {
-      openImageHere(path, dlg.incognito());
+    // A URL or video is decoded asynchronously via MediaLoader (openImageSource);
+    // the dialog only offers Here / NewWindow for those (no in-place replace).
+    if (dlg.isUrl() || dlg.isVideo()) {
+      if (outcome == OpenImageDialog::Outcome::NewWindow)
+        openSourceInNewWindow(src, dlg.frame(), dlg.incognito());
+      else
+        openSourceHere(src, dlg.frame(), dlg.incognito());
+      return;
     }
+    // A plain local image loads synchronously.
+    if (outcome == OpenImageDialog::Outcome::NewWindow) {
+      openImageInNewWindow(src, dlg.incognito());
+    } else if (outcome == OpenImageDialog::Outcome::Replace) {
+      replaceProjectImage(src, dlg.rename(), dlg.keepAnnotations());
+    } else {
+      openImageHere(src, dlg.incognito());
+    }
+  }
+
+  // "Open here" for a URL / local video: mirror openImageHere's reset (persist the
+  // current editor, drop the project binding, adopt the incognito choice) but load
+  // via the async MediaLoader path. onLaunchImageLoaded then adopts a new project
+  // (a no-op while incognito).
+  void MainWindow::openSourceHere(const QString& src, int frame, bool incognito) {
+    if (!incognito_) {
+      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+      else saveSessionNow();
+    }
+    activeProjectId_.clear();
+    if (incognito_ != incognito) {
+      incognito_ = incognito;
+      incognitoOverlay_->setActive(incognito);
+      actIncognito_->blockSignals(true);
+      actIncognito_->setChecked(incognito);
+      actIncognito_->blockSignals(false);
+      updateProjectTitle();
+    }
+    openImageSource(src, frame);  // async; failure is reported by MediaLoader
+  }
+
+  // "Open in new window" for a URL / local video: spawn a fresh window and hand it
+  // the source via launch options (same vehicle as openImageInNewWindow, minus the
+  // local-only QImageReader guard — MediaLoader validates + reports in that window).
+  void MainWindow::openSourceInNewWindow(const QString& src, int frame, bool incognito) {
+    auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
+    win->setAttribute(Qt::WA_DeleteOnClose);
+    win->show();
+    LaunchOptions opts;
+    opts.src = src;
+    opts.frame = frame;
+    opts.incognito = incognito;
+    win->applyLaunchOptions(opts);
   }
 
   // True when the current editor holds a saved/linked project whose image can be swapped in
@@ -1490,7 +1550,7 @@ namespace stencil::gui {
       actIncognito_->blockSignals(false);
       updateProjectTitle();
     }
-    loadLocalImageReset(path);
+    if (loadLocalImageReset(path)) adoptCanvasAsLocalProject();
   }
 
   // Launch `path` in a fresh, self-owned window, leaving this editor untouched
@@ -1535,6 +1595,7 @@ namespace stencil::gui {
                                                 settings_.customPageHeight);
       canvas_->setPageCm(page.width, page.height);
     }
+    activeProjectId_.clear();  // a new blank is a fresh editor, not the old project
     canvas_->loadFromImage(img);
     currentSource_.clear();  // a generated blank image has no provenance
     currentResource_.clear();
@@ -1542,6 +1603,7 @@ namespace stencil::gui {
     notify_->success(QString("Blank %1×%2 image created")
                          .arg(dlg.widthPx())
                          .arg(dlg.heightPx()));
+    adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 
   // Open the crop dialog over the ORIGINAL image and apply the chosen page-shaped
@@ -2284,9 +2346,13 @@ namespace stencil::gui {
         notify_->info("Image paste canceled");  // drawingApp.js:568
         return;
       }
+      activeProjectId_.clear();  // pasted image is a fresh editor (a new project)
       canvas_->loadFromImage(img);
+      currentSource_.clear();
+      currentResource_.clear();
       refreshActions();
       notify_->success("Image pasted from clipboard");
+      adoptCanvasAsLocalProject();
       return;
     }
     // No image — try a layout JSON text payload (drawingApp.js :582-591).
@@ -2448,7 +2514,15 @@ namespace stencil::gui {
     set(actAllowFormulas_, "function");
     set(actUnitCm_, "ruler");
     set(actUnitIn_, "ruler");
-    set(actIncognito_, "incognito");
+    // Incognito: the normal glyph is the mask; when the toggle is DISABLED (an image
+    // is loaded, so the mode is locked), Qt shows the Disabled-mode pixmap instead —
+    // a lock — making it obvious the mode can't be changed, not just a greyed mask.
+    if (actIncognito_) {
+      QIcon ic = themedIcon("incognito", iconColor, s);
+      ic.addPixmap(themedIcon("lock", themePalette(dark, settings_.accentColor).textMuted, s).pixmap(s, s),
+                   QIcon::Disabled);
+      actIncognito_->setIcon(ic);
+    }
     set(actSettings_, "gear");
     // Project / data
     set(actProjects_, "folder");
@@ -2869,16 +2943,25 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::Rename) {
       // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
-    } else if (dlg.action() == Action::Renew) {
+    } else if (dlg.action() == Action::Expiration) {
       Project* pr = findProject(dlg.selectedId().toStdString());
       if (!pr) return;
-      // Restart the 7-day expiry window from now without touching content.
-      pr->meta.updatedAt = nowMs();
-      // Not gated by incognito: operates on other saved projects, not the
-      // incognito editor's content (see S6 scope note above).
+      // Explicit expiration editor (period selector + calendar + keep-forever),
+      // mirroring the browser expiration modal. Not gated by incognito: operates
+      // on other saved projects, not the incognito editor's content.
+      ExpirationDialog exp(QString::fromStdString(pr->meta.name), pr->meta.expiresAt,
+                           QString::fromStdString(pr->meta.refreshPeriod),
+                           pr->meta.autoRefresh, nowMs(), this);
+      if (exp.exec() != QDialog::Accepted) return;
+      pr->meta.expiresAt = exp.expiresAtMs();
+      pr->meta.refreshPeriod = exp.refreshPeriod().toStdString();
+      pr->meta.autoRefresh = exp.autoRefresh();
       fileStore::saveProjects(projectList_);
-      notify_->success(QString("Renewed \"%1\" — expires in 7 days")
-                           .arg(QString::fromStdString(pr->meta.name)));
+      notify_->success(pr->meta.expiresAt == 0
+                           ? QString("\"%1\" is kept forever")
+                                 .arg(QString::fromStdString(pr->meta.name))
+                           : QString("\"%1\" expiration updated")
+                                 .arg(QString::fromStdString(pr->meta.name)));
     } else if (dlg.action() == Action::New) {
       if (incognito_) {  // S6: no project promotion while incognito
         notify_->info("Incognito mode — saving is disabled");
@@ -2940,6 +3023,12 @@ namespace stencil::gui {
     }
     canvas_->restore(pr->imagePath, pr->lines, canvas_->scale(), pr->cropRect,
                      pr->rotationQuarters);
+    // Auto-refresh on open: restart the expiry window when enabled (mirrors the
+    // browser storage.loadProject snap). Keep-forever (expiresAt 0) is untouched.
+    if (pr->meta.autoRefresh && pr->meta.expiresAt != 0) {
+      pr->meta.expiresAt = core::ProjectsStore::addPeriod(nowMs(), pr->meta.refreshPeriod);
+      fileStore::saveProjects(projectList_);
+    }
     activeProjectId_ = id;
     remoteAddress_.clear();  // a local project is not server-linked
     remoteId_.clear();
@@ -3414,6 +3503,9 @@ namespace stencil::gui {
     const QString baseName = meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name;
     pr.meta.name = (name.trimmed().isEmpty() ? baseName : name.trimmed()).toStdString();
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
+    // New local projects default to a one-week expiration (mirrors the browser).
+    pr.meta.expiresAt = core::ProjectsStore::addPeriod(
+        pr.meta.updatedAt, core::ProjectsStore::DEFAULT_PERIOD);
     pr.meta.hasImage = true;
     pr.meta.source = meta.source.toStdString();
     pr.meta.resource = meta.resource.toStdString();
@@ -3741,6 +3833,7 @@ namespace stencil::gui {
     // carries none, so both clear). Saved to the project on the next create/save.
     currentSource_ = provSource;
     currentResource_ = provResource;
+    activeProjectId_.clear();  // a fresh URL/video/OS-open load is a new editor
     refreshActions();
     fitToWindow();
     notify_->success("Image opened");
@@ -3753,6 +3846,10 @@ namespace stencil::gui {
       pendingLaunchLayout_.clear();
       applyLayoutFromSource(src);
     }
+    // Persist as a local project so it shows in Projects (after any --layout lines are
+    // in). A remote image / video frame has no on-disk path — createLocalProject writes
+    // the pixels to the state dir. Browser parity: the active editor is always saved.
+    adoptCanvasAsLocalProject();
   }
 
   // Override the just-loaded image's default page-aspect crop with the quick-crop
@@ -4046,7 +4143,7 @@ namespace stencil::gui {
 
   // Build a Project from the current canvas, persist it, mark it active, refresh,
   // and notify. pr.meta.name == the passed name.
-  void MainWindow::createLocalProject(const QString& name) {
+  void MainWindow::createLocalProject(const QString& name, bool announce) {
     remoteAddress_.clear();  // a freshly created local project is not server-linked
     remoteId_.clear();
     remoteName_.clear();
@@ -4057,7 +4154,21 @@ namespace stencil::gui {
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
     pr.meta.name = name.toStdString();
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
-    pr.imagePath = canvas_->imagePath();
+    pr.meta.expiresAt = core::ProjectsStore::addPeriod(
+        pr.meta.updatedAt, core::ProjectsStore::DEFAULT_PERIOD);
+    // A blank / remote / video-frame canvas has no on-disk path; write the original
+    // pixels to the state dir so the project reloads them (crop + rotation are stored
+    // separately as meta, so persist the UNCROPPED original). Also point the canvas at
+    // the new path so later session/project saves round-trip it.
+    QString path = canvas_->imagePath();
+    if (path.isEmpty() && canvas_->hasImage()) {
+      const QString imgDir = fileStore::stateDir() + "/images";
+      QDir().mkpath(imgDir);
+      path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";
+      if (canvas_->originalImage().save(path, "PNG")) canvas_->setImagePath(path);
+      else path.clear();  // write failed → keep it in-memory (hasImage=false)
+    }
+    pr.imagePath = path;
     pr.lines = canvas_->allLines();
     pr.cropRect = canvas_->cropRect();
     pr.rotationQuarters = canvas_->rotationQuarters();
@@ -4069,7 +4180,26 @@ namespace stencil::gui {
     fileStore::saveProjects(projectList_);
     refreshActions();
     refreshDockMenu();  // surface the new project in the Dock "recent" list
-    notify_->success(QString("Created \"%1\"").arg(name));
+    if (announce) notify_->success(QString("Created \"%1\"").arg(name));
+  }
+
+  void MainWindow::adoptCanvasAsLocalProject() {
+    // Guards: incognito never persists; a server session owns its own saving; an
+    // already-active project means this canvas is that project (open/replace), not a
+    // fresh load; and there's nothing to save without an image.
+    if (incognito_) return;
+    if (!activeProjectId_.isEmpty() || !remoteAddress_.isEmpty()) return;
+    if (!canvas_->hasImage()) return;
+    // Name after the image file, else a unique "Untitled N" (mirrors newProjectFromCanvas).
+    QString seed = canvas_->imageBaseName();
+    if (seed.isEmpty()) {
+      std::vector<core::ProjectMeta> metas;
+      for (const auto& pr : projectList_) metas.push_back(pr.meta);
+      core::ProjectsStore tmp;
+      tmp.load(metas);
+      seed = QString::fromStdString(tmp.defaultName());
+    }
+    createLocalProject(seed, /*announce=*/false);  // the load path already notified
   }
 
   // Create the project on `serverUrl` (POST /projects), upload the current image as
@@ -4428,6 +4558,34 @@ namespace stencil::gui {
   }
 
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
+    // Zoom over the empty margin around a zoomed-out image (the viewport, not the
+    // canvas). Mirrors CanvasWidget's Ctrl+wheel / pinch zoom; the event position is
+    // already in viewport coordinates, which is what setZoomAnchored wants.
+    if (scroll_ && obj == scroll_->viewport()) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::Wheel) {
+        auto* we = static_cast<QWheelEvent*>(event);
+        if (we->modifiers() & Qt::ControlModifier) {
+          const QPoint d = we->angleDelta();
+          const int delta = d.y() != 0 ? d.y() : d.x();
+          if (delta != 0) {
+            const double step = (we->modifiers() & Qt::ShiftModifier) ? 0.3 : 0.1;
+            setZoomAnchored(canvas_->scale() + (delta > 0 ? step : -step),
+                            we->position().toPoint());
+            return true;
+          }
+        }
+        // Plain wheel over the margin → let the scroll area scroll.
+      } else if (t == QEvent::NativeGesture) {
+        auto* g = static_cast<QNativeGestureEvent*>(event);
+        if (g->gestureType() == Qt::ZoomNativeGesture) {
+          const double factor = 1.0 + g->value();
+          if (factor > 0.0 && factor != 1.0)
+            setZoomAnchored(canvas_->scale() * factor, g->position().toPoint());
+          return true;
+        }
+      }
+    }
     if (obj == projectName_) {
       const QEvent::Type t = event->type();
       if (t == QEvent::MouseButtonDblClick) {

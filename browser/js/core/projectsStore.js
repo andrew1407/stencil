@@ -8,8 +8,29 @@
 export const REGISTRY_KEY = 'stencil_projects_v1';
 export const PROJECT_PREFIX = 'stencil_project_';
 export const MIGRATED_FLAG = 'stencil_schema_migrated';
-export const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // one week
+export const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // one week (also the "week" preset)
 export const WARN_MS = 24 * 60 * 60 * 1000; // warn once a project is within a day of expiry
+
+// Refresh presets. Fixed durations (month=30d, year=365d, …) so this JS port and
+// core/state/projectsStore.cpp stay identical with no calendar library; the
+// custom-calendar pick sets an exact date instead. PERIOD_ORDER drives the modal's
+// selector. Keep in sync with ProjectsStore::periodMs in the C++ core.
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const DEFAULT_PERIOD = 'week';
+export const PERIOD_MS = {
+  day: DAY_MS,
+  week: 7 * DAY_MS,
+  fortnight: 14 * DAY_MS,
+  month: 30 * DAY_MS,
+  '3month': 90 * DAY_MS,
+  '6month': 180 * DAY_MS,
+  year: 365 * DAY_MS,
+};
+export const PERIOD_ORDER = ['day', 'week', 'fortnight', 'month', '3month', '6month', 'year'];
+// Milliseconds for a preset; unknown/empty → one week. Mirrors core periodMs.
+export const periodMs = (period) => PERIOD_MS[period] ?? EXPIRY_MS;
+// from + periodMs(period). Mirrors core addPeriod.
+export const addPeriod = (from, period) => from + periodMs(period);
 
 // Legacy single-project keys (pre-multi-project). Kept for idempotent migration.
 const LEGACY_IMAGE_KEY = 'drawingApp_image';
@@ -66,9 +87,23 @@ export class ProjectsStore {
 
   #payloadKey(id) { return PROJECT_PREFIX + id; }
 
+  // Default-fill the expiration fields for projects saved before this schema.
+  // Only fills ABSENT fields, so an explicit expiresAt of 0 (keep forever) is
+  // preserved. Legacy projects get expiresAt = updatedAt + one week, matching
+  // the old derived rule so behaviour doesn't jump on upgrade.
+  #normalizeMeta(m) {
+    if (!m || typeof m !== 'object') return m;
+    if (m.expiresAt == null) m.expiresAt = (m.updatedAt || 0) + EXPIRY_MS;
+    if (m.refreshPeriod == null) m.refreshPeriod = DEFAULT_PERIOD;
+    if (m.autoRefresh == null) m.autoRefresh = true;
+    return m;
+  }
+
   #readRegistry() {
     const arr = this.#readJSON(REGISTRY_KEY, []);
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    for (const m of arr) this.#normalizeMeta(m);
+    return arr;
   }
 
   #writeRegistry(arr) {
@@ -253,14 +288,15 @@ export class ProjectsStore {
 
   // ── expiry ────────────────────────────────────────────────────
 
+  // All keyed on the stored expiresAt; expiresAt of 0 (or absent) == keep forever.
   isExpired(meta, now = Date.now()) {
-    if (!meta || meta.updatedAt == null) return false;
-    return (now - meta.updatedAt) > EXPIRY_MS;
+    if (!meta || !meta.expiresAt) return false;  // keep forever
+    return now > meta.expiresAt;
   }
 
   expiresAt(meta) {
-    if (!meta || meta.updatedAt == null) return null;
-    return meta.updatedAt + EXPIRY_MS;
+    if (!meta || !meta.expiresAt) return null;  // keep forever → no date
+    return meta.expiresAt;
   }
 
   // True when a project is not yet expired but falls due within WARN_MS — the
@@ -272,10 +308,28 @@ export class ProjectsStore {
     return at > now && (at - now) <= WARN_MS;
   }
 
-  // Prolong a project's life: restamp updatedAt = now so its 7-day expiry window
-  // restarts from this moment. Alias of touch(), named for intent at call sites.
+  // Prolong a project's life: set expiresAt = now + its refresh period. This is
+  // the Refresh button and the open-time auto-refresh snap. Turns off keep-forever
+  // if it was on (a fresh window is exactly what refresh means). No id → null.
   renew(id, now = Date.now()) {
-    return this.touch(id, now);
+    const m = this.getMeta(id);
+    if (!m) return null;
+    const period = m.refreshPeriod || DEFAULT_PERIOD;
+    return this.setExpiration(id, { expiresAt: addPeriod(now, period), refreshPeriod: period });
+  }
+
+  // Set a project's expiration fields exactly (no updatedAt bump, like rename/setColor).
+  // expiresAt of 0 means "keep forever". Only the provided keys are written. This is
+  // what the expiration modal calls. No-op (returns null) when the id is unknown.
+  setExpiration(id, { expiresAt, refreshPeriod, autoRefresh } = {}) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    if (expiresAt != null) arr[i].expiresAt = expiresAt;
+    if (refreshPeriod != null) arr[i].refreshPeriod = refreshPeriod || DEFAULT_PERIOD;
+    if (autoRefresh != null) arr[i].autoRefresh = !!autoRefresh;
+    this.#writeRegistry(arr);
+    return arr[i];
   }
 
   // Remove every expired project; return the removed ids.
@@ -315,6 +369,9 @@ export class ProjectsStore {
       thumbnail: null,
       createdAt: now,
       updatedAt: now,
+      expiresAt: addPeriod(now, DEFAULT_PERIOD),
+      refreshPeriod: DEFAULT_PERIOD,
+      autoRefresh: true,
       hasImage: !!image,
       imageW: safeLayout.imageWidth || null,
       imageH: safeLayout.imageHeight || null,

@@ -217,7 +217,7 @@ pub fn buildLayout(
 /// One project as shown by `/projects`: name + image size + last-change timestamp, plus the
 /// project's custom name colour ("" = none, paint the name in the theme accent). Owns `name`
 /// and `color`.
-pub const ProjectInfo = struct { name: []u8, updated_at: i64, w: i64, h: i64, color: []u8 };
+pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, w: i64, h: i64, color: []u8 };
 
 /// Parse a { "projects": [...] } list body into an owned slice of ProjectInfo. Free with
 /// freeProjectList. Pure — unit-tested without a socket.
@@ -225,6 +225,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
     const T = struct {
         projects: []const struct {
             name: []const u8 = "",
+            createdAt: i64 = 0,
             updatedAt: i64 = 0,
             imageW: i64 = 0,
             imageH: i64 = 0,
@@ -240,7 +241,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
         errdefer gpa.free(nm);
         const col = try gpa.dupe(u8, proj.color);
         errdefer gpa.free(col);
-        try list.append(gpa, .{ .name = nm, .updated_at = proj.updatedAt, .w = proj.imageW, .h = proj.imageH, .color = col });
+        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .w = proj.imageW, .h = proj.imageH, .color = col });
     }
     return list.toOwnedSlice(gpa);
 }

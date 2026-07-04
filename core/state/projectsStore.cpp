@@ -38,6 +38,23 @@ namespace stencil::core {
     }
   }  // namespace
 
+  long long ProjectsStore::periodMs(const std::string& period) {
+    // Fixed-duration presets (must match browser projectsStore.js PERIOD_MS).
+    constexpr long long DAY = 24LL * 60 * 60 * 1000;
+    if (period == "day") return DAY;
+    if (period == "fortnight") return 14 * DAY;
+    if (period == "month") return 30 * DAY;
+    if (period == "3month") return 90 * DAY;
+    if (period == "6month") return 180 * DAY;
+    if (period == "year") return 365 * DAY;
+    // "week", empty, or anything unknown → one week.
+    return EXPIRY_MS;
+  }
+
+  long long ProjectsStore::addPeriod(long long from, const std::string& period) {
+    return from + periodMs(period);
+  }
+
   bool ProjectsStore::shouldPersist(const std::optional<std::string>& activeId,
                                     bool temporary) {
     return !temporary && activeId.has_value();
@@ -88,6 +105,20 @@ namespace stencil::core {
     return false;
   }
 
+  bool ProjectsStore::setExpiration(const std::string& id, long long expiresAt,
+                                    const std::string& refreshPeriod,
+                                    bool autoRefresh) {
+    for (auto& m : registry_) {
+      if (m.id == id) {
+        m.expiresAt = expiresAt;
+        m.refreshPeriod = refreshPeriod.empty() ? DEFAULT_PERIOD : refreshPeriod;
+        m.autoRefresh = autoRefresh;
+        return true;
+      }
+    }
+    return false;
+  }
+
   void ProjectsStore::remove(const std::string& id) {
     registry_.erase(std::remove_if(registry_.begin(), registry_.end(),
                                    [&](const ProjectMeta& m) {
@@ -101,13 +132,13 @@ namespace stencil::core {
   }
 
   bool ProjectsStore::isExpired(const ProjectMeta& meta, long long now) const {
-    if (meta.updatedAt == 0) return false;
-    return (now - meta.updatedAt) > EXPIRY_MS;
+    if (meta.expiresAt == 0) return false;  // keep forever
+    return now > meta.expiresAt;
   }
 
   std::optional<long long> ProjectsStore::expiresAt(const ProjectMeta& meta) const {
-    if (meta.updatedAt == 0) return std::nullopt;
-    return meta.updatedAt + EXPIRY_MS;
+    if (meta.expiresAt == 0) return std::nullopt;  // keep forever
+    return meta.expiresAt;
   }
 
   bool ProjectsStore::isExpiringSoon(const ProjectMeta& meta, long long now) const {

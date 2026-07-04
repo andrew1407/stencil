@@ -291,6 +291,17 @@ namespace stencil::gui {
     pr.meta.name = o.value("name").toString().toStdString();
     pr.meta.createdAt = o.value("createdAt").toVariant().toLongLong();
     pr.meta.updatedAt = o.value("updatedAt").toVariant().toLongLong();
+    // Explicit expiration (0 = keep forever). Legacy projects predate these keys:
+    // default-fill to the old derived rule (updatedAt + one week) so behaviour
+    // doesn't jump on upgrade. Mirrors browser ProjectsStore #normalizeMeta.
+    if (o.contains("expiresAt"))
+      pr.meta.expiresAt = o.value("expiresAt").toVariant().toLongLong();
+    else
+      pr.meta.expiresAt = pr.meta.updatedAt + core::ProjectsStore::EXPIRY_MS;
+    pr.meta.refreshPeriod = o.contains("refreshPeriod")
+      ? o.value("refreshPeriod").toString().toStdString()
+      : std::string(core::ProjectsStore::DEFAULT_PERIOD);
+    pr.meta.autoRefresh = o.value("autoRefresh").toBool(true);
     pr.imagePath = o.value("imagePath").toString();
     pr.meta.hasImage = !pr.imagePath.isEmpty();
     pr.meta.source = o.value("source").toString().toStdString();
@@ -333,6 +344,11 @@ namespace stencil::gui {
     o["name"] = QString::fromStdString(pr.meta.name);
     o["createdAt"] = QString::number(pr.meta.createdAt).toLongLong();
     o["updatedAt"] = QString::number(pr.meta.updatedAt).toLongLong();
+    // Expiration fields (mirrors the browser record). Written always so the
+    // stored 0 = "keep forever" is unambiguous on the next load.
+    o["expiresAt"] = QString::number(pr.meta.expiresAt).toLongLong();
+    o["refreshPeriod"] = QString::fromStdString(pr.meta.refreshPeriod);
+    o["autoRefresh"] = pr.meta.autoRefresh;
     o["imagePath"] = pr.imagePath;
     if (!pr.meta.source.empty()) o["source"] = QString::fromStdString(pr.meta.source);
     if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);

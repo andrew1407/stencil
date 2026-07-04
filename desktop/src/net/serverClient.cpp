@@ -133,6 +133,7 @@ namespace stencil::net {
       p.imageH = o.value("imageH").toInt();
       p.source = o.value("source").toString();
       p.resource = o.value("resource").toString();
+      p.createdAt = static_cast<qint64>(o.value("createdAt").toDouble());
       p.updatedAt = static_cast<qint64>(o.value("updatedAt").toDouble());
       p.version = static_cast<qint64>(o.value("version").toDouble());
       p.serverUrl = base_;
