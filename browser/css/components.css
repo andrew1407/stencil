@@ -803,6 +803,29 @@ stencil-links-modal { --vs-label-w: 118px; }
    lines (each option as a unit) only when the modal is too narrow. */
 .vs-row.vs-checks { justify-content: flex-start; flex-wrap: wrap; gap: 7px 26px; }
 .oi-replace { display: flex; flex-wrap: wrap; gap: 7px 18px; }
+/* ── Open-another-image + Open-in modals: a fixed label column with the controls
+   left-aligned against it. The default .vs-row space-between (right for the
+   settings toggles) scatters these mixed-width controls — the file input lands at
+   the far right while each checkbox group starts wherever its label ends. ── */
+stencil-open-image-modal .vs-row,
+stencil-open-in-modal .vs-row { justify-content: flex-start; }
+stencil-open-image-modal .vs-row > label,
+stencil-open-in-modal .vs-row > label { flex: 0 0 auto; min-width: 88px; }
+stencil-open-image-modal .vs-row > input[type="file"] { flex: 1 1 auto; min-width: 0; }
+/* Open-in modal: the "Project" description and the "Incognito" control+description
+   sit in a shared 3-column grid — label · fixed checkbox slot · text — so the two
+   description texts share one left edge (a lone checkbox would otherwise push the
+   incognito text right of the status text). The empty .oi-slot span reserves the
+   checkbox column in the checkbox-less status row. */
+stencil-open-in-modal .vs-row.oi-row {
+    display: grid;
+    grid-template-columns: 88px 1.25rem 1fr;
+    align-items: center;
+    column-gap: 8px;
+}
+stencil-open-in-modal .vs-row.oi-row > label { min-width: 0; }
+stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
+.oi-fallback { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .links-quickcrop-controls select { width: auto; min-width: 64px; }
 .links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled { opacity: .5; }
 /* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accentPicker.js) ──

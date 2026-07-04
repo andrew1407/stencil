@@ -185,6 +185,7 @@ onto the image.
 | `/rotate <n>` | Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`) |
 | `/filter <bw\|sepia\|invert\|contour\|none\|color>` | Black & white, sepia, invert, edge-detect contour, clear, or a duotone tint |
 | `/reset` · `/drop` | Clear pending edits (keep image) · forget the image entirely |
+| `/layout <json \| link>` | Apply a layout: inline JSON or an `http(s)` link to a layout `.json` (same validation as uploading the file; links are SSRF-vetted like `/url`) |
 | `/image` · `/json` | Download the rendered result · download the layout JSON |
 | `/status` | Show the working image, pending edits, pen and active project |
 
@@ -207,6 +208,7 @@ onto the image.
 | `/fetch <name\|id>` | Load a server project as the working image |
 | `/create [name]` | Publish the current result as a **new** server project |
 | `/save` | Save the result + layout back to the active project (version-guarded) |
+| `/start <payload>` | Inbound deep link: t.me `?start=` payloads from the browser/desktop **"Open in… → Telegram"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe |
 
 ## Docker
 

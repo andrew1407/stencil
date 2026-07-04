@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy to openInConfig.json (gitignored, per-operator). desktopScheme: the desktop app's OS URL scheme (leave 'stencil'; empty hides the Desktop option). telegramBotUsername: your bot's @name WITHOUT the @ (empty hides the Telegram option).",
+  "desktopScheme": "stencil",
+  "telegramBotUsername": ""
+}

@@ -283,7 +283,7 @@ public sealed class UpdateRouter
             return;
         }
         byte[] bytes = await DownloadBytesAsync(fileId, ct);
-        StencilLayout? layout = ParseLayout(bytes);
+        StencilLayout? layout = StencilLayoutParser.Parse(bytes);
         if (layout is null)
         {
             await _bot.SendMessage(chatId, "That file isn't a valid Stencil layout JSON.", cancellationToken: ct);
@@ -291,20 +291,6 @@ public sealed class UpdateRouter
         }
         await _editing.ApplyLayoutAsync(userId, layout, ct);
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Parse layout bytes via the shared JSON conventions (null on malformed input).</summary>
-    private static StencilLayout? ParseLayout(byte[] bytes)
-    {
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(bytes);
-            return StencilJson.FromElement<StencilLayout>(document.RootElement);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     /// <summary>Download a Telegram file's bytes into memory, capped at the configured limit.</summary>

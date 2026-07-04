@@ -31,6 +31,25 @@ For the project overview and the desktop (C++/Qt) app, see the
   one-week expiry sweep
 - Installable as a **PWA** (Progressive Web App): "Install app" button + browser
   install UI, runs in its own window, and works offline via a service-worker cache
+- **Open in… (desktop app / Telegram bot)**: the toolbar button next to Share mirrors
+  the current session into another Stencil front-end. A server-linked project sends
+  only the server reference (`{url, id, version}` — never a token; the receiver
+  connects like a fresh client, minting a token via `POST /auth/token` or prompting);
+  a local/incognito project embeds the image + full layout inline in a `stencil://`
+  link the OS routes to the installed desktop app. The Telegram option (server
+  projects only — a 64-char `?start=` payload can't carry bytes) appears once your
+  bot is configured; payloads that can't fit the limit fall back to copyable
+  `/connect` + `/fetch` commands. **Config** is the static-site equivalent of a
+  `.env` file: copy `js/config/openInConfig.example.json` to
+  `js/config/openInConfig.json` (gitignored, per-operator) and set
+  `telegramBotUsername` (your bot's `@name` without the `@`). It loads at runtime, so
+  a fresh clone with no local file still boots — the Telegram option just stays hidden.
+  "Incognito" always means Stencil's own never-persisted mode on the receiving side.
+  Inbound, the `#stencil=` fragment accepts `server` / `dataUrl` / `src` / `layout`
+  fields (see `js/core/deepLink.js` `normalizeLaunchPayload`). `launch.html` is a
+  standalone helper that forwards `#stencil-desktop=<encoded stencil:// URL>` to the
+  OS scheme — useful for opening a `stencil://` link shared through a channel that
+  won't linkify custom schemes (it validates the target is exactly `stencil:`)
 
 ## Running
 
@@ -83,6 +102,7 @@ path (no JS fallback). Map a different host port with e.g. `-p 9000:80`.
 
 ```
 index.html            # single <script type="module"> entrypoint
+launch.html           # standalone bounce page: #stencil-desktop=<url> → stencil:// scheme
 manifest.webmanifest  # PWA metadata (name, icons, standalone display)
 sw.js                 # service worker: offline app-shell + runtime cache
 favicon.svg           # icon (also the PWA "any"-purpose icon)

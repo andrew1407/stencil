@@ -32,6 +32,7 @@ public static class BotCommandList
         new("undoline", "Remove the last drawn line"),
         new("clearlines", "Remove all drawn lines"),
         new("image", "Re-render and resend the result"),
+        new("layout", "Apply a layout: <json | link to .json>"),
         new("json", "Download the layout JSON"),
         new("reset", "Clear pending edits"),
         new("drop", "Discard the working image"),

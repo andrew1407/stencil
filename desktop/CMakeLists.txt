@@ -77,6 +77,7 @@ if(Qt6_FOUND)
     src/app/main.cpp
     src/app/mainWindow.cpp
     src/app/launchOptions.cpp
+    src/app/deepLink.cpp
     src/app/selectionPanel.cpp
     src/canvas/canvasWidget.cpp
     src/canvas/canvasTooltip.cpp
@@ -90,6 +91,7 @@ if(Qt6_FOUND)
     src/dialogs/infoDialog.cpp
     src/dialogs/shortcutsDialog.cpp
     src/dialogs/connectDialog.cpp
+    src/dialogs/openInDialog.cpp
     src/net/serverClient.cpp
     src/net/liveFeed.cpp
     src/net/connectionStore.cpp
@@ -260,6 +262,21 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_projectcolor_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_projectcolor_headless COMMAND stencil_projectcolor_headless)
   set_tests_properties(stencil_projectcolor_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Deep-link check: the stencil:// URL grammar (parseStencilUrl) + the Telegram
+  # start-payload codec (golden vectors shared verbatim with browser/tests/
+  # deepLink.test.js and the bot's DeepLinkCodecTests.cs) + the browser-fragment
+  # URL builder's percent-encoding.
+  add_executable(stencil_deeplink_headless
+    tests/deepLink.headless.cpp
+    src/app/deepLink.cpp
+    src/app/launchOptions.cpp
+    src/net/serverClient.cpp)
+  target_include_directories(stencil_deeplink_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_deeplink_headless PRIVATE stencil_core Qt6::Network)
+  add_test(NAME stencil_deeplink_headless COMMAND stencil_deeplink_headless)
+  set_tests_properties(stencil_deeplink_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # Live push-feed check (net/liveFeed) — drives LiveFeed against a mock QTcpServer that
