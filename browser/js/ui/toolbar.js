@@ -51,6 +51,7 @@ export class StencilToolbar extends StencilElement {
                         <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
                         <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
                         <button id="share-image" class="btn-icon" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
+                        <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image" title="Open another image…">${icon('external')}</button>
                     </span>
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>

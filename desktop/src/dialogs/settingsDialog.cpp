@@ -8,6 +8,7 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QIcon>
+#include <QLineEdit>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
@@ -145,6 +146,20 @@ namespace stencil::gui {
         "Press-and-hold delay before hold-to-draw places a point");
     form->addRow("Hold-to-draw delay", holdDelay_);
 
+    // "Open in…" targets (Project ▸ Open In…): where the browser app lives and
+    // which Telegram bot to deep-link (empty hides the Telegram option).
+    browserUrl_ = new QLineEdit(current.browserBaseUrl, this);
+    browserUrl_->setToolTip(
+        "Base URL of the Stencil browser app, used by \"Open In… → Browser app\"");
+    form->addRow("Browser app URL", browserUrl_);
+
+    botUsername_ = new QLineEdit(current.telegramBotUsername, this);
+    botUsername_->setPlaceholderText("e.g. my_stencil_bot (empty = hidden)");
+    botUsername_->setToolTip(
+        "Telegram bot username (without @) for \"Open In… → Telegram bot\"; "
+        "leave empty to hide that option");
+    form->addRow("Telegram bot", botUsername_);
+
     auto* buttons =
         makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
 
@@ -178,6 +193,8 @@ namespace stencil::gui {
     s.customPageWidth = customW_->value();
     s.customPageHeight = customH_->value();
     s.holdDrawDelay = holdDelay_->value();
+    s.browserBaseUrl = browserUrl_->text().trimmed();
+    s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));
     return s;
   }
 

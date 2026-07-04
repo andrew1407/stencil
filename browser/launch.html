@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Desktop-app bounce page. Telegram (and most chat apps) only linkify http(s) URLs,
+  so links that should open the Stencil DESKTOP app arrive here as
+      launch.html#stencil-desktop=<encodeURIComponent(stencil:// URL)>
+  and this page forwards to the custom scheme the desktop app registers with the OS.
+  Standalone on purpose: no module imports, works even when the editor fails to boot.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stencil — opening the desktop app…</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0; background: #f5f5f7; color: #1c1c1e;
+    }
+    @media (prefers-color-scheme: dark) { body { background: #1c1c1e; color: #f5f5f7; } }
+    main { max-width: 26rem; padding: 2rem; text-align: center; }
+    h1 { font-size: 1.15rem; }
+    p { font-size: .9rem; opacity: .8; }
+    .actions { display: flex; gap: .6rem; justify-content: center; margin-top: 1.2rem; flex-wrap: wrap; }
+    a.btn, button.btn {
+      font-size: .9rem; padding: .5rem 1rem; border-radius: .5rem; cursor: pointer;
+      border: 1px solid #8884; background: transparent; color: inherit; text-decoration: none;
+    }
+    a.btn.primary { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    #error { color: #d33; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Opening the Stencil desktop app…</h1>
+    <p id="msg">If nothing happens, the desktop app may not be installed, or your system
+      hasn't registered the <code>stencil://</code> link type yet.</p>
+    <p id="error" hidden>This link doesn't carry a valid Stencil desktop URL.</p>
+    <div class="actions">
+      <a id="open-btn" class="btn primary" hidden>Open in desktop app</a>
+      <button id="copy-btn" class="btn" hidden>Copy link</button>
+      <a class="btn" href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
+         rel="noopener">Download the desktop app</a>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const marker = '#stencil-desktop=';
+      const hash = location.hash || '';
+      const errEl = document.getElementById('error');
+      if (!hash.startsWith(marker)) { errEl.hidden = false; return; }
+      let url = '';
+      try { url = decodeURIComponent(hash.slice(marker.length)); } catch { /* fall through */ }
+      // Only ever forward to the stencil: scheme — anything else (javascript:, http:, …)
+      // would turn this page into an open redirector.
+      let ok = false;
+      try { ok = new URL(url).protocol === 'stencil:'; } catch { ok = false; }
+      if (!ok) { errEl.hidden = false; return; }
+      const openBtn = document.getElementById('open-btn');
+      const copyBtn = document.getElementById('copy-btn');
+      openBtn.href = url;
+      openBtn.hidden = false;
+      copyBtn.hidden = false;
+      copyBtn.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(url); copyBtn.textContent = 'Copied!'; }
+        catch { copyBtn.textContent = 'Copy failed'; }
+      });
+      // Auto-forward once; the manual button stays as the fallback.
+      location.href = url;
+    })();
+  </script>
+</body>
+</html>

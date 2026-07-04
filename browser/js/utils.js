@@ -381,3 +381,13 @@ export const isTypingTarget = t => {
   }
   return t.isContentEditable === true;
 };
+
+// True when the user currently has a non-empty text selection on the page (e.g. they
+// selected a server URL or other label text). Copy shortcuts (Ctrl+C = copy image,
+// Ctrl+Alt+C = copy layout) defer to the browser's native text copy in that case, so
+// selecting text and pressing Ctrl+C copies the TEXT rather than hijacking the image.
+export const hasTextSelection = () => {
+  if (typeof window === 'undefined' || !window.getSelection) return false;
+  const sel = window.getSelection();
+  return !!sel && !sel.isCollapsed && sel.toString().trim().length > 0;
+};

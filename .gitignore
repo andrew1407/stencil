@@ -55,6 +55,16 @@ desktop/.stencil/
 # (see core/README via README → Test). Keeps the ~300 KB vendored header out of the repo.
 core/third_party/doctest.h
 
+# Browser "Open in…" targets (desktop scheme + optional Telegram bot username) — the
+# static-site equivalent of a .env: the committed openInConfig.example.json is the
+# template; the real openInConfig.json is per-operator and never committed (the app
+# falls back to built-in defaults when it's absent).
+browser/js/config/openInConfig.json
+
+# Local capture artifact from the Open-in verification (chrome-devtools screenshot dump).
+browser/.stencil-open-in-capture.json
+browser/.desktop-check.png
+
 # Generated WebAssembly core — Emscripten output copied from core/build-wasm/
 # (see core/WASM.md). Built in CI for the parity check; build locally to exercise
 # the wasm path. The JS reference/fallback path runs without it.

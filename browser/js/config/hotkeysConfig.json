@@ -24,6 +24,7 @@
   { "id": "deletePoint", "label": "Delete Selected Point", "default": "Alt+Shift+Delete" },
   { "id": "loadImage", "label": "Load / Open Image", "default": "Ctrl+O" },
   { "id": "openAnotherImage", "label": "Open Another Image", "default": "Ctrl+Shift+O" },
+  { "id": "openIn", "label": "Open in Desktop / Telegram", "default": "Ctrl+Shift+E" },
   { "id": "saveImage", "label": "Download Image", "default": "Ctrl+Shift+D" },
   { "id": "cropImage", "label": "Crop Image", "default": "Ctrl+Shift+X" },
   { "id": "downloadJson", "label": "Download Layout JSON", "default": "Ctrl+Shift+J" },

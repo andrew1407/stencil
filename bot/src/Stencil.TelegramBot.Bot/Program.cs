@@ -4,6 +4,7 @@ using Stencil.TelegramBot.Application.DependencyInjection;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.DependencyInjection;
+using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 
 // Entry point for the Stencil Telegram bot. Mirrors the role of the other front-ends' hosts
@@ -32,6 +33,7 @@ TelegramBotClient client = new(options.BotToken);
 services.AddSingleton(client);
 services.AddSingleton<ITelegramBotClient>(client);
 services.AddSingleton<SyncRegistry>();
+services.AddSingleton(new LayoutFetcher(options));
 services.AddSingleton<UserGate>();
 services.AddSingleton<CommandHandlers>();
 services.AddSingleton<CallbackAction>();

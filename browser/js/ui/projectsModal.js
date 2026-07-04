@@ -686,39 +686,9 @@ export class StencilProjectsModal extends StencilElement {
       return row;
     };
 
-    // Fetch a remote project's image + layout and load it into the editor.
-    const openRemote = async (meta) => {
-      // If a local project is already linked to this server project, just switch to
-      // it — never create a duplicate local copy or re-download the image.
-      const linked = store.list().find(m => m.remoteId === meta.id && m.address === meta.serverUrl);
-      if (linked) { app.switchToProject(linked.id); return; }
-      const conn = app.connections && app.connections.get(meta.serverUrl);
-      if (!conn) throw new Error('not connected');
-      const full = await conn.getProject(meta.id);
-      // Prefer the server's stored original bytes; if it holds none, fetch the `source`
-      // URL directly (cross-origin, so it needs CORS — which typical image hosts send).
-      let blob = null;
-      try { blob = await conn.fetchFile(meta.id, 'original'); }
-      catch { blob = null; }
-      const src = full.project?.source || '';
-      if (!blob && /^https?:/i.test(src)) {
-        const resp = await fetch(src, { mode: 'cors' });
-        if (!resp.ok) throw new Error(`source image returned ${resp.status}`);
-        blob = await resp.blob();
-      }
-      if (!blob) throw new Error('no image bytes on the server');
-      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-      const file = new File([blob], `${meta.name || 'image'}.${ext}`, { type: blob.type || 'image/png' });
-      app.loadImageFromFile(file, {
-        source: src,
-        resource: full.project?.resource || '',
-        color: full.project?.color || '',
-        address: meta.serverUrl,
-        remoteId: meta.id,
-        version: full.project?.version || 0,
-        layout: full.layout,
-      });
-    };
+    // Fetch a remote project's image + layout and load it into the editor (shared with
+    // the external-launch server hand-off — see DrawingApp.openRemoteProject).
+    const openRemote = (meta) => app.openRemoteProject(meta);
 
     // A shimmering placeholder row shaped like a project row, shown while the server
     // listing loads so the modal opens instantly instead of waiting on the network.

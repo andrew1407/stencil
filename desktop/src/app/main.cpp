@@ -6,32 +6,42 @@
 #include <QProxyStyle>
 #include <QStringList>
 #include <QStyleFactory>
+#include <QUrl>
 
 namespace {
 
   // QApplication subclass that catches the macOS QFileOpenEvent — emitted when a
   // file is double-clicked in Finder, dropped on the Dock icon, or passed via
-  // "Open With" for a type declared in CFBundleDocumentTypes. The event can arrive
-  // BEFORE the window exists (at launch), so paths are buffered until the window
-  // is registered, then flushed. On other platforms this event never fires (those
-  // shells pass the file as an argv positional instead — handled in main()).
+  // "Open With" for a type declared in CFBundleDocumentTypes — and, since the
+  // bundle also registers the stencil:// scheme (CFBundleURLTypes), when a
+  // stencil:// deep link is opened (the event then carries a url, not a file).
+  // Either can arrive BEFORE the window exists (at launch), so entries are
+  // buffered until the window is registered, then flushed. On other platforms
+  // this event never fires (those shells pass the file/URL as an argv positional
+  // instead — handled in main() / parseLaunchOptions).
   class StencilApplication : public QApplication {
    public:
     using QApplication::QApplication;
 
     void setMainWindow(stencil::gui::MainWindow* w) {
       window_ = w;
-      for (const QString& f : pending_) window_->openPathFromOS(f);
+      for (const QString& f : pending_) route(f);
       pending_.clear();
     }
 
    protected:
     bool event(QEvent* e) override {
       if (e->type() == QEvent::FileOpen) {
-        const QString file = static_cast<QFileOpenEvent*>(e)->file();
-        if (!file.isEmpty()) {
-          if (window_) window_->openPathFromOS(file);
-          else pending_ << file;  // buffer until the window is ready
+        const auto* fo = static_cast<QFileOpenEvent*>(e);
+        // A registered URL scheme arrives with url() set and file() empty.
+        const QUrl url = fo->url();
+        const QString entry =
+            (url.scheme().compare(QLatin1String("stencil"), Qt::CaseInsensitive) == 0)
+                ? url.toString(QUrl::FullyEncoded)
+                : fo->file();
+        if (!entry.isEmpty()) {
+          if (window_) route(entry);
+          else pending_ << entry;  // buffer until the window is ready
         }
         return true;
       }
@@ -39,6 +49,13 @@ namespace {
     }
 
    private:
+    void route(const QString& entry) {
+      if (entry.startsWith(QLatin1String("stencil:"), Qt::CaseInsensitive))
+        window_->openStencilUrl(QUrl(entry));
+      else
+        window_->openPathFromOS(entry);
+    }
+
     stencil::gui::MainWindow* window_ = nullptr;
     QStringList pending_;
   };

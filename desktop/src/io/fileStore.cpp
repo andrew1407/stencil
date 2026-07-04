@@ -213,6 +213,8 @@ namespace stencil::gui {
     s.imageFilter = o.value("imageFilter").toString(s.imageFilter);
     s.filterColor = o.value("filterColor").toString(s.filterColor);
     s.holdDrawDelay = o.value("holdDrawDelay").toInt(s.holdDrawDelay);
+    s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
+    s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
     return s;
   }
 
@@ -239,6 +241,8 @@ namespace stencil::gui {
     o["imageFilter"] = s.imageFilter;
     o["filterColor"] = s.filterColor;
     o["holdDrawDelay"] = s.holdDrawDelay;
+    o["browserBaseUrl"] = s.browserBaseUrl;
+    o["telegramBotUsername"] = s.telegramBotUsername;
     writeJson(settingsPath(), QJsonDocument(o));
   }
 
