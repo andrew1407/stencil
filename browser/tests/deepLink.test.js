@@ -179,3 +179,9 @@ test('normalizeLaunchPayload rejects junk', () => {
   assert.strictEqual(normalizeLaunchPayload({ server: { url: 'x' } }), null);        // id missing
   assert.strictEqual(normalizeLaunchPayload({ server: { id: 'p_1' } }), null);       // url missing
 });
+
+test('normalizeLaunchPayload rejects a non-data: dataUrl (no http/javascript smuggling)', () => {
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: 'http://169.254.169.254/latest/' }), null);
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: 'javascript:alert(1)' }), null);
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: 'file:///etc/passwd' }), null);
+});

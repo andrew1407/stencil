@@ -130,7 +130,10 @@ export const normalizeLaunchPayload = (payload) => {
       ...common,
     };
   }
-  if (str(payload.dataUrl)) return { kind: 'dataUrl', dataUrl: payload.dataUrl, ...common };
+  // Only a real data: URL may ride the dataUrl slot (the receiver fetch()es it) — a remote
+  // image belongs in `src`, scheme-checked below.
+  const dataUrl = str(payload.dataUrl);
+  if (dataUrl && /^data:/i.test(dataUrl)) return { kind: 'dataUrl', dataUrl, ...common };
   const src = str(payload.src);
   if (src && /^https?:/i.test(src)) return { kind: 'src', src, ...common };
   return null;

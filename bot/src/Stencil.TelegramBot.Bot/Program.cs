@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.DependencyInjection;
+using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.DependencyInjection;
@@ -33,7 +34,9 @@ TelegramBotClient client = new(options.BotToken);
 services.AddSingleton(client);
 services.AddSingleton<ITelegramBotClient>(client);
 services.AddSingleton<SyncRegistry>();
-services.AddSingleton(new LayoutFetcher(options));
+// Re-check the dialed address with the same predicate /layout's pre-check uses, closing
+// the DNS-rebinding gap between vet and fetch.
+services.AddSingleton(new LayoutFetcher(options, isBlockedAddress: RemoteImageUrl.IsBlockedAddress));
 services.AddSingleton<UserGate>();
 services.AddSingleton<CommandHandlers>();
 services.AddSingleton<CallbackAction>();
