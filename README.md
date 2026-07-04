@@ -191,8 +191,3 @@ For a tool-protocol integration that works with **any** MCP client (Claude Code,
 Desktop, or your own agent), the **MCP server** ([`mcp/`](mcp/)) exposes the same editing
 pipeline as `stencil_edit` / `stencil_probe` tools over stdio — register it with
 `claude mcp add stencil -- /path/to/stencil-mcp`. See [mcp/README.md](mcp/README.md).
-
-## License
-
-Licensed under the [Apache License, Version 2.0](LICENSE). The software is provided "AS IS",
-without warranties or conditions of any kind.
