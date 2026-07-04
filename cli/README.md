@@ -34,15 +34,9 @@ graph TD
     REPL -.->|"connect · REST + raw-TCP live edit"| SRV
     MCP -->|"shell-out"| PIPE
     BOT -->|"shell-out"| PIPE
-
-    click CORE "../core/README.md#architecture" "Shared core architecture"
-    click SRV "../server/README.md#architecture" "Collaboration server architecture"
-    click MCP "../mcp/README.md#architecture" "MCP server architecture"
-    click BOT "../bot/README.md#architecture" "Telegram bot architecture"
 ```
 
-> Click a node to open that surface's own architecture diagram, or see the whole-system
-> view in the [repository README](../README.md#architecture). The [pipeline data-flow](#how-it-works)
+> **Surface diagrams:** [core](../core/README.md#architecture) · [server](../server/README.md#architecture) · [mcp](../mcp/README.md#architecture) · [bot](../bot/README.md#architecture) — or the whole-system view in the [repository README](../README.md#architecture). The [pipeline data-flow](#how-it-works)
 > is detailed below.
 
 ## Dependencies
