@@ -71,6 +71,15 @@ namespace stencil::gui {
       return QString("Created %1").arg(QLocale().toString(d, QLocale::ShortFormat));
     }
 
+    // "Expires <localized short date>" for a server project's expiresAt (epoch ms),
+    // or empty when 0/unset (keep forever). Shown next to the created date on server
+    // rows; local rows use expiryText() (a relative "expires in N days") instead.
+    QString expiresText(long long expiresAt) {
+      if (expiresAt <= 0) return QString();
+      const QDate d = QDateTime::fromMSecsSinceEpoch(expiresAt).date();
+      return QString("Expires %1").arg(QLocale().toString(d, QLocale::ShortFormat));
+    }
+
     // Modal name prompt with live validation (mirrors the browser's validated inline
     // rename): the ✓ (OK) button is enabled only when the trimmed name is non-empty,
     // ≤80 chars, and unique (excluding `exceptId`); its tooltip shows the reason when
@@ -622,6 +631,8 @@ namespace stencil::gui {
                           .arg(sp.serverUrl);
       const QString spCreated = createdText(sp.createdAt);
       if (!spCreated.isEmpty()) label += QString("   ·   %1").arg(spCreated);
+      const QString spExpires = expiresText(sp.expiresAt);
+      if (!spExpires.isEmpty()) label += QString("   ·   %1").arg(spExpires);
       auto* it = new QListWidgetItem(label, list_);
       it->setData(Qt::UserRole, sp.id);
       it->setData(Qt::UserRole + 1, sp.serverUrl);

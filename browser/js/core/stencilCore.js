@@ -53,7 +53,7 @@ class StencilCore {
   // core rather than install bindings that throw when called.
   #requiredExports = [
     'stencil_parseHex', 'stencil_distToSegment', 'stencil_formulaValidate',
-    'stencil_formulaApply', 'stencil_clampScale', 'stencil_shouldCloseShape',
+    'stencil_formulaApply', 'stencil_parseDuration', 'stencil_clampScale', 'stencil_shouldCloseShape',
     'stencil_isAlbumOrientation', 'stencil_cropAspect', 'stencil_cropResizeScale',
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
@@ -83,7 +83,7 @@ class StencilCore {
   // without exposing the #private ops store.
   get opNames() {
     return [
-      'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
+      'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply', 'parseDuration',
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
@@ -109,6 +109,7 @@ class StencilCore {
     const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
     const cFormulaValid   = core.cwrap('stencil_formulaValidate', 'number', ['string', 'number']);
     const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['string', 'number', 'number', 'number']);
+    const cParseDuration  = (spec, out) => core.ccall('stencil_parseDuration', 'number', ['string', 'number'], [spec, out]);
     const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
     const cShouldClose    = core.cwrap('stencil_shouldCloseShape', 'number', ['number', 'number', 'number', 'number', 'number']);
     const cIsAlbum        = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
@@ -188,6 +189,18 @@ class StencilCore {
 
       formulaApply(expr, varName, val, allowFormulas) {
         return cFormulaApply(expr ?? '', varName.charCodeAt(0), val, allowFormulas ? 1 : 0);
+      },
+
+      // Parse a human duration → milliseconds (0 = keep forever), or null if the
+      // spec is invalid. Writes the ms through a scratch out-pointer.
+      parseDuration(spec) {
+        const out = core._malloc(F64);
+        try {
+          if (cParseDuration(spec ?? '', out) !== 1) return null;
+          return core.getValue(out, 'double');
+        } finally {
+          core._free(out);
+        }
       },
 
       clampScale(scale) {

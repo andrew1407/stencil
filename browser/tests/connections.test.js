@@ -336,6 +336,27 @@ test('saveRemoteProject surfaces a 409 as a flagged conflict error', async () =>
   );
 });
 
+test('move-to-server contract: adopt saveRemoteProject\'s refreshed version so a later field push does not 409', async () => {
+  // Reproduces the #createServerFromLocal sequence: create (+ original upload) THEN save
+  // the annotated layout. The layout save advances the server version again, so the link
+  // to persist on the editor is the one saveRemoteProject returns — not the create link.
+  // Discarding it left remoteLink.version stale, 409-ing the next colour/rename/expiry push.
+  const server = makeFakeServer();
+  const conn = await connectOne(server);
+  const createLink = await createRemoteProject(conn, { name: 'P', bytes: new Uint8Array([1, 2]), w: 2, h: 2 });
+  const savedLink = await saveRemoteProject(conn, createLink, { name: 'P', layout: { lines: [] } });
+  assert.ok(savedLink.version > createLink.version, 'the layout save advances the server version past create time');
+
+  // A field push with the REFRESHED version succeeds…
+  const ok = await conn.updateProject(createLink.remoteId, { name: 'renamed', version: savedLink.version });
+  assert.equal(ok.version, savedLink.version + 1);
+  // …while the STALE create-time version 409s (the exact failure this guards).
+  await assert.rejects(
+    () => conn.updateProject(createLink.remoteId, { name: 'again', version: createLink.version }),
+    (err) => err.status === 409,
+  );
+});
+
 test('deleteProject removes a project on the server', async () => {
   const server = makeFakeServer({ projects: [{ id: 'p_a_b', name: 'X', version: 0 }] });
   const conn = await connectOne(server);

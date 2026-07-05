@@ -32,7 +32,7 @@ func (f *fakeHubStore) GetProject(_ context.Context, id string) (protocol.Projec
 	return f.rec, nil
 }
 
-func (f *fakeHubStore) UpdateProject(_ context.Context, id string, _ *string, _ *string, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
+func (f *fakeHubStore) UpdateProject(_ context.Context, id string, _ *string, _ *string, _ *int64, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if id != f.rec.ID {

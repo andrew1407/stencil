@@ -18,6 +18,7 @@ type ProjectRecord struct {
 	Name      string `json:"name"`
 	CreatedAt int64  `json:"createdAt"` // epoch ms
 	UpdatedAt int64  `json:"updatedAt"` // epoch ms (lists sort desc)
+	ExpiresAt int64  `json:"expiresAt,omitempty"` // epoch ms; 0 = never (swept once past)
 	HasImage  bool   `json:"hasImage"`
 	ImageW    int    `json:"imageW"`
 	ImageH    int    `json:"imageH"`
@@ -65,15 +66,19 @@ type CreateProjectRequest struct {
 	ImageH          int             `json:"imageH,omitempty"`
 	OriginalContent string          `json:"originalContent,omitempty"`
 	Layout          json.RawMessage `json:"layout,omitempty"`
+	// ExpiresAt (epoch ms; 0/absent = never) lets a client set an explicit expiry at
+	// create time. Server projects otherwise have no expiry unless PROJECT_TTL is set.
+	ExpiresAt int64 `json:"expiresAt,omitempty"`
 }
 
 // UpdateProjectRequest is the body of PUT /projects/{id}. Version guards the
 // last-writer-wins update: a stale version is rejected with ErrConflict.
 type UpdateProjectRequest struct {
-	Name    *string         `json:"name,omitempty"`
-	Color   *string         `json:"color,omitempty"` // nil => unchanged (like Name)
-	Layout  json.RawMessage `json:"layout,omitempty"`
-	Version int64           `json:"version"`
+	Name      *string         `json:"name,omitempty"`
+	Color     *string         `json:"color,omitempty"`     // nil => unchanged (like Name)
+	ExpiresAt *int64          `json:"expiresAt,omitempty"` // nil => unchanged; 0 = keep forever
+	Layout    json.RawMessage `json:"layout,omitempty"`
+	Version   int64           `json:"version"`
 }
 
 // FileWriteResponse is returned by POST /projects/{id}/files/{kind}.

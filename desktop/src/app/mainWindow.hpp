@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QMainWindow>
 #include <QString>
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -406,6 +407,15 @@ namespace stencil::gui {
     // server project (serverUrl non-empty) it PUTs UpdateProject{color}; else it
     // updates the local meta + persists. Returns true on success.
     bool setProjectColorById(const QString& id, const QString& serverUrl, const QString& color);
+    // Run a version-guarded server write with a bounded conflict retry. Reads `id`'s current
+    // version, calls `put(version, newVersion, conflict)` to perform the PUT, and on a 409 (the
+    // read-then-PUT isn't atomic, so a peer's save or a re-entrant autosave can bump the version
+    // mid-call) re-reads and retries — up to 4 attempts. Returns the winning version via
+    // `outVersion` and true on success; on failure `c->lastError()` holds the reason. Shared by
+    // commitProjectName / setProjectColorById.
+    bool putVersionGuarded(stencil::net::ServerClient* c, const QString& id,
+        const std::function<bool(qint64 version, qint64& newVersion, bool& conflict)>& put,
+        qint64& outVersion);
     // Normalise a colour for storage: "" stays "" (clear); a QColor-valid string
     // returns "#rrggbb" lower-case; anything else returns nullopt (reject the set).
     std::optional<QString> normalizeProjectColor(const QString& color) const;

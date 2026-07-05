@@ -58,6 +58,9 @@ public sealed record UserSession
     /// <summary>The active project's creation time (epoch ms), shown in /status. 0 when none.</summary>
     public long ActiveProjectCreatedAt { get; init; }
 
+    /// <summary>The active project's expiry (epoch ms), shown in /status. 0 = keep forever / none.</summary>
+    public long ActiveProjectExpiresAt { get; init; }
+
     /// <summary>Version last seen for the active project — the LWW guard for save-back.</summary>
     public long ActiveProjectVersion { get; init; }
 

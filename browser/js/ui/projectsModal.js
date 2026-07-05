@@ -602,6 +602,14 @@ export class StencilProjectsModal extends StencilElement {
         created.textContent = `Created ${fmtDate(meta.createdAt)} · `;
         sub.appendChild(created);
       }
+      // Server projects may carry an expiresAt (epoch ms; 0/absent = keep forever) —
+      // shown next to the created date when the server has set one.
+      if (meta.expiresAt) {
+        const expires = document.createElement('span');
+        expires.className = 'project-expires';
+        expires.textContent = `Expires ${fmtDate(meta.expiresAt)} · `;
+        sub.appendChild(expires);
+      }
       const badge = document.createElement('span');
       badge.className = 'project-remote-badge';
       badge.innerHTML = `${icon('server', { size: 12 })}<span>${meta.serverUrl}</span>`;

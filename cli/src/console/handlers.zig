@@ -389,13 +389,14 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
 
 /// One rendered project row; all fields owned so rows outlive the per-server lists they came
 /// from. `color` is the project's custom name colour ("" = none → paint in the theme accent).
-const ProjectRow = struct { name: []u8, size: []u8, created: []u8, changed: []u8, color: []u8, server: []const u8 };
+const ProjectRow = struct { name: []u8, size: []u8, created: []u8, expires: []u8, changed: []u8, color: []u8, server: []const u8 };
 
 fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
     for (rows.items) |r| {
         gpa.free(r.name);
         gpa.free(r.size);
         gpa.free(r.created);
+        gpa.free(r.expires);
         gpa.free(r.changed);
         gpa.free(r.color);
     }
@@ -423,9 +424,12 @@ fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: 
         // is already its own allocation).
         const created = try gpa.dupe(u8, server.formatAgo(&tb, now, p.created_at));
         errdefer gpa.free(created);
+        // Expiry, shown forward-looking ("in 3d" / "expired" / "never"), next to CREATED.
+        const expires = try gpa.dupe(u8, server.formatUntil(&tb, now, p.expires_at));
+        errdefer gpa.free(expires);
         const color = try gpa.dupe(u8, p.color);
         errdefer gpa.free(color);
-        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .changed = changed, .color = color, .server = if (multi) client.base else "" });
+        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .expires = expires, .changed = changed, .color = color, .server = if (multi) client.base else "" });
     }
 }
 
@@ -434,29 +438,32 @@ fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool) vo
     var nw: usize = "NAME".len;
     var sw: usize = "SIZE".len;
     var crw: usize = "CREATED".len;
+    var erw: usize = "EXPIRES".len;
     var cw: usize = "CHANGED".len;
     for (rows) |r| {
         nw = @max(nw, r.name.len);
         sw = @max(sw, r.size.len);
         crw = @max(crw, r.created.len);
+        erw = @max(erw, r.expires.len);
         cw = @max(cw, r.changed.len);
     }
-    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
+    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "EXPIRES", erw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
     for (rows) |r| {
         var buf: [20]u8 = undefined;
-        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.changed, cw, if (multi) r.server else null);
+        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.expires, erw, r.changed, cw, if (multi) r.server else null);
     }
 }
 
 /// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
 /// column ("" = plain). Best-effort.
-fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
+fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, expires: []const u8, erw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(gpa);
     appendCol(gpa, &line, "  ", 0); // 2-space indent (no padding)
     appendName(gpa, &line, name, name_seq, nw);
     appendCol(gpa, &line, size, sw);
     appendCol(gpa, &line, created, crw);
+    appendCol(gpa, &line, expires, erw);
     if (srv) |s| {
         appendCol(gpa, &line, changed, cw);
         appendCol(gpa, &line, s, 0); // final column, no trailing pad
@@ -596,6 +603,72 @@ pub fn doRename(session: *Session, arg: []const u8) !void {
     session.setLabel(name) catch {};
     logo.print("renamed to \"{s}\"\n", .{name});
     ui.status(session); // reprint "image: <name> …" with the new name
+}
+
+/// `/expire [<duration>]` — set when the active server project expires, from a free-form
+/// duration parsed by the shared core ("days 23", "months 3", "fortnight", "month", "off").
+/// With no argument it prints the accepted formats. A valid spec is resolved to an absolute
+/// time (now + duration) and PUT to the server version-guarded; "off"/"never" clears it (0 =
+/// keep forever). Server projects have no expiry until one is set this way.
+pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
+    const spec = std.mem.trim(u8, arg, " \t");
+    if (spec.len == 0) {
+        printExpireFormats();
+        return;
+    }
+    if (!session.hasRemote()) {
+        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
+        return;
+    }
+    const client = session.findServer(session.remote_url.?) orelse {
+        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
+        return;
+    };
+    const ms = core.parseDuration(session.gpa, spec) orelse {
+        logo.print("error: invalid duration '{s}'\n", .{spec});
+        printExpireFormats();
+        return;
+    };
+    const now = std.Io.Clock.real.now(io).toMilliseconds();
+    const expires_at: i64 = if (ms == 0) 0 else now + ms;
+    if (!putProjectExpiry(session, client, session.remote_id.?, expires_at)) return; // message printed
+    if (expires_at == 0) {
+        logo.print("expiration cleared — project kept forever\n", .{});
+    } else {
+        var tb: [32]u8 = undefined;
+        logo.print("expires {s}\n", .{server.formatUntil(&tb, now, expires_at)});
+    }
+}
+
+/// Print the `/expire` duration formats (also shown on a bad argument).
+fn printExpireFormats() void {
+    logo.print("usage: /expire <duration> — set when the active server project expires\n", .{});
+    logo.print("  a unit alone (one of it): day | week | fortnight | month | year\n", .{});
+    logo.print("  a count + unit (either order): 'days 23' | 'months 3' | '3 weeks'\n", .{});
+    logo.print("  keep forever: off | never | none\n", .{});
+}
+
+/// Version-guarded PUT of a project's expiry (epoch ms; 0 = keep forever) with a 409 retry,
+/// mirroring putProjectField. Advances the LWW guard on success. Prints on a hard failure.
+fn putProjectExpiry(session: *Session, client: *server.Client, id: []const u8, expires_at: i64) bool {
+    var tries: u8 = 0;
+    while (tries < 4) : (tries += 1) {
+        client.updateProjectExpiry(id, expires_at, session.remote_version) catch |e| {
+            if (e == server.Error.Conflict) {
+                if (client.getProjectVersion(id)) |v| {
+                    session.remote_version = v;
+                    continue; // re-read won the race; retry the PUT
+                } else |_| return false;
+            }
+            logo.print("error: could not set the project expiry ({s})\n", .{@errorName(e)});
+            return false;
+        };
+        if (client.getProjectVersion(id)) |v| {
+            session.remote_version = v;
+        } else |_| {}
+        return true;
+    }
+    return false;
 }
 
 /// Print "<label>: <colour>" with the colour rendered in itself (truecolor) when colour is on

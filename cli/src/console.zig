@@ -169,6 +169,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .projects => try handlers.doProjects(session, io, cmd.arg),
         .project_color => try handlers.doProjectColor(session, cmd.arg),
         .rename => try handlers.doRename(session, cmd.arg),
+        .expire => try handlers.doExpire(session, io, cmd.arg),
         .fetch => try handlers.doFetch(session, io, cmd.arg),
         .sync => handlers.doSync(session, cmd.arg),
     } else if (commands.actionOf(cmd.word, cmd.arg)) |action| {

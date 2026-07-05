@@ -155,6 +155,17 @@ pub fn applyFormula(allocator: std.mem.Allocator, expr: []const u8, var_name: u8
     return c.stencil_cli_applyFormula(z.ptr, @as(c_int, var_name), value, @intFromBool(allow));
 }
 
+/// Parse a human duration ("days 23", "fortnight", "month", "off") into milliseconds.
+/// Returns the duration in ms (0 for off/never), or null when the spec is invalid.
+/// The caller adds this to "now" to get an expiry timestamp.
+pub fn parseDuration(allocator: std.mem.Allocator, spec: []const u8) ?i64 {
+    const z = allocator.dupeZ(u8, spec) catch return null;
+    defer allocator.free(z);
+    var ms: c_longlong = 0;
+    if (c.stencil_cli_parseDuration(z.ptr, &ms) == 0) return null;
+    return @intCast(ms);
+}
+
 const testing = std.testing;
 
 test "parseColor: names, hex, rejects junk" {
@@ -185,6 +196,18 @@ test "formula validate + apply through the ABI" {
     try testing.expectEqual(@as(f64, 20), applyFormula(a, "x*2", 'x', 10, true));
     try testing.expectEqual(@as(f64, 10), applyFormula(a, "x*2", 'x', 10, false)); // disabled = identity
     try testing.expectEqual(@as(f64, 10), applyFormula(a, "bad(", 'x', 10, true)); // invalid = identity
+}
+
+test "parseDuration through the ABI" {
+    const a = testing.allocator;
+    const day: i64 = 24 * 60 * 60 * 1000;
+    try testing.expectEqual(day, parseDuration(a, "day").?);
+    try testing.expectEqual(@as(i64, 23) * day, parseDuration(a, "days 23").?);
+    try testing.expectEqual(@as(i64, 3) * 30 * day, parseDuration(a, "months 3").?);
+    try testing.expectEqual(@as(i64, 14) * day, parseDuration(a, "fortnight").?);
+    try testing.expectEqual(@as(i64, 0), parseDuration(a, "off").?); // keep forever
+    try testing.expect(parseDuration(a, "banana") == null);
+    try testing.expect(parseDuration(a, "days 0") == null);
 }
 
 test "namedPageSize + blank fill round trips through the ABI" {

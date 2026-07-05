@@ -48,7 +48,7 @@ func New(ctx context.Context, databaseURL string) (*Store, error) {
 func (s *Store) Close() { s.pool.Close() }
 
 // projectCols is the canonical column list / order for project row scans.
-const projectCols = `id, name, created_at, updated_at, has_image, image_w, image_h,
+const projectCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
 	source, resource, color, original_path, result_path, original_content, layout, owner_session, version`
 
 // rowScanner is satisfied by both pgx.Row and pgx.Rows.
@@ -63,7 +63,7 @@ func scanProject(row rowScanner) (protocol.ProjectRecord, error) {
 		owner  *string
 	)
 	err := row.Scan(
-		&rec.ID, &rec.Name, &rec.CreatedAt, &rec.UpdatedAt, &rec.HasImage,
+		&rec.ID, &rec.Name, &rec.CreatedAt, &rec.UpdatedAt, &rec.ExpiresAt, &rec.HasImage,
 		&rec.ImageW, &rec.ImageH, &rec.Source, &rec.Resource, &rec.Color,
 		&rec.OriginalPath, &rec.ResultPath, &rec.OriginalContent,
 		&layout, &owner, &rec.Version,
@@ -171,18 +171,18 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 	}
 	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`INSERT INTO projects
-			(id, name, created_at, updated_at, has_image, image_w, image_h,
+			(id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
 			 source, resource, color, original_content, layout, owner_session, version)
-		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,0)
+		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,0)
 		 RETURNING `+projectCols,
-		id, name, now, req.HasImage, req.ImageW, req.ImageH,
+		id, name, now, req.ExpiresAt, req.HasImage, req.ImageW, req.ImageH,
 		req.Source, req.Resource, req.Color, req.OriginalContent, layout, owner))
 	return rec, err
 }
 
 // UpdateProject applies a last-writer-wins update guarded by expectedVersion.
 // A stale version yields ErrConflict; a missing project yields ErrNotFound.
-func (s *Store) UpdateProject(ctx context.Context, id string, name *string, color *string, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error) {
+func (s *Store) UpdateProject(ctx context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error) {
 	var layoutArg any
 	if len(layout) > 0 {
 		layoutArg = string(layout)
@@ -191,12 +191,13 @@ func (s *Store) UpdateProject(ctx context.Context, id string, name *string, colo
 		`UPDATE projects SET
 			name = COALESCE($2, name),
 			color = COALESCE($3, color),
+			expires_at = COALESCE($7, expires_at),
 			layout = COALESCE($4::jsonb, layout),
 			updated_at = $5,
 			version = version + 1
 		 WHERE id = $1 AND version = $6
 		 RETURNING `+projectCols,
-		id, name, color, layoutArg, nowMs(), expectedVersion))
+		id, name, color, layoutArg, nowMs(), expectedVersion, expiresAt))
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Disambiguate not-found from version conflict.
 		if _, e := s.GetProject(ctx, id); errors.Is(e, ErrNotFound) {
@@ -240,4 +241,26 @@ func (s *Store) SetFile(ctx context.Context, id, kind, relPath string, w, h int)
 func (s *Store) DeleteProject(ctx context.Context, id string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM projects WHERE id = $1`, id)
 	return err
+}
+
+// DeleteExpiredProjects removes every project whose expiry has passed
+// (expires_at in (0, now]) and returns their ids, so the caller can also drop
+// their filestore bytes and notify connected clients. A zero expires_at
+// ("keep forever") is never swept. Drives the server's startup + periodic sweep.
+func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64) ([]string, error) {
+	rows, err := s.pool.Query(ctx,
+		`DELETE FROM projects WHERE expires_at > 0 AND expires_at <= $1 RETURNING id`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

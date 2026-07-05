@@ -89,6 +89,12 @@ int stencil_cli_validateFormula(const char* expr, int var);
  * empty, or evaluation fails / is non-finite (identity-on-error, like the browser). */
 double stencil_cli_applyFormula(const char* expr, int var, double value, int allowFormulas);
 
+/* ── Human-duration parser (same DurationParser the browser `expire` uses) ────── */
+/* Parse a spec ("days 23", "fortnight", "month", "off") into milliseconds written to
+ * *outMs (0 for off/never). Returns 1 on a valid spec, 0 otherwise (*outMs untouched).
+ * The caller adds *outMs to "now" to get the expiry timestamp. */
+int stencil_cli_parseDuration(const char* spec, long long* outMs);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

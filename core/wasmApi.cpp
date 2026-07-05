@@ -12,6 +12,7 @@
 
 #include "color.hpp"
 #include "cropGeometry.hpp"
+#include "durationParser.hpp"
 #include "formulaParser.hpp"
 #include "geometry.hpp"
 #include "imageFilter.hpp"
@@ -120,6 +121,18 @@ extern "C" {
         fp.evaluate(expr ? expr : "", static_cast<char>(varName), varValue);
     if (!r.has_value()) return 0;
     *out = *r;
+    return 1;
+  }
+
+  // ── duration parser (durationParser.js parse) ──
+  // Parse a human duration ("days 23", "fortnight", "off") into milliseconds
+  // written to *out (0 for off/never). Returns 1 on a valid spec, 0 otherwise
+  // (leaving *out untouched). The browser adds *out to Date.now() for the expiry.
+  int stencil_parseDuration(const char* spec, double* out) {
+    static const DurationParser dp;
+    long long ms = 0;
+    if (!dp.parse(spec ? spec : "", ms)) return 0;
+    *out = static_cast<double>(ms);
     return 1;
   }
 

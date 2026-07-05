@@ -4156,7 +4156,16 @@ export class DrawingApp {
   // the projects list + any open expiration dialog in other tabs re-render.
   setProjectExpiration(id, opts = {}) {
     const meta = this.storage.store.setExpiration(id, opts);
-    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    if (meta) {
+      this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+      // An explicit expiry change (not a refreshPeriod/autoRefresh-only tweak, which are
+      // local-only concepts) propagates to the collaboration server for a server-linked
+      // project — best-effort, like setProjectColor. Server projects otherwise have no
+      // expiry unless one is set here explicitly.
+      if (Object.prototype.hasOwnProperty.call(opts, 'expiresAt')) {
+        this.#pushProjectFieldToServer(id, { expiresAt: meta.expiresAt || 0 }, 'Could not set expiration on the server');
+      }
+    }
     return meta;
   }
 
@@ -4209,7 +4218,6 @@ export class DrawingApp {
     const meta = this.storage.store.getMeta(id) || {};
     const address = active ? this.remoteLink.address : meta.address;
     const remoteId = active ? this.remoteLink.remoteId : meta.remoteId;
-    const version = active ? this.remoteLink.version : (meta.remoteVersion || 0);
     if (!address || !remoteId) return;
     let conn;
     try {
@@ -4218,11 +4226,42 @@ export class DrawingApp {
       notify(err.message, 'fail');
       return;
     }
+    // Version-guarded write with a bounded conflict retry (mirrors the CLI's
+    // putProjectField). A stale cached version — a concurrent field push / layout
+    // save from THIS client racing on remoteLink.version, or a peer's edit — 409s;
+    // re-read the server's current version and retry so the change isn't silently
+    // lost. Single-field sets are idempotent, so last-writer-wins is correct here.
+    let version = active ? this.remoteLink.version : (meta.remoteVersion || 0);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const rec = await conn.updateProject(remoteId, { ...fields, version });
+        // Adopt the bumped version only if remoteLink still points at this same
+        // project (the user may have switched projects during the await).
+        if (rec && rec.version != null && this.activeProjectId === id
+            && this.remoteLink && this.remoteLink.remoteId === remoteId) {
+          this.remoteLink = { ...this.remoteLink, version: rec.version };
+        }
+        return;
+      } catch (err) {
+        if (err && err.status === 409 && attempt < 3) {
+          version = await this.#currentRemoteVersion(conn, remoteId, version);
+          continue;
+        }
+        notify(`${failMsg} — ${err.message}`, 'fail');
+        return;
+      }
+    }
+  }
+
+  // Re-read a linked project's current server version (after a 409 or a file write
+  // that bumps it without returning it), falling back to `fallback` on any error.
+  async #currentRemoteVersion(conn, remoteId, fallback) {
     try {
-      const rec = await conn.updateProject(remoteId, { ...fields, version });
-      if (active && rec && rec.version != null) this.remoteLink = { ...this.remoteLink, version: rec.version };
-    } catch (err) {
-      notify(`${failMsg} — ${err.message}`, 'fail');
+      const full = await conn.getProject(remoteId);
+      const v = full && full.project ? full.project.version : undefined;
+      return v == null ? fallback : v;
+    } catch {
+      return fallback;
     }
   }
 
@@ -4293,7 +4332,10 @@ export class DrawingApp {
       bytes, ext, w, h,
     });
     // Push the annotated layout (lines + filter) so the server holds the full project.
-    await saveRemoteProject(conn, link, {
+    // The layout save bumps the server version again, so adopt the refreshed link it
+    // returns — otherwise `link.version` stays at the create-time value and the next
+    // version-guarded field push (colour / rename / expiry) 409s against the server.
+    const savedLink = await saveRemoteProject(conn, link, {
       name: projName,
       layout: buildLayoutPayload({
         imageWidth: w, imageHeight: h,
@@ -4310,7 +4352,7 @@ export class DrawingApp {
         formulaY: layout.formulaY,
       }),
     });
-    return { link, proj, meta };
+    return { link: savedLink, proj, meta };
   }
 
   // Local → server: create the project on `address`, then LINK the local copy to it (keeping

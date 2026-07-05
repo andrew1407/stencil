@@ -88,6 +88,10 @@ class ServerError(Exception):
 _WATCHED_FIELDS = ("version", "name", "color")
 _FIELD_DEFAULT = {"version": 0, "name": "", "color": ""}
 
+# Attempts for a version-guarded field write before giving up on sustained conflict
+# (matches the CLI's putProjectField retry count).
+_FIELD_WRITE_RETRIES = 4
+
 
 def diff_projects(prev: list, curr: list) -> list:
     """Diff two `GET /projects` lists into project-change events. Pure (no network),
@@ -306,8 +310,10 @@ class ServerConnection:
     def create_project(self, **kw: Any) -> dict:
         """POST /projects → the created ProjectRecord (id, version, …).
 
-        Accepts name/source/resource/hasImage/imageW/imageH/layout; None
-        values are dropped so the server applies its own defaults.
+        Accepts name/source/resource/hasImage/imageW/imageH/layout and an
+        optional expiresAt (epoch ms; omit for the server default — no expiry
+        unless the server sets PROJECT_TTL). None values are dropped so the
+        server applies its own defaults.
         """
         body = {k: v for k, v in kw.items() if v is not None}
         return self._request("POST", "/projects", body=body)
@@ -318,6 +324,7 @@ class ServerConnection:
         layout: Any = None,
         name: str | None = None,
         color: str | None = None,
+        expires_at: int | None = None,
         version: int = 0,
     ) -> dict:
         """PUT /projects/{id} → the updated ProjectRecord.
@@ -326,24 +333,62 @@ class ServerConnection:
         409 which surfaces as ServerError(code="conflict"). `color` rides the
         same nil-means-unchanged contract as `name` (UpdateProjectRequest.Color
         is *string): pass "" to clear the custom accent, a "#rrggbb" hex to set
-        it, or leave it None to keep the server's current value.
+        it, or leave it None to keep the server's current value. `expires_at`
+        (epoch ms; 0 = keep forever) follows the same contract via
+        UpdateProjectRequest.ExpiresAt (*int64): leave it None to keep the
+        current expiry.
         """
         body: dict[str, Any] = {"version": version}
         if name is not None:
             body["name"] = name
         if color is not None:
             body["color"] = color
+        if expires_at is not None:
+            body["expiresAt"] = expires_at
         if layout is not None:
             body["layout"] = layout
         return self._request("PUT", "/projects/" + urllib.parse.quote(str(pid)), body=body)
 
+    def _update_field_with_retry(self, pid: str, **fields: Any) -> dict:
+        """Version-guarded single-field write (name / color / expires_at) with a bounded
+        conflict retry — the read-then-PUT is not atomic, so a peer that saves between our
+        version read and our PUT would 409 and silently drop the change. On a conflict we
+        re-read the current version and retry, mirroring the CLI's putProjectField loop
+        (cli/src/console/handlers.zig). Raises the last ServerError if it can't win within
+        _FIELD_WRITE_RETRIES attempts."""
+        last: Optional[ServerError] = None
+        for _ in range(_FIELD_WRITE_RETRIES):
+            version = self._current_version(pid, 0)
+            try:
+                return self.update_project(pid, version=version, **fields)
+            except ServerError as err:
+                if err.code != "conflict":
+                    raise
+                last = err  # a peer won the race — re-read the version and retry
+        raise last if last is not None else ServerError(
+            "conflict", "gave up after repeated version conflicts", 409)
+
     def rename_project(self, pid: str, name: str) -> dict:
-        """Rename a server project (PUT name), reading its current version first so the
-        last-writer-wins guard is satisfied. The server broadcasts the change to every connected
-        client, so other front-ends (browser/desktop/CLI) pick the new name up live. A 409 (lost
-        race) surfaces as ServerError(code="conflict")."""
-        version = self._current_version(pid, 0)
-        return self.update_project(pid, name=name, version=version)
+        """Rename a server project (PUT name) under the last-writer-wins guard, retrying on a
+        conflict so a peer's concurrent edit doesn't drop the rename (see
+        _update_field_with_retry). The server broadcasts the change to every connected client,
+        so other front-ends (browser/desktop/CLI) pick the new name up live."""
+        return self._update_field_with_retry(pid, name=name)
+
+    def set_project_expiration(self, pid: str, expires_at: int) -> dict:
+        """Set a server project's expiry (epoch ms; 0 = keep forever) under the last-writer-wins
+        guard, retrying on a conflict (see _update_field_with_retry). The server stamps it and
+        every other front-end picks the change up live; a past expiry is reaped by the server's
+        sweep. Server projects have no expiry until one is set here."""
+        return self._update_field_with_retry(pid, expires_at=expires_at)
+
+    def get_project_expiration(self, pid: str) -> int:
+        """GET /projects/{id} and return its ProjectRecord `expiresAt` (epoch ms; 0 = never).
+
+        Mirrors get_project_color — an unset/missing value comes back as 0 (keep forever).
+        """
+        proj = self._project_record(pid)
+        return int(proj.get("expiresAt", 0) or 0) if proj else 0
 
     def get_project_color(self, pid: str) -> str:
         """GET /projects/{id} and return its ProjectRecord `color`.
