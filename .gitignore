@@ -65,6 +65,10 @@ desktop/.stencil/
 # Core test dependency — doctest single header is fetched on demand, not committed
 # (see core/README via README → Test). Keeps the ~300 KB vendored header out of the repo.
 core/third_party/doctest.h
+# Desktop never vendors its own third-party headers — its C++ tests are QtTest, and any
+# doctest it needs comes from core/'s fetched copy. Guard the dir so a stray header can't be
+# re-committed by accident (it was once, in a large reorg, and had to be scrubbed).
+desktop/third_party/
 
 # Browser "Open in…" targets (desktop scheme + optional Telegram bot username) — the
 # static-site equivalent of a .env: the committed openInConfig.example.json is the
