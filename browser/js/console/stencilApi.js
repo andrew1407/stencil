@@ -13,6 +13,7 @@ import { resolveAxisPx } from '../core/units.js';
 import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
+import { parseDuration } from '../core/durationParser.js';
 import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
@@ -21,6 +22,16 @@ import { notify } from '../utils.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
 
 const str = (v) => (v == null ? '' : String(v));
+
+// Help text for stencil.expire() — shown when it's called with no argument. The
+// grammar is DurationParser's (durationParser.js / core/parse/durationParser.cpp).
+const DURATION_HELP = [
+  'stencil.expire(spec) — set when the active project expires, from a duration:',
+  "  a unit alone (one of it):  'day' · 'week' · 'fortnight' · 'month' · 'year'",
+  "  a count + unit (either order):  'days 23' · 'months 3' · '3 weeks'",
+  "  keep forever:  'off' · 'never' · 'none'",
+  'Called with no argument this prints these formats; with one it applies the expiry.',
+].join('\n');
 
 export const createStencil = (app) => {
   // One ConnectionManager per session, shared with the connection UI via app.connections;
@@ -268,21 +279,31 @@ export const createStencil = (app) => {
       store().upsert(proj.meta, proj.payload);
       app.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     };
+    // Normalize `v` (a Date, epoch ms, a parseable date string, or 0/null = keep
+    // forever) to an absolute expiry and apply it through the shared core setter,
+    // which propagates to the server for a server-linked project. Shared by the
+    // expiresAt / expirationDate setters and the free-form expire() command's 'off'.
+    const setExpiry = (v, what) => {
+      if (incognito) throw new Error('Cannot set expiration on an incognito editor');
+      if (v == null || v === 0) { app.setProjectExpiration(id, { expiresAt: 0 }); return; }
+      const ms = v instanceof Date ? v.getTime() : (typeof v === 'number' ? v : new Date(v).getTime());
+      if (!Number.isFinite(ms)) throw new Error(`Invalid ${what} "${v}" — use a Date, epoch ms, a date string, or 0/null to keep forever`);
+      if (ms < Date.now()) throw new Error('Expiration cannot be in the past');
+      if (app.setProjectExpiration(id, { expiresAt: ms }) == null) throw new Error(`Could not set expiration on project ${id}`);
+    };
     let project = {
       get id() { return id; },
       get incognito() { return incognito; },
       get isOpened() { return incognito ? true : openedIds().has(id); },
-      // Expiration (local projects). expiresAt is epoch ms or null (kept forever).
-      // Set with a number (ms), a Date, or a parseable string; 0/null = keep forever.
+      // Expiration. `expiresAt` is epoch ms (or null = kept forever); `expirationDate`
+      // is the same value as a Date. Both setters accept a number (ms), a Date, or a
+      // parseable date string; 0/null keeps it forever. Writes go through the same core
+      // path the expiration modal uses and propagate to the server for a server-linked
+      // project (so setting it on a fetched project updates the server too).
       get expiresAt() { const m = meta(); return m ? store().expiresAt(m) : null; },
-      set expiresAt(v) {
-        if (incognito) throw new Error('Cannot set expiration on an incognito editor');
-        if (v == null || v === 0) { app.setProjectExpiration(id, { expiresAt: 0 }); return; }
-        const ms = v instanceof Date ? v.getTime() : (typeof v === 'number' ? v : new Date(v).getTime());
-        if (!Number.isFinite(ms)) throw new Error(`Invalid expiration "${v}" — use ms, a Date, or 0 to keep forever`);
-        if (ms < Date.now()) throw new Error('Expiration cannot be in the past');
-        if (app.setProjectExpiration(id, { expiresAt: ms }) == null) throw new Error(`Could not set expiration on project ${id}`);
-      },
+      set expiresAt(v) { setExpiry(v, 'expiration'); },
+      get expirationDate() { const m = meta(); const ms = m ? store().expiresAt(m) : null; return ms ? new Date(ms) : null; },
+      set expirationDate(v) { setExpiry(v, 'expiration date'); },
       get isExpired() { const m = meta(); return m ? store().isExpired(m) : false; },
       // Refresh preset used by renew() and the open-time auto-refresh.
       get refreshPeriod() { return meta()?.refreshPeriod ?? DEFAULT_PERIOD; },
@@ -338,6 +359,20 @@ export const createStencil = (app) => {
       get resource() { return isActive() ? (app.imageResource ?? null) : (meta()?.resource ?? null); },
       set resource(v) { setLink('resource', 'imageResource', v); },
       renew() { app.renewProject(id); return project; },
+      // Set expiry from a free-form duration ("days 23", "fortnight", "off"). No/blank
+      // arg returns the format help; 'off'/'never' keeps it forever; otherwise the project
+      // expires that far from now. Routes through setProjectExpiration so a server-linked
+      // project propagates the new expiry to the server (like the toolbar's expiration modal).
+      expire(spec) {
+        if (incognito) throw new Error('Cannot set expiration on an incognito editor');
+        const s = str(spec).trim();
+        if (!s) return DURATION_HELP;
+        const ms = parseDuration(s);
+        if (ms == null) throw new Error(`Invalid duration "${spec}". ${DURATION_HELP}`);
+        const expiresAt = ms === 0 ? 0 : Date.now() + ms;
+        if (app.setProjectExpiration(id, { expiresAt }) == null) throw new Error(`Could not set expiration on project ${id}`);
+        return project;
+      },
       // Remove the expiration date so the project is kept forever.
       keepForever() {
         if (incognito) throw new Error('Cannot change expiration on an incognito editor');
@@ -473,6 +508,17 @@ export const createStencil = (app) => {
       const n = str(name).trim().toLowerCase();
       const m = app.storage.store.list().find((p) => str(p.name).trim().toLowerCase() === n);
       return m ? makeProject(m.id) : null;
+    },
+    // Set when the ACTIVE project expires, from a free-form duration. With no argument
+    // it returns the accepted formats; with one it validates and applies the expiry
+    // (propagating to the server for a server-linked project). Delegates to the same
+    // Project.expire() used for chaining, e.g. stencil.current.expire('months 3').
+    expire(spec) {
+      const s = str(spec).trim();
+      if (!s) return DURATION_HELP;
+      const id = app.activeProjectId;
+      if (id == null) throw new Error('No active project to set an expiration on — open or create one first');
+      return makeProject(id).expire(s);
     },
 
     // ── Server connections ──

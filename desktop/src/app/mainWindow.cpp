@@ -4522,6 +4522,22 @@ namespace stencil::gui {
     refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
 
+  bool MainWindow::putVersionGuarded(
+      stencil::net::ServerClient* c, const QString& id,
+      const std::function<bool(qint64 version, qint64& newVersion, bool& conflict)>& put,
+      qint64& outVersion) {
+    for (int attempt = 0; attempt < 4; ++attempt) {
+      stencil::net::ServerProject meta;
+      QJsonObject lay;
+      if (!c->getProject(id, meta, lay)) return false;  // read failed; c->lastError() is set
+      bool conflict = false;
+      if (put(meta.version, outVersion, conflict)) return true;
+      if (!conflict) return false;  // a non-conflict failure won't recover on retry
+      // conflict → loop and re-read the current version before retrying
+    }
+    return false;  // exhausted retries on sustained conflict; c->lastError() holds the 409
+  }
+
   void MainWindow::commitProjectName() {
     const QString newName = projectName_->text().trimmed();
     // Server-linked session (no local id): push the rename straight to the server so peers see it
@@ -4530,17 +4546,17 @@ namespace stencil::gui {
     if (!remoteId_.isEmpty()) {
       stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
       if (!newName.isEmpty() && newName != remoteName_ && c) {
-        stencil::net::ServerProject meta;
-        QJsonObject lay;
         qint64 newVersion = 0;
-        bool conflict = false;
-        if (c->getProject(remoteId_, meta, lay) &&
-            c->updateProjectName(remoteId_, newName, meta.version, newVersion, conflict)) {
+        const bool ok = putVersionGuarded(c, remoteId_,
+            [&](qint64 version, qint64& nv, bool& conflict) {
+              return c->updateProjectName(remoteId_, newName, version, nv, conflict);
+            }, newVersion);
+        if (ok) {
           remoteName_ = newName;
           remoteVersion_ = newVersion;
           notify_->success(QString("Renamed to \"%1\"").arg(newName));
         } else {
-          notify_->error(QString("Rename failed: %1").arg(c ? c->lastError() : QStringLiteral("not connected")));
+          notify_->error(QString("Rename failed: %1").arg(c->lastError()));
         }
       }
     } else if (!activeProjectId_.isEmpty()) {
@@ -4735,15 +4751,12 @@ namespace stencil::gui {
         notify_->error("Not connected to that server");
         return false;
       }
-      stencil::net::ServerProject meta;
-      QJsonObject lay;
-      if (!c->getProject(id, meta, lay)) {
-        notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
-        return false;
-      }
+      // Version-guarded PUT with a bounded conflict retry (see putVersionGuarded).
       qint64 newVersion = 0;
-      bool conflict = false;
-      if (!c->updateProjectColor(id, *norm, meta.version, newVersion, conflict)) {
+      if (!putVersionGuarded(c, id,
+              [&](qint64 version, qint64& nv, bool& conflict) {
+                return c->updateProjectColor(id, *norm, version, nv, conflict);
+              }, newVersion)) {
         notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
         return false;
       }

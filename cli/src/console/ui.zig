@@ -20,7 +20,7 @@ pub const completions = [_][]const u8{
     "none",        "exec",     "undo",        "redo",     "reset",  "save",
     "layout",      "formula",  "format",
     "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "rename",
-    "fetch",       "sync",     "copy",        "status",   "theme",  "clear",   "drop",
+    "expire",      "fetch",    "sync",        "copy",     "status",  "theme",   "clear",   "drop",
     "help",        "exit",
 };
 
@@ -202,6 +202,7 @@ pub fn help() void {
     helpRow(a, r, "/projects [url]", "list projects on a server (or all connected servers)");
     helpRow(a, r, "/project-color [#hex]", "show or set the active project's name colour (clear = neutral grey)");
     helpRow(a, r, "/rename <name>", "rename the active server project (pushed live to peers)");
+    helpRow(a, r, "/expire [<duration>]", "set when the active project expires (bare = formats; e.g. 'months 3', 'off')");
     helpRow(a, r, "/fetch <name> [url]", "load a server project's image to keep editing");
     helpRow(a, r, "/sync [on|off]", "live mode (bare /sync toggles): push edits + pull peers' changes");
 

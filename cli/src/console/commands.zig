@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, rename, fetch, sync };
+pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, rename, expire, fetch, sync };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -55,6 +55,7 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "projects") or eq(w, "ls")) return .projects;
     if (eq(w, "project-color") or eq(w, "projectcolor") or eq(w, "pcolor")) return .project_color;
     if (eq(w, "rename") or eq(w, "mv")) return .rename;
+    if (eq(w, "expire") or eq(w, "expiry") or eq(w, "ttl")) return .expire;
     if (eq(w, "fetch") or eq(w, "pull")) return .fetch;
     if (eq(w, "sync")) return .sync;
     return null;

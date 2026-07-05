@@ -191,6 +191,9 @@ class Core:
             ctypes.c_int,
         ]
 
+        lib.stencil_cli_parseDuration.restype = ctypes.c_int
+        lib.stencil_cli_parseDuration.argtypes = [_cstr, ctypes.POINTER(ctypes.c_longlong)]
+
     # ── colour ────────────────────────────────────────────────────────────────
     def parse_color(self, spec: str) -> Optional[Tuple[int, int, int, int]]:
         """Parse a CSS colour to an (r,g,b,a) 0..255 tuple, or None if unrecognized."""
@@ -429,6 +432,18 @@ class Core:
                 ctypes.c_int(1 if allow else 0),
             )
         )
+
+    # ── duration (expiration) ───────────────────────────────────────────────────
+    def parse_duration(self, spec: str) -> Optional[int]:
+        """Parse a human duration ("days 23", "months 3", "fortnight", "month", "off") to
+        milliseconds (0 = keep forever), or None if the spec is invalid — the same
+        DurationParser the CLI `/expire` and the browser `stencil.expire` use. Add the
+        result to an epoch-ms 'now' and pass to ServerConnection.set_project_expiration
+        to expire a server project."""
+        out = ctypes.c_longlong(0)
+        if not self._lib.stencil_cli_parseDuration(_encode(spec), ctypes.byref(out)):
+            return None
+        return int(out.value)
 
 
 # Process-wide singleton so repeated get_core() calls share one library handle.

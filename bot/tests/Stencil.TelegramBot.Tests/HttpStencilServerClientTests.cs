@@ -51,7 +51,7 @@ public sealed class HttpStencilServerClientTests
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
-                "{\"projects\":[{\"id\":\"p1\",\"name\":\"A\",\"imageW\":10,\"imageH\":20,\"version\":3}," +
+                "{\"projects\":[{\"id\":\"p1\",\"name\":\"A\",\"imageW\":10,\"imageH\":20,\"expiresAt\":1700009999000,\"version\":3}," +
                 "{\"id\":\"p2\",\"name\":\"B\"}]}"));
         HttpStencilServerClient client = Client(handler, token: "t");
 
@@ -61,6 +61,8 @@ public sealed class HttpStencilServerClientTests
         Assert.Equal("p1", projects[0].Id);
         Assert.Equal(10, projects[0].ImageW);
         Assert.Equal(3, projects[0].Version);
+        Assert.Equal(1700009999000, projects[0].ExpiresAt);
+        Assert.Equal(0, projects[1].ExpiresAt); // absent → 0 (keep forever)
     }
 
     [Fact]

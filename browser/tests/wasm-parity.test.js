@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../js/core/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
+import { parseDuration } from '../js/core/durationParser.js';
 import { applyContourRGBA } from '../js/core/contourFilter.js';
 import constants from '../js/config/constants.json' with { type: 'json' };
 import {
@@ -38,12 +39,15 @@ const CASES = {
   dist: [seg(5, 3, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(-3, 0, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(14, 7, { x: 2, y: 2 }, { x: 9, y: 5 })],
   formula: [['x+9', 'x', 3], ['2**x', 'x', 3], ['(x-1)*4/2', 'x', 7], ['', 'x', 5], ['x +', 'x', 2]],
   hex: ['#7c3aed', '#000000', '#ffffff', '#0a1b2c', 'nope'],
+  duration: ['days 23', 'fortnight', 'month', '3 weeks', 'off', 'banana', 'days 0', 'days 100000000', 'days 200000000'],
 };
 const jsRef = {
   dist: CASES.dist.map(c => distToSegment(c.px, c.py, c.a, c.b)),
   formulaApply: CASES.formula.map(([e, v, x]) => fe.apply(e, v, x, true)),
   formulaValidate: CASES.formula.map(([e, v]) => fe.validate(e, v)),
   hex: CASES.hex.map(h => parseHex(h)),
+  // Captured at module-eval time (no wasm installed yet), so this is the JS fallback.
+  duration: CASES.duration.map(s => parseDuration(s)),
 };
 
 before(async () => {
@@ -76,6 +80,13 @@ wtest('formula apply/validate: wasm matches JS reference (char-code marshalling)
   });
   // allowFormulas=false is identity, exactly like the JS fallback.
   assert.strictEqual(apply('x*2', 'x', 5, false), 5);
+});
+
+wtest('parseDuration: wasm matches JS reference (ms, 0 for off, null for invalid)', () => {
+  const fn = core.op('parseDuration');
+  CASES.duration.forEach((s, i) => {
+    assert.strictEqual(fn(s), jsRef.duration[i], `duration ${i}: ${s}`);
+  });
 });
 
 wtest('parseHex: wasm matches JS reference, invalid yields null (output-pointer marshalling)', () => {

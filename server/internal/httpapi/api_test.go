@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
@@ -24,12 +25,17 @@ type fakeStore struct {
 	projects map[string]protocol.ProjectRecord
 	sessions map[string]auth.Session
 	seq      int
+	// sweptOnWrite[id]=true makes SetFile report the row gone (ErrNotFound) even
+	// though GetProject still sees it — simulating the expiry sweep deleting the
+	// project between the upload handler's existence check and its SetFile write.
+	sweptOnWrite map[string]bool
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		projects: map[string]protocol.ProjectRecord{},
-		sessions: map[string]auth.Session{},
+		projects:     map[string]protocol.ProjectRecord{},
+		sessions:     map[string]auth.Session{},
+		sweptOnWrite: map[string]bool{},
 	}
 }
 
@@ -78,7 +84,8 @@ func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.
 	id := "p_t" + strconv.FormatInt(int64(f.seq), 36) + "_a"
 	rec := protocol.ProjectRecord{
 		ID: id, Name: req.Name, CreatedAt: 100, UpdatedAt: 100 + int64(f.seq),
-		Source: req.Source, Resource: req.Resource, Color: req.Color, OriginalContent: req.OriginalContent,
+		ExpiresAt: req.ExpiresAt,
+		Source:    req.Source, Resource: req.Resource, Color: req.Color, OriginalContent: req.OriginalContent,
 		Layout: req.Layout, OwnerSession: owner,
 	}
 	if rec.Name == "" {
@@ -88,7 +95,7 @@ func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.
 	return rec, nil
 }
 
-func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, color *string, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
+func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p, ok := f.projects[id]
@@ -104,6 +111,9 @@ func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, co
 	if color != nil {
 		p.Color = *color
 	}
+	if expiresAt != nil {
+		p.ExpiresAt = *expiresAt
+	}
 	if len(layout) > 0 {
 		p.Layout = layout
 	}
@@ -116,7 +126,7 @@ func (f *fakeStore) SetFile(_ context.Context, id, kind, rel string, w, h int) (
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p, ok := f.projects[id]
-	if !ok {
+	if !ok || f.sweptOnWrite[id] {
 		return protocol.ProjectRecord{}, store.ErrNotFound
 	}
 	if kind == protocol.KindOriginal {
@@ -259,6 +269,93 @@ func TestProjectLifecycleHTTP(t *testing.T) {
 	}
 	if rec := do(t, api, http.MethodGet, "/projects/"+created.ID, tok, nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("get deleted should 404, got %d", rec.Code)
+	}
+}
+
+// TestFileUploadOnSweptProjectCleansUpBytes covers the sweep-vs-upload race: if the
+// project row is deleted (expired + swept) between the upload handler's existence
+// check and its SetFile write, the handler must drop the just-written bytes (not
+// orphan them in the filestore) and report 404.
+func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := newFakeStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc()})
+	tok := issueToken(t, api, "")
+
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed"}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	// Simulate the sweep deleting the row right after the handler's GetProject check.
+	st.mu.Lock()
+	st.sweptOnWrite[p.ID] = true
+	st.mu.Unlock()
+
+	up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/original?ext=png&w=2&h=2", tok, []byte{0x89, 0x50, 1, 2})
+	if up.Code != http.StatusNotFound {
+		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
+	}
+	// The bytes written before SetFile failed must have been cleaned up, not orphaned.
+	if _, err := fs.Get(p.ID, "original", "png"); err == nil {
+		t.Fatal("orphaned bytes: the file should have been removed on the swept-write path")
+	}
+}
+
+// TestProjectExpiryHTTP round-trips the per-project expiry over REST: an explicit
+// create-time expiresAt is stored and listed, and an update sets a new one.
+func TestProjectExpiryHTTP(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tok := issueToken(t, api, "")
+
+	// Explicit create-time expiry is carried through.
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Temp","expiresAt":5000}`))
+	var created protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &created)
+	if created.ExpiresAt != 5000 {
+		t.Fatalf("create-time expiresAt lost: %+v", created)
+	}
+
+	// Update sets a new expiry under the version guard.
+	rec = do(t, api, http.MethodPut, "/projects/"+created.ID, tok, []byte(`{"version":0,"expiresAt":9000}`))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update expiry: code %d body %s", rec.Code, rec.Body.String())
+	}
+	var upd protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &upd)
+	if upd.ExpiresAt != 9000 {
+		t.Fatalf("updated expiresAt not applied: %+v", upd)
+	}
+}
+
+// TestCreateProjectDefaultTTLHTTP checks that when the operator sets a default
+// PROJECT_TTL, a create with no explicit expiry is stamped now+TTL, while a create
+// that names its own expiry keeps it.
+func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := newFakeStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), ProjectTTL: time.Hour})
+	tok := issueToken(t, api, "")
+
+	// No expiry in the body → stamped now + 1h (a large positive value).
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Auto"}`))
+	var auto protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &auto)
+	if auto.ExpiresAt <= nowMs() {
+		t.Fatalf("default TTL not stamped: %+v", auto)
+	}
+
+	// An explicit expiry is respected (not overwritten by the default).
+	rec = do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Pinned","expiresAt":42}`))
+	var pinned protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &pinned)
+	if pinned.ExpiresAt != 42 {
+		t.Fatalf("explicit expiry overwritten by default TTL: %+v", pinned)
 	}
 }
 

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS projects (
     name             text    NOT NULL,
     created_at       bigint  NOT NULL,           -- epoch ms
     updated_at       bigint  NOT NULL,           -- epoch ms (lists sort desc)
+    expires_at       bigint  NOT NULL DEFAULT 0, -- epoch ms (0 = never; swept once past)
     has_image        boolean NOT NULL DEFAULT false,
     image_w          integer NOT NULL DEFAULT 0,
     image_h          integer NOT NULL DEFAULT 0,

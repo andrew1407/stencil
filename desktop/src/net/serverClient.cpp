@@ -135,6 +135,7 @@ namespace stencil::net {
       p.resource = o.value("resource").toString();
       p.createdAt = static_cast<qint64>(o.value("createdAt").toDouble());
       p.updatedAt = static_cast<qint64>(o.value("updatedAt").toDouble());
+      p.expiresAt = static_cast<qint64>(o.value("expiresAt").toDouble());
       p.version = static_cast<qint64>(o.value("version").toDouble());
       p.serverUrl = base_;
       out.push_back(p);
