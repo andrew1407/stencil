@@ -79,6 +79,7 @@ if(Qt6_FOUND)
     src/app/mainWindow.cpp
     src/app/dataExportController.cpp
     src/app/remoteSyncController.cpp
+    src/app/projectTransferController.cpp
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
     src/app/selectionPanel.cpp

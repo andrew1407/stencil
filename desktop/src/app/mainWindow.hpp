@@ -53,6 +53,7 @@ namespace stencil::gui {
   class MediaLoader;
   class DataExportController;
   class RemoteSyncController;
+  class ProjectTransferController;
   struct LaunchOptions;
 
   class MainWindow : public QMainWindow {
@@ -209,32 +210,9 @@ namespace stencil::gui {
     // (the desktop counterpart of the browser's "open in new tab"). The new
     // window owns itself (WA_DeleteOnClose) and reads projects from disk.
     void openProjectInNewWindow(const QString& id);
-    // Move a LOCAL project onto `serverUrl` (create + upload original + push layout),
-    // then remove the local copy. Mirrors the browser's moveProjectToServer().
-    void moveLocalProjectToServer(const QString& serverUrl, const QString& id);
-    // Copy a LOCAL project to `serverUrl` (default name "<name>-copy"), leaving the local one
-    // in place. Mirrors the browser copyProjectToServer().
-    void copyLocalProjectToServer(const QString& serverUrl, const QString& id, const QString& name);
-    // Shared body of move/copy-to-server. localProjectOriginal gathers a local project's
-    // original bytes + dims (live canvas when active, else the stored file); false + notify when
-    // there's nothing usable. createServerFromLocal creates `pr` on `c` under `name` (upload +
-    // annotated layout), reporting the new id/version; false + notify on failure.
-    bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
-    bool createServerFromLocal(stencil::net::ServerClient* c, const Project& pr,
-                               const QString& name, const QByteArray& bytes, const QString& ext,
-                               int w, int h, QString& newIdOut, qint64& newVersionOut);
-    // Move a SERVER project into local storage (download bytes + layout, persist as a
-    // local project), then delete it from the server. Mirrors moveProjectToLocal().
-    void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
-    // Make a detached LOCAL copy of a server project (name defaults to "<name>-copy" via the
-    // dialog), leaving the server copy in place, and open it. Mirrors copyServerProjectToLocal().
-    void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id, const QString& name);
-    // Shared body of the two above: fetch image + layout (incl. crop/rotation), persist a
-    // fresh local project; `name` overrides the server name when non-empty. Optionally deletes
-    // the server copy. Returns its new id via newIdOut.
-    bool importServerProjectToLocal(const QString& serverUrl, const QString& id,
-                                    bool removeFromServer, const QString& name,
-                                    QString* newIdOut);
+    // Local↔server project transfer (move/copy to/from a server + the shared import) lives in
+    // ProjectTransferController (projectTransferController.hpp), constructed as projectTransfer_;
+    // the Projects dialog callbacks call projectTransfer_->move/copy*().
     // True if `id` is the active project in some OTHER open window — used to block
     // removing/moving a project that's open elsewhere (the desktop analogue of the
     // browser's "open in another tab" guard).
@@ -666,6 +644,8 @@ namespace stencil::gui {
     // Live co-edit push/pull engine (remoteSyncController.hpp) — QObject owning the sync timers +
     // LiveFeed; reads MainWindow's remote-link state + flags via hooks.
     std::unique_ptr<RemoteSyncController> remoteSync_;
+    // Local↔server project transfer service (projectTransferController.hpp).
+    std::unique_ptr<ProjectTransferController> projectTransfer_;
     // A --layout source held until the --src image has loaded, then applied once.
     QString pendingLaunchLayout_;
     // Inline layout JSON from a stencil:// deep link, applied once the src image
