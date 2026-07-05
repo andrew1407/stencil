@@ -77,6 +77,7 @@ if(Qt6_FOUND)
   # the app and the MainWindow GUI e2e test target below so the two never drift.
   set(STENCIL_GUI_SOURCES
     src/app/mainWindow.cpp
+    src/app/dataExportController.cpp
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
     src/app/selectionPanel.cpp

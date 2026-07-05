@@ -23,6 +23,7 @@
 #include "projectsDialog.hpp"
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
+#include "dataExportController.hpp"
 #include "liveFeed.hpp"
 #include "serverClient.hpp"
 #include "selectionPanel.hpp"
@@ -162,6 +163,12 @@ namespace stencil::gui {
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
 
     notify_ = new Notifications(scroll_->viewport());
+    // Layout/image export + clipboard IO (dataExportController.hpp). Needs canvas_ + notify_ +
+    // settings_, plus the project name + layout-meta accessors that stay on MainWindow.
+    dataExport_ = std::make_unique<DataExportController>(
+        this, canvas_, notify_, &settings_,
+        [this] { return projectBaseName(); },
+        [this] { return currentLayoutMeta(); });
     // Incognito indicator (dashed frame + badge) pinned to the canvas viewport,
     // mirroring the browser's body.incognito-mode outline/badge. Hidden until the
     // incognito action toggles it on.
@@ -265,6 +272,10 @@ namespace stencil::gui {
             });
 #endif
   }
+
+  // Defined here (not =default in the header) so unique_ptr members of forward-declared
+  // types are destroyed where their complete type is visible (dataExportController.hpp above).
+  MainWindow::~MainWindow() = default;
 
   // ── hotkeys map (ported from browser/js/config/hotkeysConfig.json) ──
   // Defaults + labels from the embedded config, then user overrides layered on
@@ -539,14 +550,13 @@ namespace stencil::gui {
     // :563-591). pasteImage() does that dispatch.
     actPasteImage_ = mk("Paste (Image or Layout)", hotkey("paste", "Ctrl+V"));
 
-    connect(actDownloadJson_, &QAction::triggered, this,
-            &MainWindow::downloadLayout);
-    connect(actUploadJson_, &QAction::triggered, this, &MainWindow::uploadLayout);
-    connect(actCopyLayout_, &QAction::triggered, this, &MainWindow::copyLayout);
-    connect(actPasteLayout_, &QAction::triggered, this, &MainWindow::pasteLayout);
-    connect(actSaveImage_, &QAction::triggered, this, &MainWindow::saveImageFile);
-    connect(actCopyImage_, &QAction::triggered, this,
-            &MainWindow::copyImageToClipboard);
+    // Layout/image export + clipboard actions route to DataExportController (dataExport_).
+    connect(actDownloadJson_, &QAction::triggered, this, [this] { dataExport_->downloadLayout(); });
+    connect(actUploadJson_, &QAction::triggered, this, [this] { dataExport_->uploadLayout(); });
+    connect(actCopyLayout_, &QAction::triggered, this, [this] { dataExport_->copyLayout(); });
+    connect(actPasteLayout_, &QAction::triggered, this, [this] { dataExport_->pasteLayout(); });
+    connect(actSaveImage_, &QAction::triggered, this, [this] { dataExport_->saveImageFile(); });
+    connect(actCopyImage_, &QAction::triggered, this, [this] { dataExport_->copyImageToClipboard(); });
     connect(actPasteImage_, &QAction::triggered, this, &MainWindow::pasteImage);
 
     // Incognito (S6): edit without saving. Togglable only before an image is
@@ -2161,169 +2171,10 @@ namespace stencil::gui {
   // ── data actions (S9) ──
   // Export the current layout as pretty JSON to a file. Guards "no lines" like
   // the browser (drawingApp.js downloadJSON ~2071-2090).
-  void MainWindow::downloadLayout() {
-    if (canvas_->allLines().empty()) {
-      notify_->error("No lines to export");  // drawingApp.js:2073 alert
-      return;
-    }
-    const QString suggested = projectBaseName() + "-layout.json";
-    const QString path = QFileDialog::getSaveFileName(
-        this, "Export layout JSON", suggested, "JSON (*.json)");
-    if (path.isEmpty()) return;
-    const QJsonObject obj = fileStore::buildLayoutJson(
-        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
-        settings_.imageFilter, settings_.filterColor);
-    // Indented, matching the browser's JSON.stringify(data, null, 2).
-    const QByteArray bytes =
-        QJsonDocument(obj).toJson(QJsonDocument::Indented);
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-      notify_->error("Could not write file");
-      return;
-    }
-    f.write(bytes);
-    f.close();
-    notify_->success("Layout exported");
-  }
-
-  // Import a layout JSON file and adopt it (with the confirm/dimension guards in
-  // applyLayoutJson). Mirrors browser uploadJSON (drawingApp.js ~2092-2130).
-  void MainWindow::uploadLayout() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");  // drawingApp.js:2102
-      return;
-    }
-    const QString path = QFileDialog::getOpenFileName(
-        this, "Import layout JSON", QString(), "JSON (*.json)");
-    if (path.isEmpty()) return;
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-      notify_->error("Could not read file");
-      return;
-    }
-    QJsonParseError err{};
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
-    f.close();
-    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-      notify_->error("Error loading JSON: " + err.errorString());
-      return;
-    }
-    applyLayoutJson(doc.object());
-  }
-
-  // Copy the layout JSON text to the clipboard. Guards "no layout" like the
-  // browser (drawingApp.js copyLayoutToClipboard ~2181-2196).
-  void MainWindow::copyLayout() {
-    if (canvas_->allLines().empty()) {
-      notify_->error("No layout to copy");  // drawingApp.js:2183
-      return;
-    }
-    // Copy the FULL layout (Ctrl+Alt+C): lines + filter/tint + crop + rotation +
-    // page meta, matching the server-save envelope so every applied edit travels.
-    const QJsonObject obj = fileStore::buildLayoutJson(
-        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
-        settings_.imageFilter, settings_.filterColor,
-        canvas_->cropRect(), canvas_->rotationQuarters(),
-        currentLayoutMeta());
-    const QByteArray txt =
-        QJsonDocument(obj).toJson(QJsonDocument::Indented);
-    QGuiApplication::clipboard()->setText(QString::fromUtf8(txt));
-    notify_->success("Layout JSON copied");
-  }
-
-  // Parse clipboard text as a layout JSON object and adopt it. Mirrors the
-  // text branch of the browser paste listener (drawingApp.js :582-591).
-  void MainWindow::pasteLayout() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");
-      return;
-    }
-    const QString text = QGuiApplication::clipboard()->text();
-    if (text.isEmpty()) {
-      notify_->error("Clipboard has no layout JSON");
-      return;
-    }
-    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8());
-    if (!doc.isObject() || !doc.object().value("lines").isArray()) {
-      notify_->error("Clipboard has no layout JSON");
-      return;
-    }
-    applyLayoutJson(doc.object());
-  }
-
-  // Confirm-replace + dimension-mismatch guard, then adopt the parsed layout.
-  // Shared by uploadLayout + pasteLayout, mirroring the browser's uploadJSON /
-  // applyPastedLayout flow (drawingApp.js ~2101-2222): replace prompt only when
-  // lines already exist, dimension prompt only on mismatch, then setLines +
-  // history. setLines emits changed(), so the panel/buttons refresh.
-  void MainWindow::applyLayoutJson(const QJsonObject& obj) {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");
-      return;
-    }
-    if (!canvas_->allLines().empty()) {
-      if (QMessageBox::question(this, "Replace layout",
-                                "Replace current layout with the imported JSON?")
-          != QMessageBox::Yes) {
-        notify_->info("Import canceled");  // drawingApp.js:2107 "Upload canceled"
-        return;
-      }
-    }
-    int w = 0, h = 0;
-    core::Lines lines = fileStore::parseLayoutJson(obj, w, h);
-    if (w != canvas_->imageWidth() || h != canvas_->imageHeight()) {
-      if (QMessageBox::question(this, "Dimension mismatch",
-                                "Image dimensions do not match. Continue anyway?")
-          != QMessageBox::Yes) {
-        notify_->info("Import canceled");  // drawingApp.js:2113 dimension guard
-        return;
-      }
-    }
-    canvas_->setLines(lines);  // emits changed() -> refresh panel + buttons
-    notify_->success("Layout loaded");
-  }
-
-  // Render the canvas (image + filter + overlay) to a file. Extension drives the
-  // encoder (jpg/png/webp/bmp; anything else -> png). Mirrors the browser
-  // saveImage mime map (drawingApp.js :2062-2068) but writes to a chosen path.
-  void MainWindow::saveImageFile() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");  // drawingApp.js:2037 "No image"
-      return;
-    }
-    const QString suggested = projectBaseName() + "-drawing." +
-                              canvas_->imageExt();
-    const QString path = QFileDialog::getSaveFileName(
-        this, "Save image", suggested,
-        "Images (*.png *.jpg *.jpeg *.webp *.bmp)");
-    if (path.isEmpty()) return;
-    // Map the chosen extension to a Qt encoder format; default png (matching the
-    // browser's mimeMap fallback, drawingApp.js:2063-2064).
-    const QString ext = QFileInfo(path).suffix().toLower();
-    const char* fmt = "PNG";
-    if (ext == "jpg" || ext == "jpeg") fmt = "JPG";
-    else if (ext == "webp") fmt = "WEBP";
-    else if (ext == "bmp") fmt = "BMP";
-    else if (ext == "png") fmt = "PNG";
-    // withOverlay=true: bake the points/lines onto the saved image.
-    if (canvas_->renderToImage(true).save(path, fmt)) {
-      notify_->success("Image saved");
-    } else {
-      notify_->error("Could not save image");
-    }
-  }
-
-  // Copy the filtered image (no overlay) to the clipboard. Mirrors the browser
-  // copyImageToClipboard, which draws image+filter only (drawingApp.js
-  // :2133-2152, drawImageWithFilter — no lines/points).
-  void MainWindow::copyImageToClipboard() {
-    if (!canvas_->hasImage()) {
-      notify_->error("No image to copy");  // drawingApp.js:2134
-      return;
-    }
-    QGuiApplication::clipboard()->setImage(canvas_->renderToImage(false));
-    notify_->success("Image copied to clipboard");
-  }
+  // Layout/image export + clipboard IO (downloadLayout/uploadLayout/copyLayout/pasteLayout/
+  // applyLayoutJson/saveImageFile/copyImageToClipboard) live in DataExportController
+  // (dataExportController.hpp), constructed as dataExport_. pasteImage() stays here (it
+  // creates a project) and delegates its JSON-text fallback to dataExport_->pasteLayout().
 
   // Single Ctrl+V dispatch: an image on the clipboard wins, else fall back to a
   // layout JSON text payload. Mirrors the browser paste listener priority
@@ -2349,7 +2200,7 @@ namespace stencil::gui {
       return;
     }
     // No image — try a layout JSON text payload (drawingApp.js :582-591).
-    pasteLayout();
+    dataExport_->pasteLayout();
   }
 
   // ── view / zoom ──
@@ -3885,7 +3736,7 @@ namespace stencil::gui {
         notify_->error("Invalid layout JSON: " + err.errorString());
         return;
       }
-      applyLayoutJson(doc.object());
+      dataExport_->applyLayoutJson(doc.object());
     };
 
     const QUrl url = QUrl::fromUserInput(src);
