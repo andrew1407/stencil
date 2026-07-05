@@ -52,6 +52,7 @@ namespace stencil::gui {
   class IncognitoOverlay;
   class MediaLoader;
   class DataExportController;
+  class RemoteSyncController;
   struct LaunchOptions;
 
   class MainWindow : public QMainWindow {
@@ -355,18 +356,9 @@ namespace stencil::gui {
     // fields it carries), so a reopened server project shows its saved page and a later save
     // re-emits them instead of clobbering with the desktop's global default.
     void adoptServerLayoutMeta(const QJsonObject& layout);
-    // Live co-edit. scheduleRemotePush: debounce saveToServer() after a local edit.
-    // start/stopRemotePoll: subscribe/unsubscribe the live push feed + the version-check
-    // backstop while a remote session is open. pollRemoteForUpdate: one backstop tick —
-    // reload the canvas if a peer bumped the version. ensureLiveFeed: (re)point the push
-    // feed at the active server. onRemoteProjectEvent: a push frame arrived — coalesce a
-    // reload (the desktop analogue of the browser's onServerProjectEvent).
-    void scheduleRemotePush();
-    void startRemotePoll();
-    void stopRemotePoll();
-    void pollRemoteForUpdate();
-    void ensureLiveFeed();
-    void onRemoteProjectEvent(const QString& id, qint64 version, bool deleted);
+    // Live co-edit push/pull (debounce/poll/reload timers + LiveFeed) lives in
+    // RemoteSyncController (remoteSyncController.hpp), constructed as remoteSync_. MainWindow
+    // calls remoteSync_->scheduleRemotePush()/startRemotePoll()/stopRemotePoll().
 
     // Find a loaded project by id, or nullptr when none matches.
     Project* findProject(const std::string& id);
@@ -450,19 +442,9 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
-    // Live co-edit: debounced server push after a local edit + a poll that reloads when
-    // a peer changes the linked project. Flags guard against self-triggering.
-    QTimer* remotePushTimer_ = nullptr;
-    QTimer* remotePollTimer_ = nullptr;
-    // Live push feed (raw-TCP project-events subscription) + a short single-shot timer
-    // that coalesces a burst of peer events into one reload, off the socket-read slot.
-    stencil::net::LiveFeed* liveFeed_ = nullptr;
-    QTimer* remoteReloadTimer_ = nullptr;
-    // Start of the current push debounce burst (epoch ms; 0 = none) — caps the trailing
-    // debounce with a max-wait so continuous editing still flushes to peers.
-    qint64 remotePushBurstStart_ = 0;
-    // A peer change arrived while a reload was in flight — apply one more pass when it ends.
-    bool remoteReloadPending_ = false;
+    // Live co-edit reentrancy flags, set via ScopedFlag during a push / reload and READ by the
+    // RemoteSyncController (passed as const bool*) plus the filter/reload paths here. The timers,
+    // LiveFeed, and push-burst/reload-pending bookkeeping live inside RemoteSyncController.
     bool remotePushing_ = false;
     bool remoteReloading_ = false;
     // True when THIS user changed the filter since the last sync — a save then imposes
@@ -681,6 +663,9 @@ namespace stencil::gui {
     // Layout/image export + clipboard IO (dataExportController.hpp). Non-QObject helper owned by
     // value-semantics; constructed in the ctor once canvas_/notify_ exist.
     std::unique_ptr<DataExportController> dataExport_;
+    // Live co-edit push/pull engine (remoteSyncController.hpp) — QObject owning the sync timers +
+    // LiveFeed; reads MainWindow's remote-link state + flags via hooks.
+    std::unique_ptr<RemoteSyncController> remoteSync_;
     // A --layout source held until the --src image has loaded, then applied once.
     QString pendingLaunchLayout_;
     // Inline layout JSON from a stencil:// deep link, applied once the src image
