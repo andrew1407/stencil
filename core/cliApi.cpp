@@ -2,6 +2,7 @@
 
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
+#include "durationParser.hpp"
 #include "formulaParser.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
@@ -141,6 +142,14 @@ extern "C" {
     static const FormulaParser fp;
     return fp.apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
                     allowFormulas != 0);
+  }
+
+  int stencil_cli_parseDuration(const char* spec, long long* outMs) {
+    static const DurationParser dp;
+    long long ms = 0;
+    if (!dp.parse(std::string(spec ? spec : ""), ms)) return 0;
+    if (outMs) *outMs = ms;
+    return 1;
   }
 
 }  // extern "C"

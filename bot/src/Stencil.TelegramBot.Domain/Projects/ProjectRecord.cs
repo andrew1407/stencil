@@ -16,6 +16,9 @@ public sealed record ProjectRecord
     public string Name { get; init; } = "";
     public long CreatedAt { get; init; }
     public long UpdatedAt { get; init; }
+
+    /// <summary>Expiry (epoch ms; 0/absent = keep forever). Server projects have none by default.</summary>
+    public long ExpiresAt { get; init; }
     public bool HasImage { get; init; }
     public int ImageW { get; init; }
     public int ImageH { get; init; }

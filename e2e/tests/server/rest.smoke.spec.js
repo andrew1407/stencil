@@ -50,6 +50,36 @@ test.describe('server REST', () => {
     expect(gone.status()).toBe(404);
   });
 
+  test('project expiry: explicit create-time expiresAt round-trips + update changes it', async ({ request }) => {
+    const token = await issueToken(request);
+    const future = Date.now() + 365 * 24 * 60 * 60 * 1000; // a year out
+
+    // Explicit create-time expiry is stored and echoed back.
+    const created = await createProject(request, token, { name: 'expiry-smoke', expiresAt: future });
+    expect(created.expiresAt).toBe(future);
+
+    // …and shows up in the list (the metadata clients render).
+    const listed = (await (await request.get(`${SERVER_URL}/projects`, { headers: bearer(token) })).json())
+      .projects.find((p) => p.id === created.id);
+    expect(listed.expiresAt).toBe(future);
+
+    // An update sets a new expiry under the version guard.
+    const next = future + 1000;
+    const upd = await request.put(`${SERVER_URL}/projects/${created.id}`, {
+      headers: bearer(token), data: { expiresAt: next, version: 0 },
+    });
+    expect(upd.ok()).toBeTruthy();
+    expect((await upd.json()).expiresAt).toBe(next);
+
+    // A create with no expiry defaults to none (server expiry is off by default) —
+    // the wire omits expiresAt when 0, so it reads back as undefined.
+    const noExp = await createProject(request, token, { name: 'no-expiry-smoke' });
+    expect(noExp.expiresAt ?? 0).toBe(0);
+
+    await request.delete(`${SERVER_URL}/projects/${created.id}`, { headers: bearer(token) });
+    await request.delete(`${SERVER_URL}/projects/${noExp.id}`, { headers: bearer(token) });
+  });
+
   test('file upload → download round-trips the bytes', async ({ request }) => {
     const token = await issueToken(request);
     const project = await createProject(request, token, { name: 'files-smoke' });

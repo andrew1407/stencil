@@ -21,6 +21,8 @@ type Config struct {
 	RedisURL      string        // redis://... (empty disables the bus; in-memory fan-out only)
 	FilestoreRoot string        // root directory for the secured file store
 	TokenTTL      time.Duration // lifetime of issued auth tokens
+	ProjectTTL    time.Duration // default lifetime stamped on new projects; 0 = no expiry (off)
+	SweepInterval time.Duration // how often to sweep expired projects; 0 disables the sweep
 	MaxBodyBytes  int64         // request body cap for REST writes
 	TLSCert       string        // optional TLS cert path (enables HTTPS/WSS)
 	TLSKey        string        // optional TLS key path
@@ -35,6 +37,7 @@ const (
 	defaultFilestore    = "./data/filestore"
 	defaultTokenTTL     = 7 * 24 * time.Hour
 	defaultMaxBodyBytes = 32 << 20 // 32 MiB
+	defaultSweep        = time.Hour // expired-project sweep cadence
 )
 
 // Load reads .env (if present in the working directory) then the process
@@ -64,6 +67,7 @@ func Load() (Config, error) {
 		TLSKey:        get("TLS_KEY", ""),
 		AdminToken:    get("ADMIN_TOKEN", ""),
 		TokenTTL:      defaultTokenTTL,
+		SweepInterval: defaultSweep,
 		MaxBodyBytes:  defaultMaxBodyBytes,
 		CORSOrigins:   parseOrigins(get("CORS_ORIGINS", "*")),
 	}
@@ -81,6 +85,23 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("config: invalid MAX_BODY_BYTES %q", v)
 		}
 		cfg.MaxBodyBytes = b
+	}
+	// Default project lifetime, in hours. Unset/0 = off (server projects never
+	// expire unless a client sets an explicit expiry).
+	if v := get("PROJECT_TTL_HOURS", ""); v != "" {
+		h, err := strconv.Atoi(v)
+		if err != nil || h < 0 {
+			return Config{}, fmt.Errorf("config: invalid PROJECT_TTL_HOURS %q", v)
+		}
+		cfg.ProjectTTL = time.Duration(h) * time.Hour
+	}
+	// Expired-project sweep cadence, in minutes. 0 disables the sweep entirely.
+	if v := get("EXPIRY_SWEEP_MINUTES", ""); v != "" {
+		m, err := strconv.Atoi(v)
+		if err != nil || m < 0 {
+			return Config{}, fmt.Errorf("config: invalid EXPIRY_SWEEP_MINUTES %q", v)
+		}
+		cfg.SweepInterval = time.Duration(m) * time.Minute
 	}
 	return cfg, nil
 }

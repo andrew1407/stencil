@@ -43,6 +43,7 @@ STENCIL_CORE_SOURCES = [
     "color/colorNames.cpp",
     "color/imageFilter.cpp",
     "parse/formulaParser.cpp",
+    "parse/durationParser.cpp",
     "parse/lengthTokens.cpp",
     "parse/cropSpec.cpp",
     "page/pageMetrics.cpp",

@@ -23,6 +23,42 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.MaxBodyBytes != defaultMaxBodyBytes {
 		t.Fatalf("MaxBodyBytes default: %d", cfg.MaxBodyBytes)
 	}
+	if cfg.ProjectTTL != 0 {
+		t.Fatalf("ProjectTTL default should be 0 (off), got %v", cfg.ProjectTTL)
+	}
+	if cfg.SweepInterval != defaultSweep {
+		t.Fatalf("SweepInterval default: %v", cfg.SweepInterval)
+	}
+}
+
+func TestExpiryConfig(t *testing.T) {
+	chdirTemp(t)
+	clearEnv(t)
+	t.Setenv("PROJECT_TTL_HOURS", "48")
+	t.Setenv("EXPIRY_SWEEP_MINUTES", "15")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ProjectTTL != 48*time.Hour {
+		t.Fatalf("PROJECT_TTL_HOURS not applied: %v", cfg.ProjectTTL)
+	}
+	if cfg.SweepInterval != 15*time.Minute {
+		t.Fatalf("EXPIRY_SWEEP_MINUTES not applied: %v", cfg.SweepInterval)
+	}
+
+	// 0 sweep minutes disables the sweep.
+	t.Setenv("EXPIRY_SWEEP_MINUTES", "0")
+	cfg, err = Load()
+	if err != nil || cfg.SweepInterval != 0 {
+		t.Fatalf("EXPIRY_SWEEP_MINUTES=0 should disable sweep: %v %v", err, cfg.SweepInterval)
+	}
+
+	// Invalid values are rejected.
+	t.Setenv("PROJECT_TTL_HOURS", "-3")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for negative PROJECT_TTL_HOURS")
+	}
 }
 
 func TestEnvOverridesDotEnv(t *testing.T) {
@@ -76,7 +112,7 @@ func chdirTemp(t *testing.T) string {
 
 func clearEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"LISTEN_ADDR", "DATABASE_URL", "REDIS_URL", "FILESTORE_ROOT", "TLS_CERT", "TLS_KEY", "ADMIN_TOKEN", "TOKEN_TTL_HOURS", "MAX_BODY_BYTES"} {
+	for _, k := range []string{"LISTEN_ADDR", "DATABASE_URL", "REDIS_URL", "FILESTORE_ROOT", "TLS_CERT", "TLS_KEY", "ADMIN_TOKEN", "TOKEN_TTL_HOURS", "MAX_BODY_BYTES", "PROJECT_TTL_HOURS", "EXPIRY_SWEEP_MINUTES"} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
 	}

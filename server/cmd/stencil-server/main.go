@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -64,6 +65,13 @@ func run() error {
 	}
 	defer b.Close()
 
+	// Reap expired projects on startup and on a timer (Postgres is the source of
+	// truth; the sweep also drops filestore bytes and notifies clients). The
+	// WaitGroup lets shutdown join the sweep before the store/bus are closed, so it
+	// never touches a closed pool.
+	var sweepWG sync.WaitGroup
+	startExpirySweep(rootCtx, &sweepWG, st, fs, b, cfg.SweepInterval)
+
 	// REST + WS + TCP.
 	api := httpapi.New(httpapi.Deps{
 		Projects:     st,
@@ -71,6 +79,7 @@ func run() error {
 		Files:        fs,
 		Bus:          b,
 		TokenTTL:     cfg.TokenTTL,
+		ProjectTTL:   cfg.ProjectTTL,
 		MaxBodyBytes: cfg.MaxBodyBytes,
 		AdminToken:   cfg.AdminToken,
 	})
@@ -145,6 +154,8 @@ func run() error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	stop()          // cancel rootCtx so the expiry-sweep goroutine winds down
+	sweepWG.Wait()  // join it before the deferred st.Close()/b.Close() run
 	_ = tcpLn.Close()
 	return httpSrv.Shutdown(shutdownCtx)
 }

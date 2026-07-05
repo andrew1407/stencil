@@ -97,6 +97,16 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 	}
 	rec, err := a.deps.Projects.SetFile(r.Context(), id, kind, rel, width, height)
 	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			// The project row was deleted (e.g. it expired and the sweep ran)
+			// between the existence check above and this write. Drop the bytes we
+			// just wrote so they aren't orphaned in the filestore, and report gone.
+			if a.deps.Files != nil {
+				_ = a.deps.Files.Remove(id)
+			}
+			writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not record file")
 		return
 	}

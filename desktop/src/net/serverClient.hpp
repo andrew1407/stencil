@@ -32,6 +32,9 @@ namespace stencil::net {
     QString resource;
     qint64 createdAt = 0;
     qint64 updatedAt = 0;
+    // Expiry (epoch ms; 0 = never). Mirrors protocol.ProjectRecord.ExpiresAt;
+    // shown next to the created date. Server projects have none by default.
+    qint64 expiresAt = 0;
     // Monotonic edit version (LWW guard); echoed back on PUT to detect a 409.
     qint64 version = 0;
     // Origin server (base origin) this record came from — stamped by

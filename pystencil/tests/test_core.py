@@ -162,6 +162,17 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(c.apply_formula("y/3", "y", 9.0, True), 3.0)
         self.assertEqual(c.apply_formula("bad(", "x", 10.0, True), 10.0)  # invalid = identity
 
+    def test_parse_duration(self) -> None:
+        c = get_core()
+        day = 24 * 60 * 60 * 1000
+        self.assertEqual(c.parse_duration("day"), day)
+        self.assertEqual(c.parse_duration("days 23"), 23 * day)
+        self.assertEqual(c.parse_duration("months 3"), 3 * 30 * day)
+        self.assertEqual(c.parse_duration("fortnight"), 14 * day)
+        self.assertEqual(c.parse_duration("off"), 0)  # keep forever
+        self.assertIsNone(c.parse_duration("banana"))
+        self.assertIsNone(c.parse_duration("days 0"))
+
 
 if __name__ == "__main__":
     unittest.main()

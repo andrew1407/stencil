@@ -86,6 +86,11 @@ public static class Replies
             {
                 sb.AppendLine($"  created {created}");
             }
+            string expires = FmtDate(session.ActiveProjectExpiresAt);
+            if (expires.Length != 0)
+            {
+                sb.AppendLine($"  expires {expires}");
+            }
         }
         else
         {
@@ -250,7 +255,9 @@ public static class Replies
             string prefix = dot.Length == 0 ? "•" : dot;
             string created = FmtDate(p.Record.CreatedAt);
             string createdBit = created.Length == 0 ? "" : $" · created {created}";
-            sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit} @ {Host(p.ServerUrl)}");
+            string expires = FmtDate(p.Record.ExpiresAt);
+            string expiresBit = expires.Length == 0 ? "" : $" · expires {expires}";
+            sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit}{expiresBit} @ {Host(p.ServerUrl)}");
         }
         return sb.ToString().TrimEnd();
     }

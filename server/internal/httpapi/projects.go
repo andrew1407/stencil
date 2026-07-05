@@ -51,6 +51,11 @@ func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if sess, ok := auth.SessionFromContext(r.Context()); ok {
 		owner = sess.ID
 	}
+	// Server projects have no expiry unless the client set one explicitly, or the
+	// operator configured a default lifetime (PROJECT_TTL). Off by default.
+	if req.ExpiresAt == 0 && a.deps.ProjectTTL > 0 {
+		req.ExpiresAt = nowMs() + a.deps.ProjectTTL.Milliseconds()
+	}
 	rec, err := a.deps.Projects.CreateProject(r.Context(), owner, req)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not create project")
@@ -65,7 +70,7 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	if !a.decodeJSON(w, r, &req) {
 		return
 	}
-	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), req.Name, req.Color, req.Layout, req.Version)
+	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), req.Name, req.Color, req.ExpiresAt, req.Layout, req.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")

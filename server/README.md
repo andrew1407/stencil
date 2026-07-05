@@ -110,7 +110,20 @@ is created at boot via embedded idempotent migrations.
 
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
 `REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
+`PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel).
+
+### Project expiration
+
+Each project carries an `expiresAt` (epoch ms; `0`/absent = keep forever). It is
+**off by default** — a project gets an expiry only when a client sets one
+explicitly (via the editor's `expire` command, sent on create/update), or when the
+operator sets `PROJECT_TTL_HOURS` > 0 to stamp `now + TTL` on every new project that
+arrives without one. A background sweep runs at startup and every
+`EXPIRY_SWEEP_MINUTES` (default 60; `0` disables it): it deletes each project past
+its expiry from Postgres, removes its file-store bytes, and broadcasts a
+`project-event` (`deleted`) so connected clients drop it live. Postgres is the sole
+source of truth; Redis, when present, only relays that notification.
 
 ## REST API
 
@@ -119,10 +132,10 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/auth/token` | issue a token+session (gated by `ADMIN_TOKEN` when set) |
-| GET | `/projects` | list project metadata, newest-updated first |
-| POST | `/projects` | create a project |
+| GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first |
+| POST | `/projects` | create a project (optional `expiresAt`; else server default / none) |
 | GET | `/projects/{id}` | full project incl. layout + original content |
-| PUT | `/projects/{id}` | update name/layout under a version guard (409 on conflict) |
+| PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
 | DELETE | `/projects/{id}` | delete project + its files |
 | GET | `/projects/{id}/files/{kind}` | download `original`/`result` bytes |
 | POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in) |
