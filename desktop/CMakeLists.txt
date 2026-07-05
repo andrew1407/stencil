@@ -285,6 +285,24 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_projectcolor_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Server-connected transfer check: drives the extracted ProjectTransferController's
+  # copy/move-to-server against a real running server (self-skips when none is reachable —
+  # point it at one with STENCIL_TEST_SERVER, default http://localhost:8090).
+  add_executable(stencil_projecttransfer_headless
+    tests/projectTransfer.headless.cpp
+    src/app/projectTransferController.cpp
+    src/net/serverClient.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp
+    src/support/notifications.cpp
+    src/io/fileStore.cpp)
+  target_include_directories(stencil_projecttransfer_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projecttransfer_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network)
+  add_test(NAME stencil_projecttransfer_headless COMMAND stencil_projecttransfer_headless)
+  set_tests_properties(stencil_projecttransfer_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Deep-link check: the stencil:// URL grammar (parseStencilUrl) + the Telegram
   # start-payload codec (golden vectors shared verbatim with browser/tests/
   # deepLink.test.js and the bot's DeepLinkCodecTests.cs) + the browser-fragment
