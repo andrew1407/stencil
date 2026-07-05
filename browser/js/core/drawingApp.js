@@ -13,9 +13,10 @@ import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { ExportService } from './exportService.js';
 import { SettingsController } from './settingsController.js';
+import { AccentController } from './accentController.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex } from './accents.js';
+import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
@@ -231,7 +232,7 @@ export class DrawingApp {
     // a peer's preset change must not clobber this page's one-off colour.
     this.tabs.onAccent(key => {
       if (this.customAccent) return;
-      const next = this.#applyAccent(key);
+      const next = this.accents.applyAccent(key);
       try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
     });
     this.coordTable = new CoordTable(this);
@@ -239,6 +240,8 @@ export class DrawingApp {
     this.export = new ExportService(this);
     // Shared editor setters (style/page/formula/tooltip/visual — see settingsController.js).
     this.settings = new SettingsController(this);
+    // UI theme + accent writes (see accentController.js). The theme/accent getters stay on app.
+    this.accents = new AccentController(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -598,38 +601,17 @@ export class DrawingApp {
 
   // Active UI theme ('dark' | 'light').
   get theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
-  // Set (and persist as the manual override) the UI theme; refreshes the toggle icon.
-  setTheme(theme) {
-    const next = String(theme).toLowerCase() === 'dark' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('drawingApp_theme', next);
-    this.#updateThemeIcon();
-  }
-  #updateThemeIcon() {
-    const btn = document.getElementById('theme-toggle');
-    if (btn) btn.innerHTML = this.theme === 'dark' ? icon('sun') : icon('moon');
-  }
+  // Theme + accent writes live in AccentController (accentController.js); these thin
+  // delegators keep the public method names the toolbar + window.stencil facade call. The
+  // theme/accent/customAccent GETTERS stay here because they just read the document element.
+  setTheme(theme) { this.accents.setTheme(theme); }
+  setAccent(key) { this.accents.setAccent(key); }
+  setCustomAccent(hex) { return this.accents.setCustomAccent(hex); }
 
   // Active accent preset key (see js/core/accents.js); falls back to violet.
   get accent() {
     const a = document.documentElement.getAttribute('data-accent');
     return isAccent(a) ? a : DEFAULT_ACCENT;
-  }
-  // Set (and persist) the accent preset; --accent-2 and the glows derive from it.
-  // Broadcasts to peer tabs so they repaint live (see #applyAccent for the local apply).
-  setAccent(key) {
-    const next = this.#applyAccent(key);
-    this.tabs.broadcastAccent(next);
-  }
-  // Paint + persist the accent in THIS tab. Returns the resolved key. Used by
-  // setAccent (local change) and the cross-tab listener (remote change, no re-broadcast).
-  #applyAccent(key) {
-    const next = isAccent(key) ? key : DEFAULT_ACCENT;
-    document.documentElement.style.removeProperty('--accent'); // drop any custom (temp) override
-    document.documentElement.setAttribute('data-accent', next);
-    try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
-    applyAccentFavicon(next);
-    return next;
   }
 
   // A custom (non-preset) accent applied to THIS page only — the inline --accent override
@@ -637,20 +619,9 @@ export class DrawingApp {
   get customAccent() {
     return document.documentElement.style.getPropertyValue('--accent').trim() || null;
   }
-  // Apply an arbitrary hex colour as the accent for this page only: NO persistence and NO
-  // cross-tab broadcast (unlike setAccent), so it stays local and vanishes on reload. The
-  // inline --accent overrides the data-accent preset rule; everything else derives from it.
-  // Returns the normalized '#rrggbb', or null when `hex` isn't a valid colour.
-  setCustomAccent(hex) {
-    const norm = normalizeHex(hex);
-    if (!norm) return null;
-    document.documentElement.style.setProperty('--accent', norm);
-    applyFaviconHex(norm);
-    return norm;
-  }
 
   #wireTheme() {
-    this.#updateThemeIcon();
+    this.accents.updateThemeIcon();
     // Tint the tab favicon + status bar to the saved accent on load.
     applyAccentFavicon(this.accent);
     document.getElementById('theme-toggle').addEventListener('click', () => {
@@ -660,7 +631,7 @@ export class DrawingApp {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
       if (!localStorage.getItem('drawingApp_theme')) {
         document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        this.#updateThemeIcon();
+        this.accents.updateThemeIcon();
       }
     });
   }
