@@ -400,15 +400,14 @@ test('facade blank({ address }) validates the target and threads it to createBla
   assert.equal('address' in app._blankOpts, false);
 });
 
-test('facade newEditor({ address }) creates+links an empty server project', async () => {
+test('facade newEditor({ address }) arms the server as the create target for the next image', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');
   const server = makeFakeServer();
+  // The server forbids image-less projects, so newEditor({ address }) does NOT create one:
+  // it arms the address; the next image load creates it with real bytes.
   const app = facadeApp(server, {
-    newEditor() { app._newed = true; },
-    async createRemoteBlank(address) {
-      app.remoteLink = await createRemoteProject(app.connections.get(address), { name: 'Untitled' });
-      return app.remoteLink;
-    },
+    newEditor() { app._newed = true; app.pendingRemoteAddress = null; },
+    async createRemoteBlank(address) { app.pendingRemoteAddress = address; return { address }; },
   });
   const stencil = createStencil(app);
   await stencil.connect('http://srv:8090');
@@ -418,7 +417,8 @@ test('facade newEditor({ address }) creates+links an empty server project', asyn
   const ret = await stencil.newEditor({ address: 'http://srv:8090' });
   assert.equal(ret, stencil);
   assert.ok(app._newed);
-  assert.equal(app.remoteLink.address, 'http://srv:8090');
+  assert.equal(app.remoteLink, undefined, 'no project is created up front');
+  assert.equal(app.pendingRemoteAddress, 'http://srv:8090');
 });
 
 test('facade save() writes back when the session is server-linked, else flushes locally', async () => {
