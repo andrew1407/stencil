@@ -33,3 +33,13 @@ export const sharedMatchesSearch = (image, search) => {
   const q = search.toLowerCase();
   return (image.name || '').toLowerCase().includes(q) || (image.source || '').toLowerCase().includes(q);
 };
+
+// A connected server's short label for the "server pins" filter select: its URL host, falling
+// back to the raw origin (or a generic placeholder) when it isn't a parseable URL.
+export const hostLabel = (origin) => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return origin || '(server)';
+  }
+};
