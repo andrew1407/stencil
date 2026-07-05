@@ -12,6 +12,7 @@ import { defaultBlankSizePx } from './layout.js';
 import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { ExportService } from './exportService.js';
+import { SettingsController } from './settingsController.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex } from './accents.js';
@@ -91,7 +92,7 @@ export class DrawingApp {
   // True when THIS user changed the filter since the last sync — so a save imposes our
   // filter (our intent wins), but a save that's only line edits preserves the shared
   // server filter instead of clobbering a peer's filter change.
-  #filterDirty = false;
+  filterDirty = false;
 
   constructor() {
     this.canvas = document.getElementById('canvas');
@@ -236,6 +237,8 @@ export class DrawingApp {
     this.coordTable = new CoordTable(this);
     // Image/layout export, clipboard, and file IO (see exportService.js).
     this.export = new ExportService(this);
+    // Shared editor setters (style/page/formula/tooltip/visual — see settingsController.js).
+    this.settings = new SettingsController(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -371,22 +374,23 @@ export class DrawingApp {
   }
 
   // ── Formula controls (top bar) ──────────────────────────────
-  // #syncFormulaUI / #showFormulaError / #refreshFormulaCoords + setAllowFormulas live
-  // with the other setters. This validates BOTH inputs together (no half-typed pair) and
-  // shows the inline error; the console's setFormula() throws instead.
+  // The formula UI helpers (settings.syncFormulaUI / showFormulaError / refreshFormulaCoords)
+  // and setAllowFormulas live in SettingsController with the other setters. This validates
+  // BOTH inputs together (no half-typed pair) and shows the inline error; the console's
+  // setFormula() throws instead.
   #wireFormulaControls() {
     const validateAndApplyFormulas = () => {
       const fxVal = document.getElementById('formula-x').value.trim();
       const fyVal = document.getElementById('formula-y').value.trim();
       const okX = this.formula.validate(fxVal, 'x');
       const okY = this.formula.validate(fyVal, 'y');
-      this.#showFormulaError(!okX || !okY);
+      this.settings.showFormulaError(!okX || !okY);
       if (okX && okY) {
         this.formulaX = fxVal;
         this.formulaY = fyVal;
         setVal('ctx-formula-x', fxVal);
         setVal('ctx-formula-y', fyVal);
-        this.#refreshFormulaCoords();
+        this.settings.refreshFormulaCoords();
         this.storage.save();
         this.scheduleRemoteSync();   // push the formula change to peers/server
       }
@@ -3245,7 +3249,7 @@ export class DrawingApp {
       fp.value = this.filterColor;
       fp.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
     }
-    this.#filterDirty = false;
+    this.filterDirty = false;
   }
 
   // Restore a server layout's page format (A3/A4/custom + cm dims) into state + the page UI.
@@ -3275,7 +3279,7 @@ export class DrawingApp {
     this.allowFormulas = allow;
     const cb = document.getElementById('allow-formulas');
     if (cb) cb.checked = allow;
-    this.#syncFormulaUI(allow);
+    this.settings.syncFormulaUI(allow);
     const fx = layout && typeof layout.formulaX === 'string' ? layout.formulaX : '';
     const fy = layout && typeof layout.formulaY === 'string' ? layout.formulaY : '';
     this.formulaX = fx;
@@ -3284,7 +3288,7 @@ export class DrawingApp {
     setVal('formula-y', this.formulaY);
     setVal('ctx-formula-x', this.formulaX);
     setVal('ctx-formula-y', this.formulaY);
-    this.#showFormulaError(false);
+    this.settings.showFormulaError(false);
   }
 
   undo() {
@@ -3704,7 +3708,7 @@ export class DrawingApp {
           name, layout, bytes, ext: 'png', w: this.canvas.width, h: this.canvas.height,
         });
         this.#lastRemoteSaveAt = Date.now();
-        this.#filterDirty = false;   // our filter (if any) is now the server's
+        this.filterDirty = false;   // our filter (if any) is now the server's
         notify(attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
         return this.remoteLink;
       } catch (err) {
@@ -3723,7 +3727,7 @@ export class DrawingApp {
           this.lines = mergeLines(serverLines, this.lines);
           // Adopt the peer's filter UNLESS this user just changed their own — so a
           // line-only edit doesn't clobber a peer's filter change (the scalar can't merge).
-          if (!this.#filterDirty) this.#adoptServerFilter(sl);
+          if (!this.filterDirty) this.#adoptServerFilter(sl);
           this.history.push(this.lines);
           this.renderer.redraw();
         } catch { /* fetch failed; loop retries with current state */ }
@@ -3868,230 +3872,27 @@ export class DrawingApp {
   // peers so their open project lists re-render with the new expiry.
   // ── Shared editor setters ─────────────────────────────────────
   // Single source of truth for top-menu settings: toolbar handlers AND the console API
-  // (window.stencil) both call these, staying in sync. Each updates model, mirrors UI,
-  // redraws/persists as needed, returns `this` for chaining. `persist:false` is used by
-  // live-drag (input) events that commit on the trailing change (no write per slider tick).
-
-  setColor(v, { persist = true } = {}) {
-    this.color = String(v);
-    setVal('line-color', this.color);
-    if (persist) this.storage.save();
-    return this;
-  }
-
-  setThickness(n, { persist = true } = {}) {
-    const v = parseInt(n, 10);
-    if (Number.isNaN(v)) return this;
-    this.thickness = v;
-    setVal('line-thickness', v);
-    const ctx = document.getElementById('ctx-thickness');
-    if (ctx && document.activeElement !== ctx) ctx.value = v;
-    this.renderer.redraw();
-    if (persist) this.storage.save();
-    return this;
-  }
-
-  setMarkerSize(n, { persist = true } = {}) {
-    const v = parseInt(n, 10);
-    if (Number.isNaN(v)) return this;
-    this.markerSize = v;
-    setVal('marker-size', v);
-    const ctx = document.getElementById('ctx-marker-size');
-    if (ctx && document.activeElement !== ctx) ctx.value = v;
-    this.renderer.redraw();
-    if (persist) this.storage.save();
-    return this;
-  }
-
-  setLineStyle(s) {
-    this.style = String(s);
-    setVal('line-style', this.style);
-    setRadioGroup('ctxLineStyle', this.style);
-    this.storage.save();
-    return this;
-  }
-
-  setShowPoints(b) {
-    this.showPoints = !!b;
-    const cb = document.getElementById('show-points');
-    if (cb) cb.checked = this.showPoints;
-    const chk = document.getElementById('ctx-chk-points');
-    if (chk) chk.innerHTML = this.showPoints ? icon('check', { size: 14 }) : '';
-    this.renderer.redraw();
-    this.storage.save();
-    return this;
-  }
-
-  setShowLines(b) {
-    this.showLines = !!b;
-    const cb = document.getElementById('show-lines');
-    if (cb) cb.checked = this.showLines;
-    const chk = document.getElementById('ctx-chk-lines');
-    if (chk) chk.innerHTML = this.showLines ? icon('check', { size: 14 }) : '';
-    this.renderer.redraw();
-    this.storage.save();
-    return this;
-  }
-
-  setImageFilter(f) {
-    this.imageFilter = String(f);
-    setVal('image-filter', this.imageFilter);
-    const picker = document.getElementById('filter-color');
-    if (picker) picker.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
-    setRadioGroup('ctxFilter', this.imageFilter);
-    const tintRow = document.getElementById('ctx-tint-row');
-    if (tintRow) tintRow.classList.toggle('ctx-tint-visible', this.imageFilter === 'custom');
-    this.renderer.redraw();
-    this.#filterDirty = true;   // user changed the filter → our filter wins on save
-    this.storage.save();
-    this.scheduleRemoteSync();
-    return this;
-  }
-
-  setFilterColor(v, { persist = true } = {}) {
-    this.filterColor = String(v);
-    setVal('filter-color', this.filterColor);
-    const ctxTint = document.getElementById('ctx-tint-color');
-    if (ctxTint) ctxTint.value = this.filterColor;
-    this.renderer.redraw();
-    if (persist) { this.#filterDirty = true; this.storage.save(); this.scheduleRemoteSync(); }
-    return this;
-  }
-
-  setPageSize(size) {
-    const n = normalizePageSize(size);
-    if (!n) throw new Error(`Unknown page size: ${size} (use a named ISO format (A0–C10) or 'custom')`);
-    this.pageSize = n;
-    setVal('page-size', n);
-    const cg = document.getElementById('custom-size-group');
-    if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
-    this.coordTable.update();
-    this.renderer.redraw();
-    this.storage.save();
-    this.scheduleRemoteSync();   // page format rides the layout — push it to peers/server too
-    return this;
-  }
-
-  // Width/height are stored in cm (the model unit); the input is shown in the active
-  // display unit. Pass cm from the UI handler (it converts the typed value first).
-  setCustomPageWidth(cm) {
-    const v = parseFloat(cm);
-    if (Number.isNaN(v)) return this;
-    this.customPageWidth = v;
-    setVal('custom-page-width', cmToUnit(v, this.unit));
-    this.coordTable.update();
-    this.renderer.redraw();
-    this.storage.save();
-    this.scheduleRemoteSync();
-    return this;
-  }
-
-  setCustomPageHeight(cm) {
-    const v = parseFloat(cm);
-    if (Number.isNaN(v)) return this;
-    this.customPageHeight = v;
-    setVal('custom-page-height', cmToUnit(v, this.unit));
-    this.coordTable.update();
-    this.renderer.redraw();
-    this.storage.save();
-    this.scheduleRemoteSync();
-    return this;
-  }
-
-  setUnit(u) {
-    this.unit = u === 'in' ? 'in' : 'cm';
-    setVal('unit-select', this.unit);
-    this.applyUnitToUI();
-    this.coordTable.update();
-    this.updateCoordStatus();
-    this.renderer.redraw();
-    this.storage.save();
-    return this;
-  }
-
-  // ── Formula controls (shared) ──
-  #syncFormulaUI(checked) {
-    const fi = document.getElementById('formula-inputs');
-    if (fi) fi.style.display = checked ? 'inline-flex' : 'none';
-    const ctxFi = document.getElementById('ctx-formula-inputs');
-    if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
-    const ctxCb = document.getElementById('ctx-allow-formulas');
-    if (ctxCb) ctxCb.checked = checked;
-  }
-
-  #showFormulaError(hasError) {
-    const el = document.getElementById('formula-error');
-    const ctxEl = document.getElementById('ctx-formula-error');
-    if (el) el.style.display = hasError ? 'inline' : 'none';
-    if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
-  }
-
-  #refreshFormulaCoords() {
-    const li = this.coordLineIdx;
-    const pts = li === -1
-      ? (this.currentLine ? this.currentLine.points : null)
-      : (this.lines[li] ? this.lines[li].points : null);
-    this.coordTable.update(pts, li);
-  }
-
-  setAllowFormulas(b) {
-    this.allowFormulas = !!b;
-    const cb = document.getElementById('allow-formulas');
-    if (cb) cb.checked = this.allowFormulas;
-    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
-    // coordinate conversion (pixelToPageCoords passes allowFormulas) — the expressions are
-    // KEPT so re-enabling restores them.
-    this.#syncFormulaUI(this.allowFormulas);
-    if (!this.allowFormulas) this.#showFormulaError(false);
-    this.#refreshFormulaCoords();
-    this.storage.save();
-    this.scheduleRemoteSync();   // formulas ride the layout — push them to peers/server too
-    return this;
-  }
-
-  // Set the x or y coordinate transform. Throws on an invalid expression so the
-  // console surfaces it; the UI handler catches and shows the inline error instead.
-  setFormula(axis, expr) {
-    const a = axis === 'y' ? 'y' : 'x';
-    const v = String(expr ?? '').trim();
-    if (v && !this.formula.validate(v, a)) throw new Error(`Invalid ${a} formula: ${expr}`);
-    if (a === 'x') this.formulaX = v; else this.formulaY = v;
-    setVal(`formula-${a}`, v);
-    setVal(`ctx-formula-${a}`, v);
-    this.#showFormulaError(false);
-    this.#refreshFormulaCoords();
-    this.storage.save();
-    this.scheduleRemoteSync();
-    return this;
-  }
-
-  // Toggle one tooltip section: key ∈ 'enabled' | 'page' | 'screen' | 'coords'.
-  setTooltipOption(key, on) {
-    const propMap = { enabled: 'tooltipEnabled', page: 'tooltipShowPage', screen: 'tooltipShowScreen', coords: 'tooltipShowCoords' };
-    const idMap = { enabled: 'ctx-tt-enabled', page: 'ctx-tt-page', screen: 'ctx-tt-screen', coords: 'ctx-tt-coords' };
-    const prop = propMap[key];
-    if (!prop) throw new Error(`Unknown tooltip option: ${key}`);
-    this[prop] = !!on;
-    const el = document.getElementById(idMap[key]);
-    if (el) el.checked = !!on;
-    this.storage.save();
-    try { this.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
-    return this;
-  }
-
-  // Set one "visual default" colour (shared by the visuals modal + console settings).
-  // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'.
-  setVisualColor(key, value) {
-    const propMap = { fill: 'defaultFillColor', selGlow: 'selGlowColor', hoverRing: 'hoverRingColor', focusRing: 'focusRingColor' };
-    const idMap = { fill: 'vs-fill', selGlow: 'vs-sel-glow', hoverRing: 'vs-hover-ring', focusRing: 'vs-focus-ring' };
-    const prop = propMap[key];
-    if (!prop) throw new Error(`Unknown visual colour: ${key}`);
-    this[prop] = String(value);
-    setVal(idMap[key], this[prop]);
-    this.renderer.redraw();
-    this.storage.save();
-    return this;
-  }
+  // (window.stencil) both call these, staying in sync. The bodies live in SettingsController
+  // (settingsController.js); these thin delegators keep the public method names + the
+  // return-`this`-for-chaining contract the facade and #wire* handlers depend on. The formula
+  // UI helpers (syncFormulaUI/showFormulaError/refreshFormulaCoords) are public on the
+  // controller because #wireFormulaControls and #adoptServerFormulas also drive them.
+  setColor(v, opts) { this.settings.setColor(v, opts); return this; }
+  setThickness(n, opts) { this.settings.setThickness(n, opts); return this; }
+  setMarkerSize(n, opts) { this.settings.setMarkerSize(n, opts); return this; }
+  setLineStyle(s) { this.settings.setLineStyle(s); return this; }
+  setShowPoints(b) { this.settings.setShowPoints(b); return this; }
+  setShowLines(b) { this.settings.setShowLines(b); return this; }
+  setImageFilter(f) { this.settings.setImageFilter(f); return this; }
+  setFilterColor(v, opts) { this.settings.setFilterColor(v, opts); return this; }
+  setPageSize(size) { this.settings.setPageSize(size); return this; }
+  setCustomPageWidth(cm) { this.settings.setCustomPageWidth(cm); return this; }
+  setCustomPageHeight(cm) { this.settings.setCustomPageHeight(cm); return this; }
+  setUnit(u) { this.settings.setUnit(u); return this; }
+  setAllowFormulas(b) { this.settings.setAllowFormulas(b); return this; }
+  setFormula(axis, expr) { this.settings.setFormula(axis, expr); return this; }
+  setTooltipOption(key, on) { this.settings.setTooltipOption(key, on); return this; }
+  setVisualColor(key, value) { this.settings.setVisualColor(key, value); return this; }
 
   // ── Point / line mutation (shared with the coord table + console) ──
   // Set one point's x or y in crop-local pixels. lineIdx === -1 targets the
