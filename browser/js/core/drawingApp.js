@@ -1,6 +1,5 @@
-import { setVal, notify, distToSegment, matchHotkey, isTypingTarget, hasTextSelection, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
+import { setVal, notify, distToSegment, cmToUnit, unitLabel, defaultUnitFromLocale, composeControlTitle } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
-import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 import { HistoryStack } from './historyStack.js';
 import { FormulaEngine } from './formulaEngine.js';
@@ -18,6 +17,7 @@ import { ImageModel } from './imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
 import { InputController } from './inputController.js';
 import { PointerController } from './pointerController.js';
+import { ControlsBinder } from './controlsBinder.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
@@ -60,14 +60,9 @@ export class DrawingApp {
   // this.input. The two drawing-continuation fields (continueLineIdx/InsertIdx above) and the
   // drag helpers are public because that controller + the mouse pan/drag path both use them.
   // Topbar project-name editor controller ({ refresh }), wired in #wireToolbarButtons.
-  #nameEditor = null;
+  nameEditor = null;
   // True while the topbar name is in inline-edit mode (input unlocked, ✓/✗ shown).
-  #nameEditing = false;
-  // Arrow-key panning
-  #arrowsHeld = new Set();
-  #arrowPanRaf = null;
-  // Smooth zoom animation state
-  #smoothZoom = { target: null, focal: null, rafId: null };
+  nameEditing = false;
   // Debounce timers
   #thicknessSaveTimer = null;
   #saveStatusTimer = null;
@@ -238,6 +233,9 @@ export class DrawingApp {
     this.tooltip.app = this;
     this.tooltipMgr = this.tooltip;
     this.zoomPan = new ZoomPan(this);
+    // DOM event wiring for toolbars/keyboard/canvas (see controlsBinder.js). Constructed last so
+    // its wire* methods can reference every collaborator; invoked by initEventListeners() below.
+    this.controls = new ControlsBinder(this);
 
     this.initEventListeners();
     // Set a sensible initial viewport height
@@ -276,319 +274,36 @@ export class DrawingApp {
   // Slim orchestrator: wire each cohesive control group in source order so
   // document-level listener dispatch order stays identical to before the split.
   initEventListeners() {
-    this.#wireStyleControls();
-    this.#wireSelectionPanelControls();
-    this.#wirePageAndDisplayControls();
-    this.#wireFormulaControls();
-    this.#wireToolbarButtons();
-    this.#wireZoomControls();
-    this.#wireScrollPersist();
-    this.#wireTheme();
-    this.#wireKeyboard();
-    this.#wireArrowPan();
-    this.#wireDropPaste();
-    this.#wireCanvasPointer();
-    this.#wireSmoothZoom();
+    this.controls.wireStyleControls();
+    this.controls.wireSelectionPanelControls();
+    this.controls.wirePageAndDisplayControls();
+    this.controls.wireFormulaControls();
+    this.controls.wireToolbarButtons();
+    this.controls.wireZoomControls();
+    this.controls.wireScrollPersist();
+    this.controls.wireTheme();
+    this.controls.wireKeyboard();
+    this.controls.wireArrowPan();
+    this.controls.wireDropPaste();
+    this.controls.wireCanvasPointer();
+    this.controls.wireSmoothZoom();
     this.pointer.wirePanDrag();
     this.input.wireHoldDraw();
     this.input.wireTouch();
   }
 
-  #wireStyleControls() {
-    // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn
-    // (empty state) is its open button; #open-image-btn (image loaded) and the blank
-    // shortcuts open the same dialog. The rest of the Image-actions group are direct.
-    document.getElementById('copy-image')?.addEventListener('click', () => this.copyImageToClipboard());
-    const shareBtn = document.getElementById('share-image');
-    if (shareBtn) {
-      if (supportsShareFiles()) shareBtn.style.display = '';
-      shareBtn.addEventListener('click', () => this.shareImage());
-    }
-    document.getElementById('rotate-left').addEventListener('click', () => this.rotateImage(-1));
-    document.getElementById('rotate-right').addEventListener('click', () => this.rotateImage(1));
-    document.getElementById('line-color').addEventListener('change', e => this.setColor(e.target.value));
-    // Live drag (input) previews without persisting; the trailing change commits.
-    document.getElementById('line-thickness').addEventListener('input', e => this.setThickness(e.target.value, { persist: false }));
-    document.getElementById('line-thickness').addEventListener('change', e => this.setThickness(e.target.value));
-    document.getElementById('marker-size').addEventListener('input', e => this.setMarkerSize(e.target.value, { persist: false }));
-    document.getElementById('marker-size').addEventListener('change', e => this.setMarkerSize(e.target.value));
-    document.getElementById('line-style').addEventListener('change', e => this.setLineStyle(e.target.value));
-    document.getElementById('image-filter').addEventListener('change', e => this.setImageFilter(e.target.value));
-    let filterColorTimer = null;
-    document.getElementById('filter-color').addEventListener('input', e => {
-      // Reflect the model + mirror immediately; debounce the redraw/persist commit.
-      this.filterColor = e.target.value;
-      const ctxTint = document.getElementById('ctx-tint-color');
-      if (ctxTint) ctxTint.value = e.target.value;
-      clearTimeout(filterColorTimer);
-      filterColorTimer = setTimeout(() => this.setFilterColor(e.target.value), 80);
-    });
-  }
 
   // Selection panel listeners
-  #wireSelectionPanelControls() {
-    document.getElementById('sel-color').addEventListener('input', e => this.applySelectionChange('color', e.target.value));
-    document.getElementById('sel-thickness').addEventListener('change', e => this.applySelectionChange('thickness', parseInt(e.target.value)));
-    document.getElementById('sel-marker-size').addEventListener('change', e => this.applySelectionChange('marker-size', parseInt(e.target.value)));
-    document.getElementById('sel-style').addEventListener('change', e => this.applySelectionChange('style', e.target.value));
-    document.getElementById('sel-fill-enabled').addEventListener('change', () => this.applyFill());
-    document.getElementById('sel-fill').addEventListener('input', () => {
-      document.getElementById('sel-fill-enabled').checked = true;
-      this.applyFill();
-    });
-    document.getElementById('sel-fill-clear').addEventListener('click', () => {
-      document.getElementById('sel-fill-enabled').checked = false;
-      this.applyFill();
-      notify('Fill cleared (transparent)', 'ok');
-    });
-    document.getElementById('sel-deselect').addEventListener('click', () => this.deselectLine());
-  }
 
-  #wirePageAndDisplayControls() {
-    document.getElementById('page-size').addEventListener('change', e => this.setPageSize(e.target.value));
-    document.getElementById('custom-page-width').addEventListener('change', e => {
-      // Inputs are typed in the active unit; the setter stores cm.
-      const v = parseFloat(e.target.value);
-      this.setCustomPageWidth(Number.isNaN(v) ? 21 : unitToCm(v, this.unit));
-    });
-    document.getElementById('custom-page-height').addEventListener('change', e => {
-      const v = parseFloat(e.target.value);
-      this.setCustomPageHeight(Number.isNaN(v) ? 29.7 : unitToCm(v, this.unit));
-    });
-    const unitSel = document.getElementById('unit-select');
-    if (unitSel) unitSel.addEventListener('change', e => this.setUnit(e.target.value));
-    // Swap the native popups (whose position macOS controls) for custom dropdowns
-    // anchored below the control. The native <select>s stay as the state source, so
-    // the change listeners above and every setVal('page-size'|'unit-select') keep working.
-    // Page size gets a search bar (33 ISO formats — scrolling alone is too slow).
-    enhanceSelect(document.getElementById('page-size'), { search: true });
-    enhanceSelect(unitSel);
-    document.getElementById('show-points').addEventListener('change', e => this.setShowPoints(e.target.checked));
-    document.getElementById('show-lines').addEventListener('change', e => this.setShowLines(e.target.checked));
-  }
 
   // ── Formula controls (top bar) ──────────────────────────────
   // The formula UI helpers (settings.syncFormulaUI / showFormulaError / refreshFormulaCoords)
   // and setAllowFormulas live in SettingsController with the other setters. This validates
   // BOTH inputs together (no half-typed pair) and shows the inline error; the console's
   // setFormula() throws instead.
-  #wireFormulaControls() {
-    const validateAndApplyFormulas = () => {
-      const fxVal = document.getElementById('formula-x').value.trim();
-      const fyVal = document.getElementById('formula-y').value.trim();
-      const okX = this.formula.validate(fxVal, 'x');
-      const okY = this.formula.validate(fyVal, 'y');
-      this.settings.showFormulaError(!okX || !okY);
-      if (okX && okY) {
-        this.formulaX = fxVal;
-        this.formulaY = fyVal;
-        setVal('ctx-formula-x', fxVal);
-        setVal('ctx-formula-y', fyVal);
-        this.settings.refreshFormulaCoords();
-        this.storage.save();
-        this.scheduleRemoteSync();   // push the formula change to peers/server
-      }
-    };
-    document.getElementById('allow-formulas').addEventListener('change', e => this.setAllowFormulas(e.target.checked));
-    document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
-    document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
-  }
 
-  #wireToolbarButtons() {
-    // Topbar project-name field: read-only title, renames inline on demand. Double-click
-    // (or hover ✎) to edit; ✓/✗ show ONLY while editing. ✓ enabled for a changed, valid
-    // (non-empty, unique) name; ✓/Enter commit, ✗/Escape/click-away revert. Incognito / no
-    // project never expose ✎ or ✓/✗.
-    const nameInput = document.getElementById('project-name-input');
-    const nameEdit = document.getElementById('project-name-edit');
-    const nameAccept = document.getElementById('project-name-accept');
-    const nameCancel = document.getElementById('project-name-cancel');
-    if (nameInput && nameAccept && nameCancel) {
-      const currentName = () => (this.activeProjectId != null ? (this.storage.store.getMeta(this.activeProjectId)?.name || '') : '');
-      // Only a saved (non-incognito) project can be renamed.
-      const canRename = () => this.activeProjectId != null && !this.storage.incognito;
-      const endEdit = () => {
-        this.#nameEditing = false;
-        nameInput.readOnly = true;
-        nameAccept.style.display = 'none';
-        nameCancel.style.display = 'none';
-        this.updateProjectTitle(true);   // restore value + ✎ visibility
-      };
-      const beginEdit = () => {
-        if (!canRename() || this.#nameEditing) return;
-        this.#nameEditing = true;
-        nameInput.readOnly = false;
-        if (nameEdit) nameEdit.style.display = 'none';
-        const colorBtn = document.getElementById('project-color-btn');
-        if (colorBtn) colorBtn.style.display = 'none';
-        nameAccept.style.display = '';
-        nameCancel.style.display = '';
-        this.#nameEditor?.refresh();     // set ✓ enabled/disabled for the starting value
-        nameInput.focus();
-        nameInput.select();
-      };
-      this.#nameEditor = wireNameEditor(nameInput, nameAccept, nameCancel, {
-        alwaysShow: true,                // edit-mode controls ✓/✗ visibility, not change-detection
-        current: currentName,
-        validate: (v) => this.storage.store.validateName(v, this.activeProjectId),
-        commit: (v) => {
-          if (this.activeProjectId != null) this.renameProject(this.activeProjectId, v);   // syncs imageBaseName itself
-          endEdit();
-        },
-        cancel: () => endEdit(),
-      });
-      nameInput.addEventListener('dblclick', () => beginEdit());
-      if (nameEdit) nameEdit.addEventListener('click', () => beginEdit());
-      // A real click-away (the ✓/✗ buttons prevent their own mousedown, so they don't
-      // blur) discards the in-progress rename.
-      nameInput.addEventListener('blur', () => { if (this.#nameEditing) endEdit(); });
-    }
-    // Project-colour swatch: a native colour picker that paints the project NAME. Live while
-    // dragging; a right-click (or holding Alt at open) clears the colour back to the theme accent.
-    const colorBtn = document.getElementById('project-color-btn');
-    const colorInput = document.getElementById('project-color-input');
-    if (colorBtn && colorInput) {
-      const apply = () => {
-        if (this.activeProjectId != null) this.setProjectColor(this.activeProjectId, colorInput.value);
-      };
-      colorInput.addEventListener('input', apply);   // live while dragging
-      colorInput.addEventListener('change', apply);  // final commit
-      const openPicker = () => {
-        const cur = this.storage.store.getMeta(this.activeProjectId)?.color || '';
-        colorInput.value = normalizeHex(cur) || accentHex(this.accent);
-        try {
-          if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
-          else colorInput.click();
-        } catch {
-          colorInput.click();
-        }
-      };
-      // Click opens a small menu so resetting to the neutral default is a visible choice — not a
-      // hidden right-click: "Choose colour…" opens the native picker, "Default (no colour)" clears
-      // it. (Right-click still clears as a shortcut.)
-      colorBtn.addEventListener('click', e => {
-        if (this.activeProjectId == null || this.storage.incognito) return;
-        e.stopPropagation();
-        const open = document.getElementById('project-color-menu');
-        if (open) { open.remove(); return; }   // toggle off
-        const menu = document.createElement('div');
-        menu.id = 'project-color-menu';
-        menu.className = 'project-menu';
-        const item = (ic, label, onClick) => {
-          const b = document.createElement('button');
-          b.className = 'project-menu-item btn-icon-text';
-          b.innerHTML = `${icon(ic, { size: 15 })}<span>${label}</span>`;
-          b.addEventListener('click', ev => { ev.stopPropagation(); menu.remove(); onClick(); });
-          menu.appendChild(b);
-        };
-        item('palette', 'Choose colour…', openPicker);
-        if (this.storage.store.getMeta(this.activeProjectId)?.color)
-          item('x', 'Default (no colour)', () => this.setProjectColor(this.activeProjectId, ''));
-        document.body.appendChild(menu);
-        const r = colorBtn.getBoundingClientRect();
-        const mw = menu.offsetWidth;
-        menu.style.left = `${Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8))}px`;
-        menu.style.top = `${r.bottom + 6}px`;
-        const close = () => { menu.remove(); document.removeEventListener('mousedown', onDoc, true); };
-        const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
-        setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
-      });
-      // Right-click the swatch clears the custom colour (back to the neutral default).
-      colorBtn.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        if (this.activeProjectId != null) this.setProjectColor(this.activeProjectId, '');
-      });
-    }
-    document.getElementById('start-drawing').addEventListener('click', () => this.startDrawingMode());
-    document.getElementById('stop-drawing').addEventListener('click', () => this.stopDrawingMode());
-    document.getElementById('draw-mode-toggle').addEventListener('click', () => {
-      this.setDrawMode(this.drawMode === 'rect' ? 'line' : 'rect');
-      this.storage.save();
-    });
-    document.getElementById('undo').addEventListener('click', () => this.undo());
-    document.getElementById('redo').addEventListener('click', () => this.redo());
-    document.getElementById('download-json').addEventListener('click', () => this.downloadJSON());
-    document.getElementById('copy-json-btn').addEventListener('click', () => this.copyLayoutToClipboard());
-    document.getElementById('save-image').addEventListener('click', () => this.saveImage());
-    document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
-    document.getElementById('upload-json').addEventListener('change', e => this.uploadJSON(e));
-    document.getElementById('clear-storage').addEventListener('click', async () => {
-      if (this.storage.temporary || this.activeProjectId == null) {
-        // Temporary editor → just clear the editor back to blank.
-        if (await this.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true })) {
-          this.storage.newTemporary();
-          this.tabs.reportActive(null);
-          this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
-        }
-        return;
-      }
-      // A server-linked project only clears its LOCAL copy — the server keeps it.
-      // Say so up front, and confirm the user really wants to drop the open project.
-      const server = this.remoteLink?.address;
-      const msg = server
-        ? `Remove the local copy of this project? It is stored on the server ${server} and will stay there.`
-        : 'Clear this project (image + lines) from storage?';
-      if (await this.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true })) {
-        const id = this.activeProjectId;
-        this.storage.store.remove(id);
-        this.storage.newTemporary();
-        this.remoteLink = null;   // dropped the local session → no server link to save back to
-        this.tabs.reportActive(null);
-        this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
-        if (server) notify(`Local copy removed — still on the server ${server}`, 'info');
-        this.showSaveStatus('Cleared', 'var(--danger)', 'trash');
-      }
-    });
-    const incognitoBtn = document.getElementById('incognito-toggle');
-    if (incognitoBtn) incognitoBtn.addEventListener('click', () => {
-      if (!this.#canToggleIncognito()) return;
-      this.storage.incognito = !this.storage.incognito;
-      this.updateIncognitoUI();
-      notify(this.storage.incognito
-        ? 'Incognito mode — this editor won\'t be saved'
-        : 'Incognito off', 'info');
-    });
-    document.getElementById('clear-all-lines').addEventListener('click', () => this.clearAllLines());
-    // Zoom buttons: single click = small step, double-click = large step,
-    // hold = continuous zoom (kicks in after a short delay)
-    this.zoomPan.setupHoldZoom(document.getElementById('zoom-in'), +1);
-    this.zoomPan.setupHoldZoom(document.getElementById('zoom-out'), -1);
-    document.getElementById('zoom-fit').addEventListener('click', () => this.zoomPan.fitToWindow());
-  }
 
-  #wireZoomControls() {
-    // Manual zoom input
-    const zoomInput = document.getElementById('zoom-input');
-    const applyZoomInput = () => {
-      const val = parseFloat(zoomInput.value);
-      if (!isNaN(val) && val >= 5 && val <= 500) {
-        this.zoomPan.zoomAroundCenter(val / 100);
-      } else {
-        zoomInput.value = Math.round(this.scale * 100);
-      }
-    };
-    zoomInput.addEventListener('change', applyZoomInput);
-    zoomInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); applyZoomInput(); zoomInput.blur(); }
-      if (e.key === 'Escape') { zoomInput.value = Math.round(this.scale * 100); zoomInput.blur(); }
-    });
-    // Prevent zoom input scroll from zooming the canvas
-    zoomInput.addEventListener('wheel', e => e.stopPropagation());
-  }
 
-  #wireScrollPersist() {
-    // Save scroll position (debounced) so it's restored on reopen
-    {
-      const scrollVp = document.getElementById('canvas-viewport');
-      if (scrollVp) {
-        let scrollSaveTimer = null;
-        scrollVp.addEventListener('scroll', () => {
-          clearTimeout(scrollSaveTimer);
-          scrollSaveTimer = setTimeout(() => this.storage.save(), 400);
-        });
-      }
-    }
-  }
 
   // Active UI theme ('dark' | 'light').
   get theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
@@ -611,383 +326,11 @@ export class DrawingApp {
     return document.documentElement.style.getPropertyValue('--accent').trim() || null;
   }
 
-  #wireTheme() {
-    this.accents.updateThemeIcon();
-    // Tint the tab favicon + status bar to the saved accent on load.
-    applyAccentFavicon(this.accent);
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-      this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
-    });
-    // Follow system changes only if user hasn't manually overridden
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-      if (!localStorage.getItem('drawingApp_theme')) {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        this.accents.updateThemeIcon();
-      }
-    });
-  }
 
-  #wireKeyboard() {
-    // Click a control by id only when it exists and isn't disabled (mirrors a real UI click).
-    const clickIfActive = id => {
-      const el = document.getElementById(id);
-      if (el && !el.disabled) el.click();
-    };
-    // Keyboard shortcuts — dispatched via the hotkeys registry
-    const HK_HANDLERS = {
-      undo: () => { if (!document.getElementById('undo').disabled) this.undo(); },
-      redo: () => { if (!document.getElementById('redo').disabled) this.redo(); },
-      startDraw: () => { if (this.image && !this.isDrawing) this.startDrawingMode(); },
-      stopDraw: () => { if (this.isDrawing) this.stopDrawingMode(); },
-      togglePoints: () => {
-        const cb = document.getElementById('show-points');
-        cb.checked = !cb.checked;
-        this.showPoints = cb.checked;
-        this.renderer.redraw();
-      },
-      toggleLines: () => {
-        const cb = document.getElementById('show-lines');
-        cb.checked = !cb.checked;
-        this.showLines = cb.checked;
-        this.renderer.redraw();
-      },
-      cycleFilter: () => {
-        const opts = ['none', 'bw', 'sepia', 'invert', 'contour', 'custom'];
-        const cur = opts.indexOf(this.imageFilter);
-        // Route through setImageFilter so the cycle marks the filter dirty + syncs to
-        // the server (it used to set the value inline and never push).
-        this.setImageFilter(opts[(cur + 1) % opts.length]);
-      },
-      resetZoom: () => this.zoomPan.fitToWindow(),
-      toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
-      togglePointsList: () => { const b = document.getElementById('toggle-coord-panel'); if (b) b.click(); },
-      fullscreen: () => this.toggleFullscreen?.(),
-      zoomIn: () => this.zoomPan.zoomAroundCenter(this.scale + 0.25),
-      zoomOut: () => this.zoomPan.zoomAroundCenter(this.scale - 0.25),
-      zoomInBig: () => this.zoomPan.zoomAroundCenter(this.scale + 1.0),
-      zoomOutBig: () => this.zoomPan.zoomAroundCenter(this.scale - 1.0),
-      rotateImageLeft: () => { if (this.image) this.rotateImage(-1); },
-      rotateImageRight: () => { if (this.image) this.rotateImage(1); },
-      copyImage: () => this.copyImageToClipboard(),
-      copyLayout: () => this.copyLayoutToClipboard(),
-      // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
-      paste: () => { /* handled by paste event */ },
-      clearAllLines: () => this.clearAllLines(),
-      // Delete the selected line; on Mac the default reads as ⌥⌫ (Delete→Backspace).
-      deleteLine: () => { if (!this.isDrawing && this.selectedLineIdx >= 0) this.removeLine(this.selectedLineIdx); },
-      // Delete the focused point of the selected line (the point, not the whole line).
-      deletePoint: () => {
-        if (this.isDrawing) return;
-        if (this.coordLineIdx >= 0 && this.focusedPtIdx >= 0) this.removePoint(this.coordLineIdx, this.focusedPtIdx);
-      },
-      // Toolbar/menu openers — each just drives the matching button so the shortcut and the
-      // click path stay identical (clickIfActive skips a disabled control, like the UI does).
-      loadImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
-      openAnotherImage: () => clickIfActive(this.image ? 'open-image-btn' : 'load-image-btn'),
-      openIn: () => clickIfActive('open-in-btn'),
-      saveImage: () => clickIfActive('save-image'),
-      cropImage: () => clickIfActive('crop-image'),
-      downloadJson: () => clickIfActive('download-json'),
-      uploadJson: () => clickIfActive('upload-json-btn'),
-      openProjects: () => clickIfActive('projects-btn'),
-      openServers: () => clickIfActive('connect-btn'),
-      openLinks: () => clickIfActive('links-btn'),
-      toggleTheme: () => clickIfActive('theme-toggle'),
-      toggleIncognito: () => clickIfActive('incognito-toggle'),
-      openHelp: () => clickIfActive('info-btn')
-    };
-    document.addEventListener('keydown', e => {
-      if (isTypingTarget(e.target)) return;
-      for (const def of HOTKEY_DEFS) {
-        const combo = hotkeys.get(def.id);
-        if (!combo) continue;
-        if (!matchHotkey(e, combo)) continue;
-        // Skip 'paste' here — let the browser fire its native paste event
-        if (def.id === 'paste') return;
-        // With text selected, let the native Ctrl+C / Ctrl+Alt+C copy that text instead
-        // of hijacking for copy-image / copy-layout (the user is copying a URL/label).
-        if ((def.id === 'copyImage' || def.id === 'copyLayout') && hasTextSelection()) return;
-        e.preventDefault();
-        const fn = HK_HANDLERS[def.id];
-        if (fn) fn();
-        return;
-      }
 
-      // Alt + (=/+/−) ergonomic zoom shortcuts (not in the registry so they can't be remapped away)
-      // Shift held → large step (1.0), otherwise small step (0.25)
-      if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        const inc = e.code === 'Equal' || e.code === 'NumpadAdd';
-        const dec = e.code === 'Minus' || e.code === 'NumpadSubtract';
-        if (inc || dec) {
-          e.preventDefault();
-          const step = e.shiftKey ? 1.0 : 0.25;
-          this.zoomPan.zoomAroundCenter(this.scale + (inc ? step : -step));
-        }
-      }
-    });
 
-    // Refresh tooltip & cursor the instant a modifier key is pressed/released
-    // while hovering the canvas — so Shift (full points list) and Ctrl (live
-    // cursor coordinates) tooltips update at once without re-hovering.
-    const onModifierChange = e => {
-      if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') return;
-      const mods = { ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey };
-      this.tooltipMgr.refresh(mods);
-      // Live-switch an active segment/line drag the instant Shift is pressed or
-      // released, even if the mouse is held still.
-      if ((this.isDraggingSegment && this.draggingSegment) ||
-          (this.isDraggingLine && this.draggingLine)) {
-        this.dragMove(this.lastMouseClientX, this.lastMouseClientY, mods.shiftKey);
-      }
-      if (this.mouseOverCanvas && !this.isZoomRectDragging && !this.isPanning &&
-        !this.isDraggingPoint && !this.isDraggingSegment && !this.isDraggingLine) {
-        if (mods.altKey)                         this.canvas.style.cursor = 'grab';
-        else if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) this.canvas.style.cursor = 'copy';
-        else if (mods.shiftKey)                  this.canvas.style.cursor = 'zoom-in';
-        else                                     this.canvas.style.cursor = 'crosshair';
-      }
-    };
-    document.addEventListener('keydown', onModifierChange);
-    document.addEventListener('keyup', onModifierChange);
-  }
 
-  #wireArrowPan() {
-    // ── Arrow-key panning ──────────────────────────────────────
-    // Plain arrows pan the viewport; multiple arrows pan diagonally, opposing pairs
-    // cancel; Shift accelerates. Alt/Ctrl/Meta are reserved (e.g. Alt+ArrowUp = zoom).
-    this.#arrowsHeld = new Set();
-    this.#arrowPanRaf = null;
-    const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
-    const arrowPanTick = () => {
-      const vp = document.getElementById('canvas-viewport');
-      if (!vp || this.#arrowsHeld.size === 0) { this.#arrowPanRaf = null; return; }
-      const speed = this.#arrowsHeld.has('Shift') ? 22 : 7;
-      let dx = 0;
-      let dy = 0;
-      if (this.#arrowsHeld.has('ArrowLeft'))  dx -= 1;
-      if (this.#arrowsHeld.has('ArrowRight')) dx += 1;
-      if (this.#arrowsHeld.has('ArrowUp'))    dy -= 1;
-      if (this.#arrowsHeld.has('ArrowDown'))  dy += 1;
-      if (dx) vp.scrollLeft += dx * speed;
-      if (dy) vp.scrollTop  += dy * speed;
-      this.#arrowPanRaf = requestAnimationFrame(arrowPanTick);
-    };
-    document.addEventListener('keydown', e => {
-      if (isTypingTarget(e.target)) return;
-      if (e.key === 'Shift') { this.#arrowsHeld.add('Shift'); return; }
-      if (!ARROW_KEYS.includes(e.key)) return;
-      // Don't steal Alt/Ctrl/Meta+Arrow combos used by other shortcuts
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
-      e.preventDefault();
-      this.#arrowsHeld.add(e.key);
-      if (!this.#arrowPanRaf) this.#arrowPanRaf = requestAnimationFrame(arrowPanTick);
-    });
-    document.addEventListener('keyup', e => {
-      if (e.key === 'Shift') this.#arrowsHeld.delete('Shift');
-      if (ARROW_KEYS.includes(e.key)) this.#arrowsHeld.delete(e.key);
-    });
-    // Clear held keys if the window loses focus while arrows are held
-    window.addEventListener('blur', () => { this.#arrowsHeld.clear(); });
-  }
 
-  #wireDropPaste() {
-    // Document-wide drag-and-drop overlay
-    const dropZone = document.getElementById('global-drop-overlay');
-
-    document.addEventListener('dragenter', e => {
-      e.preventDefault();
-      if (e.dataTransfer.types.includes('Files')) dropZone.style.display = 'flex';
-    });
-    document.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-    });
-    document.addEventListener('dragleave', e => {
-      // Only hide when leaving the entire window
-      if (e.relatedTarget === null) dropZone.style.display = 'none';
-    });
-    document.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.style.display = 'none';
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      if (file.type.startsWith('image/')) {
-        this.loadImageFromFile(file);
-      } else if (file.name.endsWith('.json') || file.type === 'application/json') {
-        this.loadJSONFromFile(file);
-      } else {
-        notify('Please drop an image or a .json file', 'fail');
-      }
-    });
-
-    // Clipboard paste (Ctrl+V) — handles images and JSON layout text
-    document.addEventListener('paste', async e => {
-      if (isTypingTarget(e.target)) return; // let native paste work in inputs
-      const cd = e.clipboardData;
-      if (!cd) return;
-
-      // 1) Image takes priority
-      for (const item of cd.items) {
-        if (item.type && item.type.startsWith('image/')) {
-          e.preventDefault();
-          // Read the file synchronously — clipboardData is invalid after an await.
-          const file = item.getAsFile();
-          if (this.image && !(await this.confirm('Replace current image with pasted image?', { title: 'Replace image' }))) {
-            notify('Image paste canceled', 'fail');
-            return;
-          }
-          if (file) {
-            this.loadImageFromFile(file);
-            notify('Image pasted from clipboard', 'ok');
-          } else {
-            notify('Could not read pasted image', 'fail');
-          }
-          return;
-        }
-      }
-
-      // 2) Text — try to parse as layout JSON
-      const text = cd.getData('text/plain');
-      if (text) {
-        let data = null;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          /* not layout JSON — left as null; the guard below simply ignores the paste */
-        }
-        if (data && Array.isArray(data.lines)) {
-          e.preventDefault();
-          this.applyPastedLayout(data);
-        }
-      }
-    });
-  }
-
-  #wireCanvasPointer() {
-    this.canvas.addEventListener('click', e => this.canvasClick(e));
-    this.canvas.addEventListener('dblclick', e => this.canvasDblClick(e));
-    this.canvas.addEventListener('mousemove', e => this.canvasMouseMove(e));
-    this.canvas.addEventListener('mouseleave', () => {
-      this.mouseOverCanvas = false;
-      this.tooltipMgr.hide();
-      this.updateCoordStatus();
-      if (this.hoverPt) { this.hoverPt = null; this.renderer.redraw(); }
-    });
-  }
-
-  #wireSmoothZoom() {
-    // ── Smooth zoom via rAF ──
-    // Rapid wheel events accumulate into one rAF loop. IMPORTANT: add `zoom-no-transition`
-    // while the rAF runs so the CSS width/height transition doesn't fight it (causes flicker).
-    this.#smoothZoom = { target: null, focal: null, rafId: null };
-
-    const viewport = document.getElementById('canvas-viewport');
-
-    const runSmoothZoom = () => {
-      const sz = this.#smoothZoom;
-      const oldScale = this.scale;
-      const diff = sz.target - oldScale;
-
-      if (Math.abs(diff) < 0.0018) {
-        // Snap to final target, re-enable CSS transition, persist
-        this.canvas.classList.remove('zoom-no-transition');
-        this.zoomPan.setZoom(sz.target, true);
-        // Apply final focal-point scroll after snap
-        if (sz.focal && viewport) {
-          const { imgX, imgY, clientX, clientY } = sz.focal;
-          viewport.scrollLeft = imgX * sz.target - clientX;
-          viewport.scrollTop = imgY * sz.target - clientY;
-        }
-        sz.rafId = null;
-        sz.focal = null;
-        sz.target = null;
-        return;
-      }
-
-      // Ease towards target (~0.25 per frame — smooth but responsive)
-      const next = oldScale + diff * 0.25;
-      // Set scale directly (CSS transition is OFF — no conflict)
-      this.scale = next;
-      this.canvas.style.width = (this.canvas.width  * next) + 'px';
-      this.canvas.style.height = (this.canvas.height * next) + 'px';
-      this.zoomPan.setZoomInputValue(Math.round(next * 100));
-
-      // Maintain focal point: keep the image pixel under the cursor fixed.
-      // scrollLeft = imgX * newScale - clientX_in_viewport
-      if (sz.focal && viewport) {
-        const { imgX, imgY, clientX, clientY } = sz.focal;
-        viewport.scrollLeft = imgX * next - clientX;
-        viewport.scrollTop = imgY * next - clientY;
-      }
-
-      sz.rafId = requestAnimationFrame(runSmoothZoom);
-    };
-
-    // Ctrl+wheel (also fired by touchpad pinch-to-zoom) OR Alt+wheel → zoom toward cursor.
-    // The +/− buttons use zoomAroundCenter() instead, so center-zoom is still reachable.
-    document.addEventListener('wheel', e => {
-      if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
-      // No image → nothing to zoom/thicken/rotate; let plain scroll pass through.
-      if (!this.image) return;
-      // Only act when the wheel is over the canvas viewport — otherwise Ctrl/Alt+wheel over a
-      // panel, the projects list, the coord table, etc. would hijack the scroll to zoom the canvas.
-      if (!viewport || !viewport.contains(e.target)) return;
-
-      // Alt+wheel → adjust thickness of the line under the cursor
-      // (point's line if hovering a point, else the hovered line).
-      if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        this.#adjustThicknessAtCursor(e);
-        return;
-      }
-
-      // Ctrl+Shift+wheel with a selected line → rotate it (around its center,
-      // or around the focused point if one is selected).
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && this.selectedLineIdx >= 0
-          && this.lines[this.selectedLineIdx]) {
-        e.preventDefault();
-        const dir = e.deltaY > 0 ? 1 : -1;
-        this.#rotateSelectedLine(dir * (Math.PI / 60)); // 3° per tick
-        return;
-      }
-
-      e.preventDefault();
-
-      // Per-event zoom increment scaled by the wheel delta (not a fixed step):
-      // a mouse "notch" sends a large delta and steps a sensible amount, while a
-      // touchpad pinch sends many tiny deltas that now sum gently instead of each
-      // leaping a full step (the "too rapid" touchpad zoom). deltaMode normalizes
-      // line/page units to pixels; the cap keeps a big mouse notch from overshooting.
-      const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-      const factor = e.shiftKey ? 0.0095 : 0.004;
-      const cap = e.shiftKey ? 0.65 : 0.32;
-      const delta = Math.max(-cap, Math.min(cap, -px * factor));
-      const sz = this.#smoothZoom;
-
-      // Accumulate target scale
-      const base = sz.target !== null ? sz.target : this.scale;
-      sz.target = Math.max(0.05, Math.min(5, base + delta));
-
-      // Focal point in image-space (unscaled pixels).
-      // Works in both fullscreen (viewport fixed at 0,0) and normal mode.
-      const vpRect = viewport.getBoundingClientRect();
-      const contentX = e.clientX - vpRect.left + viewport.scrollLeft;
-      const contentY = e.clientY - vpRect.top  + viewport.scrollTop;
-      sz.focal = {
-        imgX: contentX / this.scale,
-        imgY: contentY / this.scale,
-        // cursor position relative to viewport left/top edge (viewport-local)
-        clientX: e.clientX - vpRect.left,
-        clientY: e.clientY - vpRect.top,
-      };
-
-      // Start animation loop; disable CSS transition first to prevent conflict
-      if (!sz.rafId) {
-        this.canvas.classList.add('zoom-no-transition');
-        sz.rafId = requestAnimationFrame(runSmoothZoom);
-      }
-    }, { passive: false });
-  }
 
   // Mouse pan/drag/rect/zoom-rect wiring lives in PointerController (pointerController.js),
   // invoked from initEventListeners as this.pointer.wirePanDrag(). The drag helpers it uses
@@ -2264,7 +1607,7 @@ export class DrawingApp {
   }
 
   // Alt+wheel: bump the thickness of the line under the cursor by ±1 (clamped 1–20).
-  #adjustThicknessAtCursor(e) {
+  adjustThicknessAtCursor(e) {
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
     const delta = e.deltaY > 0 ? -1 : 1;
     const nearPt = this.findNearestPointWithIdx(x, y);
@@ -2288,7 +1631,7 @@ export class DrawingApp {
   }
 
   // Ctrl+Shift+wheel: rotate the selected line about its center (or the focused point).
-  #rotateSelectedLine(angle) {
+  rotateSelectedLine(angle) {
     const line = this.lines[this.selectedLineIdx];
     if (!line || line.points.length < 2) return;
     let cx;
@@ -2485,10 +1828,10 @@ export class DrawingApp {
       // `editable` (a saved, non-incognito project) only gates the rename affordance;
       // the field itself stays a read-only title until the user enters edit mode.
       input.disabled = !editable;
-      if (!this.#nameEditing) input.readOnly = true;
+      if (!this.nameEditing) input.readOnly = true;
       input.placeholder = editable ? 'Untitled' : (this.storage.incognito ? 'Incognito (unsaved)' : 'No project');
-      if (editBtn && !this.#nameEditing) editBtn.style.display = editable ? '' : 'none';
-      this.#nameEditor?.refresh();                      // set ✓ enabled/disabled state
+      if (editBtn && !this.nameEditing) editBtn.style.display = editable ? '' : 'none';
+      this.nameEditor?.refresh();                      // set ✓ enabled/disabled state
     }
     // Paint the name field in the project's custom colour; with no custom colour it falls back to
     // ONE fixed neutral grey in BOTH themes, with a theme-flipped shadow (dark on light, light on
@@ -2506,14 +1849,14 @@ export class DrawingApp {
       input.style.color = projColor || '';
       input.style.textShadow = '';
       const colorBtn = document.getElementById('project-color-btn');
-      if (colorBtn && !this.#nameEditing) {
+      if (colorBtn && !this.nameEditing) {
         colorBtn.style.display = editable ? '' : 'none';
         colorBtn.style.color = projColor || 'var(--text-muted)';
       }
     }
     // Outside edit mode (no project, incognito, post-commit, click-away) the ✓/✗
     // rename controls must never linger — they belong to edit mode only.
-    if (!this.#nameEditing) {
+    if (!this.nameEditing) {
       const a = document.getElementById('project-name-accept');
       const c = document.getElementById('project-name-cancel');
       if (a) a.style.display = 'none';
@@ -3298,7 +2641,7 @@ export class DrawingApp {
   // ── Cross-tab reactions + incognito mode ─────────────────────────
   // True only while the editor is blank (no project, no image, no lines) — the
   // window when incognito can be toggled, since adding content auto-saves.
-  #canToggleIncognito() {
+  canToggleIncognito() {
     return this.storage.temporary && this.activeProjectId == null &&
       !this.image && this.lines.length === 0;
   }
@@ -3315,7 +2658,7 @@ export class DrawingApp {
   updateIncognitoUI() {
     const btn = document.getElementById('incognito-toggle');
     if (btn) {
-      btn.disabled = !this.#canToggleIncognito();
+      btn.disabled = !this.canToggleIncognito();
       btn.classList.toggle('active', this.storage.incognito);
     }
     document.body.classList.toggle('incognito-mode', this.storage.incognito);
