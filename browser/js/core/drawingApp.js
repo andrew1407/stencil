@@ -14,11 +14,11 @@ import { ZoomPan } from './zoomPan.js';
 import { ExportService } from './exportService.js';
 import { SettingsController } from './settingsController.js';
 import { AccentController } from './accentController.js';
+import { ImageModel } from './imageModel.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
-import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from './cropGeometry.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
@@ -242,6 +242,8 @@ export class DrawingApp {
     this.settings = new SettingsController(this);
     // UI theme + accent writes (see accentController.js). The theme/accent getters stay on app.
     this.accents = new AccentController(this);
+    // Non-destructive crop + quarter-turn rotation geometry (see imageModel.js).
+    this.imageModel = new ImageModel(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -1728,12 +1730,12 @@ export class DrawingApp {
         // Restore the project's page format before the crop (defaultCropRect uses the aspect).
         if ((opts.remoteId || opts.adoptLayout) && remoteLayout) this.#adoptServerPageFormat(remoteLayout);
         if (remoteLayout && remoteLayout.cropRect) {
-          this.cropRect = this.#roundRect(remoteLayout.cropRect);
+          this.cropRect = this.imageModel.roundRect(remoteLayout.cropRect);
         } else if (opts.crop) {
-          this.cropRect = this.#roundRect(opts.crop);
+          this.cropRect = this.imageModel.roundRect(opts.crop);
         } else if (opts.noCrop) {
-          const { w: iw, h: ih } = this.#rotatedOriginalDims();
-          this.cropRect = this.#roundRect({ x: 0, y: 0, width: iw, height: ih }, iw, ih);
+          const { w: iw, h: ih } = this.imageModel.rotatedOriginalDims();
+          this.cropRect = this.imageModel.roundRect({ x: 0, y: 0, width: iw, height: ih }, iw, ih);
         } else {
           this.cropRect = this.defaultCropRect(opts.album);
         }
@@ -2007,150 +2009,23 @@ export class DrawingApp {
   }
 
   // Page natural dimensions (cm) as selected — NOT orientation-swapped (only the
-  // proportions matter). Mirrors blankImageModal.pageDims.
-  #pageCmDims() {
-    return this.pageSize === 'custom'
-      ? { width: this.customPageWidth, height: this.customPageHeight }
-      : (PAGE_SIZES[this.pageSize] || PAGE_SIZES.A4);
-  }
+  // Crop / quarter-turn rotation / image geometry live in ImageModel (imageModel.js); these
+  // thin delegators keep the public method names storage, the crop modal, and the window.stencil
+  // facade call. See imageModel.js for the geometry transforms (backed by cropGeometry.js).
+  defaultCropRect(albumOverride) { return this.imageModel.defaultCropRect(albumOverride); }
+  effectiveOriginalDims() { return this.imageModel.effectiveOriginalDims(); }
+  effectiveOriginalDataUrl() { return this.imageModel.effectiveOriginalDataUrl(); }
+  rebuildCroppedImage() { return this.imageModel.rebuildCroppedImage(); }
+  rotateImage(dir) { return this.imageModel.rotateImage(dir); }
+  applyCrop(rect, opts) { return this.imageModel.applyCrop(rect, opts); }
 
-  // The default centered crop for the loaded original: page aspect in the
-  // orientation matching the image (album when wider than tall). Public so the
-  // storage layer can default-crop legacy projects saved before cropping existed.
-  // `albumOverride` (optional) forces album (true) / portrait (false) orientation;
-  // omitted, orientation auto-matches the image (wider-than-tall ⇒ album).
-  defaultCropRect(albumOverride) {
-    const { w: iw, h: ih } = this.#rotatedOriginalDims();
-    const isAlbum = (albumOverride == null) ? isAlbumOrientation(iw, ih) : !!albumOverride;
-    const aspect = cropAspect(this.#pageCmDims().width, this.#pageCmDims().height, isAlbum);
-    return this.#roundRect(centeredCrop(iw, ih, aspect), iw, ih);
-  }
-
-  // Dimensions of the original image after the current rotation is applied (the
-  // pixel space `cropRect` lives in). Odd quarter-turns swap width and height.
-  #rotatedOriginalDims() {
-    const w = this.originalImage.width, h = this.originalImage.height;
-    return (this.rotationQuarters % 2) ? { w: h, h: w } : { w, h };
-  }
-
-  // The original image rotated by the current quarter-turn count (clockwise). For
-  // no rotation the untouched bitmap is returned; otherwise a freshly-rotated
-  // canvas. Used by rebuildCroppedImage and the crop modal's preview.
-  #rotatedOriginalCanvas() {
-    const img = this.originalImage;
-    const q = ((this.rotationQuarters % 4) + 4) % 4;
-    if (q === 0) return img;
-    const swap = q % 2 === 1;
-    const c = document.createElement('canvas');
-    c.width = swap ? img.height : img.width;
-    c.height = swap ? img.width : img.height;
-    const ctx = c.getContext('2d');
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.rotate(q * Math.PI / 2);
-    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-    return c;
-  }
-
-  // The rotated original as a data URL + dimensions, for the crop modal (which
-  // previews the full original). Returns the stored data URL untouched when the
-  // image is not rotated, avoiding a needless re-encode.
-  effectiveOriginalDims() { return this.#rotatedOriginalDims(); }
-  effectiveOriginalDataUrl() {
-    if (!this.rotationQuarters) return this.imageDataUrl;
-    return this.#rotatedOriginalCanvas().toDataURL();
-  }
-
-  // Snap a crop rect to integer pixels, clamped inside the rotated original image.
-  #roundRect(r, iw = this.#rotatedOriginalDims().w, ih = this.#rotatedOriginalDims().h) {
-    let w = Math.max(1, Math.min(Math.round(r.width), iw));
-    let h = Math.max(1, Math.min(Math.round(r.height), ih));
-    const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
-    const y = Math.max(0, Math.min(Math.round(r.y), ih - h));
-    return { x, y, width: w, height: h };
-  }
-
-  // Rebuild the working `image` canvas from the rotated `originalImage` + `cropRect`,
-  // sizing the main canvas to the crop. Original never modified. Public so storage can
-  // rebuild the view after restoring original + rotation + cropRect.
-  rebuildCroppedImage() {
-    const src = this.#rotatedOriginalCanvas();
-    const r = this.cropRect;
-    const c = document.createElement('canvas');
-    c.width = r.width;
-    c.height = r.height;
-    c.getContext('2d').drawImage(src, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
-    this.image = c;
-    this.canvas.width = r.width;
-    this.canvas.height = r.height;
-  }
-
-  /**
-   * Hide the selection panel and its fullscreen mirror.
-   * @returns {void}
-   */
-  #hideSelectionPanels() {
+  // Hide the selection panel and its fullscreen mirror. Public — used by ImageModel's
+  // after-geometry-change refresh as well as the drawing/selection paths here.
+  hideSelectionPanels() {
     const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');
     if (fsPanel) fsPanel.style.display = 'none';
-  }
-
-  /**
-   * Reset selection/drawing state and refresh every view after the image
-   * geometry changes (rotate or crop): clears the active selection, resets
-   * history to the current lines, refits the viewport, and persists.
-   * @returns {void}
-   */
-  #afterImageGeometryChange() {
-    this.currentLine = null;
-    this.selectedLineIdx = -1;
-    this.coordLineIdx = -1;
-    this.focusedPtIdx = -1;
-    this.#hideSelectionPanels();
-    this.history.reset(this.lines);
-    this.zoomPan.fitToWindow();
-    this.updateInfo();
-    this.renderer.redraw();
-    this.updateButtons();
-    this.updateCoordStatus();
-    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
-    this.storage.save();
-    this.scheduleRemoteSync(); // crop/rotate change the layout's geometry — push it to peers too
-  }
-
-  // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0
-  // rotates right (CW). The crop window and every line follow the picture so the
-  // framing and the drawing stay put relative to the image content.
-  rotateImage(dir) {
-    if (!this.originalImage) {
-      notify('Open an image first', 'fail');
-      return;
-    }
-    const clockwise = dir > 0;
-    const dims = this.#rotatedOriginalDims();  // space the crop currently lives in
-    // Points first — they rotate inside the OLD crop box (width x height).
-    rotateLinePointsQuarter(this.lines, this.cropRect.width, this.cropRect.height, clockwise);
-    const rotated = rotateCropRectQuarter(this.cropRect, dims.w, dims.h, clockwise);
-    this.rotationQuarters = (((this.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
-    this.cropRect = this.#roundRect(rotated);
-    this.rebuildCroppedImage();
-    this.#afterImageGeometryChange();
-  }
-
-  // Apply a new crop rectangle (image-space). With opts.recalc, existing lines
-  // are cleared on an orientation flip or rescaled to the new size (the page
-  // relation is preserved). Does NOT replace the stored original image.
-  applyCrop(rect, opts = {}) {
-    if (!this.originalImage) return;
-    const newRect = this.#roundRect(rect);
-    if (opts.recalc && this.cropRect) {
-      const change = cropChange(this.cropRect, newRect);
-      if (change.orientationChanged) this.lines = [];
-      else if (change.scale !== 1) scaleLinePoints(this.lines, change.scale);
-    }
-    this.cropRect = newRect;
-    this.rebuildCroppedImage();
-    this.#afterImageGeometryChange();
   }
 
   loadJSONFromFile(file) {
@@ -2210,7 +2085,7 @@ export class DrawingApp {
     };
     if (!opts.keepSelection) {
       this.selectedLineIdx = -1;
-      this.#hideSelectionPanels();
+      this.hideSelectionPanels();
     }
     this.undonePoints = []; // stack for redo while drawing
     document.getElementById('start-drawing').classList.add('active');
@@ -2768,7 +2643,7 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.hoveredPtIdx = -1;
     this.focusedPtIdx = -1;
-    this.#hideSelectionPanels();
+    this.hideSelectionPanels();
     const trigger = document.getElementById('fs-top-trigger');
     if (trigger) trigger.style.height = '8px';
     if (redraw) this.renderer.redraw();
@@ -4369,7 +4244,7 @@ export class DrawingApp {
     this.coordLineIdx = -1;
     this.focusedPtIdx = -1;
     this.hoveredPtIdx = -1;
-    this.#hideSelectionPanels();
+    this.hideSelectionPanels();
     this.saveHistory();
     this.coordTable.update();
     this.renderer.redraw();
