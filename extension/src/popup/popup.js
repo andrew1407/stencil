@@ -11,7 +11,7 @@ import {
   CONNECTIONS_KEY, loadConnections, collectSharedPins, connectionByUrl,
   createProject, fetchProjectImage, pinTargetMode, projectRequestFromImage,
 } from '../lib/connections.js';
-import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch } from '../lib/imageModel.js';
+import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../lib/imageModel.js';
 
 // Common web image formats always offered in the filter, plus any others the page
 // uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
@@ -864,14 +864,6 @@ const pinWithPrompt = async (image) => {
 };
 
 // Host label for a server origin (e.g. https://srv:8090 → srv:8090).
-const hostLabel = (origin) => {
-  try {
-    return new URL(origin).host;
-  } catch {
-    return origin || '(server)';
-  }
-};
-
 // In-popup dialog asking WHERE to pin: a single SELECTOR (Pin locally / Store on each
 // connected server) plus Cancel + Pin. Resolves the chosen server URL, '' for local, or
 // undefined when cancelled.

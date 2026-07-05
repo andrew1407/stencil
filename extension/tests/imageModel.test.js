@@ -2,7 +2,7 @@
 // out of popup/popup.js (which is DOM/chrome-bound and untestable under node --test).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch } from '../src/lib/imageModel.js';
+import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../src/lib/imageModel.js';
 
 test('sourceOf: video → its media URL; image → its src; missing → empty', () => {
   assert.equal(sourceOf({ kind: 'video', videoUrl: 'https://a/v.mp4', src: 'x' }), 'https://a/v.mp4');
@@ -39,4 +39,10 @@ test('sharedMatchesSearch: no query matches all; else matches name or source, ca
   assert.equal(sharedMatchesSearch(img, 'srv/project'), true); // source
   assert.equal(sharedMatchesSearch(img, 'nope'), false);
   assert.equal(sharedMatchesSearch({}, 'x'), false);        // no name/source
+});
+
+test('hostLabel: URL → host; non-URL → the raw origin; empty → placeholder', () => {
+  assert.equal(hostLabel('https://srv.example.com:8443/x'), 'srv.example.com:8443');
+  assert.equal(hostLabel('not-a-url'), 'not-a-url');
+  assert.equal(hostLabel(''), '(server)');
 });
