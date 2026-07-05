@@ -10,6 +10,7 @@
 #include <QMainWindow>
 #include <QString>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -50,6 +51,7 @@ namespace stencil::gui {
   class CanvasTooltip;
   class IncognitoOverlay;
   class MediaLoader;
+  class DataExportController;
   struct LaunchOptions;
 
   class MainWindow : public QMainWindow {
@@ -59,6 +61,9 @@ namespace stencil::gui {
     // starts empty — used for a "New Incognito Editor" window (and an incognito
     // launch), which should begin blank rather than resurrecting prior content.
     explicit MainWindow(QWidget* parent = nullptr, bool restoreLast = true);
+    // Out-of-line (defined in the .cpp) so unique_ptr members of forward-declared types
+    // (e.g. DataExportController) are destroyed where their complete type is visible.
+    ~MainWindow() override;
 
     // Apply command-line launch options (the desktop counterpart of the browser's
     // URL deep-links). Called from main() AFTER show() so the async image / video
@@ -111,16 +116,9 @@ namespace stencil::gui {
     void syncContextActions();
     void onHoverDetail(double imageX, double imageY, const QPoint& globalPos,
                        Qt::KeyboardModifiers mods);
-    // Data actions (S9): layout JSON export/import + clipboard, and image
-    // save/copy/paste. Mirror browser drawingApp.js downloadJSON/uploadJSON/
-    // copyLayoutToClipboard/applyPastedLayout (~2071-2222) and saveImage/
-    // copyImageToClipboard + the paste listener (~2035-2152, ~557-592).
-    void downloadLayout();
-    void uploadLayout();
-    void copyLayout();
-    void pasteLayout();
-    void saveImageFile();
-    void copyImageToClipboard();
+    // Data actions (S9): the layout JSON export/import + clipboard + image save/copy methods live
+    // in DataExportController (dataExport_). pasteImage() stays here — it creates a project — and
+    // delegates its JSON-text fallback to dataExport_->pasteLayout().
     void pasteImage();
 
    private:
@@ -432,10 +430,6 @@ namespace stencil::gui {
     void openInfo();
     void openShortcuts();
     void updateStatusIdle();
-    // S9: confirm-replace + dimension-mismatch guard, then adopt the parsed
-    // layout onto the canvas. Shared by uploadLayout + pasteLayout. Mirrors
-    // browser uploadJSON/applyPastedLayout (drawingApp.js ~2101-2222).
-    void applyLayoutJson(const QJsonObject& obj);
     void keyPressEvent(QKeyEvent* event) override;
     // Drag-and-drop of a file onto the window (image / video / layout JSON),
     // routed through openPathFromOS — the Photoshop-style drop-to-open.
@@ -684,6 +678,9 @@ namespace stencil::gui {
     // ── launch options (CLI) ──
     // Async resolver for --src (image / URL / video frame); created on first use.
     MediaLoader* mediaLoader_ = nullptr;
+    // Layout/image export + clipboard IO (dataExportController.hpp). Non-QObject helper owned by
+    // value-semantics; constructed in the ctor once canvas_/notify_ exist.
+    std::unique_ptr<DataExportController> dataExport_;
     // A --layout source held until the --src image has loaded, then applied once.
     QString pendingLaunchLayout_;
     // Inline layout JSON from a stencil:// deep link, applied once the src image
