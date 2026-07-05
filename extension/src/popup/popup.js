@@ -11,6 +11,7 @@ import {
   CONNECTIONS_KEY, loadConnections, collectSharedPins, connectionByUrl,
   createProject, fetchProjectImage, pinTargetMode, projectRequestFromImage,
 } from '../lib/connections.js';
+import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch } from '../lib/imageModel.js';
 
 // Common web image formats always offered in the filter, plus any others the page
 // uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
@@ -55,25 +56,8 @@ const getTargetTab = async () => {
   return tab;
 };
 
-// The image's own URL for provenance: its media URL for a video (the still is an
-// opaque frame), else the image/background src. Empty/data: sources aren't tracked.
-const sourceOf = (image) => (image.kind === 'video' ? (image.videoUrl || '') : (image.src || ''));
-
-// A video's poster as a standalone image item, so the action menu can open / crop /
-// download the poster (preview cover) directly — the same actions the page context
-// menu's "Video preview image" submenu offers. Mirrors a scanned <img> poster row.
-const posterImage = (video) => ({
-  kind: 'img',
-  src: video.posterUrl,
-  poster: true,
-  name: filenameFromUrl(video.posterUrl, 'poster'),
-  w: 0, h: 0
-});
-
-// The image to actually open / crop / preview: the scanned still, falling back to a
-// video's poster when no frame was captured (an unplayed video shows its poster, and
-// its frame 0 is often black — so the poster is the right stand-in, never a black image).
-const editableSrc = (image) => image.src || image.posterUrl || '';
+// Provenance/pin/search predicates (sourceOf / posterImage / editableSrc / pinnable /
+// sharedMatchesSearch) live in ../lib/imageModel.js — pure + unit-tested.
 
 // Measure unknown-size images only once their row scrolls into view (thumbnails
 // use loading="lazy" too). All matching rows render up front so filtering shows all.
@@ -153,10 +137,6 @@ const annotateOpened = async () => {
     img.opened = trackableSource(src) ? matchEntries(ledger, src, img.name) : [];
   }
 };
-
-// An image/video can be pinned when it has an openable source URL (img/background src,
-// or a video's media URL) — the same thing "open in new tab" needs.
-const pinnable = (image) => !!sourceOf(image);
 
 // Tag each image with whether it's pinned on this site (drives the gray outline, the
 // pin button's active state, and the float-to-top sort). The pin store is keyed by the
@@ -372,14 +352,6 @@ let filters = {};
 const renderCount = () => {
   const total = state.all.length + state.shared.length;
   countEl.textContent = total ? `(${state.filtered.length}/${total})` : '';
-};
-
-// Shared pins only obey the text search (name / server source) — the page-image kind /
-// format / size filters don't apply to a remote project. No search = always shown.
-const sharedMatchesSearch = (image, search) => {
-  if (!search) return true;
-  const q = search.toLowerCase();
-  return (image.name || '').toLowerCase().includes(q) || (image.source || '').toLowerCase().includes(q);
 };
 
 // Persist the FILTER controls (search / formats / sizes / include toggles) so they
