@@ -47,6 +47,14 @@ func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if !a.decodeJSON(w, r, &req) {
 		return
 	}
+	// A Stencil project is created FROM an image — there is no such thing as an
+	// image-less project. The create request must declare an image (HasImage, set by
+	// every real client right before it uploads the `original` bytes); reject bare
+	// metadata-only creates so a project without image bytes can never come to exist.
+	if !req.HasImage {
+		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "a project must be created from an image")
+		return
+	}
 	owner := ""
 	if sess, ok := auth.SessionFromContext(r.Context()); ok {
 		owner = sess.ID
@@ -88,6 +96,14 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	// A project is a shared workspace: anyone may list/read/edit it. Deletion is the
+	// one destructive op, so it's only allowed when at most one client is in the
+	// project's live edit session (the lone editor tidying up). If two or more clients
+	// are connected, refuse — one peer must not yank the project out from under others.
+	if a.deps.LiveSessions != nil && a.deps.LiveSessions.ConnectionCount(id) >= 2 {
+		writeErr(w, http.StatusConflict, protocol.CodeConflict, "project is in use by other clients; cannot delete")
+		return
+	}
 	if err := a.deps.Projects.DeleteProject(r.Context(), id); err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not delete project")
 		return

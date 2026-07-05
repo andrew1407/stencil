@@ -105,4 +105,17 @@ test.describe('server REST', () => {
     });
     expect(res.status()).toBe(400);
   });
+
+  test('rejects an image-less project create (no image → no project)', async ({ request }) => {
+    const token = await issueToken(request);
+    // A bare metadata create (no hasImage) is refused: a project is created FROM an image.
+    const res = await request.post(`${SERVER_URL}/projects`, {
+      headers: bearer(token), data: { name: 'no-image' },
+    });
+    expect(res.status()).toBe(400);
+    expect((await res.json()).code).toBe('badRequest');
+    // …and nothing was created.
+    const list = await request.get(`${SERVER_URL}/projects`, { headers: bearer(token) });
+    expect((await list.json()).projects.some((p) => p.name === 'no-image')).toBe(false);
+  });
 });

@@ -1,34 +1,12 @@
-import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
-import { pageFormatOptions } from '../core/units.js';
-import constants from '../config/constants.json' with { type: 'json' };
-const { PAGE_SIZES } = constants;
 
 // ── Component: source/resource links modal ──────────────────────
-// Opened from the toolbar 🔗 button: view/edit a project's provenance (source image
-// URL + originating web page), rename, and add an image BY URL (image or scrubbed
-// video frame) through the normal upload path.
-// CORS caveat: a cross-origin URL without permissive headers previews but its
-// bytes/frame can't be read — load fails with a hint to use extension/desktop.
-
-// Browsers don't expose a video's real fps, so displayed frame indices use this
-// assumed fps (frame = time × fps); captured pixels are exact regardless.
-const ASSUMED_FPS = 30;
-
-// A best-effort "name.ext" from a URL for the synthetic File handed to the editor.
-const filenameFromUrl = (url, fallbackExt = 'png') => {
-  try {
-    if (url.startsWith('data:')) return `image.${fallbackExt}`;
-    const u = new URL(url, location.href);
-    const base = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '');
-    if (base && /\.[a-z0-9]{2,4}$/i.test(base)) return base;
-    return `${base || 'image'}.${fallbackExt}`;
-  } catch {
-    return `image.${fallbackExt}`;
-  }
-};
-
+// Opened from the toolbar 🔗 button: view/edit the CURRENT image's provenance — its
+// name, the source image/video URL, and the originating web page (resource). Edits are
+// live (each field commits on change). Adding a NEW image by URL now lives in the
+// unified Open dialog (openImageModal), so this modal only edits what's already loaded.
 export class StencilLinksModal extends StencilElement {
   static inner() {
     return `
@@ -59,55 +37,9 @@ export class StencilLinksModal extends StencilElement {
                         </span>
                     </div>
                 </div>
-
-                <!-- Load a NEW image by URL. Shown only when the editor has no image yet. -->
-                <div id="links-add-section">
-                    <div class="vs-section">Add image by URL</div>
-                    <div class="vs-row vs-field"><label title="The image/video's own URL — becomes the source link">Image / video URL</label>
-                        <span class="links-field">
-                            <input type="text" id="links-url" placeholder="https://… (image or video)">
-                            <button id="links-preview" class="links-open btn-icon-text" title="Preview">${icon('eye', { size: 14 })}<span>Preview</span></button>
-                        </span>
-                    </div>
-                    <div class="vs-row vs-field"><label>Resource URL</label><input type="text" id="links-url-resource" placeholder="(optional — page the image is on)"></div>
-                    <!-- Save target: only shown when at least one server is connected. -->
-                    <div class="vs-row" id="links-target-row" style="display:none">
-                        <label title="Load locally or create on a connected server">Save to</label>
-                        <select id="links-target"></select>
-                    </div>
-                    <!-- Quick pre-load edits: open the editor already cropped to a page
-                         aspect/orientation. Shown once a preview succeeds. -->
-                    <div class="vs-row links-quickcrop" id="links-quickcrop-row" style="display:none">
-                        <label title="Open the editor already cropped to the page aspect">Quick edits</label>
-                        <span class="links-quickcrop-controls">
-                            <label class="links-inline-check" title="Crop the image to the page aspect on load"><input type="checkbox" id="links-crop-page" checked> Crop to page</label>
-                            <label class="links-inline-check" title="Landscape orientation (off = portrait)"><input type="checkbox" id="links-crop-album"> Album</label>
-                            <!-- Every named ISO format (no custom — a quick crop needs a fixed aspect).
-                                 Labels here are the boot-time default; applyUnitToUI re-renders them
-                                 in the active display unit (same contract as the toolbar #page-size). -->
-                            <select id="links-crop-pagesize" title="Page size to crop to">
-                                ${pageFormatOptions()}
-                            </select>
-                        </span>
-                    </div>
-                    <div class="links-preview-wrap" id="links-preview-wrap" style="display:none">
-                        <img id="links-preview-img" alt="" style="display:none">
-                        <video id="links-preview-video" muted playsinline controls crossorigin="anonymous" style="display:none"></video>
-                        <!-- The <video> has its own timeline; we only add an exact frame number
-                             (synced with the video's current time). -->
-                        <div class="links-frame-row" id="links-frame-row" style="display:none">
-                            <label class="links-frame-num" title="Exact frame (browser assumes ~30 fps)">Frame
-                                <input type="number" id="links-frame-num" min="0" value="0" step="1">
-                                <span id="links-frame-total"></span>
-                            </label>
-                        </div>
-                        <div class="links-preview-hint" id="links-preview-hint"></div>
-                    </div>
-                </div>
             </div>
             <div class="settings-footer">
                 <span class="footer-hint" id="links-foot-hint"></span>
-                <button id="links-load" disabled class="btn-icon-text">${icon('download')}<span>Load into editor</span></button>
             </div>
         </div>
     `;
@@ -120,100 +52,7 @@ export class StencilLinksModal extends StencilElement {
     const nameEl = $('links-name');
     const sourceEl = $('links-source');
     const resourceEl = $('links-resource');
-    const urlEl = $('links-url');
-    const urlResourceEl = $('links-url-resource');
-    const previewWrap = $('links-preview-wrap');
-    const previewImg = $('links-preview-img');
-    const previewVideo = $('links-preview-video');
-    const previewHint = $('links-preview-hint');
-    const frameRow = $('links-frame-row');
-    const frameNum = $('links-frame-num');
-    const frameTotal = $('links-frame-total');
-    const loadBtn = $('links-load');
-    const editSection = $('links-edit-section');
-    const addSection = $('links-add-section');
     const footHint = $('links-foot-hint');
-    const targetEl = $('links-target');
-    const targetRow = $('links-target-row');
-    const quickcropRow = $('links-quickcrop-row');
-    const cropPageEl = $('links-crop-page');
-    const cropAlbumEl = $('links-crop-album');
-    const cropPageSizeEl = $('links-crop-pagesize');
-
-    // Album only matters when cropping to page; grey it out otherwise.
-    const syncQuickcropEnabled = () => {
-      cropAlbumEl.disabled = !cropPageEl.checked;
-      cropPageSizeEl.disabled = !cropPageEl.checked;
-    };
-    cropPageEl.addEventListener('change', syncQuickcropEnabled);
-
-    // Reveal the quick-edit row for a previewed image/frame and default the album
-    // toggle + page size to sensible values (orientation auto-matches the media).
-    const showQuickcrop = (w, h) => {
-      cropPageEl.checked = true;
-      cropAlbumEl.checked = (w || 0) >= (h || 0);
-      cropPageSizeEl.value = PAGE_SIZES[app.pageSize] ? app.pageSize : 'A3';   // custom/unknown → A3
-      syncQuickcropEnabled();
-      quickcropRow.style.display = '';
-    };
-
-    // 'none' until a preview succeeds; drives what Load captures.
-    let previewKind = 'none';
-    let maxFrame = 0;       // last frame index (floor(duration × fps))
-    let syncing = false;    // guard slider ↔ number ↔ video echo loops
-
-    const resetPreview = () => {
-      previewKind = 'none';
-      maxFrame = 0;
-      previewWrap.style.display = 'none';
-      previewImg.style.display = 'none';
-      previewImg.removeAttribute('src');
-      previewVideo.style.display = 'none';
-      previewVideo.removeAttribute('src');
-      previewVideo.load?.();
-      quickcropRow.style.display = 'none';
-      frameRow.style.display = 'none';
-      frameNum.value = '0';
-      frameTotal.textContent = '';
-      previewHint.textContent = '';
-      loadBtn.disabled = true;
-    };
-
-    // ── Video frame number: the <video> has its own timeline slider; this just
-    // mirrors the current frame and lets the user jump to an exact one. The video's
-    // currentTime is the single source of truth. ──
-    const clampFrame = (n) => Math.max(0, Math.min(maxFrame, Math.round(Number(n) || 0)));
-    // The number input already shows the frame, so the hint stays generic.
-    const videoFrameHint = () => 'Video — scrub it or type a frame number, then Load.';
-    // Mirror a frame index into the number input without re-triggering its handler.
-    const reflectFrame = (f) => {
-      syncing = true;
-      frameNum.value = String(f);
-      syncing = false;
-    };
-    // Seek the video to a typed frame. A paused <video> often won't repaint the new
-    // frame until a compositor nudge (the "moves only on mouse move" symptom), so we
-    // request a video-frame callback to force the sought frame to present immediately.
-    const seekToFrame = (n) => {
-      const f = clampFrame(n);
-      reflectFrame(f);
-      if (previewVideo.readyState >= 1 && isFinite(previewVideo.duration)) {
-        previewVideo.currentTime = Math.min(previewVideo.duration, f / ASSUMED_FPS);
-        previewVideo.requestVideoFrameCallback?.(() => {});  // force the paint
-      }
-      previewHint.textContent = videoFrameHint(f);
-    };
-    frameNum.addEventListener('input', () => { if (!syncing) seekToFrame(frameNum.value); });
-    frameNum.addEventListener('change', () => { if (!syncing) seekToFrame(frameNum.value); });
-    // The video's own slider (or any other seek) reflects back into the number.
-    const reflectFromVideo = () => { if (!syncing) reflectFrame(clampFrame(previewVideo.currentTime * ASSUMED_FPS)); };
-    previewVideo.addEventListener('seeked', reflectFromVideo);
-    previewVideo.addEventListener('timeupdate', reflectFromVideo);
-
-    // Enter in the URL fields triggers Preview (rather than doing nothing / submitting).
-    [urlEl, urlResourceEl].forEach(el => el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); $('links-preview').click(); }
-    }));
 
     // Re-read the current project's name/source/resource into the fields. Pulled out
     // of onOpen so it can also refresh LIVE while the modal is open (e.g. when the
@@ -224,28 +63,13 @@ export class StencilLinksModal extends StencilElement {
       resourceEl.value = app.imageResource || '';
     };
 
-    const { open, close } = wireModalShell(overlay, $('links-btn'), $('links-close'), {
+    wireModalShell(overlay, $('links-btn'), $('links-close'), {
+      // The 🔗 button is disabled without an image (see drawingApp refreshActions), so
+      // the modal only ever opens to edit a loaded image's links.
       onOpen: () => {
-        // An image already loaded → only edit its links. No image yet → only the
-        // add-by-URL loader (the URL becomes the source; resource is optional).
-        const hasImage = !!app.image;
-        editSection.style.display = hasImage ? 'block' : 'none';
-        addSection.style.display = hasImage ? 'none' : 'block';
-        loadBtn.style.display = hasImage ? 'none' : '';
-        footHint.textContent = hasImage
-          ? 'Editing the current image’s links.'
-          : 'Cross-origin URLs need CORS headers to load here; otherwise use the extension or desktop app.';
-
+        footHint.textContent = 'Editing the current image’s links.';
         syncLinkFields();
-        urlEl.value = '';
-        urlResourceEl.value = '';
-        // Target chooser only for the add-by-URL (no image yet) path, and never while
-        // incognito (incognito content isn't created on a server).
-        if (!hasImage) fillTargetSelect(targetEl, targetRow, app.connections, !app.storage.incognito);
-        else if (targetRow) targetRow.style.display = 'none';
-        resetPreview();
       },
-      onClose: resetPreview,
     });
 
     // Live-refresh the open modal on project-set changes — keeps link fields in sync
@@ -253,7 +77,7 @@ export class StencilLinksModal extends StencilElement {
     // TabsCoordinator.projectsChanged in THIS tab; onProjectsChanged only fires for
     // OTHER tabs), so same-tab console edits refresh too.
     window.addEventListener('stencil:registry-changed', () => {
-      if (overlay.classList.contains('modal-open')) syncLinkFields();
+      if (overlay.classList.contains('modal-open') && app.image) syncLinkFields();
     });
 
     // ── Current-project links: edit / open / remove ──
@@ -288,91 +112,6 @@ export class StencilLinksModal extends StencilElement {
     };
     bindLinkField(sourceEl, $('links-source-open'), $('links-source-clear'), 'imageSource');
     bindLinkField(resourceEl, $('links-resource-open'), $('links-resource-clear'), 'imageResource');
-
-    // ── Add image by URL: preview ──
-    $('links-preview').addEventListener('click', () => {
-      const url = urlEl.value.trim();
-      if (!url) {
-        notify('Enter an image or video URL first', 'fail');
-        return;
-      }
-      resetPreview();
-      previewWrap.style.display = 'block';
-      previewHint.textContent = 'Loading…';
-      // Try as an image first; on error fall back to a video element.
-      previewImg.crossOrigin = 'anonymous';
-      previewImg.onload = () => {
-        previewKind = 'image';
-        previewImg.style.display = 'block';
-        previewHint.textContent = `Image ${previewImg.naturalWidth}×${previewImg.naturalHeight}`;
-        showQuickcrop(previewImg.naturalWidth, previewImg.naturalHeight);
-        loadBtn.disabled = false;
-      };
-      previewImg.onerror = () => {
-        previewImg.style.display = 'none';
-        // Fall back to a video: let the user scrub to the frame they want, via the
-        // slider / frame number (and the native controls), all kept in sync.
-        previewVideo.onloadeddata = () => {
-          previewKind = 'video';
-          previewVideo.style.display = 'block';
-          const dur = isFinite(previewVideo.duration) ? previewVideo.duration : 0;
-          maxFrame = Math.max(0, Math.floor(dur * ASSUMED_FPS));
-          frameNum.max = String(maxFrame);
-          frameTotal.textContent = maxFrame ? `/ ${maxFrame}` : '';
-          reflectFrame(0);
-          frameRow.style.display = 'flex';
-          showQuickcrop(previewVideo.videoWidth, previewVideo.videoHeight);
-          previewHint.textContent = videoFrameHint(0);
-          loadBtn.disabled = false;
-        };
-        previewVideo.onerror = () => {
-          previewHint.textContent = 'Could not load that URL as an image or video.';
-          loadBtn.disabled = true;
-        };
-        previewVideo.src = url;
-        previewVideo.load();
-      };
-      previewImg.src = url;
-    });
-
-    // ── Add image by URL: load the previewed image/frame into the editor ──
-    const loadIntoEditor = async () => {
-      const url = urlEl.value.trim();
-      const resource = urlResourceEl.value.trim() || null;
-      try {
-        let file;
-        if (previewKind === 'video') {
-          const f = clampFrame(previewVideo.currentTime * ASSUMED_FPS);
-          const cnv = document.createElement('canvas');
-          cnv.width = previewVideo.videoWidth;
-          cnv.height = previewVideo.videoHeight;
-          cnv.getContext('2d').drawImage(previewVideo, 0, 0);
-          const blob = await new Promise((res, rej) =>
-            cnv.toBlob(b => b ? res(b) : rej(new Error('frame capture failed')), 'image/png'));
-          file = new File([blob], filenameFromUrl(url, 'png').replace(/\.[a-z0-9]+$/i, '') + `-frame${f}.png`, { type: 'image/png' });
-        } else {
-          // Image: fetch the bytes (same-origin / data: / CORS-enabled). A canvas
-          // readback of the preview <img> would also taint without CORS, so fetch
-          // is the honest path — its failure is the CORS limitation we warn about.
-          const resp = await fetch(url);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const blob = await resp.blob();
-          file = new File([blob], filenameFromUrl(url, (blob.type.split('/')[1] || 'png')), { type: blob.type || 'image/png' });
-        }
-        const address = (targetEl && targetEl.value) || undefined;
-        // Quick pre-load edits: crop to the chosen page aspect/orientation, or load
-        // the full frame uncropped when "Crop to page" is off.
-        const cropOpts = cropPageEl.checked
-          ? { page: cropPageSizeEl.value, album: cropAlbumEl.checked }
-          : { noCrop: true };
-        app.loadImageFromFile(file, { source: url, resource, address, ...cropOpts });
-        close();
-        notify('Image loaded from URL', 'ok');
-      } catch (err) {
-        notify(`Could not load that URL — ${err.message}. Cross-origin URLs need CORS headers; try the extension or desktop app.`, 'fail');
-      }
-    };
-    loadBtn.addEventListener('click', loadIntoEditor);
   }
 }
 define('stencil-links-modal', StencilLinksModal);

@@ -1,5 +1,8 @@
 #include "openImageDialog.hpp"
+#include "guiHelpers.hpp"
+#include <QButtonGroup>
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -7,12 +10,18 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSpinBox>
+#include <QTabWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
 
   namespace {
+    // Tab order (QTabWidget indices).
+    enum { TabFile = 0, TabUrl = 1, TabBlank = 2 };
+
     // Video extensions the loader (MediaLoader) can seek + grab a frame from. A
     // source with one of these — local or in a URL — reveals the frame control.
     bool looksLikeVideo(const QString& src) {
@@ -25,16 +34,21 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  OpenImageDialog::OpenImageDialog(QWidget* parent, bool canReplace)
+  OpenImageDialog::OpenImageDialog(QWidget* parent, bool canReplace,
+                                   int blankW, int blankH, bool startBlank)
       : QDialog(parent), canReplace_(canReplace) {
-    setWindowTitle("Open Another Image");
+    setWindowTitle("Open Image");
     setMinimumWidth(460);
 
     auto* layout = new QVBoxLayout(this);
-    auto* form = new QFormLayout;
 
-    // File row: a read-only field showing the chosen path + a Browse button that
-    // opens the native picker (images AND videos, mirroring the browser modal).
+    // ── Source tabs: Local file / URL link / Blank. ──
+    tabs_ = new QTabWidget(this);
+
+    // Tab: Local file. A read-only field showing the chosen path + a Browse button
+    // (images AND videos, mirroring the browser modal).
+    auto* fileTab = new QWidget(this);
+    auto* fileForm = new QFormLayout(fileTab);
     auto* fileRow = new QHBoxLayout;
     path_ = new QLineEdit(this);
     path_->setReadOnly(true);
@@ -45,15 +59,58 @@ namespace stencil::gui {
     connect(browse, &QPushButton::clicked, this, &OpenImageDialog::browse);
     fileRow->addWidget(path_, 1);
     fileRow->addWidget(browse);
-    form->addRow("Image / video:", fileRow);
+    fileForm->addRow("Image / video:", fileRow);
+    tabs_->addTab(fileTab, "Local file");
 
-    // URL row: load an image or video straight from the web (resolved via MediaLoader,
-    // which handles CORS-free fetch + video-frame grab). Typing a URL takes precedence
-    // over a browsed file. Clears the file field so the two don't conflict.
+    // Tab: URL link. Load an image or video straight from the web (resolved via
+    // MediaLoader, which handles CORS-free fetch + video-frame grab).
+    auto* urlTab = new QWidget(this);
+    auto* urlForm = new QFormLayout(urlTab);
     url_ = new QLineEdit(this);
-    url_->setPlaceholderText("…or paste an image / video URL (https://…)");
+    url_->setPlaceholderText("https://… (image or video)");
     url_->setToolTip("Load an image or video directly from a web URL");
-    form->addRow("URL:", url_);
+    urlForm->addRow("URL:", url_);
+    tabs_->addTab(urlTab, "URL link");
+
+    // Tab: Blank. Solid-color canvas (folded in from the retired blank-image dialog).
+    auto* blankTab = new QWidget(this);
+    auto* blankForm = new QFormLayout(blankTab);
+    auto* colorRow = new QHBoxLayout;
+    white_ = new QRadioButton("White", this);
+    white_->setToolTip("Fill the blank image with white");
+    black_ = new QRadioButton("Black", this);
+    black_->setToolTip("Fill the blank image with black");
+    customColorRadio_ = new QRadioButton("Custom:", this);
+    customColorRadio_->setToolTip("Fill the blank image with the picked custom color");
+    white_->setChecked(true);
+    auto* colorGroup = new QButtonGroup(this);
+    colorGroup->addButton(white_);
+    colorGroup->addButton(black_);
+    colorGroup->addButton(customColorRadio_);
+    customSwatch_ = new QToolButton(this);
+    customSwatch_->setToolTip("Pick a custom fill color");
+    setColorSwatch(customSwatch_, customColor_);
+    connect(customSwatch_, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
+    colorRow->addWidget(white_);
+    colorRow->addWidget(black_);
+    colorRow->addWidget(customColorRadio_);
+    colorRow->addWidget(customSwatch_);
+    colorRow->addStretch(1);
+    blankForm->addRow("Fill color:", colorRow);
+    blankWidth_ = new QSpinBox(this);
+    blankWidth_->setRange(1, 8192);
+    blankWidth_->setSuffix(" px");
+    blankWidth_->setValue(blankW);
+    blankWidth_->setToolTip("Blank image width in pixels (1–8192)");
+    blankHeight_ = new QSpinBox(this);
+    blankHeight_->setRange(1, 8192);
+    blankHeight_->setSuffix(" px");
+    blankHeight_->setValue(blankH);
+    blankHeight_->setToolTip("Blank image height in pixels (1–8192)");
+    blankForm->addRow("Width:", blankWidth_);
+    blankForm->addRow("Height:", blankHeight_);
+    tabs_->addTab(blankTab, "Blank");
+    layout->addWidget(tabs_);
 
     // Frame row: revealed only for a video source (local or URL). The 0-based frame
     // index to grab as a still (matches the CLI/--frame + MediaLoader contract).
@@ -63,83 +120,77 @@ namespace stencil::gui {
     frameRow_ = new QWidget(this);
     auto* fr = new QHBoxLayout(frameRow_);
     fr->setContentsMargins(0, 0, 0, 0);
+    fr->addWidget(new QLabel("Frame:", this));
     fr->addWidget(frame_);
     fr->addStretch(1);
-    form->addRow("Frame:", frameRow_);
+    layout->addWidget(frameRow_);
     frameRow_->setVisible(false);
 
-    // Incognito: edit without saving (mirrors the browser checkbox).
+    // Incognito: edit without saving (mirrors the browser checkbox). Applies to a
+    // file/URL open; hidden on the Blank tab (blank creation never honored it).
+    commonForm_ = new QFormLayout;
+    commonForm_->setContentsMargins(0, 0, 0, 0);
     incognito_ = new QCheckBox("Edit without saving", this);
     incognito_->setToolTip("Open the image in incognito mode — edits are not saved");
-    form->addRow("Incognito:", incognito_);
+    commonForm_->addRow("Incognito:", incognito_);
+    layout->addLayout(commonForm_);
 
-    // Replace options: only shown when a saved/linked project can be replaced. Rename is
-    // off by default; keeping the existing annotations is on (mirrors the browser modal).
+    // Replace options: only shown on the Local file tab over a replaceable project.
+    replaceRow_ = new QWidget(this);
     if (canReplace_) {
       rename_ = new QCheckBox("Rename project to the new image", this);
       rename_->setToolTip("Adopt the new file's name for this project");
       keep_ = new QCheckBox("Keep existing annotations", this);
       keep_->setToolTip("Keep the current lines over the replacement image");
       keep_->setChecked(true);
-      auto* opts = new QHBoxLayout;
+      auto* opts = new QHBoxLayout(replaceRow_);
+      opts->setContentsMargins(0, 0, 0, 0);
       opts->setSpacing(18);
+      opts->addWidget(new QLabel("Replace:", this));
       opts->addWidget(rename_);
       opts->addWidget(keep_);
       opts->addStretch(1);
-      form->addRow("Replace:", opts);
     }
-    layout->addLayout(form);
+    layout->addWidget(replaceRow_);
 
-    auto* hint =
-        new QLabel(canReplace_
-                       ? "\"Replace image\" swaps THIS project's image (same project). "
-                         "\"Open here\" makes a new project; \"Open in new window\" "
-                         "leaves this editor untouched. A URL or video always makes a "
-                         "new project (no in-place replace)."
-                       : "\"Open here\" replaces the current editor (the current "
-                         "project is kept unless it's incognito). \"Open in new "
-                         "window\" leaves this editor untouched.",
-                   this);
+    auto* hint = new QLabel(
+        "“Open here” loads the source in this editor; “Open in new window” leaves it "
+        "untouched. A URL/video always makes a new project. “Blank” makes a solid-color "
+        "canvas.",
+        this);
     hint->setWordWrap(true);
     hint->setStyleSheet("color: gray; font-size: 11px;");
     layout->addWidget(hint);
 
-    // Three outcomes — Cancel / Open here / Open in new window (+ Replace when able) —
-    // mirroring the browser's [Cancel] [Open here] [Open in new tab].
+    // ── Footer actions ── file/URL: Cancel / Replace? / Open here / Open in new window.
+    // blank: Cancel / Create blank.
     auto* btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
     auto* cancel = new QPushButton("Cancel", this);
     cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     here_ = new QPushButton("Open here", this);
-    connect(here_, &QPushButton::clicked, this, [this] {
-      outcome_ = Outcome::Here;
-      accept();
-    });
+    connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Here; accept(); });
     newWindow_ = new QPushButton("Open in new window", this);
-    connect(newWindow_, &QPushButton::clicked, this, [this] {
-      outcome_ = Outcome::NewWindow;
-      accept();
-    });
+    connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NewWindow; accept(); });
+    createBlank_ = new QPushButton("Create blank", this);
+    connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Blank; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
       replace_ = new QPushButton("Replace image", this);
-      connect(replace_, &QPushButton::clicked, this, [this] {
-        outcome_ = Outcome::Replace;
-        accept();
-      });
+      connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Replace; accept(); });
       btnRow->addWidget(replace_);
     }
     btnRow->addWidget(here_);
     btnRow->addWidget(newWindow_);
+    btnRow->addWidget(createBlank_);
     layout->addLayout(btnRow);
 
     // A URL edit re-evaluates the buttons + frame row live; typing a URL blanks the file.
-    connect(url_, &QLineEdit::textChanged, this, [this] {
-      if (!url_->text().trimmed().isEmpty()) path_->clear();
-      refreshButtons();
-    });
-    refreshButtons();
+    connect(url_, &QLineEdit::textChanged, this, [this] { refreshButtons(); });
+    connect(tabs_, &QTabWidget::currentChanged, this, [this] { applyMode(); });
+    tabs_->setCurrentIndex(startBlank ? TabBlank : TabFile);
+    applyMode();
   }
 
   void OpenImageDialog::browse() {
@@ -148,14 +199,35 @@ namespace stencil::gui {
         "Images and video (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.mp4 *.mov *.webm "
         "*.mkv *.avi *.m4v *.mpg *.mpeg);;All files (*)");
     if (p.isEmpty()) return;
-    url_->clear();  // a picked file wins over a stale URL
     path_->setText(p);
     refreshButtons();
   }
 
+  void OpenImageDialog::pickCustomColor() {
+    const QColor c = QColorDialog::getColor(customColor_, this, "Fill color",
+                                            QColorDialog::DontUseNativeDialog);
+    if (!c.isValid()) return;
+    customColor_ = c;
+    customColorRadio_->setChecked(true);
+    setColorSwatch(customSwatch_, customColor_);
+  }
+
+  // Swap the footer actions to match the active tab. Replace only ever applies to a
+  // local-file source over a replaceable project.
+  void OpenImageDialog::applyMode() {
+    const bool blank = tabs_->currentIndex() == TabBlank;
+    commonForm_->setRowVisible(incognito_, !blank);  // incognito has no effect on a blank
+    here_->setVisible(!blank);
+    newWindow_->setVisible(!blank);
+    if (replace_) replace_->setVisible(!blank && tabs_->currentIndex() == TabFile);
+    replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
+    createBlank_->setVisible(blank);
+    if (!blank) refreshButtons();
+    else frameRow_->setVisible(false);
+  }
+
   // Action buttons stay disabled until a source (file or URL) is chosen; the frame
-  // row appears for a video source, and Replace is hidden for URL/video (resolved
-  // asynchronously — only a fresh open makes sense). Disabled tooltips explain why.
+  // row appears for a video source, and Replace is only for a local-image file.
   void OpenImageDialog::refreshButtons() {
     const bool has = !source().isEmpty();
     const bool video = isVideo();
@@ -166,7 +238,7 @@ namespace stencil::gui {
       const bool canReplaceNow = has && !isUrl() && !video;
       replace_->setEnabled(canReplaceNow);
       replace_->setToolTip(
-          !has ? "Choose an image file or URL first"
+          !has ? "Choose an image file first"
                : (isUrl() || video
                       ? "A URL or video opens as a new project (no in-place replace)"
                       : "Swap this project's image in place (same project)"));
@@ -179,14 +251,23 @@ namespace stencil::gui {
   }
 
   QString OpenImageDialog::source() const {
-    const QString u = url_->text().trimmed();
-    return u.isEmpty() ? path_->text() : u;
+    if (tabs_->currentIndex() == TabUrl) return url_->text().trimmed();
+    if (tabs_->currentIndex() == TabFile) return path_->text();
+    return QString();  // blank tab has no source
   }
-  bool OpenImageDialog::isUrl() const { return !url_->text().trimmed().isEmpty(); }
+  bool OpenImageDialog::isUrl() const { return tabs_->currentIndex() == TabUrl; }
   bool OpenImageDialog::isVideo() const { return looksLikeVideo(source()); }
   int OpenImageDialog::frame() const { return frame_->value(); }
   bool OpenImageDialog::incognito() const { return incognito_->isChecked(); }
   bool OpenImageDialog::rename() const { return rename_ && rename_->isChecked(); }
   bool OpenImageDialog::keepAnnotations() const { return !keep_ || keep_->isChecked(); }
+
+  QColor OpenImageDialog::blankColor() const {
+    if (white_->isChecked()) return QColor(Qt::white);
+    if (black_->isChecked()) return QColor(Qt::black);
+    return customColor_;
+  }
+  int OpenImageDialog::blankWidth() const { return blankWidth_->value(); }
+  int OpenImageDialog::blankHeight() const { return blankHeight_->value(); }
 
 }

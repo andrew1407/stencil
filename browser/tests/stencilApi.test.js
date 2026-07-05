@@ -26,6 +26,7 @@ globalThis.document = globalThis.document ?? {
 
 const { createStencil } = await import('../js/console/stencilApi.js');
 const { hotkeys } = await import('../js/core/hotkeys.js');
+const { validateLayout } = await import('../js/core/layout.js');
 
 // ── Mock DrawingApp ──────────────────────────────────────────────────────────
 // Records every call as [name, ...args] in `app.calls`. Line/point mutators actually
@@ -731,4 +732,62 @@ test('point x/y setters write absolute coords; pt.remove drops the point (and em
   // Removing the only point empties the line → the line is dropped, and remove() returns the facade.
   assert.equal(pt.remove(), stencil);
   assert.equal(app.lines.length, 0);
+});
+
+// ── Prototype-pollution lock-in ─────────────────────────────────────────────────────
+// Security regression guards: the facade must never let a caller-supplied object walk into
+// Object.prototype. `apply()` iterates a FIXED key allowlist (never Object.keys(opts)), and
+// the layout setter routes to applyPastedLayout → validateLayout, whose sanitizeLines rebuilds
+// each line from a whitelist onto a fresh plain object (dropping __proto__/constructor/…).
+test('apply() ignores a polluting __proto__ payload and never touches Object.prototype', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  // Object-literal form: `__proto__` is the object's prototype, not an own key — apply()
+  // still only reads its allowlisted keys, so nothing reaches Object.prototype.
+  stencil.apply({ __proto__: { polluted: 1 }, thickness: 3 });
+  assert.equal(({}).polluted, undefined);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 3]);   // legit key still routed
+
+  // JSON-parsed form: here `__proto__` IS an own enumerable key. apply() never iterates it
+  // (it walks a fixed allowlist), so it can't be re-assigned onto anything shared.
+  const evil = JSON.parse('{"__proto__":{"polluted":2},"thickness":5}');
+  stencil.apply(evil);
+  assert.equal(({}).polluted, undefined);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 5]);
+});
+
+test('layout setter routes to applyPastedLayout → validateLayout without polluting Object.prototype', () => {
+  // Wire the mock's applyPastedLayout to the REAL validateLayout so the sanitize path
+  // (which strips __proto__ and rebuilds lines onto fresh objects) is exercised end-to-end.
+  const app = makeApp({
+    image: { width: 10, height: 10 },
+    canvas: { width: 10, height: 10 },
+    lines: [],
+    applyPastedLayout(data) {
+      app.calls.push(['applyPastedLayout', data]);
+      const v = validateLayout(data, { hasImage: true, imgW: 10, imgH: 10, hasExistingLines: false });
+      app.lines = v.lines;
+    },
+  });
+  const stencil = createStencil(app);
+
+  // A JSON-parsed layout carrying an OWN "__proto__" key both at the top level and inside a
+  // line entry — the dangerous shape that a naive deep-merge would splat onto Object.prototype.
+  const evilLayout = JSON.parse(
+    '{"__proto__":{"x":1},"lines":[{"points":[{"x":1,"y":2}],"color":"#ff0000","__proto__":{"x":2}}]}',
+  );
+  stencil.layout = evilLayout;
+
+  assert.deepEqual(lastCall(app, 'applyPastedLayout')[1], evilLayout);   // routed through the facade
+  assert.equal(({}).x, undefined);
+  assert.equal(Object.prototype.x, undefined);
+
+  // The sanitized line kept its real fields but carries no injected own key.
+  assert.equal(app.lines.length, 1);
+  assert.deepEqual(app.lines[0].points, [{ x: 1, y: 2 }]);
+  assert.equal(app.lines[0].color, '#ff0000');
+  assert.ok(!Object.prototype.hasOwnProperty.call(app.lines[0], '__proto__'));
 });

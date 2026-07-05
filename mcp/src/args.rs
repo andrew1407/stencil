@@ -265,6 +265,24 @@ pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<
     if params.output.trim().is_empty() {
         return Err("`output` must not be empty".into());
     }
+    // Flag-injection guard. The output is a positional operand appended last, and the CLI
+    // (`cli/src/args.zig`) has *no* `--` end-of-options terminator — a bare `--` is itself
+    // rejected as an unknown flag. So an `output` like `--album` or `-l` would be parsed as a
+    // flag rather than the output path (`-l` would even swallow the following token). A real
+    // output file path never starts with a dash — the CLI could never accept one as the
+    // positional slot anyway — so reject a dash-leading output up front. This mirrors the
+    // CLI's own `arg[0] == '-'` flag test, so it rejects exactly what would misparse.
+    //
+    // Scheme/host SSRF filtering for `input`/`server`/`remote` is deliberately NOT done here:
+    // it is enforced downstream in the CLI (which was hardened for this), and this builder
+    // only guarantees each value rides as a single inert argv token (no shell, no splitting).
+    if params.output.starts_with('-') {
+        return Err(format!(
+            "`output` must not start with '-' (got \"{}\") — a dash-leading value would be \
+             parsed as a CLI flag, not the output path",
+            params.output
+        ));
+    }
 
     // Collaboration-server invariants, mirroring the CLI's own checks.
     if params.server.is_some() {

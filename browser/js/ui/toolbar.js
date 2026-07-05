@@ -43,16 +43,15 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Image</div>
                 <div class="ctrl-section-row">
-                    <!-- File input is the hidden picker target; shown affordances below toggle on image state. -->
-                    <input type="file" id="image-upload" accept="image/*" style="display:none;">
-                    <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Load an image" title="Load an image">${icon('image')}<span>Load Image</span></button>
+                    <!-- One Open entry (empty state). Opens the unified Open dialog: local file, URL, or new blank. -->
+                    <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Open an image — local file, URL, or new blank" title="Open an image — local file, URL, or new blank">${icon('image')}<span>Open Image</span></button>
                     <!-- Image actions (shown only when an image is loaded). #save-image moved here from Data. -->
                     <span id="image-actions" style="display:none;align-items:center;gap:4px;">
                         <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
                         <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
                         <button id="share-image" class="btn-icon" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
                         <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
-                        <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image" title="Open another image…">${icon('external')}</button>
+                        <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
                     </span>
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
                     <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
@@ -193,7 +192,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" data-disabled-reason="Load an image to view fullscreen" title="Fullscreen">${icon('maximize')}</button>
                     <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects" title="Projects">${icon('layers')}</button>
                     <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
-                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links · add image by URL" title="Source &amp; resource links · add image by URL">${icon('link')}</button>
+                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Open an image first to edit its links" title="Source &amp; resource links for the current image">${icon('link')}</button>
                     <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
                     <button id="settings-btn" class="btn-icon" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
                     <button id="visuals-btn" class="btn-icon" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>

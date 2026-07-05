@@ -22,7 +22,7 @@ const IDS = [
     'ctx-tooltip-menu', 'ctx-tooltip-sub', 'ctx-tt-enabled', 'ctx-tt-page', 'ctx-tt-screen', 'ctx-tt-coords',
     'fs-top-trigger', 'fs-right-trigger', 'fs-controls-panel', 'fs-exit-btn', 'fs-selection-panel',
     'fs-points-panel', 'global-drop-overlay', 'toggle-controls', 'hints-btn', 'hints-popup', 'controls-body',
-    'image-upload', 'image-size-display', 'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
+    'image-size-display', 'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
     'marker-size', 'line-style', 'start-drawing', 'stop-drawing', 'draw-mode-toggle', 'undo', 'redo', 'show-points',
     'show-lines', 'clear-all-lines', 'zoom-out', 'zoom-input', 'zoom-in', 'zoom-fit', 'page-size', 'unit-select', 'custom-size-group',
     'custom-page-width', 'custom-page-height', 'custom-unit-label', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
@@ -45,9 +45,10 @@ const IDS = [
     'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn',
     // Context-menu Share Image item.
     'ctx-share-img',
-    // Open-another-image modal (stencil-open-image-modal).
+    // Unified Open Image modal (stencil-open-image-modal): Local file / URL link / Blank tabs.
     'open-image-modal-overlay', 'open-image-close', 'open-image-file', 'open-image-incognito',
-    'open-image-cancel', 'open-image-here', 'open-image-newtab',
+    'open-image-cancel', 'open-image-here', 'open-image-newtab', 'open-image-incognito-row',
+    'oi-tab-file', 'oi-tab-url', 'oi-tab-blank', 'oi-panel-file', 'oi-panel-url', 'oi-panel-blank',
     // Open-in-another-app modal (stencil-open-in-modal) + its toolbar trigger. The
     // #open-in-telegram button is always in the markup but hidden until the local
     // openInConfig.json (loaded async) provides a bot username.
@@ -60,8 +61,8 @@ const IDS = [
     'confirm-modal-confirm', 'confirm-modal-confirm-text'
 ];
 
-test('fixture has exactly 196 IDs', () => {
-    assert.strictEqual(IDS.length, 196);
+test('fixture has exactly 202 IDs', () => {
+    assert.strictEqual(IDS.length, 202);
 });
 
 test('every static body ID is present exactly once', () => {
@@ -142,10 +143,6 @@ test('page-size select: Custom… first, then the ISO formats labelled with size
     assert.ok(markup.includes('<option value="A4">A4 (21 × 29.7 cm)</option>'), 'A4 label');
     assert.ok(markup.includes('<option value="B5">B5 (17.6 × 25 cm)</option>'), 'B5 label');
     assert.ok(markup.includes('<option value="C10">C10 (2.8 × 4 cm)</option>'), 'C10 label');
-    // The quick-crop select (links modal) lists the named formats but never custom.
-    const links = markup.slice(markup.indexOf('id="links-crop-pagesize"'), markup.indexOf('id="links-preview-wrap"'));
-    assert.ok(links.includes('<option value="A0">'), 'quick-crop lists named formats');
-    assert.ok(!links.includes('value="custom"'), 'quick-crop has no custom option');
 });
 
 test('HTML entities preserved (not decoded)', () => {

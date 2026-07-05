@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLaunchUrl, filenameFromUrl, guessMime, MAX_PAYLOAD } from '../src/lib/stencil.js';
+import { buildLaunchUrl, filenameFromUrl, guessMime, MAX_PAYLOAD, fetchAsDataUrl } from '../src/lib/stencil.js';
 
 test('buildLaunchUrl: round-trips the payload via the editor parse logic', () => {
   const payload = { dataUrl: 'data:image/png;base64,AAAA', name: 'p.png',
@@ -36,4 +36,33 @@ test('guessMime: known extensions and fallback', () => {
 
 test('MAX_PAYLOAD is a sane positive ceiling', () => {
   assert.ok(MAX_PAYLOAD > 100000);
+});
+
+// The extension's host_permissions let fetch() reach ANY URL and bypass CORS, so a
+// page-supplied URL must be scheme-gated: only http(s)/blob (and pass-through data:)
+// are fetched — never file:/chrome:/ftp:/javascript:.
+test('fetchAsDataUrl: rejects non-http(s)/blob/data schemes', async () => {
+  for (const bad of ['file:///etc/passwd', 'ftp://h/a.png', 'chrome://version', 'javascript:alert(1)']) {
+    await assert.rejects(() => fetchAsDataUrl(bad), /unsupported URL scheme/);
+  }
+});
+
+test('fetchAsDataUrl: data: URLs pass through unchanged (no fetch)', async () => {
+  const d = 'data:image/png;base64,AAAA';
+  assert.equal(await fetchAsDataUrl(d), d);
+});
+
+test('fetchAsDataUrl: allows http(s)/blob and returns a data URL', async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    headers: { get: () => 'image/png' },
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+  });
+  try {
+    assert.match(await fetchAsDataUrl('https://x.example/a.png'), /^data:image\/png;base64,/);
+    assert.match(await fetchAsDataUrl('blob:https://x.example/uuid'), /^data:image\/png;base64,/);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });

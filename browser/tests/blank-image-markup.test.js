@@ -1,14 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-// layout() transitively imports every ui component, including the blank-image modal.
+// layout() transitively imports every ui component. Blank-image creation now lives
+// inside the unified Open dialog (openImageModal) rather than its own modal, so these
+// blank ids render there; the triggers (idle canvas + projects footer) still exist.
 import { layout } from '../js/ui/layout.js';
 
 const markup = layout();
 const count = needle => markup.split(needle).length - 1;
 
 const NEW_IDS = [
-  'idle-create-wrap', 'create-blank-btn', 'blank-image-modal-overlay', 'blank-image-close',
+  'idle-create-wrap', 'create-blank-btn',
   'blank-image-white', 'blank-image-black', 'blank-image-color', 'blank-image-width',
   'blank-image-height', 'blank-image-create', 'projects-blank-image',
 ];

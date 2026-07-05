@@ -53,6 +53,10 @@ const arrayBufferToBase64 = (buf) => {
  */
 export const fetchAsDataUrl = async (url) => {
   if (url.startsWith('data:')) return url;
+  // Scheme allowlist: the extension's host_permissions let fetch() reach ANY URL and
+  // bypass CORS, so a page-supplied `file:`, `ftp:`, `chrome:` etc. must be refused —
+  // only http(s)/blob image URLs are fetched. Mirrors the browser app's deep-link allowlist.
+  if (!/^(https?|blob):/i.test(url)) throw new Error('unsupported URL scheme');
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const type = resp.headers.get('content-type') || guessMime(url);

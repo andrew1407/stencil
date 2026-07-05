@@ -85,6 +85,37 @@ TEST_CASE("wrong variable name is rejected") {
   CHECK_FALSE(fp.evaluate("y", 'x', 1).has_value());
 }
 
+// Security/robustness: untrusted input must never crash or hang the parser.
+TEST_CASE("deeply nested parens are invalid (identity), not a stack overflow") {
+  // Far past the recursion cap: this used to overflow the stack; now it's invalid.
+  const std::string deep(200000, '(');
+  CHECK_FALSE(fp.validate(deep, 'x'));
+  CHECK_FALSE(fp.evaluate(deep, 'x', 1).has_value());
+  // A balanced but very deeply nested expression is likewise rejected as invalid,
+  // and apply() falls back to the identity value rather than misbehaving.
+  const std::string balanced = std::string(5000, '(') + "x" + std::string(5000, ')');
+  CHECK_FALSE(fp.validate(balanced, 'x'));
+  CHECK(fp.apply(balanced, 'x', 42.0, true) == doctest::Approx(42.0));
+  // A long unary-sign chain recurses through parseUnary — also capped.
+  CHECK_FALSE(fp.validate(std::string(200000, '-') + "x", 'x'));
+}
+
+TEST_CASE("a long flat expression stays linear and valid") {
+  // No nesting -> handled by the iterative +/* loops, not recursion. Must succeed.
+  std::string flat = "0";
+  for (int i = 0; i < 20000; ++i) flat += "+1";
+  const auto v = fp.evaluate(flat, 'x', 0.0);
+  REQUIRE(v.has_value());
+  CHECK(*v == doctest::Approx(20000.0));
+}
+
+TEST_CASE("numeric overflow yields invalid (identity), matching the finite contract") {
+  CHECK_FALSE(fp.evaluate("9e999", 'x', 0).has_value());        // std::stod out_of_range
+  CHECK_FALSE(fp.evaluate("1e308*1e308", 'x', 0).has_value());  // -> +inf
+  CHECK_FALSE(fp.evaluate("2**2**2**2**2", 'x', 0).has_value()); // 2^65536 -> inf
+  CHECK(fp.apply("1e308*1e308", 'x', 7.0, true) == doctest::Approx(7.0));
+}
+
 // S11 parity: the browser examples used in the page-coord composition
 // (drawingApp.js validateAndApplyFormulas / pixelToPageCoords).
 TEST_CASE("S11 parity: x+9 shifts x by 9") {

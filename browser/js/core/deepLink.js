@@ -110,7 +110,17 @@ export const buildDesktopBounceUrl = (browserBase, stencilUrl) =>
 export const normalizeLaunchPayload = (payload) => {
   if (!payload || typeof payload !== 'object') return null;
   const str = (v) => (typeof v === 'string' && v ? v : null);
-  const obj = (v) => (v && typeof v === 'object' ? v : null);
+  // Shallow-clone an object sub-payload onto a fresh plain object, dropping
+  // prototype-pollution keys (__proto__/constructor/prototype) at the door — a
+  // downstream Object.assign/[[Set]] of them would otherwise pollute Object.prototype.
+  const obj = (v) => {
+    if (!v || typeof v !== 'object') return null;
+    const clean = {};
+    for (const k of Object.keys(v)) {
+      if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') clean[k] = v[k];
+    }
+    return clean;
+  };
   const common = {
     name: str(payload.name),
     crop: obj(payload.crop),

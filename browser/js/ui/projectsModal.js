@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
 import { wireNameEditor, notify } from '../utils.js';
 import { icon } from './icons.js';
 
@@ -396,7 +396,7 @@ export class StencilProjectsModal extends StencilElement {
         if (serverLinked) {
           const badge = document.createElement('span');
           badge.className = 'project-remote-badge';
-          badge.innerHTML = `${icon('server', { size: 12 })}<span>${meta.address}</span>`;
+          badge.innerHTML = `${icon('server', { size: 12 })}<span>${escapeHtml(meta.address)}</span>`;
           sub.appendChild(badge);
         }
       }
@@ -612,7 +612,7 @@ export class StencilProjectsModal extends StencilElement {
       }
       const badge = document.createElement('span');
       badge.className = 'project-remote-badge';
-      badge.innerHTML = `${icon('server', { size: 12 })}<span>${meta.serverUrl}</span>`;
+      badge.innerHTML = `${icon('server', { size: 12 })}<span>${escapeHtml(meta.serverUrl)}</span>`;
       sub.appendChild(badge);
       info.append(name, sub);
       row.appendChild(info);

@@ -226,7 +226,7 @@ func TestProjectLifecycleHTTP(t *testing.T) {
 	tok := issueToken(t, api, "")
 
 	// Create.
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Demo","source":"http://x/a.png"}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Demo","source":"http://x/a.png","hasImage":true}`))
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create: code %d body %s", rec.Code, rec.Body.String())
 	}
@@ -285,7 +285,7 @@ func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc()})
 	tok := issueToken(t, api, "")
 
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed"}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
 	var p protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &p)
 
@@ -311,7 +311,7 @@ func TestProjectExpiryHTTP(t *testing.T) {
 	tok := issueToken(t, api, "")
 
 	// Explicit create-time expiry is carried through.
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Temp","expiresAt":5000}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Temp","expiresAt":5000,"hasImage":true}`))
 	var created protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &created)
 	if created.ExpiresAt != 5000 {
@@ -343,7 +343,7 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 	tok := issueToken(t, api, "")
 
 	// No expiry in the body → stamped now + 1h (a large positive value).
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Auto"}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Auto","hasImage":true}`))
 	var auto protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &auto)
 	if auto.ExpiresAt <= nowMs() {
@@ -351,7 +351,7 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 	}
 
 	// An explicit expiry is respected (not overwritten by the default).
-	rec = do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Pinned","expiresAt":42}`))
+	rec = do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Pinned","expiresAt":42,"hasImage":true}`))
 	var pinned protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &pinned)
 	if pinned.ExpiresAt != 42 {
@@ -367,7 +367,7 @@ func TestProjectColorHTTP(t *testing.T) {
 	tok := issueToken(t, api, "")
 
 	// Create carries the color through.
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Tinted","color":"#ff8800"}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Tinted","color":"#ff8800","hasImage":true}`))
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create: code %d body %s", rec.Code, rec.Body.String())
 	}
@@ -405,7 +405,7 @@ func TestProjectColorHTTP(t *testing.T) {
 func TestFileUploadDownload(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Img"}`))
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Img","hasImage":true}`))
 	var p protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &p)
 
@@ -432,6 +432,133 @@ func TestFileUploadDownload(t *testing.T) {
 	// Bad kind rejected.
 	if rec := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/secret?ext=png", tok, png); rec.Code != http.StatusBadRequest {
 		t.Fatalf("bad kind should 400, got %d", rec.Code)
+	}
+}
+
+// fakeCounter is a stand-in for the hub's live-connection count.
+type fakeCounter struct{ n int }
+
+func (f fakeCounter) ConnectionCount(string) int { return f.n }
+
+// deleteGuardAPI wires the API with a fixed live-connection count for the delete guard.
+func deleteGuardAPI(t *testing.T, connections int) (*API, *fakeStore) {
+	t.Helper()
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := newFakeStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), LiveSessions: fakeCounter{connections}})
+	return api, st
+}
+
+// TestDeleteRefusedWhileMultipleClientsConnected pins the delete rule: a project is a
+// shared workspace (anyone may list/read/edit), and deletion is refused (409) while two
+// or more clients are in its live edit session, so a peer can't delete it out from under
+// the others.
+func TestDeleteRefusedWhileMultipleClientsConnected(t *testing.T) {
+	api, _ := deleteGuardAPI(t, 2) // two clients connected
+	tok := issueToken(t, api, "")
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Busy","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	if r := do(t, api, http.MethodDelete, "/projects/"+p.ID, tok, nil); r.Code != http.StatusConflict {
+		t.Fatalf("delete with 2 live clients should 409, got %d", r.Code)
+	}
+	// The project survives the refused delete.
+	if r := do(t, api, http.MethodGet, "/projects/"+p.ID, tok, nil); r.Code != http.StatusOK {
+		t.Fatalf("project should survive a refused delete, got %d", r.Code)
+	}
+}
+
+// TestDeleteAllowedWithAtMostOneClient: with 0 or 1 live connections, the lone editor
+// (or nobody) may delete the project.
+func TestDeleteAllowedWithAtMostOneClient(t *testing.T) {
+	for _, conns := range []int{0, 1} {
+		api, _ := deleteGuardAPI(t, conns)
+		tok := issueToken(t, api, "")
+		rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Solo","hasImage":true}`))
+		var p protocol.ProjectRecord
+		json.Unmarshal(rec.Body.Bytes(), &p)
+		if r := do(t, api, http.MethodDelete, "/projects/"+p.ID, tok, nil); r.Code != http.StatusNoContent {
+			t.Fatalf("delete with %d live clients should 204, got %d", conns, r.Code)
+		}
+	}
+}
+
+// TestAnyClientCanReadEditList confirms the shared-workspace contract: a second,
+// distinct token can list, read, and edit a project created by another token.
+func TestAnyClientCanReadEditList(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tokA := issueToken(t, api, "")
+	tokB := issueToken(t, api, "") // a different session/token
+
+	rec := do(t, api, http.MethodPost, "/projects", tokA, []byte(`{"name":"Shared","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	if r := do(t, api, http.MethodGet, "/projects/"+p.ID, tokB, nil); r.Code != http.StatusOK {
+		t.Fatalf("any client should read a shared project, got %d", r.Code)
+	}
+	if r := do(t, api, http.MethodPut, "/projects/"+p.ID, tokB, []byte(`{"version":0,"name":"Edited"}`)); r.Code != http.StatusOK {
+		t.Fatalf("any client should edit a shared project, got %d", r.Code)
+	}
+	lr := do(t, api, http.MethodGet, "/projects", tokB, nil)
+	var list protocol.ProjectListResponse
+	json.Unmarshal(lr.Body.Bytes(), &list)
+	if len(list.Projects) != 1 || list.Projects[0].ID != p.ID {
+		t.Fatalf("any client should see the shared project in the list, got %+v", list.Projects)
+	}
+}
+
+// TestEmptyAdminTokenAllowsOpenIssuance pins the documented deployment foot-gun:
+// with no ADMIN_TOKEN configured, POST /auth/token is open (unauthenticated). This
+// makes that contract explicit so a future change can't silently flip it.
+func TestEmptyAdminTokenAllowsOpenIssuance(t *testing.T) {
+	api, _ := testAPI(t, "") // no admin token
+	rec := do(t, api, http.MethodPost, "/auth/token", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("open issuance should 200 without any token, got %d", rec.Code)
+	}
+}
+
+// TestAdminTokenNotUsableAsBearer: the admin token gates issuance but is not itself
+// a session — presenting it as a Bearer on a protected route must be rejected (401).
+func TestAdminTokenNotUsableAsBearer(t *testing.T) {
+	const admin = "secret-admin"
+	api, _ := testAPI(t, admin)
+	if rec := do(t, api, http.MethodGet, "/projects", admin, nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("admin token used as a session bearer should 401, got %d", rec.Code)
+	}
+	// A real issued token still works.
+	tok := issueToken(t, api, admin)
+	if rec := do(t, api, http.MethodGet, "/projects", tok, nil); rec.Code != http.StatusOK {
+		t.Fatalf("issued token should 200, got %d", rec.Code)
+	}
+}
+
+// TestCreateRejectsImagelessProject pins the domain rule: a project is created FROM an
+// image, so a create request that doesn't declare one (HasImage=false) is refused (400)
+// and no project row comes into being. A create that declares an image succeeds.
+func TestCreateRejectsImagelessProject(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tok := issueToken(t, api, "")
+
+	// Bare metadata, no image → rejected, and nothing is listed.
+	if rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"NoImage"}`)); rec.Code != http.StatusBadRequest {
+		t.Fatalf("imageless create should 400, got %d", rec.Code)
+	}
+	lr := do(t, api, http.MethodGet, "/projects", tok, nil)
+	var list protocol.ProjectListResponse
+	json.Unmarshal(lr.Body.Bytes(), &list)
+	if len(list.Projects) != 0 {
+		t.Fatalf("a rejected imageless create must leave no project, got %+v", list.Projects)
+	}
+
+	// An image-backed create (as every real client sends) still succeeds.
+	if rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"WithImage","hasImage":true}`)); rec.Code != http.StatusCreated {
+		t.Fatalf("image-backed create should 201, got %d", rec.Code)
 	}
 }
 

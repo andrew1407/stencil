@@ -29,10 +29,13 @@ type Store interface {
 }
 
 const (
-	helloTimeout = 10 * time.Second
-	outBuffer    = 256
-	opTimeout    = 5 * time.Second
+	outBuffer = 256
+	opTimeout = 5 * time.Second
 )
+
+// helloTimeout bounds how long a fresh connection may take to send its hello
+// frame. A var (not const) so tests can shorten it.
+var helloTimeout = 10 * time.Second
 
 var nowMs = func() int64 { return time.Now().UnixMilli() }
 
@@ -144,6 +147,18 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 	return h.serveProject(ctx, conn, hello)
 }
 
+// ConnectionCount returns how many clients are currently in project id's live edit
+// session (0 when none). It reads the session refcount under the hub lock, so it is
+// safe to call from the REST delete handler.
+func (h *Hub) ConnectionCount(projectID string) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if s := h.sessions[projectID]; s != nil {
+		return s.refs
+	}
+	return 0
+}
+
 // serveProject registers the connection as a member of a project session and
 // pumps frames until it disconnects.
 func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) error {
@@ -160,7 +175,6 @@ func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello proto
 	go m.writeLoop(ctx, writerDone)
 
 	s.register <- m
-	defer func() { s.unregister <- m }()
 
 	for {
 		raw, err := conn.Read(ctx)
@@ -180,6 +194,14 @@ func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello proto
 		}
 	}
 	_ = conn.Close(transport.CloseNormal, "bye")
+	// Unregister BEFORE waiting on the writer: the run-loop's unregister handler is
+	// what closes m.out, which is what lets writeLoop (and thus writerDone) finish.
+	// Waiting first would deadlock a member whose out channel is idle at disconnect.
+	// If the session is already tearing down (s.done), run() closes m.out itself.
+	select {
+	case s.unregister <- m:
+	case <-s.done:
+	}
 	<-writerDone
 	return nil
 }

@@ -25,6 +25,10 @@ from typing import Any, Callable, Iterable, Optional, Union
 # only as documentation here; normalize_url keeps whatever port the caller gave.
 DEFAULT_PORT = 8090
 
+# Bound every REST call so a hostile/slow/hung server can't block the caller
+# indefinitely (seconds).
+_REQUEST_TIMEOUT = 30.0
+
 
 def is_loopback_host(host: Optional[str]) -> bool:
     """True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where
@@ -207,7 +211,7 @@ class ServerConnection:
         (file downloads), or None for empty/204 responses.
         """
         try:
-            resp = urllib.request.urlopen(req, context=self._ssl_ctx)
+            resp = urllib.request.urlopen(req, context=self._ssl_ctx, timeout=_REQUEST_TIMEOUT)
         except urllib.error.HTTPError as e:
             raise self._error_from(e) from None
         with resp:

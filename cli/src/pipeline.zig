@@ -419,6 +419,13 @@ const Resolved = struct { path: []u8, fmt: image.Format };
 // A recognised extension selects the format; otherwise fall back to `fallback` and
 // append its extension (so `out` becomes `out.png`, `result` -> `result.jpg`, etc.).
 fn resolveOutput(gpa: std.mem.Allocator, out: []const u8, fallback: image.Format) !Resolved {
+    // Refuse an output path that climbs above the working directory. Direct users
+    // still write anywhere they name (absolute paths, subdirs); this only blocks the
+    // ".." traversal that a caller/adapter forwarding an untrusted name shouldn't do.
+    if (hasParentTraversal(out)) {
+        logo.print("error: refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
+        return error.UnsafeOutputPath;
+    }
     if (extOf(out)) |e| {
         if (image.formatFromExt(e)) |f| return .{ .path = try gpa.dupe(u8, out), .fmt = f };
     }
@@ -432,4 +439,33 @@ fn extOf(path: []const u8) ?[]const u8 {
     if (slash) |s| if (dot < s) return null; // the dot is in a directory name
     if (dot + 1 >= path.len) return null;
     return path[dot + 1 ..];
+}
+
+/// True when `path` has a ".." component (on either separator) that could climb
+/// above the working directory.
+fn hasParentTraversal(path: []const u8) bool {
+    var it = std.mem.splitAny(u8, path, "/\\");
+    while (it.next()) |seg| {
+        if (std.mem.eql(u8, seg, "..")) return true;
+    }
+    return false;
+}
+
+const testing = std.testing;
+
+test "resolveOutput rejects parent-directory traversal" {
+    const gpa = testing.allocator;
+    try testing.expectError(error.UnsafeOutputPath, resolveOutput(gpa, "../../etc/evil.png", image.Format.png));
+    try testing.expectError(error.UnsafeOutputPath, resolveOutput(gpa, "sub/../../out.png", image.Format.png));
+    // A normal relative name is accepted and keeps its extension.
+    const ok = try resolveOutput(gpa, "out.png", image.Format.png);
+    defer gpa.free(ok.path);
+    try testing.expectEqualStrings("out.png", ok.path);
+}
+
+test "loadSource rejects foreign URL schemes before any IO" {
+    const gpa = testing.allocator;
+    // hasForeignScheme rejects these up front, so `io` is never touched.
+    try testing.expectError(error.UnsupportedScheme, loadSource(gpa, undefined, "file:///etc/passwd.mp4", 0));
+    try testing.expectError(error.UnsupportedScheme, loadSource(gpa, undefined, "ftp://host/clip.png", 0));
 }
