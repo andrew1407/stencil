@@ -16,14 +16,13 @@ import { SettingsController } from './settingsController.js';
 import { AccentController } from './accentController.js';
 import { ImageModel } from './imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
+import { InputController } from './inputController.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
-import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
-import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect } from '../ui/customSelect.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
@@ -51,25 +50,17 @@ export class DrawingApp {
   #panLastX = 0;
   #panLastY = 0;
   // Point/segment/line drag state
-  #draggingPoint = null;
-  #dragJustEnded = false;
-  #draggingSegment = null;
+  draggingPoint = null;
+  dragJustEnded = false;
+  draggingSegment = null;
   #draggingLine = null;
   // Continuation drawing
-  #continueLineIdx = -1;
-  #continueInsertIdx = -1;
+  continueLineIdx = -1;
+  continueInsertIdx = -1;
   #rectConnectOnce = false;
-  // Hold-to-draw gesture (alternative drawing flow; see ./holdDraw.js)
-  #holdDraw = null;
-  #holdTickTimer = null;
-  // Touchscreen input layer (see ./touchGestures.js + #wireTouch). #touch holds
-  // the live single/two-finger gesture state; null between gestures.
-  #touch = null;
-  #longPressTimer = null;
-  #holdAutoEnabled = false;
-  // True while a hold stroke extends a line BACKWARD from its first point: new
-  // points are prepended (inserted at index 0) so the line grows from its start.
-  #holdPrepend = false;
+  // Touch + hold-to-draw gesture state lives in InputController (inputController.js), as
+  // this.input. The two drawing-continuation fields (continueLineIdx/InsertIdx above) and the
+  // drag helpers are public because that controller + the mouse pan/drag path both use them.
   // Topbar project-name editor controller ({ refresh }), wired in #wireToolbarButtons.
   #nameEditor = null;
   // True while the topbar name is in inline-edit mode (input unlocked, ✓/✗ shown).
@@ -122,13 +113,13 @@ export class DrawingApp {
     this.#panLastY = 0;
 
     // Point drag state (Alt+hover+drag on point)
-    this.#draggingPoint = null; // { lineIdx, ptIdx, point }
+    this.draggingPoint = null; // { lineIdx, ptIdx, point }
     this.isDraggingPoint = false;
-    this.#dragJustEnded = false;
+    this.dragJustEnded = false;
 
     // Segment drag state (Alt+drag on a line segment between two points)
     this.isDraggingSegment = false;
-    this.#draggingSegment = null; // { lineIdx, ptIdx1, ptIdx2, startX, startY, origPt1, origPt2 }
+    this.draggingSegment = null; // { lineIdx, ptIdx1, ptIdx2, startX, startY, origPt1, origPt2 }
 
     // Whole-line drag state (Alt+Shift+drag on any part of a line)
     this.isDraggingLine = false;
@@ -185,8 +176,8 @@ export class DrawingApp {
     this.#rectConnectOnce = false; // one-shot: connect next rect to selection
     // Continuation drawing: Start with a line selected → new points/rects extend that
     // line (connecting to its last/focused point) and inherit its style. -1 = fresh line.
-    this.#continueLineIdx = -1;
-    this.#continueInsertIdx = -1;
+    this.continueLineIdx = -1;
+    this.continueInsertIdx = -1;
 
     // ── Hover tracking (for hover ring on any point, Ctrl/Shift tooltip refresh) ──
     this.hoverPt = null;          // { lineIdx, ptIdx } currently hovered on canvas
@@ -241,6 +232,8 @@ export class DrawingApp {
     this.imageModel = new ImageModel(this);
     // Live co-edit push/pull + server writes (see remoteSyncController.js).
     this.remoteSync = new RemoteSyncController(this);
+    // Touch + hold-to-draw alternative input (see inputController.js). Wired in initEventListeners.
+    this.input = new InputController(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -298,8 +291,8 @@ export class DrawingApp {
     this.#wireCanvasPointer();
     this.#wireSmoothZoom();
     this.#wirePanDrag();
-    this.#wireHoldDraw();
-    this.#wireTouch();
+    this.input.wireHoldDraw();
+    this.input.wireTouch();
   }
 
   #wireStyleControls() {
@@ -743,9 +736,9 @@ export class DrawingApp {
       this.tooltipMgr.refresh(mods);
       // Live-switch an active segment/line drag the instant Shift is pressed or
       // released, even if the mouse is held still.
-      if ((this.isDraggingSegment && this.#draggingSegment) ||
+      if ((this.isDraggingSegment && this.draggingSegment) ||
           (this.isDraggingLine && this.#draggingLine)) {
-        this.#dragMove(this.lastMouseClientX, this.lastMouseClientY, mods.shiftKey);
+        this.dragMove(this.lastMouseClientX, this.lastMouseClientY, mods.shiftKey);
       }
       if (this.mouseOverCanvas && !this.isZoomRectDragging && !this.isPanning &&
         !this.isDraggingPoint && !this.isDraggingSegment && !this.isDraggingLine) {
@@ -1024,7 +1017,7 @@ export class DrawingApp {
           const line = this.lines[lineIdx];
           // Record the grabbed segment too, so releasing Shift mid-drag can
           // drop down to moving just that segment (live modifier switching).
-          const seg = this.#findNearestSegmentWithIdx(x, y);
+          const seg = this.findNearestSegmentWithIdx(x, y);
           this.isDraggingLine = true;
           this.#draggingLine = {
             lineIdx,
@@ -1060,19 +1053,19 @@ export class DrawingApp {
       if (isAltLeft) {
         const { x, y } = this.canvasCoords(e.clientX, e.clientY);
         // Priority 1: near a point → drag the point
-        const nearPt = this.#findNearestPointWithIdx(x, y);
+        const nearPt = this.findNearestPointWithIdx(x, y);
         if (nearPt) {
           e.preventDefault();
           this.isDraggingPoint = true;
-          this.#draggingPoint = nearPt;
+          this.draggingPoint = nearPt;
           this.canvas.style.cursor = 'move';
           return;
         }
         // Priority 2: near a segment → drag that segment
-        const nearSeg = this.#findNearestSegmentWithIdx(x, y);
+        const nearSeg = this.findNearestSegmentWithIdx(x, y);
         if (nearSeg) {
           e.preventDefault();
-          this.#beginSegmentDrag(nearSeg, x, y);
+          this.beginSegmentDrag(nearSeg, x, y);
           this.canvas.style.cursor = 'move';
           return;
         }
@@ -1110,18 +1103,18 @@ export class DrawingApp {
       }
 
       // Handle point drag
-      if (this.isDraggingPoint && this.#draggingPoint) {
+      if (this.isDraggingPoint && this.draggingPoint) {
         const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        this.#movePointTo(this.#draggingPoint, x, y);
+        this.movePointTo(this.draggingPoint, x, y);
         return;
       }
 
       // Segment / whole-line drag. Shift is read per-event so pressing or
       // releasing it mid-drag switches live between moving just the grabbed
       // segment and translating the whole line shape — no need to restart.
-      if ((this.isDraggingSegment && this.#draggingSegment) ||
+      if ((this.isDraggingSegment && this.draggingSegment) ||
           (this.isDraggingLine && this.#draggingLine)) {
-        this.#dragMove(e.clientX, e.clientY, e.shiftKey);
+        this.dragMove(e.clientX, e.clientY, e.shiftKey);
         return;
       }
       if (!this.isPanning) return;
@@ -1151,8 +1144,8 @@ export class DrawingApp {
         }
         // Stay in rect-drawing mode so multiple rects can be drawn;
         // suppress the trailing click so it isn't treated as a point.
-        this.#dragJustEnded = true;
-        setTimeout(() => { this.#dragJustEnded = false; }, 50);
+        this.dragJustEnded = true;
+        setTimeout(() => { this.dragJustEnded = false; }, 50);
         return;
       }
 
@@ -1201,13 +1194,13 @@ export class DrawingApp {
 
       // Finish point drag
       if (this.isDraggingPoint) {
-        this.#endPointDrag(this.#draggingPoint, e.altKey);
+        this.endPointDrag(this.draggingPoint, e.altKey);
         return;
       }
 
       // Finish segment drag
       if (this.isDraggingSegment) {
-        this.#endSegmentDrag(e.altKey);
+        this.endSegmentDrag(e.altKey);
         return;
       }
 
@@ -1243,392 +1236,12 @@ export class DrawingApp {
     viewport.addEventListener('dblclick', resetZoom);
   }
 
-  // ── Hold-to-draw: an alternative drawing flow ──────────────────
-  // A near-stationary plain-left press-and-hold auto-enters drawing and drops the
-  // first point; dwelling drops more; releasing commits and exits drawing again.
-  // The pure HoldDrawController (./holdDraw.js) decides timing/transitions; this
-  // wiring owns the DOM timers, coordinate conversion and rendering. Engaged only
-  // when NOT already drawing, so the existing click-to-draw flow is untouched.
-  #wireHoldDraw() {
-    const ctrl = this.#holdDraw = new HoldDrawController({ holdDelay: this.holdDrawDelay });
-
-    const onDown = e => {
-      if (e.button !== 0 || e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
-      this.#holdTryDown(e.clientX, e.clientY);
-    };
-    this.canvas.addEventListener('mousedown', onDown);
-
-    document.addEventListener('mousemove', e => {
-      if (!ctrl.engaged) return;
-      const r = ctrl.pointerMove(e.clientX, e.clientY, this.#now());
-      if (!r) return;
-      if (r.type === 'abort') { this.#stopHoldTicks(); ctrl.cancel(); return; }
-      if (r.type === 'preview') this.#holdSetPreview(e.clientX, e.clientY);
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (ctrl.state === 'idle') return;
-      const r = ctrl.pointerUp(this.#now());
-      this.#stopHoldTicks();
-      if (r && r.type === 'commit') this.#holdCommit();
-      else this.#holdClearPreview();
-    });
-
-    // Drop the gesture if focus leaves the window mid-hold.
-    window.addEventListener('blur', () => { this.#stopHoldTicks(); ctrl.cancel(); this.#holdClearPreview(); });
-  }
-
-  // Monotonic clock for gesture timing (falls back to Date in old environments).
-  #now() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()); }
-  #stopHoldTicks() { if (this.#holdTickTimer) { clearInterval(this.#holdTickTimer); this.#holdTickTimer = null; } }
-  #startHoldTicks() { if (!this.#holdTickTimer) this.#holdTickTimer = setInterval(() => this.#holdTick(this.#now()), 40); }
-
-  // Arm hold-to-draw at a press point, if eligible. Shared by mouse (#wireHoldDraw)
-  // and touch (#wireTouch); the caller has already filtered out modified presses.
-  // Returns true if the hold gesture was armed.
-  #holdTryDown(clientX, clientY) {
-    if (!this.image) return false;
-    // Only the auto-mode: manual line/rect drawing keeps its click behavior.
-    if (this.isDrawing) return false;
-    // Never start over another active gesture (pan / drag / zoom / rect).
-    if (this.isPanning || this.isDraggingPoint || this.isDraggingSegment ||
-        this.isDraggingLine || this.isZoomRectDragging || this.isRectDrawDragging) return false;
-    this.#holdDraw.setHoldDelay(this.holdDrawDelay);
-    this.#holdDraw.pointerDown(clientX, clientY, this.#now());
-    this.#startHoldTicks();
-    return true;
-  }
-
-  // ── Touchscreen input (direct manipulation + two-finger) ───────
-  // Touch-only layer; preventDefault() suppresses the synthetic mouse/click so it
-  // can't collide with the mouse handlers above. Gesture map:
-  //   1 finger on a point   → drag that point      (no Alt needed)
-  //   1 finger on a segment → drag that segment
-  //   1 finger held still on geometry → context menu (mirrors right-click there)
-  //   1 finger on empty: tap → place a point; press-and-hold → hold-to-draw
-  //   2 fingers → pan + pinch-zoom (focal = the midpoint between the fingers)
-  #wireTouch() {
-    const viewport = document.getElementById('canvas-viewport');
-    const moveTol = TOUCH_DEFAULTS.moveTol;
-
-    const findTouch = (touches, id) => {
-      for (let i = 0; i < touches.length; i++) if (touches[i].identifier === id) return touches[i];
-      return null;
-    };
-    // Pinch DOM writes are coalesced into one rAF (like #wireSmoothZoom) so a flood of
-    // touchmoves doesn't thrash layout: onMove just stashes the latest scale+midpoint.
-    const applyPinch = () => {
-      const st = this.#touch;
-      if (!st || st.mode !== 'pinch' || !st.pending) { if (st) st.raf = null; return; }
-      const { scale, midX, midY } = st.pending;
-      st.pending = null;
-      st.raf = null;
-      this.scale = scale;
-      this.canvas.style.width = (this.canvas.width * scale) + 'px';
-      this.canvas.style.height = (this.canvas.height * scale) + 'px';
-      this.zoomPan.setZoomInputValue(Math.round(scale * 100));
-      // Keep the pinched-down image point pinned under the (moving) midpoint — pan + zoom
-      // together. vpLeft/vpTop are cached at pinch start (the viewport can't move mid-gesture).
-      viewport.scrollLeft = st.imgX * scale - (midX - st.vpLeft);
-      viewport.scrollTop = st.imgY * scale - (midY - st.vpTop);
-    };
-
-    const clearLongPress = () => {
-      if (this.#longPressTimer) { clearTimeout(this.#longPressTimer); this.#longPressTimer = null; }
-    };
-    // Abandon every single-finger gesture (used when a 2nd finger lands or on cancel).
-    const dropSingle = () => {
-      clearLongPress();
-      this.#stopHoldTicks();
-      if (this.#holdDraw.engaged) { this.#holdDraw.cancel(); this.#holdClearPreview(); }
-      this.isDraggingPoint = false; this.#draggingPoint = null;
-      this.isDraggingSegment = false; this.#draggingSegment = null;
-    };
-    // A stationary tap behaves exactly like a left mouse click: drops a point in
-    // empty space, or selects the line/point under the finger and opens its style
-    // panel (canvasClick handles both). Synthesise a modifier-free MouseEvent.
-    const tapClick = (e, st) => {
-      const ct = (e.changedTouches && e.changedTouches[0]) || st;
-      this.canvasClick({
-        clientX: ct.clientX ?? st.startX, clientY: ct.clientY ?? st.startY,
-        altKey: false, shiftKey: false, ctrlKey: false, metaKey: false,
-      });
-    };
-
-    // Long-press on grabbed geometry that never moved → open the context menu
-    // instead of leaving a no-op drag (empty-space holds belong to hold-to-draw).
-    const armGeometryLongPress = (t) => {
-      this.#longPressTimer = setTimeout(() => {
-        this.#longPressTimer = null;
-        if (!this.#touch || this.#touch.id !== t.identifier) return;
-        dropSingle();
-        this.#touch = { mode: 'done', id: t.identifier };
-        this.canvas.dispatchEvent(new MouseEvent('contextmenu',
-          { clientX: t.clientX, clientY: t.clientY, bubbles: true, cancelable: true }));
-      }, TOUCH_DEFAULTS.longPressMs);
-    };
-
-    const onStart = e => {
-      if (!this.image) return;
-
-      // Two fingers → pan + pinch. Abandon any in-flight single-finger gesture.
-      if (e.touches.length >= 2) {
-        e.preventDefault();
-        dropSingle();
-        const [a, b] = [e.touches[0], e.touches[1]];
-        const mid = midpoint(a, b);
-        const vpRect = viewport.getBoundingClientRect();
-        const contentX = mid.x - vpRect.left + viewport.scrollLeft;
-        const contentY = mid.y - vpRect.top + viewport.scrollTop;
-        this.canvas.classList.add('zoom-no-transition');
-        this.#touch = {
-          mode: 'pinch',
-          startDist: touchDist(a, b) || 1,
-          startScale: this.scale,
-          imgX: contentX / this.scale,
-          imgY: contentY / this.scale,
-          vpLeft: vpRect.left, vpTop: vpRect.top,   // viewport screen pos, fixed for the gesture
-          pending: null, raf: null,                 // latest frame awaiting applyPinch
-        };
-        return;
-      }
-      if (e.touches.length !== 1) return;
-      e.preventDefault();
-      const t = e.touches[0];
-      const { x, y } = this.canvasCoords(t.clientX, t.clientY);
-
-      // Direct manipulation: a finger landing on a point/segment grabs it.
-      const nearPt = this.#findNearestPointWithIdx(x, y);
-      if (nearPt) {
-        this.isDraggingPoint = true;
-        this.#draggingPoint = nearPt;
-        this.#touch = { mode: 'point', id: t.identifier, startX: t.clientX, startY: t.clientY };
-        armGeometryLongPress(t);
-        return;
-      }
-      const nearSeg = this.#findNearestSegmentWithIdx(x, y);
-      if (nearSeg) {
-        this.#beginSegmentDrag(nearSeg, x, y);
-        this.#touch = { mode: 'segment', id: t.identifier, startX: t.clientX, startY: t.clientY };
-        armGeometryLongPress(t);
-        return;
-      }
-
-      // Empty space: tap places a point, press-and-hold draws (hold-to-draw).
-      this.#touch = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, startT: this.#now() };
-      this.#holdTryDown(t.clientX, t.clientY);
-    };
-
-    const onMove = e => {
-      const st = this.#touch;
-      if (!st) return;
-
-      if (st.mode === 'pinch') {
-        if (e.touches.length < 2) return;
-        e.preventDefault();
-        const [a, b] = [e.touches[0], e.touches[1]];
-        const mid = midpoint(a, b);
-        const factor = touchDist(a, b) / st.startDist;
-        const newScale = Math.max(0.05, Math.min(5, st.startScale * factor));
-        st.pending = { scale: newScale, midX: mid.x, midY: mid.y };
-        if (!st.raf) st.raf = requestAnimationFrame(applyPinch);
-        return;
-      }
-
-      const t = findTouch(e.touches, st.id);
-      if (!t) return;
-      e.preventDefault();
-      const moved = Math.hypot(t.clientX - st.startX, t.clientY - st.startY);
-
-      if (st.mode === 'point') {
-        if (moved <= moveTol) return; // below threshold → still a tap; leave room for long-press
-        clearLongPress();
-        st.dragged = true;
-        const { x, y } = this.canvasCoords(t.clientX, t.clientY);
-        this.#movePointTo(this.#draggingPoint, x, y);
-        return;
-      }
-      if (st.mode === 'segment') {
-        if (moved <= moveTol) return;
-        clearLongPress();
-        st.dragged = true;
-        this.#dragMove(t.clientX, t.clientY, false);
-        return;
-      }
-      if (st.mode === 'tap') {
-        st.moved = Math.max(st.moved || 0, moved);
-        if (!this.#holdDraw.engaged) return;
-        const r = this.#holdDraw.pointerMove(t.clientX, t.clientY, this.#now());
-        if (!r) return;
-        if (r.type === 'abort') { this.#stopHoldTicks(); this.#holdDraw.cancel(); }
-        else if (r.type === 'preview') this.#holdSetPreview(t.clientX, t.clientY);
-      }
-    };
-
-    const onEnd = e => {
-      const st = this.#touch;
-      if (!st) return;
-
-      if (st.mode === 'pinch') {
-        // A finger lifted: settle the zoom; ignore the lone remaining finger until
-        // all fingers are up, so lifting one doesn't kick off a stray drag.
-        if (st.raf) { cancelAnimationFrame(st.raf); st.raf = null; }
-        if (st.pending) applyPinch();   // flush the last frame so we settle at the real pinch end
-        this.canvas.classList.remove('zoom-no-transition');
-        this.zoomPan.setZoom(this.scale, true);
-        this.#touch = e.touches.length === 0 ? null : { mode: 'done', id: -1 };
-        return;
-      }
-
-      if (e.touches.length > 0) return; // wait until the last finger lifts
-      clearLongPress();
-
-      if (st.mode === 'point') {
-        if (st.dragged) {
-          this.#endPointDrag(this.#draggingPoint, false);
-        } else {
-          // Tap (no drag) on a point → select its line + focus the point + open
-          // the style panel, exactly as a mouse click does.
-          this.isDraggingPoint = false;
-          this.#draggingPoint = null;
-          tapClick(e, st);
-        }
-      } else if (st.mode === 'segment') {
-        if (st.dragged) {
-          this.#endSegmentDrag(false);
-        } else {
-          // Tap (no drag) on a line → select it + open the style panel.
-          this.isDraggingSegment = false;
-          this.#draggingSegment = null;
-          tapClick(e, st);
-        }
-      } else if (st.mode === 'tap') {
-        const r = this.#holdDraw.pointerUp(this.#now());
-        this.#stopHoldTicks();
-        if (r && r.type === 'commit') {
-          this.#holdCommit();
-        } else {
-          this.#holdClearPreview();
-          // Not a hold stroke → a plain tap drops a point (like a left click).
-          const kind = classifyEnd({ moved: st.moved || 0, elapsed: this.#now() - st.startT });
-          if (kind === 'tap') tapClick(e, st);
-        }
-      }
-      this.#touch = null;
-    };
-
-    const onCancel = () => {
-      if (this.#touch && this.#touch.raf) cancelAnimationFrame(this.#touch.raf);
-      dropSingle();
-      this.#touch = null;
-    };
-
-    this.canvas.addEventListener('touchstart', onStart, { passive: false });
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('touchend', onEnd);
-    document.addEventListener('touchcancel', onCancel);
-  }
-
-  #holdTick(t) {
-    const r = this.#holdDraw.tick(t);
-    if (!r) return;
-    if (r.type === 'start') this.#holdStart(r.x, r.y);
-    else if (r.type === 'drop') this.#holdDrop(r.x, r.y);
-  }
-
-  // Hold completed → auto-enable drawing and seed the stroke. The target under
-  // the press point decides: existing point → continue that line from it;
-  // line body → insert a point on it then continue; empty → fresh line.
-  #holdStart(clientX, clientY) {
-    const { x, y } = this.canvasCoords(clientX, clientY);
-    this.#holdAutoEnabled = true;
-    const target = holdDrawTarget(this.lines, x, y);
-    this.#holdPrepend = false;
-    if (target.kind === 'point') {
-      this.selectedLineIdx = target.lineIdx;
-      this.coordLineIdx = target.lineIdx;
-      this.focusedPtIdx = target.ptIdx;
-      this.startDrawingMode({ connect: true });
-      // Holding the FIRST point extends the line backward: prepend new points
-      // before it (index 0) instead of inserting after it as the second point.
-      if (target.ptIdx === 0) { this.#holdPrepend = true; this.#continueInsertIdx = 0; }
-    } else if (target.kind === 'segment') {
-      // Insert the seed point on the existing line, then extend from it.
-      this.#insertPointOnSegment(target.lineIdx, target.ptIdx2, x, y);
-      this.startDrawingMode({ connect: true });
-    } else {
-      this.startDrawingMode({ connect: false });
-      if (this.currentLine) this.currentLine.points.push({ x, y });
-    }
-    this.#holdSetPreviewImg(x, y);
-    this.updateButtons();
-  }
-
-  // Dwell completed → drop a point (extends the in-progress / continued line).
-  #holdDrop(clientX, clientY) {
-    const { x, y } = this.canvasCoords(clientX, clientY);
-    if (this.#continueLineIdx >= 0 && this.lines[this.#continueLineIdx]) {
-      const line = this.lines[this.#continueLineIdx];
-      line.points.splice(this.#continueInsertIdx, 0, { x, y });
-      this.focusedPtIdx = this.#continueInsertIdx;
-      // Prepend mode keeps inserting at index 0 (each new point becomes the new
-      // head); forward mode advances the insert point so points keep appending.
-      if (!this.#holdPrepend) this.#continueInsertIdx++;
-      this.coordTable.update(line.points, this.#continueLineIdx);
-    } else if (this.currentLine) {
-      this.currentLine.points.push({ x, y });
-    }
-    this.#holdSetPreviewImg(x, y);
-    this.updateButtons();
-  }
-
-  // Release after a hold stroke → commit the line and disable drawing mode,
-  // then suppress the trailing synthetic click so it isn't read as a point/select.
-  #holdCommit() {
-    this.#holdClearPreview();
-    if (this.isDrawing) this.stopDrawingMode();
-    this.#holdAutoEnabled = false;
-    this.#holdPrepend = false;
-    this.#dragJustEnded = true;
-    setTimeout(() => { this.#dragJustEnded = false; }, 50);
-  }
-
-  #holdSetPreview(clientX, clientY) {
-    const { x, y } = this.canvasCoords(clientX, clientY);
-    this.#holdSetPreviewImg(x, y);
-  }
-  #holdSetPreviewImg(x, y) {
-    this.holdPreview = { x, y };
-    this.renderer.redraw();
-  }
-  #holdClearPreview() {
-    if (this.holdPreview) { this.holdPreview = null; this.renderer.redraw(); }
-  }
-
-  // The point a hold-draw preview line should emanate from: the last point of the
-  // in-progress line, or the current tail of the line being extended. null = none.
-  holdAnchorPoint() {
-    if (this.currentLine && this.currentLine.points.length)
-      return this.currentLine.points[this.currentLine.points.length - 1];
-    if (this.#continueLineIdx >= 0 && this.lines[this.#continueLineIdx]) {
-      const pts = this.lines[this.#continueLineIdx].points;
-      // Prepend: the next point connects to the current head (index 0); forward:
-      // it connects to the point just before the insertion tail.
-      if (this.#holdPrepend) return pts[this.#continueInsertIdx] ?? pts[0] ?? null;
-      return pts[this.#continueInsertIdx - 1] ?? pts[pts.length - 1] ?? null;
-    }
-    return null;
-  }
-
-  // Set the hold-to-draw dwell/hold delay (ms). Clamped to a sane range; persisted.
-  setHoldDrawDelay(ms, { persist = true } = {}) {
-    const n = Number(ms);
-    if (!Number.isFinite(n)) return this;
-    this.holdDrawDelay = Math.max(100, Math.min(3000, Math.round(n)));
-    if (this.#holdDraw) this.#holdDraw.setHoldDelay(this.holdDrawDelay);
-    if (persist) this.storage.save();
-    return this;
-  }
+  // Touch + hold-to-draw input lives in InputController (inputController.js), invoked from
+  // initEventListeners as this.input.wireHoldDraw()/wireTouch(). These delegators keep the
+  // public names the renderer (holdAnchorPoint) and the visuals modal / storage / window.stencil
+  // facade (setHoldDrawDelay) call.
+  holdAnchorPoint() { return this.input.holdAnchorPoint(); }
+  setHoldDrawDelay(ms, opts) { this.input.setHoldDrawDelay(ms, opts); return this; }
 
   // Convert a viewport client point to canvas CSS offset and image-space coords.
   canvasCoords(clientX, clientY) {
@@ -2052,9 +1665,9 @@ export class DrawingApp {
     // Continuation: a line is selected → connect the new drawing to it and
     // adopt its style (new points/rects become part of the selected line).
     if (opts.connect !== false && this.selectedLineIdx >= 0 && this.lines[this.selectedLineIdx]) {
-      this.#continueLineIdx = this.selectedLineIdx;
-      const line = this.lines[this.#continueLineIdx];
-      this.#continueInsertIdx = resolveInsertIdx(line, {
+      this.continueLineIdx = this.selectedLineIdx;
+      const line = this.lines[this.continueLineIdx];
+      this.continueInsertIdx = resolveInsertIdx(line, {
         coordLineIdx: this.coordLineIdx,
         selectedLineIdx: this.selectedLineIdx,
         focusedPtIdx: this.focusedPtIdx
@@ -2063,16 +1676,16 @@ export class DrawingApp {
       this.undonePoints = [];
       document.getElementById('start-drawing').classList.add('active');
       document.getElementById('stop-drawing').disabled = false;
-      this.coordLineIdx = this.#continueLineIdx;
-      this.coordTable.update(line.points, this.#continueLineIdx);
+      this.coordLineIdx = this.continueLineIdx;
+      this.coordTable.update(line.points, this.continueLineIdx);
       this.updateButtons();
       this.renderer.redraw();
       notify('Continuing selected line — new points connect to it', 'info');
       return;
     }
 
-    this.#continueLineIdx = -1;
-    this.#continueInsertIdx = -1;
+    this.continueLineIdx = -1;
+    this.continueInsertIdx = -1;
     this.currentLine = {
       points: [],
       color: this.color,
@@ -2114,10 +1727,10 @@ export class DrawingApp {
 
   stopDrawingMode() {
     // Continuation drawing: the line is already in this.lines — just commit & reset
-    if (this.#continueLineIdx >= 0) {
-      const li = this.#continueLineIdx;
-      this.#continueLineIdx = -1;
-      this.#continueInsertIdx = -1;
+    if (this.continueLineIdx >= 0) {
+      const li = this.continueLineIdx;
+      this.continueLineIdx = -1;
+      this.continueInsertIdx = -1;
       this.currentLine = null;
       this.isDrawing = false;
       document.getElementById('start-drawing').classList.remove('active');
@@ -2154,7 +1767,7 @@ export class DrawingApp {
     // Ignore click that ended a pan gesture or point drag
     if (e.altKey) return;
     if (e.shiftKey) return; // Shift+drag is for zoom-area rect
-    if (this.#dragJustEnded) return;
+    if (this.dragJustEnded) return;
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
 
     if (this.isDrawing) {
@@ -2164,30 +1777,30 @@ export class DrawingApp {
       // that segment's two endpoints (same as Ctrl+click outside drawing mode),
       // instead of appending it at the line's tail with a connecting segment.
       if (e.ctrlKey || e.metaKey) {
-        const nearSeg = this.#findNearestSegmentWithIdx(x, y);
+        const nearSeg = this.findNearestSegmentWithIdx(x, y);
         if (nearSeg) {
-          this.#insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
+          this.insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
           // Inserting shifts later indices right by one; keep the continuation
           // tail anchored to the same logical spot on the line we're extending.
-          if (nearSeg.lineIdx === this.#continueLineIdx && nearSeg.ptIdx2 <= this.#continueInsertIdx)
-            this.#continueInsertIdx++;
+          if (nearSeg.lineIdx === this.continueLineIdx && nearSeg.ptIdx2 <= this.continueInsertIdx)
+            this.continueInsertIdx++;
           return;
         }
         // No segment under the cursor → fall through to normal drawing behavior.
       }
 
       // Continuation drawing: extend the selected line at the insert point
-      if (this.#continueLineIdx >= 0 && this.lines[this.#continueLineIdx]) {
-        const line = this.lines[this.#continueLineIdx];
+      if (this.continueLineIdx >= 0 && this.lines[this.continueLineIdx]) {
+        const line = this.lines[this.continueLineIdx];
         // Click near the first point closes it into a locked area
         if (this.#shouldCloseShape(line.points, x, y, line.markerSize ?? this.markerSize)) {
           this.#closeContinuedShape();
           return;
         }
-        line.points.splice(this.#continueInsertIdx, 0, { x, y });
-        this.focusedPtIdx = this.#continueInsertIdx;
-        this.#continueInsertIdx++;
-        this.coordTable.update(line.points, this.#continueLineIdx);
+        line.points.splice(this.continueInsertIdx, 0, { x, y });
+        this.focusedPtIdx = this.continueInsertIdx;
+        this.continueInsertIdx++;
+        this.coordTable.update(line.points, this.continueLineIdx);
         this.renderer.redraw();
         this.updateButtons();
         return;
@@ -2208,10 +1821,10 @@ export class DrawingApp {
 
     // Ctrl/Cmd click → add or insert a point
     if (e.ctrlKey || e.metaKey) {
-      const nearSeg = this.#findNearestSegmentWithIdx(x, y);
+      const nearSeg = this.findNearestSegmentWithIdx(x, y);
       if (nearSeg) {
         // Hovering a line → insert a point between its two connecting points
-        this.#insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
+        this.insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
       } else {
         // Empty space → add a new point (connected to selection if any)
         this.#addConnectedPoint(x, y);
@@ -2221,7 +1834,7 @@ export class DrawingApp {
 
     // Non-drawing mode: priority 1 — click on a point of any committed line
     // → select that line, focus the clicked point in the coord table
-    const nearPt = this.#findNearestPointWithIdx(x, y);
+    const nearPt = this.findNearestPointWithIdx(x, y);
     if (nearPt && nearPt.lineIdx !== -1) {
       this.selectedLineIdx = nearPt.lineIdx;
       this.showSelectionPanel(this.lines[nearPt.lineIdx]);
@@ -2258,7 +1871,7 @@ export class DrawingApp {
 
   // Close a line that is being extended (continuation drawing) into a locked area.
   #closeContinuedShape() {
-    this.#closeShape({ line: this.lines[this.#continueLineIdx], idx: this.#continueLineIdx, isContinuation: true });
+    this.#closeShape({ line: this.lines[this.continueLineIdx], idx: this.continueLineIdx, isContinuation: true });
   }
 
   // Unified close: append a coincident closing point, lock + default-fill the
@@ -2272,8 +1885,8 @@ export class DrawingApp {
     if (line.fillColor === undefined) line.fillColor = 'transparent';
     let areaIdx;
     if (isContinuation) {
-      this.#continueLineIdx = -1;
-      this.#continueInsertIdx = -1;
+      this.continueLineIdx = -1;
+      this.continueInsertIdx = -1;
       areaIdx = idx;
     } else {
       this.lines.push(line);
@@ -2296,7 +1909,7 @@ export class DrawingApp {
   }
 
   // Insert a new point into an existing line between two connecting points.
-  #insertPointOnSegment(lineIdx, insertIdx, x, y) {
+  insertPointOnSegment(lineIdx, insertIdx, x, y) {
     const line = this.lines[lineIdx];
     if (!line) return;
     line.points.splice(insertIdx, 0, { x, y });
@@ -2363,14 +1976,14 @@ export class DrawingApp {
       { x: xb, y: yb }, { x: xa, y: yb }
     ];
     // Continuation drawing → append the corners to the line being extended
-    if (this.#continueLineIdx >= 0 && this.lines[this.#continueLineIdx]) {
-      const line = this.lines[this.#continueLineIdx];
-      const insertIdx = this.#continueInsertIdx;
+    if (this.continueLineIdx >= 0 && this.lines[this.continueLineIdx]) {
+      const line = this.lines[this.continueLineIdx];
+      const insertIdx = this.continueInsertIdx;
       line.points.splice(insertIdx, 0, ...corners);
-      this.#continueInsertIdx = insertIdx + corners.length;
-      this.coordLineIdx = this.#continueLineIdx;
-      this.focusedPtIdx = this.#continueInsertIdx - 1;
-      this.coordTable.update(line.points, this.#continueLineIdx);
+      this.continueInsertIdx = insertIdx + corners.length;
+      this.coordLineIdx = this.continueLineIdx;
+      this.focusedPtIdx = this.continueInsertIdx - 1;
+      this.coordTable.update(line.points, this.continueLineIdx);
       this.saveHistory();
       this.renderer.redraw();
       this.updateButtons();
@@ -2438,7 +2051,7 @@ export class DrawingApp {
 
     // Track hovered point on ANY line (drives the hover ring), and keep the
     // coord-table row highlight in sync when the point belongs to the shown line.
-    const nearPtIdx = this.#findNearestPointWithIdx(x, y);
+    const nearPtIdx = this.findNearestPointWithIdx(x, y);
     const newHoverPt = nearPtIdx ? { lineIdx: nearPtIdx.lineIdx, ptIdx: nearPtIdx.ptIdx } : null;
     const hoverChanged =
       (!!this.hoverPt !== !!newHoverPt) ||
@@ -2459,7 +2072,7 @@ export class DrawingApp {
         this.canvas.style.cursor = overLine ? 'move' : 'grab';
       } else {
         // Alt: point drag > segment drag > pan
-        const nearSeg = nearPtIdx ? null : this.#findNearestSegmentWithIdx(x, y);
+        const nearSeg = nearPtIdx ? null : this.findNearestSegmentWithIdx(x, y);
         this.canvas.style.cursor = (nearPtIdx || nearSeg) ? 'move' : 'grab';
       }
       this.tooltipMgr.hide();
@@ -2672,10 +2285,10 @@ export class DrawingApp {
   // Begin dragging a segment (shared by the mouse Alt-drag and the touch grab). Snapshots
   // the two endpoints + the whole line so a mid-drag Shift can translate the shape.
   // (x, y) are the grab point in canvas coords.
-  #beginSegmentDrag(nearSeg, x, y) {
+  beginSegmentDrag(nearSeg, x, y) {
     const line = this.lines[nearSeg.lineIdx];
     this.isDraggingSegment = true;
-    this.#draggingSegment = {
+    this.draggingSegment = {
       lineIdx: nearSeg.lineIdx, ptIdx1: nearSeg.ptIdx1, ptIdx2: nearSeg.ptIdx2,
       startX: x, startY: y,
       origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
@@ -2684,9 +2297,9 @@ export class DrawingApp {
     };
   }
 
-  // Move the currently-dragged point (dp = #draggingPoint) to canvas coords (x, y) and
+  // Move the currently-dragged point (dp = draggingPoint) to canvas coords (x, y) and
   // refresh its coordinate row. Shared by the mouse and touch point-drag paths.
-  #movePointTo(dp, x, y) {
+  movePointTo(dp, x, y) {
     const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
     if (!line) return;
     line.points[dp.ptIdx].x = x;
@@ -2696,17 +2309,17 @@ export class DrawingApp {
   }
 
   // Finish a point drag: clear state, save history (only for a placed line), commit.
-  #endPointDrag(dp, altKey) {
+  endPointDrag(dp, altKey) {
     this.isDraggingPoint = false;
-    this.#draggingPoint = null;
+    this.draggingPoint = null;
     if (dp && dp.lineIdx !== -1) this.saveHistory();
     this.#finishDragGesture(altKey);
   }
 
   // Finish a segment drag: clear state, save history, commit.
-  #endSegmentDrag(altKey) {
+  endSegmentDrag(altKey) {
     this.isDraggingSegment = false;
-    this.#draggingSegment = null;
+    this.draggingSegment = null;
     this.saveHistory();
     this.#finishDragGesture(altKey);
   }
@@ -2714,11 +2327,11 @@ export class DrawingApp {
   // Apply the active segment/whole-line drag at the cursor. `shiftKey` decides the mode
   // live: held → translate the entire line shape; released → move only the grabbed segment's
   // two endpoints. Both derive from the original snapshot, so toggling Shift never accumulates.
-  #dragMove(clientX, clientY, shiftKey) {
+  dragMove(clientX, clientY, shiftKey) {
     const { x, y } = this.canvasCoords(clientX, clientY);
 
-    if (this.isDraggingSegment && this.#draggingSegment) {
-      const ds = this.#draggingSegment;
+    if (this.isDraggingSegment && this.draggingSegment) {
+      const ds = this.draggingSegment;
       const line = this.lines[ds.lineIdx];
       if (!line) return;
       const dx = x - ds.startX;
@@ -2852,13 +2465,13 @@ export class DrawingApp {
 
   // Reset drag flags & cursor after any Alt-drag gesture (point/segment/line)
   #finishDragGesture(altKey) {
-    this.#dragJustEnded = true;
-    setTimeout(() => { this.#dragJustEnded = false; }, 50);
+    this.dragJustEnded = true;
+    setTimeout(() => { this.dragJustEnded = false; }, 50);
     this.canvas.style.cursor = altKey ? 'grab' : 'crosshair';
   }
 
   // Find nearest point and return { lineIdx, ptIdx, point }
-  #findNearestPointWithIdx(x, y, threshold = 12) {
+  findNearestPointWithIdx(x, y, threshold = 12) {
     // Check currentLine first
     if (this.currentLine) {
       for (let i = 0; i < this.currentLine.points.length; i++) {
@@ -2877,7 +2490,7 @@ export class DrawingApp {
 
   // Find the nearest line segment to (x,y) among completed lines.
   // Returns { lineIdx, ptIdx1, ptIdx2 } or null.
-  #findNearestSegmentWithIdx(x, y, threshold = 12) {
+  findNearestSegmentWithIdx(x, y, threshold = 12) {
     let bestDist = Infinity;
     let best = null;
     for (let li = this.lines.length - 1; li >= 0; li--) {
@@ -2897,7 +2510,7 @@ export class DrawingApp {
   #adjustThicknessAtCursor(e) {
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
     const delta = e.deltaY > 0 ? -1 : 1;
-    const nearPt = this.#findNearestPointWithIdx(x, y);
+    const nearPt = this.findNearestPointWithIdx(x, y);
     let lineIdx = -1;
     if (nearPt && nearPt.lineIdx !== -1) lineIdx = nearPt.lineIdx;
     else { const li = this.findLineAt(x, y); if (li !== -1) lineIdx = li; }
