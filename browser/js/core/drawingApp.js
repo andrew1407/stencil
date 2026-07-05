@@ -211,6 +211,11 @@ export class DrawingApp {
     // is opened or a local create targets a server, consumed by saveToServer().
     this.remoteLink = null;
 
+    // One-shot server address armed by newEditor({ address }): the NEXT image load
+    // creates the project on it (with real bytes — the server forbids image-less
+    // projects), then links the session. Consumed/cleared by the next loadImageFromFile.
+    this.pendingRemoteAddress = null;
+
     // ── Components ──
     this.history = new HistoryStack();
     this.formula = new FormulaEngine();
@@ -1712,9 +1717,13 @@ export class DrawingApp {
         ? { address: opts.address, remoteId: opts.remoteId, version: opts.version || 0 }
         : null;
     }
-    // Incognito never creates on a server — drop a create-on-server address (central guard
-    // covering openImageHere / createBlankImage / the console API).
-    const remoteCreateAddress = (opts.address && !opts.remoteId && !this.storage.incognito) ? opts.address : null;
+    // The create-on-server target is explicit (opts.address) or armed by a prior
+    // newEditor({ address }) — consumed here on the first image load after it. Incognito
+    // never creates on a server (central guard covering openImageHere / createBlankImage /
+    // the console API). A reopen (opts.remoteId) links an existing project, never creates.
+    const armedAddress = opts.address || (opts.remoteId ? null : this.pendingRemoteAddress);
+    this.pendingRemoteAddress = null;   // one-shot: consumed (or cleared) by this load
+    const remoteCreateAddress = (armedAddress && !opts.remoteId && !this.storage.incognito) ? armedAddress : null;
     const remoteLayout = opts.layout || null;
 
     const reader = new FileReader();
@@ -3561,6 +3570,7 @@ export class DrawingApp {
   // Start a fresh blank (unsaved) editor.
   newEditor() {
     this.remoteLink = null;
+    this.pendingRemoteAddress = null;   // drop any un-consumed newEditor({ address }) arming
     this.storage.newTemporary();
     this.tabs.reportActive(null);
     this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
@@ -3655,12 +3665,14 @@ export class DrawingApp {
     return this.remoteLink;
   }
 
-  // Create an EMPTY project on `address` (no image yet) and link the session, so a
-  // later saveToServer() uploads the result. Backs stencil.newEditor({ address }).
+  // Arm `address` as the create target for the NEXT image load, rather than creating a
+  // project now: the server forbids image-less projects and there is no image yet at
+  // newEditor time, so the upcoming blank()/open creates it WITH real bytes (via
+  // #createRemoteForSession) and links the session. Backs stencil.newEditor({ address }).
   async createRemoteBlank(address) {
-    const conn = requireConnection(this.connections, address);
-    this.remoteLink = await createRemoteProject(conn, { name: this.imageBaseName || 'Untitled' });
-    return this.remoteLink;
+    const conn = requireConnection(this.connections, address);   // fail fast if not connected
+    this.pendingRemoteAddress = conn.url;
+    return { address: conn.url };
   }
 
   // Save the current annotated result + layout back to the linked server project.
