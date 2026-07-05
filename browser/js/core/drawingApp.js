@@ -17,6 +17,7 @@ import { AccentController } from './accentController.js';
 import { ImageModel } from './imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
 import { InputController } from './inputController.js';
+import { PointerController } from './pointerController.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
@@ -46,14 +47,11 @@ export const DRAW_MODE_ICON = {
 // by initEventListeners(). Pure decision helpers live in ./layout.js so they can
 // be unit-tested in Node without a DOM.
 export class DrawingApp {
-  // Pan state (Alt+drag)
-  #panLastX = 0;
-  #panLastY = 0;
   // Point/segment/line drag state
   draggingPoint = null;
   dragJustEnded = false;
   draggingSegment = null;
-  #draggingLine = null;
+  draggingLine = null;
   // Continuation drawing
   continueLineIdx = -1;
   continueInsertIdx = -1;
@@ -107,10 +105,9 @@ export class DrawingApp {
     this.isDrawing = false;
     this.scale = 1;
 
-    // Pan state (Alt+drag) — delta-based, with optional Shift speed-up
+    // Pan state (Alt+drag) — delta-based, with optional Shift speed-up. The pan cursor delta
+    // lives in PointerController; only the isPanning flag is shared editor state.
     this.isPanning = false;
-    this.#panLastX = 0;
-    this.#panLastY = 0;
 
     // Point drag state (Alt+hover+drag on point)
     this.draggingPoint = null; // { lineIdx, ptIdx, point }
@@ -123,7 +120,7 @@ export class DrawingApp {
 
     // Whole-line drag state (Alt+Shift+drag on any part of a line)
     this.isDraggingLine = false;
-    this.#draggingLine = null; // { lineIdx, startX, startY, origPoints }
+    this.draggingLine = null; // { lineIdx, startX, startY, origPoints }
 
     // Zoom rect state (Shift+left-drag)
     this.isZoomRectDragging = false;
@@ -234,6 +231,8 @@ export class DrawingApp {
     this.remoteSync = new RemoteSyncController(this);
     // Touch + hold-to-draw alternative input (see inputController.js). Wired in initEventListeners.
     this.input = new InputController(this);
+    // Mouse pan / drag / rect / zoom-rect wiring (see pointerController.js).
+    this.pointer = new PointerController(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -290,7 +289,7 @@ export class DrawingApp {
     this.#wireDropPaste();
     this.#wireCanvasPointer();
     this.#wireSmoothZoom();
-    this.#wirePanDrag();
+    this.pointer.wirePanDrag();
     this.input.wireHoldDraw();
     this.input.wireTouch();
   }
@@ -737,7 +736,7 @@ export class DrawingApp {
       // Live-switch an active segment/line drag the instant Shift is pressed or
       // released, even if the mouse is held still.
       if ((this.isDraggingSegment && this.draggingSegment) ||
-          (this.isDraggingLine && this.#draggingLine)) {
+          (this.isDraggingLine && this.draggingLine)) {
         this.dragMove(this.lastMouseClientX, this.lastMouseClientY, mods.shiftKey);
       }
       if (this.mouseOverCanvas && !this.isZoomRectDragging && !this.isPanning &&
@@ -990,251 +989,9 @@ export class DrawingApp {
     }, { passive: false });
   }
 
-  #wirePanDrag() {
-    const viewport = document.getElementById('canvas-viewport');
-
-    // Pan: Alt+left-drag OR middle-mouse-button drag (works in both drawing/non-drawing modes)
-    const startPan = e => {
-      // Rect-draw mode: plain left-drag sweeps out a rectangle area
-      if (this.isDrawing && this.drawMode === 'rect' && e.button === 0 &&
-        !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && this.image) {
-        const { cssX, cssY, x: imgX, y: imgY } = this.canvasCoords(e.clientX, e.clientY);
-        this.isRectDrawDragging = true;
-        this.rectDrawStart = { imgX, imgY, cssX, cssY };
-        this.rectDrawEnd = { ...this.rectDrawStart };
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-
-      // Alt+Shift+left → drag whole line (takes priority over zoom-rect)
-      if (e.button === 0 && e.altKey && e.shiftKey && this.image) {
-        const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        const lineIdx = this.findLineAt(x, y);
-        if (lineIdx !== -1) {
-          e.preventDefault();
-          e.stopPropagation();
-          const line = this.lines[lineIdx];
-          // Record the grabbed segment too, so releasing Shift mid-drag can
-          // drop down to moving just that segment (live modifier switching).
-          const seg = this.findNearestSegmentWithIdx(x, y);
-          this.isDraggingLine = true;
-          this.#draggingLine = {
-            lineIdx,
-            ptIdx1: seg && seg.lineIdx === lineIdx ? seg.ptIdx1 : null,
-            ptIdx2: seg && seg.lineIdx === lineIdx ? seg.ptIdx2 : null,
-            startX: x,
-            startY: y,
-            origPoints: line.points.map(p => ({ x: p.x, y: p.y }))
-          };
-          this.canvas.style.cursor = 'move';
-          return;
-        }
-      }
-
-      // Shift+left (no Alt) → start zoom rect selection
-      if (e.button === 0 && e.shiftKey && !e.altKey && this.image) {
-        const { cssX, cssY, x: imgX, y: imgY } = this.canvasCoords(e.clientX, e.clientY);
-        this.isZoomRectDragging = true;
-        this.zoomRectStart = { imgX, imgY, cssX, cssY };
-        this.zoomRectEnd = { imgX, imgY, cssX, cssY };
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-
-      const isMiddle = e.button === 1;
-      // Alt+left always pans (with or without Shift). If Alt+Shift was on a line,
-      // the line-drag block above already returned; here means empty area → fast pan.
-      const isAltLeft = e.button === 0 && e.altKey;
-      if (!isMiddle && !isAltLeft) return;
-
-      // Alt+left: check if clicking on a point → drag the point instead of panning
-      if (isAltLeft) {
-        const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        // Priority 1: near a point → drag the point
-        const nearPt = this.findNearestPointWithIdx(x, y);
-        if (nearPt) {
-          e.preventDefault();
-          this.isDraggingPoint = true;
-          this.draggingPoint = nearPt;
-          this.canvas.style.cursor = 'move';
-          return;
-        }
-        // Priority 2: near a segment → drag that segment
-        const nearSeg = this.findNearestSegmentWithIdx(x, y);
-        if (nearSeg) {
-          e.preventDefault();
-          this.beginSegmentDrag(nearSeg, x, y);
-          this.canvas.style.cursor = 'move';
-          return;
-        }
-      }
-
-      e.preventDefault();
-      this.isPanning = true;
-      this.#panLastX = e.clientX;
-      this.#panLastY = e.clientY;
-      this.canvas.style.cursor = 'grabbing';
-    };
-
-    // Listen on both canvas and viewport so middle-click anywhere inside works
-    this.canvas.addEventListener('mousedown', startPan);
-    viewport.addEventListener('mousedown', startPan);
-
-    // Prevent the browser's default middle-click auto-scroll mode
-    viewport.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
-
-    document.addEventListener('mousemove', e => {
-      // Handle rect-draw drag (rect drawing mode, plain left-drag)
-      if (this.isRectDrawDragging) {
-        const { cssX, cssY, x: imgX, y: imgY } = this.canvasCoords(e.clientX, e.clientY);
-        this.rectDrawEnd = { imgX, imgY, cssX, cssY };
-        this.zoomPan.updateRectDrawOverlay();
-        return;
-      }
-
-      // Handle zoom rect drag (Shift+left-drag)
-      if (this.isZoomRectDragging) {
-        const { cssX, cssY, x: imgX, y: imgY } = this.canvasCoords(e.clientX, e.clientY);
-        this.zoomRectEnd = { imgX, imgY, cssX, cssY };
-        this.zoomPan.updateZoomRectOverlay();
-        return;
-      }
-
-      // Handle point drag
-      if (this.isDraggingPoint && this.draggingPoint) {
-        const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        this.movePointTo(this.draggingPoint, x, y);
-        return;
-      }
-
-      // Segment / whole-line drag. Shift is read per-event so pressing or
-      // releasing it mid-drag switches live between moving just the grabbed
-      // segment and translating the whole line shape — no need to restart.
-      if ((this.isDraggingSegment && this.draggingSegment) ||
-          (this.isDraggingLine && this.#draggingLine)) {
-        this.dragMove(e.clientX, e.clientY, e.shiftKey);
-        return;
-      }
-      if (!this.isPanning) return;
-      // Delta-based pan with Shift = faster (2.5×). Reading shiftKey per
-      // event means user can speed up / slow down mid-drag without jumps.
-      const speed = e.shiftKey ? 2.5 : 1;
-      viewport.scrollLeft -= (e.clientX - this.#panLastX) * speed;
-      viewport.scrollTop  -= (e.clientY - this.#panLastY) * speed;
-      this.#panLastX = e.clientX;
-      this.#panLastY = e.clientY;
-    });
-    document.addEventListener('mouseup', e => {
-      // Finish rect-draw (rect drawing mode)
-      if (this.isRectDrawDragging) {
-        this.isRectDrawDragging = false;
-        this.zoomPan.hideZoomRectOverlay();
-        const s = this.rectDrawStart;
-        const en = this.rectDrawEnd;
-        this.rectDrawStart = null; this.rectDrawEnd = null;
-        if (s && en) {
-          const w = Math.abs(en.imgX - s.imgX);
-          const h = Math.abs(en.imgY - s.imgY);
-          if (w > 3 && h > 3) {
-            // createRect auto-connects when continuation mode is active
-            this.createRect(s.imgX, s.imgY, en.imgX, en.imgY, false);
-          }
-        }
-        // Stay in rect-drawing mode so multiple rects can be drawn;
-        // suppress the trailing click so it isn't treated as a point.
-        this.dragJustEnded = true;
-        setTimeout(() => { this.dragJustEnded = false; }, 50);
-        return;
-      }
-
-      // Finish zoom rect (Shift+left-drag)
-      if (this.isZoomRectDragging) {
-        this.isZoomRectDragging = false;
-        this.zoomPan.hideZoomRectOverlay();
-        const s = this.zoomRectStart;
-        const en = this.zoomRectEnd;
-        if (s && en) {
-          const x1 = Math.min(s.imgX, en.imgX);
-          const y1 = Math.min(s.imgY, en.imgY);
-          const x2 = Math.max(s.imgX, en.imgX);
-          const y2 = Math.max(s.imgY, en.imgY);
-          const rectW = x2 - x1;
-          const rectH = y2 - y1;
-          if (rectW > 4 && rectH > 4) {
-            const vp = document.getElementById('canvas-viewport');
-            const availW = vp ? vp.clientWidth  : window.innerWidth;
-            const availH = vp ? vp.clientHeight : window.innerHeight;
-            const newScale = Math.min(availW / rectW, availH / rectH, 5);
-
-            // Disable CSS transition so width/height are applied instantly,
-            // allowing scrollLeft/scrollTop to reflect the final canvas size.
-            this.canvas.classList.add('zoom-no-transition');
-            this.zoomPan.setZoom(newScale, false);
-            // Force a synchronous layout — this makes scrollWidth reflect
-            // the new canvas size before we assign scrollLeft/scrollTop.
-            void this.canvas.getBoundingClientRect();
-            if (vp) {
-              vp.scrollLeft = Math.max(0, x1 * newScale - (availW - rectW * newScale) / 2);
-              vp.scrollTop = Math.max(0, y1 * newScale - (availH - rectH * newScale) / 2);
-            }
-            // Re-enable transition and persist after layout settles
-            requestAnimationFrame(() => {
-              this.canvas.classList.remove('zoom-no-transition');
-              if (this.image) this.storage.save();
-            });
-          }
-        }
-        this.zoomRectStart = null;
-        this.zoomRectEnd = null;
-        this.canvas.style.cursor = 'crosshair';
-        return;
-      }
-
-      // Finish point drag
-      if (this.isDraggingPoint) {
-        this.endPointDrag(this.draggingPoint, e.altKey);
-        return;
-      }
-
-      // Finish segment drag
-      if (this.isDraggingSegment) {
-        this.endSegmentDrag(e.altKey);
-        return;
-      }
-
-      // Finish whole-line drag
-      if (this.isDraggingLine) {
-        this.isDraggingLine = false;
-        this.#draggingLine = null;
-        this.saveHistory();
-        this.#finishDragGesture(e.altKey);
-        return;
-      }
-      if (!this.isPanning) return;
-      this.isPanning = false;
-      // Restore cursor
-      if (this.isDrawing) {
-        this.canvas.style.cursor = 'crosshair';
-      } else {
-        const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-        const overLine = this.findLineAt(x, y) !== -1;
-        this.canvas.style.cursor = overLine ? 'pointer' : 'crosshair';
-      }
-    });
-
-    // Double-click middle mouse button OR Alt+double-left-click → reset zoom (fit to window)
-    const resetZoom = e => {
-      const isMiddleDouble = e.button === 1;
-      const isAltLeftDouble = e.button === 0 && e.altKey;
-      if (!isMiddleDouble && !isAltLeftDouble) return;
-      e.preventDefault();
-      this.zoomPan.fitToWindow();
-    };
-    this.canvas.addEventListener('dblclick', resetZoom);
-    viewport.addEventListener('dblclick', resetZoom);
-  }
+  // Mouse pan/drag/rect/zoom-rect wiring lives in PointerController (pointerController.js),
+  // invoked from initEventListeners as this.pointer.wirePanDrag(). The drag helpers it uses
+  // stay public on DrawingApp (shared with the touch path).
 
   // Touch + hold-to-draw input lives in InputController (inputController.js), invoked from
   // initEventListeners as this.input.wireHoldDraw()/wireTouch(). These delegators keep the
@@ -2313,7 +2070,7 @@ export class DrawingApp {
     this.isDraggingPoint = false;
     this.draggingPoint = null;
     if (dp && dp.lineIdx !== -1) this.saveHistory();
-    this.#finishDragGesture(altKey);
+    this.finishDragGesture(altKey);
   }
 
   // Finish a segment drag: clear state, save history, commit.
@@ -2321,7 +2078,7 @@ export class DrawingApp {
     this.isDraggingSegment = false;
     this.draggingSegment = null;
     this.saveHistory();
-    this.#finishDragGesture(altKey);
+    this.finishDragGesture(altKey);
   }
 
   // Apply the active segment/whole-line drag at the cursor. `shiftKey` decides the mode
@@ -2352,8 +2109,8 @@ export class DrawingApp {
       return;
     }
 
-    if (this.isDraggingLine && this.#draggingLine) {
-      const dl = this.#draggingLine;
+    if (this.isDraggingLine && this.draggingLine) {
+      const dl = this.draggingLine;
       const line = this.lines[dl.lineIdx];
       if (!line) return;
       const dx = x - dl.startX;
@@ -2464,7 +2221,7 @@ export class DrawingApp {
   }
 
   // Reset drag flags & cursor after any Alt-drag gesture (point/segment/line)
-  #finishDragGesture(altKey) {
+  finishDragGesture(altKey) {
     this.dragJustEnded = true;
     setTimeout(() => { this.dragJustEnded = false; }, 50);
     this.canvas.style.cursor = altKey ? 'grab' : 'crosshair';
