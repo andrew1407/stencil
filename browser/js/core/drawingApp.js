@@ -1,4 +1,4 @@
-import { setVal, setRadioGroup, notify, distToSegment, matchHotkey, isTypingTarget, hasTextSelection, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
+import { setVal, notify, distToSegment, matchHotkey, isTypingTarget, hasTextSelection, cmToUnit, unitToCm, unitLabel, defaultUnitFromLocale, wireNameEditor, composeControlTitle, supportsShareFiles } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
@@ -15,17 +15,18 @@ import { ExportService } from './exportService.js';
 import { SettingsController } from './settingsController.js';
 import { AccentController } from './accentController.js';
 import { ImageModel } from './imageModel.js';
+import { RemoteSyncController } from './remoteSyncController.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect } from '../ui/customSelect.js';
-import { requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
+import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
@@ -82,14 +83,8 @@ export class DrawingApp {
   #thicknessSaveTimer = null;
   #saveStatusTimer = null;
   #rotateSaveTimer = null;
-  // Live co-edit: debounced server push on edit; timestamp of our last server save (to
-  // ignore the server's echo of our own change); guard while a reload is applying.
-  #remoteSyncTimer = null;
-  #remoteSyncFirstAt = 0;       // start of the current debounce burst (for the max-wait cap)
-  #lastRemoteSaveAt = 0;
-  #reloadingRemote = false;
-  #remoteSyncPending = false;   // a push deferred during a reload, flushed when it settles
-  #remoteReloadPending = false; // a peer change that landed mid-reload, applied when it settles
+  // Live co-edit push/pull (debounce timers, echo-suppression timestamp, reload guards) lives
+  // in RemoteSyncController (remoteSyncController.js), constructed as this.remoteSync.
   // True when THIS user changed the filter since the last sync — so a save imposes our
   // filter (our intent wins), but a save that's only line edits preserves the shared
   // server filter instead of clobbering a peer's filter change.
@@ -244,6 +239,8 @@ export class DrawingApp {
     this.accents = new AccentController(this);
     // Non-destructive crop + quarter-turn rotation geometry (see imageModel.js).
     this.imageModel = new ImageModel(this);
+    // Live co-edit push/pull + server writes (see remoteSyncController.js).
+    this.remoteSync = new RemoteSyncController(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -1728,7 +1725,7 @@ export class DrawingApp {
           }
         }
         // Restore the project's page format before the crop (defaultCropRect uses the aspect).
-        if ((opts.remoteId || opts.adoptLayout) && remoteLayout) this.#adoptServerPageFormat(remoteLayout);
+        if ((opts.remoteId || opts.adoptLayout) && remoteLayout) this.remoteSync.adoptServerPageFormat(remoteLayout);
         if (remoteLayout && remoteLayout.cropRect) {
           this.cropRect = this.imageModel.roundRect(remoteLayout.cropRect);
         } else if (opts.crop) {
@@ -1779,11 +1776,11 @@ export class DrawingApp {
               hasExistingLines: false,
             });
             if (verdict.ok) this.lines = verdict.lines;
-            this.#adoptServerFilter(remoteLayout);
-            this.#adoptServerFormulas(remoteLayout);
+            this.remoteSync.adoptServerFilter(remoteLayout);
+            this.remoteSync.adoptServerFormulas(remoteLayout);
           } else {
-            this.#adoptServerFilter({});     // no saved filter — reset to 'none'
-            this.#adoptServerFormulas({});   // no saved formulas — reset to off
+            this.remoteSync.adoptServerFilter({});     // no saved filter — reset to 'none'
+            this.remoteSync.adoptServerFormulas({});   // no saved formulas — reset to off
           }
         }
 
@@ -1967,7 +1964,7 @@ export class DrawingApp {
     // Prefer the server's stored original bytes; if it holds none, fetch the `source`
     // URL directly (cross-origin, so it needs CORS — which typical image hosts send).
     const src = full.project?.source || meta.source || '';
-    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
     if (!blob) throw new Error('no image bytes on the server');
     const ext = (blob.type && blob.type.split('/')[1]) || 'png';
     const name = full.project?.name || meta.name || 'image';
@@ -2976,166 +2973,15 @@ export class DrawingApp {
     this.scheduleRemoteSync();
   }
 
-  // Live co-edit (send): debounce a save-back to the server after an edit so peers on
-  // the same project get a `project-event` and reload. No-op for local-only projects,
-  // and when the "Sync changes to server" setting is off (edit-in-memory only).
-  scheduleRemoteSync() {
-    if (!this.remoteLink || !getSyncToServer()) return;
-    // Mid-reload: defer (don't drop) the push; reloadRemoteActive flushes it when it settles.
-    if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
-    // Trailing debounce (coalesce a burst of edits into one save) but capped by a max-wait so
-    // CONTINUOUS editing still flushes to peers every ~1.5s instead of starving until a pause.
-    const now = Date.now();
-    if (!this.#remoteSyncFirstAt) this.#remoteSyncFirstAt = now;
-    const wait = Math.max(0, Math.min(350, 1500 - (now - this.#remoteSyncFirstAt)));
-    clearTimeout(this.#remoteSyncTimer);
-    this.#remoteSyncTimer = setTimeout(() => {
-      this.#remoteSyncFirstAt = 0;
-      if (!this.remoteLink || !getSyncToServer()) return;
-      if (this.#reloadingRemote) { this.#remoteSyncPending = true; return; }
-      this.saveToServer();
-    }, wait);
-  }
-
-  // Live co-edit (receive): a server project-event for the project we're editing —
-  // reload from the server when it's a genuine peer change. Wired from the connection
-  // event feed (stencilApi onChange).
-  onServerProjectEvent(msg, conn) {
-    if (!getSyncToServer()) return; // sync off — don't auto-pull peer changes
-    if (!shouldReloadFromEvent(msg, this.remoteLink, {
-      lastLocalSaveAt: this.#lastRemoteSaveAt,
-      isDrawing: this.isDrawing,
-      connUrl: conn ? conn.url : null,
-    })) return;
-    // Mid-reload: another peer change arrived while we're applying one. Queue a single
-    // follow-up pass (collapse to latest) rather than dropping it; the settle block runs it.
-    if (this.#reloadingRemote) { this.#remoteReloadPending = true; return; }
-    this.reloadRemoteActive();
-  }
-
-  // Re-fetch the active server project (image + layout) and apply it, so a peer's saved
-  // change shows live. Uses original/source as the base + re-applies the stored layout
-  // (lines + filter) — never the baked `result` (would double-draw). Guarded so the
-  // reload's own redraws don't trigger a push back.
-  async reloadRemoteActive() {
-    const link = this.remoteLink;
-    if (!link || this.#reloadingRemote) return;
-    const conn = this.connections && this.connections.get(link.address);
-    if (!conn) return;
-    this.#reloadingRemote = true;
-    try {
-      const full = await conn.getProject(link.remoteId);
-      const src = full.project?.source || '';
-      const blob = await this.#fetchRemoteOriginal(conn, link.remoteId, src);
-      if (!blob) return;
-      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-      const file = new File([blob], `${this.imageBaseName || 'image'}.${ext}`, { type: blob.type || 'image/png' });
-      this.loadImageFromFile(file, {
-        source: src,
-        resource: full.project?.resource || '',
-        color: full.project?.color || '',
-        address: link.address,
-        remoteId: link.remoteId,
-        version: full.project?.version || link.version,
-        layout: full.layout,
-      });
-      // Adopt a peer's RENAME too (local-only — the server already holds it; use the store
-      // directly, not renameProject, so we don't echo the change back to the server).
-      const peerName = full.project?.name;
-      if (peerName && this.activeProjectId != null &&
-          peerName !== this.storage.store.getMeta(this.activeProjectId)?.name) {
-        this.storage.store.rename(this.activeProjectId, peerName);
-        this.imageBaseName = peerName;
-        this.updateProjectTitle();
-      }
-      notify('Updated from server', 'ok');
-    } catch { notify("Couldn't refresh from server — showing the last loaded version", 'info'); }
-    finally {
-      setTimeout(() => {
-        this.#reloadingRemote = false;
-        // A local edit landed during the reload → flush it (our push supersedes; the server's
-        // last-writer-wins resolves it), and drop any queued reload since our save will
-        // re-broadcast the merged state. Otherwise, if a peer change queued mid-reload,
-        // apply one more pass so we converge to the latest.
-        if (this.#remoteSyncPending) {
-          this.#remoteSyncPending = false;
-          this.#remoteReloadPending = false;
-          this.scheduleRemoteSync();
-        } else if (this.#remoteReloadPending) {
-          this.#remoteReloadPending = false;
-          this.reloadRemoteActive();
-        }
-      }, 120);
-    }
-  }
-
-  // Fetch a server project's original bytes, falling back to its http(s) source URL
-  // (CORS) when the server stores none. Returns a Blob or null.
-  async #fetchRemoteOriginal(conn, remoteId, src) {
-    let blob = null;
-    try { blob = await conn.fetchFile(remoteId, 'original'); } catch {}
-    if (!blob && /^https?:/i.test(src || '')) {
-      const resp = await fetch(src, { mode: 'cors' });
-      if (resp.ok) blob = await resp.blob();
-    }
-    return blob;
-  }
-
-  // Adopt a server layout's filter/tint into the editor + filter UI, and clear the
-  // dirty flag (the server's filter is now ours). Used by conflict-merge so a line-only
-  // edit preserves a peer's filter change instead of clobbering it.
-  #adoptServerFilter(layout) {
-    if (!layout) return;
-    this.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');
-    if (layout.filterColor) this.filterColor = layout.filterColor;
-    setVal('image-filter', this.imageFilter);
-    setRadioGroup('ctxFilter', this.imageFilter);
-    const fp = document.getElementById('filter-color');
-    if (fp) {
-      fp.value = this.filterColor;
-      fp.style.display = this.imageFilter === 'custom' ? 'inline-block' : 'none';
-    }
-    this.filterDirty = false;
-  }
-
-  // Restore a server layout's page format (A3/A4/custom + cm dims) into state + the page UI.
-  #adoptServerPageFormat(layout) {
-    if (!layout) return;
-    const n = normalizePageSize(layout.pageSize);
-    if (n) {
-      this.pageSize = n;
-      setVal('page-size', n);
-      const cg = document.getElementById('custom-size-group');
-      if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
-    }
-    if (Number.isFinite(layout.customPageWidth)) {
-      this.customPageWidth = layout.customPageWidth;
-      setVal('custom-page-width', cmToUnit(layout.customPageWidth, this.unit));
-    }
-    if (Number.isFinite(layout.customPageHeight)) {
-      this.customPageHeight = layout.customPageHeight;
-      setVal('custom-page-height', cmToUnit(layout.customPageHeight, this.unit));
-    }
-  }
-
-  // Restore a server layout's x/y formulas into state + the formula UI. The expressions are
-  // kept regardless of the toggle (allow only gates visibility + whether they're applied).
-  #adoptServerFormulas(layout) {
-    const allow = !!(layout && layout.allowFormulas);
-    this.allowFormulas = allow;
-    const cb = document.getElementById('allow-formulas');
-    if (cb) cb.checked = allow;
-    this.settings.syncFormulaUI(allow);
-    const fx = layout && typeof layout.formulaX === 'string' ? layout.formulaX : '';
-    const fy = layout && typeof layout.formulaY === 'string' ? layout.formulaY : '';
-    this.formulaX = fx;
-    this.formulaY = fy;
-    setVal('formula-x', this.formulaX);
-    setVal('formula-y', this.formulaY);
-    setVal('ctx-formula-x', this.formulaX);
-    setVal('ctx-formula-y', this.formulaY);
-    this.settings.showFormulaError(false);
-  }
+  // Live co-edit push/pull + server writes live in RemoteSyncController (remoteSyncController.js);
+  // these thin delegators keep the public method names saveHistory, the setters, ImageModel, the
+  // stencilApi facade, and the connection event feed call. The adoptServer*/fetchRemoteOriginal/
+  // renderResultBytes helpers are public on the controller because loadImageFromFile + the
+  // project-transfer helpers here also drive them (this.remoteSync.*).
+  scheduleRemoteSync() { this.remoteSync.scheduleRemoteSync(); }
+  onServerProjectEvent(msg, conn) { return this.remoteSync.onServerProjectEvent(msg, conn); }
+  reloadRemoteActive() { return this.remoteSync.reloadRemoteActive(); }
+  saveToServer() { return this.remoteSync.saveToServer(); }
 
   undo() {
     if (this.isDrawing && this.currentLine) {
@@ -3528,64 +3374,6 @@ export class DrawingApp {
     return { address: conn.url };
   }
 
-  // Save the current annotated result + layout back to the linked server project.
-  // On a 409 version conflict, pull latest, union-merge the peer's lines with ours, and
-  // retry until convergence (handles the result-upload's extra bump). No-op when local-only.
-  async saveToServer() {
-    if (!this.remoteLink) return null;
-    if (!getSyncToServer()) return null; // sync off — fetched project stays edit-in-memory only
-    let conn;
-    try {
-      conn = requireConnection(this.connections, this.remoteLink.address);
-    } catch (err) {
-      notify(err.message, 'fail');
-      return null;
-    }
-    const name = this.activeProjectId != null
-      ? (this.storage.store.getMeta(this.activeProjectId)?.name || this.imageBaseName || 'Untitled')
-      : (this.imageBaseName || 'Untitled');
-    const MAX_TRIES = 6;
-    for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
-      const layout = this.currentLayoutPayload();
-      const bytes = await this.#renderResultBytes();
-      this.#lastRemoteSaveAt = Date.now();   // open the echo-suppression window
-      try {
-        this.remoteLink = await saveRemoteProject(conn, this.remoteLink, {
-          name, layout, bytes, ext: 'png', w: this.canvas.width, h: this.canvas.height,
-        });
-        this.#lastRemoteSaveAt = Date.now();
-        this.filterDirty = false;   // our filter (if any) is now the server's
-        notify(attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
-        return this.remoteLink;
-      } catch (err) {
-        if (!err || !err.conflict) {
-          notify(`Server save failed — ${err.message}`, 'fail');
-          return null;
-        }
-        // Conflict: a peer saved first. Merge their latest lines into ours, adopt the
-        // server version, and loop to retry — re-merging each time so repeated bumps
-        // (the unguarded result upload) can't drop our edit.
-        try {
-          const full = await conn.getProject(this.remoteLink.remoteId);
-          this.remoteLink = { ...this.remoteLink, version: full.project?.version ?? this.remoteLink.version };
-          const sl = full.layout || {};
-          const serverLines = Array.isArray(sl.lines) ? sl.lines : [];
-          this.lines = mergeLines(serverLines, this.lines);
-          // Adopt the peer's filter UNLESS this user just changed their own — so a
-          // line-only edit doesn't clobber a peer's filter change (the scalar can't merge).
-          if (!this.filterDirty) this.#adoptServerFilter(sl);
-          this.history.push(this.lines);
-          this.renderer.redraw();
-        } catch { /* fetch failed; loop retries with current state */ }
-      }
-    }
-    // Couldn't win the race after several merges — reload so the user sees a consistent
-    // state (our pending lines were already merged into the server's by an earlier pass).
-    notify('Sync conflict — reloaded latest from the server', 'info');
-    this.reloadRemoteActive();
-    return null;
-  }
-
   // The current session as an "Open in…" hand-off payload (the #stencil= fragment shape):
   // a server reference for a linked session (the receiver re-fetches — no bytes, no token),
   // else the inline image + full layout. Consumed by the Open-in modal for the desktop
@@ -3665,14 +3453,6 @@ export class DrawingApp {
     } catch (err) { notify(`Could not update the server image — ${err.message}`, 'fail'); }
   }
 
-  // Render the annotated result to PNG bytes (the server's `result` blob), or null if no image.
-  async #renderResultBytes() {
-    if (!this.image) return null;
-    const off = this.renderResultCanvas();
-    const blob = await new Promise(res => off.toBlob(res, 'image/png'));
-    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
-  }
-
   // Publish the current incognito session to a server: create the project there, push the
   // annotated layout + rendered result, then LINK the session so it becomes a normal
   // server-backed project (incognito turns off). Still no local record — only the server
@@ -3696,7 +3476,7 @@ export class DrawingApp {
     this.remoteLink = await saveRemoteProject(conn, link, {
       name,
       layout: this.currentLayoutPayload(),
-      bytes: await this.#renderResultBytes(), ext: 'png', w: this.canvas.width, h: this.canvas.height,
+      bytes: await this.remoteSync.renderResultBytes(), ext: 'png', w: this.canvas.width, h: this.canvas.height,
     });
     // Leave incognito: it's now a normal server-backed session (no local persistence).
     this.storage.incognito = false;
@@ -3722,7 +3502,7 @@ export class DrawingApp {
   // (settingsController.js); these thin delegators keep the public method names + the
   // return-`this`-for-chaining contract the facade and #wire* handlers depend on. The formula
   // UI helpers (syncFormulaUI/showFormulaError/refreshFormulaCoords) are public on the
-  // controller because #wireFormulaControls and #adoptServerFormulas also drive them.
+  // controller because #wireFormulaControls and remoteSync.adoptServerFormulas also drive them.
   setColor(v, opts) { this.settings.setColor(v, opts); return this; }
   setThickness(n, opts) { this.settings.setThickness(n, opts); return this; }
   setMarkerSize(n, opts) { this.settings.setMarkerSize(n, opts); return this; }
@@ -4059,7 +3839,7 @@ export class DrawingApp {
     const conn = requireConnection(this.connections, meta.serverUrl);
     const full = await conn.getProject(meta.id);
     const src = full.project?.source || meta.source || '';
-    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
     if (!blob) throw new Error('no image bytes on the server');
     const ext = (blob.type && blob.type.split('/')[1]) || 'png';
     const name = full.project?.name || meta.name || 'Untitled';
@@ -4095,7 +3875,7 @@ export class DrawingApp {
     const conn = requireConnection(this.connections, meta.serverUrl);
     const full = await conn.getProject(meta.id);
     const src = full.project?.source || meta.source || '';
-    const blob = await this.#fetchRemoteOriginal(conn, meta.id, src);
+    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
     const dataUrl = blob ? await this.#blobToDataUrl(blob) : null;
     const sl = full.layout || {};
     const newId = this.storage.store.createId();
