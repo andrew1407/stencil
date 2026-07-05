@@ -11,6 +11,7 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { defaultBlankSizePx } from './layout.js';
 import { CoordTable } from './coordTable.js';
 import { ZoomPan } from './zoomPan.js';
+import { ExportService } from './exportService.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex } from './accents.js';
@@ -233,6 +234,8 @@ export class DrawingApp {
       try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
     });
     this.coordTable = new CoordTable(this);
+    // Image/layout export, clipboard, and file IO (see exportService.js).
+    this.export = new ExportService(this);
     // The tooltip is a custom element (<stencil-tooltip>) that owns its render
     // logic; give it the app ref and alias it as tooltipMgr for existing callers.
     this.tooltip.app = this;
@@ -3693,7 +3696,7 @@ export class DrawingApp {
       : (this.imageBaseName || 'Untitled');
     const MAX_TRIES = 6;
     for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
-      const layout = this.#currentLayoutPayload();
+      const layout = this.currentLayoutPayload();
       const bytes = await this.#renderResultBytes();
       this.#lastRemoteSaveAt = Date.now();   // open the echo-suppression window
       try {
@@ -3749,7 +3752,7 @@ export class DrawingApp {
       : {
         dataUrl: this.imageDataUrl,
         name: `${this.imageBaseName || 'image'}.${this.imageExt || 'png'}`,
-        layout: this.#currentLayoutPayload(),
+        layout: this.currentLayoutPayload(),
       };
     if (!this.remoteLink) {
       if (this.imageSource) p.source = this.imageSource;
@@ -3761,7 +3764,10 @@ export class DrawingApp {
 
   // The current editor state as a server layout payload (lines + filter + geometry + page +
   // formulas). Shared by saveToServer / publishIncognitoToServer / replaceProjectImage.
-  #currentLayoutPayload() {
+  // Build the full layout payload (lines + filter/crop/rotation/page/formulas) from the
+  // current editor state. Shared by the server push (saveToServer / publishIncognitoToServer)
+  // and ExportService's download/copy actions, so it's a public method rather than private.
+  currentLayoutPayload() {
     return buildLayoutPayload({
       imageWidth: this.canvas.width,
       imageHeight: this.canvas.height,
@@ -3812,7 +3818,7 @@ export class DrawingApp {
   // Render the annotated result to PNG bytes (the server's `result` blob), or null if no image.
   async #renderResultBytes() {
     if (!this.image) return null;
-    const off = this.#renderExportCanvas();
+    const off = this.renderResultCanvas();
     const blob = await new Promise(res => off.toBlob(res, 'image/png'));
     return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
   }
@@ -3839,7 +3845,7 @@ export class DrawingApp {
     // publish, independent of the sync toggle).
     this.remoteLink = await saveRemoteProject(conn, link, {
       name,
-      layout: this.#currentLayoutPayload(),
+      layout: this.currentLayoutPayload(),
       bytes: await this.#renderResultBytes(), ext: 'png', w: this.canvas.width, h: this.canvas.height,
     });
     // Leave incognito: it's now a normal server-backed session (no local persistence).
@@ -4560,134 +4566,20 @@ export class DrawingApp {
     }
   }
 
-  // Render the image (with its current filter) plus all visible lines/points onto a
-  // fresh full-resolution offscreen canvas. Shared by saveImage / copyImageToClipboard
-  // / shareImage so every image action produces the same annotated result.
-  #renderExportCanvas() {
-    const offscreen = document.createElement('canvas');
-    offscreen.width = this.canvas.width;
-    offscreen.height = this.canvas.height;
-    const ctx = offscreen.getContext('2d');
-    // The renderer's draw helpers write to this.ctx; point them at the offscreen
-    // ctx for the duration of the export, then restore.
-    const savedCtx = this.ctx;
-    this.ctx = ctx;
-    this.renderer.drawImageWithFilter(ctx);
-    if (this.showLines) {
-      this.lines.forEach(line => this.renderer.drawLine(line, false));
-    } else if (this.showPoints) {
-      this.lines.forEach(line => {
-        line.points.forEach(p => this.renderer.drawPoint(p, line.color, line.markerSize ?? this.markerSize, false));
-      });
-    }
-    this.ctx = savedCtx;
-    return offscreen;
-  }
-
   // Public: the composited "result" canvas (filtered image + drawn lines/points),
   // i.e. what download/copy/share/save-to-server emit. Used for project thumbnails
-  // so previews show the EDITED result, not the untouched original.
-  renderResultCanvas() { return this.#renderExportCanvas(); }
+  // so previews show the EDITED result, not the untouched original. Delegates to
+  // ExportService (which owns the shared offscreen-render used by every image action).
+  renderResultCanvas() { return this.export.renderExportCanvas(); }
 
-  saveImage() {
-    if (!this.image) {
-      notify('No image loaded', 'fail');
-      return;
-    }
-    const offscreen = this.#renderExportCanvas();
-
-    // Download — use original image name if available
-    const baseName = this.imageBaseName || 'drawing';
-    const ext = this.imageExt      || 'png';
-    const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', png: 'image/png' };
-    const mime = mimeMap[ext] || 'image/png';
-    const outExt = (ext === 'jpg' || ext === 'jpeg') ? 'jpg' : (mimeMap[ext] ? ext : 'png');
-    const link = document.createElement('a');
-    link.download = `${baseName}-drawing.${outExt}`;
-    link.href = offscreen.toDataURL(mime);
-    link.click();
-
-    // A server-linked session also writes the annotated result + layout back.
-    if (this.remoteLink) this.saveToServer();
-  }
-
-  // Share the annotated image via the Web Share API (mobile/PWA). The Share entry
-  // points are only shown when supportsShareFiles() is true (see toolbar/contextMenu
-  // wiring), so this is reached only where file sharing works; we still guard defensively.
-  shareImage() {
-    if (!this.image) { notify('No image loaded', 'fail'); return; }
-    const off = this.#renderExportCanvas();
-    const baseName = this.imageBaseName || 'drawing';
-    off.toBlob(blob => {
-      if (!blob) { notify('Image encode failed', 'fail'); return; }
-      const file = new File([blob], `${baseName}-drawing.png`, { type: 'image/png' });
-      if (!(navigator.canShare && navigator.canShare({ files: [file] }))) {
-        notify('Sharing not supported on this browser', 'fail');
-        return;
-      }
-      navigator.share({ files: [file], title: `${baseName} — Stencil` })
-        .catch(err => { if (err && err.name !== 'AbortError') notify('Share failed', 'fail'); });
-    }, 'image/png');
-  }
-
-  downloadJSON() {
-    if (this.lines.length === 0) {
-      notify('No lines to export', 'fail');
-      return;
-    }
-
-    // Export the FULL layout (lines + filter/crop/rotation/page/formulas), matching the
-    // clipboard copy and the server payload so a download round-trips every applied edit.
-    const data = this.#currentLayoutPayload();
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${this.imageBaseName || 'drawing'}-layout.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  uploadJSON(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async event => {
-      try {
-        const data = JSON.parse(event.target.result);
-        await this.#applyValidatedLayout(data, {
-          source: 'uploaded JSON',
-          cancelMsg: 'Upload canceled',
-          successMsg: 'JSON loaded successfully'
-        });
-      } catch (err) {
-        notify('Error loading JSON: ' + err.message, 'fail');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  // ── Clipboard: copy current image (with active filter) ──
-  // The write() MUST run synchronously inside the Cmd/Ctrl+C user gesture, so the clipboard
-  // gets a Promise-valued ClipboardItem and resolves the PNG blob behind it. Deferring write()
-  // into the async toBlob callback loses the user-activation → NotAllowedError on macOS WebKit
-  // (and intermittently Chrome), so nothing copies. See FEATURE 3 in the change contract.
-  copyImageToClipboard() {
-    if (!this.image) { notify('No image to copy', 'fail'); return; }
-    try {
-      const off = this.#renderExportCanvas();
-      const blobP = new Promise((res, rej) =>
-        off.toBlob(b => b ? res(b) : rej(new Error('Image encode failed')), 'image/png'));
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
-        .then(() => notify('Image copied to clipboard', 'ok'))
-        .catch(err => notify('Copy failed: ' + (err.message || err), 'fail'));
-    } catch (e) {
-      notify('Copy failed: ' + e.message, 'fail');
-    }
-  }
+  // Export / clipboard / file-IO actions live in ExportService (exportService.js); these
+  // thin delegators keep the public method names the toolbar, contextMenu, and window.stencil
+  // facade call. See stencilApi.js / the #wire* handlers.
+  saveImage() { return this.export.saveImage(); }
+  shareImage() { return this.export.shareImage(); }
+  downloadJSON() { return this.export.downloadJSON(); }
+  uploadJSON(e) { return this.export.uploadJSON(e); }
+  copyImageToClipboard() { return this.export.copyImageToClipboard(); }
 
   // ── Wipe every line on the canvas (confirms first) ──
   async clearAllLines() {
@@ -4713,64 +4605,8 @@ export class DrawingApp {
     notify('All lines cleared', 'ok');
   }
 
-  // ── Clipboard: copy layout JSON text ──
-  // Copies the FULL layout — lines plus every applied edit (filter/tint, crop, rotation, page
-  // format, formulas) via #currentLayoutPayload, so a paste reproduces the whole editor state.
-  copyLayoutToClipboard() {
-    if (!this.lines || this.lines.length === 0) {
-      notify('No layout to copy', 'fail');
-      return;
-    }
-    const data = this.#currentLayoutPayload();
-    const txt = JSON.stringify(data, null, 2);
-    navigator.clipboard.writeText(txt).then(
-      () => notify('Layout JSON copied', 'ok'),
-      err => notify('Copy failed: ' + (err.message || err), 'fail')
-    );
-  }
-
-  // ── Apply a layout object pasted from the clipboard ──
-  async applyPastedLayout(data) {
-    await this.#applyValidatedLayout(data, {
-      source: 'pasted JSON',
-      cancelMsg: 'Layout paste canceled',
-      successMsg: 'Layout pasted from clipboard'
-    });
-  }
-
-  /**
-   * Validate a layout payload and, after any needed confirmations, install it
-   * as the current lines. Shared by JSON file upload and clipboard paste.
-   * @param {object} data - Parsed layout payload (expects a `lines` array).
-   * @param {{source: string, cancelMsg: string, successMsg: string}} opts -
-   *   `source` names the layout's origin in the replace prompt; `cancelMsg` and
-   *   `successMsg` are the toasts shown on cancel and success.
-   * @returns {Promise<void>}
-   */
-  async #applyValidatedLayout(data, { source, cancelMsg, successMsg }) {
-    const verdict = validateLayout(data, {
-      hasImage: !!this.image,
-      imgW: this.canvas.width,
-      imgH: this.canvas.height,
-      hasExistingLines: !!(this.lines && this.lines.length > 0)
-    });
-    if (!verdict.ok) {
-      notify('Load an image first', 'fail');
-      return;
-    }
-    if (verdict.needsReplaceConfirm && !(await this.confirm(`Replace current layout with ${source}?`, { title: 'Replace layout' }))) {
-      notify(cancelMsg, 'fail');
-      return;
-    }
-    if (verdict.needsDimMismatchConfirm && !(await this.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
-      notify(cancelMsg, 'fail');
-      return;
-    }
-    this.lines = verdict.lines;
-    this.saveHistory();
-    this.renderer.redraw();
-    this.updateButtons();
-    if (this.lines.length > 0) this.coordTable.update(this.lines[this.lines.length - 1].points);
-    notify(successMsg, 'ok');
-  }
+  // Layout clipboard copy + paste-apply live in ExportService; delegate to keep the
+  // public names the contextMenu and window.stencil facade call.
+  copyLayoutToClipboard() { return this.export.copyLayoutToClipboard(); }
+  applyPastedLayout(data) { return this.export.applyPastedLayout(data); }
 }
