@@ -7,6 +7,12 @@ import { core } from './stencilCore.js';
 // Grammar: expr = term (('+'|'-') term)*; term = unary (('*'|'/') unary)*;
 // unary = ('+'|'-') unary | power; power = primary ('**' unary)? (right-assoc);
 // primary = '(' expr ')' | number | the bound variable. Syntax error ⇒ ok=false (invalid).
+// Cap recursion depth so an adversarial deeply-nested input (thousands of '(' or unary signs
+// from untrusted layout JSON / console / co-edit) can't overflow the stack; past the cap the
+// parse is invalid (→ identity). Must equal the core parser's kMaxDepth
+// (core/parse/formulaParser.cpp) so wasm and this JS fallback agree op-for-op.
+const MAX_DEPTH = 256;
+
 class Evaluator {
   constructor(src, varName, varValue) {
     this.src = src;
@@ -14,6 +20,7 @@ class Evaluator {
     this.varValue = varValue;
     this.pos = 0;
     this.ok = true;
+    this.depth = 0;
   }
 
   // Parse a full expression and require that all input was consumed.
@@ -55,12 +62,14 @@ class Evaluator {
   }
 
   parseExpr() {
+    if (++this.depth > MAX_DEPTH) { this.ok = false; this.depth -= 1; return 0; }
     let v = this.parseTerm();
     while (this.ok) {
       if (this.match('+')) v += this.parseTerm();
       else if (this.match('-')) v -= this.parseTerm();
       else break;
     }
+    this.depth -= 1;
     return v;
   }
 
@@ -77,10 +86,14 @@ class Evaluator {
   }
 
   parseUnary() {
+    if (++this.depth > MAX_DEPTH) { this.ok = false; this.depth -= 1; return 0; }
     this.skipSpaces();
-    if (this.match('+')) return this.parseUnary();
-    if (this.match('-')) return -this.parseUnary();
-    return this.parsePower();
+    let result;
+    if (this.match('+')) result = this.parseUnary();
+    else if (this.match('-')) result = -this.parseUnary();
+    else result = this.parsePower();
+    this.depth -= 1;
+    return result;
   }
 
   parsePower() {

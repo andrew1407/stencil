@@ -135,6 +135,39 @@ class CoreTest(unittest.TestCase):
         )
         self.assertTrue(any(b != 0 for b in buf))
 
+    def test_buffer_bounds_rejected(self) -> None:
+        """Oversized/negative declared dimensions must raise ValueError before the
+        ctypes call — the C kernels only guard non-positive dims, so an oversized
+        count would read/write past the buffer (memory-safety hole). These cases
+        double as the spec for the guard in Core.*."""
+        # fill_rgba: claiming 1,000,000 px over a 1-px (4-byte) buffer is a ~4MB OOB write.
+        with self.assertRaises(ValueError):
+            self.core.fill_rgba(bytearray(4), 1_000_000, 255, 0, 0, 255)
+        with self.assertRaises(ValueError):
+            self.core.fill_rgba(bytearray(4), -1, 0, 0, 0, 0)
+        # apply_filter / apply_contour: pixel/dimension counts beyond the buffer.
+        with self.assertRaises(ValueError):
+            self.core.apply_filter("bw", bytearray(4), 1_000_000)
+        with self.assertRaises(ValueError):
+            self.core.apply_contour(bytearray(4 * 2 * 2), 100, 100)
+        # crop / rotate: reading a source as larger than it is → OOB read.
+        with self.assertRaises(ValueError):
+            self.core.crop_image_rgba(bytes(4), 1000, 1000, 0, 0, 1, 1)
+        with self.assertRaises(ValueError):
+            self.core.crop_image_rgba(bytes(4), 1, 1, 0, 0, -1, 2)
+        with self.assertRaises(ValueError):
+            self.core.rotate_image_rgba(bytes(4), 1000, 1000, 1)
+        # rasterize_line: burning into a buffer smaller than w*h*4.
+        with self.assertRaises(ValueError):
+            self.core.rasterize_line(bytearray(4), 100, 100, [(0.0, 0.0), (1.0, 1.0)])
+
+    def test_buffer_bounds_exact_fit_ok(self) -> None:
+        """An exactly-sized buffer is still accepted (the guard is a ceiling, not a change)."""
+        buf = bytearray(2 * 2 * 4)
+        self.core.fill_rgba(buf, 4, 10, 20, 30, 255)  # 4 px == len(buf)/4
+        self.assertTrue(any(b != 0 for b in buf))
+        self.core.apply_contour(buf, 2, 2)  # 2x2 == len(buf)
+
     def test_resolve_crop(self) -> None:
         rect = self.core.resolve_crop(
             "x1=0 x2=2 y1=0 y2=2",

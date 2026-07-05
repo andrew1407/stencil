@@ -171,6 +171,21 @@ test('normalizeLaunchPayload carries the layout object through', () => {
   assert.deepStrictEqual(p.layout, layout);
 });
 
+test('normalizeLaunchPayload: __proto__ in layout/crop/page is stripped, never pollutes', () => {
+  // A crafted #stencil= payload whose object sub-fields carry prototype-pollution keys.
+  const evil = JSON.parse(
+    '{"src":"https://x.example/a.png","layout":{"__proto__":{"polluted":1},"lines":[]},'
+    + '"crop":{"constructor":{"x":1},"x1":0},"page":{"__proto__":{"y":1}}}'
+  );
+  const p = normalizeLaunchPayload(evil);
+  assert.strictEqual(({}).polluted, undefined);   // Object.prototype untouched
+  assert.strictEqual(({}).x, undefined);
+  assert.strictEqual(({}).y, undefined);
+  // The cleaned sub-objects keep only safe keys.
+  assert.deepStrictEqual(Object.keys(p.layout), ['lines']);
+  assert.deepStrictEqual(Object.keys(p.crop), ['x1']);
+});
+
 test('normalizeLaunchPayload rejects junk', () => {
   assert.strictEqual(normalizeLaunchPayload(null), null);
   assert.strictEqual(normalizeLaunchPayload('x'), null);

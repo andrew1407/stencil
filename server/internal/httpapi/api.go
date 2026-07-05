@@ -32,6 +32,13 @@ type SessionStore interface {
 	CreateSession(ctx context.Context, tokenHash []byte, label string, createdAt, expiresAt int64) (auth.Session, error)
 }
 
+// SessionCounter reports how many clients are currently connected to a project's
+// live edit session. The hub satisfies it; it is optional (nil in unit tests), in
+// which case the delete guard treats every project as having no live connections.
+type SessionCounter interface {
+	ConnectionCount(projectID string) int
+}
+
 // FileStore is the byte storage the API needs.
 type FileStore interface {
 	Put(id, kind, ext string, data []byte) (string, error)
@@ -45,6 +52,7 @@ type Deps struct {
 	Projects     ProjectStore
 	Sessions     SessionStore
 	Files        FileStore
+	LiveSessions SessionCounter // optional: live edit-session connection counts (the hub)
 	Bus          bus.Bus
 	TokenTTL     time.Duration
 	ProjectTTL   time.Duration // default project lifetime; 0 = no expiry (off)

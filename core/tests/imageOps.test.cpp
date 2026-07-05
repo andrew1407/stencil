@@ -48,6 +48,25 @@ TEST_CASE("cropImageRGBA copies a sub-rect and zero-pads out of bounds") {
   CHECK(oob[3] == 0);
 }
 
+// A negative-origin crop that straddles the source edge: the overlapping region is
+// copied, the negative/overflow rim is zero-padded. Every front-end feeds rx/ry from
+// user drags, so this mixed in/out-of-bounds path must be exact.
+TEST_CASE("cropImageRGBA zero-pads the rim of a negative-origin partial overlap") {
+  auto src = ramp(2, 2);  // R: (0,0)=0 (1,0)=1 (0,1)=2 (1,1)=3, alpha 255
+  std::vector<std::uint8_t> dst(3 * 3 * 4, 9);
+  cropImageRGBA(src.data(), 2, 2, -1, -1, 3, 3, dst.data());
+  auto R = [&](int dx, int dy) { return dst[(dy * 3 + dx) * 4 + 0]; };
+  auto A = [&](int dx, int dy) { return dst[(dy * 3 + dx) * 4 + 3]; };
+  // Top row and left column map to negative source coords -> fully transparent.
+  for (int dx = 0; dx < 3; ++dx) { CHECK(R(dx, 0) == 0); CHECK(A(dx, 0) == 0); }
+  for (int dy = 0; dy < 3; ++dy) { CHECK(R(0, dy) == 0); CHECK(A(0, dy) == 0); }
+  // The overlapping bottom-right 2x2 carries the source pixels (alpha restored).
+  CHECK(R(1, 1) == 0); CHECK(A(1, 1) == 255);  // src(0,0)
+  CHECK(R(2, 1) == 1); CHECK(A(2, 1) == 255);  // src(1,0)
+  CHECK(R(1, 2) == 2); CHECK(A(1, 2) == 255);  // src(0,1)
+  CHECK(R(2, 2) == 3); CHECK(A(2, 2) == 255);  // src(1,1)
+}
+
 TEST_CASE("rotateImageRGBA 90 clockwise maps a 2x1 row to a column") {
   auto src = ramp(2, 1);  // [A=0][B=1]
   std::vector<std::uint8_t> dst(1 * 2 * 4, 0);

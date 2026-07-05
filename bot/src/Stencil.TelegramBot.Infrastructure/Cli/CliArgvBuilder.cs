@@ -36,6 +36,19 @@ public static class CliArgvBuilder
         {
             throw new StencilCliException("`output` must not be empty");
         }
+        // Flag-injection guard, mirroring build_argv in mcp/src/args.rs. The output is a
+        // positional operand appended last, and the CLI (cli/src/args.zig) has no `--`
+        // end-of-options terminator, so an output like `--album` or `-l` would be parsed as a
+        // flag rather than the output path. A real output path never starts with a dash — the
+        // CLI could never accept one in the positional slot — so reject one up front. (Today
+        // Output is always a GUID workspace path, never user-supplied; this keeps the port in
+        // sync and is defense-in-depth should that ever change.)
+        if (req.Output.StartsWith('-'))
+        {
+            throw new StencilCliException(
+                $"`output` must not start with '-' (got \"{req.Output}\") — a dash-leading value " +
+                "would be parsed as a CLI flag, not the output path");
+        }
 
         List<string> argv = new();
 

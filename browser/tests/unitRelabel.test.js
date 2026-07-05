@@ -1,9 +1,7 @@
 // Pins the shared page-format option-label contract (SPEC §1.3): pageFormatLabel
-// renders in the requested display unit, and DrawingApp.applyUnitToUI re-labels BOTH
-// selectors that use it — the toolbar #page-size select AND the links-modal quick-crop
-// #links-crop-pagesize select — so neither stays frozen at the boot-time cm labels
-// when the user switches units (parity with the desktop LinksDialog, which rebuilds
-// its combo in the live unit on every open).
+// renders in the requested display unit, and DrawingApp.applyUnitToUI re-labels the
+// toolbar #page-size select so it doesn't stay frozen at the boot-time cm labels when
+// the user switches units.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,29 +46,25 @@ const runApplyUnitToUI = (unit) =>
     unit, pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7,
   });
 
-test('applyUnitToUI relabels the toolbar AND links-modal quick-crop selectors', () => {
+test('applyUnitToUI relabels the toolbar page-size selector in the active unit', () => {
   const names = Object.keys(PAGE_SIZES);
   const psSel = fakeSelect(['custom', ...names]);       // toolbar: Custom… first
-  const qcSel = fakeSelect(names);                      // quick-crop: named formats only
   elements.clear();
   elements.set('page-size', psSel);
-  elements.set('links-crop-pagesize', qcSel);
 
   runApplyUnitToUI('in');
   assert.equal(psSel.options[0].textContent, 'Custom…', 'Custom… label untouched');
   for (const opt of psSel.options.slice(1))
     assert.equal(opt.textContent, pageFormatLabel(opt.value, 'in'), `toolbar ${opt.value} in inches`);
-  for (const opt of qcSel.options)
-    assert.equal(opt.textContent, pageFormatLabel(opt.value, 'in'), `quick-crop ${opt.value} in inches`);
   assert.equal(psSel.value, 'A4', 'toolbar select re-asserts the model page size');
 
   // And back to cm — labels follow the active unit both ways.
   runApplyUnitToUI('cm');
-  for (const opt of qcSel.options)
-    assert.equal(opt.textContent, pageFormatLabel(opt.value, 'cm'), `quick-crop ${opt.value} back in cm`);
+  for (const opt of psSel.options.slice(1))
+    assert.equal(opt.textContent, pageFormatLabel(opt.value, 'cm'), `toolbar ${opt.value} back in cm`);
 });
 
-test('applyUnitToUI tolerates the links modal (or toolbar) not being in the DOM', () => {
+test('applyUnitToUI tolerates the toolbar select not being in the DOM', () => {
   elements.clear();                                      // no selects at all
   assert.doesNotThrow(() => runApplyUnitToUI('in'));
 });

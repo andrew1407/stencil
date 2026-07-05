@@ -19,9 +19,12 @@ export async function issueToken(request, label = 'e2e') {
 
 export const bearer = (token) => ({ Authorization: `Bearer ${token}` });
 
-// Create a project and return its ProjectRecord.
+// Create a project and return its ProjectRecord. The server requires every project to
+// declare an image (a project is created FROM an image), so default hasImage:true —
+// these fixtures stand in for real image-backed projects. Callers may override it.
 export async function createProject(request, token, body = {}) {
-  const res = await request.post(`${SERVER_URL}/projects`, { headers: bearer(token), data: body });
+  const data = { hasImage: true, ...body };
+  const res = await request.post(`${SERVER_URL}/projects`, { headers: bearer(token), data });
   if (res.status() !== 201) throw new Error(`createProject: ${res.status()} ${await res.text()}`);
   return res.json();
 }

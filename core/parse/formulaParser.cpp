@@ -29,6 +29,23 @@ namespace stencil::core {
       double val_;
       std::size_t pos_ = 0;
       bool ok_ = true;
+      int depth_ = 0;
+
+      // Cap recursion depth so an adversarial deeply-nested input (e.g. thousands
+      // of '(' or unary signs, reachable from untrusted layout JSON / console /
+      // CLI --formula) can't overflow the stack. Past the cap the parse is invalid
+      // (→ identity), matching the "invalid input never misbehaves" contract. Kept
+      // identical to formulaEngine.js's MAX_DEPTH so wasm and the JS fallback agree.
+      static constexpr int kMaxDepth = 256;
+
+      // RAII depth counter: increments on entry, decrements on unwind so sibling
+      // subexpressions don't accumulate depth.
+      struct DepthGuard {
+        int& d;
+        bool ok;
+        explicit DepthGuard(int& depth) : d(depth), ok(++depth <= kMaxDepth) {}
+        ~DepthGuard() { --d; }
+      };
 
       void skipSpaces() {
         while (pos_ < src_.size() &&
@@ -61,6 +78,8 @@ namespace stencil::core {
       }
 
       double parseExpr() {
+        DepthGuard g(depth_);
+        if (!g.ok) { ok_ = false; return 0.0; }
         double v = parseTerm();
         while (ok_) {
           if (match('+')) v += parseTerm();
@@ -83,6 +102,8 @@ namespace stencil::core {
       }
 
       double parseUnary() {
+        DepthGuard g(depth_);
+        if (!g.ok) { ok_ = false; return 0.0; }
         skipSpaces();
         if (match('+')) return parseUnary();
         if (match('-')) return -parseUnary();

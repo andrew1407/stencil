@@ -788,9 +788,15 @@ class Editor:
         return low.startswith("http://") or low.startswith("https://")
 
     @staticmethod
-    def _fetch_url(url: str) -> bytes:
-        """Fetch raw bytes from an http(s) URL with urllib (stdlib, no deps)."""
-        with urllib.request.urlopen(url) as resp:
+    def _fetch_url(url: str, timeout: float = 30.0) -> bytes:
+        """Fetch raw bytes from an http(s) URL with urllib (stdlib, no deps).
+
+        Only http(s) is accepted: urllib would otherwise open file://, ftp://, or
+        data: URLs, turning "fetch this image" into a local-file/SSRF read. A
+        timeout bounds a hostile or hung server."""
+        if not Editor._is_url(url):
+            raise ValueError(f"refusing to fetch non-http(s) URL: {url!r}")
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
             return resp.read()
 
     @staticmethod

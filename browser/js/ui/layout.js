@@ -8,7 +8,6 @@ import { StencilVisualsModal } from './visualsModal.js';
 import { StencilInfoModal } from './infoModal.js';
 import { StencilProjectsModal } from './projectsModal.js';
 import { StencilExpirationModal } from './expirationModal.js';
-import { StencilBlankImageModal } from './blankImageModal.js';
 import { StencilOpenImageModal } from './openImageModal.js';
 import { StencilOpenInModal } from './openInModal.js';
 import { StencilLinksModal } from './linksModal.js';
@@ -21,4 +20,4 @@ import { StencilInstall } from './installButton.js';
 // emits the host tag with markup inline, so layout() still produces the full static
 // markup string (143 ids) the app and tests expect.
 export const layout = () =>
-  `${StencilContextMenu.template()}${StencilFullscreenLayer.template()}${StencilDropOverlay.template()}${StencilAppContainer.template()}${StencilNotifications.template()}${StencilSettingsModal.template()}${StencilVisualsModal.template()}${StencilInfoModal.template()}${StencilProjectsModal.template()}${StencilExpirationModal.template()}${StencilBlankImageModal.template()}${StencilOpenImageModal.template()}${StencilOpenInModal.template()}${StencilLinksModal.template()}${StencilConnectModal.template()}${StencilCropModal.template()}${StencilConfirmModal.template()}${StencilInstall.template()}`;
+  `${StencilContextMenu.template()}${StencilFullscreenLayer.template()}${StencilDropOverlay.template()}${StencilAppContainer.template()}${StencilNotifications.template()}${StencilSettingsModal.template()}${StencilVisualsModal.template()}${StencilInfoModal.template()}${StencilProjectsModal.template()}${StencilExpirationModal.template()}${StencilOpenImageModal.template()}${StencilOpenInModal.template()}${StencilLinksModal.template()}${StencilConnectModal.template()}${StencilCropModal.template()}${StencilConfirmModal.template()}${StencilInstall.template()}`;

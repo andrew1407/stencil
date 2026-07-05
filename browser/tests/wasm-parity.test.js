@@ -82,6 +82,31 @@ wtest('formula apply/validate: wasm matches JS reference (char-code marshalling)
   assert.strictEqual(apply('x*2', 'x', 5, false), 5);
 });
 
+// Adversarial / large formula strings must be marshalled over the heap, not the
+// fixed ~64KB wasm stack — an oversized cwrap('string') arg used to overflow the
+// stack and corrupt the module (crash on the next call). The parser's depth cap
+// rejects deep nesting; a long *flat* expression stays valid. Both must agree with
+// the JS fallback op-for-op, and none may crash the wasm instance.
+wtest('formula: long/adversarial strings marshal over the heap without corrupting wasm', () => {
+  const apply = core.op('formulaApply');
+  const valid = core.op('formulaValidate');
+  const deep = '('.repeat(200000);                                   // past the depth cap
+  const balanced = '('.repeat(5000) + 'x' + ')'.repeat(5000);        // deeply nested, balanced
+  const flat = '0' + '+1'.repeat(20000);                             // ~40KB but only linear
+
+  // Deep nesting → invalid (identity), matching fe.validate/apply in the JS fallback.
+  assert.strictEqual(valid(deep, 'x'), fe.validate(deep, 'x'));
+  assert.strictEqual(valid(balanced, 'x'), fe.validate(balanced, 'x'));
+  assert.strictEqual(apply(balanced, 'x', 42, true), fe.apply(balanced, 'x', 42, true));
+  // A long flat expression is valid on both sides and evaluates to the same number.
+  assert.strictEqual(valid(flat, 'x'), fe.validate(flat, 'x'));
+  assert.ok(Math.abs(apply(flat, 'x', 0, true) - fe.apply(flat, 'x', 0, true)) < 1e-9);
+
+  // The instance is still healthy after the oversized inputs (no heap corruption).
+  assert.strictEqual(valid('x*2+1', 'x'), true);
+  assert.strictEqual(apply('x*2+1', 'x', 10, true), 21);
+});
+
 wtest('parseDuration: wasm matches JS reference (ms, 0 for off, null for invalid)', () => {
   const fn = core.op('parseDuration');
   CASES.duration.forEach((s, i) => {

@@ -290,12 +290,9 @@ export class DrawingApp {
   }
 
   #wireStyleControls() {
-    document.getElementById('image-upload').addEventListener('change', e => this.loadImage(e));
-    // Compact "Load Image" affordance (shown when no image) just triggers the hidden picker.
-    document.getElementById('load-image-btn')?.addEventListener('click',
-      () => document.getElementById('image-upload').click());
-    // Image actions (shown when an image is loaded). #open-image-btn is wired by the
-    // open-image modal component (as its open button); the rest are direct actions.
+    // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn
+    // (empty state) is its open button; #open-image-btn (image loaded) and the blank
+    // shortcuts open the same dialog. The rest of the Image-actions group are direct.
     document.getElementById('copy-image')?.addEventListener('click', () => this.copyImageToClipboard());
     const shareBtn = document.getElementById('share-image');
     if (shareBtn) {
@@ -1659,12 +1656,6 @@ export class DrawingApp {
     return { cssX, cssY, x: cssX / this.scale, y: cssY / this.scale };
   }
 
-  loadImage(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    this.loadImageFromFile(file);
-  }
-
   // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels, overriding
   // the default centered page-aspect crop (external-launch path). opts.source/opts.resource —
   // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
@@ -2989,13 +2980,6 @@ export class DrawingApp {
         if (opt.value !== 'custom') opt.textContent = pageFormatLabel(opt.value, this.unit);
       psSel.value = this.pageSize;
     }
-    // The links-modal quick-crop page selector shares the same option-label contract
-    // (desktop's LinksDialog renders it in the live unit too) — keep it in lockstep.
-    const qcSel = document.getElementById('links-crop-pagesize');
-    if (qcSel) {
-      for (const opt of qcSel.options)
-        opt.textContent = pageFormatLabel(opt.value, this.unit);
-    }
     const w = document.getElementById('custom-page-width');
     const h = document.getElementById('custom-page-height');
     if (w) w.value = +cmToUnit(this.customPageWidth, this.unit).toFixed(2);
@@ -3372,6 +3356,8 @@ export class DrawingApp {
     setDisabled('rotate-right', !hasImage);
     setDisabled('image-filter', !hasImage);
     setDisabled('save-image', !hasImage);
+    // Image Links edit the CURRENT image's provenance — nothing to edit without one.
+    setDisabled('links-btn', !hasImage);
     setDisabled('download-json', !hasLines);
     setDisabled('copy-json-btn', !hasLines);
     setDisabled('clear-all-lines', !hasLines);

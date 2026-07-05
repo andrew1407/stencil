@@ -42,6 +42,30 @@ def _bytes_arg(src: bytes) -> ctypes.Array:
     return (ctypes.c_uint8 * len(src)).from_buffer_copy(src)
 
 
+def _check_pixels(buf, pixel_count: int, name: str) -> None:
+    """Guard a flat RGBA8 op: the declared pixel count must be non-negative and fit
+    within `buf`. The C kernels only reject non-positive dims, so an oversized
+    pixel_count would read/write past the buffer — a memory-safety hole. Raise
+    ValueError here before the ctypes call rather than corrupt memory."""
+    if pixel_count < 0:
+        raise ValueError(f"{name}: pixel_count must be non-negative, got {pixel_count}")
+    if pixel_count * 4 > len(buf):
+        raise ValueError(
+            f"{name}: pixel_count {pixel_count} needs {pixel_count * 4} bytes but "
+            f"buffer holds {len(buf)}"
+        )
+
+
+def _check_dims(buf, w: int, h: int, name: str) -> None:
+    """Guard a width x height RGBA8 op against oversized/negative dims vs `buf`."""
+    if w < 0 or h < 0:
+        raise ValueError(f"{name}: dimensions must be non-negative, got {w}x{h}")
+    if w * h * 4 > len(buf):
+        raise ValueError(
+            f"{name}: {w}x{h} needs {w * h * 4} bytes but buffer holds {len(buf)}"
+        )
+
+
 class Core:
     """Thin, typed wrapper around the shared core's CLI ABI.
 
@@ -295,6 +319,9 @@ class Core:
         self, src: bytes, src_w: int, src_h: int, rx: int, ry: int, rw: int, rh: int
     ) -> bytearray:
         """Copy the (rx,ry,rw,rh) sub-rectangle of src into a fresh rw*rh*4 bytearray."""
+        if rw < 0 or rh < 0:
+            raise ValueError(f"crop_image_rgba: crop size must be non-negative, got {rw}x{rh}")
+        _check_dims(src, src_w, src_h, "crop_image_rgba source")
         dst = bytearray(rw * rh * 4)
         self._lib.stencil_cli_cropImageRGBA(
             ctypes.cast(_bytes_arg(src), _u8p),
@@ -327,6 +354,7 @@ class Core:
 
     def rotate_image_rgba(self, src: bytes, w: int, h: int, q: int) -> bytearray:
         """Rotate src (w x h) by `q` quarter-turns clockwise into a fresh bytearray."""
+        _check_dims(src, w, h, "rotate_image_rgba source")
         ow, oh = self.rotated_dims(w, h, q)
         dst = bytearray(ow * oh * 4)
         self._lib.stencil_cli_rotateImageRGBA(
@@ -342,6 +370,7 @@ class Core:
         self, dst: bytearray, pixel_count: int, r: int, g: int, b: int, a: int
     ) -> None:
         """Fill `pixel_count` RGBA8 pixels of dst with one colour, in place."""
+        _check_pixels(dst, pixel_count, "fill_rgba")
         self._lib.stencil_cli_fillRGBA(
             ctypes.cast(_buf_view(dst), _u8p),
             ctypes.c_int(pixel_count),
@@ -361,6 +390,7 @@ class Core:
     ) -> None:
         """Apply "none"|"bw"|"sepia"|"invert"|<duotone> in place to a pixel_count RGBA8
         buffer. "contour" is a no-op here (it needs dimensions) — use apply_contour."""
+        _check_pixels(data, pixel_count, "apply_filter")
         self._lib.stencil_cli_applyFilter(
             _encode(mode),
             ctypes.cast(_buf_view(data), _u8p),
@@ -373,6 +403,7 @@ class Core:
     def apply_contour(self, data: bytearray, width: int, height: int) -> None:
         """Sobel edge detection ("contour") in place on a width x height RGBA8 buffer:
         dark edges on a white page, alpha preserved. Degenerate dims are a no-op."""
+        _check_dims(data, width, height, "apply_contour")
         self._lib.stencil_cli_applyContour(
             ctypes.cast(_buf_view(data), _u8p),
             ctypes.c_int(width),
@@ -394,6 +425,7 @@ class Core:
         fill_color: str = "transparent",
     ) -> None:
         """Burn one polyline into buf (w x h) in place. `points` are (x,y) pairs."""
+        _check_dims(buf, w, h, "rasterize_line")
         n = len(points)
         # Flatten to the 2*n contiguous doubles the ABI expects (x0,y0,x1,y1,...).
         flat = (ctypes.c_double * (2 * n))()

@@ -28,6 +28,16 @@ export class StencilElement extends ElementBase {
 // Compose a host tag string for layout(): `<tag attrs>inner</tag>`.
 export const hostTag = (tag, attrs, inner) => `<${tag}${attrs ? ' ' + attrs : ''}>${inner}</${tag}>`;
 
+// Escape a string for safe interpolation into an innerHTML template. Use it for any
+// value that can carry server-supplied or user-typed text (project names, server
+// URLs/addresses) so a crafted value can't inject markup/script. Non-strings coerce.
+export const escapeHtml = (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 // ── Shared modal shell ──────────────────────────────────────────
 // Wires open/close/overlay-mousedown/Escape for every app modal; returns
 // { open, close }. onOpen/onClose run BEFORE the modal-open class toggles.

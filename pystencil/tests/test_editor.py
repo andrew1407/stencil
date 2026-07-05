@@ -27,6 +27,27 @@ def _grayscale_pixels(data, count):
     return True
 
 
+class EditorFetchGuardTests(unittest.TestCase):
+    """The URL fetch is http(s)-only. These need no native core (they reject the
+    scheme before any urlopen), so they run everywhere."""
+
+    def test_fetch_url_rejects_non_http_schemes(self):
+        for bad in (
+            "file:///etc/passwd",
+            "ftp://host/clip.png",
+            "data:text/plain;base64,AAAA",
+            "gopher://host/1",
+        ):
+            with self.assertRaises(ValueError):
+                Editor._fetch_url(bad)
+
+    def test_is_url_only_http(self):
+        self.assertTrue(Editor._is_url("http://example.com/a.png"))
+        self.assertTrue(Editor._is_url("HTTPS://example.com/a.png"))
+        self.assertFalse(Editor._is_url("file:///etc/passwd"))
+        self.assertFalse(Editor._is_url("/local/path.png"))
+
+
 class EditorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
