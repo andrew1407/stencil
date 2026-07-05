@@ -72,18 +72,20 @@ func run() error {
 	var sweepWG sync.WaitGroup
 	startExpirySweep(rootCtx, &sweepWG, st, fs, b, cfg.SweepInterval)
 
-	// REST + WS + TCP.
+	// REST + WS + TCP. The hub is built first so the REST delete guard can consult it
+	// for a project's live connection count.
+	h := hub.New(rootCtx, st, b, st)
 	api := httpapi.New(httpapi.Deps{
 		Projects:     st,
 		Sessions:     st,
 		Files:        fs,
+		LiveSessions: h,
 		Bus:          b,
 		TokenTTL:     cfg.TokenTTL,
 		ProjectTTL:   cfg.ProjectTTL,
 		MaxBodyBytes: cfg.MaxBodyBytes,
 		AdminToken:   cfg.AdminToken,
 	})
-	h := hub.New(rootCtx, st, b, st)
 
 	mux := http.NewServeMux()
 	api.Register(mux)

@@ -78,13 +78,10 @@ namespace stencil::gui {
     void openStencilUrl(const QUrl& url);
 
    private slots:
+    // The single Open entry (File ▸ Open / top-left toolbar): the unified Open dialog
+    // (mirrors browser openImageModal.js) — a local file, a web URL, or a new blank.
     void openImage();
-    // "Open another image" dialog (mirrors browser openImageModal.js): pick a file
-    // + incognito, then replace the current editor or launch it in a new window.
-    void openAnotherImage();
-    // Blank-image creator (mirrors browser blankImageModal.js): pick a fill
-    // color + px size (defaulting to the page at 96 dpi), then adopt the
-    // generated image through the same path as a clipboard paste.
+    // Idle-canvas + projects "new blank" shortcut: opens the same dialog in blank mode.
     void newBlankImage();
     // Crop dialog (mirrors browser cropModal.js): pick the page-shaped region of
     // the original image to show on the canvas. Confirms before discarding lines
@@ -243,7 +240,12 @@ namespace stencil::gui {
     // removing/moving a project that's open elsewhere (the desktop analogue of the
     // browser's "open in another tab" guard).
     bool projectOpenInOtherWindow(const QString& id) const;
-    // "Open another image" outcomes. Open here: replace this editor's image
+    // Unified Open dialog driver (shared by File ▸ Open and the blank shortcuts):
+    // shows OpenImageDialog and dispatches its outcome (here/new-window/replace/blank).
+    void openImageDialog(bool startBlank);
+    // Generate + adopt a solid-color blank image (the dialog's blank-mode outcome).
+    void createBlankImageFromDialog(const QColor& color, int w, int h);
+    // Open dialog outcomes. Open here: replace this editor's image
     // (saving the current content first unless incognito), adopting the chosen
     // incognito mode. New window: launch a fresh window loading the image (via
     // applyLaunchOptions, the --src/--incognito path), leaving this one untouched.
@@ -525,8 +527,6 @@ namespace stencil::gui {
 
     // ── actions (shared by menu bar, toolbar, context menu) ──
     QAction* actOpen_ = nullptr;
-    QAction* actOpenAnother_ = nullptr;
-    QAction* actNewBlank_ = nullptr;
     QAction* actCrop_ = nullptr;
     QAction* actRotateLeft_ = nullptr;
     QAction* actRotateRight_ = nullptr;

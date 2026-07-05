@@ -10,6 +10,35 @@ namespace stencil::core {
 
   namespace {
 
+    // Largest coordinate / size magnitude a layout line may carry. Real image
+    // coordinates are a few thousand pixels; anything past this is non-physical
+    // (and, unbounded, would overflow int casts and spin near-infinite scan/step
+    // loops on untrusted layout input). Lines beyond it are skipped as inert.
+    constexpr double kMaxCoord = 1e6;
+
+    // Clamp a coordinate double to the inclusive pixel range [lo, hi] and cast to
+    // int without UB. `!(v >= lo)` also catches NaN. Clamping scan bounds to the
+    // buffer is output-preserving — blendPixel already skips out-of-bounds writes,
+    // so the clamped-away iterations never drew anything — while capping the loop
+    // length so a far-off-canvas or huge-radius stamp can't spin.
+    inline int clampToInt(double v, int lo, int hi) {
+      if (!(v >= static_cast<double>(lo))) return lo;
+      if (v > static_cast<double>(hi)) return hi;
+      return static_cast<int>(v);
+    }
+
+    // Reject a line whose points/sizes are non-finite or absurdly large before any
+    // int cast or scan/step loop runs on them.
+    bool lineWithinBounds(const Line& line) {
+      if (!std::isfinite(line.thickness) || std::abs(line.thickness) > kMaxCoord) return false;
+      if (!std::isfinite(line.markerSize) || std::abs(line.markerSize) > kMaxCoord) return false;
+      for (const Point& p : line.points) {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) return false;
+        if (std::abs(p.x) > kMaxCoord || std::abs(p.y) > kMaxCoord) return false;
+      }
+      return true;
+    }
+
     // round(v / 255) for v in [0, 65535], without a divide. Exact over that range,
     // which covers c*a + d*(255-a) since the two weights sum to 255 (max 255*255).
     inline std::uint8_t div255(int v) {
@@ -40,10 +69,10 @@ namespace stencil::core {
     void stampDisc(std::uint8_t* buf, int w, int h, double cx, double cy,
                    double radius, const Rgba& c) {
       if (radius <= 0.0) return;
-      const int x0 = static_cast<int>(std::floor(cx - radius - 1.0));
-      const int x1 = static_cast<int>(std::ceil(cx + radius + 1.0));
-      const int y0 = static_cast<int>(std::floor(cy - radius - 1.0));
-      const int y1 = static_cast<int>(std::ceil(cy + radius + 1.0));
+      const int x0 = clampToInt(std::floor(cx - radius - 1.0), 0, w - 1);
+      const int x1 = clampToInt(std::ceil(cx + radius + 1.0), 0, w - 1);
+      const int y0 = clampToInt(std::floor(cy - radius - 1.0), 0, h - 1);
+      const int y1 = clampToInt(std::ceil(cy + radius + 1.0), 0, h - 1);
       // Coverage = clamp(radius + 0.5 - d, 0, 1) only needs d in the 1px AA rim. Compare
       // squared distances to skip the sqrt for the full interior (cov 1) and empty exterior
       // (cov 0) — byte-identical to evaluating the formula at every pixel.
@@ -71,10 +100,10 @@ namespace stencil::core {
     void stampRing(std::uint8_t* buf, int w, int h, double cx, double cy,
                    double radius, double lineWidth, const Rgba& c) {
       const double outer = radius + lineWidth * 0.5 + 1.0;
-      const int x0 = static_cast<int>(std::floor(cx - outer));
-      const int x1 = static_cast<int>(std::ceil(cx + outer));
-      const int y0 = static_cast<int>(std::floor(cy - outer));
-      const int y1 = static_cast<int>(std::ceil(cy + outer));
+      const int x0 = clampToInt(std::floor(cx - outer), 0, w - 1);
+      const int x1 = clampToInt(std::ceil(cx + outer), 0, w - 1);
+      const int y0 = clampToInt(std::floor(cy - outer), 0, h - 1);
+      const int y1 = clampToInt(std::ceil(cy + outer), 0, h - 1);
       // Non-zero coverage only within [radius - half, radius + half] of the centre,
       // where half = lineWidth/2 + 0.5. Cull the interior and outer field by squared
       // distance so the sqrt runs only on the ring band itself.
@@ -145,8 +174,8 @@ namespace stencil::core {
       if (pts.size() < 3) return;
       double minY = pts[0].y, maxY = pts[0].y;
       for (const Point& p : pts) { minY = std::min(minY, p.y); maxY = std::max(maxY, p.y); }
-      const int y0 = std::max(0, static_cast<int>(std::floor(minY)));
-      const int y1 = std::min(h - 1, static_cast<int>(std::ceil(maxY)));
+      const int y0 = clampToInt(std::floor(minY), 0, h - 1);
+      const int y1 = clampToInt(std::ceil(maxY), 0, h - 1);
       std::vector<double> xs;
       for (int y = y0; y <= y1; ++y) {
         const double sy = y + 0.5;
@@ -161,6 +190,11 @@ namespace stencil::core {
         }
         std::sort(xs.begin(), xs.end());
         for (std::size_t i = 0; i + 1 < xs.size(); i += 2) {
+          // Asymmetric clamp, NOT clampToInt: this fill loop blends every x in
+          // [xa, xb] unconditionally (no per-pixel coverage guard), so a span lying
+          // wholly off-canvas must stay EMPTY (xa > xb). clampToInt would collapse
+          // both ends onto the same edge pixel and paint a spurious border stripe.
+          // (xs are finite: lineWithinBounds rejected non-finite/huge points up front.)
           const int xa = std::max(0, static_cast<int>(std::ceil(xs[i] - 0.5)));
           const int xb = std::min(w - 1, static_cast<int>(std::floor(xs[i + 1] - 0.5)));
           for (int x = xa; x <= xb; ++x) blendPixel(buf, w, h, x, y, c, 1.0);
@@ -172,6 +206,10 @@ namespace stencil::core {
 
   void rasterizeLine(std::uint8_t* buf, int w, int h, const Line& line) {
     if (line.points.empty()) return;
+    // Untrusted layout coords: a non-finite or absurd point/thickness/markerSize
+    // would make the int casts below UB and spin the step/scan loops near-forever.
+    // Such a line is skipped as inert (nothing drawn), leaving the buffer intact.
+    if (!lineWithinBounds(line)) return;
 
     // Fill first (a locked/closed area with a non-transparent fill colour).
     if (line.locked && line.points.size() >= 3) {

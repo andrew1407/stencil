@@ -107,8 +107,12 @@ class StencilCore {
     // cwrap'd scalar exports (numbers / strings in, number out).
     const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
     const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
-    const cFormulaValid   = core.cwrap('stencil_formulaValidate', 'number', ['string', 'number']);
-    const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['string', 'number', 'number', 'number']);
+    // The formula expr is passed as a heap pointer, not a cwrap 'string' arg: cwrap
+    // marshals a string onto the fixed ~64KB wasm *stack* (stringToUTF8OnStack), which
+    // an untrusted, unbounded formula (layout JSON / console / co-edit) would overflow —
+    // corrupting the module — before the parser's depth cap can reject it. See writeExpr.
+    const cFormulaValid   = core.cwrap('stencil_formulaValidate', 'number', ['number', 'number']);
+    const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['number', 'number', 'number', 'number']);
     const cParseDuration  = (spec, out) => core.ccall('stencil_parseDuration', 'number', ['string', 'number'], [spec, out]);
     const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
     const cShouldClose    = core.cwrap('stencil_shouldCloseShape', 'number', ['number', 'number', 'number', 'number', 'number']);
@@ -165,6 +169,24 @@ class StencilCore {
       return { ptr, n, view };
     };
 
+    // Copy a NUL-terminated UTF-8 copy of `str` into a freshly malloc'd heap buffer and
+    // run `fn(ptr)`, freeing after. Used to hand the formula parser its `const char*`
+    // over the heap (no ~64KB stack limit), so an arbitrarily long/adversarial expression
+    // is bounded by memory, not the wasm stack. HEAPU8 is re-read after _malloc since
+    // ALLOW_MEMORY_GROWTH can detach the old view.
+    const utf8 = new TextEncoder();
+    const withCString = (str, fn) => {
+      const bytes = utf8.encode(str ?? '');
+      const ptr = core._malloc(bytes.length + 1);
+      try {
+        core.HEAPU8.set(bytes, ptr);
+        core.HEAPU8[ptr + bytes.length] = 0;
+        return fn(ptr);
+      } finally {
+        core._free(ptr);
+      }
+    };
+
     // FilterMode enum codes (must match core/imageFilter.hpp).
     const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
@@ -184,11 +206,11 @@ class StencilCore {
       },
 
       formulaValidate(expr, varName) {
-        return cFormulaValid(expr ?? '', varName.charCodeAt(0)) === 1;
+        return withCString(expr, p => cFormulaValid(p, varName.charCodeAt(0))) === 1;
       },
 
       formulaApply(expr, varName, val, allowFormulas) {
-        return cFormulaApply(expr ?? '', varName.charCodeAt(0), val, allowFormulas ? 1 : 0);
+        return withCString(expr, p => cFormulaApply(p, varName.charCodeAt(0), val, allowFormulas ? 1 : 0));
       },
 
       // Parse a human duration → milliseconds (0 = keep forever), or null if the

@@ -803,6 +803,18 @@ stencil-links-modal { --vs-label-w: 118px; }
    lines (each option as a unit) only when the modal is too narrow. */
 .vs-row.vs-checks { justify-content: flex-start; flex-wrap: wrap; gap: 7px 26px; }
 .oi-replace { display: flex; flex-wrap: wrap; gap: 7px 18px; }
+/* ── Open Image dialog: source tabs (Local file / URL link / Blank). A simple
+   underline tab bar; the active tab is accent-colored with an accent underline. */
+.oi-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-main); margin-bottom: 14px; }
+.oi-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; margin-bottom: -1px;
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.oi-tab:hover { color: var(--text-main); }
+.oi-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+.oi-panel { margin-bottom: 2px; }
 /* ── Open-another-image + Open-in modals: a fixed label column with the controls
    left-aligned against it. The default .vs-row space-between (right for the
    settings toggles) scatters these mixed-width controls — the file input lands at
@@ -1194,7 +1206,8 @@ stencil-fullscreen-layer { display: contents; }
 /* ── Links modal (source/resource + add-by-URL) ─────────────────── */
 .links-field { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
 .links-field input[type="text"] { flex: 1 1 auto; min-width: 0; }
-.vs-row input[type="text"] {
+.vs-row input[type="text"],
+.vs-row input[type="url"] {
     flex: 1 1 auto;
     min-width: 0;
     background: var(--bg-info);

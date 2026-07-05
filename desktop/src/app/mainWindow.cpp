@@ -1,5 +1,4 @@
 #include "mainWindow.hpp"
-#include "blankImageDialog.hpp"
 #include "expirationDialog.hpp"
 #include "deepLink.hpp"
 #include "openImageDialog.hpp"
@@ -454,20 +453,17 @@ namespace stencil::gui {
       a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
     };
 
+    // The single Open entry: the unified Open dialog (local file, URL, or a new blank
+    // canvas). It replaces the former split of Open Image / Open Another Image / New
+    // Blank Image, mirroring the browser's one "Open Image" button.
     actOpen_ = mk("Open Image…", hotkey("loadImage", "Ctrl+O"));
-    actOpenAnother_ = mk("Open Another Image…",
-                         hotkey("openAnotherImage", "Ctrl+Shift+O"));
-    tip(actOpenAnother_,
-        "Open another image — replace the current editor or launch it in a new window");
+    tip(actOpen_,
+        "Open an image — a local file, a web URL, or a new blank canvas");
     // Emoji prefixes were removed from these labels now that every action carries
     // a themed line-art icon (styleActionIcons): the menu shows icon + clean text,
     // the icon-only toolbar shows the glyph with the label on its tooltip.
-    // New Blank / New Line have no entry in the shared hotkeysConfig.json
-    // registry, so their (browser-coordinated) defaults are set literally here
-    // rather than through hotkey(); they're not listed in the Customize dialog.
-    actNewBlank_ = mk("New Blank Image…", "Ctrl+Shift+B");
-    tip(actNewBlank_,
-        "Create a blank image (white, black, or any color) to draw on");
+    // New Line has no entry in the shared hotkeysConfig.json registry, so its
+    // (browser-coordinated) default is set literally rather than through hotkey().
     actCrop_ = mk("Crop Image…", hotkey("cropImage", "Ctrl+Shift+X"));
     tip(actCrop_,
         "Crop the image — pick the page-shaped region to show on the canvas");
@@ -565,9 +561,6 @@ namespace stencil::gui {
     actPanel_->setChecked(true);
 
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
-    connect(actOpenAnother_, &QAction::triggered, this,
-            &MainWindow::openAnotherImage);
-    connect(actNewBlank_, &QAction::triggered, this, &MainWindow::newBlankImage);
     connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
     auto rotate = [this](bool clockwise) {
       if (!canvas_->hasImage()) {
@@ -664,7 +657,6 @@ namespace stencil::gui {
     // File / project hotkeys whose defaults live in the shared hotkeysConfig.json
     // (coordinated with the browser), wired so a rebind re-applies live and they
     // appear in the Customize Shortcuts dialog.
-    hotkeyActions_["openAnotherImage"] = actOpenAnother_;
     hotkeyActions_["cropImage"] = actCrop_;
     hotkeyActions_["saveImage"] = actSaveImage_;
     hotkeyActions_["downloadJson"] = actDownloadJson_;
@@ -854,8 +846,6 @@ namespace stencil::gui {
     // Alt+P points, Alt+L lines, etc.).
     auto* file = menuBar()->addMenu("F&ile");
     file->addAction(actOpen_);
-    file->addAction(actOpenAnother_);
-    file->addAction(actNewBlank_);
     file->addAction(actCrop_);
     file->addAction(actRotateLeft_);
     file->addAction(actRotateRight_);
@@ -955,8 +945,6 @@ namespace stencil::gui {
     tb->setIconSize(QSize(18, 18));
 
     tb->addAction(actOpen_);
-    tb->addAction(actOpenAnother_);
-    tb->addAction(actNewBlank_);
     tb->addAction(actLinks_);
     // Connect/Servers affordance on the top bar (mirrors the browser's #connect-btn
     // icon button) — not just the Project-menu entry, so it is one click away.
@@ -1385,20 +1373,21 @@ namespace stencil::gui {
     return true;
   }
 
-  void MainWindow::openImage() {
-    const QString path = QFileDialog::getOpenFileName(
-        this, "Open image", QString(), "Images (*.png *.jpg *.jpeg *.bmp *.gif)");
-    if (path.isEmpty()) return;
-    activeProjectId_.clear();  // File>Open starts a fresh editor (a new project)
-    if (loadLocalImageReset(path)) adoptCanvasAsLocalProject();
-  }
+  // File ▸ Open (the single top-left entry) opens the unified dialog in file/URL mode.
+  void MainWindow::openImage() { openImageDialog(/*startBlank=*/false); }
 
-  // "Open another image" (mirrors browser openImageModal.js): pick a file + an
-  // incognito flag, then either replace this editor or launch the image in a new
-  // window. The dialog returns the chosen outcome; we dispatch accordingly.
-  void MainWindow::openAnotherImage() {
-    OpenImageDialog dlg(this, canReplaceActive());
+  // The unified Open dialog (mirrors browser openImageModal.js): a local file, a web
+  // URL/reference, or a NEW BLANK canvas. `startBlank` opens straight in blank mode
+  // (the idle-canvas + projects "new blank" shortcuts). Replaces the former split of
+  // Open Image / Open Another Image / New Blank Image. We dispatch on the chosen outcome.
+  void MainWindow::openImageDialog(bool startBlank) {
+    const auto px = core::defaultBlankSizePx(currentPageDimensions());
+    OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank);
     if (dlg.exec() != QDialog::Accepted) return;
+    if (dlg.outcome() == OpenImageDialog::Outcome::Blank) {
+      createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
+      return;
+    }
     const QString src = dlg.source();
     if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.outcome();
@@ -1576,10 +1565,13 @@ namespace stencil::gui {
   // Generate a solid-color image and adopt it exactly like a clipboard paste
   // (confirm-replace guard included), so editing/persistence behave as if the
   // image had been opened from disk. Mirrors browser blankImageModal.js.
-  void MainWindow::newBlankImage() {
-    const auto px = core::defaultBlankSizePx(currentPageDimensions());
-    BlankImageDialog dlg(px.width, px.height, this);
-    if (dlg.exec() != QDialog::Accepted) return;
+  // The idle-canvas + projects "new blank" shortcuts open the unified Open dialog
+  // straight in blank mode (blank creation is folded into the one Open dialog).
+  void MainWindow::newBlankImage() { openImageDialog(/*startBlank=*/true); }
+
+  // Generate a solid-color blank image from the unified dialog's blank mode and adopt
+  // it (was the body of the retired standalone blank-image dialog flow).
+  void MainWindow::createBlankImageFromDialog(const QColor& color, int w, int h) {
     if (canvas_->hasImage() &&
         QMessageBox::question(this, "Replace image",
                               "Replace the current image with a new blank image?")
@@ -1587,8 +1579,8 @@ namespace stencil::gui {
       notify_->info("Blank image canceled");
       return;
     }
-    QImage img(dlg.widthPx(), dlg.heightPx(), QImage::Format_RGB32);
-    img.fill(dlg.color());
+    QImage img(w, h, QImage::Format_RGB32);
+    img.fill(color);
     {
       const core::PageSize page = naturalPageCm(pageSizeValue(),
                                                 settings_.customPageWidth,
@@ -1600,9 +1592,7 @@ namespace stencil::gui {
     currentSource_.clear();  // a generated blank image has no provenance
     currentResource_.clear();
     refreshActions();
-    notify_->success(QString("Blank %1×%2 image created")
-                         .arg(dlg.widthPx())
-                         .arg(dlg.heightPx()));
+    notify_->success(QString("Blank %1×%2 image created").arg(w).arg(h));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 
@@ -1814,6 +1804,9 @@ namespace stencil::gui {
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
+    // Image Links edits the CURRENT image's provenance — greyed out without one
+    // (parity with the browser's disabled 🔗 button).
+    if (actLinks_) actLinks_->setEnabled(hasImg);
     // "Open in…" mirrors the browser's #open-in-btn gating: hidden entirely when no
     // target is available (no browser URL, and no Telegram bot / not a server project),
     // otherwise enabled only with an image loaded.
@@ -2482,8 +2475,6 @@ namespace stencil::gui {
     };
     // File / image
     set(actOpen_, "image");
-    set(actOpenAnother_, "external");
-    set(actNewBlank_, "plus-circle");
     set(actLinks_, "link");
     set(actConnect_, "server");
     set(actOpenIn_, "monitor");
@@ -4008,6 +3999,8 @@ namespace stencil::gui {
   // new image by URL. Edits to the links persist to the active project (and the
   // in-memory current* provenance); a URL load routes through loadImageByUrl().
   void MainWindow::openLinks() {
+    // Image Links only edits a loaded image's provenance; the action is disabled
+    // without one (refreshActions), so this is only reached with an image.
     // Seed from the active project's stored provenance when available, else from
     // the live current* provenance (e.g. an image just loaded by URL, not yet saved).
     QString src = currentSource_, res = currentResource_;

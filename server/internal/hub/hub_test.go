@@ -198,6 +198,38 @@ func TestUnauthorizedRejected(t *testing.T) {
 	}
 }
 
+// TestConnectionCountTracksLiveMembers verifies the count the REST delete guard reads:
+// 0 with no session, then rising and falling as clients join and leave a project.
+func TestConnectionCountTracksLiveMembers(t *testing.T) {
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+
+	if n := h.ConnectionCount("p_t_a"); n != 0 {
+		t.Fatalf("no connections should count 0, got %d", n)
+	}
+	a := joinProject(t, addr, "p_t_a", "A")
+	b := joinProject(t, addr, "p_t_a", "B")
+	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 2 })
+
+	a.Close(0, "bye")
+	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 1 })
+	b.Close(0, "bye")
+	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 0 })
+}
+
+// waitFor polls cond up to ~2s so tests don't race the hub's connect/disconnect goroutines.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("condition not met within timeout")
+}
+
 func TestHelloRequiredFirst(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
@@ -209,6 +241,107 @@ func TestHelloRequiredFirst(t *testing.T) {
 	defer cancel()
 	if _, err := c.Read(ctx); err == nil {
 		t.Fatal("expected connection close after non-hello first frame")
+	}
+}
+
+// TestHelloTimeoutClosesSilentPeer: a connection that never sends its hello frame
+// is closed once helloTimeout elapses, so a peer can't hold a slot open forever.
+func TestHelloTimeoutClosesSilentPeer(t *testing.T) {
+	prev := helloTimeout
+	helloTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { helloTimeout = prev })
+
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+	c, err := transport.DialTCP(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close(0, "")
+	// Send nothing. The server must close the connection after the (shortened) timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := c.Read(ctx); err == nil {
+		t.Fatal("expected the connection to be closed after the hello timeout")
+	}
+}
+
+// TestMalformedFrameDoesNotDropSession: a non-JSON frame mid-session is ignored
+// (not fatal), and the session keeps working for that peer and its peers.
+func TestMalformedFrameDoesNotDropSession(t *testing.T) {
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+	a := joinProject(t, addr, "p_t_a", "A")
+	b := joinProject(t, addr, "p_t_a", "B")
+
+	// A garbage frame from A must be dropped without tearing down the session.
+	if err := a.Write(context.Background(), []byte("not json at all {{{")); err != nil {
+		t.Fatalf("write garbage: %v", err)
+	}
+	// A subsequent valid edit from A still fans out to B — the session survived.
+	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
+	if got := readUntil(t, b, protocol.WSEdit); got.FromClientID != "A" || got.Op != "addLine" {
+		t.Fatalf("session did not survive a malformed frame: %+v", got)
+	}
+}
+
+// TestRoomIsolation: an edit in project A is never delivered to a peer joined to a
+// different project B (per-project bus channels — no cross-room message injection).
+func TestRoomIsolation(t *testing.T) {
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+	a := joinProject(t, addr, "p_t_a", "A")
+	// "p_other" is unknown to the fake store (unowned) so joining is allowed; it is a
+	// distinct room from "p_t_a".
+	other := joinProject(t, addr, "p_other", "B")
+
+	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
+
+	// The other-room peer must NOT receive A's edit. Give it a moment, then assert no
+	// edit frame arrived by issuing a ping and expecting the pong first.
+	send(t, other, protocol.WSMessage{Type: protocol.WSPing})
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		ctx, cancel := context.WithDeadline(context.Background(), deadline)
+		raw, err := other.Read(ctx)
+		cancel()
+		if err != nil {
+			t.Fatalf("other-room read: %v", err)
+		}
+		var m protocol.WSMessage
+		if json.Unmarshal(raw, &m) != nil {
+			continue
+		}
+		if m.Type == protocol.WSEdit {
+			t.Fatalf("cross-room leak: project-B peer received project-A's edit")
+		}
+		if m.Type == protocol.WSPong {
+			break // reached our own pong with no edit before it → isolated
+		}
+	}
+}
+
+// TestOversizedFrameRejected: a first frame beyond transport.MaxMessageBytes is
+// rejected (connection closed) rather than buffered into memory.
+func TestOversizedFrameRejected(t *testing.T) {
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+	c, err := transport.DialTCP(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close(0, "")
+	// One frame just over the cap. The TCP scanner's buffer limit makes the read fail,
+	// so HandleConn closes the connection instead of allocating unbounded memory.
+	huge := make([]byte, transport.MaxMessageBytes+1024)
+	for i := range huge {
+		huge[i] = 'a'
+	}
+	_ = c.Write(context.Background(), huge) // may error as the server tears down; that's fine
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := c.Read(ctx); err == nil {
+		t.Fatal("expected the connection to close on an over-limit frame")
 	}
 }
 
