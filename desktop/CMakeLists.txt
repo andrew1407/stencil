@@ -78,6 +78,7 @@ if(Qt6_FOUND)
   set(STENCIL_GUI_SOURCES
     src/app/mainWindow.cpp
     src/app/dataExportController.cpp
+    src/app/remoteSyncController.cpp
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
     src/app/selectionPanel.cpp

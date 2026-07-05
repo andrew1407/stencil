@@ -24,6 +24,7 @@
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
 #include "dataExportController.hpp"
+#include "remoteSyncController.hpp"
 #include "liveFeed.hpp"
 #include "serverClient.hpp"
 #include "selectionPanel.hpp"
@@ -203,41 +204,22 @@ namespace stencil::gui {
     autosaveTimer_->setSingleShot(true);
     connect(autosaveTimer_, &QTimer::timeout, this, &MainWindow::saveSessionNow);
 
-    // Live co-edit: debounced push of local edits + periodic poll for peer changes.
-    remotePushTimer_ = new QTimer(this);
-    remotePushTimer_->setSingleShot(true);
-    connect(remotePushTimer_, &QTimer::timeout, this, [this] {
-      remotePushBurstStart_ = 0;   // burst flushed — start a fresh max-wait window next edit
-      if (!remoteAddress_.isEmpty()) saveToServer();
-    });
-    remotePollTimer_ = new QTimer(this);
-    remotePollTimer_->setInterval(2000);   // backstop behind the live push feed
-    connect(remotePollTimer_, &QTimer::timeout, this, &MainWindow::pollRemoteForUpdate);
-    // Coalesce a burst of live-feed events into one reload, and run it off the socket
-    // read slot (openServerProject spins a nested event loop, so a direct call would
-    // re-enter). Re-checked against remoteVersion_ at fire time.
-    remoteReloadTimer_ = new QTimer(this);
-    remoteReloadTimer_->setSingleShot(true);
-    connect(remoteReloadTimer_, &QTimer::timeout, this, [this] {
-      if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
-      if (!settings_.syncToServer) return;
-      if (remoteReloading_) { remoteReloadPending_ = true; return; }  // nested-loop guard
-      // A local edit is pending/in-flight — don't clobber it; retry shortly (our push wins
-      // last-writer-wins, then we reload the merged result).
-      if (remotePushing_ || (remotePushTimer_ && remotePushTimer_->isActive())) {
-        remoteReloadPending_ = true;
-        remoteReloadTimer_->start(150);
-        return;
-      }
-      remoteReloadPending_ = false;
-      openServerProject(remoteAddress_, remoteId_, /*silent=*/true);
-      // Events that landed during the reload's nested event loop queued a pending flag —
-      // converge to the latest with one more pass.
-      if (remoteReloadPending_) {
-        remoteReloadPending_ = false;
-        remoteReloadTimer_->start(40);
-      }
-    });
+    // Live co-edit push/pull engine (remoteSyncController.hpp): owns the debounce/poll/reload
+    // timers + the LiveFeed. The session's remote-link state + the reentrancy flags stay here
+    // and are read through these hooks + the two &-flags; saveToServer / openServerProject
+    // (which spin nested event loops) are hooks too.
+    remoteSync_ = std::make_unique<RemoteSyncController>(
+        this, &remoteReloading_, &remotePushing_,
+        RemoteSyncController::Hooks{
+            [this] { return connections_; },
+            [this] { return remoteAddress_; },
+            [this] { return remoteId_; },
+            [this] { return remoteVersion_; },
+            [this] { return settings_.syncToServer; },
+            [this] { return incognito_; },
+            [this] { saveToServer(); },
+            [this](const QString& a, const QString& i, bool s) { openServerProject(a, i, s); },
+        });
 
     buildActions();
     buildContextActions();  // S11: nested context-menu submenu actions
@@ -376,7 +358,7 @@ namespace stencil::gui {
               persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
-              scheduleRemotePush();  // page format rides the layout — push it to peers
+              remoteSync_->scheduleRemotePush();  // page format rides the layout — push it to peers
             });
     connect(customH_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
@@ -384,7 +366,7 @@ namespace stencil::gui {
               persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
               onSelectionChanged();  // refresh panel cm (S10/GAP-2)
-              scheduleRemotePush();
+              remoteSync_->scheduleRemotePush();
             });
     // Formula controls (S11). The toolbar checkbox is the single source of
     // truth; the View ▸ Allow Formulas action just drives it (and is kept in
@@ -402,7 +384,7 @@ namespace stencil::gui {
       persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm when formulas toggle (GAP-2)
-      scheduleRemotePush();  // formulas ride the layout — push to peers
+      remoteSync_->scheduleRemotePush();  // formulas ride the layout — push to peers
     });
     connect(actAllowFormulas_, &QAction::toggled, this,
             [this](bool on) { allowFormulas_->setChecked(on); });
@@ -1330,7 +1312,7 @@ namespace stencil::gui {
     canvas_->setImageFilter(mode, filterColorValue_);
     persistSettings();
     if (!remoteReloading_) filterDirty_ = true;   // user changed the filter
-    scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
+    remoteSync_->scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
   }
 
   void MainWindow::applyTintColor(const QColor& color) {
@@ -1340,7 +1322,7 @@ namespace stencil::gui {
     canvas_->setImageFilter(settings_.imageFilter, filterColorValue_);
     persistSettings();
     if (!remoteReloading_) filterDirty_ = true;   // user changed the tint
-    scheduleRemotePush();   // live co-edit: push tint changes to peers
+    remoteSync_->scheduleRemotePush();   // live co-edit: push tint changes to peers
   }
 
   void MainWindow::applyLineStyle(const QString& style) {
@@ -1524,7 +1506,7 @@ namespace stencil::gui {
     settings_.syncToServer = true;
     saveToServer();
     settings_.syncToServer = savedSync;
-    startRemotePoll();   // live co-edit: watch for peers changing this project
+    remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
     refreshActions();
     updateProjectTitle();
   }
@@ -1770,7 +1752,7 @@ namespace stencil::gui {
     persistSettings();
     onHovered(lastHoverX_, lastHoverY_);
     onSelectionChanged();  // refresh panel cm for the new page size (GAP-2)
-    scheduleRemotePush();  // page format rides the layout — push to peers
+    remoteSync_->scheduleRemotePush();  // page format rides the layout — push to peers
   }
 
   // Validate fx/fy at input time and apply them (S11; drawingApp.js
@@ -1788,7 +1770,7 @@ namespace stencil::gui {
       persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
       onSelectionChanged();  // refresh panel cm with the new formulas (GAP-2)
-      scheduleRemotePush();  // formulas ride the layout — push to peers
+      remoteSync_->scheduleRemotePush();  // formulas ride the layout — push to peers
     }
   }
 
@@ -1835,81 +1817,12 @@ namespace stencil::gui {
     refreshActions();
     onSelectionChanged();
     scheduleAutosave();
-    scheduleRemotePush();   // live co-edit: push the edit to the server for peers
+    remoteSync_->scheduleRemotePush();   // live co-edit: push the edit to the server for peers
   }
 
-  void MainWindow::scheduleRemotePush() {
-    // Sync off → a fetched project is edit-in-memory only: never auto-push to peers.
-    if (incognito_ || remoteReloading_ || remoteAddress_.isEmpty() || !settings_.syncToServer) return;
-    // Trailing debounce (coalesce a burst of edits into one save) capped by a max-wait, so
-    // continuous editing still flushes to peers every ~1.5s instead of starving until a pause.
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (remotePushBurstStart_ == 0) remotePushBurstStart_ = now;
-    const int wait = std::clamp<int>(1500 - static_cast<int>(now - remotePushBurstStart_), 0, 350);
-    remotePushTimer_->start(wait);
-  }
-
-  void MainWindow::startRemotePoll() {
-    if (remotePollTimer_ && !remoteAddress_.isEmpty()) remotePollTimer_->start();
-    // Subscribe the live push feed so peer edits arrive in tens of ms; the poll above is
-    // now just a backstop (https servers / a dropped socket).
-    ensureLiveFeed();
-  }
-
-  void MainWindow::stopRemotePoll() {
-    if (remotePollTimer_) remotePollTimer_->stop();
-    if (remoteReloadTimer_) remoteReloadTimer_->stop();
-    if (liveFeed_) liveFeed_->unsubscribe();
-  }
-
-  // Lazily build the push feed and (re)point it at the active server, authenticating with
-  // that connection's token. A no-op when the session isn't server-linked or the server
-  // isn't connected. subscribe() is idempotent for the same origin (token refresh only).
-  void MainWindow::ensureLiveFeed() {
-    if (remoteAddress_.isEmpty()) return;
-    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
-    if (!c) return;
-    if (!liveFeed_) {
-      liveFeed_ = new stencil::net::LiveFeed(this);
-      connect(liveFeed_, &stencil::net::LiveFeed::projectUpdated,
-              this, &MainWindow::onRemoteProjectEvent);
-    }
-    liveFeed_->subscribe(remoteAddress_, c->token());
-  }
-
-  // A live-feed push frame arrived. Reload (debounced) when it's a genuine peer change to
-  // the project we're editing — newer version, not our own echo, not mid-push. Mirrors the
-  // browser's onServerProjectEvent + shouldReloadFromEvent guards; the actual reload runs
-  // from remoteReloadTimer_ so it lands off this slot and coalesces a burst.
-  void MainWindow::onRemoteProjectEvent(const QString& id, qint64 version, bool deleted) {
-    if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
-    if (id != remoteId_ || deleted) return;
-    if (!settings_.syncToServer) return;
-    if (version <= remoteVersion_) return;  // our own save echo, or stale
-    // A reload is mid-flight (its nested loop is pumping this slot): queue one more pass
-    // rather than dropping the change — the reload's tail re-arms from remoteReloadPending_.
-    if (remoteReloading_) { remoteReloadPending_ = true; return; }
-    // Coalesce a burst of peer events into a single debounced reload. The timer slot
-    // re-checks the push guards at fire time (state may change within the window).
-    if (remoteReloadTimer_) remoteReloadTimer_->start(40);
-  }
-
-  // One poll tick: if a peer bumped the linked project's version, reload the canvas.
-  // Skipped while a local edit is pending/in-flight so we never clobber the user's work
-  // or reload our own change.
-  void MainWindow::pollRemoteForUpdate() {
-    if (remoteAddress_.isEmpty() || remoteId_.isEmpty()) return;
-    if (!settings_.syncToServer) return;  // sync off — don't pull peer changes over local edits
-    if (remotePushing_ || (remotePushTimer_ && remotePushTimer_->isActive())) return;
-    stencil::net::ServerClient* c =
-        connections_ ? connections_->find(remoteAddress_) : nullptr;
-    if (!c) return;
-    stencil::net::ServerProject meta;
-    QJsonObject layout;
-    if (!c->getProject(remoteId_, meta, layout)) return;
-    if (meta.version > remoteVersion_)
-      openServerProject(remoteAddress_, remoteId_, /*silent=*/true);
-  }
+  // Live co-edit push/pull (scheduleRemotePush / startRemotePoll / stopRemotePoll +
+  // the poll/reload/live-feed internals) lives in RemoteSyncController (remoteSyncController.hpp),
+  // constructed as remoteSync_. The remote-link state + the reentrancy flags stay here.
 
   void MainWindow::onSelectionChanged() {
     // No image → no points panel at all (restored lines from a prior session must not show
@@ -2877,7 +2790,7 @@ namespace stencil::gui {
     remoteName_.clear();
     remoteColor_.clear();
     remoteVersion_ = 0;
-    stopRemotePoll();   // no longer a server session
+    remoteSync_->stopRemotePoll();   // no longer a server session
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
     refreshActions();
@@ -3029,7 +2942,7 @@ namespace stencil::gui {
       remoteName_.clear();
       remoteColor_.clear();
       remoteVersion_ = 0;
-      stopRemotePoll();
+      remoteSync_->stopRemotePoll();
     }
     currentSource_ = meta.source;
     currentResource_ = meta.resource;
@@ -3038,7 +2951,7 @@ namespace stencil::gui {
     // Fit the freshly-opened image to the window (matches the browser's switchToProject).
     // Skipped for a silent live-poll reload so a peer's edit doesn't reset the user's zoom/pan.
     if (!silent) fitToWindow();
-    if (link) startRemotePoll();   // live co-edit: watch for peers changing this project
+    if (link) remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
     if (!silent)
       notify_->success(QString("Opened \"%1\" from %2")
                            .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
@@ -3238,7 +3151,7 @@ namespace stencil::gui {
       remoteName_ = name;
       remoteColor_ = localColor;
       remoteVersion_ = newVersion;
-      startRemotePoll();
+      remoteSync_->startRemotePoll();
       updateProjectTitle();
     }
     refreshActions();
@@ -3993,7 +3906,7 @@ namespace stencil::gui {
     remoteName_.clear();
     remoteColor_.clear();
     remoteVersion_ = 0;
-    stopRemotePoll();   // no longer a server session
+    remoteSync_->stopRemotePoll();   // no longer a server session
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
     pr.meta.name = name.toStdString();
