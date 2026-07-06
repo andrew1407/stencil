@@ -1940,6 +1940,15 @@ export class DrawingApp {
     return Promise.resolve(typeof window !== 'undefined' && window.confirm ? window.confirm(message) : true);
   }
 
+  // True when leaving the tab would interrupt an active editing session — an image is
+  // loaded, or the user has drawn something. Drives the beforeunload leave-guard wired
+  // in index.js (mirrors the desktop app's quit-confirmation). Kept synchronous:
+  // beforeunload can't await the async confirm() modal, so the browser's own native
+  // "Leave site?" prompt is used instead.
+  hasEditingSession() {
+    return !!this.image || (typeof this.history?.canUndo === 'function' && this.history.canUndo());
+  }
+
   // Promise-based single-choice picker (shares the confirm modal). Resolves the
   // chosen option value, or null on cancel. opts.options: [{ value, label }].
   // Used to pick a target server when moving a project to a server.

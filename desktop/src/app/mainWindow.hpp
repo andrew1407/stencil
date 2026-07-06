@@ -406,6 +406,10 @@ namespace stencil::gui {
     // First-show fade-in (a gentle window-opacity ramp), mirroring the browser
     // container's appReveal animation. Runs once; later shows are instant.
     void showEvent(QShowEvent* event) override;
+    // Intercept window close (Quit action, Ctrl+Q, title-bar X) to ask "are you
+    // sure you want to quit?" — mirrors the browser's beforeunload guard. Bypassed
+    // when forceClose_ is set (programmatic load-failure auto-closes).
+    void closeEvent(QCloseEvent* event) override;
 
     // ── core widgets ──
     CanvasWidget* canvas_ = nullptr;
@@ -418,6 +422,9 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
+    // Set before a programmatic close() (e.g. a new window that failed to load its
+    // project) so closeEvent skips the quit-confirmation prompt for that path.
+    bool forceClose_ = false;
     // Live co-edit reentrancy flags: true while an async push / reload is in flight (set at the
     // start of saveToServer / openServerProject, cleared by a shared clearer when the whole async
     // chain ends). READ by the RemoteSyncController (passed as const bool*) plus the filter/reload

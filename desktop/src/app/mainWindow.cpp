@@ -77,6 +77,9 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QCloseEvent>
+#include <QPushButton>
+#include <QGridLayout>
 #include <QKeyEvent>
 #include <QNativeGestureEvent>
 #include <QWheelEvent>
@@ -540,7 +543,7 @@ namespace stencil::gui {
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
     actSaveSession_ = mk("Save Session", "Ctrl+S");
     actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
-    actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Ctrl+Shift+G"));
+    actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
     actTooltip_ = mk("Hover Tooltip", QString());
     actTooltip_->setCheckable(true);
     // Allow-formulas toggle (S11), also reachable from the View menu so the
@@ -2391,6 +2394,40 @@ namespace stencil::gui {
     fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
+  // Guard every user-initiated exit (Quit / Ctrl+Q / title-bar X all route through
+  // QWidget::close()) with an "are you sure?" prompt. Ignoring the event cancels the
+  // close. forceClose_ lets the load-failure auto-close paths skip the prompt.
+  // Hand-built (not the QMessageBox::question helper) to drop the oversized default
+  // question-mark glyph and use clear "Quit"/"Cancel" action buttons, Cancel default.
+  void MainWindow::closeEvent(QCloseEvent* event) {
+    if (!forceClose_) {
+      QMessageBox box(this);
+      box.setWindowTitle("Quit Stencil");
+      box.setIcon(QMessageBox::NoIcon);
+      // Rich-text header, one size larger than the informative subline and tinted with
+      // the current brand accent (the same violet/… the rest of the app uses).
+      box.setTextFormat(Qt::RichText);
+      box.setText(QString("<div style='font-size:17pt; font-weight:600; color:%1;'>"
+                          "Quit Stencil?</div>")
+                      .arg(accentPrimary(settings_.accentColor).name()));
+      box.setInformativeText("Are you sure you want to quit?");
+      QPushButton* quitBtn = box.addButton("Quit", QMessageBox::AcceptRole);
+      QPushButton* cancelBtn = box.addButton("Cancel", QMessageBox::RejectRole);
+      box.setDefaultButton(cancelBtn);   // safe default: a stray Enter/Esc keeps the app open
+      // A modest width bump over QMessageBox's tight default — enough to breathe without
+      // the wide empty gutter a larger spacer leaves between the text and the buttons.
+      if (auto* grid = qobject_cast<QGridLayout*>(box.layout()))
+        grid->addItem(new QSpacerItem(300, 0, QSizePolicy::Minimum, QSizePolicy::Fixed),
+                      grid->rowCount(), 0, 1, grid->columnCount());
+      box.exec();
+      if (box.clickedButton() != quitBtn) {
+        event->ignore();
+        return;
+      }
+    }
+    QMainWindow::closeEvent(event);
+  }
+
   // Ctrl+D sets an explicit light/dark and stops following the OS (browser
   // behavior: a manual toggle overrides the system preference).
   void MainWindow::toggleTheme() {
@@ -3110,6 +3147,7 @@ namespace stencil::gui {
     win->show();
     if (!win->loadProjectIntoCanvas(id)) {
       notify_->error("Could not open the project in a new window");
+      win->forceClose_ = true;   // auto-close a failed load without a quit prompt
       win->close();
     }
   }
@@ -3546,7 +3584,7 @@ namespace stencil::gui {
     auto* win = new MainWindow();
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
-    if (!win->loadProjectIntoCanvas(id)) win->close();
+    if (!win->loadProjectIntoCanvas(id)) { win->forceClose_ = true; win->close(); }
   }
 
   // Rebuild the macOS Dock menu: New Incognito Editor · Open Projects · the most
