@@ -33,6 +33,6 @@
   { "id": "openServers", "label": "Open Servers / Connect", "default": "Ctrl+Shift+K" },
   { "id": "openLinks", "label": "Open Image Links", "default": "Ctrl+Shift+L" },
   { "id": "toggleTheme", "label": "Toggle Dark / Light Theme", "default": "Ctrl+D" },
-  { "id": "toggleIncognito", "label": "Toggle Incognito", "default": "Ctrl+Shift+G" },
+  { "id": "toggleIncognito", "label": "Toggle Incognito", "default": "Alt+I" },
   { "id": "openHelp", "label": "Controls & Shortcuts Help", "default": "F1" }
 ]

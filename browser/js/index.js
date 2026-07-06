@@ -29,6 +29,14 @@ window.onload = async () => {
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
+  // Confirm before leaving an active editing session (image loaded or unsaved drawing) —
+  // the browser shows its native "Leave site?" prompt. Mirrors the desktop quit dialog;
+  // beforeunload is synchronous, so it can't use the in-app confirm() modal.
+  window.addEventListener('beforeunload', (e) => {
+    if (!app.hasEditingSession()) return;
+    e.preventDefault();
+    e.returnValue = '';   // Chrome/Firefox require a set returnValue to show the prompt
+  });
   // Expose the chainable console control API as window.stencil (see console/stencilApi.js).
   // Locked (non-writable, non-configurable) so page scripts can't reassign or delete it;
   // the instance + its prototypes are frozen too, so its tools can't be overwritten.
