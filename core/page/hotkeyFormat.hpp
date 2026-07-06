@@ -21,7 +21,6 @@ namespace stencil::core::hotkeyFormat {
   // Unknown tokens and lone keys (e.g. "F1") pass through untouched.
   std::string toNative(const std::string& portable, bool isMac);
 
-  // True when compiled for macOS (thin #ifdef over __APPLE__).
   bool isMacBuild();
 
 }

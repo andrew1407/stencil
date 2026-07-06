@@ -128,6 +128,6 @@ test "encode then decode round-trips dimensions and pixels" {
     defer dec.deinit(a);
     try testing.expectEqual(@as(usize, 2), dec.width);
     try testing.expectEqual(@as(usize, 2), dec.height);
-    try testing.expectEqual(@as(u8, 255), dec.pixels[0]); // first pixel red
+    try testing.expectEqual(@as(u8, 255), dec.pixels[0]);
     try testing.expectEqual(@as(u8, 0), dec.pixels[1]);
 }

@@ -5,8 +5,6 @@
 // path (the utils.js twin) and colorNames.cpp's #rgb/#rgba/#rrggbb/#rrggbbaa +
 // names path (the headless resolver) — so the nibble math lives in one place.
 // Header-only (no .cpp), so it needs no source-list sync across the three builds.
-// NOTE: only the nibble primitive is shared; the two parsers keep their distinct
-// public contracts (parseHex is deliberately strict #rrggbb-only to match utils.js).
 namespace stencil::core {
 
   inline int hexNibble(char c) {

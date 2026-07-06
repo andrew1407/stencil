@@ -15,7 +15,6 @@ public sealed class RedisSessionStore : ISessionStore
 {
     private readonly IConnectionMultiplexer _redis;
 
-    /// <summary>Build the store over a connected multiplexer.</summary>
     public RedisSessionStore(IConnectionMultiplexer redis)
     {
         _redis = redis;

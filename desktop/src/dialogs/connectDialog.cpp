@@ -91,7 +91,6 @@ namespace stencil::gui {
     root->addLayout(header);
     root->addWidget(hLine());
 
-    // ── Connect a server.
     root->addWidget(sectionLabel(tr("Connect a server")));
     auto* form = new QGridLayout;
     form->setColumnStretch(1, 1);
@@ -133,7 +132,6 @@ namespace stencil::gui {
 
     root->addWidget(hLine());
 
-    // ── Connections.
     root->addWidget(sectionLabel(tr("Connections")));
 
     // Batch-select toolbar — appears once one or more connections are checked.
@@ -158,7 +156,7 @@ namespace stencil::gui {
       QObject::connect(reSel, &QPushButton::clicked, this, [this] {
         // Async reconnect each selected server; the manager emits changed() as each resolves,
         // which is wired to rebuildList() below, so the rows refresh without blocking the UI.
-        for (const QString& u : selected_.values())
+        for (const QString& u : selected_)
           manager_->reconnectAsync(u, [](bool, QString) {});
         selected_.clear();
         rebuildList();

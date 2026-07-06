@@ -26,11 +26,9 @@ test('blank → draw → rotate → crop through the facade', async ({ page }) =
   }, size);
   expect(lineCount).toBe(1);
 
-  // Rotate a quarter turn: width/height swap.
   const rotated = await page.evaluate(() => { window.stencil.rotateRight(); return window.stencil.imageSize; });
   expect(rotated).toEqual({ width: size.height, height: size.width });
 
-  // Crop the left 50%: width shrinks, height kept.
   const cropped = await page.evaluate(() => {
     window.stencil.crop({ x1: 0, x2: '50%' });
     return window.stencil.imageSize;

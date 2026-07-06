@@ -102,12 +102,12 @@ TEST_SUITE("imageFilter") {
       CHECK(buf[0] == 42);
       CHECK(buf[1] == 42);
       CHECK(buf[2] == 42);
-      CHECK(buf[3] == 10);  // alpha preserved
+      CHECK(buf[3] == 10);
       // green 200 -> luma (int)(0.7152*200)=143
       CHECK(buf[4] == 143);
       CHECK(buf[5] == 143);
       CHECK(buf[6] == 143);
-      CHECK(buf[7] == 20);  // alpha preserved
+      CHECK(buf[7] == 20);
     }
   }
 
@@ -117,7 +117,7 @@ TEST_SUITE("imageFilter") {
     CHECK(buf[0] == 124);
     CHECK(buf[1] == 58);
     CHECK(buf[2] == 237);
-    CHECK(buf[3] == 200);  // alpha untouched
+    CHECK(buf[3] == 200);
   }
 
   TEST_CASE("applyFilterRGBA Invert flips both pixels and keeps alpha") {
@@ -126,11 +126,11 @@ TEST_SUITE("imageFilter") {
     CHECK(buf[0] == 243);
     CHECK(buf[1] == 221);
     CHECK(buf[2] == 199);
-    CHECK(buf[3] == 10);   // alpha preserved
+    CHECK(buf[3] == 10);
     CHECK(buf[4] == 0);
     CHECK(buf[5] == 255);
     CHECK(buf[6] == 127);
-    CHECK(buf[7] == 20);   // alpha preserved
+    CHECK(buf[7] == 20);
   }
 
   TEST_CASE("applyFilterRGBA Contour is a no-op (needs dimensions)") {
@@ -161,7 +161,7 @@ TEST_SUITE("imageFilter") {
       CHECK(buf[i * 4 + 0] == 255);
       CHECK(buf[i * 4 + 1] == 255);
       CHECK(buf[i * 4 + 2] == 255);
-      CHECK(buf[i * 4 + 3] == 40 + i);  // alpha preserved
+      CHECK(buf[i * 4 + 3] == 40 + i);
     }
   }
 

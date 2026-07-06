@@ -26,7 +26,7 @@ TEST_CASE("stencil_cli_namedPageSize / defaultBlankSizePx") {
   int pw = 0, ph = 0;
   stencil_cli_defaultBlankSizePx(21.0, 29.7, 96.0, &pw, &ph);
   CHECK(pw > 0);
-  CHECK(ph > pw);  // portrait
+  CHECK(ph > pw);
 }
 
 TEST_CASE("stencil_cli_pageFormats lists the canonical names in order") {

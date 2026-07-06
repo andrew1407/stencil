@@ -62,13 +62,7 @@ public static class CliOutcomeParser
             {
                 continue;
             }
-            int x = dims.IndexOf('x');
-            if (x < 0)
-            {
-                continue;
-            }
-            if (int.TryParse(dims[..x].Trim(), out int width)
-                && int.TryParse(dims[(x + 1)..].Trim(), out int height))
+            if (TryParseWxH(dims, out int width, out int height))
             {
                 return new RenderResult(path, width, height);
             }
@@ -103,13 +97,7 @@ public static class CliOutcomeParser
                     continue;
                 }
                 string dims = dimsTail[..^1];
-                int x = dims.IndexOf('x');
-                if (x < 0)
-                {
-                    continue;
-                }
-                if (int.TryParse(dims[..x].Trim(), out int width)
-                    && int.TryParse(dims[(x + 1)..].Trim(), out int height))
+                if (TryParseWxH(dims, out int width, out int height))
                 {
                     result.Add(new RemoteDelivery.Updated(id, width, height));
                 }
@@ -162,6 +150,19 @@ public static class CliOutcomeParser
             return trimmed;
         }
         return string.Join("\n", errors);
+    }
+
+    /// <summary>
+    /// Parse a <c>{w}x{h}</c> dims token, splitting on the first ASCII <c>'x'</c> (the cm size in
+    /// the metadata suffix uses '×' U+00D7, never ASCII 'x'). False when it isn't well-formed.
+    /// </summary>
+    private static bool TryParseWxH(string dims, out int width, out int height)
+    {
+        width = height = 0;
+        int x = dims.IndexOf('x');
+        return x >= 0
+            && int.TryParse(dims[..x].Trim(), out width)
+            && int.TryParse(dims[(x + 1)..].Trim(), out height);
     }
 
     /// <summary>

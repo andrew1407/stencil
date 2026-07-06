@@ -114,7 +114,6 @@ export const notify = (msg, type = 'ok') => {
  * Whether the browser can share FILES via the Web Share API (most desktop
  * browsers cannot, even if navigator.share exists for text/URLs). Used to decide
  * whether to render the Share-image action at all.
- * @returns {boolean} True when file sharing is supported.
  */
 export const supportsShareFiles = () => {
   try {
@@ -129,11 +128,6 @@ export const supportsShareFiles = () => {
 /**
  * Distance from point (px,py) to the segment a→b. Delegates to the shared C++
  * core (wasm) when loaded; the JS body is the reference + fallback.
- * @param {number} px - Point x.
- * @param {number} py - Point y.
- * @param {{x: number, y: number}} a - Segment start.
- * @param {{x: number, y: number}} b - Segment end.
- * @returns {number} Shortest distance from the point to the segment.
  */
 export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;

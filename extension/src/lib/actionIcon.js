@@ -31,7 +31,7 @@ const drawBadge = (ctx, size, accent) => {
   // aligned to the panel edge at 2.
   rrect(4, 4, 56, 56, 11);
   ctx.lineWidth = u(4);
-  ctx.strokeStyle = accent; // the themed outline
+  ctx.strokeStyle = accent;
   ctx.stroke();
   rrect(12, 12, 40, 40, 4);
   ctx.fillStyle = FRAME;

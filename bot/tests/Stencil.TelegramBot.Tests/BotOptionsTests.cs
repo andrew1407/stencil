@@ -35,7 +35,6 @@ public sealed class BotOptionsTests
             Assert.Equal(7L * 1024 * 1024, BotOptions.FromEnvironment().MaxDownloadBytes));
         WithEnv("STENCIL_BOT_WORKSPACE_TTL_MINUTES", "15", () =>
             Assert.Equal(TimeSpan.FromMinutes(15), BotOptions.FromEnvironment().WorkspaceTtl));
-        // Garbage falls back to the default.
         WithEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "nope", () =>
             Assert.Equal(TimeSpan.FromSeconds(30), BotOptions.FromEnvironment().ServerHttpTimeout));
     }

@@ -43,7 +43,6 @@ export class ExportService {
     }
     const offscreen = this.renderExportCanvas();
 
-    // Download — use original image name if available
     const baseName = app.imageBaseName || 'drawing';
     const ext = app.imageExt      || 'png';
     const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', png: 'image/png' };

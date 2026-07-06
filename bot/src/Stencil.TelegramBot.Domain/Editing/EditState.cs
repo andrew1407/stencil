@@ -46,7 +46,6 @@ public sealed record EditState
     /// <summary>The current pen — the style applied to newly drawn lines/shapes.</summary>
     public LineStyle Pen { get; init; } = new();
 
-    /// <summary>The number of drawn lines/shapes in the current layout.</summary>
     public int LineCount => Layout?.Lines.Count ?? 0;
 
     /// <summary>True when no transforms are pending (a bare original; the pen alone doesn't count).</summary>

@@ -2,6 +2,12 @@ import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
 import { icon } from '../ui/icons.js';
 import { normalizePageSize } from './units.js';
 
+// Shared `parse` guards for the settings registry below: the numeric ones return
+// undefined on NaN to ABORT the set (matching the old per-setter guards).
+const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };
+const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; };
+const toStr = v => String(v);
+
 // ── Mirror kinds: how one bound DOM element reflects a setting value ──
 // Each migrated setting lists its bound elements as { id, kind }; applyMirror writes the
 // value the way that element expects. Tolerant of missing elements (same guards the old
@@ -36,22 +42,22 @@ const applyMirror = ({ id, kind }, value) => {
 // The public setter methods below stay as thin wrappers so callers/console API are unchanged.
 const SETTINGS = {
   color: {
-    field: 'color', parse: v => String(v),
+    field: 'color', parse: toStr,
     mirror: [{ id: 'line-color', kind: 'value' }],
     save: true,
   },
   thickness: {
-    field: 'thickness', parse: n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; },
+    field: 'thickness', parse: toInt,
     mirror: [{ id: 'line-thickness', kind: 'value' }, { id: 'ctx-thickness', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },
   markerSize: {
-    field: 'markerSize', parse: n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; },
+    field: 'markerSize', parse: toInt,
     mirror: [{ id: 'marker-size', kind: 'value' }, { id: 'ctx-marker-size', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },
   filterColor: {
-    field: 'filterColor', parse: v => String(v),
+    field: 'filterColor', parse: toStr,
     mirror: [{ id: 'filter-color', kind: 'value' }, { id: 'ctx-tint-color', kind: 'value' }],
     redraw: true, save: true, remoteSync: true, filterDirty: true,
   },
@@ -66,12 +72,12 @@ const SETTINGS = {
     redraw: true, save: true,
   },
   style: {
-    field: 'style', parse: v => String(v),
+    field: 'style', parse: toStr,
     mirror: [{ id: 'line-style', kind: 'value' }, { id: 'ctxLineStyle', kind: 'radio' }],
     save: true,
   },
   imageFilter: {
-    field: 'imageFilter', parse: v => String(v),
+    field: 'imageFilter', parse: toStr,
     mirror: [{ id: 'image-filter', kind: 'value' }, { id: 'ctxFilter', kind: 'radio' }],
     afterSet: (self) => {
       const app = self.app;
@@ -101,7 +107,7 @@ const SETTINGS = {
   // Width/height are stored in cm (the model unit) but shown in the active display unit, so
   // the mirror is a converted value (cmToUnit) rather than the raw field — done in afterSet.
   customPageWidth: {
-    field: 'customPageWidth', parse: n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; },
+    field: 'customPageWidth', parse: toNum,
     afterSet: (self) => {
       const app = self.app;
       setVal('custom-page-width', cmToUnit(app.customPageWidth, app.unit));
@@ -110,7 +116,7 @@ const SETTINGS = {
     redraw: true, save: true, remoteSync: true,
   },
   customPageHeight: {
-    field: 'customPageHeight', parse: n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; },
+    field: 'customPageHeight', parse: toNum,
     afterSet: (self) => {
       const app = self.app;
       setVal('custom-page-height', cmToUnit(app.customPageHeight, app.unit));

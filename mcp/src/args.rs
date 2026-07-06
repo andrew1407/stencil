@@ -365,15 +365,6 @@ impl From<String> for EditError {
     }
 }
 
-/// The boundary back to the plain-string surface the MCP handler presents.
-impl From<EditError> for String {
-    fn from(error: EditError) -> Self {
-        error.to_string()
-    }
-}
-
-// ── Argv assembly ──
-
 /// A tiny push helper that collapses the repeated `argv.push(FLAG.into()); argv.push(x)`
 /// pairs into one call each, so `build_argv` reads as a flat mapping. It only owns a
 /// `Vec<String>`; ordering is entirely the caller's, matching the CLI's flag layout.
@@ -429,7 +420,6 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
     type Error = EditError;
 
     fn try_from(p: &'a EditParams) -> Result<Self, EditError> {
-        // Source exclusivity.
         if p.input.is_some() && p.blank.is_some() {
             return Err(EditError::SourceConflict);
         }

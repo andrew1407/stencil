@@ -22,7 +22,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io) !void {
 
     logo.banner();
     ui.intro();
-    ui.status(&session); // header line just under the logo
+    ui.status(&session);
 
     const stdin_file = std.Io.File.stdin();
     const is_tty = stdin_file.isTty(io) catch false;

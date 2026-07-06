@@ -6,10 +6,9 @@ import { layout } from '../js/ui/layout.js';
 
 const markup = layout();
 
-// Count occurrences of a needle within the markup.
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 161 static body IDs (spec §6 + crop modal + install/download), original body order. Each must appear EXACTLY once.
+// All 202 static body IDs (spec §6 + crop / install / open-image / open-in / confirm modals), original body order. Each must appear EXACTLY once.
 const IDS = [
     'ctx-menu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
@@ -72,12 +71,9 @@ test('every static body ID is present exactly once', () => {
 });
 
 test('dynamic containers are present and empty/placeholder', () => {
-    // hotkey table tbody is empty in static markup
     assert.ok(markup.includes('<tbody></tbody>'), 'empty hotkey <tbody> present');
-    // #info-body is empty (comment-only) in static markup
     assert.ok(/<div class="settings-body" id="info-body"><!-- filled by JS --><\/div>/.test(markup),
         'empty #info-body present');
-    // #coordinates-body has only the placeholder row
     assert.ok(markup.includes('<tbody id="coordinates-body">'), '#coordinates-body present');
     assert.ok(markup.includes('<td colspan="6" class="empty-message">No points yet.</td>'),
         'coord placeholder row present');

@@ -31,7 +31,6 @@ export class CoordTable {
         <td style="text-align:center;padding:2px;"><button class="del-pt-btn btn-icon" title="Remove point">${icon('trash', { size: 14 })}</button></td>
       `;
 
-      // Hover → highlight row + canvas point
       row.addEventListener('mouseenter', () => {
         this.app.hoveredPtIdx = index;
         this.applyRowHighlight();
@@ -43,7 +42,6 @@ export class CoordTable {
         this.app.renderer.redraw();
       });
 
-      // Click row → focus (highlight persistently)
       row.addEventListener('click', e => {
         if (e.target.closest('.del-pt-btn') || e.target.closest('.coord-px-input')) return;
         this.app.focusedPtIdx = (this.app.focusedPtIdx === index) ? -1 : index;
@@ -51,7 +49,6 @@ export class CoordTable {
         this.app.renderer.redraw();
       });
 
-      // Double-click pixel X/Y cell → make editable
       const makeEditable = (cell, axis) => {
         cell.addEventListener('dblclick', () => {
           if (cell.querySelector('.coord-px-input')) return;
@@ -81,12 +78,11 @@ export class CoordTable {
           inp.addEventListener('keydown', ev => {
             if (ev.key === 'Enter') inp.blur();
             if (ev.key === 'Escape')
-              cell.textContent = curVal; // Revert
+              cell.textContent = curVal;
             if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
               ev.preventDefault();
               const step = ev.shiftKey ? 10 : 1;
               inp.value = parseInt(inp.value, 10) + (ev.key === 'ArrowUp' ? step : -step);
-              // live preview
               const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
               if (line && !isNaN(parseInt(inp.value, 10))) {
                 line.points[index][axis] = parseInt(inp.value, 10);
