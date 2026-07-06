@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use crate::args::{self, EditParams, LayoutArg};
+use crate::args::{self, EditError, EditParams, LayoutArg};
 use crate::locate;
 use crate::outcome;
 
@@ -21,6 +21,20 @@ pub struct EditResult {
     pub remotes: Vec<outcome::Remote>,
 }
 
+impl EditResult {
+    /// The human-readable head of the tool summary: the local write line followed by one
+    /// line per collaboration-server delivery. The delivery-surface lines are appended by
+    /// the handler, which owns the surface notes.
+    pub fn summary(&self) -> String {
+        let mut summary = format!("wrote {} ({}x{})", self.path, self.width, self.height);
+        for remote in &self.remotes {
+            summary.push('\n');
+            summary.push_str(&remote.summary_line());
+        }
+        summary
+    }
+}
+
 /// Raw capture from one CLI invocation.
 struct CliOutput {
     success: bool,
@@ -28,13 +42,13 @@ struct CliOutput {
 }
 
 /// Run one `stencil_edit`: validate, draw an inline layout if given, spawn, and parse.
-pub async fn run_edit(params: &EditParams) -> Result<EditResult, String> {
+pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
     // Clobber guard: refuse to replace an existing file the caller didn't opt into.
     if !params.overwrite && Path::new(&params.output).exists() {
-        return Err(format!(
+        return Err(EditError::Runtime(format!(
             "output '{}' already exists; pass overwrite=true to replace it",
             params.output
-        ));
+        )));
     }
 
     // Materialize an inline layout to a temp file; keep the handle alive across the spawn.
@@ -59,7 +73,7 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, String> {
 
     let output = result?;
     if !output.success {
-        return Err(outcome::extract_errors(&output.stderr));
+        return Err(outcome::extract_errors(&output.stderr).into());
     }
     match outcome::parse_wrote(&output.stderr) {
         Some(w) => Ok(EditResult {
@@ -68,10 +82,10 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, String> {
             height: w.height,
             remotes: outcome::parse_remotes(&output.stderr),
         }),
-        None => Err(format!(
+        None => Err(EditError::Runtime(format!(
             "the stencil CLI reported success but printed no 'wrote' line:\n{}",
             output.stderr.trim()
-        )),
+        ))),
     }
 }
 
