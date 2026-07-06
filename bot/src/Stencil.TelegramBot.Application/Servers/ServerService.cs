@@ -21,6 +21,12 @@ namespace Stencil.TelegramBot.Application.Servers;
 /// </remarks>
 public sealed class ServerService : IServerService
 {
+    /// <summary>
+    /// Attempts for a version-guarded single-field write before giving up on a sustained conflict
+    /// (a port of pystencil's <c>_FIELD_WRITE_RETRIES</c> / the CLI's <c>putProjectField</c> loop).
+    /// </summary>
+    private const int FieldWriteRetries = 4;
+
     private readonly IStencilServerClientFactory _factory;
     private readonly ISessionStore _store;
     private readonly IEditingService _editing;
@@ -192,6 +198,10 @@ public sealed class ServerService : IServerService
         };
         var record = await client.CreateProjectAsync(request, ct);
         await client.PutFileAsync(record.Id, ProjectFileKind.Original, bytes, "png", render.Width, render.Height, ct);
+        // The original upload bumps the server-side version but the file-write response carries
+        // none, so re-read it — otherwise the session tracks a stale version and the very next
+        // version-guarded save/colour/expiry would 409 (remoteSync.js createRemoteProject).
+        var version = await CurrentVersionAsync(client, record.Id, record.Version, ct);
         var updated = session with
         {
             ActiveServerUrl = connection.Url,
@@ -199,11 +209,11 @@ public sealed class ServerService : IServerService
             ActiveProjectName = record.Name,
             ActiveProjectCreatedAt = record.CreatedAt,
             ActiveProjectExpiresAt = record.ExpiresAt,
-            ActiveProjectVersion = record.Version,
+            ActiveProjectVersion = version,
             ActiveProjectLayoutJson = null, // bot-created: no prior layout to preserve
         };
         await _store.SaveAsync(updated, ct);
-        return record;
+        return record with { Version = version };
     }
 
     /// <inheritdoc />
@@ -232,9 +242,12 @@ public sealed class ServerService : IServerService
             "This project was edited elsewhere — reload it from the server before saving again.",
             ct);
         await client.PutFileAsync(session.ActiveProjectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
-        var updated = session with { ActiveProjectVersion = record.Version, ActiveProjectLayoutJson = layoutJson };
+        // The result upload bumps the version too; re-read it so the next save isn't stale
+        // (remoteSync.js saveRemoteProject refreshes version after putFile('result')).
+        var version = await CurrentVersionAsync(client, session.ActiveProjectId, record.Version, ct);
+        var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
         await _store.SaveAsync(updated, ct);
-        return record;
+        return record with { Version = version };
     }
 
     /// <inheritdoc />
@@ -246,16 +259,74 @@ public sealed class ServerService : IServerService
             throw new InvalidOperationException("No active server project — /fetch or /create one first.");
         }
         var client = ClientForActive(session);
-        var request = new UpdateProjectRequest { Color = color, Version = session.ActiveProjectVersion };
-        var record = await UpdateOrConflictAsync(
+        var record = await UpdateFieldWithRetryAsync(
             client,
             session.ActiveProjectId,
-            request,
+            v => new UpdateProjectRequest { Color = color, Version = v },
             "This project was edited elsewhere — reload it before changing its colour.",
             ct);
         var updated = session with { ActiveProjectVersion = record.Version };
         await _store.SaveAsync(updated, ct);
         return record.Color ?? "";
+    }
+
+    /// <inheritdoc />
+    public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
+        }
+        var client = ClientForActive(session);
+        // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
+        var record = await UpdateFieldWithRetryAsync(
+            client,
+            session.ActiveProjectId,
+            v => new UpdateProjectRequest { ExpiresAt = expiresAtMs, Version = v },
+            "This project was edited elsewhere — reload it before changing its expiry.",
+            ct);
+        var updated = session with { ActiveProjectVersion = record.Version, ActiveProjectExpiresAt = record.ExpiresAt };
+        await _store.SaveAsync(updated, ct);
+        return record.ExpiresAt;
+    }
+
+    /// <inheritdoc />
+    public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
+        }
+        var client = ClientForActive(session);
+        var name = session.ActiveProjectName ?? session.ActiveProjectId;
+        try
+        {
+            await client.DeleteProjectAsync(session.ActiveProjectId, ct);
+        }
+        catch (ServerException ex) when (ex.IsConflict)
+        {
+            throw new ServerException(
+                "conflict",
+                "The project is open by other clients right now — it can't be deleted until they leave.",
+                ex.Status);
+        }
+        // Clear the active project (and live sync, which now has nothing to track); the working
+        // image stays so the user can re-save it as a new project elsewhere.
+        var updated = session with
+        {
+            ActiveServerUrl = null,
+            ActiveProjectId = null,
+            ActiveProjectName = null,
+            ActiveProjectCreatedAt = 0,
+            ActiveProjectExpiresAt = 0,
+            ActiveProjectVersion = 0,
+            ActiveProjectLayoutJson = null,
+            SyncEnabled = false,
+        };
+        await _store.SaveAsync(updated, ct);
+        return name;
     }
 
     /// <inheritdoc />
@@ -349,6 +420,50 @@ public sealed class ServerService : IServerService
         catch (ServerException ex) when (ex.IsConflict)
         {
             throw new ServerException("conflict", conflictMessage, ex.Status);
+        }
+    }
+
+    /// <summary>
+    /// A version-guarded single-field write (colour / expiry) with a bounded conflict retry: the
+    /// read-then-PUT isn't atomic, so a peer — or our own preceding file upload — that advanced the
+    /// version between the read and the PUT would 409 and silently drop the change. On a conflict we
+    /// re-read the current version and retry, mirroring pystencil's <c>_update_field_with_retry</c>
+    /// / the CLI's <c>putProjectField</c>. A sustained conflict surfaces the friendly reload prompt.
+    /// </summary>
+    private static async Task<ProjectRecord> UpdateFieldWithRetryAsync(
+        IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
+    {
+        ServerException? last = null;
+        for (int attempt = 0; attempt < FieldWriteRetries; attempt++)
+        {
+            long version = await CurrentVersionAsync(client, id, 0, ct);
+            try
+            {
+                return await client.UpdateProjectAsync(id, build(version), ct);
+            }
+            catch (ServerException ex) when (ex.IsConflict)
+            {
+                last = ex; // a peer won the race — re-read the version and retry
+            }
+        }
+        throw new ServerException("conflict", conflictMessage, last?.Status ?? 409);
+    }
+
+    /// <summary>
+    /// Re-read a project's current version (a file write bumps it but returns none of its own),
+    /// falling back to <paramref name="fallback"/> when the server is unreachable. Mirrors
+    /// remoteSync.js <c>currentVersion</c> / pystencil <c>_current_version</c>.
+    /// </summary>
+    private static async Task<long> CurrentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
+    {
+        try
+        {
+            var full = await client.GetProjectAsync(id, ct);
+            return full.Project.Version;
+        }
+        catch
+        {
+            return fallback;
         }
     }
 }

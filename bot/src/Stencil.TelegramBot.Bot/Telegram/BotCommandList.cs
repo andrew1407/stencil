@@ -46,5 +46,7 @@ public static class BotCommandList
         new("save", "Save back to the active project"),
         new("sync", "Live sync on/off (auto-upload + pull)"),
         new("projectcolor", "Set the project accent colour"),
+        new("expire", "Set the project expiry: <n unit> | never"),
+        new("delete", "Remove the active project from the server"),
     ];
 }

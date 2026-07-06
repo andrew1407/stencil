@@ -126,6 +126,7 @@ public sealed class FakeStencilServerClient : IStencilServerClient
             Version = existing.Version + 1,
             Name = request.Name ?? existing.Name,
             Color = request.Color ?? existing.Color,
+            ExpiresAt = request.ExpiresAt ?? existing.ExpiresAt,
         };
         _projects[id] = updated;
         if (request.Layout is JsonElement layout)
@@ -151,6 +152,12 @@ public sealed class FakeStencilServerClient : IStencilServerClient
     public Task<FileWriteResult> PutFileAsync(string id, string kind, byte[] data, string ext, int w, int h, CancellationToken ct = default)
     {
         Puts.Add((id, kind, data, ext, w, h));
+        // The real server's SetFile bumps version/updated_at (store.go) but the response carries
+        // no version — model that so clients that don't re-read the version afterwards are caught.
+        if (_projects.TryGetValue(id, out ProjectRecord? existing))
+        {
+            _projects[id] = existing with { Version = existing.Version + 1 };
+        }
         return Task.FromResult(new FileWriteResult($"/store/{id}/{kind}.{ext}", w, h));
     }
 }

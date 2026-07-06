@@ -89,23 +89,34 @@ public sealed class UpdateRouter
     {
         if (message.Text is string text && text.StartsWith('/'))
         {
+            // A command supersedes any pending free-text prompt (e.g. the custom-expiry entry).
+            await ClearPendingInputAsync(userId, ct);
             BotCommand command = CommandParser.Parse(text);
             await _handlers.DispatchAsync(userId, chatId, command, ct);
             return;
         }
+        // An upload also supersedes a pending free-text prompt (only a plain-text reply answers it).
         if (message.Photo is { Length: > 0 } photos)
         {
+            await ClearPendingInputAsync(userId, ct);
             await AdoptImageAsync(userId, chatId, photos[^1].FileId, ".jpg", "photo", message.Caption, ct);
             return;
         }
         if (message.Video is Video video)
         {
+            await ClearPendingInputAsync(userId, ct);
             await AdoptVideoAsync(userId, chatId, video.FileId, ExtensionOf(video.FileName ?? "", ".mp4"), "video", message.Caption, ct);
             return;
         }
         if (message.Document is Document document)
         {
+            await ClearPendingInputAsync(userId, ct);
             await HandleDocumentAsync(userId, chatId, document, message.Caption, ct);
+            return;
+        }
+        // A plain-text reply to a pending prompt (e.g. the custom-expiry entry) is consumed here.
+        if (message.Text is string reply && await TryConsumePendingInputAsync(userId, chatId, reply, ct))
+        {
             return;
         }
         // A pasted http(s) link (no command, no attachment) is treated as /url — fetch it.
@@ -118,6 +129,35 @@ public sealed class UpdateRouter
         {
             await _bot.SendMessage(chatId, "Send a photo or an image link to edit, or /help for commands.", cancellationToken: ct);
         }
+    }
+
+    /// <summary>Clear a pending free-text prompt, if one is armed (a no-op otherwise).</summary>
+    private async Task ClearPendingInputAsync(long userId, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.PendingInput is not null)
+        {
+            await _store.SaveAsync(session with { PendingInput = null }, ct);
+        }
+    }
+
+    /// <summary>
+    /// If the user has an armed prompt, consume this plain-text message as its answer and dispatch
+    /// the matching command (the flag is one-shot — cleared before dispatch). Returns whether it
+    /// was consumed.
+    /// </summary>
+    private async Task<bool> TryConsumePendingInputAsync(long userId, long chatId, string reply, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.PendingInput != PendingInputs.ExpiryDuration)
+        {
+            return false;
+        }
+        await _store.SaveAsync(session with { PendingInput = null }, ct);
+        string spec = reply.Trim();
+        string[] args = spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        await _handlers.DispatchAsync(userId, chatId, new BotCommand("expire", spec, args), ct);
+        return true;
     }
 
     /// <summary>Find the first http(s) URL token in a message body (for bare-link image loads).</summary>

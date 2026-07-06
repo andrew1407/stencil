@@ -1,5 +1,7 @@
+using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Projects;
 
 namespace Stencil.TelegramBot.Tests;
 
@@ -18,6 +20,29 @@ public sealed class RepliesVariantsTests
             Assert.Contains($"{mode} — ", text);
         }
         Assert.Contains("/filter #ff5623", text); // the duotone-colour example
+    }
+
+    [Fact]
+    public void ProjectsTextCapsALongListAndNotesTheOverflow()
+    {
+        // A server with far more projects than the cap must not overflow Telegram's 4096-char
+        // message limit; the extra ones are called out, not silently dropped.
+        int total = Replies.MaxProjectsListed + 12;
+        List<ServerProjectInfo> projects = new();
+        for (int i = 0; i < total; i++)
+        {
+            projects.Add(new ServerProjectInfo(
+                new ProjectRecord { Id = $"p_{i}", Name = $"Project {i}", HasImage = true, ImageW = 100, ImageH = 80 },
+                "http://localhost:8090"));
+        }
+
+        string text = Replies.ProjectsText(projects);
+
+        Assert.True(text.Length <= 4096, $"message length {text.Length} exceeds Telegram's limit");
+        Assert.Contains($"Projects ({total})", text);          // the true total is shown
+        Assert.Contains($"and {total - Replies.MaxProjectsListed} more", text); // overflow called out
+        Assert.Contains("Project 0", text);                    // first is listed
+        Assert.DoesNotContain($"Project {total - 1} ", text);  // the last (over the cap) is not
     }
 
     [Fact]

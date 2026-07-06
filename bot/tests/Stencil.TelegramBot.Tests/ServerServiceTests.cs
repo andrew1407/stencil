@@ -120,6 +120,66 @@ public sealed class ServerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SetProjectExpirySetsAndClearsTheActiveProject()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        long set = await _service.SetProjectExpiryAsync(UserId, 9_000);
+        Assert.Equal(9_000, set);
+        UserSession afterSet = await _store.GetAsync(UserId);
+        Assert.Equal(9_000, afterSet.ActiveProjectExpiresAt);
+        Assert.Equal(5, afterSet.ActiveProjectVersion); // bumped from the fetched v4
+
+        // 0 clears the expiry (keep forever), and the version guard advances again.
+        long cleared = await _service.SetProjectExpiryAsync(UserId, 0);
+        Assert.Equal(0, cleared);
+        UserSession afterClear = await _store.GetAsync(UserId);
+        Assert.Equal(0, afterClear.ActiveProjectExpiresAt);
+    }
+
+    [Fact]
+    public async Task SetProjectExpiryThrowsWithoutAnActiveProject()
+    {
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectExpiryAsync(UserId, 9_000));
+    }
+
+    [Fact]
+    public async Task SetProjectExpiryRetriesPastAConcurrentBump()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+        // Another writer bumps the server version, so our stored version is now stale — the field
+        // write must re-read the current version and still land, not surface a conflict.
+        _factory.ClientFor(ServerA).BumpVersion("p_seed");
+
+        long set = await _service.SetProjectExpiryAsync(UserId, 9_000);
+        Assert.Equal(9_000, set);
+    }
+
+    [Fact]
+    public async Task CreateThenSetExpiryDoesNotConflict()
+    {
+        // Regression: the original upload bumps the server version, so a naive create that stored
+        // the pre-upload version would 409 on this immediately-following expiry write.
+        await SeedWorkingImageAsync();
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.CreateProjectAsync(UserId, "Doc", url: null);
+
+        long set = await _service.SetProjectExpiryAsync(UserId, 12_000);
+        Assert.Equal(12_000, set);
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal(12_000, session.ActiveProjectExpiresAt);
+    }
+
+    [Fact]
     public async Task FetchThrowsWhenNoMatch()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
@@ -155,7 +215,9 @@ public sealed class ServerServiceTests : IDisposable
 
         ProjectRecord saved = await _service.SaveActiveProjectAsync(UserId);
 
-        Assert.Equal(created.Version + 1, saved.Version);
+        // The layout update and the result upload each bump the server version, and the service
+        // re-reads it after the upload, so the saved/session version advances past the created one.
+        Assert.True(saved.Version > created.Version);
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(saved.Version, session.ActiveProjectVersion);
         FakeStencilServerClient client = _factory.ClientFor(ServerA);
@@ -175,6 +237,34 @@ public sealed class ServerServiceTests : IDisposable
             () => _service.SaveActiveProjectAsync(UserId));
 
         Assert.True(ex.IsConflict);
+    }
+
+    [Fact]
+    public async Task DeleteActiveProjectRemovesItAndClearsTheSession()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        string removed = await _service.DeleteActiveProjectAsync(UserId);
+
+        Assert.Equal("Shared", removed);
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Null(session.ActiveProjectId);
+        Assert.Null(session.ActiveServerUrl);
+        Assert.False(session.SyncEnabled);
+        // The project is gone from the server, so it no longer lists.
+        IReadOnlyList<ServerProjectInfo> projects = await _service.ListProjectsAsync(UserId, url: null);
+        Assert.DoesNotContain(projects, p => p.Record.Id == "p_seed");
+    }
+
+    [Fact]
+    public async Task DeleteActiveProjectThrowsWithoutAnActiveProject()
+    {
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.DeleteActiveProjectAsync(UserId));
     }
 
     private async Task SeedWorkingImageAsync()
