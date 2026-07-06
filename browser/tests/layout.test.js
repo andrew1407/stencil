@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines } from '../js/core/layout.js';
+import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines } from '../js/core/layout.js';
 
 // ── mergeLines (concurrent co-edit conflict resolution) ──
 test('mergeLines: unions distinct lines from both editors', () => {
@@ -112,6 +112,103 @@ test('buildLayoutPayload includes page format + formulas only when provided', ()
     assert.strictEqual(off.allowFormulas, false);
     assert.strictEqual(off.formulaX, '');
     assert.strictEqual(off.formulaY, '');
+});
+
+// ── serializeSession (full localStorage session layout) ─────────
+// A plain state object identical to what Storage.#buildLayout resolves from live
+// app + viewport. Order/values must stay byte-identical to the old inline literal —
+// the cross-tab / reopen round-trip reads it back.
+const sampleState = () => ({
+  imageWidth: 800, imageHeight: 600,
+  cropRect: { x: 1, y: 2, width: 3, height: 4 }, rotationQuarters: 0,
+  lines: [{ points: [{ x: 1, y: 2 }] }],
+  pageSize: 'A3', customPageWidth: 21, customPageHeight: 29.7, unit: 'cm',
+  color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
+  showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#7c3aed',
+  zoom: 1, scrollLeft: 0, scrollTop: 0,
+  imageBaseName: 'pic', imageExt: 'png', imageSource: null, imageResource: null,
+  tooltipEnabled: true, tooltipShowPage: true, tooltipShowScreen: true, tooltipShowCoords: true,
+  allowFormulas: false, formulaX: '', formulaY: '',
+  drawMode: 'line', holdDrawDelay: 500,
+  selGlowColor: '#ffc800', hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', defaultFillColor: '#3399ff',
+});
+
+test('serializeSession: pure, no DOM/app needed — projects a plain state object', () => {
+  const out = serializeSession(sampleState());
+  assert.strictEqual(out.imageWidth, 800);
+  assert.strictEqual(out.pageSize, 'A3');
+  assert.strictEqual(out.defaultFillColor, '#3399ff');
+});
+
+test('serializeSession: passes lines through by reference (no copy)', () => {
+  const state = sampleState();
+  assert.strictEqual(serializeSession(state).lines, state.lines);
+});
+
+test('serializeSession: emits every descriptor field in table (byte) order', () => {
+  const keys = Object.keys(serializeSession(sampleState()));
+  assert.deepStrictEqual(keys, LAYOUT_FIELDS.map(f => f.key));
+  // Guard the exact head order that differs from the export subset (crop/rotation before lines).
+  assert.deepStrictEqual(keys.slice(0, 5),
+    ['imageWidth', 'imageHeight', 'cropRect', 'rotationQuarters', 'lines']);
+});
+
+test('serializeSession serializes byte-identically to the old #buildLayout literal', () => {
+  const expected =
+`{
+  "imageWidth": 800,
+  "imageHeight": 600,
+  "cropRect": {
+    "x": 1,
+    "y": 2,
+    "width": 3,
+    "height": 4
+  },
+  "rotationQuarters": 0,
+  "lines": [
+    {
+      "points": [
+        {
+          "x": 1,
+          "y": 2
+        }
+      ]
+    }
+  ],
+  "pageSize": "A3",
+  "customPageWidth": 21,
+  "customPageHeight": 29.7,
+  "unit": "cm",
+  "color": "#FFFF00",
+  "thickness": 2,
+  "markerSize": 4,
+  "style": "solid",
+  "showPoints": true,
+  "showLines": true,
+  "imageFilter": "none",
+  "filterColor": "#7c3aed",
+  "zoom": 1,
+  "scrollLeft": 0,
+  "scrollTop": 0,
+  "imageBaseName": "pic",
+  "imageExt": "png",
+  "imageSource": null,
+  "imageResource": null,
+  "tooltipEnabled": true,
+  "tooltipShowPage": true,
+  "tooltipShowScreen": true,
+  "tooltipShowCoords": true,
+  "allowFormulas": false,
+  "formulaX": "",
+  "formulaY": "",
+  "drawMode": "line",
+  "holdDrawDelay": 500,
+  "selGlowColor": "#ffc800",
+  "hoverRingColor": "#7c3aed",
+  "focusRingColor": "#7c3aed",
+  "defaultFillColor": "#3399ff"
+}`;
+  assert.strictEqual(JSON.stringify(serializeSession(sampleState()), null, 2), expected);
 });
 
 // ── validateLayout ──────────────────────────────────────────────

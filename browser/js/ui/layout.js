@@ -19,5 +19,25 @@ import { StencilInstall } from './installButton.js';
 // Importing the modules above registers every customElements.define. Each template()
 // emits the host tag with markup inline, so layout() still produces the full static
 // markup string (143 ids) the app and tests expect.
-export const layout = () =>
-  `${StencilContextMenu.template()}${StencilFullscreenLayer.template()}${StencilDropOverlay.template()}${StencilAppContainer.template()}${StencilNotifications.template()}${StencilSettingsModal.template()}${StencilVisualsModal.template()}${StencilInfoModal.template()}${StencilProjectsModal.template()}${StencilExpirationModal.template()}${StencilOpenImageModal.template()}${StencilOpenInModal.template()}${StencilLinksModal.template()}${StencilConnectModal.template()}${StencilCropModal.template()}${StencilConfirmModal.template()}${StencilInstall.template()}`;
+// The region order is LOAD-BEARING (document body order); keep this list in the exact
+// original sequence. layout() concatenates each region's template() in that order.
+const REGIONS = [
+  StencilContextMenu,
+  StencilFullscreenLayer,
+  StencilDropOverlay,
+  StencilAppContainer,
+  StencilNotifications,
+  StencilSettingsModal,
+  StencilVisualsModal,
+  StencilInfoModal,
+  StencilProjectsModal,
+  StencilExpirationModal,
+  StencilOpenImageModal,
+  StencilOpenInModal,
+  StencilLinksModal,
+  StencilConnectModal,
+  StencilCropModal,
+  StencilConfirmModal,
+  StencilInstall,
+];
+export const layout = () => REGIONS.map((r) => r.template()).join('');

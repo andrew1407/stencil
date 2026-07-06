@@ -42,7 +42,7 @@ const makeApp = (over = {}) => {
     coordTable: { update() {} },
     hideSelectionPanels() {},
     updateInfo() {}, updateButtons() {}, updateCoordStatus() {},
-    scheduleRemoteSync() { rec.remoteSync++; },
+    remoteSync: { scheduleRemoteSync() { rec.remoteSync++; } },
     ...over,
   };
 };

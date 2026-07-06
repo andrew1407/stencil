@@ -141,14 +141,14 @@ export class StencilVisualsModal extends StencilElement {
       app.storage.save();
     });
     els.holdDelay.addEventListener('change', e => {
-      app.setHoldDrawDelay(e.target.value);
+      app.input.setHoldDrawDelay(e.target.value);
       e.target.value = app.holdDrawDelay; // reflect the clamped value
     });
     // Shared core setter (also used by the console: stencil.settings.fillColor, etc.)
-    els.fill.addEventListener('input', e => app.setVisualColor('fill', e.target.value));
-    els.selGlow.addEventListener('input', e => app.setVisualColor('selGlow', e.target.value));
-    els.hoverRing.addEventListener('input', e => app.setVisualColor('hoverRing', e.target.value));
-    els.focusRing.addEventListener('input', e => app.setVisualColor('focusRing', e.target.value));
+    els.fill.addEventListener('input', e => app.settings.setVisualColor('fill', e.target.value));
+    els.selGlow.addEventListener('input', e => app.settings.setVisualColor('selGlow', e.target.value));
+    els.hoverRing.addEventListener('input', e => app.settings.setVisualColor('hoverRing', e.target.value));
+    els.focusRing.addEventListener('input', e => app.settings.setVisualColor('focusRing', e.target.value));
 
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);

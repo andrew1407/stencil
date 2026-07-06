@@ -47,6 +47,31 @@ export const normalizeHex = (value) => {
   return /^[0-9a-fA-F]{6}$/.test(h) ? '#' + h.toLowerCase() : null;
 };
 
+// Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' via a canvas probe, since
+// the editor's <input type=color> controls only take #rrggbb. 'transparent'/null pass through
+// (fills allow them); an unparseable value is returned unchanged (surfaces as an error, not
+// black). Sibling to normalizeHex above, but this resolves ANY CSS color (not just hex) and
+// needs a DOM canvas — so it no-op-passes-through when no canvas is available (node tests).
+const colorCanvas = (() => {
+  try { return document.createElement('canvas').getContext('2d'); } catch { return null; }
+})();
+export const toHexColor = (v) => {
+  if (v == null) return v;
+  const s = String(v).trim();
+  if (!s || s.toLowerCase() === 'transparent') return s;
+  if (/^#[0-9a-f]{6}$/i.test(s)) return s.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(s)) return ('#' + s.slice(1).replace(/./g, (c) => c + c)).toLowerCase();
+  if (!colorCanvas) return s;
+  // The browser resolves any valid CSS color via fillStyle; probe two bases so an
+  // INVALID value (which leaves each base untouched) is detected and left as-is.
+  colorCanvas.fillStyle = '#000'; colorCanvas.fillStyle = s; const a = colorCanvas.fillStyle;
+  colorCanvas.fillStyle = '#fff'; colorCanvas.fillStyle = s; const b = colorCanvas.fillStyle;
+  if (a !== b) return s;                       // unparseable → unchanged
+  if (/^#[0-9a-f]{6}$/i.test(a)) return a;
+  const m = /^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/i.exec(a);   // alpha form → drop alpha
+  return m ? '#' + [m[1], m[2], m[3]].map((n) => (+n).toString(16).padStart(2, '0')).join('') : s;
+};
+
 // Repaint the browser-tab favicon (and the PWA status-bar theme-color) to a literal hex.
 // The favicon is a static .svg file the browser can't read our CSS var from, so we swap
 // the <link> to an inline data-URL SVG carrying the colour.

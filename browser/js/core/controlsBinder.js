@@ -27,22 +27,22 @@ export class ControlsBinder {
     // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn
     // (empty state) is its open button; #open-image-btn (image loaded) and the blank
     // shortcuts open the same dialog. The rest of the Image-actions group are direct.
-    document.getElementById('copy-image')?.addEventListener('click', () => app.copyImageToClipboard());
+    document.getElementById('copy-image')?.addEventListener('click', () => app.export.copyImageToClipboard());
     const shareBtn = document.getElementById('share-image');
     if (shareBtn) {
       if (supportsShareFiles()) shareBtn.style.display = '';
-      shareBtn.addEventListener('click', () => app.shareImage());
+      shareBtn.addEventListener('click', () => app.export.shareImage());
     }
-    document.getElementById('rotate-left').addEventListener('click', () => app.rotateImage(-1));
-    document.getElementById('rotate-right').addEventListener('click', () => app.rotateImage(1));
-    document.getElementById('line-color').addEventListener('change', e => app.setColor(e.target.value));
+    document.getElementById('rotate-left').addEventListener('click', () => app.imageModel.rotateImage(-1));
+    document.getElementById('rotate-right').addEventListener('click', () => app.imageModel.rotateImage(1));
+    document.getElementById('line-color').addEventListener('change', e => app.settings.setColor(e.target.value));
     // Live drag (input) previews without persisting; the trailing change commits.
-    document.getElementById('line-thickness').addEventListener('input', e => app.setThickness(e.target.value, { persist: false }));
-    document.getElementById('line-thickness').addEventListener('change', e => app.setThickness(e.target.value));
-    document.getElementById('marker-size').addEventListener('input', e => app.setMarkerSize(e.target.value, { persist: false }));
-    document.getElementById('marker-size').addEventListener('change', e => app.setMarkerSize(e.target.value));
-    document.getElementById('line-style').addEventListener('change', e => app.setLineStyle(e.target.value));
-    document.getElementById('image-filter').addEventListener('change', e => app.setImageFilter(e.target.value));
+    document.getElementById('line-thickness').addEventListener('input', e => app.settings.setThickness(e.target.value, { persist: false }));
+    document.getElementById('line-thickness').addEventListener('change', e => app.settings.setThickness(e.target.value));
+    document.getElementById('marker-size').addEventListener('input', e => app.settings.setMarkerSize(e.target.value, { persist: false }));
+    document.getElementById('marker-size').addEventListener('change', e => app.settings.setMarkerSize(e.target.value));
+    document.getElementById('line-style').addEventListener('change', e => app.settings.setLineStyle(e.target.value));
+    document.getElementById('image-filter').addEventListener('change', e => app.settings.setImageFilter(e.target.value));
     let filterColorTimer = null;
     document.getElementById('filter-color').addEventListener('input', e => {
       // Reflect the model + mirror immediately; debounce the redraw/persist commit.
@@ -50,7 +50,7 @@ export class ControlsBinder {
       const ctxTint = document.getElementById('ctx-tint-color');
       if (ctxTint) ctxTint.value = e.target.value;
       clearTimeout(filterColorTimer);
-      filterColorTimer = setTimeout(() => app.setFilterColor(e.target.value), 80);
+      filterColorTimer = setTimeout(() => app.settings.setFilterColor(e.target.value), 80);
     });
   }
 
@@ -75,26 +75,26 @@ export class ControlsBinder {
 
   wirePageAndDisplayControls() {
     const app = this.app;
-    document.getElementById('page-size').addEventListener('change', e => app.setPageSize(e.target.value));
+    document.getElementById('page-size').addEventListener('change', e => app.settings.setPageSize(e.target.value));
     document.getElementById('custom-page-width').addEventListener('change', e => {
       // Inputs are typed in the active unit; the setter stores cm.
       const v = parseFloat(e.target.value);
-      app.setCustomPageWidth(Number.isNaN(v) ? 21 : unitToCm(v, app.unit));
+      app.settings.setCustomPageWidth(Number.isNaN(v) ? 21 : unitToCm(v, app.unit));
     });
     document.getElementById('custom-page-height').addEventListener('change', e => {
       const v = parseFloat(e.target.value);
-      app.setCustomPageHeight(Number.isNaN(v) ? 29.7 : unitToCm(v, app.unit));
+      app.settings.setCustomPageHeight(Number.isNaN(v) ? 29.7 : unitToCm(v, app.unit));
     });
     const unitSel = document.getElementById('unit-select');
-    if (unitSel) unitSel.addEventListener('change', e => app.setUnit(e.target.value));
+    if (unitSel) unitSel.addEventListener('change', e => app.settings.setUnit(e.target.value));
     // Swap the native popups (whose position macOS controls) for custom dropdowns
     // anchored below the control. The native <select>s stay as the state source, so
     // the change listeners above and every setVal('page-size'|'unit-select') keep working.
     // Page size gets a search bar (33 ISO formats — scrolling alone is too slow).
     enhanceSelect(document.getElementById('page-size'), { search: true });
     enhanceSelect(unitSel);
-    document.getElementById('show-points').addEventListener('change', e => app.setShowPoints(e.target.checked));
-    document.getElementById('show-lines').addEventListener('change', e => app.setShowLines(e.target.checked));
+    document.getElementById('show-points').addEventListener('change', e => app.settings.setShowPoints(e.target.checked));
+    document.getElementById('show-lines').addEventListener('change', e => app.settings.setShowLines(e.target.checked));
   }
 
   wireFormulaControls() {
@@ -112,10 +112,10 @@ export class ControlsBinder {
         setVal('ctx-formula-y', fyVal);
         app.settings.refreshFormulaCoords();
         app.storage.save();
-        app.scheduleRemoteSync();   // push the formula change to peers/server
+        app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
       }
     };
-    document.getElementById('allow-formulas').addEventListener('change', e => app.setAllowFormulas(e.target.checked));
+    document.getElementById('allow-formulas').addEventListener('change', e => app.settings.setAllowFormulas(e.target.checked));
     document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
     document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
   }
@@ -234,11 +234,11 @@ export class ControlsBinder {
     });
     document.getElementById('undo').addEventListener('click', () => app.undo());
     document.getElementById('redo').addEventListener('click', () => app.redo());
-    document.getElementById('download-json').addEventListener('click', () => app.downloadJSON());
-    document.getElementById('copy-json-btn').addEventListener('click', () => app.copyLayoutToClipboard());
-    document.getElementById('save-image').addEventListener('click', () => app.saveImage());
+    document.getElementById('download-json').addEventListener('click', () => app.export.downloadJSON());
+    document.getElementById('copy-json-btn').addEventListener('click', () => app.export.copyLayoutToClipboard());
+    document.getElementById('save-image').addEventListener('click', () => app.export.saveImage());
     document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
-    document.getElementById('upload-json').addEventListener('change', e => app.uploadJSON(e));
+    document.getElementById('upload-json').addEventListener('change', e => app.export.uploadJSON(e));
     document.getElementById('clear-storage').addEventListener('click', async () => {
       if (app.storage.temporary || app.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
@@ -366,7 +366,7 @@ export class ControlsBinder {
         const cur = opts.indexOf(app.imageFilter);
         // Route through setImageFilter so the cycle marks the filter dirty + syncs to
         // the server (it used to set the value inline and never push).
-        app.setImageFilter(opts[(cur + 1) % opts.length]);
+        app.settings.setImageFilter(opts[(cur + 1) % opts.length]);
       },
       resetZoom: () => app.zoomPan.fitToWindow(),
       toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
@@ -376,10 +376,10 @@ export class ControlsBinder {
       zoomOut: () => app.zoomPan.zoomAroundCenter(app.scale - 0.25),
       zoomInBig: () => app.zoomPan.zoomAroundCenter(app.scale + 1.0),
       zoomOutBig: () => app.zoomPan.zoomAroundCenter(app.scale - 1.0),
-      rotateImageLeft: () => { if (app.image) app.rotateImage(-1); },
-      rotateImageRight: () => { if (app.image) app.rotateImage(1); },
-      copyImage: () => app.copyImageToClipboard(),
-      copyLayout: () => app.copyLayoutToClipboard(),
+      rotateImageLeft: () => { if (app.image) app.imageModel.rotateImage(-1); },
+      rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
+      copyImage: () => app.export.copyImageToClipboard(),
+      copyLayout: () => app.export.copyLayoutToClipboard(),
       // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
       paste: () => { /* handled by paste event */ },
       clearAllLines: () => app.clearAllLines(),
@@ -569,7 +569,7 @@ export class ControlsBinder {
         }
         if (data && Array.isArray(data.lines)) {
           e.preventDefault();
-          app.applyPastedLayout(data);
+          app.export.applyPastedLayout(data);
         }
       }
     });

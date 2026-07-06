@@ -366,16 +366,27 @@ test('deleteProject removes a project on the server', async () => {
 });
 
 // ── Facade: address flag threads/validates through the same create path ──
-const facadeApp = (server, extra = {}) => ({
-  connections: new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS }),
-  lines: [],
-  storage: { store: { list: () => [] }, incognito: false, save() {} },
-  tabs: { onPeers() {} },
-  activeProjectId: null,
-  remoteLink: null,
-  image: { width: 2, height: 2 },
-  ...extra,
-});
+const facadeApp = (server, extra = {}) => {
+  const app = {
+    connections: new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS }),
+    lines: [],
+    storage: { store: { list: () => [] }, incognito: false, save() {} },
+    tabs: { onPeers() {} },
+    activeProjectId: null,
+    remoteLink: null,
+    image: { width: 2, height: 2 },
+    ...extra,
+  };
+  // The facade writes back via app.remoteSync.saveToServer(); mirror the real DrawingApp by
+  // delegating the remote-sync namespace to the flat (per-test overridden) methods.
+  app.remoteSync = {
+    saveToServer: (...a) => app.saveToServer?.(...a),
+    scheduleRemoteSync: (...a) => app.scheduleRemoteSync?.(...a),
+    reloadRemoteActive: (...a) => app.reloadRemoteActive?.(...a),
+    onServerProjectEvent: (...a) => app.onServerProjectEvent?.(...a),
+  };
+  return app;
+};
 
 test('facade blank({ address }) validates the target and threads it to createBlankImage', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');

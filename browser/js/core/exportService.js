@@ -55,7 +55,7 @@ export class ExportService {
     link.click();
 
     // A server-linked session also writes the annotated result + layout back.
-    if (app.remoteLink) app.saveToServer();
+    if (app.remoteLink) app.remoteSync.saveToServer();
   }
 
   // Share the annotated image via the Web Share API (mobile/PWA). The Share entry
