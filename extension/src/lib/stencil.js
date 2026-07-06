@@ -3,6 +3,7 @@
 // the rest wrap chrome.* and are service-worker-safe (no FileReader / DOM).
 import { mountStencilModal } from './overlay.js';
 import { recordOpened } from './ledger.js';
+import { sourceOf } from './imageModel.js';
 
 export const DEFAULT_EDITOR_URL = 'http://localhost:8080/';
 export const DEFAULT_PAGE = 'A3';
@@ -106,6 +107,42 @@ export const filenameFromUrl = (url, fallback = 'image') => {
 export const buildLaunchUrl = (editorUrl, payload) => {
   const base = editorUrl.split('#')[0];
   return `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
+};
+
+/**
+ * Assemble the editor/crop hand-off payload — the single shape every surface sends to
+ * `openEditorTab` / `launchEditorModal` (and whose `source`/`resource` `launchCrop`
+ * reuses): `{ dataUrl, name, page:{size}, source, resource, incognito[, open] }`.
+ *
+ * Folds in the shared-provenance rule: a shared (server) row carries its OWN
+ * source/resource; a plain page image derives its source (`sourceOf`, or an explicit
+ * `image.source` for the background relays that pre-resolve it) and takes the caller's
+ * page URL as the resource. `open` ('resume'|'copy') is omitted when undefined so a
+ * plain open imports fresh.
+ *
+ * @param {object} image - A scanned/shared popup row ({name, shared?, source?, src?,
+ *   videoUrl?, kind?}) or a resolved `{name, source}` descriptor (background relays).
+ * @param {object} [opts]
+ * @param {string} [opts.dataUrl] - The image bytes as a data URL.
+ * @param {string} [opts.page]    - Page size key (e.g. 'A3'); wrapped as `page:{size}`.
+ * @param {string} [opts.resource]- The page URL the image came from (non-shared resource).
+ * @param {boolean}[opts.incognito]
+ * @param {string} [opts.open]    - 'resume' | 'copy'; omitted when undefined.
+ * @returns {object} The hand-off payload.
+ */
+export const buildHandoff = (image, { dataUrl, page, resource, incognito = false, open } = {}) => {
+  const payload = {
+    dataUrl,
+    name: image.name,
+    page: { size: page },
+    // Provenance: shared rows keep their own source; page images derive it (or use an
+    // explicitly pre-resolved image.source, as the background relays pass).
+    source: image.shared ? image.source : (image.source ?? sourceOf(image)),
+    resource: image.shared ? image.resource : resource,
+    incognito: !!incognito,
+  };
+  if (open !== undefined) payload.open = open;
+  return payload;
 };
 
 // Soft ceiling: very large data URLs can exceed the URL length limit in a tab.

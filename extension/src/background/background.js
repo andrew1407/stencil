@@ -2,7 +2,7 @@
 // Owns the right-click context menu (Stencil actions → editor). Covers real <img>
 // (native 'image' context) and CSS background-image elements (detected by the
 // content-script probe, ctxTarget.js).
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl, buildHandoff } from '../lib/stencil.js';
 import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../lib/contextMenu.js';
 import { pruneLedger } from '../lib/ledger.js';
 import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
@@ -178,62 +178,62 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   lastPosterByTab.delete(tabId);
 });
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+// ── Runtime-message dispatch ────────────────────────────────────────────────
+// One handler per message `type` (keyed by MSG.*), replacing a long if/else chain.
+// Each is fire-and-forget: none returns true, so — exactly as before — the listener
+// leaves the response port closed (no handler here sends an async sendResponse).
+const messageHandlers = {
   // The in-page editor overlay asks us to open a real tab when its iframe is
   // blocked (CSP / mixed content). Doing it here avoids popup blockers.
-  if (msg && msg.type === MSG.OPEN_TAB && msg.url) {
-    chrome.tabs.create({ url: msg.url });
-    return;
-  }
+  [MSG.OPEN_TAB]: (msg) => {
+    if (msg.url) chrome.tabs.create({ url: msg.url });
+  },
   // The editor-origin bridge reports the editor's live project registry. Prune
   // opened-ledger entries for projects that no longer exist there — scoped to the
   // sender's origin so other editor deployments are left untouched.
-  if (msg && msg.type === MSG.REGISTRY) {
+  [MSG.REGISTRY]: (msg, sender) => {
     let origin = sender.origin || '';
     if (!origin && sender.url) { try { origin = new URL(sender.url).origin; } catch { origin = ''; } }
     if (origin) pruneLedger(Array.isArray(msg.projects) ? msg.projects : [], origin);
-    return;
-  }
+  },
   // ── Page-API (window.stencil) relays ──
   // Open a page image/video in the editor (new tab or in-page modal).
-  if (msg && msg.type === MSG.PAGE_OPEN) {
+  [MSG.PAGE_OPEN]: (msg, sender) => {
     (async () => {
       try {
         const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url);
         const { page } = await getSettings();
-        const payload = {
-          dataUrl, name: msg.name || filenameFromUrl(msg.url || 'image'), page: { size: page },
-          source: msg.source || msg.url || '', resource: msg.resource || sender.tab?.url || '', incognito: !!msg.incognito,
-        };
+        const payload = buildHandoff(
+          { name: msg.name || filenameFromUrl(msg.url || 'image'), source: msg.source || msg.url || '' },
+          { dataUrl, page, resource: msg.resource || sender.tab?.url || '', incognito: !!msg.incognito }
+        );
         if (msg.newTab) await openEditorTab(payload);
         else await launchEditorModal({ ...payload, tabId: sender.tab?.id });
       } catch (err) { console.warn('[stencil] page open failed:', err?.message); }
     })();
-    return;
-  }
+  },
   // Pin / unpin a page image/video. The pin is grouped under the page's origin so the
   // options page can list "pins on this site"; the bridge mirrors the write back to the
   // page API (entry.pinned) and any open popup/side panel.
-  if (msg && msg.type === MSG.PAGE_PIN) {
+  [MSG.PAGE_PIN]: (msg, sender) => {
     const resource = msg.resource || sender.tab?.url || '';
     setPinned({
       source: msg.source || msg.url || '', site: siteOf(resource), resource,
       name: msg.name || filenameFromUrl(msg.url || 'image'), kind: msg.kind || 'image', pinned: !!msg.pin,
     }).catch(() => { /* storage unavailable */ });
-    return;
-  }
+  },
   // Open a page image/video in the quick-crop tool.
-  if (msg && msg.type === MSG.PAGE_CROP) {
+  [MSG.PAGE_CROP]: (msg, sender) => {
     const src = msg.dataUrl || msg.url;
     if (src) launchCrop({ src, source: msg.source || msg.url || '', resource: msg.resource || sender.tab?.url || '', tabId: sender.tab?.id });
-    return;
-  }
+  },
   // The API's `stencil.enabled = false` — turn the feature off (unregisters the scripts).
-  if (msg && msg.type === MSG.PAGE_DISABLE) {
+  [MSG.PAGE_DISABLE]: () => {
     chrome.storage.sync.set({ exposeWindowStencil: false });
-    return;
-  }
-  if (msg && msg.type === MSG.CTX) {
+  },
+  // ctxTarget probe → what the right-click resolved under the cursor. Records the target
+  // per tab and toggles the dynamic background / video-preview menu groups' visibility.
+  [MSG.CTX]: (msg, sender) => {
     const tabId = sender.tab?.id;
     if (tabId == null) return;
     const data = msg.data;
@@ -258,7 +258,12 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     const showPreview = !!(data && data.video && data.poster);
     for (const id of PREVIEW_ITEMS)
       chrome.contextMenus.update(id, { visible: showPreview }, () => void chrome.runtime.lastError);
-  }
+  },
+};
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  const handler = msg && messageHandlers[msg.type];
+  if (handler) return handler(msg, sender);
 });
 
 // Cap the captured frame's longest side: it rides in the editor launch URL as a
@@ -436,76 +441,79 @@ const resolveSrc = (info, rec) => {
   return (rec && rec.url) || null;
 };
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const tabId = tab?.id;
+// ── Context-menu click handlers ─────────────────────────────────────────────
+// One async handler per click group (following the ACTIONS-table style): the toolbar
+// action items, the video-preview submenu, the pin items, and the default image / video
+// frame path. `resolveClickHandler` routes an incoming click to exactly one of them —
+// the same order the previous if/else chain matched in.
 
-  // ── Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito variant
-  // opens it in an incognito window, so the editor's own project storage is throwaway. ──
-  if (info.menuItemId === MENU.actionOpen || info.menuItemId === MENU.actionOpenIncognito) {
-    try {
-      const { editorUrl } = await getSettings();
-      if (info.menuItemId === MENU.actionOpenIncognito) await chrome.windows.create({ url: editorUrl, incognito: true });
-      else await chrome.tabs.create({ url: editorUrl });
-    } catch (err) {
-      console.error('[stencil] open-editor action failed:', err);
-    }
-    return;
+// ── Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito variant
+// opens it in an incognito window, so the editor's own project storage is throwaway. ──
+const openFreshEditor = async (info) => {
+  try {
+    const { editorUrl } = await getSettings();
+    if (info.menuItemId === MENU.actionOpenIncognito) await chrome.windows.create({ url: editorUrl, incognito: true });
+    else await chrome.tabs.create({ url: editorUrl });
+  } catch (err) {
+    console.error('[stencil] open-editor action failed:', err);
   }
+};
 
-  // ── Preview submenu: act on the video's POSTER (a normal image URL), never a
-  // frame. A no-op when the right-clicked element had no poster. ──
-  if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) {
-    const poster = (tabId != null ? lastPosterByTab.get(tabId) : '') || '';
-    const act = resolveContextAction({ menuItemId: info.menuItemId, srcUrl: poster }, poster);
-    if (!act) return;   // no poster on this element
-    const resource = tab?.url || '';
-    try {
-      if (act.action === 'open-tab') {
-        await chrome.tabs.create({ url: act.src });
-        return;
-      }
-      if (act.action === 'crop') {
-        await launchCrop({ src: act.src, source: act.src, resource, tabId });
-        return;
-      }
-      const { page } = await getSettings();
-      const dataUrl = await fetchAsDataUrl(act.src);
-      const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, source: act.src, resource, incognito: act.incognito };
-      if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId });
-      else await openEditorTab(payload);
-    } catch (err) {
-      console.error('[stencil] preview action failed:', err);
+// ── Preview submenu: act on the video's POSTER (a normal image URL), never a
+// frame. A no-op when the right-clicked element had no poster. ──
+const actOnPreview = async (info, tab, tabId) => {
+  const poster = (tabId != null ? lastPosterByTab.get(tabId) : '') || '';
+  const act = resolveContextAction({ menuItemId: info.menuItemId, srcUrl: poster }, poster);
+  if (!act) return;   // no poster on this element
+  const resource = tab?.url || '';
+  try {
+    if (act.action === 'open-tab') {
+      await chrome.tabs.create({ url: act.src });
+      return;
     }
-    return;
-  }
-
-  // ── Pin / unpin the right-clicked image or video on this site. No editor launch and
-  // no frame capture — a pin keys on the openable SOURCE URL (a video's media URL, an
-  // image/background's src), the same thing "open in new tab" uses. Toggles. ──
-  if (PIN_ITEMS.includes(info.menuItemId)) {
-    const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
-    const poster = tabId != null ? lastPosterByTab.get(tabId) : '';
-    // The openable source + kind depend on which menu item fired: a background/overlay uses
-    // the probe's recorded URL; a <video> frame uses the media URL (info.srcUrl) or poster
-    // fallback; a plain image uses info.srcUrl.
-    const byItem = {
-      [MENU.bgPin]: { source: (rec && rec.url) || info.srcUrl || '', kind: 'background' },
-      [MENU.framePin]: { source: info.srcUrl || poster || '', kind: 'video' },
-    };
-    const { source, kind } = byItem[info.menuItemId]
-      || { source: info.srcUrl || (rec && rec.url) || '', kind: 'image' };
-    if (!source) return;
-    const resource = tab?.url || '';
-    const site = siteOf(resource);
-    try {
-      const pinned = isPinnedIn(await loadPins(), site, source);
-      await setPinned({ source, site, resource, name: filenameFromUrl(source), kind, pinned: !pinned });
-    } catch (err) {
-      console.error('[stencil] pin action failed:', err);
+    if (act.action === 'crop') {
+      await launchCrop({ src: act.src, source: act.src, resource, tabId });
+      return;
     }
-    return;
+    const { page } = await getSettings();
+    const dataUrl = await fetchAsDataUrl(act.src);
+    const payload = buildHandoff({ name: filenameFromUrl(act.src), source: act.src }, { dataUrl, page, resource, incognito: act.incognito });
+    if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId });
+    else await openEditorTab(payload);
+  } catch (err) {
+    console.error('[stencil] preview action failed:', err);
   }
+};
 
+// ── Pin / unpin the right-clicked image or video on this site. No editor launch and
+// no frame capture — a pin keys on the openable SOURCE URL (a video's media URL, an
+// image/background's src), the same thing "open in new tab" uses. Toggles. ──
+const togglePinFromMenu = async (info, tab, tabId) => {
+  const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
+  const poster = tabId != null ? lastPosterByTab.get(tabId) : '';
+  // The openable source + kind depend on which menu item fired: a background/overlay uses
+  // the probe's recorded URL; a <video> frame uses the media URL (info.srcUrl) or poster
+  // fallback; a plain image uses info.srcUrl.
+  const byItem = {
+    [MENU.bgPin]: { source: (rec && rec.url) || info.srcUrl || '', kind: 'background' },
+    [MENU.framePin]: { source: info.srcUrl || poster || '', kind: 'video' },
+  };
+  const { source, kind } = byItem[info.menuItemId]
+    || { source: info.srcUrl || (rec && rec.url) || '', kind: 'image' };
+  if (!source) return;
+  const resource = tab?.url || '';
+  const site = siteOf(resource);
+  try {
+    const pinned = isPinnedIn(await loadPins(), site, source);
+    await setPinned({ source, site, resource, name: filenameFromUrl(source), kind, pinned: !pinned });
+  } catch (err) {
+    console.error('[stencil] pin action failed:', err);
+  }
+};
+
+// ── Default: an <img> / background / <video>-frame click → resolve the image bytes
+// (capturing a video frame as needed) and open / crop them in the editor. ──
+const openImageOrFrame = async (info, tab, tabId) => {
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
@@ -552,10 +560,22 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     const dataUrl = await fetchAsDataUrl(act.src);
     // `act.open` ('resume') only set by the Resume item; undefined drops out of the
     // JSON payload so a plain open imports fresh, as before.
-    const payload = { dataUrl, name: filenameFromUrl(act.src), page: { size: page }, source: sourceUrl, resource, incognito: act.incognito, open: act.open };
+    const payload = buildHandoff({ name: filenameFromUrl(act.src), source: sourceUrl }, { dataUrl, page, resource, incognito: act.incognito, open: act.open });
     if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId: tab?.id });   // in-page editor modal
     else await openEditorTab(payload);
   } catch (err) {
     console.error('[stencil] context-menu action failed:', err);
   }
-});
+};
+
+// Route a click to its handler, matching in the same order the old if/else chain did:
+// the two toolbar action items, then the preview-* submenu, then the pin items, then
+// the default image / video-frame path.
+const resolveClickHandler = (info) => {
+  if (info.menuItemId === MENU.actionOpen || info.menuItemId === MENU.actionOpenIncognito) return openFreshEditor;
+  if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) return actOnPreview;
+  if (PIN_ITEMS.includes(info.menuItemId)) return togglePinFromMenu;
+  return openImageOrFrame;
+};
+
+chrome.contextMenus.onClicked.addListener((info, tab) => resolveClickHandler(info)(info, tab, tab?.id));
