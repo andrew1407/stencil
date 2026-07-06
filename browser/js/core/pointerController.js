@@ -127,7 +127,6 @@ export class PointerController {
         return;
       }
 
-      // Handle point drag
       if (app.isDraggingPoint && app.draggingPoint) {
         const { x, y } = app.canvasCoords(e.clientX, e.clientY);
         app.movePointTo(app.draggingPoint, x, y);
@@ -217,19 +216,16 @@ export class PointerController {
         return;
       }
 
-      // Finish point drag
       if (app.isDraggingPoint) {
         app.endPointDrag(app.draggingPoint, e.altKey);
         return;
       }
 
-      // Finish segment drag
       if (app.isDraggingSegment) {
         app.endSegmentDrag(e.altKey);
         return;
       }
 
-      // Finish whole-line drag
       if (app.isDraggingLine) {
         app.isDraggingLine = false;
         app.draggingLine = null;
@@ -239,7 +235,6 @@ export class PointerController {
       }
       if (!app.isPanning) return;
       app.isPanning = false;
-      // Restore cursor
       if (app.isDrawing) {
         app.canvas.style.cursor = 'crosshair';
       } else {

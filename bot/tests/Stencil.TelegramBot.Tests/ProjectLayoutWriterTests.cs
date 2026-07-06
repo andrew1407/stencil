@@ -34,12 +34,10 @@ public sealed class ProjectLayoutWriterTests
         var root = ProjectLayoutWriter.Build(baseLayout, edits, 330, 467);
         JsonElement el = JsonSerializer.Deserialize<JsonElement>(root.ToJsonString());
 
-        // Preserved from the fetched layout:
         Assert.Equal("A4", el.GetProperty("pageSize").GetString());
         Assert.True(el.GetProperty("allowFormulas").GetBoolean());
         Assert.Equal("x*2", el.GetProperty("formulaX").GetString());
         Assert.Equal(330, el.GetProperty("cropRect").GetProperty("width").GetInt32());
-        // Updated from the edit state:
         Assert.Equal("custom", el.GetProperty("imageFilter").GetString());
         Assert.Equal("#ff5623", el.GetProperty("filterColor").GetString());
         Assert.Equal(1, el.GetProperty("rotationQuarters").GetInt32());

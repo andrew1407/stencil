@@ -6,7 +6,6 @@
 // Pure geometry helpers. Port of the geometry section of browser/js/utils.js.
 namespace stencil::core {
 
-  // Distance from point (px, py) to the segment a -> b.
   double distToSegment(double px, double py, const Point& a, const Point& b);
 
   // Port of browser/js/core/drawingApp.js #closeCurrentShape gate (canvasClick):

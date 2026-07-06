@@ -43,7 +43,6 @@ export const applyContourRGBA = (data, width, height) => {
       data[p] = v;
       data[p + 1] = v;
       data[p + 2] = v;
-      // data[p + 3] (alpha) is left unchanged.
     }
   }
 };

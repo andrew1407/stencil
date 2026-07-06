@@ -188,7 +188,7 @@ export class FormulaEngine {
   // Validate a formula string — try evaluating it with the variable = 1.
   // Empty = valid (identity).
   validate = core.bind('formulaValidate', (expr, varName) => {
-    if (isBlank(expr)) return true; // empty = valid (identity)
+    if (isBlank(expr)) return true;
     return evaluate(expr, varName, 1) !== null;
   });
 

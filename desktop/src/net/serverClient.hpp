@@ -137,6 +137,11 @@ namespace stencil::net {
     void requestAsync(const QByteArray& method, const QString& path, const QByteArray& body,
                       const QString& contentType,
                       std::function<void(int status, QByteArray body)> done);
+    // Shared body for the three guarded PUT variants (layout / colour / name). `obj` is the
+    // request body sans version; `verb` names the op for the error string ("update"/"rename").
+    // Reports 409 as the third `done` arg (conflict) so the caller can prompt a reload.
+    void putGuarded(const QString& id, QJsonObject obj, qint64 version, const char* verb,
+                    std::function<void(bool, qint64, bool)> done);
 
     QNetworkAccessManager* nam_;
     QString base_;

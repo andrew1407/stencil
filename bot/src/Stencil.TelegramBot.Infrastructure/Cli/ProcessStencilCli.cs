@@ -23,7 +23,6 @@ public sealed class ProcessStencilCli : IStencilCli
     private readonly BotOptions _options;
     private readonly SemaphoreSlim _spawnGate;
 
-    /// <summary>Create the adapter bound to the given configuration (for the CLI path).</summary>
     public ProcessStencilCli(BotOptions options)
     {
         _options = options;

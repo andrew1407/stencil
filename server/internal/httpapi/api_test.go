@@ -225,7 +225,6 @@ func TestProjectLifecycleHTTP(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")
 
-	// Create.
 	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Demo","source":"http://x/a.png","hasImage":true}`))
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create: code %d body %s", rec.Code, rec.Body.String())
@@ -263,7 +262,6 @@ func TestProjectLifecycleHTTP(t *testing.T) {
 		t.Fatalf("get after update: %+v layout=%s", got.Project, got.Layout)
 	}
 
-	// Delete.
 	if rec := do(t, api, http.MethodDelete, "/projects/"+created.ID, tok, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: code %d", rec.Code)
 	}

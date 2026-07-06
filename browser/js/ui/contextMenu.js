@@ -362,12 +362,10 @@ export class StencilContextMenu extends StencilElement {
 
     // ── Actions ──
 
-    // Copy image to clipboard
     document.getElementById('ctx-copy-img').addEventListener('click', () => {
       closeMenu(); app.export.copyImageToClipboard();
     });
 
-    // Download image
     document.getElementById('ctx-dl-img').addEventListener('click', () => {
       closeMenu(); app.export.saveImage();
     });
@@ -379,17 +377,14 @@ export class StencilContextMenu extends StencilElement {
       closeMenu(); app.export.shareImage();
     });
 
-    // Download layout
     document.getElementById('ctx-dl-layout').addEventListener('click', () => {
       closeMenu(); app.export.downloadJSON();
     });
 
-    // Upload layout
     document.getElementById('ctx-ul-layout').addEventListener('click', () => {
       closeMenu(); document.getElementById('upload-json').click();
     });
 
-    // Copy layout JSON to clipboard
     document.getElementById('ctx-copy-layout').addEventListener('click', () => {
       closeMenu(); app.export.copyLayoutToClipboard();
     });
@@ -419,7 +414,6 @@ export class StencilContextMenu extends StencilElement {
       }
     });
 
-    // Paste layout JSON from clipboard
     document.getElementById('ctx-paste-layout').addEventListener('click', async () => {
       closeMenu();
       try {
@@ -441,14 +435,12 @@ export class StencilContextMenu extends StencilElement {
       }
     });
 
-    // Start / Stop drawing
     document.getElementById('ctx-draw-toggle').addEventListener('click', () => {
       closeMenu();
       if (app.isDrawing) app.stopDrawingMode();
       else if (app.image) app.startDrawingMode();
     });
 
-    // Switch line / rect drawing mode
     document.getElementById('ctx-drawmode-toggle').addEventListener('click', () => {
       closeMenu();
       app.setDrawMode(app.drawMode === 'rect' ? 'line' : 'rect');
@@ -466,7 +458,6 @@ export class StencilContextMenu extends StencilElement {
       notify('Drag to draw a rectangle', 'info');
     });
 
-    // Show points
     document.getElementById('ctx-show-points').addEventListener('click', () => {
       app.showPoints = !app.showPoints;
       const cb = document.getElementById('show-points');
@@ -475,7 +466,6 @@ export class StencilContextMenu extends StencilElement {
       document.getElementById('ctx-chk-points').innerHTML = app.showPoints ? icon('check', { size: 14 }) : '';
     });
 
-    // Show lines
     document.getElementById('ctx-show-lines').addEventListener('click', () => {
       app.showLines = !app.showLines;
       const cb = document.getElementById('show-lines');
@@ -484,7 +474,6 @@ export class StencilContextMenu extends StencilElement {
       document.getElementById('ctx-chk-lines').innerHTML = app.showLines ? icon('check', { size: 14 }) : '';
     });
 
-    // Clear all lines
     document.getElementById('ctx-clear-lines').addEventListener('click', () => {
       closeMenu();
       app.clearAllLines();
@@ -526,7 +515,6 @@ export class StencilContextMenu extends StencilElement {
       app.renderer.redraw(); app.storage.save();
     });
 
-    // Line style radios
     document.querySelectorAll('input[name="ctxLineStyle"]').forEach(r => {
       r.addEventListener('change', () => {
         app.style = r.value;
@@ -536,7 +524,6 @@ export class StencilContextMenu extends StencilElement {
       });
     });
 
-    // Filter radios
     document.querySelectorAll('input[name="ctxFilter"]').forEach(r => {
       r.addEventListener('change', () => {
         app.imageFilter = r.value;
@@ -561,19 +548,16 @@ export class StencilContextMenu extends StencilElement {
       }, TINT_DEBOUNCE_MS);
     });
 
-    // Fullscreen toggle
     document.getElementById('ctx-fullscreen').addEventListener('click', () => {
       closeMenu();
       if (typeof app.toggleFullscreen === 'function') app.toggleFullscreen();
     });
 
-    // Fit to window
     document.getElementById('ctx-fit-window').addEventListener('click', () => {
       closeMenu();
       if (app && app.zoomPan && typeof app.zoomPan.fitToWindow === 'function') app.zoomPan.fitToWindow();
     });
 
-    // Tooltip visibility checkboxes
     document.getElementById('ctx-tt-enabled').addEventListener('change', e => {
       app.tooltipEnabled = e.target.checked;
       if (!app.tooltipEnabled) app.tooltipMgr.hide();

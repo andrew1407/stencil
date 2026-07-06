@@ -169,9 +169,9 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 	defer untrack()
 
 	// First frame must be a hello within the deadline.
-	hctx, cancel := context.WithTimeout(ctx, helloTimeout)
+	hctx, hcancel := context.WithTimeout(ctx, helloTimeout)
 	raw, err := conn.Read(hctx)
-	cancel()
+	hcancel()
 	if err != nil {
 		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
 		return err

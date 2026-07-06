@@ -54,8 +54,6 @@ public interface IEditingService
     /// <summary>Apply a whole drawing layout to the edit state (replaces any current lines).</summary>
     Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, CancellationToken ct = default);
 
-    // ── Interactive drawing (the layout is built up line by line) ──
-
     /// <summary>
     /// Update the pen (the style for newly drawn lines); only non-null arguments change.
     /// <paramref name="style"/> must be <c>solid</c>/<c>dashed</c>/<c>dotted</c>;
@@ -75,8 +73,6 @@ public interface IEditingService
 
     /// <summary>Remove every drawn line/shape, keeping the working image and other edits.</summary>
     Task<UserSession> ClearLinesAsync(long userId, CancellationToken ct = default);
-
-    // ── Video input ──
 
     /// <summary>
     /// Adopt a video as a source: persist it into the workspace, grab frame

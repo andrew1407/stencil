@@ -293,9 +293,6 @@ export class DrawingApp {
   }
 
 
-  // Selection panel listeners
-
-
   // ── Formula controls (top bar) ──────────────────────────────
   // The formula UI helpers (settings.syncFormulaUI / showFormulaError / refreshFormulaCoords)
   // and setAllowFormulas live in SettingsController with the other setters. This validates
@@ -934,7 +931,6 @@ export class DrawingApp {
       this.focusedPtIdx = nearPt.ptIdx;
       this.coordTable.update(this.lines[nearPt.lineIdx].points, nearPt.lineIdx);
       this.renderer.redraw();
-      // Bring the focused row into view inside the coord table
       const row = this.coordinatesBody.querySelector(`tr[data-pt-idx="${nearPt.ptIdx}"]`);
       if (row && typeof row.scrollIntoView === 'function') {
         row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -1171,7 +1167,6 @@ export class DrawingApp {
       return;
     }
 
-    // Cursor
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
       // Ctrl → point-add mode
       this.canvas.style.cursor = 'copy';
@@ -1213,11 +1208,9 @@ export class DrawingApp {
       const line = this.lines[i];
       const pts = line.points;
 
-      // Check points
       for (const p of pts)
         if (Math.hypot(p.x - x, p.y - y) <= threshold + 4) return i;
 
-      // Check segments
       for (let j = 0; j < pts.length - 1; j++)
         if (distToSegment(x, y, pts[j], pts[j + 1]) <= threshold) return i;
     }
@@ -1298,7 +1291,6 @@ export class DrawingApp {
                 <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
             <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
         </div>`;
-    // Wire events
     fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {
       this.applySelectionChange('color', e.target.value);
       document.getElementById('sel-color').value = e.target.value;
@@ -2101,8 +2093,6 @@ export class DrawingApp {
     return p;
   }
 
-  // The current editor state as a server layout payload (lines + filter + geometry + page +
-  // formulas). Shared by saveToServer / publishIncognitoToServer / replaceProjectImage.
   // Build the full layout payload (lines + filter/crop/rotation/page/formulas) from the
   // current editor state. Shared by the server push (saveToServer / publishIncognitoToServer)
   // and ExportService's download/copy actions, so it's a public method rather than private.

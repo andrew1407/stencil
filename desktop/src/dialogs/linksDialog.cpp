@@ -108,7 +108,6 @@ namespace stencil::gui {
     urlResourceEdit_->setToolTip("Optional resource page URL to record with the loaded image");
     addForm->addRow("Resource URL:", urlResourceEdit_);
 
-    // Preview area: the decoded image/frame plus a status line.
     previewLabel_ = new QLabel(this);
     previewLabel_->setAlignment(Qt::AlignCenter);
     previewLabel_->setMinimumHeight(120);

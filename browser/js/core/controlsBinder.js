@@ -178,8 +178,8 @@ export class ControlsBinder {
       const apply = () => {
         if (app.activeProjectId != null) app.setProjectColor(app.activeProjectId, colorInput.value);
       };
-      colorInput.addEventListener('input', apply);   // live while dragging
-      colorInput.addEventListener('change', apply);  // final commit
+      colorInput.addEventListener('input', apply);
+      colorInput.addEventListener('change', apply);
       const openPicker = () => {
         const cur = app.storage.store.getMeta(app.activeProjectId)?.color || '';
         colorInput.value = normalizeHex(cur) || accentHex(app.accent);
@@ -220,7 +220,6 @@ export class ControlsBinder {
         const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
         setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
       });
-      // Right-click the swatch clears the custom colour (back to the neutral default).
       colorBtn.addEventListener('contextmenu', e => {
         e.preventDefault();
         if (app.activeProjectId != null) app.setProjectColor(app.activeProjectId, '');
@@ -285,7 +284,6 @@ export class ControlsBinder {
 
   wireZoomControls() {
     const app = this.app;
-    // Manual zoom input
     const zoomInput = document.getElementById('zoom-input');
     const applyZoomInput = () => {
       const val = parseFloat(zoomInput.value);

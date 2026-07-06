@@ -94,5 +94,5 @@ test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; inva
   assert.equal(ctrl.setCustomAccent('#abc'), '#aabbcc');
   assert.equal(styleProps.get('--accent'), '#aabbcc');
   assert.equal(app.broadcasts.length, 0);           // custom is page-local, never broadcast
-  assert.equal(ctrl.setCustomAccent('nope'), null); // invalid colour rejected
+  assert.equal(ctrl.setCustomAccent('nope'), null);
 });

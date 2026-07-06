@@ -346,9 +346,9 @@ func TestOversizedFrameRejected(t *testing.T) {
 }
 
 // TestCloseAllDrainsConnections: on shutdown, CloseAll cancels every live
-// connection's context; a blocked TCP editor's Read is interrupted (change #2),
-// the server unwinds the handler, and the session refcount falls to 0 (change
-// #3 drain). Without ctx-aware TCP reads this would hang until the deadline.
+// connection's context; a blocked TCP editor's Read is interrupted, the server
+// unwinds the handler, and the session refcount falls to 0. Without ctx-aware
+// TCP reads this would hang until the deadline.
 func TestCloseAllDrainsConnections(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)

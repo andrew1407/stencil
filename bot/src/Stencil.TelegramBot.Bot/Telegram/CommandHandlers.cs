@@ -238,7 +238,6 @@ public sealed class CommandHandlers
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 
-    /// <summary>List the remembered connections.</summary>
     private async Task ConnectionsAsync(long userId, long chatId, CancellationToken ct)
     {
         IReadOnlyList<ServerConnectionInfo> connections = await _servers.ConnectionsAsync(userId, ct);
@@ -293,7 +292,6 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Save back to the active project.</summary>
     private async Task SaveAsync(long userId, long chatId, CancellationToken ct)
     {
         ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
@@ -554,7 +552,6 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Show the current pen settings.</summary>
     private async Task PenAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -807,7 +804,6 @@ public sealed class CommandHandlers
         await _bot.SendDocument(chatId, document, caption: "Layout JSON", cancellationToken: ct);
     }
 
-    /// <summary>Show the session status.</summary>
     private async Task StatusAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);

@@ -10,18 +10,14 @@
 // Header-only on purpose: trivial and shared by several TUs, so keeping them
 // inline avoids adding a .cpp that would have to be mirrored across the three
 // build definitions (core/CMakeLists.txt, cli/build.zig, pystencil/build.py).
-// A free-function form (rather than a view struct) is used so the SAME helper
-// serves const-source / mutable-destination call sites without a const split.
 namespace stencil::core {
 
-  // Byte offset of pixel (x, y) within a width-`w` RGBA8 buffer.
   inline std::size_t rgbaOffset(int x, int y, int w) {
     return (static_cast<std::size_t>(y) * static_cast<std::size_t>(w) +
             static_cast<std::size_t>(x)) *
            4;
   }
 
-  // Copy one RGBA pixel (4 bytes) from `src` to `dst`.
   inline void copyPixel(std::uint8_t* dst, const std::uint8_t* src) {
     dst[0] = src[0];
     dst[1] = src[1];

@@ -904,11 +904,6 @@ const promptPinTarget = () => new Promise((resolve) => {
   document.body.appendChild(back);
 });
 
-// The hand-off payload (name + provenance + image bytes) is assembled by the shared
-// buildHandoff (lib/stencil.js), which folds in the shared-vs-page provenance rule. The
-// popup supplies the active tab URL as the (non-shared) resource. `open` ('resume'|'copy')
-// lets the editor switch to an already-opened project or force a fresh numbered copy.
-
 // The image bytes to hand to the editor / crop: a shared row pulls them (authed) from
 // its server, a page image fetches them through the extension's host permissions.
 const imageDataUrl = (image) => image.shared ? sharedDataUrl(image) : fetchAsDataUrl(editableSrc(image));

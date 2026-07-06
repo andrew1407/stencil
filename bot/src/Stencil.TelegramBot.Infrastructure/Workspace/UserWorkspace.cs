@@ -12,7 +12,6 @@ public sealed class UserWorkspace : IUserWorkspace
 {
     private readonly BotOptions _options;
 
-    /// <summary>Build the workspace bound to the given configuration (for the data root).</summary>
     public UserWorkspace(BotOptions options)
     {
         _options = options;

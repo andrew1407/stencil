@@ -279,8 +279,6 @@ namespace stencil::net {
                  });
   }
 
-  // Shared body for the three guarded PUT variants (layout / colour / name). `obj` is the
-  // request body sans version; `verb` names the op for the error string.
   namespace {
     QJsonObject withVersion(QJsonObject obj, qint64 version) {
       obj.insert("version", static_cast<double>(version));
@@ -288,23 +286,20 @@ namespace stencil::net {
     }
   }  // namespace
 
-  void ServerClient::updateProjectAsync(
-      const QString& id, const QString& name, const QJsonObject& layout, qint64 version,
-      std::function<void(bool, qint64, bool)> done) {
-    QJsonObject obj;
-    if (!name.isEmpty()) obj.insert("name", name);
-    obj.insert("layout", layout);
+  void ServerClient::putGuarded(const QString& id, QJsonObject obj, qint64 version,
+                                const char* verb,
+                                std::function<void(bool, qint64, bool)> done) {
     requestAsync("PUT", QString("/projects/%1").arg(id),
-                 QJsonDocument(withVersion(obj, version)).toJson(QJsonDocument::Compact),
+                 QJsonDocument(withVersion(std::move(obj), version)).toJson(QJsonDocument::Compact),
                  "application/json",
-                 [this, done = std::move(done)](int status, QByteArray body) {
+                 [this, verb, done = std::move(done)](int status, QByteArray body) {
                    if (status == 409) {
                      err_ = "stale version (edited elsewhere)";
                      done(false, 0, true);
                      return;
                    }
                    if (status < 200 || status >= 300) {
-                     err_ = QString("update failed (HTTP %1)").arg(status);
+                     err_ = QString("%1 failed (HTTP %2)").arg(QLatin1String(verb)).arg(status);
                      done(false, 0, false);
                      return;
                    }
@@ -313,6 +308,15 @@ namespace stencil::net {
                             QJsonDocument::fromJson(body).object().value("version").toDouble()),
                         false);
                  });
+  }
+
+  void ServerClient::updateProjectAsync(
+      const QString& id, const QString& name, const QJsonObject& layout, qint64 version,
+      std::function<void(bool, qint64, bool)> done) {
+    QJsonObject obj;
+    if (!name.isEmpty()) obj.insert("name", name);
+    obj.insert("layout", layout);
+    putGuarded(id, std::move(obj), version, "update", std::move(done));
   }
 
   void ServerClient::updateProjectColorAsync(
@@ -320,25 +324,7 @@ namespace stencil::net {
       std::function<void(bool, qint64, bool)> done) {
     QJsonObject obj;
     obj.insert("color", color);  // always sent (even "") so a clear reaches the server
-    requestAsync("PUT", QString("/projects/%1").arg(id),
-                 QJsonDocument(withVersion(obj, version)).toJson(QJsonDocument::Compact),
-                 "application/json",
-                 [this, done = std::move(done)](int status, QByteArray body) {
-                   if (status == 409) {
-                     err_ = "stale version (edited elsewhere)";
-                     done(false, 0, true);
-                     return;
-                   }
-                   if (status < 200 || status >= 300) {
-                     err_ = QString("update failed (HTTP %1)").arg(status);
-                     done(false, 0, false);
-                     return;
-                   }
-                   done(true,
-                        static_cast<qint64>(
-                            QJsonDocument::fromJson(body).object().value("version").toDouble()),
-                        false);
-                 });
+    putGuarded(id, std::move(obj), version, "update", std::move(done));
   }
 
   void ServerClient::updateProjectNameAsync(
@@ -346,25 +332,7 @@ namespace stencil::net {
       std::function<void(bool, qint64, bool)> done) {
     QJsonObject obj;
     obj.insert("name", name);  // colour + layout omitted → server COALESCE leaves them
-    requestAsync("PUT", QString("/projects/%1").arg(id),
-                 QJsonDocument(withVersion(obj, version)).toJson(QJsonDocument::Compact),
-                 "application/json",
-                 [this, done = std::move(done)](int status, QByteArray body) {
-                   if (status == 409) {
-                     err_ = "stale version (edited elsewhere)";
-                     done(false, 0, true);
-                     return;
-                   }
-                   if (status < 200 || status >= 300) {
-                     err_ = QString("rename failed (HTTP %1)").arg(status);
-                     done(false, 0, false);
-                     return;
-                   }
-                   done(true,
-                        static_cast<qint64>(
-                            QJsonDocument::fromJson(body).object().value("version").toDouble()),
-                        false);
-                 });
+    putGuarded(id, std::move(obj), version, "rename", std::move(done));
   }
 
   void ServerClient::uploadFileAsync(const QString& id, const QString& kind,
@@ -453,8 +421,6 @@ namespace stencil::net {
     };
     st->step();
   }
-
-  // ── ConnectionManager ──
 
   ConnectionManager::ConnectionManager(QObject* parent) : QObject(parent) {}
 

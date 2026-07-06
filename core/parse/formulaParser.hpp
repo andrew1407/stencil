@@ -21,8 +21,7 @@
 namespace stencil::core {
 
   // The parser holds no state, so its operations are static — callers invoke
-  // FormulaParser::validate(...) etc. directly, with no instance. (Formerly a stateless
-  // class instantiated as `static const FormulaParser fp;` at each call site.)
+  // FormulaParser::validate(...) etc. directly, with no instance.
   struct FormulaParser {
     // Empty / whitespace expression = valid (identity), matching the JS engine.
     // Otherwise valid iff it parses and evaluates to a finite number at var = 1.
