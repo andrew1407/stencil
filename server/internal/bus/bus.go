@@ -24,8 +24,9 @@ type Bus interface {
 	// Publish sends data to every current subscriber of channel.
 	Publish(ctx context.Context, channel string, data []byte) error
 	// Subscribe returns a receive channel of messages and an unsubscribe func.
-	// The returned channel is closed when unsubscribe is called.
-	Subscribe(ctx context.Context, channel string) (<-chan []byte, func())
+	// The returned channel is closed when unsubscribe is called; the subscription
+	// lives until then (it is not bound to a per-call context).
+	Subscribe(channel string) (<-chan []byte, func())
 	// Close releases any backend resources.
 	Close() error
 }
@@ -61,7 +62,7 @@ func (b *InProc) Publish(_ context.Context, channel string, data []byte) error {
 }
 
 // Subscribe registers a new subscriber for channel.
-func (b *InProc) Subscribe(_ context.Context, channel string) (<-chan []byte, func()) {
+func (b *InProc) Subscribe(channel string) (<-chan []byte, func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.subs[channel] == nil {

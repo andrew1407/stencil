@@ -19,6 +19,13 @@ type tcpConn struct {
 	wmu  sync.Mutex
 }
 
+// tcpIdleTimeout bounds how long a Read with no per-call deadline may block with
+// no bytes arriving before the peer is treated as dead and reaped. It is a var
+// (not const) so tests can shorten it; the value is generous so a live but idle
+// editor (still receiving cursor/presence/ping traffic while co-editing) is not
+// dropped, while a wedged or vanished TCP peer is eventually torn down.
+var tcpIdleTimeout = 5 * time.Minute
+
 // NewTCP wraps an accepted/ dialed net.Conn as a Conn.
 func NewTCP(conn net.Conn) Conn {
 	sc := bufio.NewScanner(conn)
@@ -36,12 +43,26 @@ func DialTCP(addr string) (Conn, error) {
 }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
+	// Set the effective deadline first, then arm ctx cancellation. bufio.Scanner
+	// has no context awareness and Scan() blocks in conn.Read, so cancellation is
+	// delivered by shoving the read deadline into the past, which makes the
+	// blocked Scan return immediately. AfterFunc always sets the *later* value
+	// (now), so it wins over the line below even under a start-time race.
 	if dl, ok := ctx.Deadline(); ok {
 		_ = t.conn.SetReadDeadline(dl)
 	} else {
-		_ = t.conn.SetReadDeadline(time.Time{})
+		_ = t.conn.SetReadDeadline(time.Now().Add(tcpIdleTimeout))
 	}
+	stop := context.AfterFunc(ctx, func() {
+		_ = t.conn.SetReadDeadline(time.Now())
+	})
+	defer stop() // release the hook (and its timer) so it never leaks per Read
 	if !t.sc.Scan() {
+		// A cancelled/expired ctx takes precedence so callers see context errors
+		// rather than the timeout the deadline poke produced.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if err := t.sc.Err(); err != nil {
 			return nil, err
 		}

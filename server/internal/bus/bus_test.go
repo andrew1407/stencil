@@ -22,8 +22,8 @@ func TestInProcFanout(t *testing.T) {
 	defer b.Close()
 	ctx := context.Background()
 
-	c1, cancel1 := b.Subscribe(ctx, "proj:x")
-	c2, cancel2 := b.Subscribe(ctx, "proj:x")
+	c1, cancel1 := b.Subscribe("proj:x")
+	c2, cancel2 := b.Subscribe("proj:x")
 	defer cancel1()
 	defer cancel2()
 
@@ -38,8 +38,8 @@ func TestInProcFanout(t *testing.T) {
 func TestInProcChannelIsolation(t *testing.T) {
 	b := NewInProc()
 	ctx := context.Background()
-	cx, cancelx := b.Subscribe(ctx, "proj:x")
-	cy, cancely := b.Subscribe(ctx, "proj:y")
+	cx, cancelx := b.Subscribe("proj:x")
+	cy, cancely := b.Subscribe("proj:y")
 	defer cancelx()
 	defer cancely()
 
@@ -57,7 +57,7 @@ func TestInProcChannelIsolation(t *testing.T) {
 func TestInProcUnsubscribeCloses(t *testing.T) {
 	b := NewInProc()
 	ctx := context.Background()
-	ch, cancel := b.Subscribe(ctx, "c")
+	ch, cancel := b.Subscribe("c")
 	cancel()
 	if _, open := <-ch; open {
 		t.Fatal("channel should be closed after unsubscribe")
@@ -72,7 +72,7 @@ func TestInProcUnsubscribeCloses(t *testing.T) {
 func TestInProcSlowSubscriberDropsNotBlocks(t *testing.T) {
 	b := NewInProc()
 	ctx := context.Background()
-	_, cancel := b.Subscribe(ctx, "c") // never drained
+	_, cancel := b.Subscribe("c") // never drained
 	defer cancel()
 	// Far more than subBuffer; must not block.
 	done := make(chan struct{})

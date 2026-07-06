@@ -156,9 +156,14 @@ func run() error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	stop()          // cancel rootCtx so the expiry-sweep goroutine winds down
-	sweepWG.Wait()  // join it before the deferred st.Close()/b.Close() run
-	_ = tcpLn.Close()
+	stop()            // cancel rootCtx so the expiry-sweep goroutine winds down
+	sweepWG.Wait()    // join it before the deferred st.Close()/b.Close() run
+	_ = tcpLn.Close() // stop accepting new TCP editors; ServeListener now drains
+	// Cancel every live edit connection so their handlers unwind: TCP Reads (now
+	// ctx-aware) return and ServeListener's wg.Wait() completes, and hijacked
+	// WebSocket editors (which Shutdown cannot close) release so Shutdown can
+	// finish instead of blocking until the timeout.
+	h.CloseAll()
 	return httpSrv.Shutdown(shutdownCtx)
 }
 
