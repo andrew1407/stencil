@@ -4,9 +4,9 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Parsing the CLI's stderr into structured results — a port of <c>mcp/tests/outcome_test.rs</c>
-/// (the bot has no remote-delivery lines, so only <c>parse_wrote</c> / <c>extract_errors</c>
-/// cases carry over).
+/// Parsing the CLI's stderr into structured results — a port of <c>mcp/tests/outcome_test.rs</c>,
+/// covering <c>ParseWrote</c>, <c>ParseRemotes</c> (the collaboration-server delivery lines),
+/// and <c>ExtractErrors</c> per <c>cli/CONTRACT.md</c> §2.
 /// </summary>
 public sealed class CliOutcomeParserTests
 {
@@ -68,6 +68,44 @@ public sealed class CliOutcomeParserTests
     {
         Assert.Null(CliOutcomeParser.ParseWrote("wrote out.png (widexhigh)"));
         Assert.Null(CliOutcomeParser.ParseWrote("wrote out.png (800-600)"));
+    }
+
+    [Fact]
+    public void ParsesRemoteUpdateLine()
+    {
+        IReadOnlyList<RemoteDelivery> remotes = CliOutcomeParser.ParseRemotes(
+            "wrote out.png (800x600)\nupdated server result for project p_x_y (800x600)\n");
+        RemoteDelivery.Updated updated = Assert.IsType<RemoteDelivery.Updated>(Assert.Single(remotes));
+        Assert.Equal("p_x_y", updated.Id);
+        Assert.Equal((800, 600), (updated.Width, updated.Height));
+    }
+
+    [Fact]
+    public void ParsesRemoteCreateLine()
+    {
+        IReadOnlyList<RemoteDelivery> remotes = CliOutcomeParser.ParseRemotes(
+            "wrote out.png (16x12)\ncreated server project \"My Shot\" (p_a_b)\n");
+        RemoteDelivery.Created created = Assert.IsType<RemoteDelivery.Created>(Assert.Single(remotes));
+        Assert.Equal("My Shot", created.Name);
+        Assert.Equal("p_a_b", created.Id);
+    }
+
+    [Fact]
+    public void ParsesBothServerDeliveriesInOneRun()
+    {
+        string stderr = "wrote out.png (10x10)\n"
+            + "updated server result for project p_1 (10x10)\n"
+            + "created server project \"Copy\" (p_2)\n";
+        IReadOnlyList<RemoteDelivery> remotes = CliOutcomeParser.ParseRemotes(stderr);
+        Assert.Equal(2, remotes.Count);
+        Assert.Equal(new RemoteDelivery.Updated("p_1", 10, 10), remotes[0]);
+        Assert.Equal(new RemoteDelivery.Created("Copy", "p_2"), remotes[1]);
+    }
+
+    [Fact]
+    public void NoServerLinesYieldsEmpty()
+    {
+        Assert.Empty(CliOutcomeParser.ParseRemotes("wrote out.png (10x10)"));
     }
 
     [Fact]
