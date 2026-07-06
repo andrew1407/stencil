@@ -6,17 +6,13 @@ on:
   pull_request:
     branches: [main]
 
-# actions/upload-artifact@v5, actions/cache@v4 et al. still declare node20 in
-# their action.yml; opt their JS into node24 now so we don't ride the runner's
-# forced switch (and to silence the node20 deprecation warning).
+# Opt bundled JS actions into node24 ahead of the runner's forced switch.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ── Browser app: vanilla ES-module JS, no build step, node:test only ──────────
-  # Covers the JS reference/fallback path. The wasm core is a gitignored artifact
-  # not built here, so tests/wasm-parity.test.js self-skips; parity is asserted in
-  # the wasm job below against a fresh build. Node 22 for the SINGLE_FILE ES module.
+  # Browser: vanilla ES-module JS, no build step. wasm-parity self-skips here (no wasm
+  # artifact) — the wasm job asserts it against a fresh build.
   browser:
     name: Browser (JS tests)
     runs-on: ubuntu-latest
@@ -30,10 +26,7 @@ jobs:
         working-directory: browser
         run: npm test
 
-  # ── Chrome extension: pure-logic unit tests (filtering + crop geometry) ───────
-  # Vanilla MV3 extension, no build step; node:test covers the chrome/DOM-free
-  # modules (the crop-geometry port mirrors browser/desktop, so divergence shows
-  # here too). No dependencies to install.
+  # Extension: vanilla MV3, no build step; node:test over the chrome/DOM-free modules.
   extension:
     name: Extension (JS tests)
     runs-on: ubuntu-latest
@@ -47,9 +40,7 @@ jobs:
         working-directory: extension
         run: npm test
 
-  # ── Core: the shared, GUI-free C++ library + its Doctest suite (no Qt) ─────────
-  # The core lives at the repo-root core/ and builds standalone. This job owns the
-  # unit suite; the desktop job below consumes the same library (tests OFF there).
+  # Core: the shared GUI-free C++ library + its Doctest suite (desktop reuses the lib, tests OFF).
   core:
     name: Core (C++ build + tests)
     runs-on: ubuntu-latest
@@ -66,9 +57,7 @@ jobs:
       - name: Run C++ tests
         run: ctest --test-dir core/build --output-on-failure
 
-  # ── Desktop app: Qt6 GUI build over the shared core + headless crop test ──────
-  # Pulls core in via add_subdirectory(../core) with its doctest suite OFF (the core
-  # job runs that); ctest here exercises the Qt headless integration test.
+  # Desktop: Qt6 GUI over the shared core (doctest OFF here); ctest runs the Qt headless tests.
   desktop:
     name: Desktop (C++ build + tests)
     runs-on: ubuntu-latest
@@ -88,11 +77,8 @@ jobs:
         working-directory: desktop
         run: ctest --test-dir build --output-on-failure
 
-  # ── WebAssembly: build the core fresh and assert the browser still agrees ─────
-  # The shipped module is a gitignored artifact built only here: emcc compiles the
-  # core, the result is dropped at js/wasm/stencilCore.js, and the parity test runs
-  # against that FRESH build — failing if desktop/core behavior diverges from the JS
-  # reference. emsdk is pinned and cached; no third-party action (mirrors desktop).
+  # WebAssembly: build the core fresh with emcc and run the parity test against it —
+  # fails if core/JS-fallback behavior diverges. emsdk is pinned + cached.
   wasm:
     name: WebAssembly (build + parity)
     runs-on: ubuntu-latest
@@ -131,10 +117,7 @@ jobs:
         working-directory: browser
         run: node --test tests/wasm-parity.test.js
 
-  # ── CLI: Zig tool wrapping the C++ core (recompiled via build.zig) + stb_image ─
-  # zig build pulls in the core sources and the stb_image headers; Zig ships its own
-  # clang, so no system C/C++ toolchain is needed. `zig build test` runs the unit
-  # suite (arg parsing, the C ABI bridge, codec round-trips, layout JSON).
+  # CLI: Zig tool that recompiles the core + stb_image (Zig ships its own clang, no system toolchain).
   cli:
     name: CLI (Zig build + tests)
     runs-on: ubuntu-latest
@@ -151,11 +134,7 @@ jobs:
         working-directory: cli
         run: zig build test --summary all
 
-  # ── MCP: Rust server wrapping the Zig CLI over the Model Context Protocol ────────
-  # The server shells out to the `stencil` CLI, so we build that first (Zig pulls in
-  # the core sources) and point STENCIL_CLI at it — this lets the gated end-to-end
-  # tests run a real edit. `cargo test` also runs the pure argv-mapping and stderr-
-  # parsing suites, which need no binary.
+  # MCP: Rust server shelling out to the CLI; build the CLI first + set STENCIL_CLI for the gated e2e tests.
   mcp:
     name: MCP (Rust build + tests)
     runs-on: ubuntu-latest
@@ -179,11 +158,8 @@ jobs:
         env:
           STENCIL_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
 
-  # ── Server: Go collaboration server (REST + live edit over WS/TCP) ────────────
-  # A protocol adapter like mcp/ — it does NOT compile core/, so no C/C++ or Zig
-  # toolchain is needed. Postgres and Redis run as service containers; the store/
-  # and redisbus/ integration tests pick them up via DATABASE_URL / REDIS_URL
-  # (they self-skip when absent). The hub tests run under -race.
+  # Server: Go collaboration server (does NOT compile core/). Postgres + Redis run as service
+  # containers; the gated store/bus tests pick them up via DATABASE_URL/REDIS_URL. Hub tests run -race.
   server:
     name: Server (Go build + tests)
     runs-on: ubuntu-latest
@@ -216,13 +192,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-          # go.sum lives under server/, not the repo root — point the built-in module
-          # download cache at it so caching keys correctly.
+          # go.sum lives under server/, not the repo root.
           cache-dependency-path: server/go.sum
-      # vendor/ is git-ignored (the local dependency model), so materialize it on the
-      # runner and build/vet/test with -mod=vendor. This exercises the same vendored
-      # path used for local dev and fails if go.mod requires a module the vendor tree
-      # can't supply; `go mod verify` checks the modules against go.sum.
+      # vendor/ is git-ignored, so materialize it and build/vet/test with -mod=vendor.
       - name: Vendor dependencies
         working-directory: server
         run: |
@@ -241,20 +213,9 @@ jobs:
           DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
           REDIS_URL: redis://localhost:6379/0
 
-  # ── Bot: .NET Telegram bot (clean architecture over the CLI + server REST) ─────
-  # A protocol adapter like mcp/ — it shells out to the `stencil` CLI and speaks the
-  # server's REST contract, and does NOT compile core/. The test suite is fully
-  # offline (no token, server, CLI binary or Redis), so this job only needs the
-  # .NET SDK. bot/nuget.config restores the <PackageReference>s into a repo-local
-  # bot/packages/ folder (git-ignored) rather than the global ~/.nuget cache.
-  # ── E2E: Playwright smoke tests across every surface, backed by docker-compose ─
-  # A net-new, standalone Node/Playwright harness (e2e/) — it does NOT compile core/.
-  # Drives the browser app + the MV3 extension in a real Chromium, and black-boxes the
-  # Go server's REST/WS/TCP protocol against the actual binary. The backing stack
-  # (Postgres + Redis + server) comes up via the repo-root docker-compose.yml, which
-  # ubuntu-latest can run out of the box. Kept separate from the nine unit jobs so a
-  # slow/flaky browser run never blocks them. The whole run is wrapped in xvfb because
-  # the extension project loads an unpacked MV3 extension (headed Chromium).
+  # E2E: Playwright smoke tests across every surface (does NOT compile core/). Drives the
+  # browser app + MV3 extension in real Chromium (hence xvfb) and black-boxes the server
+  # binary over REST/WS/TCP; the db+redis+server stack comes up via docker-compose.
   e2e:
     name: E2E (Playwright + compose)
     runs-on: ubuntu-latest
@@ -295,6 +256,7 @@ jobs:
           path: e2e/playwright-report
           retention-days: 7
 
+  # Bot: .NET Telegram bot (does NOT compile core/); fully offline test suite, needs only the .NET SDK.
   bot:
     name: Bot (.NET build + tests)
     runs-on: ubuntu-latest
@@ -304,8 +266,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      # bot/nuget.config restores into a repo-local bot/packages/ folder; cache it keyed
-      # on the project files so unchanged dependencies skip the download on re-runs.
+      # bot/nuget.config restores into a repo-local bot/packages/ folder; cache it per project files.
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
@@ -322,14 +283,8 @@ jobs:
         working-directory: bot
         run: dotnet test Stencil.TelegramBot.slnx --no-build --configuration Release --verbosity normal
 
-  # ── Docker images: assert every shipped Dockerfile still builds ───────────────
-  # The unit/e2e jobs above exercise behavior; this one guards the *packaging*. The
-  # e2e job already builds + runs the server image via docker-compose, but the other
-  # four Dockerfiles have no other build coverage, so a broken FROM/COPY/context in
-  # any of them would otherwise ship unnoticed. browser/cli/mcp/bot compile core/ so
-  # their build context is the REPO ROOT (see each Dockerfile header); server is a
-  # standalone Go module built from ./server. No push — building is the whole test.
-  # fail-fast: false so one broken image still reports the others.
+  # Docker images: assert every shipped Dockerfile still builds (packaging guard, no push).
+  # browser/cli/mcp/bot compile core/ so their build context is the REPO ROOT; server is ./server.
   docker-images:
     name: Docker images (build)
     runs-on: ubuntu-latest

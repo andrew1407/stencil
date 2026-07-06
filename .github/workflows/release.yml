@@ -1,10 +1,8 @@
 name: Release
 
-# Builds self-contained desktop packages for macOS / Windows / Linux and, when the
-# run was triggered by a version tag, attaches them to the GitHub release. Every
-# other run (branch pushes, PRs, manual workflow_dispatch) still builds + uploads
-# the packages as workflow artifacts, so packaging is exercised on every push the
-# same way CI is — only the "Attach to release" step is gated on a version tag.
+# Builds self-contained desktop packages for macOS / Windows / Linux; on a version
+# tag it also attaches them to the GitHub release, otherwise it just uploads them as
+# workflow artifacts so packaging is exercised on every push.
 on:
   push:
     branches: [main]
@@ -14,11 +12,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # needed to attach assets to the release on a tag push
+  contents: write  # attach assets to the release on a tag push
 
-# actions/upload-artifact@v5, actions/cache@v4 et al. still declare node20 in
-# their action.yml; opt their JS into node24 now so we don't ride the runner's
-# forced switch (and to silence the node20 deprecation warning).
+# Opt bundled JS actions into node24 ahead of the runner's forced switch.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -36,32 +32,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Cross-platform Qt install: one identical Qt across all three OSes (the main
-      # CI uses the distro package on Linux). 6.9 is the floor — the macos-latest
-      # runner moved to macOS 26 (Tahoe), whose SDK dropped AGL; Qt <= 6.9.1 still
-      # links `-framework AGL` in Qt6::Gui, failing any Widgets/Gui link. Fixed in
-      # 6.8.4 / 6.9.2 (QTBUG-137687).
+      # 6.9 is the floor: macos-latest (macOS 26 / Tahoe) dropped AGL from the SDK and
+      # Qt <= 6.9.1 still links -framework AGL in Qt6::Gui (QTBUG-137687).
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.*'
-          # qtmultimedia backs the --src video-frame grab; the desktop CMakeLists
-          # requires the Multimedia component, so it must be installed alongside
-          # qtbase or STENCIL_REQUIRE_QT configure fails to find Qt6Multimedia.
-          modules: qtimageformats qtmultimedia
+          modules: qtimageformats qtmultimedia  # qtmultimedia backs the --src video-frame grab
           cache: true
 
+      # STENCIL_REQUIRE_QT fails loudly if Qt is missing (rather than skipping the GUI +
+      # CPack config and erroring later in cpack); CMAKE_PREFIX_PATH points at the Qt above.
       - name: Configure (portable build — no repo-local state dir)
         working-directory: desktop
-        # CMAKE_PREFIX_PATH points find_package at the Qt the install step laid down
-        # (QT_ROOT_DIR is exported into the env context for later steps); STENCIL_REQUIRE_QT
-        # makes a missing/mis-pathed Qt fail here loudly rather than silently skipping the
-        # GUI + CPack config and surfacing later as a confusing cpack error.
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
 
+      # Build only the shipped app, not the ~dozen Qt test binaries (ci.yml builds + runs
+      # those). --parallel 3 caps concurrent links so they can't thrash the small macOS runner.
       - name: Build
         working-directory: desktop
-        run: cmake --build build --config Release -j
+        run: cmake --build build --config Release --target stencil_gui --parallel 3
 
       - name: Package (deploy Qt + cpack)
         working-directory: desktop
@@ -74,9 +64,7 @@ jobs:
           path: desktop/build/dist/stencil-*.${{ matrix.ext }}
           if-no-files-found: error
 
-      # On a tag push, attach the package to the GitHub release. Uses the built-in
-      # gh CLI (no extra third-party action); creates the release if it's missing.
-      - name: Attach to release
+      - name: Attach to release  # tag push only; creates the release if missing
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
