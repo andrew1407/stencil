@@ -337,11 +337,9 @@ export class DrawingApp {
   // stay public on DrawingApp (shared with the touch path).
 
   // Touch + hold-to-draw input lives in InputController (inputController.js), invoked from
-  // initEventListeners as this.input.wireHoldDraw()/wireTouch(). These delegators keep the
-  // public names the renderer (holdAnchorPoint) and the visuals modal / storage / window.stencil
-  // facade (setHoldDrawDelay) call.
-  holdAnchorPoint() { return this.input.holdAnchorPoint(); }
-  setHoldDrawDelay(ms, opts) { this.input.setHoldDrawDelay(ms, opts); return this; }
+  // initEventListeners as this.input.wireHoldDraw()/wireTouch(). Callers reach it directly:
+  // the renderer via app.input.holdAnchorPoint(), the visuals modal / storage / window.stencil
+  // facade via app.input.setHoldDrawDelay().
 
   // Convert a viewport client point to canvas CSS offset and image-space coords.
   canvasCoords(clientX, clientY) {
@@ -447,9 +445,9 @@ export class DrawingApp {
           const { w: iw, h: ih } = this.imageModel.rotatedOriginalDims();
           this.cropRect = this.imageModel.roundRect({ x: 0, y: 0, width: iw, height: ih }, iw, ih);
         } else {
-          this.cropRect = this.defaultCropRect(opts.album);
+          this.cropRect = this.imageModel.defaultCropRect(opts.album);
         }
-        this.rebuildCroppedImage();
+        this.imageModel.rebuildCroppedImage();
 
         // Replacing in place: keep the existing annotations (when asked) over the new image,
         // else start clean — never run the pending-lines re-upload flow.
@@ -718,16 +716,10 @@ export class DrawingApp {
     this.coordTable.update();
   }
 
-  // Page natural dimensions (cm) as selected — NOT orientation-swapped (only the
-  // Crop / quarter-turn rotation / image geometry live in ImageModel (imageModel.js); these
-  // thin delegators keep the public method names storage, the crop modal, and the window.stencil
-  // facade call. See imageModel.js for the geometry transforms (backed by cropGeometry.js).
-  defaultCropRect(albumOverride) { return this.imageModel.defaultCropRect(albumOverride); }
-  effectiveOriginalDims() { return this.imageModel.effectiveOriginalDims(); }
-  effectiveOriginalDataUrl() { return this.imageModel.effectiveOriginalDataUrl(); }
-  rebuildCroppedImage() { return this.imageModel.rebuildCroppedImage(); }
-  rotateImage(dir) { return this.imageModel.rotateImage(dir); }
-  applyCrop(rect, opts) { return this.imageModel.applyCrop(rect, opts); }
+  // Crop / quarter-turn rotation / image geometry live in ImageModel (imageModel.js), backed
+  // by cropGeometry.js. Callers reach it directly via app.imageModel.<method>() — storage, the
+  // crop modal, and the window.stencil facade (defaultCropRect / effectiveOriginalDims /
+  // effectiveOriginalDataUrl / rebuildCroppedImage / rotateImage / applyCrop).
 
   // Hide the selection panel and its fullscreen mirror. Public — used by ImageModel's
   // after-geometry-change refresh as well as the drawing/selection paths here.
@@ -747,7 +739,7 @@ export class DrawingApp {
           notify('File is not a valid layout', 'fail');
           return;
         }
-        this.applyPastedLayout(data);
+        this.export.applyPastedLayout(data);
       } catch (err) {
         notify('Error loading JSON: ' + err.message, 'fail');
       }
@@ -1683,18 +1675,14 @@ export class DrawingApp {
   saveHistory() {
     this.history.push(this.lines);
     this.storage.save();
-    this.scheduleRemoteSync();
+    this.remoteSync.scheduleRemoteSync();
   }
 
-  // Live co-edit push/pull + server writes live in RemoteSyncController (remoteSyncController.js);
-  // these thin delegators keep the public method names saveHistory, the setters, ImageModel, the
-  // stencilApi facade, and the connection event feed call. The adoptServer*/fetchRemoteOriginal/
-  // renderResultBytes helpers are public on the controller because loadImageFromFile + the
-  // project-transfer helpers here also drive them (this.remoteSync.*).
-  scheduleRemoteSync() { this.remoteSync.scheduleRemoteSync(); }
-  onServerProjectEvent(msg, conn) { return this.remoteSync.onServerProjectEvent(msg, conn); }
-  reloadRemoteActive() { return this.remoteSync.reloadRemoteActive(); }
-  saveToServer() { return this.remoteSync.saveToServer(); }
+  // Live co-edit push/pull + server writes live in RemoteSyncController (remoteSyncController.js).
+  // Callers reach it directly via app.remoteSync.<method>() — saveHistory, the setters, ImageModel,
+  // the stencilApi facade, and the connection event feed (scheduleRemoteSync / onServerProjectEvent /
+  // reloadRemoteActive / saveToServer). The adoptServer*/fetchRemoteOriginal/renderResultBytes
+  // helpers are also on the controller (loadImageFromFile + the project-transfer helpers drive them).
 
   undo() {
     if (this.isDrawing && this.currentLine) {
@@ -1924,7 +1912,7 @@ export class DrawingApp {
       this.tabs.reportActive(id);
       this.updateProjectTitle();   // reflect (or clear) the remote badge + outline now
       // Server-linked: pull the latest so a reopen shows peers' newest state, not stale cache.
-      if (this.remoteLink && getSyncToServer()) this.reloadRemoteActive();
+      if (this.remoteLink && getSyncToServer()) this.remoteSync.reloadRemoteActive();
       return true;
     }
     return false;
@@ -2162,7 +2150,7 @@ export class DrawingApp {
         w: this.originalImage ? this.originalImage.width : 0,
         h: this.originalImage ? this.originalImage.height : 0,
       });
-      await this.saveToServer();   // push the new layout + rendered result
+      await this.remoteSync.saveToServer();   // push the new layout + rendered result
     } catch (err) { notify(`Could not update the server image — ${err.message}`, 'fail'); }
   }
 
@@ -2210,28 +2198,11 @@ export class DrawingApp {
   // Prolong a project: reset its 7-day expiry window to start from now. Notifies
   // peers so their open project lists re-render with the new expiry.
   // ── Shared editor setters ─────────────────────────────────────
-  // Single source of truth for top-menu settings: toolbar handlers AND the console API
-  // (window.stencil) both call these, staying in sync. The bodies live in SettingsController
-  // (settingsController.js); these thin delegators keep the public method names + the
-  // return-`this`-for-chaining contract the facade and #wire* handlers depend on. The formula
-  // UI helpers (syncFormulaUI/showFormulaError/refreshFormulaCoords) are public on the
-  // controller because #wireFormulaControls and remoteSync.adoptServerFormulas also drive them.
-  setColor(v, opts) { this.settings.setColor(v, opts); return this; }
-  setThickness(n, opts) { this.settings.setThickness(n, opts); return this; }
-  setMarkerSize(n, opts) { this.settings.setMarkerSize(n, opts); return this; }
-  setLineStyle(s) { this.settings.setLineStyle(s); return this; }
-  setShowPoints(b) { this.settings.setShowPoints(b); return this; }
-  setShowLines(b) { this.settings.setShowLines(b); return this; }
-  setImageFilter(f) { this.settings.setImageFilter(f); return this; }
-  setFilterColor(v, opts) { this.settings.setFilterColor(v, opts); return this; }
-  setPageSize(size) { this.settings.setPageSize(size); return this; }
-  setCustomPageWidth(cm) { this.settings.setCustomPageWidth(cm); return this; }
-  setCustomPageHeight(cm) { this.settings.setCustomPageHeight(cm); return this; }
-  setUnit(u) { this.settings.setUnit(u); return this; }
-  setAllowFormulas(b) { this.settings.setAllowFormulas(b); return this; }
-  setFormula(axis, expr) { this.settings.setFormula(axis, expr); return this; }
-  setTooltipOption(key, on) { this.settings.setTooltipOption(key, on); return this; }
-  setVisualColor(key, value) { this.settings.setVisualColor(key, value); return this; }
+  // Single source of truth for top-menu settings lives in SettingsController (settingsController.js):
+  // toolbar handlers AND the console API (window.stencil) both call app.settings.<setter>() directly,
+  // staying in sync. The formula UI helpers (syncFormulaUI/showFormulaError/refreshFormulaCoords)
+  // are public on the controller because #wireFormulaControls and remoteSync.adoptServerFormulas
+  // also drive them.
 
   // ── Point / line mutation (shared with the coord table + console) ──
   // Set one point's x or y in crop-local pixels. lineIdx === -1 targets the
@@ -2712,14 +2683,10 @@ export class DrawingApp {
   // ExportService (which owns the shared offscreen-render used by every image action).
   renderResultCanvas() { return this.export.renderExportCanvas(); }
 
-  // Export / clipboard / file-IO actions live in ExportService (exportService.js); these
-  // thin delegators keep the public method names the toolbar, contextMenu, and window.stencil
-  // facade call. See stencilApi.js / the #wire* handlers.
-  saveImage() { return this.export.saveImage(); }
-  shareImage() { return this.export.shareImage(); }
-  downloadJSON() { return this.export.downloadJSON(); }
-  uploadJSON(e) { return this.export.uploadJSON(e); }
-  copyImageToClipboard() { return this.export.copyImageToClipboard(); }
+  // Export / clipboard / file-IO actions live in ExportService (exportService.js). Callers reach
+  // it directly via app.export.<method>() — the toolbar, contextMenu, and window.stencil facade
+  // (saveImage / shareImage / downloadJSON / uploadJSON / copyImageToClipboard /
+  // copyLayoutToClipboard / applyPastedLayout). See stencilApi.js / the #wire* handlers.
 
   // ── Wipe every line on the canvas (confirms first) ──
   async clearAllLines() {
@@ -2744,9 +2711,4 @@ export class DrawingApp {
     this.updateButtons();
     notify('All lines cleared', 'ok');
   }
-
-  // Layout clipboard copy + paste-apply live in ExportService; delegate to keep the
-  // public names the contextMenu and window.stencil facade call.
-  copyLayoutToClipboard() { return this.export.copyLayoutToClipboard(); }
-  applyPastedLayout(data) { return this.export.applyPastedLayout(data); }
 }

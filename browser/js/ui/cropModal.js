@@ -96,7 +96,7 @@ export class StencilCropModal extends StencilElement {
       }
       // Preview the rotated original so the crop rect (which lives in rotated
       // pixel space) lines up with what's shown.
-      const dims = app.effectiveOriginalDims();
+      const dims = app.imageModel.effectiveOriginalDims();
       iw = dims.w;
       ih = dims.h;
       // Seed from the current applied crop (or a centered default).
@@ -106,7 +106,7 @@ export class StencilCropModal extends StencilElement {
       open();
       // Position once the preview image has its displayed size.
       img.onload = () => { computeScale(); renderBox(); };
-      img.src = app.effectiveOriginalDataUrl();
+      img.src = app.imageModel.effectiveOriginalDataUrl();
       if (img.complete && img.naturalWidth) { computeScale(); renderBox(); }
     };
     document.getElementById('crop-image').addEventListener('click', openCrop);
@@ -159,7 +159,7 @@ export class StencilCropModal extends StencilElement {
         return;
       }
       const hadLines = app.lines.length;
-      app.applyCrop(rect, { recalc: true });
+      app.imageModel.applyCrop(rect, { recalc: true });
       close();
       if (change.orientationChanged && hadLines) notify('Cropped — lines removed (orientation changed)', 'ok');
       else notify('Image cropped', 'ok');

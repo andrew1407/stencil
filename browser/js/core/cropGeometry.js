@@ -114,26 +114,18 @@ export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
 
 // ── Public API: wasm when loaded, JS reference otherwise ──
 
-export const isAlbumOrientation = (w, h) =>
-  (core.op('isAlbumOrientation') ?? isAlbumOrientationJS)(w, h);
+export const isAlbumOrientation = core.bind('isAlbumOrientation', isAlbumOrientationJS);
 
-export const cropAspect = (pageWidth, pageHeight, album) =>
-  (core.op('cropAspect') ?? cropAspectJS)(pageWidth, pageHeight, album);
+export const cropAspect = core.bind('cropAspect', cropAspectJS);
 
-export const centeredCrop = (imageW, imageH, aspectWoverH) =>
-  (core.op('centeredCrop') ?? centeredCropJS)(imageW, imageH, aspectWoverH);
+export const centeredCrop = core.bind('centeredCrop', centeredCropJS);
 
-export const resizeCropFromCorner = (cur, corner, cursorX, cursorY, aspectWoverH, imageW, imageH, minSize = 16) =>
-  (core.op('resizeCropFromCorner') ?? resizeCropFromCornerJS)(cur, corner, cursorX, cursorY, aspectWoverH, imageW, imageH, minSize);
+export const resizeCropFromCorner = core.bind('resizeCropFromCorner', resizeCropFromCornerJS);
 
-export const moveCropClamped = (cur, dx, dy, imageW, imageH) =>
-  (core.op('moveCropClamped') ?? moveCropClampedJS)(cur, dx, dy, imageW, imageH);
+export const moveCropClamped = core.bind('moveCropClamped', moveCropClampedJS);
 
-export const cropResizeScale = (oldWidth, newWidth) =>
-  (core.op('cropResizeScale') ?? cropResizeScaleJS)(oldWidth, newWidth);
+export const cropResizeScale = core.bind('cropResizeScale', cropResizeScaleJS);
 
-export const cropChange = (oldRect, newRect) =>
-  (core.op('cropChange') ?? cropChangeJS)(oldRect, newRect);
+export const cropChange = core.bind('cropChange', cropChangeJS);
 
-export const rotateCropRectQuarter = (r, imageW, imageH, clockwise) =>
-  (core.op('rotateCropRectQuarter') ?? rotateCropRectQuarterJS)(r, imageW, imageH, clockwise);
+export const rotateCropRectQuarter = core.bind('rotateCropRectQuarter', rotateCropRectQuarterJS);

@@ -134,6 +134,19 @@ const makeApp = (over = {}) => {
     isDrawing: false,
     ...over,
   };
+  // Collaborator namespaces mirror the real DrawingApp: the facade routes settings / export /
+  // image-geometry / remote-sync / input calls through app.<collab>.<method>(). Delegate each to
+  // the flat recorded (or per-test overridden) method so lastCall(app, name) assertions still hold.
+  const delegate = (names) => Object.fromEntries(names.map((n) => [n, (...a) => app[n]?.(...a)]));
+  app.settings = delegate(['setColor', 'setThickness', 'setMarkerSize', 'setLineStyle', 'setShowPoints',
+    'setShowLines', 'setImageFilter', 'setFilterColor', 'setPageSize', 'setCustomPageWidth',
+    'setCustomPageHeight', 'setUnit', 'setAllowFormulas', 'setFormula', 'setTooltipOption', 'setVisualColor']);
+  app.export = delegate(['saveImage', 'shareImage', 'downloadJSON', 'uploadJSON',
+    'copyImageToClipboard', 'copyLayoutToClipboard', 'applyPastedLayout']);
+  app.imageModel = delegate(['defaultCropRect', 'effectiveOriginalDims', 'effectiveOriginalDataUrl',
+    'rebuildCroppedImage', 'rotateImage', 'applyCrop']);
+  app.remoteSync = delegate(['scheduleRemoteSync', 'onServerProjectEvent', 'reloadRemoteActive', 'saveToServer']);
+  app.input = delegate(['holdAnchorPoint', 'setHoldDrawDelay']);
   return app;
 };
 

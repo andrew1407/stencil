@@ -14,7 +14,7 @@ import { cropAspect } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
-import { ACCENTS, isAccent, normalizeHex } from '../core/accents.js';
+import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { requireConnection } from '../net/remoteSync.js';
@@ -45,7 +45,7 @@ export const createStencil = (app) => {
       // Live co-edit: forward a server project-event to the editor so it can reload the
       // active project when a peer changes it.
       if (change && change.type === 'event' && change.message?.type === 'project-event') {
-        try { app.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }
+        try { app.remoteSync?.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }
       }
       try {
         window.dispatchEvent(new Event('stencil:connections-changed'));
@@ -96,26 +96,8 @@ export const createStencil = (app) => {
     catch { /* no DOM (node tests) */ }
   };
 
-  // Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' since the editor's
-  // <input type=color> controls only take #rrggbb. 'transparent'/null pass through (fills
-  // allow them); an unparseable value is returned unchanged (surfaces as an error, not black).
-  const colorCanvas = (() => { try { return document.createElement('canvas').getContext('2d'); } catch { return null; } })();
-  const toHexColor = (v) => {
-    if (v == null) return v;
-    const s = String(v).trim();
-    if (!s || s.toLowerCase() === 'transparent') return s;
-    if (/^#[0-9a-f]{6}$/i.test(s)) return s.toLowerCase();
-    if (/^#[0-9a-f]{3}$/i.test(s)) return ('#' + s.slice(1).replace(/./g, (c) => c + c)).toLowerCase();
-    if (!colorCanvas) return s;
-    // The browser resolves any valid CSS color via fillStyle; probe two bases so an
-    // INVALID value (which leaves each base untouched) is detected and left as-is.
-    colorCanvas.fillStyle = '#000'; colorCanvas.fillStyle = s; const a = colorCanvas.fillStyle;
-    colorCanvas.fillStyle = '#fff'; colorCanvas.fillStyle = s; const b = colorCanvas.fillStyle;
-    if (a !== b) return s;                       // unparseable → unchanged
-    if (/^#[0-9a-f]{6}$/i.test(a)) return a;
-    const m = /^rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/i.exec(a);   // alpha form → drop alpha
-    return m ? '#' + [m[1], m[2], m[3]].map((n) => (+n).toString(16).padStart(2, '0')).join('') : s;
-  };
+  // CSS-color → '#rrggbb' normalizer (toHexColor) lives with its sibling normalizeHex in
+  // core/accents.js so the toolbar/UI paths can share it too; imported above.
 
   // ── Point: wraps one {x,y} in a line's points (crop-local px). lineIdx === -1 is
   // the in-progress currentLine (matches the coord table's target resolution). ──
@@ -416,20 +398,20 @@ export const createStencil = (app) => {
 
   // ── Settings namespace (fresh object per access; setters close over app) ──
   const settingsAccessors = () => ({
-    get lineColor() { return app.color; }, set lineColor(v) { app.setColor(toHexColor(v)); },
-    get thickness() { return app.thickness; }, set thickness(v) { app.setThickness(v); },
-    get pointSize() { return app.markerSize; }, set pointSize(v) { app.setMarkerSize(v); },
-    get markerSize() { return app.markerSize; }, set markerSize(v) { app.setMarkerSize(v); },
-    get lineStyle() { return app.style; }, set lineStyle(v) { app.setLineStyle(v); },
-    get pointStyle() { return app.showPoints; }, set pointStyle(v) { app.setShowPoints(v); },   // points visible?
-    get showPoints() { return app.showPoints; }, set showPoints(v) { app.setShowPoints(v); },
-    get showLines() { return app.showLines; }, set showLines(v) { app.setShowLines(v); },
-    get filter() { return app.imageFilter; }, set filter(v) { app.setImageFilter(v); },   // 'none'|'bw'|'sepia'|'invert'|'contour'|'custom'
-    get filterColor() { return app.filterColor; }, set filterColor(v) { app.setFilterColor(toHexColor(v)); },
-    get unit() { return app.unit; }, set unit(v) { app.setUnit(v); },
-    get pageSize() { return app.pageSize; }, set pageSize(v) { app.setPageSize(v); },            // case-insensitive: any ISO name A0–C10 ('a3', 'b5', …) or 'custom'
-    get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
-    get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
+    get lineColor() { return app.color; }, set lineColor(v) { app.settings.setColor(toHexColor(v)); },
+    get thickness() { return app.thickness; }, set thickness(v) { app.settings.setThickness(v); },
+    get pointSize() { return app.markerSize; }, set pointSize(v) { app.settings.setMarkerSize(v); },
+    get markerSize() { return app.markerSize; }, set markerSize(v) { app.settings.setMarkerSize(v); },
+    get lineStyle() { return app.style; }, set lineStyle(v) { app.settings.setLineStyle(v); },
+    get pointStyle() { return app.showPoints; }, set pointStyle(v) { app.settings.setShowPoints(v); },   // points visible?
+    get showPoints() { return app.showPoints; }, set showPoints(v) { app.settings.setShowPoints(v); },
+    get showLines() { return app.showLines; }, set showLines(v) { app.settings.setShowLines(v); },
+    get filter() { return app.imageFilter; }, set filter(v) { app.settings.setImageFilter(v); },   // 'none'|'bw'|'sepia'|'invert'|'contour'|'custom'
+    get filterColor() { return app.filterColor; }, set filterColor(v) { app.settings.setFilterColor(toHexColor(v)); },
+    get unit() { return app.unit; }, set unit(v) { app.settings.setUnit(v); },
+    get pageSize() { return app.pageSize; }, set pageSize(v) { app.settings.setPageSize(v); },            // case-insensitive: any ISO name A0–C10 ('a3', 'b5', …) or 'custom'
+    get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.settings.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
+    get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.settings.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
     get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
     // Brand accent: a preset key (see stencil.mainThemes) persists + syncs across tabs; a
     // hex like '#ff5623' applies a custom colour to THIS page only (not saved, not synced).
@@ -461,14 +443,14 @@ export const createStencil = (app) => {
     },
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
-    get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.setHoldDrawDelay(v); },
-    get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.setAllowFormulas(v); },
-    get formulaX() { return app.formulaX; }, set formulaX(v) { app.setFormula('x', v); },
-    get formulaY() { return app.formulaY; }, set formulaY(v) { app.setFormula('y', v); },
-    get fillColor() { return app.defaultFillColor; }, set fillColor(v) { app.setVisualColor('fill', toHexColor(v)); },
-    get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.setVisualColor('selGlow', toHexColor(v)); },
-    get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.setVisualColor('hoverRing', toHexColor(v)); },
-    get focusRing() { return app.focusRingColor; }, set focusRing(v) { app.setVisualColor('focusRing', toHexColor(v)); },
+    get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.input.setHoldDrawDelay(v); },
+    get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.settings.setAllowFormulas(v); },
+    get formulaX() { return app.formulaX; }, set formulaX(v) { app.settings.setFormula('x', v); },
+    get formulaY() { return app.formulaY; }, set formulaY(v) { app.settings.setFormula('y', v); },
+    get fillColor() { return app.defaultFillColor; }, set fillColor(v) { app.settings.setVisualColor('fill', toHexColor(v)); },
+    get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
+    get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },
+    get focusRing() { return app.focusRingColor; }, set focusRing(v) { app.settings.setVisualColor('focusRing', toHexColor(v)); },
   });
   const settings = () => guard(settingsAccessors());
 
@@ -563,10 +545,10 @@ export const createStencil = (app) => {
     // Tooltip sections as a live get/set object.
     get tooltip() {
       return guard({
-        get enabled() { return app.tooltipEnabled; }, set enabled(v) { app.setTooltipOption('enabled', v); },
-        get page() { return app.tooltipShowPage; }, set page(v) { app.setTooltipOption('page', v); },
-        get screen() { return app.tooltipShowScreen; }, set screen(v) { app.setTooltipOption('screen', v); },
-        get coords() { return app.tooltipShowCoords; }, set coords(v) { app.setTooltipOption('coords', v); },
+        get enabled() { return app.tooltipEnabled; }, set enabled(v) { app.settings.setTooltipOption('enabled', v); },
+        get page() { return app.tooltipShowPage; }, set page(v) { app.settings.setTooltipOption('page', v); },
+        get screen() { return app.tooltipShowScreen; }, set screen(v) { app.settings.setTooltipOption('screen', v); },
+        get coords() { return app.tooltipShowCoords; }, set coords(v) { app.settings.setTooltipOption('coords', v); },
       });
     },
 
@@ -598,8 +580,8 @@ export const createStencil = (app) => {
     },
 
     // ── Editor actions (chainable) ──
-    rotateLeft() { app.rotateImage(-1); return stencil; },
-    rotateRight() { app.rotateImage(1); return stencil; },
+    rotateLeft() { app.imageModel.rotateImage(-1); return stencil; },
+    rotateRight() { app.imageModel.rotateImage(1); return stencil; },
     undo() { app.undo(); return stencil; },
     redo() { app.redo(); return stencil; },
     startDrawing() { app.startDrawingMode(); return stencil; },
@@ -612,15 +594,15 @@ export const createStencil = (app) => {
       else if (app.isDrawing) app.stopDrawingMode();
     },
     clearLines() { app.clearAllLines(); return stencil; },
-    downloadImage() { app.saveImage(); return stencil; },        // download image+lines (PNG)
-    copyLayout() { app.copyLayoutToClipboard(); return stencil; },
-    copyImage() { app.copyImageToClipboard(); return stencil; }, // alias of copyImageToClipboard
-    copyImageToClipboard() { app.copyImageToClipboard(); return stencil; },
-    shareImage() { app.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
+    downloadImage() { app.export.saveImage(); return stencil; },        // download image+lines (PNG)
+    copyLayout() { app.export.copyLayoutToClipboard(); return stencil; },
+    copyImage() { app.export.copyImageToClipboard(); return stencil; }, // alias of copyImageToClipboard
+    copyImageToClipboard() { app.export.copyImageToClipboard(); return stencil; },
+    shareImage() { app.export.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
     openIn() { document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
-    downloadLayout() { app.downloadJSON(); return stencil; },
+    downloadLayout() { app.export.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
-    set layout(data) { app.applyPastedLayout(data); },
+    set layout(data) { app.export.applyPastedLayout(data); },
 
     // Pan the canvas viewport by pixel deltas (positive x → right, y → down).
     move({ x = 0, y = 0 } = {}) {
@@ -670,7 +652,7 @@ export const createStencil = (app) => {
     // its origin server (version-guarded); a purely-local one just flushes to storage.
     // Resolves to the facade.
     save() {
-      if (app.remoteLink) return app.saveToServer().then(() => stencil);
+      if (app.remoteLink) return app.remoteSync.saveToServer().then(() => stencil);
       app.storage.save();
       return stencil;
     },
@@ -685,8 +667,8 @@ export const createStencil = (app) => {
     // album true (landscape) is the inverse. Giving both axes (or neither) stays free-form.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
-      const dims = app.effectiveOriginalDims();   // { w, h } in rotated-original pixels
-      const r = app.cropRect || app.defaultCropRect();
+      const dims = app.imageModel.effectiveOriginalDims();   // { w, h } in rotated-original pixels
+      const r = app.cropRect || app.imageModel.defaultCropRect();
       const ps = app.getPageDimensions();
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
       const edge = (tok, cur, lengthPx, pxPerCm) =>
@@ -706,7 +688,7 @@ export const createStencil = (app) => {
           x1 = r.x; x2 = r.x + Math.abs(y2 - y1) * aspect;
         }
       }
-      app.applyCrop({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) }, { recalc: true });
+      app.imageModel.applyCrop({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) }, { recalc: true });
       return stencil;
     },
 
@@ -731,10 +713,10 @@ export const createStencil = (app) => {
         if (opts[k] != null) set[k] = opts[k];
       }
       if (opts.page != null) set.pageSize = opts.page;            // `page` alias for pageSize
-      if (opts.showTooltip != null) app.setTooltipOption('enabled', opts.showTooltip);
+      if (opts.showTooltip != null) app.settings.setTooltipOption('enabled', opts.showTooltip);
       if (opts.tooltip && typeof opts.tooltip === 'object')
         for (const k of ['enabled', 'page', 'screen', 'coords'])
-          if (opts.tooltip[k] != null) app.setTooltipOption(k, opts.tooltip[k]);
+          if (opts.tooltip[k] != null) app.settings.setTooltipOption(k, opts.tooltip[k]);
       if (opts.fullscreen != null) stencil.fullscreen = opts.fullscreen;
       if (opts.incognito != null) stencil.incognito = opts.incognito;
       if (opts.zoom != null) stencil.zoom(opts.zoom);
