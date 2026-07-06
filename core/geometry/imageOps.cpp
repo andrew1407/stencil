@@ -1,5 +1,7 @@
 #include "imageOps.hpp"
 
+#include "rgba.hpp"  // rgbaOffset, copyPixel
+
 namespace stencil::core {
 
   int normalizeQuarters(int quarters) {
@@ -18,10 +20,9 @@ namespace stencil::core {
       const int sy = ry + dy;
       for (int dx = 0; dx < rw; ++dx) {
         const int sx = rx + dx;
-        std::uint8_t* o = dst + (static_cast<std::size_t>(dy) * rw + dx) * 4;
+        std::uint8_t* o = dst + rgbaOffset(dx, dy, rw);
         if (sx >= 0 && sx < srcW && sy >= 0 && sy < srcH) {
-          const std::uint8_t* s = src + (static_cast<std::size_t>(sy) * srcW + sx) * 4;
-          o[0] = s[0]; o[1] = s[1]; o[2] = s[2]; o[3] = s[3];
+          copyPixel(o, src + rgbaOffset(sx, sy, srcW));
         } else {
           o[0] = o[1] = o[2] = o[3] = 0;  // outside the source -> transparent
         }
@@ -55,9 +56,7 @@ namespace stencil::core {
           default:  // 0° — identity
             break;
         }
-        const std::uint8_t* s = src + (static_cast<std::size_t>(y) * w + x) * 4;
-        std::uint8_t* o = dst + (static_cast<std::size_t>(oy) * outW + ox) * 4;
-        o[0] = s[0]; o[1] = s[1]; o[2] = s[2]; o[3] = s[3];
+        copyPixel(dst + rgbaOffset(ox, oy, outW), src + rgbaOffset(x, y, w));
       }
     }
   }

@@ -133,15 +133,13 @@ extern "C" {
   }
 
   int stencil_cli_validateFormula(const char* expr, int var) {
-    static const FormulaParser fp;
-    return fp.validate(std::string(expr ? expr : ""), static_cast<char>(var)) ? 1 : 0;
+    return FormulaParser::validate(std::string(expr ? expr : ""), static_cast<char>(var)) ? 1 : 0;
   }
 
   double stencil_cli_applyFormula(const char* expr, int var, double value,
                                   int allowFormulas) {
-    static const FormulaParser fp;
-    return fp.apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
-                    allowFormulas != 0);
+    return FormulaParser::apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
+                                allowFormulas != 0);
   }
 
   int stencil_cli_parseDuration(const char* spec, long long* outMs) {

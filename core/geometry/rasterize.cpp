@@ -1,6 +1,7 @@
 #include "rasterize.hpp"
 
 #include "colorNames.hpp"
+#include "rgba.hpp"  // rgbaOffset
 
 #include <algorithm>
 #include <cmath>
@@ -58,7 +59,7 @@ namespace stencil::core {
       if (a <= 0) return;
       if (a > 255) a = 255;
       const int ia = 255 - a;
-      std::uint8_t* p = buf + (static_cast<std::size_t>(y) * w + x) * 4;
+      std::uint8_t* p = buf + rgbaOffset(x, y, w);
       p[0] = div255(c.r * a + p[0] * ia);
       p[1] = div255(c.g * a + p[1] * ia);
       p[2] = div255(c.b * a + p[2] * ia);

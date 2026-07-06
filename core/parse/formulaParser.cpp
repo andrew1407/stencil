@@ -196,7 +196,7 @@ namespace stencil::core {
 
   std::optional<double> FormulaParser::evaluate(const std::string& expr,
                                                 char varName,
-                                                double varValue) const {
+                                                double varValue) {
     Eval e(expr, varName, varValue);
     double out = 0.0;
     if (!e.run(out)) return std::nullopt;
@@ -204,13 +204,13 @@ namespace stencil::core {
     return out;
   }
 
-  bool FormulaParser::validate(const std::string& expr, char varName) const {
+  bool FormulaParser::validate(const std::string& expr, char varName) {
     if (isBlank(expr)) return true;  // empty = identity = valid
     return evaluate(expr, varName, 1.0).has_value();
   }
 
   double FormulaParser::apply(const std::string& expr, char varName,
-                              double value, bool allowFormulas) const {
+                              double value, bool allowFormulas) {
     if (!allowFormulas || isBlank(expr)) return value;
     const auto result = evaluate(expr, varName, value);
     return result.has_value() ? *result : value;
