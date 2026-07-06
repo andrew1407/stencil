@@ -43,11 +43,14 @@ namespace stencil::core {
 
   class ProjectsStore {
    public:
+    // Milliseconds in one day — the base unit every preset multiplies. Single
+    // source of truth for the day length used across periodMs / EXPIRY / WARN.
+    static constexpr long long DAY_MS = 24LL * 60 * 60 * 1000;
     // One week — the default refresh period, matching EXPIRY_MS in the browser
     // store. Also the ms length of the "week" preset (see periodMs).
-    static constexpr long long EXPIRY_MS = 7LL * 24 * 60 * 60 * 1000;
+    static constexpr long long EXPIRY_MS = 7 * DAY_MS;
     // Warn once a project is within a day of expiry (browser WARN_MS).
-    static constexpr long long WARN_MS = 24LL * 60 * 60 * 1000;
+    static constexpr long long WARN_MS = DAY_MS;
     // The default refresh preset name.
     static constexpr const char* DEFAULT_PERIOD = "week";
 
@@ -127,6 +130,11 @@ namespace stencil::core {
     NameCheck validateName(const std::string& name, const std::string& exceptId = {}) const;
 
    private:
+    // Locate a project by id in the registry (end() iterator if absent). Both
+    // overloads so const and mutating callers share one linear scan.
+    std::vector<ProjectMeta>::iterator findById(const std::string& id);
+    std::vector<ProjectMeta>::const_iterator findById(const std::string& id) const;
+
     std::vector<ProjectMeta> registry_;
   };
 

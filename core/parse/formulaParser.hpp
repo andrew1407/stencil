@@ -20,22 +20,24 @@
 // which is reported as invalid.
 namespace stencil::core {
 
-  class FormulaParser {
-   public:
+  // The parser holds no state, so its operations are static — callers invoke
+  // FormulaParser::validate(...) etc. directly, with no instance. (Formerly a stateless
+  // class instantiated as `static const FormulaParser fp;` at each call site.)
+  struct FormulaParser {
     // Empty / whitespace expression = valid (identity), matching the JS engine.
     // Otherwise valid iff it parses and evaluates to a finite number at var = 1.
-    bool validate(const std::string& expr, char varName = 'x') const;
+    static bool validate(const std::string& expr, char varName = 'x');
 
     // Apply the transform to `value`. Returns `value` unchanged when formulas
     // are disabled, the expression is empty, or evaluation fails / is non-finite
     // (identity-on-error, exactly like FormulaEngine.apply).
-    double apply(const std::string& expr, char varName, double value,
-                 bool allowFormulas) const;
+    static double apply(const std::string& expr, char varName, double value,
+                        bool allowFormulas);
 
     // Evaluate `expr` with the variable bound to `varValue`. nullopt on a parse
     // error or a non-finite result.
-    std::optional<double> evaluate(const std::string& expr, char varName,
-                                   double varValue) const;
+    static std::optional<double> evaluate(const std::string& expr, char varName,
+                                          double varValue);
   };
 
 }

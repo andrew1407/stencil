@@ -101,24 +101,21 @@ extern "C" {
   // ── formula engine (formulaEngine.js validate / apply / evaluate) ──
   // varName is the ASCII code of 'x' or 'y'.
   int stencil_formulaValidate(const char* expr, int varName) {
-    static const FormulaParser fp;
-    return fp.validate(expr ? expr : "", static_cast<char>(varName)) ? 1 : 0;
+    return FormulaParser::validate(expr ? expr : "", static_cast<char>(varName)) ? 1 : 0;
   }
 
   double stencil_formulaApply(const char* expr, int varName, double value,
                               int allowFormulas) {
-    static const FormulaParser fp;
-    return fp.apply(expr ? expr : "", static_cast<char>(varName), value,
-                    allowFormulas != 0);
+    return FormulaParser::apply(expr ? expr : "", static_cast<char>(varName), value,
+                                allowFormulas != 0);
   }
 
   // Returns 1 and writes the result to *out on success; returns 0 on a parse
   // error or non-finite result (leaving *out untouched).
   int stencil_formulaEvaluate(const char* expr, int varName, double varValue,
                               double* out) {
-    static const FormulaParser fp;
     const auto r =
-        fp.evaluate(expr ? expr : "", static_cast<char>(varName), varValue);
+        FormulaParser::evaluate(expr ? expr : "", static_cast<char>(varName), varValue);
     if (!r.has_value()) return 0;
     *out = *r;
     return 1;

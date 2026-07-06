@@ -1,5 +1,6 @@
 #include "colorNames.hpp"
 
+#include "hexNibble.hpp"
 #include "text.hpp"
 
 #include <unordered_map>
@@ -7,14 +8,6 @@
 namespace stencil::core {
 
   namespace {
-    // One hex nibble (0–15) or -1 if not a hex digit.
-    int nib(char c) {
-      if (c >= '0' && c <= '9') return c - '0';
-      if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-      if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-      return -1;
-    }
-
     // The CSS Color Module Level 4 extended colour keywords. Stored as 0xRRGGBB.
     const std::unordered_map<std::string, unsigned>& namedColors() {
       static const std::unordered_map<std::string, unsigned> table = {
@@ -84,11 +77,11 @@ namespace stencil::core {
       auto expand = [](int n) { return n * 16 + n; };  // single nibble -> byte
       Rgba c;
       if (h.size() == 3 || h.size() == 4) {
-        const int r = nib(h[0]), g = nib(h[1]), bl = nib(h[2]);
+        const int r = hexNibble(h[0]), g = hexNibble(h[1]), bl = hexNibble(h[2]);
         if (r < 0 || g < 0 || bl < 0) return std::nullopt;
         c.r = expand(r); c.g = expand(g); c.b = expand(bl);
         if (h.size() == 4) {
-          const int al = nib(h[3]);
+          const int al = hexNibble(h[3]);
           if (al < 0) return std::nullopt;
           c.a = expand(al);
         }
@@ -97,7 +90,7 @@ namespace stencil::core {
       if (h.size() == 6 || h.size() == 8) {
         int v[8];
         for (std::size_t i = 0; i < h.size(); ++i) {
-          v[i] = nib(h[i]);
+          v[i] = hexNibble(h[i]);
           if (v[i] < 0) return std::nullopt;
         }
         c.r = v[0] * 16 + v[1];

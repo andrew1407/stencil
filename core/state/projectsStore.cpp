@@ -40,13 +40,12 @@ namespace stencil::core {
 
   long long ProjectsStore::periodMs(const std::string& period) {
     // Fixed-duration presets (must match browser projectsStore.js PERIOD_MS).
-    constexpr long long DAY = 24LL * 60 * 60 * 1000;
-    if (period == "day") return DAY;
-    if (period == "fortnight") return 14 * DAY;
-    if (period == "month") return 30 * DAY;
-    if (period == "3month") return 90 * DAY;
-    if (period == "6month") return 180 * DAY;
-    if (period == "year") return 365 * DAY;
+    if (period == "day") return DAY_MS;
+    if (period == "fortnight") return 14 * DAY_MS;
+    if (period == "month") return 30 * DAY_MS;
+    if (period == "3month") return 90 * DAY_MS;
+    if (period == "6month") return 180 * DAY_MS;
+    if (period == "year") return 365 * DAY_MS;
     // "week", empty, or anything unknown → one week.
     return EXPIRY_MS;
   }
@@ -76,55 +75,53 @@ namespace stencil::core {
     return out;
   }
 
+  std::vector<ProjectMeta>::iterator ProjectsStore::findById(const std::string& id) {
+    return std::find_if(registry_.begin(), registry_.end(),
+                        [&](const ProjectMeta& m) { return m.id == id; });
+  }
+
+  std::vector<ProjectMeta>::const_iterator ProjectsStore::findById(
+      const std::string& id) const {
+    return std::find_if(registry_.begin(), registry_.end(),
+                        [&](const ProjectMeta& m) { return m.id == id; });
+  }
+
   std::optional<ProjectMeta> ProjectsStore::getMeta(const std::string& id) const {
-    for (const auto& m : registry_) {
-      if (m.id == id) return m;
-    }
-    return std::nullopt;
+    const auto it = findById(id);
+    if (it == registry_.end()) return std::nullopt;
+    return *it;
   }
 
   ProjectMeta ProjectsStore::upsert(ProjectMeta meta, long long now) {
     meta.updatedAt = now;
     if (meta.createdAt == 0) meta.createdAt = now;
-    const auto it = std::find_if(registry_.begin(), registry_.end(),
-                                 [&](const ProjectMeta& m) {
-                                   return m.id == meta.id;
-                                 });
+    const auto it = findById(meta.id);
     if (it == registry_.end()) registry_.push_back(meta);
     else *it = meta;
     return meta;
   }
 
   bool ProjectsStore::touch(const std::string& id, long long now) {
-    for (auto& m : registry_) {
-      if (m.id == id) {
-        m.updatedAt = now;
-        return true;
-      }
-    }
-    return false;
+    const auto it = findById(id);
+    if (it == registry_.end()) return false;
+    it->updatedAt = now;
+    return true;
   }
 
   bool ProjectsStore::setExpiration(const std::string& id, long long expiresAt,
                                     const std::string& refreshPeriod,
                                     bool autoRefresh) {
-    for (auto& m : registry_) {
-      if (m.id == id) {
-        m.expiresAt = expiresAt;
-        m.refreshPeriod = refreshPeriod.empty() ? DEFAULT_PERIOD : refreshPeriod;
-        m.autoRefresh = autoRefresh;
-        return true;
-      }
-    }
-    return false;
+    const auto it = findById(id);
+    if (it == registry_.end()) return false;
+    it->expiresAt = expiresAt;
+    it->refreshPeriod = refreshPeriod.empty() ? DEFAULT_PERIOD : refreshPeriod;
+    it->autoRefresh = autoRefresh;
+    return true;
   }
 
   void ProjectsStore::remove(const std::string& id) {
-    registry_.erase(std::remove_if(registry_.begin(), registry_.end(),
-                                   [&](const ProjectMeta& m) {
-                                     return m.id == id;
-                                   }),
-                    registry_.end());
+    const auto it = findById(id);
+    if (it != registry_.end()) registry_.erase(it);
   }
 
   void ProjectsStore::clearAll() {
