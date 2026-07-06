@@ -17,12 +17,16 @@
 #include <QApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QImage>
 #include <QString>
 #include <QVector>
 #include <QWidget>
 #include <cstdio>
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -86,7 +90,7 @@ int main(int argc, char** argv) {
         return nullptr;
       },
       [] { return fileStore::LayoutMeta{}; },
-      [](const QString&) { return QByteArray{}; },
+      [](const QString&, std::function<void(QByteArray)> done) { done(QByteArray{}); },
       [] { return QString(); },  // activeProjectId — none, so localProjectOriginal reads the file
       [] { return QString(); },  // remoteAddress
       [] { return QString(); },  // remoteId
@@ -97,15 +101,38 @@ int main(int argc, char** argv) {
   ProjectTransferController xfer(&notify, &canvas, &settings, &store, &list, hooks);
 
   QVector<QString> createdServerIds;  // for cleanup
+
+  // The controller is now fully async, so the test drives the event loop. `listServer` issues an
+  // async list and pumps until it resolves; `waitFor` retries a predicate (re-listing each pass)
+  // until true or a timeout, giving the async transfer chain time to land on the server.
+  auto listServer = [&]() {
+    auto ready = std::make_shared<bool>(false);
+    auto out = std::make_shared<QVector<stencil::net::ServerProject>>();
+    c->listProjectsAsync([ready, out](bool ok, QVector<stencil::net::ServerProject> ps) {
+      if (ok) *out = ps;
+      *ready = true;
+    });
+    QElapsedTimer t;
+    t.start();
+    while (!*ready && t.elapsed() < 5000) app.processEvents(QEventLoop::AllEvents, 50);
+    return *out;
+  };
   auto serverHasNamed = [&](const QString& name, QString* idOut) -> bool {
-    QVector<stencil::net::ServerProject> out;
-    if (!c->listProjects(out)) return false;
-    for (const auto& p : out)
+    for (const auto& p : listServer())
       if (p.name == name) {
         if (idOut) *idOut = p.id;
         return true;
       }
     return false;
+  };
+  auto waitFor = [&](std::function<bool()> pred) -> bool {
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 10000) {
+      if (pred()) return true;
+      app.processEvents(QEventLoop::AllEvents, 100);
+    }
+    return pred();
   };
 
   // ── COPY: leaves the local project in place, creates it on the server ──
@@ -113,7 +140,8 @@ int main(int argc, char** argv) {
   const QString copyId = addLocal(QString("e2e-src-%1").arg(ts));
   xfer.copyLocalProjectToServer(serverUrl, copyId, copyName);
   QString serverCopyId;
-  check(serverHasNamed(copyName, &serverCopyId), "copy: the project appeared on the server");
+  check(waitFor([&] { return serverHasNamed(copyName, &serverCopyId); }),
+        "copy: the project appeared on the server");
   if (!serverCopyId.isEmpty()) createdServerIds.push_back(serverCopyId);
   check(list.size() == 1, "copy: the local project stays (copy, not move)");
 
@@ -123,15 +151,25 @@ int main(int argc, char** argv) {
   check(list.size() == 2, "move: a second local project was added");
   xfer.moveLocalProjectToServer(serverUrl, moveId);
   QString serverMoveId;
-  check(serverHasNamed(moveName, &serverMoveId), "move: the project appeared on the server");
+  check(waitFor([&] { return serverHasNamed(moveName, &serverMoveId); }),
+        "move: the project appeared on the server");
   if (!serverMoveId.isEmpty()) createdServerIds.push_back(serverMoveId);
-  bool localGone = true;
-  for (const auto& p : list)
-    if (QString::fromStdString(p.meta.id) == moveId) localGone = false;
+  // The move erases the local copy only in its async tail (after the server create lands).
+  const bool localGone = waitFor([&] {
+    for (const auto& p : list)
+      if (QString::fromStdString(p.meta.id) == moveId) return false;
+    return true;
+  });
   check(localGone, "move: the local project was removed after the move");
 
   // ── cleanup: delete the server projects we created + the temp file ──
-  for (const auto& id : createdServerIds) c->deleteProject(id);
+  for (const auto& id : createdServerIds) {
+    auto ready = std::make_shared<bool>(false);
+    c->deleteProjectAsync(id, [ready](bool) { *ready = true; });
+    QElapsedTimer t;
+    t.start();
+    while (!*ready && t.elapsed() < 5000) app.processEvents(QEventLoop::AllEvents, 50);
+  }
   QFile::remove(imgPath);
 
   std::printf("%s (%d failures)\n", failures ? "FAILED" : "OK", failures);

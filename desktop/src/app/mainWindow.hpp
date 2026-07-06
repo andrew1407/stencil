@@ -53,6 +53,7 @@ namespace stencil::gui {
   class MediaLoader;
   class DataExportController;
   class RemoteSyncController;
+  class RemoteSession;
   class ProjectTransferController;
   struct LaunchOptions;
 
@@ -238,7 +239,7 @@ namespace stencil::gui {
     // gates the outcome (a saved/linked, non-incognito project must be open).
     bool canReplaceActive() const;
     void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
-    void replaceServerOriginal();
+    void replaceServerOriginal(std::function<void()> done = {});
     // Publish the current incognito session to a server: create + upload original + link the
     // session, leave incognito, then push the layout + result. Mirrors the browser.
     void publishIncognitoToServer(const QString& serverUrl);
@@ -299,7 +300,8 @@ namespace stencil::gui {
     // Create the project on `serverUrl` (createProject + upload the original image)
     // and link this session to it so later saves write back. Mirrors the browser's
     // createRemoteProject (remoteSync.js).
-    void createServerProject(const QString& serverUrl, const QString& name);
+    void createServerProject(const QString& serverUrl, const QString& name,
+                             std::function<void()> onLinked = {});
     void saveToActiveProject();
     // Save a server-linked session back: version-guarded PUT of name+layout, then
     // upload the rendered result. Surfaces a 409 "edited elsewhere" message and
@@ -311,7 +313,7 @@ namespace stencil::gui {
     // repeatedly when peers change the project). link=false adopts the content only —
     // no session link, no live co-edit, nothing pushed back — the desktop analogue of
     // the browser's copyServerProjectToIncognito (used by incognito deep links).
-    bool openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
+    void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
                            bool link = true);
     // Deep-link support: connect to `serverUrl` the way a user would from the
     // Servers dialog (reuse the live connection, else a saved token, else mint one
@@ -376,16 +378,18 @@ namespace stencil::gui {
     // Set a colour on a project BY id (the Projects dialog "Set colour" path). For a
     // server project (serverUrl non-empty) it PUTs UpdateProject{color}; else it
     // updates the local meta + persists. Returns true on success.
-    bool setProjectColorById(const QString& id, const QString& serverUrl, const QString& color);
+    // Server projects PUT asynchronously; local projects resolve synchronously. `done(ok)` (when
+    // supplied) fires on completion so callers can repaint the title once the change lands.
+    void setProjectColorById(const QString& id, const QString& serverUrl, const QString& color,
+                             std::function<void(bool ok)> done = {});
     // Run a version-guarded server write with a bounded conflict retry. Reads `id`'s current
     // version, calls `put(version, newVersion, conflict)` to perform the PUT, and on a 409 (the
     // read-then-PUT isn't atomic, so a peer's save or a re-entrant autosave can bump the version
     // mid-call) re-reads and retries — up to 4 attempts. Returns the winning version via
     // `outVersion` and true on success; on failure `c->lastError()` holds the reason. Shared by
     // commitProjectName / setProjectColorById.
-    bool putVersionGuarded(stencil::net::ServerClient* c, const QString& id,
-        const std::function<bool(qint64 version, qint64& newVersion, bool& conflict)>& put,
-        qint64& outVersion);
+    // requireClient() + putVersionGuarded() moved to RemoteSession (remoteSession_); the server
+    // CRUD methods here call remoteSession_->requireClient()/putVersionGuarded().
     // Normalise a colour for storage: "" stays "" (clear); a QColor-valid string
     // returns "#rrggbb" lower-case; anything else returns nullopt (reject the set).
     std::optional<QString> normalizeProjectColor(const QString& color) const;
@@ -420,9 +424,11 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
-    // Live co-edit reentrancy flags, set via ScopedFlag during a push / reload and READ by the
-    // RemoteSyncController (passed as const bool*) plus the filter/reload paths here. The timers,
-    // LiveFeed, and push-burst/reload-pending bookkeeping live inside RemoteSyncController.
+    // Live co-edit reentrancy flags: true while an async push / reload is in flight (set at the
+    // start of saveToServer / openServerProject, cleared by a shared clearer when the whole async
+    // chain ends). READ by the RemoteSyncController (passed as const bool*) plus the filter/reload
+    // paths here. The timers, LiveFeed, and push-burst/reload-pending bookkeeping live inside
+    // RemoteSyncController.
     bool remotePushing_ = false;
     bool remoteReloading_ = false;
     // True when THIS user changed the filter since the last sync — a save then imposes
@@ -587,24 +593,20 @@ namespace stencil::gui {
 
     // ── state ──
     Settings settings_;
-    core::FormulaParser formula_;
+    // core::FormulaParser's validate/apply are static (stateless), called inline where needed;
+    // no per-window instance is kept.
     core::ProjectsStore projectsStore_;
     std::vector<Project> projectList_;
     QString activeProjectId_;
     // Collaboration-server connections for this window (lazily created). Owns the
     // REST clients; shared projects are listed through it.
     stencil::net::ConnectionManager* connections_ = nullptr;
-    // Server linkage for the current session (empty address = a purely-local
-    // project). Set when a server project is opened or created on a server; drives
-    // saveToActiveProject() to write back via saveToServer(). Mirrors the browser's
-    // DrawingApp.remoteLink { address, remoteId, version }.
-    QString remoteAddress_;
-    QString remoteId_;
-    QString remoteName_;
-    // The linked server project's accent colour ("#rrggbb" or empty). Kept in step
-    // with the server record so a server session paints its name like a local one.
-    QString remoteColor_;
-    qint64 remoteVersion_ = 0;
+    // Server-project session domain (remoteSession.hpp): the current session's remote-link state
+    // (empty address = a purely-local project) + the ConnectionManager handle + the version-guarded
+    // write helpers. Set when a server project is opened/created; drives saveToActiveProject() to
+    // write back via saveToServer(). MainWindow reaches the link fields through remoteSession_->link()
+    // and the RemoteSyncController composes remoteSession_ directly. QObject child of this window.
+    RemoteSession* remoteSession_ = nullptr;
     // Provenance of the image currently on the canvas (the image/video's own URL
     // and the page it came from). Set by loadImageByUrl(); cleared on a plain local
     // open / blank image. Folded into the project meta on create/save.
