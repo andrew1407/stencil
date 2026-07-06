@@ -10,6 +10,10 @@
 #include <QAction>
 #include <QImage>
 #include <QDir>
+#include <QApplication>
+#include <QMessageBox>
+#include <QAbstractButton>
+#include <QTimer>
 #include <memory>
 
 using stencil::gui::MainWindow;
@@ -38,6 +42,26 @@ namespace {
     const int ms = qEnvironmentVariableIntValue("STENCIL_GUI_SLOWMO", &ok);
     if (ok && ms > 0) QTest::qWait(ms);
   }
+
+  // The quit-confirmation is a modal QMessageBox that blocks the triggering call. Arm this
+  // BEFORE triggering Quit: it waits for the box to appear and clicks the button whose label
+  // matches (the dialog uses custom "Quit"/"Cancel" buttons, not standard Yes/No roles),
+  // letting the otherwise-blocked trigger() return with that answer.
+  void dismissQuitDialog(const QString& buttonText) {
+    QTimer::singleShot(0, [buttonText]() {
+      for (int i = 0; i < 200; ++i) {
+        if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+          for (QAbstractButton* b : box->buttons())
+            if (QString(b->text()).remove('&').compare(buttonText, Qt::CaseInsensitive) == 0) {
+              b->click();
+              return;
+            }
+          return;
+        }
+        QTest::qWait(5);
+      }
+    });
+  }
 }
 
 class MainWindowGuiTest : public QObject {
@@ -57,6 +81,9 @@ class MainWindowGuiTest : public QObject {
 
  private slots:
   void initTestCase() {
+    // The quit-confirmation test closes its window; keep that from ending the shared
+    // QApplication (and the rest of the run) with it.
+    qApp->setQuitOnLastWindowClosed(false);
     // A generous album-orientation image (larger than the tiny shared fixture) so the
     // fit-scaled canvas has room for well-separated draw clicks.
     QImage img(240, 160, QImage::Format_RGB32);
@@ -221,6 +248,31 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
     QCOMPARE(totalPoints(canvas), 0);   // nothing committed or in-progress remains
     beat();
+  }
+
+  // Quitting pops an "are you sure?" confirmation; answering No cancels the close and
+  // leaves the window up (the Quit action, Ctrl+Q, and the title-bar X all go through it).
+  void quitDialogCancelKeepsWindowOpen() {
+    MainWindow win(nullptr, false);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QAction* quit = actionByText(&win, "Quit");
+    QVERIFY(quit);
+    dismissQuitDialog("Cancel");     // blocks on the modal until the timer clicks Cancel
+    quit->trigger();
+    QVERIFY(win.isVisible());        // Cancel → close cancelled, window stays open
+  }
+
+  // Answering Yes lets the close through and the window disappears.
+  void quitDialogConfirmClosesWindow() {
+    MainWindow win(nullptr, false);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QAction* quit = actionByText(&win, "Quit");
+    QVERIFY(quit);
+    dismissQuitDialog("Quit");
+    quit->trigger();
+    QTRY_VERIFY(!win.isVisible());   // Quit → the window closes
   }
 };
 
