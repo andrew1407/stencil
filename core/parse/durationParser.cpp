@@ -1,4 +1,7 @@
 #include "durationParser.hpp"
+
+#include "text.hpp"  // toLowerAscii
+
 #include <cctype>
 #include <vector>
 
@@ -11,14 +14,6 @@ namespace stencil::core {
     // value couldn't round-trip exactly; capping here keeps this port bit-for-bit
     // identical to durationParser.js's Number.isSafeInteger checks (the parity twin).
     constexpr long long kMaxSafe = 9007199254740991LL;  // 2^53 - 1
-
-    // Lower-case ASCII copy (durations are pure ASCII keywords/digits).
-    std::string lower(const std::string& s) {
-      std::string out;
-      out.reserve(s.size());
-      for (char c : s) out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-      return out;
-    }
 
     // Split on runs of whitespace, dropping empties.
     std::vector<std::string> tokenize(const std::string& s) {
@@ -67,7 +62,7 @@ namespace stencil::core {
   }  // namespace
 
   bool DurationParser::parse(const std::string& spec, long long& outMs) const {
-    const std::vector<std::string> toks = tokenize(lower(spec));
+    const std::vector<std::string> toks = tokenize(toLowerAscii(spec));
     if (toks.empty() || toks.size() > 2) return false;
 
     if (toks.size() == 1) {

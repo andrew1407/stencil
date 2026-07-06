@@ -1,5 +1,7 @@
 #include "color.hpp"
-#include <cctype>
+
+#include "hexNibble.hpp"
+
 #include <cmath>
 #include <sstream>
 
@@ -8,14 +10,8 @@ namespace stencil::core {
   namespace {
     // Two hex digits -> int, or -1 if either char is not a hex digit.
     int hexByte(char hi, char lo) {
-      auto nib = [](char c) -> int {
-        if (c >= '0' && c <= '9') return c - '0';
-        char l = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (l >= 'a' && l <= 'f') return 10 + (l - 'a');
-        return -1;
-      };
-      const int h = nib(hi);
-      const int l = nib(lo);
+      const int h = hexNibble(hi);
+      const int l = hexNibble(lo);
       if (h < 0 || l < 0) return -1;
       return h * 16 + l;
     }
