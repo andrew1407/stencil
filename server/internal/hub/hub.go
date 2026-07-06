@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -19,13 +20,14 @@ import (
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/store"
 	"stencil/server/internal/transport"
 )
 
 // Store is the project persistence the hub needs for snapshots.
 type Store interface {
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
-	UpdateProject(ctx context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
+	UpdateProject(ctx context.Context, id string, patch store.ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error)
 }
 
 const (
@@ -48,7 +50,13 @@ type Hub struct {
 
 	mu       sync.Mutex
 	sessions map[string]*session
+	conns    map[*connReg]struct{} // live connection cancels, guarded by mu
 }
+
+// connReg is one tracked live connection; cancelling its context unwinds the
+// connection's handler (both transports honor ctx), which is how shutdown drains
+// hijacked WebSocket editors that httpSrv.Shutdown cannot reach.
+type connReg struct{ cancel context.CancelFunc }
 
 // New constructs a hub. ctx bounds background publishes/persists.
 func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResolver) *Hub {
@@ -58,7 +66,34 @@ func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResol
 		resolver: resolver,
 		ctx:      ctx,
 		sessions: map[string]*session{},
+		conns:    map[*connReg]struct{}{},
 	}
+}
+
+// trackConn records a live connection's cancel func so CloseAll can reach it,
+// returning an untrack func to call when the connection ends.
+func (h *Hub) trackConn(cancel context.CancelFunc) func() {
+	reg := &connReg{cancel: cancel}
+	h.mu.Lock()
+	h.conns[reg] = struct{}{}
+	h.mu.Unlock()
+	return func() {
+		h.mu.Lock()
+		delete(h.conns, reg)
+		h.mu.Unlock()
+	}
+}
+
+// CloseAll cancels every live connection's context so its handler unwinds and
+// releases the conn. It is non-blocking (it only fires cancels); handlers drain
+// asynchronously, letting httpSrv.Shutdown and ServeListener's wg.Wait() return.
+// Safe to call concurrently with connects/disconnects (guarded by mu).
+func (h *Hub) CloseAll() {
+	h.mu.Lock()
+	for reg := range h.conns {
+		reg.cancel()
+	}
+	h.mu.Unlock()
 }
 
 // acquire returns the session for id, creating and starting it if needed, and
@@ -96,7 +131,9 @@ func (h *Hub) WSHandler() http.Handler {
 		if err != nil {
 			return // Accept already wrote a response
 		}
-		_ = h.HandleConn(r.Context(), conn)
+		if err := h.HandleConn(r.Context(), conn); err != nil {
+			log.Printf("hub: ws connection ended: %v", err)
+		}
 	})
 }
 
@@ -114,7 +151,9 @@ func (h *Hub) ServeListener(ln net.Listener) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = h.HandleConn(h.ctx, transport.NewTCP(c))
+			if err := h.HandleConn(h.ctx, transport.NewTCP(c)); err != nil {
+				log.Printf("hub: tcp connection ended: %v", err)
+			}
 		}()
 	}
 }
@@ -122,6 +161,13 @@ func (h *Hub) ServeListener(ln net.Listener) error {
 // HandleConn performs the hello handshake then routes the connection to either a
 // project session or the global events feed. It blocks until the connection ends.
 func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
+	// Track this connection so a shutdown CloseAll can cancel it and drain the
+	// conn (WebSocket conns are hijacked, so httpSrv.Shutdown can't close them).
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	untrack := h.trackConn(cancel)
+	defer untrack()
+
 	// First frame must be a hello within the deadline.
 	hctx, cancel := context.WithTimeout(ctx, helloTimeout)
 	raw, err := conn.Read(hctx)
@@ -176,6 +222,7 @@ func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello proto
 
 	s.register <- m
 
+readLoop:
 	for {
 		raw, err := conn.Read(ctx)
 		if err != nil {
@@ -188,9 +235,9 @@ func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello proto
 		select {
 		case s.incoming <- inbound{member: m, msg: msg}:
 		case <-s.done:
-			break
+			break readLoop
 		case <-ctx.Done():
-			break
+			break readLoop
 		}
 	}
 	_ = conn.Close(transport.CloseNormal, "bye")
@@ -213,7 +260,7 @@ func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch, unsub := h.bus.Subscribe(ctx, bus.ChannelEvents)
+	ch, unsub := h.bus.Subscribe(bus.ChannelEvents)
 	defer unsub()
 
 	// Detect client disconnect by reading; any read error cancels the loop.

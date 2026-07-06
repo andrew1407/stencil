@@ -32,7 +32,7 @@ func (f *fakeHubStore) GetProject(_ context.Context, id string) (protocol.Projec
 	return f.rec, nil
 }
 
-func (f *fakeHubStore) UpdateProject(_ context.Context, id string, _ *string, _ *string, _ *int64, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
+func (f *fakeHubStore) UpdateProject(_ context.Context, id string, patch store.ProjectPatch, expected int64) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if id != f.rec.ID {
@@ -41,8 +41,8 @@ func (f *fakeHubStore) UpdateProject(_ context.Context, id string, _ *string, _ 
 	if f.rec.Version != expected {
 		return protocol.ProjectRecord{}, store.ErrConflict
 	}
-	if len(layout) > 0 {
-		f.rec.Layout = layout
+	if len(patch.Layout) > 0 {
+		f.rec.Layout = patch.Layout
 	}
 	f.rec.Version++
 	return f.rec, nil
@@ -343,6 +343,30 @@ func TestOversizedFrameRejected(t *testing.T) {
 	if _, err := c.Read(ctx); err == nil {
 		t.Fatal("expected the connection to close on an over-limit frame")
 	}
+}
+
+// TestCloseAllDrainsConnections: on shutdown, CloseAll cancels every live
+// connection's context; a blocked TCP editor's Read is interrupted (change #2),
+// the server unwinds the handler, and the session refcount falls to 0 (change
+// #3 drain). Without ctx-aware TCP reads this would hang until the deadline.
+func TestCloseAllDrainsConnections(t *testing.T) {
+	h := newTestHub(t)
+	addr := startTCP(t, h)
+
+	a := joinProject(t, addr, "p_t_a", "A")
+	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 1 })
+
+	h.CloseAll()
+
+	// The server-side read (blocked in Scan) is cancelled and the conn closed, so
+	// the client's read returns an error well within the deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := a.Read(ctx); err == nil {
+		t.Fatal("expected the connection to close after CloseAll")
+	}
+	// The handler unwound and released the session reference.
+	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 0 })
 }
 
 // TestWebSocketTransport exercises the same flow over the WS adapter.
