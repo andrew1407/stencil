@@ -251,169 +251,334 @@ pub struct ProbeParams {
     pub input: String,
 }
 
-/// Build the `stencil` argv from edit parameters. `layout_path` is the already-resolved
-/// path passed to `-l` (a temp file for an inline layout, or the user's path/URL); pass
-/// `None` to omit `--layout`. Validates the source and blank-dimension invariants the CLI
-/// would otherwise reject with a terse message.
-pub fn build_argv(params: &EditParams, layout_path: Option<&str>) -> Result<Vec<String>, String> {
-    if params.input.is_some() && params.blank.is_some() {
-        return Err("`input` and `blank` are mutually exclusive — pass only one".into());
-    }
-    if params.input.is_none() && params.blank.is_none() {
-        return Err("no source — pass `input` (a path/URL), `blank`, or `server` + `input`".into());
-    }
-    if params.output.trim().is_empty() {
-        return Err("`output` must not be empty".into());
-    }
-    // Flag-injection guard. The output is a positional operand appended last, and the CLI
-    // (`cli/src/args.zig`) has *no* `--` end-of-options terminator — a bare `--` is itself
-    // rejected as an unknown flag. So an `output` like `--album` or `-l` would be parsed as a
-    // flag rather than the output path (`-l` would even swallow the following token). A real
-    // output file path never starts with a dash — the CLI could never accept one as the
-    // positional slot anyway — so reject a dash-leading output up front. This mirrors the
-    // CLI's own `arg[0] == '-'` flag test, so it rejects exactly what would misparse.
-    //
-    // Scheme/host SSRF filtering for `input`/`server`/`remote` is deliberately NOT done here:
-    // it is enforced downstream in the CLI (which was hardened for this), and this builder
-    // only guarantees each value rides as a single inert argv token (no shell, no splitting).
-    if params.output.starts_with('-') {
-        return Err(format!(
-            "`output` must not start with '-' (got \"{}\") — a dash-leading value would be \
-             parsed as a CLI flag, not the output path",
-            params.output
-        ));
-    }
+// ── CLI flag names ──
+// The exact option strings understood by the Zig CLI (`cli/src/args.zig`). Centralized here
+// so the flag contract is single-sourced and greppable; `build_argv` references these instead
+// of bare literals. Changing a flag string means changing it in the CLI too.
+const FLAG_SERVER: &str = "--server";
+const FLAG_INPUT: &str = "-i";
+const FLAG_BLANK: &str = "--blank";
+const FLAG_FRAME: &str = "-f";
+const FLAG_CROP: &str = "-c";
+const FLAG_ALBUM: &str = "--album";
+const FLAG_ROTATE: &str = "-r";
+const FLAG_LAYOUT: &str = "-l";
+const FLAG_FILTER: &str = "--filter";
+const FLAG_REMOTE_UPDATE: &str = "--remote-update";
+const FLAG_REMOTE: &str = "--remote";
+const FLAG_REMOTE_NAME: &str = "--remote-name";
 
-    // Collaboration-server invariants, mirroring the CLI's own checks.
-    if params.server.is_some() {
-        if params.blank.is_some() {
-            return Err(
-                "`server` fetches a project as the source — it can't be combined with `blank`"
-                    .into(),
-            );
+// ── Errors ──
+// A hand-written error type (no `thiserror`) whose `Display` reproduces the exact
+// user-facing message for each failure, so the MCP error responses and the test suites are
+// byte-for-byte unchanged. Validation cases carry structured data; runtime failures threaded
+// up from the pipeline (clobber guard, layout temp write, CLI locate/spawn, CLI-reported
+// `error:` lines, missing `wrote` line) ride the `Runtime` variant with a ready-made message.
+
+/// Everything `stencil_edit` can fail with, from parameter validation through the CLI run.
+#[derive(Debug)]
+pub enum EditError {
+    /// Both `input` and `blank` were given.
+    SourceConflict,
+    /// Neither `input` nor `blank` (nor `server` + `input`) was given.
+    NoSource,
+    /// `output` was empty.
+    EmptyOutput,
+    /// `output` began with `-` and would misparse as a CLI flag.
+    DashOutput(String),
+    /// `server` was combined with `blank`.
+    ServerWithBlank,
+    /// `server` was given without an `input` project name.
+    ServerNeedsInput,
+    /// `remote_update` was set without `server`.
+    RemoteUpdateWithoutServer,
+    /// `remote_name` was set without `remote`.
+    RemoteNameWithoutRemote,
+    /// `blank.page` was combined with explicit `blank.width`/`blank.height`.
+    BlankPageAndDims,
+    /// `blank.page` named a page format the core doesn't know.
+    UnknownPageFormat(String),
+    /// Only one of `blank.width`/`blank.height` was given.
+    BlankHalfDims,
+    /// `blank.color` was not a color the core's `parseColor` accepts.
+    UnknownColor(String),
+    /// A runtime failure surfaced with an already-formatted message.
+    Runtime(String),
+}
+
+impl std::fmt::Display for EditError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EditError::SourceConflict => {
+                f.write_str("`input` and `blank` are mutually exclusive — pass only one")
+            }
+            EditError::NoSource => f.write_str(
+                "no source — pass `input` (a path/URL), `blank`, or `server` + `input`",
+            ),
+            EditError::EmptyOutput => f.write_str("`output` must not be empty"),
+            EditError::DashOutput(output) => write!(
+                f,
+                "`output` must not start with '-' (got \"{output}\") — a dash-leading value \
+                 would be parsed as a CLI flag, not the output path"
+            ),
+            EditError::ServerWithBlank => f.write_str(
+                "`server` fetches a project as the source — it can't be combined with `blank`",
+            ),
+            EditError::ServerNeedsInput => {
+                f.write_str("`server` needs `input` set to the name of the project to fetch")
+            }
+            EditError::RemoteUpdateWithoutServer => f.write_str(
+                "`remote_update` writes back to a fetched project — it needs `server` (and `input`)",
+            ),
+            EditError::RemoteNameWithoutRemote => f.write_str(
+                "`remote_name` names a `remote` upload — set `remote` (a server URL) too",
+            ),
+            EditError::BlankPageAndDims => f.write_str(
+                "`blank.page` and `blank.width`/`blank.height` are mutually exclusive — \
+                 name a page format or give pixel dims, not both",
+            ),
+            EditError::UnknownPageFormat(page) => write!(
+                f,
+                "`blank.page` \"{page}\" is not a known page format — use an ISO name \
+                 (A0–A10, B0–B10, C0–C10, case-insensitive)"
+            ),
+            EditError::BlankHalfDims => f.write_str(
+                "`blank.width` and `blank.height` must be given together (or omit both for A4)",
+            ),
+            EditError::UnknownColor(color) => write!(
+                f,
+                "`blank.color` \"{color}\" is not a recognized color — use a CSS color \
+                 name, `transparent`, or `#hex` (3/4/6/8 hex digits)"
+            ),
+            EditError::Runtime(message) => f.write_str(message),
         }
-        if params.input.is_none() {
-            return Err("`server` needs `input` set to the name of the project to fetch".into());
+    }
+}
+
+impl std::error::Error for EditError {}
+
+/// Runtime failures (locate/spawn/CLI-reported errors) arrive as ready-made strings; wrap
+/// them so `?` composes on `Result<_, String>` helpers.
+impl From<String> for EditError {
+    fn from(message: String) -> Self {
+        EditError::Runtime(message)
+    }
+}
+
+/// The boundary back to the plain-string surface the MCP handler presents.
+impl From<EditError> for String {
+    fn from(error: EditError) -> Self {
+        error.to_string()
+    }
+}
+
+// ── Argv assembly ──
+
+/// A tiny push helper that collapses the repeated `argv.push(FLAG.into()); argv.push(x)`
+/// pairs into one call each, so `build_argv` reads as a flat mapping. It only owns a
+/// `Vec<String>`; ordering is entirely the caller's, matching the CLI's flag layout.
+struct ArgvBuilder {
+    argv: Vec<String>,
+}
+
+impl ArgvBuilder {
+    fn new() -> Self {
+        Self { argv: Vec::new() }
+    }
+
+    /// Push a flag and its value as two argv tokens.
+    fn opt(&mut self, flag: &str, value: impl Into<String>) {
+        self.argv.push(flag.to_string());
+        self.argv.push(value.into());
+    }
+
+    /// Push a bare flag (no value).
+    fn switch(&mut self, flag: &str) {
+        self.argv.push(flag.to_string());
+    }
+
+    /// Push a bare flag only when `cond` holds.
+    fn switch_if(&mut self, flag: &str, cond: bool) {
+        if cond {
+            self.switch(flag);
         }
     }
-    if params.remote_update.unwrap_or(false) && params.server.is_none() {
-        return Err(
-            "`remote_update` writes back to a fetched project — it needs `server` (and `input`)"
-                .into(),
-        );
-    }
-    if params.remote_name.is_some() && params.remote.is_none() {
-        return Err("`remote_name` names a `remote` upload — set `remote` (a server URL) too".into());
+
+    /// Push a bare positional/value token (no flag).
+    fn arg(&mut self, value: impl Into<String>) {
+        self.argv.push(value.into());
     }
 
-    let mut argv: Vec<String> = Vec::new();
-
-    // `--server <url>` must precede `-i` conceptually (it changes what `-i` means), but the
-    // CLI parses order-independently; keep them adjacent for readability.
-    if let Some(server) = &params.server {
-        argv.push("--server".into());
-        argv.push(server.clone());
+    fn into_argv(self) -> Vec<String> {
+        self.argv
     }
+}
 
-    if let Some(input) = &params.input {
-        argv.push("-i".into());
-        argv.push(input.clone());
+/// The validated, normalized source of an edit: exactly one of a plain input, a blank
+/// canvas, or a named project fetched from a collaboration server. `TryFrom<&EditParams>`
+/// is the single normalization boundary — it runs the source/output/server/remote guards
+/// once, in the CLI's own order, so the flat public `EditParams` (and its JSON schema) stay
+/// untouched while `build_argv` consumes a shape that can't be inconsistent.
+enum Source<'a> {
+    Input(&'a str),
+    Blank(&'a Blank),
+    ServerProject { server: &'a str, name: &'a str },
+}
+
+impl<'a> TryFrom<&'a EditParams> for Source<'a> {
+    type Error = EditError;
+
+    fn try_from(p: &'a EditParams) -> Result<Self, EditError> {
+        // Source exclusivity.
+        if p.input.is_some() && p.blank.is_some() {
+            return Err(EditError::SourceConflict);
+        }
+        if p.input.is_none() && p.blank.is_none() {
+            return Err(EditError::NoSource);
+        }
+
+        // Flag-injection guard on the positional `output`. The output is appended last and
+        // the CLI (`cli/src/args.zig`) has *no* `--` end-of-options terminator (a bare `--`
+        // is itself rejected as an unknown flag), so an `output` like `--album` or `-l`
+        // would be parsed as a flag rather than the path (`-l` would even swallow the
+        // following token). A real output path never starts with a dash, so reject it up
+        // front — mirroring the CLI's own `arg[0] == '-'` flag test.
+        //
+        // Scheme/host SSRF filtering for `input`/`server`/`remote` is deliberately NOT done
+        // here: it is enforced downstream in the CLI (which was hardened for this), and this
+        // builder only guarantees each value rides as a single inert argv token (no shell,
+        // no splitting).
+        if p.output.trim().is_empty() {
+            return Err(EditError::EmptyOutput);
+        }
+        if p.output.starts_with('-') {
+            return Err(EditError::DashOutput(p.output.clone()));
+        }
+
+        // Collaboration-server invariants, mirroring the CLI's own checks.
+        if p.server.is_some() {
+            if p.blank.is_some() {
+                return Err(EditError::ServerWithBlank);
+            }
+            if p.input.is_none() {
+                return Err(EditError::ServerNeedsInput);
+            }
+        }
+        if p.remote_update.unwrap_or(false) && p.server.is_none() {
+            return Err(EditError::RemoteUpdateWithoutServer);
+        }
+        if p.remote_name.is_some() && p.remote.is_none() {
+            return Err(EditError::RemoteNameWithoutRemote);
+        }
+
+        // Normalize. The guards above guarantee `input` is Some whenever `server` is.
+        Ok(if let Some(server) = p.server.as_deref() {
+            Source::ServerProject {
+                server,
+                name: p.input.as_deref().expect("server implies input"),
+            }
+        } else if let Some(input) = p.input.as_deref() {
+            Source::Input(input)
+        } else {
+            Source::Blank(p.blank.as_ref().expect("no input implies blank"))
+        })
     }
+}
 
-    if let Some(blank) = &params.blank {
-        argv.push("--blank".into());
-        if let Some(page) = &blank.page {
+impl Source<'_> {
+    /// Emit the source's leading argv: `--server <url> -i <name>`, `-i <input>`, or the
+    /// `--blank …` series. `--server <url>` conceptually precedes `-i` (it changes what
+    /// `-i` means), though the CLI parses order-independently.
+    fn push_argv(&self, b: &mut ArgvBuilder) -> Result<(), EditError> {
+        match self {
+            Source::Input(input) => b.opt(FLAG_INPUT, *input),
+            Source::ServerProject { server, name } => {
+                b.opt(FLAG_SERVER, *server);
+                b.opt(FLAG_INPUT, *name);
+            }
+            Source::Blank(blank) => blank.push_argv(b)?,
+        }
+        Ok(())
+    }
+}
+
+impl Blank {
+    /// Emit `--blank [page] [w h] [color]`, validating the traps the CLI would otherwise
+    /// swallow silently (an unknown page token or unparseable colour is skipped by the
+    /// CLI's `--blank` parser, so it must be rejected here instead of yielding a default).
+    fn push_argv(&self, b: &mut ArgvBuilder) -> Result<(), EditError> {
+        b.switch(FLAG_BLANK);
+        if let Some(page) = &self.page {
             // Mirrors the CLI's own rule: a format token and explicit dims can't combine.
-            if blank.width.is_some() || blank.height.is_some() {
-                return Err(
-                    "`blank.page` and `blank.width`/`blank.height` are mutually exclusive — \
-                     name a page format or give pixel dims, not both"
-                        .into(),
-                );
+            if self.width.is_some() || self.height.is_some() {
+                return Err(EditError::BlankPageAndDims);
             }
-            // The CLI would silently drop an unknown token (yielding a default A4 blank),
-            // so validate the name here and fail loudly instead.
             if !is_page_format(page) {
-                return Err(format!(
-                    "`blank.page` \"{page}\" is not a known page format — use an ISO name \
-                     (A0–A10, B0–B10, C0–C10, case-insensitive)"
-                ));
+                return Err(EditError::UnknownPageFormat(page.clone()));
             }
-            argv.push(page.clone());
+            b.arg(page.clone());
         }
-        match (blank.width, blank.height) {
+        match (self.width, self.height) {
             (Some(w), Some(h)) => {
-                argv.push(w.to_string());
-                argv.push(h.to_string());
+                b.arg(w.to_string());
+                b.arg(h.to_string());
             }
             (None, None) => {}
-            _ => {
-                return Err(
-                    "`blank.width` and `blank.height` must be given together (or omit both for A4)"
-                        .into(),
-                )
-            }
+            _ => return Err(EditError::BlankHalfDims),
         }
-        if let Some(color) = &blank.color {
-            // Same trap as the page token: the CLI leaves an unparseable colour unconsumed
-            // (it would land in the positional output slot and the blank would come out
-            // white with no error), so fail loudly here instead.
+        if let Some(color) = &self.color {
             if !is_color(color) {
-                return Err(format!(
-                    "`blank.color` \"{color}\" is not a recognized color — use a CSS color \
-                     name, `transparent`, or `#hex` (3/4/6/8 hex digits)"
-                ));
+                return Err(EditError::UnknownColor(color.clone()));
             }
-            argv.push(color.clone());
+            b.arg(color.clone());
         }
+        Ok(())
     }
+}
+
+/// Build the `stencil` argv from edit parameters. `layout_path` is the already-resolved
+/// path passed to `-l` (a temp file for an inline layout, or the user's path/URL); pass
+/// `None` to omit `--layout`. All validation happens in `Source::try_from`, so the body is a
+/// flat, order-fixed mapping of the remaining flags.
+pub fn build_argv(
+    params: &EditParams,
+    layout_path: Option<&str>,
+) -> Result<Vec<String>, EditError> {
+    let source = Source::try_from(params)?;
+
+    let mut b = ArgvBuilder::new();
+    source.push_argv(&mut b)?;
 
     if let Some(frame) = params.frame {
-        argv.push("-f".into());
-        argv.push(frame.to_string());
+        b.opt(FLAG_FRAME, frame.to_string());
     }
-
     if let Some(crop) = &params.crop {
         let spec = crop.to_spec();
         if !spec.is_empty() {
-            argv.push("-c".into());
-            argv.push(spec);
+            b.opt(FLAG_CROP, spec);
         }
     }
-
-    if params.album.unwrap_or(false) {
-        argv.push("--album".into());
-    }
-
+    b.switch_if(FLAG_ALBUM, params.album.unwrap_or(false));
     if let Some(rotate) = params.rotate {
-        argv.push("-r".into());
-        argv.push(rotate.to_string());
+        b.opt(FLAG_ROTATE, rotate.to_string());
     }
-
     if let Some(path) = layout_path {
-        argv.push("-l".into());
-        argv.push(path.to_string());
+        b.opt(FLAG_LAYOUT, path);
     }
-
     if let Some(filter) = &params.filter {
-        argv.push("--filter".into());
-        argv.push(filter.clone());
+        b.opt(FLAG_FILTER, filter.clone());
     }
 
     // Server delivery: write the result back into the fetched project, and/or push it as a
     // new project. The result is always saved locally too (the positional output below).
-    if params.remote_update.unwrap_or(false) {
-        argv.push("--remote-update".into());
-    }
+    b.switch_if(FLAG_REMOTE_UPDATE, params.remote_update.unwrap_or(false));
     if let Some(remote) = &params.remote {
-        argv.push("--remote".into());
-        argv.push(remote.clone());
+        b.opt(FLAG_REMOTE, remote.clone());
     }
     if let Some(name) = &params.remote_name {
-        argv.push("--remote-name".into());
-        argv.push(name.clone());
+        b.opt(FLAG_REMOTE_NAME, name.clone());
     }
 
-    argv.push(params.output.clone());
-    Ok(argv)
+    b.arg(params.output.clone());
+    Ok(b.into_argv())
 }

@@ -99,7 +99,7 @@ fn blank_unknown_page_name_is_rejected() {
     // output and the blank would come out A4), so the server must reject it up front.
     for bad in ["Letter", "legal", "A11", "A01", "D4", "custom", " A4 ", ""] {
         let p = params(json!({ "blank": { "page": bad }, "output": "page.png" }));
-        let err = build_argv(&p, None).unwrap_err();
+        let err = build_argv(&p, None).unwrap_err().to_string();
         assert!(err.contains("not a known page format"), "{bad:?} got: {err}");
     }
 }
@@ -135,7 +135,7 @@ fn blank_unknown_color_is_rejected() {
     // positional output slot and the blank would come out white), so reject it up front.
     for bad in ["pinkk", "notacolour", "#12", "#12345", "#gggggg", "rgb(1,2,3)", ""] {
         let p = params(json!({ "blank": { "color": bad }, "output": "page.png" }));
-        let err = build_argv(&p, None).unwrap_err();
+        let err = build_argv(&p, None).unwrap_err().to_string();
         assert!(err.contains("not a recognized color"), "{bad:?} got: {err}");
     }
 }
@@ -145,7 +145,7 @@ fn blank_page_and_dims_are_rejected() {
     let p = params(json!({
         "blank": { "page": "B5", "width": 800, "height": 600 }, "output": "out.png"
     }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("mutually exclusive"), "got: {err}");
 }
 
@@ -161,21 +161,21 @@ fn frame_flag_for_video() {
 #[test]
 fn input_and_blank_are_mutually_exclusive() {
     let p = params(json!({ "input": "a.png", "blank": {}, "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("mutually exclusive"), "got: {err}");
 }
 
 #[test]
 fn missing_source_is_rejected() {
     let p = params(json!({ "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("no source"), "got: {err}");
 }
 
 #[test]
 fn blank_half_dimensions_are_rejected() {
     let p = params(json!({ "blank": { "width": 800 }, "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("together"), "got: {err}");
 }
 
@@ -273,7 +273,7 @@ fn fetch_from_one_server_publish_to_another() {
 #[test]
 fn server_without_input_is_rejected() {
     let p = params(json!({ "server": "http://h:8090", "blank": {}, "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("server"), "got: {err}");
 }
 
@@ -283,21 +283,21 @@ fn server_with_blank_is_rejected() {
     let p = params(json!({
         "server": "http://h:8090", "input": "Shared", "blank": {}, "output": "out.png"
     }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("blank"), "got: {err}");
 }
 
 #[test]
 fn remote_update_without_server_is_rejected() {
     let p = params(json!({ "input": "a.png", "remote_update": true, "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("remote_update"), "got: {err}");
 }
 
 #[test]
 fn remote_name_without_remote_is_rejected() {
     let p = params(json!({ "input": "a.png", "remote_name": "X", "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err();
+    let err = build_argv(&p, None).unwrap_err().to_string();
     assert!(err.contains("remote_name"), "got: {err}");
 }
 
@@ -315,7 +315,7 @@ fn dash_leading_output_is_rejected_no_flag_injection() {
     // layout path. They must be rejected, never emitted into argv.
     for bad in ["--album", "-l", "-r", "--filter", "-i", "--server", "-", "--"] {
         let p = params(json!({ "input": "a.png", "output": bad }));
-        let err = build_argv(&p, None).unwrap_err();
+        let err = build_argv(&p, None).unwrap_err().to_string();
         assert!(
             err.contains("must not start with '-'"),
             "output {bad:?} should be rejected, got: {err}"

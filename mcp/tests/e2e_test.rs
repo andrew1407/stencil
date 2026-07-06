@@ -102,6 +102,6 @@ async fn refuses_to_clobber_without_overwrite() {
         "input": FIXTURE,
         "output": out.to_string_lossy(),
     }));
-    let err = pipeline::run_edit(&params).await.unwrap_err();
+    let err = pipeline::run_edit(&params).await.unwrap_err().to_string();
     assert!(err.contains("already exists"), "got: {err}");
 }

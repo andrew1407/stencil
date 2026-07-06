@@ -6,10 +6,39 @@ use rmcp::model::{
     CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
 };
 use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
+use serde::Serialize;
 
 use crate::args::{EditParams, ProbeParams};
 use crate::config::Config;
+use crate::deliver::DeliveryNote;
+use crate::outcome::Remote;
 use crate::{deliver, pipeline};
+
+/// The `stencil_edit` structured payload, serialized as the tool's JSON content. Borrows the
+/// result/notes so serialization is the single source of the payload shape (the per-delivery
+/// and per-server objects come straight off `DeliveryNote`/`Remote`'s own `Serialize`).
+#[derive(Serialize)]
+struct EditPayload<'a> {
+    path: &'a str,
+    width: u32,
+    height: u32,
+    surfaces: Vec<&'static str>,
+    deliveries: &'a [DeliveryNote],
+    server: &'a [Remote],
+}
+
+/// Wrap a text summary + JSON payload as a successful tool result.
+fn ok_result(summary: String, payload: impl Serialize) -> Result<CallToolResult, McpError> {
+    Ok(CallToolResult::success(vec![
+        Content::text(summary),
+        Content::json(payload)?,
+    ]))
+}
+
+/// Wrap a message as a tool error result.
+fn err_result(message: String) -> CallToolResult {
+    CallToolResult::error(vec![Content::text(message)])
+}
 
 /// The Stencil MCP server. Cloneable so the transport can share it across requests; its only
 /// state is the resolved configuration and the generated tool router.
@@ -56,31 +85,20 @@ impl StencilServer {
     ) -> Result<CallToolResult, McpError> {
         let result = match pipeline::run_edit(&params).await {
             Ok(result) => result,
-            Err(message) => return Ok(CallToolResult::error(vec![Content::text(message)])),
+            Err(error) => return Ok(err_result(error.to_string())),
         };
 
         let surfaces = match params.resolve_surfaces(&self.config.default_surfaces) {
             Ok(surfaces) => surfaces,
-            Err(message) => return Ok(CallToolResult::error(vec![Content::text(message)])),
+            Err(message) => return Ok(err_result(message)),
         };
 
         let notes = deliver::deliver(&surfaces, &result, &self.config).await;
 
-        // A human-readable summary: the write line, then any server deliveries, then one
-        // line per surface beyond cli.
-        use crate::outcome::Remote;
+        // A human-readable summary: the write line + any server deliveries (from the result),
+        // then one line per surface beyond cli.
         use std::fmt::Write;
-        let mut summary = format!("wrote {} ({}x{})", result.path, result.width, result.height);
-        for remote in &result.remotes {
-            match remote {
-                Remote::Updated { id, width, height } => {
-                    let _ = write!(summary, "\n↑ server: updated project {id} ({width}x{height})");
-                }
-                Remote::Created { name, id } => {
-                    let _ = write!(summary, "\n↑ server: created project \"{name}\" ({id})");
-                }
-            }
-        }
+        let mut summary = result.summary();
         for note in &notes {
             if note.surface == "cli" {
                 continue;
@@ -92,44 +110,19 @@ impl StencilServer {
             }
         }
 
-        let deliveries: Vec<_> = notes
-            .iter()
-            .map(|n| {
-                serde_json::json!({
-                    "surface": n.surface,
-                    "ok": n.ok,
-                    "detail": n.detail,
-                    "url": n.url,
-                })
-            })
-            .collect();
-        // Collaboration-server deliveries (a single call can touch more than one server:
-        // fetch/update one and create on another), each tagged with its action.
-        let server: Vec<_> = result
-            .remotes
-            .iter()
-            .map(|r| match r {
-                Remote::Updated { id, width, height } => serde_json::json!({
-                    "action": "updated", "id": id, "width": width, "height": height,
-                }),
-                Remote::Created { name, id } => serde_json::json!({
-                    "action": "created", "name": name, "id": id,
-                }),
-            })
-            .collect();
-        let payload = serde_json::json!({
-            "path": result.path,
-            "width": result.width,
-            "height": result.height,
-            "surfaces": surfaces.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            "deliveries": deliveries,
-            "server": server,
-        });
+        // The structured payload mirrors the shapes of `DeliveryNote` and `Remote` directly;
+        // `server` may touch more than one collaboration server in one call (fetch/update one
+        // and create on another), each object tagged with its action by `Remote`'s Serialize.
+        let payload = EditPayload {
+            path: &result.path,
+            width: result.width,
+            height: result.height,
+            surfaces: surfaces.iter().map(|s| s.as_str()).collect(),
+            deliveries: &notes,
+            server: &result.remotes,
+        };
 
-        Ok(CallToolResult::success(vec![
-            Content::text(summary),
-            Content::json(payload)?,
-        ]))
+        ok_result(summary, payload)
     }
 
     #[tool(
@@ -144,12 +137,9 @@ impl StencilServer {
             Ok((width, height)) => {
                 let summary = format!("{width}x{height}");
                 let payload = serde_json::json!({ "width": width, "height": height });
-                Ok(CallToolResult::success(vec![
-                    Content::text(summary),
-                    Content::json(payload)?,
-                ]))
+                ok_result(summary, payload)
             }
-            Err(message) => Ok(CallToolResult::error(vec![Content::text(message)])),
+            Err(message) => Ok(err_result(message)),
         }
     }
 }
