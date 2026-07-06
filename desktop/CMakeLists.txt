@@ -78,6 +78,7 @@ if(Qt6_FOUND)
   set(STENCIL_GUI_SOURCES
     src/app/mainWindow.cpp
     src/app/dataExportController.cpp
+    src/app/remoteSession.cpp
     src/app/remoteSyncController.cpp
     src/app/projectTransferController.cpp
     src/app/launchOptions.cpp
@@ -328,6 +329,20 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_livefeed_headless PRIVATE stencil_core Qt6::Network)
   add_test(NAME stencil_livefeed_headless COMMAND stencil_livefeed_headless)
   set_tests_properties(stencil_livefeed_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Server-connected co-edit smoke test: drives the async open/load + guarded-write-merge
+  # primitives that MainWindow::openServerProject/saveToServer are built on, with two
+  # connections as two editors (self-skips when no server is reachable — point it at one
+  # with STENCIL_TEST_SERVER, default http://localhost:8090). Qt6::Gui for QImage decode.
+  add_executable(stencil_coedit_headless
+    tests/coEdit.headless.cpp
+    src/net/serverClient.cpp)
+  target_include_directories(stencil_coedit_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_coedit_headless PRIVATE
+    stencil_core Qt6::Gui Qt6::Network)
+  add_test(NAME stencil_coedit_headless COMMAND stencil_coedit_headless)
+  set_tests_properties(stencil_coedit_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # ── Distributable packaging ───────────────────────────────────────────────

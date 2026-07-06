@@ -8,12 +8,14 @@
 // holds multiple connections for one window.
 #include "connectionStore.hpp"
 #include <QByteArray>
+#include <QJsonObject>
 #include <QObject>
 #include <QString>
 #include <QVector>
+#include <functional>
 
 class QNetworkAccessManager;
-class QJsonObject;
+class QNetworkRequest;
 
 namespace stencil::net {
 
@@ -43,14 +45,20 @@ namespace stencil::net {
     QString serverUrl;
   };
 
-  // One connected server. REST calls are synchronous (driven by a local
-  // QEventLoop) so dialogs can use them inline; each returns false and sets
-  // lastError() on failure.
+  // One connected server. The REST surface is ASYNCHRONOUS (non-blocking, driven by
+  // QNetworkAccessManager): each *Async method kicks off the request and invokes its completion
+  // on the GUI thread, so a slow/hostile server never freezes the UI. The initial connect/reconnect
+  // handshake is the one synchronous path retained (ConnectionManager::connectTo uses it inline at
+  // startup + in the connect dialog); on-failure completions set lastError().
   class ServerClient {
    public:
     // Connection status for the UI dot: Connecting (yellow) | Connected (green) |
     // Error (red).
     enum class Status { Connecting, Connected, Error };
+
+    // Outcome of one guarded PUT (and of the guarded-write loop as a whole): the write
+    // committed, hit a stale-version 409 (Conflict), or hard-failed for another reason.
+    enum class GuardOutcome { Committed, Conflict, Failed };
 
     explicit ServerClient(const QString& url);
     ~ServerClient();
@@ -67,52 +75,68 @@ namespace stencil::net {
     static bool isInsecureRemote(const QString& base);
 
     // Validate a supplied token (GET /projects) or issue a fresh one
-    // (POST /auth/token). Returns true when the connection is usable.
+    // (POST /auth/token). Returns true when the connection is usable. Synchronous: the initial
+    // connect handshake stays inline (ConnectionManager::connectTo drives it at startup + in the
+    // connect dialog); every other REST call below is async.
     bool connect(const QString& token = QString());
-
-    // Re-establish a dropped connection: re-validate the current token, and (when
-    // it's gone stale / been rejected) acquire a fresh one. Returns true when the
-    // connection is usable again.
-    bool reconnect();
 
     const QString& base() const { return base_; }
     const QString& token() const { return token_; }
     const QString& lastError() const { return err_; }
     Status status() const { return status_; }
 
-    bool listProjects(QVector<ServerProject>& out);
-    // Create a project; on success fills outId/outVersion. hasImage/w/h record the
-    // (codec-free server's) image dimensions for the original uploaded separately.
-    bool createProject(const QString& name, const QString& source, const QString& resource,
-                       bool hasImage, int w, int h, QString& outId, qint64& outVersion);
-    // Fetch one project in full (GET /projects/{id}): fills `meta` (name, version,
-    // provenance) and the stored `layout` object (may be empty).
-    bool getProject(const QString& id, ServerProject& meta, QJsonObject& layoutOut);
-    // Version-guarded name/layout update (PUT /projects/{id}). On a 409 returns
-    // false with `conflict` set; on success fills `newVersion`.
-    bool updateProject(const QString& id, const QString& name, const QJsonObject& layout,
-                       qint64 version, qint64& newVersion, bool& conflict);
-    // Version-guarded color-only update (PUT /projects/{id} with just `color`).
-    // `color` is "#rrggbb" or "" (clear); the server COALESCEs name/layout so they
-    // stay untouched. On a 409 returns false with `conflict` set.
-    bool updateProjectColor(const QString& id, const QString& color, qint64 version,
-                            qint64& newVersion, bool& conflict);
-    // Rename a server project (PUT {name, version}); the server COALESCEs colour/layout so they
-    // stay untouched. On a 409 returns false with `conflict` set. Mirrors updateProjectColor.
-    bool updateProjectName(const QString& id, const QString& name, qint64 version,
-                           qint64& newVersion, bool& conflict);
-    bool uploadFile(const QString& id, const QString& kind, const QByteArray& bytes,
-                    const QString& ext, int w, int h);
-    QByteArray downloadFile(const QString& id, const QString& kind, bool& ok);
-    // Delete a project on the server (DELETE /projects/{id}). Returns false +
-    // sets lastError() on failure. Used by the "move to local" flow.
-    bool deleteProject(const QString& id);
+    // ── Async REST surface ───────────────────────────────────────────────────
+    // Non-blocking: each kicks off the request and invokes `done` on the GUI thread
+    // when the reply completes (no nested event loop, so a slow/hostile server never
+    // freezes the UI or re-enters the app). Behaviour, error strings and 409→conflict
+    // semantics match the REST wire contract. The callback captures the caller's
+    // context — callers must guard it (QPointer) so a reply finishing after the caller
+    // is destroyed is a safe no-op; a reply finishing after THIS client is destroyed is
+    // already safe (the connection is bound to nam_, which dies with the client).
+    void connectAsync(const QString& token, std::function<void(bool ok)> done);
+    void reconnectAsync(std::function<void(bool ok)> done);
+    void listProjectsAsync(std::function<void(bool ok, QVector<ServerProject> projects)> done);
+    void createProjectAsync(const QString& name, const QString& source, const QString& resource,
+                            bool hasImage, int w, int h,
+                            std::function<void(bool ok, QString id, qint64 version)> done);
+    void getProjectAsync(const QString& id,
+                         std::function<void(bool ok, ServerProject meta, QJsonObject layout)> done);
+    void updateProjectAsync(const QString& id, const QString& name, const QJsonObject& layout,
+                            qint64 version,
+                            std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
+    void updateProjectColorAsync(const QString& id, const QString& color, qint64 version,
+                                 std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
+    void updateProjectNameAsync(const QString& id, const QString& name, qint64 version,
+                                std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
+    void uploadFileAsync(const QString& id, const QString& kind, const QByteArray& bytes,
+                         const QString& ext, int w, int h, std::function<void(bool ok)> done);
+    void downloadFileAsync(const QString& id, const QString& kind,
+                           std::function<void(bool ok, QByteArray data)> done);
+    void deleteProjectAsync(const QString& id, std::function<void(bool ok)> done);
+
+    // Async version of runGuardedWrite. `attempt(version, cb)` performs one guarded PUT and
+    // reports its GuardOutcome via `cb`; on a non-final Conflict, `resolve(version, cb)` re-reads
+    // /merges and reports (ok, newVersion) via `cb`; the final outcome is delivered to `done`.
+    // All loop state flows through the callbacks (heap-managed), so it stays static.
+    static void runGuardedWriteAsync(
+        int attempts, qint64 startVersion,
+        std::function<void(qint64 version, std::function<void(GuardOutcome)> cb)> attempt,
+        std::function<void(qint64 version, std::function<void(bool ok, qint64 newVersion)> cb)> resolve,
+        std::function<void(GuardOutcome)> done);
 
    private:
-    // Perform an HTTP request; returns the body and sets `status`. `method` is an
-    // HTTP verb; `contentType` is empty for none.
+    // Perform an HTTP request; returns the body and sets `status`. `method` is an HTTP verb;
+    // `contentType` is empty for none. Synchronous (nested event loop) — used only by the retained
+    // connect() handshake; every other REST call goes through requestAsync.
     QByteArray request(const QByteArray& method, const QString& path,
                        const QByteArray& body, const QString& contentType, int& status);
+    // Build the authorized QNetworkRequest for `path` (shared by the sync + async paths).
+    QNetworkRequest buildRequest(const QString& path, const QString& contentType) const;
+    // Non-blocking request: invokes `done(status, body)` on completion (see the async
+    // methods above). Sets lastError() on a transport error, like request().
+    void requestAsync(const QByteArray& method, const QString& path, const QByteArray& body,
+                      const QString& contentType,
+                      std::function<void(int status, QByteArray body)> done);
 
     QNetworkAccessManager* nam_;
     QString base_;
@@ -133,10 +157,12 @@ namespace stencil::net {
     bool connectTo(const QString& url, const QString& token, QString& err);
     // Disconnect a url, or (empty url) the most recently added connection.
     void disconnectFrom(const QString& url = QString());
-    // Re-establish one connection (by url); returns false + sets `err` on failure.
-    bool reconnect(const QString& url, QString& err);
-    // Re-establish every connection (best-effort); always emits changed().
-    void reconnectAll();
+    // Async: re-establish one connection (by url) without blocking; emits changed() and reports
+    // (ok, err) via `done`. `done`'s captures must be guarded by the caller for its own lifetime.
+    void reconnectAsync(const QString& url, std::function<void(bool ok, QString err)> done);
+    // Async: re-establish every connection (best-effort) without blocking; emits changed() once all
+    // resolve and then invokes `done`.
+    void reconnectAllAsync(std::function<void()> done = {});
 
     QStringList urls() const;
     ServerClient* find(const QString& url) const;
@@ -146,8 +172,11 @@ namespace stencil::net {
     // so the connect UI can save it on every change and restore it on launch.
     QVector<SavedServer> snapshot() const;
 
-    // Aggregate shared projects (with images) across every connection.
-    QVector<ServerProject> sharedProjects() const;
+    // Aggregate shared projects (with images) across every connection, asynchronously: fans out
+    // listProjectsAsync to each client and delivers the merged set to `done` once all resolve
+    // (empty when there are no connections). Non-blocking replacement for the old sync
+    // sharedProjects(); callers must guard `done`'s captures for their own lifetime.
+    void sharedProjectsAsync(std::function<void(QVector<ServerProject> projects)> done) const;
 
    signals:
     void changed();
