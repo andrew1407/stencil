@@ -1,5 +1,5 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl, buildHandoff } from '../lib/stencil.js';
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned, projectNameColor } from '../lib/pins.js';
 import { resolveHighlightColor } from '../lib/highlightColor.js';
@@ -863,7 +863,6 @@ const pinWithPrompt = async (image) => {
   if (target) await storeOnServer(image, target);
 };
 
-// Host label for a server origin (e.g. https://srv:8090 → srv:8090).
 // In-popup dialog asking WHERE to pin: a single SELECTOR (Pin locally / Store on each
 // connected server) plus Cancel + Pin. Resolves the chosen server URL, '' for local, or
 // undefined when cancelled.
@@ -905,17 +904,10 @@ const promptPinTarget = () => new Promise((resolve) => {
   document.body.appendChild(back);
 });
 
-// Provenance attached to every editor hand-off: the image's own URL (or a video's
-// media URL) and the page it was scanned on. `open` ('resume'|'copy') lets the
-// editor switch to an already-opened project or force a fresh numbered copy.
-const handoff = (image, open) => ({
-  name: image.name,
-  // A shared (server) row carries the server image URL + its origin page as provenance;
-  // a page image uses its own src + the active tab's URL.
-  source: image.shared ? image.source : sourceOf(image),
-  resource: image.shared ? image.resource : state.activeUrl,
-  open
-});
+// The hand-off payload (name + provenance + image bytes) is assembled by the shared
+// buildHandoff (lib/stencil.js), which folds in the shared-vs-page provenance rule. The
+// popup supplies the active tab URL as the (non-shared) resource. `open` ('resume'|'copy')
+// lets the editor switch to an already-opened project or force a fresh numbered copy.
 
 // The image bytes to hand to the editor / crop: a shared row pulls them (authed) from
 // its server, a page image fetches them through the extension's host permissions.
@@ -925,7 +917,7 @@ const sendToEditor = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
   const dataUrl = await imageDataUrl(image);
-  await openEditorTab({ dataUrl, page: { size: page }, incognito, ...handoff(image, open) });
+  await openEditorTab(buildHandoff(image, { dataUrl, page, resource: state.activeUrl, incognito, open }));
   dismiss();
 };
 
@@ -935,15 +927,15 @@ const sendToEditorModal = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
   const dataUrl = await imageDataUrl(image);
-  await launchEditorModal({ dataUrl, page: { size: page }, incognito, tabId: state.activeTabId, ...handoff(image, open) });
+  await launchEditorModal({ ...buildHandoff(image, { dataUrl, page, resource: state.activeUrl, incognito, open }), tabId: state.activeTabId });
   dismiss();
 };
 
 // Crop opens a small in-page modal on the current page (full editor stays a tab).
 const openCrop = async (image) => {
   const src = image.shared ? await sharedDataUrl(image) : editableSrc(image);
-  const h = handoff(image);
-  await launchCrop({ src, source: h.source, resource: h.resource, tabId: state.activeTabId });
+  const { source, resource } = buildHandoff(image, { resource: state.activeUrl });
+  await launchCrop({ src, source, resource, tabId: state.activeTabId });
   dismiss();
 };
 
