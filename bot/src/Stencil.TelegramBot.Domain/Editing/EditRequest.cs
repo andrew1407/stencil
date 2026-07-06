@@ -28,4 +28,26 @@ public sealed record EditRequest
 
     /// <summary>When false the adapter refuses to overwrite an existing <see cref="Output"/>.</summary>
     public bool Overwrite { get; init; }
+
+    // ── Collaboration server (server/) flags ──
+    // Mirror the CLI's --server / --remote-update / --remote / --remote-name (see
+    // cli/CONTRACT.md §1). Additive and default-off: existing callers that leave these unset
+    // build the same argv as before. Kept in the port so the bot's CLI-contract adapter stays
+    // conformant with mcp/src/args.rs even though the bot usually drives the server over REST.
+
+    /// <summary>
+    /// Connect to a collaboration server at this <c>http(s)://</c> URL; <see cref="Input"/> is
+    /// then the <b>name of a project</b> to fetch and edit. Requires <see cref="Input"/>;
+    /// incompatible with <see cref="Blank"/>.
+    /// </summary>
+    public string? Server { get; init; }
+
+    /// <summary>With <see cref="Server"/>, write the result back into the fetched project.</summary>
+    public bool RemoteUpdate { get; init; }
+
+    /// <summary>Upload the result as a <b>new</b> project on the server at this URL.</summary>
+    public string? Remote { get; init; }
+
+    /// <summary>Name for the <see cref="Remote"/> project (default: input image base name).</summary>
+    public string? RemoteName { get; init; }
 }
