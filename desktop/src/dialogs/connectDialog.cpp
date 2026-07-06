@@ -19,6 +19,7 @@
 #include <QPalette>
 #include <QPen>
 #include <QPixmap>
+#include <QPointer>
 #include <QPushButton>
 #include <QSize>
 #include <QStyle>
@@ -155,10 +156,10 @@ namespace stencil::gui {
       bh->addWidget(discSel);
       bh->addWidget(clrSel);
       QObject::connect(reSel, &QPushButton::clicked, this, [this] {
-        for (const QString& u : selected_) {
-          QString err;
-          manager_->reconnect(u, err);
-        }
+        // Async reconnect each selected server; the manager emits changed() as each resolves,
+        // which is wired to rebuildList() below, so the rows refresh without blocking the UI.
+        for (const QString& u : selected_.values())
+          manager_->reconnectAsync(u, [](bool, QString) {});
         selected_.clear();
         rebuildList();
       });
@@ -187,7 +188,7 @@ namespace stencil::gui {
     root->addWidget(hint);
 
     QObject::connect(reconnectAllBtn, &QPushButton::clicked, this, [this] {
-      if (manager_) manager_->reconnectAll();
+      if (manager_) manager_->reconnectAllAsync();  // changed() → rebuildList() as each resolves
       rebuildList();
     });
     QObject::connect(connectBtn, &QPushButton::clicked, this, &ConnectDialog::doConnect);
@@ -282,11 +283,14 @@ namespace stencil::gui {
       h->addWidget(recon);
       h->addWidget(disc);
       QObject::connect(recon, &QPushButton::clicked, this, [this, url] {
-        QString err;
-        if (!manager_->reconnect(url, err))
-          QMessageBox::warning(this, tr("Servers"),
-                               tr("Could not reconnect — %1").arg(err));
-        rebuildList();
+        QPointer<ConnectDialog> self(this);
+        manager_->reconnectAsync(url, [this, self](bool ok, QString err) {
+          if (!self) return;
+          if (!ok)
+            QMessageBox::warning(this, tr("Servers"),
+                                 tr("Could not reconnect — %1").arg(err));
+          rebuildList();
+        });
       });
       QObject::connect(disc, &QPushButton::clicked, this, [this, url] {
         manager_->disconnectFrom(url);

@@ -95,10 +95,18 @@ namespace stencil::gui {
     // When the server holds no stored bytes (e.g. an extension-added project that
     // only recorded the image's web URL), falls back to fetching that `source` URL.
     QPixmap remoteThumb(const stencil::net::ServerProject& sp);
+    // Fetch a server project's stored preview ASYNCHRONOUSLY: downloadFile("result") →
+    // downloadFile("original") → the `source` web URL, swapping the row icon in on arrival so the
+    // dialog never blocks on the network. `key` is the remoteThumbs_ cache key.
+    void fetchServerThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
     // Fetch the project `source` image URL ASYNCHRONOUSLY (no blocking): the row shows
     // a placeholder immediately and its icon is swapped in when the download finishes.
     // `key` is the remoteThumbs_ cache key; the result (even a miss) is cached.
     void fetchSourceThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
+    // Cache `img` (scaled) as `key`'s thumb and swap the matching live row's placeholder icon.
+    // Shared tail of the server-download and source-URL fetch paths. An empty `img` caches a miss.
+    void applyRemoteThumb(const QString& key, const QString& id, const QString& serverUrl,
+                          const QImage& img);
     // A uniform 56×56 fallback tile (centered native glyph) shown when a row has no
     // image, so every row is the same height. `remote` picks a network vs file glyph.
     QPixmap placeholderIcon(bool remote) const;

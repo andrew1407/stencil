@@ -24,6 +24,7 @@
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
 #include "dataExportController.hpp"
+#include "remoteSession.hpp"
 #include "remoteSyncController.hpp"
 #include "projectTransferController.hpp"
 #include "liveFeed.hpp"
@@ -59,6 +60,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPixmap>
+#include <QPointer>
 #include <QSet>
 #include <QUrl>
 #include <QStyleHints>
@@ -97,8 +99,8 @@ namespace stencil::gui {
 
   namespace {
     // Forward-declared here (defined lower in this TU's anon namespace) so the constructor's
-    // ProjectTransferController fetchUrlBytes hook can name it.
-    QByteArray fetchUrlBytes(const QString& url);
+    // ProjectTransferController fetchUrlBytes hook + openServerProject can name it.
+    void fetchUrlBytesAsync(QObject* ctx, const QString& url, std::function<void(QByteArray)> done);
 
     long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -169,6 +171,10 @@ namespace stencil::gui {
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
 
     notify_ = new Notifications(scroll_->viewport());
+    // Server-project session domain (remoteSession.hpp): owns the remote-link state + the
+    // ConnectionManager handle + the version-guarded write helpers. Created before the sync
+    // controller (which composes it). Its ConnectionManager is set in ensureConnections().
+    remoteSession_ = new RemoteSession(this, notify_);
     // Layout/image export + clipboard IO (dataExportController.hpp). Needs canvas_ + notify_ +
     // settings_, plus the project name + layout-meta accessors that stay on MainWindow.
     dataExport_ = std::make_unique<DataExportController>(
@@ -210,16 +216,13 @@ namespace stencil::gui {
     connect(autosaveTimer_, &QTimer::timeout, this, &MainWindow::saveSessionNow);
 
     // Live co-edit push/pull engine (remoteSyncController.hpp): owns the debounce/poll/reload
-    // timers + the LiveFeed. The session's remote-link state + the reentrancy flags stay here
-    // and are read through these hooks + the two &-flags; saveToServer / openServerProject
-    // (which spin nested event loops) are hooks too.
+    // timers + the LiveFeed. It composes remoteSession_ directly for the link state + connections;
+    // only the reentrancy flags (two &-flags, now async-in-flight state) and the
+    // syncToServer/incognito predicates plus saveToServer / openServerProject (both async) stay as
+    // hooks here.
     remoteSync_ = std::make_unique<RemoteSyncController>(
-        this, &remoteReloading_, &remotePushing_,
+        this, remoteSession_, &remoteReloading_, &remotePushing_,
         RemoteSyncController::Hooks{
-            [this] { return connections_; },
-            [this] { return remoteAddress_; },
-            [this] { return remoteId_; },
-            [this] { return remoteVersion_; },
             [this] { return settings_.syncToServer; },
             [this] { return incognito_; },
             [this] { saveToServer(); },
@@ -233,18 +236,16 @@ namespace stencil::gui {
             [this] { return connections_; },
             [this](const std::string& id) { return findProject(id); },
             [this] { return currentLayoutMeta(); },
-            [](const QString& url) { return fetchUrlBytes(url); },
+            [this](const QString& url, std::function<void(QByteArray)> done) {
+              fetchUrlBytesAsync(this, url, std::move(done));
+            },
             [this] { return activeProjectId_; },
-            [this] { return remoteAddress_; },
-            [this] { return remoteId_; },
+            [this] { return remoteSession_->link().address; },
+            [this] { return remoteSession_->link().id; },
             [this](const QString& serverUrl, const QString& newId, const QString& name,
                    const QString& color, qint64 version) {
               activeProjectId_.clear();
-              remoteAddress_ = serverUrl;
-              remoteId_ = newId;
-              remoteName_ = name;
-              remoteColor_ = color;
-              remoteVersion_ = version;
+              remoteSession_->link().bind(serverUrl, newId, name, color, version);
               remoteSync_->startRemotePoll();
               updateProjectTitle();
             },
@@ -1472,7 +1473,7 @@ namespace stencil::gui {
   // place (not a blank or incognito session — there's nothing to keep the same).
   bool MainWindow::canReplaceActive() const {
     return canvas_->hasImage() && !incognito_
-        && (!activeProjectId_.isEmpty() || !remoteAddress_.isEmpty());
+        && (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty());
   }
 
   // Replace the CURRENT project's image in place (same local id / server link), instead of
@@ -1484,32 +1485,52 @@ namespace stencil::gui {
     if (keepAnnotations && !kept.empty()) canvas_->setLines(kept);
     if (rename) {
       const QString newName = QFileInfo(path).completeBaseName();
-      if (!remoteAddress_.isEmpty()) {
-        remoteName_ = newName;
+      if (!remoteSession_->link().address.isEmpty()) {
+        remoteSession_->link().name = newName;
       } else if (Project* pr = findProject(activeProjectId_.toStdString())) {
         pr->meta.name = newName.toStdString();
       }
       updateProjectTitle();
     }
-    // Server-linked: re-upload the new original (saveToServer only pushes the result), then
-    // saveToActiveProject pushes the layout + rendered result.
-    if (!remoteAddress_.isEmpty()) replaceServerOriginal();
-    saveToActiveProject();
+    // Server-linked: re-upload the new original (saveToServer only pushes the result), THEN
+    // saveToActiveProject pushes the layout + rendered result. Ordering preserved: the original
+    // upload + version refresh must finish before saveToActiveProject (whose guard reads it).
+    QPointer<MainWindow> self(this);
+    auto save = [this, self]() { if (self) saveToActiveProject(); };
+    if (!remoteSession_->link().address.isEmpty())
+      replaceServerOriginal(save);
+    else
+      save();
   }
 
   // Re-upload the linked server project's `original` with the current canvas image, refreshing
-  // the version guard. No-op when not server-linked or sync is off (matches edit-in-memory).
-  void MainWindow::replaceServerOriginal() {
-    if (remoteAddress_.isEmpty() || !settings_.syncToServer) return;
-    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
-    if (!c || !canvas_->hasImage()) return;
+  // the version guard, then invoke `done`. No-op (but `done` still fires) when not server-linked
+  // or sync is off (matches edit-in-memory).
+  void MainWindow::replaceServerOriginal(std::function<void()> done) {
+    if (remoteSession_->link().address.isEmpty() || !settings_.syncToServer) {
+      if (done) done();
+      return;
+    }
+    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteSession_->link().address) : nullptr;
+    if (!c || !canvas_->hasImage()) {
+      if (done) done();
+      return;
+    }
     const int w = canvas_->imageWidth();
     const int h = canvas_->imageHeight();
-    if (c->uploadFile(remoteId_, "original", pngBytes(canvas_->image()), "png", w, h)) {
-      stencil::net::ServerProject meta;
-      QJsonObject lay;
-      if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
-    }
+    QPointer<MainWindow> self(this);
+    c->uploadFileAsync(remoteSession_->link().id, "original", pngBytes(canvas_->image()), "png", w, h,
+                       [this, self, c, done](bool uok) {
+                         if (!self) return;
+                         if (!uok) { if (done) done(); return; }
+                         c->getProjectAsync(remoteSession_->link().id,
+                                            [this, self, done](bool gok, stencil::net::ServerProject meta,
+                                                               QJsonObject) {
+                                              if (!self) return;
+                                              if (gok) remoteSession_->link().version = meta.version;
+                                              if (done) done();
+                                            });
+                       });
   }
 
   // Publish the current incognito session to a server: create the project there, upload the
@@ -1530,16 +1551,22 @@ namespace stencil::gui {
     }
     QString name = canvas_->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
-    createServerProject(serverUrl, name);   // create + upload original + link the session
-    if (remoteId_.isEmpty()) return;          // creation failed (already notified)
-    // Push the annotated layout + result now, regardless of the sync toggle (explicit publish).
-    const bool savedSync = settings_.syncToServer;
-    settings_.syncToServer = true;
-    saveToServer();
-    settings_.syncToServer = savedSync;
-    remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
-    refreshActions();
-    updateProjectTitle();
+    QPointer<MainWindow> self(this);
+    // create + upload original + link the session; the tail runs once linked (creation failure
+    // notifies and never fires onLinked, so nothing is pushed — same as the old id-empty guard).
+    createServerProject(serverUrl, name, [this, self]() {
+      if (!self) return;
+      // Push the annotated layout + result now, regardless of the sync toggle (explicit publish).
+      // saveToServer reads settings_.syncToServer only at entry (synchronously), so restoring it
+      // right after the async save is kicked off is safe.
+      const bool savedSync = settings_.syncToServer;
+      settings_.syncToServer = true;
+      saveToServer();
+      settings_.syncToServer = savedSync;
+      remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
+      refreshActions();
+      updateProjectTitle();
+    });
   }
 
   // Replace this editor's image with `path`. Mirrors the browser's openImageHere:
@@ -1688,10 +1715,10 @@ namespace stencil::gui {
                                           canvas_->imageWidth(),
                                           canvas_->imageHeight());
     core::Point p;
-    p.x = formula_.apply(settings_.formulaX.toStdString(), 'x', raw.x,
-                         settings_.allowFormulas);
-    p.y = formula_.apply(settings_.formulaY.toStdString(), 'y', raw.y,
-                         settings_.allowFormulas);
+    p.x = core::FormulaParser::apply(settings_.formulaX.toStdString(), 'x', raw.x,
+                                     settings_.allowFormulas);
+    p.y = core::FormulaParser::apply(settings_.formulaY.toStdString(), 'y', raw.y,
+                                     settings_.allowFormulas);
     return p;
   }
 
@@ -1792,8 +1819,8 @@ namespace stencil::gui {
   void MainWindow::validateAndApplyFormulas() {
     const QString fx = formulaX_->text().trimmed();
     const QString fy = formulaY_->text().trimmed();
-    const bool okX = formula_.validate(fx.toStdString(), 'x');
-    const bool okY = formula_.validate(fy.toStdString(), 'y');
+    const bool okX = core::FormulaParser::validate(fx.toStdString(), 'x');
+    const bool okY = core::FormulaParser::validate(fy.toStdString(), 'y');
     formulaError_->setVisible(!okX || !okY);
     if (okX && okY) {
       settings_.formulaX = fx;
@@ -1834,7 +1861,7 @@ namespace stencil::gui {
     // target is available (no browser URL, and no Telegram bot / not a server project),
     // otherwise enabled only with an image loaded.
     if (actOpenIn_) {
-      const bool serverProj = !remoteAddress_.isEmpty() && !remoteId_.isEmpty();
+      const bool serverProj = !remoteSession_->link().address.isEmpty() && !remoteSession_->link().id.isEmpty();
       const bool browserAvail = !settings_.browserBaseUrl.trimmed().isEmpty();
       const bool telegramAvail = !settings_.telegramBotUsername.trimmed().isEmpty() && serverProj;
       const bool anyAvail = browserAvail || telegramAvail;
@@ -2473,7 +2500,7 @@ namespace stencil::gui {
     if (incognito_) return;  // S6: skip session writes while incognito
     // Sync off + a fetched server project = edit-in-memory only: don't persist the
     // restore blob either (the session is "stored nowhere").
-    if (!remoteAddress_.isEmpty() && !settings_.syncToServer) return;
+    if (!remoteSession_->link().address.isEmpty() && !settings_.syncToServer) return;
     Session s;
     s.imagePath = canvas_->imagePath();
     s.pageSize = pageSizeValue();
@@ -2541,6 +2568,9 @@ namespace stencil::gui {
       connect(connections_, &stencil::net::ConnectionManager::changed, this, [this] {
         stencil::net::connectionStore::saveServers(connections_->snapshot());
       });
+      // Hand the manager to the session so RemoteSession::requireClient + the sync controller
+      // resolve clients through it (it starts null until this lazy creation).
+      remoteSession_->setConnections(connections_);
     }
     return connections_;
   }
@@ -2634,14 +2664,29 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::BatchMoveToLocal) {
       for (const auto& pr : dlg.batchItems()) projectTransfer_->moveServerProjectToLocal(pr.second, pr.first);
     } else if (dlg.action() == Action::BatchCopyToLocal) {
-      // Bulk copy without opening each (empty name → keeps the server project's name).
-      for (const auto& pr : dlg.batchItems()) {
-        QString nid;
-        projectTransfer_->importServerProjectToLocal(pr.second, pr.first, /*removeFromServer=*/false, QString(), &nid);
+      // Bulk copy without opening each (empty name → keeps the server project's name). Each import
+      // is async; refresh + notify once the last one lands (count preserved as the item total).
+      const auto items = dlg.batchItems();
+      const int total = static_cast<int>(items.size());
+      if (total == 0) {
+        refreshActions();
+        refreshDockMenu();
+        notify_->success(QStringLiteral("Made 0 local copy(ies)"));
+      } else {
+        auto remaining = std::make_shared<int>(total);
+        QPointer<MainWindow> self(this);
+        for (const auto& pr : items) {
+          projectTransfer_->importServerProjectToLocal(
+              pr.second, pr.first, /*removeFromServer=*/false, QString(),
+              [this, self, remaining, total](bool, QString) {
+                if (--*remaining == 0 && self) {
+                  refreshActions();
+                  refreshDockMenu();
+                  notify_->success(QString("Made %1 local copy(ies)").arg(total));
+                }
+              });
+        }
       }
-      refreshActions();
-      refreshDockMenu();
-      notify_->success(QString("Made %1 local copy(ies)").arg(dlg.batchItems().size()));
     } else if (dlg.action() == Action::BatchRemove) {
       const auto items = dlg.batchItems();
       if (QMessageBox::question(
@@ -2661,7 +2706,7 @@ namespace stencil::gui {
               projectList_.end());
           if (activeProjectId_ == id) activeProjectId_.clear();
         } else if (auto* c = connections_ ? connections_->find(server) : nullptr) {
-          c->deleteProject(id);
+          c->deleteProjectAsync(id, [](bool) {});  // fire-and-forget; local list refresh is independent
         }
       }
       fileStore::saveProjects(projectList_);
@@ -2715,17 +2760,23 @@ namespace stencil::gui {
       refreshDockMenu();  // drop it from the Dock "recent" list
       notify_->info("Project deleted");
     } else if (dlg.action() == Action::SetColor) {
-      // Set/clear a project's accent colour (local meta or server PUT), then repaint
-      // the active name if it's the one that changed.
-      if (setProjectColorById(dlg.selectedId(), dlg.selectedServerUrl(), dlg.selectedColor())) {
-        if (dlg.selectedServerUrl().isEmpty() && activeProjectId_ == dlg.selectedId())
+      // Set/clear a project's accent colour (local meta or server PUT), then repaint the active
+      // name if it's the one that changed. Capture the dialog's selection by value — `dlg` is
+      // destroyed when openProjects returns, before the async server PUT completes.
+      const QString cid = dlg.selectedId();
+      const QString csrv = dlg.selectedServerUrl();
+      const QString ccol = dlg.selectedColor();
+      QPointer<MainWindow> self(this);
+      setProjectColorById(cid, csrv, ccol, [this, self, cid, csrv, ccol](bool ok) {
+        if (!self || !ok) return;
+        if (csrv.isEmpty() && activeProjectId_ == cid) {
           updateProjectTitle();
-        else if (!dlg.selectedServerUrl().isEmpty() && remoteId_ == dlg.selectedId()
-                 && remoteAddress_ == dlg.selectedServerUrl()) {
-          remoteColor_ = normalizeProjectColor(dlg.selectedColor()).value_or(QString());
+        } else if (!csrv.isEmpty() && remoteSession_->link().id == cid
+                   && remoteSession_->link().address == csrv) {
+          remoteSession_->link().color = normalizeProjectColor(ccol).value_or(QString());
           updateProjectTitle();
         }
-      }
+      });
     } else if (dlg.action() == Action::Rename) {
       // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
@@ -2816,11 +2867,7 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
     activeProjectId_ = id;
-    remoteAddress_.clear();  // a local project is not server-linked
-    remoteId_.clear();
-    remoteName_.clear();
-    remoteColor_.clear();
-    remoteVersion_ = 0;
+    remoteSession_->link().unbind();  // a local project is not server-linked
     remoteSync_->stopRemotePoll();   // no longer a server session
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
@@ -2847,40 +2894,36 @@ namespace stencil::gui {
       return k;
     }
 
-    // Synchronously GET an http(s) URL's bytes (no auth), with a timeout. Used to open
-    // a server project whose image lives only at its `source` web URL (an
-    // extension-added project that never uploaded bytes). One user-triggered open, so
-    // blocking briefly is fine; the timeout guards against an unreachable host.
-    QByteArray fetchUrlBytes(const QString& url) {
+    // GET an http(s) URL's bytes (no auth) with a 10s timeout,
+    // delivering them to `done` on the event loop (empty on any failure/timeout). `ctx` owns the
+    // transient QNetworkAccessManager — if `ctx` is destroyed mid-fetch the nam dies with it, the
+    // reply is severed, and `done` never runs on a dangling caller (a safe no-op).
+    void fetchUrlBytesAsync(QObject* ctx, const QString& url,
+                            std::function<void(QByteArray)> done) {
       const QUrl u(url);
-      if (!u.isValid() || (u.scheme() != "http" && u.scheme() != "https")) return {};
-      QNetworkAccessManager nam;
+      if (!u.isValid() || (u.scheme() != "http" && u.scheme() != "https")) {
+        done(QByteArray());
+        return;
+      }
+      auto* nam = new QNetworkAccessManager(ctx);
       QNetworkRequest req(u);
       req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
-      QNetworkReply* reply = nam.get(req);
-      QEventLoop loop;
-      QTimer timeout;
-      timeout.setSingleShot(true);
-      QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
-      QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-      timeout.start(10000);
-      loop.exec();
-      QByteArray out;
-      if (reply->isFinished() && reply->error() == QNetworkReply::NoError)
-        out = reply->readAll();
-      reply->abort();
-      reply->deleteLater();
-      return out;
+      QNetworkReply* reply = nam->get(req);
+      auto* timeout = new QTimer(nam);
+      timeout->setSingleShot(true);
+      // Timeout aborts the reply, which fires finished() with an error → empty result.
+      QObject::connect(timeout, &QTimer::timeout, reply, [reply] { reply->abort(); });
+      QObject::connect(reply, &QNetworkReply::finished, nam,
+                       [reply, nam, done = std::move(done)]() {
+                         QByteArray out;
+                         if (reply->error() == QNetworkReply::NoError) out = reply->readAll();
+                         reply->deleteLater();
+                         nam->deleteLater();
+                         done(out);
+                       });
+      timeout->start(10000);
     }
-
-    // Sets a bool flag true for the current scope, clearing it on exit — re-entrancy
-    // guard for the remote reload/push paths.
-    struct ScopedFlag {
-      bool& f;
-      explicit ScopedFlag(bool& b) : f(b) { f = true; }
-      ~ScopedFlag() { f = false; }
-    };
 
     // Read a layout's saved filter/tint (legacy blackAndWhite → "bw"); an absent or empty
     // layout yields "none" + the default tint.
@@ -2919,75 +2962,85 @@ namespace stencil::gui {
     applyImageFilter(filter);
   }
 
-  // later Save writes back. Mirrors the browser projectsModal openRemote().
-  bool MainWindow::openServerProject(const QString& serverUrl, const QString& id, bool silent,
+  // later Save writes back. Mirrors the browser projectsModal openRemote(). Async: chains
+  // getProject → downloadFile("original") → (on empty) fetchUrlBytes(source) → decode → adopt.
+  void MainWindow::openServerProject(const QString& serverUrl, const QString& id, bool silent,
                                      bool link) {
-    if (!connections_) return false;
-    // Loading the canvas below emits changed() — guard so it isn't taken for a user
-    // edit and pushed straight back (feedback loop).
-    ScopedFlag reloadGuard{remoteReloading_};
-    stencil::net::ServerClient* c = connections_->find(serverUrl);
-    if (!c) {
-      notify_->error("Not connected to that server");
-      return false;
-    }
-    stencil::net::ServerProject meta;
-    QJsonObject layout;
-    if (!c->getProject(id, meta, layout)) {
-      notify_->error(QString("Could not open server project — %1").arg(c->lastError()));
-      return false;
-    }
-    bool ok = false;
-    QByteArray bytes = c->downloadFile(id, "original", ok);
-    if (!ok || bytes.isEmpty()) {
-      // No stored bytes on the server (e.g. an extension-added project that only
-      // recorded the image's web URL) — fetch that source URL directly. Qt Network
-      // has no browser-style CORS limit.
-      bytes = fetchUrlBytes(meta.source);
-      if (bytes.isEmpty()) {
-        notify_->error(QString("Could not download image — %1").arg(c->lastError()));
-        return false;
+    if (!connections_) return;
+    stencil::net::ServerClient* c = remoteSession_->requireClient(serverUrl);
+    if (!c) return;
+    // Loading the canvas below emits changed() — guard so it isn't taken for a user edit and
+    // pushed straight back (feedback loop). This flag now reflects async-in-flight state (there is
+    // no nested loop): set true here, cleared automatically when the whole chain ends. The shared
+    // clearer's destructor runs once the last pending continuation is gone (success, error, OR the
+    // client/window destroyed mid-flight), so the flag can never stick true.
+    remoteReloading_ = true;
+    auto reloadGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(this)](void*) {
+      if (self) self->remoteReloading_ = false;
+    });
+    QPointer<MainWindow> self(this);
+    c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, reloadGuard](
+                               bool ok, stencil::net::ServerProject meta, QJsonObject layout) {
+      if (!self) return;
+      if (!ok) {
+        notify_->error(QString("Could not open server project — %1").arg(c->lastError()));
+        return;
       }
-    }
-    QImage img;
-    if (!img.loadFromData(bytes)) {
-      notify_->error("Server image could not be decoded");
-      return false;
-    }
-    // Adopt the full layout (page/formulas + geometry + lines + filter) onto the image.
-    loadImageWithLayout(img, layout);
-    // Link the session; clear any local-project linkage so saves go to the server.
-    // Unlinked (incognito deep-link) opens adopt the content only: no remote link,
-    // no live co-edit, nothing ever pushed back — mirroring the browser's
-    // copyServerProjectToIncognito semantics.
-    activeProjectId_.clear();
-    if (link) {
-      remoteAddress_ = serverUrl;
-      remoteId_ = id;
-      remoteName_ = meta.name;
-      remoteColor_ = meta.color;
-      remoteVersion_ = meta.version;
-    } else {
-      remoteAddress_.clear();
-      remoteId_.clear();
-      remoteName_.clear();
-      remoteColor_.clear();
-      remoteVersion_ = 0;
-      remoteSync_->stopRemotePoll();
-    }
-    currentSource_ = meta.source;
-    currentResource_ = meta.resource;
-    filterDirty_ = false;   // we just adopted the server/project filter
-    refreshActions();
-    // Fit the freshly-opened image to the window (matches the browser's switchToProject).
-    // Skipped for a silent live-poll reload so a peer's edit doesn't reset the user's zoom/pan.
-    if (!silent) fitToWindow();
-    if (link) remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
-    if (!silent)
-      notify_->success(QString("Opened \"%1\" from %2")
-                           .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
-                                serverUrl));
-    return true;
+      // Adopt the decoded bytes onto the canvas + link the session (the tail shared by the
+      // stored-bytes and source-URL-fallback paths).
+      auto adopt = [this, self, serverUrl, id, silent, link, meta, layout,
+                    reloadGuard](QByteArray bytes) {
+        if (!self) return;
+        QImage img;
+        if (!img.loadFromData(bytes)) {
+          notify_->error("Server image could not be decoded");
+          return;
+        }
+        // Adopt the full layout (page/formulas + geometry + lines + filter) onto the image.
+        loadImageWithLayout(img, layout);
+        // Link the session; clear any local-project linkage so saves go to the server.
+        // Unlinked (incognito deep-link) opens adopt the content only: no remote link,
+        // no live co-edit, nothing ever pushed back — mirroring the browser's
+        // copyServerProjectToIncognito semantics.
+        activeProjectId_.clear();
+        if (link) {
+          remoteSession_->link().bind(serverUrl, id, meta.name, meta.color, meta.version);
+        } else {
+          remoteSession_->link().unbind();
+          remoteSync_->stopRemotePoll();
+        }
+        currentSource_ = meta.source;
+        currentResource_ = meta.resource;
+        filterDirty_ = false;   // we just adopted the server/project filter
+        refreshActions();
+        // Fit the freshly-opened image to the window (matches the browser's switchToProject).
+        // Skipped for a silent live-poll reload so a peer's edit doesn't reset zoom/pan.
+        if (!silent) fitToWindow();
+        if (link) remoteSync_->startRemotePoll();   // live co-edit: watch for peer changes
+        if (!silent)
+          notify_->success(QString("Opened \"%1\" from %2")
+                               .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
+                                    serverUrl));
+      };
+      c->downloadFileAsync(id, "original", [this, self, c, meta, adopt,
+                                            reloadGuard](bool dok, QByteArray bytes) {
+        if (!self) return;
+        if (dok && !bytes.isEmpty()) {
+          adopt(bytes);
+          return;
+        }
+        // No stored bytes on the server (e.g. an extension-added project that only recorded the
+        // image's web URL) — fetch that source URL directly. Qt Network has no CORS limit.
+        fetchUrlBytesAsync(this, meta.source, [this, self, c, adopt, reloadGuard](QByteArray b) {
+          if (!self) return;
+          if (b.isEmpty()) {
+            notify_->error(QString("Could not download image — %1").arg(c->lastError()));
+            return;
+          }
+          adopt(b);
+        });
+      });
+    });
   }
 
   // The current page format + x/y formulas (from global settings) as a layout-envelope meta.
@@ -3192,7 +3245,7 @@ namespace stencil::gui {
       notify_->error("Load an image first");
       return;
     }
-    const bool serverProject = !remoteAddress_.isEmpty() && !remoteId_.isEmpty();
+    const bool serverProject = !remoteSession_->link().address.isEmpty() && !remoteSession_->link().id.isEmpty();
     const QString botUsername = settings_.telegramBotUsername.trimmed();
     const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
     const bool telegramAvailable = !botUsername.isEmpty() && serverProject;
@@ -3202,13 +3255,13 @@ namespace stencil::gui {
                     "(or a Telegram bot for server projects).");
       return;
     }
-    OpenInDialog dlg(this, serverProject, remoteAddress_, browserAvailable, telegramAvailable, incognito_);
+    OpenInDialog dlg(this, serverProject, remoteSession_->link().address, browserAvailable, telegramAvailable, incognito_);
     if (dlg.exec() != QDialog::Accepted) return;
     const bool incog = dlg.incognito();
 
     if (dlg.outcome() == OpenInDialog::Outcome::Telegram) {
       if (!serverProject) return;  // the dialog disables this outcome anyway
-      const QString payload = deepLink::encodeTelegramStartPayload(remoteAddress_, remoteId_);
+      const QString payload = deepLink::encodeTelegramStartPayload(remoteSession_->link().address, remoteSession_->link().id);
       if (payload.isEmpty()) {
         // 64-char overflow (very long host): hand over the manual recipe instead
         // of a dead link, and open the bot chat.
@@ -3216,7 +3269,7 @@ namespace stencil::gui {
             this, "Link too long for Telegram",
             QString("The server address doesn't fit a Telegram start link.\n"
                     "Open the bot chat and paste:\n\n/connect %1\n/fetch %2")
-                .arg(remoteAddress_, remoteId_));
+                .arg(remoteSession_->link().address, remoteSession_->link().id));
         QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
         return;
       }
@@ -3228,9 +3281,9 @@ namespace stencil::gui {
     QJsonObject payload;
     if (serverProject) {
       QJsonObject server;
-      server["url"] = remoteAddress_;
-      server["id"] = remoteId_;
-      if (remoteVersion_ > 0) server["version"] = remoteVersion_;
+      server["url"] = remoteSession_->link().address;
+      server["id"] = remoteSession_->link().id;
+      if (remoteSession_->link().version > 0) server["version"] = remoteSession_->link().version;
       payload["server"] = server;
     } else {
       QByteArray png;
@@ -3704,11 +3757,7 @@ namespace stencil::gui {
   // Build a Project from the current canvas, persist it, mark it active, refresh,
   // and notify. pr.meta.name == the passed name.
   void MainWindow::createLocalProject(const QString& name, bool announce) {
-    remoteAddress_.clear();  // a freshly created local project is not server-linked
-    remoteId_.clear();
-    remoteName_.clear();
-    remoteColor_.clear();
-    remoteVersion_ = 0;
+    remoteSession_->link().unbind();  // a freshly created local project is not server-linked
     remoteSync_->stopRemotePoll();   // no longer a server session
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
@@ -3748,7 +3797,7 @@ namespace stencil::gui {
     // already-active project means this canvas is that project (open/replace), not a
     // fresh load; and there's nothing to save without an image.
     if (incognito_) return;
-    if (!activeProjectId_.isEmpty() || !remoteAddress_.isEmpty()) return;
+    if (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty()) return;
     if (!canvas_->hasImage()) return;
     // Name after the image file, else a unique "Untitled N" (mirrors newProjectFromCanvas).
     QString seed = canvas_->imageBaseName();
@@ -3765,43 +3814,58 @@ namespace stencil::gui {
   // Create the project on `serverUrl` (POST /projects), upload the current image as
   // the 'original', and link the session so a later Save writes back. Mirrors the
   // browser's createRemoteProject (remoteSync.js).
-  void MainWindow::createServerProject(const QString& serverUrl, const QString& name) {
-    stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
-    if (!c) {
-      notify_->error("Not connected to that server");
-      return;
-    }
+  void MainWindow::createServerProject(const QString& serverUrl, const QString& name,
+                                       std::function<void()> onLinked) {
+    stencil::net::ServerClient* c = remoteSession_->requireClient(serverUrl);
+    if (!c) return;
     const bool hasImage = canvas_->hasImage();
     const int w = hasImage ? canvas_->imageWidth() : 0;
     const int h = hasImage ? canvas_->imageHeight() : 0;
-    QString id;
-    qint64 version = 0;
-    if (!c->createProject(name, currentSource_, currentResource_, hasImage, w, h, id, version)) {
-      notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
-      return;
-    }
-    if (hasImage) {
-      const QByteArray bytes = pngBytes(canvas_->image());
-      if (!c->uploadFile(id, "original", bytes, "png", w, h)) {
-        notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
-        // The link is still established below so the user can retry via Save.
-      } else {
-        // The file write bumps the version; re-read it so the next save's guard is
-        // accurate (mirrors remoteSync.currentVersion()).
-        stencil::net::ServerProject meta;
-        QJsonObject lay;
-        if (c->getProject(id, meta, lay)) version = meta.version;
-      }
-    }
-    // Link the session; this is now a server project, not a local one.
-    activeProjectId_.clear();
-    remoteAddress_ = serverUrl;
-    remoteId_ = id;
-    remoteName_ = name;
-    remoteColor_.clear();   // a freshly created server project has no custom colour yet
-    remoteVersion_ = version;
-    refreshActions();
-    notify_->success(QString("Created \"%1\" on %2").arg(name, serverUrl));
+    QPointer<MainWindow> self(this);
+    c->createProjectAsync(
+        name, currentSource_, currentResource_, hasImage, w, h,
+        [this, self, c, serverUrl, name, hasImage, w, h, onLinked](bool ok, QString id,
+                                                                   qint64 version) {
+          if (!self) return;
+          if (!ok) {
+            notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
+            return;
+          }
+          // Link the session (this is now a server project, not a local one) + finish. A freshly
+          // created server project has no custom colour yet. `onLinked` fires only on success.
+          auto link = [this, self, serverUrl, id, name, onLinked](qint64 v) {
+            if (!self) return;
+            activeProjectId_.clear();
+            remoteSession_->link().bind(serverUrl, id, name, QString(), v);
+            refreshActions();
+            notify_->success(QString("Created \"%1\" on %2").arg(name, serverUrl));
+            if (onLinked) onLinked();
+          };
+          if (!hasImage) {
+            link(version);
+            return;
+          }
+          const QByteArray bytes = pngBytes(canvas_->image());
+          c->uploadFileAsync(id, "original", bytes, "png", w, h,
+                             [this, self, c, id, version, link](bool uok) {
+                               if (!self) return;
+                               if (!uok) {
+                                 notify_->error(QString("Created, but image upload failed — %1")
+                                                    .arg(c->lastError()));
+                                 // Still link below so the user can retry via Save.
+                                 link(version);
+                                 return;
+                               }
+                               // The file write bumps the version; re-read it so the next save's
+                               // guard is accurate (mirrors remoteSync.currentVersion()).
+                               c->getProjectAsync(id, [self, version, link](
+                                                          bool gok, stencil::net::ServerProject meta,
+                                                          QJsonObject) {
+                                 if (!self) return;
+                                 link(gok ? meta.version : version);
+                               });
+                             });
+        });
   }
 
   // Save a server-linked session back: version-guarded name/layout PUT, then upload
@@ -3809,90 +3873,125 @@ namespace stencil::gui {
   // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
   void MainWindow::saveToServer() {
     if (!settings_.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
-    stencil::net::ServerClient* c =
-        connections_ ? connections_->find(remoteAddress_) : nullptr;
-    if (!c) {
-      notify_->error(
-          QString("Not connected to %1 — reconnect it first").arg(remoteAddress_));
-      return;
-    }
-    // Guard the poll for the push duration (its nested REST event loop can pump the
-    // poll timer) so we don't reload our own in-flight change.
-    ScopedFlag pushGuard{remotePushing_};
+    stencil::net::ServerClient* c = remoteSession_->requireClient(
+        remoteSession_->link().address, QString("Not connected to %1 — reconnect it first").arg(remoteSession_->link().address));
+    if (!c) return;
+    // Guard the poll for the whole push (async in flight) so we don't reload our own change. The
+    // shared clearer sets remotePushing_ false once the last pending continuation is gone — every
+    // exit path (commit, conflict, hard error, or the client/window destroyed mid-flight).
+    remotePushing_ = true;
+    auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(this)](void*) {
+      if (self) self->remotePushing_ = false;
+    });
+    QPointer<MainWindow> self(this);
     const int w = canvas_->imageWidth();
     const int h = canvas_->imageHeight();
-    // Concurrent co-edit: on a version-guard conflict, merge the server's latest lines
-    // with ours and retry — looping so a tight race (incl. the result upload's extra
-    // version bump) still converges with both editors' annotations intact.
-    qint64 newVersion = remoteVersion_;
-    bool committed = false;
-    bool merged = false;
-    for (int attempt = 0; attempt < 6 && !committed; ++attempt) {
-      const QJsonObject layout =
-          fileStore::buildLayoutJson(w, h, canvas_->allLines(),
-                                     settings_.imageFilter, settings_.filterColor,
-                                     canvas_->cropRect(), canvas_->rotationQuarters(),
-                                     currentLayoutMeta());
-      bool conflict = false;
-      if (c->updateProject(remoteId_, remoteName_, layout, remoteVersion_, newVersion,
-                           conflict)) {
-        remoteVersion_ = newVersion;
-        committed = true;
-        break;
-      }
-      if (!conflict) {
-        notify_->error(QString("Server save failed — %1").arg(c->lastError()));
-        return;
-      }
-      // Pull the peer's latest, union-merge their lines into ours (deduped), adopt the
-      // server version, and loop to retry.
-      stencil::net::ServerProject meta;
-      QJsonObject srvLayout;
-      if (!c->getProject(remoteId_, meta, srvLayout)) break;  // give up below
-      int sw = 0, sh = 0;
-      core::Lines mlines = fileStore::parseLayoutJson(srvLayout, sw, sh);
-      QSet<QString> seen;
-      for (const auto& l : mlines) seen.insert(lineKey(l));
-      for (const auto& l : canvas_->allLines()) {
-        const QString k = lineKey(l);
-        if (!seen.contains(k)) { mlines.push_back(l); seen.insert(k); }
-      }
-      {  // apply merged lines (+ peer filter) locally without re-triggering a push
-        ScopedFlag g{remoteReloading_};
-        canvas_->setLines(mlines);
-        // Adopt the peer's filter UNLESS this user changed their own, so a line-only
-        // edit doesn't clobber the peer's filter change (the scalar can't merge).
-        if (!filterDirty_) {
-          QString sf, st;
-          parseLayoutFilter(srvLayout, settings_.filterColor, sf, st);
-          applyTintColor(QColor(st));
-          applyImageFilter(sf);
-        }
-      }
-      remoteVersion_ = meta.version;
-      merged = true;
-    }
-    if (!committed) {
-      notify_->error(
-          "This project was edited elsewhere — reload it from the server before "
-          "saving again");
-      return;
-    }
-    filterDirty_ = false;   // our filter (if any) is now the server's
-    // Upload the annotated render as the 'result'. The file write bumps the
-    // version, so re-read it to keep the guard accurate for the next save.
-    if (canvas_->hasImage()) {
-      const QByteArray bytes = pngBytes(canvas_->renderToImage(true));
-      if (c->uploadFile(remoteId_, "result", bytes, "png", w, h)) {
-        stencil::net::ServerProject meta;
-        QJsonObject lay;
-        if (c->getProject(remoteId_, meta, lay)) remoteVersion_ = meta.version;
-      }
-    }
-    // Don't announce another client's incoming change; just confirm our own save. (`merged`
-    // still drives the union-merge retry loop above; it only affected this message.)
-    (void)merged;
-    notify_->success(QString("Saved \"%1\" to %2").arg(remoteName_, remoteAddress_));
+    // Concurrent co-edit: on a version-guard conflict, merge the server's latest lines with
+    // ours and retry — looping (up to 6 attempts) so a tight race (incl. the result upload's
+    // extra version bump) still converges with both editors' annotations intact. The
+    // read→PUT→retry loop is the shared primitive; the line-union merge below is this save's
+    // conflict-resolution policy.
+    using GO = stencil::net::ServerClient::GuardOutcome;
+    stencil::net::ServerClient::runGuardedWriteAsync(
+        /*attempts=*/6, /*startVersion=*/remoteSession_->link().version,
+        [this, self, c, w, h, pushGuard](qint64 version, std::function<void(GO)> cb) {
+          if (!self) { cb(GO::Failed); return; }
+          const QJsonObject layout =
+              fileStore::buildLayoutJson(w, h, canvas_->allLines(),
+                                         settings_.imageFilter, settings_.filterColor,
+                                         canvas_->cropRect(), canvas_->rotationQuarters(),
+                                         currentLayoutMeta());
+          c->updateProjectAsync(
+              remoteSession_->link().id, remoteSession_->link().name, layout, version,
+              [this, self, c, cb](bool ok, qint64 newVersion, bool conflict) {
+                if (!self) { cb(GO::Failed); return; }
+                if (ok) {
+                  remoteSession_->link().version = newVersion;
+                  cb(GO::Committed);
+                  return;
+                }
+                if (!conflict) {
+                  notify_->error(QString("Server save failed — %1").arg(c->lastError()));
+                  cb(GO::Failed);
+                  return;
+                }
+                cb(GO::Conflict);
+              });
+        },
+        [this, self, c, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
+          if (!self) { cb(false, 0); return; }
+          // Pull the peer's latest, union-merge their lines into ours (deduped), adopt the
+          // server version, and retry.
+          c->getProjectAsync(
+              remoteSession_->link().id,
+              [this, self, cb](bool ok, stencil::net::ServerProject meta, QJsonObject srvLayout) {
+                if (!self || !ok) { cb(false, 0); return; }  // give up (re-read failed)
+                int sw = 0, sh = 0;
+                core::Lines mlines = fileStore::parseLayoutJson(srvLayout, sw, sh);
+                QSet<QString> seen;
+                for (const auto& l : mlines) seen.insert(lineKey(l));
+                for (const auto& l : canvas_->allLines()) {
+                  const QString k = lineKey(l);
+                  if (!seen.contains(k)) { mlines.push_back(l); seen.insert(k); }
+                }
+                {  // apply merged lines (+ peer filter) locally without re-triggering a push.
+                  // Synchronous block: the reload flag brackets it (onCanvasChanged reads it).
+                  remoteReloading_ = true;
+                  canvas_->setLines(mlines);
+                  // Adopt the peer's filter UNLESS this user changed their own, so a line-only
+                  // edit doesn't clobber the peer's filter change (the scalar can't merge).
+                  if (!filterDirty_) {
+                    QString sf, st;
+                    parseLayoutFilter(srvLayout, settings_.filterColor, sf, st);
+                    applyTintColor(QColor(st));
+                    applyImageFilter(sf);
+                  }
+                  remoteReloading_ = false;
+                }
+                remoteSession_->link().version = meta.version;
+                cb(true, meta.version);
+              });
+        },
+        [this, self, c, w, h, pushGuard](GO outcome) {
+          if (!self) return;
+          // A hard (non-409) failure already notified inside the attempt and stops here; a
+          // lingering Conflict means the attempts were exhausted (or a re-read failed).
+          if (outcome == GO::Failed) return;
+          if (outcome != GO::Committed) {
+            notify_->error(
+                "This project was edited elsewhere — reload it from the server before "
+                "saving again");
+            return;
+          }
+          filterDirty_ = false;   // our filter (if any) is now the server's
+          // Confirm our own save (the union-merge kept both editors' annotations intact). Fired
+          // after the result upload + version refresh, matching the previous synchronous order.
+          auto announce = [this, self, pushGuard]() {
+            if (self)
+              notify_->success(QString("Saved \"%1\" to %2")
+                                   .arg(remoteSession_->link().name, remoteSession_->link().address));
+          };
+          // Upload the annotated render as the 'result'. The file write bumps the version, so
+          // re-read it to keep the guard accurate for the next save.
+          if (canvas_->hasImage()) {
+            const QByteArray bytes = pngBytes(canvas_->renderToImage(true));
+            c->uploadFileAsync(
+                remoteSession_->link().id, "result", bytes, "png", w, h,
+                [this, self, c, announce, pushGuard](bool uok) {
+                  if (!self) return;
+                  if (!uok) { announce(); return; }
+                  c->getProjectAsync(remoteSession_->link().id,
+                                     [this, self, announce](bool gok, stencil::net::ServerProject meta,
+                                                            QJsonObject) {
+                                       if (!self) return;
+                                       if (gok) remoteSession_->link().version = meta.version;
+                                       announce();
+                                     });
+                });
+          } else {
+            announce();
+          }
+        });
   }
 
   void MainWindow::saveToActiveProject() {
@@ -3915,7 +4014,7 @@ namespace stencil::gui {
       publishIncognitoToServer(target);
       return;
     }
-    if (!remoteAddress_.isEmpty()) {  // server-linked session → write back to the server
+    if (!remoteSession_->link().address.isEmpty()) {  // server-linked session → write back to the server
       if (!settings_.syncToServer) {
         notify_->info(
             "Sync off — not saved. Export the image/layout or use Make local copy to keep changes.");
@@ -3996,14 +4095,14 @@ namespace stencil::gui {
   void MainWindow::updateProjectTitle() {
     QString name;
     bool editable = false;
-    const bool remote = !remoteId_.isEmpty();
+    const bool remote = !remoteSession_->link().id.isEmpty();
     if (incognito_) {
       name = "Incognito";
     } else if (!activeProjectId_.isEmpty()) {
       name = activeProjectName();
       editable = !name.isEmpty();
     } else if (remote) {
-      name = remoteName_;   // server-linked session (no local project id)
+      name = remoteSession_->link().name;   // server-linked session (no local project id)
       editable = !name.isEmpty();   // server projects are renameable too (pushed via commitProjectName)
     }
     if (name.isEmpty() && canvas_ && canvas_->hasImage())
@@ -4054,13 +4153,13 @@ namespace stencil::gui {
     if (projectColorBtnAction_) projectColorBtnAction_->setVisible(editable && !nameEditing_);
     if (!nameEditing_) return;
     const QString v = projectName_->text().trimmed();
-    // Compare against the CURRENT name — remoteName_ for a server-linked session (no local id),
+    // Compare against the CURRENT name — remoteSession_->link().name for a server-linked session (no local id),
     // else the local name.
-    const QString current = !remoteId_.isEmpty() ? remoteName_ : activeProjectName();
+    const QString current = !remoteSession_->link().id.isEmpty() ? remoteSession_->link().name : activeProjectName();
     const bool changed = v != current;
     bool ok = changed;
     QString reason = changed ? QStringLiteral("Save name (Enter)") : QStringLiteral("No change");
-    if (changed && remoteId_.isEmpty()) {
+    if (changed && remoteSession_->link().id.isEmpty()) {
       const auto check = checkProjectName(v, activeProjectId_);
       ok = check.ok;
       if (!ok) reason = QString::fromStdString(check.reason);
@@ -4082,42 +4181,34 @@ namespace stencil::gui {
     refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
 
-  bool MainWindow::putVersionGuarded(
-      stencil::net::ServerClient* c, const QString& id,
-      const std::function<bool(qint64 version, qint64& newVersion, bool& conflict)>& put,
-      qint64& outVersion) {
-    for (int attempt = 0; attempt < 4; ++attempt) {
-      stencil::net::ServerProject meta;
-      QJsonObject lay;
-      if (!c->getProject(id, meta, lay)) return false;  // read failed; c->lastError() is set
-      bool conflict = false;
-      if (put(meta.version, outVersion, conflict)) return true;
-      if (!conflict) return false;  // a non-conflict failure won't recover on retry
-      // conflict → loop and re-read the current version before retrying
-    }
-    return false;  // exhausted retries on sustained conflict; c->lastError() holds the 409
-  }
+  // requireClient() + putVersionGuarded() now live on RemoteSession (remoteSession_).
 
   void MainWindow::commitProjectName() {
     const QString newName = projectName_->text().trimmed();
     // Server-linked session (no local id): push the rename straight to the server so peers see it
     // live, version-guarded — mirrors setActiveProjectColor's remote branch. Otherwise rename the
     // local project. (Previously a server project couldn't be renamed at all from the toolbar.)
-    if (!remoteId_.isEmpty()) {
-      stencil::net::ServerClient* c = connections_ ? connections_->find(remoteAddress_) : nullptr;
-      if (!newName.isEmpty() && newName != remoteName_ && c) {
-        qint64 newVersion = 0;
-        const bool ok = putVersionGuarded(c, remoteId_,
-            [&](qint64 version, qint64& nv, bool& conflict) {
-              return c->updateProjectName(remoteId_, newName, version, nv, conflict);
-            }, newVersion);
-        if (ok) {
-          remoteName_ = newName;
-          remoteVersion_ = newVersion;
-          notify_->success(QString("Renamed to \"%1\"").arg(newName));
-        } else {
-          notify_->error(QString("Rename failed: %1").arg(c->lastError()));
-        }
+    if (!remoteSession_->link().id.isEmpty()) {
+      stencil::net::ServerClient* c = connections_ ? connections_->find(remoteSession_->link().address) : nullptr;
+      if (!newName.isEmpty() && newName != remoteSession_->link().name && c) {
+        QPointer<MainWindow> self(this);
+        const QString id = remoteSession_->link().id;
+        remoteSession_->putVersionGuardedAsync(
+            c, id,
+            [c, id, newName](qint64 version, std::function<void(bool, qint64, bool)> cb) {
+              c->updateProjectNameAsync(id, newName, version, cb);
+            },
+            [this, self, c, newName](bool ok, qint64 newVersion) {
+              if (!self) return;
+              if (ok) {
+                remoteSession_->link().name = newName;
+                remoteSession_->link().version = newVersion;
+                notify_->success(QString("Renamed to \"%1\"").arg(newName));
+              } else {
+                notify_->error(QString("Rename failed: %1").arg(c->lastError()));
+              }
+              updateProjectTitle();   // reflect the stored name (renamed, or reverted on failure)
+            });
       }
     } else if (!activeProjectId_.isEmpty()) {
       renameProjectById(activeProjectId_, projectName_->text());
@@ -4204,7 +4295,7 @@ namespace stencil::gui {
   // server session (no local id), else the active local project. (Does not consider
   // incognito — callers that paint apply that gate themselves.)
   QString MainWindow::currentProjectColor() const {
-    return !remoteId_.isEmpty() ? remoteColor_ : activeProjectColor();
+    return !remoteSession_->link().id.isEmpty() ? remoteSession_->link().color : activeProjectColor();
   }
 
   std::optional<QString> MainWindow::normalizeProjectColor(const QString& color) const {
@@ -4282,58 +4373,70 @@ namespace stencil::gui {
       return;
     }
     // A server-linked session has no local id: push the colour straight to the server.
-    if (!remoteId_.isEmpty()) {
-      if (setProjectColorById(remoteId_, remoteAddress_, *norm)) {
-        remoteColor_ = *norm;
-        updateProjectTitle();
-      }
+    if (!remoteSession_->link().id.isEmpty()) {
+      const QString n = *norm;
+      QPointer<MainWindow> self(this);
+      setProjectColorById(remoteSession_->link().id, remoteSession_->link().address, n,
+                          [this, self, n](bool ok) {
+                            if (!self || !ok) return;
+                            remoteSession_->link().color = n;
+                            updateProjectTitle();
+                          });
       return;
     }
     if (activeProjectId_.isEmpty()) {
       notify_->info("Open or save a project first");
       return;
     }
-    if (setProjectColorById(activeProjectId_, QString(), *norm)) updateProjectTitle();
+    QPointer<MainWindow> self(this);
+    setProjectColorById(activeProjectId_, QString(), *norm,
+                        [this, self](bool ok) { if (self && ok) updateProjectTitle(); });
   }
 
-  bool MainWindow::setProjectColorById(const QString& id, const QString& serverUrl,
-                                       const QString& color) {
+  void MainWindow::setProjectColorById(const QString& id, const QString& serverUrl,
+                                       const QString& color, std::function<void(bool)> done) {
     const auto norm = normalizeProjectColor(color);
     if (!norm) {
       notify_->error("Invalid colour");
-      return false;
+      if (done) done(false);
+      return;
     }
-    // Server project: version-guarded PUT UpdateProject{color}. Refresh our linked
+    // Server project: version-guarded PUT UpdateProject{color} (async). Refresh our linked
     // version when it's the open session so a later save doesn't 409.
     if (!serverUrl.isEmpty()) {
-      stencil::net::ServerClient* c = connections_ ? connections_->find(serverUrl) : nullptr;
-      if (!c) {
-        notify_->error("Not connected to that server");
-        return false;
-      }
-      // Version-guarded PUT with a bounded conflict retry (see putVersionGuarded).
-      qint64 newVersion = 0;
-      if (!putVersionGuarded(c, id,
-              [&](qint64 version, qint64& nv, bool& conflict) {
-                return c->updateProjectColor(id, *norm, version, nv, conflict);
-              }, newVersion)) {
-        notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
-        return false;
-      }
-      if (remoteId_ == id && remoteAddress_ == serverUrl) remoteVersion_ = newVersion;
-      notify_->success(norm->isEmpty() ? QStringLiteral("Colour reset to theme default")
-                                       : QString("Colour set to %1").arg(*norm));
-      return true;
+      stencil::net::ServerClient* c = remoteSession_->requireClient(serverUrl);
+      if (!c) { if (done) done(false); return; }
+      const QString n = *norm;
+      QPointer<MainWindow> self(this);
+      remoteSession_->putVersionGuardedAsync(
+          c, id,
+          [c, id, n](qint64 version, std::function<void(bool, qint64, bool)> cb) {
+            c->updateProjectColorAsync(id, n, version, cb);
+          },
+          [this, self, c, id, serverUrl, n, done](bool ok, qint64 newVersion) {
+            if (!self) return;
+            if (!ok) {
+              notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
+              if (done) done(false);
+              return;
+            }
+            if (remoteSession_->link().id == id && remoteSession_->link().address == serverUrl)
+              remoteSession_->link().version = newVersion;
+            notify_->success(n.isEmpty() ? QStringLiteral("Colour reset to theme default")
+                                         : QString("Colour set to %1").arg(n));
+            if (done) done(true);
+          });
+      return;
     }
-    // Local project: update the meta + persist.
+    // Local project: update the meta + persist (synchronous).
     Project* pr = findProject(id.toStdString());
-    if (!pr) return false;
+    if (!pr) { if (done) done(false); return; }
     pr->meta.color = norm->toStdString();
     fileStore::saveProjects(projectList_);
     refreshDockMenu();
     notify_->success(norm->isEmpty() ? QStringLiteral("Colour reset to theme default")
                                      : QString("Colour set to %1").arg(*norm));
-    return true;
+    if (done) done(true);
   }
 
   void MainWindow::openInfo() {

@@ -33,6 +33,7 @@
 #include <QPainter>
 #include <QPalette>
 #include <QPixmap>
+#include <QPointer>
 #include <QPolygonF>
 #include <QPushButton>
 #include <QScreen>
@@ -389,10 +390,16 @@ namespace stencil::gui {
   void ProjectsDialog::refreshRemote() {
     if (!connections_ || remoteBusy_) return;
     remoteBusy_ = true;
-    remote_ = connections_->sharedProjects();  // synchronous REST (nested event loop)
-    remoteBusy_ = false;
-    remoteLoaded_ = true;  // first listing resolved → drop the loading placeholder
-    refresh();
+    // Async cross-connection list (no nested event loop): the dialog stays responsive while the
+    // server(s) respond; the rows populate when the merged listing resolves.
+    QPointer<ProjectsDialog> self(this);
+    connections_->sharedProjectsAsync([this, self](QVector<stencil::net::ServerProject> ps) {
+      if (!self) return;
+      remote_ = ps;
+      remoteBusy_ = false;
+      remoteLoaded_ = true;  // first listing resolved → drop the loading placeholder
+      refresh();
+    });
   }
 
   QPixmap ProjectsDialog::remoteThumb(const stencil::net::ServerProject& sp) {
@@ -400,26 +407,52 @@ namespace stencil::gui {
     const QString key = QString("%1|%2|%3").arg(sp.serverUrl, sp.id).arg(sp.version);
     const auto cached = remoteThumbs_.constFind(key);
     if (cached != remoteThumbs_.constEnd()) return *cached;
-    QPixmap pm;  // cache even a miss (empty) so a 404 isn't re-fetched every tick
-    stencil::net::ServerClient* c = connections_->find(sp.serverUrl);
-    if (c) {
-      bool ok = false;
-      QByteArray bytes = c->downloadFile(sp.id, "result", ok);
-      if (!ok || bytes.isEmpty())
-        bytes = c->downloadFile(sp.id, "original", ok);  // fall back to the original
-      QImage img;
-      if (ok && img.loadFromData(bytes))
-        pm = QPixmap::fromImage(
-            img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    }
-    if (!pm.isNull()) {
-      remoteThumbs_.insert(key, pm);
-      return pm;
-    }
-    // No stored bytes — fetch the `source` URL in the background so the dialog never
-    // blocks; the placeholder shows now and the icon swaps in on arrival (not cached yet).
-    fetchSourceThumbAsync(key, sp);
+    // Not cached — fetch asynchronously (result → original → source URL) so the dialog never
+    // blocks on the network; the placeholder shows now and the icon swaps in on arrival.
+    fetchServerThumbAsync(key, sp);
     return {};
+  }
+
+  // Download a server project's preview without blocking: try the rendered `result`, then the
+  // `original`, then the `source` web URL. Each download binds to the connection's network manager
+  // (which outlives this dialog), so a QPointer guards every callback against a dialog closed
+  // mid-fetch.
+  void ProjectsDialog::fetchServerThumbAsync(const QString& key,
+                                             const stencil::net::ServerProject& sp) {
+    if (thumbInFlight_.contains(key)) return;  // already downloading this version
+    stencil::net::ServerClient* c = connections_ ? connections_->find(sp.serverUrl) : nullptr;
+    if (!c) {
+      fetchSourceThumbAsync(key, sp);  // no live client — try the source URL directly
+      return;
+    }
+    thumbInFlight_.insert(key);
+    const QString id = sp.id;
+    const QString serverUrl = sp.serverUrl;
+    const stencil::net::ServerProject spCopy = sp;
+    QPointer<ProjectsDialog> self(this);
+    c->downloadFileAsync(id, "result", [this, self, key, id, serverUrl, spCopy, c](bool ok,
+                                                                                   QByteArray bytes) {
+      if (!self) return;
+      QImage img;
+      if (ok && !bytes.isEmpty() && img.loadFromData(bytes)) {
+        thumbInFlight_.remove(key);
+        applyRemoteThumb(key, id, serverUrl, img);
+        return;
+      }
+      // No rendered result — fall back to the uploaded original.
+      c->downloadFileAsync(id, "original", [this, self, key, id, serverUrl, spCopy](bool ok2,
+                                                                                    QByteArray b2) {
+        if (!self) return;
+        thumbInFlight_.remove(key);
+        QImage img2;
+        if (ok2 && !b2.isEmpty() && img2.loadFromData(b2)) {
+          applyRemoteThumb(key, id, serverUrl, img2);
+          return;
+        }
+        // No stored bytes at all — fetch the project's `source` web URL (extension-added).
+        fetchSourceThumbAsync(key, spCopy);
+      });
+    });
   }
 
   void ProjectsDialog::fetchSourceThumbAsync(const QString& key,
@@ -442,28 +475,31 @@ namespace stencil::gui {
     // if the dialog is destroyed before the download completes.
     connect(reply, &QNetworkReply::finished, this, [this, reply, key, id, serverUrl] {
       thumbInFlight_.remove(key);
-      QPixmap pm;
-      if (reply->error() == QNetworkReply::NoError) {
-        QImage img;
-        if (img.loadFromData(reply->readAll()))
-          pm = QPixmap::fromImage(
-              img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-      }
+      QImage img;
+      if (reply->error() == QNetworkReply::NoError) img.loadFromData(reply->readAll());
       reply->deleteLater();
-      remoteThumbs_.insert(key, pm);  // cache even a miss so we don't refetch
-      if (pm.isNull()) return;
-      // Swap the placeholder for the picture on the live row (found by id+server, so
-      // a list rebuild between request and response can't target a stale item).
-      for (int i = 0; i < list_->count(); ++i) {
-        QListWidgetItem* it = list_->item(i);
-        if (it->data(Qt::UserRole).toString() == id &&
-            it->data(Qt::UserRole + 1).toString() == serverUrl) {
-          it->setIcon(QIcon(squareThumb(pm, 112)));   // uniform square row icon (cover)
-          it->setData(Qt::UserRole + 2, pm);          // full-aspect source for hover-magnify
-          break;
-        }
-      }
+      applyRemoteThumb(key, id, serverUrl, img);  // caches even a miss so we don't refetch
     });
+  }
+
+  void ProjectsDialog::applyRemoteThumb(const QString& key, const QString& id,
+                                        const QString& serverUrl, const QImage& img) {
+    QPixmap pm;
+    if (!img.isNull())
+      pm = QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    remoteThumbs_.insert(key, pm);  // cache even a miss so we don't refetch every tick
+    if (pm.isNull()) return;
+    // Swap the placeholder for the picture on the live row (found by id+server, so a list rebuild
+    // between request and response can't target a stale item).
+    for (int i = 0; i < list_->count(); ++i) {
+      QListWidgetItem* it = list_->item(i);
+      if (it->data(Qt::UserRole).toString() == id &&
+          it->data(Qt::UserRole + 1).toString() == serverUrl) {
+        it->setIcon(QIcon(squareThumb(pm, 112)));   // uniform square row icon (cover)
+        it->setData(Qt::UserRole + 2, pm);          // full-aspect source for hover-magnify
+        break;
+      }
+    }
   }
 
   QPixmap ProjectsDialog::placeholderIcon(bool remote) const {

@@ -30,7 +30,9 @@ namespace stencil::gui {
       std::function<stencil::net::ConnectionManager*()> connections;
       std::function<Project*(const std::string& id)> findProject;
       std::function<fileStore::LayoutMeta()> currentLayoutMeta;
-      std::function<QByteArray(const QString& url)> fetchUrlBytes;
+      // Async HTTP fallback fetch (extension-added projects store only a web URL). Delivers the
+      // bytes (empty on failure) to `done` on the event loop.
+      std::function<void(const QString& url, std::function<void(QByteArray)> done)> fetchUrlBytes;
       std::function<QString()> activeProjectId;
       std::function<QString()> remoteAddress;
       std::function<QString()> remoteId;
@@ -46,18 +48,28 @@ namespace stencil::gui {
                               core::ProjectsStore* store, std::vector<Project>* projectList,
                               Hooks hooks);
 
+    // All async now (each kicks off REST work and reports through Notifications on completion).
+    // Behaviour, notifications and ordering match the previous synchronous versions.
     void moveLocalProjectToServer(const QString& serverUrl, const QString& id);
     void copyLocalProjectToServer(const QString& serverUrl, const QString& id, const QString& name);
     void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
     void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id, const QString& name);
-    bool importServerProjectToLocal(const QString& serverUrl, const QString& id,
-                                    bool removeFromServer, const QString& name, QString* newIdOut);
+    // Fetch a server project's image + layout, persist a fresh detached local project, optionally
+    // delete the server copy; report (ok, newLocalId) via `done`.
+    void importServerProjectToLocal(const QString& serverUrl, const QString& id,
+                                    bool removeFromServer, const QString& name,
+                                    std::function<void(bool ok, QString newId)> done = {});
 
    private:
+    // Resolve the live ServerClient for `url`, notifying "Not connected to that server" and
+    // returning nullptr on a miss — the transfer methods' shared find-or-notify guard.
+    stencil::net::ServerClient* requireClient(const QString& url);
     bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
-    bool createServerFromLocal(stencil::net::ServerClient* c, const Project& pr, const QString& name,
+    // Create `pr` on the server under `name` (create + upload original + push layout), reporting
+    // (ok, newId, newVersion) via `done`. Async twin of the old createServerFromLocal.
+    void createServerFromLocal(stencil::net::ServerClient* c, const Project& pr, const QString& name,
                                const QByteArray& bytes, const QString& ext, int w, int h,
-                               QString& newIdOut, qint64& newVersionOut);
+                               std::function<void(bool ok, QString newId, qint64 newVersion)> done);
 
     Notifications* notify_;
     CanvasWidget* canvas_;
