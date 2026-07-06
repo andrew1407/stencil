@@ -1,0 +1,92 @@
+{
+  "_comment": [
+    "Shared golden fixtures for the Stencil CLI stderr OUTPUT grammar. Language-neutral",
+    "(raw CLI stderr -> expected parsed outcome) cases consumed by BOTH downstream parsers:",
+    "  - mcp/tests/fixtures_test.rs  (Rust, mcp/src/outcome.rs)",
+    "  - bot/tests/.../SharedOutcomeFixturesTests.cs  (.NET, CliOutcomeParser.cs)",
+    "so the two ports cannot silently drift. The contract these encode is cli/CONTRACT.md.",
+    "Sections map 1:1 to the three parser functions: 'wrote' -> parse_wrote/ParseWrote,",
+    "'remotes' -> parse_remotes/ParseRemotes, 'errors' -> extract_errors/ExtractErrors.",
+    "'stderr' is the raw multi-line CLI stderr; 'expected' is the structured result",
+    "(null when parse_wrote finds no success line; a possibly-empty list for remotes)."
+  ],
+  "wrote": [
+    {
+      "name": "plain wrote line (no page suffix)",
+      "stderr": "wrote /tmp/out.png (800x600)\n",
+      "expected": { "path": "/tmp/out.png", "width": 800, "height": 600 }
+    },
+    {
+      "name": "wrote with px + page-format dims tail",
+      "stderr": "wrote /tmp/out.png (1280x720 px · A4 29.7×21cm)",
+      "expected": { "path": "/tmp/out.png", "width": 1280, "height": 720 }
+    },
+    {
+      "name": "wrote line found among banner / usage noise",
+      "stderr": "  ___ stencil banner ___\nsome usage text\nwrote out.png (16x12)\n",
+      "expected": { "path": "out.png", "width": 16, "height": 12 }
+    },
+    {
+      "name": "path containing a parenthesis (rfind on last ' (')",
+      "stderr": "wrote /tmp/my (final) shot.png (1920x1080)",
+      "expected": { "path": "/tmp/my (final) shot.png", "width": 1920, "height": 1080 }
+    },
+    {
+      "name": "any page-format label in the suffix (B5), still informational",
+      "stderr": "wrote /tmp/page.png (665x945 px · B5 17.6×25cm)",
+      "expected": { "path": "/tmp/page.png", "width": 665, "height": 945 }
+    },
+    {
+      "name": "no success line present",
+      "stderr": "error: something went wrong",
+      "expected": null
+    }
+  ],
+  "remotes": [
+    {
+      "name": "no server-delivery lines yields empty",
+      "stderr": "wrote out.png (10x10)",
+      "expected": []
+    },
+    {
+      "name": "--remote-update writes back into the fetched project",
+      "stderr": "wrote out.png (800x600)\nupdated server result for project p_x_y (800x600)\n",
+      "expected": [ { "action": "updated", "id": "p_x_y", "width": 800, "height": 600 } ]
+    },
+    {
+      "name": "--remote creates a new project (quoted name, parenthesised id)",
+      "stderr": "wrote out.png (16x12)\ncreated server project \"My Shot\" (p_a_b)\n",
+      "expected": [ { "action": "created", "name": "My Shot", "id": "p_a_b" } ]
+    },
+    {
+      "name": "both deliveries in one run, in order",
+      "stderr": "wrote out.png (10x10)\nupdated server result for project p_1 (10x10)\ncreated server project \"Copy\" (p_2)\n",
+      "expected": [
+        { "action": "updated", "id": "p_1", "width": 10, "height": 10 },
+        { "action": "created", "name": "Copy", "id": "p_2" }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "name": "single error line among banner + usage",
+      "stderr": "banner\nusage: stencil ...\nerror: could not parse --crop \"oops\"\n",
+      "expected": "error: could not parse --crop \"oops\""
+    },
+    {
+      "name": "multiple error lines joined with newline, in order",
+      "stderr": "error: refusing to fetch internal/blocked host 'x'\nerror: HTTP 404 fetching http://y\n",
+      "expected": "error: refusing to fetch internal/blocked host 'x'\nerror: HTTP 404 fetching http://y"
+    },
+    {
+      "name": "no error: prefix falls back to whole trimmed stderr",
+      "stderr": "  unexpected text  ",
+      "expected": "unexpected text"
+    },
+    {
+      "name": "empty stderr yields a generic message",
+      "stderr": "",
+      "expected": "the stencil CLI failed without a message"
+    }
+  ]
+}
