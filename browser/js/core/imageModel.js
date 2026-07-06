@@ -115,7 +115,7 @@ export class ImageModel {
     app.updateCoordStatus();
     app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
     app.storage.save();
-    app.scheduleRemoteSync(); // crop/rotate change the layout's geometry — push it to peers too
+    app.remoteSync.scheduleRemoteSync(); // crop/rotate change the layout's geometry — push it to peers too
   }
 
   // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0 rotates right

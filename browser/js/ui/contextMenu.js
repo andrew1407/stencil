@@ -364,24 +364,24 @@ export class StencilContextMenu extends StencilElement {
 
     // Copy image to clipboard
     document.getElementById('ctx-copy-img').addEventListener('click', () => {
-      closeMenu(); app.copyImageToClipboard();
+      closeMenu(); app.export.copyImageToClipboard();
     });
 
     // Download image
     document.getElementById('ctx-dl-img').addEventListener('click', () => {
-      closeMenu(); app.saveImage();
+      closeMenu(); app.export.saveImage();
     });
 
     // Share image — only revealed where the Web Share API can share files.
     const shareItem = document.getElementById('ctx-share-img');
     if (shareItem && supportsShareFiles()) shareItem.style.display = '';
     shareItem?.addEventListener('click', () => {
-      closeMenu(); app.shareImage();
+      closeMenu(); app.export.shareImage();
     });
 
     // Download layout
     document.getElementById('ctx-dl-layout').addEventListener('click', () => {
-      closeMenu(); app.downloadJSON();
+      closeMenu(); app.export.downloadJSON();
     });
 
     // Upload layout
@@ -391,7 +391,7 @@ export class StencilContextMenu extends StencilElement {
 
     // Copy layout JSON to clipboard
     document.getElementById('ctx-copy-layout').addEventListener('click', () => {
-      closeMenu(); app.copyLayoutToClipboard();
+      closeMenu(); app.export.copyLayoutToClipboard();
     });
 
     // Paste image from clipboard (via async Clipboard API)
@@ -435,7 +435,7 @@ export class StencilContextMenu extends StencilElement {
           notify('Clipboard does not contain a layout JSON', 'fail');
           return;
         }
-        app.applyPastedLayout(data);
+        app.export.applyPastedLayout(data);
       } catch (err) {
         notify('Clipboard read failed: ' + (err.message || err), 'fail');
       }

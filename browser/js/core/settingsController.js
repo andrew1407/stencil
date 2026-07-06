@@ -2,6 +2,148 @@ import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
 import { icon } from '../ui/icons.js';
 import { normalizePageSize } from './units.js';
 
+// ── Mirror kinds: how one bound DOM element reflects a setting value ──
+// Each migrated setting lists its bound elements as { id, kind }; applyMirror writes the
+// value the way that element expects. Tolerant of missing elements (same guards the old
+// per-setter bodies had). 'valueSkipFocus' leaves the element alone while the user is typing
+// in it (the ctx-* number twins), matching the old `document.activeElement !== ctx` guard.
+// 'radio' addresses a *group* by name (its `id` is the input[name] of a ctx radio group,
+// not an element id) and checks the member whose value matches — see setRadioGroup.
+const applyMirror = ({ id, kind }, value) => {
+  if (kind === 'radio') { setRadioGroup(id, value); return; }
+  const el = document.getElementById(id);
+  if (!el) return;
+  switch (kind) {
+    case 'value': el.value = value; break;
+    case 'valueSkipFocus': if (document.activeElement !== el) el.value = value; break;
+    case 'checked': el.checked = value; break;
+    case 'checkIcon': el.innerHTML = value ? icon('check', { size: 14 }) : ''; break;
+  }
+};
+
+// ── The observer-driven setting registry ─────────────────────────────
+// One descriptor per simple setting collapses the near-identical setter bodies (write the
+// model field → mirror the bound DOM twins → redraw/persist/sync) into data. `set(key, ...)`
+// drives it. Each entry:
+//   • field       — the app model field to write.
+//   • parse        — normalize the raw value; returning undefined ABORTS (the int NaN guard).
+//   • mirror       — bound DOM elements to reflect into ({ id, kind }); see applyMirror.
+//   • afterSet     — irreducible per-setter UI side-effects that aren't a plain value mirror
+//                    (conditional display toggles, the coord table, applyUnitToUI, the formula
+//                    inputs). Receives the controller; runs after the mirrors, before redraw.
+//   • redraw       — repaint the canvas (always, even on persist:false live-drag).
+//   • save/remoteSync/filterDirty — commit side-effects, all gated behind `persist`.
+// The public setter methods below stay as thin wrappers so callers/console API are unchanged.
+const SETTINGS = {
+  color: {
+    field: 'color', parse: v => String(v),
+    mirror: [{ id: 'line-color', kind: 'value' }],
+    save: true,
+  },
+  thickness: {
+    field: 'thickness', parse: n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; },
+    mirror: [{ id: 'line-thickness', kind: 'value' }, { id: 'ctx-thickness', kind: 'valueSkipFocus' }],
+    redraw: true, save: true,
+  },
+  markerSize: {
+    field: 'markerSize', parse: n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; },
+    mirror: [{ id: 'marker-size', kind: 'value' }, { id: 'ctx-marker-size', kind: 'valueSkipFocus' }],
+    redraw: true, save: true,
+  },
+  filterColor: {
+    field: 'filterColor', parse: v => String(v),
+    mirror: [{ id: 'filter-color', kind: 'value' }, { id: 'ctx-tint-color', kind: 'value' }],
+    redraw: true, save: true, remoteSync: true, filterDirty: true,
+  },
+  showPoints: {
+    field: 'showPoints', parse: b => !!b,
+    mirror: [{ id: 'show-points', kind: 'checked' }, { id: 'ctx-chk-points', kind: 'checkIcon' }],
+    redraw: true, save: true,
+  },
+  showLines: {
+    field: 'showLines', parse: b => !!b,
+    mirror: [{ id: 'show-lines', kind: 'checked' }, { id: 'ctx-chk-lines', kind: 'checkIcon' }],
+    redraw: true, save: true,
+  },
+  style: {
+    field: 'style', parse: v => String(v),
+    mirror: [{ id: 'line-style', kind: 'value' }, { id: 'ctxLineStyle', kind: 'radio' }],
+    save: true,
+  },
+  imageFilter: {
+    field: 'imageFilter', parse: v => String(v),
+    mirror: [{ id: 'image-filter', kind: 'value' }, { id: 'ctxFilter', kind: 'radio' }],
+    afterSet: (self) => {
+      const app = self.app;
+      const picker = document.getElementById('filter-color');
+      if (picker) picker.style.display = app.imageFilter === 'custom' ? 'inline-block' : 'none';
+      const tintRow = document.getElementById('ctx-tint-row');
+      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
+    },
+    redraw: true, save: true, remoteSync: true, filterDirty: true,
+  },
+  pageSize: {
+    field: 'pageSize',
+    parse: v => {
+      const n = normalizePageSize(v);
+      if (!n) throw new Error(`Unknown page size: ${v} (use a named ISO format (A0–C10) or 'custom')`);
+      return n;
+    },
+    mirror: [{ id: 'page-size', kind: 'value' }],
+    afterSet: (self) => {
+      const app = self.app;
+      const cg = document.getElementById('custom-size-group');
+      if (cg) cg.style.display = app.pageSize === 'custom' ? 'inline-flex' : 'none';
+      app.coordTable.update();
+    },
+    redraw: true, save: true, remoteSync: true,   // page format rides the layout — push it to peers/server too
+  },
+  // Width/height are stored in cm (the model unit) but shown in the active display unit, so
+  // the mirror is a converted value (cmToUnit) rather than the raw field — done in afterSet.
+  customPageWidth: {
+    field: 'customPageWidth', parse: n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; },
+    afterSet: (self) => {
+      const app = self.app;
+      setVal('custom-page-width', cmToUnit(app.customPageWidth, app.unit));
+      app.coordTable.update();
+    },
+    redraw: true, save: true, remoteSync: true,
+  },
+  customPageHeight: {
+    field: 'customPageHeight', parse: n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; },
+    afterSet: (self) => {
+      const app = self.app;
+      setVal('custom-page-height', cmToUnit(app.customPageHeight, app.unit));
+      app.coordTable.update();
+    },
+    redraw: true, save: true, remoteSync: true,
+  },
+  unit: {
+    field: 'unit', parse: u => (u === 'in' ? 'in' : 'cm'),
+    mirror: [{ id: 'unit-select', kind: 'value' }],
+    afterSet: (self) => {
+      const app = self.app;
+      app.applyUnitToUI();
+      app.coordTable.update();
+      app.updateCoordStatus();
+    },
+    redraw: true, save: true,
+  },
+  allowFormulas: {
+    field: 'allowFormulas', parse: b => !!b,
+    mirror: [{ id: 'allow-formulas', kind: 'checked' }],
+    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
+    // coordinate conversion — the expressions are KEPT so re-enabling restores them.
+    afterSet: (self) => {
+      const app = self.app;
+      self.syncFormulaUI(app.allowFormulas);
+      if (!app.allowFormulas) self.showFormulaError(false);
+      self.refreshFormulaCoords();
+    },
+    save: true, remoteSync: true,   // formulas ride the layout — push them to peers/server too
+  },
+};
+
 // ── SettingsController: the shared editor setters ───────────────────
 // Extracted from drawingApp.js. Single source of truth for top-menu settings: toolbar
 // handlers AND the console API (window.stencil) both reach these through DrawingApp's thin
@@ -14,142 +156,51 @@ export class SettingsController {
     this.app = app;
   }
 
-  setColor(v, { persist = true } = {}) {
+  // Registry-driven setter shared by the simple settings above. Writes the model field,
+  // mirrors every bound element, then runs the declared commit (redraw always; save /
+  // remoteSync / filterDirty only when persisting).
+  set(key, value, { persist = true } = {}) {
+    const d = SETTINGS[key];
+    if (!d) throw new Error(`Unknown setting: ${key}`);
     const app = this.app;
-    app.color = String(v);
-    setVal('line-color', app.color);
-    if (persist) app.storage.save();
+    const v = d.parse ? d.parse(value) : value;
+    if (v === undefined) return;          // parse aborted (e.g. NaN) — no-op, matches old guards
+    app[d.field] = v;
+    for (const m of d.mirror || []) applyMirror(m, v);
+    if (d.afterSet) d.afterSet(this, v);
+    if (d.redraw) app.renderer.redraw();
+    if (persist) {
+      if (d.filterDirty) app.filterDirty = true;   // user changed the filter → our filter wins on save
+      if (d.save) app.storage.save();
+      if (d.remoteSync) app.remoteSync.scheduleRemoteSync();
+    }
   }
 
-  setThickness(n, { persist = true } = {}) {
-    const app = this.app;
-    const v = parseInt(n, 10);
-    if (Number.isNaN(v)) return;
-    app.thickness = v;
-    setVal('line-thickness', v);
-    const ctx = document.getElementById('ctx-thickness');
-    if (ctx && document.activeElement !== ctx) ctx.value = v;
-    app.renderer.redraw();
-    if (persist) app.storage.save();
-  }
+  setColor(v, opts) { this.set('color', v, opts); }
 
-  setMarkerSize(n, { persist = true } = {}) {
-    const app = this.app;
-    const v = parseInt(n, 10);
-    if (Number.isNaN(v)) return;
-    app.markerSize = v;
-    setVal('marker-size', v);
-    const ctx = document.getElementById('ctx-marker-size');
-    if (ctx && document.activeElement !== ctx) ctx.value = v;
-    app.renderer.redraw();
-    if (persist) app.storage.save();
-  }
+  setThickness(n, opts) { this.set('thickness', n, opts); }
 
-  setLineStyle(s) {
-    const app = this.app;
-    app.style = String(s);
-    setVal('line-style', app.style);
-    setRadioGroup('ctxLineStyle', app.style);
-    app.storage.save();
-  }
+  setMarkerSize(n, opts) { this.set('markerSize', n, opts); }
 
-  setShowPoints(b) {
-    const app = this.app;
-    app.showPoints = !!b;
-    const cb = document.getElementById('show-points');
-    if (cb) cb.checked = app.showPoints;
-    const chk = document.getElementById('ctx-chk-points');
-    if (chk) chk.innerHTML = app.showPoints ? icon('check', { size: 14 }) : '';
-    app.renderer.redraw();
-    app.storage.save();
-  }
+  setLineStyle(s) { this.set('style', s); }
 
-  setShowLines(b) {
-    const app = this.app;
-    app.showLines = !!b;
-    const cb = document.getElementById('show-lines');
-    if (cb) cb.checked = app.showLines;
-    const chk = document.getElementById('ctx-chk-lines');
-    if (chk) chk.innerHTML = app.showLines ? icon('check', { size: 14 }) : '';
-    app.renderer.redraw();
-    app.storage.save();
-  }
+  setShowPoints(b) { this.set('showPoints', b); }
 
-  setImageFilter(f) {
-    const app = this.app;
-    app.imageFilter = String(f);
-    setVal('image-filter', app.imageFilter);
-    const picker = document.getElementById('filter-color');
-    if (picker) picker.style.display = app.imageFilter === 'custom' ? 'inline-block' : 'none';
-    setRadioGroup('ctxFilter', app.imageFilter);
-    const tintRow = document.getElementById('ctx-tint-row');
-    if (tintRow) tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
-    app.renderer.redraw();
-    app.filterDirty = true;   // user changed the filter → our filter wins on save
-    app.storage.save();
-    app.scheduleRemoteSync();
-  }
+  setShowLines(b) { this.set('showLines', b); }
 
-  setFilterColor(v, { persist = true } = {}) {
-    const app = this.app;
-    app.filterColor = String(v);
-    setVal('filter-color', app.filterColor);
-    const ctxTint = document.getElementById('ctx-tint-color');
-    if (ctxTint) ctxTint.value = app.filterColor;
-    app.renderer.redraw();
-    if (persist) { app.filterDirty = true; app.storage.save(); app.scheduleRemoteSync(); }
-  }
+  setImageFilter(f) { this.set('imageFilter', f); }
 
-  setPageSize(size) {
-    const app = this.app;
-    const n = normalizePageSize(size);
-    if (!n) throw new Error(`Unknown page size: ${size} (use a named ISO format (A0–C10) or 'custom')`);
-    app.pageSize = n;
-    setVal('page-size', n);
-    const cg = document.getElementById('custom-size-group');
-    if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
-    app.coordTable.update();
-    app.renderer.redraw();
-    app.storage.save();
-    app.scheduleRemoteSync();   // page format rides the layout — push it to peers/server too
-  }
+  setFilterColor(v, opts) { this.set('filterColor', v, opts); }
+
+  setPageSize(size) { this.set('pageSize', size); }
 
   // Width/height are stored in cm (the model unit); the input is shown in the active
   // display unit. Pass cm from the UI handler (it converts the typed value first).
-  setCustomPageWidth(cm) {
-    const app = this.app;
-    const v = parseFloat(cm);
-    if (Number.isNaN(v)) return;
-    app.customPageWidth = v;
-    setVal('custom-page-width', cmToUnit(v, app.unit));
-    app.coordTable.update();
-    app.renderer.redraw();
-    app.storage.save();
-    app.scheduleRemoteSync();
-  }
+  setCustomPageWidth(cm) { this.set('customPageWidth', cm); }
 
-  setCustomPageHeight(cm) {
-    const app = this.app;
-    const v = parseFloat(cm);
-    if (Number.isNaN(v)) return;
-    app.customPageHeight = v;
-    setVal('custom-page-height', cmToUnit(v, app.unit));
-    app.coordTable.update();
-    app.renderer.redraw();
-    app.storage.save();
-    app.scheduleRemoteSync();
-  }
+  setCustomPageHeight(cm) { this.set('customPageHeight', cm); }
 
-  setUnit(u) {
-    const app = this.app;
-    app.unit = u === 'in' ? 'in' : 'cm';
-    setVal('unit-select', app.unit);
-    app.applyUnitToUI();
-    app.coordTable.update();
-    app.updateCoordStatus();
-    app.renderer.redraw();
-    app.storage.save();
-  }
+  setUnit(u) { this.set('unit', u); }
 
   // ── Formula controls (shared with #wireFormulaControls + #adoptServerFormulas) ──
   syncFormulaUI(checked) {
@@ -177,20 +228,7 @@ export class SettingsController {
     app.coordTable.update(pts, li);
   }
 
-  setAllowFormulas(b) {
-    const app = this.app;
-    app.allowFormulas = !!b;
-    const cb = document.getElementById('allow-formulas');
-    if (cb) cb.checked = app.allowFormulas;
-    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
-    // coordinate conversion (pixelToPageCoords passes allowFormulas) — the expressions are
-    // KEPT so re-enabling restores them.
-    this.syncFormulaUI(app.allowFormulas);
-    if (!app.allowFormulas) this.showFormulaError(false);
-    this.refreshFormulaCoords();
-    app.storage.save();
-    app.scheduleRemoteSync();   // formulas ride the layout — push them to peers/server too
-  }
+  setAllowFormulas(b) { this.set('allowFormulas', b); }
 
   // Set the x or y coordinate transform. Throws on an invalid expression so the
   // console surfaces it; the UI handler catches and shows the inline error instead.
@@ -205,7 +243,7 @@ export class SettingsController {
     this.showFormulaError(false);
     this.refreshFormulaCoords();
     app.storage.save();
-    app.scheduleRemoteSync();
+    app.remoteSync.scheduleRemoteSync();
   }
 
   // Toggle one tooltip section: key ∈ 'enabled' | 'page' | 'screen' | 'coords'.

@@ -2,22 +2,83 @@
 // Extracted from DrawingApp so decision logic is unit-testable in Node WITHOUT a DOM.
 // Never touch DOM/app state/globals — callers pass plain data in, act on returned descriptors.
 
+// ── The single persisted-field descriptor table ─────────────────────────────
+// One source of truth for the two serializers below. Adding a persisted field is a
+// ONE-line edit here: it flows into the full session layout (#buildLayout via
+// serializeSession) automatically, and into the export/server subset when you tag it
+// `export`. The array order IS the byte order of the full session payload; the `export`
+// index (when set) IS the byte order of the export/server subset — the two paths emit
+// different key orders on purpose, so both stay byte-identical to their old literals.
+//   • export      — the 0-based position in the export/server subset (absent → session-only).
+//   • exportForce — export the field unconditionally (undefined value included, matching the
+//                   old `{ imageWidth, imageHeight, lines }` head); otherwise it's emitted
+//                   only when `!= null`, matching the old `if (x != null)` guards.
+export const LAYOUT_FIELDS = [
+  { key: 'imageWidth', export: 0, exportForce: true },
+  { key: 'imageHeight', export: 1, exportForce: true },
+  { key: 'cropRect', export: 5 },
+  { key: 'rotationQuarters', export: 6 },
+  { key: 'lines', export: 2, exportForce: true },
+  { key: 'pageSize', export: 7 },
+  { key: 'customPageWidth', export: 8 },
+  { key: 'customPageHeight', export: 9 },
+  { key: 'unit' },
+  { key: 'color' },
+  { key: 'thickness' },
+  { key: 'markerSize' },
+  { key: 'style' },
+  { key: 'showPoints' },
+  { key: 'showLines' },
+  { key: 'imageFilter', export: 3 },
+  { key: 'filterColor', export: 4 },
+  { key: 'zoom' },
+  { key: 'scrollLeft' },
+  { key: 'scrollTop' },
+  { key: 'imageBaseName' },
+  { key: 'imageExt' },
+  { key: 'imageSource' },
+  { key: 'imageResource' },
+  { key: 'tooltipEnabled' },
+  { key: 'tooltipShowPage' },
+  { key: 'tooltipShowScreen' },
+  { key: 'tooltipShowCoords' },
+  { key: 'allowFormulas', export: 10 },
+  { key: 'formulaX', export: 11 },
+  { key: 'formulaY', export: 12 },
+  { key: 'drawMode' },
+  { key: 'holdDrawDelay' },
+  { key: 'selGlowColor' },
+  { key: 'hoverRingColor' },
+  { key: 'focusRingColor' },
+  { key: 'defaultFillColor' },
+];
+
+// Export-subset fields in their emitted (byte) order — derived once from the table.
+const EXPORT_FIELDS = LAYOUT_FIELDS
+  .filter(f => f.export != null)
+  .sort((a, b) => a.export - b.export);
+
+// Serialize the FULL session layout from a plain state object (no DOM, no DrawingApp —
+// the caller resolves DOM-derived values like zoom/scroll first). Projects every table
+// field in table order, so the produced payload is byte-identical to the old inline
+// literal in Storage.#buildLayout. Pure: unit-testable with a plain object.
+export const serializeSession = (state) => {
+  const out = {};
+  for (const f of LAYOUT_FIELDS) out[f.key] = state[f.key];
+  return out;
+};
+
 // Build the layout export payload. `lines` passed by reference (no copy) so JSON.stringify
 // output stays byte-identical to the old inline literals in downloadJSON/copyLayoutToClipboard.
 // Optional fields are omitted when absent (file-export bytes unchanged); saveToServer passes
 // filter/geometry + page format + formulas so they round-trip to peers and on reopen.
-export const buildLayoutPayload = ({ imageWidth, imageHeight, lines, imageFilter, filterColor, cropRect, rotationQuarters, pageSize, customPageWidth, customPageHeight, allowFormulas, formulaX, formulaY }) => {
-  const out = { imageWidth, imageHeight, lines };
-  if (imageFilter != null) out.imageFilter = imageFilter;
-  if (filterColor != null) out.filterColor = filterColor;
-  if (cropRect != null) out.cropRect = cropRect;
-  if (rotationQuarters != null) out.rotationQuarters = rotationQuarters;
-  if (pageSize != null) out.pageSize = pageSize;
-  if (customPageWidth != null) out.customPageWidth = customPageWidth;
-  if (customPageHeight != null) out.customPageHeight = customPageHeight;
-  if (allowFormulas != null) out.allowFormulas = allowFormulas;
-  if (formulaX != null) out.formulaX = formulaX;
-  if (formulaY != null) out.formulaY = formulaY;
+// Projects the `export`-tagged subset of LAYOUT_FIELDS in its own key order.
+export const buildLayoutPayload = (src) => {
+  const out = {};
+  for (const f of EXPORT_FIELDS) {
+    const v = src[f.key];
+    if (f.exportForce || v != null) out[f.key] = v;
+  }
   return out;
 };
 

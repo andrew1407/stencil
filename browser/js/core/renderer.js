@@ -86,7 +86,7 @@ export class Renderer {
     const p = app.holdPreview;
     if (!p) return;
     const ctx = app.ctx;
-    const anchor = typeof app.holdAnchorPoint === 'function' ? app.holdAnchorPoint() : null;
+    const anchor = typeof app.input?.holdAnchorPoint === 'function' ? app.input.holdAnchorPoint() : null;
     ctx.save();
     if (anchor) {
       ctx.globalAlpha = 0.45;

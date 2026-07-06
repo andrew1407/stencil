@@ -2,6 +2,7 @@ import { ProjectsStore, shouldPersist, addPeriod, DEFAULT_PERIOD } from './proje
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { normalizePageSize } from './units.js';
+import { serializeSession } from './layout.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
 // app state, compresses the image, regenerates a thumbnail, reads payloads back into the
@@ -21,55 +22,59 @@ export class Storage {
   #tempStatusTimer = null;
   #syncTimer = null;
 
-  // Build the EXACT layout object (28 fields) from current app state.
+  // Build the EXACT full session layout from current app state. Reads the live app +
+  // viewport into a plain state object (this is the DOM/DrawingApp coupling), then hands
+  // it to the pure serializeSession() which projects the descriptor table in byte order.
   #buildLayout() {
     const viewport = document.getElementById('canvas-viewport');
-    return {
-      imageWidth: this.app.canvas.width,
-      imageHeight: this.app.canvas.height,
+    const app = this.app;
+    const state = {
+      imageWidth: app.canvas.width,
+      imageHeight: app.canvas.height,
       // The crop rectangle (rotated-image pixels). The stored image stays the
       // untouched original; the rotation + crop are re-applied on load.
-      cropRect: this.app.cropRect,
+      cropRect: app.cropRect,
       // 90° quarter-turns (0..3, clockwise) applied to the original before the
       // crop is taken. cropRect lives in this rotated space.
-      rotationQuarters: this.app.rotationQuarters || 0,
-      lines: this.app.lines,
-      pageSize: this.app.pageSize,
-      customPageWidth: this.app.customPageWidth,
-      customPageHeight: this.app.customPageHeight,
-      unit: this.app.unit,
-      color: this.app.color,
-      thickness: this.app.thickness,
-      markerSize: this.app.markerSize,
-      style: this.app.style,
-      showPoints: this.app.showPoints,
-      showLines: this.app.showLines,
-      imageFilter: this.app.imageFilter,
-      filterColor: this.app.filterColor,
-      zoom: this.app.scale,
+      rotationQuarters: app.rotationQuarters || 0,
+      lines: app.lines,
+      pageSize: app.pageSize,
+      customPageWidth: app.customPageWidth,
+      customPageHeight: app.customPageHeight,
+      unit: app.unit,
+      color: app.color,
+      thickness: app.thickness,
+      markerSize: app.markerSize,
+      style: app.style,
+      showPoints: app.showPoints,
+      showLines: app.showLines,
+      imageFilter: app.imageFilter,
+      filterColor: app.filterColor,
+      zoom: app.scale,
       scrollLeft: viewport ? viewport.scrollLeft : 0,
       scrollTop: viewport ? viewport.scrollTop : 0,
-      imageBaseName: this.app.imageBaseName || null,
-      imageExt: this.app.imageExt || null,
+      imageBaseName: app.imageBaseName || null,
+      imageExt: app.imageExt || null,
       // Provenance: the image/video's own URL (source) and the web page it was
       // pulled from (resource). Both empty for plain local uploads; populated by
       // the add-by-URL flow and the browser extension hand-off.
-      imageSource: this.app.imageSource || null,
-      imageResource: this.app.imageResource || null,
-      tooltipEnabled: this.app.tooltipEnabled,
-      tooltipShowPage: this.app.tooltipShowPage,
-      tooltipShowScreen: this.app.tooltipShowScreen,
-      tooltipShowCoords: this.app.tooltipShowCoords,
-      allowFormulas: this.app.allowFormulas,
-      formulaX: this.app.formulaX,
-      formulaY: this.app.formulaY,
-      drawMode: this.app.drawMode,
-      holdDrawDelay: this.app.holdDrawDelay,
-      selGlowColor: this.app.selGlowColor,
-      hoverRingColor: this.app.hoverRingColor,
-      focusRingColor: this.app.focusRingColor,
-      defaultFillColor: this.app.defaultFillColor,
+      imageSource: app.imageSource || null,
+      imageResource: app.imageResource || null,
+      tooltipEnabled: app.tooltipEnabled,
+      tooltipShowPage: app.tooltipShowPage,
+      tooltipShowScreen: app.tooltipShowScreen,
+      tooltipShowCoords: app.tooltipShowCoords,
+      allowFormulas: app.allowFormulas,
+      formulaX: app.formulaX,
+      formulaY: app.formulaY,
+      drawMode: app.drawMode,
+      holdDrawDelay: app.holdDrawDelay,
+      selGlowColor: app.selGlowColor,
+      hoverRingColor: app.hoverRingColor,
+      focusRingColor: app.focusRingColor,
+      defaultFillColor: app.defaultFillColor,
     };
+    return serializeSession(state);
   }
 
   // Persist the active project. No-op (with a throttled hint) in temp mode.
@@ -428,7 +433,7 @@ export class Storage {
       }
       if (layout.drawMode) this.app.drawMode = layout.drawMode;
       if (Number.isFinite(layout.holdDrawDelay))
-        this.app.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });   // clamps in one place
+        this.app.input.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });   // clamps in one place
       if (layout.selGlowColor) this.app.selGlowColor = layout.selGlowColor;
       if (layout.hoverRingColor) this.app.hoverRingColor = layout.hoverRingColor;
       if (layout.focusRingColor) this.app.focusRingColor = layout.focusRingColor;
@@ -450,8 +455,8 @@ export class Storage {
           // saved before cropping existed) and build the working canvas from it.
           // Rotation must be set first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
-          this.app.cropRect = layout.cropRect || this.app.defaultCropRect();
-          this.app.rebuildCroppedImage();
+          this.app.cropRect = layout.cropRect || this.app.imageModel.defaultCropRect();
+          this.app.imageModel.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
           // Empty lines → step -1 (no phantom undo on a brand-new/blank project); only seed
           // a current snapshot when there are real lines to undo back to (matches line ~156).
