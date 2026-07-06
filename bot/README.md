@@ -232,6 +232,7 @@ onto the image.
 | `/fetch <name\|id>` | Load a server project as the working image |
 | `/create [name]` | Publish the current result as a **new** server project |
 | `/save` | Save the result + layout back to the active project (version-guarded) |
+| `/expire <n unit \| never>` | Set the active project's expiry (version-guarded) — bare `/expire` (or the ⏳ Expiration button in `/status`) opens a duration picker: **1 day · 3 days · 1 week · Fortnight · 1 month · 3 months · Custom · Never**; **Custom** awaits a free-text span like `3 days`, `week 4`, `2 weeks`, `1 month` |
 | `/start <payload>` | Inbound deep link: t.me `?start=` payloads from the browser/desktop **"Open in… → Telegram"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe |
 
 ## Docker

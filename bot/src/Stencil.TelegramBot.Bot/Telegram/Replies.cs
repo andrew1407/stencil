@@ -56,6 +56,8 @@ public static class Replies
         sb.AppendLine("/save — save back to the active project");
         sb.AppendLine("/sync [on|off] — live mode: auto-upload edits + pull peers' changes");
         sb.AppendLine("/project-color <#hex|name|clear> — set the project's accent colour");
+        sb.AppendLine("/expire <n unit | never> — set the project's expiry, e.g. /expire 3 days");
+        sb.AppendLine("/delete — remove the active project from the server (asks to confirm)");
         sb.AppendLine();
         sb.AppendLine("/help — this message   /cancel — never mind");
         sb.Append("The inline buttons mirror these commands.");
@@ -153,6 +155,34 @@ public static class Replies
         "Use /connect <url> [token] to connect to a server, e.g. /connect http://localhost:8090";
 
     /// <summary>
+    /// The bare <c>/expire</c> / Expiration-button header: the active project's current expiry
+    /// (or "no expiry") plus a "choose one" line above the duration picker.
+    /// </summary>
+    public static string ExpiryPrompt(long expiresAtMs)
+    {
+        string current = expiresAtMs > 0
+            ? $"Current expiry: {FmtDate(expiresAtMs)}."
+            : "This project has no expiry (kept forever).";
+        return $"{current}\nChoose a new expiry:";
+    }
+
+    /// <summary>Usage hint for <c>/expire</c> (an unparseable duration argument).</summary>
+    public static string ExpireUsage() =>
+        """
+        Set the active project's expiry: /expire <amount>
+        e.g. /expire 3 days · /expire 1 week · /expire 2 weeks · /expire 1 month · /expire 3 months
+        Units: day(s), week(s), fortnight, month(s) — the number may lead or follow (e.g. "week 4").
+        /expire never — keep the project forever.
+        """;
+
+    /// <summary>The delete-project confirmation question (bare <c>/delete</c> and the 🗑 Remove button).</summary>
+    public static string DeleteConfirmPrompt(string name, string? serverUrl)
+    {
+        string where = serverUrl is null ? "" : $" from {Host(serverUrl)}";
+        return $"Delete '{name}'{where}? This permanently removes the project for everyone and can't be undone.";
+    }
+
+    /// <summary>
     /// All named page formats with their portrait cm sizes (canonical order), plus the custom
     /// variant — the bare <c>/format</c> reply.
     /// </summary>
@@ -239,17 +269,27 @@ public static class Replies
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>List the aggregated cross-server projects (or a hint when none).</summary>
+    /// <summary>
+    /// The most projects the bot renders in one list message / keyboard. Telegram caps a message
+    /// at 4096 chars and an inline keyboard at ~100 buttons, so a server with many projects would
+    /// otherwise overflow (a 400 "message is too long"). The overflow is called out, not silently
+    /// dropped — narrow with <c>/projects &lt;url&gt;</c> or open directly with <c>/fetch</c>.
+    /// </summary>
+    public const int MaxProjectsListed = 20;
+
+    /// <summary>List the aggregated cross-server projects (or a hint when none), capped.</summary>
     public static string ProjectsText(IReadOnlyList<ServerProjectInfo> projects)
     {
         if (projects.Count == 0)
         {
             return "No projects found. Connect to a server with /connect first.";
         }
+        int shown = Math.Min(projects.Count, MaxProjectsListed);
         StringBuilder sb = new();
         sb.AppendLine($"Projects ({projects.Count}) — tap one to load it:");
-        foreach (ServerProjectInfo p in projects)
+        for (int i = 0; i < shown; i++)
         {
+            ServerProjectInfo p = projects[i];
             string size = p.Record.HasImage ? $" {p.Record.ImageW}x{p.Record.ImageH}" : "";
             string dot = ColorDot(p.Record.Color);
             string prefix = dot.Length == 0 ? "•" : dot;
@@ -258,6 +298,10 @@ public static class Replies
             string expires = FmtDate(p.Record.ExpiresAt);
             string expiresBit = expires.Length == 0 ? "" : $" · expires {expires}";
             sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit}{expiresBit} @ {Host(p.ServerUrl)}");
+        }
+        if (projects.Count > shown)
+        {
+            sb.AppendLine($"…and {projects.Count - shown} more — narrow with /projects <url> or open one with /fetch <name|id>.");
         }
         return sb.ToString().TrimEnd();
     }

@@ -68,6 +68,8 @@ public sealed class CommandHandlers
             "save" => SaveAsync(userId, chatId, ct),
             "sync" => SyncAsync(userId, chatId, cmd, ct),
             "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
+            "expire" or "expiry" or "expiration" => ExpireAsync(userId, chatId, cmd, ct),
+            "delete" or "remove" or "deleteproject" or "delete_project" => DeleteProjectAsync(userId, chatId, cmd, ct),
             "blank" => BlankAsync(userId, chatId, cmd, ct),
             "format" => FormatAsync(userId, chatId, cmd, ct),
             "url" => UrlAsync(userId, chatId, cmd, ct),
@@ -570,7 +572,7 @@ public sealed class CommandHandlers
         }
         if (before.EditHistory.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Nothing to undo.", replyMarkup: Keyboards.EditMenu(), cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Nothing to undo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
             return;
         }
         await _editing.UndoAsync(userId, ct);
@@ -588,7 +590,7 @@ public sealed class CommandHandlers
         }
         if (before.EditRedo.Count == 0)
         {
-            await _bot.SendMessage(chatId, "Nothing to redo.", replyMarkup: Keyboards.EditMenu(), cancellationToken: ct);
+            await _bot.SendMessage(chatId, "Nothing to redo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
             return;
         }
         await _editing.RedoAsync(userId, ct);
@@ -710,6 +712,81 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
+    /// <summary>
+    /// Set the active project's expiry: <c>/expire &lt;amount&gt;</c> (e.g. <c>3 days</c>,
+    /// <c>1 week</c>, <c>2 weeks</c>, <c>1 month</c>), <c>/expire never</c> to keep it forever, or
+    /// bare <c>/expire</c> to show the current expiry and the duration picker. <c>/expire custom</c>
+    /// (the Custom… button) arms a one-shot free-text prompt consumed by <see cref="UpdateRouter"/>.
+    /// </summary>
+    private async Task ExpireAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null)
+        {
+            await _bot.SendMessage(chatId, "Open a server project first (/fetch or /create), then set an expiry.", cancellationToken: ct);
+            return;
+        }
+        if (cmd.ArgumentText.Length == 0)
+        {
+            await _bot.SendMessage(chatId, Replies.ExpiryPrompt(session.ActiveProjectExpiresAt), replyMarkup: Keyboards.ExpirationMenu(), cancellationToken: ct);
+            return;
+        }
+        // The Custom… button arms a free-text prompt; the next plain message is parsed as a duration.
+        if (cmd.ArgumentText.Equals("custom", StringComparison.OrdinalIgnoreCase))
+        {
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.ExpiryDuration }, ct);
+            await _bot.SendMessage(
+                chatId,
+                "Send a custom expiry, e.g. \"3 days\", \"week\", \"2 weeks\", \"1 month\", or \"week 4\".",
+                cancellationToken: ct);
+            return;
+        }
+        if (!DurationParser.TryParse(cmd.ArgumentText, out ParsedDuration duration, out bool clear))
+        {
+            await _bot.SendMessage(chatId, Replies.ExpireUsage(), cancellationToken: ct);
+            return;
+        }
+        long expiresAt = clear ? 0 : duration.From(DateTimeOffset.UtcNow).ToUnixTimeMilliseconds();
+        long effective = await _servers.SetProjectExpiryAsync(userId, expiresAt, ct);
+        string message = effective <= 0
+            ? "Expiry cleared — this project is kept forever."
+            : $"Expiry set to {Replies.FmtDate(effective)} ({duration} from now).";
+        await _bot.SendMessage(chatId, message, cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Remove the active project from its server: bare <c>/delete</c> (or the 🗑 Remove button)
+    /// asks for confirmation; <c>/delete confirm</c> (the confirm button) actually deletes it, then
+    /// clears the active project and turns live sync off. Destructive, so it never deletes on a
+    /// single tap. The working image is kept so it can be re-saved elsewhere.
+    /// </summary>
+    private async Task DeleteProjectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null)
+        {
+            await _bot.SendMessage(chatId, "No active server project to remove — /fetch or /create one first.", cancellationToken: ct);
+            return;
+        }
+        if (!cmd.ArgumentText.Equals("confirm", StringComparison.OrdinalIgnoreCase))
+        {
+            string name = session.ActiveProjectName ?? session.ActiveProjectId;
+            await _bot.SendMessage(
+                chatId,
+                Replies.DeleteConfirmPrompt(name, session.ActiveServerUrl),
+                replyMarkup: Keyboards.DeleteConfirmMenu(),
+                cancellationToken: ct);
+            return;
+        }
+        string removed = await _servers.DeleteActiveProjectAsync(userId, ct);
+        _sync.Disable(userId);
+        await _bot.SendMessage(
+            chatId,
+            $"🗑 Removed '{removed}' from the server.",
+            replyMarkup: Keyboards.MainMenu(),
+            cancellationToken: ct);
+    }
+
     /// <summary>Export and send the layout JSON as a document.</summary>
     private async Task JsonAsync(long userId, long chatId, CancellationToken ct)
     {
@@ -737,7 +814,7 @@ public sealed class CommandHandlers
         await _bot.SendMessage(
             chatId,
             Replies.StatusText(session),
-            replyMarkup: Keyboards.MainMenu(),
+            replyMarkup: Keyboards.StatusMenu(session.ActiveProjectId is not null),
             cancellationToken: ct);
     }
 
@@ -767,7 +844,7 @@ public sealed class CommandHandlers
                 chatId,
                 photo,
                 caption: caption,
-                replyMarkup: Keyboards.EditMenu(),
+                replyMarkup: Keyboards.EditMenu(session.ActiveProjectId is not null),
                 cancellationToken: ct);
         }
         // Live sync: a mutating edit on a synced active project auto-uploads so peers see it.

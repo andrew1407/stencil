@@ -78,6 +78,13 @@ public sealed record UserSession
     /// </summary>
     public bool SyncEnabled { get; init; }
 
+    /// <summary>
+    /// A pending free-text prompt this user is expected to answer with their next plain message
+    /// (e.g. a custom expiry duration — see <see cref="PendingInputs"/>). Null when the bot isn't
+    /// waiting on anything; any slash command supersedes and clears it.
+    /// </summary>
+    public string? PendingInput { get; init; }
+
     public bool HasImage => OriginalImagePath is not null;
 
     public ServerConnectionInfo? FindConnection(string normalizedUrl) =>
