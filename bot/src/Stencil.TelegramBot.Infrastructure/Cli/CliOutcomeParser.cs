@@ -4,32 +4,45 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 
 /// <summary>
 /// Parse the CLI's human-readable stderr into structured results. A faithful port of
-/// <c>mcp/src/outcome.rs</c>.
+/// <c>mcp/src/outcome.rs</c> (the reference for the output contract in <c>cli/CONTRACT.md</c>
+/// §2). Its parsing semantics match mcp's op-for-op so the shared golden fixtures
+/// (<c>cli/testdata/outcome_fixtures.json</c>) pass identically on both sides.
 /// </summary>
 /// <remarks>
 /// The CLI writes everything — banner, usage, errors, and the success line — to <b>stderr</b>
 /// (stdout stays empty; the result is a written file). On success it prints exactly one line
-/// whose dimensions lead the parenthesised tail, e.g.
-/// <c>wrote out.png (16x12 px · A4 29.7×21cm)</c> (the simple <c>(16x12)</c> form is also
-/// accepted); on failure one or more <c>error: …</c> lines. The child runs with
-/// <c>NO_COLOR=1</c> so this text is free of ANSI escapes.
+/// <c>wrote {path} ({w}x{h} px · {page})</c> (the page suffix is informational; older builds
+/// printed a bare <c>({w}x{h})</c>); on failure one or more <c>error: …</c> lines. When
+/// <c>--remote-update</c>/<c>--remote</c> are used it also prints server-delivery lines. The
+/// child runs with <c>NO_COLOR=1</c> so this text is free of ANSI escapes.
 /// </remarks>
 public static class CliOutcomeParser
 {
+    // ── CLI output line prefixes ──
+    // The exact stderr markers the CLI (cli/) emits and this module parses — the .NET peer of
+    // mcp's PREFIX_* consts (mcp/src/outcome.rs).
+    private const string PrefixWrote = "wrote ";
+    private const string PrefixUpdated = "updated server result for project ";
+    private const string PrefixCreated = "created server project ";
+    private const string PrefixError = "error:";
+
     /// <summary>
-    /// Find and parse the <c>wrote {path} ({w}x{h})</c> line, or null when absent. Uses a
-    /// reverse search for <c>" ("</c> so paths containing <c>" ("</c> still parse.
+    /// Find and parse the <c>wrote {path} ({w}x{h} …)</c> line, or null when absent. Uses a
+    /// reverse search for <c>" ("</c> so paths containing <c>" ("</c> still parse, and reads
+    /// only the leading whitespace-delimited <c>{w}x{h}</c> token of the parenthesised tail —
+    /// mirroring <c>parse_wrote</c> in <c>mcp/src/outcome.rs</c>.
     /// </summary>
     public static RenderResult? ParseWrote(string stderr)
     {
         foreach (string rawLine in SplitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (!line.StartsWith("wrote ", StringComparison.Ordinal))
+            if (!line.StartsWith(PrefixWrote, StringComparison.Ordinal))
             {
                 continue;
             }
-            string rest = line["wrote ".Length..];
+            string rest = line[PrefixWrote.Length..];
+            // Split off the trailing " (WxH …)" — rfind so paths containing " (" still work.
             int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
             if (open < 0)
             {
@@ -41,17 +54,21 @@ public static class CliOutcomeParser
             {
                 continue;
             }
-            // The tail leads with "{w}x{h}" and may carry extra text (" px · A4 …"); read the
-            // leading integer on each side of the first ASCII 'x'. The cm size uses '×' (U+00D7),
-            // not 'x', so the first 'x' is always the pixel-dimension separator.
-            string dims = tail[..^1];
+            tail = tail[..^1];
+            // The dims are the leading whitespace-delimited token; newer builds append
+            // " px · {page}" metadata (the cm size uses '×' U+00D7, never ASCII 'x').
+            string? dims = FirstWhitespaceToken(tail);
+            if (dims is null)
+            {
+                continue;
+            }
             int x = dims.IndexOf('x');
             if (x < 0)
             {
                 continue;
             }
-            if (TryLeadingInt(TrimToDigitsTail(dims[..x]), out int width)
-                && TryLeadingInt(dims[(x + 1)..].TrimStart(), out int height))
+            if (int.TryParse(dims[..x].Trim(), out int width)
+                && int.TryParse(dims[(x + 1)..].Trim(), out int height))
             {
                 return new RenderResult(path, width, height);
             }
@@ -59,33 +76,70 @@ public static class CliOutcomeParser
         return null;
     }
 
-    /// <summary>Parse the run of digits at the start of <paramref name="text"/> (else fail).</summary>
-    private static bool TryLeadingInt(string text, out int value)
+    /// <summary>
+    /// Parse any collaboration-server delivery line(s) the CLI prints after a successful write.
+    /// A single call can both update a fetched project and create a new one, so this returns
+    /// all it finds, in order — mirroring <c>parse_remotes</c> in <c>mcp/src/outcome.rs</c>.
+    /// </summary>
+    public static IReadOnlyList<RemoteDelivery> ParseRemotes(string stderr)
     {
-        int end = 0;
-        while (end < text.Length && char.IsAsciiDigit(text[end]))
+        List<RemoteDelivery> result = new();
+        foreach (string rawLine in SplitLines(stderr))
         {
-            end++;
+            string line = rawLine.Trim();
+            if (line.StartsWith(PrefixUpdated, StringComparison.Ordinal))
+            {
+                // `{id} ({w}x{h})` — rfind " (" so an id can't be confused with the dims.
+                string rest = line[PrefixUpdated.Length..];
+                int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
+                if (open < 0)
+                {
+                    continue;
+                }
+                string id = rest[..open];
+                string dimsTail = rest[(open + 2)..];
+                if (!dimsTail.EndsWith(')'))
+                {
+                    continue;
+                }
+                string dims = dimsTail[..^1];
+                int x = dims.IndexOf('x');
+                if (x < 0)
+                {
+                    continue;
+                }
+                if (int.TryParse(dims[..x].Trim(), out int width)
+                    && int.TryParse(dims[(x + 1)..].Trim(), out int height))
+                {
+                    result.Add(new RemoteDelivery.Updated(id, width, height));
+                }
+            }
+            else if (line.StartsWith(PrefixCreated, StringComparison.Ordinal))
+            {
+                // `"{name}" ({id})` — the id is the parenthesised tail; the name is quoted.
+                string rest = line[PrefixCreated.Length..];
+                int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
+                if (open < 0)
+                {
+                    continue;
+                }
+                string idTail = rest[(open + 2)..];
+                if (!idTail.EndsWith(')'))
+                {
+                    continue;
+                }
+                string id = idTail[..^1];
+                string name = rest[..open].Trim().Trim('"');
+                result.Add(new RemoteDelivery.Created(name, id));
+            }
         }
-        return int.TryParse(text[..end], out value);
-    }
-
-    /// <summary>Keep only the trailing run of digits (drops any leading label before the width).</summary>
-    private static string TrimToDigitsTail(string text)
-    {
-        string trimmed = text.Trim();
-        int start = trimmed.Length;
-        while (start > 0 && char.IsAsciiDigit(trimmed[start - 1]))
-        {
-            start--;
-        }
-        return trimmed[start..];
+        return result;
     }
 
     /// <summary>
     /// Pull the <c>error: …</c> line(s) out of stderr for surfacing back to the caller. Falls
     /// back to the whole trimmed stderr when no <c>error:</c> prefix is found, and to a generic
-    /// message when stderr is empty.
+    /// message when stderr is empty. Mirrors <c>extract_errors</c> in <c>mcp/src/outcome.rs</c>.
     /// </summary>
     public static string ExtractErrors(string stderr)
     {
@@ -93,7 +147,7 @@ public static class CliOutcomeParser
         foreach (string rawLine in SplitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (line.StartsWith("error:", StringComparison.Ordinal))
+            if (line.StartsWith(PrefixError, StringComparison.Ordinal))
             {
                 errors.Add(line);
             }
@@ -108,6 +162,16 @@ public static class CliOutcomeParser
             return trimmed;
         }
         return string.Join("\n", errors);
+    }
+
+    /// <summary>
+    /// The first whitespace-delimited token of <paramref name="text"/>, or null when it is all
+    /// whitespace — the .NET peer of Rust's <c>str::split_whitespace().next()</c>.
+    /// </summary>
+    private static string? FirstWhitespaceToken(string text)
+    {
+        string[] tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length == 0 ? null : tokens[0];
     }
 
     /// <summary>Split on any newline convention, mirroring Rust's <c>str::lines</c>.</summary>
