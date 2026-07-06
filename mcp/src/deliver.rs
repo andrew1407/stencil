@@ -9,12 +9,14 @@
 use std::path::Path;
 
 use base64::Engine;
+use serde::Serialize;
 
 use crate::config::{Config, Surface};
 use crate::pipeline::EditResult;
 
-/// The outcome of delivering to one surface.
-#[derive(Debug, Clone)]
+/// The outcome of delivering to one surface. `Serialize` produces the tool payload's
+/// per-delivery object (`{"surface":…,"ok":…,"detail":…,"url":…}`) directly.
+#[derive(Debug, Clone, Serialize)]
 pub struct DeliveryNote {
     pub surface: &'static str,
     pub ok: bool,
