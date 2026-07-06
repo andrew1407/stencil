@@ -27,7 +27,7 @@ func TestRedisPubSubRoundTrip(t *testing.T) {
 	defer b.Close()
 	ctx := context.Background()
 
-	ch, cancel := b.Subscribe(ctx, "test:proj:1")
+	ch, cancel := b.Subscribe("test:proj:1")
 	defer cancel()
 	time.Sleep(100 * time.Millisecond) // let the subscription register
 
@@ -47,7 +47,7 @@ func TestRedisPubSubRoundTrip(t *testing.T) {
 func TestRedisUnsubscribeClosesChannel(t *testing.T) {
 	b := requireRedis(t)
 	defer b.Close()
-	ch, cancel := b.Subscribe(context.Background(), "test:proj:2")
+	ch, cancel := b.Subscribe("test:proj:2")
 	cancel()
 	select {
 	case _, open := <-ch:

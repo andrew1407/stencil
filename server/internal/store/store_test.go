@@ -134,7 +134,7 @@ func TestUpdateProjectLWW(t *testing.T) {
 	p, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "P"})
 
 	layout := json.RawMessage(`{"lines":[{"x":1}]}`)
-	upd, err := s.UpdateProject(ctx, p.ID, nil, nil, nil, layout, p.Version)
+	upd, err := s.UpdateProject(ctx, p.ID, ProjectPatch{Layout: layout}, p.Version)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -150,11 +150,11 @@ func TestUpdateProjectLWW(t *testing.T) {
 		t.Fatalf("nil color should not set a value, got %q", upd.Color)
 	}
 	// Stale version is rejected.
-	if _, err := s.UpdateProject(ctx, p.ID, nil, nil, nil, layout, 0); !errors.Is(err, ErrConflict) {
+	if _, err := s.UpdateProject(ctx, p.ID, ProjectPatch{Layout: layout}, 0); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale update should conflict, got %v", err)
 	}
 	// Unknown project is not-found, not conflict.
-	if _, err := s.UpdateProject(ctx, "p_missing_x", nil, nil, nil, layout, 0); !errors.Is(err, ErrNotFound) {
+	if _, err := s.UpdateProject(ctx, "p_missing_x", ProjectPatch{Layout: layout}, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing update should be not-found, got %v", err)
 	}
 }
@@ -168,7 +168,7 @@ func TestUpdateProjectColor(t *testing.T) {
 
 	// Set a new colour, leave name/layout untouched (nil).
 	red := "#ff0000"
-	upd, err := s.UpdateProject(ctx, p.ID, nil, &red, nil, nil, p.Version)
+	upd, err := s.UpdateProject(ctx, p.ID, ProjectPatch{Color: &red}, p.Version)
 	if err != nil {
 		t.Fatalf("update color: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestUpdateProjectColor(t *testing.T) {
 
 	// nil color preserves the value while bumping version via a name change.
 	name := "C2"
-	upd, err = s.UpdateProject(ctx, p.ID, &name, nil, nil, nil, upd.Version)
+	upd, err = s.UpdateProject(ctx, p.ID, ProjectPatch{Name: &name}, upd.Version)
 	if err != nil {
 		t.Fatalf("update name: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestUpdateProjectColor(t *testing.T) {
 
 	// Empty string explicitly clears the colour (theme fallback).
 	empty := ""
-	upd, err = s.UpdateProject(ctx, p.ID, nil, &empty, nil, nil, upd.Version)
+	upd, err = s.UpdateProject(ctx, p.ID, ProjectPatch{Color: &empty}, upd.Version)
 	if err != nil {
 		t.Fatalf("clear color: %v", err)
 	}
@@ -267,19 +267,19 @@ func TestUpdateProjectExpiry(t *testing.T) {
 	p, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "E"})
 
 	exp := int64(9_000)
-	upd, err := s.UpdateProject(ctx, p.ID, nil, nil, &exp, nil, p.Version)
+	upd, err := s.UpdateProject(ctx, p.ID, ProjectPatch{ExpiresAt: &exp}, p.Version)
 	if err != nil || upd.ExpiresAt != 9_000 {
 		t.Fatalf("set expiry: %v %d", err, upd.ExpiresAt)
 	}
 	// nil leaves it untouched while a name change bumps the version.
 	name := "E2"
-	upd, err = s.UpdateProject(ctx, p.ID, &name, nil, nil, nil, upd.Version)
+	upd, err = s.UpdateProject(ctx, p.ID, ProjectPatch{Name: &name}, upd.Version)
 	if err != nil || upd.ExpiresAt != 9_000 {
 		t.Fatalf("nil expiry should be preserved: %v %d", err, upd.ExpiresAt)
 	}
 	// 0 explicitly clears the expiry (keep forever).
 	zero := int64(0)
-	upd, err = s.UpdateProject(ctx, p.ID, nil, nil, &zero, nil, upd.Version)
+	upd, err = s.UpdateProject(ctx, p.ID, ProjectPatch{ExpiresAt: &zero}, upd.Version)
 	if err != nil || upd.ExpiresAt != 0 {
 		t.Fatalf("expiry should clear to 0: %v %d", err, upd.ExpiresAt)
 	}

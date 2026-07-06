@@ -43,8 +43,11 @@ func (b *Bus) Publish(ctx context.Context, channel string, data []byte) error {
 // Subscribe opens a Redis subscription and pumps payloads onto a buffered Go
 // channel. The unsubscribe func closes the subscription, which ends the pump
 // goroutine and closes the returned channel.
-func (b *Bus) Subscribe(ctx context.Context, channel string) (<-chan []byte, func()) {
-	pubsub := b.client.Subscribe(ctx, channel)
+func (b *Bus) Subscribe(channel string) (<-chan []byte, func()) {
+	// The subscription's lifetime is bounded by the returned unsubscribe func
+	// (which closes the pubsub), not by a per-call context, so use a background
+	// context for the initial SUBSCRIBE command.
+	pubsub := b.client.Subscribe(context.Background(), channel)
 	out := make(chan []byte, subBuffer)
 	go func() {
 		defer close(out)

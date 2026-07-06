@@ -14,6 +14,7 @@ import (
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/store"
 )
 
 // ProjectStore is the project persistence the API needs.
@@ -21,7 +22,7 @@ type ProjectStore interface {
 	ListProjects(ctx context.Context) ([]protocol.ProjectRecord, error)
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
 	CreateProject(ctx context.Context, ownerSession string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error)
-	UpdateProject(ctx context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error)
+	UpdateProject(ctx context.Context, id string, patch store.ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error)
 	SetFile(ctx context.Context, id, kind, relPath string, w, h int) (protocol.ProjectRecord, error)
 	DeleteProject(ctx context.Context, id string) error
 }

@@ -95,7 +95,7 @@ func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.
 	return rec, nil
 }
 
-func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expected int64) (protocol.ProjectRecord, error) {
+func (f *fakeStore) UpdateProject(_ context.Context, id string, patch store.ProjectPatch, expected int64) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p, ok := f.projects[id]
@@ -105,17 +105,17 @@ func (f *fakeStore) UpdateProject(_ context.Context, id string, name *string, co
 	if p.Version != expected {
 		return protocol.ProjectRecord{}, store.ErrConflict
 	}
-	if name != nil {
-		p.Name = *name
+	if patch.Name != nil {
+		p.Name = *patch.Name
 	}
-	if color != nil {
-		p.Color = *color
+	if patch.Color != nil {
+		p.Color = *patch.Color
 	}
-	if expiresAt != nil {
-		p.ExpiresAt = *expiresAt
+	if patch.ExpiresAt != nil {
+		p.ExpiresAt = *patch.ExpiresAt
 	}
-	if len(layout) > 0 {
-		p.Layout = layout
+	if len(patch.Layout) > 0 {
+		p.Layout = patch.Layout
 	}
 	p.Version++
 	f.projects[id] = p

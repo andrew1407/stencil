@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -147,7 +148,10 @@ func (s *Store) GetProject(ctx context.Context, id string) (protocol.ProjectReco
 	if errors.Is(err, pgx.ErrNoRows) {
 		return protocol.ProjectRecord{}, ErrNotFound
 	}
-	return rec, err
+	if err != nil {
+		return protocol.ProjectRecord{}, fmt.Errorf("get project %s: %w", id, err)
+	}
+	return rec, nil
 }
 
 // CreateProject inserts a new project owned by ownerSession.
@@ -177,15 +181,27 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 		 RETURNING `+projectCols,
 		id, name, now, req.ExpiresAt, req.HasImage, req.ImageW, req.ImageH,
 		req.Source, req.Resource, req.Color, req.OriginalContent, layout, owner))
-	return rec, err
+	if err != nil {
+		return protocol.ProjectRecord{}, fmt.Errorf("create project: %w", err)
+	}
+	return rec, nil
+}
+
+// ProjectPatch bundles the optionally-updated fields of an UpdateProject call.
+// A nil pointer (or empty Layout) leaves that column untouched.
+type ProjectPatch struct {
+	Name      *string
+	Color     *string
+	ExpiresAt *int64
+	Layout    json.RawMessage
 }
 
 // UpdateProject applies a last-writer-wins update guarded by expectedVersion.
 // A stale version yields ErrConflict; a missing project yields ErrNotFound.
-func (s *Store) UpdateProject(ctx context.Context, id string, name *string, color *string, expiresAt *int64, layout json.RawMessage, expectedVersion int64) (protocol.ProjectRecord, error) {
+func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error) {
 	var layoutArg any
-	if len(layout) > 0 {
-		layoutArg = string(layout)
+	if len(patch.Layout) > 0 {
+		layoutArg = string(patch.Layout)
 	}
 	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`UPDATE projects SET
@@ -197,7 +213,7 @@ func (s *Store) UpdateProject(ctx context.Context, id string, name *string, colo
 			version = version + 1
 		 WHERE id = $1 AND version = $6
 		 RETURNING `+projectCols,
-		id, name, color, layoutArg, nowMs(), expectedVersion, expiresAt))
+		id, patch.Name, patch.Color, layoutArg, nowMs(), expectedVersion, patch.ExpiresAt))
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Disambiguate not-found from version conflict.
 		if _, e := s.GetProject(ctx, id); errors.Is(e, ErrNotFound) {
@@ -205,7 +221,10 @@ func (s *Store) UpdateProject(ctx context.Context, id string, name *string, colo
 		}
 		return protocol.ProjectRecord{}, ErrConflict
 	}
-	return rec, err
+	if err != nil {
+		return protocol.ProjectRecord{}, fmt.Errorf("update project %s: %w", id, err)
+	}
+	return rec, nil
 }
 
 // SetFile records a stored file path for a project and bumps version/updated_at.
@@ -234,7 +253,10 @@ func (s *Store) SetFile(ctx context.Context, id, kind, relPath string, w, h int)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return protocol.ProjectRecord{}, ErrNotFound
 	}
-	return rec, err
+	if err != nil {
+		return protocol.ProjectRecord{}, fmt.Errorf("set %s file for project %s: %w", kind, id, err)
+	}
+	return rec, nil
 }
 
 // DeleteProject removes a project row. Missing rows are not an error.
