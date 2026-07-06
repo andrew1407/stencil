@@ -59,6 +59,21 @@ public interface IServerService
     Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default);
 
     /// <summary>
+    /// Set the active project's expiry (<paramref name="expiresAtMs"/> epoch ms, or <c>0</c> to
+    /// clear it so the project is kept forever), version-guarded. Returns the effective expiry the
+    /// server stored. Requires an active project; throws on a last-writer-wins conflict.
+    /// </summary>
+    Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete the active project from its server (<c>DELETE /projects/{id}</c>) and clear it from
+    /// the session (the working image is kept for re-saving elsewhere). Returns the removed
+    /// project's name. Requires an active project; the server refuses (conflict) while other
+    /// clients are in its live edit session.
+    /// </summary>
+    Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
     /// The active project's current version on the server (a fresh read), or null when there is
     /// no active project or the server is unreachable. Used by the sync poller to detect a peer's
     /// change (server version &gt; the session's last-seen version).
