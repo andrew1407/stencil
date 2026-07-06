@@ -19,7 +19,6 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     private readonly Lazy<SocketsHttpHandler> _insecure = new(CreateInsecureHandler);
     private readonly TimeSpan _timeout;
 
-    /// <summary>Build the factory, taking the per-request REST timeout from configuration.</summary>
     public StencilServerClientFactory(BotOptions options)
     {
         _timeout = options.ServerHttpTimeout;

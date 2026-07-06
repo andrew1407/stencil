@@ -60,7 +60,6 @@ int main(int argc, char** argv) {
   check(canvas.lines().empty(), "lines removed on orientation change");
   check(canvas.imageWidth() == 120 && canvas.imageHeight() == 200,
         "working image is the portrait crop (120x200)");
-  // The original image is never replaced.
   check(canvas.originalImage().width() == 400 && canvas.originalImage().height() == 200,
         "original image kept untouched at 400x200");
 

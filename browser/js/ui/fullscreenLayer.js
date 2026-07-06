@@ -100,7 +100,6 @@ export class StencilFullscreenLayer extends StencilElement {
         clone.querySelectorAll('[id]').forEach(el => {
           el.id = 'fs-clone-' + el.id;
         });
-        // Remove collapsed state
         clone.classList.remove('coord-collapsed');
         clone.style.minWidth = '0';
         clone.style.maxWidth = '100%';
@@ -259,7 +258,6 @@ export class StencilFullscreenLayer extends StencilElement {
       if (isFullscreen) toggleFullscreen();
     });
 
-    // Escape key exits fullscreen
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
     });

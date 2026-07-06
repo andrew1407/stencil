@@ -20,10 +20,10 @@ namespace stencil::core::hotkeyFormat {
 
     // Arrow key names → Apple arrow glyphs (also the natural display elsewhere).
     std::string macKey(const std::string& token) {
-      if (token == "Up")    return "↑";  // ↑
-      if (token == "Down")  return "↓";  // ↓
-      if (token == "Left")  return "←";  // ←
-      if (token == "Right") return "→";  // →
+      if (token == "Up")    return "↑";
+      if (token == "Down")  return "↓";
+      if (token == "Left")  return "←";
+      if (token == "Right") return "→";
       return token;
     }
 

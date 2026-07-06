@@ -382,14 +382,8 @@ namespace stencil::gui {
     // supplied) fires on completion so callers can repaint the title once the change lands.
     void setProjectColorById(const QString& id, const QString& serverUrl, const QString& color,
                              std::function<void(bool ok)> done = {});
-    // Run a version-guarded server write with a bounded conflict retry. Reads `id`'s current
-    // version, calls `put(version, newVersion, conflict)` to perform the PUT, and on a 409 (the
-    // read-then-PUT isn't atomic, so a peer's save or a re-entrant autosave can bump the version
-    // mid-call) re-reads and retries — up to 4 attempts. Returns the winning version via
-    // `outVersion` and true on success; on failure `c->lastError()` holds the reason. Shared by
-    // commitProjectName / setProjectColorById.
-    // requireClient() + putVersionGuarded() moved to RemoteSession (remoteSession_); the server
-    // CRUD methods here call remoteSession_->requireClient()/putVersionGuarded().
+    // Version-guarded server writes (requireClient/putVersionGuarded) now live on RemoteSession
+    // (remoteSession_); the server CRUD methods here call through it.
     // Normalise a colour for storage: "" stays "" (clear); a QColor-valid string
     // returns "#rrggbb" lower-case; anything else returns nullopt (reject the set).
     std::optional<QString> normalizeProjectColor(const QString& color) const;

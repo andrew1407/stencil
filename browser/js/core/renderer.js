@@ -21,7 +21,6 @@ export class Renderer {
     this.app = app;
   }
 
-  // Draw image into ctx with the currently selected filter applied
   drawImageWithFilter(ctx) {
     if (this.app.imageFilter === 'bw') {
       ctx.filter = 'grayscale(100%)';
@@ -288,7 +287,6 @@ export class Renderer {
       d[i] = Math.round(r + (255 - r) * t);
       d[i+1] = Math.round(g + (255 - g) * t);
       d[i+2] = Math.round(b + (255 - b) * t);
-      // alpha unchanged
     }
     ctx.putImageData(imageData, 0, 0);
   }

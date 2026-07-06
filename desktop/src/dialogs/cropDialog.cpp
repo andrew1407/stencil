@@ -91,7 +91,6 @@ namespace stencil::gui {
     p.setBrush(Qt::NoBrush);
     p.drawRect(d);
 
-    // Corner handles.
     p.setBrush(QColor("#4da3ff"));
     p.setPen(QPen(Qt::white, 2));
     const QPointF corners[4] = {d.topLeft(), d.topRight(), d.bottomRight(),

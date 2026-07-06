@@ -77,9 +77,7 @@ namespace stencil::core {
     long long count = 0;
     long long unit = 0;
     if (positiveInt(toks[0], count) && unitMs(toks[1], unit)) {
-      // count unit
     } else if (unitMs(toks[0], unit) && positiveInt(toks[1], count)) {
-      // unit count
     } else {
       return false;
     }

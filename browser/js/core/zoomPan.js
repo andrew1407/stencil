@@ -117,7 +117,7 @@ export class ZoomPan {
   // this.app.scale is kept in sync each frame so rapid clicks start from the
   // correct visual position rather than the stale logical target.
   zoomAroundCenter(newScale) {
-    if (!this.app.image) return;  // no image → no zoom
+    if (!this.app.image) return;
     const vp = document.getElementById('canvas-viewport');
     if (!vp) {
       this.setZoom(newScale);
@@ -216,7 +216,7 @@ export class ZoomPan {
     const scaleW = availW / this.app.image.width;
     const scaleH = availH / this.app.image.height;
     const fit = Math.min(scaleW, scaleH, 1); // never upscale beyond 100% on fit
-    this.setZoom(Math.round(fit * 100) / 100); // round to 2 decimals
+    this.setZoom(Math.round(fit * 100) / 100);
 
     // Size viewport to show the fitted image fully (cap at availH)
     const viewport = document.getElementById('canvas-viewport');

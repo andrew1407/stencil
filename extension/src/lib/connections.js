@@ -129,7 +129,6 @@ export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
   return { url, token: tok };
 };
 
-// List a connection's projects.
 export const listProjects = async (conn, f = fetchImpl()) => {
   const r = await req(conn, 'GET', '/projects', { fetch: f });
   return r.projects || [];

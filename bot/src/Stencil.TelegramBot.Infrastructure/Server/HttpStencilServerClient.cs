@@ -25,7 +25,6 @@ public sealed class HttpStencilServerClient : IStencilServerClient
     private readonly HttpClient _http;
     private string _token;
 
-    /// <summary>Build the client over a ready <paramref name="http"/>, origin and optional token.</summary>
     public HttpStencilServerClient(HttpClient http, string baseUrl, string? token)
     {
         _http = http;

@@ -91,7 +91,6 @@ namespace stencil::core {
     // Remove one project. No-op if absent.
     void remove(const std::string& id);
 
-    // Wipe every project.
     void clearAll();
 
     // ── expiry ──

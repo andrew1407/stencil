@@ -259,7 +259,7 @@ namespace stencil::gui {
       filter_->setMaximumWidth(260);
       filter_->setToolTip("Filter the list: all, local only, or a specific server");
       rebuildFilterOptions();
-      frow->addWidget(filter_);                       // natural width — no stretch (was full-width)
+      frow->addWidget(filter_);                       // natural width — no stretch
       frow->addSpacing(8);
       search_ = new QLineEdit(this);
       search_->setPlaceholderText(tr("Search projects…"));
@@ -341,7 +341,6 @@ namespace stencil::gui {
     refresh();
 
     connect(list_, &QListWidget::itemDoubleClicked, this, &ProjectsDialog::openSelected);
-    // Per-row checkbox toggled → update the batch selection.
     connect(list_, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
 
     // Bottom row: only the create actions + Close. Per-row actions (Open / Rename / Renew /

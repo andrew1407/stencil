@@ -34,7 +34,7 @@ test('mergeLines: handles empty / non-array inputs', () => {
 test('buildLayoutPayload passes the lines array through by reference', () => {
     const lines = [{ points: [{ x: 1, y: 2 }] }];
     const out = buildLayoutPayload({ imageWidth: 10, imageHeight: 20, lines });
-    assert.strictEqual(out.lines, lines); // same reference, no copy
+    assert.strictEqual(out.lines, lines);
 });
 
 test('buildLayoutPayload preserves the dimension numbers', () => {
@@ -289,7 +289,7 @@ test('validateLayout: caps a hostile explosion of lines and points', () => {
 });
 
 // ── resolveInsertIdx ────────────────────────────────────────────
-const line4 = { points: [{}, {}, {}, {}] }; // length 4
+const line4 = { points: [{}, {}, {}, {}] };
 
 test('resolveInsertIdx returns focusedPtIdx+1 when the focused point is on the selected line', () => {
     assert.strictEqual(resolveInsertIdx(line4, { coordLineIdx: 2, selectedLineIdx: 2, focusedPtIdx: 2 }), 3);

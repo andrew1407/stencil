@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   check(canvas.lines().size() == 2, "two lines seeded");
 
   std::printf("Alt+Shift+Delete path (deletePoint of the focused point):\n");
-  canvas.selectLineAt(10, 10);  // selects line 0, focuses point 0
+  canvas.selectLineAt(10, 10);
   check(canvas.selectedLineIdx() == 0, "line 0 selected by hit-test");
   check(canvas.selectedPoint() == 0, "point 0 focused");
   canvas.deletePoint(canvas.selectedPoint());
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         "one point removed from line 0 (2 points remain)");
 
   std::printf("Alt+Delete path (deleteSelectedLine):\n");
-  canvas.selectLineAt(100, 100);  // selects line 1
+  canvas.selectLineAt(100, 100);
   check(canvas.selectedLineIdx() == 1, "line 1 selected");
   canvas.deleteSelectedLine();
   check(canvas.lines().size() == 1, "selected line removed (1 remains)");

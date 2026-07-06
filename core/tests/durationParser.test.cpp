@@ -63,7 +63,7 @@ TEST_CASE("invalid specs are rejected") {
 }
 
 TEST_CASE("bare plural unit is valid (= one)") {
-  CHECK(parseOK("days") == DAY);  // 'days' with no count means one day
+  CHECK(parseOK("days") == DAY);
 }
 
 TEST_CASE("overflow is rejected") {

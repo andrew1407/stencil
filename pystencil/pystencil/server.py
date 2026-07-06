@@ -196,7 +196,6 @@ class ServerConnection:
         data: bytes | None = None
         if body is not None:
             if raw:
-                # Raw image bytes upload.
                 headers["Content-Type"] = "application/octet-stream"
                 data = bytes(body)
             else:

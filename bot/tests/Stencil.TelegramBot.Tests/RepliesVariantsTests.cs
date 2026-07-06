@@ -41,7 +41,7 @@ public sealed class RepliesVariantsTests
         Assert.True(text.Length <= 4096, $"message length {text.Length} exceeds Telegram's limit");
         Assert.Contains($"Projects ({total})", text);          // the true total is shown
         Assert.Contains($"and {total - Replies.MaxProjectsListed} more", text); // overflow called out
-        Assert.Contains("Project 0", text);                    // first is listed
+        Assert.Contains("Project 0", text);
         Assert.DoesNotContain($"Project {total - 1} ", text);  // the last (over the cap) is not
     }
 

@@ -96,7 +96,7 @@ class MainWindowGuiTest : public QObject {
 
     beat();
     right->trigger();
-    QCOMPARE(canvas->rotationQuarters(), (r0 + 1) % 4);   // action really rotated the canvas
+    QCOMPARE(canvas->rotationQuarters(), (r0 + 1) % 4);
     // A quarter turn swaps the visible (cropped) dimensions — proof the rotation
     // actually transformed the image, not merely bumped the quarter-turn counter.
     QCOMPARE(canvas->imageWidth(), h0);

@@ -52,7 +52,7 @@ test('adoptServerFilter: legacy blackAndWhite maps to bw; missing layout is a no
   assert.equal(app.imageFilter, 'bw');
   const app2 = makeApp({ imageFilter: 'sepia' });
   new RemoteSyncController(app2).adoptServerFilter(null);
-  assert.equal(app2.imageFilter, 'sepia'); // unchanged
+  assert.equal(app2.imageFilter, 'sepia');
 });
 
 test('adoptServerPageFormat: restores a named format + custom dims', () => {

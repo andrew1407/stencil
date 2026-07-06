@@ -53,8 +53,8 @@ test('nameExists: case-insensitive, trims, excludes a given id', () => {
   const s = new ProjectsStore(makeShim());
   s.upsert(meta('a', { name: 'Floor Plan' }), { image: null, layout: {} });
   s.upsert(meta('b', { name: 'Roof' }), { image: null, layout: {} });
-  assert.strictEqual(s.nameExists('floor plan'), true);     // case-insensitive
-  assert.strictEqual(s.nameExists('  Roof  '), true);       // trims
+  assert.strictEqual(s.nameExists('floor plan'), true);
+  assert.strictEqual(s.nameExists('  Roof  '), true);
   assert.strictEqual(s.nameExists('Basement'), false);
   // The project being renamed shouldn't collide with its own current name.
   assert.strictEqual(s.nameExists('Floor Plan', 'a'), false);
@@ -194,7 +194,7 @@ test('setExpiration sets fields exactly, no updatedAt bump', () => {
   assert.strictEqual(m.expiresAt, 9999);
   assert.strictEqual(m.refreshPeriod, 'month');
   assert.strictEqual(m.autoRefresh, false);
-  assert.strictEqual(s.getMeta('a').updatedAt, updatedAt); // unchanged
+  assert.strictEqual(s.getMeta('a').updatedAt, updatedAt);
   // Empty period normalises to the default; keep-forever via 0.
   s.setExpiration('a', { expiresAt: 0, refreshPeriod: '' });
   assert.strictEqual(s.getMeta('a').refreshPeriod, DEFAULT_PERIOD);
@@ -264,7 +264,6 @@ test('migrateLegacy creates one project, sets flag; second call no-op', () => {
   assert.strictEqual(got.payload.image, 'legacyImg');
   // Legacy keys are NOT deleted.
   assert.strictEqual(shim.getItem('drawingApp_image'), 'legacyImg');
-  // Second call is a no-op.
   const again = s.migrateLegacy(9999);
   assert.strictEqual(again, null);
   assert.strictEqual(s.list().length, 1);
@@ -314,7 +313,6 @@ test('rename updates meta.name, no-op on unknown id', () => {
 test('setColor sets/clears meta.color in place, no-op on unknown id', () => {
   const s = new ProjectsStore(makeShim());
   s.upsert(meta('a', { name: 'p' }), { image: null, layout: {} });
-  // Set a colour.
   assert.strictEqual(s.setColor('a', '#ec4899').color, '#ec4899');
   assert.strictEqual(s.getMeta('a').color, '#ec4899');
   // Clearing back to '' (theme fallback) is a valid set.

@@ -26,7 +26,7 @@ pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     }
     const src = pipeline.acquireInput(session.gpa, io, arg, 0) catch return; // message already printed
     try session.loadImage(src.img, arg, net.isUrl(arg), src.default_fmt);
-    ui.redraw(session); // show the freshly loaded image on top
+    ui.redraw(session);
 }
 
 pub fn doBlank(session: *Session, arg: []const u8) !void {

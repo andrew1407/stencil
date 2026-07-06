@@ -57,7 +57,7 @@ test('setThickness: parses int, redraws, persists; NaN is a no-op', () => {
   assert.equal(app.thickness, 7);
   assert.equal(app.rec.redraw, 1);
   s.setThickness('not-a-number');
-  assert.equal(app.thickness, 7); // unchanged
+  assert.equal(app.thickness, 7);
 });
 
 test('setImageFilter: marks filterDirty and schedules a remote sync', () => {
@@ -113,7 +113,7 @@ test('setMarkerSize: parses int, redraws, persists; NaN aborts before mutating',
   assert.equal(app.rec.redraw, 1);
   assert.equal(app.rec.save, 1);
   s.setMarkerSize('nan');
-  assert.equal(app.markerSize, 9);   // unchanged
+  assert.equal(app.markerSize, 9);
   assert.equal(app.rec.redraw, 1);   // no extra redraw/save on abort
   assert.equal(app.rec.save, 1);
 });
@@ -150,7 +150,7 @@ test('setFilterColor: persist marks filterDirty + schedules sync; persist:false 
   const app2 = makeApp();
   new SettingsController(app2).setFilterColor('#111111', { persist: false });
   assert.equal(app2.filterColor, '#111111');
-  assert.equal(app2.filterDirty, false);   // untouched
+  assert.equal(app2.filterDirty, false);
   assert.equal(app2.rec.redraw, 1);        // redraw still runs
   assert.equal(app2.rec.save, 0);
   assert.equal(app2.rec.remoteSync, 0);

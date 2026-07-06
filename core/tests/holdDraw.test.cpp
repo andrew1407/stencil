@@ -13,7 +13,6 @@ static Line lineOf(std::initializer_list<Point> pts) {
   return l;
 }
 
-// ── holdDrawTarget ──────────────────────────────────────────────
 TEST_CASE("holdDrawTarget: empty space → new line") {
   Lines empty;
   CHECK(holdDrawTarget(empty, 5, 5).kind == HoldTargetKind::NewLine);
@@ -49,7 +48,6 @@ TEST_CASE("holdDrawTarget: topmost (last) line wins for an overlapping point") {
   CHECK(holdDrawTarget(lines, 0, 0).lineIdx == 1);
 }
 
-// ── HoldDrawController ──────────────────────────────────────────
 TEST_CASE("controller: quick release before holdDelay never starts drawing") {
   HoldDrawController c(500.0);
   CHECK(c.pointerDown(10, 10, 0).action == HoldAction::Armed);

@@ -2140,8 +2140,6 @@ namespace stencil::gui {
   }
 
   // ── data actions (S9) ──
-  // Export the current layout as pretty JSON to a file. Guards "no lines" like
-  // the browser (drawingApp.js downloadJSON ~2071-2090).
   // Layout/image export + clipboard IO (downloadLayout/uploadLayout/copyLayout/pasteLayout/
   // applyLayoutJson/saveImageFile/copyImageToClipboard) live in DataExportController
   // (dataExportController.hpp), constructed as dataExport_. pasteImage() stays here (it
@@ -3125,9 +3123,6 @@ namespace stencil::gui {
     return false;
   }
 
-  // Gather a local project's original image bytes + dimensions: from the live canvas when it's
-  // the active project (latest edits), else from its stored image file. False + notify when
-  // there's no usable image.
   // Local↔server project transfer (move/copy to/from a server, + the import helper) lives in
   // ProjectTransferController (projectTransferController.hpp), constructed as projectTransfer_.
 
@@ -4180,8 +4175,6 @@ namespace stencil::gui {
     projectName_->selectAll();
     refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
-
-  // requireClient() + putVersionGuarded() now live on RemoteSession (remoteSession_).
 
   void MainWindow::commitProjectName() {
     const QString newName = projectName_->text().trimmed();

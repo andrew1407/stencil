@@ -246,11 +246,11 @@ public sealed class EditingServiceTests : IDisposable
         await _service.SetFilterAsync(UserId, "bw");
 
         UserSession undo1 = await _service.UndoAsync(UserId);
-        Assert.Null(undo1.Edits.Filter);            // the filter is undone…
-        Assert.Equal("x1=10%", undo1.Edits.CropSpec); // …the crop remains
+        Assert.Null(undo1.Edits.Filter);
+        Assert.Equal("x1=10%", undo1.Edits.CropSpec);
 
         UserSession undo2 = await _service.UndoAsync(UserId);
-        Assert.Null(undo2.Edits.CropSpec);          // the crop is undone
+        Assert.Null(undo2.Edits.CropSpec);
 
         UserSession undo3 = await _service.UndoAsync(UserId);
         Assert.True(undo3.Edits.IsEmpty);           // nothing left to undo — no-op
@@ -261,12 +261,12 @@ public sealed class EditingServiceTests : IDisposable
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetFilterAsync(UserId, "bw");
-        await _service.UndoAsync(UserId);                       // filter undone
+        await _service.UndoAsync(UserId);
 
-        UserSession redone = await _service.RedoAsync(UserId);   // …and redone
+        UserSession redone = await _service.RedoAsync(UserId);
         Assert.Equal("bw", redone.Edits.Filter);
 
-        await _service.UndoAsync(UserId);                        // undo again
+        await _service.UndoAsync(UserId);
         await _service.SetFilterAsync(UserId, "sepia");          // a NEW edit clears the redo stack
         UserSession after = await _service.RedoAsync(UserId);    // nothing to redo now
         Assert.Equal("sepia", after.Edits.Filter);
