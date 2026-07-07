@@ -76,6 +76,15 @@ export const removePinEntry = (entries, site, source) => {
   return out.length === list.length ? list : out;
 };
 
+// Pure: drop every pin for one site (origin); returns a new list (same ref array when
+// nothing matched). Underpins the options page's scoped "Clear" of a single site.
+export const removeSiteEntries = (entries, site) => {
+  const s = norm(site);
+  const list = Array.isArray(entries) ? entries : [];
+  const out = list.filter((e) => norm(e.site) !== s);
+  return out.length === list.length ? list : out;
+};
+
 export const loadPins = async () => {
   try {
     const o = await chrome.storage.local.get(PINS_KEY);
@@ -114,6 +123,21 @@ export const setPinned = async ({ source, site, resource, name, kind, pinned }) 
     return after;
   });
   // Keep the queue alive even if one op rejects, so a single failure can't wedge it.
+  pinWriteChain = run.catch(() => {});
+  return run;
+};
+
+// Clear pins in bulk, serialized through the same write chain as setPinned so it can't
+// clobber a concurrent pin/unpin. `site` of 'all' (or empty) wipes every pin; a specific
+// origin wipes only that site's pins. Returns the new list.
+export const clearPins = async (site) => {
+  const all = !norm(site) || norm(site) === 'all';
+  const run = pinWriteChain.then(async () => {
+    const before = await loadPins();
+    const after = all ? [] : removeSiteEntries(before, site);
+    if (after !== before && !(all && before.length === 0)) await savePins(after);
+    return after;
+  });
   pinWriteChain = run.catch(() => {});
   return run;
 };

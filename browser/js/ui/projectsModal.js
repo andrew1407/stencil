@@ -821,6 +821,14 @@ export class StencilProjectsModal extends StencilElement {
         list.appendChild(empty);
       }
 
+      // "Clear All" only ever wipes local projects. When a server is connected, say so
+      // explicitly ("Clear All Local") so the label matches the actual removal.
+      const clearAllLabel = clearAllBtn.querySelector('span');
+      if (clearAllLabel) clearAllLabel.textContent = hasServers() ? 'Clear All Local' : 'Clear All';
+      clearAllBtn.title = hasServers()
+        ? 'Delete every local project (server projects are not affected)'
+        : 'Delete every saved project';
+
       updateBatchBar();
     };
 
@@ -877,7 +885,11 @@ export class StencilProjectsModal extends StencilElement {
       close();
     });
     clearAllBtn.addEventListener('click', async () => {
-      if (!(await app.confirm('Permanently delete ALL saved projects?', { title: 'Delete all projects', danger: true }))) return;
+      const msg = hasServers()
+        ? 'Are you sure? This permanently deletes ALL local projects. Server projects are not affected.'
+        : 'Are you sure? This permanently deletes ALL saved projects.';
+      const title = hasServers() ? 'Delete all local projects' : 'Delete all projects';
+      if (!(await app.confirm(msg, { title, danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) return;
       app.clearAllProjects();
       render();
     });

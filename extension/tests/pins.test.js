@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, loadPins, setPinned, projectNameColor, PINS_KEY } from '../src/lib/pins.js';
+import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, removeSiteEntries, clearPins, loadPins, setPinned, projectNameColor, PINS_KEY } from '../src/lib/pins.js';
 
 // Minimal chrome.storage.local mock with an awaitable get/set, so the async wrappers
 // (loadPins/setPinned) can be driven from Node. The deferred resolution models real
@@ -104,6 +104,49 @@ test('removePinEntry drops only the matching (site, source), returning the same 
   assert.deepEqual(after.map((e) => e.source), ['https://cdn/y.png']);
   // No match → identical reference (lets callers skip a needless write).
   assert.equal(removePinEntry(list, 'https://a.com', 'https://cdn/none.png'), list);
+});
+
+test('removeSiteEntries drops every pin for one site, returning the same ref when nothing matched', () => {
+  const list = [
+    pin('https://a.com', 'https://cdn/1.png'),
+    pin('https://b.com', 'https://cdn/2.png'),
+    pin('https://a.com', 'https://cdn/3.png'),
+  ];
+  const after = removeSiteEntries(list, 'https://a.com');
+  assert.deepEqual(after.map((e) => e.source), ['https://cdn/2.png']);   // only b.com survives
+  // No pin for that site → identical reference (callers skip a needless write).
+  assert.equal(removeSiteEntries(list, 'https://none.com'), list);
+});
+
+test('clearPins("all") wipes every pin; a site scope wipes only that site', async () => {
+  const mock = installStorageMock();
+  mock.reset();
+  const a = 'https://a.com', b = 'https://b.com';
+  await setPinned({ source: 'https://cdn/1.png', site: a, pinned: true });
+  await setPinned({ source: 'https://cdn/2.png', site: b, pinned: true });
+  await setPinned({ source: 'https://cdn/3.png', site: a, pinned: true });
+
+  // Scoped clear: only a.com's pins go; b.com's remain.
+  await clearPins(a);
+  assert.deepEqual((await loadPins()).map((e) => e.source), ['https://cdn/2.png']);
+
+  // 'all' (and empty) clears everything that's left.
+  await clearPins('all');
+  assert.deepEqual(await loadPins(), []);
+});
+
+test('clearPins serializes against a concurrent setPinned', async () => {
+  const mock = installStorageMock();
+  mock.reset();
+  const site = 'https://a.com';
+  await setPinned({ source: 'https://cdn/1.png', site, pinned: true });
+  // Clear-all racing a new pin: the write queue orders them, so exactly the later pin
+  // survives (clear runs first, then the pin) — never a lost-update to an empty snapshot.
+  await Promise.all([
+    clearPins('all'),
+    setPinned({ source: 'https://cdn/2.png', site, pinned: true }),
+  ]);
+  assert.deepEqual((await loadPins()).map((e) => e.source), ['https://cdn/2.png']);
 });
 
 test('matchPinsForSite + sitesOf group by site, preserving newest-first order', () => {

@@ -70,6 +70,19 @@
     .pin-btn:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
     .pin-btn.danger { color:#ef4444; }
     .pin-btn.danger:hover { color:#fff; background:#dc2626; border-color:#dc2626; }
+    .pin-clear { padding:5px 12px; font-size:12px; color:#ef4444; background:var(--panel); border:1px solid var(--line); border-radius:7px; cursor:pointer; white-space:nowrap; }
+    .pin-clear:hover { color:#fff; background:#dc2626; border-color:#dc2626; }
+    .pin-clear:disabled { opacity:.45; cursor:default; color:var(--muted); background:var(--panel); border-color:var(--line); }
+    /* Themed Yes/No confirmation (the options page has no native modal of its own). */
+    .confirm-overlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; background:#0009; }
+    .confirm-overlay[hidden] { display:none; }
+    .confirm-box { width:calc(100% - 40px); max-width:380px; padding:20px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 14px 44px #0007; }
+    .confirm-msg { color:var(--text); font-size:14px; line-height:1.5; }
+    .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+    .confirm-btn { padding:7px 16px; font-size:13px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2); color:var(--text); cursor:pointer; }
+    .confirm-btn:hover { border-color:var(--accent); }
+    .confirm-btn.danger { color:#fff; background:#dc2626; border-color:#dc2626; }
+    .confirm-btn.danger:hover { background:#b91c1c; border-color:#b91c1c; }
     .pin-empty { color:var(--muted); font-size:13px; margin-top:14px; }
   </style>
 </head>
@@ -162,11 +175,22 @@
         <label class="chk" title="Show pins that are also stored on a connected server (golden outline)"><input type="checkbox" id="pin-show-server" checked> Show server pins</label>
         <select id="pin-store" title="Filter by the server a pin is stored on"></select>
         <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
+        <button id="pin-clear" class="pin-clear" title="Remove pinned images — every site, or just the selected one">Clear all</button>
       </div>
     </div>
     <p class="sub">Images and videos you pinned with the 📌 button, grouped by the site they were pinned on. Pinning floats them to the top of the popup list.</p>
     <ul id="pin-list" class="pin-list"></ul>
     <div id="pin-empty" class="pin-empty" hidden>No pinned images yet. Open the popup on any page and pin an image with the 📌 button.</div>
+  </div>
+
+  <div id="confirm-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg">
+      <div class="confirm-msg" id="confirm-msg"></div>
+      <div class="confirm-actions">
+        <button id="confirm-no" class="confirm-btn" type="button">No</button>
+        <button id="confirm-yes" class="confirm-btn danger" type="button">Yes</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="options.js"></script>
