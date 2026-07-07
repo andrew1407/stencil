@@ -170,6 +170,9 @@ namespace stencil::gui {
     // projects…" placeholder so the dialog can open instantly (remote fetch deferred).
     bool remoteLoaded_ = false;
     QListWidget* list_ = nullptr;
+    // "Clear All" (local-only) button; relabelled "Clear All Local" live while a server
+    // is connected so the label tracks the actual removal across the remote poll.
+    QPushButton* clearAllBtn_ = nullptr;
     QComboBox* filter_ = nullptr;   // All / Local / Server / per-server row filter
     QLineEdit* search_ = nullptr;   // name search box (mirrors the browser modal)
     QStringList knownServerUrls_;   // last server set the filter combo was built from

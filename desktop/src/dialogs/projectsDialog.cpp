@@ -351,7 +351,11 @@ namespace stencil::gui {
     newBtn->setToolTip("Create a new empty project from the current canvas");
     auto* blankBtn = new QPushButton("🖼 Blank Image", this);
     blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
+    // "Clear All" only ever wipes local projects. When a server is connected, label it
+    // "Clear All Local" so the button matches the actual (local-only) removal; the label is
+    // kept in step reactively via ConnectionManager::changed() (see below).
     auto* clearAllBtn = new QPushButton("Clear All", this);
+    clearAllBtn_ = clearAllBtn;
     clearAllBtn->setObjectName("dangerButton");  // red danger styling (mirrors the browser modal)
     clearAllBtn->setToolTip("Remove all local projects (server projects are not affected)");
     auto* closeBtn = new QPushButton("Close", this);
@@ -370,6 +374,17 @@ namespace stencil::gui {
       accept();
     });
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
+
+    // Keep the local-only "Clear All" label honest: "Clear All Local" while any server is
+    // connected, plain "Clear All" otherwise. Driven off ConnectionManager::changed() so it
+    // flips the moment a server connects/disconnects (no poll), matching the browser modal.
+    if (connections_) {
+      auto syncClearAllLabel = [this] {
+        clearAllBtn_->setText(connections_->urls().isEmpty() ? "Clear All" : "Clear All Local");
+      };
+      syncClearAllLabel();
+      connect(connections_, &stencil::net::ConnectionManager::changed, this, syncClearAllLabel);
+    }
 
     // Server (shared) projects: list them now and keep them live with a periodic
     // re-list while the dialog is open. The desktop talks REST only, so this
