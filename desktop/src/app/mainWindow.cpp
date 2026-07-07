@@ -2757,7 +2757,8 @@ namespace stencil::gui {
       }
       if (QMessageBox::question(
               this, "Clear all projects",
-              QString("Remove all %1 local project(s)? This cannot be undone. Server projects are not affected.")
+              QString("Are you sure? This removes all %1 local project(s) and cannot be undone. "
+                      "Server projects are not affected.")
                   .arg(n),
               QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
         return;

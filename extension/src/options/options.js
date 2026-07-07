@@ -1,6 +1,6 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/cropGeometry.js';
-import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned } from '../lib/pins.js';
+import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
 
@@ -99,6 +99,7 @@ document.getElementById('save').addEventListener('click', async () => {
 const siteSel = document.getElementById('pin-site');
 const pinListEl = document.getElementById('pin-list');
 const pinEmptyEl = document.getElementById('pin-empty');
+const pinClearBtn = document.getElementById('pin-clear');
 // Host label for a site origin (e.g. https://example.com → example.com).
 const hostLabel = (origin) => { try { return new URL(origin).host; } catch { return origin || '(unknown site)'; } };
 
@@ -199,6 +200,16 @@ const renderPins = async () => {
     sites.map((s) => `<option value="${s}">${hostLabel(s)} (${matchPinsForSite(pins, s).length})</option>`).join('');
   siteSel.value = (prevSite === 'all' || sites.includes(prevSite)) ? prevSite : 'all';
 
+  // The Clear button targets whatever the site filter shows: every pin, or just the
+  // selected site. Its label + enabled-state track that scope so it matches what it removes.
+  const clearScoped = siteSel.value !== 'all';
+  const clearCount = clearScoped ? matchPinsForSite(pins, siteSel.value).length : pins.length;
+  pinClearBtn.textContent = clearScoped ? 'Clear site' : 'Clear all';
+  pinClearBtn.title = clearScoped
+    ? `Remove all pinned images for ${hostLabel(siteSel.value)}`
+    : 'Remove every pinned image, on all sites';
+  pinClearBtn.disabled = clearCount === 0;
+
   // Storage filter (which server a pin is stored on) — populated from connected servers,
   // hidden (with the "show server pins" checkbox) when none are connected.
   const hasServers = serverPins.hosts.length > 0;
@@ -229,6 +240,55 @@ const renderPins = async () => {
 siteSel.addEventListener('change', renderPins);
 storeSel.addEventListener('change', renderPins);
 showServerChk.addEventListener('change', renderPins);
+
+// Themed Yes/No confirmation. The options page has no native modal of its own, so this
+// stands in for window.confirm() and matches the editor's look (theme.css vars). Resolves
+// true on Yes/Enter, false on No/Esc/backdrop click.
+const confirmDialog = (message) => new Promise((resolve) => {
+  const overlay = document.getElementById('confirm-overlay');
+  document.getElementById('confirm-msg').textContent = message;
+  const yes = document.getElementById('confirm-yes');
+  const no = document.getElementById('confirm-no');
+  const done = (val) => {
+    overlay.hidden = true;
+    yes.removeEventListener('click', onYes);
+    no.removeEventListener('click', onNo);
+    overlay.removeEventListener('mousedown', onBackdrop);
+    document.removeEventListener('keydown', onKey, true);
+    resolve(val);
+  };
+  const onYes = () => done(true);
+  const onNo = () => done(false);
+  const onBackdrop = (e) => { if (e.target === overlay) done(false); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); done(false); }
+    else if (e.key === 'Enter') { e.preventDefault(); done(true); }
+  };
+  yes.addEventListener('click', onYes);
+  no.addEventListener('click', onNo);
+  overlay.addEventListener('mousedown', onBackdrop);
+  document.addEventListener('keydown', onKey, true);
+  overlay.hidden = false;
+  yes.focus();
+});
+
+// Scoped bulk clear: wipe every pin ("all" scope) or just the selected site's pins.
+// Confirmed first — it's destructive and can't be undone.
+pinClearBtn.addEventListener('click', async () => {
+  const pins = await loadPins();
+  const scope = siteSel.value || 'all';
+  if (scope === 'all') {
+    if (!pins.length) return;
+    if (!(await confirmDialog(`Are you sure? Remove ALL ${pins.length} pinned image(s) from every site? This cannot be undone.`))) return;
+    await clearPins('all');
+  } else {
+    const n = matchPinsForSite(pins, scope).length;
+    if (!n) return;
+    if (!(await confirmDialog(`Are you sure? Remove all ${n} pinned image(s) for ${hostLabel(scope)}? This cannot be undone.`))) return;
+    await clearPins(scope);
+  }
+  renderPins();   // storage.onChanged also fires; re-render now for instant feedback
+});
 
 // ── Server connections ───────────────────────────────────────────────────────
 // Add (connect + persist) / remove collaboration-server connections. The popup reads
