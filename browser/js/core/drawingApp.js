@@ -299,6 +299,19 @@ export class DrawingApp {
     this.pointer.wirePanDrag();
     this.input.wireHoldDraw();
     this.input.wireTouch();
+    this.#wireExternalResume();
+  }
+
+  // The extension's editorBridge dispatches `stencil:switch-to-source` when the user picks
+  // "resume in the open editor tab": switch to the matching project here (no reload) instead
+  // of the extension spawning a new tab. Ignored while incognito (those images never persist).
+  #wireExternalResume() {
+    window.addEventListener('stencil:switch-to-source', (e) => {
+      if (this.storage.incognito) return;
+      const { source = '', name = '' } = e?.detail || {};
+      if (!source && !name) return;
+      this.#resumeBySource(source, name);
+    });
   }
 
 
@@ -603,22 +616,16 @@ export class DrawingApp {
     // Resume: if we hold project(s) for this source, switch instead of re-importing.
     // Several matches → open the projects list to pick. No match (stale ledger / expired
     // project) falls through to a fresh import.
-    if (launch.open === 'resume' && !this.storage.incognito && (source || name)) {
-      const baseName = this.#stripExt(name);
-      const matches = this.storage.store.findByImage(source, baseName);
-      if (matches.length && this.switchToProject(matches[0].id)) {
-        if (matches.length > 1) {
-          notify(`Resumed "${matches[0].name}" — ${matches.length} projects share this image`, 'ok');
-          document.getElementById('projects-btn')?.click();
-        }
-        return;
-      }
+    if (launch.open === 'resume' && !this.storage.incognito && (source || name)
+        && this.#resumeBySource(source, name)) {
+      return;
     }
 
     // Fresh import. Auto-number the name against existing same-source projects so repeats
     // become "name (1)", "name (2)", … (skipped for incognito, which never persists).
     // `open:'copy'` takes the same path.
     const opts = crop ? { crop } : {};
+    if (!crop && launch.noCrop) opts.noCrop = true;   // Open-Image dialog "Crop off" → full frame
     opts.source = source;
     opts.resource = resource;
     if (!this.storage.incognito && source) opts.name = this.storage.store.copyName(this.#stripExt(name), source);
@@ -636,6 +643,23 @@ export class DrawingApp {
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
       .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), opts))
       .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
+  }
+
+  // Switch to an existing project matching this image, without importing. Returns true when
+  // it switched (so the caller can stop). Shared by the resume launch path above and the
+  // extension's "resume in the open editor tab" nudge (stencil:switch-to-source), which lets
+  // the extension re-focus this tab instead of spawning a new one.
+  #resumeBySource(source, name) {
+    const baseName = this.#stripExt(name || '');
+    const matches = this.storage.store.findByImage(source, baseName);
+    if (matches.length && this.switchToProject(matches[0].id)) {
+      if (matches.length > 1) {
+        notify(`Resumed "${matches[0].name}" — ${matches.length} projects share this image`, 'ok');
+        document.getElementById('projects-btn')?.click();
+      }
+      return true;
+    }
+    return false;
   }
 
   // Open a server project referenced by an external launch: connect to the server the
@@ -1964,6 +1988,12 @@ export class DrawingApp {
     // whether this is a server project (see openInAvailable).
     const openInBtn = document.getElementById('open-in-btn');
     if (openInBtn) openInBtn.style.display = (hasImage && this.openInAvailable()) ? '' : 'none';
+    // Clear/remove-current-project is hidden for SERVER projects: a server project is removed
+    // only from the projects list (its Remove action), so the toolbar never offers a local-only
+    // clear that reads ambiguously ("did it delete on the server too?"). Local / temporary
+    // editors keep it (clear a local project, or reset a blank editor).
+    const clearBtn = document.getElementById('clear-storage');
+    if (clearBtn) clearBtn.style.display = this.remoteLink ? 'none' : '';
     // Recompose tooltips so the reason line appears/clears with the disabled state
     // (and hotkey buttons keep their combo). Covers every control carrying either
     // a hotkey id or a disabled-reason.
@@ -2198,24 +2228,41 @@ export class DrawingApp {
   // `address` (a connected server URL) creates+links the project on that server. Incognito
   // wins over a server target: incognito content is never created on a server (publish an
   // open incognito session explicitly via publishIncognitoToServer instead).
-  openImageHere(file, incognito = false, address = null) {
+  // `opts.crop` — an explicit crop rect {x,y,width,height} in original-image pixels chosen in
+  // the Open dialog's inline crop editor; applied on load in place of the default page-aspect crop.
+  openImageHere(file, incognito = false, address = null, opts = {}) {
     if (!file) return;
     const toServer = !!address && !incognito;
     if (toServer) requireConnection(this.connections, address);   // validate up front
     if (!this.storage.incognito) this.storage.save();
     this.newEditor();
     if (incognito) { this.storage.incognito = true; this.updateIncognitoUI(); }
-    this.loadImageFromFile(file, toServer ? { address } : {});
+    this.loadImageFromFile(file, this.#applyOpenOpts(toServer ? { address } : {}, opts));
+  }
+
+  // Copy the Open-Image dialog's per-source options onto a launch target (loader opts or a
+  // fragment payload): an explicit `crop` wins; else `noCrop` imports the whole frame (not
+  // the default page-aspect auto-crop); provenance (source/resource) rides along. Returns
+  // the mutated target so callers can inline it.
+  #applyOpenOpts(target, opts) {
+    if (opts.crop) target.crop = opts.crop;
+    else if (opts.noCrop) target.noCrop = true;
+    if (opts.source) target.source = opts.source;
+    if (opts.resource) target.resource = opts.resource;
+    return target;
   }
 
   // Open-image dialog action: launch `file` in a NEW browser tab via the #stencil=
-  // fragment hand-off (consumed by applyExternalLaunch, which honors `incognito`).
-  openImageNewTab(file, incognito = false) {
+  // fragment hand-off (consumed by applyExternalLaunch, which honors `incognito` and `crop`).
+  // `opts.crop` rides the fragment payload so the new tab imports with the same crop.
+  openImageNewTab(file, incognito = false, opts = {}) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const base = location.origin + location.pathname;
-      const url = buildExternalLaunchUrl(base, { dataUrl: reader.result, name: file.name, incognito: !!incognito });
+      const payload = this.#applyOpenOpts(
+        { dataUrl: reader.result, name: file.name, incognito: !!incognito }, opts);
+      const url = buildExternalLaunchUrl(base, payload);
       window.open(url, '_blank');
     };
     reader.onerror = () => notify('Could not read the image', 'fail');

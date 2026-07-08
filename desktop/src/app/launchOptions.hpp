@@ -44,6 +44,16 @@ namespace stencil::gui {
     // --projects : open the Projects window at launch.
     bool projects = false;
 
+    // Quick-crop override for the resolved --src image. NOT parsed from argv — set only
+    // by the Open-Image dialog's "Open in new window" handoff so the fresh window
+    // applies the same crop the user chose in the preview. hasCropOverride selects it;
+    // cropToPage crops centered to cropPage in cropAlbum/portrait, else the whole frame
+    // loads uncropped (crop toggle off with a preview). Mirrors the LinksDialog model.
+    bool hasCropOverride = false;
+    bool cropToPage = false;
+    bool cropAlbum = false;
+    QString cropPage;
+
     // A bare positional file argument (image / video / layout JSON), the form an
     // OS file-association or "Open With" hands the app. Routed through the same
     // suffix-sniffing open path as drag-and-drop. Lower priority than --src.

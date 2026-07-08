@@ -58,7 +58,8 @@ graph TD
   ever saved; the **editor/crop hand-off** always pulls the **`original`** so the editor can
   re-apply the saved filter/lines (the `result` has them baked in and couldn't be re-edited).
   Clicking a shared row opens the (original) server image in the editor; the `⋯` menu offers
-  open/incognito/here/crop on it.
+  open/incognito/here/crop on it, plus **Open in…** (Desktop app via the server reference,
+  and — the only place it appears — the Telegram bot, when a bot username is configured).
 - **Real-time refresh:** the popup re-pulls shared pins on a light **poll while open**
   (`SHARED_POLL_MS`, ~8 s) — MV3 popups are short-lived, so this is simpler and more robust
   than holding a background `/ws` events socket open. It also reacts to `chrome.storage`
@@ -76,6 +77,16 @@ graph TD
   **video** the menu also carries a **Video preview image** group (open in a tab,
   download, open/crop the poster in the editor) — the poster acts independently of
   the current frame, mirroring the page right-click menu's submenu.
+- An **Open in…** submenu hands the image off to another Stencil front-end, mirroring
+  the browser app's toolbar *Open In…* menu (ports its link builders in `lib/openIn.js`):
+  - **Desktop app** → a `stencil://open?…` link the OS routes to the installed desktop
+    app (the image bytes ride **inline**; a shared server row sends only its server
+    reference instead). Shown whenever a desktop URL scheme is configured; an oversized
+    inline image is refused (a merely-large one warns), same guards as the browser.
+  - **Telegram bot** → a `t.me/<bot>?start=…` deep link carrying a (server, project id)
+    reference. Shown **only for shared (server) rows** and only when a bot username is
+    configured — a start payload can't carry image bytes, so it needs a saved server
+    project. Both the scheme and the bot username are set on the **Options** page.
 - The `⇥` header button **docks the same view as a side panel** (Chrome side panel).
 
 **Side panel** (the `⇥` button, or `chrome.sidePanel`) — the identical search /
@@ -91,16 +102,36 @@ same `popup.js` controller, which targets `chrome.devtools.inspectedWindow.tabId
 
 **Image right-click menu** — a **Stencil** submenu next to the browser's own
 “Open image / Save image”: *Open in editor*, *Open in Stencil (incognito)*,
-*Crop image in Stencil…*.
+*Crop image in Stencil…*, and — when a desktop URL scheme is configured — **Open in
+desktop app** (a `stencil://` link with the image embedded inline; hidden when no scheme
+is set). The Telegram bot target isn't offered here: it needs a saved server project, so a
+raw page image has nothing to reference — use the popup's *Open in…* on a shared (server)
+row for that.
 
 **How things open**
 - **Open in editor** → the full editor in a **new browser tab** (so its own
   multi-project / cross-tab UI shows any editors you already have open).
+- **Resume in open editor** (an already-opened row's ⋯ menu) → instead of a new tab,
+  **focus the editor tab that's already open** and switch it to that image's project
+  (via the same-origin `editorBridge` → a `stencil:switch-to-source` DOM event →
+  `DrawingApp.switchToProject`). No navigation, so nothing in the tab is lost. Falls
+  back to opening a new tab when no editor is open.
 - **Crop** → a small **in-page modal** (an iframe of the quick-crop tool) so you
   stay on the page; only when you press *Open in editor* there does it spawn the
   full tab. On pages whose CSP `frame-src`/`child-src` blocks the frame, the crop
   tool **falls back to its own tab** (the tool posts a `ready` handshake; if the
   modal host doesn't hear it in time it reopens the tool as a tab).
+
+**Drag a row out** — list rows are **draggable** (`lib/dropZones.js` + the row
+`dragstart` in `popup.js`). Drop a row onto the editor tab / another app to import the
+image by URL, or drag it **onto the page** to get a **4-quadrant drop overlay**
+injected on the tab: `top-left = open in editor here · top-right = open incognito ·
+bottom-left = open image in new tab · bottom-right = crop`. Dropping outside a quadrant
+(or Esc) cancels. Only the **side panel** shares the page's window, so the on-page
+overlay reliably appears there; the **popup** dismisses as soon as you drag out and the
+**DevTools panel** lives in a separate window, so the browser won't hand either a page
+drag — on those two the row is still draggable out, but the quadrants won't show (same
+platform limit as drag-*to-pin*, which is side-panel-only too).
 
 **Quick crop** — mirrors the editor's crop model (a page-aspect rectangle in
 original-image pixels; drag inside to move, corner-only resize, **scroll/buttons to

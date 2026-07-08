@@ -20,9 +20,15 @@ export class StencilCropModal extends StencilElement {
                 <button class="app-modal-close btn-icon-text" id="crop-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-                <div id="crop-stage" style="position:relative;display:inline-block;line-height:0;max-width:100%;background:#222;overflow:hidden;">
+                <div id="crop-stage" style="position:relative;display:inline-block;line-height:0;max-width:100%;background:#222;">
                     <img id="crop-image-el" alt="Crop preview" style="display:block;width:auto;height:auto;max-width:calc(96vw - 60px);max-height:calc(82vh - 180px);user-select:none;-webkit-user-drag:none;">
-                    <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid #4da3ff;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;display:none;">
+                    <!-- Dimming backdrop lives in its own clip layer so the huge box-shadow is
+                         clipped to the image, while the crop box + corner handles below sit in
+                         the UNclipped stage (else handles at the image edge get sliced in half). -->
+                    <div id="crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+                        <div id="crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
+                    </div>
+                    <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid #4da3ff;cursor:move;display:none;">
                         <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
                         <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
                         <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
@@ -46,6 +52,7 @@ export class StencilCropModal extends StencilElement {
     const overlay = document.getElementById('crop-modal-overlay');
     const img = document.getElementById('crop-image-el');
     const box = document.getElementById('crop-box');
+    const shade = document.getElementById('crop-shade');   // clipped dimming backdrop (mirrors box)
     const dims = document.getElementById('crop-dims');
     const orientBtn = document.getElementById('crop-orientation');
 
@@ -73,6 +80,12 @@ export class StencilCropModal extends StencilElement {
       box.style.top = (rect.y * scale) + 'px';
       box.style.width = (rect.width * scale) + 'px';
       box.style.height = (rect.height * scale) + 'px';
+      // The dimming backdrop tracks the same rect in its clip layer.
+      shade.style.display = 'block';
+      shade.style.left = box.style.left;
+      shade.style.top = box.style.top;
+      shade.style.width = box.style.width;
+      shade.style.height = box.style.height;
       dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
       orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
     };

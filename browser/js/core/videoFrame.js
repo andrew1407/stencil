@@ -8,6 +8,14 @@ export function isVideoFile(file) {
   return /\.(mp4|webm|ogg|ogv|mov|m4v|mkv|avi)$/i.test(file.name || '');
 }
 
+// Does this URL point at a video (by its path extension, tolerating a ?query / #hash)?
+// Pure — the open-image dialog uses it to decide whether a URL source needs a frame
+// picker (a URL carries no MIME up front, so extension is the only signal we have).
+export function isVideoUrl(url) {
+  return typeof url === 'string'
+    && /\.(mp4|mov|webm|mkv|avi|m4v|ogv|mpe?g)(\?|#|$)/i.test(url.trim());
+}
+
 // Decode a video blob/object URL and capture the frame at `timeSec` to a JPEG data
 // URL. Revokes `srcUrl` when done (success or failure). Rejects on load/seek/taint.
 export function videoFrameDataUrl(srcUrl, timeSec) {

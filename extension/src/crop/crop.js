@@ -159,6 +159,13 @@ viewport.addEventListener('wheel', (e) => {
   setZoom(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
 }, { passive: false });
 
+// The viewport only reaches its real size a moment after the modal iframe (and the flex
+// layout) settle — the fit computed at image-load time can be against a not-yet-sized
+// stage. Re-fit whenever the viewport resizes, but only while the user is at the default
+// fit (zoom === 1), so a manual zoom is never clobbered. This is what makes a small image
+// scale up to fill the stage instead of being stuck tiny.
+new ResizeObserver(() => { if (state.imgW && state.zoom === 1) { fitToWindow(); layoutOverlay(); } }).observe(viewport);
+
 // ── Overlay layout (image-space → display px) ──
 const scale = () => (imgEl.getBoundingClientRect().width / state.imgW) || 1;
 

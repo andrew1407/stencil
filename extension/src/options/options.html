@@ -149,6 +149,14 @@
     </label>
     <div class="help">Off by default. When on, a scripting API is injected into every page's main world so you can run e.g. <code>stencil.images</code>, <code>stencil.search('logo')</code>, or <code>stencil.open(el)</code> from the DevTools console. Leave off unless you need it.</div>
 
+    <label class="f" for="desktopScheme">Open in other apps</label>
+    <input id="desktopScheme" type="text" placeholder="stencil">
+    <div class="help">The URL scheme the <strong>Stencil desktop app</strong> registers, used by the <code>⋯</code> menu's <strong>Open in… ▸ Desktop app</strong> action (a <code>stencil://</code> link the OS routes to the app; the image rides inline). Leave blank to hide that action.</div>
+
+    <label class="f" for="telegramBotUsername">Telegram bot username</label>
+    <input id="telegramBotUsername" type="text" placeholder="e.g. my_stencil_bot">
+    <div class="help">The <strong>Telegram bot</strong>'s username (without the <code>@</code>). Enables the <code>⋯</code> menu's <strong>Open in… ▸ Telegram bot</strong> action for <em>server</em> rows only (a <code>t.me</code> link can't carry image bytes, so it needs a saved server project). Leave blank to hide it.</div>
+
     <div class="row">
       <button id="save">Save</button>
       <span id="status" class="saved"></span>

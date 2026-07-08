@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../src/lib/contextMenu.js';
+import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle } from '../src/lib/contextMenu.js';
 
 test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests one deeper', () => {
   // A single top-level parent (id=root, title "Stencil") so the submenu reads "Stencil"
@@ -35,10 +35,15 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
     assert.deepEqual(MENU_ITEMS.find(i => i.id === id).contexts, ['video']);
 
   // The always-on native items (image actions, video current-frame actions) carry no
-  // `visible` flag. The dynamically-gated groups (background + Preview) do.
+  // `visible` flag. The dynamically-gated groups (background, Preview, and the desktop-app
+  // hand-off — gated on a configured scheme) do.
   const native = MENU_ITEMS.filter(i => i.id !== MENU.root && !i.contexts.includes('all'));
-  const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id));
+  const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id) && !STATIC_DESKTOP_ITEMS.includes(i.id));
   assert.ok(nativeAlways.every(i => !('visible' in i)));
+  // The desktop-app items start hidden; the worker reveals them only when a scheme is set.
+  const desktop = MENU_ITEMS.filter(i => STATIC_DESKTOP_ITEMS.includes(i.id));
+  assert.equal(desktop.length, STATIC_DESKTOP_ITEMS.length);
+  assert.ok(desktop.every(i => i.visible === false && i.parentId === MENU.root));
   const ids = MENU_ITEMS.map(i => i.id);
   assert.equal(new Set(ids).size, ids.length);
 });
@@ -79,6 +84,10 @@ test('MENU_ITEMS: a pin item sits in each context group (image / video / backgro
   // One pin item per group: <img> + <video> on their native contexts, background on 'all'
   // (default-hidden, revealed with the rest of the dynamic group).
   assert.deepEqual(PIN_ITEMS, [MENU.pin, MENU.framePin, MENU.bgPin]);
+  // The default MENU_ITEMS titles are the unpinned ('Pin …') form the SW flips at runtime.
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.pin).title, pinItemTitle(false, 'image'));
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.framePin).title, pinItemTitle(false, 'video'));
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.bgPin).title, pinItemTitle(false, 'image'));
   assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.pin).contexts, ['image']);
   assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.framePin).contexts, ['video']);
   const bgPin = MENU_ITEMS.find(i => i.id === MENU.bgPin);
@@ -98,6 +107,12 @@ test('resolveContextAction: background/link items mirror the <img> open/crop act
   assert.equal(resolveContextAction({ menuItemId: MENU.bgOpenModal }, 'https://x/bg.jpg').action, 'open-modal');
   // main target → no `target` key
   assert.ok(!('target' in resolveContextAction({ menuItemId: MENU.bgOpen, srcUrl: 'a' })));
+});
+
+test('resolveContextAction: desktop items resolve to a plain {action:"desktop", src}', () => {
+  for (const id of [MENU.desktop, MENU.frameDesktop, MENU.bgDesktop])
+    assert.deepEqual(resolveContextAction({ menuItemId: id, srcUrl: 'https://x/i.jpg' }),
+      { action: 'desktop', src: 'https://x/i.jpg' });   // no incognito / open / target keys
 });
 
 test('resolveContextAction: video-frame items mirror the image open/crop actions', () => {
@@ -172,4 +187,12 @@ test('resolveContextAction: null when id is foreign or no URL is available', () 
   assert.equal(resolveContextAction({ menuItemId: 'someone-elses-menu', srcUrl: 'a' }), null);
   assert.equal(resolveContextAction({ menuItemId: MENU.open }, null), null);   // no image under cursor
   assert.equal(resolveContextAction({ menuItemId: MENU.crop }), null);
+});
+
+test('pinItemTitle: Pin when unpinned, Unpin when pinned, image vs video', () => {
+  assert.equal(pinItemTitle(false, 'image'), '📌 Pin image');
+  assert.equal(pinItemTitle(true, 'image'), '📌 Unpin image');
+  assert.equal(pinItemTitle(false, 'video'), '📌 Pin video');
+  assert.equal(pinItemTitle(true, 'video'), '📌 Unpin video');
+  assert.equal(pinItemTitle(true), '📌 Unpin image');   // defaults to image
 });

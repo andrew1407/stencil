@@ -130,6 +130,45 @@ test('an https src: payload fetches with { mode: "cors" } and loads the image', 
   assert.equal(mock.loaded.length, 1);
 });
 
+test('a crop in the payload flows through to loadImageFromFile opts (open-image "new tab" + crop)', async () => {
+  resetGlobals();
+  const crop = { x: 10, y: 20, width: 100, height: 140 };
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'c.png', crop });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(mock.loaded.length, 1);
+  const [, opts] = mock.loaded[0];
+  assert.deepEqual(opts.crop, crop);   // the inline-crop rect rides the fragment to the loader
+});
+
+test('noCrop in the payload flows to loadImageFromFile opts (open-image "new tab", Crop off → whole frame)', async () => {
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'n.png', noCrop: true });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(mock.loaded.length, 1);
+  const [, opts] = mock.loaded[0];
+  assert.equal(opts.noCrop, true);     // Crop-off imports the full frame, not the default auto-crop
+  assert.equal(opts.crop, undefined);
+});
+
+test('an explicit crop wins over noCrop when both are present', async () => {
+  resetGlobals();
+  const crop = { x: 1, y: 2, width: 30, height: 40 };
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'b.png', crop, noCrop: true });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  const [, opts] = mock.loaded[0];
+  assert.deepEqual(opts.crop, crop);
+  assert.equal(opts.noCrop, undefined);   // crop present ⇒ noCrop is not forwarded
+});
+
 test('a failed fetch is caught and reported as a fail (no throw escapes)', async () => {
   resetGlobals();
   fetchImpl = () => Promise.resolve({ ok: false, status: 404, blob: async () => ({ type: 'image/png' }) });

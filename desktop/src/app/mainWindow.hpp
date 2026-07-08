@@ -251,7 +251,24 @@ namespace stencil::gui {
     // Same two outcomes for a URL / local video source, which resolves asynchronously
     // via MediaLoader (openImageSource) rather than a synchronous local-image load.
     void openSourceHere(const QString& src, int frame, bool incognito);
-    void openSourceInNewWindow(const QString& src, int frame, bool incognito);
+    // `crop*` carry the Open-Image dialog's quick-crop into the fresh window: it
+    // re-resolves the same source (identical pixels) and applies the same page-aspect
+    // crop (`cropToPage`) in `cropAlbum`/portrait at `cropPage`, or opens the whole
+    // frame when a preview was taken with cropping off (`hasPreview && !cropToPage`).
+    void openSourceInNewWindow(const QString& src, int frame, bool incognito,
+                               bool hasPreview = false, bool cropToPage = false,
+                               bool cropAlbum = false,
+                               const QString& cropPage = QString());
+    // Adopt already-decoded preview pixels from the Open-Image dialog directly (no
+    // re-fetch/seek), honoring its quick-crop choice. Mirrors openLinks' reuse of the
+    // previewed image. `localPath` is the originating file for a local image (kept for
+    // saves), empty for a URL/video frame; `provSource` records the URL as provenance.
+    // `cropToPage` crops centered to `cropPage` in `cropAlbum`/portrait; off ⇒ whole
+    // frame. Resets the editor like openSourceHere before adopting.
+    void openPreviewedImageHere(const QImage& image, const QString& localPath,
+                                const QString& provSource, bool incognito,
+                                bool cropToPage, bool cropAlbum,
+                                const QString& cropPage);
     // Replace outcome: swap the CURRENT project's image in place (same local id / server
     // link), optionally renaming the project + keeping the existing annotations. Server
     // sessions also re-upload the `original` (replaceServerOriginal). canReplaceActive()
@@ -322,6 +339,14 @@ namespace stencil::gui {
     void createServerProject(const QString& serverUrl, const QString& name,
                              std::function<void()> onLinked = {});
     void saveToActiveProject();
+    // Trash button (mirrors the browser #clear-storage handler): confirm, then clear
+    // the current editor back to blank — removing the active LOCAL project from the
+    // store first when one is open. Hidden for server-linked sessions (refreshActions),
+    // so it only ever runs for a local/temporary editor.
+    void clearCurrentProject();
+    // Reset the editor to the empty "Open an image" canvas (drops the image, lines,
+    // project binding + provenance). The desktop equivalent of storage.newTemporary().
+    void resetToBlankEditor();
     // Save a server-linked session back: version-guarded PUT of name+layout, then
     // upload the rendered result. Surfaces a 409 "edited elsewhere" message and
     // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
@@ -568,6 +593,7 @@ namespace stencil::gui {
     QAction* actLinks_ = nullptr;
     QAction* actNewProject_ = nullptr;
     QAction* actSaveProject_ = nullptr;
+    QAction* actClearProject_ = nullptr;  // trash: clear (remove) the current project/editor; hidden for server projects
     QAction* actProjectColor_ = nullptr;       // Project menu: pick the active project's name colour
     QAction* actProjectColorClear_ = nullptr;  // Project menu: revert it to the theme default
     QAction* actSaveSession_ = nullptr;

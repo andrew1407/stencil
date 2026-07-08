@@ -4,16 +4,25 @@
 import { mountStencilModal } from './overlay.js';
 import { recordOpened } from './ledger.js';
 import { sourceOf } from './imageModel.js';
+import { MSG } from './messages.js';
 
 export const DEFAULT_EDITOR_URL = 'http://localhost:8080/';
 export const DEFAULT_PAGE = 'A3';
+// Default desktop-app URL scheme for the "Open in…" desktop hand-off (mirrors the browser
+// app's openInConfig `desktopScheme`). Empty = hide the Desktop action.
+export const DEFAULT_DESKTOP_SCHEME = 'stencil';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, highlightColor: 'theme', exposeWindowStencil: false });
+  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, highlightColor: 'theme', exposeWindowStencil: false, desktopScheme: DEFAULT_DESKTOP_SCHEME, telegramBotUsername: '' });
   return {
     editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
     page: s.page || DEFAULT_PAGE,
+    // "Open in…" targets, mirroring the browser app's openInConfig. The desktop app's OS
+    // URL scheme (default 'stencil'; empty hides the Desktop action) and the Telegram bot's
+    // username (empty hides the Telegram action). Local operator config — see options.
+    desktopScheme: typeof s.desktopScheme === 'string' ? s.desktopScheme.trim() : DEFAULT_DESKTOP_SCHEME,
+    telegramBotUsername: typeof s.telegramBotUsername === 'string' ? s.telegramBotUsername.trim() : '',
     // The on-page highlight outline colour: 'theme' = follow the main accent, or a hex
     // string for a custom colour. Read live by the popup + page API when highlighting.
     highlightColor: typeof s.highlightColor === 'string' && s.highlightColor ? s.highlightColor : 'theme',
@@ -25,6 +34,10 @@ export const getSettings = async () => {
     // Whether the popup styles pinned images (gray outline) and floats them to the top
     // (default on). Toggled live from the popup; pinning still works when off.
     showPinned: s.showPinned !== false,
+    // Whether hovering a list row outlines its element on the page — and, with the on-page
+    // highlight on, hovering a page element outlines its row (default OFF). Side panel /
+    // DevTools panel only; toggled live from the panel.
+    hoverHighlight: s.hoverHighlight === true,
     // Whether to inject a page-global `window.stencil` scripting API into every page
     // (default OFF — touches every page's main world, so strictly opt-in).
     exposeWindowStencil: s.exposeWindowStencil === true
@@ -33,6 +46,49 @@ export const getSettings = async () => {
 
 export const setSettings = async (patch) => {
   await chrome.storage.sync.set(patch);
+};
+
+/**
+ * `${origin}/*` match pattern for the configured editor, or null when the editorUrl
+ * isn't an http(s) origin we can scope tabs.query / a content script to. Shared by the
+ * background bridge registration and resumeInOpenEditor.
+ * @returns {Promise<string|null>}
+ */
+export const editorOriginPattern = async () => {
+  try {
+    const { editorUrl } = await getSettings();
+    const origin = new URL(editorUrl).origin;
+    return origin.startsWith('http') ? `${origin}/*` : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Resume an already-opened image in the editor tab that's ALREADY open, rather than
+ * spawning a new one: focus that tab/window and ask its (same-origin) editorBridge to
+ * switch to the matching project — no navigation, so nothing in the tab is lost.
+ * @param {object} args
+ * @param {string} args.source - The image's own URL (matched against the editor's projects).
+ * @param {string} [args.name] - The image name (fallback match when no source).
+ * @returns {Promise<boolean>} true when an open editor tab handled it; false to fall back
+ *   to opening a new tab (no editor open, or the bridge didn't answer).
+ */
+export const resumeInOpenEditor = async ({ source, name }) => {
+  const pattern = await editorOriginPattern();
+  if (!pattern) return false;
+  try {
+    const [tab] = await chrome.tabs.query({ url: [pattern] });
+    if (!tab || tab.id == null) return false;
+    await chrome.tabs.update(tab.id, { active: true });
+    if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    // Throws if no editorBridge is listening (e.g. a very old tab we couldn't inject) →
+    // caller falls back to a fresh tab.
+    await chrome.tabs.sendMessage(tab.id, { type: MSG.EDITOR_SWITCH, source, name });
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 // Base64-encode an ArrayBuffer in chunks (no FileReader → works in the SW).

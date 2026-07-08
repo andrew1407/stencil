@@ -574,6 +574,10 @@ namespace stencil::gui {
     // New Project has no shared hotkeysConfig.json entry; literal default here.
     actNewProject_ = mk("New Project", "Ctrl+Shift+N");
     actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
+    // Trash: clear (remove) the current project/editor (mirrors the browser's
+    // #clear-storage danger button). Hidden for server projects (refreshActions).
+    actClearProject_ = mk("Clear Project", QString());
+    tip(actClearProject_, "Clear (remove) current project");
     actSaveSession_ = mk("Save Session", "Ctrl+S");
     actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
     actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
@@ -698,6 +702,8 @@ namespace stencil::gui {
             &MainWindow::newProjectFromCanvas);
     connect(actSaveProject_, &QAction::triggered, this,
             &MainWindow::saveToActiveProject);
+    connect(actClearProject_, &QAction::triggered, this,
+            &MainWindow::clearCurrentProject);
     connect(actSaveSession_, &QAction::triggered, this, [this] {
       saveSessionNow();
       notify_->success("Session saved");
@@ -981,6 +987,7 @@ namespace stencil::gui {
     project->addAction(actConnect_);
     project->addAction(actNewProject_);
     project->addAction(actSaveProject_);
+    project->addAction(actClearProject_);
     project->addSeparator();
     // Per-project name colour lives here (not as a toolbar swatch): pick a custom colour or
     // revert to the theme default. Enabled only with an active project (see updateProjectTitle).
@@ -1079,6 +1086,10 @@ namespace stencil::gui {
     tb->addAction(actConnect_);
     // "Open in…" (browser / Telegram) — mirrors the browser's #open-in-btn.
     tb->addAction(actOpenIn_);
+    // Clear (remove) the current project/editor — the browser's #clear-storage trash
+    // button. A danger action beside the project affordances; hidden for server
+    // projects (refreshActions), which are removed only from the projects dialog.
+    tb->addAction(actClearProject_);
     // Incognito as a checkable toolbar icon (mirrors the browser's #incognito-toggle):
     // bound to the SAME actIncognito_ as the View-menu entry, so toggle state, the
     // active highlight (QAction checked), and the disabled-when-an-image-is-loaded
@@ -1538,7 +1549,8 @@ namespace stencil::gui {
   // Open Image / Open Another Image / New Blank Image. We dispatch on the chosen outcome.
   void MainWindow::openImageDialog(bool startBlank) {
     const auto px = core::defaultBlankSizePx(currentPageDimensions());
-    OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank);
+    OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank,
+                        settings_.pageSize, settings_.units);
     if (dlg.exec() != QDialog::Accepted) return;
     if (dlg.outcome() == OpenImageDialog::Outcome::Blank) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
@@ -1547,8 +1559,33 @@ namespace stencil::gui {
     const QString src = dlg.source();
     if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.outcome();
-    // A URL or video is decoded asynchronously via MediaLoader (openImageSource);
-    // the dialog only offers Here / NewWindow for those (no in-place replace).
+
+    // Preview path: the dialog already decoded the exact image/frame and chose a
+    // quick-crop. Adopt those pixels directly — no re-download/seek — and honor the
+    // Crop toggle (on ⇒ crop centered to the chosen page/orientation; off ⇒ open the
+    // whole image). Consumed exactly like openLinks() consumes LinksDialog. Applies to
+    // the "open as new" outcomes (Here / new window); Replace keeps its own in-place
+    // path below. Falls back to the async resolve when no preview was made.
+    const QImage previewed = dlg.previewedImage();
+    if (!previewed.isNull() &&
+        (outcome == OpenImageDialog::Outcome::Here ||
+         outcome == OpenImageDialog::Outcome::NewWindow)) {
+      const bool localFile = !dlg.isUrl() && !dlg.isVideo() && QFileInfo(src).exists();
+      if (outcome == OpenImageDialog::Outcome::NewWindow) {
+        // The fresh window re-resolves the same source (identical pixels) and applies
+        // the same page-aspect crop, so preview + crop carry across without moving pixels.
+        openSourceInNewWindow(src, dlg.frame(), dlg.incognito(), /*hasPreview=*/true,
+                              dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize());
+        return;
+      }
+      openPreviewedImageHere(previewed, localFile ? src : QString(),
+                             dlg.isUrl() ? src : QString(), dlg.incognito(),
+                             dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize());
+      return;
+    }
+
+    // No preview was taken (source typed but never previewed): keep the original async
+    // resolve for a URL/video and the synchronous local-image load otherwise.
     if (dlg.isUrl() || dlg.isVideo()) {
       if (outcome == OpenImageDialog::Outcome::NewWindow)
         openSourceInNewWindow(src, dlg.frame(), dlg.incognito());
@@ -1590,7 +1627,11 @@ namespace stencil::gui {
   // "Open in new window" for a URL / local video: spawn a fresh window and hand it
   // the source via launch options (same vehicle as openImageInNewWindow, minus the
   // local-only QImageReader guard — MediaLoader validates + reports in that window).
-  void MainWindow::openSourceInNewWindow(const QString& src, int frame, bool incognito) {
+  // A quick-crop override (from the Open-Image dialog's preview) rides along so the new
+  // window applies the identical page-aspect crop after re-resolving the same source.
+  void MainWindow::openSourceInNewWindow(const QString& src, int frame, bool incognito,
+                                         bool hasPreview, bool cropToPage,
+                                         bool cropAlbum, const QString& cropPage) {
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
@@ -1598,7 +1639,47 @@ namespace stencil::gui {
     opts.src = src;
     opts.frame = frame;
     opts.incognito = incognito;
+    // With a preview taken, carry the exact crop choice; crop OFF ⇒ open the whole
+    // frame (skip the default page-aspect auto-crop), matching the "Open here" path.
+    if (hasPreview) {
+      opts.hasCropOverride = true;
+      opts.cropToPage = cropToPage;
+      opts.cropAlbum = cropAlbum;
+      opts.cropPage = cropPage;
+    }
     win->applyLaunchOptions(opts);
+  }
+
+  // Adopt the pixels the Open-Image dialog already decoded for its preview (no second
+  // download/seek), honoring its quick-crop. Mirrors openSourceHere's editor reset
+  // (persist the current editor, drop the project binding, adopt the incognito choice),
+  // then routes the in-memory image through the shared onLaunchImageLoaded adoption —
+  // exactly as openLinks() does with LinksDialog's previewed image.
+  void MainWindow::openPreviewedImageHere(const QImage& image, const QString& localPath,
+                                          const QString& provSource, bool incognito,
+                                          bool cropToPage, bool cropAlbum,
+                                          const QString& cropPage) {
+    if (!incognito_) {
+      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+      else saveSessionNow();
+    }
+    activeProjectId_.clear();
+    if (incognito_ != incognito) {
+      incognito_ = incognito;
+      incognitoOverlay_->setActive(incognito);
+      actIncognito_->blockSignals(true);
+      actIncognito_->setChecked(incognito);
+      actIncognito_->blockSignals(false);
+      updateProjectTitle();
+    }
+    // Crop choice: page-aspect crop, or the whole frame (crop off) — never the default
+    // page-aspect auto-crop, so what was previewed is what opens.
+    if (cropToPage)
+      pendingCrop_ = {QuickCropOpts::Mode::Page, cropAlbum, cropPage};
+    else
+      pendingCrop_ = {QuickCropOpts::Mode::None, false, QString()};
+    pendingProvSource_ = provSource;
+    onLaunchImageLoaded(image, localPath);
   }
 
   // True when the current editor holds a saved/linked project whose image can be swapped in
@@ -2001,6 +2082,12 @@ namespace stencil::gui {
       actOpenIn_->setVisible(anyAvail);
       actOpenIn_->setEnabled(hasImg && anyAvail);
     }
+    // Clear (remove) current project — mirrors the browser's updateButtons() gating
+    // (clearBtn.style.display = remoteLink ? 'none' : ''): hidden whenever the current
+    // session is server-linked (those are removed only from the projects dialog),
+    // shown for local/temporary editors.
+    if (actClearProject_)
+      actClearProject_->setVisible(remoteSession_->link().address.isEmpty());
     updateProjectTitle();   // keep the window title + toolbar name field in sync
   }
 
@@ -2694,6 +2781,7 @@ namespace stencil::gui {
     set(actProjects_, "folder");
     set(actNewProject_, "file-text");
     set(actSaveProject_, "save");
+    set(actClearProject_, "trash");
     set(actSaveSession_, "clipboard");
     set(actDownloadJson_, "download");
     set(actUploadJson_, "upload");
@@ -3574,6 +3662,13 @@ namespace stencil::gui {
     } else if (!opts.src.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;  // applied after the image loads
       pendingLaunchLayoutJson_ = opts.layoutJson;
+      // A quick-crop override (Open-Image dialog "Open in new window" handoff): apply
+      // the same page-aspect crop / whole-frame choice the user made in the preview,
+      // instead of the default page-aspect auto-crop. Consumed by applyQuickCrop().
+      if (opts.hasCropOverride)
+        pendingCrop_ = opts.cropToPage
+                           ? QuickCropOpts{QuickCropOpts::Mode::Page, opts.cropAlbum, opts.cropPage}
+                           : QuickCropOpts{QuickCropOpts::Mode::None, false, QString()};
       openImageSource(opts.src, opts.frame);
     } else if (!opts.file.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;
@@ -4525,6 +4620,49 @@ namespace stencil::gui {
     refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(
         QString("Saved to \"%1\"").arg(QString::fromStdString(pr->meta.name)));
+  }
+
+  // Trash button — mirrors the browser #clear-storage handler (controlsBinder.js).
+  // The button is hidden for server-linked sessions (refreshActions), so this only
+  // ever runs for a local project or a temporary/blank editor.
+  void MainWindow::clearCurrentProject() {
+    const bool hasProject = !activeProjectId_.isEmpty();
+    const QString title = hasProject ? tr("Clear project") : tr("Clear editor");
+    const QString msg = hasProject
+        ? tr("Clear this project (image + lines) from storage?")
+        : tr("Clear this editor (image + lines)?");
+    if (QMessageBox::question(this, title, msg,
+                              QMessageBox::Yes | QMessageBox::No,
+                              QMessageBox::No) != QMessageBox::Yes)
+      return;
+    if (hasProject) {
+      // Remove the active LOCAL project from the store (same plumbing as the projects
+      // dialog's per-project Remove), then reset to a blank editor.
+      const std::string id = activeProjectId_.toStdString();
+      projectList_.erase(
+          std::remove_if(projectList_.begin(), projectList_.end(),
+                         [&](const Project& p) { return p.meta.id == id; }),
+          projectList_.end());
+      fileStore::saveProjects(projectList_);
+    }
+    resetToBlankEditor();
+    refreshDockMenu();  // drop the cleared project from the Dock "recent" list
+    notify_->info(hasProject ? "Project cleared" : "Editor cleared");
+  }
+
+  // Reset the editor to the empty "Open an image" canvas — the desktop equivalent of
+  // the browser's storage.newTemporary(): drop the image, lines, project binding and
+  // provenance. (link().unbind() is defensive; the trash button is hidden for server
+  // sessions, so a link is never set here.)
+  void MainWindow::resetToBlankEditor() {
+    activeProjectId_.clear();
+    remoteSession_->link().unbind();
+    currentSource_.clear();
+    currentResource_.clear();
+    blankColor_.clear();
+    canvas_->clearImage();
+    refreshActions();
+    saveSessionNow();  // persist the cleared state so it doesn't restore on next launch
   }
 
   // ── Project name surface (window title + toolbar field) ──
