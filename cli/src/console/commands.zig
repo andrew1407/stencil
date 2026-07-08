@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, rename, expire, fetch, sync };
+pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -54,6 +54,13 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "connections") or eq(w, "servers")) return .connections;
     if (eq(w, "projects") or eq(w, "ls")) return .projects;
     if (eq(w, "project-color") or eq(w, "projectcolor") or eq(w, "pcolor")) return .project_color;
+    if (eq(w, "blank-color") or eq(w, "blankcolor") or eq(w, "bcolor")) return .blank_color;
+    // Keyword commands (order-independent — verbOf matches the whole word). More-specific
+    // variants first for readability; exact matching means suffixes never shadow "keywords".
+    if (eq(w, "keywords-search") or eq(w, "keywordssearch") or eq(w, "kwsearch")) return .keywords_search;
+    if (eq(w, "keywords-add") or eq(w, "keywordsadd") or eq(w, "kwadd")) return .keywords_add;
+    if (eq(w, "keywords-del") or eq(w, "keywords-delete") or eq(w, "keywords-rm") or eq(w, "kwdel")) return .keywords_del;
+    if (eq(w, "keywords") or eq(w, "kw")) return .keywords;
     if (eq(w, "rename") or eq(w, "mv")) return .rename;
     if (eq(w, "expire") or eq(w, "expiry") or eq(w, "ttl")) return .expire;
     if (eq(w, "fetch") or eq(w, "pull")) return .fetch;
@@ -217,6 +224,16 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("ls").? == .projects);
     try testing.expect(verbOf("project-color").? == .project_color);
     try testing.expect(verbOf("pcolor").? == .project_color);
+    try testing.expect(verbOf("blank-color").? == .blank_color);
+    try testing.expect(verbOf("bcolor").? == .blank_color);
+    // Keyword verbs + aliases; the -search/-add/-del suffixes don't shadow bare "keywords".
+    try testing.expect(verbOf("keywords").? == .keywords);
+    try testing.expect(verbOf("kw").? == .keywords);
+    try testing.expect(verbOf("keywords-search").? == .keywords_search);
+    try testing.expect(verbOf("kwsearch").? == .keywords_search);
+    try testing.expect(verbOf("keywords-add").? == .keywords_add);
+    try testing.expect(verbOf("keywords-del").? == .keywords_del);
+    try testing.expect(verbOf("keywords-rm").? == .keywords_del);
     try testing.expect(verbOf("fetch").? == .fetch);
     try testing.expect(verbOf("sync").? == .sync);
 

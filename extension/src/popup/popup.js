@@ -12,6 +12,7 @@ import {
   createProject, fetchProjectImage, pinTargetMode, projectRequestFromImage,
 } from '../lib/connections.js';
 import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../lib/imageModel.js';
+import { extractDraggedUrl, guessKindFromUrl } from '../lib/dragUrl.js';
 
 // Common web image formats always offered in the filter, plus any others the page
 // uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
@@ -839,6 +840,49 @@ const setPinnedState = async (image, pinned) => {
 
 // Toggle local pin (used by the row's pin button + the menu's Unpin / "Pin locally").
 const togglePin = async (image) => setPinnedState(image, !image.pinned);
+
+// Drag-to-pin (side panel / DevTools): dropping a page image/video element onto the list pins
+// its source. If it matches a scanned row, reuse that row (and its kind/name); otherwise pin the
+// dropped URL directly. Already pinned → no-op (feature #6).
+const pinFromDroppedUrl = async (url) => {
+  const src = String(url || '').trim();
+  if (!src) return;
+  const site = siteOf(state.activeUrl);
+  // Prefer a matching scanned row so the pin carries its real name/kind and floats in place.
+  const existing = state.all.find((im) => pinnable(im) && sourceOf(im) === src);
+  if (existing) {
+    if (existing.pinned) return;   // already pinned → do nothing
+    await setPinnedState(existing, true);
+    return;
+  }
+  const pins = await loadPins();
+  if (isPinnedIn(pins, site, src)) return;   // already pinned (not in this scan) → do nothing
+  await setPinned({ source: src, site, resource: state.activeUrl, name: filenameFromUrl(src), kind: guessKindFromUrl(src), pinned: true });
+  // storage.onChanged re-annotates, but refresh now so the new pin shows immediately.
+  await annotatePinned();
+  applyFilters();
+};
+
+// Attach drag-to-pin to the available-images list on the persistent surfaces (the popup closes
+// on blur, so a page→popup drag can't complete there).
+if (IS_SIDE_PANEL || IS_DEVTOOLS) {
+  const setDrag = (on) => listEl.classList.toggle('drag-over', on);
+  listEl.addEventListener('dragover', (e) => {
+    // Only react to a dragged link/image/text (not our own row interactions).
+    const t = e.dataTransfer && e.dataTransfer.types;
+    if (!t || !(t.includes('text/uri-list') || t.includes('text/html') || t.includes('text/plain'))) return;
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = 'copy'; } catch { /* noop */ }
+    setDrag(true);
+  });
+  listEl.addEventListener('dragleave', (e) => { if (!listEl.contains(e.relatedTarget)) setDrag(false); });
+  listEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    setDrag(false);
+    const url = extractDraggedUrl((type) => e.dataTransfer.getData(type));
+    if (url) pinFromDroppedUrl(url);
+  });
+}
 
 // Store an already-pinned image on a server as a shared project.
 const storeOnServer = async (image, serverUrl) => {

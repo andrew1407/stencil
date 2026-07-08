@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <functional>
 
@@ -27,6 +28,11 @@ namespace stencil::net {
     // Per-project accent color ("#rrggbb" or empty = theme default). Mirrors
     // protocol.ProjectRecord.Color so the shared name colour survives a re-list.
     QString color;
+    // Search keywords. Mirrors protocol.ProjectRecord.Keywords.
+    QStringList keywords;
+    // Blank-image fill colour ("#rrggbb" or empty = ordinary image). Mirrors
+    // protocol.ProjectRecord.BlankColor; a non-empty value marks a recolourable blank project.
+    QString blankColor;
     bool hasImage = false;
     int imageW = 0;
     int imageH = 0;
@@ -162,6 +168,11 @@ namespace stencil::net {
     bool connectTo(const QString& url, const QString& token, QString& err);
     // Disconnect a url, or (empty url) the most recently added connection.
     void disconnectFrom(const QString& url = QString());
+    // Reorder the live connection set: move the client at index `from` to index `to`
+    // (QList::move semantics). Emits changed() so the new order is persisted (via the
+    // window's changed()→saveServers hook) and the UI refreshes — mirrors the browser
+    // ConnectionManager.reorder().
+    void reorder(int from, int to);
     // Async: re-establish one connection (by url) without blocking; emits changed() and reports
     // (ok, err) via `done`. `done`'s captures must be guarded by the caller for its own lifetime.
     void reconnectAsync(const QString& url, std::function<void(bool ok, QString err)> done);

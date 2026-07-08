@@ -28,6 +28,9 @@ namespace stencil::gui {
     void doConnect();
     // Show/hide the batch toolbar + update its count from the current selection.
     void updateBatchBar();
+    // Yes/No confirm, then disconnect + refresh — the single remove path shared by the
+    // per-row ✕, the batch Disconnect, and the drag-out-of-the-dialog gesture.
+    void confirmDisconnect(const QString& url);
 
     stencil::net::ConnectionManager* manager_;
     QLineEdit* urlEdit_ = nullptr;

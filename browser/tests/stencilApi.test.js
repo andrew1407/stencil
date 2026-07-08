@@ -125,6 +125,13 @@ const makeApp = (over = {}) => {
       if (m) m.color = color;
       return m || null;
     },
+    setProjectBlankColor(id, color) {
+      calls.push(['setProjectBlankColor', id, color]);
+      const m = app._metas.find((x) => x.id === id);
+      if (!m || !m.blank) return null;   // no-op for non-blank (matches the real app)
+      m.blankColor = color;
+      return m;
+    },
     closeProject: rec('closeProject'), switchToProject: rec('switchToProject'),
     toggleFullscreen() { calls.push(['toggleFullscreen']); bodyFullscreen = !bodyFullscreen; },
     pixelToPageCoords(x, y) { calls.push(['pixelToPageCoords', x, y]); return { x: x / 10, y: y / 10 }; },
@@ -368,6 +375,28 @@ test('project.color get/set validates hex and routes to setProjectColor', () => 
   p.color = '';                           // clear is allowed
   assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '']);
   assert.throws(() => { p.color = 'zzz'; }, /Invalid project colour/);
+});
+
+test('project.blank/blankColor: read-only blank flag, colour routes to setProjectBlankColor', () => {
+  const app = withProjects();
+  app._metas = [
+    { id: 1, name: 'Alpha', blank: true, blankColor: '#00aaff' },
+    { id: 2, name: 'Beta' },   // ordinary image project (not blank)
+  ];
+  const stencil = createStencil(app);
+
+  const blankP = stencil.getProjectByName('alpha');
+  assert.equal(blankP.blank, true);
+  assert.equal(blankP.blankColor, '#00aaff');
+  blankP.blankColor = '#ff0000';          // valid hex → routes to setProjectBlankColor
+  assert.deepEqual(lastCall(app, 'setProjectBlankColor'), ['setProjectBlankColor', 1, '#ff0000']);
+  assert.throws(() => { blankP.blankColor = 'zzz'; }, /Invalid blank colour/);
+
+  // A non-blank project: blank=false, blankColor=null, and setting throws (nothing to recolour).
+  const imgP = stencil.getProjectByName('beta');
+  assert.equal(imgP.blank, false);
+  assert.equal(imgP.blankColor, null);
+  assert.throws(() => { imgP.blankColor = '#ffffff'; }, /not a blank image/);
 });
 
 test('project.renew/open/close route to app and return the project for chaining', () => {

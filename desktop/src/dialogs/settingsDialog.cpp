@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QListView>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -56,7 +57,20 @@ namespace stencil::gui {
       accent_->addItem(swatch(QColor(a.hex)), a.label, a.key);
     {
       const int idx = accent_->findData(current.accentColor);
-      accent_->setCurrentIndex(idx >= 0 ? idx : 0);
+      if (idx >= 0) {
+        accent_->setCurrentIndex(idx);
+      } else if (current.accentColor.startsWith('#') && QColor(current.accentColor).isValid()) {
+        // A custom (non-preset) accent — set ONLY from the header logo (double-click), never chosen
+        // here. Add a "Custom" entry so the COLLAPSED combo reflects it, but HIDE that row in the
+        // popup so it isn't offered as a choice in the list.
+        accent_->addItem(swatch(QColor(current.accentColor)), "Custom", current.accentColor);
+        const int customIdx = accent_->count() - 1;
+        accent_->setCurrentIndex(customIdx);
+        if (auto* view = qobject_cast<QListView*>(accent_->view()))
+          view->setRowHidden(customIdx, true);
+      } else {
+        accent_->setCurrentIndex(0);
+      }
     }
     form->addRow("Main theme", accent_);
 

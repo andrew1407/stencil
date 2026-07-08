@@ -323,6 +323,40 @@ export const createStencil = (app) => {
         if (s && !normalizeHex(s)) throw new Error(`Invalid project colour "${v}" — use a hex like #ff5623, or '' to clear`);
         if (app.setProjectColor(id, s) == null) throw new Error(`Could not set colour on project ${id}`);
       },
+      // Search keywords (string[]). Assign an array or a comma/space-separated string to
+      // replace them; addKeywords / removeKeywords adjust the set. Mirrors the CLI /keywords.
+      get keywords() { return incognito ? [] : (meta()?.keywords ?? []).slice(); },
+      set keywords(v) {
+        if (incognito) throw new Error('Cannot set keywords on an incognito editor');
+        const list = Array.isArray(v) ? v : str(v).split(/[\s,]+/);
+        if (app.setProjectKeywords(id, list) == null) throw new Error(`Could not set keywords on project ${id}`);
+      },
+      // Whether this is a blank-image project (solid-colour background). Read-only.
+      get blank() { return incognito ? false : !!meta()?.blank; },
+      // Blank-fill colour ("#rrggbb"), or null for a non-blank project. Assigning recolours the
+      // solid background in place (the drawn lines stay). Setting on a non-blank project is a no-op
+      // (throws), per the "only blanks have a blank colour" rule.
+      get blankColor() { const m = meta(); return (m && m.blank) ? (m.blankColor || '') : null; },
+      set blankColor(v) {
+        if (incognito) throw new Error('Cannot recolour an incognito editor');
+        if (!meta()?.blank) throw new Error(`Project ${id} is not a blank image — nothing to recolour`);
+        const s = str(v).trim();
+        if (!normalizeHex(s)) throw new Error(`Invalid blank colour "${v}" — use a hex like #ffffff`);
+        if (app.setProjectBlankColor(id, s) == null) throw new Error(`Could not set blank colour on project ${id}`);
+      },
+      addKeywords(...kw) {
+        if (incognito) throw new Error('Cannot set keywords on an incognito editor');
+        const add = kw.flatMap((k) => (Array.isArray(k) ? k : str(k).split(/[\s,]+/))).filter(Boolean);
+        if (app.setProjectKeywords(id, [...(meta()?.keywords ?? []), ...add]) == null) throw new Error(`Could not add keywords on project ${id}`);
+        return project;
+      },
+      removeKeywords(...kw) {
+        if (incognito) throw new Error('Cannot set keywords on an incognito editor');
+        const drop = new Set(kw.flatMap((k) => (Array.isArray(k) ? k : str(k).split(/[\s,]+/))).map((s) => str(s).trim().toLowerCase()).filter(Boolean));
+        const cur = (meta()?.keywords ?? []).filter((k) => !drop.has(str(k).toLowerCase()));
+        if (app.setProjectKeywords(id, cur) == null) throw new Error(`Could not remove keywords on project ${id}`);
+        return project;
+      },
       get imageName() {
         if (isActive()) return app.imageBaseName ?? null;
         return store().get(id)?.payload?.layout?.imageBaseName ?? null;
@@ -490,6 +524,16 @@ export const createStencil = (app) => {
       const n = str(name).trim().toLowerCase();
       const m = app.storage.store.list().find((p) => str(p.name).trim().toLowerCase() === n);
       return m ? makeProject(m.id) : null;
+    },
+    // Local projects whose keywords match ANY of the query terms (case-insensitive substring),
+    // mirroring the CLI /keywords-search. Returns Project handles, most-recently-updated first.
+    getProjectsByKeyword(...keywords) {
+      const terms = keywords.flatMap((k) => (Array.isArray(k) ? k : str(k).split(/[\s,]+/)))
+        .map((s) => str(s).trim().toLowerCase()).filter(Boolean);
+      if (!terms.length) return [];
+      return app.storage.store.list()
+        .filter((p) => (p.keywords || []).some((kw) => terms.some((t) => str(kw).toLowerCase().includes(t))))
+        .map((p) => makeProject(p.id));
     },
     // Set when the ACTIVE project expires, from a free-form duration. With no argument
     // it returns the accepted formats; with one it validates and applies the expiry

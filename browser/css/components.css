@@ -40,34 +40,34 @@ input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor:
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background: rgba(0, 100, 255, 0.12);
+    background: rgba(0, 100, 255, 0.2);
     backdrop-filter: blur(2px);
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px;
     pointer-events: none;
 }
-#global-drop-overlay .drop-message {
-    background: var(--bg-container);
-    border: 3px dashed var(--accent);
-    border-radius: 16px;
-    padding: 40px 60px;
-    text-align: center;
+/* Split drop target: LEFT = upload + save, RIGHT = upload incognito. Dashed borders +
+   labels; the half under the cursor highlights while dragging. */
+#global-drop-overlay .drop-split { flex: 1 1 auto; display: flex; gap: 16px; min-height: 0; }
+#global-drop-overlay .drop-zone {
+    flex: 1 1 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 6px;
+    border: 5px dashed var(--accent); border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-container) 88%, transparent);
     box-shadow: 0 8px 32px var(--shadow);
 }
-#global-drop-overlay .drop-message .drop-icon {
-    font-size: 52px;
-    margin-bottom: 12px;
-}
-#global-drop-overlay .drop-message p {
-    font-size: 22px;
-    font-weight: bold;
-    color: var(--accent);
-    margin: 0 0 6px;
-}
-#global-drop-overlay .drop-message span {
-    font-size: 14px;
-    color: var(--text-muted);
-}
+#global-drop-overlay .drop-zone-right { border-color: var(--text-muted); }
+#global-drop-overlay .drop-zone.drop-zone-active { background: color-mix(in srgb, var(--accent) 28%, var(--bg-container)); }
+#global-drop-overlay .drop-zone-right.drop-zone-active { background: color-mix(in srgb, var(--text-muted) 30%, var(--bg-container)); }
+/* The zone icon pulses (small → large → small) while dragging, to catch the eye. */
+#global-drop-overlay .drop-zone .drop-icon { font-size: 46px; color: var(--accent); transform-origin: center; animation: dropZonePulse 0.9s ease-in-out infinite; }
+@keyframes dropZonePulse { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
+#global-drop-overlay .drop-zone-right .drop-icon { color: var(--text-muted); }
+#global-drop-overlay .drop-zone p { font-size: 20px; font-weight: bold; color: var(--text-key); margin: 0; }
+#global-drop-overlay .drop-zone span { font-size: 13px; color: var(--text-muted); max-width: 90%; }
+#global-drop-overlay .drop-foot { flex: 0 0 auto; text-align: center; font-size: 13px; color: var(--text-muted); }
 /* Draw-mode toggle glyph (line / rect) — align with the button label. */
 .draw-mode-icon {
     vertical-align: -2px;
@@ -744,6 +744,10 @@ body.fullscreen-mode #fs-points-panel {
     justify-content: center;
 }
 .app-modal-overlay.modal-open { display: flex; }
+/* The confirm/prompt/choose dialog is always spawned FROM another modal (e.g. the open-project
+   confirm over the Projects modal), so it must stack above every other app modal — not merely
+   tie on z-index and rely on DOM order. */
+#confirm-modal-overlay.modal-open { z-index: 100003; }
 .app-modal {
     background: var(--bg-container);
     color: var(--text-main);
@@ -1042,6 +1046,40 @@ stencil-fullscreen-layer { display: contents; }
 .project-row.project-active { border-color: var(--text-key); }
 .project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
 .project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
+/* Drag-reorder cues (Manual sort): the dragged row dims; a bar marks the edge it would
+   land before/after. Skeleton/temp rows aren't draggable. */
+/* Touch drag (touchDrag.js): allow the list to still scroll vertically by finger (pan-y) while a
+   long-press picks a row up for drag; suppress the long-press text-selection / callout menu. */
+.project-row, .connect-row { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.project-row.project-dragging { opacity: 0.3; }
+/* Insertion line showing WHERE the dragged row will land (a bright bar in the gap above/below). */
+.project-row.project-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
+.project-row.project-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
+/* Drag-out drop zones (feature #4): painted BEHIND the dialog card while a project row is
+   dragged. Top 70% split Open here / Open in a new tab; bottom 30% (full width) red Remove —
+   the two bands abut (no dead gap). Thick dashes + a pulsing icon make them catchy on drag. */
+.project-dropzones { position: absolute; inset: 0; display: none; pointer-events: none; }
+.project-dropzones.is-dragging { display: block; }
+.project-dropzones .pdz {
+    position: absolute; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center; padding: 8px;
+    /* Each zone has its OWN identity colour via --pdz: grey (here), blue (new tab), red (remove). */
+    border: 5px dashed color-mix(in srgb, var(--pdz) 72%, transparent); border-radius: 12px;
+    /* Mostly-opaque panel with a slight see-through (≈0.9 alpha of the zone-colour-blended fill). */
+    background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 28%, var(--bg-container)) 90%, transparent);
+    color: color-mix(in srgb, var(--pdz) 65%, white);
+}
+/* Small gaps between the three zones so they read as separate targets. */
+/* Labels sit in each zone's OUTER CORNER (here → top-left, new-tab → top-right, remove →
+   bottom-centre) so the centred modal card — which spans most of the width/height — never
+   overlaps a zone's icon/text. The card sits in the empty middle between them. */
+.project-dropzones .pdz-here   { --pdz: #64748b; left: 0;  top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-start; padding: 26px 0 0 30px; }
+.project-dropzones .pdz-newtab { --pdz: #2563eb; right: 0; top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-end; padding: 26px 30px 0 0; }
+.project-dropzones .pdz-remove { --pdz: var(--danger); left: 0; bottom: 0; width: 100%; height: calc(30% - 10px); align-items: flex-end; justify-content: center; padding-bottom: 20px; }
+.project-dropzones .pdz-over { background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 48%, var(--bg-container)) 92%, transparent); }
+.project-dropzones .pdz-label { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; pointer-events: none; }
+/* Catchy pulsing zone icon while dragging (shared keyframe with the image drop overlay). */
+.project-dropzones.is-dragging .pdz-label svg { transform-origin: center; animation: dropZonePulse 0.9s ease-in-out infinite; }
 .project-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
 /* Filter dropdown sits beside the search field. */
 .modal-search-bar { display: flex; align-items: center; gap: 8px; }
@@ -1151,6 +1189,13 @@ stencil-fullscreen-layer { display: contents; }
 }
 .connect-row.connect-selected { border-color: var(--accent); background: var(--bg-info); }
 .connect-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Drag-reorder affordance: the grip is grab-cursored; the dragged row dims; a drop cue
+   underlines the edge the dragged row would land before/after. */
+.connect-grip { flex: 0 0 auto; cursor: grab; color: var(--text-muted); letter-spacing: -3px; user-select: none; font-size: 12px; line-height: 1; padding: 0 2px; }
+.connect-row.connect-dragging { opacity: 0.3; }
+/* Insertion line showing where the dragged connection will land. */
+.connect-row.connect-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
+.connect-row.connect-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
 /* Batch-select toolbar for connections (mirrors the projects batch bar). */
 .connect-batch-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

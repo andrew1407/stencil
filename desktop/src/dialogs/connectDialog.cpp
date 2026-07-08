@@ -2,6 +2,7 @@
 
 #include "connectionStore.hpp"
 #include "iconSet.hpp"
+#include "reorderableListWidget.hpp"
 #include "serverClient.hpp"
 
 #include <QCheckBox>
@@ -162,6 +163,12 @@ namespace stencil::gui {
         rebuildList();
       });
       QObject::connect(discSel, &QPushButton::clicked, this, [this] {
+        if (selected_.isEmpty()) return;
+        if (QMessageBox::question(
+                this, tr("Disconnect servers"),
+                tr("Disconnect and forget %1 selected server(s)?").arg(selected_.size()),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+          return;
         for (const QString& u : selected_) manager_->disconnectFrom(u);
         selected_.clear();
         rebuildList();
@@ -174,9 +181,23 @@ namespace stencil::gui {
     batchBar_->setVisible(false);
     root->addWidget(batchBar_);
 
-    list_ = new QListWidget;
+    auto* reList = new ReorderableListWidget;
+    list_ = reList;
     list_->setSpacing(4);
     root->addWidget(list_, 1);
+    // Drag a row onto another to reorder the connection order (persisted via changed()→
+    // saveServers). Drag a row OUT of the dialog to disconnect it (same Yes/No confirm as
+    // the ✕ button); a release still inside the dialog just snaps back.
+    reList->onReorder = [this](int from, int to) {
+      if (manager_) manager_->reorder(from, to);  // emits changed() → rebuildList()
+    };
+    reList->onDragOut = [this](int rowIdx) {
+      if (!manager_) return;
+      const QStringList urls = manager_->urls();
+      if (rowIdx < 0 || rowIdx >= urls.size()) return;
+      if (frameGeometry().contains(QCursor::pos())) return;  // released inside the dialog → keep
+      confirmDisconnect(urls[rowIdx]);
+    };
 
     auto* hint = new QLabel(
         tr("Connections are saved and (optionally) restored on open · "
@@ -217,6 +238,16 @@ namespace stencil::gui {
     rebuildList();
   }
 
+  void ConnectDialog::confirmDisconnect(const QString& url) {
+    if (!manager_) return;
+    if (QMessageBox::question(this, tr("Disconnect server"),
+                              tr("Disconnect and forget %1?").arg(url),
+                              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+      return;
+    manager_->disconnectFrom(url);
+    rebuildList();
+  }
+
   void ConnectDialog::updateBatchBar() {
     if (!batchBar_) return;
     batchBar_->setVisible(!selected_.isEmpty());
@@ -248,11 +279,19 @@ namespace stencil::gui {
       b->setCursor(Qt::PointingHandCursor);
       return b;
     };
+    auto* reList = static_cast<ReorderableListWidget*>(list_);
+    int rowIndex = 0;
     for (const QString& url : urls) {
+      const int myIndex = rowIndex++;
       auto* row = new QWidget;
       auto* h = new QHBoxLayout(row);
       h->setContentsMargins(8, 4, 8, 4);
       h->setSpacing(8);
+      // Drag grip: drag onto another row to reorder, or out of the dialog to disconnect.
+      auto* grip = new DragGrip;
+      grip->setStyleSheet("color: palette(mid); letter-spacing: -3px;");
+      grip->onDrag = [reList, myIndex] { reList->beginRowDrag(myIndex); };
+      h->addWidget(grip);
       // Multi-select checkbox for batch reconnect/disconnect.
       auto* cb = new QCheckBox;
       cb->setChecked(selected_.contains(url));
@@ -290,10 +329,7 @@ namespace stencil::gui {
           rebuildList();
         });
       });
-      QObject::connect(disc, &QPushButton::clicked, this, [this, url] {
-        manager_->disconnectFrom(url);
-        rebuildList();
-      });
+      QObject::connect(disc, &QPushButton::clicked, this, [this, url] { confirmDisconnect(url); });
       auto* item = new QListWidgetItem(list_);
       item->setSizeHint(row->sizeHint());
       list_->setItemWidget(item, row);

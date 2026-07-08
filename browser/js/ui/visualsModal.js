@@ -84,12 +84,15 @@ export class StencilVisualsModal extends StencilElement {
 
     // Main theme — a custom colour-swatch dropdown (./accentPicker.js).
     const accentPicker = buildAccentPicker(document.getElementById('vs-accent'), {
-      current: app.accent,
-      onSelect: (key) => app.setAccent(key),
+      current: app.customAccent || app.accent,
+      // A #hex value means a custom colour → setCustomAccent; a preset key → setAccent.
+      onSelect: (key) => (/^#/.test(key) ? app.setCustomAccent(key) : app.setAccent(key)),
     });
     // Another tab changed the accent — keep this picker's swatch in sync (the app
-    // UI itself is already repainted by the cross-tab listener in drawingApp).
-    window.addEventListener('stencil:accent-changed', e => accentPicker.set(e.detail || app.accent));
+    // UI itself is already repainted by the cross-tab listener in drawingApp). Prefer the
+    // custom hex so the trigger shows "Custom" rather than a stale preset name.
+    window.addEventListener('stencil:accent-changed',
+      () => accentPicker.set(app.customAccent || app.accent));
 
     const els = {
       lineColor: document.getElementById('vs-line-color'),
@@ -104,7 +107,7 @@ export class StencilVisualsModal extends StencilElement {
     };
 
     const populate = () => {
-      accentPicker.set(app.accent);
+      accentPicker.set(app.customAccent || app.accent);
       els.lineColor.value = app.color;
       els.thickness.value = app.thickness;
       els.marker.value = app.markerSize;

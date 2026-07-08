@@ -55,7 +55,7 @@ export class Renderer {
     this.drawImageWithFilter(this.app.ctx);
 
     if (this.app.showLines) {
-      this.app.lines.forEach((line, i) => this.drawLine(line, i === this.app.selectedLineIdx, i));
+      this.app.lines.forEach((line, i) => this.drawLine(line, this.app.isLineSelected(i), i));
       if (this.app.currentLine && this.app.currentLine.points.length > 0)
         this.drawLine(this.app.currentLine, false, -1);
     } else if (this.app.showPoints) {
@@ -69,7 +69,7 @@ export class Renderer {
           this.drawPoint(p, line.color, ms, sel, hs);
         });
       };
-      this.app.lines.forEach((line, i) => drawPts(line, i, i === this.app.selectedLineIdx));
+      this.app.lines.forEach((line, i) => drawPts(line, i, this.app.isLineSelected(i)));
       if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
     }
 

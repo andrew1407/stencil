@@ -33,9 +33,15 @@ namespace stencil::net {
 // browser modal's WebSocket project-event feed → periodic listProjects refresh).
 namespace stencil::gui {
 
+  class ProjectDragZones;
+
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
+    // Supply the main window's drag-out zone overlay (open here / new window / remove), shown
+    // while a project row is dragged out of this (modal) dialog. Optional (nullptr = no zones).
+    void setDragZones(ProjectDragZones* z) { dragZones_ = z; }
+
     // NewBlank: create a blank solid-color image (the main window opens its
     // BlankImageDialog after this dialog closes).
     // OpenInNewWindow: like Open, but the main window loads the project into a
@@ -144,6 +150,8 @@ namespace stencil::gui {
     void emitSetColor(QListWidgetItem* it, const QString& color);
     // The selected row's current colour ("#rrggbb" or "") — local meta or server record.
     QString currentRowColor() const;
+    // The (serverUrl|id) key for list row `i` (matches checked_ keys); "" for placeholder rows.
+    QString rowKeyAt(int i) const;
     void createNew();
     void createBlank();
 
@@ -174,6 +182,9 @@ namespace stencil::gui {
     // is connected so the label tracks the actual removal across the remote poll.
     QPushButton* clearAllBtn_ = nullptr;
     QComboBox* filter_ = nullptr;   // All / Local / Server / per-server row filter
+    ProjectDragZones* dragZones_ = nullptr;  // main-window drag-out overlay (nullptr = none)
+    QComboBox* sortCombo_ = nullptr;  // Name / Local first / Server first / Newest / Oldest / Manual
+    QComboBox* searchModeCombo_ = nullptr;  // Name + keywords / Names only / Keywords only
     QLineEdit* search_ = nullptr;   // name search box (mirrors the browser modal)
     QStringList knownServerUrls_;   // last server set the filter combo was built from
     // Multi-select: checked row keys ("serverUrl|id"; serverUrl empty = local), the batch

@@ -552,6 +552,7 @@ namespace stencil::gui {
   // click on a segment selects the line with no focused point; empty space
   // clears the selection.
   int CanvasWidget::selectLineAt(double x, double y) {
+    selectedLines_.clear();   // a plain click leaves multi-select mode
     if (auto pt = core::findNearestPoint(lines_, x, y)) {
       selectedLineIdx_ = pt->lineIdx;
       selectedPoint_ = pt->ptIdx;
@@ -562,6 +563,86 @@ namespace stencil::gui {
     update();
     emit selectionChanged();
     return selectedLineIdx_;
+  }
+
+  std::vector<int> CanvasWidget::selectedIndices() const {
+    std::vector<int> out;
+    const int n = static_cast<int>(lines_.size());
+    if (!selectedLines_.empty()) {
+      for (int i : selectedLines_)
+        if (i >= 0 && i < n) out.push_back(i);
+    } else if (selectedLineIdx_ >= 0 && selectedLineIdx_ < n) {
+      out.push_back(selectedLineIdx_);
+    }
+    return out;
+  }
+
+  bool CanvasWidget::isLineSelected(int i) const {
+    if (!selectedLines_.empty())
+      return std::find(selectedLines_.begin(), selectedLines_.end(), i) != selectedLines_.end();
+    return i == selectedLineIdx_;
+  }
+
+  // Toggle line `idx` in/out of the multi-select set (Ctrl+Shift+click). Shared by the
+  // point-hit and Lines-tab-row entry points.
+  void CanvasWidget::toggleLineIndex(int idx) {
+    if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
+    // Seed the set from the current single selection on the first Ctrl+Shift+click.
+    if (selectedLines_.empty() && selectedLineIdx_ >= 0 && selectedLineIdx_ != idx)
+      selectedLines_.push_back(selectedLineIdx_);
+    auto it = std::find(selectedLines_.begin(), selectedLines_.end(), idx);
+    if (it != selectedLines_.end()) selectedLines_.erase(it);
+    else selectedLines_.push_back(idx);
+    if (selectedLines_.size() == 1) {
+      selectedLineIdx_ = selectedLines_.front();  // back to single-select (its editor returns)
+      selectedLines_.clear();
+    } else {
+      selectedLineIdx_ = -1;  // 0 or 2+ selected → no single-line editor
+    }
+    selectedPoint_ = -1;
+    update();
+    emit selectionChanged();
+  }
+
+  void CanvasWidget::toggleLineSelection(const core::Point& ip) {
+    int idx = -1;
+    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y)) idx = pt->lineIdx;
+    else idx = core::findLineAt(lines_, ip.x, ip.y);
+    toggleLineIndex(idx);  // idx == -1 (empty space) is a no-op inside
+  }
+
+  // Single-select line `idx` from the Lines-tab list. Mirrors selectLineAt's post-hit
+  // state (clears multi-select, no focused point). Port of drawingApp.js selectLineFromList.
+  void CanvasWidget::selectLineByIndex(int idx) {
+    if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
+    selectedLines_.clear();
+    selectedLineIdx_ = idx;
+    selectedPoint_ = -1;
+    update();
+    emit selectionChanged();
+  }
+
+  // Index-keyed twin of toggleLineSelection(point): Ctrl+Shift+click a Lines-tab row.
+  void CanvasWidget::toggleLineSelectionByIndex(int idx) { toggleLineIndex(idx); }
+
+  // Remove committed line `idx` (Lines-tab 🗑). Keeps the single + multi selection and the
+  // focused point consistent with the now-shifted indices. Port of drawingApp.js removeLine.
+  void CanvasWidget::removeLineByIndex(int idx) {
+    if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
+    lines_.erase(lines_.begin() + idx);
+    for (auto it = selectedLines_.begin(); it != selectedLines_.end();) {
+      if (*it == idx) { it = selectedLines_.erase(it); continue; }
+      if (*it > idx) --*it;
+      ++it;
+    }
+    if (selectedLineIdx_ == idx) { selectedLineIdx_ = -1; selectedPoint_ = -1; }
+    else if (selectedLineIdx_ > idx) --selectedLineIdx_;
+    // A removal that leaves exactly one multi-selected line drops back to single-select.
+    if (selectedLines_.size() == 1) { selectedLineIdx_ = selectedLines_.front(); selectedLines_.clear(); }
+    commitHistory();
+    update();
+    emit changed();
+    emit selectionChanged();
   }
 
   // Mutable forwarder: const_cast the const overload's result (renderToImage
@@ -667,7 +748,7 @@ namespace stencil::gui {
   void CanvasWidget::drawGlow(QPainter& p, const core::Line& line,
                               const QPolygonF& poly, int lineIdx, bool highlight,
                               const Palette& pal) const {
-    if (highlight && showLines_ && lineIdx >= 0 && lineIdx == selectedLineIdx_ &&
+    if (highlight && showLines_ && lineIdx >= 0 && isLineSelected(lineIdx) &&
         line.points.size() >= 2) {
       QColor glow = pal.selGlow;
       glow.setAlphaF(0.6);
@@ -746,9 +827,24 @@ namespace stencil::gui {
     const Palette pal = themePalette(dark_, accentKey_);
     if (image_.isNull()) {
       p.fillRect(rect(), pal.bgPage);
+      // Centred dashed drop-zone outline (browser parity) — the whole canvas is the click target
+      // (mousePressEvent → blankImageRequested), and this box makes that affordance visible.
+      setCursor(Qt::PointingHandCursor);
+      const QString msg = QStringLiteral("Open an image to begin\n🖼  Click to create a blank image");
+      QRectF box(0, 0, 440, 132);
+      box.moveCenter(QRectF(rect()).center());
+      QColor accent = accentPrimary(accentKey_);
+      if (!accent.isValid()) accent = pal.textMuted;
+      QPen dash(accent, 2, Qt::DashLine);
+      dash.setDashPattern({6.0, 4.0});
+      p.setPen(dash);
+      QColor fill = accent;
+      fill.setAlpha(dark_ ? 22 : 16);
+      p.setBrush(fill);
+      p.drawRoundedRect(box, 14, 14);
+      p.setBrush(Qt::NoBrush);
       p.setPen(pal.textMuted);
-      p.drawText(rect(), Qt::AlignCenter,
-                 "Open an image to begin\n🖼 Click to create a blank image");
+      p.drawText(box, Qt::AlignCenter, msg);
       return;
     }
     // S3: draw the raw image when no filter, else the cached filtered copy
@@ -846,6 +942,13 @@ namespace stencil::gui {
       return;
     }
 
+    // Ctrl+Shift+left → multi-line select: add/toggle the clicked line. Must precede the plain
+    // Shift zoom-rect branch below (which would otherwise swallow Ctrl+Shift). Alt already returned.
+    if (event->button() == Qt::LeftButton && (mods & Qt::ControlModifier) && (mods & Qt::ShiftModifier)) {
+      toggleLineSelection(toImageSpace(event->pos().x(), event->pos().y()));
+      return;
+    }
+
     if (event->button() == Qt::LeftButton && (mods & Qt::ShiftModifier)) {
       beginZoomRect(event->pos());
       return;
@@ -885,6 +988,12 @@ namespace stencil::gui {
         dragKind_ = DragKind::Line;
         dragLineIdx_ = li;
         dragOrig_ = lines_[li].points;
+        // If the grabbed line is part of a multi-selection, snapshot EVERY selected line so the
+        // drag translates them all together (whole-line move).
+        dragMultiOrig_.clear();
+        const auto sel = selectedIndices();
+        if (sel.size() >= 2 && std::find(sel.begin(), sel.end(), li) != sel.end())
+          for (int i : sel) dragMultiOrig_.push_back({i, lines_[i].points});
         const auto seg = core::findNearestSegment(lines_, ip.x, ip.y);
         if (seg && seg->lineIdx == li) {
           dragPtIdx1_ = seg->ptIdx1;
@@ -1109,10 +1218,24 @@ namespace stencil::gui {
         line->points[dragPtIdx1_] = ip;  // snap point to cursor
       }
     } else {
-      // Segment / Line drags translate from the snapshot by (dx, dy).
-      core::Line& line = lines_[dragLineIdx_];
       const double dx = ip.x - dragStart_.x;
       const double dy = ip.y - dragStart_.y;
+      // Multi-select whole-line drag: translate EVERY selected line together.
+      if (dragKind_ == DragKind::Line && !dragMultiOrig_.empty()) {
+        for (auto& entry : dragMultiOrig_) {
+          const int li = entry.first;
+          if (li < 0 || li >= static_cast<int>(lines_.size())) continue;
+          auto& pts = lines_[li].points;
+          const auto& orig = entry.second;
+          for (std::size_t i = 0; i < pts.size() && i < orig.size(); ++i) {
+            pts[i].x = orig[i].x + dx;
+            pts[i].y = orig[i].y + dy;
+          }
+        }
+        return;
+      }
+      // Segment / Line drags translate from the snapshot by (dx, dy).
+      core::Line& line = lines_[dragLineIdx_];
       const bool whole =
           (dragKind_ == DragKind::Line) ? (shift || dragPtIdx1_ < 0) : shift;
       if (whole) {
@@ -1229,6 +1352,7 @@ namespace stencil::gui {
       dragKind_ = DragKind::None;
       dragLineIdx_ = dragPtIdx1_ = dragPtIdx2_ = -1;
       dragOrig_.clear();
+      dragMultiOrig_.clear();
       unsetCursor();
       update();
       if (committed) commitHistory();   // emits changed()
@@ -1311,7 +1435,7 @@ namespace stencil::gui {
     // focused point) by 3 deg/tick (drawingApp.js wheel ~666). With no selection
     // it falls through to a fast (Shift) zoom.
     if ((mods & Qt::ControlModifier) && (mods & Qt::ShiftModifier) &&
-        selectedLine()) {
+        selectionCount() >= 1) {
       rotateSelectedLine((delta > 0 ? 1.0 : -1.0) * (M_PI / 60.0));
       event->accept();
       return;
@@ -1399,6 +1523,7 @@ namespace stencil::gui {
   // path and resets lines/history/scale, mirroring a fresh load.
   void CanvasWidget::loadFromImage(const QImage& img) {
     if (img.isNull()) return;
+    unsetCursor();   // drop the idle "pointing hand" (set while the empty-canvas hint was showing)
     originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
     rotationQuarters_ = 0;
     cropRect_ = defaultCropRect();
@@ -1660,6 +1785,22 @@ namespace stencil::gui {
   // about the focused point when one is selected. Port of #rotateSelectedLine
   // (~1834).
   void CanvasWidget::rotateSelectedLine(double angleRad) {
+    // 2+ selected → rotate the whole set about their combined bounding-box centre (reuses the
+    // same core boundingBoxCenter/rotatePoints ops per line — no new core op, no parity change).
+    const auto sel = selectedIndices();
+    if (sel.size() >= 2) {
+      std::vector<core::Point> all;
+      for (int i : sel)
+        for (const auto& p : lines_[i].points) all.push_back(p);
+      if (all.size() < 2) return;
+      const core::Point c = core::boundingBoxCenter(all);
+      for (int i : sel) core::rotatePoints(lines_[i].points, c.x, c.y, angleRad);
+      update();
+      emit selectionChanged();
+      scheduleEditCommit();
+      return;
+    }
+
     core::Line* line = selectedLine();
     if (!line || line->points.size() < 2) return;
 
@@ -1675,6 +1816,22 @@ namespace stencil::gui {
       cy = c.y;
     }
     core::rotatePoints(line->points, cx, cy, angleRad);
+    update();
+    emit selectionChanged();
+    scheduleEditCommit();
+  }
+
+  // Translate every selected line by (dx, dy) image-space px — the arrow-key nudge (mirror of
+  // the browser drawingApp.js nudgeSelected). Debounced commit, like the wheel rotate, so a
+  // burst of key-repeats collapses into one undo step.
+  void CanvasWidget::nudgeSelected(double dx, double dy) {
+    if (dx == 0.0 && dy == 0.0) return;
+    const auto sel = selectedIndices();
+    if (sel.empty()) return;
+    for (int i : sel) {
+      if (i < 0 || i >= static_cast<int>(lines_.size())) continue;
+      for (auto& p : lines_[i].points) { p.x += dx; p.y += dy; }
+    }
     update();
     emit selectionChanged();
     scheduleEditCommit();

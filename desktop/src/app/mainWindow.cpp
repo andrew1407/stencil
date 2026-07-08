@@ -5,7 +5,9 @@
 #include "openInDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
+#include "dropZonesOverlay.hpp"
 #include "incognitoOverlay.hpp"
+#include "projectDragZones.hpp"
 #include "cropGeometry.hpp"
 #include "geometry.hpp"
 #include "pageMetrics.hpp"
@@ -45,20 +47,27 @@
 #include <QDesktopServices>
 #include <QDoubleSpinBox>
 #include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QGuiApplication>
 #include <QEasingCurve>
 #include <QEventLoop>
 #include <QHBoxLayout>
+#include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
+#include <QShortcut>
 #include <QShowEvent>
+#include <QVariantAnimation>
 #include <QIcon>
 #include <QImage>
+#include <QVariant>
 #include <QImageReader>
 #include <QLineEdit>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPainter>
 #include <QPixmap>
 #include <QPointer>
 #include <QSet>
@@ -169,6 +178,8 @@ namespace stencil::gui {
     // that belongs to the viewport, not the canvas. Filter the viewport so Ctrl+wheel /
     // trackpad pinch there still zoom (otherwise you can't zoom a small image back up).
     scroll_->viewport()->installEventFilter(this);
+    // App-wide filter so Escape can leave fullscreen from any focus (see eventFilter).
+    qApp->installEventFilter(this);
 
     selPanel_ = new SelectionPanel(this);
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
@@ -188,6 +199,11 @@ namespace stencil::gui {
     // mirroring the browser's body.incognito-mode outline/badge. Hidden until the
     // incognito action toggles it on.
     incognitoOverlay_ = new IncognitoOverlay(scroll_->viewport());
+    // Split image-drop overlay (LEFT save / RIGHT incognito), shown while dragging a file.
+    dropZones_ = new DropZonesOverlay(scroll_->viewport());
+    dropZones_->setAccent(palette().color(QPalette::Highlight));
+    // 3-zone overlay shown behind the Projects dialog while a project row is dragged out of it.
+    projectZones_ = new ProjectDragZones(scroll_->viewport());
     tooltip_ = new CanvasTooltip(this);  // floating hover tooltip (S12)
 
     status_ = new QLabel("Open an image — or create a blank one — to begin", this);
@@ -260,6 +276,7 @@ namespace stencil::gui {
     buildContextActions();  // S11: nested context-menu submenu actions
     buildMenus();
     buildToolbar();
+    buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)
 
     // ── wiring ── (after buildToolbar so the referenced widgets/actions exist)
     wireSignals();
@@ -452,6 +469,21 @@ namespace stencil::gui {
             [this] { canvas_->deleteSelectedLine(); });
     connect(selPanel_, &SelectionPanel::deselectRequested, this,
             [this] { canvas_->deselect(); });
+    // Panel header chevron → hide the panel (routes through actPanel_ so the View menu / Alt+X and
+    // the re-open tab stay in sync). The animated slide runs from setPanelShown.
+    connect(selPanel_, &SelectionPanel::collapseRequested, this,
+            [this] { if (actPanel_) actPanel_->setChecked(false); });
+    selPanel_->setToggleHint(hotkey("togglePointsList", "Alt+X"));   // shortcut in the chevron tooltip
+
+    // ── Lines tab (SelectionPanel) → canvas index-keyed selection/removal.
+    // Click a row to single-select (Ctrl/⌘+Shift toggles multi-select); its 🗑 removes it.
+    connect(selPanel_, &SelectionPanel::lineListActivated, this,
+            [this](int idx, bool multi) {
+              if (multi) canvas_->toggleLineSelectionByIndex(idx);
+              else canvas_->selectLineByIndex(idx);
+            });
+    connect(selPanel_, &SelectionPanel::lineListRemoveRequested, this,
+            [this](int idx) { canvas_->removeLineByIndex(idx); });
   }
 
   QString MainWindow::hotkey(const QString& id, const QString& fallback) const {
@@ -528,6 +560,7 @@ namespace stencil::gui {
     actShowLines_ = mk("Show Lines", hotkey("toggleLines", "Alt+L"));
     actTheme_ = mk("Dark Theme", hotkey("toggleTheme", "Ctrl+D"));
     actPanel_ = mk("Selection Panel", hotkey("togglePointsList", "Alt+X"));
+    actToolbars_ = mk("Toolbars", hotkey("toggleControls", "Alt+C"));  // show/hide the top toolbars
     actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
     actSettings_ = mk("Settings…", "Ctrl+,");
     actProjects_ = mk("Projects…", hotkey("openProjects", "Ctrl+Shift+P"));
@@ -586,6 +619,8 @@ namespace stencil::gui {
     actShowLines_->setCheckable(true);
     actPanel_->setCheckable(true);
     actPanel_->setChecked(true);
+    actToolbars_->setCheckable(true);
+    actToolbars_->setChecked(true);
 
     connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
     connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
@@ -598,7 +633,13 @@ namespace stencil::gui {
       fitToWindow();
       refreshActions();
     };
-    connect(actRotateLeft_, &QAction::triggered, this, [rotate] { rotate(false); });
+    // Alt+R is a global shortcut, so it fires (and consumes the key) before keyPressEvent —
+    // with a line selected we arm the line-rotate chord here instead of rotating the image, so
+    // the following ←/→ rotates the selection (keyPressEvent). Deselect to rotate the image.
+    connect(actRotateLeft_, &QAction::triggered, this, [this, rotate] {
+      if (canvas_ && canvas_->selectionCount() >= 1) { rKeyHeld_ = true; return; }
+      rotate(false);
+    });
     connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
     // Cycle the image filter (Alt+B) — mirrors the browser's cycleFilter hotkey:
     // none → bw → sepia → invert → contour → custom(tint). applyImageFilter
@@ -639,9 +680,15 @@ namespace stencil::gui {
       fileStore::saveSettings(settings_);
     });
     connect(actTheme_, &QAction::triggered, this, &MainWindow::toggleTheme);
-    connect(actPanel_, &QAction::toggled, selPanel_, &QWidget::setVisible);
+    // Points panel + top-menu (toolbars) show/hide, animated (slide). The floating arrow overlays
+    // and the View-menu/hotkey both route through these actions.
+    connect(actPanel_, &QAction::toggled, this, [this](bool on) { setPanelShown(on, true); });
+    connect(actToolbars_, &QAction::toggled, this, [this](bool on) { setToolbarsShown(on, true); });
     connect(actFullscreen_, &QAction::triggered, this,
             &MainWindow::toggleFullscreen);
+    // Escape-leaves-fullscreen is handled in the app-wide eventFilter (reliable across focus).
+    fsHoverTimer_ = new QTimer(this);   // drives the fullscreen edge-hover reveal
+    connect(fsHoverTimer_, &QTimer::timeout, this, &MainWindow::fsHoverTick);
     connect(actSettings_, &QAction::triggered, this, &MainWindow::openSettings);
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
     connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);
@@ -671,6 +718,7 @@ namespace stencil::gui {
     hotkeyActions_["togglePoints"] = actShowPoints_;
     hotkeyActions_["toggleLines"] = actShowLines_;
     hotkeyActions_["togglePointsList"] = actPanel_;
+    hotkeyActions_["toggleControls"] = actToolbars_;
     hotkeyActions_["fullscreen"] = actFullscreen_;
     hotkeyActions_["resetZoom"] = actFit_;
     hotkeyActions_["zoomIn"] = actZoomIn_;
@@ -915,6 +963,7 @@ namespace stencil::gui {
     view->addAction(actShowPoints_);
     view->addAction(actShowLines_);
     view->addAction(actPanel_);
+    view->addAction(actToolbars_);
     view->addAction(actTooltip_);
     view->addAction(actAllowFormulas_);
     auto* units = view->addMenu("&Units");
@@ -960,6 +1009,58 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildMainToolbar() {
+    // ── Header row (always visible): the "Controls" collapse pill + the project-name group.
+    // This row stays put while the tool rows below (Main / Page&Formula / Style) slide open/closed,
+    // exactly like the browser's header that keeps the "⌃ Controls" pill + title when the body hides.
+    headerToolbar_ = addToolBar("Header");
+    headerToolbar_->setMovable(false);
+    // App logo (mini line-chart, mirrors the browser's top-left logo). Clicking it cycles the theme
+    // accent to the next preset — the same affordance as the browser's clickable logo.
+    logoBtn_ = new QToolButton(this);
+    logoBtn_->setCursor(Qt::PointingHandCursor);
+    logoBtn_->setIconSize(QSize(24, 24));
+    logoBtn_->setIcon(QIcon(makeLogoPixmap(24)));
+    logoBtn_->setToolTip(QString());   // no tooltip on the logo
+    // No hover highlight — flat, transparent, borderless (just the logo art).
+    logoBtn_->setStyleSheet("QToolButton{border:none;background:transparent;padding:3px;}");
+    // Single click cycles the accent, but DEFER it briefly so a double-click can pre-empt it and open
+    // the custom-colour picker instead (mirrors the browser logo's click-vs-dblclick behaviour).
+    logoClickTimer_ = new QTimer(this);
+    logoClickTimer_->setSingleShot(true);
+    connect(logoClickTimer_, &QTimer::timeout, this, [this] {
+      const auto& presets = accentPresets();
+      if (presets.empty()) return;
+      int idx = -1;
+      for (size_t i = 0; i < presets.size(); ++i)
+        if (presets[i].key == settings_.accentColor) { idx = static_cast<int>(i); break; }
+      auto next = settings_;
+      // Browser parity: a CUSTOM colour (not a preset — idx < 0) resets to the default (violet);
+      // otherwise advance to the next preset, wrapping.
+      next.accentColor = idx < 0 ? presets.front().key : presets[(idx + 1) % presets.size()].key;
+      applySettings(next, true);   // apply + persist (re-themes everything, incl. the logo frame)
+    });
+    connect(logoBtn_, &QToolButton::clicked, this, [this] { logoClickTimer_->start(250); });
+    logoBtn_->installEventFilter(this);   // catch double-click → custom colour picker (see eventFilter)
+    headerToolbar_->addWidget(logoBtn_);
+    // "Controls" chevron pill — collapses/expands the tool rows (routes through actToolbars_ so the
+    // View-menu entry + Alt+C hotkey stay in sync). Icon (chevron) themed in styleActionIcons.
+    controlsPill_ = new QToolButton(this);
+    controlsPill_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    controlsPill_->setText("Controls");
+    controlsPill_->setAutoRaise(true);
+    controlsPill_->setCursor(Qt::PointingHandCursor);
+    controlsPill_->setToolTip(QString("Show / hide the toolbars (%1)").arg(hotkey("toggleControls", "Alt+C")));
+    connect(controlsPill_, &QToolButton::clicked, this, [this] { if (actToolbars_) actToolbars_->toggle(); });
+    headerToolbar_->addWidget(controlsPill_);
+    headerToolbar_->addSeparator();
+    buildProjectNameGroup(headerToolbar_);
+    // Always-visible "Image Size: W × H px" readout (browser parity — its own bar that survives the
+    // toolbar collapse). Sits after the project group's trailing spacer, so it right-aligns.
+    imageSizeInfo_ = new QLabel(this);
+    imageSizeInfo_->setStyleSheet("color:#9aa0a8;padding:0 10px;");
+    headerToolbar_->addWidget(imageSizeInfo_);
+    addToolBarBreak();
+
     // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
     // hid the formula inputs / custom-page inputs at normal window widths). Row 1:
     // file + drawing + history + zoom. Row 2: page size (+custom) + formulas.
@@ -986,6 +1087,16 @@ namespace stencil::gui {
     tb->addAction(actCrop_);
     tb->addAction(actRotateLeft_);
     tb->addAction(actRotateRight_);
+    // Blank-background control in the IMAGE group (browser parity): a colour swatch + "Blank"
+    // label, shown only for blank projects. The swatch shows the current fill; clicking recolours
+    // it (drawn lines are kept). Gated + swatch updated in updateProjectTitle.
+    blankColorBtn_ = new QToolButton(this);
+    blankColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);   // just the colour swatch — keeps the toolbar compact
+    blankColorBtn_->setAutoRaise(true);
+    blankColorBtn_->setToolTip("Blank background colour — recolour this blank image (keeps your lines)");
+    blankColorBtnAction_ = tb->addWidget(blankColorBtn_);
+    blankColorBtnAction_->setVisible(false);
+    connect(blankColorBtn_, &QToolButton::clicked, this, [this] { setActiveBlankColor(); });
     tb->addSeparator();
     tb->addAction(actStartDraw_);
     tb->addAction(actStopDraw_);
@@ -996,21 +1107,31 @@ namespace stencil::gui {
     tb->addSeparator();
     tb->addWidget(new QLabel("  Zoom: ", this));
     tb->addWidget(zoom_);
-
-    // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The
-    // field shows the active project's name and renames it inline, validated live:
-    // ✓ is enabled only for a changed, valid (non-empty, ≤80, unique) name, with the
-    // reason on its tooltip when disabled. Enter = ✓, Escape / click-away = ✗. ──
+    // Fullscreen icon (browser parity). The points panel + top-menu show/hide live IN their menus:
+    // the "Controls" pill in the header row (above) and a chevron in the panel header — not floating
+    // buttons over the canvas. A small right-edge tab only re-opens the panel once it's fully hidden.
     tb->addSeparator();
-    tb->addWidget(new QLabel("  Project: ", this));
+    tb->addAction(actFullscreen_);
+  }
+
+  // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
+  // active project's name and renames it inline, validated live: ✓ is enabled only for a changed,
+  // valid (non-empty, ≤80, unique) name, with the reason on its tooltip when disabled. Enter = ✓,
+  // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill. ──
+  void MainWindow::buildProjectNameGroup(QToolBar* tbName) {
+    tbName->addWidget(new QLabel("Project: ", this));
     projectName_ = new QLineEdit(this);
     projectName_->setPlaceholderText("No project");
-    projectName_->setToolTip("Project name — double-click (or ✎) to rename");
+    projectName_->setToolTip(QString());   // no tooltip on the name field (the ✎ button has its own)
     projectName_->setMinimumWidth(150);
-    projectName_->setMaximumWidth(260);
+    projectName_->setMaximumWidth(300);
+    // A QLineEdit is horizontally Expanding by default — in a toolbar that stretches it across the
+    // whole row and shoves the ✎/🎨 far to the right. Make it content-sized so the name + icons
+    // pack together on the left (a trailing spacer below absorbs the rest of the row).
+    projectName_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     projectName_->setEnabled(false);
     projectName_->setReadOnly(true);  // browser-like: read-only until edit mode (✎ / double-click)
-    tb->addWidget(projectName_);
+    tbName->addWidget(projectName_);
     // Browser-style affordances beside the name: a ✎ rename pencil (focuses + selects the field)
     // and a 🎨 colour icon (flat — NOT a filled swatch — opening choose / theme-default). Both
     // are themed line-art glyphs (styleActionIcons) and enable only with an active project.
@@ -1019,14 +1140,14 @@ namespace stencil::gui {
     projectNameEdit_->setAutoRaise(true);
     projectNameEdit_->setToolTip("Rename project");
     projectNameEdit_->setEnabled(false);
-    projectNameEditAction_ = tb->addWidget(projectNameEdit_);
+    projectNameEditAction_ = tbName->addWidget(projectNameEdit_);
     connect(projectNameEdit_, &QToolButton::clicked, this, [this] { enterNameEdit(); });
     projectColorBtn_ = new QToolButton(this);
     projectColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectColorBtn_->setAutoRaise(true);
     projectColorBtn_->setToolTip("Project name colour — right-click to reset to default");
     projectColorBtn_->setEnabled(false);
-    projectColorBtnAction_ = tb->addWidget(projectColorBtn_);
+    projectColorBtnAction_ = tbName->addWidget(projectColorBtn_);
     // Click opens a small menu (browser parity): "Choose colour…" + "Use theme default colour".
     // The menu runs its own loop and fully closes before we open the picker (deferred), so no stray
     // grab dismisses the dialog. Right-click still resets straight to the theme default.
@@ -1041,14 +1162,17 @@ namespace stencil::gui {
     projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectNameAccept_->setToolTip("Rename (Enter)");
     projectNameAccept_->setVisible(false);
-    projectNameAcceptAction_ = tb->addWidget(projectNameAccept_);
+    projectNameAcceptAction_ = tbName->addWidget(projectNameAccept_);
     projectNameAcceptAction_->setVisible(false);
     projectNameCancel_ = new QToolButton(this);
     projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     projectNameCancel_->setToolTip("Cancel (Esc)");
     projectNameCancel_->setVisible(false);
-    projectNameCancelAction_ = tb->addWidget(projectNameCancel_);
+    projectNameCancelAction_ = tbName->addWidget(projectNameCancel_);
     projectNameCancelAction_->setVisible(false);
+    // Trailing expanding spacer: absorbs the rest of the row so the label + name + ✎/🎨 stay packed
+    // together on the LEFT (no huge gap), instead of the name field stretching across the whole row.
+    { auto* sp = new QWidget(this); sp->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); tbName->addWidget(sp); }
     // The per-project name colour control is NOT a toolbar swatch — it lives in the Project
     // menubar menu (actProjectColor_ / actProjectColorClear_). projectColorBtn_ stays null; the
     // active project's colour is still visible because the name field itself is painted in it.
@@ -1064,6 +1188,10 @@ namespace stencil::gui {
     // Escape cancels the edit; clicking away (focus-out) reverts any uncommitted text — both via
     // the event filter below, so the user can always leave the field (Enter still commits).
     projectName_->installEventFilter(this);
+    // Hover-reveal the ✎/🎨 group: watch Enter/Leave on the field AND both buttons so moving between
+    // them counts as one hover region (handled in eventFilter → updateNameHover).
+    projectNameEdit_->installEventFilter(this);
+    projectColorBtn_->installEventFilter(this);
   }
 
   void MainWindow::buildPageFormulaToolbar() {
@@ -1395,6 +1523,7 @@ namespace stencil::gui {
     }
     currentSource_.clear();  // a local file has no source/resource provenance
     currentResource_.clear();
+    blankColor_.clear();     // a loaded image is not a blank project
     refreshActions();
     notify_->success("Image loaded");
     return true;
@@ -1644,6 +1773,7 @@ namespace stencil::gui {
     canvas_->loadFromImage(img);
     currentSource_.clear();  // a generated blank image has no provenance
     currentResource_.clear();
+    blankColor_ = color.name();  // mark this session as a (recolourable) blank of this fill
     refreshActions();
     notify_->success(QString("Blank %1×%2 image created").arg(w).arg(h));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
@@ -1911,6 +2041,12 @@ namespace stencil::gui {
     // when selectedLineIdx_ < 0) so its mutators are never inert.
     selPanel_->showLine(line, hasImg ? canvas_->selectedLine() : nullptr,
                         hasImg ? canvas_->selectedPoint() : -1, cmRows);
+    // Gate the single-line editor with a "N lines selected" note while multi-selecting.
+    selPanel_->setMultiSelectCount(hasImg ? canvas_->selectionCount() : 0);
+    // Lines tab: every committed line, with the current selection highlighted (empty when
+    // imageless, matching the points panel).
+    if (hasImg) selPanel_->setLines(canvas_->lines(), canvas_->selectedIndices());
+    else selPanel_->setLines({}, {});
   }
 
   // Canvas right-click menu — mirrors the grouping of browser/js/ui/contextMenu.js
@@ -2203,9 +2339,193 @@ namespace stencil::gui {
     setZoom(std::min(sx, sy) * 0.95);
   }
 
+  void MainWindow::setToolbarsVisible(bool on) {
+    // Reset any leftover animated max-height (a mid-animation state) before showing/hiding.
+    for (QToolBar* tb : findChildren<QToolBar*>()) { tb->setMaximumHeight(QWIDGETSIZE_MAX); tb->setVisible(on); }
+    positionOverlayArrows();
+  }
+
+  // The top menu toggles from the "Controls" pill in the header row (kept in sync here). The panel
+  // hides from its own header chevron and re-opens from a single floating chevron that sits flush to
+  // the canvas' right edge — shown ONLY while the panel is hidden, so it's never a dead-end.
+  void MainWindow::buildOverlayArrows() {
+    panelReopenBtn_ = new QToolButton(this);
+    panelReopenBtn_->setCursor(Qt::PointingHandCursor);
+    panelReopenBtn_->setFixedSize(28, 28);   // same rounded square as the panel-header collapse chevron
+    panelReopenBtn_->setIconSize(QSize(18, 18));
+    panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
+    panelReopenBtn_->setStyleSheet(panelToggleQss());
+    connect(panelReopenBtn_, &QToolButton::clicked, this,
+            [this] { if (actPanel_) actPanel_->setChecked(true); });
+    panelReopenBtn_->hide();
+    positionOverlayArrows();
+    updatePanelReopenButton();
+  }
+
+  void MainWindow::positionOverlayArrows() {
+    if (controlsPill_) {
+      const QColor ic = palette().color(QPalette::WindowText);
+      const bool tbShown = actToolbars_ ? actToolbars_->isChecked() : true;   // ↑ shown, ↓ collapsed
+      controlsPill_->setIcon(themedIcon(tbShown ? "chevron-up" : "chevron-down", ic, 14));
+    }
+    updatePanelReopenButton();
+  }
+
+  void MainWindow::positionPanelReopenButton() {
+    if (!panelReopenBtn_ || !scroll_) return;
+    // Top-RIGHT of the canvas, flush inside the viewport's right edge so it sits to the LEFT of any
+    // vertical scrollbar (viewport()->width() already excludes the scrollbar) — not centred, not
+    // overlapping the scrollbar. A small top margin keeps it clear of the toolbar edge.
+    QWidget* vp = scroll_->viewport();
+    const QPoint tr = vp->mapTo(this, QPoint(vp->width(), 0));
+    panelReopenBtn_->move(tr.x() - panelReopenBtn_->width(), tr.y() + 10);
+  }
+
+  void MainWindow::updatePanelReopenButton() {
+    if (!panelReopenBtn_) return;
+    // Only when the panel is fully hidden and we're not in fullscreen (which edge-hover-reveals it).
+    const bool showBtn = selPanel_ && !selPanel_->isVisible() && !fsActive_;
+    panelReopenBtn_->setVisible(showBtn);
+    if (showBtn) {
+      panelReopenBtn_->setIcon(themedIcon("chevron-left", palette().color(QPalette::WindowText), 18));
+      positionPanelReopenButton();
+      panelReopenBtn_->raise();
+    }
+  }
+
+  // Show = slide the dock open to full width; hide = slide it to 0 then fully hide it (the canvas
+  // fills the freed space) and reveal the floating right-edge re-open chevron. QMainWindow overrides
+  // a dock's maximumWidth during its own layout passes, so we pin min==max (setFixedWidth) each frame
+  // to force the width, then release the constraint at the end.
+  void MainWindow::setPanelShown(bool show, bool animate) {
+    if (!selPanel_) return;
+    if (panelAnim_) { panelAnim_->stop(); panelAnim_->deleteLater(); panelAnim_ = nullptr; }
+    const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : 320;
+    if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
+      panelRestoreWidth_ = selPanel_->width();
+    auto finish = [this, show] {
+      selPanel_->setMinimumWidth(0);
+      selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
+      if (!show) selPanel_->hide();
+      panelAnim_ = nullptr;
+      updatePanelReopenButton();
+    };
+    int from, to;
+    if (show) { selPanel_->show(); selPanel_->setFixedWidth(0); from = 0; to = full; }
+    else { from = selPanel_->width() > 0 ? selPanel_->width() : full; to = 0; }
+    if (!animate) { selPanel_->setFixedWidth(to); finish(); return; }
+    panelAnim_ = new QVariantAnimation(this);
+    panelAnim_->setDuration(200);
+    panelAnim_->setEasingCurve(QEasingCurve::InOutCubic);
+    panelAnim_->setStartValue(from);
+    panelAnim_->setEndValue(to);
+    connect(panelAnim_, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant& v) { selPanel_->setFixedWidth(v.toInt()); });
+    connect(panelAnim_, &QVariantAnimation::finished, this, finish);
+    panelAnim_->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
+  void MainWindow::setToolbarsShown(bool show, bool animate) {
+    // The header row (Controls pill + project name) always stays — collapse only the tool rows,
+    // mirroring the browser where the header keeps the pill/title while the body hides.
+    QList<QToolBar*> bars;
+    for (QToolBar* b : findChildren<QToolBar*>())
+      if (b != headerToolbar_) bars.append(b);
+    if (bars.isEmpty()) return;
+    if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
+    auto release = [bars] {
+      for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
+    };
+    // Natural height each bar should expand to (measure before we start clamping them).
+    int full = 0;
+    for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
+    if (full <= 0) full = 40;
+    if (!animate) {
+      release();
+      for (QToolBar* b : bars) b->setVisible(show);
+      positionOverlayArrows();
+      return;
+    }
+    const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
+    const int to = show ? full : 0;
+    if (show) for (QToolBar* b : bars) { b->setFixedHeight(0); b->show(); }
+    barsAnim_ = new QVariantAnimation(this);
+    barsAnim_->setDuration(200);
+    barsAnim_->setEasingCurve(QEasingCurve::InOutCubic);
+    barsAnim_->setStartValue(from);
+    barsAnim_->setEndValue(to);
+    connect(barsAnim_, &QVariantAnimation::valueChanged, this, [bars, this](const QVariant& v) {
+      for (QToolBar* b : bars) b->setFixedHeight(v.toInt());   // pin min==max on every row
+      positionOverlayArrows();
+    });
+    connect(barsAnim_, &QVariantAnimation::finished, this, [this, bars, show, release] {
+      release();
+      if (!show) for (QToolBar* b : bars) b->hide();
+      barsAnim_ = nullptr;
+      positionOverlayArrows();
+    });
+    barsAnim_->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
   void MainWindow::toggleFullscreen() {
-    if (isFullScreen()) showNormal();
-    else showFullScreen();
+    if (fsActive_) {
+      // Exit: stop the hover poll and restore the top menu + points panel (right, as before).
+      fsActive_ = false;
+      if (fsHoverTimer_) fsHoverTimer_->stop();
+      showNormal();
+      if (menuBar()) menuBar()->setVisible(true);
+      // The header row (Controls pill + project name) ALWAYS returns — it's the only way to re-show
+      // the tool rows, so it must never stay hidden. The tool rows restore to their pre-fullscreen
+      // shown/collapsed state (setToolbarsShown keeps the header, unlike setToolbarsVisible).
+      if (headerToolbar_) { headerToolbar_->setMaximumHeight(QWIDGETSIZE_MAX); headerToolbar_->setVisible(true); }
+      setToolbarsShown(fsWasToolbars_, false);
+      // Sync the toggle-action checks WITHOUT re-firing their (animated) toggled handlers, then
+      // restore the panel to its pre-fullscreen expanded/collapsed(rail) state (non-animated).
+      if (actToolbars_) { QSignalBlocker b(actToolbars_); actToolbars_->setChecked(fsWasToolbars_); }
+      if (actPanel_) { QSignalBlocker b(actPanel_); actPanel_->setChecked(fsWasPanel_); }
+      setPanelShown(fsWasPanel_, false);
+      positionOverlayArrows();
+    } else {
+      // Enter: hide the top menu (all toolbars + menubar) AND the points panel so the canvas fills
+      // the screen; a cursor poll re-reveals the toolbars when the cursor touches the TOP edge and
+      // the points panel (kept on the RIGHT) when it touches the RIGHT edge — mirrors the browser.
+      fsWasToolbars_ = actToolbars_ ? actToolbars_->isChecked() : true;
+      fsWasPanel_ = actPanel_ ? actPanel_->isChecked() : true;   // was the panel expanded (vs rail)?
+      setToolbarsVisible(false);
+      if (menuBar()) menuBar()->setVisible(false);
+      selPanel_->setVisible(false);
+      fsActive_ = true;
+      showFullScreen();
+      setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
+      if (fsHoverTimer_) fsHoverTimer_->start(50);
+    }
+  }
+
+  // Fullscreen edge-hover reveal: show the toolbars while the cursor is at/over the TOP band, and
+  // the points panel while it's at/over the RIGHT edge; hide each once the cursor leaves. Hysteresis
+  // (a wide "keep" zone once shown) stops flicker as the cursor moves onto the revealed widget.
+  void MainWindow::fsHoverTick() {
+    if (!fsActive_) return;
+    const QPoint p = mapFromGlobal(QCursor::pos());
+    const int w = width(), h = height();
+    if (p.x() < 0 || p.y() < 0 || p.x() > w || p.y() > h) return;  // cursor outside the window
+    const bool tbVisible = !findChildren<QToolBar*>().isEmpty() && findChildren<QToolBar*>().first()->isVisible();
+    const int tbBand = 150;   // approx combined height of the toolbar rows (keep-zone once shown)
+    // Reveal in a band that STARTS a bit below the very top edge (skip y<8) — on macOS the absolute
+    // top is grabbed by the system menu bar + window title, so the editor toolbar reveals when the
+    // cursor is hovered a little lower, below that chrome.
+    const bool wantTb = tbVisible ? (p.y() < tbBand) : (p.y() > 8 && p.y() < 120);
+    if (wantTb != tbVisible) setToolbarsVisible(wantTb);
+    const bool pnlVisible = selPanel_->isVisible();
+    const int pnlW = std::max(280, selPanel_->width());
+    const bool wantPnl = pnlVisible ? (p.x() > w - pnlW) : (p.x() > w - 5);
+    if (wantPnl != pnlVisible) {
+      if (wantPnl) {  // reveal the full panel when the cursor hits the right edge
+        selPanel_->setMinimumWidth(0);
+        selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
+      }
+      selPanel_->setVisible(wantPnl);
+    }
   }
 
   // ── precise scroll + anchored zoom (S3; core/zoomPan math) ──
@@ -2237,29 +2557,56 @@ namespace stencil::gui {
   // with Shift. Alt/Ctrl/Meta+arrows are reserved (don't pan).
   void MainWindow::keyPressEvent(QKeyEvent* event) {
     const auto mods = event->modifiers();
+    const int key = event->key();
+
+    // Escape leaves fullscreen (browser parity) — restores the toolbars + panel.
+    if (key == Qt::Key_Escape && fsActive_) { toggleFullscreen(); event->accept(); return; }
+
+    // Track R held for the Alt+R+←/→ line-rotate chord (mirror of the browser #rHeld).
+    if (key == Qt::Key_R) { rKeyHeld_ = true; QMainWindow::keyPressEvent(event); return; }
+
+    // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Mirrors the browser
+    // chord and the Ctrl+Shift+wheel rotate. Only fires when something is selected.
+    if ((mods & Qt::AltModifier) && rKeyHeld_ && canvas_->selectionCount() >= 1 &&
+        (key == Qt::Key_Left || key == Qt::Key_Right)) {
+      constexpr double kRotStep = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
+      canvas_->rotateSelectedLine((key == Qt::Key_Left ? -kRotStep : kRotStep));
+      event->accept();
+      return;
+    }
+
+    // Other Alt/Ctrl/Meta+arrow combos stay reserved (e.g. zoom).
     if (mods & (Qt::AltModifier | Qt::ControlModifier | Qt::MetaModifier)) {
       QMainWindow::keyPressEvent(event);
       return;
     }
-    const int step = (mods & Qt::ShiftModifier) ? 22 : 7;
-    int dx = 0;
-    int dy = 0;
-    const int key = event->key();
-    if (key == Qt::Key_Left) {
-      dx = -step;
-    } else if (key == Qt::Key_Right) {
-      dx = step;
-    } else if (key == Qt::Key_Up) {
-      dy = -step;
-    } else if (key == Qt::Key_Down) {
-      dy = step;
-    } else {
-      QMainWindow::keyPressEvent(event);
+
+    int dirX = 0;
+    int dirY = 0;
+    if (key == Qt::Key_Left) dirX = -1;
+    else if (key == Qt::Key_Right) dirX = 1;
+    else if (key == Qt::Key_Up) dirY = -1;
+    else if (key == Qt::Key_Down) dirY = 1;
+    else { QMainWindow::keyPressEvent(event); return; }
+
+    // With a line selected, arrows NUDGE the selection (1px, Shift = 10px, image space);
+    // with nothing selected they pan the viewport (7/22px), as before.
+    if (canvas_->selectionCount() >= 1) {
+      const int nStep = (mods & Qt::ShiftModifier) ? 10 : 1;
+      canvas_->nudgeSelected(dirX * nStep, dirY * nStep);
+      event->accept();
       return;
     }
-    scrollTo(scroll_->horizontalScrollBar()->value() + dx,
-             scroll_->verticalScrollBar()->value() + dy);
+    const int panStep = (mods & Qt::ShiftModifier) ? 22 : 7;
+    scrollTo(scroll_->horizontalScrollBar()->value() + dirX * panStep,
+             scroll_->verticalScrollBar()->value() + dirY * panStep);
     event->accept();
+  }
+
+  // Clear the R-held flag when it (or focus) is released, so the Alt+R+←/→ chord doesn't stick.
+  void MainWindow::keyReleaseEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_R) rKeyHeld_ = false;
+    QMainWindow::keyReleaseEvent(event);
   }
 
   // ── theme + settings ──
@@ -2281,6 +2628,8 @@ namespace stencil::gui {
     const QColor iconCol = themePalette(dark, settings_.accentColor).textMain;
     styleActionIcons(dark, iconCol);
     if (selPanel_) selPanel_->restyleIcons(iconCol);
+    if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(24)));   // frame tracks the accent colour
+    positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab
 
     QPalette vp;
     vp.setColor(QPalette::Window, themePalette(dark).bgPage);
@@ -2322,7 +2671,10 @@ namespace stencil::gui {
     set(actFit_, "fit");
     set(actShowPoints_, "eye");
     set(actShowLines_, "eye");
-    set(actPanel_, "layers");
+    // Arrow toggles (browser parity): a chevron to collapse the points panel (→, it's on the right)
+    // and the toolbars (↑). The panel chevron flips ←/→ with its shown state in refreshActions.
+    set(actPanel_, actPanel_ && actPanel_->isChecked() ? "chevron-right" : "chevron-left");
+    set(actToolbars_, "chevron-up");   // top-menu (toolbars) show/hide, View menu only
     set(actFullscreen_, "maximize");
     set(actTooltip_, "message");
     set(actAllowFormulas_, "function");
@@ -2371,6 +2723,7 @@ namespace stencil::gui {
     // following the theme text colour — not a filled swatch).
     if (projectNameEdit_) projectNameEdit_->setIcon(themedIcon("pencil", iconColor, 15));
     if (projectColorBtn_) projectColorBtn_->setIcon(themedIcon("palette", iconColor, 15));
+    // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
     if (drawModeBtn_) {
       const bool rect =
           canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
@@ -2668,14 +3021,31 @@ namespace stencil::gui {
     }
 
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(), this);
+    dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
     if (dlg.exec() != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
+    // Open CONFIRM lives here — AFTER the dialog closed — not inside the drag release (where a
+    // QMessageBox got dismissed by that same release, so nothing opened and the row snapped back).
+    // Mirrors the Delete confirm below, which is why Remove worked while Open didn't.
+    auto confirmOpen = [this](const QString& id, bool newWindow) -> bool {
+      const Project* pr = findProject(id.toStdString());
+      const QString nm = pr ? QString::fromStdString(pr->meta.name) : QStringLiteral("this project");
+      const QString msg = newWindow
+          ? QString("Open \"%1\" in a new window?").arg(nm)
+          : QString("Open \"%1\"? Any unsaved changes in the current window will be replaced.").arg(nm);
+      return QMessageBox::question(this, "Open project", msg,
+                                   QMessageBox::Open | QMessageBox::Cancel,
+                                   QMessageBox::Open) == QMessageBox::Open;
+    };
     if (dlg.action() == Action::Open) {
+      if (!confirmOpen(dlg.selectedId(), false)) return;
       loadProjectIntoCanvas(dlg.selectedId());
     } else if (dlg.action() == Action::OpenRemote) {
+      if (!confirmOpen(dlg.selectedId(), false)) return;
       openServerProject(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::OpenInNewWindow) {
+      if (!confirmOpen(dlg.selectedId(), true)) return;
       openProjectInNewWindow(dlg.selectedId());
     } else if (dlg.action() == Action::MoveToServer) {
       // Can't move a project that's open in another window — it would vanish there.
@@ -2907,6 +3277,8 @@ namespace stencil::gui {
     remoteSync_->stopRemotePoll();   // no longer a server session
     currentSource_ = QString::fromStdString(pr->meta.source);
     currentResource_ = QString::fromStdString(pr->meta.resource);
+    // Restore the blank-fill colour so the Blank control reappears for a reopened blank.
+    blankColor_ = pr->meta.blank ? QString::fromStdString(pr->meta.blankColor) : QString();
     refreshActions();
     fitToWindow();   // fit the opened project to the window (matches the browser)
     notify_->success(
@@ -3034,6 +3406,7 @@ namespace stencil::gui {
         }
         // Adopt the full layout (page/formulas + geometry + lines + filter) onto the image.
         loadImageWithLayout(img, layout);
+        blankColor_ = meta.blankColor;  // restore blank-fill so the recolour control tracks it
         // Link the session; clear any local-project linkage so saves go to the server.
         // Unlinked (incognito deep-link) opens adopt the content only: no remote link,
         // no live co-edit, nothing ever pushed back — mirroring the browser's
@@ -3624,29 +3997,99 @@ namespace stencil::gui {
   }
 
   // ── drag-and-drop (Photoshop-style drop-to-open) ──
-  void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
-    // Accept a dragged local file (image / video / layout JSON); the suffix is
-    // resolved on drop by openPathFromOS.
-    const QMimeData* m = event->mimeData();
-    if (m && m->hasUrls()) {
+  namespace {
+    // A droppable source resolved from a drag: a LOCAL file (keeps its path), a remote http(s)
+    // URL (an image dragged from a browser page), or raw IMAGE bytes. Desktop can fetch remote
+    // URLs freely (no browser CORS), so a cross-page image drag works here where the browser is
+    // CORS-limited.
+    struct DropSrc {
+      enum Kind { None, LocalFile, Url, ImageData } kind = None;
+      QString value;  // path (LocalFile) or url (Url); ImageData carries no string
+    };
+    DropSrc droppableSource(const QMimeData* m) {
+      if (!m) return {};
       for (const QUrl& u : m->urls())
-        if (u.isLocalFile()) {
-          event->acceptProposedAction();
-          return;
-        }
+        if (u.isLocalFile()) return { DropSrc::LocalFile, u.toLocalFile() };
+      for (const QUrl& u : m->urls()) {
+        const QString s = u.toString();
+        if (s.startsWith("http://") || s.startsWith("https://")) return { DropSrc::Url, s };
+      }
+      if (m->hasText()) {
+        const QString t = m->text().trimmed();
+        if (t.startsWith("http://") || t.startsWith("https://")) return { DropSrc::Url, t };
+      }
+      if (m->hasImage()) return { DropSrc::ImageData, QString() };
+      return {};
+    }
+  }  // namespace
+
+  void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
+    // Accept a dragged local file (image / video / layout JSON), a remote image URL, or raw
+    // image bytes. Show the split LEFT-save / RIGHT-incognito overlay.
+    if (droppableSource(event->mimeData()).kind == DropSrc::None) return;
+    event->acceptProposedAction();
+    if (dropZones_) {
+      dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
+      dropZones_->showZones();
     }
   }
 
+  void MainWindow::dragMoveEvent(QDragMoveEvent* event) {
+    if (droppableSource(event->mimeData()).kind == DropSrc::None) return;
+    event->acceptProposedAction();
+    if (dropZones_) dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
+  }
+
+  void MainWindow::dragLeaveEvent(QDragLeaveEvent*) {
+    if (dropZones_) dropZones_->hideZones();
+  }
+
   void MainWindow::dropEvent(QDropEvent* event) {
-    const QMimeData* m = event->mimeData();
-    if (!m || !m->hasUrls()) return;
-    for (const QUrl& u : m->urls()) {
-      if (u.isLocalFile()) {
-        openPathFromOS(u.toLocalFile());
-        event->acceptProposedAction();
-        return;  // open the first file only (matches a single-image editor)
-      }
+    if (dropZones_) dropZones_->hideZones();
+    const DropSrc src = droppableSource(event->mimeData());
+    if (src.kind == DropSrc::None) return;
+    event->acceptProposedAction();
+
+    // A local .json layout ignores the save/incognito split (it applies drawing data).
+    if (src.kind == DropSrc::LocalFile &&
+        QFileInfo(src.value).suffix().compare("json", Qt::CaseInsensitive) == 0) {
+      applyLayoutFromSource(src.value);
+      return;
     }
+
+    // RIGHT half = incognito, LEFT half = upload + save.
+    const bool incognito = event->position().x() >= width() / 2.0;
+
+    // Resolve a source string: local path, remote URL, or a data: URL for raw dropped pixels
+    // (openImageSource decodes data: URLs), plus whether new-window is offerable.
+    QString source = src.value;
+    bool isLocal = false;
+    if (src.kind == DropSrc::LocalFile) { isLocal = true; }
+    else if (src.kind == DropSrc::ImageData) {
+      const QImage img = qvariant_cast<QImage>(event->mimeData()->imageData());
+      if (img.isNull()) return;
+      source = QStringLiteral("data:image/png;base64,") + QString::fromLatin1(pngBytes(img).toBase64());
+    }
+
+    // Open the dropped image via the LEFT (save) or RIGHT (incognito) path. Local files keep
+    // their path (openImageHere/InNewWindow); URLs + raw pixels go through the async source path.
+    const auto openHere = [&] { if (isLocal) openImageHere(source, incognito); else openSourceHere(source, -1, incognito); };
+    const auto openNew = [&] { if (isLocal) openImageInNewWindow(source, incognito); else openSourceInNewWindow(source, -1, incognito); };
+
+    // An image already open → ask this window vs a new one (mirrors the browser modal).
+    if (canvas_->hasImage()) {
+      QMessageBox box(this);
+      box.setWindowTitle(tr("Open dropped image"));
+      box.setText(tr("An image is already open. Where should the dropped image open?"));
+      QPushButton* hereBtn = box.addButton(tr("This window"), QMessageBox::AcceptRole);
+      QPushButton* newBtn = box.addButton(tr("New window"), QMessageBox::ActionRole);
+      box.addButton(QMessageBox::Cancel);
+      box.exec();
+      if (box.clickedButton() == hereBtn) openHere();
+      else if (box.clickedButton() == newBtn) openNew();
+      return;
+    }
+    openHere();
   }
 
   // View/edit/open/remove the current image's source & resource links, or add a
@@ -3818,6 +4261,8 @@ namespace stencil::gui {
     pr.meta.hasImage = !pr.imagePath.isEmpty();
     pr.meta.source = currentSource_.toStdString();
     pr.meta.resource = currentResource_.toStdString();
+    pr.meta.blankColor = blankColor_.toStdString();  // blank-fill colour (empty = ordinary image)
+    pr.meta.blank = !blankColor_.isEmpty();
     projectList_.push_back(pr);
     activeProjectId_ = QString::fromStdString(pr.meta.id);
     fileStore::saveProjects(projectList_);
@@ -4126,6 +4571,64 @@ namespace stencil::gui {
     return true;
   }
 
+  // Header-row "Image Size: W × H px" (+ "· blank"), or a neutral hint when no image is loaded.
+  // Always visible — the header row never collapses — mirroring the browser's #image-info bar.
+  void MainWindow::updateImageSizeInfo() {
+    if (!imageSizeInfo_) return;
+    if (canvas_ && canvas_->hasImage()) {
+      const bool isBlank = !blankColor_.isEmpty();
+      imageSizeInfo_->setText(QString("Image Size: %1 × %2 px%3")
+                                  .arg(canvas_->imageWidth())
+                                  .arg(canvas_->imageHeight())
+                                  .arg(isBlank ? QStringLiteral("  ·  blank") : QString()));
+    } else {
+      imageSizeInfo_->setText(QStringLiteral("No image loaded"));
+    }
+  }
+
+  // Mini line-chart logo — a QPainter port of the browser's app-logo SVG (toolbar.js): a dark rounded
+  // square with an ACCENT-coloured frame, an inner darker square, and a yellow polyline over four
+  // dots. Only the frame tracks the accent (like the browser), so it never looks garish. Repainted on
+  // theme/accent change from applyTheme.
+  QPixmap MainWindow::makeLogoPixmap(int size) const {
+    const qreal dpr = devicePixelRatioF();
+    QPixmap pm(qRound(size * dpr), qRound(size * dpr));
+    pm.setDevicePixelRatio(dpr);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+    const double u = size / 64.0;   // browser viewBox is 0..64
+    QColor accent = accentPrimary(settings_.accentColor);
+    if (!accent.isValid()) accent = QColor("#7c3aed");
+    // Outer rounded square (dark), then the accent frame stroke on top.
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor("#2b2f3a"));
+    p.drawRoundedRect(QRectF(2 * u, 2 * u, 60 * u, 60 * u), 13 * u, 13 * u);
+    QPen frame(accent);
+    frame.setWidthF(2.5 * u);
+    p.setPen(frame);
+    p.setBrush(Qt::NoBrush);
+    p.drawRoundedRect(QRectF(2.75 * u, 2.75 * u, 58.5 * u, 58.5 * u), 12.25 * u, 12.25 * u);
+    // Inner darker square.
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor("#3a3f4b"));
+    p.drawRoundedRect(QRectF(12 * u, 12 * u, 40 * u, 40 * u), 4 * u, 4 * u);
+    // Yellow polyline + dots.
+    const QPointF pts[4] = {QPointF(16 * u, 46 * u), QPointF(27 * u, 24 * u),
+                            QPointF(38 * u, 38 * u), QPointF(50 * u, 18 * u)};
+    QPen line(QColor("#FFFF00"));
+    line.setWidthF(3.5 * u);
+    line.setCapStyle(Qt::RoundCap);
+    line.setJoinStyle(Qt::RoundJoin);
+    p.setPen(line);
+    p.setBrush(Qt::NoBrush);
+    p.drawPolyline(pts, 4);
+    p.setBrush(QColor("#FFFF00"));
+    p.setPen(QPen(QColor("#000000"), 1.25 * u));
+    for (const auto& pt : pts) p.drawEllipse(pt, 3.4 * u, 3.4 * u);
+    return pm;
+  }
+
   void MainWindow::updateProjectTitle() {
     QString name;
     bool editable = false;
@@ -4134,10 +4637,11 @@ namespace stencil::gui {
       name = "Incognito";
     } else if (!activeProjectId_.isEmpty()) {
       name = activeProjectName();
-      editable = !name.isEmpty();
+      editable = true;   // an active LOCAL project is always renameable/colourable (even if the
+                         // registry name lookup momentarily returns empty and we fall back to the id)
     } else if (remote) {
       name = remoteSession_->link().name;   // server-linked session (no local project id)
-      editable = !name.isEmpty();   // server projects are renameable too (pushed via commitProjectName)
+      editable = true;   // server projects are renameable/colourable too (pushed via commitProjectName)
     }
     if (name.isEmpty() && canvas_ && canvas_->hasImage())
       name = canvas_->imageBaseName();   // show the image name until it's a saved project
@@ -4172,6 +4676,7 @@ namespace stencil::gui {
     if (actProjectColorClear_) actProjectColorClear_->setEnabled(hasProject);
     if (projectColorBtn_) projectColorBtn_->setEnabled(hasProject);
     if (projectNameEdit_) projectNameEdit_->setEnabled(editable);
+    updateImageSizeInfo();
   }
 
   // Browser-like: the ✓/✗ buttons show only IN edit mode; the ✎ pencil shows only OUT of it.
@@ -4183,8 +4688,23 @@ namespace stencil::gui {
     // mode only ✓/✗ show; out of it only ✎ + 🎨 show — exactly like the browser topbar.
     if (projectNameAcceptAction_) projectNameAcceptAction_->setVisible(nameEditing_);
     if (projectNameCancelAction_) projectNameCancelAction_->setVisible(nameEditing_);
-    if (projectNameEditAction_) projectNameEditAction_->setVisible(editable && !nameEditing_);
-    if (projectColorBtnAction_) projectColorBtnAction_->setVisible(editable && !nameEditing_);
+    // ✎ rename + 🎨 colour reveal only while the cursor is over the name group (browser: the topbar
+    // shows them on hover), or while editing they're replaced by ✓/✗ anyway.
+    if (projectNameEditAction_) projectNameEditAction_->setVisible(editable && !nameEditing_ && nameHover_);
+    if (projectColorBtnAction_) projectColorBtnAction_->setVisible(editable && !nameEditing_ && nameHover_);
+    // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
+    // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
+    // Paint its icon as a live swatch of the current fill colour.
+    if (blankColorBtnAction_) {
+      const bool showBlank = !blankColor_.isEmpty() && !nameEditing_;
+      blankColorBtnAction_->setVisible(showBlank);
+      if (showBlank && blankColorBtn_) {
+        QPixmap sw(14, 14);
+        QColor c(blankColor_);
+        sw.fill(c.isValid() ? c : QColor("#ffffff"));
+        blankColorBtn_->setIcon(QIcon(sw));
+      }
+    }
     if (!nameEditing_) return;
     const QString v = projectName_->text().trimmed();
     // Compare against the CURRENT name — remoteSession_->link().name for a server-linked session (no local id),
@@ -4203,6 +4723,18 @@ namespace stencil::gui {
     }
     projectNameAccept_->setEnabled(ok);
     projectNameAccept_->setToolTip(reason);
+  }
+
+  // Recompute hover state over the name group (field + ✎ + 🎨). Deferred callers give underMouse()
+  // a beat to settle after a Leave, so moving the cursor from the field onto ✎ doesn't flicker them.
+  void MainWindow::updateNameHover() {
+    const bool over = (projectName_ && projectName_->underMouse()) ||
+                      (projectNameEdit_ && projectNameEdit_->underMouse()) ||
+                      (projectColorBtn_ && projectColorBtn_->underMouse());
+    if (over != nameHover_) {
+      nameHover_ = over;
+      refreshProjectNameButtons();
+    }
   }
 
   void MainWindow::enterNameEdit() {
@@ -4257,11 +4789,35 @@ namespace stencil::gui {
   }
 
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
+    // Escape leaves fullscreen (browser parity). Handled from the APP-wide filter so it fires no
+    // matter which widget (or native macOS view) holds focus — keyPressEvent / a shortcut both miss
+    // it there. Gated on our own fsActive_ flag (isFullScreen() is unreliable on macOS). Catch both
+    // KeyPress and ShortcutOverride (sent first if any widget claims Escape) so nothing swallows it.
+    if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
+        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fsActive_) {
+      toggleFullscreen();
+      return true;
+    }
+    // Logo double-click → custom theme-colour picker (browser parity). Cancels the pending single-
+    // click accent-cycle first, then opens the non-native colour dialog seeded with the current accent.
+    if (obj == logoBtn_ && event->type() == QEvent::MouseButtonDblClick) {
+      if (logoClickTimer_) logoClickTimer_->stop();
+      const QColor cur = accentPrimary(settings_.accentColor);
+      const QColor c = QColorDialog::getColor(cur, this, "Theme colour",
+                                              QColorDialog::DontUseNativeDialog);
+      if (c.isValid()) {
+        auto next = settings_;
+        next.accentColor = c.name();   // store as hex → custom accent (accentPrimary handles it)
+        applySettings(next, true);
+      }
+      return true;
+    }
     // Zoom over the empty margin around a zoomed-out image (the viewport, not the
     // canvas). Mirrors CanvasWidget's Ctrl+wheel / pinch zoom; the event position is
     // already in viewport coordinates, which is what setZoomAnchored wants.
     if (scroll_ && obj == scroll_->viewport()) {
       const QEvent::Type t = event->type();
+      if (t == QEvent::Resize) { positionOverlayArrows(); positionPanelReopenButton(); }
       if (t == QEvent::Wheel) {
         auto* we = static_cast<QWheelEvent*>(event);
         if (we->modifiers() & Qt::ControlModifier) {
@@ -4284,6 +4840,13 @@ namespace stencil::gui {
           return true;
         }
       }
+    }
+    // Hover-reveal for the name group: any Enter/Leave on the field or the ✎/🎨 buttons recomputes
+    // hover (deferred so underMouse() settles — moving field→button stays "hovered", no flicker).
+    if (obj == projectName_ || obj == projectNameEdit_ || obj == projectColorBtn_) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::Enter || t == QEvent::Leave)
+        QTimer::singleShot(0, this, [this] { updateNameHover(); });
     }
     if (obj == projectName_) {
       const QEvent::Type t = event->type();
@@ -4341,9 +4904,11 @@ namespace stencil::gui {
     // Direct modal picker — identical to the line-colour button, which works cleanly. (Earlier
     // menu/InstantPopup/singleShot variants left a stray mouse grab that closed the dialog.)
     const QString cur = currentProjectColor();
+    // No custom colour → seed with the neutral grey the name is actually painted in (the unset
+    // default), not the theme accent, so the picker reflects the real current state.
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid())
                             ? QColor(cur)
-                            : accentPrimary(settings_.accentColor);
+                            : QColor("#80868f");
     // DontUseNativeDialog: the macOS native NSColorPanel is a shared floating panel that the
     // app-wide event filter / focus changes dismiss on mouse-move — Qt's own modal dialog runs a
     // self-contained nested loop and stays put. (Same reason native pickers misbehave here.)
@@ -4381,18 +4946,21 @@ namespace stencil::gui {
     if (!projectName_) return;
     const QString color = incognito_ ? QString() : currentProjectColor();
     const QColor c(color);
+    // Default (no custom colour): a brighter grey than the browser's #80868f + bold, since Qt can't
+    // give a QLineEdit the browser's legibility text-shadow — bold + a lighter grey matches the
+    // perceived brightness. A custom colour is used as-is (also bold).
     const QString fg =
-        (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#80868f");
+        (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#9aa0a8");
     if (editing) {
       const QColor accent = accentPrimary(settings_.accentColor);
       projectName_->setStyleSheet(
-          QString("QLineEdit{color:%1;border:1px solid %2;border-radius:6px;"
+          QString("QLineEdit{color:%1;font-weight:600;border:1px solid %2;border-radius:6px;"
                   "background:palette(base);padding:2px 6px;}"
                   "QLineEdit:focus{border:1px solid %2;}")
               .arg(fg, accent.name()));
     } else {
       projectName_->setStyleSheet(
-          QString("QLineEdit{color:%1;border:1px solid transparent;background:transparent;}"
+          QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;background:transparent;}"
                   "QLineEdit:focus{border:1px solid transparent;}")
               .arg(fg));
     }
@@ -4423,6 +4991,33 @@ namespace stencil::gui {
     QPointer<MainWindow> self(this);
     setProjectColorById(activeProjectId_, QString(), *norm,
                         [this, self](bool ok) { if (self && ok) updateProjectTitle(); });
+  }
+
+  void MainWindow::setActiveBlankColor() {
+    if (blankColor_.isEmpty() || !canvas_->hasImage()) return;  // blanks only
+    QColor init(blankColor_);
+    if (!init.isValid()) init = QColor("#ffffff");
+    // Qt's own dialog (not the OS-native one) so it matches the project-name colour picker.
+    const QColor c = QColorDialog::getColor(init, this, "Blank background colour",
+                                            QColorDialog::DontUseNativeDialog);
+    if (!c.isValid()) return;
+    // Regenerate the solid fill at the current size, KEEPING the drawn lines (a separate overlay).
+    const core::Lines keep = canvas_->lines();
+    QImage img(canvas_->imageWidth(), canvas_->imageHeight(), QImage::Format_RGB32);
+    img.fill(c);
+    canvas_->loadFromImage(img);
+    if (!keep.empty()) canvas_->setLines(keep);
+    blankColor_ = c.name();
+    // Persist the new fill into the active local project's meta + raster so a reopen shows it.
+    // (A server-linked session pushes the recoloured original on the next Save.)
+    if (Project* pr = findProject(activeProjectId_.toStdString())) {
+      pr->meta.blankColor = blankColor_.toStdString();
+      pr->meta.blank = true;
+      if (!pr->imagePath.isEmpty()) canvas_->originalImage().save(pr->imagePath, "PNG");
+      fileStore::saveProjects(projectList_);
+    }
+    refreshActions();
+    notify_->success("Blank recoloured");
   }
 
   void MainWindow::setProjectColorById(const QString& id, const QString& serverUrl,

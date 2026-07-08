@@ -203,6 +203,38 @@ test('snapshot exposes the live set as {url, token} for persistence', async () =
   ]);
 });
 
+test('reorder permutes the connection order, firing onChange, and persists via snapshot', async () => {
+  const { fetchImpl } = makeFakeServer();
+  let changes = 0;
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS, onChange: () => { changes++; } });
+  await mgr.connect(['http://a:1', 'http://b:2', 'http://c:3']);
+  const before = changes;
+  // Move the last (c) to the front.
+  mgr.reorder(['http://c:3', 'http://a:1', 'http://b:2']);
+  assert.deepEqual(mgr.urls, ['http://c:3', 'http://a:1', 'http://b:2']);
+  assert.equal(changes, before + 1, 'reorder fires exactly one onChange (persist + broadcast)');
+  // snapshot (what saveServers persists) reflects the new order.
+  assert.deepEqual(mgr.snapshot().map((s) => s.url), ['http://c:3', 'http://a:1', 'http://b:2']);
+});
+
+test('reorder is defensive: unknown urls are skipped, omitted current urls kept at the end', async () => {
+  const { fetchImpl } = makeFakeServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  await mgr.connect(['http://a:1', 'http://b:2', 'http://c:3']);
+  // Name only b (+ a bogus url); a and c must survive, appended in their original order.
+  mgr.reorder(['http://b:2', 'http://zzz:9']);
+  assert.deepEqual(mgr.urls, ['http://b:2', 'http://a:1', 'http://c:3']);
+});
+
+test('reconnect preserves the reordered set (reorder updates _lastSet)', async () => {
+  const { fetchImpl } = makeFakeServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  await mgr.connect(['http://a:1', 'http://b:2']);
+  mgr.reorder(['http://b:2', 'http://a:1']);
+  await mgr.reconnect();
+  assert.deepEqual(mgr.urls, ['http://b:2', 'http://a:1']);
+});
+
 test('reconnectOne re-establishes a single connection, keeping the rest', async () => {
   const { fetchImpl } = makeFakeServer();
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });

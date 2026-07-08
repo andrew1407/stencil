@@ -10,8 +10,11 @@ class QLabel;
 class QSpinBox;
 class QComboBox;
 class QPushButton;
+class QToolButton;
 class QCheckBox;
 class QWidget;
+class QTabWidget;
+class QListWidget;
 
 // Side panel listing the selected line's points and its measurements (point
 // count, segment count, total length) AND an inline editor for the selected
@@ -44,10 +47,21 @@ namespace stencil::gui {
     // line and its controls never silently no-op.
     void showLine(const core::Line* line, const core::Line* editorLine,
                   int selectedPoint, const std::vector<QString>& cmRows = {});
+    // Show/hide the "N lines selected" multi-select note (n >= 2 shows it).
+    void setMultiSelectCount(int n);
+    // Rebuild the "Lines" tab list — one row per committed line (color chip, index, point
+    // count, area marker), highlighting rows whose index is in `selected`. Mirrors browser
+    // drawingApp.js renderLinesList; MainWindow calls it from onSelectionChanged.
+    void setLines(const core::Lines& lines, const std::vector<int>& selected);
+    // Add the panel-toggle keyboard shortcut to the header chevron's tooltip (e.g. "Hide panel (Alt+X)").
+    void setToggleHint(const QString& hint);
 
    signals:
     void pointActivated(int index);        // user clicked / double-clicked a row
     void pointDeleteRequested(int index);  // user pressed Delete or clicked the row's 🗑
+    // Lines tab: a row was clicked (multi = Ctrl/⌘+Shift held → toggle multi-select) or its 🗑 hit.
+    void lineListActivated(int index, bool multi);
+    void lineListRemoveRequested(int index);
     // Inline coord edit: a px X/Y cell was committed (axis 0 = x, 1 = y). Forwarded to the
     // canvas's setPointCoord (mirrors browser coordTable.js double-click-to-edit).
     void pointCoordChanged(int index, int axis, double value);
@@ -61,6 +75,8 @@ namespace stencil::gui {
     void lineFillChanged(const QString& fillColor);  // "transparent" = no fill
     void lineDeleteRequested();
     void deselectRequested();
+    // The header chevron was clicked → MainWindow slides the panel closed (browser #toggle-coord-panel).
+    void collapseRequested();
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -70,8 +86,12 @@ namespace stencil::gui {
     // toolbar's MainWindow::updateColorSwatch; browser uses <input type=color>).
     void setSwatchColor(QPushButton* btn, const QColor& color);
 
+    QToolButton* collapseBtn_ = nullptr;  // header chevron: hide the panel (browser panel header)
+    QTabWidget* tabs_ = nullptr;     // Points | Lines
     QTableWidget* points_ = nullptr;
+    QListWidget* lines_ = nullptr;   // Lines tab: one row per committed line
     QLabel* measurements_ = nullptr;
+    QLabel* multiLabel_ = nullptr;   // "N lines selected" note (multi-select mode)
     QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
 
     // Inline line editor (above the points list). Browser selectionPanel.js

@@ -217,7 +217,21 @@ pub fn buildLayout(
 /// One project as shown by `/projects`: name + image size + last-change timestamp, plus the
 /// project's custom name colour ("" = none, paint the name in the theme accent). Owns `name`
 /// and `color`.
-pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, expires_at: i64, w: i64, h: i64, color: []u8 };
+pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, expires_at: i64, w: i64, h: i64, color: []u8, keywords: [][]u8 };
+
+/// Free a slice of owned strings (each string, then the slice). Used for keyword lists.
+pub fn freeStrList(gpa: std.mem.Allocator, items: [][]u8) void {
+    for (items) |s| gpa.free(s);
+    gpa.free(items);
+}
+
+/// Dupe a slice of borrowed strings into an owned [][]u8 (free with freeStrList).
+fn dupeStrList(gpa: std.mem.Allocator, src: []const []const u8) ![][]u8 {
+    var list: std.ArrayList([]u8) = .empty;
+    errdefer freeStrList(gpa, list.toOwnedSlice(gpa) catch &.{});
+    for (src) |s| try list.append(gpa, try gpa.dupe(u8, s));
+    return list.toOwnedSlice(gpa);
+}
 
 /// Parse a { "projects": [...] } list body into an owned slice of ProjectInfo. Free with
 /// freeProjectList. Pure — unit-tested without a socket.
@@ -231,6 +245,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
             imageW: i64 = 0,
             imageH: i64 = 0,
             color: []const u8 = "",
+            keywords: []const []const u8 = &.{},
         },
     };
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
@@ -242,18 +257,30 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
         errdefer gpa.free(nm);
         const col = try gpa.dupe(u8, proj.color);
         errdefer gpa.free(col);
-        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col });
+        const kws = try dupeStrList(gpa, proj.keywords);
+        errdefer freeStrList(gpa, kws);
+        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col, .keywords = kws });
     }
     return list.toOwnedSlice(gpa);
 }
 
-/// Free a slice returned by parseProjectList (each owned name + colour, then the slice).
+/// Free a slice returned by parseProjectList (each owned name + colour + keywords, then the slice).
 pub fn freeProjectList(gpa: std.mem.Allocator, items: []ProjectInfo) void {
     for (items) |it| {
         gpa.free(it.name);
         gpa.free(it.color);
+        freeStrList(gpa, it.keywords);
     }
     gpa.free(items);
+}
+
+/// Parse a single-project body ({ "project": { ..., "keywords": [...] } }) into an owned
+/// [][]u8 (free with freeStrList). "" / absent → empty. Pure — unit-tested without a socket.
+pub fn parseProjectKeywords(gpa: std.mem.Allocator, body: []const u8) ![][]u8 {
+    const T = struct { project: struct { keywords: []const []const u8 = &.{} } };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    return dupeStrList(gpa, p.value.project.keywords);
 }
 
 /// Parse a single-project body ({ "project": { ..., "color": "#rrggbb" } }) for its custom
@@ -263,6 +290,15 @@ pub fn parseProjectColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
     defer p.deinit();
     return gpa.dupe(u8, p.value.project.color);
+}
+
+/// Parse a single-project body ({ "project": { ..., "blankColor": "#rrggbb" } }) for its
+/// blank-image fill colour ("" when absent/empty = not a blank project). Caller owns the slice.
+pub fn parseProjectBlankColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
+    const T = struct { project: struct { blankColor: []const u8 = "" } };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    return gpa.dupe(u8, p.value.project.blankColor);
 }
 
 // ── REST client ──────────────────────────────────────────────────────────────
@@ -391,6 +427,59 @@ pub const Client = struct {
         const esc = try jsonEscape(self.gpa, color);
         defer self.gpa.free(esc);
         const payload = try std.fmt.allocPrint(self.gpa, "{{\"color\":\"{s}\",\"version\":{d}}}", .{ esc, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
+    }
+
+    /// Read the active project's blank-image fill colour ("" = not a blank project).
+    pub fn getProjectBlankColor(self: *Client, id: []const u8) ![]u8 {
+        const body = try self.getProject(id);
+        defer self.gpa.free(body);
+        return parseProjectBlankColor(self.gpa, body);
+    }
+
+    /// PUT a project's blank fill colour ("#rrggbb"), version-guarded (a stale version yields
+    /// Error.Conflict). Mirrors UpdateProjectRequest{blankColor} — only the colour is sent, riding
+    /// the same EventUpdated fan-out. Note: this recolours the stored blank metadata; the raster
+    /// itself is regenerated by the front-end that owns the canvas.
+    pub fn updateProjectBlankColor(self: *Client, id: []const u8, color: []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        const esc = try jsonEscape(self.gpa, color);
+        defer self.gpa.free(esc);
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"blankColor\":\"{s}\",\"version\":{d}}}", .{ esc, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
+    }
+
+    /// Read the active/named project's current keywords (owned [][]u8; free with freeStrList).
+    pub fn getProjectKeywords(self: *Client, id: []const u8) ![][]u8 {
+        const body = try self.getProject(id);
+        defer self.gpa.free(body);
+        return parseProjectKeywords(self.gpa, body);
+    }
+
+    /// PUT a project's keywords array, version-guarded (a stale version yields Error.Conflict).
+    /// Mirrors UpdateProjectRequest{keywords} — only the keywords are sent (name/colour/layout
+    /// untouched), riding the same EventUpdated fan-out so peers see the change live.
+    pub fn updateProjectKeywords(self: *Client, id: []const u8, keywords: []const []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        var arr: std.ArrayList(u8) = .empty;
+        defer arr.deinit(self.gpa);
+        try arr.append(self.gpa, '[');
+        for (keywords, 0..) |k, i| {
+            if (i != 0) try arr.append(self.gpa, ',');
+            const esc = try jsonEscape(self.gpa, k);
+            defer self.gpa.free(esc);
+            try arr.append(self.gpa, '"');
+            try arr.appendSlice(self.gpa, esc);
+            try arr.append(self.gpa, '"');
+        }
+        try arr.append(self.gpa, ']');
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"keywords\":{s},\"version\":{d}}}", .{ arr.items, version });
         defer self.gpa.free(payload);
         const body = try self.request(.PUT, path, payload, "application/json");
         self.gpa.free(body);

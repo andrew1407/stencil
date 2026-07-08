@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, removeSiteEntries, clearPins, loadPins, setPinned, projectNameColor, PINS_KEY } from '../src/lib/pins.js';
+import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, removeSiteEntries, clearPins, loadPins, setPinned, setPinKeywords, projectNameColor, normalizeKeywords, pinKeywords, pinMatchesSearch, PIN_SEARCH_MODES, PINS_KEY } from '../src/lib/pins.js';
 
 // Minimal chrome.storage.local mock with an awaitable get/set, so the async wrappers
 // (loadPins/setPinned) can be driven from Node. The deferred resolution models real
@@ -80,6 +80,55 @@ test('addPinEntry carries color only for kind "project"', () => {
   // A plain image pin never carries a color field (the popup leaves it theme-coloured).
   const [img] = addPinEntry([], pin('http://a.com', 'https://cdn/x.png', { color: '#ff0066' }));
   assert.equal('color' in img, false);
+});
+
+test('normalizeKeywords trims, drops blanks, dedupes case-insensitively (first-seen order)', () => {
+  assert.deepEqual(normalizeKeywords([' Cat ', 'dog', 'CAT', '', 'Bird ']), ['Cat', 'dog', 'Bird']);
+  assert.deepEqual(normalizeKeywords(null), []);
+  assert.deepEqual(normalizeKeywords(['x', 1, null, 'x']), ['x', '1']);
+});
+
+test('addPinEntry stores normalized keywords, only when non-empty', () => {
+  const [withKw] = addPinEntry([], pin('http://a', 'src1', { keywords: [' A ', 'b', 'A'] }));
+  assert.deepEqual(withKw.keywords, ['A', 'b']);
+  const [noKw] = addPinEntry([], pin('http://a', 'src2'));
+  assert.equal('keywords' in noKw, false);   // empty → field omitted (lean)
+  assert.deepEqual(pinKeywords(noKw), []);    // accessor still yields []
+});
+
+test('addPinEntry preserves keywords on a re-pin that omits them, overwrites when provided', () => {
+  let list = addPinEntry([], pin('http://a', 'src', { keywords: ['keep', 'me'] }));
+  // Re-pin WITHOUT keywords (e.g. a drag-to-pin) must not wipe them.
+  list = addPinEntry(list, pin('http://a', 'src'));
+  assert.deepEqual(list[0].keywords, ['keep', 'me']);
+  // Re-pin WITH keywords overwrites.
+  list = addPinEntry(list, pin('http://a', 'src', { keywords: ['fresh'] }));
+  assert.deepEqual(list[0].keywords, ['fresh']);
+});
+
+test('setPinKeywords replaces/clears keywords on an existing pin; no-op on unknown', async () => {
+  const mock = installStorageMock();
+  mock.reset();
+  await setPinned({ source: 'srcX', site: 'http://a', name: 'X', pinned: true });
+  await setPinKeywords('http://a', 'srcX', [' foo ', 'bar', 'FOO']);
+  assert.deepEqual((await loadPins())[0].keywords, ['foo', 'bar']);
+  await setPinKeywords('http://a', 'srcX', []);   // clear
+  assert.equal('keywords' in (await loadPins())[0], false);
+  const before = await loadPins();
+  assert.equal(await setPinKeywords('http://a', 'nope', ['z']), before);  // unknown → same list
+});
+
+test('pinMatchesSearch honors the search mode over name + keywords', () => {
+  const p = { name: 'Sunset shot', keywords: ['beach', 'golden'] };
+  assert.deepEqual(PIN_SEARCH_MODES, ['common', 'names', 'keywords']);
+  assert.equal(pinMatchesSearch(p, '', 'common'), true);       // empty → all
+  assert.equal(pinMatchesSearch(p, 'sun', 'names'), true);
+  assert.equal(pinMatchesSearch(p, 'beach', 'names'), false);  // names mode ignores keywords
+  assert.equal(pinMatchesSearch(p, 'beach', 'keywords'), true);
+  assert.equal(pinMatchesSearch(p, 'sun', 'keywords'), false); // keywords mode ignores name
+  assert.equal(pinMatchesSearch(p, 'golden', 'common'), true);
+  assert.equal(pinMatchesSearch(p, 'sun', 'common'), true);
+  assert.equal(pinMatchesSearch(p, 'nope', 'common'), false);
 });
 
 test('projectNameColor returns the custom hex, or the neutral-grey fallback when empty', () => {

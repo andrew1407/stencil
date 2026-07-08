@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS projects (
     source           text    NOT NULL DEFAULT '',   -- media URL (provenance)
     resource         text    NOT NULL DEFAULT '',   -- origin web page (provenance)
     color            text    NOT NULL DEFAULT '',   -- custom name accent "#rrggbb" or "" (theme default)
+    keywords         text    NOT NULL DEFAULT '',   -- newline-joined search keywords ("" = none)
+    blank_color      text    NOT NULL DEFAULT '',   -- blank-image fill "#rrggbb" ("" = not a blank)
     original_path    text    NOT NULL DEFAULT '',   -- filestore-relative original
     result_path      text    NOT NULL DEFAULT '',   -- filestore-relative rendered result
     original_content text    NOT NULL DEFAULT '',   -- original payload kept for re-fetch
@@ -31,3 +33,6 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 CREATE INDEX IF NOT EXISTS projects_updated_at_idx ON projects (updated_at DESC);
+
+-- Speeds up the expiry sweep's "expires_at > 0 AND expires_at <= now" scan.
+CREATE INDEX IF NOT EXISTS projects_expires_at_idx ON projects (expires_at) WHERE expires_at > 0;

@@ -210,6 +210,9 @@ namespace stencil::net {
                      p.id = o.value("id").toString();
                      p.name = o.value("name").toString();
                      p.color = o.value("color").toString();
+                     p.blankColor = o.value("blankColor").toString();
+                     for (const QJsonValue& kv : o.value("keywords").toArray())
+                       if (!kv.toString().isEmpty()) p.keywords << kv.toString();
                      p.hasImage = o.value("hasImage").toBool();
                      p.imageW = o.value("imageW").toInt();
                      p.imageH = o.value("imageH").toInt();
@@ -458,6 +461,15 @@ namespace stencil::net {
         return;
       }
     }
+  }
+
+  void ConnectionManager::reorder(int from, int to) {
+    if (from < 0 || from >= clients_.size()) return;
+    if (to < 0) to = 0;
+    if (to >= clients_.size()) to = clients_.size() - 1;
+    if (from == to) return;
+    clients_.move(from, to);
+    emit changed();
   }
 
   void ConnectionManager::reconnectAsync(const QString& url,

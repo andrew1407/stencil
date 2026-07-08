@@ -104,6 +104,11 @@ export class Storage {
       // Per-project accent colour: preserved across saves (set only via setProjectColor).
       // "" => no custom colour (theme fallback).
       color: this.store.getMeta(this.activeId)?.color || '',
+      // Blank-image marker + fill colour, sourced from the active session (set at blank creation
+      // and by setBlankColor, restored on open). Non-empty colour ⇔ blank project; "" / false for
+      // ordinary image projects.
+      blank: !!this.app.blankColor,
+      blankColor: this.app.blankColor || '',
       thumbnail: this.#makeThumbnail(),
       createdAt: this.store.getMeta(this.activeId)?.createdAt ?? Date.now(),
       // Expiration is owned by the expiration modal / open-time snap; a plain edit

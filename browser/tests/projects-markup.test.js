@@ -26,6 +26,7 @@ const count = needle => markup.split(needle).length - 1;
 const NEW_IDS = [
   'projects-btn', 'incognito-toggle', 'projects-modal-overlay', 'projects-close',
   'projects-list', 'projects-new-editor', 'projects-clear-all', 'projects-search',
+  'projects-sort', 'projects-search-mode',
 ];
 
 test('each new projects id appears exactly once', () => {

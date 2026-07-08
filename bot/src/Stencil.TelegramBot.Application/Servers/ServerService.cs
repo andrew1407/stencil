@@ -271,6 +271,45 @@ public sealed class ServerService : IServerService
     }
 
     /// <inheritdoc />
+    public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
+        }
+        var client = ClientForActive(session);
+        var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
+        return full.Project.BlankColor ?? "";
+    }
+
+    /// <inheritdoc />
+    public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
+        }
+        var client = ClientForActive(session);
+        // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty result).
+        var current = await client.GetProjectAsync(session.ActiveProjectId, ct);
+        if (string.IsNullOrEmpty(current.Project.BlankColor))
+        {
+            return "";
+        }
+        var record = await UpdateFieldWithRetryAsync(
+            client,
+            session.ActiveProjectId,
+            v => new UpdateProjectRequest { BlankColor = color, Version = v },
+            "This project was edited elsewhere — reload it before changing its blank colour.",
+            ct);
+        var updated = session with { ActiveProjectVersion = record.Version };
+        await _store.SaveAsync(updated, ct);
+        return record.BlankColor ?? "";
+    }
+
+    /// <inheritdoc />
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);

@@ -68,6 +68,7 @@ public sealed class CommandHandlers
             "save" => SaveAsync(userId, chatId, ct),
             "sync" => SyncAsync(userId, chatId, cmd, ct),
             "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
+            "blankcolor" or "blank_color" or "blank-color" or "bcolor" => BlankColorAsync(userId, chatId, cmd, ct),
             "expire" or "expiry" or "expiration" => ExpireAsync(userId, chatId, cmd, ct),
             "delete" or "remove" or "deleteproject" or "delete_project" => DeleteProjectAsync(userId, chatId, cmd, ct),
             "blank" => BlankAsync(userId, chatId, cmd, ct),
@@ -706,6 +707,26 @@ public sealed class CommandHandlers
         await _bot.SendMessage(
             chatId,
             effective.Length == 0 ? "Project colour cleared." : $"Project colour set to {effective} {Replies.ColorDot(effective)}",
+            cancellationToken: ct);
+    }
+
+    /// <summary>Recolour the active BLANK project's background fill: <c>/blank-color &lt;#hex|name&gt;</c>
+    /// (blanks only). Bare shows the current fill.</summary>
+    private async Task BlankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Args.Count == 0)
+        {
+            string cur = await _servers.GetProjectBlankColorAsync(userId, ct);
+            await _bot.SendMessage(
+                chatId,
+                cur.Length == 0 ? "This project is not a blank image." : $"Blank colour: {cur} {Replies.ColorDot(cur)}",
+                cancellationToken: ct);
+            return;
+        }
+        string effective = await _servers.SetProjectBlankColorAsync(userId, cmd.Args[0], ct);
+        await _bot.SendMessage(
+            chatId,
+            effective.Length == 0 ? "This project is not a blank image — nothing to recolour." : $"Blank colour set to {effective} {Replies.ColorDot(effective)}",
             cancellationToken: ct);
     }
 
