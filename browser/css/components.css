@@ -819,6 +819,11 @@ stencil-links-modal { --vs-label-w: 118px; }
 .oi-tab:hover { color: var(--text-main); }
 .oi-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
 .oi-panel { margin-bottom: 2px; }
+/* Open Image dialog: live preview + inline crop editor. The media is centered in a
+   column; the crop-options row keeps the toggle, hint, and orientation button in one line. */
+.oi-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.oi-crop-opt { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.oi-crop-opt .btn-icon-text { padding: 3px 8px; }
 /* ── Open-another-image + Open-in modals: a fixed label column with the controls
    left-aligned against it. The default .vs-row space-between (right for the
    settings toggles) scatters these mixed-width controls — the file input lands at

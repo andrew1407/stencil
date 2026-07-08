@@ -82,8 +82,6 @@
     return null;
   };
 
-  const isImageEl = (el) => !!(el && el.closest && (el.closest('img') || el.closest('image')));
-
   // Cap the captured frame's longest side: it rides in the editor launch URL as a
   // data URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
   const FRAME_MAX_SIDE = 1920;
@@ -219,7 +217,19 @@
   // What can Stencil grab from the element under the cursor? Returns the data the
   // SW should remember, or null.
   const resolveTarget = (start, x, y) => {
-    if (!start || isImageEl(start)) return null;
+    if (!start) return null;
+    // A real <img>/<svg><image>: the native 'image' context already builds the menu, so
+    // report ONLY the image URL (as `imgUrl`, never `url`) — enough for the SW to label the
+    // Pin item (Pin ↔ Unpin), without revealing the background menu group (keyed on `url`).
+    const imgEl = start.closest && (start.closest('img') || start.closest('image'));
+    if (imgEl) {
+      const raw = imgEl.tagName === 'IMAGE'
+        ? (imgEl.getAttribute('href') || imgEl.getAttribute('xlink:href'))
+        : (imgEl.currentSrc || imgEl.src);
+      let imgUrl = '';
+      if (raw) { try { imgUrl = new URL(raw, location.href).href; } catch { imgUrl = raw; } }
+      return imgUrl ? { imgUrl } : null;
+    }
     const video = videoAt(start, x, y);
     if (video) {
       // The poster is a page-level preview image (often unlike any frame). Use the
@@ -235,11 +245,18 @@
         }
       }
       const frame = captureVideoFrame(video);
+      // The video's media URL (http(s) only) — the openable source a pin keys on, so the
+      // SW can label the Pin item (Pin ↔ Unpin) for this video.
+      const rawMedia = video.currentSrc || video.src || '';
+      let videoUrl = '';
+      if (rawMedia.startsWith('http:') || rawMedia.startsWith('https:')) {
+        try { videoUrl = new URL(rawMedia, location.href).href; } catch { videoUrl = rawMedia; }
+      }
       // Tag it `video` so the click handler prefers this frame over info.srcUrl (the
       // media file, not a still). `posterShown` tells the click handler the video is on
       // its poster (not played) → use the poster, not a screenshot, when no frame read.
-      if (frame) return { url: frame, video: true, poster };
-      return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1, poster, posterShown: showingPoster(video) };
+      if (frame) return { url: frame, video: true, poster, videoUrl };
+      return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1, poster, posterShown: showingPoster(video), videoUrl };
     }
     const bg = bgUrlFor(start);
     if (bg) return { url: bg };

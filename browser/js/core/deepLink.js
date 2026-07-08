@@ -124,6 +124,9 @@ export const normalizeLaunchPayload = (payload) => {
   const common = {
     name: str(payload.name),
     crop: obj(payload.crop),
+    // Load the full uncropped frame instead of the default page-aspect auto-crop (the Open
+    // Image dialog's Crop-off path). Ignored when an explicit `crop` is present.
+    noCrop: !!payload.noCrop,
     page: obj(payload.page),
     source: str(payload.source),
     resource: str(payload.resource),

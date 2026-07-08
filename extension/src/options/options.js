@@ -70,12 +70,14 @@ hlColor.addEventListener('input', () => { hlColor.dataset.touched = '1'; });
 document.getElementById('page').innerHTML = pageSizeOptions();
 
 (async () => {
-  const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil } = await getSettings();
+  const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil, desktopScheme, telegramBotUsername } = await getSettings();
   document.getElementById('editorUrl').value = editorUrl;
   document.getElementById('page').value = page;
   document.getElementById('markOpened').checked = markOpened;
   document.getElementById('openedFirst').checked = openedFirst;
   document.getElementById('exposeWindowStencil').checked = exposeWindowStencil;
+  document.getElementById('desktopScheme').value = desktopScheme;
+  document.getElementById('telegramBotUsername').value = telegramBotUsername;
   // A hex means custom; 'theme' (or anything else) means follow the accent.
   if (/^#[0-9a-f]{3,8}$/i.test(highlightColor)) { hlMode.value = 'custom'; hlColor.value = highlightColor; hlColor.dataset.touched = '1'; }
   else { hlMode.value = 'theme'; hlColor.value = accentHex(); }
@@ -85,7 +87,11 @@ document.getElementById('page').innerHTML = pageSizeOptions();
 document.getElementById('save').addEventListener('click', async () => {
   const editorUrl = (document.getElementById('editorUrl').value || '').trim() || DEFAULT_EDITOR_URL;
   const highlightColor = hlMode.value === 'custom' ? hlColor.value : 'theme';
-  await setSettings({ editorUrl, page: document.getElementById('page').value, markOpened: document.getElementById('markOpened').checked, openedFirst: document.getElementById('openedFirst').checked, highlightColor, exposeWindowStencil: document.getElementById('exposeWindowStencil').checked });
+  // Trim the "Open in…" operator config; a bare "@name" for the bot is tolerated.
+  const desktopScheme = (document.getElementById('desktopScheme').value || '').trim();
+  const telegramBotUsername = (document.getElementById('telegramBotUsername').value || '').trim().replace(/^@/, '');
+  await setSettings({ editorUrl, page: document.getElementById('page').value, markOpened: document.getElementById('markOpened').checked, openedFirst: document.getElementById('openedFirst').checked, highlightColor, exposeWindowStencil: document.getElementById('exposeWindowStencil').checked, desktopScheme, telegramBotUsername });
+  document.getElementById('telegramBotUsername').value = telegramBotUsername;
   document.getElementById('editorUrl').value = editorUrl;
   document.getElementById('status').innerHTML = icon('check', { size: 13 }) + ' Saved';
   setTimeout(() => { document.getElementById('status').textContent = ''; }, 1500);

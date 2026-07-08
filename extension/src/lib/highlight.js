@@ -81,7 +81,34 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     'box-shadow:0 0 0 3px ' + glow + ' !important;}';
   (document.head || document.documentElement).appendChild(style);
 
-  // Cursor tracking: move the HOVER marker to the grabbable element under the mouse.
+  // The openable source URL of a grabbable element (mirrors lib/imageModel sourceOf +
+  // the scanner): so the open panel can highlight the matching list row (reverse of the
+  // row→page hover). <img>/<video> use currentSrc/src, <svg><image> its href, a
+  // background element its first background-image URL.
+  const absUrl = (raw) => { try { return new URL(raw, location.href).href; } catch { return ''; } };
+  const sourceOfEl = (el) => {
+    if (!el) return '';
+    if (el.matches && el.matches('img')) return absUrl(el.currentSrc || el.src);
+    if (el.matches && el.matches('video')) return absUrl(el.currentSrc || el.src);
+    if (el.matches && el.matches('image')) return absUrl(el.getAttribute('href') || el.getAttribute('xlink:href'));
+    for (const pseudo of [null, '::before', '::after']) {
+      const bg = getComputedStyle(el, pseudo).backgroundImage;
+      if (!bg || bg === 'none') continue;
+      const re = /url\((['"]?)(.*?)\1\)/g;
+      let m;
+      while ((m = re.exec(bg))) if (m[2] && !m[2].toLowerCase().startsWith('data:image/svg')) return absUrl(m[2]);
+    }
+    return '';
+  };
+  // mirror of lib/messages.js MSG.HL_HOVER (injected script — can't import)
+  const HL_HOVER = 'stencil-hl-hover';
+  const reportHover = (el) => {
+    try { chrome.runtime.sendMessage({ type: HL_HOVER, source: sourceOfEl(el) }, () => void chrome.runtime.lastError); }
+    catch { /* no extension messaging in this context — reverse highlight just won't fire */ }
+  };
+
+  // Cursor tracking: move the HOVER marker to the grabbable element under the mouse, and
+  // tell the open panel which source is now under the cursor (so it outlines that row).
   let current = null;
   const onOver = (e) => {
     const target = grabbableAt(e.target);
@@ -89,6 +116,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     if (current) current.removeAttribute(HOVER);
     current = target;
     if (current) current.setAttribute(HOVER, '');
+    reportHover(current);
   };
   document.addEventListener('mouseover', onOver, true);
 
@@ -116,6 +144,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     observer.disconnect();
     if (current) current.removeAttribute(HOVER);
     current = null;
+    reportHover(null);   // clear the panel's matching-row outline
   };
 
   return document.querySelectorAll('[' + ATTR + ']').length;

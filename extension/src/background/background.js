@@ -2,10 +2,13 @@
 // Owns the right-click context menu (Stencil actions → editor). Covers real <img>
 // (native 'image' context) and CSS background-image elements (detected by the
 // content-script probe, ctxTarget.js).
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl, buildHandoff } from '../lib/stencil.js';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS } from '../lib/contextMenu.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl, buildHandoff, editorOriginPattern } from '../lib/stencil.js';
+import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle } from '../lib/contextMenu.js';
+import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../lib/openIn.js';
 import { pruneLedger } from '../lib/ledger.js';
-import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
+import { mountDropZones, unmountDropZones } from '../lib/dropZones.js';
+import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../lib/highlightColor.js';
+import { setPinned, loadPins, isPinnedIn, siteOf, PINS_KEY } from '../lib/pins.js';
 import { MSG } from '../lib/messages.js';
 import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/actionIcon.js';
 
@@ -16,11 +19,28 @@ const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
     console.info(`[stencil] context menu built: ${MENU_ITEMS.length} items`);
+    // Reveal the desktop-app items only if a scheme is configured (they're created hidden).
+    syncDesktopMenuVisibility();
   });
 };
 
+// Whether a desktop URL scheme is configured — gates the "Open in desktop app" menu items
+// (they no-op without a scheme, so hide them). Cached for the synchronous CTX probe handler.
+let desktopSchemeSet = true;
+
+// Show/hide the desktop-app hand-off items to match the configured scheme. The STATIC items
+// (image / video-frame) toggle on the scheme alone; MENU.bgDesktop is revealed by the probe
+// (CTX handler) gated on this flag, so it isn't touched here.
+const syncDesktopMenuVisibility = async () => {
+  try { const { desktopScheme } = await getSettings(); desktopSchemeSet = !!desktopScheme; }
+  catch { desktopSchemeSet = true; }
+  for (const id of STATIC_DESKTOP_ITEMS)
+    chrome.contextMenus.update(id, { visible: desktopSchemeSet }, () => void chrome.runtime.lastError);
+};
+
 // Build immediately on worker startup (covers reloads where onInstalled/onStartup
-// don't fire). Idempotent: removeAll precedes every create.
+// don't fire). Idempotent: removeAll precedes every create. buildMenus() also syncs the
+// desktop-item visibility once the items exist.
 buildMenus();
 
 // Declared content scripts only inject into pages loaded AFTER install/update.
@@ -49,17 +69,8 @@ const injectProbeIntoOpenTabs = async () => {
 const BRIDGE_ID = 'stencil-editor-bridge';
 const BRIDGE_FILE = 'src/content/editorBridge.js';
 
-// `${origin}/*` match pattern for the configured editor, or null when the editorUrl
-// isn't an http(s) origin we can scope a content script to.
-const editorOriginPattern = async () => {
-  try {
-    const { editorUrl } = await getSettings();
-    const origin = new URL(editorUrl).origin;
-    return origin.startsWith('http') ? `${origin}/*` : null;
-  } catch {
-    return null;
-  }
-};
+// `${origin}/*` match pattern for the configured editor comes from lib/stencil.js
+// (shared with resumeInOpenEditor), imported above.
 
 const registerEditorBridge = async () => {
   // Clear any prior registration first so an editorUrl change doesn't leave the old
@@ -140,6 +151,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
   if (changes.editorUrl) setUpEditorBridge();
   if (changes.exposeWindowStencil) setUpPageApi();
+  if (changes.desktopScheme) syncDesktopMenuVisibility();   // reveal/hide the desktop-app items
 });
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -172,6 +184,16 @@ const lastTargetByTab = new Map();
 const lastVideoByTab = new Map();
 // Poster URL of the last right-clicked <video>, per tab — drives the Preview submenu.
 const lastPosterByTab = new Map();
+
+// In-memory snapshot of the pinned store, kept fresh from storage. The context-menu
+// probe relabels the Pin item (Pin ↔ Unpin) on right-click; that must be SYNCHRONOUS to
+// beat the native menu appearing, so it reads this cache instead of awaiting loadPins().
+let pinsCache = [];
+const refreshPinsCache = async () => { try { pinsCache = await loadPins(); } catch { /* keep the last snapshot */ } };
+refreshPinsCache();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[PINS_KEY]) pinsCache = Array.isArray(changes[PINS_KEY].newValue) ? changes[PINS_KEY].newValue : [];
+});
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastTargetByTab.delete(tabId);
   lastVideoByTab.delete(tabId);
@@ -231,6 +253,50 @@ const messageHandlers = {
   [MSG.PAGE_DISABLE]: () => {
     chrome.storage.sync.set({ exposeWindowStencil: false });
   },
+  // A row drag started in the panel → inject the on-page 4-quadrant drop overlay on that tab,
+  // tinted to the current theme accent (resolved from the saved accent key, so the zones match
+  // the extension's theme rather than a fixed violet).
+  [MSG.DROPZONES_ARM]: (msg) => {
+    if (msg.tabId == null) return;
+    (async () => {
+      let accent = DEFAULT_HL;
+      try { const l = await chrome.storage.local.get(ACCENT_STORAGE_KEY); accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL; } catch { /* default */ }
+      chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: mountDropZones, args: [accent] })
+        .catch(() => { /* restricted page — no overlay */ });
+    })();
+  },
+  // The row drag ended without a page drop → tear the overlay down (backstop; it also
+  // self-removes on drop / leaving the window / Escape / timeout).
+  [MSG.DROPZONES_DISARM]: (msg) => {
+    if (msg.tabId == null) return;
+    chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: unmountDropZones })
+      .catch(() => { /* restricted page — nothing to remove */ });
+  },
+  // A row was dropped in a quadrant of the on-page overlay → run its action. Reuses the same
+  // hand-off machinery as the page API relays (fetch bytes → buildHandoff → open/crop).
+  [MSG.PAGE_DROP]: (msg, sender) => {
+    (async () => {
+      try {
+        const { url, action } = msg;
+        if (!url) return;
+        if (action === 'newtab') { chrome.tabs.create({ url }); return; }
+        const tabId = sender.tab?.id;
+        const resource = sender.tab?.url || '';
+        const name = filenameFromUrl(url);
+        const { page } = await getSettings();
+        if (action === 'crop') {
+          const src = await fetchAsDataUrl(url).catch(() => url);   // video/non-image → let the crop page report it
+          await launchCrop({ src, source: url, resource, tabId });
+          return;
+        }
+        // here / incognito → open the editor with the image bytes.
+        const dataUrl = await fetchAsDataUrl(url);
+        const payload = buildHandoff({ name, source: url }, { dataUrl, page, resource, incognito: action === 'incognito' });
+        if (action === 'incognito') await openEditorTab(payload);   // incognito = a fresh incognito editor tab
+        else await launchEditorModal({ ...payload, tabId });        // here = in-page editor modal
+      } catch (err) { console.warn('[stencil] page drop failed:', err?.message); }
+    })();
+  },
   // ctxTarget probe → what the right-click resolved under the cursor. Records the target
   // per tab and toggles the dynamic background / video-preview menu groups' visibility.
   [MSG.CTX]: (msg, sender) => {
@@ -253,11 +319,27 @@ const messageHandlers = {
     const showBg = !!(data && data.url && !data.video);
     for (const id of DYNAMIC_ITEMS)
       chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
+    // The background "Open in desktop app" item needs BOTH a background under the cursor AND a
+    // configured scheme (unlike the rest of the bg group, which only needs the background).
+    chrome.contextMenus.update(MENU.bgDesktop, { visible: showBg && desktopSchemeSet }, () => void chrome.runtime.lastError);
     // Reveal the video Preview submenu only when the probed <video> has a poster, so a
     // posterless video no longer shows a submenu whose actions would be a silent no-op.
     const showPreview = !!(data && data.video && data.poster);
     for (const id of PREVIEW_ITEMS)
       chrome.contextMenus.update(id, { visible: showPreview }, () => void chrome.runtime.lastError);
+    // Relabel the pin item to reflect whether the source under the cursor is already pinned
+    // on this site (Pin ↔ Unpin). SYNCHRONOUS off the in-memory pins cache — an awaited
+    // storage read would lose the race against the native menu appearing and show the prior
+    // label. Still best-effort: a first right-click just after the worker wakes may be stale.
+    const site = siteOf(sender.tab?.url || '');
+    const relabel = (id, source, kind) => {
+      if (!source) return;
+      chrome.contextMenus.update(id, { title: pinItemTitle(isPinnedIn(pinsCache, site, source), kind) },
+        () => void chrome.runtime.lastError);
+    };
+    relabel(MENU.pin, data && data.imgUrl, 'image');
+    relabel(MENU.bgPin, data && !data.video && data.url, 'image');
+    relabel(MENU.framePin, data && data.video && (data.videoUrl || data.poster), 'video');
   },
 };
 
@@ -511,6 +593,24 @@ const togglePinFromMenu = async (info, tab, tabId) => {
   }
 };
 
+// ── "Open in desktop app" (context menu) → hand the image to the desktop app via its
+// stencil:// URL scheme, with the bytes embedded inline (a page image has no server project,
+// unlike the popup's shared rows). Opened with chrome.tabs.create so the OS external-protocol
+// prompt fires from the SW (no popup/user-gesture document to rely on). Oversized inline
+// payloads are refused (the OS launch machinery can't carry them). ──
+const openInDesktopFromMenu = async (src) => {
+  const { desktopScheme } = await getSettings();
+  if (!desktopScheme || !src) return;
+  try {
+    const dataUrl = await fetchAsDataUrl(src);
+    const url = buildStencilSchemeUrl({ scheme: desktopScheme, src: dataUrl });
+    if (url.length > INLINE_MAX_CHARS) { console.warn('[stencil] image too large for an inline desktop hand-off'); return; }
+    chrome.tabs.create({ url });
+  } catch (err) {
+    console.error('[stencil] open-in-desktop failed:', err);
+  }
+};
+
 // ── Default: an <img> / background / <video>-frame click → resolve the image bytes
 // (capturing a video frame as needed) and open / crop them in the editor. ──
 const openImageOrFrame = async (info, tab, tabId) => {
@@ -556,6 +656,7 @@ const openImageOrFrame = async (info, tab, tabId) => {
       await launchCrop({ src: act.src, source: sourceUrl, resource, tabId: tab?.id });   // small in-page modal
       return;
     }
+    if (act.action === 'desktop') { await openInDesktopFromMenu(act.src); return; }
     const { page } = await getSettings();
     const dataUrl = await fetchAsDataUrl(act.src);
     // `act.open` ('resume') only set by the Resume item; undefined drops out of the

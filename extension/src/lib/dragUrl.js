@@ -8,16 +8,23 @@ import { formatOf, VIDEO_FORMATS } from './filters.js';
 export const extractDraggedUrl = (read) => {
   const get = (t) => { try { return read(t) || ''; } catch { return ''; } };
 
+  // Prefer the actual media element in text/html FIRST: dragging an image wrapped in a
+  // link (e.g. a Wikipedia thumbnail — <a href="/wiki/File:…"><img src="…500px…"></a>)
+  // puts the LINK's href in text/uri-list but the real <img> src in text/html. We want
+  // to pin the image, not the page it links to.
+  const html = get('text/html');
+  const m = html && html.match(/<(?:img|source|video)[^>]+src\s*=\s*["']([^"']+)["']/i);
+  if (m) return m[1];
   const uriList = get('text/uri-list');
   if (uriList) {
     const line = uriList.split('\n').map((s) => s.trim()).find((s) => s && !s.startsWith('#'));
     if (line) return line;
   }
-  const html = get('text/html');
-  const m = html && html.match(/<(?:img|source|video)[^>]+src\s*=\s*["']([^"']+)["']/i);
-  if (m) return m[1];
   const text = get('text/plain').trim();
   if (/^https?:\/\//i.test(text) || text.startsWith('data:')) return text;
+  // `text/x-moz-url` is "URL\ntitle" — some drag sources populate only this.
+  const moz = get('text/x-moz-url').split('\n')[0].trim();
+  if (/^https?:\/\//i.test(moz) || moz.startsWith('data:')) return moz;
   return '';
 };
 

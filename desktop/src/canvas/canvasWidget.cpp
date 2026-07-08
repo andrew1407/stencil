@@ -1572,6 +1572,30 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  void CanvasWidget::clearImage() {
+    originalImage_ = QImage();
+    image_ = QImage();
+    imagePath_.clear();
+    rotationQuarters_ = 0;
+    cropRect_ = core::CropRect{};
+    lines_.clear();
+    currentLine_ = core::Line{};
+    applyDefaultsToCurrent();
+    selectedPoint_ = -1;
+    selectedLineIdx_ = -1;
+    continueLineIdx_ = continueInsertIdx_ = -1;
+    scale_ = 1.0;
+    filterDirty_ = true;
+    history_.reset(lines_);
+    // Release the image-locked fixed size so the empty canvas reflows to its
+    // minimum and paintEvent draws the idle "Open an image" hint again.
+    setMinimumSize(320, 240);
+    setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
   // ── S7: selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515) ──
 

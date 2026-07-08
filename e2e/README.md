@@ -18,7 +18,7 @@ graph TD
     subgraph E2E["e2e/ — Node/Playwright smoke harness (drives the real artifacts)"]
       HELP["helpers/ — static-server · boot · serverApi · wire (WS/TCP)"]
       TB["tests/browser — window.stencil + real pointer drawing"]
-      TE["tests/extension — scan + hand-off"]
+      TE["tests/extension — scan + hand-off + popup/side-panel UI"]
       TF["tests/fullstack — multi-client collaboration"]
       TS["tests/server — REST + WS + TCP"]
       TC["tests/cli — Zig binary black-box"]
@@ -55,6 +55,7 @@ tests/
   browser/   app.smoke     — window.stencil: blank/draw/rotate/crop, deep link
              editor        — real pointer drawing, undo/redo, crop tokens + px↔page, apply(), save→reload
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
+             popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
   fullstack/ collab.smoke  — two clients + real server: create → cross-client visibility
              liveedit      — A auto-reloads a peer's server-side edit (live co-edit path)
   server/    rest.smoke, ws.smoke — REST lifecycle + hello→subscribe→welcome→edit/save/TCP

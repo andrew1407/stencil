@@ -182,7 +182,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy" title="Copy full Layout JSON (lines + all applied edits)">${icon('copy')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
                     <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" title="Upload Layout JSON">${icon('upload')}</button>
-                    <button id="clear-storage" class="danger btn-icon" data-title="Clear saved storage" title="Clear saved storage">${icon('trash')}</button>
+                    <button id="clear-storage" class="danger btn-icon" data-title="Clear (remove) current project" title="Clear (remove) current project">${icon('trash')}</button>
                     <span id="save-status" style="font-size:12px;color:#555;min-width:70px;"></span>
                 </div>
             </div>

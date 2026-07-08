@@ -23,6 +23,7 @@ export const MENU = {
   openModal: 'stencil-open-modal',
   openModalIncognito: 'stencil-open-modal-incognito',
   crop: 'stencil-crop',
+  desktop: 'stencil-desktop',
   pin: 'stencil-pin',
   // Video current-frame actions (on <video>).
   frameOpen: 'stencil-frame-open',
@@ -30,6 +31,7 @@ export const MENU = {
   frameModal: 'stencil-frame-modal',
   frameModalIncognito: 'stencil-frame-modal-incognito',
   frameCrop: 'stencil-frame-crop',
+  frameDesktop: 'stencil-frame-desktop',
   framePin: 'stencil-frame-pin',
   // Video poster / preview submenu (on <video>).
   previewParent: 'stencil-preview',
@@ -47,6 +49,7 @@ export const MENU = {
   bgOpenModal: 'stencil-bg-open-modal',
   bgOpenModalIncognito: 'stencil-bg-open-modal-incognito',
   bgCrop: 'stencil-bg-crop',
+  bgDesktop: 'stencil-bg-desktop',
   bgPin: 'stencil-bg-pin'
 };
 
@@ -60,11 +63,13 @@ const ACTIONS = {
   [MENU.openModal]: { action: 'open-modal', incognito: false, target: 'main' },
   [MENU.openModalIncognito]: { action: 'open-modal', incognito: true, target: 'main' },
   [MENU.crop]: { action: 'crop', target: 'main' },
+  [MENU.desktop]: { action: 'desktop', target: 'main' },
   [MENU.frameOpen]: { action: 'open', incognito: false, target: 'main' },
   [MENU.frameOpenIncognito]: { action: 'open', incognito: true, target: 'main' },
   [MENU.frameModal]: { action: 'open-modal', incognito: false, target: 'main' },
   [MENU.frameModalIncognito]: { action: 'open-modal', incognito: true, target: 'main' },
   [MENU.frameCrop]: { action: 'crop', target: 'main' },
+  [MENU.frameDesktop]: { action: 'desktop', target: 'main' },
   [MENU.previewTab]: { action: 'open-tab', target: 'preview' },
   [MENU.previewOpen]: { action: 'open', incognito: false, target: 'preview' },
   [MENU.previewOpenIncognito]: { action: 'open', incognito: true, target: 'preview' },
@@ -77,7 +82,8 @@ const ACTIONS = {
   [MENU.bgOpenIncognito]: { action: 'open', incognito: true, target: 'main' },
   [MENU.bgOpenModal]: { action: 'open-modal', incognito: false, target: 'main' },
   [MENU.bgOpenModalIncognito]: { action: 'open-modal', incognito: true, target: 'main' },
-  [MENU.bgCrop]: { action: 'crop', target: 'main' }
+  [MENU.bgCrop]: { action: 'crop', target: 'main' },
+  [MENU.bgDesktop]: { action: 'desktop', target: 'main' }
 };
 
 // The extension's toolbar-icon (right-click) menu. Items here show on the action icon,
@@ -111,8 +117,11 @@ export const MENU_ITEMS = [
   { id: MENU.openIncognito, parentId: MENU.openParent, title: '🕶 New tab (incognito)', contexts: IMAGE_CONTEXTS },
   { id: MENU.openModal, parentId: MENU.openParent, title: '▣ Here', contexts: IMAGE_CONTEXTS },
   { id: MENU.openModalIncognito, parentId: MENU.openParent, title: '▣ Here (incognito)', contexts: IMAGE_CONTEXTS },
-  { id: MENU.crop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: IMAGE_CONTEXTS },
-  { id: MENU.pin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: IMAGE_CONTEXTS },
+  { id: MENU.crop, parentId: MENU.root, title: '✂ Crop image…', contexts: IMAGE_CONTEXTS },
+  // Hand the image to the desktop app via its stencil:// URL scheme. Default-hidden; the SW
+  // reveals it only when a desktop scheme is configured (syncDesktopMenuVisibility).
+  { id: MENU.desktop, parentId: MENU.root, title: '🖥 Open in desktop app', contexts: IMAGE_CONTEXTS, visible: false },
+  { id: MENU.pin, parentId: MENU.root, title: '📌 Pin image', contexts: IMAGE_CONTEXTS },
   // Video: act on the CURRENT FRAME. Open variants nest under their own parent.
   { id: MENU.frameOpenParent, parentId: MENU.root, title: '✎ Open current frame', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameOpen, parentId: MENU.frameOpenParent, title: '↗ New tab', contexts: VIDEO_CONTEXTS },
@@ -120,7 +129,8 @@ export const MENU_ITEMS = [
   { id: MENU.frameModal, parentId: MENU.frameOpenParent, title: '▣ Here', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameModalIncognito, parentId: MENU.frameOpenParent, title: '▣ Here (incognito)', contexts: VIDEO_CONTEXTS },
   { id: MENU.frameCrop, parentId: MENU.root, title: '✂ Crop current frame…', contexts: VIDEO_CONTEXTS },
-  { id: MENU.framePin, parentId: MENU.root, title: '📌 Pin / unpin video', contexts: VIDEO_CONTEXTS },
+  { id: MENU.frameDesktop, parentId: MENU.root, title: '🖥 Open frame in desktop app', contexts: VIDEO_CONTEXTS, visible: false },
+  { id: MENU.framePin, parentId: MENU.root, title: '📌 Pin video', contexts: VIDEO_CONTEXTS },
   // Video: the poster / preview image — a genuine sub-category, kept as a submenu.
   // Default-hidden: the worker reveals it (PREVIEW_ITEMS) only when the probed video
   // actually has a poster, so posterless videos don't show a dead "no-op" submenu.
@@ -139,8 +149,9 @@ export const MENU_ITEMS = [
   { id: MENU.bgOpenIncognito, parentId: MENU.bgOpenParent, title: '🕶 New tab (incognito)', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModal, parentId: MENU.bgOpenParent, title: '▣ Here', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModalIncognito, parentId: MENU.bgOpenParent, title: '▣ Here (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image in Stencil…', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgPin, parentId: MENU.root, title: '📌 Pin / unpin image', contexts: ALL_CONTEXTS, visible: false }
+  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image…', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgDesktop, parentId: MENU.root, title: '🖥 Open in desktop app', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgPin, parentId: MENU.root, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false }
 ];
 
 // The background/link items the worker reveals/hides together. Exported so the SW
@@ -151,9 +162,21 @@ export const DYNAMIC_ITEMS = [
   MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop, MENU.bgPin
 ];
 
+// The desktop-app hand-off items. They're shown only when a desktop URL scheme is
+// configured (syncDesktopMenuVisibility in the SW). The STATIC ones (image / video-frame)
+// toggle on the scheme alone; MENU.bgDesktop ALSO needs the probe's background reveal, so
+// the SW gates it in the CTX handler (scheme AND a background under the cursor).
+export const STATIC_DESKTOP_ITEMS = [MENU.desktop, MENU.frameDesktop];
+
 // The pin items (one per context group). Handled directly in the SW (no editor launch,
 // no frame capture) — they toggle the pinned state of the source URL under the cursor.
 export const PIN_ITEMS = [MENU.pin, MENU.framePin, MENU.bgPin];
+
+// Pin-item label for a given state: "Pin" when not yet pinned, "Unpin" when it is. The
+// SW relabels the pin item (via the ctxTarget probe) so it reflects the source under the
+// cursor; the MENU_ITEMS default titles are the unpinned ('Pin …') form of this.
+export const pinItemTitle = (pinned, kind = 'image') =>
+  `📌 ${pinned ? 'Unpin' : 'Pin'} ${kind === 'video' ? 'video' : 'image'}`;
 
 // The video Preview submenu items the worker reveals/hides together — shown only when
 // the probed <video> actually carries a poster (preview image). Same source-of-truth
