@@ -3,7 +3,8 @@ import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
 import { icon } from './icons.js';
-import { isVideoFile, videoFileToImageFile } from '../core/videoFrame.js';
+import { isVideoFile, isVideoUrl, videoFileToImageFile, videoFrameDataUrl } from '../core/videoFrame.js';
+import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, isAlbumOrientation } from '../core/cropGeometry.js';
 const { PAGE_SIZES } = constants;
 
 // ── Component: unified "Open Image" dialog ──────────────────────
@@ -40,9 +41,10 @@ export class StencilOpenImageModal extends StencilElement {
                     <div class="vs-row"><label>Choose</label><input type="file" id="open-image-file" accept="image/*,video/*"></div>
                 </div>
 
-                <!-- Tab: URL link -->
+                <!-- Tab: URL link. Preview is explicit (button / Enter) after validation — not
+                     on every keystroke — so a half-typed URL never spins up a fetch. -->
                 <div class="oi-panel" id="oi-panel-url" style="display:none">
-                    <div class="vs-row vs-field"><label title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)"></div>
+                    <div class="vs-row vs-field"><label title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)"><button id="open-image-url-preview" class="btn-icon-text" type="button" title="Load a preview of this URL" disabled>${icon('image', { size: 14 })}<span>Preview</span></button></div>
                 </div>
 
                 <!-- Tab: Blank -->
@@ -60,10 +62,42 @@ export class StencilOpenImageModal extends StencilElement {
                     <div class="vs-row"><label>Height</label><input type="number" id="blank-image-height" min="1" max="8192"></div>
                 </div>
 
+                <!-- Live preview of the chosen file/URL source (blank tab has none). A video
+                     shows a scrubber to pick the frame; the still <img> below is also the
+                     inline crop stage (the crop box/handles overlay it when Crop is on). -->
+                <div class="oi-preview" id="open-image-preview" style="display:none">
+                    <video id="open-image-preview-video" controls muted playsinline preload="auto" style="display:none;max-width:100%;max-height:38vh;background:#222;"></video>
+                    <div id="open-image-crop-stage" style="position:relative;display:none;line-height:0;max-width:100%;background:#222;">
+                        <img id="open-image-preview-img" alt="Preview" style="display:block;width:auto;height:auto;max-width:100%;max-height:38vh;user-select:none;-webkit-user-drag:none;">
+                        <div id="open-image-crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+                            <div id="open-image-crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
+                        </div>
+                        <div id="open-image-crop-box" style="position:absolute;box-sizing:border-box;border:2px solid #4da3ff;cursor:move;display:none;">
+                            <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
+                            <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
+                            <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
+                            <span class="crop-handle" data-corner="3" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;left:-8px;bottom:-8px;cursor:nesw-resize;"></span>
+                        </div>
+                    </div>
+                    <div id="open-image-crop-dims" style="font-size:13px;color:var(--text-muted);display:none;"></div>
+                </div>
+
                 <!-- Frame time: shown when the file/URL source is a video (a still frame is captured). -->
                 <div class="vs-row" id="open-image-frame-row" style="display:none">
                     <label title="Capture the frame at this time (seconds)">Frame (s)</label>
                     <input type="number" id="open-image-frame" min="0" step="0.1" value="0" style="width:6rem">
+                </div>
+
+                <!-- Crop before opening. Unchecked by default; checked reveals the inline crop
+                     editor over the preview (aspect locked to the page, Album/Portrait toggle),
+                     matching the standalone Crop modal's model. -->
+                <div class="vs-row" id="open-image-crop-row" style="display:none">
+                    <label title="Crop the image to the page aspect before opening">Crop</label>
+                    <span class="oi-crop-opt">
+                        <input type="checkbox" id="open-image-crop-toggle">
+                        <span class="footer-hint">Trim to the page aspect before opening.</span>
+                        <button id="open-image-crop-orientation" class="btn-icon-text" type="button" title="Swap album / portrait — flips the crop orientation" style="display:none">${icon('swap', { size: 14 })}<span>Album</span></button>
+                    </span>
                 </div>
 
                 <!-- ── Common options ── -->
@@ -110,6 +144,7 @@ export class StencilOpenImageModal extends StencilElement {
     const cancelBtn = $('open-image-cancel');
     const fileEl = $('open-image-file');
     const urlEl = $('open-image-url');
+    const urlPreviewBtn = $('open-image-url-preview');
     const incog = $('open-image-incognito');
     const hereBtn = $('open-image-here');
     const newTabBtn = $('open-image-newtab');
@@ -121,6 +156,17 @@ export class StencilOpenImageModal extends StencilElement {
     const targetRow = $('open-image-target-row');
     const frameEl = $('open-image-frame');
     const frameRow = $('open-image-frame-row');
+    // Preview + inline crop editor.
+    const previewWrap = $('open-image-preview');
+    const previewImg = $('open-image-preview-img');
+    const previewVideo = $('open-image-preview-video');
+    const cropRow = $('open-image-crop-row');
+    const cropToggle = $('open-image-crop-toggle');
+    const cropStage = $('open-image-crop-stage');
+    const cropBox = $('open-image-crop-box');
+    const cropShade = $('open-image-crop-shade');   // clipped dimming backdrop (mirrors box)
+    const cropDims = $('open-image-crop-dims');
+    const orientBtn = $('open-image-crop-orientation');
     // Tabs + panels.
     const tabs = [$('oi-tab-file'), $('oi-tab-url'), $('oi-tab-blank')];
     const panels = { file: $('oi-panel-file'), url: $('oi-panel-url'), blank: $('oi-panel-blank') };
@@ -144,23 +190,169 @@ export class StencilOpenImageModal extends StencilElement {
       : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
 
     // Source helpers scoped to the active tab (file vs url).
-    const VIDEO_URL = /\.(mp4|mov|webm|mkv|avi|m4v|mpe?g)(\?|#|$)/i;
     const urlVal = () => urlEl.value.trim();
     const chosenFile = () => fileEl.files && fileEl.files[0];
     const hasSource = () => (activeTab === 'file' ? !!chosenFile() : urlVal() !== '');
     const isVideoSource = () => (activeTab === 'url'
-      ? VIDEO_URL.test(urlVal())
+      ? isVideoUrl(urlVal())
       : !!chosenFile() && isVideoFile(chosenFile()));
+    // A URL is previewable only once it's a well-formed http(s)/data:/blob: URL — the guard
+    // behind the explicit Preview button (a half-typed URL never triggers a fetch).
+    const isPreviewableUrl = (v) => {
+      if (!v) return false;
+      try { return /^(https?:|data:|blob:)$/i.test(new URL(v).protocol); } catch { return false; }
+    };
+    // Is the preview area live? A local file previews as soon as it's chosen; a URL only after
+    // Preview is pressed. Gates the preview/crop UI (open still works straight from the URL).
+    const previewReady = () => (activeTab === 'file' ? !!chosenFile() : activeTab === 'url' && urlPreviewLoaded);
+
+    // ── Inline preview + crop editor state (all rect math in ORIGINAL-image pixels,
+    //    i.e. the natural pixels of the still that will be imported). ──
+    let previewObjectUrl = null;   // object URL backing the <img>/<video>, revoked on swap
+    let cropRect = { x: 0, y: 0, width: 0, height: 0 };
+    let cropAlbum = false;
+    let cropAspectV = 1;
+    let cropScale = 1;         // display px per image px
+    let cropIw = 0, cropIh = 0; // still-image natural dimensions
+    // A URL source previews only after the user presses Preview (validated) — never on
+    // keystroke. This tracks whether that preview is currently live for the typed URL.
+    let urlPreviewLoaded = false;
+
+    const revokePreviewUrl = () => { if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; } };
+
+    // Position the crop box + its dimming backdrop over the preview image (mirrors cropModal).
+    const renderCropBox = () => {
+      cropBox.style.display = 'block';
+      cropBox.style.left = (cropRect.x * cropScale) + 'px';
+      cropBox.style.top = (cropRect.y * cropScale) + 'px';
+      cropBox.style.width = (cropRect.width * cropScale) + 'px';
+      cropBox.style.height = (cropRect.height * cropScale) + 'px';
+      cropShade.style.display = 'block';
+      cropShade.style.left = cropBox.style.left;
+      cropShade.style.top = cropBox.style.top;
+      cropShade.style.width = cropBox.style.width;
+      cropShade.style.height = cropBox.style.height;
+      cropDims.style.display = 'block';
+      cropDims.textContent = `${Math.round(cropRect.width)} × ${Math.round(cropRect.height)} px · ${cropAlbum ? 'Album (landscape)' : 'Portrait'}`;
+      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${cropAlbum ? 'Album' : 'Portrait'}</span>`;
+    };
+
+    const computeCropScale = () => {
+      const r = previewImg.getBoundingClientRect();
+      cropScale = cropIw > 0 && r.width > 0 ? r.width / cropIw : 1;
+    };
+
+    // Re-fit a centered crop for the current orientation (used on init + on flip).
+    const recenterCrop = () => {
+      cropAspectV = cropAspect(pageDims().width, pageDims().height, cropAlbum);
+      cropRect = centeredCrop(cropIw, cropIh, cropAspectV);
+      renderCropBox();
+    };
+
+    // The still preview <img> finished (re)loading: (re)fit the crop to the page aspect when
+    // the geometry is new (a fresh image / first video frame), else keep the user's rect —
+    // every frame of one video shares the same captured dimensions.
+    previewImg.addEventListener('load', () => {
+      const nw = previewImg.naturalWidth, nh = previewImg.naturalHeight;
+      if (!nw || !nh) return;
+      const geometryChanged = nw !== cropIw || nh !== cropIh;
+      cropIw = nw; cropIh = nh;
+      computeCropScale();
+      if (!cropToggle.checked) return;
+      if (geometryChanged) { cropAlbum = isAlbumOrientation(cropIw, cropIh); recenterCrop(); }
+      else renderCropBox();
+    });
+
+    // Whether the crop editor should be visible: crop enabled on a live preview.
+    const cropEnabled = () => cropToggle.checked && previewReady();
+
+    // Capture the current video frame to the preview <img> (the crop stage), reusing the
+    // shared frame extractor so the cropped pixels match exactly what import will capture.
+    const captureVideoFrameForCrop = () => {
+      const src = activeTab === 'file' ? URL.createObjectURL(chosenFile()) : urlVal();
+      videoFrameDataUrl(src, Number(frameEl && frameEl.value) || 0)
+        .then(dataUrl => { previewImg.src = dataUrl; })  // load handler fits the crop
+        .catch(e => {
+          notify(`Could not read that video frame for cropping — ${e.message}`, 'fail');
+          cropToggle.checked = false;
+          syncPreview();
+        });
+    };
+
+    // Hide the whole crop overlay (box + dimming backdrop + dims readout) in one call.
+    const hideCropOverlay = () => {
+      cropBox.style.display = 'none';
+      cropShade.style.display = 'none';
+      cropDims.style.display = 'none';
+    };
+
+    // Reflect the current source + crop state into the preview area (visibility + sources).
+    const syncPreview = () => {
+      const show = previewReady();
+      previewWrap.style.display = show ? '' : 'none';
+      cropRow.style.display = show ? '' : 'none';
+      orientBtn.style.display = show && cropToggle.checked ? '' : 'none';
+      if (!show) { hideCropOverlay(); return; }
+      const video = isVideoSource();
+      const cropping = cropToggle.checked;
+      // A video shows its scrubber; the crop stage (still <img>) shows for images always,
+      // and for a video only while cropping (it then holds the captured frame).
+      previewVideo.style.display = video ? '' : 'none';
+      cropStage.style.display = (!video || cropping) ? '' : 'none';
+      if (!cropping) {
+        hideCropOverlay();
+      } else if (cropIw && cropIh && !video && previewImg.complete && previewImg.naturalWidth) {
+        // Image already loaded before Crop was ticked (its load handler ran while crop was
+        // off, so no rect was fitted): fit one now, else just re-render the existing rect.
+        computeCropScale();
+        if (cropRect.width < 1) { cropAlbum = isAlbumOrientation(cropIw, cropIh); recenterCrop(); }
+        else renderCropBox();
+      }
+      if (video && cropping) captureVideoFrameForCrop();
+    };
+
+    // (Re)build the preview media for the current source. Local files ride an object URL;
+    // a URL loads straight into the element (display never taints, unlike a canvas readback).
+    const loadPreviewMedia = () => {
+      revokePreviewUrl();
+      cropIw = cropIh = 0;   // force a re-fit against the new source
+      if (!previewReady()) { syncPreview(); return; }
+      const video = isVideoSource();
+      const file = activeTab === 'file' ? chosenFile() : null;
+      const src = file ? (previewObjectUrl = URL.createObjectURL(file)) : urlVal();
+      if (video) {
+        previewVideo.src = src;
+        previewImg.removeAttribute('src');
+      } else {
+        previewImg.src = src;
+        previewVideo.pause();
+        previewVideo.removeAttribute('src');
+      }
+      syncPreview();
+    };
 
     // Enable the file/URL action buttons once a source is chosen; reveal the frame row
     // for a video source. (Blank tab has its own Create button and no source concept.)
     const refresh = () => {
+      urlPreviewBtn.disabled = !isPreviewableUrl(urlVal());   // gate the explicit Preview button
       if (activeTab === 'blank') { frameRow.style.display = 'none'; return; }
       const has = hasSource();
       hereBtn.disabled = !has;
       newTabBtn.disabled = !has;
       replaceBtn.disabled = !has || activeTab === 'url' || isVideoSource() || !canReplace();
-      frameRow.style.display = isVideoSource() ? '' : 'none';
+      // The frame scrubber belongs to a live preview (a URL video has no scrubber until Preview).
+      frameRow.style.display = (isVideoSource() && previewReady()) ? '' : 'none';
+    };
+
+    // The options passed to the open action. Crop on + measured → the chosen rect; otherwise
+    // `noCrop` so the WHOLE frame imports (unchecked ⇒ no crop at all, not the default
+    // page-aspect auto-crop). A URL source also carries its own URL as provenance, so a
+    // dialog-opened URL image matches later (e.g. the extension's resume-by-source).
+    const openOpts = () => {
+      const o = (cropEnabled() && cropRect.width >= 1 && cropRect.height >= 1)
+        ? { crop: { ...cropRect } } : { noCrop: true };
+      if (activeTab === 'url') o.source = urlVal();
+      return o;
     };
 
     // Activate a tab: show its panel, and swap the footer actions + replace row to match.
@@ -177,7 +369,10 @@ export class StencilOpenImageModal extends StencilElement {
       const showReplace = name === 'file' && canReplace();
       replaceRow.style.display = showReplace ? '' : 'none';
       replaceBtn.style.display = showReplace ? '' : 'none';
+      // A URL never auto-previews (Preview button only); other tabs rebuild to match the source.
+      urlPreviewLoaded = false;
       refresh();
+      if (activeTab === 'url') syncPreview(); else loadPreviewMedia();
     };
 
     // The toolbar's Open button (empty state) is this modal's primary trigger.
@@ -186,6 +381,17 @@ export class StencilOpenImageModal extends StencilElement {
         fileEl.value = '';
         urlEl.value = '';
         if (frameEl) frameEl.value = '0';   // reset the video frame-time (full-reset contract)
+        // Full-reset the preview + inline crop so a prior open's image never leaks in.
+        urlPreviewLoaded = false;
+        revokePreviewUrl();
+        cropToggle.checked = false;
+        cropIw = cropIh = 0;
+        cropRect = { x: 0, y: 0, width: 0, height: 0 };
+        previewImg.removeAttribute('src');
+        previewVideo.pause();
+        previewVideo.removeAttribute('src');
+        previewWrap.style.display = 'none';
+        cropRow.style.display = 'none';
         incog.checked = false;
         colorEl.value = '#ffffff';
         const px = defaultBlankSizePx(pageDims());
@@ -199,6 +405,11 @@ export class StencilOpenImageModal extends StencilElement {
         // Incognito: never offer a server target (incognito content isn't created on a server).
         fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
         setTab('file');
+      },
+      // Release the preview's object URL + stop any playing video when the dialog closes.
+      onClose: () => {
+        revokePreviewUrl();
+        previewVideo.pause();
       }
     });
     // Open straight on the Blank tab (idle-canvas + projects-footer shortcuts).
@@ -221,8 +432,69 @@ export class StencilOpenImageModal extends StencilElement {
       fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
     });
 
-    fileEl.addEventListener('change', refresh);
-    urlEl.addEventListener('input', refresh);
+    fileEl.addEventListener('change', () => { refresh(); loadPreviewMedia(); });
+    // Editing the URL invalidates any showing preview (it's now for a different URL) — hide it
+    // until the user presses Preview again. Never auto-fetches on keystroke.
+    urlEl.addEventListener('input', () => { urlPreviewLoaded = false; refresh(); syncPreview(); });
+    // Explicit URL preview: validate, then load the media. Enter in the field does the same.
+    const doUrlPreview = () => {
+      if (!isPreviewableUrl(urlVal())) { notify('Enter a valid image or video URL (http/https or data:).', 'fail'); return; }
+      urlPreviewLoaded = true;
+      refresh();
+      loadPreviewMedia();
+    };
+    urlPreviewBtn.addEventListener('click', doUrlPreview);
+    urlEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doUrlPreview(); } });
+
+    // Crop toggle: reveal/hide the inline editor (capturing a video frame if needed).
+    cropToggle.addEventListener('change', syncPreview);
+    // Orientation flip: swap album/portrait and re-fit a centered crop (like cropModal).
+    orientBtn.addEventListener('click', () => { cropAlbum = !cropAlbum; recenterCrop(); });
+
+    // Video frame picking: the numeric input seeks the scrubber; scrubbing writes the time
+    // back. When cropping, a settled seek re-captures the still so the crop tracks the frame.
+    frameEl.addEventListener('input', () => {
+      if (isVideoSource() && previewVideo.readyState) {
+        const t = Number(frameEl.value) || 0;
+        try { previewVideo.currentTime = t; } catch { /* ignore out-of-range seeks */ }
+      }
+    });
+    previewVideo.addEventListener('seeked', () => {
+      frameEl.value = String(Math.round(previewVideo.currentTime * 10) / 10);
+      if (cropEnabled()) captureVideoFrameForCrop();
+    });
+
+    // ── Interactive move / corner-resize over the preview (mirrors cropModal). ──
+    const toImage = (clientX, clientY) => {
+      const r = previewImg.getBoundingClientRect();
+      return { x: (clientX - r.left) / cropScale, y: (clientY - r.top) / cropScale };
+    };
+    let drag = null; // { kind: 'move'|'resize', corner, startImg, startRect }
+    const onDown = (e, kind, corner) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drag = { kind, corner, startImg: toImage(e.clientX, e.clientY), startRect: { ...cropRect } };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    };
+    const onMove = e => {
+      if (!drag) return;
+      const cur = toImage(e.clientX, e.clientY);
+      if (drag.kind === 'move') {
+        cropRect = moveCropClamped(drag.startRect, cur.x - drag.startImg.x, cur.y - drag.startImg.y, cropIw, cropIh);
+      } else {
+        cropRect = resizeCropFromCorner(drag.startRect, drag.corner, cur.x, cur.y, cropAspectV, cropIw, cropIh);
+      }
+      renderCropBox();
+    };
+    const onUp = () => {
+      drag = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    cropBox.addEventListener('mousedown', e => onDown(e, 'move'));
+    cropBox.querySelectorAll('.crop-handle').forEach(h =>
+      h.addEventListener('mousedown', e => onDown(e, 'resize', parseInt(h.dataset.corner, 10))));
 
     // Blank fill presets.
     $('blank-image-white').addEventListener('click', () => { colorEl.value = '#ffffff'; });
@@ -263,16 +535,18 @@ export class StencilOpenImageModal extends StencilElement {
     hereBtn.addEventListener('click', async () => {
       if (!hasSource()) return;
       const address = (targetEl && targetEl.value) || null;
+      const opts = openOpts();
       const resolved = await resolveSource();
       if (!resolved) return;
-      app.openImageHere(resolved, incog.checked, address);
+      app.openImageHere(resolved, incog.checked, address, opts);
       close();
     });
     newTabBtn.addEventListener('click', async () => {
       if (!hasSource()) return;
+      const opts = openOpts();
       const resolved = await resolveSource();
       if (!resolved) return;
-      app.openImageNewTab(resolved, incog.checked);
+      app.openImageNewTab(resolved, incog.checked, opts);
       close();
     });
     replaceBtn.addEventListener('click', async () => {

@@ -15,7 +15,7 @@
   window.__stencilEditorBridge = true;
 
   // mirror of lib/messages.js (classic content script — can't import)
-  const MSG = { REGISTRY: 'stencil-registry', PAGE_PIN: 'stencil-page-pin' };
+  const MSG = { REGISTRY: 'stencil-registry', PAGE_PIN: 'stencil-page-pin', EDITOR_SWITCH: 'stencil-editor-switch' };
   // Must match ProjectsStore.REGISTRY_KEY in browser/js/core/projectsStore.js.
   const REGISTRY_KEY = 'stencil_projects_v1';
 
@@ -67,6 +67,21 @@
       });
     } catch {
       /* worker asleep / extension context invalidated — a stale pin is harmless */
+    }
+  });
+
+  // Extension → editor RESUME relay. The panel found this tab already open and wants it to
+  // switch to the project for a source (instead of spawning a new tab). We're same-origin,
+  // so a DOM CustomEvent reaches the editor page's own listener, which calls switchToProject
+  // — still never writing the registry ourselves.
+  chrome.runtime.onMessage?.addListener((msg) => {
+    if (!msg || msg.type !== MSG.EDITOR_SWITCH) return;
+    try {
+      window.dispatchEvent(new CustomEvent('stencil:switch-to-source', {
+        detail: { source: msg.source || '', name: msg.name || '' },
+      }));
+    } catch {
+      /* no DOM (unlikely in a content script) — best-effort */
     }
   });
 })();

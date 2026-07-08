@@ -250,6 +250,25 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // The trash "Clear Project" action (mirrors the browser #clear-storage button) is
+  // visible for a local editor, confirms, and — on Yes — resets to the empty
+  // "Open an image" canvas. The confirm reuses the modal-dismiss helper.
+  void clearProjectResetsToBlankEditor() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+
+    QAction* clear = actionByText(&win, "Clear Project");
+    QVERIFY(clear);
+    QVERIFY(clear->isVisible());   // shown for a local/temporary editor (hidden only for server projects)
+
+    dismissQuitDialog("Yes");      // blocks on the confirm until the timer clicks Yes
+    clear->trigger();
+    QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
+    QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
+    beat();
+  }
+
   // Quitting pops an "are you sure?" confirmation; answering No cancels the close and
   // leaves the window up (the Quit action, Ctrl+Q, and the title-bar X all go through it).
   void quitDialogCancelKeepsWindowOpen() {

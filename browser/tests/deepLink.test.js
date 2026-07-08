@@ -139,6 +139,11 @@ test('normalizeLaunchPayload keeps the legacy dataUrl-only payload valid', () =>
   assert.strictEqual(p.layout, null);
 });
 
+test('normalizeLaunchPayload carries noCrop through (Open-Image "new tab" Crop-off)', () => {
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: 'data:image/png;base64,AAA', noCrop: true }).noCrop, true);
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: 'data:image/png;base64,AAA' }).noCrop, false);
+});
+
 test('normalizeLaunchPayload accepts a server reference without image bytes', () => {
   const p = normalizeLaunchPayload({ server: { url: 'localhost:8090', id: 'p_1', version: 4 } });
   assert.strictEqual(p.kind, 'server');

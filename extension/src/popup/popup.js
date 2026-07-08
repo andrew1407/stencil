@@ -1,10 +1,11 @@
 // ── Popup: list, filter, and act on every image on the active page ───────────
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl, buildHandoff } from '../lib/stencil.js';
+import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, setSettings, blobToDataUrl, buildHandoff, resumeInOpenEditor } from '../lib/stencil.js';
 import { LEDGER_KEY, loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
 import { PINS_KEY, loadPins, isPinnedIn, siteOf, setPinned, projectNameColor } from '../lib/pins.js';
 import { resolveHighlightColor } from '../lib/highlightColor.js';
 import { scanPageForImages } from '../lib/imageScan.js';
 import { toggleStencilHighlight } from '../lib/highlight.js';
+import { highlightPageElementForSource } from '../lib/hoverHighlight.js';
 import { icon } from '../lib/icons.js';
 import { passesFilters, distinctFormats, formatOf, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../lib/filters.js';
 import {
@@ -13,6 +14,8 @@ import {
 } from '../lib/connections.js';
 import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../lib/imageModel.js';
 import { extractDraggedUrl, guessKindFromUrl } from '../lib/dragUrl.js';
+import { MSG } from '../lib/messages.js';
+import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/openIn.js';
 
 // Common web image formats always offered in the filter, plus any others the page
 // uses (added in populateFormats) and the video container formats (VIDEO_FORMATS).
@@ -33,7 +36,7 @@ const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'vie
 const PLAY_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#2b2f3a"/><polygon points="19,15 35,24 19,33" fill="#7c3aed"/></svg>');
 
-const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true, showPinned: true, connections: [], shared: [] };
+const state = { all: [], filtered: [], activeTabId: null, activeUrl: '', markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, connections: [], shared: [], openIn: { desktopScheme: 'stencil', telegramBotUsername: '' } };
 
 // How often (ms) the popup re-pulls shared pins from connected servers while it's
 // open. MV3 popups are short-lived, so a light poll-while-open is both simple and
@@ -112,6 +115,7 @@ const scan = async () => {
   }));
   await annotateOpened();
   await annotatePinned();
+  await loadOpenInSettings();
   await loadShared();
   startSharedPolling();
   populateFormats();
@@ -143,15 +147,27 @@ const annotateOpened = async () => {
 // pin button's active state, and the float-to-top sort). The pin store is keyed by the
 // page's origin so a pin made here matches the same image on the same site next visit.
 const annotatePinned = async () => {
-  const { showPinned } = await getSettings();
+  const { showPinned, hoverHighlight } = await getSettings();
   state.showPinned = showPinned;
+  state.hoverHighlight = hoverHighlight;
   document.getElementById('f-show-pinned').checked = showPinned;
+  const hh = document.getElementById('f-hover-hl');
+  if (hh) hh.checked = hoverHighlight;
   const site = siteOf(state.activeUrl);
   const pins = await loadPins();
   for (const img of state.all) img.pinned = pinnable(img) && isPinnedIn(pins, site, sourceOf(img));
 };
 
 const isPinned = (image) => state.showPinned && !!image.pinned;
+
+// Cache the "Open in…" operator config (desktop URL scheme + Telegram bot username) so the
+// synchronous buildMenu can gate its items without an async read. Refreshed on scan and when
+// the options page changes them (storage.onChanged, below). Mirrors the browser app's
+// loadOpenInConfig, but sourced from chrome.storage.sync (the extension's settings store).
+const loadOpenInSettings = async () => {
+  const { desktopScheme, telegramBotUsername } = await getSettings();
+  state.openIn = { desktopScheme, telegramBotUsername };
+};
 
 // ── Shared pins (connected collaboration servers) ───────────────────────────
 // A server project (with an image) becomes a SHARED pin row: it renders alongside
@@ -573,6 +589,8 @@ const renderRow = (image) => {
   });
 
   row.append(thumb, meta, ...(pinBtn ? [pinBtn] : []), more);
+  bindHoverHighlight(row, image);
+  bindRowDrag(row, image);
   li.appendChild(row);
   listEl.appendChild(li);
 
@@ -630,8 +648,15 @@ const buildMenu = (image) => {
     d.textContent = text;
     return d;
   };
-  // A nested submenu shown as a flyout on hover. Opens to the right; flips to the left
-  // when it would overflow the popup window's right edge (measured on hover).
+  // A nested submenu shown as a flyout on hover. CSS :hover controls its VISIBILITY (see
+  // popup.css) so it shows regardless of this JS; here we only REPOSITION it. The flyout is
+  // position:ABSOLUTE relative to its .submenu wrap (NOT fixed): the action menu carries an
+  // entrance animation that leaves a lingering transform matrix on it, which would make a
+  // position:fixed child resolve against the MENU instead of the viewport and land off-screen.
+  // Absolute positioning is immune to that. We still clamp to the viewport by computing the
+  // target in viewport space (open right of the head, flip left if it'd overflow the panel's
+  // right edge, hard-clamp on both axes) and converting to wrap-relative coords — so a nested
+  // submenu is never cut off at the panel's right/left edge or its bottom in a narrow panel.
   const submenu = (iconHtml, labelText, children) => {
     const wrap = document.createElement('div');
     wrap.className = 'submenu';
@@ -643,32 +668,53 @@ const buildMenu = (image) => {
     const fly = document.createElement('div');
     fly.className = 'flyout';
     for (const c of children) fly.append(c);
-    const FLYOUT_W = 176;   // keep in sync with .flyout width in popup.css
-    wrap.addEventListener('mouseenter', () => {
-      const r = head.getBoundingClientRect();
-      wrap.classList.toggle('open-left', r.right + FLYOUT_W > window.innerWidth);
-    });
+    const place = () => {
+      const hr = head.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();      // abs-positioning origin (.submenu is position:relative)
+      fly.style.margin = '0';
+      const fw = fly.offsetWidth, fh = fly.offsetHeight;   // :hover already made it display:block
+      let vLeft = hr.right - 2;                     // prefer opening to the right of the head
+      if (vLeft + fw > window.innerWidth - 6) vLeft = hr.left - fw + 2;   // flip left if it'd overflow
+      vLeft = Math.max(6, Math.min(vLeft, window.innerWidth - fw - 6));   // clamp inside the viewport (x)
+      const vTop = Math.max(6, Math.min(hr.top - 5, window.innerHeight - fh - 6));  // clamp (y)
+      fly.style.left = `${vLeft - wr.left}px`;      // viewport target → wrap-relative
+      fly.style.top = `${vTop - wr.top}px`;
+    };
+    wrap.addEventListener('mouseenter', place);
     wrap.append(head, fly);
     return wrap;
   };
-  // The requested nested actions: Open ▸ / Crop ▸ / Pin ▸. Reused across image, shared,
+  // Nested actions Open ▸ / Pin ▸ (plus the flat Crop action). Reused across image, shared,
   // video-frame and poster contexts.
   const editSub = (img) => submenu(icon('pencil', { size: 15 }), 'Open', [
     item(icon('monitor', { size: 15 }), 'Here', () => sendToEditorModal(img, false)),
     item(icon('external', { size: 15 }), 'In editor', () => sendToEditor(img, false)),
     item(icon('incognito', { size: 15 }), 'In editor (incognito)', () => sendToEditor(img, true)),
   ]);
-  const cropSub = (img) => submenu(icon('crop', { size: 15 }), 'Crop', [
-    item(icon('crop', { size: 15 }), 'Here', () => openCrop(img)),
-    item(icon('pencil', { size: 15 }), 'In editor', () => sendToEditor(img, false)),
-    item(icon('incognito', { size: 15 }), 'In editor (incognito)', () => sendToEditor(img, true)),
-  ]);
+  // Crop is a single flat action — open the in-page quick-crop modal ("here"). No submenu,
+  // no "in editor" variants.
+  const cropItem = (img) => item(icon('crop', { size: 15 }), 'Crop', () => openCrop(img));
   const pinSub = (img) => submenu(icon('pin', { size: 15 }), img.pinned ? 'Pinned' : 'Pin',
     img.pinned
       ? [item(icon('pin', { size: 15 }), 'Unpin', () => togglePin(img)),
          item(icon('server', { size: 15 }), 'Store on server…', () => pinWithPrompt(img))]
       : [item(icon('pin', { size: 15 }), 'Locally', () => togglePin(img)),
          item(icon('server', { size: 15 }), 'On server…', () => pinWithPrompt(img))]);
+  // "Open in…" hand-off to another Stencil front-end, mirroring the browser app's toolbar
+  // Open-in modal. Desktop app: shown whenever a target scheme is configured (any openable
+  // row has bytes to embed inline / a server ref to send). Telegram bot: ONLY for a shared
+  // (server) row with a bot username configured — a t.me start payload can't carry image
+  // bytes, so it needs a saved server project (matches the browser's gating). Returns [] when
+  // neither target applies, so the submenu is omitted entirely.
+  const openInFlat = (img) => {
+    const oi = state.openIn || {};
+    const children = [];
+    if (oi.desktopScheme)
+      children.push(item(icon('monitor', { size: 15 }), 'Desktop app', () => openInDesktop(img)));
+    if (oi.telegramBotUsername && img.shared && img.serverUrl && img.projectId)
+      children.push(item(icon('external', { size: 15 }), 'Telegram bot', () => openInTelegram(img)));
+    return children.length ? [submenu(icon('external', { size: 15 }), 'Open in…', children)] : [];
+  };
 
   // Already opened: offer to resume the existing editor (switches to the matching
   // project, or lets the user pick when several share this image) or add a fresh
@@ -676,7 +722,7 @@ const buildMenu = (image) => {
   if (isOpened(image)) {
     const n = image.opened.reduce((a, e) => Math.max(a, e.count || 1), 0);
     menuEl.append(
-      item(icon('refresh', { size: 15 }), `Resume in editor (opened ${n}×)`, () => sendToEditor(image, false, 'resume')),
+      item(icon('refresh', { size: 15 }), `Resume in open editor (opened ${n}×)`, () => resumeInEditor(image)),
       item('＋', 'Add as new copy', () => sendToEditor(image, false, 'copy')),
       sep()
     );
@@ -684,7 +730,7 @@ const buildMenu = (image) => {
   if (image.shared) {
     // A shared (server) row: open / crop the server-stored image. No download/open-in-tab
     // (bytes behind Bearer auth) and no pin (it's already on the server).
-    menuEl.append(label('Shared from server'), editSub(image), cropSub(image));
+    menuEl.append(label('Shared from server'), editSub(image), cropItem(image), ...openInFlat(image));
   } else if (image.kind === 'video') {
     if (image.videoUrl) menuEl.append(
       item(icon('external', { size: 15 }), 'Open video in new tab', () => chrome.tabs.create({ url: image.videoUrl })),
@@ -692,7 +738,7 @@ const buildMenu = (image) => {
     );
     if (editableSrc(image)) {
       if (image.videoUrl) menuEl.append(sep());
-      menuEl.append(label('Current frame'), editSub(image), cropSub(image));
+      menuEl.append(label('Current frame'), editSub(image), cropItem(image), ...openInFlat(image));
     }
     if (image.posterUrl) {
       const poster = posterImage(image);
@@ -700,7 +746,7 @@ const buildMenu = (image) => {
         sep(), label('Video preview image'),
         item(icon('external', { size: 15 }), 'Open preview in new tab', () => chrome.tabs.create({ url: poster.src })),
         item(icon('download', { size: 15 }), 'Download preview', () => download(poster.src)),
-        editSub(poster), cropSub(poster)
+        editSub(poster), cropItem(poster), ...openInFlat(poster)
       );
     }
     if (pinnable(image)) menuEl.append(sep(), pinSub(image));
@@ -710,7 +756,8 @@ const buildMenu = (image) => {
       item(icon('external', { size: 15 }), 'Open in new tab', () => chrome.tabs.create({ url: image.src })),
       sep(),
       editSub(image),
-      cropSub(image)
+      cropItem(image),
+      ...openInFlat(image)
     );
     if (pinnable(image)) menuEl.append(pinSub(image));
   }
@@ -813,6 +860,60 @@ const bindRowGestures = (el, image) => {
   bindGestures(el, onClick, onDouble);
 };
 
+// Off-screen translucent drag ghost (mirrors browser/js/ui/dragGhost.js): clone the row,
+// dim it, and hand it to setDragImage so the cursor carries the row itself, faded — Chrome
+// otherwise snapshots the row before any .dragging style applies.
+const setTranslucentDragImage = (e, row) => {
+  try {
+    const ghost = row.cloneNode(true);
+    // A bare row has a transparent background, so the OS drag image reads as "just nothing".
+    // Give the clone a solid themed card (panel bg + accent outline + shadow) at reduced
+    // opacity, so the dragged item shows as a translucent chip.
+    ghost.style.cssText += ';position:absolute;top:-9999px;left:-9999px;pointer-events:none;'
+      + `width:${row.offsetWidth}px;box-sizing:border-box;opacity:.75;`
+      + 'background:var(--panel,#2b2f3a);border:2px solid var(--accent,#7c3aed);'
+      + 'border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.45);padding:6px;';
+    document.body.appendChild(ghost);
+    const r = row.getBoundingClientRect();
+    e.dataTransfer.setDragImage(ghost, e.clientX - r.left, e.clientY - r.top);
+    setTimeout(() => ghost.remove(), 0);
+  } catch { /* setDragImage unsupported — the default ghost is fine */ }
+};
+
+// Make a row draggable OUT of the panel: onto the page (→ the 4-quadrant drop overlay, side
+// panel only in practice) or into any app / the editor tab (→ its global image import). Only
+// rows with an openable source drag; the pin / ⋯ buttons keep their own click.
+const bindRowDrag = (row, image) => {
+  // Prefer the openable bytes URL (a video's captured frame, an image's src); fall back to the
+  // provenance source (e.g. a shared row's server URL) so every openable row can drag.
+  const src = editableSrc(image) || sourceOf(image);
+  if (!src) return;
+  row.draggable = true;
+  row.addEventListener('dragstart', (e) => {
+    if (e.target.closest('button')) { e.preventDefault(); return; }   // pin / ⋯ stay clickable
+    try {
+      const dt = e.dataTransfer;
+      dt.effectAllowed = 'copy';
+      dt.setData('text/uri-list', src);
+      dt.setData('text/plain', src);
+      dt.setData('text/html', `<img src="${src.replace(/"/g, '&quot;')}">`);
+      // Our own drag marker so the panel's drag-IN handler ignores a row dropped back inside.
+      dt.setData('application/x-stencil-drag', image.kind || 'img');
+    } catch { /* some contexts lock dataTransfer — the drag still starts */ }
+    setTranslucentDragImage(e, row);
+    row.classList.add('dragging');
+    // Arm the on-page 4-quadrant overlay on the active tab. Best-effort: only the side panel
+    // reliably delivers a drag into the page (same window); popup/DevTools no-op harmlessly.
+    if (state.activeTabId != null)
+      try { chrome.runtime.sendMessage({ type: MSG.DROPZONES_ARM, tabId: state.activeTabId }); } catch { /* SW asleep */ }
+  });
+  row.addEventListener('dragend', () => {
+    row.classList.remove('dragging');
+    if (state.activeTabId != null)
+      try { chrome.runtime.sendMessage({ type: MSG.DROPZONES_DISARM, tabId: state.activeTabId }); } catch { /* SW asleep */ }
+  });
+};
+
 // ── Actions ──
 const download = (src) => chrome.downloads.download({ url: src, filename: filenameFromUrl(src) });
 
@@ -827,60 +928,130 @@ const setPinnedState = async (image, pinned) => {
   });
   applyFilters();           // re-sorts + re-renders: a pinned row floats to the top
   // Follow the row to its new position so it stays in view (and flash it), instead of it
-  // jumping off-screen while the scroll stays put. Rows render in state.filtered order.
-  const idx = state.filtered.indexOf(image);
-  const row = idx >= 0 ? listEl.children[idx]?.querySelector('.row') : null;
-  if (row) {
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    row.classList.remove('just-pinned');
-    void row.offsetWidth;   // restart the flash animation if it was mid-run
-    row.classList.add('just-pinned');
-  }
+  // jumping off-screen while the scroll stays put.
+  flashRow(image);
 };
 
 // Toggle local pin (used by the row's pin button + the menu's Unpin / "Pin locally").
 const togglePin = async (image) => setPinnedState(image, !image.pinned);
 
+// Two source URLs refer to the same image when they're equal ignoring only the #fragment
+// (a dragged URL and the scanned currentSrc otherwise match byte-for-byte). Kept lenient
+// on purpose so drag-to-pin reuses the scanned row instead of writing a stray duplicate pin.
+const sameSource = (a, b) => {
+  if (a === b) return true;
+  const strip = (u) => { try { const x = new URL(u); x.hash = ''; return x.href; } catch { return u; } };
+  return strip(a) === strip(b);
+};
+
+// Build a minimal scan-shaped row for a dropped URL that isn't among the scanned images,
+// so the new pin still renders (floated + flashed) instead of writing an invisible pin.
+const rowForDroppedUrl = (src, name) => {
+  const kind = guessKindFromUrl(src);
+  return kind === 'video'
+    ? { kind: 'video', src: '', videoUrl: src, name, w: 0, h: 0, measured: true, opened: [], pinned: true }
+    : { kind: 'img', src, name, w: 0, h: 0, measured: false, opened: [], pinned: true };
+};
+
 // Drag-to-pin (side panel / DevTools): dropping a page image/video element onto the list pins
-// its source. If it matches a scanned row, reuse that row (and its kind/name); otherwise pin the
-// dropped URL directly. Already pinned → no-op (feature #6).
+// its source. If it matches a scanned row, reuse that row (and its kind/name); otherwise the
+// dropped URL is pinned directly and shown as a fresh row. Already pinned → no-op (feature #6).
 const pinFromDroppedUrl = async (url) => {
   const src = String(url || '').trim();
   if (!src) return;
+  // A pin needs the page's origin to key on; without it (unscannable page) there's nothing to
+  // pin against, so say so rather than writing a pin under an empty site that never shows.
   const site = siteOf(state.activeUrl);
+  if (!site) { statusEl.textContent = 'Can’t pin here — this page can’t be scanned.'; return; }
+  const shortName = filenameFromUrl(src);
   // Prefer a matching scanned row so the pin carries its real name/kind and floats in place.
-  const existing = state.all.find((im) => pinnable(im) && sourceOf(im) === src);
+  const existing = state.all.find((im) => pinnable(im) && sameSource(sourceOf(im), src));
   if (existing) {
-    if (existing.pinned) return;   // already pinned → do nothing
+    // Already pinned → no message (that read as a false "not pinned"); just bring its row
+    // into view so it's clear it's already there.
+    if (existing.pinned) { flashRow(existing); return; }
+    // Make sure the pin's outline/float is actually visible even if the toggle was off.
+    if (!state.showPinned) await enableShowPinned();
     await setPinnedState(existing, true);
+    statusEl.textContent = `Pinned: ${existing.name}`;
     return;
   }
   const pins = await loadPins();
-  if (isPinnedIn(pins, site, src)) return;   // already pinned (not in this scan) → do nothing
-  await setPinned({ source: src, site, resource: state.activeUrl, name: filenameFromUrl(src), kind: guessKindFromUrl(src), pinned: true });
-  // storage.onChanged re-annotates, but refresh now so the new pin shows immediately.
+  if (isPinnedIn(pins, site, src)) return;   // already pinned (not in this scan) → silent no-op
+  // A URL not in this scan (a background element the scanner missed, a cross-frame image):
+  // add a row for it so the pin is visible, then write the pin.
+  const row = rowForDroppedUrl(src, shortName);
+  state.all.push(row);
+  await setPinned({ source: src, site, resource: state.activeUrl, name: shortName, kind: guessKindFromUrl(src), pinned: true });
+  // Confirm the write actually landed before claiming success (silent storage failures
+  // are the difference between "says pinned" and "is pinned").
+  const after = await loadPins();
+  if (!isPinnedIn(after, site, src)) {
+    state.all = state.all.filter((im) => im !== row);
+    applyFilters();
+    statusEl.textContent = 'Couldn’t save the pin (storage unavailable).';
+    return;
+  }
+  if (!state.showPinned) await enableShowPinned();
   await annotatePinned();
   applyFilters();
+  flashRow(row);
+  statusEl.textContent = `Pinned: ${shortName}`;
 };
 
-// Attach drag-to-pin to the available-images list on the persistent surfaces (the popup closes
-// on blur, so a page→popup drag can't complete there).
+// Turn the "show pinned" view on (persisted) so a just-made pin's gray outline + float are
+// visible; drag-to-pin would otherwise write a pin the user can't see.
+const enableShowPinned = async () => {
+  state.showPinned = true;
+  const cb = document.getElementById('f-show-pinned');
+  if (cb) cb.checked = true;
+  try { await setSettings({ showPinned: true }); } catch { /* setting won't persist */ }
+};
+
+// Scroll a freshly-pinned row into view and flash it (shared by drop-pin so a new row is
+// noticed even mid-list).
+const flashRow = (image) => {
+  const idx = state.filtered.indexOf(image);
+  const row = idx >= 0 ? listEl.children[idx]?.querySelector('.row') : null;
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('just-pinned');
+  void row.offsetWidth;
+  row.classList.add('just-pinned');
+};
+
+// Attach drag-to-pin on the persistent surfaces (the popup closes on blur, so a page→popup
+// drag can't complete there). Dragging a page image/video onto the panel pins it. The
+// listeners sit on the whole document so a drop anywhere in the panel counts (not only when
+// it lands exactly on a list row); the dashed outline still tracks the list. NOTE: this works
+// in the SIDE PANEL (same window as the page); a DevTools panel lives in a separate window, so
+// the browser can't hand it a page drag — that's a platform limit, not a bug.
 if (IS_SIDE_PANEL || IS_DEVTOOLS) {
+  const DRAG_TYPES = ['text/uri-list', 'text/html', 'text/plain', 'text/x-moz-url'];
   const setDrag = (on) => listEl.classList.toggle('drag-over', on);
-  listEl.addEventListener('dragover', (e) => {
-    // Only react to a dragged link/image/text (not our own row interactions).
+  // A dragged link/image/text is a drop candidate (ignore our own row interactions, which
+  // carry no text payload). Both dragenter and dragover must cancel to accept the drop.
+  const isDropCandidate = (e) => {
     const t = e.dataTransfer && e.dataTransfer.types;
-    if (!t || !(t.includes('text/uri-list') || t.includes('text/html') || t.includes('text/plain'))) return;
+    if (!t || t.includes('application/x-stencil-drag')) return false;   // our own row drag → not a pin
+    return DRAG_TYPES.some((x) => t.includes(x));
+  };
+  const accept = (e) => {
+    if (!isDropCandidate(e)) return;
     e.preventDefault();
     try { e.dataTransfer.dropEffect = 'copy'; } catch { /* noop */ }
     setDrag(true);
-  });
-  listEl.addEventListener('dragleave', (e) => { if (!listEl.contains(e.relatedTarget)) setDrag(false); });
-  listEl.addEventListener('drop', (e) => {
+  };
+  document.addEventListener('dragenter', accept);
+  document.addEventListener('dragover', accept);
+  document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) setDrag(false); });
+  document.addEventListener('drop', (e) => {
+    if (!isDropCandidate(e)) return;
     e.preventDefault();
     setDrag(false);
-    const url = extractDraggedUrl((type) => e.dataTransfer.getData(type));
+    const url = extractDraggedUrl((type) => { try { return e.dataTransfer.getData(type); } catch { return ''; } });
     if (url) pinFromDroppedUrl(url);
+    else statusEl.textContent = 'Couldn’t read a URL from the dropped item (a CSS background image can’t be dragged — use its ⋯ menu).';
   });
 }
 
@@ -952,12 +1123,90 @@ const promptPinTarget = () => new Promise((resolve) => {
 // its server, a page image fetches them through the extension's host permissions.
 const imageDataUrl = (image) => image.shared ? sharedDataUrl(image) : fetchAsDataUrl(editableSrc(image));
 
+// Hand a URL to the OS / browser from a popup/panel user gesture. A CUSTOM scheme
+// (stencil://) goes through a transient hidden anchor click — the browser's own "Open
+// Stencil?" prompt then fires and the OS routes it to the desktop app; chrome.tabs.create
+// on a custom scheme instead leaves a dead blank tab. (Mirrors browser/js/ui/openInModal.js:
+// the anchor MUST be in the document, or Chrome ignores the navigation.) A real http(s) URL
+// (the Telegram t.me link) opens as a normal new tab. Works in the popup, side panel, and
+// DevTools panel (each is a real document with a live gesture on the menu click).
+const openExternalUrl = (url) => {
+  if (/^https?:/i.test(url)) { chrome.tabs.create({ url }); return; }
+  const a = document.createElement('a');
+  a.href = url;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+// "Open in… ▸ Desktop app": a `stencil://open?…` link the OS routes to the desktop app. A
+// shared (server) row sends only its server reference (the desktop connects like a fresh
+// client — no token in the link); any other row embeds its image bytes inline, refusing an
+// absurdly large payload and warning on a merely-large one (the OS argv/launch machinery
+// tolerates far less than an in-page URL — same guards as the browser's Open-in modal).
+const openInDesktop = async (image) => {
+  // Read the scheme SYNCHRONOUSLY from the cached config: a stencil:// launch needs the
+  // click's transient user activation, and an `await getSettings()` here would spend it before
+  // openExternalUrl fires (the shared-row path below then stays await-free, like the browser).
+  const desktopScheme = state.openIn && state.openIn.desktopScheme;
+  if (!desktopScheme) { statusEl.textContent = 'No desktop app scheme configured (set one in Options).'; return; }
+  let url, warn = '';
+  if (image.shared && image.serverUrl && image.projectId) {
+    url = buildStencilSchemeUrl({ scheme: desktopScheme, server: image.serverUrl, id: image.projectId });
+  } else {
+    statusEl.textContent = 'Loading image…';
+    const dataUrl = await imageDataUrl(image);
+    url = buildStencilSchemeUrl({ scheme: desktopScheme, src: dataUrl });
+    if (url.length > INLINE_MAX_CHARS) {
+      statusEl.textContent = 'Image too large to hand off inline — save it to a server and share the server project instead.';
+      return;
+    }
+    if (url.length > INLINE_WARN_CHARS) warn = ' (large image — if it doesn’t open, save it to a server instead)';
+  }
+  openExternalUrl(url);
+  // Do NOT dismiss() here: in the popup that calls window.close(), which destroys the document
+  // before Chrome acts on the stencil:// anchor navigation — so nothing opens. Leave the popup
+  // alive; it closes on its own when the OS "Open Stencil?" prompt takes focus. (In the side
+  // panel / DevTools panel dismiss() is a no-op anyway.)
+  statusEl.textContent = `Opening in the desktop app…${warn}`;
+};
+
+// "Open in… ▸ Telegram bot": a t.me deep link carrying (server, project id) in the 64-char
+// ?start= payload. Shared (server) rows ONLY — a start payload can't carry image bytes, so a
+// local image has nothing to reference (the menu already hides this item for non-shared rows).
+// A very long server host can overflow the 64-char limit → tell the user to use the bot's
+// /connect + /fetch commands (there's no in-panel modal to show the fallback, unlike the
+// browser). We only ever target the server the row already belongs to (a user-connected host).
+const openInTelegram = (image) => {
+  const telegramBotUsername = state.openIn && state.openIn.telegramBotUsername;
+  if (!telegramBotUsername || !image.shared || !image.serverUrl || !image.projectId) return;
+  const payload = encodeTelegramStartPayload(image.serverUrl, image.projectId);
+  if (!payload) {
+    statusEl.textContent = 'The server address is too long for a Telegram link — open the bot and use /connect + /fetch.';
+    return;
+  }
+  openExternalUrl(buildTelegramLink(telegramBotUsername, payload));
+  dismiss();
+};
+
 const sendToEditor = async (image, incognito, open) => {
   statusEl.textContent = 'Loading image…';
   const { page } = await getSettings();
   const dataUrl = await imageDataUrl(image);
   await openEditorTab(buildHandoff(image, { dataUrl, page, resource: state.activeUrl, incognito, open }));
   dismiss();
+};
+
+// Resume an already-opened image: jump to the editor tab that's ALREADY open (focus it +
+// switch to the matching project, no new tab / no reload). Falls back to the classic new-tab
+// resume when no editor tab is open (or its bridge didn't answer).
+const resumeInEditor = async (image) => {
+  if (await resumeInOpenEditor({ source: sourceOf(image), name: image.name })) {
+    dismiss();
+    return;
+  }
+  await sendToEditor(image, false, 'resume');
 };
 
 // Same as sendToEditor, but frames the editor in an in-page modal on the active
@@ -1047,6 +1296,72 @@ const bindPreview = (el, image) => {
   });
 };
 
+// ── Hover-to-highlight the page element ──────────────────────────────────────
+// Hovering a row outlines its element on the page (and scrolls it into view) via an
+// injected marker (lib/hoverHighlight.js) — independent of the "highlight on page"
+// toggle, so it always works. All the row hovers share ONE debounced scheduler so a
+// quick sweep across rows collapses to the last hovered source (and a single injected
+// call clears the old marker + sets the new one, avoiding a clear/set race).
+const HOVER_HL_MS = 70;
+let hoverHlTimer = null;
+let hoverHlPending = undefined;   // the last-requested source ('' = clear), or undefined = idle
+let hoverHlColor = null;          // resolved accent hex, cached across hovers
+const runHoverHighlight = async (source) => {
+  const tabId = state.activeTabId;
+  if (tabId == null) return;
+  if (source && hoverHlColor == null) {
+    try { hoverHlColor = await highlightColorValue(); } catch { hoverHlColor = '#7c3aed'; }
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true }, func: highlightPageElementForSource,
+      args: [source || '', hoverHlColor || '#7c3aed'],
+    });
+  } catch { /* restricted page — ignore */ }
+};
+const scheduleHoverHighlight = (source) => {
+  if (!state.hoverHighlight) return;   // feature toggled off (highlight-on-hover checkbox)
+  hoverHlPending = source;
+  clearTimeout(hoverHlTimer);
+  hoverHlTimer = setTimeout(() => { runHoverHighlight(hoverHlPending); }, HOVER_HL_MS);
+};
+// Bind a row to highlight its page element on hover — on every surface, including the
+// toolbar popup (the popup only covers part of the page, so revealing the hovered image
+// on the visible remainder is useful; gated by the "highlight on hover" checkbox). Shared
+// (server) rows point at a stored project, not a live page element, so they're skipped.
+const bindHoverHighlight = (rowEl, image) => {
+  if (image.shared) return;
+  const src = sourceOf(image);
+  if (!src) return;
+  rowEl.addEventListener('mouseenter', () => scheduleHoverHighlight(src));
+  rowEl.addEventListener('mouseleave', () => scheduleHoverHighlight(''));
+};
+// Clear the on-page marker when the surface goes away (side panel / DevTools panel
+// persist, so the marker would otherwise linger on the page).
+window.addEventListener('pagehide', () => { runHoverHighlight(''); });
+
+// ── Reverse hover: outline the list row for the page element under the cursor ─────
+// The mirror of the row→page hover: when the on-page highlight (highlight.js) is active it
+// reports the source now under the cursor; outline the matching row here (and bring it into
+// the list's view) so hovering a page image reveals its item. Only reacts to OUR target tab.
+let listHlRow = null;
+const highlightListRowForSource = (source) => {
+  if (listHlRow) { listHlRow.classList.remove('list-hl'); listHlRow = null; }
+  if (!source) return;
+  const idx = state.filtered.findIndex((im) => !im.shared && pinnable(im) && sameSource(sourceOf(im), source));
+  if (idx < 0) return;
+  const row = listEl.children[idx]?.querySelector('.row');
+  if (!row) return;
+  row.classList.add('list-hl');
+  row.scrollIntoView({ block: 'nearest' });
+  listHlRow = row;
+};
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg && msg.type === MSG.HL_HOVER && state.hoverHighlight && sender.tab && sender.tab.id === state.activeTabId) {
+    highlightListRowForSource(msg.source || '');
+  }
+});
+
 // ── Wiring ──
 let searchTimer = null;
 document.getElementById('f-search').addEventListener('input', () => {
@@ -1074,6 +1389,14 @@ document.getElementById('f-show-pinned').addEventListener('change', async (e) =>
   await setSettings({ showPinned: e.target.checked });
   state.showPinned = e.target.checked;
   applyFilters();
+});
+// Highlight-on-hover toggle: gates BOTH directions (row→page element, page element→row).
+// Persisted (follows the user + the other open surfaces). Turning it off clears any marker
+// already showing on the page and any outlined row.
+document.getElementById('f-hover-hl').addEventListener('change', async (e) => {
+  state.hoverHighlight = e.target.checked;
+  await setSettings({ hoverHighlight: e.target.checked });
+  if (!e.target.checked) { runHoverHighlight(''); highlightListRowForSource(''); }
 });
 // Server-pins filter: toggle visibility of server-stored items + per-server narrowing.
 document.getElementById('f-server-pins').addEventListener('change', () => { syncServerFilterUI(); applyFilters(); });
@@ -1121,6 +1444,17 @@ document.getElementById('f-fmt-toggle').addEventListener('click', () => {
   updateToggleLabel();
   applyFilters();
 });
+// Collapsible filter sections (accordion): click (or Enter/Space) a section header to
+// hide/show its body. Clicks on a control inside the header — e.g. the Formats
+// "Deselect all" button — act on that control and don't collapse the section.
+for (const head of document.querySelectorAll('.section-head')) {
+  const toggle = () => {
+    const collapsed = head.closest('.fsection').classList.toggle('collapsed');
+    head.setAttribute('aria-expanded', String(!collapsed));
+  };
+  head.addEventListener('click', (e) => { if (!e.target.closest('button, input, select, a, label')) toggle(); });
+  head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+}
 ['f-minw', 'f-maxw', 'f-minh', 'f-maxh'].forEach(id => document.getElementById(id).addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(applyFilters, 150);
@@ -1196,6 +1530,20 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // The show-pinned setting also lives in storage.sync and is editable from options.
   if (area === 'sync' && changes.showPinned && state.all.length) {
     annotatePinned().then(applyFilters);   // annotatePinned re-syncs its checkbox
+  }
+  // The "Open in…" targets (desktop scheme / Telegram bot username) are edited on the
+  // options page — refresh the cache so the ⋯ menu's Open-in items gate correctly without
+  // a rescan (menus are built lazily on click, so no re-render is needed).
+  if (area === 'sync' && (changes.desktopScheme || changes.telegramBotUsername)) {
+    loadOpenInSettings();
+  }
+  // The highlight-on-hover setting changed in another open surface — mirror it here
+  // (no re-annotate needed: it only gates the hover behaviour, not the list contents).
+  if (area === 'sync' && changes.hoverHighlight) {
+    state.hoverHighlight = changes.hoverHighlight.newValue !== false;
+    const hh = document.getElementById('f-hover-hl');
+    if (hh) hh.checked = state.hoverHighlight;
+    if (!state.hoverHighlight) { runHoverHighlight(''); highlightListRowForSource(''); }
   }
 });
 

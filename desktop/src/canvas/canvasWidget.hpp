@@ -151,6 +151,10 @@ namespace stencil::gui {
     // applies rotation FIRST, then the crop (which lives in rotated-original space),
     // mirroring restore() for the in-memory case. A zero-width crop default-crops.
     void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
+    // Drop the current image + all lines/history back to the empty "Open an image"
+    // canvas (mirrors the browser storage.newTemporary() reset). Used when clearing
+    // the current project/editor.
+    void clearImage();
 
     // ── selected-line mutators + delete (S7; port of applySelectionChange
     // ~1674 and canvasDblClick delete ~1515) ──
