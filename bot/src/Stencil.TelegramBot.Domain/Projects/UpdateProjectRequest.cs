@@ -17,6 +17,10 @@ public sealed record UpdateProjectRequest
     public string? Name { get; init; }
     public string? Color { get; init; }
 
+    /// <summary>Blank-image fill colour (<c>#rrggbb</c>): null leaves it unchanged. Only a blank
+    /// project has one — setting on an ordinary image project has no visible effect server-side.</summary>
+    public string? BlankColor { get; init; }
+
     /// <summary>Expiry (epoch ms): null leaves it unchanged; 0 clears it (keep forever).</summary>
     public long? ExpiresAt { get; init; }
 

@@ -1,7 +1,9 @@
 #include "projectsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "projectDragZones.hpp"
 #include "projectsStore.hpp"
+#include "reorderableListWidget.hpp"
 #include "serverClient.hpp"
 #include <QAbstractItemView>
 #include <QAction>
@@ -43,6 +45,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <limits>
 #include <QVariant>
 #include <algorithm>
 #include <optional>
@@ -50,6 +53,14 @@
 namespace stencil::gui {
 
   namespace {
+    // Per-session (process-lifetime) project sort mode + manual drag order — shared across
+    // dialog re-opens but reset on app restart, the desktop analogue of the browser modal's
+    // sessionStorage. Deliberately NOT persisted to disk (order is a local, per-session view).
+    // Modes mirror the browser: name (by-name-mixed, default), local, server, date-desc,
+    // date-asc, manual.
+    QString g_projectsSortMode = QStringLiteral("name");
+    QStringList g_projectsManualOrder;   // (serverUrl|id) keys in manual order
+
     // Human expiry label for one project, mirroring the browser modal's
     // expiryLabel(): "EXPIRED", "expires in 1 day", or "expires in N days".
     QString expiryText(const core::ProjectsStore& store,
@@ -261,6 +272,30 @@ namespace stencil::gui {
       rebuildFilterOptions();
       frow->addWidget(filter_);                       // natural width — no stretch
       frow->addSpacing(8);
+      // Sort mode (mirrors the browser modal): the data role carries the mode key.
+      frow->addWidget(new QLabel("Sort:", this));
+      sortCombo_ = new QComboBox(this);
+      sortCombo_->setToolTip("Sort projects (drag a row to set a manual order)");
+      sortCombo_->addItem(tr("Name"), QStringLiteral("name"));
+      sortCombo_->addItem(tr("Local first"), QStringLiteral("local"));
+      sortCombo_->addItem(tr("Server first"), QStringLiteral("server"));
+      sortCombo_->addItem(tr("Newest"), QStringLiteral("date-desc"));
+      sortCombo_->addItem(tr("Oldest"), QStringLiteral("date-asc"));
+      sortCombo_->addItem(tr("Manual order"), QStringLiteral("manual"));
+      {
+        const int mi = sortCombo_->findData(g_projectsSortMode);
+        sortCombo_->setCurrentIndex(mi >= 0 ? mi : 0);
+      }
+      frow->addWidget(sortCombo_);
+      frow->addSpacing(8);
+      // Search-mode (what the search box matches): name+keywords (default), names, keywords.
+      searchModeCombo_ = new QComboBox(this);
+      searchModeCombo_->setToolTip("What the search box matches");
+      searchModeCombo_->addItem(tr("Name + keywords"), QStringLiteral("common"));
+      searchModeCombo_->addItem(tr("Names only"), QStringLiteral("names"));
+      searchModeCombo_->addItem(tr("Keywords only"), QStringLiteral("keywords"));
+      frow->addWidget(searchModeCombo_);
+      frow->addSpacing(8);
       search_ = new QLineEdit(this);
       search_->setPlaceholderText(tr("Search projects…"));
       search_->setClearButtonEnabled(true);
@@ -268,6 +303,11 @@ namespace stencil::gui {
       frow->addWidget(search_, 1);                    // the search field takes the remaining width
       layout->addLayout(frow);
       connect(filter_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
+      connect(sortCombo_, &QComboBox::currentIndexChanged, this, [this](int) {
+        g_projectsSortMode = sortCombo_->currentData().toString();
+        refresh();
+      });
+      connect(searchModeCombo_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
       connect(search_, &QLineEdit::textChanged, this, [this](const QString&) { applyFilter(); });
     }
 
@@ -313,7 +353,54 @@ namespace stencil::gui {
       connect(batchClear, &QPushButton::clicked, this, [this] { checked_.clear(); refresh(); });
     }
 
-    list_ = new QListWidget(this);
+    auto* reList = new ReorderableListWidget(this);
+    list_ = reList;
+    // Drag a row onto another to set a per-session Manual order (switches the Sort combo to
+    // Manual). Rows are delegate-painted (no grip), so drags are view-initiated.
+    reList->setDragEnabled(true);
+    reList->onReorder = [this](int from, int to) {
+      const int n = list_->count();
+      if (from < 0 || from >= n) return;
+      QVector<QString> keys(n);
+      for (int i = 0; i < n; ++i) keys[i] = rowKeyAt(i);  // "" for placeholder rows
+      if (to < 0) to = 0;
+      if (to >= n) to = n - 1;
+      const QString moved = keys[from];
+      keys.remove(from);
+      keys.insert(to, moved);
+      QStringList order;
+      for (const auto& k : keys) if (!k.isEmpty()) order << k;
+      g_projectsManualOrder = order;
+      g_projectsSortMode = QStringLiteral("manual");
+      if (sortCombo_) { const int mi = sortCombo_->findData(g_projectsSortMode); if (mi >= 0) { QSignalBlocker b(sortCombo_); sortCombo_->setCurrentIndex(mi); } }
+      refresh();
+    };
+    // Show/hide the main-window drag-out zones (Open here / Open in a new window / Remove) for the
+    // duration of a row drag. The dialog covers the centre; zones are reachable in its margins.
+    reList->onDragStart = [this] { if (dragZones_) dragZones_->begin(frameGeometry()); };
+    reList->onDragEnd = [this] { if (dragZones_) dragZones_->end(); };
+    // Drag a row OUT of the dialog and release in a zone → run that action. Open uses
+    // openSelected() (local Open / remote OpenRemote); new-window + Remove are LOCAL-only (mirrors
+    // the ⋯ menu; Remove routes through deleteSelected → the main window's Yes/No confirm).
+    reList->onDragOut = [this](int rowIdx) {
+      const auto zone = dragZones_ ? dragZones_->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::None;
+      if (zone == ProjectDragZones::Zone::None) return;  // released over the dialog / nowhere → keep
+      QListWidgetItem* it = list_->item(rowIdx);
+      if (!it || it->data(Qt::UserRole).isNull()) return;
+      list_->setCurrentItem(it);
+      const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
+      using Zone = ProjectDragZones::Zone;
+      // These just set action_ + accept() (close the dialog); the open/delete CONFIRM is shown by
+      // MainWindow AFTER the dialog closes — never inside the drag release, which dismissed it.
+      if (zone == Zone::Here) {
+        openSelected();  // local Open / remote OpenRemote
+      } else if (zone == Zone::NewWindow) {
+        if (remote) openSelected();  // no remote-in-new-window → open here
+        else openSelectedInNewWindow();
+      } else if (zone == Zone::Remove) {
+        if (!remote) deleteSelected();  // server delete has no dialog action
+      }
+    };
     list_->setObjectName("projectsList");  // scopes the clearer row-checkbox style (theme.cpp)
     // Row icons hold each project's edited-result preview (local) or its stored
     // result/original image (server); size the list's icon column to fit them.
@@ -627,14 +714,12 @@ namespace stencil::gui {
     building_ = true;   // ignore the itemChanged storm from setCheckState below
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
-    for (const auto& pr : projects_) {
-      std::size_t pts = 0;
-      for (const auto& l : pr.lines) pts += l.points.size();
+
+    // Build one LOCAL project row (edited-result thumb, expiry-aware name colour, checkbox).
+    auto buildLocalRow = [&](const Project& pr) {
+      // Name · created · expiry only — no line/point counts (mirrors the browser projects list).
       const QString expiry = expiryText(store, pr.meta, now_);
-      QString label = QString("%1   —   %2 line(s), %3 point(s)")
-                          .arg(QString::fromStdString(pr.meta.name))
-                          .arg(pr.lines.size())
-                          .arg(pts);
+      QString label = QString::fromStdString(pr.meta.name);
       const QString created = createdText(pr.meta.createdAt);
       if (!created.isEmpty()) label += QString("   ·   %1").arg(created);
       if (!expiry.isEmpty()) label += QString("   ·   %1").arg(expiry);
@@ -668,14 +753,16 @@ namespace stencil::gui {
       else if (!pcol.isEmpty() && custom.isValid()) nameCol = custom;
       else nameCol = QColor("#80868f");
       it->setData(Qt::UserRole + 4, nameCol);
-    }
+      // UserRole+5: space-joined keywords, the search key for the keyword/common modes.
+      QStringList kw;
+      for (const auto& k : pr.meta.keywords) kw << QString::fromStdString(k);
+      it->setData(Qt::UserRole + 5, kw.join(' '));
+    };
 
-    // Server-stored (shared) projects: distinguished by the golden row OUTLINE (painted by the
-    // delegate) + the server badge — NOT by gold/bold text (which read as garish). The name uses
-    // the same neutral grey / custom-colour treatment as local rows, mirroring the browser modal.
-    // UserRole+1 carries the origin server URL; a non-empty value marks the row as remote so Open
-    // routes to OpenRemote (and tells the delegate to draw the outline).
-    for (const auto& sp : remote_) {
+    // Build one SERVER (shared) project row: golden outline (delegate) + server badge.
+    // UserRole+1 carries the origin server URL; a non-empty value marks the row as remote so
+    // Open routes to OpenRemote (and tells the delegate to draw the outline).
+    auto buildRemoteRow = [&](const stencil::net::ServerProject& sp) {
       QString label = QString("%1   —   %2")
                           .arg(sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name)
                           .arg(sp.serverUrl);
@@ -695,6 +782,7 @@ namespace stencil::gui {
       const QColor custom(sp.color);
       it->setData(Qt::UserRole + 4,
                   (!sp.color.isEmpty() && custom.isValid()) ? custom : QColor("#80868f"));
+      it->setData(Qt::UserRole + 5, sp.keywords.join(' '));  // keyword search key
       it->setToolTip(QString("Server project on %1").arg(sp.serverUrl));
       // Edited preview: the project's rendered `result` (falling back to the
       // `original` if it was never saved), mirroring the browser modal's
@@ -707,6 +795,48 @@ namespace stencil::gui {
         it->setIcon(QIcon(squareThumb(pm, 112)));
         it->setData(Qt::UserRole + 2, pm);
       }
+    };
+
+    // Assemble a combined, sortable entry list (local + server) and order it per the active
+    // sort mode, so name/date modes interleave local and server rows (mirrors the browser modal;
+    // see js/ui/projectSort.js). Then build the rows in that order.
+    struct Entry { bool remote; int idx; QString key; QString name; long long date; };
+    std::vector<Entry> entries;
+    for (int i = 0; i < static_cast<int>(projects_.size()); ++i) {
+      const auto& m = projects_[i].meta;
+      entries.push_back({ false, i, "|" + QString::fromStdString(m.id),
+                          QString::fromStdString(m.name).toLower(), static_cast<long long>(m.updatedAt) });
+    }
+    for (int i = 0; i < remote_.size(); ++i) {
+      const auto& sp = remote_[i];
+      entries.push_back({ true, i, sp.serverUrl + "|" + sp.id, sp.name.toLower(), static_cast<long long>(sp.createdAt) });
+    }
+    const QString mode = g_projectsSortMode;
+    QHash<QString, int> manualPos;
+    if (mode == "manual")
+      for (int i = 0; i < g_projectsManualOrder.size(); ++i) manualPos.insert(g_projectsManualOrder[i], i);
+    auto cmpName = [](const Entry& a, const Entry& b) -> int {
+      int c = QString::localeAwareCompare(a.name, b.name);
+      if (c) return c;
+      if (a.date != b.date) return a.date > b.date ? -1 : 1;  // newest first on a name tie
+      return QString::compare(a.key, b.key);
+    };
+    std::stable_sort(entries.begin(), entries.end(), [&](const Entry& a, const Entry& b) {
+      if (mode == "local") { if (a.remote != b.remote) return !a.remote; return cmpName(a, b) < 0; }
+      if (mode == "server") { if (a.remote != b.remote) return a.remote; return cmpName(a, b) < 0; }
+      if (mode == "date-desc") { if (a.date != b.date) return a.date > b.date; return cmpName(a, b) < 0; }
+      if (mode == "date-asc") { if (a.date != b.date) return a.date < b.date; return cmpName(a, b) < 0; }
+      if (mode == "manual") {
+        const int pa = manualPos.value(a.key, std::numeric_limits<int>::max());
+        const int pb = manualPos.value(b.key, std::numeric_limits<int>::max());
+        if (pa != pb) return pa < pb;
+        return cmpName(a, b) < 0;
+      }
+      return cmpName(a, b) < 0;  // name (default): server + local interleaved
+    });
+    for (const auto& e : entries) {
+      if (e.remote) buildRemoteRow(remote_[e.idx]);
+      else buildLocalRow(projects_[e.idx]);
     }
 
     // While the first server listing is still in flight, show a loading hint rather
@@ -835,8 +965,14 @@ namespace stencil::gui {
       if (mode == "local") show = !remote;
       else if (mode == "server") show = remote;          // any server
       else if (mode != "all") show = (srv == mode);      // a specific server URL
-      if (show && !needle.isEmpty())                     // name search (case-insensitive substring)
-        show = it->data(Qt::UserRole + 3).toString().contains(needle, Qt::CaseInsensitive);
+      if (show && !needle.isEmpty()) {                   // name / keyword search (case-insensitive)
+        const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString() : QStringLiteral("common");
+        const QString name = it->data(Qt::UserRole + 3).toString();
+        const QString kw = it->data(Qt::UserRole + 5).toString();
+        const bool nameHit = name.contains(needle, Qt::CaseInsensitive);
+        const bool kwHit = kw.contains(needle, Qt::CaseInsensitive);
+        show = smode == "names" ? nameHit : smode == "keywords" ? kwHit : (nameHit || kwHit);
+      }
       it->setHidden(!show);
     }
   }
@@ -1032,6 +1168,12 @@ namespace stencil::gui {
     selectedId_ = it->data(Qt::UserRole).toString();
     action_ = Action::Expiration;
     accept();
+  }
+
+  QString ProjectsDialog::rowKeyAt(int i) const {
+    QListWidgetItem* it = list_->item(i);
+    if (!it || it->data(Qt::UserRole).isNull()) return {};  // placeholder / non-data row
+    return it->data(Qt::UserRole + 1).toString() + "|" + it->data(Qt::UserRole).toString();
   }
 
   QString ProjectsDialog::currentRowColor() const {

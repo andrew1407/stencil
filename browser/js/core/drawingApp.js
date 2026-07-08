@@ -95,6 +95,10 @@ export class DrawingApp {
     // Persisted in the layout and mirrored into project meta.
     this.imageSource = null;
     this.imageResource = null;
+    // Active session's blank-fill colour ("#rrggbb"), or "" for an ordinary image project. Set by
+    // createBlankImage, restored on open, persisted into project meta (storage.js). Non-empty ⇔
+    // this is a blank project (whose solid background can be recoloured after creation).
+    this.blankColor = '';
     this.lines = [];
     this.currentLine = null;
     this.isDrawing = false;
@@ -139,6 +143,11 @@ export class DrawingApp {
     this.customPageWidth = 21;
     this.customPageHeight = 29.7;
     this.selectedLineIdx = -1;
+    // Multi-line selection set (Ctrl/⌘+Shift+click to add/toggle). Empty in ordinary
+    // single-select mode — selectedIndices() then falls back to [selectedLineIdx], so every
+    // existing single-line path is untouched. Populated only in multi-select mode; when it holds
+    // 2+ lines, selectedLineIdx is -1 (the single-line editor hides) and move/rotate act on all.
+    this.selectedLines = [];
     // Tooltip visibility (persisted)
     this.tooltipEnabled = true;
     this.tooltipShowPage = true;
@@ -494,6 +503,11 @@ export class DrawingApp {
 
         this.currentLine = null;
         this.history.reset(this.lines);
+        // Blank-fill colour for this session: a blank load (createBlankImage / recolour) passes it;
+        // any ordinary image load clears it (opts.blankColor undefined → ""). A replace-in-place
+        // recolour keeps it. This drives the meta blank/blankColor persisted by storage.save().
+        if (opts.blankColor != null) this.blankColor = opts.blankColor;
+        else if (!replaceInPlace) this.blankColor = '';
         this.zoomPan.fitToWindow();
         this.updateInfo();
         this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
@@ -850,9 +864,138 @@ export class DrawingApp {
     this.updateButtons();
   }
 
+  // The set of currently-selected line indices. In ordinary single-select mode `selectedLines`
+  // is empty and this returns [selectedLineIdx] (or []) — so nothing else changes; in multi-select
+  // mode it returns the explicit set. Always filtered to valid, in-range indices.
+  selectedIndices() {
+    const src = this.selectedLines.length ? this.selectedLines : (this.selectedLineIdx >= 0 ? [this.selectedLineIdx] : []);
+    return src.filter((i) => i >= 0 && i < this.lines.length);
+  }
+
+  // True while `i` is part of the current selection (single or multi) — drives the renderer glow.
+  isLineSelected(i) {
+    return this.selectedLines.length ? this.selectedLines.includes(i) : i === this.selectedLineIdx;
+  }
+
+  // Ctrl/⌘+Shift+click: add/remove `idx` from the multi-select set. Clicking a line already in the
+  // set removes it. With exactly one line left, we drop back to normal single-select (its editor
+  // reappears); with 2+, the single-line editor is hidden (ambiguous which line to edit).
+  #toggleLineSelection(idx) {
+    // Seed the set from the current single selection the first time you Ctrl+Shift+click.
+    if (!this.selectedLines.length && this.selectedLineIdx >= 0 && this.selectedLineIdx !== idx)
+      this.selectedLines = [this.selectedLineIdx];
+    const at = this.selectedLines.indexOf(idx);
+    if (at >= 0) this.selectedLines.splice(at, 1);
+    else this.selectedLines.push(idx);
+
+    if (this.selectedLines.length === 1) {
+      // Back to a single selection — restore its editor + coord table.
+      this.selectedLineIdx = this.selectedLines[0];
+      this.selectedLines = [];
+      this.showSelectionPanel(this.lines[this.selectedLineIdx]);
+      this.coordLineIdx = this.selectedLineIdx;
+      this.focusedPtIdx = -1;
+      this.coordTable.update(this.lines[this.selectedLineIdx].points, this.selectedLineIdx);
+    } else {
+      // 0 or 2+ selected: no single-line editor.
+      this.selectedLineIdx = -1;
+      this.hideSelectionPanels();
+    }
+    this.updateMultiSelectStatus();
+    this.renderer.redraw();
+  }
+
+  // Show a brief "N lines selected" note in the status line while multi-selecting (2+); clear it
+  // otherwise. Mirrors the desktop status bar.
+  updateMultiSelectStatus() {
+    const el = document.getElementById('coord-status');
+    if (!el) return;
+    const n = this.selectedLines.length;
+    if (n >= 2) el.textContent = `${n} lines selected — ⌘/Ctrl+Shift+click to add/remove · Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all`;
+    else if (el.dataset.multi) el.textContent = '';
+    el.dataset.multi = n >= 2 ? '1' : '';
+    this.renderLinesList();
+  }
+
+  // Select a single line from the "Lines" tab list (or console) — mirrors the canvas
+  // "click on a segment" path (canvasClick priority 2), but keyed by index so the list
+  // and the canvas stay in sync. Clears any multi-selection first. `ctrlShift` toggles it
+  // into/out of the multi-select set instead (so the list mirrors ⌘/Ctrl+Shift+click).
+  selectLineFromList(idx, ctrlShift = false) {
+    if (idx < 0 || idx >= this.lines.length) return this;
+    if (ctrlShift) { this.#toggleLineSelection(idx); return this; }
+    this.selectedLines = [];
+    this.selectedLineIdx = idx;
+    this.showSelectionPanel(this.lines[idx]);
+    this.coordLineIdx = idx;
+    this.focusedPtIdx = -1;
+    this.coordTable.update(this.lines[idx].points, idx);
+    this.updateMultiSelectStatus();
+    this.renderer.redraw();
+    return this;
+  }
+
+  // Rebuild the "Lines" tab list — one row per committed line (color chip, index, point/segment
+  // count, area marker), reflecting the current selection. Rows single-select on click (⌘/Ctrl+Shift
+  // toggles multi-select) and carry a 🗑 to remove the line. No-ops unless the Lines tab is showing,
+  // so the redraw/updateButtons hooks that call it stay cheap while the Points tab is active.
+  renderLinesList() {
+    const el = document.getElementById('lines-list');
+    if (!el || el.style.display === 'none') return;
+    el.replaceChildren();
+    if (!this.lines.length) {
+      const empty = document.createElement('div');
+      empty.className = 'lines-empty';
+      empty.textContent = 'No lines yet.';
+      el.appendChild(empty);
+      return;
+    }
+    this.lines.forEach((line, i) => {
+      const row = document.createElement('div');
+      row.className = 'lines-row' + (this.isLineSelected(i) ? ' lines-row-selected' : '');
+      row.dataset.idx = String(i);
+
+      const swatch = document.createElement('span');
+      swatch.className = 'lines-swatch';
+      swatch.style.background = line.locked && !fillState(line, this.defaultFillColor).enabled
+        ? 'transparent' : (line.color || '#ffff00');
+      swatch.style.borderColor = line.color || '#ffff00';
+
+      const label = document.createElement('span');
+      label.className = 'lines-label';
+      const np = line.points.length;
+      const parts = [`Line ${i + 1}`, `${np} pt${np === 1 ? '' : 's'}`];
+      if (line.locked) parts.push('area');
+      label.textContent = parts.join(' · ');
+
+      const rm = document.createElement('button');
+      rm.className = 'lines-remove btn-icon';
+      rm.type = 'button';
+      rm.title = 'Remove line';
+      rm.setAttribute('aria-label', `Remove line ${i + 1}`);
+      rm.innerHTML = icon('trash', { size: 13 });
+      rm.addEventListener('click', (e) => { e.stopPropagation(); this.removeLine(i); });
+
+      row.addEventListener('click', (e) => {
+        this.selectLineFromList(i, (e.ctrlKey || e.metaKey) && e.shiftKey);
+      });
+      row.append(swatch, label, rm);
+      el.appendChild(row);
+    });
+  }
+
   canvasClick(e) {
     // No image → the canvas is an empty void; don't let clicks drop points.
     if (!this.image) return;
+    // Ctrl/⌘+Shift+click → multi-select: add/toggle the clicked line (handled BEFORE the alt/shift
+    // early-returns below). Clicking empty space keeps the current set.
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+      const { x, y } = this.canvasCoords(e.clientX, e.clientY);
+      const nearPt = this.findNearestPointWithIdx(x, y);
+      const idx = (nearPt && nearPt.lineIdx !== -1) ? nearPt.lineIdx : this.findLineAt(x, y);
+      if (idx !== -1) this.#toggleLineSelection(idx);
+      return;
+    }
     // Ignore click that ended a pan gesture or point drag
     if (e.altKey) return;
     if (e.shiftKey) return; // Shift+drag is for zoom-area rect
@@ -920,6 +1063,10 @@ export class DrawingApp {
       }
       return;
     }
+
+    // A plain click leaves multi-select mode (back to single-line selection).
+    this.selectedLines = [];
+    this.updateMultiSelectStatus();
 
     // Non-drawing mode: priority 1 — click on a point of any committed line
     // → select that line, focus the clicked point in the coord table
@@ -1237,6 +1384,7 @@ export class DrawingApp {
     document.getElementById('selection-panel').style.display = 'block';
     // Sync fullscreen overlay panel
     this.syncFsSelectionPanel(line);
+    this.renderLinesList();
   }
 
   // Apply the locked-area fill from the selection panel controls.
@@ -1334,6 +1482,8 @@ export class DrawingApp {
 
   deselectLine(redraw = true) {
     this.selectedLineIdx = -1;
+    this.selectedLines = [];
+    this.updateMultiSelectStatus();
     this.coordLineIdx = -1;
     this.hoveredPtIdx = -1;
     this.focusedPtIdx = -1;
@@ -1442,6 +1592,15 @@ export class DrawingApp {
       if (!line) return;
       const dx = x - dl.startX;
       const dy = y - dl.startY;
+      // Multi-select drag: translate EVERY selected line together (whole-line move).
+      if (dl.multiOrig) {
+        for (const { li, pts } of dl.multiOrig) {
+          const l = this.lines[li];
+          if (l) l.points.forEach((p, i) => { p.x = pts[i].x + dx; p.y = pts[i].y + dy; });
+        }
+        this.renderer.redraw();
+        return;
+      }
       // Whole line while Shift held (or if we never resolved a segment to fall back to).
       if (shiftKey || dl.ptIdx1 == null) {
         line.points.forEach((p, i) => { p.x = dl.origPoints[i].x + dx; p.y = dl.origPoints[i].y + dy; });
@@ -1614,10 +1773,52 @@ export class DrawingApp {
     return true;
   }
 
-  // Ctrl+Shift+wheel: rotate the selected line about its center (or the focused point).
+  // Bounding-box centre of a point list, via the shared C++ core (wasm) with a JS fallback.
+  #bboxCenterOf(pts) {
+    const bboxCenter = core.op('boundingBoxCenter');
+    if (bboxCenter) return bboxCenter(pts);
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  }
+
+  // Rotate every point in `pts` about (cx, cy) by `angle`, via the shared C++ core with a JS fallback.
+  #rotatePointsAbout(pts, cx, cy, angle) {
+    const rotate = core.op('rotatePoints');
+    if (rotate) { rotate(pts, cx, cy, angle); return; }
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    pts.forEach((p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      p.x = cx + dx * cos - dy * sin;
+      p.y = cy + dx * sin + dy * cos;
+    });
+  }
+
+  // Rotate the selected line(s) together about their combined bounding-box centre.
+  #rotateLines(indices, angle) {
+    const lines = indices.map((i) => this.lines[i]).filter((l) => l && l.points.length);
+    if (!lines.length) return;
+    const { x: cx, y: cy } = this.#bboxCenterOf(lines.flatMap((l) => l.points));
+    for (const l of lines) this.#rotatePointsAbout(l.points, cx, cy, angle);
+    this.renderer.redraw();
+    clearTimeout(this.#rotateSaveTimer);
+    this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
+  }
+
   rotateSelectedLine(angle) {
+    // 2+ selected → rotate the whole set about their combined centre.
+    const sel = this.selectedIndices();
+    if (sel.length >= 2) { this.#rotateLines(sel, angle); return; }
     const line = this.lines[this.selectedLineIdx];
     if (!line || line.points.length < 2) return;
+    // One selected: pivot on the focused point when there is one, else the line's bbox centre.
     let cx;
     let cy;
     if (this.coordLineIdx === this.selectedLineIdx && this.focusedPtIdx >= 0
@@ -1625,43 +1826,32 @@ export class DrawingApp {
       cx = line.points[this.focusedPtIdx].x;
       cy = line.points[this.focusedPtIdx].y;
     } else {
-      const bboxCenter = core.op('boundingBoxCenter');
-      if (bboxCenter) {
-        // Pivot = bbox center via the shared C++ core (wasm).
-        ({ x: cx, y: cy } = bboxCenter(line.points));
-      } else {
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        for (const p of line.points) {
-          if (p.x < minX) minX = p.x;
-          if (p.x > maxX) maxX = p.x;
-          if (p.y < minY) minY = p.y;
-          if (p.y > maxY) maxY = p.y;
-        }
-        cx = (minX + maxX) / 2;
-        cy = (minY + maxY) / 2;
-      }
+      ({ x: cx, y: cy } = this.#bboxCenterOf(line.points));
     }
-    const rotate = core.op('rotatePoints');
-    if (rotate) {
-      // Rotate every point about the pivot via the shared C++ core (wasm).
-      rotate(line.points, cx, cy, angle);
-    } else {
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-      line.points.forEach(p => {
-        const dx = p.x - cx;
-        const dy = p.y - cy;
-        p.x = cx + dx * cos - dy * sin;
-        p.y = cy + dx * sin + dy * cos;
-      });
-    }
+    this.#rotatePointsAbout(line.points, cx, cy, angle);
     this.renderer.redraw();
     if (this.coordLineIdx === this.selectedLineIdx) this.coordTable.update(line.points, this.selectedLineIdx);
     clearTimeout(this.#rotateSaveTimer);
     this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
+  }
+
+  // Translate every selected line by (dx, dy) image-space px — the arrow-key nudge. Mirrors the
+  // drag-move translation (dragMove) but keyboard-driven; the history save is debounced (like
+  // rotateSelectedLine) so a burst of key-repeats collapses into one undo step.
+  nudgeSelected(dx, dy) {
+    if (!dx && !dy) return this;
+    const sel = this.selectedIndices();
+    if (!sel.length) return this;
+    for (const li of sel) {
+      const line = this.lines[li];
+      if (line) line.points.forEach(p => { p.x += dx; p.y += dy; });
+    }
+    this.renderer.redraw();
+    if (sel.includes(this.coordLineIdx) && this.lines[this.coordLineIdx])
+      this.coordTable.update(this.lines[this.coordLineIdx].points, this.coordLineIdx);
+    clearTimeout(this.#rotateSaveTimer);
+    this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
+    return this;
   }
 
   saveHistory() {
@@ -1783,6 +1973,7 @@ export class DrawingApp {
 
     this.updateIncognitoUI();
     this.updateProjectTitle();
+    this.renderLinesList();
   }
 
   // Reflect the active project's name in the tab title AND topbar field. Field editable only
@@ -1857,16 +2048,25 @@ export class DrawingApp {
   updateInfo() {
     const info = document.getElementById('image-info');
     const sizeDisplay = document.getElementById('image-size-display');
+    const blankBtn = document.getElementById('blank-color-btn');
+    const blankSwatch = document.getElementById('blank-color-swatch');
+    // A blank project writes "· blank" into the size readouts + reveals the recolour swatch.
+    const isBlank = this.activeIsBlank();
     if (this.image) {
-      info.textContent = `Image Size: ${this.canvas.width} × ${this.canvas.height} px  |  Zoom: Ctrl+Scroll · Alt+± · +/− btn  (+Shift = larger)  |  Alt+Scroll: thickness  |  Ctrl+Shift+Scroll: rotate selected  |  Ctrl+Click: add point  |  ℹ for full help`;
+      const blankTag = isBlank ? '  ·  blank' : '';
+      // Just the image size — the shortcut hints live in the "?" popup (hints-btn), not this bar.
+      info.textContent = `Image Size: ${this.canvas.width} × ${this.canvas.height} px${blankTag}`;
       if (sizeDisplay) {
-        sizeDisplay.innerHTML = `${icon('ruler', { size: 13 })} ${this.canvas.width} × ${this.canvas.height} px`;
+        sizeDisplay.innerHTML = `${icon('ruler', { size: 13 })} ${this.canvas.width} × ${this.canvas.height} px${isBlank ? ' · blank' : ''}`;
         sizeDisplay.style.display = 'inline-flex';
       }
     } else {
       info.textContent = 'No image loaded. Upload an image to start.';
       if (sizeDisplay) sizeDisplay.style.display = 'none';
     }
+    // Blank-fill recolour swatch: sits beside the size pill, shown only for a blank project.
+    if (blankBtn) blankBtn.style.display = (this.image && isBlank) ? 'inline-flex' : 'none';
+    if (blankSwatch && isBlank) blankSwatch.style.background = this.blankColor || '#ffffff';
   }
 
   // Transient status line next to the toolbar. `iconName` (optional) prepends a
@@ -1901,6 +2101,8 @@ export class DrawingApp {
       this.remoteLink = (meta && meta.remoteId && meta.address)
         ? { address: meta.address, remoteId: meta.remoteId, version: meta.remoteVersion || 0 }
         : null;
+      // Restore the blank-fill colour so the blank-colour control reappears for a reopened blank.
+      this.blankColor = (meta && meta.blank && meta.blankColor) ? meta.blankColor : '';
       this.tabs.reportActive(id);
       this.updateProjectTitle();   // reflect (or clear) the remote badge + outline now
       // Server-linked: pull the latest so a reopen shows peers' newest state, not stale cache.
@@ -1913,10 +2115,22 @@ export class DrawingApp {
   // Open a saved project in a NEW browser tab, leaving this tab untouched. The
   // new tab boots with a "?open=<id>" deep link that applyProjectDeepLink()
   // consumes. Default open-in-current-tab behavior stays on switchToProject().
-  openProjectInNewTab(id) {
-    if (id == null) return;
+  openProjectInNewTab(id, win = null) {
+    if (id == null) { if (win) win.close(); return; }
     const base = location.origin + location.pathname;
-    window.open(buildOpenProjectUrl(base, id), '_blank');
+    const url = buildOpenProjectUrl(base, id);
+    // `win` is a tab the caller pre-opened synchronously (inside the user gesture) so a strict
+    // popup blocker can't swallow it after an async confirm; navigate it instead of opening anew.
+    if (win) win.location = url; else window.open(url, '_blank');
+  }
+
+  // Open a SERVER project in a new tab via the server-launch fragment (consumed by
+  // applyExternalLaunch on the new tab). Mirrors openProjectInNewTab for local ids.
+  openRemoteProjectInNewTab(meta, win = null) {
+    if (!meta || !meta.serverUrl || meta.id == null) { if (win) win.close(); return; }
+    const base = location.origin + location.pathname;
+    const url = buildExternalLaunchUrl(base, { server: { url: meta.serverUrl, id: meta.id, version: meta.version || 0 } });
+    if (win) win.location = url; else window.open(url, '_blank');
   }
 
   // Consume a "?open=<id>" deep link captured at boot: strip it from the URL (so
@@ -1972,6 +2186,7 @@ export class DrawingApp {
   newEditor() {
     this.remoteLink = null;
     this.pendingRemoteAddress = null;   // drop any un-consumed newEditor({ address }) arming
+    this.blankColor = '';               // fresh editor is not a blank project until one is created
     this.storage.newTemporary();
     this.tabs.reportActive(null);
     this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
@@ -2023,6 +2238,19 @@ export class DrawingApp {
   // `address` (a connected server URL) also creates+links the project on that server
   // (mirrors loadImageFromFile's create-on-server path); validated up front so a bad
   // target rejects before the local image is replaced.
+  // Generate a solid-colour PNG blob of size w×h — the raster backing a blank project. Shared by
+  // createBlankImage (new blank) and setBlankColor (recolour an existing blank in place).
+  #blankFillBlob(w, h, color) {
+    const cnv = document.createElement('canvas');
+    cnv.width = w; cnv.height = h;
+    const ctx = cnv.getContext('2d');
+    ctx.fillStyle = color || '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    return new Promise((resolve, reject) => {
+      cnv.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Could not create the image'))), 'image/png');
+    });
+  }
+
   createBlankImage({ color = '#ffffff', width, height, address } = {}) {
     if (this.storage.incognito) address = undefined;   // incognito never creates on a server
     if (address) requireConnection(this.connections, address);
@@ -2033,18 +2261,39 @@ export class DrawingApp {
         : (PAGE_SIZES[this.pageSize] || PAGE_SIZES.A4));
     const w = Math.max(1, Math.min(8192, Math.round(dims.width)));
     const h = Math.max(1, Math.min(8192, Math.round(dims.height)));
-    const cnv = document.createElement('canvas');
-    cnv.width = w; cnv.height = h;
-    const ctx = cnv.getContext('2d');
-    ctx.fillStyle = color || '#ffffff';
-    ctx.fillRect(0, 0, w, h);
-    return new Promise((resolve, reject) => {
-      cnv.toBlob(blob => {
-        if (!blob) { reject(new Error('Could not create the image')); return; }
-        this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }), { address: address || undefined });
-        resolve({ width: w, height: h });
-      }, 'image/png');
+    const fill = normalizeHex(color) || '#ffffff';
+    // blankColor marks this as a (recolourable) blank project; it's persisted into project meta.
+    return this.#blankFillBlob(w, h, fill).then(blob => {
+      this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
+        { address: address || undefined, blankColor: fill });
+      return { width: w, height: h };
     });
+  }
+
+  // True while the active session is a blank project (recolourable solid background).
+  activeIsBlank() { return !!this.blankColor; }
+
+  // Recolour the ACTIVE blank project's solid background to `color`, KEEPING every drawn line
+  // (lines are a separate vector overlay). No-op unless this is a blank image. Regenerates the fill
+  // at the current dimensions in place, persists blank/blankColor (storage.save via replaceInPlace),
+  // updates the registry meta + peer tabs, and pushes to the server for a server-linked project —
+  // mirroring setProjectColor. `color` accepts any form normalizeHex understands.
+  setBlankColor(color) {
+    if (!this.activeIsBlank() || !this.image) return this;
+    const next = normalizeHex(color);
+    if (!next || next === this.blankColor) return this;
+    const w = this.canvas.width, h = this.canvas.height;
+    this.#blankFillBlob(w, h, next).then(blob => {
+      this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
+        { replaceInPlace: true, keepAnnotations: true, blankColor: next });
+      if (this.activeProjectId != null) {
+        this.storage.store.setBlankColor(this.activeProjectId, next);
+        this.tabs.projectsChanged({ id: this.activeProjectId, action: PROJECT_ACTION.UPDATED });
+        this.#pushProjectFieldToServer(this.activeProjectId, { blankColor: next }, 'Could not set blank colour on the server');
+      }
+      this.updateButtons();
+    }).catch(() => notify('Could not recolour the blank image', 'fail'));
+    return this;
   }
 
   // ── Server-backed sessions ───────────────────────────────────────
@@ -2400,6 +2649,34 @@ export class DrawingApp {
     this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     // Best-effort server push for a server-linked project (no-op when not linked).
     this.#pushProjectFieldToServer(id, { color: next }, 'Could not set project colour on the server');
+    return meta;
+  }
+
+  // Set a project's search keywords (normalized by the store). Mirrors setProjectColor:
+  // writes local meta, broadcasts to peer tabs, and best-effort pushes to the server for a
+  // server-linked project. Returns the stored meta, or null on unknown id.
+  setProjectKeywords(id, keywords) {
+    const meta = this.storage.store.setKeywords(id, keywords);
+    if (!meta) return null;
+    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    this.#pushProjectFieldToServer(id, { keywords: meta.keywords }, 'Could not set project keywords on the server');
+    return meta;
+  }
+
+  // Set a project's blank-fill colour by id. No-op (null) for a non-blank project (only blanks have
+  // a blank colour). When `id` is the ACTIVE project, recolours the visible background in place
+  // (setBlankColor); otherwise updates the stored meta + peers + server. `color` is any normalizeHex
+  // form. Returns the stored meta, or null.
+  setProjectBlankColor(id, color) {
+    const cur = this.storage.store.getMeta(id);
+    if (!cur || !cur.blank) return null;
+    const next = normalizeHex(color);
+    if (!next) return null;
+    if (id === this.activeProjectId) { this.setBlankColor(next); return this.storage.store.getMeta(id); }
+    const meta = this.storage.store.setBlankColor(id, next);
+    if (!meta) return null;
+    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    this.#pushProjectFieldToServer(id, { blankColor: meta.blankColor }, 'Could not set blank colour on the server');
     return meta;
   }
 

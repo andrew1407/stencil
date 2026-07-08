@@ -12,7 +12,7 @@ const image = @import("image.zig");
 const layout_mod = @import("layout.zig");
 const video = @import("video.zig");
 const net = @import("net.zig");
-const server = @import("server.zig");
+const server = @import("serverClient.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
 

@@ -308,6 +308,15 @@ namespace stencil::gui {
     pr.meta.resource = o.value("resource").toString().toStdString();
     // Per-project accent color (empty = theme default). Mirrors the browser record.
     pr.meta.color = o.value("color").toString().toStdString();
+    // Per-project search keywords (empty = none). Mirrors the browser record.
+    pr.meta.keywords.clear();
+    for (const auto& kv : o.value("keywords").toArray()) {
+      const std::string k = kv.toString().toStdString();
+      if (!k.empty()) pr.meta.keywords.push_back(k);
+    }
+    // Blank-image fill colour (empty = not a blank project). `blank` is derived. Mirrors browser.
+    pr.meta.blankColor = o.value("blankColor").toString().toStdString();
+    pr.meta.blank = !pr.meta.blankColor.empty();
     pr.lines = linesFromJson(o.value("lines").toArray());
     pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
@@ -354,6 +363,14 @@ namespace stencil::gui {
     if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
     // Per-project accent color: omit when empty so a plain project's bytes are unchanged.
     if (!pr.meta.color.empty()) o["color"] = QString::fromStdString(pr.meta.color);
+    // Per-project search keywords: omit when empty so a plain project's bytes are unchanged.
+    if (!pr.meta.keywords.empty()) {
+      QJsonArray kw;
+      for (const auto& k : pr.meta.keywords) kw.append(QString::fromStdString(k));
+      o["keywords"] = kw;
+    }
+    // Blank-image fill colour: omit when empty so an ordinary project's bytes are unchanged.
+    if (!pr.meta.blankColor.empty()) o["blankColor"] = QString::fromStdString(pr.meta.blankColor);
     o["lines"] = linesToJson(pr.lines);
     if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
     if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;

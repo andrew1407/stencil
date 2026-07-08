@@ -39,6 +39,17 @@ namespace stencil::core {
     // custom colour (fall back to the active theme accent). Mirrors the
     // browser project's `color` field.
     std::string color;
+    // Optional search keywords (normalised: trimmed, non-empty, deduped). Mirrors the
+    // browser project's `keywords` field + the server ProjectRecord.Keywords; used by the
+    // keyword search + the CLI /keywords commands. Empty = none.
+    std::vector<std::string> keywords;
+    // Blank-image projects: `blank` marks a project whose background is a solid fill (created via
+    // the Blank tab / stencil.blank), and `blankColor` is that fill ("#rrggbb"). Both are empty/
+    // false for ordinary image projects. The fill can be recoloured after creation (the lines are
+    // a separate vector overlay), which is why the colour is persisted. Mirrors the browser
+    // project's blank/blankColor fields + the server ProjectRecord.
+    bool blank = false;
+    std::string blankColor;
   };
 
   class ProjectsStore {

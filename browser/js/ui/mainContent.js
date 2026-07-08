@@ -27,7 +27,10 @@ export class StencilMainContent extends StencilElement {
 
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
-                    <span class="coord-title" id="coord-title">Last Line Points</span>
+                    <div class="coord-tabs" role="tablist">
+                        <button id="coord-tab-points" class="coord-tab coord-tab-active" role="tab" aria-selected="true" data-tab="points" title="Points of the selected line">Points</button>
+                        <button id="coord-tab-lines" class="coord-tab" role="tab" aria-selected="false" data-tab="lines" title="All lines — select, inspect or remove">Lines</button>
+                    </div>
                     <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel" title="Hide panel">${icon('chevron-down')}</button>
                 </div>
                 <div id="coord-body">
@@ -48,17 +51,16 @@ export class StencilMainContent extends StencilElement {
                         </tr>
                     </tbody>
                 </table>
+                <div id="lines-list" class="lines-list" role="tabpanel" style="display:none;"></div>
                 </div>
             </div>
     `;
   }
   static template() { return hostTag('stencil-main-content', 'class="main-content"', StencilMainContent.inner()); }
 
-  wire(_app) {
+  wire(app) {
     const btn = document.getElementById('toggle-coord-panel');
     const panel = document.getElementById('coord-panel');
-    const title = document.getElementById('coord-title');
-    const body = document.getElementById('coord-body');
     let hidden = false;
 
     btn.addEventListener('click', () => {
@@ -68,6 +70,26 @@ export class StencilMainContent extends StencilElement {
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
+
+    // Points | Lines tabs — the Points tab is the existing per-line coordinate table;
+    // the Lines tab lists every committed line (select/inspect/remove). Switching to Lines
+    // reveals #lines-list and asks the app to (re)build it; back to Points restores the table.
+    const tabPoints = document.getElementById('coord-tab-points');
+    const tabLines = document.getElementById('coord-tab-lines');
+    const table = document.getElementById('coordinates-table');
+    const linesList = document.getElementById('lines-list');
+    const selectTab = (which) => {
+      const onLines = which === 'lines';
+      tabLines.classList.toggle('coord-tab-active', onLines);
+      tabPoints.classList.toggle('coord-tab-active', !onLines);
+      tabLines.setAttribute('aria-selected', onLines ? 'true' : 'false');
+      tabPoints.setAttribute('aria-selected', onLines ? 'false' : 'true');
+      table.style.display = onLines ? 'none' : '';
+      linesList.style.display = onLines ? '' : 'none';
+      if (onLines && app) app.renderLinesList();
+    };
+    tabPoints.addEventListener('click', () => selectTab('points'));
+    tabLines.addEventListener('click', () => selectTab('lines'));
   }
 }
 define('stencil-main-content', StencilMainContent);

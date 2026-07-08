@@ -44,13 +44,50 @@ export const sitesOf = (entries) => {
   return out;
 };
 
-// Pure: add a pin, deduped on (site, source). A repeat pin refreshes the timestamp
-// and floats to the front. Newest sorts first; the list is capped at MAX_PINS.
+// Pure: normalize search keywords — coerce to strings, trim, drop blanks, dedupe
+// case-insensitively (first-seen order). Matches the browser store + server normalization so a
+// keyword set reads the same everywhere.
+export const normalizeKeywords = (keywords) => {
+  const out = [];
+  const seen = new Set();
+  for (const raw of (Array.isArray(keywords) ? keywords : [])) {
+    const k = norm(raw);
+    if (!k) continue;
+    const lk = k.toLowerCase();
+    if (seen.has(lk)) continue;
+    seen.add(lk);
+    out.push(k);
+  }
+  return out;
+};
+
+// Pure: a pin's keywords as an array (never undefined).
+export const pinKeywords = (pin) => (pin && Array.isArray(pin.keywords)) ? pin.keywords : [];
+
+// Search modes for the pin viewer: names only, keywords only, or both ("common", default).
+export const PIN_SEARCH_MODES = ['common', 'names', 'keywords'];
+
+// Pure: does a pin match `query` under a search mode? Empty query matches everything;
+// case-insensitive substring over the pin's name and/or its keywords per the mode.
+export const pinMatchesSearch = (pin, query, mode = 'common') => {
+  const q = norm(query).toLowerCase();
+  if (!q) return true;
+  const name = norm(pin && pin.name).toLowerCase();
+  const kw = pinKeywords(pin).join(' ').toLowerCase();
+  if (mode === 'names') return name.includes(q);
+  if (mode === 'keywords') return kw.includes(q);
+  return name.includes(q) || kw.includes(q);
+};
+
+// Pure: add a pin, deduped on (site, source). A repeat pin refreshes the timestamp and floats to
+// the front. Newest sorts first; the list is capped at MAX_PINS. A re-pin that doesn't specify
+// keywords PRESERVES the existing entry's keywords (so pinning again doesn't wipe them).
 export const addPinEntry = (entries, rec) => {
   const list = (Array.isArray(entries) ? entries : []).slice();
   const k = pinKey(rec.site, rec.source);
   const i = list.findIndex((e) => pinKey(e.site, e.source) === k);
-  if (i !== -1) list.splice(i, 1);
+  let prevKeywords = null;
+  if (i !== -1) { prevKeywords = list[i].keywords; list.splice(i, 1); }
   const kind = norm(rec.kind) || 'image';
   const entry = {
     source: norm(rec.source), site: norm(rec.site), resource: norm(rec.resource),
@@ -59,6 +96,11 @@ export const addPinEntry = (entries, rec) => {
   // Only project pins carry the custom accent `color` (the popup paints the name with it);
   // plain image/video pins never do.
   if (kind === 'project') entry.color = norm(rec.color);
+  // Keywords: the provided set, else the previous entry's (preserve on a keyword-less re-pin).
+  // Stored only when non-empty so plain pins stay lean.
+  const kws = rec.keywords !== undefined ? normalizeKeywords(rec.keywords)
+    : (Array.isArray(prevKeywords) ? prevKeywords : []);
+  if (kws.length) entry.keywords = kws;
   list.unshift(entry);
   if (list.length > MAX_PINS) list.length = MAX_PINS;
   return list;
@@ -111,18 +153,39 @@ let pinWriteChain = Promise.resolve();
 
 // Pin (pinned=true) or unpin (pinned=false) one source on a site, persisting the
 // result. No-op write when unpinning something that wasn't pinned. Returns the new list.
-export const setPinned = async ({ source, site, resource, name, kind, pinned }) => {
+export const setPinned = async ({ source, site, resource, name, kind, keywords, pinned }) => {
   const src = norm(source);
   if (!src) return loadPins();   // nothing openable to key on
   const run = pinWriteChain.then(async () => {
     const before = await loadPins();
     const after = pinned
-      ? addPinEntry(before, { source: src, site, resource, name, kind })
+      ? addPinEntry(before, { source: src, site, resource, name, kind, keywords })
       : removePinEntry(before, site, src);
     if (after !== before) await savePins(after);
     return after;
   });
   // Keep the queue alive even if one op rejects, so a single failure can't wedge it.
+  pinWriteChain = run.catch(() => {});
+  return run;
+};
+
+// Set (replace) the keywords on an existing pin, serialized through the same write chain. No-op
+// (unchanged list) when the pin isn't found. Returns the new list.
+export const setPinKeywords = async (site, source, keywords) => {
+  const src = norm(source);
+  const run = pinWriteChain.then(async () => {
+    const before = await loadPins();
+    const k = pinKey(site, src);
+    const i = (Array.isArray(before) ? before : []).findIndex((e) => pinKey(e.site, e.source) === k);
+    if (i === -1) return before;
+    const kws = normalizeKeywords(keywords);
+    const after = before.slice();
+    const entry = { ...after[i] };
+    if (kws.length) entry.keywords = kws; else delete entry.keywords;
+    after[i] = entry;
+    await savePins(after);
+    return after;
+  });
   pinWriteChain = run.catch(() => {});
   return run;
 };

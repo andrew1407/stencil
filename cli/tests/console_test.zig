@@ -168,6 +168,26 @@ test "console: /project-color without an active server project is a graceful no-
     try testing.expect(!session.hasRemote());
 }
 
+test "console: /keywords commands without a server connection are graceful no-ops" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    // With no connected server, every keyword command reports "no server connections" and
+    // returns false (the session keeps running), never touching the network or crashing.
+    try testing.expect(!try console.handle(&session, io, "/keywords MyProject"));
+    try testing.expect(!try console.handle(&session, io, "/keywords-search cat dog"));
+    try testing.expect(!try console.handle(&session, io, "/keywords-add MyProject cat"));
+    try testing.expect(!try console.handle(&session, io, "/keywords-del [\"a\",\"b\"] cat dog"));
+    // Bare add/del (missing args) also stay clean.
+    try testing.expect(!try console.handle(&session, io, "/keywords-add"));
+    try testing.expect(!session.hasRemote());
+}
+
 test "console: /format picks the page format that drives the layout and /blank" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

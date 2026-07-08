@@ -58,6 +58,12 @@ public interface IServerService
     /// </summary>
     Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default);
 
+    /// <summary>Read the active project's blank fill colour ("" = not a blank image).</summary>
+    Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>Recolour the active BLANK project's background fill ("" result = not a blank).</summary>
+    Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default);
+
     /// <summary>
     /// Set the active project's expiry (<paramref name="expiresAtMs"/> epoch ms, or <c>0</c> to
     /// clear it so the project is kept forever), version-guarded. Returns the effective expiry the

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -50,7 +51,41 @@ func (s *Store) Close() { s.pool.Close() }
 
 // projectCols is the canonical column list / order for project row scans.
 const projectCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-	source, resource, color, original_path, result_path, original_content, layout, owner_session, version`
+	source, resource, color, original_path, result_path, original_content, layout, owner_session, version, keywords, blank_color`
+
+// Keywords persist as a newline-joined text blob ("" = none). joinKeywords normalizes
+// (trims, drops blanks, dedupes case-insensitively, preserves order); splitKeywords is its
+// inverse for scans. The []string <-> text conversion is confined to this boundary.
+func joinKeywords(kw []string) string {
+	var out []string
+	seen := map[string]bool{}
+	for _, k := range kw {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		lk := strings.ToLower(k)
+		if seen[lk] {
+			continue
+		}
+		seen[lk] = true
+		out = append(out, k)
+	}
+	return strings.Join(out, "\n")
+}
+
+func splitKeywords(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(s, "\n") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 // rowScanner is satisfied by both pgx.Row and pgx.Rows.
 type rowScanner interface {
@@ -59,20 +94,23 @@ type rowScanner interface {
 
 func scanProject(row rowScanner) (protocol.ProjectRecord, error) {
 	var (
-		rec    protocol.ProjectRecord
-		layout []byte
-		owner  *string
+		rec      protocol.ProjectRecord
+		layout   []byte
+		owner    *string
+		keywords string
 	)
 	err := row.Scan(
 		&rec.ID, &rec.Name, &rec.CreatedAt, &rec.UpdatedAt, &rec.ExpiresAt, &rec.HasImage,
 		&rec.ImageW, &rec.ImageH, &rec.Source, &rec.Resource, &rec.Color,
 		&rec.OriginalPath, &rec.ResultPath, &rec.OriginalContent,
-		&layout, &owner, &rec.Version,
+		&layout, &owner, &rec.Version, &keywords, &rec.BlankColor,
 	)
 	if err != nil {
 		return protocol.ProjectRecord{}, err
 	}
 	rec.Layout = layout
+	rec.Keywords = splitKeywords(keywords)
+	rec.Blank = rec.BlankColor != "" // derived: a non-empty fill means a blank-image project
 	if owner != nil {
 		rec.OwnerSession = *owner
 	}
@@ -176,11 +214,11 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`INSERT INTO projects
 			(id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-			 source, resource, color, original_content, layout, owner_session, version)
-		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,0)
+			 source, resource, color, original_content, layout, owner_session, keywords, blank_color, version)
+		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,0)
 		 RETURNING `+projectCols,
 		id, name, now, req.ExpiresAt, req.HasImage, req.ImageW, req.ImageH,
-		req.Source, req.Resource, req.Color, req.OriginalContent, layout, owner))
+		req.Source, req.Resource, req.Color, req.OriginalContent, layout, owner, joinKeywords(req.Keywords), req.BlankColor))
 	if err != nil {
 		return protocol.ProjectRecord{}, fmt.Errorf("create project: %w", err)
 	}
@@ -190,10 +228,12 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 // ProjectPatch bundles the optionally-updated fields of an UpdateProject call.
 // A nil pointer (or empty Layout) leaves that column untouched.
 type ProjectPatch struct {
-	Name      *string
-	Color     *string
-	ExpiresAt *int64
-	Layout    json.RawMessage
+	Name       *string
+	Color      *string
+	Keywords   *[]string // nil => unchanged; empty slice clears
+	BlankColor *string   // nil => unchanged; "" clears (→ not blank)
+	ExpiresAt  *int64
+	Layout     json.RawMessage
 }
 
 // UpdateProject applies a last-writer-wins update guarded by expectedVersion.
@@ -203,17 +243,24 @@ func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch
 	if len(patch.Layout) > 0 {
 		layoutArg = string(patch.Layout)
 	}
+	// nil => leave keywords untouched (COALESCE); a (possibly empty) slice => set/clear.
+	var kwArg any
+	if patch.Keywords != nil {
+		kwArg = joinKeywords(*patch.Keywords)
+	}
 	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`UPDATE projects SET
 			name = COALESCE($2, name),
 			color = COALESCE($3, color),
+			keywords = COALESCE($8, keywords),
+			blank_color = COALESCE($9, blank_color),
 			expires_at = COALESCE($7, expires_at),
 			layout = COALESCE($4::jsonb, layout),
 			updated_at = $5,
 			version = version + 1
 		 WHERE id = $1 AND version = $6
 		 RETURNING `+projectCols,
-		id, patch.Name, patch.Color, layoutArg, nowMs(), expectedVersion, patch.ExpiresAt))
+		id, patch.Name, patch.Color, layoutArg, nowMs(), expectedVersion, patch.ExpiresAt, kwArg, patch.BlankColor))
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Disambiguate not-found from version conflict.
 		if _, e := s.GetProject(ctx, id); errors.Is(e, ErrNotFound) {

@@ -1,4 +1,4 @@
-import { ACCENTS, accentHex } from '../core/accents.js';
+import { ACCENTS, accentHex, normalizeHex } from '../core/accents.js';
 import { icon } from './icons.js';
 
 // Custom "main theme" dropdown: trigger showing the current colour swatch + name,
@@ -6,8 +6,14 @@ import { icon } from './icons.js';
 // <select> can't paint a per-option swatch on every OS (notably macOS), so this does
 // it explicitly. Calls onSelect(key) on choice; returns { set(key) } to re-sync the
 // trigger when the value changes elsewhere.
+//
+// `value` is either a preset key OR a custom #rrggbb hex — a custom colour (set from the
+// logo double-click, or the "Custom…" row here) shows as "Custom" with its own swatch,
+// so the dropdown always reflects the ACTUAL active accent, never a stale preset name.
 export function buildAccentPicker(mount, { current, onSelect }) {
-  const labelOf = (k) => (ACCENTS.find((a) => a.key === k) || ACCENTS[0]).label;
+  const isPreset = (k) => ACCENTS.some((a) => a.key === k);
+  const labelOf = (k) => (isPreset(k) ? ACCENTS.find((a) => a.key === k).label : 'Custom');
+  const swatchOf = (k) => (isPreset(k) ? accentHex(k) : normalizeHex(k) || accentHex('violet'));
   let value = current;
 
   mount.classList.add('accent-dd');
@@ -35,8 +41,10 @@ export function buildAccentPicker(mount, { current, onSelect }) {
     menu.appendChild(li);
   }
 
+  // NOTE: no "Custom…" row — a custom colour is set ONLY from the header logo (double-click). The
+  // dropdown just DISPLAYS the custom state in its trigger ("Custom" + the live swatch) below.
   const syncTrigger = () => {
-    curSw.style.background = accentHex(value);
+    curSw.style.background = swatchOf(value);
     curName.textContent = labelOf(value);
     for (const li of menu.children)
       li.setAttribute('aria-selected', li.dataset.key === value ? 'true' : 'false');

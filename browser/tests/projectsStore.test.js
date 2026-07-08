@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import {
   ProjectsStore, shouldPersist, baseProjectName, EXPIRY_MS, WARN_MS,
   REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
-  periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD,
+  periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD, normalizeKeywords,
 } from '../js/core/projectsStore.js';
 
 // Map-backed localStorage shim. Exposes keys() for the store's enumeration,
@@ -243,6 +243,32 @@ test('normalizeMeta default-fills legacy projects (expiresAt = updatedAt + week)
   assert.strictEqual(m.autoRefresh, true);
 });
 
+test('normalizeKeywords trims, drops blanks, dedupes case-insensitively (first-seen order)', () => {
+  assert.deepStrictEqual(normalizeKeywords(['  Alpha ', 'beta', 'ALPHA', '', 'gamma ']), ['Alpha', 'beta', 'gamma']);
+  assert.deepStrictEqual(normalizeKeywords([]), []);
+  assert.deepStrictEqual(normalizeKeywords(null), []);
+  assert.deepStrictEqual(normalizeKeywords(['x', 1, null, 'x']), ['x', '1']);
+});
+
+test('normalizeMeta default-fills keywords to [] for legacy projects', () => {
+  const shim = makeShim();
+  shim.setItem(REGISTRY_KEY, JSON.stringify([{ id: 'leg', name: 'Legacy', createdAt: 1000, updatedAt: 2000 }]));
+  const s = new ProjectsStore(shim);
+  assert.deepStrictEqual(s.getMeta('leg').keywords, []);
+});
+
+test('setKeywords normalizes + stores in place, no updatedAt bump; null on unknown id', () => {
+  const shim = makeShim();
+  const s = new ProjectsStore(shim);
+  s.upsert(meta('p1', { updatedAt: 5000 }), { image: null, layout: {} });
+  const before = s.getMeta('p1').updatedAt;
+  const r = s.setKeywords('p1', [' Cat ', 'dog', 'CAT']);
+  assert.deepStrictEqual(r.keywords, ['Cat', 'dog']);          // normalized
+  assert.strictEqual(s.getMeta('p1').keywords.join(','), 'Cat,dog');
+  assert.strictEqual(s.getMeta('p1').updatedAt, before);        // not bumped (like setColor)
+  assert.strictEqual(s.setKeywords('nope', ['x']), null);       // unknown id → null
+});
+
 test('migrateLegacy creates one project, sets flag; second call no-op', () => {
   const shim = makeShim();
   shim.setItem('drawingApp_image', 'legacyImg');
@@ -330,6 +356,29 @@ test('upsert round-trips a project colour in meta (persistence)', () => {
   // is responsible for re-supplying it; here we prove setColor persists independently.
   s.setColor('a', '#16a34a');
   assert.strictEqual(s.list().find(m => m.id === 'a').color, '#16a34a');
+});
+
+test('setBlankColor sets meta.blankColor in place, no updatedAt bump; null on unknown id', () => {
+  const s = new ProjectsStore(makeShim());
+  s.upsert(meta('a', { name: 'p', blank: true, blankColor: '#ffffff', updatedAt: 5000 }), { image: null, layout: {} });
+  const before = s.getMeta('a').updatedAt;
+  assert.strictEqual(s.setBlankColor('a', '#00aaff').blankColor, '#00aaff');
+  assert.strictEqual(s.getMeta('a').blankColor, '#00aaff');
+  assert.strictEqual(s.getMeta('a').updatedAt, before);   // not bumped (like setColor)
+  assert.strictEqual(s.setBlankColor('missing', '#000000'), null);   // unknown id → null
+});
+
+test('normalizeMeta default-fills blank/blankColor on legacy projects', () => {
+  const s = new ProjectsStore(makeShim());
+  // A pre-feature project record has neither field; reads must not be undefined.
+  s.upsert(meta('a', { name: 'p' }), { image: null, layout: {} });
+  const m = s.getMeta('a');
+  assert.strictEqual(m.blank, false);
+  assert.strictEqual(m.blankColor, '');
+  // A blank project round-trips both fields.
+  s.upsert(meta('b', { name: 'q', blank: true, blankColor: '#112233' }), { image: null, layout: {} });
+  assert.strictEqual(s.getMeta('b').blank, true);
+  assert.strictEqual(s.getMeta('b').blankColor, '#112233');
 });
 
 test('findByImage matches by source URL, falls back to base name', () => {

@@ -62,6 +62,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .status:empty { display: none; }
 
 .list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; scrollbar-gutter: stable; }
+/* Drag-to-pin cue (side panel / DevTools): a page image/video dragged over the list pins it. */
+.list.drag-over { outline: 2px dashed var(--accent, #7c3aed); outline-offset: -4px; border-radius: 8px; background: color-mix(in srgb, var(--accent, #7c3aed) 8%, transparent); }
 
 .row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; }
 .row:hover { background: var(--panel); }

@@ -112,6 +112,22 @@ namespace stencil::gui {
     int selectedLineIdx() const { return selectedLineIdx_; }
     core::Line* selectedLine();
     const core::Line* selectedLine() const;
+    // ── multi-line selection (Ctrl+Shift+click) ──
+    // The full selection set (single or multi); [] when nothing is selected.
+    std::vector<int> selectedIndices() const;
+    // Number of selected lines (MainWindow gates the single-line panel when this is >= 2).
+    int selectionCount() const { return static_cast<int>(selectedIndices().size()); }
+    // Is line `i` part of the current selection (drives the render glow)?
+    bool isLineSelected(int i) const;
+    // Add/remove the line under image-space `ip` from the multi-select set (Ctrl+Shift+click).
+    void toggleLineSelection(const core::Point& ip);
+    // ── index-keyed selection (Lines tab list) — twins of the hit-test paths above ──
+    void selectLineByIndex(int idx);            // single-select line `idx`
+    void toggleLineSelectionByIndex(int idx);   // Ctrl+Shift+click a list row
+    void removeLineByIndex(int idx);            // delete line `idx` (list 🗑)
+    // ── keyboard transforms of the selection (MainWindow arrow-key handler) ──
+    void rotateSelectedLine(double angleRad);   // Alt+R+←/→ and Ctrl+Shift+wheel
+    void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
     // ── image filters (S3; port of browser/js/core/renderer.js) ──
     void setFilter(const QString& mode);
@@ -205,6 +221,9 @@ namespace stencil::gui {
     bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
+    // Shared multi-select toggle body for both toggleLineSelection entry points (no-op if idx out of range).
+    void toggleLineIndex(int idx);
+
     // Apply `set` to the selected line (if any), then commit history, repaint,
     // and emit selectionChanged. Backs the setSelectedLine* mutators.
     void mutateSelectedLine(const std::function<void(core::Line&)>& set);
@@ -278,7 +297,6 @@ namespace stencil::gui {
     // live modifier state (driven by eventFilter on modifier key changes).
     void refreshHoverForModifiers();
     void adjustThicknessAtCursor(double imageX, double imageY, int dir);
-    void rotateSelectedLine(double angleRad);
     void scheduleEditCommit();  // debounced commitHistory for wheel edits
 
     QImage image_;
@@ -309,6 +327,11 @@ namespace stencil::gui {
     // Canonical owner; filters/render/line-edit only consume selectedLineIdx_.
     DrawMode drawMode_ = DrawMode::Line;
     int selectedLineIdx_ = -1;
+    // Multi-line selection set (Ctrl+Shift+click to add/toggle). Empty in ordinary single-select
+    // mode — selectedIndices() then falls back to [selectedLineIdx_] so every single-line path is
+    // untouched. With 2+ entries selectedLineIdx_ is -1 (the single-line editor hides) and
+    // move/rotate act on all. Mirrors the browser drawingApp.selectedLines.
+    std::vector<int> selectedLines_;
     bool rectDrawActive_ = false;     // drag-to-create rectangle in progress
     QPoint rectDrawStart_, rectDrawEnd_;  // rubber-band corners (widget space)
 
@@ -351,6 +374,8 @@ namespace stencil::gui {
     int dragPtIdx2_ = -1;    // grabbed segment endpoint 2 (Segment/Line fallback)
     core::Point dragStart_;  // image-space cursor at gesture start
     std::vector<core::Point> dragOrig_;  // snapshot of the line's points at start
+    // Whole-set drag snapshot when the grabbed line is part of a multi-selection (empty = single).
+    std::vector<std::pair<int, std::vector<core::Point>>> dragMultiOrig_;
     bool dragMoved_ = false;             // any motion happened (gate history)
 
     // Debounced history commit for wheel-driven edits (thickness/rotation), so a

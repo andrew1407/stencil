@@ -93,6 +93,11 @@ namespace stencil::gui {
   QColor accentPrimary(const QString& accentKey) {
     for (const AccentPreset& a : accentPresets())
       if (a.key == accentKey) return QColor(a.hex);
+    // A custom accent stored as a hex string (set via the desktop logo's double-click picker).
+    if (accentKey.startsWith('#')) {
+      QColor c(accentKey);
+      if (c.isValid()) return c;
+    }
     return QColor("#7c3aed");  // unknown key -> violet (the default)
   }
 

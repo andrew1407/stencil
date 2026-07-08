@@ -43,6 +43,12 @@ export class PointerController {
           // Record the grabbed segment too, so releasing Shift mid-drag can
           // drop down to moving just that segment (live modifier switching).
           const seg = app.findNearestSegmentWithIdx(x, y);
+          // When the grabbed line is part of a multi-selection, snapshot EVERY selected line so
+          // the drag translates them all together (whole-line move; ignores segment/point sub-modes).
+          const sel = app.selectedIndices();
+          const multiOrig = (sel.length >= 2 && sel.includes(lineIdx))
+            ? sel.map((li) => ({ li, pts: app.lines[li].points.map(p => ({ x: p.x, y: p.y })) }))
+            : null;
           app.isDraggingLine = true;
           app.draggingLine = {
             lineIdx,
@@ -50,15 +56,17 @@ export class PointerController {
             ptIdx2: seg && seg.lineIdx === lineIdx ? seg.ptIdx2 : null,
             startX: x,
             startY: y,
-            origPoints: line.points.map(p => ({ x: p.x, y: p.y }))
+            origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
+            multiOrig,
           };
           app.canvas.style.cursor = 'move';
           return;
         }
       }
 
-      // Shift+left (no Alt) → start zoom rect selection
-      if (e.button === 0 && e.shiftKey && !e.altKey && app.image) {
+      // Shift+left (no Alt, no Ctrl/⌘) → start zoom rect selection. Ctrl/⌘+Shift+click is reserved
+      // for multi-line select (handled as a click in canvasClick), so exclude it here.
+      if (e.button === 0 && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && app.image) {
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
         app.isZoomRectDragging = true;
         app.zoomRectStart = { imgX, imgY, cssX, cssY };

@@ -286,6 +286,16 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_projectcolor_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Per-project keywords persistence round-trip (browser/server keywords parity).
+  add_executable(stencil_projectkeywords_headless
+    tests/projectKeywords.headless.cpp
+    src/io/fileStore.cpp)
+  target_include_directories(stencil_projectkeywords_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projectkeywords_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_projectkeywords_headless COMMAND stencil_projectkeywords_headless)
+  set_tests_properties(stencil_projectkeywords_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Server-connected transfer check: drives the extracted ProjectTransferController's
   # copy/move-to-server against a real running server (self-skips when none is reachable —
   # point it at one with STENCIL_TEST_SERVER, default http://localhost:8090).
