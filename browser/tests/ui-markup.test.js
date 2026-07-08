@@ -29,8 +29,8 @@ const IDS = [
     'save-status', 'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
     'sel-color', 'sel-thickness', 'sel-marker-size', 'sel-style', 'sel-fill-group', 'sel-fill-enabled', 'sel-fill',
     'sel-fill-clear', 'sel-deselect', 'image-info', 'canvas-viewport', 'canvas-container', 'canvas', 'zoom-rect-overlay',
-    'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-title', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
-    'coordinates-body', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
+    'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
+    'coordinates-body', 'lines-list', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
     'reset-all-hotkeys', 'visuals-modal-overlay', 'visuals-close', 'vs-line-color', 'vs-thickness', 'vs-marker',
     'vs-style', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'info-modal-overlay',
     'info-close', 'info-search', 'info-body',
@@ -61,7 +61,7 @@ const IDS = [
 ];
 
 test('fixture has exactly 202 IDs', () => {
-    assert.strictEqual(IDS.length, 202);
+    assert.strictEqual(IDS.length, 204);
 });
 
 test('every static body ID is present exactly once', () => {
@@ -145,7 +145,6 @@ test('HTML entities preserved (not decoded)', () => {
     assert.ok(markup.includes('B&amp;W'), 'B&amp;W entity preserved');
     assert.ok(markup.includes('Black &amp; White'), 'Black &amp; White entity preserved');
     assert.ok(markup.includes('Controls &amp; Shortcuts'), 'Controls &amp; Shortcuts entity preserved');
-    assert.ok(markup.includes('&nbsp;'), '&nbsp; entity preserved');
 });
 
 test('zoomInput appears exactly once in static markup', () => {

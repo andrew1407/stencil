@@ -18,6 +18,11 @@ namespace stencil::gui {
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons);
 
+  // Shared stylesheet for the points-panel toggle chevrons — the header "collapse" chevron and the
+  // floating "re-open" chevron — so the two read as ONE consistent button (rounded square, subtle
+  // fill + border, hover lift), just mirrored/moved. Keeps both surfaces from drifting apart.
+  QString panelToggleQss();
+
   // Paint a flat 20×20 color chip as `btn`'s icon so the swatch reads as its
   // current color (the browser uses <input type=color>). No-op on a null button.
   // Shared by mainWindow::updateColorSwatch + selectionPanel::setSwatchColor.

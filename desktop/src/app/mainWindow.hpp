@@ -24,6 +24,7 @@ class QLineEdit;
 class QCheckBox;
 class QSpinBox;
 class QToolButton;
+class QVariantAnimation;
 class QJsonObject;
 class QActionGroup;
 class QWidgetAction;
@@ -31,6 +32,8 @@ class QImage;
 class QPixmap;
 class QMenu;
 class QDragEnterEvent;
+class QDragMoveEvent;
+class QDragLeaveEvent;
 class QDropEvent;
 class QUrl;
 
@@ -50,6 +53,8 @@ namespace stencil::gui {
   class Notifications;
   class CanvasTooltip;
   class IncognitoOverlay;
+  class DropZonesOverlay;
+  class ProjectDragZones;
   class MediaLoader;
   class DataExportController;
   class RemoteSyncController;
@@ -145,6 +150,9 @@ namespace stencil::gui {
     // buildToolbar() split into its three rows (call order preserves the
     // addToolBar/addToolBarBreak sequencing that fixes visual row order).
     void buildMainToolbar();
+    void buildProjectNameGroup(class QToolBar* bar);   // header-row project name + rename/colour group
+    void updateImageSizeInfo();                        // refresh the header-row "Image Size" readout
+    QPixmap makeLogoPixmap(int size) const;            // paint the mini line-chart logo (browser parity)
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
     QString hotkey(const QString& id, const QString& fallback) const;
@@ -171,6 +179,17 @@ namespace stencil::gui {
     void setZoom(double scale, bool syncCombo = true);
     void fitToWindow();
     void toggleFullscreen();
+    void setToolbarsVisible(bool on);   // show/hide every top toolbar (top menu), instantly
+    void fsHoverTick();                 // fullscreen: edge-hover reveal of toolbars/panel
+    // Floating arrow overlays (browser parity): a chevron at the RIGHT edge toggles the points
+    // panel, a chevron at the TOP toggles the toolbars — positioned where each menu is, NOT in the
+    // top toolbar. Show/hide is animated (slide). buildOverlayArrows() creates them once.
+    void buildOverlayArrows();
+    void positionOverlayArrows();       // place + re-icon the arrows (call on resize / state change)
+    void updatePanelReopenButton();     // show/hide + place the floating right-edge re-open chevron
+    void positionPanelReopenButton();   // position it flush to the canvas' right edge, vertically centred
+    void setPanelShown(bool show, bool animate);      // animated points-panel collapse/expand
+    void setToolbarsShown(bool show, bool animate);   // animated top-menu collapse/expand
     void scrollTo(int x, int y);
     void setZoomAnchored(double newScale, const QPoint& cursorInViewport);
     void applyTheme();
@@ -375,6 +394,9 @@ namespace stencil::gui {
     // validates ("" = clear, else QColor(str).isValid() → "#rrggbb" lower-case),
     // persists, repaints the name, and pushes UpdateProject{color} for a server project.
     void setActiveProjectColor(const QString& color);
+    // Recolour the active BLANK project's solid background (keeps the drawn lines). No-op unless
+    // this session is a blank image. Opens a colour picker; persists blank/blankColor.
+    void setActiveBlankColor();
     // Set a colour on a project BY id (the Projects dialog "Set colour" path). For a
     // server project (serverUrl non-empty) it PUTs UpdateProject{color}; else it
     // updates the local meta + persists. Returns true on success.
@@ -389,6 +411,7 @@ namespace stencil::gui {
     std::optional<QString> normalizeProjectColor(const QString& color) const;
     // Live-update the ✓/✗ visibility + ✓ enabled-state/tooltip as the field is edited.
     void refreshProjectNameButtons();
+    void updateNameHover();   // recompute whether the cursor is over the name group (hover-reveal ✎/🎨)
     // Style the name field for its mode: editing shows an accent-outlined input; read-only shows
     // a plain title with NO border/focus ring (browser parity). Keeps the project colour.
     void applyProjectNameStyle(bool editing);
@@ -399,9 +422,14 @@ namespace stencil::gui {
     void openShortcuts();
     void updateStatusIdle();
     void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;  // clears the Alt+R rotate-chord flag
     // Drag-and-drop of a file onto the window (image / video / layout JSON),
     // routed through openPathFromOS — the Photoshop-style drop-to-open.
     void dragEnterEvent(QDragEnterEvent* event) override;
+    // Track the cursor's half (LEFT save / RIGHT incognito) while dragging + highlight the
+    // split drop overlay; hide it when the drag leaves.
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dragLeaveEvent(QDragLeaveEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     // First-show fade-in (a gentle window-opacity ramp), mirroring the browser
     // container's appReveal animation. Runs once; later shows are instant.
@@ -412,12 +440,15 @@ namespace stencil::gui {
     void closeEvent(QCloseEvent* event) override;
 
     // ── core widgets ──
+    bool rKeyHeld_ = false;  // R held? gates the Alt+R+←/→ line-rotate chord
     CanvasWidget* canvas_ = nullptr;
     QScrollArea* scroll_ = nullptr;
     SelectionPanel* selPanel_ = nullptr;
     Notifications* notify_ = nullptr;
     CanvasTooltip* tooltip_ = nullptr;
     IncognitoOverlay* incognitoOverlay_ = nullptr;
+    DropZonesOverlay* dropZones_ = nullptr;   // split image-drop overlay (save | incognito)
+    ProjectDragZones* projectZones_ = nullptr;  // 3-zone overlay for dragging a project out of the dialog
     QLabel* status_ = nullptr;
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
@@ -442,15 +473,18 @@ namespace stencil::gui {
     QLineEdit* projectName_ = nullptr;
     QToolButton* projectNameEdit_ = nullptr;    // ✎ rename affordance (enters edit mode)
     bool nameEditing_ = false;                  // true while the name field is in edit mode
+    bool nameHover_ = false;                     // cursor is over the name field / ✎ / 🎨 group
     QToolButton* projectNameAccept_ = nullptr;
     QToolButton* projectNameCancel_ = nullptr;
     // Per-project accent swatch next to the name field (browser's color control):
     // its popup chooses a custom name colour or reverts to the theme accent.
     QToolButton* projectColorBtn_ = nullptr;
+    QToolButton* blankColorBtn_ = nullptr;   // recolour a blank project's background (blanks only)
     // QToolBar::addWidget wraps each button in a QWidgetAction; show/hide must toggle THESE
     // actions (not just the widgets) or the toolbar ignores it. Used by refreshProjectNameButtons.
     QAction* projectNameEditAction_ = nullptr;
     QAction* projectColorBtnAction_ = nullptr;
+    QAction* blankColorBtnAction_ = nullptr;
     QAction* projectNameAcceptAction_ = nullptr;
     QAction* projectNameCancelAction_ = nullptr;
 
@@ -511,7 +545,23 @@ namespace stencil::gui {
     QAction* actTooltip_ = nullptr;        // View toggle for the hover tooltip
     QAction* actTheme_ = nullptr;
     QAction* actPanel_ = nullptr;
+    QAction* actToolbars_ = nullptr;   // show/hide the top toolbars (browser "Controls" collapse)
     QAction* actFullscreen_ = nullptr;
+    class QToolButton* controlsPill_ = nullptr;   // "Controls" chevron pill (kept in the header row)
+    class QToolBar* headerToolbar_ = nullptr;     // always-visible header row (pill + project name)
+    class QToolButton* panelReopenBtn_ = nullptr; // floating right-edge chevron: re-opens a hidden panel
+    class QLabel* imageSizeInfo_ = nullptr;       // header-row "Image Size: W × H px" (always visible)
+    class QToolButton* logoBtn_ = nullptr;        // header-row app logo — click cycles the accent (browser parity)
+    QTimer* logoClickTimer_ = nullptr;            // defers the single-click cycle so a double-click can pre-empt it
+    // Fullscreen restore state: whether the toolbars were shown, and the panel's dock area/visibility
+    // before entering fullscreen (fullscreen hides the toolbars + moves the panel to the LEFT).
+    bool fsActive_ = false;   // our own fullscreen flag (isFullScreen() is unreliable on macOS)
+    bool fsWasToolbars_ = true;
+    bool fsWasPanel_ = true;
+    QTimer* fsHoverTimer_ = nullptr;   // polls the cursor to edge-reveal toolbars/panel in fullscreen
+    int panelRestoreWidth_ = 300;           // remembered panel width for the expand animation
+    QVariantAnimation* panelAnim_ = nullptr;  // in-flight panel collapse/expand (min==max pinning)
+    QVariantAnimation* barsAnim_ = nullptr;   // in-flight toolbars collapse/expand
     QAction* actSettings_ = nullptr;
     QAction* actProjects_ = nullptr;
     QAction* actConnect_ = nullptr;
@@ -613,6 +663,10 @@ namespace stencil::gui {
     // open / blank image. Folded into the project meta on create/save.
     QString currentSource_;
     QString currentResource_;
+    // Active session's blank-fill colour ("#rrggbb"), or "" for an ordinary image project. Set by
+    // createBlankImageFromDialog, restored on open, folded into the project meta (blank/blankColor),
+    // and recoloured in place by setActiveBlankColor. Non-empty ⇔ a blank project.
+    QString blankColor_;
     // Pending provenance for an in-flight loadImageByUrl(), promoted to current* in
     // onLaunchImageLoaded() once the async load succeeds.
     QString pendingProvSource_;

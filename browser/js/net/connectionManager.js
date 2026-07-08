@@ -236,6 +236,25 @@ export class ConnectionManager {
     return this;
   }
 
+  // Reorder the live connection set to match `orderedUrls` (a permutation of the current
+  // urls). The Map has no reorder, so we rebuild it by re-inserting entries in the desired
+  // order; unknown urls are skipped and any current url missing from the list keeps its
+  // relative order at the end (defensive). Routes through _onChange so the new order is
+  // persisted (saveServers(snapshot())) and broadcast (stencil:connections-changed) exactly
+  // like every other mutation. Also updates _lastSet so reconnect() preserves the new order.
+  reorder(orderedUrls) {
+    const next = new Map();
+    for (const u of orderedUrls || []) {
+      let norm; try { norm = normalizeUrl(u); } catch { continue; }
+      if (this._conns.has(norm) && !next.has(norm)) next.set(norm, this._conns.get(norm));
+    }
+    for (const [k, v] of this._conns) if (!next.has(k)) next.set(k, v);
+    this._conns = next;
+    this._lastSet = this.urls.slice();
+    this._onChange({ type: 'reorder' });
+    return this;
+  }
+
   // Re-establish a single connection (re-validating/re-issuing its token), e.g. from
   // a per-row "reconnect" button after a server blip. No-op for an unknown url.
   async reconnectOne(url) {

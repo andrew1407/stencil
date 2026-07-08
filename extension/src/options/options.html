@@ -47,6 +47,12 @@
     .pin-filters .chk { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; }
     .pin-filters select { width:auto; min-width:170px; }
     .pin-filters select:empty, .pin-filters select[hidden] { display:none; }
+    .pin-filters input[type="search"] { padding:5px 10px; font-size:12px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:180px; }
+    /* Keyword chips + inline editor on a pin row. */
+    .pin-keywords { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; align-items:center; }
+    .pin-kw { font-size:11px; color:var(--muted); background:var(--panel-2,var(--panel)); border:1px solid var(--line); border-radius:10px; padding:1px 7px; }
+    .pin-kw-edit { font-size:11px; color:var(--accent); background:none; border:none; cursor:pointer; padding:1px 4px; }
+    .pin-kw-input { font-size:11px; padding:2px 6px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:160px; }
     .pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
     .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; }
     .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
@@ -172,6 +178,12 @@
     <div class="pin-head">
       <h1>Pinned images</h1>
       <div class="pin-filters">
+        <input type="search" id="pin-search" placeholder="Search pins…" title="Search pins by name and/or keywords">
+        <select id="pin-search-mode" title="What the search matches">
+          <option value="common">Name + keywords</option>
+          <option value="names">Names only</option>
+          <option value="keywords">Keywords only</option>
+        </select>
         <label class="chk" title="Show pins that are also stored on a connected server (golden outline)"><input type="checkbox" id="pin-show-server" checked> Show server pins</label>
         <select id="pin-store" title="Filter by the server a pin is stored on"></select>
         <select id="pin-site" title="Filter pins by the site they were pinned on"></select>

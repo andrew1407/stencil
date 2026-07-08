@@ -14,17 +14,22 @@ import "encoding/json"
 
 // ProjectRecord is the canonical project metadata exchanged over REST and WS.
 type ProjectRecord struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"createdAt"` // epoch ms
-	UpdatedAt int64  `json:"updatedAt"` // epoch ms (lists sort desc)
-	ExpiresAt int64  `json:"expiresAt,omitempty"` // epoch ms; 0 = never (swept once past)
-	HasImage  bool   `json:"hasImage"`
-	ImageW    int    `json:"imageW"`
-	ImageH    int    `json:"imageH"`
-	Source    string `json:"source,omitempty"`   // media URL (provenance)
-	Resource  string `json:"resource,omitempty"` // origin web page (provenance)
-	Color     string `json:"color,omitempty"`    // custom accent "#rrggbb" or "" (theme default)
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	CreatedAt int64    `json:"createdAt"`           // epoch ms
+	UpdatedAt int64    `json:"updatedAt"`           // epoch ms (lists sort desc)
+	ExpiresAt int64    `json:"expiresAt,omitempty"` // epoch ms; 0 = never (swept once past)
+	HasImage  bool     `json:"hasImage"`
+	ImageW    int      `json:"imageW"`
+	ImageH    int      `json:"imageH"`
+	Source    string   `json:"source,omitempty"`   // media URL (provenance)
+	Resource  string   `json:"resource,omitempty"` // origin web page (provenance)
+	Color     string   `json:"color,omitempty"`    // custom accent "#rrggbb" or "" (theme default)
+	Keywords  []string `json:"keywords,omitempty"` // search keywords ([] = none)
+	// Blank-image projects: BlankColor is the solid background fill ("#rrggbb"); Blank is derived
+	// (blankColor != ""). "" / false for ordinary image projects. Recolourable after creation.
+	BlankColor string `json:"blankColor,omitempty"`
+	Blank      bool   `json:"blank,omitempty"`
 
 	// Server-only storage fields.
 	OriginalPath    string          `json:"originalPath,omitempty"`    // filestore-relative
@@ -61,6 +66,8 @@ type CreateProjectRequest struct {
 	Source          string          `json:"source,omitempty"`
 	Resource        string          `json:"resource,omitempty"`
 	Color           string          `json:"color,omitempty"`
+	Keywords        []string        `json:"keywords,omitempty"`
+	BlankColor      string          `json:"blankColor,omitempty"`
 	HasImage        bool            `json:"hasImage,omitempty"`
 	ImageW          int             `json:"imageW,omitempty"`
 	ImageH          int             `json:"imageH,omitempty"`
@@ -74,11 +81,13 @@ type CreateProjectRequest struct {
 // UpdateProjectRequest is the body of PUT /projects/{id}. Version guards the
 // last-writer-wins update: a stale version is rejected with ErrConflict.
 type UpdateProjectRequest struct {
-	Name      *string         `json:"name,omitempty"`
-	Color     *string         `json:"color,omitempty"`     // nil => unchanged (like Name)
-	ExpiresAt *int64          `json:"expiresAt,omitempty"` // nil => unchanged; 0 = keep forever
-	Layout    json.RawMessage `json:"layout,omitempty"`
-	Version   int64           `json:"version"`
+	Name       *string         `json:"name,omitempty"`
+	Color      *string         `json:"color,omitempty"`      // nil => unchanged (like Name)
+	Keywords   *[]string       `json:"keywords,omitempty"`   // nil => unchanged; [] clears
+	BlankColor *string         `json:"blankColor,omitempty"` // nil => unchanged; "" clears (→ not blank)
+	ExpiresAt  *int64          `json:"expiresAt,omitempty"`  // nil => unchanged; 0 = keep forever
+	Layout     json.RawMessage `json:"layout,omitempty"`
+	Version    int64           `json:"version"`
 }
 
 // FileWriteResponse is returned by POST /projects/{id}/files/{kind}.

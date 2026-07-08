@@ -207,7 +207,7 @@ select:focus {
         width: 100%;
         padding: 10px 12px;
     }
-    .coordinates-panel.coord-collapsed .coord-title { display: inline; }
+    .coordinates-panel.coord-collapsed .coord-tabs { display: inline-flex; }
     .coordinates-panel.coord-collapsed #coord-body { display: block; }
     .coordinates-panel.coord-collapsed #toggle-coord-panel {
         writing-mode: horizontal-tb;

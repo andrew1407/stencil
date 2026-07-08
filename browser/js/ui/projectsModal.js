@@ -1,6 +1,9 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
 import { wireNameEditor, notify } from '../utils.js';
 import { icon } from './icons.js';
+import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
+import { setTranslucentDragImage } from './dragGhost.js';
+import { makeTouchDraggable } from './touchDrag.js';
 
 // Remote-thumbnail blob cache keyed by `serverUrl|id|version`, so the many re-renders
 // (search keystrokes, live events, peer pings) reuse one fetch per project version
@@ -52,6 +55,19 @@ export class StencilProjectsModal extends StencilElement {
                     <option value="server">Server</option>
                     <option value="incognito">Incognito tabs</option>
                 </select>
+                <select id="projects-sort" class="modal-filter" title="Sort projects (drag a row to set a manual order)">
+                    <option value="name">Name</option>
+                    <option value="local">Local first</option>
+                    <option value="server">Server first</option>
+                    <option value="date-desc">Newest</option>
+                    <option value="date-asc">Oldest</option>
+                    <option value="manual">Manual order</option>
+                </select>
+                <select id="projects-search-mode" class="modal-filter" title="What the search box matches">
+                    <option value="common">Name + keywords</option>
+                    <option value="names">Names only</option>
+                    <option value="keywords">Keywords only</option>
+                </select>
             </div>
             <!-- Batch-select toolbar: appears once one or more rows are checked. -->
             <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
@@ -86,6 +102,8 @@ export class StencilProjectsModal extends StencilElement {
     const newEditorBtn = document.getElementById('projects-new-editor');
     const clearAllBtn = document.getElementById('projects-clear-all');
     const filterEl = document.getElementById('projects-filter');
+    const sortEl = document.getElementById('projects-sort');
+    const searchModeEl = document.getElementById('projects-search-mode');
     const batchBar = document.getElementById('projects-batch-bar');
     const batchCount = document.getElementById('projects-batch-count');
     const store = app.storage.store;
@@ -94,6 +112,39 @@ export class StencilProjectsModal extends StencilElement {
     let incognitoPeers = []; // incognito sessions open in OTHER tabs ({ peerId, name, updatedAt })
     let filterMode = 'all';
     const hasServers = () => !!app.connections?.urls?.length;
+
+    // ── Sort mode + per-session manual drag order ──
+    // Both persist in sessionStorage: they survive a reload but reset when the tab session
+    // ends, and never touch the shared localStorage registry (which has a C++ core twin under
+    // the parity contract). Default sort is by-name-mixed (local + server interleaved).
+    const SORT_KEY = 'stencil_projects_sortmode';
+    const ORDER_KEY = 'stencil_projects_order';
+    const SEARCH_MODE_KEY = 'stencil_projects_searchmode';
+    const SEARCH_MODES = ['common', 'names', 'keywords'];
+    const ssGet = (k) => { try { return window.sessionStorage.getItem(k); } catch { return null; } };
+    const ssSet = (k, v) => { try { window.sessionStorage.setItem(k, v); } catch { /* private mode / disabled */ } };
+    const loadSortMode = () => { const v = ssGet(SORT_KEY); return SORT_MODES.includes(v) ? v : 'name'; };
+    const loadSearchMode = () => { const v = ssGet(SEARCH_MODE_KEY); return SEARCH_MODES.includes(v) ? v : 'common'; };
+    let searchMode = loadSearchMode();
+    // What the search box matches, per the mode: names, keywords, or both ("common", default).
+    const matchRow = (name, keywords, q) => {
+      if (!q.trim()) return true;
+      const kw = (keywords || []).join(' ');
+      if (searchMode === 'names') return rowMatches(name || '', q);
+      if (searchMode === 'keywords') return rowMatches(kw, q);
+      return rowMatches(name || '', q) || rowMatches(kw, q);
+    };
+    const loadOrder = () => { try { const a = JSON.parse(ssGet(ORDER_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
+    const saveOrder = (a) => ssSet(ORDER_KEY, JSON.stringify(a));
+    let sortMode = loadSortMode();
+
+    // Cached server-project listing for this render cycle: null = not loaded, [] = loaded/empty.
+    // Cached (instead of re-fetched every keystroke, as the old renderRemote did) so mixed/date
+    // sort modes can interleave server + local rows from one snapshot; invalidated on
+    // connection/server-project changes and on each modal open.
+    let remoteCache = null;
+    let remoteLoading = false;
+    let remoteFailed = false;
     // Live blob URLs for the current render's remote thumbnails. Kept alive (not revoked on
     // load) so the hover-magnify zoom can reuse them; freed at the start of the next render.
     const remoteObjectUrls = new Set();
@@ -268,6 +319,16 @@ export class StencilProjectsModal extends StencilElement {
         if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
       });
     };
+
+    // Opening a project switches THIS tab's session (replacing any unsaved work) or spawns a new
+    // tab — so every open path (row click, the ⋯ "Open", the server "Open from server", and the
+    // drag-to-here / drag-to-new-tab zones) confirms first. Returns true to proceed. `newTab`
+    // tunes the wording (a new tab leaves the current one untouched).
+    const confirmOpen = (name, newTab = false) => app.confirm(
+      newTab
+        ? `Open "${name || 'Untitled'}" in a new tab?`
+        : `Open "${name || 'Untitled'}" here? Any unsaved changes in the current tab will be replaced.`,
+      { title: 'Open project', confirmLabel: 'Open', cancelLabel: 'Cancel' });
 
     const makeRow = (meta, opts = {}) => {
       const row = document.createElement('div');
@@ -446,7 +507,12 @@ export class StencilProjectsModal extends StencilElement {
 
         // The row opens the project on click; clicking the already-active project just
         // closes the modal (it's already open in this tab). Other actions live behind "⋯".
-        const open = () => { if (!isActive) app.switchToProject(meta.id); close(); };
+        const open = async () => {
+          if (isActive) { close(); return; }
+          if (!(await confirmOpen(meta.name))) return;
+          app.switchToProject(meta.id);
+          close();
+        };
 
         // Per-row colour: a throwaway native colour picker paints the project name. A second
         // "Clear colour" item (shown only when a colour is set) resets it to the theme accent.
@@ -467,13 +533,25 @@ export class StencilProjectsModal extends StencilElement {
         };
         const clearColor = () => { app.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
+        // Edit the project's search keywords via a prompt (comma/space separated). The store
+        // normalizes; a server-linked project also pushes them to the server.
+        const editKeywords = async () => {
+          const cur = (meta.keywords || []).join(' ');
+          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', confirmLabel: 'Save', defaultValue: cur });
+          if (v == null) return;
+          const updated = app.setProjectKeywords(meta.id, v.split(/[\s,]+/));
+          if (updated) meta.keywords = updated.keywords;
+          render();
+        };
+
         // One menu definition, shared by the "⋯" button and a right-click on the row.
         const menuItems = () => [
           isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
-          { icon: 'external', label: 'Open in new tab', onClick: () => app.openProjectInNewTab(meta.id) },
+          { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(meta.id); } },
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
           { icon: 'palette', label: 'Set colour…', onClick: pickColor },
           meta.color ? { icon: 'x', label: 'Clear colour', onClick: clearColor } : null,
+          { icon: 'flag', label: 'Keywords…', onClick: editKeywords },
           { icon: 'calendar', label: 'Expiration…', onClick: () => document.querySelector('stencil-expiration-modal')?.openFor(meta.id) },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
           (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
@@ -625,6 +703,7 @@ export class StencilProjectsModal extends StencilElement {
       let opening = false;
       const openFromServer = async () => {
         if (opening) return;
+        if (!(await confirmOpen(meta.name))) return;
         opening = true;
         row.classList.add('is-opening');
         try { await openRemote(meta); close(); }
@@ -719,30 +798,238 @@ export class StencilProjectsModal extends StencilElement {
       return row;
     };
 
-    // Remote projects render asynchronously; a token guards against stale appends
-    // when the user types / the set changes mid-fetch.
+    // Remote listing fetch: a token guards against a stale in-flight fetch resolving after
+    // the set changed. ensureRemotes() fills remoteCache once, then re-renders.
     let remoteToken = 0;
-    const renderRemote = async (q, claimed = new Set()) => {
-      const mgr = app.connections;
-      if (!mgr || !mgr.urls.length) return;
+    const showsServer = () => filterMode === 'all' || filterMode === 'server';
+    const ensureRemotes = () => {
+      if (!showsServer() || !hasServers() || remoteCache !== null || remoteLoading) return;
+      remoteLoading = true; remoteFailed = false;
       const myToken = ++remoteToken;
-      let remotes = [];
-      let failed = false;
-      try { remotes = await mgr.remoteProjects(); } catch { failed = true; }
-      if (myToken !== remoteToken || !overlay.classList.contains('modal-open')) return;
-      // This listing is current — drop the skeletons and render the real rows.
-      list.querySelectorAll('.project-skeleton').forEach(el => el.remove());
-      const matching = failed ? [] : remotes.filter((m) =>
-        rowMatches(m.name || '', q) && !claimed.has(`${m.serverUrl}|${m.id}`));
-      for (const meta of matching) list.appendChild(makeRemoteRow(meta));
-      // Nothing to show (after skeletons cleared) → an honest empty / error message.
-      if (!list.querySelector('.project-row')) {
-        const empty = document.createElement('div');
-        empty.className = 'info-empty';
-        empty.textContent = failed ? 'Could not reach server.'
-          : (q.trim() ? 'No matching projects.' : 'No saved projects yet.');
-        list.appendChild(empty);
+      app.connections.remoteProjects()
+        .then((list_) => { if (myToken !== remoteToken) return; remoteCache = list_ || []; remoteLoading = false; if (overlay.classList.contains('modal-open')) render(); })
+        .catch(() => { if (myToken !== remoteToken) return; remoteCache = []; remoteFailed = true; remoteLoading = false; if (overlay.classList.contains('modal-open')) render(); });
+    };
+    const invalidateRemotes = () => { remoteCache = null; remoteFailed = false; remoteToken++; };
+
+    // ── Build one flat, sortable item list (local + cached server rows) ──
+    // Each item carries a stable key, a lowercased name + a date for the comparators, an
+    // isRemote flag, and a build() that returns the row element (reusing makeRow/makeRemoteRow).
+    const localRowKey = (m) => `local:${m.id}`;
+    const remoteRowKey = (m) => `remote:${m.serverUrl}:${m.id}`;
+    const metaName = (m) => (m.name || '').toLowerCase();
+    const metaDate = (m) => m.updatedAt || m.createdAt || 0;
+    const buildItems = ({ applySearch }) => {
+      const q = applySearch ? (search.value || '') : '';
+      const showLocal = filterMode === 'all' || filterMode === 'local';
+      const showServer = showsServer();
+      const items = [];
+      const all = store.list().filter((m) => !applySearch || matchRow(m.name, m.keywords, q));
+      const localLinked = all.filter((m) => isServerMeta(m));
+      if (showLocal) for (const meta of all.filter((m) => !isServerMeta(m)))
+        items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
+      if (showServer) for (const meta of localLinked)
+        items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
+      // Server (golden) rows from the cache, deduped against server-linked local rows.
+      if (showServer && Array.isArray(remoteCache)) {
+        const claimed = new Set(localLinked.map((m) => `${m.address}|${m.remoteId}`));
+        for (const meta of remoteCache) {
+          if (claimed.has(`${meta.serverUrl}|${meta.id}`)) continue;
+          if (applySearch && !matchRow(meta.name, meta.keywords, q)) continue;
+          items.push({ key: remoteRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: true, meta, build: () => makeRemoteRow(meta) });
+        }
       }
+      return items;
+    };
+    const sortItems = (items, mode) => sortProjectItems(items, mode, loadOrder());
+    const setSortMode = (m) => { sortMode = m; ssSet(SORT_KEY, m); if (sortEl) sortEl.value = m; };
+
+    // ── Per-session manual drag order ──
+    // A drop rewrites the persisted key order and switches the sort to 'manual'. The order is
+    // seeded from the full current ordering (ignoring the search filter) so every project keeps
+    // a slot even when a drag happens while filtered; unknown/added ids fall to the end.
+    let dragKey = null;
+    let didReorder = false;
+    let dragActive = false;
+    let didZone = false;   // a drag-out zone action ran on the accepted drop (skip dragend render)
+    // Row key -> { meta, isRemote } for the current render, so a drop on a drag-out zone can
+    // resolve the dragged project without re-parsing the key (server urls contain ':').
+    const keyMeta = new Map();
+    const clearRowDropCues = () => list.querySelectorAll('.project-drop-before,.project-drop-after')
+      .forEach((el) => el.classList.remove('project-drop-before', 'project-drop-after'));
+    const persistManualDrop = (draggedKey, targetKey, before) => {
+      const full = sortItems(buildItems({ applySearch: false }), sortMode === 'manual' ? 'name' : sortMode).map((i) => i.key);
+      const base = sortMode === 'manual' ? loadOrder() : [];
+      saveOrder(reconcileManualOrder(full, base, draggedKey, targetKey, before));
+      setSortMode('manual');
+    };
+
+    // ── Drag-out drop zones (feature #4) ──
+    // A three-zone overlay shown around the dialog while a project row is dragged: the top 70%
+    // splits into "Open here" (left) / "Open in a new tab" (right); the bottom 30% (full width) is
+    // a red "Remove" zone. The zones are PURELY VISUAL (pointer-events:none) — the action is
+    // decided from the pointer's RELEASE position (zoneForPoint), so dragging anywhere outside the
+    // dialog reliably triggers it (a hidden hit-target behind the modal card was unreachable).
+    // Remove confirms (Yes/No) like the ⋯-menu remove; open actions don't (like clicking Open).
+    let zonesEl = null;
+    let lastX = 0;
+    let lastY = 0;
+    const buildZones = () => {
+      const wrap = document.createElement('div');
+      wrap.className = 'project-dropzones';
+      wrap.innerHTML =
+        '<div class="pdz pdz-here" data-action="here"><div class="pdz-label">' + icon('folder', { size: 22 }) + '<span>Open here</span></div></div>'
+        + '<div class="pdz pdz-newtab" data-action="newtab"><div class="pdz-label">' + icon('external', { size: 22 }) + '<span>Open in a new tab</span></div></div>'
+        + '<div class="pdz pdz-remove" data-action="remove"><div class="pdz-label">' + icon('trash', { size: 22 }) + '<span>Remove</span></div></div>';
+      return wrap;
+    };
+    // Painted over the modal (inserted as the overlay's first child), shown only while dragging.
+    const ensureZones = () => { if (!zonesEl) { zonesEl = buildZones(); overlay.insertBefore(zonesEl, overlay.firstChild); } return zonesEl; };
+    const showZones = () => ensureZones().classList.add('is-dragging');
+    const hideZones = () => { if (zonesEl) { zonesEl.classList.remove('is-dragging'); zonesEl.querySelectorAll('.pdz-over').forEach((z) => z.classList.remove('pdz-over')); } };
+    // The zone the point falls in, or null when it's OVER the dialog card (reorder / no-op there).
+    // Mirrors the visual bands: bottom 30% of the viewport = remove, else top split left/right.
+    const zoneForPoint = (x, y) => {
+      const card = overlay.querySelector('.app-modal');
+      const r = card && card.getBoundingClientRect();
+      if (r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return null;  // over the dialog
+      if (y > window.innerHeight * 0.7) return 'remove';
+      return x < window.innerWidth / 2 ? 'here' : 'newtab';
+    };
+    const highlightZone = (zone) => {
+      if (!zonesEl) return;
+      for (const z of zonesEl.querySelectorAll('.pdz')) z.classList.toggle('pdz-over', z.dataset.action === zone);
+    };
+    // Track the pointer + highlight the live zone during a row drag. preventDefault over a zone so
+    // the cursor reads as droppable and the drop is ACCEPTED — that suppresses the browser's
+    // snap-back-to-source animation (the glitch where the row appeared to return to the list).
+    const onDocDragOver = (e) => {
+      if (!dragActive) return;
+      lastX = e.clientX; lastY = e.clientY;
+      const zone = zoneForPoint(lastX, lastY);
+      highlightZone(zone);
+      // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a 'copy'
+      // effect makes the browser REJECT the drop (no drop event fires → snap-back, no action). That
+      // silently broke the open zones while Remove ('move') worked. Keep every zone on 'move'.
+      if (zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
+    };
+    document.addEventListener('dragover', onDocDragOver);
+    // Run the zone action on the accepted DROP (not dragend), so there's no snap-back glitch and
+    // the action fires immediately. A reorder (drop on a row, stopPropagation) never reaches here.
+    const onDocDrop = (e) => {
+      if (!dragActive) return;
+      const zone = zoneForPoint(e.clientX, e.clientY);
+      if (!zone) return;   // over the dialog → row drop / nothing handles it
+      e.preventDefault();
+      didZone = true;
+      performZoneAction(dragKey, zone);
+    };
+    document.addEventListener('drop', onDocDrop);
+    const endDrag = () => {
+      dragActive = false; dragKey = null; didReorder = false; didZone = false;
+      hideZones(); clearRowDropCues();
+      list.querySelectorAll('.project-dragging').forEach((el) => el.classList.remove('project-dragging'));
+    };
+
+    // Run the drag-out action for the dropped row (resolved via keyMeta), mirroring the ⋯-menu
+    // equivalents so both paths behave identically.
+    const performZoneAction = async (key, action) => {
+      const info = keyMeta.get(key);
+      if (!info) { render(); return; }
+      const meta = info.meta;
+      if (!info.isRemote) {
+        const id = meta.id;
+        if (action === 'here') { if (await confirmOpen(meta.name)) { app.switchToProject(id); close(); } else render(); }
+        else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(id); render(); }
+        else if (action === 'remove') {
+          const serverLinked = meta.remoteId && meta.address;
+          const note = serverLinked
+            ? `Remove the local copy of "${meta.name || 'Untitled'}"? It stays on the server ${meta.address}.`
+            : `Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`;
+          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) { render(); return; }
+          app.removeProject(id);
+          render();
+        }
+        return;
+      }
+      // Server (remote) row.
+      if (action === 'here') { if (!(await confirmOpen(meta.name))) { render(); return; } try { await openRemote(meta); close(); } catch (err) { notify(`Could not open server project — ${err.message}`, 'fail'); render(); } }
+      else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openRemoteProjectInNewTab(meta); render(); }
+      else if (action === 'remove') {
+        if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) { render(); return; }
+        const conn = app.connections && app.connections.get(meta.serverUrl);
+        if (!conn) { notify('Not connected to that server', 'fail'); return; }
+        try { await conn.deleteProject(meta.id); invalidateRemotes(); render(); }
+        catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
+      }
+    };
+
+    const attachRowDrag = (row, key) => {
+      row.draggable = true;
+      row.dataset.dragKey = key;   // lets the touch path hit-test the drop target via elementFromPoint
+      row.addEventListener('dragstart', (e) => {
+        // Don't hijack clicks on interactive children (checkbox, ⋯ menu, rename input).
+        if (e.target.closest('input,button,select,.project-name-edit')) { e.preventDefault(); return; }
+        dragKey = key; didReorder = false; dragActive = true;
+        row.classList.add('project-dragging');
+        setTranslucentDragImage(e, row);  // translucent cursor-following ghost
+        showZones();
+        // Mark this as an internal reorder drag so the image-drop overlay ignores it.
+        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-stencil-reorder', 'project'); } catch { /* older DnD */ }
+      });
+      row.addEventListener('dragover', (e) => {
+        if (!dragKey || dragKey === key) return;
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ }
+        const r = row.getBoundingClientRect();
+        clearRowDropCues();
+        row.classList.add(e.clientY < r.top + r.height / 2 ? 'project-drop-before' : 'project-drop-after');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('project-drop-before', 'project-drop-after'));
+      row.addEventListener('drop', (e) => {
+        if (!dragKey || dragKey === key) return;
+        e.preventDefault(); e.stopPropagation();
+        const r = row.getBoundingClientRect();
+        persistManualDrop(dragKey, key, e.clientY < r.top + r.height / 2);
+        didReorder = true;
+      });
+      row.addEventListener('dragend', () => {
+        const acted = didZone;   // the zone action already ran on the accepted drop
+        endDrag();               // resets flags + hides zones (the source row may be detached)
+        if (!acted) render();    // reflect a reorder, or clean up after a no-op release
+      });
+
+      // Touch/pen: HTML5 DnD never fires on touch, so drive the SAME reorder + zone logic through
+      // the pointer engine (long-press to pick up; swipe to scroll). Mouse ignores this path.
+      makeTouchDraggable(row, {
+        canStart: (e) => !e.target.closest('input,button,select,.project-name-edit'),
+        onStart: () => { dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); },
+        onMove: (x, y) => {
+          lastX = x; lastY = y;
+          const zone = zoneForPoint(x, y);
+          highlightZone(zone);
+          clearRowDropCues();
+          if (!zone) {
+            const target = document.elementFromPoint(x, y)?.closest('.project-row');
+            if (target && target.dataset.dragKey && target.dataset.dragKey !== dragKey) {
+              const r = target.getBoundingClientRect();
+              target.classList.add(y < r.top + r.height / 2 ? 'project-drop-before' : 'project-drop-after');
+            }
+          }
+        },
+        onDrop: (x, y) => {
+          const zone = zoneForPoint(x, y);
+          if (zone) { didZone = true; performZoneAction(dragKey, zone); endDrag(); return; }
+          const target = document.elementFromPoint(x, y)?.closest('.project-row');
+          if (target && target.dataset.dragKey && target.dataset.dragKey !== dragKey) {
+            const r = target.getBoundingClientRect();
+            persistManualDrop(dragKey, target.dataset.dragKey, y < r.top + r.height / 2);
+          }
+          endDrag();
+          render();
+        },
+        onCancel: () => { endDrag(); render(); },
+      });
     };
 
     // A read-only row for an incognito session open in ANOTHER tab (informational — its
@@ -781,43 +1068,43 @@ export class StencilProjectsModal extends StencilElement {
       for (const u of remoteObjectUrls) URL.revokeObjectURL(u);
       remoteObjectUrls.clear();
       list.innerHTML = '';
-      const showLocal = filterMode === 'all' || filterMode === 'local';
-      const showServer = filterMode === 'all' || filterMode === 'server';
+      const showServer = showsServer();
       const showIncog = filterMode === 'all' || filterMode === 'incognito';
 
-      // Synthetic current-tab temporary/incognito row. In the incognito filter only a real
-      // incognito session qualifies (a plain temporary editor does not).
+      // Synthetic current-tab temporary/incognito row (pinned at the top, above the sorted
+      // rows). In the incognito filter only a real incognito session qualifies.
       if (showIncog && app.storage.temporary) {
         const label = app.storage.incognito ? 'incognito (unsaved)' : 'temporary (unsaved)';
         const qualifies = filterMode === 'incognito' ? app.storage.incognito : true;
         if (qualifies && rowMatches(label, q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
       }
-      // Incognito sessions open in OTHER tabs (read-only).
+      // Incognito sessions open in OTHER tabs (read-only) — also pinned above the sorted rows.
       if (showIncog) {
         for (const p of incognitoPeers)
           if (rowMatches(p.name || 'Incognito', q)) list.appendChild(makeIncognitoPeerRow(p));
       }
 
-      // Saved projects: pure-local rows under Local/All; server-linked (golden) under Server/All.
-      const all = store.list().filter(m => rowMatches(m.name || '', q));
-      const localLinked = all.filter(m => isServerMeta(m));
-      if (showLocal) for (const meta of all.filter(m => !isServerMeta(m))) list.appendChild(makeRow(meta));
-      if (showServer) for (const meta of localLinked) list.appendChild(makeRow(meta));
+      // Kick off (or reuse) the cached server listing, then render local + server rows as one
+      // sorted, drag-reorderable list per the active sort mode.
+      if (showServer && hasServers()) ensureRemotes();
+      keyMeta.clear();
+      for (const it of sortItems(buildItems({ applySearch: true }), sortMode)) {
+        keyMeta.set(it.key, it);
+        const row = it.build();
+        attachRowDrag(row, it.key);
+        list.appendChild(row);
+      }
 
-      // Server-linked local rows already represent their remote project; collect their keys so
-      // renderRemote() doesn't append a duplicate golden row.
-      const claimed = new Set(localLinked.map(m => `${m.address}|${m.remoteId}`));
+      // Server listing still loading → shimmer skeletons after the sorted rows.
+      const loadingRemotes = showServer && hasServers() && remoteCache === null;
+      if (loadingRemotes) { list.appendChild(makeSkeletonRow()); list.appendChild(makeSkeletonRow()); }
 
-      // Server rows: skeletons while the listing loads (renderRemote replaces them). Only when
-      // the filter shows servers and at least one is connected.
-      if (showServer && hasServers()) {
-        list.appendChild(makeSkeletonRow());
-        list.appendChild(makeSkeletonRow());
-        renderRemote(q, claimed);
-      } else if (list.children.length === 0) {
+      // Nothing to show (and not still loading) → an honest empty / error message.
+      if (!list.querySelector('.project-row:not(.project-skeleton)') && !loadingRemotes) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
-        empty.textContent = q.trim() ? 'No matching projects.' : emptyLabelFor(filterMode);
+        empty.textContent = remoteFailed ? 'Could not reach server.'
+          : (q.trim() ? 'No matching projects.' : emptyLabelFor(filterMode));
         list.appendChild(empty);
       }
 
@@ -833,11 +1120,16 @@ export class StencilProjectsModal extends StencilElement {
     };
 
     const { open, close } = wireModalShell(overlay, openBtn, closeBtn, {
-      onOpen: () => { search.value = ''; clearSelection(); render(); }
+      // Re-fetch the server listing on each open so a freshly-opened modal is current.
+      onOpen: () => { search.value = ''; clearSelection(); invalidateRemotes(); sortEl.value = sortMode; searchModeEl.value = searchMode; render(); }
     });
 
     attachSearchFilter(search, render);
     filterEl.addEventListener('change', () => { filterMode = filterEl.value; render(); });
+    sortEl.value = sortMode;
+    sortEl.addEventListener('change', () => { setSortMode(sortEl.value); render(); });
+    searchModeEl.value = searchMode;
+    searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); render(); });
 
     // ── Batch actions over the checked rows ──
     const runBatch = async (fn, okMsg, failMsg) => {
@@ -897,19 +1189,23 @@ export class StencilProjectsModal extends StencilElement {
     // Re-render when servers connect/disconnect or push live project events, so
     // the golden remote rows stay current.
     window.addEventListener('stencil:connections-changed', () => {
-      if (overlay.classList.contains('modal-open')) render();
+      // A connection connect/disconnect or a live server project-event invalidates the
+      // cached server listing so the next render re-fetches it. Guard against a mid-drag
+      // re-render destroying the dragged row.
+      invalidateRemotes();
+      if (!dragActive && overlay.classList.contains('modal-open')) render();
     });
 
-    // Re-render when another tab changes the project set or peer activity.
-    app.tabs.onProjectsChanged(() => { if (overlay.classList.contains('modal-open')) render(); });
+    // Re-render when another tab changes the project set or peer activity (never mid-drag).
+    app.tabs.onProjectsChanged(() => { if (!dragActive && overlay.classList.contains('modal-open')) render(); });
     app.tabs.onPeers(ids => {
       peers = ids || [];
-      if (overlay.classList.contains('modal-open')) render();
+      if (!dragActive && overlay.classList.contains('modal-open')) render();
     });
     // Incognito sessions open in OTHER tabs (for the "Incognito tabs" filter).
     app.tabs.onIncognitoPeers(list => {
       incognitoPeers = list || [];
-      if (overlay.classList.contains('modal-open')) render();
+      if (!dragActive && overlay.classList.contains('modal-open')) render();
     });
 
     // On-open chooser: offer it only if this is the only tab AND saved projects

@@ -3,7 +3,8 @@ import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
 import { icon } from '../ui/icons.js';
-import { applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
+import { applyAccentFavicon, normalizeHex } from './accents.js';
+import { extractDraggedImageUrl } from './dragImageUrl.js';
 
 // ── ControlsBinder: DOM event wiring for the toolbars, keyboard, and canvas ─────
 // Extracted from drawingApp.js: the #wire* family that binds every control group to the app's
@@ -15,6 +16,8 @@ export class ControlsBinder {
   // Arrow-key panning: held keys + the rAF handle driving the pan loop.
   #arrowsHeld = new Set();
   #arrowPanRaf = null;
+  // Whether R is currently held — the Alt+R+←/→ line-rotate chord.
+  #rHeld = false;
   // Smooth wheel-zoom animation state.
   #smoothZoom = { target: null, focal: null, rafId: null };
 
@@ -182,7 +185,9 @@ export class ControlsBinder {
       colorInput.addEventListener('change', apply);
       const openPicker = () => {
         const cur = app.storage.store.getMeta(app.activeProjectId)?.color || '';
-        colorInput.value = normalizeHex(cur) || accentHex(app.accent);
+        // No custom colour → open at the neutral grey the name is actually painted in (the unset
+        // default), not the theme accent, so the picker reflects the real current state.
+        colorInput.value = normalizeHex(cur) || '#80868f';
         try {
           if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
           else colorInput.click();
@@ -225,6 +230,29 @@ export class ControlsBinder {
         if (app.activeProjectId != null) app.setProjectColor(app.activeProjectId, '');
       });
     }
+
+    // Blank-background colour swatch: recolours the active BLANK project's solid fill in place
+    // (the drawn lines stay). Shown only for blank projects (gated in updateProjectTitle). A plain
+    // native picker — click opens it, live input recolours; no "clear" (a blank always has a fill).
+    const blankBtn = document.getElementById('blank-color-btn');
+    const blankInput = document.getElementById('blank-color-input');
+    if (blankBtn && blankInput) {
+      const applyBlank = () => { if (app.activeIsBlank()) app.setBlankColor(blankInput.value); };
+      blankInput.addEventListener('input', applyBlank);
+      blankInput.addEventListener('change', applyBlank);
+      blankBtn.addEventListener('click', e => {
+        if (!app.activeIsBlank()) return;
+        e.stopPropagation();
+        blankInput.value = normalizeHex(app.blankColor) || '#ffffff';
+        try {
+          if (typeof blankInput.showPicker === 'function') blankInput.showPicker();
+          else blankInput.click();
+        } catch {
+          blankInput.click();
+        }
+      });
+    }
+
     document.getElementById('start-drawing').addEventListener('click', () => app.startDrawingMode());
     document.getElementById('stop-drawing').addEventListener('click', () => app.stopDrawingMode());
     document.getElementById('draw-mode-toggle').addEventListener('click', () => {
@@ -374,7 +402,10 @@ export class ControlsBinder {
       zoomOut: () => app.zoomPan.zoomAroundCenter(app.scale - 0.25),
       zoomInBig: () => app.zoomPan.zoomAroundCenter(app.scale + 1.0),
       zoomOutBig: () => app.zoomPan.zoomAroundCenter(app.scale - 1.0),
-      rotateImageLeft: () => { if (app.image) app.imageModel.rotateImage(-1); },
+      // Alt+R rotates the IMAGE — but with a line selected it instead arms the line-rotate
+      // chord (Alt+R+←/→, handled in wireArrowPan), so it must not also spin the image.
+      // Deselect to rotate the image again. Alt+Shift+R (right) is unaffected by the chord.
+      rotateImageLeft: () => { if (app.image && app.selectedIndices().length === 0) app.imageModel.rotateImage(-1); },
       rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
       copyImage: () => app.export.copyImageToClipboard(),
       copyLayout: () => app.export.copyLayoutToClipboard(),
@@ -483,48 +514,137 @@ export class ControlsBinder {
     };
     document.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;
+      if (e.key === 'r' || e.key === 'R') this.#rHeld = true;  // track the Alt+R+←/→ chord
       if (e.key === 'Shift') { this.#arrowsHeld.add('Shift'); return; }
       if (!ARROW_KEYS.includes(e.key)) return;
-      // Don't steal Alt/Ctrl/Meta+Arrow combos used by other shortcuts
+
+      // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Takes precedence
+      // over pan/zoom so the chord always rotates when a line is selected.
+      if (e.altKey && this.#rHeld && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+          && app.selectedIndices().length >= 1) {
+        e.preventDefault();
+        app.rotateSelectedLine((e.key === 'ArrowLeft' ? -1 : 1) * (Math.PI / 60));
+        return;
+      }
+      // Don't steal other Alt/Ctrl/Meta+Arrow combos used by other shortcuts (e.g. zoom).
       if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      // With a line selected, plain arrows NUDGE the selection (1px, Shift = 10px, in image
+      // space); with nothing selected they fall through to panning the viewport.
+      if (app.selectedIndices().length >= 1) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowLeft') dx = -step;
+        else if (e.key === 'ArrowRight') dx = step;
+        else if (e.key === 'ArrowUp') dy = -step;
+        else if (e.key === 'ArrowDown') dy = step;
+        app.nudgeSelected(dx, dy);
+        return;
+      }
+
       e.preventDefault();
       this.#arrowsHeld.add(e.key);
       if (!this.#arrowPanRaf) this.#arrowPanRaf = requestAnimationFrame(arrowPanTick);
     });
     document.addEventListener('keyup', e => {
+      if (e.key === 'r' || e.key === 'R') this.#rHeld = false;
       if (e.key === 'Shift') this.#arrowsHeld.delete('Shift');
       if (ARROW_KEYS.includes(e.key)) this.#arrowsHeld.delete(e.key);
     });
     // Clear held keys if the window loses focus while arrows are held
-    window.addEventListener('blur', () => { this.#arrowsHeld.clear(); });
+    window.addEventListener('blur', () => { this.#arrowsHeld.clear(); this.#rHeld = false; });
   }
 
   wireDropPaste() {
     const app = this.app;
-    // Document-wide drag-and-drop overlay
+    // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT
+    // (upload incognito) zones. The cursor's half of the window decides which.
     const dropZone = document.getElementById('global-drop-overlay');
+    const dropLeftHalf = (e) => e.clientX < window.innerWidth / 2;
+    const clearZoneCue = () => dropZone.querySelectorAll('.drop-zone-active').forEach((z) => z.classList.remove('drop-zone-active'));
+
+    // An image dragged from ANOTHER web page arrives as a URL, not a File (see dragImageUrl.js).
+    const draggedImageUrl = (dt) => extractDraggedImageUrl((t) => dt.getData(t));
+    // Fetch a dragged image URL into a File so it flows through the same load path as a dropped
+    // file. CORS-limited (like the URL tab) — the catch surfaces a friendly hint on failure.
+    const fetchUrlToFile = async (url) => {
+      const resp = await fetch(url, { mode: 'cors' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('not an image');
+      const name = ((url.split('/').pop() || 'image').split('?')[0]) || 'image';
+      return new File([blob], name, { type: blob.type });
+    };
+
+    // Load a dropped image via the LEFT (save) or RIGHT (incognito) zone. When an image is
+    // already open, first ask whether to open it in the current page or a new one (all four
+    // save/incognito × here/newtab combinations are reachable).
+    const handleImageDrop = async (file, incognito) => {
+      if (app.image) {
+        const where = await app.choose('An image is already open. Where should the dropped image open?', {
+          title: 'Open dropped image', confirmLabel: 'Open',
+          options: [
+            { value: 'here', label: 'Open in the current page' },
+            { value: 'newtab', label: 'Open in a new page' },
+          ],
+        });
+        if (!where) return;
+        if (where === 'newtab') { app.openImageNewTab(file, incognito); return; }
+      }
+      app.openImageHere(file, incognito);
+    };
+
+    // Internal row-reorder drags (Servers / Projects modals) carry this marker; the image-drop
+    // overlay must ignore them (a connection row's URL would otherwise pop the overlay + try to
+    // fetch it as an image on drop).
+    const isReorderDrag = (e) => { try { return e.dataTransfer.types.includes('application/x-stencil-reorder'); } catch { return false; } };
 
     document.addEventListener('dragenter', e => {
       e.preventDefault();
-      if (e.dataTransfer.types.includes('Files')) dropZone.style.display = 'flex';
+      if (isReorderDrag(e)) return;   // internal row reorder — not an image drop
+      // Show the overlay for a dragged File OR an image dragged from another page (uri-list /
+      // html — a URL, not a File). Plain text alone isn't treated as a drop (too noisy).
+      const t = e.dataTransfer.types;
+      if (t.includes('Files') || t.includes('text/uri-list') || t.includes('text/html')) dropZone.style.display = 'flex';
     });
     document.addEventListener('dragover', e => {
       e.preventDefault();
+      if (isReorderDrag(e)) return;   // internal row reorder — leave it to the modal's own handlers
       e.dataTransfer.dropEffect = 'copy';
+      // Highlight the half the cursor is over so the save/incognito choice is legible.
+      if (dropZone.style.display !== 'none' && dropZone.style.display !== '') {
+        const left = dropLeftHalf(e);
+        const lz = dropZone.querySelector('.drop-zone-left');
+        const rz = dropZone.querySelector('.drop-zone-right');
+        if (lz) lz.classList.toggle('drop-zone-active', left);
+        if (rz) rz.classList.toggle('drop-zone-active', !left);
+      }
     });
     document.addEventListener('dragleave', e => {
       // Only hide when leaving the entire window
-      if (e.relatedTarget === null) dropZone.style.display = 'none';
+      if (e.relatedTarget === null) { dropZone.style.display = 'none'; clearZoneCue(); }
     });
     document.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.style.display = 'none';
+      clearZoneCue();
+      if (isReorderDrag(e)) return;   // internal row reorder — don't try to load an image
+      const incognito = !dropLeftHalf(e);   // RIGHT half = incognito, LEFT half = upload + save
       const file = e.dataTransfer.files[0];
-      if (!file) return;
+      if (!file) {
+        // No File → maybe an image dragged from another page (a URL). Fetch it into a File.
+        const url = draggedImageUrl(e.dataTransfer);
+        if (!url) return;
+        fetchUrlToFile(url)
+          .then((f) => handleImageDrop(f, incognito))
+          .catch(() => notify('Could not load the dragged image — the site may block cross-origin downloads. Try the extension or desktop app.', 'fail'));
+        return;
+      }
       if (file.type.startsWith('image/')) {
-        app.loadImageFromFile(file);
+        handleImageDrop(file, incognito);
       } else if (file.name.endsWith('.json') || file.type === 'application/json') {
-        app.loadJSONFromFile(file);
+        app.loadJSONFromFile(file);   // a .json layout ignores the save/incognito split
       } else {
         notify('Please drop an image or a .json file', 'fail');
       }
@@ -653,10 +773,9 @@ export class ControlsBinder {
         return;
       }
 
-      // Ctrl+Shift+wheel with a selected line → rotate it (around its center,
-      // or around the focused point if one is selected).
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && app.selectedLineIdx >= 0
-          && app.lines[app.selectedLineIdx]) {
+      // Ctrl+Shift+wheel with a selection → rotate it. One line: around its centre (or the focused
+      // point). Multiple lines: all together around their combined centre.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && app.selectedIndices().length >= 1) {
         e.preventDefault();
         const dir = e.deltaY > 0 ? 1 : -1;
         app.rotateSelectedLine(dir * (Math.PI / 60)); // 3° per tick

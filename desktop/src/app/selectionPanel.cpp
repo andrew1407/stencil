@@ -5,20 +5,25 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QListWidget>
+#include <QTabWidget>
 #include <QPainter>
 #include <QPalette>
 #include <QStyledItemDelegate>
 #include <QTableWidget>
 #include <QPixmap>
 #include <QPushButton>
+#include <QToolButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <algorithm>
 #include <cmath>
 
 namespace stencil::gui {
@@ -53,7 +58,31 @@ namespace stencil::gui {
 
   SelectionPanel::SelectionPanel(QWidget* parent)
       : QDockWidget("Selection", parent) {
-    setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+    // Pinned in place: NOT floatable/movable (the browser panel can't be torn off / unpinned) — it
+    // can only be hidden/shown via the toggle. Removes the unwanted drag-to-float behaviour.
+    setFeatures(QDockWidget::NoDockWidgetFeatures);
+
+    // Custom title bar with a right-aligned chevron that hides the panel — mirrors the browser
+    // panel header's #toggle-coord-panel chevron (placed IN the panel, not floating over the canvas).
+    auto* titleBar = new QWidget(this);
+    auto* titleRow = new QHBoxLayout(titleBar);
+    titleRow->setContentsMargins(10, 5, 6, 5);
+    auto* titleLbl = new QLabel("Points", titleBar);
+    titleLbl->setStyleSheet("font-weight:600;");
+    collapseBtn_ = new QToolButton(titleBar);
+    collapseBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    collapseBtn_->setCursor(Qt::PointingHandCursor);
+    collapseBtn_->setToolTip("Hide panel");
+    // Same rounded-square look as the floating re-open chevron (guiHelpers::panelToggleQss) so the
+    // shown/hidden toggles read as one consistent button, just mirrored.
+    collapseBtn_->setFixedSize(28, 28);
+    collapseBtn_->setIconSize(QSize(18, 18));
+    collapseBtn_->setStyleSheet(panelToggleQss());
+    connect(collapseBtn_, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
+    titleRow->addWidget(titleLbl);
+    titleRow->addStretch(1);
+    titleRow->addWidget(collapseBtn_);
+    setTitleBarWidget(titleBar);
 
     auto* body = new QWidget(this);
     auto* layout = new QVBoxLayout(body);
@@ -124,11 +153,25 @@ namespace stencil::gui {
 
     layout->addWidget(editor_);
 
-    // Section headers styled like the browser's panel captions (muted + spaced).
-    auto* ptsHdr = new QLabel("POINTS", body);
-    ptsHdr->setObjectName("panelSectionHeader");
-    layout->addWidget(ptsHdr);
-    points_ = new QTableWidget(0, ColCount, body);
+    // Shown instead of the inline editor while 2+ lines are multi-selected (Ctrl+Shift+click):
+    // the editor is ambiguous, so it's hidden and this explains the mode.
+    multiLabel_ = new QLabel(body);
+    multiLabel_->setWordWrap(true);
+    multiLabel_->setStyleSheet("color: palette(highlight); font-weight: 600;");
+    multiLabel_->setVisible(false);
+    layout->addWidget(multiLabel_);
+
+    // Points | Lines tabs (browser mainContent.js coord-tabs). The Points tab holds the
+    // per-line coordinate table + measurements (the existing panel body); the Lines tab lists
+    // every committed line for select/inspect/remove (browser renderLinesList / #lines-list).
+    tabs_ = new QTabWidget(body);
+    tabs_->setObjectName("selectionTabs");
+    layout->addWidget(tabs_, 1);
+
+    auto* ptsTab = new QWidget(tabs_);
+    auto* ptsLay = new QVBoxLayout(ptsTab);
+    ptsLay->setContentsMargins(0, 6, 0, 0);
+    points_ = new QTableWidget(0, ColCount, ptsTab);
     points_->setObjectName("pointsTable");
     points_->setItemDelegate(new PointRowDelegate(points_));  // outline-style selection
     points_->setHorizontalHeaderLabels({"#", "X", "Y", "Page", QString()});
@@ -150,14 +193,38 @@ namespace stencil::gui {
     hh->setSectionResizeMode(ColDel, QHeaderView::Fixed);
     points_->setColumnWidth(ColDel, 34);
     hh->setHighlightSections(false);
-    layout->addWidget(points_, 1);
+    ptsLay->addWidget(points_, 1);
 
-    auto* measHdr = new QLabel("MEASUREMENTS", body);
+    auto* measHdr = new QLabel("MEASUREMENTS", ptsTab);
     measHdr->setObjectName("panelSectionHeader");
-    layout->addWidget(measHdr);
-    measurements_ = new QLabel("No selection", body);
+    ptsLay->addWidget(measHdr);
+    measurements_ = new QLabel("No selection", ptsTab);
     measurements_->setWordWrap(true);
-    layout->addWidget(measurements_);
+    ptsLay->addWidget(measurements_);
+    tabs_->addTab(ptsTab, "Points");
+
+    // Lines tab — a flat list of every committed line (browser #lines-list). Each row: color
+    // chip · "Line N · M pts" · 🗑. Rows single-select on click (Ctrl/⌘+Shift toggles the
+    // multi-select set); the 🗑 removes the line. Populated by setLines().
+    auto* linesTab = new QWidget(tabs_);
+    auto* linesLay = new QVBoxLayout(linesTab);
+    linesLay->setContentsMargins(0, 6, 0, 0);
+    lines_ = new QListWidget(linesTab);
+    lines_->setObjectName("linesList");
+    lines_->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
+    lines_->setFocusPolicy(Qt::NoFocus);
+    linesLay->addWidget(lines_, 1);
+    tabs_->addTab(linesTab, "Lines");
+
+    // Row click → select that line (multi = Ctrl/⌘+Shift held, mirroring the canvas modifier).
+    connect(lines_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
+      const int idx = lines_->row(it);
+      if (idx < 0) return;
+      const auto mods = QGuiApplication::keyboardModifiers();
+      const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
+                         (mods & Qt::ShiftModifier);
+      emit lineListActivated(idx, multi);
+    });
 
     setWidget(body);
     restyleIcons(palette().color(QPalette::WindowText));
@@ -254,12 +321,92 @@ namespace stencil::gui {
     setColorSwatch(btn, color);  // QPushButton derives from QAbstractButton
   }
 
+  void SelectionPanel::setMultiSelectCount(int n) {
+    if (!multiLabel_) return;
+    if (n >= 2) {
+      multiLabel_->setText(QString("%1 lines selected — Ctrl+Shift+click to add/remove · "
+                                   "Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all")
+                               .arg(n));
+      multiLabel_->setVisible(true);
+    } else {
+      multiLabel_->setVisible(false);
+    }
+  }
+
+  void SelectionPanel::setLines(const core::Lines& lines,
+                                const std::vector<int>& selected) {
+    if (!lines_) return;
+    QSignalBlocker block(lines_);
+    lines_->clear();
+    if (lines.empty()) {
+      auto* item = new QListWidgetItem("No lines yet.", lines_);
+      item->setFlags(Qt::NoItemFlags);
+      item->setTextAlignment(Qt::AlignCenter);
+      return;
+    }
+    const auto isSel = [&](int i) {
+      return std::find(selected.begin(), selected.end(), i) != selected.end();
+    };
+    for (int i = 0; i < static_cast<int>(lines.size()); ++i) {
+      const core::Line& ln = lines[i];
+      auto* item = new QListWidgetItem(lines_);
+
+      auto* row = new QWidget(lines_);
+      auto* rl = new QHBoxLayout(row);
+      rl->setContentsMargins(6, 4, 6, 4);
+      rl->setSpacing(8);
+
+      // Color chip — transparent for an unfilled locked area (matches the browser swatch).
+      auto* swatch = new QLabel(row);
+      swatch->setFixedSize(14, 14);
+      swatch->setAttribute(Qt::WA_TransparentForMouseEvents);
+      const QString colName = QString::fromStdString(ln.color);
+      const bool unfilledArea =
+          ln.locked && (ln.fillColor.empty() || ln.fillColor == "transparent");
+      swatch->setStyleSheet(
+          QString("background:%1;border:1px solid %2;border-radius:3px;")
+              .arg(unfilledArea ? QStringLiteral("transparent") : colName, colName));
+
+      auto* label = new QLabel(row);
+      label->setAttribute(Qt::WA_TransparentForMouseEvents);
+      const int np = static_cast<int>(ln.points.size());
+      QString text = QString("Line %1 · %2 pt%3")
+                         .arg(i + 1).arg(np).arg(np == 1 ? "" : "s");
+      if (ln.locked) text += " · area";
+      label->setText(text);
+
+      auto* rm = new QPushButton(row);
+      rm->setObjectName("pointDelBtn");
+      rm->setFlat(true);
+      rm->setCursor(Qt::PointingHandCursor);
+      rm->setToolTip("Remove line");
+      rm->setIcon(themedIcon("trash", iconColor_, 14));
+      connect(rm, &QPushButton::clicked, this,
+              [this, i] { emit lineListRemoveRequested(i); });
+
+      rl->addWidget(swatch);
+      rl->addWidget(label, 1);
+      rl->addWidget(rm);
+
+      // Selected rows carry an accent outline (canvas-driven, since selection mode is Off).
+      if (isSel(i))
+        row->setStyleSheet(
+            "background: palette(alternate-base);"
+            "border:1px solid palette(highlight);border-radius:5px;");
+
+      item->setSizeHint(row->sizeHint());
+      lines_->setItemWidget(item, row);
+    }
+  }
+
   void SelectionPanel::restyleIcons(const QColor& iconColor) {
     // Delete is a red danger button, so its glyph stays white for contrast; the
     // others follow the theme text color (re-applied on each light/dark switch).
     if (deleteLine_) deleteLine_->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
     if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", iconColor, 15));
     if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 14));
+    // Chevron points toward the edge to hide (›) the panel.
+    if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, 18));
     // Re-theme the per-row 🗑 buttons too (new ones in showLine use the stored colour).
     iconColor_ = iconColor;
     if (points_) {
@@ -267,6 +414,12 @@ namespace stencil::gui {
         if (auto* b = qobject_cast<QPushButton*>(points_->cellWidget(r, ColDel)))
           b->setIcon(themedIcon("trash", iconColor_, 14));
     }
+  }
+
+  void SelectionPanel::setToggleHint(const QString& hint) {
+    if (!collapseBtn_) return;
+    collapseBtn_->setToolTip(hint.isEmpty() ? QStringLiteral("Hide panel")
+                                            : QStringLiteral("Hide panel (%1)").arg(hint));
   }
 
   void SelectionPanel::showLine(const core::Line* line,

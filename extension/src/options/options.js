@@ -1,6 +1,6 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/cropGeometry.js';
-import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins } from '../lib/pins.js';
+import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins, setPinKeywords, pinMatchesSearch, pinKeywords } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
 
@@ -100,6 +100,8 @@ const siteSel = document.getElementById('pin-site');
 const pinListEl = document.getElementById('pin-list');
 const pinEmptyEl = document.getElementById('pin-empty');
 const pinClearBtn = document.getElementById('pin-clear');
+const pinSearchEl = document.getElementById('pin-search');
+const pinSearchModeEl = document.getElementById('pin-search-mode');
 // Host label for a site origin (e.g. https://example.com → example.com).
 const hostLabel = (origin) => { try { return new URL(origin).host; } catch { return origin || '(unknown site)'; } };
 
@@ -143,7 +145,45 @@ const renderPinRow = (pin, serverSources) => {
   siteEl.textContent = hostLabel(pin.site);
   siteEl.title = pin.site;
   sub.append(kindEl, siteEl);
-  info.append(name, sub);
+
+  // Keyword chips + an inline editor (comma/space separated). Saved via setPinKeywords.
+  const kwRow = document.createElement('div');
+  kwRow.className = 'pin-keywords';
+  const kws = pinKeywords(pin);
+  for (const k of kws) {
+    const chip = document.createElement('span');
+    chip.className = 'pin-kw';
+    chip.textContent = k;
+    kwRow.appendChild(chip);
+  }
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'pin-kw-edit';
+  editBtn.textContent = kws.length ? 'edit keywords' : '+ keywords';
+  editBtn.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'pin-kw-input';
+    input.value = kws.join(', ');
+    input.placeholder = 'comma or space separated';
+    let done = false;
+    const save = async () => {
+      if (done) return;
+      done = true;
+      await setPinKeywords(pin.site, pin.source, input.value.split(/[\s,]+/));
+      renderPins();
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+      else if (e.key === 'Escape') { done = true; renderPins(); }
+    });
+    input.addEventListener('blur', save);
+    kwRow.replaceWith(input);
+    input.focus();
+    input.select();
+  });
+  kwRow.appendChild(editBtn);
+  info.append(name, sub, kwRow);
 
   const actions = document.createElement('div');
   actions.className = 'pin-actions';
@@ -223,8 +263,11 @@ const renderPins = async () => {
   }
 
   const serversOf = (p) => serverPins.byOrigin.get(p.source) || null;   // Set<serverUrl> | null
+  const query = pinSearchEl ? pinSearchEl.value : '';
+  const searchMode = pinSearchModeEl ? pinSearchModeEl.value : 'common';
   let shown = siteSel.value === 'all' ? pins : matchPinsForSite(pins, siteSel.value);
   shown = shown.filter((p) => {
+    if (!pinMatchesSearch(p, query, searchMode)) return false;           // name/keyword search
     const servers = serversOf(p);
     if (!showServerChk.checked && servers) return false;                 // hide server pins
     if (!showServerChk.checked) return true;
@@ -240,6 +283,8 @@ const renderPins = async () => {
 siteSel.addEventListener('change', renderPins);
 storeSel.addEventListener('change', renderPins);
 showServerChk.addEventListener('change', renderPins);
+if (pinSearchEl) pinSearchEl.addEventListener('input', renderPins);
+if (pinSearchModeEl) pinSearchModeEl.addEventListener('change', renderPins);
 
 // Themed Yes/No confirmation. The options page has no native modal of its own, so this
 // stands in for window.confirm() and matches the editor's look (theme.css vars). Resolves

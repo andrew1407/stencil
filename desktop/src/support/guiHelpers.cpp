@@ -16,6 +16,13 @@
 
 namespace stencil::gui {
 
+  QString panelToggleQss() {
+    return QStringLiteral(
+        "QToolButton{background:rgba(70,76,94,230);border:1px solid rgba(255,255,255,42);"
+        "border-radius:7px;padding:0;}"
+        "QToolButton:hover{background:rgba(94,102,124,245);}");
+  }
+
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons) {
     auto* box = new QDialogButtonBox(buttons, parent);
@@ -39,22 +46,22 @@ namespace stencil::gui {
 
   void setColorSwatch(QAbstractButton* btn, const QColor& color) {
     if (!btn) return;
-    // A rounded chip with a soft contrasting outline reads as a color well (the
-    // browser's <input type=color>) rather than a flat square — and the border
-    // keeps a near-background color (e.g. white tint on a light theme) visible.
-    const int dpr = btn->devicePixelRatio() > 0 ? qCeil(btn->devicePixelRatio()) : 1;
-    QPixmap chip(QSize(20, 20) * dpr);
-    chip.setDevicePixelRatio(dpr);
-    chip.fill(Qt::transparent);
-    QPainter pr(&chip);
-    pr.setRenderHint(QPainter::Antialiasing, true);
-    // Outline tuned from the fill's luminance so it shows on any swatch color.
+    // A compact colour-WELL whose whole surface is the colour (the browser's
+    // <input type=color>), not a wide button with a tiny chip icon. Fixed size so the
+    // form layout doesn't stretch it; a soft luminance-tuned outline keeps a
+    // near-background colour visible on any theme.
+    btn->setIcon(QIcon());
+    btn->setText(QString());
+    btn->setFixedSize(46, 24);
+    btn->setCursor(Qt::PointingHandCursor);
     const bool lightFill = color.lightnessF() > 0.7;
-    pr.setPen(QPen(lightFill ? QColor(0, 0, 0, 60) : QColor(255, 255, 255, 90), 1));
-    pr.setBrush(color);
-    pr.drawRoundedRect(QRectF(1.0, 1.0, 18.0, 18.0), 5.0, 5.0);
-    pr.end();
-    btn->setIcon(QIcon(chip));
+    const QString outline = lightFill ? "rgba(0,0,0,0.40)" : "rgba(255,255,255,0.40)";
+    const QString bg = QString("rgba(%1,%2,%3,%4)")
+                           .arg(color.red()).arg(color.green()).arg(color.blue())
+                           .arg(color.alphaF(), 0, 'f', 3);
+    btn->setStyleSheet(QString("QPushButton { background: %1; border: 1px solid %2; border-radius: 6px; }"
+                               "QPushButton:hover { border: 1px solid palette(highlight); }")
+                           .arg(bg, outline));
   }
 
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,

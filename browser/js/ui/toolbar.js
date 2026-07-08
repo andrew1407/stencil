@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define } from './base.js';
 import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
-import { accentHex, normalizeHex } from '../core/accents.js';
+import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all 8 sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
@@ -23,7 +23,7 @@ export class StencilToolbar extends StencilElement {
                 <button id="toggle-controls" class="btn-icon-text" data-hk-title="toggleControls" data-title="Hide controls" title="Hide controls">${icon('chevron-up')}<span>Controls</span></button>
                 <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
                     <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
-                    <input id="project-name-input" type="text" placeholder="No project" title="Project name — double-click to rename" readonly disabled
+                    <input id="project-name-input" type="text" placeholder="No project" readonly disabled
                         style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
                     <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
                     <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
@@ -54,6 +54,11 @@ export class StencilToolbar extends StencilElement {
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
                     </span>
                     <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
+                    <!-- Blank-image fill colour: a swatch next to the size pill, shown only for blank projects. Click to recolour the background (lines are kept). -->
+                    <button id="blank-color-btn" type="button" title="Blank background colour — recolour this blank image (keeps your lines)" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
+                        <span id="blank-color-swatch" style="width:13px;height:13px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
+                    </button>
+                    <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                     <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
@@ -213,9 +218,15 @@ export class StencilToolbar extends StencilElement {
     const popup = document.getElementById('hints-popup');
     let hidden = false;
 
+    // The image-size bar (#image-info) shows ONLY the size; the shortcut hints live here, in the "?"
+    // popup that appears when Controls is collapsed (so the toolbar's shortcuts stay discoverable).
+    const SHORTCUTS_HINT =
+      'Zoom: Ctrl+Scroll · Alt+± · +/− btn  (+Shift = larger)  |  Alt+Scroll: thickness  |  ' +
+      'Ctrl+Shift+Scroll: rotate selected  |  Ctrl+Click: add point  |  ℹ for full help';
     const infoText = () => {
       const el = document.getElementById('image-info');
-      return el ? el.textContent : 'Image Size: — | Zoom: Ctrl+Scroll or Alt+Scroll · +/− · ⊡ Fit | Pan: Alt+Drag';
+      const size = el ? el.textContent : 'Image Size: —';
+      return `${size}  |  ${SHORTCUTS_HINT}`;
     };
 
     btn.addEventListener('click', () => {
@@ -225,6 +236,7 @@ export class StencilToolbar extends StencilElement {
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';
       btn.title = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
       hintsBtn.style.display = hidden ? 'inline-block' : 'none';
+      hintsBtn.title = SHORTCUTS_HINT;
       if (hidden) popup.textContent = infoText();
     });
 
@@ -243,7 +255,24 @@ export class StencilToolbar extends StencilElement {
 function wireLogoColorPicker(logo, app) {
   if (!logo || !app) return;
   logo.style.cursor = 'pointer';
-  logo.setAttribute('title', 'Double-click for a temporary accent colour');
+  logo.setAttribute('title', 'Click to cycle the theme colour · double-click for a custom colour');
+
+  // Single-click cycles the MAIN theme accent to the next preset in the ACCENTS order (wrapping).
+  // When a CUSTOM (non-preset) colour is currently active — set via the double-click picker — a
+  // click instead resets to the default preset (violet). Persisted via app.setAccent, so it's the
+  // real theme change. The action is deferred briefly so a double-click cancels it (opens the
+  // picker) instead.
+  const cycleAccent = () => {
+    if (app.customAccent) { app.setAccent(DEFAULT_ACCENT); return; }
+    const keys = ACCENTS.map((a) => a.key);
+    const i = keys.indexOf(app.accent);
+    app.setAccent(keys[(i + 1) % keys.length]);
+  };
+  let clickTimer = null;
+  logo.addEventListener('click', () => {
+    if (clickTimer) return;   // second click of a dbl — let dblclick handle it
+    clickTimer = setTimeout(() => { clickTimer = null; cycleAccent(); }, 220);
+  });
 
   // A tiny, near-invisible colour input parked under the logo. It stays in normal flow
   // (not display:none / zero-size) so the browser will actually render its native picker.
@@ -270,7 +299,10 @@ function wireLogoColorPicker(logo, app) {
       picker.click();
     }
   };
-  logo.addEventListener('dblclick', open);
+  logo.addEventListener('dblclick', () => {
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }   // cancel the single-click cycle
+    open();
+  });
   // A double-click selects nearby text; clear it so the picker isn't fighting a selection.
   logo.addEventListener('mousedown', (e) => { if (e.detail > 1) e.preventDefault(); });
 

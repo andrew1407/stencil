@@ -6,7 +6,7 @@
 //! `/undo`, `/redo`, `/reset` move a cursor over the snapshots and rebuild the view.
 const std = @import("std");
 const image = @import("../image.zig");
-const server = @import("../server.zig");
+const server = @import("../serverClient.zig");
 const core = @import("../core.zig");
 const pipeline = @import("../pipeline.zig");
 const layout_mod = @import("../layout.zig");

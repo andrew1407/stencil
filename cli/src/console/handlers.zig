@@ -6,7 +6,7 @@ const std = @import("std");
 const image = @import("../image.zig");
 const pipeline = @import("../pipeline.zig");
 const net = @import("../net.zig");
-const server = @import("../server.zig");
+const server = @import("../serverClient.zig");
 const logo = @import("../logo.zig");
 const core = @import("../core.zig");
 const theme = @import("../theme.zig");
@@ -543,13 +543,57 @@ pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     ui.status(session); // reprint "image: <name> …" with the name in its new colour
 }
 
+/// `/blank-color [<#rrggbb>|<name>]` — get/set the active project's blank fill colour. Only a
+/// blank-image project has one; setting recolours its stored blank metadata (the front-end that
+/// owns the canvas regenerates the raster). No clear form — a blank always has a fill.
+pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
+    if (!session.hasRemote()) {
+        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
+        return;
+    }
+    const client = session.findServer(session.remote_url.?) orelse {
+        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
+        return;
+    };
+    const id = session.remote_id.?;
+    const trimmed = std.mem.trim(u8, arg, " \t");
+
+    // Current fill colour ("" = not a blank project).
+    const cur = client.getProjectBlankColor(id) catch |e| {
+        logo.print("error: could not read the blank colour ({s})\n", .{@errorName(e)});
+        return;
+    };
+    defer session.gpa.free(cur);
+
+    if (trimmed.len == 0) {
+        if (cur.len == 0) {
+            logo.print("blank colour: (this project is not a blank image)\n", .{});
+        } else {
+            printProjectColor("blank colour", cur);
+        }
+        return;
+    }
+    if (cur.len == 0) {
+        logo.print("error: this project is not a blank image — nothing to recolour\n", .{});
+        return;
+    }
+    var hexbuf: [8]u8 = undefined;
+    const col = core.parseColor(session.gpa, trimmed) orelse {
+        logo.print("error: invalid colour '{s}' — give a '#rrggbb' / name\n", .{trimmed});
+        return;
+    };
+    const color = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ col.r, col.g, col.b }) catch "#000000";
+    if (!putProjectField(session, client, id, color, .blank_color)) return; // message already printed
+    printProjectColor("blank colour set to", color);
+}
+
 /// A reset keyword for `/project-color`: clears the custom colour back to the theme accent.
 fn isClearWord(s: []const u8) bool {
     const eq = std.ascii.eqlIgnoreCase;
     return eq(s, "clear") or eq(s, "none") or eq(s, "default");
 }
 
-const ProjectField = enum { color, name };
+const ProjectField = enum { color, name, blank_color };
 
 /// Version-guarded PUT of one project metadata field (colour or name) with a 409 retry (a peer
 /// saved first → re-read the version and retry), mirroring pushLayout. Advances the LWW guard so
@@ -561,6 +605,7 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
         const res = switch (field) {
             .color => client.updateProjectColor(id, value, session.remote_version),
             .name => client.updateProjectName(id, value, session.remote_version),
+            .blank_color => client.updateProjectBlankColor(id, value, session.remote_version),
         };
         res catch |e| {
             if (e == server.Error.Conflict) {
@@ -572,6 +617,7 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
             switch (field) {
                 .color => logo.print("error: could not set the project colour ({s})\n", .{@errorName(e)}),
                 .name => logo.print("error: could not rename the project ({s})\n", .{@errorName(e)}),
+                .blank_color => logo.print("error: could not set the blank colour ({s})\n", .{@errorName(e)}),
             }
             return false;
         };
@@ -581,6 +627,266 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
         return true;
     }
     return false;
+}
+
+// ── keywords (server projects, addressed by name) ─────────────────────────────
+
+const KwMode = enum { add, del };
+
+/// Case-insensitive substring test (std.mem has no case-insensitive `contains`).
+fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    if (needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) : (i += 1) {
+        if (std.ascii.eqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
+    }
+    return false;
+}
+
+/// Print a project's keyword set (or "(none)").
+fn printKeywordCsv(keywords: []const []const u8) void {
+    for (keywords, 0..) |k, i| logo.print("{s} {s}", .{ if (i == 0) "" else ",", k });
+}
+
+fn printKeywords(name: []const u8, keywords: []const []const u8) void {
+    if (keywords.len == 0) {
+        logo.print("keywords for \"{s}\": (none)\n", .{name});
+        return;
+    }
+    logo.print("keywords for \"{s}\":", .{name});
+    printKeywordCsv(keywords);
+    logo.print("\n", .{});
+}
+
+/// Split `<project | ["a","b"]> <keyword...>` into the target spec and keyword remainder (both
+/// slices into `arg`). A leading '[' captures up to the matching ']'; a leading '"' a quoted
+/// name; else the first whitespace token.
+fn splitTargetSpec(arg: []const u8) struct { target: []const u8, rest: []const u8 } {
+    const a = std.mem.trim(u8, arg, " \t");
+    if (a.len == 0) return .{ .target = "", .rest = "" };
+    if (a[0] == '[') {
+        if (std.mem.indexOfScalar(u8, a, ']')) |end|
+            return .{ .target = a[0 .. end + 1], .rest = std.mem.trim(u8, a[end + 1 ..], " \t,") };
+        return .{ .target = a, .rest = "" };
+    }
+    if (a[0] == '"') {
+        if (std.mem.indexOfScalarPos(u8, a, 1, '"')) |end|
+            return .{ .target = a[1..end], .rest = std.mem.trim(u8, a[end + 1 ..], " \t,") };
+        return .{ .target = a[1..], .rest = "" };
+    }
+    if (std.mem.indexOfAny(u8, a, " \t")) |sp|
+        return .{ .target = a[0..sp], .rest = std.mem.trim(u8, a[sp + 1 ..], " \t") };
+    return .{ .target = a, .rest = "" };
+}
+
+/// Collect project names from a target spec: a bracketed comma list, or a single name. Names are
+/// slices into `spec`; the returned ArrayList must be deinit'd by the caller.
+fn collectTargetNames(gpa: std.mem.Allocator, spec: []const u8) !std.ArrayList([]const u8) {
+    var out: std.ArrayList([]const u8) = .empty;
+    errdefer out.deinit(gpa);
+    const s = std.mem.trim(u8, spec, " \t");
+    if (s.len != 0 and s[0] == '[') {
+        const inner = if (s[s.len - 1] == ']') s[1 .. s.len - 1] else s[1..];
+        var it = std.mem.tokenizeScalar(u8, inner, ',');
+        while (it.next()) |tok| {
+            const name = std.mem.trim(u8, tok, " \t\"");
+            if (name.len != 0) try out.append(gpa, name);
+        }
+    } else {
+        const name = std.mem.trim(u8, s, "\" \t");
+        if (name.len != 0) try out.append(gpa, name);
+    }
+    return out;
+}
+
+/// Version-guarded PUT of the keyword set with a 409 retry (a peer saved first → re-read the
+/// version + retry), mirroring putProjectField.
+fn putKeywords(client: *server.Client, id: []const u8, keywords: []const []const u8, version_in: i64) bool {
+    var version = version_in;
+    var tries: u8 = 0;
+    while (tries < 4) : (tries += 1) {
+        client.updateProjectKeywords(id, keywords, version) catch |e| {
+            if (e == server.Error.Conflict) {
+                if (client.getProjectVersion(id)) |v| {
+                    version = v;
+                    continue;
+                } else |_| return false;
+            }
+            logo.print("error: could not update keywords ({s})\n", .{@errorName(e)});
+            return false;
+        };
+        return true;
+    }
+    return false;
+}
+
+/// Resolve a project by name across connected servers, apply an add/del of `delta` keywords, PUT
+/// the result version-guarded, and print the resulting set (or an error / not-found).
+fn applyKeywordChange(session: *Session, name: []const u8, delta: []const []const u8, mode: KwMode) !void {
+    var client: ?*server.Client = null;
+    var ref: ?server.ProjectRef = null;
+    for (session.servers.items) |*c| {
+        const r = c.findProjectRef(name) catch |e| {
+            logo.print("error: could not query {s} ({s})\n", .{ c.base, @errorName(e) });
+            continue;
+        };
+        if (r) |rr| {
+            client = c;
+            ref = rr;
+            break;
+        }
+    }
+    if (client == null) {
+        logo.print("no project named \"{s}\" on any connected server\n", .{name});
+        return;
+    }
+    const cl = client.?;
+    const rf = ref.?;
+    defer session.gpa.free(rf.id);
+
+    const current = cl.getProjectKeywords(rf.id) catch |e| {
+        logo.print("error: could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
+        return;
+    };
+    defer server.freeStrList(session.gpa, current);
+
+    var next: std.ArrayList([]const u8) = .empty;
+    defer next.deinit(session.gpa);
+    if (mode == .add) {
+        for (current) |k| try next.append(session.gpa, k);
+        for (delta) |k| {
+            var dup = false;
+            for (next.items) |e| {
+                if (std.ascii.eqlIgnoreCase(e, k)) {
+                    dup = true;
+                    break;
+                }
+            }
+            if (!dup) try next.append(session.gpa, k);
+        }
+    } else {
+        for (current) |k| {
+            var drop = false;
+            for (delta) |d| {
+                if (std.ascii.eqlIgnoreCase(k, d)) {
+                    drop = true;
+                    break;
+                }
+            }
+            if (!drop) try next.append(session.gpa, k);
+        }
+    }
+
+    if (!putKeywords(cl, rf.id, next.items, rf.version)) return;
+    printKeywords(name, next.items);
+}
+
+/// `/keywords <project | ["a","b"]>` — show one or more projects' keyword sets.
+pub fn doKeywords(session: *Session, arg: []const u8) !void {
+    if (session.servers.items.len == 0) {
+        logo.print("no server connections — use '/connect <url>'\n", .{});
+        return;
+    }
+    if (std.mem.trim(u8, arg, " \t").len == 0) {
+        logo.print("usage: /keywords <project>\n", .{});
+        return;
+    }
+    var names = try collectTargetNames(session.gpa, arg);
+    defer names.deinit(session.gpa);
+    for (names.items) |name| {
+        var shown = false;
+        for (session.servers.items) |*c| {
+            const r = c.findProjectRef(name) catch continue;
+            if (r) |rf| {
+                defer session.gpa.free(rf.id);
+                const kws = c.getProjectKeywords(rf.id) catch |e| {
+                    logo.print("error: could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
+                    shown = true;
+                    break;
+                };
+                defer server.freeStrList(session.gpa, kws);
+                printKeywords(name, kws);
+                shown = true;
+                break;
+            }
+        }
+        if (!shown) logo.print("no project named \"{s}\" on any connected server\n", .{name});
+    }
+}
+
+/// `/keywords-search <keyword...>` — list projects across servers whose keywords match any term
+/// (case-insensitive substring).
+pub fn doKeywordsSearch(session: *Session, arg: []const u8) !void {
+    if (session.servers.items.len == 0) {
+        logo.print("no server connections — use '/connect <url>'\n", .{});
+        return;
+    }
+    var terms: std.ArrayList([]const u8) = .empty;
+    defer terms.deinit(session.gpa);
+    var tit = std.mem.tokenizeAny(u8, arg, " \t,");
+    while (tit.next()) |t| try terms.append(session.gpa, t);
+    if (terms.items.len == 0) {
+        logo.print("usage: /keywords-search <keyword...>\n", .{});
+        return;
+    }
+    var found: usize = 0;
+    for (session.servers.items) |*c| {
+        const items = c.listProjectInfos() catch |e| {
+            logo.print("error: could not list projects on {s} ({s})\n", .{ c.base, @errorName(e) });
+            continue;
+        };
+        defer server.freeProjectList(session.gpa, items);
+        for (items) |p| {
+            var hit = false;
+            for (p.keywords) |kw| {
+                for (terms.items) |t| {
+                    if (containsIgnoreCase(kw, t)) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (hit) break;
+            }
+            if (hit) {
+                found += 1;
+                logo.print("  {s}  ({s}):", .{ p.name, c.base });
+                printKeywordCsv(p.keywords);
+                logo.print("\n", .{});
+            }
+        }
+    }
+    if (found == 0) logo.print("no projects match those keywords\n", .{});
+}
+
+/// `/keywords-add <project | ["a","b"]> <keyword...>` — add keywords to one or more projects.
+pub fn doKeywordsAdd(session: *Session, arg: []const u8) !void {
+    try doKeywordsChange(session, arg, .add);
+}
+
+/// `/keywords-del <project | ["a","b"]> <keyword...>` — remove keywords from one or more projects.
+pub fn doKeywordsDel(session: *Session, arg: []const u8) !void {
+    try doKeywordsChange(session, arg, .del);
+}
+
+fn doKeywordsChange(session: *Session, arg: []const u8, mode: KwMode) !void {
+    if (session.servers.items.len == 0) {
+        logo.print("no server connections — use '/connect <url>'\n", .{});
+        return;
+    }
+    const split = splitTargetSpec(arg);
+    var names = try collectTargetNames(session.gpa, split.target);
+    defer names.deinit(session.gpa);
+    var delta: std.ArrayList([]const u8) = .empty;
+    defer delta.deinit(session.gpa);
+    var dit = std.mem.tokenizeAny(u8, split.rest, " \t,");
+    while (dit.next()) |k| try delta.append(session.gpa, k);
+    if (names.items.len == 0 or delta.items.len == 0) {
+        const verb = if (mode == .add) "add" else "del";
+        logo.print("usage: /keywords-{s} <project | [\"a\",\"b\"]> <keyword...>\n", .{verb});
+        return;
+    }
+    for (names.items) |name| try applyKeywordChange(session, name, delta.items, mode);
 }
 
 /// `/rename <new name>` — rename the active fetched project, pushed live to the server

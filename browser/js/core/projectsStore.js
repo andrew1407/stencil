@@ -27,6 +27,23 @@ export const PERIOD_MS = {
   year: 365 * DAY_MS,
 };
 export const PERIOD_ORDER = ['day', 'week', 'fortnight', 'month', '3month', '6month', 'year'];
+
+// Normalize a project's search keywords: coerce to strings, trim, drop blanks, dedupe
+// case-insensitively (first-seen order preserved). Matches the server's joinKeywords so a
+// keyword set round-trips identically whether stored locally or on a server.
+export const normalizeKeywords = (keywords) => {
+  const out = [];
+  const seen = new Set();
+  for (const raw of (Array.isArray(keywords) ? keywords : [])) {
+    const k = String(raw == null ? '' : raw).trim();
+    if (!k) continue;
+    const lk = k.toLowerCase();
+    if (seen.has(lk)) continue;
+    seen.add(lk);
+    out.push(k);
+  }
+  return out;
+};
 // Milliseconds for a preset; unknown/empty → one week. Mirrors core periodMs.
 export const periodMs = (period) => PERIOD_MS[period] ?? EXPIRY_MS;
 // from + periodMs(period). Mirrors core addPeriod.
@@ -96,6 +113,9 @@ export class ProjectsStore {
     if (m.expiresAt == null) m.expiresAt = (m.updatedAt || 0) + EXPIRY_MS;
     if (m.refreshPeriod == null) m.refreshPeriod = DEFAULT_PERIOD;
     if (m.autoRefresh == null) m.autoRefresh = true;
+    if (!Array.isArray(m.keywords)) m.keywords = [];
+    if (typeof m.blank !== 'boolean') m.blank = false;
+    if (typeof m.blankColor !== 'string') m.blankColor = '';
     return m;
   }
 
@@ -186,6 +206,31 @@ export class ProjectsStore {
     const i = arr.findIndex(m => m && m.id === id);
     if (i === -1) return null;
     arr[i].color = color;
+    this.#writeRegistry(arr);
+    return arr[i];
+  }
+
+  // Set a project's search keywords in its registry meta in place. `keywords` is any
+  // iterable of strings; it's normalized (trim, drop blanks, dedupe case-insensitively,
+  // first-seen order) to match the server's storage. No-op (null) on unknown id. Like
+  // setColor(), leaves the payload + updatedAt untouched.
+  setKeywords(id, keywords) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    arr[i].keywords = normalizeKeywords(keywords);
+    this.#writeRegistry(arr);
+    return arr[i];
+  }
+
+  // Set a blank project's fill colour ("#rrggbb") in its registry meta in place. Only meaningful
+  // for `blank` projects (the caller gates this); leaves payload + updatedAt untouched like
+  // setColor(). No-op (null) on unknown id.
+  setBlankColor(id, color) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    arr[i].blankColor = color;
     this.#writeRegistry(arr);
     return arr[i];
   }
