@@ -25,6 +25,8 @@ public static class CliOutcomeParser
     private const string PrefixUpdated = "updated server result for project ";
     private const string PrefixCreated = "created server project ";
     private const string PrefixError = "error:";
+    private const string PrefixScraped = "scraped ";
+    private const string IntoMarker = " into ";
 
     /// <summary>
     /// Find and parse the <c>wrote {path} ({w}x{h} …)</c> line, or null when absent. Uses a
@@ -150,6 +152,66 @@ public static class CliOutcomeParser
             return trimmed;
         }
         return string.Join("\n", errors);
+    }
+
+    /// <summary>
+    /// Parse the multi-file stderr of a source-site scrape into a <see cref="ScrapeResult"/>
+    /// (DESIGN source-site contract §3): every <c>wrote {path} ({w}x{h} px · source {host})</c>
+    /// line is one downloaded file, and the trailing <c>scraped {n} file(s) from {host} into
+    /// {dir}</c> line supplies the destination directory. For each <c>wrote</c> line the path is
+    /// the text between <c>wrote </c> and the <b>last</b> <c>" ("</c> (or the rest of the line when
+    /// there is none), and the dimensions are the leading <c>WxH</c> token of the parenthesised
+    /// tail — null when that token isn't <c>^\d+x\d+</c> (a video/unmeasured line). This is the
+    /// parser the shared golden fixtures (<c>cli/testdata/scrape_fixtures.json</c>) exercise, kept
+    /// op-for-op with mcp's <c>parse_scraped</c>.
+    /// </summary>
+    public static ScrapeResult ParseScraped(string stderr)
+    {
+        List<ScrapedFile> files = new();
+        string directory = "";
+        foreach (string rawLine in SplitLines(stderr))
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith(PrefixWrote, StringComparison.Ordinal))
+            {
+                string rest = line[PrefixWrote.Length..];
+                // rfind " (" so a path containing " (" (e.g. "img (1)") still parses.
+                int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
+                if (open < 0)
+                {
+                    files.Add(new ScrapedFile(rest, null, null));
+                    continue;
+                }
+                string path = rest[..open];
+                string tail = rest[(open + 2)..];
+                if (tail.EndsWith(')'))
+                {
+                    tail = tail[..^1];
+                }
+                // Dimensions are the leading whitespace-delimited token, only when it is WxH
+                // (video/unmeasured lines lead with "source …", so they stay null).
+                string? token = FirstWhitespaceToken(tail);
+                if (token is not null && TryParseWxH(token, out int width, out int height))
+                {
+                    files.Add(new ScrapedFile(path, width, height));
+                }
+                else
+                {
+                    files.Add(new ScrapedFile(path, null, null));
+                }
+            }
+            else if (line.StartsWith(PrefixScraped, StringComparison.Ordinal))
+            {
+                // `scraped {n} file(s) from {host} into {dir}` — the dir is everything after
+                // the last " into " (a path could itself contain " into ").
+                int into = line.LastIndexOf(IntoMarker, StringComparison.Ordinal);
+                if (into >= 0)
+                {
+                    directory = line[(into + IntoMarker.Length)..].Trim();
+                }
+            }
+        }
+        return new ScrapeResult(directory, files);
     }
 
     /// <summary>

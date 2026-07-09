@@ -74,24 +74,37 @@ fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *li
             .line => |n| {
                 const line = buf[0..n];
                 hist.add(line);
-                if (!confirmUpload(ed, line)) continue; // guard /upload behind a yes/no prompt
+                if (!confirmUpload(ed, session, line)) continue; // guard /upload + /source-upload behind a yes/no prompt
                 if (dispatch(session, io, line)) break;
             },
         }
     }
 }
 
-// On a TTY, `/upload <src>` asks for a yes/no confirmation before replacing the working
-// image. Returns true to proceed (always, for every non-upload command); false when the
-// user declines. Tests drive `handle` directly and so skip this prompt.
-fn confirmUpload(ed: *line_edit.Editor, line: []const u8) bool {
+// On a TTY, `/upload <src>` (and `/source-upload <url>`) ask for a yes/no confirmation before
+// replacing the working image. Returns true to proceed (always, for every other command);
+// false when the user declines. Tests drive `handle` directly and so skip this prompt.
+fn confirmUpload(ed: *line_edit.Editor, session: *Session, line: []const u8) bool {
     const cmd = commands.parseCommand(line);
-    if (commands.verbOf(cmd.word) != commands.Verb.upload or cmd.arg.len == 0) return true;
+    if (cmd.arg.len == 0) return true;
+    const verb = commands.verbOf(cmd.word) orelse return true;
     var qbuf: [512]u8 = undefined;
-    const q = std.fmt.bufPrint(&qbuf, "Upload {s}?", .{cmd.arg}) catch "Upload this source?";
-    if (ed.confirm(q)) return true;
-    logo.print("upload cancelled\n", .{});
-    return false;
+    if (verb == commands.Verb.upload) {
+        const q = std.fmt.bufPrint(&qbuf, "Upload {s}?", .{cmd.arg}) catch "Upload this source?";
+        if (ed.confirm(q)) return true;
+        logo.print("upload cancelled\n", .{});
+        return false;
+    }
+    // A scrape replaces the working image too — but only prompt when there is one to replace.
+    if (verb == commands.Verb.source_upload and session.hasImage()) {
+        var it = std.mem.tokenizeAny(u8, cmd.arg, " \t");
+        const url = it.next() orelse cmd.arg;
+        const q = std.fmt.bufPrint(&qbuf, "Replace the current image with a scrape of {s}?", .{url}) catch "Replace the current image with a scrape?";
+        if (ed.confirm(q)) return true;
+        logo.print("scrape cancelled\n", .{});
+        return false;
+    }
+    return true;
 }
 
 fn runPiped(io: std.Io, session: *Session) void {
@@ -139,6 +152,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .status => ui.status(session),
         .clear => ui.redraw(session),
         .upload => try handlers.doUpload(session, io, cmd.arg),
+        .source_upload => try handlers.doSourceUpload(session, io, cmd.arg),
         .blank => try handlers.doBlank(session, cmd.arg),
         .save => try handlers.doSave(session, io, cmd.arg),
         .layout => try handlers.doLayout(session, io, cmd.arg),

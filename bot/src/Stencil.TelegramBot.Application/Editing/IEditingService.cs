@@ -21,8 +21,10 @@ public interface IEditingService
     /// <summary>
     /// Adopt a local file as the base image: copy it into the user's workspace (keeping its
     /// extension), probe its dimensions, reset the edit state and clear any active project.
+    /// <paramref name="sourceUrl"/> records the http(s) origin (e.g. the scraped page) for
+    /// display; pass null for a directly-uploaded file.
     /// </summary>
-    Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, CancellationToken ct = default);
+    Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, string? sourceUrl = null, CancellationToken ct = default);
 
     /// <summary>
     /// Adopt an http(s) image as the base: download/decode it through the CLI to a fresh PNG
@@ -111,6 +113,15 @@ public interface IEditingService
     /// fresh result file. Does not mutate the session. Throws when no working image is loaded.
     /// </summary>
     Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Scrape a web page's media into a fresh per-user scratch directory via the CLI
+    /// (<c>--source-site</c> mode), applying the request's category/format/dimension filters and
+    /// paging window. Does not touch the working image or session — it just downloads and returns
+    /// the matched files. The service fills <see cref="ScrapeRequest.OutputDir"/> with the scratch
+    /// path; the caller supplies the URL and filters. Throws when nothing matched or the fetch failed.
+    /// </summary>
+    Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Build the exportable <see cref="StencilLayout"/> for a session from its edit state:

@@ -18,6 +18,7 @@ from .image import Image
 from .layout import Point, Line, Layout
 from .editor import Editor
 from .server import ServerConnection, ConnectionManager, diff_projects
+from .sitesource import MediaItem, scan_page, download_media
 
 # `Stencil` is the friendly alias for the Editor facade (mirrors window.stencil).
 Stencil = Editor
@@ -34,6 +35,9 @@ __all__ = [
     "ServerConnection",
     "ConnectionManager",
     "diff_projects",
+    "MediaItem",
+    "scan_page",
+    "download_media",
     "codecs",
     "__version__",
 ]

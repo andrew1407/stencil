@@ -83,4 +83,40 @@ public sealed class UserWorkspacePruneTests : IDisposable
     {
         Assert.Equal(0, _workspace.PruneStale(123, Array.Empty<string>(), DateTime.UtcNow));
     }
+
+    [Fact]
+    public void PruneStaleReapsNestedScrapeSubdirsAndRemovesTheEmptyUserDir()
+    {
+        // Scrape mode writes into a nested `scrape-<guid>/` subdir; the sweep must recurse into
+        // it (a top-level-only sweep would leak it forever → disk exhaustion).
+        string userDir = _workspace.DirectoryFor(11);
+        string scrapeDir = Path.Combine(userDir, "scrape-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(scrapeDir);
+        string nested = Path.Combine(scrapeDir, "photo.png");
+        File.WriteAllBytes(nested, new byte[1]);
+        File.SetLastWriteTimeUtc(nested, DateTime.UtcNow - TimeSpan.FromHours(5));
+
+        int deleted = _workspace.PruneStale(11, Array.Empty<string>(), cutoffUtc: DateTime.UtcNow - TimeSpan.FromHours(1));
+
+        Assert.Equal(1, deleted);
+        Assert.False(File.Exists(nested));
+        Assert.False(Directory.Exists(scrapeDir));         // emptied nested dir reaped
+        Assert.False(Directory.Exists(Path.Combine(_root, "11"))); // now-empty user dir reaped
+    }
+
+    [Fact]
+    public void PruneStaleKeepsANestedFileThatIsStillReferenced()
+    {
+        string userDir = _workspace.DirectoryFor(12);
+        string scrapeDir = Path.Combine(userDir, "scrape-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(scrapeDir);
+        string keptNested = Path.Combine(scrapeDir, "active.png");
+        File.WriteAllBytes(keptNested, new byte[1]);
+        File.SetLastWriteTimeUtc(keptNested, DateTime.UtcNow - TimeSpan.FromHours(5)); // old but referenced
+
+        int deleted = _workspace.PruneStale(12, new[] { keptNested }, cutoffUtc: DateTime.UtcNow - TimeSpan.FromHours(1));
+
+        Assert.Equal(0, deleted);
+        Assert.True(File.Exists(keptNested)); // referenced nested file survives regardless of age
+    }
 }

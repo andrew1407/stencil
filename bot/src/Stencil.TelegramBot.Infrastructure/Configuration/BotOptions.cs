@@ -49,6 +49,14 @@ public sealed record BotOptions
     public long MaxDownloadBytes { get; init; } = (long)DefaultMaxDownloadMb * 1024 * 1024;
 
     /// <summary>
+    /// Maximum wall-clock time a single stencil CLI invocation may run
+    /// (<c>STENCIL_BOT_CLI_TIMEOUT_SECONDS</c>) before it is killed. A scrape fetches a page plus
+    /// N media downloads, so without a bound a slow/hung host could pin a scarce
+    /// <see cref="MaxConcurrentCli"/> slot indefinitely and starve the bot. Default 120s.
+    /// </summary>
+    public TimeSpan CliTimeout { get; init; } = TimeSpan.FromSeconds(DefaultCliTimeoutSeconds);
+
+    /// <summary>
     /// How long an unreferenced per-user scratch file may sit before the janitor sweeps it
     /// (<c>STENCIL_BOT_WORKSPACE_TTL_MINUTES</c>). The active image/video are never swept, only the
     /// orphaned render/layout artifacts. Default 60 min.
@@ -61,6 +69,7 @@ public sealed record BotOptions
     private const int DefaultHttpTimeoutSeconds = 30;
     private const int DefaultMaxDownloadMb = 50;
     private const int DefaultWorkspaceTtlMinutes = 60;
+    private const int DefaultCliTimeoutSeconds = 120;
 
     /// <summary>
     /// Build options from the current process environment. The data-dir defaults to
@@ -87,6 +96,9 @@ public sealed record BotOptions
         int workspaceTtlMinutes = ParsePositiveInt(
             Environment.GetEnvironmentVariable("STENCIL_BOT_WORKSPACE_TTL_MINUTES"),
             DefaultWorkspaceTtlMinutes);
+        int cliTimeoutSeconds = ParsePositiveInt(
+            Environment.GetEnvironmentVariable("STENCIL_BOT_CLI_TIMEOUT_SECONDS"),
+            DefaultCliTimeoutSeconds);
         return new BotOptions
         {
             BotToken = token,
@@ -98,6 +110,7 @@ public sealed record BotOptions
             ServerHttpTimeout = TimeSpan.FromSeconds(httpTimeoutSeconds),
             MaxDownloadBytes = (long)maxDownloadMb * 1024 * 1024,
             WorkspaceTtl = TimeSpan.FromMinutes(workspaceTtlMinutes),
+            CliTimeout = TimeSpan.FromSeconds(cliTimeoutSeconds),
         };
     }
 

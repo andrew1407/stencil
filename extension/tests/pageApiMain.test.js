@@ -189,6 +189,27 @@ test('search()/format()/size() are one-off queries that ignore the live filters'
   assert.deepEqual(stencil.size({ minW: 500 }).map((e) => e.name), ['dog.jpg']);
 });
 
+test('regex flag: live filter and search() treat the query as a case-insensitive RegExp', async () => {
+  const { stencil } = await loadApi({
+    imgs: [img('http://cdn/cat.png'), img('http://cdn/dog.jpg')],
+  });
+
+  // Live filter: stencil.regex makes searchText an anchored regex over "name url".
+  stencil.regex = true;
+  stencil.searchText = '\\.jpg';
+  assert.deepEqual(stencil.items.map((e) => e.name), ['dog.jpg']);
+  stencil.searchText = 'CAT';                     // case-insensitive
+  assert.deepEqual(stencil.items.map((e) => e.name), ['cat.png']);
+  stencil.searchText = 'cat(';                    // invalid regex → nothing matches
+  assert.equal(stencil.items.length, 0);
+  stencil.resetFilters();
+  assert.equal(stencil.regex, false);
+
+  // One-off search(): opt-in regex, default stays substring.
+  assert.deepEqual(stencil.search('\\.png$', { regex: true }).map((e) => e.name), ['cat.png']);
+  assert.equal(stencil.search('\\.png$').length, 0);   // literal substring absent
+});
+
 test('highlightOnPage get/set reflects the shared highlight style element', async () => {
   // Track the injected <style id=stencil-hl-style> so highlightActive() can see it.
   const styles = new Map();
@@ -232,6 +253,14 @@ test('open()/crop() resolve a URL/element target and post the right request', as
   assert.equal(crop.type, MSG.PAGE_CROP);
   assert.equal(crop.url, 'http://cdn/y.png');
   assert.equal(crop.album, true);
+
+  // open() flags: newTab and desktop ride through for the SW to route.
+  stencil.open('http://cdn/z.png', { newTab: true });
+  assert.equal(sent(posted).at(-1).newTab, true);
+  stencil.open('http://cdn/z.png', { desktop: true });
+  const desktopOpen = sent(posted).at(-1);
+  assert.equal(desktopOpen.type, MSG.PAGE_OPEN);
+  assert.equal(desktopOpen.desktop, true);
 });
 
 test('entry.open()/entry.crop() act on the scanned entry; video falls back to its poster', async () => {

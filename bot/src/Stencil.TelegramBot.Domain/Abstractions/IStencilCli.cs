@@ -22,4 +22,13 @@ public interface IStencilCli
     /// has no read-only metadata mode). <paramref name="input"/> is a path or http(s) URL.
     /// </summary>
     Task<ImageSize> ProbeAsync(string input, CancellationToken ct = default);
+
+    /// <summary>
+    /// Scrape a web page (<c>--source-site</c> mode): the CLI fetches the page, extracts and
+    /// filters its media URLs, and downloads the matches into <see cref="ScrapeRequest.OutputDir"/>.
+    /// Returns the written files (with measured dimensions where the CLI could sniff them). Throws
+    /// <see cref="Exceptions.StencilCliException"/> when nothing matched or the fetch failed. The
+    /// CLI is the HTML parser/fetcher — <c>core/</c> is not involved.
+    /// </summary>
+    Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default);
 }

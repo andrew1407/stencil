@@ -63,6 +63,11 @@ public static class Keyboards
             },
             new[]
             {
+                InlineKeyboardButton.WithCallbackData("🖼 Sources", "sources"),
+                InlineKeyboardButton.WithCallbackData("🆕 Blank", "blank"),
+            },
+            new[]
+            {
                 InlineKeyboardButton.WithCallbackData("🔌 Connect", "connect"),
                 InlineKeyboardButton.WithCallbackData("📁 Projects", "projects"),
             },

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatOf, formatOfItem, distinctFormats, extractCssUrls, passesFilters, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
+import { formatOf, formatOfItem, distinctFormats, extractCssUrls, passesFilters, matchesSearch, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
 
 test('formatOf: extensions, query strings, data URIs, normalisation', () => {
   assert.equal(formatOf('https://a.com/x/cat.PNG'), 'png');
@@ -97,6 +97,25 @@ test('passesFilters: search matches name or URL', () => {
   assert.equal(passesFilters(it, { search: 'banner' }), true);
   assert.equal(passesFilters(it, { search: 'x.com' }), true);
   assert.equal(passesFilters(it, { search: 'nope' }), false);
+});
+
+test('passesFilters: regex search treats the query as a case-insensitive RegExp', () => {
+  const cat = { kind: 'img', src: 'https://x.com/250px-Cat_August.jpg', name: '250px-Cat_August.jpg', w: 10, h: 10 };
+  const dog = { kind: 'img', src: 'https://x.com/dog.png', name: 'dog.png', w: 10, h: 10 };
+  // Anchored / metacharacter patterns only work in regex mode.
+  assert.equal(passesFilters(cat, { search: '\\.jpg$', regex: true }), true);
+  assert.equal(passesFilters(dog, { search: '\\.jpg$', regex: true }), false);
+  assert.equal(passesFilters(cat, { search: '(cat|kitten)', regex: true }), true); // case-insensitive
+  // Without the flag the same string is a literal substring — '\.jpg$' matches nothing.
+  assert.equal(passesFilters(cat, { search: '\\.jpg$', regex: false }), false);
+});
+
+test('matchesSearch: invalid regex matches nothing; substring still works', () => {
+  const it = { kind: 'img', src: 'https://x.com/a.png', name: 'a.png', videoUrl: '' };
+  assert.equal(matchesSearch(it, { search: 'a(', regex: true }), false); // unbalanced → no match
+  assert.equal(matchesSearch(it, { search: 'a(', regex: false }), false); // literal, absent
+  assert.equal(matchesSearch(it, { search: 'a.png', regex: false }), true);
+  assert.equal(matchesSearch(it, { search: '', regex: true }), true); // empty query = all
 });
 
 test('passesFilters: format checkbox set', () => {

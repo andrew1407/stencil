@@ -136,6 +136,12 @@ stencil [options] <output>
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
 | `--filter <bw\|sepia\|invert\|contour\|color>` | Apply an image filter (`invert` = negative, `contour` = edge detection). A colour name/`#hex` makes a duotone tint. **Overrides** the layout's filter if both are present. |
+| `--source-site <url>` | **Scrape mode:** fetch a page, extract + filter its media, and download the matches into `<output>` (a **directory**). See [Scraping a page](#scraping-a-page). Mutually exclusive with `-i`, `--blank`, `--server`. |
+| `--source-count <n>` | Items per page/group in scrape mode (default `5`; `0` = all matches, `--group` ignored). |
+| `--group <g>` | 0-based page index over the filtered list; window = `filtered[g*n : g*n+n]` (default 0). |
+| `--source-filter <s>` | Category tokens, `\|`-joined: `img` \| `video` \| `background` \| `poster` (default `all`). |
+| `--source-format <s>` | Format tokens, `\|`-joined, e.g. `png\|jpg\|webp\|mp4` (default `all`; unknown-ext items bucket as `etc`). |
+| `--source-min-width` / `--source-max-width` / `--source-min-height` / `--source-max-height` `<px>` | Inclusive pixel bounds (`0` = unset); images are measured from a header sniff, unmeasured items pass. |
 | `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
 | `--server <url>` | Connect to a [collaboration server](../server/README.md); then `-i <name>` names a **server project** to fetch and edit. |
 | `--remote-update` | With `--server`, write the result back into the fetched server project. |
@@ -180,6 +186,51 @@ stencil -i clip.mp4 -f 24 frame.png
 stencil -i wide.png -c "x1=0 x2=1200px" --album out.png
 ```
 
+### Scraping a page
+
+`--source-site <url>` switches the CLI into **scrape mode**: it fetches the page over the
+same guarded HTTP client (http(s) only; SSRF/redirect protections apply, plus a 64 MiB
+per-response size cap). Loopback is allowed for the **user-named page URL** (dev/fixture
+servers), but a media **sub-resource** URL harvested from the page can reach loopback/internal
+only when it is on that same host — a public page pointing at `http://127.0.0.1/…` (a
+different internal host) is refused. It hand-parses the HTML — `<img>` (with lazy-attr /
+`srcset` fallbacks),
+inline `<svg><image>`, `<video>` + its `poster`, `<picture><source src>`, and CSS
+`background-image: url(...)` from inline `style=` and `<style>` blocks — then filters and
+downloads the matches into `<output>` (a **directory**, created if missing; default `.`). It
+is adapter-only: no `core/` involvement. The semantics mirror the Chrome extension's image
+scanner, adapted for static HTML.
+
+Filtering runs **category → format → dimension**. Dimension bounds are inclusive and apply to
+images, whose pixel size is read from a header sniff (PNG/JPEG/GIF/BMP/WebP); videos and any
+unmeasured item pass the size filter. Results are paged by `--source-count` (default `5`;
+`0` = all matches): `--group g` selects `filtered[g*n : g*n+n]`.
+
+Output goes to stderr, one line per file plus a summary:
+
+```
+wrote out/logo.png (200x80 px · source example.com)     # image (measured)
+wrote out/clip.mp4 (source example.com)                 # video / unmeasured
+scraped 2 file(s) from example.com into out
+```
+
+A per-item fetch failure prints `error: could not fetch {url} ({reason})` and the run
+continues; zero matches is a hard error (`error: no media matched at {url}`, exit 1). The line
+grammar is pinned by `testdata/scrape_fixtures.json` and documented in `CONTRACT.md` §3.
+
+```bash
+# Download every image at least 200px wide into ./shots/
+stencil --source-site https://example.com --source-filter img --source-min-width 200 shots/
+
+# Just the PNGs and JPEGs, first page of 10
+stencil --source-site https://example.com --source-format png|jpg --source-count 10 out/
+```
+
+In the console, `/source-upload <url> [index] [format] [name=<label>] [minW] [maxW] [minH] [maxH]`
+(alias `/scrape`) scrapes a page and loads its *index*-th image-category match as the working
+image (`-1` for any bound = unset). An optional `name=<label>` token (allowed anywhere after the
+URL) overrides the URL-derived project label.
+
 ## Console mode
 
 `stencil --console` (alias `--repl`) skips the one-shot pipeline and instead reads
@@ -205,6 +256,7 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 | Command | Effect |
 |---|---|
 | `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
+| `/source-upload <url> [index] [format] [name=<label>] [minW] [maxW] [minH] [maxH]` | Scrape a page and load its *index*-th image-category match (img / background / poster) as the working image, after applying the format + inclusive dimension filters (`-1` for any bound = unset; `format` `all` = any). `name=<label>` overrides the URL-derived label. TTY: asks before replacing an existing image. Alias: `scrape`. |
 | `/paste` | Load an image from the clipboard (macOS, via `osascript`). Also bound to **Ctrl-Alt-V**. |
 | `/blank [format] [w h] [color]` | Create a blank page (default: the picked page format — see `/format` — else A4, @ 96 dpi, white). A leading page-format name picks the page (`/blank b5 pink`); a format and explicit `w h` are mutually exclusive (explicit dims size the blank and keep the current `/format` pick). Alias: `new`. |
 | `/format [name\|custom w h]` | A **bare** `/format` lists every page format (`A0`…`C10`) with its cm size, current marked; a name (case-insensitive, e.g. `/format b5`) picks the session's page format, and `custom <w> <h>` sets explicit cm dims. The pick shows in the image header, is written into saved/synced layouts (`pageSize`), and sets the `/blank` default page. Alias: `formats`. |
@@ -280,3 +332,18 @@ Two layers run together:
 
 The core's own geometry/crop/raster logic is additionally covered by its Doctest suite
 (`../core`).
+
+### Benchmark
+
+An opt-in perf benchmark times the pipeline stages (crop → rotate → layout → filter →
+contour → encode) on a large synthetic image. It is **not** part of `zig build test`, so
+CI never gates on a timing number — it just prints throughput:
+
+```bash
+zig build bench                  # default 4000x3000, 3000 lines
+zig build bench -- 6000 4000 8000    # width height line-count
+```
+
+It's the adapter-level counterpart to the core's own micro-benchmarks
+(`../core/build/stencil_tests -ts=bench --no-skip`); watch for order-of-magnitude drift
+release-over-release rather than exact milliseconds. See `src/bench.zig`.

@@ -4,6 +4,7 @@ const std = @import("std");
 const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
+const scrape = @import("scrape.zig");
 const logo = @import("logo.zig");
 
 pub fn main(init: std.process.Init) !void {
@@ -34,6 +35,16 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads the
+    // matches into <output> (a directory). It ignores the editing/connection flags.
+    if (opts.source_site != null) {
+        scrape.run(gpa, io, opts) catch {
+            // scrape.run prints a human-readable reason before failing.
+            std.process.exit(1);
+        };
+        return;
+    }
+
     pipeline.run(gpa, io, opts) catch {
         // pipeline.run prints a human-readable reason before failing.
         std.process.exit(1);
@@ -48,6 +59,7 @@ test {
     _ = @import("layout.zig");
     _ = @import("video.zig");
     _ = @import("net.zig");
+    _ = @import("scrape.zig");
     _ = @import("serverClient.zig");
     _ = @import("pipeline.zig");
     _ = @import("console.zig");

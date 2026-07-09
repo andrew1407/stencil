@@ -51,6 +51,11 @@ public sealed class CallbackAction
             await _bot.SendMessage(chatId, Replies.DrawHelp(), cancellationToken: ct);
             return;
         }
+        if (data == "sources")
+        {
+            await _bot.SendMessage(chatId, Replies.SourcesHelp(), cancellationToken: ct);
+            return;
+        }
         if (data == "crophelp")
         {
             await _bot.SendMessage(chatId, Replies.CropUsage(), cancellationToken: ct);

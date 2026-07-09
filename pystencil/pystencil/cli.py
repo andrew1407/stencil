@@ -28,12 +28,15 @@ front-ends, so results are identical by construction.
 """
 
 import argparse
+import re
 import sys
+import urllib.parse
 from typing import List, Optional, Sequence, TextIO, Tuple
 
 from . import codecs
 from .editor import Editor
 from .server import ConnectionManager, ServerError, normalize_url
+from .sitesource import download_media, scan_page, _fetch
 
 
 # Image extensions Python can actually encode (codecs is PNG/BMP only). A bare or
@@ -127,6 +130,38 @@ def _build_parser() -> argparse.ArgumentParser:
         help="bw | sepia | invert | contour | none | a colour name/#hex (duotone)",
     )
     p.add_argument("--save-layout", dest="save_layout", help="export the structured layout JSON here")
+    # ── source-site scrape mode (mutually exclusive with --input/--blank) ──
+    p.add_argument(
+        "--source-site",
+        dest="source_site",
+        metavar="URL",
+        help="scrape a web page's media into the output DIRECTORY (activates scrape mode)",
+    )
+    p.add_argument(
+        "--source-count", dest="source_count", type=int, default=None,
+        help="items per page/group (default 5; 0 = all)",
+    )
+    p.add_argument("--group", dest="group", type=int, default=0, help="0-based page index")
+    p.add_argument(
+        "--source-filter", dest="source_filter", default="all",
+        help="category tokens |-joined: img|video|background|poster (all = every category)",
+    )
+    p.add_argument(
+        "--source-format", dest="source_format", default="all",
+        help="format tokens |-joined, e.g. png|jpg|webp|mp4 (all = every format)",
+    )
+    p.add_argument(
+        "--source-name", dest="source_name", default=None,
+        help="regex (case-insensitive) matched against each media URL",
+    )
+    p.add_argument("--source-min-width", dest="source_min_width", type=int, default=0,
+                   help="inclusive min width in px (0 = unset)")
+    p.add_argument("--source-max-width", dest="source_max_width", type=int, default=0,
+                   help="inclusive max width in px (0 = unset)")
+    p.add_argument("--source-min-height", dest="source_min_height", type=int, default=0,
+                   help="inclusive min height in px (0 = unset)")
+    p.add_argument("--source-max-height", dest="source_max_height", type=int, default=0,
+                   help="inclusive max height in px (0 = unset)")
     p.add_argument(
         "--console",
         "--repl",
@@ -192,6 +227,54 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
     return 0
 
 
+def _unset0(v: int) -> int:
+    """Map a CLI dimension flag (``0`` = unset) to the scan_page convention (``-1``)."""
+    return v if v and v > 0 else -1
+
+
+def _run_scrape(args: argparse.Namespace, err: TextIO) -> int:
+    """Execute source-site scrape mode: fetch/filter/download; print the §3 stderr lines."""
+    # Scrape mode is mutually exclusive with the editing sources (mirror DuplicateSource).
+    if args.input is not None or args.blank is not None:
+        err.write("error: --source-site cannot be combined with --input or --blank\n")
+        return 2
+    url = args.source_site
+    out_dir = args.output or "."
+    host = urllib.parse.urlparse(url).hostname or ""
+    # Apply the user-facing --source-count default here at the entry layer (parity with the
+    # Zig CLI's scrape.effectiveCount): absent = 5, 0 = all (None), N = N. scan_page's own
+    # count=None primitive still means "all".
+    sc = args.source_count
+    count = 5 if sc is None else (None if sc == 0 else sc)
+    # Announce the scrape before the page fetch + downloads (which can take a while) rather than
+    # sitting silent until the first `wrote`. Mirrors the Zig CLI's scrape.run leading line; it
+    # carries none of the parsed prefixes, so the mcp/bot adapters ignore it.
+    err.write("scraping %s…\n" % url)
+    try:
+        items = scan_page(
+            url,
+            category=args.source_filter or "all",
+            formats=args.source_format or "all",
+            name=args.source_name,
+            min_width=_unset0(args.source_min_width),
+            max_width=_unset0(args.source_max_width),
+            min_height=_unset0(args.source_min_height),
+            max_height=_unset0(args.source_max_height),
+            count=count,
+            group=args.group or 0,
+        )
+    except re.error:
+        # Mirror the Zig CLI's fail-fast on a bad --source-name pattern.
+        err.write("error: invalid --source-name regex '%s'\n" % args.source_name)
+        return 1
+    paths = download_media(items, out_dir, host=host, err=err)
+    if not paths:
+        err.write("error: no media matched at %s\n" % url)
+        return 1
+    err.write("scraped %d file(s) from %s into %s\n" % (len(paths), host, out_dir))
+    return 0
+
+
 # ── interactive console (REPL) ─────────────────────────────────────────────────
 def _parse_command(line: str) -> Tuple[str, str]:
     """Split a line into (verb, arg) at the first whitespace, dropping one leading '/'.
@@ -213,6 +296,8 @@ def _parse_command(line: str) -> Tuple[str, str]:
 # Console help text, mirroring the Zig REPL's command listing.
 _HELP = """commands:
   /upload <path|url>     load an image (aliases: open, load)
+  /source-upload <url> [index=0] [format=all] [name=] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]
+                         scrape a page, load one filtered image (alias: scrape)
   /blank [f] [w h] [color]  create a blank page, f = a page format (alias: new)
   /format [name|custom w h]  list the page formats / set the session's format
   /crop <spec> [album]   crop, e.g. x1=10% x2=90% y1=10% y2=90%
@@ -264,6 +349,8 @@ class _Repl:
             self._say(_HELP)
         elif w in ("upload", "open", "load"):
             self._cmd_upload(arg)
+        elif w in ("source-upload", "sourceupload", "scrape"):
+            self._cmd_source_upload(arg)
         elif w in ("blank", "new"):
             self._cmd_blank(arg)
         elif w == "format":
@@ -324,6 +411,67 @@ class _Repl:
             self._say("error: /upload needs a path or URL")
             return
         self._editor.load(arg)
+        w, h = self._editor.image_size
+        self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))
+
+    def _cmd_source_upload(self, arg: str) -> None:
+        """/source-upload <url> [index= format= minW= maxW= minH= maxH=]: scrape a page,
+        filter its image-category stills (img/bg/poster — NOT video), and load one."""
+        parts = arg.split()
+        if not parts:
+            self._say("error: /source-upload needs a URL")
+            return
+        url = parts[0]
+        opts = {"index": 0, "format": "all", "minw": -1, "maxw": -1, "minh": -1, "maxh": -1}
+        custom_name: Optional[str] = None
+        try:
+            for tok in parts[1:]:
+                if "=" not in tok:
+                    continue
+                key, val = tok.split("=", 1)
+                key = key.strip().lower()
+                if key == "format":
+                    opts["format"] = val.strip() or "all"
+                elif key == "name":
+                    custom_name = val.strip() or None
+                elif key in opts:
+                    opts[key] = int(val)
+        except ValueError:
+            self._say("error: /source-upload options must be key=value (ints, format=/name=)")
+            return
+        # Announce the scrape before the fetch + download (parity with the Zig console's
+        # doSourceUpload and the one-shot scrape's leading line) so the REPL isn't silent.
+        self._say("scraping %s…" % url)
+        # Image-category stills only; take ALL matches so the index selects over the full list.
+        items = scan_page(
+            url,
+            category="img|background|poster",
+            formats=opts["format"],
+            min_width=opts["minw"],
+            max_width=opts["maxw"],
+            min_height=opts["minh"],
+            max_height=opts["maxh"],
+        )
+        index = opts["index"]
+        if not items:
+            self._say("error: no image matched at %s" % url)
+            return
+        if index < 0 or index >= len(items):
+            self._say(
+                "error: index %d out of range (0-%d)" % (index, len(items) - 1)
+            )
+            return
+        item = items[index]
+        # Sub-resource URL harvested from the page: loopback blocked unless same-host.
+        from .sitesource import _sub_strict
+
+        page_host = urllib.parse.urlparse(url).hostname or ""
+        data = _fetch(item.url, strict=_sub_strict(item.url, page_host))
+        # Replace the working image via the session's load path (mirror /upload). A
+        # name= token overrides the URL-derived project name.
+        self._editor.load(
+            bytes(data), name=custom_name or self._editor._name_from_url(item.url)
+        )
         w, h = self._editor.image_size
         self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))
 
@@ -531,6 +679,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _Repl(err).run(sys.stdin)
 
     try:
+        if args.source_site is not None:
+            return _run_scrape(args, err)
         return _run_pipeline(args, err)
     except ServerError as e:
         err.write("error: %s\n" % e)

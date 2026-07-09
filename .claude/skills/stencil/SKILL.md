@@ -16,10 +16,9 @@ allowed-tools:
 
 # Stencil image/video editing
 
-Drive Stencil's headless CLI (`cli/`, a Zig wrapper over the shared C++ `core/`)
-to transform an image or a video frame and write the result. This is the simplest
-way to "use the editor's core features" without a GUI — every pixel/geometry
-operation is the same code the browser and desktop apps run.
+Drive Stencil's headless CLI (`cli/`, a Zig wrapper over the shared C++ `core/`) to
+transform an image or a video frame and write the result — no GUI, and every pixel/
+geometry operation is the same code the browser and desktop editors run.
 
 ## Invocation forms
 
@@ -104,24 +103,58 @@ Note: the `/stencil` skill drives the CLI directly; an MCP client can reach the 
 server-project actions through the `stencil_edit` tool's `server` / `remote_update` /
 `remote` / `remote_name` parameters (see `mcp/README.md`).
 
+## Scrape a source site (headless media download)
+
+For "grab the images/videos off this page" requests, `--source-site <url>` switches the CLI
+into **scrape mode**: it fetches the page over HTTP, parses the HTML (no browser), extracts
+image/video/background/poster media URLs, filters them, and **downloads the matches into an
+output DIRECTORY** — here the positional `<output>` is a *destination folder* (created if
+missing, default `.`), **not** a single rendered image. Scrape mode ignores the editing flags
+above (crop/rotate/layout/filter/frame) and the server flags, and is mutually exclusive with
+`-i` / `--blank`.
+
+| User asks for | Flag | Notes |
+|---|---|---|
+| scrape a page | `--source-site <url>` | activates scrape mode; the page to fetch + parse |
+| how many per page | `--source-count <N>` | items per page/group (**default 5**; `0` ⇒ download ALL matches) |
+| which page/group | `--group <G>` | 0-based page index; window = `filtered[G*N : G*N+N]` |
+| which categories | `--source-filter <s>` | `\|`-joined tokens `img\|video\|background\|poster`; `all` (or absent) = every category |
+| which formats | `--source-format <s>` | `\|`-joined normalized exts, e.g. `png\|jpg\|webp\|gif\|svg\|mp4\|webm\|mov\|avi`; `all`/absent = every format |
+| min/max width | `--source-min-width <px>` / `--source-max-width <px>` | inclusive; `0` = unset (only images are measured; unknown-size items pass) |
+| min/max height | `--source-min-height <px>` / `--source-max-height <px>` | inclusive; `0` = unset |
+| (destination) | `<output>` | positional **directory**, created if missing (default `.`) |
+
+Each downloaded file prints a `wrote …` line to stderr and the run ends with a
+`scraped {n} file(s) from {host} into {dir}` summary (per-item fetch failures are non-fatal;
+zero matches is a hard error).
+
+```bash
+# download the first 10 PNG/JPG images at least 200px wide into ./shots/
+cli/zig-out/bin/stencil --source-site https://example.com \
+  --source-filter img --source-format "png|jpg" --source-min-width 200 \
+  --source-count 10 --group 0 shots/
+```
+
 ## Interactive REPL & Python alternatives
 
-Two non-one-shot ways to drive the *same* `core/`, when they fit the request better than a
-single CLI call:
+Two non-one-shot ways to drive the *same* `core/` when they fit better than a single CLI call:
 
-- **Interactive console (REPL).** `cli/zig-out/bin/stencil --console` (alias `--repl`) opens a
-  session on one in-memory working image, applying `/command` lines: `/upload`, `/blank`,
-  `/crop`, `/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, `/layout` (export),
-  plus the server verbs `/connect` / `/fetch` / `/sync`. Reach for it to try a few crops/filters
-  interactively or to script a session by piping `/command` lines in — same transforms as the
-  flag pipeline, so results are identical. See `cli/README.md` → *Console mode*.
-- **Python (`pystencil`).** A stdlib-only package that drives the same core via ctypes — prefer
-  it when the user wants Python or a chainable script over shell. It mirrors the CLI flags
-  one-shot (`python3 -m pystencil -i in.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 --filter sepia
-  out.png`; also `--blank`, `--layout`, and `--repl`), or use the chainable API:
+- **Interactive console (REPL).** `cli/zig-out/bin/stencil --console` (alias `--repl`) runs a
+  session on one in-memory working image via `/command` lines: `/upload`, `/blank`, `/crop`,
+  `/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, `/layout` (export), plus
+  the server verbs `/connect` / `/fetch` / `/sync`. Same transforms as the flag pipeline
+  (identical results) — reach for it to try a few edits interactively or to script a session by
+  piping `/command` lines in. See `cli/README.md` → *Console mode*.
+- **Python (`pystencil`).** A stdlib-only package driving the same core via ctypes; prefer it
+  when the user wants Python or a chainable script over shell. It mirrors the CLI flags one-shot
+  (`python3 -m pystencil -i in.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 --filter sepia out.png`;
+  also `--blank`, `--layout`, `--repl`), or use the chainable API:
   `Editor().load("in.jpg").crop("…").rotate_right().apply_filter("sepia").save("out.png")`.
-  No third-party deps; PNG/BMP are native but **JPEG decode falls back to the Zig CLI**. The
-  native lib builds on demand (force it with `python3 build.py`). See `pystencil/README.md`.
+  PNG/BMP are native; **JPEG decode falls back to the Zig CLI**. The native lib builds on demand
+  (force it with `python3 build.py`). See `pystencil/README.md`. For **scraping**, a short
+  `pystencil` script (`scan_page` / `download_media`, or `python3 -m pystencil --source-site …`)
+  is usually faster and cheaper in tokens than repeated CLI calls — filter, slice, and loop over
+  the matched media in-process instead of shelling out per page/group.
 
 ## Drawing / layout
 

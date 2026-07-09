@@ -27,6 +27,13 @@ public sealed record UserSession
     public string? ImageLabel { get; init; }
 
     /// <summary>
+    /// The http(s) URL the working image was loaded from — the link for <c>/url</c>, or the
+    /// scraped page for <c>/sourcesite</c>/<c>/sourceupload</c>. Null for uploaded photos, blanks
+    /// and fetched server projects. Surfaced in <c>/status</c> and the image caption.
+    /// </summary>
+    public string? SourceUrl { get; init; }
+
+    /// <summary>
     /// When the working image was extracted from an uploaded video, the on-disk path of that
     /// video — kept so <c>/frame n</c> can re-grab a different frame. Null otherwise.
     /// </summary>

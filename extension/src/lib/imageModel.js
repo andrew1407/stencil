@@ -27,11 +27,18 @@ export const editableSrc = (image) => image.src || image.posterUrl || '';
 export const pinnable = (image) => !!sourceOf(image);
 
 // Shared pins only obey the text search (name / server source) — the page-image kind / format /
-// size filters don't apply to a remote project. No search = always shown.
-export const sharedMatchesSearch = (image, search) => {
+// size filters don't apply to a remote project. No search = always shown. With regex=true the
+// search is a case-insensitive RegExp (invalid → matches nothing), matching passesFilters.
+export const sharedMatchesSearch = (image, search, regex = false) => {
   if (!search) return true;
+  const fields = [image.name, image.source];
+  if (regex) {
+    let re;
+    try { re = new RegExp(search, 'i'); } catch { return false; }
+    return fields.some(v => re.test(v || ''));
+  }
   const q = search.toLowerCase();
-  return (image.name || '').toLowerCase().includes(q) || (image.source || '').toLowerCase().includes(q);
+  return fields.some(v => (v || '').toLowerCase().includes(q));
 };
 
 // A connected server's short label for the "server pins" filter select: its URL host, falling

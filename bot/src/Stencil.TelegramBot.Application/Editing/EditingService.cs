@@ -31,14 +31,14 @@ public sealed class EditingService : IEditingService
     }
 
     /// <inheritdoc />
-    public async Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, CancellationToken ct = default)
+    public async Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, string? sourceUrl = null, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
         var extension = Path.GetExtension(sourcePath);
         var destination = _workspace.NewFilePath(userId, extension);
         File.Copy(sourcePath, destination, overwrite: true);
         var size = await _cli.ProbeAsync(destination, ct);
-        var updated = ResetToImage(session, destination, size, label);
+        var updated = ResetToImage(session, destination, size, label, sourceUrl);
         await _store.SaveAsync(updated, ct);
         return updated;
     }
@@ -58,7 +58,7 @@ public sealed class EditingService : IEditingService
             Overwrite = true,
         };
         var result = await _cli.EditAsync(request, ct);
-        var updated = ResetToImage(session, result.Path, result.Size, label);
+        var updated = ResetToImage(session, result.Path, result.Size, label, url);
         await _store.SaveAsync(updated, ct);
         return updated;
     }
@@ -429,6 +429,16 @@ public sealed class EditingService : IEditingService
     }
 
     /// <inheritdoc />
+    public Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default)
+    {
+        // The scrape writes a directory of downloads, so give it its own fresh sub-directory in
+        // the user's workspace (kept apart from the render/layout artifacts). The CLI creates the
+        // directory itself; /drop's Clear() wipes the whole user tree, subdir included.
+        string dir = Path.Combine(_workspace.DirectoryFor(userId), "scrape-" + Guid.NewGuid().ToString("N"));
+        return _cli.ScrapeAsync(request with { OutputDir = dir }, ct);
+    }
+
+    /// <inheritdoc />
     public StencilLayout BuildLayout(UserSession session) =>
         new()
         {
@@ -446,13 +456,14 @@ public sealed class EditingService : IEditingService
     /// Reset a session onto a freshly adopted base image: store the path/dimensions/label,
     /// clear the edit state and any active server project.
     /// </summary>
-    private static UserSession ResetToImage(UserSession session, string path, ImageSize size, string label) =>
+    private static UserSession ResetToImage(UserSession session, string path, ImageSize size, string label, string? sourceUrl = null) =>
         session with
         {
             OriginalImagePath = path,
             OriginalWidth = size.Width,
             OriginalHeight = size.Height,
             ImageLabel = label,
+            SourceUrl = sourceUrl,
             VideoSourcePath = null,
             Edits = new EditState(),
             EditHistory = [],

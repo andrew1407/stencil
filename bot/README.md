@@ -119,7 +119,11 @@ bot/
 - **`IStencilCli` → the Zig CLI.** `ProcessStencilCli` locates the binary (`STENCIL_CLI` →
   the repo's `cli/zig-out/bin/stencil` → `stencil` on `PATH`), runs it with `NO_COLOR=1`, and
   parses its `wrote {path} ({w}x{h})` / `error: …` stderr — a direct port of `mcp/src/{locate,
-  args,outcome,pipeline}.rs`.
+  args,outcome,pipeline}.rs`. `ScrapeAsync` drives the CLI's `--source-site` scrape mode
+  (`CliArgvBuilder.BuildScrapeArgv` + `CliOutcomeParser.ParseScraped`, whose multi-file
+  `wrote …` / `scraped {n} file(s) from {host} into {dir}` grammar is pinned by the shared
+  golden fixtures at `cli/testdata/scrape_fixtures.json`); the HTML parsing/fetch lives entirely
+  in the CLI, never in `core/`.
 - **`IStencilServerClient` → the Go server's REST API.** `HttpStencilServerClient` is a port
   of `pystencil/pystencil/server.py` (`/auth/token`, `/projects[...]`, file upload/download,
   `{code,message}` → `ServerException`, last-writer-wins version guard).
@@ -168,7 +172,7 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 208 offline tests — no token/server/CLI/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 352 offline tests — no token/server/CLI/Redis needed
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
 
@@ -204,6 +208,8 @@ onto the image.
 | `/blank [format] [w h] [color]` | Start a blank canvas: a named ISO format (e.g. `b5`) **or** pixel dims (default A4 @ 96 dpi, white) |
 | `/format [name\|custom w h]` | Set the page format (A0–C10, case-insensitive, or custom cm dims) — the `/blank` default page (custom cm dims convert to pixels at 96 dpi, like the CLI console), written into the saved layout's `pageSize`; bare lists all 33 formats |
 | `/url <link>` | Load an `http(s)` image |
+| `/sourcesite <link> [count] [filter=…] [format=…] [minw/maxw/minh/maxh=…] [group=N]` | **Scrape a web page's media** into the chat: the CLI fetches the page, extracts + filters its `<img>`/`<video>`/`poster`/CSS-background URLs and downloads the matches (`--source-site` mode — HTML parsing is the CLI's job, not `core/`). Each measured image comes back as a photo, each video/unmeasured item as a document, plus a summary. Bare integer = count (**default 5**; `0` = all); `filter=` category tokens (`img\|video\|background\|poster`), `format=` extension tokens (`png\|jpg\|…`), `min/max` inclusive px bounds, `group=` a 0-based page. The link is SSRF-vetted like `/url` |
+| `/sourceupload <link> [index=0] [format=…] [minw/maxw/minh/maxh=…]` | **Scrape a page and load ONE image to edit** — the chat analog of the console `/source-upload`. Isolates the still at 0-based `index` (image-category only: `img\|background\|poster`, video excluded) via a one-item scrape, adopts it as the **editable** working image (replacing the session, like `/url`), then renders + sends it with the edit menu. Bare integer = the index; `format=`/`min/max` filter the candidate stills. Replies `No image at index N` when nothing lives there. The link is SSRF-vetted like `/url` |
 | `/frame [n]` | Grab frame `n` of the loaded video (needs `ffmpeg` on `PATH`) |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` |
 | `/rotate <n>` | Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`) |

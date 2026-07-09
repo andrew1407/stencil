@@ -30,6 +30,19 @@ pub const Options = struct {
     remote: ?[]const u8 = null,
     remote_name: ?[]const u8 = null,
     remote_update: bool = false,
+    // ── Source-site scraping ──
+    // --source-site <url> activates scrape mode (mutually exclusive with -i/--blank/--server):
+    // fetch the page, extract + filter media, and download the matches into <output> (a dir).
+    source_site: ?[]const u8 = null,
+    source_count: ?u32 = null, // items per page/group; absent = default 5, 0 = all (applied in scrape.effectiveCount)
+    group: u32 = 0, // 0-based page index; window = filtered[G*N : G*N+N]
+    source_filter: ?[]const u8 = null, // category tokens, '|'-separated (absent = all)
+    source_format: ?[]const u8 = null, // format tokens, '|'-separated (absent = all)
+    source_name: ?[]const u8 = null, // regex (POSIX ERE, case-insensitive) on the media URL; absent = all
+    source_min_width: u32 = 0, // inclusive; 0 = unset
+    source_max_width: u32 = 0,
+    source_min_height: u32 = 0,
+    source_max_height: u32 = 0,
 };
 
 pub const Error = error{
@@ -77,12 +90,12 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
         } else if (eq(arg, "--console") or eq(arg, "--repl")) {
             opts.console = true;
         } else if (eq(arg, "-i") or eq(arg, "--input")) {
-            if (opts.blank != null) return Error.DuplicateSource;
+            if (opts.blank != null or opts.source_site != null) return Error.DuplicateSource;
             opts.input = try value(&st, "--input");
         } else if (eq(arg, "-f") or eq(arg, "--frame")) {
             opts.frame = try parseU32(try value(&st, "--frame"));
         } else if (eq(arg, "--blank")) {
-            if (opts.input != null) return Error.DuplicateSource;
+            if (opts.input != null or opts.source_site != null) return Error.DuplicateSource;
             opts.blank = try parseBlank(allocator, &st);
         } else if (eq(arg, "-c") or eq(arg, "--crop")) {
             opts.crop = try value(&st, "--crop");
@@ -95,7 +108,29 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
         } else if (eq(arg, "--filter")) {
             opts.filter = try value(&st, "--filter");
         } else if (eq(arg, "--server")) {
+            if (opts.source_site != null) return Error.DuplicateSource;
             opts.server = try value(&st, "--server");
+        } else if (eq(arg, "--source-site")) {
+            if (opts.input != null or opts.blank != null or opts.server != null) return Error.DuplicateSource;
+            opts.source_site = try value(&st, "--source-site");
+        } else if (eq(arg, "--source-count")) {
+            opts.source_count = try parseU32(try value(&st, "--source-count"));
+        } else if (eq(arg, "--group")) {
+            opts.group = try parseU32(try value(&st, "--group"));
+        } else if (eq(arg, "--source-filter")) {
+            opts.source_filter = try value(&st, "--source-filter");
+        } else if (eq(arg, "--source-format")) {
+            opts.source_format = try value(&st, "--source-format");
+        } else if (eq(arg, "--source-name")) {
+            opts.source_name = try value(&st, "--source-name");
+        } else if (eq(arg, "--source-min-width")) {
+            opts.source_min_width = try parseU32(try value(&st, "--source-min-width"));
+        } else if (eq(arg, "--source-max-width")) {
+            opts.source_max_width = try parseU32(try value(&st, "--source-max-width"));
+        } else if (eq(arg, "--source-min-height")) {
+            opts.source_min_height = try parseU32(try value(&st, "--source-min-height"));
+        } else if (eq(arg, "--source-max-height")) {
+            opts.source_max_height = try parseU32(try value(&st, "--source-max-height"));
         } else if (eq(arg, "--remote")) {
             opts.remote = try value(&st, "--remote");
         } else if (eq(arg, "--remote-name")) {
@@ -247,4 +282,46 @@ test "parse: server options" {
     const o2 = try parse(a, &a2);
     try testing.expectEqualStrings("http://h:8090", o2.remote.?);
     try testing.expectEqualStrings("Shared", o2.remote_name.?);
+}
+
+test "parse: source-site scrape flags" {
+    const a = testing.allocator;
+    const argv = [_][:0]const u8{
+        "--source-site",   "https://example.com/",
+        "--source-count",  "3",
+        "--group",         "1",
+        "--source-filter", "img|background",
+        "--source-format", "png|jpg",
+        "--source-name",   "cat.*\\.jpg",
+        "--source-min-width", "100",
+        "--source-max-height", "800",
+        "out",
+    };
+    const o = try parse(a, &argv);
+    try testing.expectEqualStrings("https://example.com/", o.source_site.?);
+    try testing.expectEqual(@as(u32, 3), o.source_count.?);
+    try testing.expectEqual(@as(u32, 1), o.group);
+    try testing.expectEqualStrings("img|background", o.source_filter.?);
+    try testing.expectEqualStrings("png|jpg", o.source_format.?);
+    try testing.expectEqualStrings("cat.*\\.jpg", o.source_name.?);
+    try testing.expectEqual(@as(u32, 100), o.source_min_width);
+    try testing.expectEqual(@as(u32, 800), o.source_max_height);
+    try testing.expectEqualStrings("out", o.output.?);
+    // Defaults when absent.
+    const bare = [_][:0]const u8{ "--source-site", "https://x/", "dir" };
+    const ob = try parse(a, &bare);
+    try testing.expect(ob.source_count == null);
+    try testing.expectEqual(@as(u32, 0), ob.group);
+}
+
+test "parse: source-site is mutually exclusive with -i / --blank / --server" {
+    const a = testing.allocator;
+    const a1 = [_][:0]const u8{ "--source-site", "https://x/", "-i", "in.png" };
+    try testing.expectError(Error.DuplicateSource, parse(a, &a1));
+    const a2 = [_][:0]const u8{ "-i", "in.png", "--source-site", "https://x/" };
+    try testing.expectError(Error.DuplicateSource, parse(a, &a2));
+    const a3 = [_][:0]const u8{ "--blank", "--source-site", "https://x/" };
+    try testing.expectError(Error.DuplicateSource, parse(a, &a3));
+    const a4 = [_][:0]const u8{ "--source-site", "https://x/", "--server", "http://h" };
+    try testing.expectError(Error.DuplicateSource, parse(a, &a4));
 }
