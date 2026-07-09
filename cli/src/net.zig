@@ -6,6 +6,12 @@ const std = @import("std");
 
 pub const Error = error{ HttpFailed, BlockedHost };
 
+/// Hard cap on the bytes read from a single fetch. Bounds memory against a hostile host that
+/// streams an endless/huge body — important for scrape, which fetches many URLs harvested
+/// from untrusted page content into one arena. The scratch is page-allocated (lazily
+/// committed), so a small response still costs only its own size in RSS.
+pub const MAX_FETCH_BYTES = 64 << 20; // 64 MiB
+
 pub fn isUrl(s: []const u8) bool {
     return std.ascii.startsWithIgnoreCase(s, "http://") or
         std.ascii.startsWithIgnoreCase(s, "https://");
@@ -54,27 +60,32 @@ pub fn hostOf(url: []const u8) ?[]const u8 {
 /// Blocks IP-literal targets — `169.254.169.254` (cloud metadata), link-local,
 /// `10.x`/`172.16-31`/`192.168` (RFC1918), CGNAT, ULA, reserved — including the
 /// alternate numeric encodings (decimal/hex/octal/short-dotted) a resolver would accept.
-/// Loopback (`127.0.0.0/8`, `::1`, `localhost`) is deliberately ALLOWED: the CLI is a
-/// local tool that legitimately fetches from a user's own dev/fixture server on localhost
-/// (the project's own e2e does exactly this), and loopback is the CLI process's own trust
-/// domain, not a network pivot. This is the pure/literal check; `fetch` additionally
-/// resolves DNS names and blocks those pointing at an internal address
-/// (`hostResolvesToBlocked`). The server-connect path is intentionally exempt (users name
-/// their own servers).
-pub fn isBlockedFetchHost(host: []const u8) bool {
+/// When `strict` is false, loopback (`127.0.0.0/8`, `::1`, `localhost`) is deliberately
+/// ALLOWED: for a URL the user named directly, the CLI is a local tool that legitimately
+/// fetches from the user's own dev/fixture server on localhost (the project's own e2e does
+/// exactly this), and loopback is the CLI process's own trust domain, not a network pivot.
+/// When `strict` is true, loopback is ALSO blocked — used for sub-resource URLs harvested
+/// from untrusted scanned page content, which must not be able to reach loopback services
+/// (`.claude/rules/security.md`: never connect to a host discovered in fetched/scanned
+/// content). This is the pure/literal check; `fetch` additionally resolves DNS names and
+/// blocks those pointing at an internal address (`hostResolvesToBlocked`). The server-connect
+/// path is intentionally exempt (users name their own servers).
+pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
     if (host.len == 0) return true;
     // IP literal (dotted-quad / IPv6)? Classify it.
     if (std.Io.net.IpAddress.parse(host, 0)) |addr| {
         return switch (addr) {
-            .ip4 => |v4| isBlockedV4(v4.bytes),
-            .ip6 => |v6| isBlockedV6(v6.bytes),
+            .ip4 => |v4| isBlockedV4(v4.bytes, strict),
+            .ip6 => |v6| isBlockedV6(v6.bytes, strict),
         };
     } else |_| {}
     // Alternate numeric IPv4 encodings that IpAddress.parse rejects but a libc/getaddrinfo
     // resolver would accept — a plain decimal (`2852039166`), hex (`0xA9FEA9FE`), octal, or
     // short-dotted (`10.0`, `0x7f.1`) form of an internal address. Canonicalize + classify
     // so these can't smuggle 169.254.169.254 et al. past the guard.
-    if (parseInetAtonV4(host)) |v4| return isBlockedV4(v4);
+    if (parseInetAtonV4(host)) |v4| return isBlockedV4(v4, strict);
+    // The literal `localhost` name (strict only — a name, so IpAddress.parse missed it).
+    if (strict and std.ascii.eqlIgnoreCase(host, "localhost")) return true;
     // A real hostname: the DNS resolution check in fetch() covers name→internal.
     return false;
 }
@@ -140,7 +151,7 @@ fn parseInetAtonV4(host: []const u8) ?[4]u8 {
 /// literal check can't see. (A residual remains: an attacker who flips the record between
 /// this lookup and the client's own connect — active DNS rebinding — since std.http.Client
 /// re-resolves the URL itself; the redirect refusal below still blocks the 30x variant.)
-fn hostResolvesToBlocked(io: std.Io, host: []const u8) bool {
+fn hostResolvesToBlocked(io: std.Io, host: []const u8, strict: bool) bool {
     const hn = std.Io.net.HostName.init(host) catch return false;
     var buf: [32]std.Io.net.HostName.LookupResult = undefined;
     var q: std.Io.Queue(std.Io.net.HostName.LookupResult) = .init(&buf);
@@ -149,19 +160,20 @@ fn hostResolvesToBlocked(io: std.Io, host: []const u8) bool {
     hn.lookup(io, &q, .{ .port = 0 }) catch return false;
     while (q.getOne(io)) |res| switch (res) {
         .address => |addr| switch (addr) {
-            .ip4 => |v4| if (isBlockedV4(v4.bytes)) return true,
-            .ip6 => |v6| if (isBlockedV6(v6.bytes)) return true,
+            .ip4 => |v4| if (isBlockedV4(v4.bytes, strict)) return true,
+            .ip6 => |v6| if (isBlockedV6(v6.bytes, strict)) return true,
         },
         .canonical_name => {},
     } else |_| {}
     return false;
 }
 
-fn isBlockedV4(b: [4]u8) bool {
+fn isBlockedV4(b: [4]u8, strict: bool) bool {
     if (b[0] == 0) return true; // 0.0.0.0/8 this-network
     if (b[0] == 10) return true; // 10.0.0.0/8 private
     if (b[0] == 100 and b[1] >= 64 and b[1] <= 127) return true; // 100.64.0.0/10 CGNAT
-    // 127.0.0.0/8 loopback is intentionally allowed (local dev/fixture servers).
+    // 127.0.0.0/8 loopback: allowed for user-named URLs, blocked for scanned-content fetches.
+    if (strict and b[0] == 127) return true;
     if (b[0] == 169 and b[1] == 254) return true; // 169.254.0.0/16 link-local (metadata)
     if (b[0] == 172 and b[1] >= 16 and b[1] <= 31) return true; // 172.16.0.0/12 private
     if (b[0] == 192 and b[1] == 168) return true; // 192.168.0.0/16 private
@@ -173,11 +185,13 @@ fn isBlockedV4(b: [4]u8) bool {
     return false;
 }
 
-fn isBlockedV6(b: [16]u8) bool {
+fn isBlockedV6(b: [16]u8, strict: bool) bool {
     // IPv4-mapped ::ffff:0:0/96 — classify the embedded IPv4.
     const mapped = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-    if (std.mem.eql(u8, b[0..12], &mapped)) return isBlockedV4(b[12..16].*);
-    // :: unspecified is blocked; ::1 loopback is allowed (see isBlockedV4 rationale).
+    if (std.mem.eql(u8, b[0..12], &mapped)) return isBlockedV4(b[12..16].*, strict);
+    // :: unspecified is blocked; ::1 loopback is allowed unless strict (see isBlockedV4).
+    if (strict and std.mem.eql(u8, &b, &[_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }))
+        return true; // ::1 loopback, blocked for scanned-content fetches
     for (b) |x| {
         if (x != 0) break;
     } else return true; // all-zero == :: unspecified
@@ -187,20 +201,22 @@ fn isBlockedV6(b: [16]u8) bool {
     return false;
 }
 
-/// GET `url`, returning the owned response body bytes.
-pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8) ![]u8 {
+/// GET `url`, returning the owned response body bytes (capped at `MAX_FETCH_BYTES`).
+/// `strict` blocks loopback in addition to the always-blocked internal ranges — pass it for
+/// sub-resource URLs harvested from untrusted scanned content, false for a URL the user named.
+pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) ![]u8 {
     // SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
     const host = hostOf(url) orelse {
         std.debug.print("error: could not parse a host from URL '{s}'\n", .{url});
         return Error.BlockedHost;
     };
-    if (isBlockedFetchHost(host)) {
+    if (isBlockedFetchHost(host, strict)) {
         std.debug.print("error: refusing to fetch internal/blocked host '{s}'\n", .{host});
         return Error.BlockedHost;
     }
     // For a DNS name, also refuse when it RESOLVES to an internal target (closes the
     // hostname-with-internal-record vector the literal check above can't see).
-    if (!isNumericHost(host) and hostResolvesToBlocked(io, host)) {
+    if (!isNumericHost(host) and hostResolvesToBlocked(io, host, strict)) {
         std.debug.print("error: refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
         return Error.BlockedHost;
     }
@@ -208,17 +224,25 @@ pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8) ![]u8 {
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
 
-    var body: std.Io.Writer.Allocating = .init(gpa);
-    defer body.deinit();
+    // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the
+    // cap, aborting the stream instead of growing memory without limit. Page-allocated so a
+    // small response only commits its own pages, and freed regardless of the caller's arena.
+    const scratch = std.heap.page_allocator.alloc(u8, MAX_FETCH_BYTES) catch return Error.HttpFailed;
+    defer std.heap.page_allocator.free(scratch);
+    var body: std.Io.Writer = .fixed(scratch);
 
     const result = client.fetch(.{
         .location = .{ .url = url },
-        .response_writer = &body.writer,
+        .response_writer = &body,
         // Refuse redirects: a public first hop must not 30x-bounce to an internal
         // host, which would slip past the pre-fetch host check above.
         .redirect_behavior = .not_allowed,
     }) catch |e| {
-        std.debug.print("error: HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+        if (e == error.WriteFailed) {
+            std.debug.print("error: response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
+        } else {
+            std.debug.print("error: HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+        }
         return Error.HttpFailed;
     };
 
@@ -227,7 +251,7 @@ pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8) ![]u8 {
         std.debug.print("error: HTTP {d} fetching {s}\n", .{ code, url });
         return Error.HttpFailed;
     }
-    return gpa.dupe(u8, body.written());
+    return gpa.dupe(u8, body.buffered());
 }
 
 const testing = std.testing;
@@ -260,52 +284,69 @@ test "hostOf extracts the bare host" {
 }
 
 test "isBlockedFetchHost blocks internal targets" {
-    // Cloud metadata + private + CGNAT + link-local + ULA + reserved are blocked.
-    try testing.expect(isBlockedFetchHost("169.254.169.254")); // AWS/GCP metadata
-    try testing.expect(isBlockedFetchHost("10.0.0.5"));
-    try testing.expect(isBlockedFetchHost("172.16.4.4"));
-    try testing.expect(isBlockedFetchHost("172.31.255.255"));
-    try testing.expect(isBlockedFetchHost("192.168.1.1"));
-    try testing.expect(isBlockedFetchHost("100.64.0.1")); // CGNAT
-    try testing.expect(isBlockedFetchHost("0.0.0.0")); // unspecified
-    try testing.expect(isBlockedFetchHost("fe80::1")); // link-local
-    try testing.expect(isBlockedFetchHost("fc00::1")); // ULA
-    try testing.expect(isBlockedFetchHost("::")); // IPv6 unspecified
-    try testing.expect(isBlockedFetchHost("::ffff:169.254.169.254")); // IPv4-mapped metadata
-    try testing.expect(isBlockedFetchHost("::ffff:10.0.0.1")); // IPv4-mapped private
+    // Cloud metadata + private + CGNAT + link-local + ULA + reserved are blocked (both modes).
+    try testing.expect(isBlockedFetchHost("169.254.169.254", false)); // AWS/GCP metadata
+    try testing.expect(isBlockedFetchHost("10.0.0.5", false));
+    try testing.expect(isBlockedFetchHost("172.16.4.4", false));
+    try testing.expect(isBlockedFetchHost("172.31.255.255", false));
+    try testing.expect(isBlockedFetchHost("192.168.1.1", false));
+    try testing.expect(isBlockedFetchHost("100.64.0.1", false)); // CGNAT
+    try testing.expect(isBlockedFetchHost("0.0.0.0", false)); // unspecified
+    try testing.expect(isBlockedFetchHost("fe80::1", false)); // link-local
+    try testing.expect(isBlockedFetchHost("fc00::1", false)); // ULA
+    try testing.expect(isBlockedFetchHost("::", false)); // IPv6 unspecified
+    try testing.expect(isBlockedFetchHost("::ffff:169.254.169.254", false)); // IPv4-mapped metadata
+    try testing.expect(isBlockedFetchHost("::ffff:10.0.0.1", false)); // IPv4-mapped private
 
-    // Loopback is ALLOWED — the CLI legitimately fetches from a local dev/fixture server.
-    try testing.expect(!isBlockedFetchHost("127.0.0.1"));
-    try testing.expect(!isBlockedFetchHost("127.9.9.9"));
-    try testing.expect(!isBlockedFetchHost("localhost"));
-    try testing.expect(!isBlockedFetchHost("::1")); // IPv6 loopback
-    try testing.expect(!isBlockedFetchHost("::ffff:127.0.0.1")); // IPv4-mapped loopback
+    // Loopback is ALLOWED for user-named URLs (non-strict) — local dev/fixture server.
+    try testing.expect(!isBlockedFetchHost("127.0.0.1", false));
+    try testing.expect(!isBlockedFetchHost("127.9.9.9", false));
+    try testing.expect(!isBlockedFetchHost("localhost", false));
+    try testing.expect(!isBlockedFetchHost("::1", false)); // IPv6 loopback
+    try testing.expect(!isBlockedFetchHost("::ffff:127.0.0.1", false)); // IPv4-mapped loopback
 
     // Normal public hosts and IPs are allowed.
-    try testing.expect(!isBlockedFetchHost("example.com"));
-    try testing.expect(!isBlockedFetchHost("cdn.example.org"));
-    try testing.expect(!isBlockedFetchHost("8.8.8.8"));
-    try testing.expect(!isBlockedFetchHost("93.184.216.34"));
-    try testing.expect(!isBlockedFetchHost("2606:2800:220:1:248:1893:25c8:1946")); // public v6
+    try testing.expect(!isBlockedFetchHost("example.com", false));
+    try testing.expect(!isBlockedFetchHost("cdn.example.org", false));
+    try testing.expect(!isBlockedFetchHost("8.8.8.8", false));
+    try testing.expect(!isBlockedFetchHost("93.184.216.34", false));
+    try testing.expect(!isBlockedFetchHost("2606:2800:220:1:248:1893:25c8:1946", false)); // public v6
+}
+
+test "isBlockedFetchHost strict mode also blocks loopback (scanned-content fetches)" {
+    // Sub-resource URLs pulled from untrusted page content must not reach loopback either.
+    try testing.expect(isBlockedFetchHost("127.0.0.1", true));
+    try testing.expect(isBlockedFetchHost("127.9.9.9", true));
+    try testing.expect(isBlockedFetchHost("localhost", true));
+    try testing.expect(isBlockedFetchHost("::1", true)); // IPv6 loopback
+    try testing.expect(isBlockedFetchHost("::ffff:127.0.0.1", true)); // IPv4-mapped loopback
+    try testing.expect(isBlockedFetchHost("2130706433", true)); // 127.0.0.1 decimal
+    try testing.expect(isBlockedFetchHost("0x7f000001", true)); // 127.0.0.1 hex
+    // Everything the non-strict mode blocks stays blocked …
+    try testing.expect(isBlockedFetchHost("169.254.169.254", true));
+    try testing.expect(isBlockedFetchHost("10.0.0.5", true));
+    // … and public hosts stay allowed.
+    try testing.expect(!isBlockedFetchHost("example.com", true));
+    try testing.expect(!isBlockedFetchHost("8.8.8.8", true));
 }
 
 test "isBlockedFetchHost blocks alternate numeric IPv4 encodings" {
     // 169.254.169.254 (cloud metadata) in decimal / hex.
-    try testing.expect(isBlockedFetchHost("2852039166"));   // decimal
-    try testing.expect(isBlockedFetchHost("0xA9FEA9FE"));   // hex
+    try testing.expect(isBlockedFetchHost("2852039166", false));   // decimal
+    try testing.expect(isBlockedFetchHost("0xA9FEA9FE", false));   // hex
     // 10.0.0.1 in decimal / hex / short-dotted; 192.168.0.1 in octal; 10.0.0.0 short.
-    try testing.expect(isBlockedFetchHost("167772161"));    // 10.0.0.1 decimal
-    try testing.expect(isBlockedFetchHost("0x0A000001"));   // 10.0.0.1 hex
-    try testing.expect(isBlockedFetchHost("10.0"));         // 10.0.0.0 short-dotted
-    try testing.expect(isBlockedFetchHost("0300.0250.0.1")); // 192.168.0.1 octal parts
+    try testing.expect(isBlockedFetchHost("167772161", false));    // 10.0.0.1 decimal
+    try testing.expect(isBlockedFetchHost("0x0A000001", false));   // 10.0.0.1 hex
+    try testing.expect(isBlockedFetchHost("10.0", false));         // 10.0.0.0 short-dotted
+    try testing.expect(isBlockedFetchHost("0300.0250.0.1", false)); // 192.168.0.1 octal parts
 
-    // Loopback is allowed in numeric forms too (127.0.0.1 = 0x7f000001 = 2130706433).
-    try testing.expect(!isBlockedFetchHost("0x7f000001"));
-    try testing.expect(!isBlockedFetchHost("2130706433"));
+    // Loopback is allowed in numeric forms too when non-strict (127.0.0.1 = 0x7f000001).
+    try testing.expect(!isBlockedFetchHost("0x7f000001", false));
+    try testing.expect(!isBlockedFetchHost("2130706433", false));
 
     // Public numeric forms and out-of-range / non-numeric hosts are not blocked here
     // (a genuine hostname is covered by the DNS-resolution check in fetch()).
-    try testing.expect(!isBlockedFetchHost("134744072"));       // 8.8.8.8 decimal
-    try testing.expect(!isBlockedFetchHost("999999999999"));    // > u32 → not an IPv4 form
-    try testing.expect(!isBlockedFetchHost("12345.example.com")); // starts numeric but is a name
+    try testing.expect(!isBlockedFetchHost("134744072", false));       // 8.8.8.8 decimal
+    try testing.expect(!isBlockedFetchHost("999999999999", false));    // > u32 → not an IPv4 form
+    try testing.expect(!isBlockedFetchHost("12345.example.com", false)); // starts numeric but is a name
 }

@@ -15,6 +15,7 @@ use serde::Serialize;
 const PREFIX_WROTE: &str = "wrote ";
 const PREFIX_UPDATED: &str = "updated server result for project ";
 const PREFIX_CREATED: &str = "created server project ";
+const PREFIX_SCRAPED: &str = "scraped ";
 const PREFIX_ERROR: &str = "error:";
 
 /// A parsed success line: the resolved output path (extension auto-filled) and final size.
@@ -124,6 +125,73 @@ pub fn parse_remotes(stderr: &str) -> Vec<Remote> {
         }
     }
     out
+}
+
+/// One downloaded media file from a scrape run: its written path and — for image-category
+/// items whose bytes the CLI measured — the pixel dimensions. Video (and any unmeasured)
+/// items carry `None`. `Serialize` produces the tool payload's per-file object directly.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ScrapedFile {
+    pub path: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+/// A parsed successful scrape: the files written plus the optional summary's host/directory.
+/// Pure — the caller pairs it with the exit status and `extract_errors` for the failure path,
+/// exactly like `parse_wrote` (a zero-file success is treated as an error upstream).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scraped {
+    pub dir: Option<String>,
+    pub host: Option<String>,
+    pub files: Vec<ScrapedFile>,
+}
+
+/// Parse the scrape mode's stderr per §3 of the design contract's multi-file rule:
+///   - every `wrote {path} (…)` line → one file; path is the text between `wrote ` and the
+///     **last** ` (` (or the whole rest if there is no ` ("). The dims are the leading `WxH`
+///     of the parenthetical tail when it matches `^\d+x\d+`, else `None` (video lines).
+///   - `scraped {n} file(s) from {host} into {dir}` → the optional summary's host + dir.
+/// Error lines are left to `extract_errors`, as with the edit path. Pure — no network.
+pub fn parse_scraped(stderr: &str) -> Scraped {
+    let mut files = Vec::new();
+    let mut host = None;
+    let mut dir = None;
+    for line in stderr.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix(PREFIX_WROTE) {
+            // path = up to the LAST " (" so a path containing " (" (e.g. "img (1)") survives;
+            // if there's no parenthetical at all the whole remainder is the path.
+            let (path, tail) = match rest.rfind(" (") {
+                Some(open) => (
+                    rest[..open].to_string(),
+                    rest[open + 2..].strip_suffix(')').unwrap_or(&rest[open + 2..]),
+                ),
+                None => (rest.to_string(), ""),
+            };
+            let (width, height) = match parse_dims(tail.split_whitespace().next().unwrap_or("")) {
+                Some((w, h)) => (Some(w), Some(h)),
+                None => (None, None),
+            };
+            files.push(ScrapedFile { path, width, height });
+        } else if let Some(rest) = line.strip_prefix(PREFIX_SCRAPED) {
+            // "{n} file(s) from {host} into {dir}"
+            if let Some((h, d)) = rest
+                .split_once(" from ")
+                .and_then(|(_, after)| after.split_once(" into "))
+            {
+                host = Some(h.to_string());
+                dir = Some(d.to_string());
+            }
+        }
+    }
+    Scraped { dir, host, files }
+}
+
+/// Parse a leading `WxH` token (`^\d+x\d+`) into dimensions, else `None`.
+fn parse_dims(token: &str) -> Option<(u32, u32)> {
+    let (w, h) = token.split_once('x')?;
+    Some((w.parse().ok()?, h.parse().ok()?))
 }
 
 /// Pull the `error: …` line(s) out of stderr for surfacing back to the caller. Falls back

@@ -3,7 +3,8 @@
 A Model Context Protocol (MCP) server that exposes Stencil's
 image/video editing pipeline as tools any MCP client (Claude Code, Claude Desktop, or your
 own agent) can call: load an image, video frame, or blank page, crop / rotate it, draw a
-layout, apply a filter, and write the result — or read an image's dimensions. It can also
+layout, apply a filter, and write the result — read an image's dimensions, or scrape a web
+page's media into a directory. It can also
 fetch, edit, and publish projects on a Stencil [collaboration server](../server/README.md)
 (even fanning across more than one). It is a thin, typed adapter that **shells out to the Zig
 CLI** (`cli/`), which wraps the shared C++ core, so results match the browser, desktop, and
@@ -31,7 +32,7 @@ CLI editors. For the project overview see the [repository README](../README.md).
 graph TD
     CLIENT["MCP client — Claude Code · Desktop · any agent"]
     subgraph MCP["mcp/ — Rust (rmcp over stdio)"]
-      SERVER["server.rs — stencil_edit / stencil_probe tools"]
+      SERVER["server.rs — stencil_edit / stencil_probe / source_site tools"]
       ARGS["args.rs — params → argv (mirrors cli/args.zig)"]
       PIPE["pipeline.rs — locate → spawn → parse"]
       DEL["deliver.rs — surfaces: file · desktop launch · browser URL"]
@@ -183,6 +184,7 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 |---|---|---|
 | `stencil_edit` | Run the full pipeline, write a file, deliver to surface(s), optionally fetch/publish on a collaboration server | `input` \| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface`, `server`, `remote_update`, `remote`, `remote_name` |
 | `stencil_probe` | Read an image's pixel size | `input` |
+| `source_site` | Scrape a web page and download its matching media into a **directory** | `source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height` |
 
 `stencil_edit` maps directly onto the CLI (`source → crop → rotate → layout → filter →
 encode`):
@@ -209,6 +211,34 @@ encode`):
 - **`server`** / **`remote_update`** / **`remote`** / **`remote_name`** — talk to a Stencil
   [collaboration server](../server/README.md). See [Collaboration server](#collaboration-server)
   below.
+
+#### Scraping a page (`source_site`)
+
+`source_site` fetches a web page, parses its HTML **in the CLI** (the server never parses
+HTML), extracts the media it references, filters that set, and **downloads the matches into a
+directory**. Unlike `stencil_edit`, its `output` is a **directory** (created if missing;
+default the current directory), and it only writes files locally — the `cli` surface — so it
+takes no `surface` beyond `cli`.
+
+| Parameter | Effect |
+|---|---|
+| `source_site` (URL) | The page to scrape (`http(s)://`). Required. |
+| `output` (dir) | Destination directory for the downloads (created if missing). Default `.`. |
+| `filter` | Category tokens, `\|`-separated: `img`, `video`, `background`, `poster`. Default all. |
+| `format` | Format tokens, `\|`-separated normalized extensions (`png\|jpg\|webp\|mp4`…). Default all. |
+| `min_width` / `max_width` / `min_height` / `max_height` | Inclusive px bounds, measured from image bytes; video/unmeasurable items always pass. |
+| `count` | Items per page — omit for the CLI's default of **5**; `0` = **all** matches. |
+| `group` | 0-based page index over the filtered list (window `[group*count .. group*count+count]`); needs `count`. |
+
+Returns `{ dir, host, files: [{ path, width, height }] }` — `width`/`height` are `null` for
+video and any unmeasured item — plus a `wrote …` / `scraped N file(s) …` text summary.
+
+```jsonc
+// download up to 10 PNG/JPG images at least 400px wide from a gallery page into ./shots
+{ "name": "source_site", "arguments": {
+    "source_site": "https://example.com/gallery", "output": "shots",
+    "filter": "img", "format": "png|jpg", "min_width": 400, "count": 10 } }
+```
 
 #### Collaboration server
 

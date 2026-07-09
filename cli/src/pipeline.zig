@@ -294,12 +294,13 @@ fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32)
     if (video.looksLikeVideo(input)) {
         return video.extractFrame(gpa, io, input, frame) catch |e| return mapMediaError(e);
     }
-    if (net.isUrl(input)) return net.fetch(gpa, io, input) catch |e| return mapMediaError(e);
+    // User-named URL → non-strict (loopback allowed for the user's own dev/fixture server).
+    if (net.isUrl(input)) return net.fetch(gpa, io, input, false) catch |e| return mapMediaError(e);
     return readLocal(gpa, io, input);
 }
 
 fn loadText(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u8 {
-    if (net.isUrl(src)) return net.fetch(gpa, io, src) catch |e| return mapMediaError(e);
+    if (net.isUrl(src)) return net.fetch(gpa, io, src, false) catch |e| return mapMediaError(e);
     return readLocal(gpa, io, src);
 }
 
@@ -442,8 +443,8 @@ fn extOf(path: []const u8) ?[]const u8 {
 }
 
 /// True when `path` has a ".." component (on either separator) that could climb
-/// above the working directory.
-fn hasParentTraversal(path: []const u8) bool {
+/// above the working directory. Also reused by scrape.zig's output guard.
+pub fn hasParentTraversal(path: []const u8) bool {
     var it = std.mem.splitAny(u8, path, "/\\");
     while (it.next()) |seg| {
         if (std.mem.eql(u8, seg, "..")) return true;

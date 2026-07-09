@@ -55,9 +55,17 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--remote-update` | switch | With `--server`, write the result back into the fetched project. |
 | `--remote` | `<url>` value | Upload the result as a **new** project on a server. |
 | `--remote-name` | `<name>` value | Name for the `--remote` project (default: input image base name). |
+| `--source-site` | `<url>` value | **Scrape mode.** Fetch a page, extract + filter its media, download the matches into `<output>` (a **directory**). Mutually exclusive with `-i`, `--blank`, `--server` (→ `DuplicateSource`). See §4. |
+| `--source-count` | `<u32>` value | Items per page/group (default **5**; `0` = **all**, `--group` ignored). |
+| `--group` | `<u32>` value | 0-based page index; window = `filtered[G*N : G*N+N]` (default 0). |
+| `--source-filter` | `<s>` value | Category tokens, `\|`-joined: `img` \| `video` \| `background` \| `poster` (absent / `all` = every category). |
+| `--source-format` | `<s>` value | Format tokens, `\|`-joined, e.g. `png\|jpg\|webp\|gif\|svg\|mp4` (absent / `all` = every format; unknown-ext items bucket as `etc`). |
+| `--source-name` | `<s>` value | Regex matched against each media URL (**POSIX ERE, case-insensitive**; a Windows CLI build has no `regex.h` and degrades to a case-insensitive substring test). Absent / empty = every URL. An invalid regex is a hard error (`error: invalid --source-name regex …`, exit 1). Dialect note: only the common subset (`. * + ? [] ^ $ \| ()`) is guaranteed identical across the CLI (POSIX), pystencil (Python `re`) and the extension (JS `RegExp`). |
+| `--source-min-width` / `--source-max-width` | `<u32>` value | Inclusive pixel width bounds (`0` = unset; images measured from a header sniff). |
+| `--source-min-height` / `--source-max-height` | `<u32>` value | Inclusive pixel height bounds (`0` = unset). |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
-| `<output>` | positional | Result path (last positional wins). A missing/unknown extension is auto-filled from the input format. |
+| `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
 
 ### Mutual-exclusion / dependency rules (mirrored by both adapters)
 
@@ -75,6 +83,9 @@ falls back to A4/white with no error), the adapters validate them **before** bui
 - `--remote-update` requires `--server` + `-i` (`pipeline.zig`:
   `error: --remote-update needs --server <url> -i <project>`).
 - `--remote-name` is only meaningful with `--remote`.
+- `--source-site` is mutually exclusive with `-i` / `--input`, `--blank`, and `--server`
+  (`DuplicateSource` in `args.zig`); in scrape mode the editing flags (`-c`, `-r`, `-l`,
+  `--filter`, `-f`, `--album`) and connection flags are ignored.
 
 ### Adapter argv order
 
@@ -175,7 +186,61 @@ if stderr is empty, return the fixed message `the stencil CLI failed without a m
 
 ---
 
-## 3. Shared golden fixtures
+## 3. Scrape mode (`--source-site`) output contract
+
+Emitted by `run()` in **`cli/src/scrape.zig`**. Like §2, everything goes to **stderr**;
+**stdout stays empty**. A run downloads zero or more files into the output directory and
+prints one line per file plus a final summary. Per-item fetch failures are **non-fatal**
+(the run continues); **zero files written** is a hard error (exit 1).
+
+### 3.0 Start line — `scraping …`
+
+Before any network I/O the CLI emits a single progress line so the surface isn't silent
+during the page fetch + downloads:
+
+```
+scraping https://example.com/gallery…
+```
+
+`scraping {url}…` echoes the requested `--source-site` URL (not the lowercased host used by
+the per-file lines). It carries **none** of the parsed prefixes below (`wrote `, `scraped `,
+`error:`), so the `mcp`/`bot` parsers ignore it — it is informational only. pystencil's
+`_run_scrape` mirrors it.
+
+### 3.1 Per-file line — `wrote …`
+
+- Image (dimensions sniffed): `wrote {path} ({W}x{H} px · source {host})`
+- Video / unmeasured item:     `wrote {path} (source {host})`
+
+`{host}` is the **scraped page's** host (`net.hostOf(source-site)`), used identically on
+every line and the summary. `{path}` is `<output-dir>/<filename>` — a sanitized last path
+segment of the media URL, extension ensured from the format/content sniff, or
+`source-{index}.{ext}` on a missing name or collision.
+
+### 3.2 Summary line — `scraped …`
+
+`scraped {n} file(s) from {host} into {dir}` — `{n}` files written, `{host}` the page host,
+`{dir}` the output directory.
+
+### 3.3 Error lines — `error: …`
+
+- Per-item (non-fatal, run continues): `error: could not fetch {url} ({reason})`
+- Zero matches (fatal, exit 1):        `error: no media matched at {url}`
+
+### 3.4 Multi-file parse rule (for `mcp/` + `bot/`)
+
+Every line starting with `wrote ` → `{path}` is the text between `wrote ` and the **last**
+`" ("` (or the rest of the line if there is no `" ("`); dimensions are the leading `WxH` of
+the parenthetical tail when it matches `^\d+x\d+`, else null (video lines have null dims).
+`scraped {n} file(s) from {host} into {dir}` is the optional summary; `error: …` lines are
+errors as in §2.3.
+
+The scrape line shapes are pinned by the shared golden set
+**`cli/testdata/scrape_fixtures.json`** (the CLI reproduces them; `mcp/` + `bot/` parse them).
+
+---
+
+## 4. Shared golden fixtures
 
 `cli/testdata/outcome_fixtures.json` is the language-neutral golden set for §2. It has three
 sections — `wrote`, `remotes`, `errors` — mapping 1:1 to the three parser functions. Each

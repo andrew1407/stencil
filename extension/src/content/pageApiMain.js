@@ -164,15 +164,24 @@
   // script — see content/pageApiBridge.js).
   const filters = {
     searchText: '',
+    regex: false,                   // treat searchText as a case-insensitive RegExp (stencil.regex)
     disabledFormats: new Set(),     // lowercase formats toggled off via stencil.formats.<f> = false
     image: true, background: true, video: true, poster: true,   // kind toggles (stencil.kinds.<k>)
     minWidth: null, maxWidth: null, minHeight: null, maxHeight: null,
   };
   const isNum = (v) => typeof v === 'number' && !isNaN(v);
+  // Case-insensitive search over `hay`: a RegExp when `regex` (invalid pattern → no match),
+  // else a substring. Mirrors lib/filters.js matchesSearch; the query is kept raw so regex
+  // metacharacters (\D, [A-Z]) survive.
+  const searchMatch = (hay, query, regex) => {
+    if (!query) return true;
+    if (regex) { let re; try { re = new RegExp(query, 'i'); } catch { return false; } return re.test(hay); }
+    return hay.toLowerCase().includes(query.toLowerCase());
+  };
   const passes = (e) => {
     if (e.poster) { if (!filters.poster) return false; }
     else if (!filters[e.kind]) return false;                     // kind toggle: image / background / video
-    if (filters.searchText && !`${e.name} ${e.url}`.toLowerCase().includes(filters.searchText)) return false;
+    if (filters.searchText && !searchMatch(`${e.name} ${e.url}`, filters.searchText, filters.regex)) return false;
     if (e.format && filters.disabledFormats.has(e.format)) return false;
     if (e.width > 0) { if (isNum(filters.minWidth) && e.width < filters.minWidth) return false; if (isNum(filters.maxWidth) && e.width > filters.maxWidth) return false; }
     if (e.height > 0) { if (isNum(filters.minHeight) && e.height < filters.minHeight) return false; if (isNum(filters.maxHeight) && e.height > filters.maxHeight) return false; }
@@ -254,13 +263,14 @@
   // ── Two-way sync with the popup's persisted filters (chrome.storage popupFilters) ──
   let syncing = false;   // true while applying a pushed update, so we don't echo it back
   const toPopupShape = () => ({
-    search: filters.searchText, minW: filters.minWidth, maxW: filters.maxWidth, minH: filters.minHeight, maxH: filters.maxHeight,
+    search: filters.searchText, regex: filters.regex, minW: filters.minWidth, maxW: filters.maxWidth, minH: filters.minHeight, maxH: filters.maxHeight,
     includeImg: filters.image, includeBg: filters.background, includeVideo: filters.video, includePosters: filters.poster,
     disabledFormats: [...filters.disabledFormats],
   });
   const fromPopupShape = (f) => {
     if (!f) return;
-    filters.searchText = String(f.search || '').toLowerCase();
+    filters.searchText = String(f.search || '');
+    filters.regex = f.regex === true;
     filters.minWidth = f.minW ?? null; filters.maxWidth = f.maxW ?? null; filters.minHeight = f.minH ?? null; filters.maxHeight = f.maxH ?? null;
     filters.image = f.includeImg !== false; filters.background = f.includeBg !== false;
     filters.video = f.includeVideo !== false; filters.poster = f.includePosters !== false;
@@ -413,7 +423,9 @@
     // Per-category on/off toggles: stencil.kinds.video = false (image/background/video/poster).
     get kinds() { return kindsToggle(); },
     // ── Other filter controls (mirror the popup; the list getters above honor them) ──
-    get searchText() { return filters.searchText; }, set searchText(v) { filters.searchText = String(v || '').toLowerCase(); onFilterChange(); },
+    get searchText() { return filters.searchText; }, set searchText(v) { filters.searchText = String(v || ''); onFilterChange(); },
+    // Treat searchText as a case-insensitive RegExp (mirrors the popup's regex checkbox).
+    get regex() { return filters.regex; }, set regex(v) { filters.regex = !!v; onFilterChange(); },
     get minWidth() { return filters.minWidth; }, set minWidth(v) { filters.minWidth = v == null ? null : Number(v); onFilterChange(); },
     get maxWidth() { return filters.maxWidth; }, set maxWidth(v) { filters.maxWidth = v == null ? null : Number(v); onFilterChange(); },
     get minHeight() { return filters.minHeight; }, set minHeight(v) { filters.minHeight = v == null ? null : Number(v); onFilterChange(); },
@@ -424,17 +436,20 @@
     get highlightOnPage() { return highlightActive(); }, set highlightOnPage(v) { v ? applyHighlight() : clearHighlight(); },
     // Reset every filter and clear the highlight.
     resetFilters() {
-      filters.searchText = ''; filters.disabledFormats.clear();
+      filters.searchText = ''; filters.regex = false; filters.disabledFormats.clear();
       filters.image = filters.background = filters.video = filters.poster = true;
       filters.minWidth = filters.maxWidth = filters.minHeight = filters.maxHeight = null;
       clearHighlight();
       persistFilters();
       return this;
     },
-    // One-off query: scanned entries whose name or URL contains q (ignores the live filters).
-    search(q) {
-      const s = String(q || '').toLowerCase();
-      return scan().filter((e) => `${e.name} ${e.url}`.toLowerCase().includes(s));
+    // One-off query: scanned entries whose name or URL matches q (ignores the live filters).
+    // opts.regex treats q as a case-insensitive RegExp (invalid → no matches); default is a
+    // case-insensitive substring. Empty q returns every scanned entry.
+    search(q, opts = {}) {
+      const query = String(q || '');
+      if (!query) return scan();
+      return scan().filter((e) => searchMatch(`${e.name} ${e.url}`, query, !!opts.regex));
     },
     // Entries of a given format (case-insensitive; accepts 'png' or '.png').
     format(fmt) {
@@ -451,10 +466,13 @@
         return true;
       });
     },
-    // Open a target in the editor. opts: { incognito, newTab, poster, frame }.
+    // Open a target. opts: { incognito, newTab, desktop, poster, frame }. Default opens the
+    // in-page editor modal; newTab opens the editor in a new browser tab; desktop hands the
+    // bytes to the installed desktop app via its stencil:// scheme (like the popup's
+    // "Open in… Desktop app") — needs a configured desktop scheme.
     open(target, opts = {}) {
       const r = resolveTarget(target, opts);
-      send({ type: MSG.PAGE_OPEN, url: r.url, dataUrl: r.dataUrl, name: r.name, source: r.source, resource: location.href, incognito: !!opts.incognito, newTab: !!opts.newTab });
+      send({ type: MSG.PAGE_OPEN, url: r.url, dataUrl: r.dataUrl, name: r.name, source: r.source, resource: location.href, incognito: !!opts.incognito, newTab: !!opts.newTab, desktop: !!opts.desktop });
       return this;
     },
     // Open a target in the quick-crop tool. opts: { album, poster }.

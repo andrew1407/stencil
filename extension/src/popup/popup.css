@@ -37,6 +37,8 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   border-radius: 6px; padding: 5px 8px; font-size: 12px;
 }
 .search { width: 100%; }
+.regexlbl { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--muted); font-size: 11px; cursor: pointer; }
+.regexlbl code { font-size: 11px; }
 .frow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chk { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
 .frow select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; cursor: pointer; }

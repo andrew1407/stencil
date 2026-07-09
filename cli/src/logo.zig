@@ -212,8 +212,22 @@ pub fn usage() void {
         \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
         \\  -h, --help                 Show this help
         \\
+        \\{s}Scrape a web page (mutually exclusive with the source flags){s}
+        \\      --source-site <url>    Fetch a page, extract + download its media into <output>
+        \\                             (a DIRECTORY, created if missing; default '.')
+        \\      --source-count <n>     Items per page/group (default 5; 0 = all)
+        \\      --group <g>            0-based page index over the filtered list (default 0)
+        \\      --source-filter <s>    Category tokens, '|'-joined: img|video|background|poster
+        \\      --source-format <s>    Format tokens, '|'-joined: png|jpg|webp|gif|svg|mp4|...
+        \\      --source-name <re>     Keep media whose URL matches this regex (POSIX ERE,
+        \\                             case-insensitive; substring match on Windows)
+        \\      --source-min-width <px>  /  --source-max-width <px>
+        \\      --source-min-height <px> /  --source-max-height <px>
+        \\                             Inclusive pixel bounds (0 = unset; images measured)
+        \\
         \\{s}Output{s}
-        \\  <output>                   Result path. A missing extension is filled in from
+        \\  <output>                   Result path (or, in scrape mode, the destination
+        \\                             directory). A missing extension is filled in from
         \\                             the input/format (png, jpg, bmp, tga).
         \\
         \\{s}Examples{s}
@@ -221,9 +235,10 @@ pub fn usage() void {
         \\  stencil --blank 800 600 red --layout notes.json --filter sepia out
         \\  stencil --blank b5 pink page.png
         \\  stencil -i clip.mp4 -f 24 frame.png
+        \\  stencil --source-site https://example.com --source-filter img --source-min-width 200 out/
         \\  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)
         \\
     , .{
-        b, r, b, r, b, r, b, r, b, r,
+        b, r, b, r, b, r, b, r, b, r, b, r,
     });
 }

@@ -87,13 +87,36 @@ public sealed class ProcessStencilCli : IStencilCli
     }
 
     /// <summary>
+    /// Run one source-site scrape: build the <c>--source-site</c> argv, spawn the CLI (which
+    /// fetches the page, filters its media and downloads the matches), and parse its multi-file
+    /// stderr into a <see cref="ScrapeResult"/>. A non-zero exit (e.g. nothing matched) surfaces
+    /// as a <see cref="StencilCliException"/> carrying the CLI's <c>error:</c> line.
+    /// </summary>
+    public async Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default)
+    {
+        IReadOnlyList<string> argv = CliArgvBuilder.BuildScrapeArgv(request);
+        CliOutput output = await SpawnAsync(argv, ct).ConfigureAwait(false);
+        if (!output.Success)
+        {
+            throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
+        }
+        return CliOutcomeParser.ParseScraped(output.Stderr);
+    }
+
+    /// <summary>
     /// Locate the CLI and run it with the given argv, capturing stderr. Bounded by
     /// <see cref="_spawnGate"/> so no more than <see cref="BotOptions.MaxConcurrentCli"/> processes
-    /// run concurrently across the whole bot.
+    /// run concurrently across the whole bot, and by <see cref="BotOptions.CliTimeout"/> so a
+    /// slow/hung invocation is killed rather than pinning a scarce concurrency slot forever.
     /// </summary>
     private async Task<CliOutput> SpawnAsync(IReadOnlyList<string> argv, CancellationToken ct)
     {
         await _spawnGate.WaitAsync(ct).ConfigureAwait(false);
+        // Link the caller's token with a per-invocation deadline: whichever fires first (caller
+        // cancel or timeout) trips the same token, and we kill the process below.
+        using var timeoutCts = new CancellationTokenSource(_options.CliTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        CancellationToken runCt = linkedCts.Token;
         try
         {
             string bin = StencilCliLocator.FindCli(_options.CliPath);
@@ -120,17 +143,48 @@ public sealed class ProcessStencilCli : IStencilCli
                 throw new StencilCliException($"failed to run the stencil CLI ({bin}): {e.Message}");
             }
 
-            Task<string> stderrTask = process.StandardError.ReadToEndAsync(ct);
-            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            string stderr = await stderrTask.ConfigureAwait(false);
-            await stdoutTask.ConfigureAwait(false);
+            try
+            {
+                Task<string> stderrTask = process.StandardError.ReadToEndAsync(runCt);
+                Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(runCt);
+                await process.WaitForExitAsync(runCt).ConfigureAwait(false);
+                string stderr = await stderrTask.ConfigureAwait(false);
+                await stdoutTask.ConfigureAwait(false);
 
-            return new CliOutput(process.ExitCode == 0, stderr);
+                return new CliOutput(process.ExitCode == 0, stderr);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancel or timeout: kill the whole tree so the CLI (and any child it spawned,
+                // e.g. ffmpeg) doesn't linger and keep fetching/writing after we've given up.
+                KillTree(process);
+                if (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    throw new StencilCliException(
+                        $"the stencil CLI timed out after {_options.CliTimeout.TotalSeconds:0}s and was terminated");
+                }
+                throw;
+            }
         }
         finally
         {
             _spawnGate.Release();
+        }
+    }
+
+    /// <summary>Terminate a process and its descendants, ignoring the races where it already exited.</summary>
+    private static void KillTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+            // Already exited / not started / permission — nothing more we can do.
         }
     }
 

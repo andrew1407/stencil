@@ -86,7 +86,9 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         HashSet<string> kept = new(keep.Select(NormalizePath), StringComparer.Ordinal);
         int deleted = 0;
-        foreach (string file in Directory.EnumerateFiles(dir))
+        // Recurse: scrape mode writes into a nested `scrape-<guid>/` subdir, so a top-level-only
+        // sweep would never reap it and it would grow without bound (disk exhaustion).
+        foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
         {
             if (kept.Contains(NormalizePath(file)))
             {
@@ -106,8 +108,29 @@ public sealed class UserWorkspace : IUserWorkspace
                 // Best effort — a file we couldn't delete this pass is retried next sweep.
             }
         }
+        RemoveEmptyDescendants(dir);
         TryRemoveIfEmpty(dir);
         return deleted;
+    }
+
+    /// <summary>Remove now-empty nested sub-directories (deepest first) left behind after a
+    /// sweep — e.g. an emptied <c>scrape-&lt;guid&gt;/</c> — so they don't keep the user dir alive.</summary>
+    private static void RemoveEmptyDescendants(string root)
+    {
+        try
+        {
+            // Deepest paths first so a child is gone before we test its parent for emptiness.
+            foreach (string sub in Directory
+                         .EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(p => p.Length))
+            {
+                TryRemoveIfEmpty(sub);
+            }
+        }
+        catch
+        {
+            // Best effort — retried next sweep.
+        }
     }
 
     /// <summary>Canonicalise a path for reference comparison (absolute, OS-native separators).</summary>

@@ -935,7 +935,11 @@ namespace stencil::gui {
     // Keep the menu bar inside the window rather than exported to a native /
     // global app menu (some GNOME setups otherwise render an empty in-window
     // bar), so the multilevel File/Edit/View/Project/Help menus stay visible.
+    // On macOS, however, the native global menu bar at the top of the screen is
+    // the expected placement, so leave Qt's default (native) there.
+#ifndef Q_OS_MACOS
     menuBar()->setNativeMenuBar(false);
+#endif
     // Mnemonics avoid the Alt+letter combos bound to hotkeys (Alt+F fullscreen,
     // Alt+P points, Alt+L lines, etc.).
     auto* file = menuBar()->addMenu("F&ile");
@@ -2142,6 +2146,17 @@ namespace stencil::gui {
     // stays enabled so the Ctrl+V dispatch can still notify "Load an image first".
     const bool hasImg = canvas_->hasImage();
     const bool hasLines = !canvas_->allLines().empty();
+    // Crop + the two rotations act on the loaded image, so grey them out without
+    // one (parity with the browser's crop-image / rotate-left / rotate-right gating
+    // in drawingApp.updateButtons — which gates on image presence only, since the
+    // "Original" compare view still reflects crop + rotation, so no read-only gate).
+    actCrop_->setEnabled(hasImg);
+    actRotateLeft_->setEnabled(hasImg);
+    actRotateRight_->setEnabled(hasImg);
+    // Save Session persists the whole blob (image, page, lines, filter, crop…), not
+    // just the image — but restoreSession() ignores a session with no image AND no
+    // lines, so saving in that state is a true no-op. Gate it on the same condition.
+    actSaveSession_->setEnabled(hasImg || hasLines);
     actDownloadJson_->setEnabled(hasLines);
     actCopyLayout_->setEnabled(hasLines);
     actUploadJson_->setEnabled(hasImg);

@@ -385,6 +385,147 @@ public sealed class CliArgvBuilderTests
         Assert.Contains("remote_name", ex.Message);
     }
 
+    // ── source-site scrape argv (DESIGN source-site contract §1) ──────────────
+
+    [Fact]
+    public void ScrapeMinimalUrlAndOutputDir()
+    {
+        ScrapeRequest req = new() { Url = "https://example.com", OutputDir = "out" };
+        Assert.Equal(
+            new[] { "--source-site", "https://example.com", "out" },
+            CliArgvBuilder.BuildScrapeArgv(req));
+    }
+
+    [Fact]
+    public void ScrapeAllFlagsInContractOrder()
+    {
+        ScrapeRequest req = new()
+        {
+            Url = "https://example.com/gallery",
+            Count = 6,
+            Group = 1,
+            Filter = "img|video",
+            Format = "png|jpg",
+            Name = "cat.*\\.jpg",
+            MinWidth = 200,
+            MaxWidth = 4000,
+            MinHeight = 100,
+            MaxHeight = 3000,
+            OutputDir = "downloads",
+        };
+        Assert.Equal(
+            new[]
+            {
+                "--source-site", "https://example.com/gallery",
+                "--source-count", "6",
+                "--group", "1",
+                "--source-filter", "img|video",
+                "--source-format", "png|jpg",
+                "--source-name", "cat.*\\.jpg",
+                "--source-min-width", "200",
+                "--source-max-width", "4000",
+                "--source-min-height", "100",
+                "--source-max-height", "3000",
+                "downloads",
+            },
+            CliArgvBuilder.BuildScrapeArgv(req));
+    }
+
+    [Fact]
+    public void ScrapeOmitsAbsentAndUnsetBounds()
+    {
+        // count/group absent ⇒ omitted; a 0 or negative dimension bound is "unset" ⇒ omitted.
+        ScrapeRequest req = new()
+        {
+            Url = "https://example.com",
+            MinWidth = 0,
+            MaxWidth = -5,
+            MinHeight = 0,
+            MaxHeight = 0,
+            OutputDir = "out",
+        };
+        Assert.Equal(
+            new[] { "--source-site", "https://example.com", "out" },
+            CliArgvBuilder.BuildScrapeArgv(req));
+    }
+
+    [Fact]
+    public void ScrapeCountZeroRidesThroughAsAll()
+    {
+        // A count of 0 is a set int, not "absent": it rides through as `--source-count 0`, which
+        // the CLI interprets as "all matches" (the /sourcesite handler maps an explicit 0 here).
+        ScrapeRequest req = new() { Url = "https://example.com", Count = 0, OutputDir = "out" };
+        Assert.Equal(
+            new[] { "--source-site", "https://example.com", "--source-count", "0", "out" },
+            CliArgvBuilder.BuildScrapeArgv(req));
+    }
+
+    [Fact]
+    public void ScrapeIsolateOneStillArgv()
+    {
+        // The /sourceupload isolate-one shape: image-category stills, Count=1, Group=index.
+        ScrapeRequest req = new()
+        {
+            Url = "https://example.com/gallery",
+            Filter = "img|background|poster",
+            Count = 1,
+            Group = 2,
+            OutputDir = "out",
+        };
+        Assert.Equal(
+            new[]
+            {
+                "--source-site", "https://example.com/gallery",
+                "--source-count", "1",
+                "--group", "2",
+                "--source-filter", "img|background|poster",
+                "out",
+            },
+            CliArgvBuilder.BuildScrapeArgv(req));
+    }
+
+    [Fact]
+    public void ScrapeOutputDirIsThePositionalLast()
+    {
+        ScrapeRequest req = new()
+        {
+            Url = "https://example.com",
+            Filter = "background",
+            OutputDir = "some/dir",
+        };
+        IReadOnlyList<string> argv = CliArgvBuilder.BuildScrapeArgv(req);
+        Assert.Equal("some/dir", argv[^1]);
+    }
+
+    [Fact]
+    public void ScrapeEmptyUrlIsRejected()
+    {
+        ScrapeRequest req = new() { Url = "  ", OutputDir = "out" };
+        StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScrapeArgv(req));
+        Assert.Contains("url", ex.Message);
+    }
+
+    [Fact]
+    public void ScrapeEmptyOutputDirIsRejected()
+    {
+        ScrapeRequest req = new() { Url = "https://example.com", OutputDir = "" };
+        StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScrapeArgv(req));
+        Assert.Contains("output", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("--source-format")]
+    [InlineData("-l")]
+    [InlineData("-")]
+    public void ScrapeDashLeadingOutputDirIsRejectedNoFlagInjection(string badDir)
+    {
+        // The output dir is the positional operand and the CLI has no `--` terminator, so a
+        // dash-leading value would be parsed as a flag. BuildScrapeArgv rejects it outright.
+        ScrapeRequest req = new() { Url = "https://example.com", OutputDir = badDir };
+        StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScrapeArgv(req));
+        Assert.Contains("must not start with '-'", ex.Message);
+    }
+
     [Fact]
     public void BuildArgvReturnsATokenListForArgumentListNoShell()
     {

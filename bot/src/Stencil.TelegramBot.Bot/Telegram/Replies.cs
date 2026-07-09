@@ -27,6 +27,8 @@ public static class Replies
         sb.AppendLine("/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink");
         sb.AppendLine("/format [name | custom w h] — page format for /blank and the saved layout (bare = list)");
         sb.AppendLine("/url <link> — load an http(s) image");
+        sb.AppendLine("/sourcesite <link> [count] [filter=…] [format=…] — scrape a page's media into the chat");
+        sb.AppendLine("/sourceupload <link> [index=0] [format=…] — scrape a page and load one image to edit");
         sb.AppendLine("/frame [n] — grab frame n of the loaded video (needs ffmpeg)");
         sb.AppendLine("/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%");
         sb.AppendLine("/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1");
@@ -73,6 +75,10 @@ public static class Replies
             ImageSize size = new(session.OriginalWidth, session.OriginalHeight);
             string label = session.ImageLabel ?? "image";
             sb.AppendLine($"Working image: {label} ({size})");
+            if (session.SourceUrl is string src)
+            {
+                sb.AppendLine($"  source: {src}");
+            }
         }
         else
         {
@@ -104,6 +110,18 @@ public static class Replies
         }
         sb.AppendLine($"Pen: {PenSummary(session.Edits.Pen)}");
         sb.Append($"Connections: {session.Connections.Count}");
+        return sb.ToString();
+    }
+
+    /// <summary>Usage hint for adding a working image from a link or web page (the Sources button).</summary>
+    public static string SourcesHelp()
+    {
+        StringBuilder sb = new();
+        sb.AppendLine("Load a working image from the web — or just send a photo, or paste an image link:");
+        sb.AppendLine("/url <link> — load a single image from a direct link");
+        sb.AppendLine("/sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat");
+        sb.AppendLine("/sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit");
+        sb.Append("e.g. /sourceupload https://en.wikipedia.org/wiki/Cat 0 format=jpg");
         return sb.ToString();
     }
 

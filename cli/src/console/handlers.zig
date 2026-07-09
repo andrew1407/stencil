@@ -6,6 +6,7 @@ const std = @import("std");
 const image = @import("../image.zig");
 const pipeline = @import("../pipeline.zig");
 const net = @import("../net.zig");
+const scrape = @import("../scrape.zig");
 const server = @import("../serverClient.zig");
 const logo = @import("../logo.zig");
 const core = @import("../core.zig");
@@ -27,6 +28,67 @@ pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     const src = pipeline.acquireInput(session.gpa, io, arg, 0) catch return; // message already printed
     try session.loadImage(src.img, arg, net.isUrl(arg), src.default_fmt);
     ui.redraw(session);
+}
+
+/// `/source-upload <url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]`
+/// (alias `/scrape`) — scrape a page, filter to image-category items by format + dimension,
+/// pick the item at 0-based `index`, and load it as the working image. `-1` = unset bound;
+/// `format` `all` = any. Mirrors doUpload (ends in session.loadImage + ui.redraw).
+pub fn doSourceUpload(session: *Session, io: std.Io, arg: []const u8) !void {
+    if (arg.len == 0) {
+        logo.print("error: source-upload needs a URL — e.g. '/source-upload https://example.com'\n", .{});
+        return;
+    }
+    const o = parseSourceUpload(arg) orelse {
+        logo.print("error: source-upload takes '<url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]'\n", .{});
+        return;
+    };
+    // The fetch + download can take a moment; announce it up front (parity with the one-shot
+    // scrape's leading line and pystencil's _cmd_source_upload) so the console isn't silent.
+    logo.print("scraping {s}…\n", .{o.url});
+    const loaded = scrape.scrapeOne(session.gpa, io, o) catch return; // message already printed
+    defer session.gpa.free(loaded.url);
+    // A `name=` token overrides the URL-derived label (parity with pystencil's name=).
+    const label = if (o.name.len != 0) o.name else loaded.url;
+    try session.loadImage(loaded.img, label, true, loaded.fmt);
+    ui.redraw(session);
+}
+
+/// Parse the `/source-upload` positional grammar; null on a malformed token. `-1` min/max
+/// bounds become unset (null); a bare `all` format means any. An optional `name=<label>`
+/// key token may appear anywhere after the URL and sets a custom label for the loaded image.
+fn parseSourceUpload(arg: []const u8) ?scrape.ConsoleOpts {
+    var it = std.mem.tokenizeAny(u8, arg, " \t");
+    const url = it.next() orelse return null;
+    var o = scrape.ConsoleOpts{ .url = url };
+    // Positionals: [index] [format] [minW] [maxW] [minH] [maxH]; a `name=` token is pulled
+    // out first (anywhere) so it doesn't consume a positional slot.
+    var pos: [6]?[]const u8 = .{ null, null, null, null, null, null };
+    var np: usize = 0;
+    while (it.next()) |t| {
+        if (std.mem.startsWith(u8, t, "name=")) {
+            o.name = t["name=".len..];
+            continue;
+        }
+        if (np >= pos.len) return null; // trailing junk
+        pos[np] = t;
+        np += 1;
+    }
+    if (pos[0]) |t| o.index = std.fmt.parseInt(u32, t, 10) catch return null;
+    if (pos[1]) |t| o.format = t;
+    o.min_width = parseBound(pos[2]) catch return null;
+    o.max_width = parseBound(pos[3]) catch return null;
+    o.min_height = parseBound(pos[4]) catch return null;
+    o.max_height = parseBound(pos[5]) catch return null;
+    return o;
+}
+
+/// A `/source-upload` dimension bound token: `-1` (or absent) → unset (null); else a u32.
+fn parseBound(tok: ?[]const u8) !?u32 {
+    const t = tok orelse return null;
+    const v = try std.fmt.parseInt(i64, t, 10);
+    if (v < 0) return null;
+    return @intCast(v);
 }
 
 pub fn doBlank(session: *Session, arg: []const u8) !void {
@@ -1523,6 +1585,26 @@ fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8
 // ── tests (pure routing / debounce logic) ──────────────────────────────────────
 
 const testing = std.testing;
+
+test "parseSourceUpload: positional grammar, -1 = unset, junk rejected" {
+    const o = parseSourceUpload("https://x/ 2 png 100 -1 50 800").?;
+    try testing.expectEqualStrings("https://x/", o.url);
+    try testing.expectEqual(@as(u32, 2), o.index);
+    try testing.expectEqualStrings("png", o.format);
+    try testing.expectEqual(@as(u32, 100), o.min_width.?);
+    try testing.expect(o.max_width == null); // -1 → unset
+    try testing.expectEqual(@as(u32, 50), o.min_height.?);
+    try testing.expectEqual(@as(u32, 800), o.max_height.?);
+
+    // Bare URL → defaults (index 0, all formats, all bounds unset).
+    const d = parseSourceUpload("https://x/").?;
+    try testing.expectEqual(@as(u32, 0), d.index);
+    try testing.expectEqualStrings("all", d.format);
+    try testing.expect(d.min_width == null and d.max_height == null);
+
+    try testing.expect(parseSourceUpload("") == null); // no url
+    try testing.expect(parseSourceUpload("https://x/ notanumber") == null); // bad index
+}
 
 test "saveTarget routes a path to local, a bare save to the active project, else none" {
     // An explicit path always saves locally, regardless of an active remote.

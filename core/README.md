@@ -104,6 +104,23 @@ Targets:
 `wasmApi.cpp` is plain STL, so it is also compiled **natively into `stencil_tests`** and
 fully exercised even on a machine without `emcc`.
 
+### Benchmarks
+
+`tests/bench.test.cpp` holds perf-regression benchmarks for the heavy per-pixel /
+per-element hotspots (large-image filters/crop/rotate, many-line rasterisation, editing
+history growth). They are decorated `doctest::skip()`, so the normal `ctest` run — and CI —
+**never** executes them; no timing number gates a merge. Run them on demand:
+
+```bash
+core/build/stencil_tests -ts=bench --no-skip
+core/build/stencil_tests -ts=bench --no-skip -tc="*rasterize*"   # one case
+```
+
+Assertions are deliberately **relative** (ratios between ops, or scaling as input doubles)
+with generous ceilings, so they flag algorithmic regressions rather than machine noise; each
+case also prints a throughput line. The CLI drives the same code end-to-end (with codec
+encode) via `zig build bench` — see [`../cli/README.md`](../cli/README.md).
+
 > The Zig CLI recompiles the core's `.cpp` files directly rather than linking the CMake
 > library, so the file list in [`../cli/build.zig`](../cli/build.zig) must stay in sync with
 > `STENCIL_CORE_SOURCES` in [`CMakeLists.txt`](CMakeLists.txt).

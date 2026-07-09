@@ -23,13 +23,14 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
+pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
 pub fn verbOf(w: []const u8) ?Verb {
     const eq = eqIgnoreCase;
     if (eq(w, "upload") or eq(w, "open") or eq(w, "load")) return .upload;
+    if (eq(w, "source-upload") or eq(w, "sourceupload") or eq(w, "scrape")) return .source_upload;
     if (eq(w, "blank") or eq(w, "new")) return .blank;
     if (eq(w, "save") or eq(w, "write")) return .save;
     if (eq(w, "layout") or eq(w, "exportlayout") or eq(w, "savelayout")) return .layout;
@@ -212,6 +213,8 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("theme").? == .theme);
     try testing.expect(verbOf("crop") == null); // a transform, not a session verb
     try testing.expect(verbOf("frob") == null);
+    try testing.expect(verbOf("source-upload").? == .source_upload);
+    try testing.expect(verbOf("scrape").? == .source_upload);
 
     // Server-connection verbs.
     try testing.expect(verbOf("connect").? == .connect);
