@@ -11,6 +11,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPen>
 #include <QPointF>
 #include <QPolygonF>
@@ -296,6 +297,26 @@ namespace stencil::gui {
     update();  // single repaint for both
   }
 
+  // ── compare view (port of browser DrawingApp / renderer.js) ──
+  void CanvasWidget::setCompareMode(const QString& mode) {
+    if (mode != "none" && mode != "original" && mode != "vertical" && mode != "horizontal")
+      return;
+    if (compareMode_ == mode) return;
+    compareMode_ = mode;
+    update();
+  }
+
+  void CanvasWidget::setCompareSplit(double fraction) {
+    compareSplit_ = std::clamp(fraction, 0.02, 0.98);
+    if (compareMode_ == "vertical" || compareMode_ == "horizontal") update();
+  }
+
+  void CanvasWidget::setCompareHoldOriginal(bool on) {
+    if (compareHoldOriginal_ == on) return;
+    compareHoldOriginal_ = on;
+    update();
+  }
+
   // Rebuild filteredImage_ from image_ per the active filter. bw/sepia/invert/
   // custom mirror the CSS/pixel filters the browser applies on the canvas
   // context; contour routes through core::applyContourRGBA (a convolution, not
@@ -343,6 +364,7 @@ namespace stencil::gui {
   // Port of drawingApp.js startDrawingMode (~1070): begin a fresh in-progress
   // line and arm the click gate. Requires a loaded image.
   void CanvasWidget::startDrawingMode() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (image_.isNull() || isDrawing_) return;
     isDrawing_ = true;
 
@@ -411,6 +433,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::startNewLine() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (currentLine_.points.size() >= 2) {
       lines_.push_back(currentLine_);
       commitHistory();
@@ -423,6 +446,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::deleteLastPoint() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (currentLine_.points.empty()) return;
     currentLine_.points.pop_back();
     selectedPoint_ = -1;
@@ -431,6 +455,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::clearAll() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (lines_.empty() && currentLine_.points.empty()) return;
     lines_.clear();
     currentLine_ = core::Line{};
@@ -449,6 +474,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::undo() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (auto snap = history_.undo()) {
       lines_ = *snap;
       currentLine_ = core::Line{};
@@ -462,6 +488,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::redo() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (auto snap = history_.redo()) {
       lines_ = *snap;
       currentLine_ = core::Line{};
@@ -500,6 +527,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::deletePoint(int index) {
+    if (compareReadOnly()) return;   // read-only compare view
     core::Line* line = mutablePanelLine();
     if (!line || index < 0 ||
         index >= static_cast<int>(line->points.size())) {
@@ -519,6 +547,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::setPointCoord(int index, int axis, double value) {
+    if (compareReadOnly()) return;   // read-only compare view
     core::Line* line = mutablePanelLine();
     if (!line || index < 0 || index >= static_cast<int>(line->points.size())) return;
     if (!std::isfinite(value)) return;
@@ -628,6 +657,7 @@ namespace stencil::gui {
   // Remove committed line `idx` (Lines-tab 🗑). Keeps the single + multi selection and the
   // focused point consistent with the now-shifted indices. Port of drawingApp.js removeLine.
   void CanvasWidget::removeLineByIndex(int idx) {
+    if (compareReadOnly()) return;   // read-only compare view
     if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
     lines_.erase(lines_.begin() + idx);
     for (auto it = selectedLines_.begin(); it != selectedLines_.end();) {
@@ -831,22 +861,45 @@ namespace stencil::gui {
       // (mousePressEvent → blankImageRequested), and this box makes that affordance visible.
       setCursor(Qt::PointingHandCursor);
       const QString msg = QStringLiteral("Open an image to begin\n🖼  Click to create a blank image");
-      QRectF box(0, 0, 440, 132);
-      box.moveCenter(QRectF(rect()).center());
+      // Responsive drop box: scales with the canvas but stays within comfortable bounds and
+      // never overflows the widget, so the dashed border is fully visible on all four sides.
+      const QRectF wr(rect());
+      QRectF box(0, 0, std::clamp(wr.width() * 0.5, 300.0, 560.0),
+                 std::clamp(wr.height() * 0.4, 120.0, 190.0));
+      box.setWidth(std::min(box.width(), wr.width() - 32.0));
+      box.setHeight(std::min(box.height(), wr.height() - 32.0));
+      box.moveCenter(wr.center());
       QColor accent = accentPrimary(accentKey_);
       if (!accent.isValid()) accent = pal.textMuted;
+      // Fill first with NO pen, then stroke the dashed border as a separate rounded path.
+      // Filling + dash-stroking in one drawRoundedRect call drops the vertical dashed edges
+      // on some Qt/macOS builds (leaving only the top/bottom rules), so keep the two apart.
+      QColor fill = accent;
+      fill.setAlpha(dark_ ? 22 : 16);
+      p.setPen(Qt::NoPen);
+      p.setBrush(fill);
+      p.drawRoundedRect(box, 14, 14);
       QPen dash(accent, 2, Qt::DashLine);
       dash.setDashPattern({6.0, 4.0});
       p.setPen(dash);
-      QColor fill = accent;
-      fill.setAlpha(dark_ ? 22 : 16);
-      p.setBrush(fill);
-      p.drawRoundedRect(box, 14, 14);
       p.setBrush(Qt::NoBrush);
+      QPainterPath border;
+      border.addRoundedRect(box, 14, 14);
+      p.drawPath(border);
       p.setPen(pal.textMuted);
       p.drawText(box, Qt::AlignCenter, msg);
       return;
     }
+    // Compare view: "original" shows the cropped+rotated original alone (no filter,
+    // no annotations); the split modes render the edit normally and overlay the
+    // original on one half afterwards (see the end of this function).
+    const QString compare = effectiveCompareMode();
+    if (compare == "original") {
+      p.drawImage(QRectF(0, 0, image_.width() * scale_, image_.height() * scale_),
+                  image_);
+      return;
+    }
+
     // S3: draw the raw image when no filter, else the cached filtered copy
     // (rebuilt lazily). Wraps the original single p.drawImage call.
     if (filterDirty_) rebuildFilteredImage();
@@ -855,9 +908,12 @@ namespace stencil::gui {
                               : filteredImage_;
     p.drawImage(QRectF(0, 0, image_.width() * scale_, image_.height() * scale_),
                 shown);
+    // A split compare view is read-only: draw lines/points but with no selection glow or
+    // hover/focus rings (a clean picture to compare against).
+    const bool hl = compare == "none";
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
-      drawLineScaled(p, lines_[i], i, scale_, /*highlight=*/true);
-    drawLineScaled(p, currentLine_, -1, scale_, /*highlight=*/true);
+      drawLineScaled(p, lines_[i], i, scale_, /*highlight=*/hl);
+    drawLineScaled(p, currentLine_, -1, scale_, /*highlight=*/hl);
 
     // Zoom-to-rect rubber band preview (S9).
     if (zoomRectActive_) {
@@ -903,6 +959,65 @@ namespace stencil::gui {
       p.setBrush(dot);
       p.drawEllipse(cur, defMarkerSize_, defMarkerSize_);
     }
+
+    // Split compare: overlay the untouched original on the original-side half (covering
+    // the filtered pixels + annotations there) and draw the movable divider on top.
+    if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare);
+  }
+
+  // Paint the original over the "original" half of a split compare view (left for
+  // "vertical", top for "horizontal") and draw the draggable divider. Divider metrics are
+  // in widget space, so the line keeps a constant on-screen thickness at any zoom.
+  void CanvasWidget::paintCompareSplit(QPainter& p, const QString& mode) const {
+    const double w = image_.width() * scale_;
+    const double h = image_.height() * scale_;
+    const double f = std::clamp(compareSplit_, 0.0, 1.0);
+
+    p.save();
+    p.setClipRect(mode == "vertical" ? QRectF(0, 0, w * f, h) : QRectF(0, 0, w, h * f));
+    p.drawImage(QRectF(0, 0, w, h), image_);   // original — no filter, no annotations
+    p.restore();
+
+    p.save();
+    p.setClipping(false);
+    // Two passes so the white divider + handle read on ANY background (a white line
+    // vanishes on the white original side) — a dark casing under the white line and a
+    // dark ring around the white knob, mirroring the browser's drop shadow.
+    QPen casing(QColor(0, 0, 0, 150), 4);
+    casing.setCapStyle(Qt::RoundCap);
+    QPen white(QColor(255, 255, 255, 240), 2);
+    white.setCapStyle(Qt::RoundCap);
+    const double r = 7.0;
+    if (mode == "vertical") {
+      const double x = w * f;
+      p.setPen(casing);
+      p.drawLine(QPointF(x, 0), QPointF(x, h));
+      p.setPen(white);
+      p.drawLine(QPointF(x, 0), QPointF(x, h));
+      p.setPen(QPen(QColor(0, 0, 0, 150), 1.5));
+      p.setBrush(QColor(255, 255, 255, 240));
+      p.drawEllipse(QPointF(x, h / 2), r, r);
+    } else {
+      const double y = h * f;
+      p.setPen(casing);
+      p.drawLine(QPointF(0, y), QPointF(w, y));
+      p.setPen(white);
+      p.drawLine(QPointF(0, y), QPointF(w, y));
+      p.setPen(QPen(QColor(0, 0, 0, 150), 1.5));
+      p.setBrush(QColor(255, 255, 255, 240));
+      p.drawEllipse(QPointF(w / 2, y), r, r);
+    }
+    p.restore();
+  }
+
+  // Whether widgetPos is within grab distance (widget px) of the split divider.
+  bool CanvasWidget::nearCompareDivider(const QPoint& widgetPos) const {
+    if (compareMode_ != "vertical" && compareMode_ != "horizontal") return false;
+    const double f = std::clamp(compareSplit_, 0.0, 1.0);
+    const double tol = 8.0;
+    if (compareMode_ == "vertical")
+      return std::abs(widgetPos.x() - image_.width() * scale_ * f) <= tol;
+    return std::abs(widgetPos.y() - image_.height() * scale_ * f) <= tol;
   }
 
   // Flat dispatch (behavior-preserving). Precedence is load-bearing and matches
@@ -923,6 +1038,28 @@ namespace stencil::gui {
     }
 
     const auto mods = event->modifiers();
+
+    // Compare split divider: plain left-press on the divider starts sliding it. Checked
+    // first so it wins over point/line hits underneath, and only when a split mode is the
+    // active (not held) view.
+    if (event->button() == Qt::LeftButton && mods == Qt::NoModifier && !compareHoldOriginal_ &&
+        nearCompareDivider(event->pos())) {
+      draggingCompareSplit_ = true;
+      setCursor(compareMode_ == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
+      return;
+    }
+
+    // Compare view is read-only: no drawing/selecting/point-line drags. Only navigation
+    // stays — Alt+left / middle-button pan (the divider drag is handled above).
+    if (compareReadOnly()) {
+      if (event->button() == Qt::MiddleButton ||
+          (event->button() == Qt::LeftButton && (mods & Qt::AltModifier))) {
+        panning_ = true;
+        lastPanPos_ = event->globalPosition().toPoint();
+        setCursor(Qt::ClosedHandCursor);
+      }
+      return;
+    }
 
     // Middle-button always pans (port of drawingApp.js startPan ~757).
     if (event->button() == Qt::MiddleButton) {
@@ -1138,6 +1275,15 @@ namespace stencil::gui {
   void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     if (image_.isNull()) return;
 
+    // Compare divider drag takes priority over every other gesture.
+    if (draggingCompareSplit_) {
+      const double f = compareMode_ == "vertical"
+                           ? event->pos().x() / (image_.width() * scale_)
+                           : event->pos().y() / (image_.height() * scale_);
+      setCompareSplit(f);   // clamps + repaints
+      return;
+    }
+
     // Hold-to-draw: while armed/drawing, feed the controller. Moving past the
     // tolerance before the hold fires aborts (a normal click/drag); moving while
     // drawing updates the ghost-line preview. Suppress hover while engaged.
@@ -1188,6 +1334,22 @@ namespace stencil::gui {
     if (rectDrawActive_) {
       rectDrawEnd_ = event->pos();
       update();
+      return;
+    }
+
+    // Compare split: show a resize cursor over the movable divider (skip the normal hover
+    // cursor + tooltip so the affordance reads clearly).
+    if (!compareHoldOriginal_ && event->modifiers() == Qt::NoModifier &&
+        (compareMode_ == "vertical" || compareMode_ == "horizontal") &&
+        nearCompareDivider(event->pos())) {
+      setCursor(compareMode_ == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
+      return;
+    }
+
+    // Compare view is read-only: no hover ring, tooltip or edit cursor.
+    if (compareReadOnly()) {
+      unsetCursor();
+      emit hoverLeft();
       return;
     }
 
@@ -1328,6 +1490,13 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
+    // Finish a compare-divider drag.
+    if (draggingCompareSplit_) {
+      draggingCompareSplit_ = false;
+      unsetCursor();
+      return;
+    }
+
     // Finish a hold-to-draw gesture. Releasing after a stroke commits the line and
     // exits drawing; releasing a quick/aborted hold just tears down (selection
     // already happened on press in handleDrawingClick).
@@ -1600,6 +1769,7 @@ namespace stencil::gui {
   // and canvasDblClick delete ~1515) ──
 
   void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set) {
+    if (compareReadOnly()) return;   // read-only compare view (selection-panel edits)
     core::Line* line = selectedLine();
     if (!line) return;
     set(*line);
@@ -1631,6 +1801,7 @@ namespace stencil::gui {
   // Port of drawingApp.js canvasDblClick delete ~1515: erase the selected line
   // and reset the selection indices.
   void CanvasWidget::deleteSelectedLine() {
+    if (compareReadOnly()) return;   // read-only compare view
     if (selectedLineIdx_ < 0 ||
         selectedLineIdx_ >= static_cast<int>(lines_.size())) {
       return;
@@ -1809,6 +1980,7 @@ namespace stencil::gui {
   // about the focused point when one is selected. Port of #rotateSelectedLine
   // (~1834).
   void CanvasWidget::rotateSelectedLine(double angleRad) {
+    if (compareReadOnly()) return;   // read-only compare view
     // 2+ selected → rotate the whole set about their combined bounding-box centre (reuses the
     // same core boundingBoxCenter/rotatePoints ops per line — no new core op, no parity change).
     const auto sel = selectedIndices();
@@ -1849,6 +2021,7 @@ namespace stencil::gui {
   // the browser drawingApp.js nudgeSelected). Debounced commit, like the wheel rotate, so a
   // burst of key-repeats collapses into one undo step.
   void CanvasWidget::nudgeSelected(double dx, double dy) {
+    if (compareReadOnly()) return;   // read-only compare view
     if (dx == 0.0 && dy == 0.0) return;
     const auto sel = selectedIndices();
     if (sel.empty()) return;

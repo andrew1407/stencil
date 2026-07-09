@@ -2,6 +2,7 @@ import { setVal, notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
+import { COMPARE_MODES } from './settingsController.js';
 import { icon } from '../ui/icons.js';
 import { applyAccentFavicon, normalizeHex } from './accents.js';
 import { extractDraggedImageUrl } from './dragImageUrl.js';
@@ -98,6 +99,10 @@ export class ControlsBinder {
     enhanceSelect(unitSel);
     document.getElementById('show-points').addEventListener('change', e => app.settings.setShowPoints(e.target.checked));
     document.getElementById('show-lines').addEventListener('change', e => app.settings.setShowLines(e.target.checked));
+    const compareSel = document.getElementById('compare-mode');
+    // Left as a native <select> (like #image-filter / #line-style) so it honors the
+    // no-image disabled state and shows its multi-line mode-list title on hover.
+    if (compareSel) compareSel.addEventListener('change', e => app.settings.setCompareMode(e.target.value));
   }
 
   wireFormulaControls() {
@@ -394,6 +399,11 @@ export class ControlsBinder {
         // the server (it used to set the value inline and never push).
         app.settings.setImageFilter(opts[(cur + 1) % opts.length]);
       },
+      cycleCompare: () => {
+        if (!app.image) return;
+        const cur = COMPARE_MODES.indexOf(app.compareMode);
+        app.settings.setCompareMode(COMPARE_MODES[(cur + 1) % COMPARE_MODES.length]);
+      },
       resetZoom: () => app.zoomPan.fitToWindow(),
       toggleControls: () => { const b = document.getElementById('toggle-controls');   if (b) b.click(); },
       togglePointsList: () => { const b = document.getElementById('toggle-coord-panel'); if (b) b.click(); },
@@ -435,6 +445,10 @@ export class ControlsBinder {
       toggleIncognito: () => clickIfActive('incognito-toggle'),
       openHelp: () => clickIfActive('info-btn')
     };
+    // Editing hotkeys are inert while a compare view is active (it's read-only).
+    const EDIT_HOTKEYS = new Set([
+      'startDraw', 'stopDraw', 'undo', 'redo', 'clearAllLines', 'deleteLine', 'deletePoint',
+    ]);
     document.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;
       for (const def of HOTKEY_DEFS) {
@@ -443,6 +457,8 @@ export class ControlsBinder {
         if (!matchHotkey(e, combo)) continue;
         // Skip 'paste' here — let the browser fire its native paste event
         if (def.id === 'paste') return;
+        // Compare view is read-only — swallow editing shortcuts (but keep view/nav ones).
+        if (EDIT_HOTKEYS.has(def.id) && app.compareReadOnly()) { e.preventDefault(); return; }
         // With text selected, let the native Ctrl+C / Ctrl+Alt+C copy that text instead
         // of hijacking for copy-image / copy-layout (the user is copying a URL/label).
         if ((def.id === 'copyImage' || def.id === 'copyLayout') && hasTextSelection()) return;
@@ -488,6 +504,32 @@ export class ControlsBinder {
     };
     document.addEventListener('keydown', onModifierChange);
     document.addEventListener('keyup', onModifierChange);
+
+    // Alt+Shift+O — momentary "peek at the original": show the untouched original while
+    // held, restore the selected compare mode on release. Physical KeyO (e.code) so it's
+    // layout-independent (Mac Option+key produces special e.key chars). Not registry-driven
+    // because it needs key-up, like the ergonomic Alt+wheel/Alt+= shortcuts above.
+    const setHoldOriginal = on => {
+      if (app.compareHoldOriginal === on) return;
+      app.compareHoldOriginal = on;
+      app.renderer.redraw();
+      app.updateButtons();   // read-only peek greys the editing controls too
+    };
+    document.addEventListener('keydown', e => {
+      if (e.repeat || isTypingTarget(e.target)) return;
+      if (e.code === 'KeyO' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && app.image) {
+        e.preventDefault();
+        setHoldOriginal(true);
+      }
+    });
+    document.addEventListener('keyup', e => {
+      // Releasing the letter OR any required modifier ends the peek.
+      if (app.compareHoldOriginal &&
+          (e.code === 'KeyO' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Meta' || e.key === 'Control'))
+        setHoldOriginal(false);
+    });
+    // A lost focus (window blur / tab switch) never delivers key-up — drop the peek.
+    window.addEventListener('blur', () => setHoldOriginal(false));
   }
 
   wireArrowPan() {
@@ -521,7 +563,7 @@ export class ControlsBinder {
       // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Takes precedence
       // over pan/zoom so the chord always rotates when a line is selected.
       if (e.altKey && this.#rHeld && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')
-          && app.selectedIndices().length >= 1) {
+          && app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
         e.preventDefault();
         app.rotateSelectedLine((e.key === 'ArrowLeft' ? -1 : 1) * (Math.PI / 60));
         return;
@@ -530,8 +572,9 @@ export class ControlsBinder {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
 
       // With a line selected, plain arrows NUDGE the selection (1px, Shift = 10px, in image
-      // space); with nothing selected they fall through to panning the viewport.
-      if (app.selectedIndices().length >= 1) {
+      // space); with nothing selected they fall through to panning the viewport. In a compare
+      // (read-only) view, nudging is disabled — arrows always pan.
+      if (app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         let dx = 0, dy = 0;
@@ -766,16 +809,16 @@ export class ControlsBinder {
       if (!viewport || !viewport.contains(e.target)) return;
 
       // Alt+wheel → adjust thickness of the line under the cursor
-      // (point's line if hovering a point, else the hovered line).
-      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      // (point's line if hovering a point, else the hovered line). Read-only while comparing.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !app.compareReadOnly()) {
         e.preventDefault();
         app.adjustThicknessAtCursor(e);
         return;
       }
 
       // Ctrl+Shift+wheel with a selection → rotate it. One line: around its centre (or the focused
-      // point). Multiple lines: all together around their combined centre.
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && app.selectedIndices().length >= 1) {
+      // point). Multiple lines: all together around their combined centre. Read-only while comparing.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
         e.preventDefault();
         const dir = e.deltaY > 0 ? 1 : -1;
         app.rotateSelectedLine(dir * (Math.PI / 60)); // 3° per tick

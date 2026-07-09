@@ -137,6 +137,22 @@ namespace stencil::gui {
     const QString& imageFilter() const { return imageFilter_; }
     const QColor& filterColor() const { return filterColor_; }
 
+    // ── compare view (port of browser DrawingApp.compareMode) ──
+    // Hold the edited result against the untouched original (crop + rotation only —
+    // no filter, lines, points or layout). "none" = normal; "original" = original
+    // alone; "vertical"/"horizontal" = split with a movable divider (original on the
+    // left/top, current edit on the right/bottom). Transient view state, never saved.
+    void setCompareMode(const QString& mode);
+    const QString& compareMode() const { return compareMode_; }
+    void setCompareSplit(double fraction);      // divider position 0..1
+    double compareSplit() const { return compareSplit_; }
+    // Alt+Shift+O momentary "peek at the original" override (shown while held).
+    void setCompareHoldOriginal(bool on);
+    bool compareHoldOriginal() const { return compareHoldOriginal_; }
+    // A compare view (original / split / Alt+Shift+O peek) is read-only: hover tooltips,
+    // selection/hover highlights, and editing gestures are all suppressed while active.
+    bool compareReadOnly() const { return effectiveCompareMode() != "none"; }
+
     // ── render-to-image + image accessors (S6) ──
     // Native-resolution render of the (filtered) image; overlay draws the lines
     // honoring the current show flags when `withOverlay` is true.
@@ -273,6 +289,15 @@ namespace stencil::gui {
     double holdNowMs() const;
     const core::Point* holdAnchor() const;
 
+    // Compare view (port of renderer.js drawCompareSplit + pointerController divider drag).
+    // Paint the untouched original over the "original" half of a split and draw the movable
+    // divider; hit-test the divider in widget space for the drag.
+    void paintCompareSplit(QPainter& p, const QString& mode) const;
+    bool nearCompareDivider(const QPoint& widgetPos) const;
+    QString effectiveCompareMode() const {
+      return compareHoldOriginal_ ? QStringLiteral("original") : compareMode_;
+    }
+
     core::Point toImageSpace(int widgetX, int widgetY) const;
     void commitHistory();
     void applyDefaultsToCurrent();
@@ -351,6 +376,12 @@ namespace stencil::gui {
     QColor filterColor_{"#7c3aed"};
     QImage filteredImage_;
     bool filterDirty_ = true;
+
+    // Compare view (transient; port of browser DrawingApp.compareMode/compareSplit).
+    QString compareMode_ = "none";        // none | original | vertical | horizontal
+    double compareSplit_ = 0.5;           // divider position (0..1) for the split modes
+    bool compareHoldOriginal_ = false;    // Alt+Shift+O momentary "peek original"
+    bool draggingCompareSplit_ = false;   // divider drag in progress
 
     // Pan/zoom-rect drag state (S7/S9).
     bool panning_ = false;        // Alt+left or middle-button drag

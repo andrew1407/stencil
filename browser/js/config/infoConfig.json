@@ -33,6 +33,8 @@
   ]],
   ["Appearance", [
     ["🎨 Default visuals", "Set default line styles, area fill and highlight colors."],
-    ["⚙ Shortcuts", "View and rebind keyboard shortcuts."]
+    ["⚙ Shortcuts", "View and rebind keyboard shortcuts."],
+    ["Compare (Alt+O)", "Cycle the compare view: none → original only → vertical split → horizontal split. In a split, the original is on the left/top and your current edit on the right/bottom — drag the divider to move it."],
+    ["Peek original (Alt+Shift+O)", "Hold to show the untouched original (crop + rotation only, no filter/lines/points); release to return to your edit."]
   ]]
 ]

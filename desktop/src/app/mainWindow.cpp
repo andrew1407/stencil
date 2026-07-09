@@ -536,6 +536,12 @@ namespace stencil::gui {
     actCycleFilter_ = mk("Cycle Image Filter", hotkey("cycleFilter", "Alt+B"));
     tip(actCycleFilter_,
         "Cycle the image filter (none → B&W → sepia → invert → contour → tint)");
+    // Compare view: cycle none → original → vertical split → horizontal split. The
+    // toolbar combo + View submenu offer direct picks; hold Alt+Shift+O to peek.
+    actCycleCompare_ = mk("Cycle Compare View", hotkey("cycleCompare", "Alt+O"));
+    tip(actCycleCompare_,
+        "Cycle the compare view (none → original → vertical split → horizontal split); "
+        "hold Alt+Shift+O to peek at the original");
     // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
@@ -654,6 +660,13 @@ namespace stencil::gui {
                                      "invert", "contour", "custom"};
       const int cur = order.indexOf(settings_.imageFilter);
       applyImageFilter(order[(cur + 1) % order.size()]);
+    });
+    // Cycle the compare view (Alt+O): none → original → vertical → horizontal.
+    connect(actCycleCompare_, &QAction::triggered, this, [this] {
+      if (!canvas_->hasImage()) return;
+      static const QStringList order{"none", "original", "vertical", "horizontal"};
+      const int cur = order.indexOf(canvas_->compareMode());
+      setCompareModeUi(order[(cur + 1) % order.size()]);
     });
     connect(actStartDraw_, &QAction::triggered, canvas_,
             &CanvasWidget::startDrawingMode);
@@ -968,6 +981,23 @@ namespace stencil::gui {
     view->addSeparator();
     view->addAction(actShowPoints_);
     view->addAction(actShowLines_);
+    // Compare-with-original submenu: radio set kept in sync with the toolbar combo.
+    auto* compareMenu = view->addMenu("&Compare");
+    compareGroup_ = new QActionGroup(this);
+    auto mkCompare = [&](const QString& text, const QString& value) {
+      auto* a = compareMenu->addAction(text);
+      a->setCheckable(true);
+      a->setData(value);
+      a->setChecked(value == "none");
+      compareGroup_->addAction(a);
+      connect(a, &QAction::triggered, this, [this, value] { setCompareModeUi(value); });
+    };
+    mkCompare("None", "none");
+    mkCompare("Original only", "original");
+    mkCompare("Vertical split (original | edit)", "vertical");
+    mkCompare("Horizontal split (original / edit)", "horizontal");
+    compareMenu->addSeparator();
+    compareMenu->addAction(actCycleCompare_);
     view->addAction(actPanel_);
     view->addAction(actToolbars_);
     view->addAction(actTooltip_);
@@ -1335,6 +1365,23 @@ namespace stencil::gui {
     filterColorAct_->setVisible(false);
     tb3->addSeparator();
 
+    // Compare view combo (browser toolbar View section): hold the edit against the
+    // untouched original. Kept in sync with the View → Compare submenu radio set.
+    tb3->addWidget(new QLabel(" Compare: ", this));
+    compareCombo_ = new QComboBox(this);
+    compareCombo_->addItem("None", "none");
+    compareCombo_->addItem("Original only", "original");
+    compareCombo_->addItem(QString::fromUtf8("Split ↔ (vertical)"), "vertical");
+    compareCombo_->addItem(QString::fromUtf8("Split ↕ (horizontal)"), "horizontal");
+    compareCombo_->setToolTip(
+        "Compare with the original (Alt+O cycles · hold Alt+Shift+O to peek)\n"
+        "None — normal editing\n"
+        "Original — original image only (crop + rotation; no filter, lines or points)\n"
+        "Vertical split — left: original · right: current edit\n"
+        "Horizontal split — top: original · bottom: current edit");
+    tb3->addWidget(compareCombo_);
+    tb3->addSeparator();
+
     // Default line color swatch (toolbar.js:40 #lineColor).
     tb3->addWidget(new QLabel(" Line: ", this));
     lineColorBtn_ = new QToolButton(this);
@@ -1447,6 +1494,11 @@ namespace stencil::gui {
             this, [this](int) {
               applyImageFilter(imageFilter_->currentData().toString());
             });
+    // Compare view combo → route through the shared setter (syncs canvas + View submenu).
+    connect(compareCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) {
+              setCompareModeUi(compareCombo_->currentData().toString());
+            });
     // Tint color (drawingApp.js:240-249): pick the custom duotone tint.
     connect(filterColorBtn_, &QToolButton::clicked, this, [this] {
       const QColor c = QColorDialog::getColor(filterColorValue_, this, "Tint color",
@@ -1469,6 +1521,24 @@ namespace stencil::gui {
   // context-menu radio group stay mutually in sync) and the apply/persist logic
   // lives once. Setting an exclusive QAction's checked state emits toggled(), not
   // triggered(), so re-checking the group action here never re-enters this path.
+  // Single entry for a compare-mode change: apply to the canvas and keep the toolbar
+  // combo + View → Compare submenu radio set in sync. Transient view state — not persisted.
+  void MainWindow::setCompareModeUi(const QString& mode) {
+    canvas_->setCompareMode(mode);
+    if (compareCombo_) {
+      const int idx = compareCombo_->findData(mode);
+      if (idx >= 0 && idx != compareCombo_->currentIndex()) {
+        QSignalBlocker b(compareCombo_);
+        compareCombo_->setCurrentIndex(idx);
+      }
+    }
+    if (compareGroup_) {
+      for (QAction* a : compareGroup_->actions())
+        if (a->data().toString() == mode) { a->setChecked(true); break; }
+    }
+    refreshActions();   // read-only view gates the editing actions + their shortcuts
+  }
+
   void MainWindow::applyImageFilter(const QString& mode) {
     settings_.imageFilter = mode;
     if (imageFilter_) {  // sync toolbar combo by canonical data value
@@ -2047,14 +2117,24 @@ namespace stencil::gui {
   }
 
   void MainWindow::refreshActions() {
-    actUndo_->setEnabled(canvas_->canUndo());
-    actRedo_->setEnabled(canvas_->canRedo());
+    // A compare view is read-only — every annotation-editing action (and thus its keyboard
+    // shortcut) is disabled while it's active. Only navigation + compare controls stay live.
+    const bool ro = canvas_->compareReadOnly();
+    actUndo_->setEnabled(canvas_->canUndo() && !ro);
+    actRedo_->setEnabled(canvas_->canRedo() && !ro);
     actSaveProject_->setEnabled(!activeProjectId_.isEmpty());
     // Start only when an image is loaded and not already drawing; Stop only while
     // drawing (mirrors the browser HK_HANDLERS startDraw/stopDraw guards).
     const bool drawing = canvas_->isDrawing();
-    actStartDraw_->setEnabled(canvas_->hasImage() && !drawing);
-    actStopDraw_->setEnabled(drawing);
+    actStartDraw_->setEnabled(canvas_->hasImage() && !drawing && !ro);
+    actStopDraw_->setEnabled(drawing && !ro);
+    // These are otherwise always enabled (they no-op internally when nothing applies);
+    // the only gate is the read-only compare view.
+    actNewLine_->setEnabled(!ro);
+    actDeleteLast_->setEnabled(!ro);
+    actClearAll_->setEnabled(!ro);
+    actDeleteLine_->setEnabled(!ro);
+    actDeletePoint_->setEnabled(!ro);
     // Incognito can only be toggled before an image exists (S6).
     actIncognito_->setEnabled(!canvas_->hasImage());
     // Data actions (S9): layout export/copy need lines; importing a layout and
@@ -2068,6 +2148,10 @@ namespace stencil::gui {
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
+    // Compare view needs an image to compare against (parity with the browser gating).
+    if (compareCombo_) compareCombo_->setEnabled(hasImg);
+    if (actCycleCompare_) actCycleCompare_->setEnabled(hasImg);
+    if (compareGroup_) compareGroup_->setEnabled(hasImg);
     // Image Links edits the CURRENT image's provenance — greyed out without one
     // (parity with the browser's disabled 🔗 button).
     if (actLinks_) actLinks_->setEnabled(hasImg);
@@ -2652,10 +2736,22 @@ namespace stencil::gui {
     // Track R held for the Alt+R+←/→ line-rotate chord (mirror of the browser #rHeld).
     if (key == Qt::Key_R) { rKeyHeld_ = true; QMainWindow::keyPressEvent(event); return; }
 
+    // Alt+Shift+O — momentary "peek at the original" (mirror of the browser hold). Handled
+    // here rather than as a QAction because it needs key-up; auto-repeat is ignored.
+    if (key == Qt::Key_O && (mods & Qt::AltModifier) && (mods & Qt::ShiftModifier) &&
+        !(mods & (Qt::ControlModifier | Qt::MetaModifier))) {
+      if (!event->isAutoRepeat() && canvas_->hasImage()) {
+        canvas_->setCompareHoldOriginal(true);
+        refreshActions();   // read-only peek greys the editing actions too (parity with browser)
+      }
+      event->accept();
+      return;
+    }
+
     // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Mirrors the browser
     // chord and the Ctrl+Shift+wheel rotate. Only fires when something is selected.
     if ((mods & Qt::AltModifier) && rKeyHeld_ && canvas_->selectionCount() >= 1 &&
-        (key == Qt::Key_Left || key == Qt::Key_Right)) {
+        !canvas_->compareReadOnly() && (key == Qt::Key_Left || key == Qt::Key_Right)) {
       constexpr double kRotStep = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
       canvas_->rotateSelectedLine((key == Qt::Key_Left ? -kRotStep : kRotStep));
       event->accept();
@@ -2677,8 +2773,9 @@ namespace stencil::gui {
     else { QMainWindow::keyPressEvent(event); return; }
 
     // With a line selected, arrows NUDGE the selection (1px, Shift = 10px, image space);
-    // with nothing selected they pan the viewport (7/22px), as before.
-    if (canvas_->selectionCount() >= 1) {
+    // with nothing selected they pan the viewport (7/22px), as before. A read-only compare
+    // view disables the nudge — arrows always pan.
+    if (canvas_->selectionCount() >= 1 && !canvas_->compareReadOnly()) {
       const int nStep = (mods & Qt::ShiftModifier) ? 10 : 1;
       canvas_->nudgeSelected(dirX * nStep, dirY * nStep);
       event->accept();
@@ -2693,6 +2790,14 @@ namespace stencil::gui {
   // Clear the R-held flag when it (or focus) is released, so the Alt+R+←/→ chord doesn't stick.
   void MainWindow::keyReleaseEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_R) rKeyHeld_ = false;
+    // End the Alt+Shift+O peek when the letter or any required modifier lifts.
+    if (!event->isAutoRepeat() && canvas_->compareHoldOriginal() &&
+        (event->key() == Qt::Key_O || event->key() == Qt::Key_Alt ||
+         event->key() == Qt::Key_Shift || event->key() == Qt::Key_Meta ||
+         event->key() == Qt::Key_Control)) {
+      canvas_->setCompareHoldOriginal(false);
+      refreshActions();   // restore the editing actions on release (parity with browser)
+    }
     QMainWindow::keyReleaseEvent(event);
   }
 
