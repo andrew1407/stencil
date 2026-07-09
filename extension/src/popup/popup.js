@@ -353,6 +353,7 @@ const readFilters = () => {
   };
   return {
     search: document.getElementById('f-search').value.trim(),
+    regex: document.getElementById('f-regex').checked,
     formats: formatCheckboxes().filter(c => c.checked).map(c => c.value),
     minW: num(document.getElementById('f-minw')),
     maxW: num(document.getElementById('f-maxw')),
@@ -387,7 +388,7 @@ const loadPersistedFilters = async () => {
 const saveFilters = () => {
   const f = readFilters();
   persistedFilters = {
-    search: f.search, minW: f.minW, maxW: f.maxW, minH: f.minH, maxH: f.maxH,
+    search: f.search, regex: f.regex, minW: f.minW, maxW: f.maxW, minH: f.minH, maxH: f.maxH,
     includeImg: f.includeImg, includeBg: f.includeBg, includeVideo: f.includeVideo, includePosters: f.includePosters,
     disabledFormats: formatCheckboxes().filter(c => !c.checked).map(c => c.value),   // store the OFF ones (new formats default on)
   };
@@ -402,6 +403,7 @@ const restoreStaticFilters = () => {
   const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
   setV('f-search', f.search); setV('f-minw', f.minW); setV('f-maxw', f.maxW); setV('f-minh', f.minH); setV('f-maxh', f.maxH);
   const setC = (id, v) => { const el = document.getElementById(id); if (el && typeof v === 'boolean') el.checked = v; };
+  setC('f-regex', f.regex);
   setC('f-img', f.includeImg); setC('f-bg', f.includeBg); setC('f-video', f.includeVideo); setC('f-poster', f.includePosters);
 };
 
@@ -423,7 +425,7 @@ const applyFilters = () => {
   state.showServerPins = !showServerEl || showServerEl.checked;
   const store = (storeSel && !storeSel.hidden) ? storeSel.value : 'all';
   // Shared (server) pins list after the page's own images, newest-first.
-  let sharedRows = state.shared.filter(s => sharedMatchesSearch(s, filters.search));
+  let sharedRows = state.shared.filter(s => sharedMatchesSearch(s, filters.search, filters.regex));
   if (!state.showServerPins) sharedRows = [];
   else if (store !== 'all') sharedRows = sharedRows.filter(s => s.serverUrl === store);
   state.filtered = state.filtered.concat(sharedRows);
@@ -1368,7 +1370,7 @@ document.getElementById('f-search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(applyFilters, 150);
 });
-['f-img', 'f-bg', 'f-video', 'f-poster'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+['f-regex', 'f-img', 'f-bg', 'f-video', 'f-poster'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 
 // Opened-images toggles (persisted to settings so they follow the user and stay in
 // sync with the options page). "mark opened" needs a re-annotate (badges depend on

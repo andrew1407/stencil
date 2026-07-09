@@ -7,9 +7,9 @@
 
 use std::path::Path;
 
-use crate::args::{self, EditError, EditParams, LayoutArg};
+use crate::args::{self, EditError, EditParams, LayoutArg, ScrapeParams};
 use crate::locate;
-use crate::outcome;
+use crate::outcome::{self, ScrapedFile};
 
 /// A successful edit: the resolved output path, the final image dimensions, and any
 /// collaboration-server deliveries the CLI performed (project updated / created).
@@ -33,6 +33,16 @@ impl EditResult {
         }
         summary
     }
+}
+
+/// A successful scrape: the destination directory and page host (from the CLI's summary
+/// line, when present) plus every downloaded file. `files` reuses `outcome::ScrapedFile`, so
+/// the server payload serializes straight off it.
+#[derive(Debug, Clone)]
+pub struct ScrapeResult {
+    pub dir: Option<String>,
+    pub host: Option<String>,
+    pub files: Vec<ScrapedFile>,
 }
 
 /// Raw capture from one CLI invocation.
@@ -87,6 +97,31 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
             output.stderr.trim()
         ))),
     }
+}
+
+/// Run one `source_site` scrape: build the argv, spawn the CLI (which fetches the page,
+/// parses its HTML, filters, and downloads the matches), and parse the multi-file result.
+/// The CLI writes the files itself; this only maps its stderr into a structured result.
+pub async fn run_scrape(params: &ScrapeParams) -> Result<ScrapeResult, EditError> {
+    let argv = args::build_scrape_argv(params)?;
+    let output = spawn(&argv).await?;
+    if !output.success {
+        return Err(outcome::extract_errors(&output.stderr).into());
+    }
+    let scraped = outcome::parse_scraped(&output.stderr);
+    if scraped.files.is_empty() {
+        // A zero-file success shouldn't happen (the CLI exits 1 with `no media matched`),
+        // but guard it so the tool never reports an empty success.
+        return Err(EditError::Runtime(format!(
+            "the stencil CLI reported success but wrote no files:\n{}",
+            output.stderr.trim()
+        )));
+    }
+    Ok(ScrapeResult {
+        dir: scraped.dir,
+        host: scraped.host,
+        files: scraped.files,
+    })
 }
 
 /// Run one `stencil_probe`: render the source to a throwaway PNG and read its dimensions.

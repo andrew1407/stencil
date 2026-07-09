@@ -185,7 +185,8 @@ public sealed class UpdateRouter
         string path = await DownloadToTempAsync(fileId, extension, ct);
         try
         {
-            await _editing.SetImageFromLocalFileAsync(userId, path, label, ct);
+            // A directly-uploaded photo/file has no http(s) origin, so leave SourceUrl unset.
+            await _editing.SetImageFromLocalFileAsync(userId, path, label, ct: ct);
             await ApplyCaptionOrRenderAsync(userId, chatId, caption, ct);
         }
         finally

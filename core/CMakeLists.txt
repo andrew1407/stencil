@@ -111,6 +111,9 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/colorNames.test.cpp
     tests/imageOps.test.cpp
     tests/rasterize.test.cpp
+    # Perf-regression benchmarks — decorated doctest::skip(), so `ctest` never runs them.
+    # Run on demand: stencil_tests -ts=bench --no-skip  (see tests/bench.test.cpp).
+    tests/bench.test.cpp
     # The extern "C" ABI surfaces (wasm exports + the CLI ABI) are plain STL, so they
     # compile and are exercised natively here — keeping both ABIs covered even on a
     # machine without Emscripten or Zig.

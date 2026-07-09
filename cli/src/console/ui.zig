@@ -15,7 +15,7 @@ var current_accent: []const u8 = theme.default_key;
 // Command words offered by Tab-completion in the interactive editor (canonical names +
 // transform shorthands), roughly in the order they appear in `help`.
 pub const completions = [_][]const u8{
-    "upload",      "paste",    "blank",       "apply",    "crop",   "rotate",
+    "upload",      "source-upload", "scrape", "paste",    "blank",       "apply",    "crop",   "rotate",
     "filter",      "bw",       "sepia",       "invert",   "contour", "tint",
     "none",        "exec",     "undo",        "redo",     "reset",  "save",
     "layout",      "formula",  "format",
@@ -176,6 +176,7 @@ pub fn help() void {
 
     helpSection(a, r, "Image");
     helpRow(a, r, "/upload <path|url>", "load an image or video frame as the working image");
+    helpRow(a, r, "/source-upload <url> [i] [fmt] [name=]", "scrape a page and load its i-th image (alias /scrape)");
     helpRow(a, r, "/paste", "load an image from the clipboard (macOS)");
     helpRow(a, r, "/blank [fmt] [w h] [color]", "create a blank page (default: the picked format or A4, white)");
     helpRow(a, r, "/format [name|custom w h]", "list the page formats or pick one (drives /blank + the layout)");

@@ -1,0 +1,50 @@
+{
+  "_comment": "Golden fixtures for the source-site scrape stderr contract. Shared by the CLI (which must reproduce these line shapes), and by mcp/ + bot/ (whose multi-file parsers must parse them). See cli/CONTRACT.md and the DESIGN contract. Parser rule: every line starting with 'wrote ' yields path = text between 'wrote ' and the LAST ' (' (or rest of line if none); dims = leading WxH of the parenthetical tail if it matches ^\\d+x\\d+, else null. 'scraped {n} file(s) from {host} into {dir}' is an optional summary. 'error: ...' is an error.",
+  "cases": [
+    {
+      "name": "two_images",
+      "_note": "Leads with the informational 'scraping …' start line (§3.0); parsers must ignore it and yield exactly the two files below.",
+      "stderr": "scraping https://example.com/…\nwrote out/logo.png (200x80 px · source example.com)\nwrote out/hero.jpg (1280x720 px · source example.com)\nscraped 2 file(s) from example.com into out",
+      "dir": "out",
+      "host": "example.com",
+      "count": 2,
+      "error": null,
+      "files": [
+        { "path": "out/logo.png", "width": 200, "height": 80 },
+        { "path": "out/hero.jpg", "width": 1280, "height": 720 }
+      ]
+    },
+    {
+      "name": "image_and_video",
+      "stderr": "wrote assets/pic.png (640x480 px · source cdn.test)\nwrote assets/clip.mp4 (source cdn.test)\nscraped 2 file(s) from cdn.test into assets",
+      "dir": "assets",
+      "host": "cdn.test",
+      "count": 2,
+      "error": null,
+      "files": [
+        { "path": "assets/pic.png", "width": 640, "height": 480 },
+        { "path": "assets/clip.mp4", "width": null, "height": null }
+      ]
+    },
+    {
+      "name": "path_with_paren",
+      "stderr": "wrote out/img (1) (300x300 px · source example.org)\nscraped 1 file(s) from example.org into out",
+      "dir": "out",
+      "host": "example.org",
+      "count": 1,
+      "error": null,
+      "files": [
+        { "path": "out/img (1)", "width": 300, "height": 300 }
+      ]
+    },
+    {
+      "name": "none_matched",
+      "stderr": "error: no media matched at https://example.com/",
+      "dir": null,
+      "host": null,
+      "count": 0,
+      "error": "no media matched at https://example.com/",
+      "files": []
+    }
+  ]
+}

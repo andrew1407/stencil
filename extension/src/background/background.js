@@ -224,7 +224,16 @@ const messageHandlers = {
     (async () => {
       try {
         const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url);
-        const { page } = await getSettings();
+        const { page, desktopScheme } = await getSettings();
+        // Desktop hand-off: build the stencil:// scheme URL and let the OS open the app
+        // (parity with the context-menu "Open in… Desktop app"), instead of the editor tab.
+        if (msg.desktop) {
+          if (!desktopScheme) { console.warn('[stencil] open({desktop}) needs a configured desktop scheme'); return; }
+          const schemeUrl = buildStencilSchemeUrl({ scheme: desktopScheme, src: dataUrl });
+          if (schemeUrl.length > INLINE_MAX_CHARS) { console.warn('[stencil] image too large for an inline desktop hand-off'); return; }
+          chrome.tabs.create({ url: schemeUrl });
+          return;
+        }
         const payload = buildHandoff(
           { name: msg.name || filenameFromUrl(msg.url || 'image'), source: msg.source || msg.url || '' },
           { dataUrl, page, resource: msg.resource || sender.tab?.url || '', incognito: !!msg.incognito }

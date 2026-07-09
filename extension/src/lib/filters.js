@@ -50,8 +50,25 @@ export const extractCssUrls = (bg) => {
   return out;
 };
 
+// Does the item's name / src / videoUrl match the search text? With f.regex the query is a
+// case-insensitive RegExp (an invalid pattern matches nothing); otherwise a case-insensitive
+// substring. Empty query = always matches. Mirrored on the page API (pageApiMain.js) and by
+// the CLI/pystencil --source-name scrape filter (which match the media URL).
+export const matchesSearch = (item, f = {}) => {
+  const query = f.search;
+  if (!query) return true;
+  const fields = [item.name, item.src, item.videoUrl];
+  if (f.regex) {
+    let re;
+    try { re = new RegExp(query, 'i'); } catch { return false; }
+    return fields.some(v => re.test(v || ''));
+  }
+  const q = query.toLowerCase();
+  return fields.some(v => (v || '').toLowerCase().includes(q));
+};
+
 // Does an item pass the active filter state?
-//   f = { search, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo, includePosters }
+//   f = { search, regex, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo, includePosters }
 // Undetectable formats bucket as UNKNOWN_FORMAT ('etc'); empty bounds are null;
 // unknown-size items (w/h <= 0) pass size filters (measured later).
 export const passesFilters = (item, f = {}) => {
@@ -65,13 +82,7 @@ export const passesFilters = (item, f = {}) => {
     if (item.kind === 'video' && f.includeVideo === false) return false;
   }
 
-  if (f.search) {
-    const q = f.search.toLowerCase();
-    const inName = (item.name || '').toLowerCase().includes(q);
-    const inSrc = (item.src || '').toLowerCase().includes(q);
-    const inVideoUrl = (item.videoUrl || '').toLowerCase().includes(q);
-    if (!inName && !inSrc && !inVideoUrl) return false;
-  }
+  if (f.search && !matchesSearch(item, f)) return false;
 
   if (Array.isArray(f.formats)) {
     const fmt = formatOfItem(item) || UNKNOWN_FORMAT;

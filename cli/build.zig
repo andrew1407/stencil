@@ -100,4 +100,20 @@ pub fn build(b: *std.Build) void {
     const run_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run the stencil CLI unit + integration tests");
     test_step.dependOn(&run_tests.step);
+
+    // Opt-in perf benchmark (`zig build bench`) — times the pipeline stages on a large
+    // synthetic image. Deliberately NOT wired into `test`/CI: it prints timings, it does
+    // not assert them. Built ReleaseFast regardless of the top-level optimize choice so
+    // the numbers reflect a shipped build. See src/bench.zig.
+    const bench_mod = b.createModule(.{
+        .root_source_file = b.path("src/bench.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    wireNative(b, bench_mod, stb);
+    const bench_exe = b.addExecutable(.{ .name = "stencil-bench", .root_module = bench_mod });
+    const run_bench = b.addRunArtifact(bench_exe);
+    if (b.args) |args| run_bench.addArgs(args);
+    const bench_step = b.step("bench", "Run the stencil CLI pipeline benchmark");
+    bench_step.dependOn(&run_bench.step);
 }
