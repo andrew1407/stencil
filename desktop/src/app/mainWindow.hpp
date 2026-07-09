@@ -193,6 +193,9 @@ namespace stencil::gui {
     void positionPanelReopenButton();   // position it flush to the canvas' right edge, vertically centred
     void setPanelShown(bool show, bool animate);      // animated points-panel collapse/expand
     void setToolbarsShown(bool show, bool animate);   // animated top-menu collapse/expand
+    // Shared height slide (0↔natural) for a set of toolbars, pinning min==max each frame. Used by the
+    // pill collapse (tool rows only) AND the fullscreen edge-hover reveal (all rows incl. header).
+    void animateBarsHeight(const QList<class QToolBar*>& bars, bool show);
     void scrollTo(int x, int y);
     void setZoomAnchored(double newScale, const QPoint& cursorInViewport);
     void applyTheme();
@@ -592,6 +595,10 @@ namespace stencil::gui {
     int panelRestoreWidth_ = 300;           // remembered panel width for the expand animation
     QVariantAnimation* panelAnim_ = nullptr;  // in-flight panel collapse/expand (min==max pinning)
     QVariantAnimation* barsAnim_ = nullptr;   // in-flight toolbars collapse/expand
+    // Fullscreen edge-hover target states: track the INTENDED reveal, not live isVisible(), so an
+    // in-flight hide slide (widget stays visible until it finishes) isn't restarted every poll tick.
+    bool fsBarsShown_ = false;
+    bool fsPanelShown_ = false;
     QAction* actSettings_ = nullptr;
     QAction* actProjects_ = nullptr;
     QAction* actConnect_ = nullptr;
