@@ -60,11 +60,16 @@ test.describe('extension popup + side panel UI', () => {
   for (const [label, rel] of [['popup', POPUP], ['side panel', SIDEPANEL]]) {
     test(`${label}: renders collapsible filter sections with search at the bottom`, async () => {
       const { host, ui } = await openSurface(rel);
-      // Exactly the three section headers, in order.
+      // Exactly the four section headers, in order — Search is now its own collapsible
+      // section at the bottom (its body holds #f-search).
       expect(await ui.locator('.section-head .dlbl').allTextContents())
-        .toEqual(['Elements to include', 'Formats', 'Size (px)']);
-      // The search input is the LAST child of .filters (relocated below the checkboxes).
-      expect(await ui.evaluate(() => document.querySelector('.filters').lastElementChild.id)).toBe('f-search');
+        .toEqual(['Elements to include', 'Formats', 'Size (px)', 'Search']);
+      // Search is the LAST section of .filters, and its body holds #f-search.
+      expect(await ui.evaluate(() => {
+        const last = document.querySelector('.filters').lastElementChild;
+        return last.querySelector('.section-head .dlbl')?.textContent === 'Search'
+          && last.querySelector('.section-body #f-search') !== null;
+      })).toBe(true);
       // Accordion: clicking a header collapses its body (hidden) and marks the section.
       const state = await ui.evaluate(() => {
         const head = [...document.querySelectorAll('.section-head')]
@@ -95,9 +100,9 @@ test.describe('extension popup + side panel UI', () => {
     await ui.locator('.row .more-btn').first().click();
     await expect(ui.locator('#action-menu')).toBeVisible();
 
-    // Open + Pin are submenus; Crop is a plain top-level action (no submenu / caret).
+    // Open, Open in…, and Pin are submenus; Crop is a plain top-level action (no submenu / caret).
     expect(await ui.locator('#action-menu > .submenu > .submenu-head .submenu-label').allTextContents())
-      .toEqual(['Open', 'Pin']);
+      .toEqual(['Open', 'Open in…', 'Pin']);
     expect(await ui.locator('#action-menu > button').allInnerTexts()).toContain('Crop');
 
     // Hover the Open submenu → its flyout shows and stays fully inside the viewport

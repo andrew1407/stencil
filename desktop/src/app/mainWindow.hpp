@@ -113,6 +113,9 @@ namespace stencil::gui {
     // Single source of truth for the filter/style controls that exist in BOTH the
     // toolbar and the context menu: apply + persist + keep the two UIs in sync.
     void applyImageFilter(const QString& mode);
+    // Compare view (transient): apply to the canvas + sync the toolbar combo and the
+    // View → Compare submenu radio set.
+    void setCompareModeUi(const QString& mode);
     void applyTintColor(const QColor& color);
     void applyLineStyle(const QString& style);
     // Paint a small color chip onto a swatch toolbutton (S8).
@@ -540,6 +543,7 @@ namespace stencil::gui {
     QSpinBox* markerSize_ = nullptr;
     QComboBox* lineStyle_ = nullptr;
     QComboBox* imageFilter_ = nullptr;
+    QComboBox* compareCombo_ = nullptr;   // compare-with-original view selector
     QToolButton* filterColorBtn_ = nullptr;
     QAction* filterColorAct_ = nullptr;  // tint swatch action (hidden unless custom)
     QColor lineColorValue_{"#FFFF00"};
@@ -551,6 +555,7 @@ namespace stencil::gui {
     QAction* actRotateLeft_ = nullptr;
     QAction* actRotateRight_ = nullptr;
     QAction* actCycleFilter_ = nullptr;
+    QAction* actCycleCompare_ = nullptr;   // Alt+O: cycle the compare view
     QAction* actStartDraw_ = nullptr;
     QAction* actStopDraw_ = nullptr;
     QAction* actNewLine_ = nullptr;
@@ -641,6 +646,8 @@ namespace stencil::gui {
     // Image Filter submenu (contextMenu.js:59-74): exclusive filter radio group +
     // a custom-tint picker action shown only for "custom".
     QActionGroup* filterGroup_ = nullptr;
+    // Compare-with-original radio set (View → Compare), synced with compareCombo_.
+    QActionGroup* compareGroup_ = nullptr;
     QAction* actFilterNone_ = nullptr;
     QAction* actFilterBW_ = nullptr;
     QAction* actFilterSepia_ = nullptr;

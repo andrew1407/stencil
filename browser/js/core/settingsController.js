@@ -8,6 +8,9 @@ const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefin
 const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; };
 const toStr = v => String(v);
 
+// Compare-view modes, in cycle order (Alt+O steps through them). See DrawingApp.compareMode.
+export const COMPARE_MODES = ['none', 'original', 'vertical', 'horizontal'];
+
 // ── Mirror kinds: how one bound DOM element reflects a setting value ──
 // Each migrated setting lists its bound elements as { id, kind }; applyMirror writes the
 // value the way that element expects. Tolerant of missing elements (same guards the old
@@ -87,6 +90,19 @@ const SETTINGS = {
       if (tintRow) tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
     },
     redraw: true, save: true, remoteSync: true, filterDirty: true,
+  },
+  compareMode: {
+    field: 'compareMode',
+    parse: v => {
+      const s = String(v);
+      if (!COMPARE_MODES.includes(s))
+        throw new Error(`Unknown compare mode: ${v} (use ${COMPARE_MODES.join(' | ')})`);
+      return s;
+    },
+    mirror: [{ id: 'compare-mode', kind: 'value' }],
+    // Compare is read-only — grey out the editing toolbar controls (Start/Stop/undo/…).
+    afterSet: (self) => self.app.updateButtons(),
+    redraw: true,   // transient view state — repaint only, no save/remoteSync
   },
   pageSize: {
     field: 'pageSize',
@@ -195,6 +211,17 @@ export class SettingsController {
   setShowLines(b) { this.set('showLines', b); }
 
   setImageFilter(f) { this.set('imageFilter', f); }
+
+  setCompareMode(m) { this.set('compareMode', m); }
+
+  // Divider position for the split compare modes (0..1), clamped so a sliver of each
+  // side stays visible. Transient view state — redraw only, no persist/sync.
+  setCompareSplit(v) {
+    const n = parseFloat(v);
+    if (Number.isNaN(n)) return;
+    this.app.compareSplit = Math.min(0.98, Math.max(0.02, n));
+    this.app.renderer.redraw();
+  }
 
   setFilterColor(v, opts) { this.set('filterColor', v, opts); }
 

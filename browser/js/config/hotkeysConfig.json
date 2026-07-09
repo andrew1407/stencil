@@ -6,6 +6,7 @@
   { "id": "togglePoints", "label": "Toggle Show Points", "default": "Alt+P" },
   { "id": "toggleLines", "label": "Toggle Show Lines", "default": "Alt+L" },
   { "id": "cycleFilter", "label": "Cycle Image Filter", "default": "Alt+B" },
+  { "id": "cycleCompare", "label": "Cycle Compare View", "default": "Alt+O" },
   { "id": "resetZoom", "label": "Fit to Window", "default": "Alt+0" },
   { "id": "toggleControls", "label": "Toggle Controls Panel", "default": "Alt+C" },
   { "id": "togglePointsList", "label": "Toggle Points List", "default": "Alt+X" },
