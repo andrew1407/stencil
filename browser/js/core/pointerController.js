@@ -14,12 +14,51 @@ export class PointerController {
     this.app = app;
   }
 
+  // Slide the divider to the pointer; setCompareSplit clamps (a sliver of each side stays
+  // grabbable) and repaints. Hit-testing the divider lives on app.nearCompareDivider.
+  #moveCompareSplit(clientX, clientY) {
+    const app = this.app;
+    const { cssX, cssY } = app.canvasCoords(clientX, clientY);
+    const scale = app.scale || 1;
+    const f = app.compareMode === 'vertical'
+      ? cssX / (app.canvas.width * scale)
+      : cssY / (app.canvas.height * scale);
+    app.settings.setCompareSplit(f);
+  }
+
   wirePanDrag() {
     const app = this.app;
     const viewport = document.getElementById('canvas-viewport');
 
     // Pan: Alt+left-drag OR middle-mouse-button drag (works in both drawing/non-drawing modes)
     const startPan = e => {
+      // Compare split divider: plain left-drag on the movable divider slides it. Checked
+      // first so it wins over point/line hits underneath, and only when a split mode is the
+      // active (not held) view.
+      if (e.button === 0 && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && app.image &&
+          !app.compareHoldOriginal && app.nearCompareDivider(e.clientX, e.clientY)) {
+        app.isDraggingCompareSplit = true;
+        app.canvas.style.cursor = app.compareMode === 'vertical' ? 'col-resize' : 'row-resize';
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // Compare view is read-only: no drawing/selecting/point-line drags. Only navigation
+      // stays — Alt+left / middle-button pan (the divider drag is handled above).
+      if (app.compareReadOnly()) {
+        const isMiddle = e.button === 1;
+        const isAltLeft = e.button === 0 && e.altKey;
+        if (isMiddle || isAltLeft) {
+          e.preventDefault();
+          app.isPanning = true;
+          this.#panLastX = e.clientX;
+          this.#panLastY = e.clientY;
+          app.canvas.style.cursor = 'grabbing';
+        }
+        return;
+      }
+
       // Rect-draw mode: plain left-drag sweeps out a rectangle area
       if (app.isDrawing && app.drawMode === 'rect' && e.button === 0 &&
         !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && app.image) {
@@ -119,6 +158,12 @@ export class PointerController {
     viewport.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 
     document.addEventListener('mousemove', e => {
+      // Compare divider drag takes priority over every other gesture.
+      if (app.isDraggingCompareSplit) {
+        this.#moveCompareSplit(e.clientX, e.clientY);
+        return;
+      }
+
       // Handle rect-draw drag (rect drawing mode, plain left-drag)
       if (app.isRectDrawDragging) {
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
@@ -159,6 +204,15 @@ export class PointerController {
       this.#panLastY = e.clientY;
     });
     document.addEventListener('mouseup', e => {
+      // Finish a compare-divider drag; suppress the trailing click so it isn't a new point.
+      if (app.isDraggingCompareSplit) {
+        app.isDraggingCompareSplit = false;
+        app.canvas.style.cursor = app.isDrawing ? 'crosshair' : 'default';
+        app.dragJustEnded = true;
+        setTimeout(() => { app.dragJustEnded = false; }, 50);
+        return;
+      }
+
       // Finish rect-draw (rect drawing mode)
       if (app.isRectDrawDragging) {
         app.isRectDrawDragging = false;

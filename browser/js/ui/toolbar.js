@@ -117,6 +117,13 @@ export class StencilToolbar extends StencilElement {
                     <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Lines (Alt+L)">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
+                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
+                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;None — normal editing&#10;Original — original image only (crop + rotation; no filter, lines or points)&#10;Vertical split — left: original · right: current edit&#10;Horizontal split — top: original · bottom: current edit&#10;(Alt+O cycles · hold Alt+Shift+O to peek at the original)" data-disabled-reason="Load an image to compare" title="Compare with original&#10;None — normal editing&#10;Original — original image only (crop + rotation; no filter, lines or points)&#10;Vertical split — left: original · right: current edit&#10;Horizontal split — top: original · bottom: current edit&#10;(Alt+O cycles · hold Alt+Shift+O to peek at the original)">
+                        <option value="none">None</option>
+                        <option value="original">Original only</option>
+                        <option value="vertical">Split ↔ (vertical)</option>
+                        <option value="horizontal">Split ↕ (horizontal)</option>
+                    </select>
                     <button id="clear-all-lines" class="danger btn-icon-text" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('trash')}<span>Clear</span></button>
                 </div>
             </div>

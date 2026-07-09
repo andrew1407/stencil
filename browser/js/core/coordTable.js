@@ -51,6 +51,7 @@ export class CoordTable {
 
       const makeEditable = (cell, axis) => {
         cell.addEventListener('dblclick', () => {
+          if (this.app.compareReadOnly()) return; // read-only compare view
           if (cell.querySelector('.coord-px-input')) return;
           const curVal = Math.round(axis === 'x' ? point.x : point.y);
           cell.innerHTML = '';
@@ -98,6 +99,7 @@ export class CoordTable {
       // Delete point button → shared core path (also used by the console).
       row.querySelector('.del-pt-btn').addEventListener('click', e => {
         e.stopPropagation();
+        if (this.app.compareReadOnly()) return; // read-only compare view
         this.app.removePoint(lineIdx, index);
       });
 

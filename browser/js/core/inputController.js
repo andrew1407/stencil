@@ -35,6 +35,7 @@ export class InputController {
 
     const onDown = e => {
       if (e.button !== 0 || e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
+      if (app.compareReadOnly()) return;   // compare view is read-only — no hold-to-draw
       this.#holdTryDown(e.clientX, e.clientY);
     };
     app.canvas.addEventListener('mousedown', onDown);

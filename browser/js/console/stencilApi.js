@@ -441,6 +441,8 @@ export const createStencil = (app) => {
     get showPoints() { return app.showPoints; }, set showPoints(v) { app.settings.setShowPoints(v); },
     get showLines() { return app.showLines; }, set showLines(v) { app.settings.setShowLines(v); },
     get filter() { return app.imageFilter; }, set filter(v) { app.settings.setImageFilter(v); },   // 'none'|'bw'|'sepia'|'invert'|'contour'|'custom'
+    get compareMode() { return app.compareMode; }, set compareMode(v) { app.settings.setCompareMode(v); },   // 'none'|'original'|'vertical'|'horizontal' — hold original vs current edit
+    get compareSplit() { return app.compareSplit; }, set compareSplit(v) { app.settings.setCompareSplit(v); },   // divider position 0..1 for the split modes
     get filterColor() { return app.filterColor; }, set filterColor(v) { app.settings.setFilterColor(toHexColor(v)); },
     get unit() { return app.unit; }, set unit(v) { app.settings.setUnit(v); },
     get pageSize() { return app.pageSize; }, set pageSize(v) { app.settings.setPageSize(v); },            // case-insensitive: any ISO name A0–C10 ('a3', 'b5', …) or 'custom'

@@ -139,6 +139,14 @@ export class DrawingApp {
     this.showLines = true;
     this.imageFilter = 'none'; // 'none' | 'bw' | 'sepia' | 'custom'
     this.filterColor = '#7c3aed'; // custom tint color
+    // Compare view: hold the edited result against the untouched original (crop + rotation
+    // only — no filter, lines, points or layout). 'none' = normal editing; 'original' =
+    // show the original alone; 'vertical'/'horizontal' = split the canvas with a movable
+    // divider (original on the left/top, current edit on the right/bottom). Transient view
+    // state — never persisted or synced.
+    this.compareMode = 'none'; // 'none' | 'original' | 'vertical' | 'horizontal'
+    this.compareSplit = 0.5;   // divider position (0..1) for the split compare modes
+    this.compareHoldOriginal = false; // Alt+Shift+O momentary "show original" override
     this.pageSize = 'A3';
     this.customPageWidth = 21;
     this.customPageHeight = 29.7;
@@ -361,6 +369,26 @@ export class DrawingApp {
   // facade via app.input.setHoldDrawDelay().
 
   // Convert a viewport client point to canvas CSS offset and image-space coords.
+  // A comparison view (original / split, or the Alt+Shift+O peek) is read-only: hover
+  // tooltips, selection/hover highlights, and every editing gesture are suppressed while
+  // it's active. Only navigation (pan/zoom) and the divider drag stay live.
+  compareReadOnly() {
+    return this.renderer.effectiveCompareMode() !== 'none';
+  }
+
+  // Is a viewport client point within the grab band (8 CSS px) of the split-compare
+  // divider? Shared by PointerController (drag start) and updateHover (resize cursor) so
+  // the geometry lives once. False unless a split mode ('vertical'/'horizontal') is active.
+  nearCompareDivider(clientX, clientY) {
+    if (this.compareMode !== 'vertical' && this.compareMode !== 'horizontal') return false;
+    const { cssX, cssY } = this.canvasCoords(clientX, clientY);
+    const scale = this.scale || 1;
+    const f = Math.min(1, Math.max(0, this.compareSplit ?? 0.5));
+    return this.compareMode === 'vertical'
+      ? Math.abs(cssX - this.canvas.width * f * scale) <= 8
+      : Math.abs(cssY - this.canvas.height * f * scale) <= 8;
+  }
+
   canvasCoords(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
     const cssX = clientX - rect.left;
@@ -783,6 +811,7 @@ export class DrawingApp {
   }
 
   startDrawingMode(opts = {}) {
+    if (this.compareReadOnly()) return; // read-only compare view
     if (!this.image) {
       notify('Please upload an image first', 'fail');
       return;
@@ -998,7 +1027,11 @@ export class DrawingApp {
       rm.title = 'Remove line';
       rm.setAttribute('aria-label', `Remove line ${i + 1}`);
       rm.innerHTML = icon('trash', { size: 13 });
-      rm.addEventListener('click', (e) => { e.stopPropagation(); this.removeLine(i); });
+      rm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.compareReadOnly()) return; // read-only compare view
+        this.removeLine(i);
+      });
 
       row.addEventListener('click', (e) => {
         this.selectLineFromList(i, (e.ctrlKey || e.metaKey) && e.shiftKey);
@@ -1011,6 +1044,8 @@ export class DrawingApp {
   canvasClick(e) {
     // No image → the canvas is an empty void; don't let clicks drop points.
     if (!this.image) return;
+    // Compare view is read-only — clicks never add/select/edit.
+    if (this.compareReadOnly()) return;
     // Ctrl/⌘+Shift+click → multi-select: add/toggle the clicked line (handled BEFORE the alt/shift
     // early-returns below). Clicking empty space keeps the current set.
     if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
@@ -1302,6 +1337,22 @@ export class DrawingApp {
     // While panning or dragging point, don't update tooltip or cursor here
     if (this.isPanning || this.isDraggingPoint) return;
 
+    // Split compare: show a resize cursor over the movable divider (skip the normal hover
+    // cursor + tooltip so the affordance reads clearly). Dragging is handled in PointerController.
+    if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && !this.compareHoldOriginal &&
+        (this.nearCompareDivider(e.clientX, e.clientY) || this.isDraggingCompareSplit)) {
+      this.canvas.style.cursor = this.compareMode === 'vertical' ? 'col-resize' : 'row-resize';
+      this.tooltipMgr.hide();
+      return;
+    }
+
+    // Compare view is read-only: no hover tooltip, no hover ring, no edit cursor.
+    if (this.compareReadOnly()) {
+      this.canvas.style.cursor = 'default';
+      this.tooltipMgr.hide();
+      return;
+    }
+
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
 
     // Persistent cursor-coordinate readout (mirrors the desktop status bar and
@@ -1357,6 +1408,7 @@ export class DrawingApp {
 
   canvasDblClick(e) {
     if (this.isDrawing) return;
+    if (this.compareReadOnly()) return; // read-only compare view — no double-click delete
     if (e.altKey) return; // Alt+dblclick is reserved for zoom reset
 
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
@@ -1413,6 +1465,7 @@ export class DrawingApp {
 
   // Apply the locked-area fill from the selection panel controls.
   applyFill() {
+    if (this.compareReadOnly()) return; // read-only compare view
     if (this.selectedLineIdx === -1) return;
     const line = this.lines[this.selectedLineIdx];
     if (!line) return;
@@ -1518,6 +1571,7 @@ export class DrawingApp {
   }
 
   applySelectionChange(prop, value) {
+    if (this.compareReadOnly()) return; // read-only compare view
     if (this.selectedLineIdx === -1) return;
     this.lines[this.selectedLineIdx][prop] = value;
     this.saveHistory();
@@ -1891,6 +1945,7 @@ export class DrawingApp {
   // helpers are also on the controller (loadImageFromFile + the project-transfer helpers drive them).
 
   undo() {
+    if (this.compareReadOnly()) return; // read-only compare view
     if (this.isDrawing && this.currentLine) {
       if (this.currentLine.points.length > 0) {
         this.undonePoints.push(this.currentLine.points.pop());
@@ -1909,6 +1964,7 @@ export class DrawingApp {
   }
 
   redo() {
+    if (this.compareReadOnly()) return; // read-only compare view
     if (this.isDrawing && this.currentLine) {
       if (this.undonePoints && this.undonePoints.length > 0) {
         this.currentLine.points.push(this.undonePoints.pop());
@@ -1939,6 +1995,11 @@ export class DrawingApp {
       document.getElementById('undo').disabled = !this.history.canUndo();
       document.getElementById('redo').disabled = !this.history.canRedo();
     }
+    // A compare view is read-only — undo/redo are disabled regardless of history.
+    if (this.compareReadOnly()) {
+      document.getElementById('undo').disabled = true;
+      document.getElementById('redo').disabled = true;
+    }
     // Fullscreen only makes sense with an image to view. Never disable while
     // already in fullscreen (so the user can always get back out).
     const fsBtn = document.getElementById('fullscreen-toggle');
@@ -1962,20 +2023,23 @@ export class DrawingApp {
     // explain why. Layout export/clear also need at least one line.
     const hasImage = !!this.image;
     const hasLines = this.lines && this.lines.length > 0;
+    // A compare view is read-only — every annotation-editing control is also disabled.
+    const ro = this.compareReadOnly();
     const setDisabled = (id, off) => { const el = document.getElementById(id); if (el) el.disabled = off; };
-    setDisabled('start-drawing', !hasImage || this.isDrawing);
-    setDisabled('stop-drawing', !this.isDrawing);
-    setDisabled('draw-mode-toggle', !hasImage);
+    setDisabled('start-drawing', !hasImage || this.isDrawing || ro);
+    setDisabled('stop-drawing', !this.isDrawing || ro);
+    setDisabled('draw-mode-toggle', !hasImage || ro);
     setDisabled('crop-image', !hasImage);
     setDisabled('rotate-left', !hasImage);
     setDisabled('rotate-right', !hasImage);
     setDisabled('image-filter', !hasImage);
+    setDisabled('compare-mode', !hasImage);
     setDisabled('save-image', !hasImage);
     // Image Links edit the CURRENT image's provenance — nothing to edit without one.
     setDisabled('links-btn', !hasImage);
     setDisabled('download-json', !hasLines);
     setDisabled('copy-json-btn', !hasLines);
-    setDisabled('clear-all-lines', !hasLines);
+    setDisabled('clear-all-lines', !hasLines || ro);
     // State-aware Image section: the compact "Load Image" button shows only when
     // empty; the image-actions group (download/copy/share/open) shows only with an
     // image. (The file input itself stays hidden — it's just the picker target.)
@@ -3013,6 +3077,7 @@ export class DrawingApp {
 
   // ── Wipe every line on the canvas (confirms first) ──
   async clearAllLines() {
+    if (this.compareReadOnly()) return; // read-only compare view
     if ((!this.lines || this.lines.length === 0) && (!this.currentLine || this.currentLine.points.length === 0)) {
       notify('No lines to clear', 'info');
       return;
