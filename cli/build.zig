@@ -53,7 +53,9 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     });
     mod.addCSourceFiles(.{
         .root = b.path("src"),
-        .files = &.{"stb_impl.c"},
+        // stb: the image codecs. regex_shim: owns POSIX regex_t for the --source-name filter
+        // (Zig can't embed the opaque translated regex_t by value).
+        .files = &.{ "stb_impl.c", "regex_shim.c" },
         // stb's JPEG encoder relies on signed-shift wraparound that is technically UB;
         // it's benign in C but Zig instruments C with UBSan in Debug and would trap.
         .flags = &.{ "-std=c11", "-fno-sanitize=undefined" },
