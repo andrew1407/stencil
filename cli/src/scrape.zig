@@ -24,37 +24,41 @@ const MAX_HTML = 32 << 20; // sanity cap on a scraped page (fetch itself is unbo
 // ── --source-name matcher (POSIX regex.h; substring fallback off-POSIX) ──────────
 //
 // The scrape name filter is a regex on the media URL. POSIX targets use the platform libc's
-// regex.h (no new dependency — the CLI already links libc via libc++); Windows/WASI, which
-// have no regex.h, fall back to a case-insensitive substring test. The `@cImport` lives
-// behind a comptime guard so the header is only translated where it exists.
+// regex.h via a small C shim (src/regex_shim.c — no new dependency, the CLI already links
+// libc via libc++); Windows/WASI, which have no regex.h, fall back to a case-insensitive
+// substring test. The shim owns the `regex_t` storage because Zig 0.16's translate-c renders
+// glibc's `regex_t` as an opaque type that can't be embedded by value in a Zig struct. The
+// `extern`s are only referenced under the comptime guard, so they don't link off-POSIX.
 const has_posix_regex = builtin.os.tag != .windows and builtin.os.tag != .wasi;
-const cregex = if (has_posix_regex) @cImport(@cInclude("regex.h")) else struct {};
+extern fn stencil_regex_compile(pattern: [*:0]const u8) ?*anyopaque;
+extern fn stencil_regex_match(handle: ?*anyopaque, text: [*:0]const u8) c_int;
+extern fn stencil_regex_free(handle: ?*anyopaque) void;
 
 /// A compiled `--source-name` matcher. POSIX: a case-insensitive extended regex; elsewhere: a
 /// case-insensitive substring test. An absent/empty pattern matches everything.
 const NameMatcher = struct {
     active: bool = false,
     pattern: []const u8 = "",
-    re: if (has_posix_regex) cregex.regex_t else void = undefined,
+    handle: ?*anyopaque = null, // POSIX: opaque regex_t owned by the C shim; null = inactive
 
     /// Compile `pattern`; error.BadNamePattern on an invalid regex. `arena` owns the scratch
-    /// NUL-terminated copy handed to regcomp.
+    /// NUL-terminated copy handed to the shim's regcomp.
     fn init(pattern: ?[]const u8, arena: std.mem.Allocator) !NameMatcher {
         const p = pattern orelse return .{};
         if (p.len == 0) return .{};
         if (has_posix_regex) {
-            var m = NameMatcher{ .active = true, .pattern = p };
             const pz = try arena.dupeZ(u8, p);
-            if (cregex.regcomp(&m.re, pz.ptr, cregex.REG_EXTENDED | cregex.REG_ICASE | cregex.REG_NOSUB) != 0) {
-                return error.BadNamePattern;
-            }
-            return m;
+            const handle = stencil_regex_compile(pz.ptr) orelse return error.BadNamePattern;
+            return .{ .active = true, .pattern = p, .handle = handle };
         }
         return .{ .active = true, .pattern = p };
     }
 
     fn deinit(self: *NameMatcher) void {
-        if (has_posix_regex and self.active) cregex.regfree(&self.re);
+        if (has_posix_regex and self.handle != null) {
+            stencil_regex_free(self.handle);
+            self.handle = null;
+        }
     }
 
     /// Does `url` match? An inactive matcher passes everything. On POSIX a scratch NUL copy is
@@ -63,7 +67,7 @@ const NameMatcher = struct {
         if (!self.active) return true;
         if (has_posix_regex) {
             const uz = arena.dupeZ(u8, url) catch return false;
-            return cregex.regexec(&self.re, uz.ptr, 0, null, 0) == 0;
+            return stencil_regex_match(self.handle, uz.ptr) != 0;
         }
         return indexOfPosCI(url, 0, self.pattern) != null;
     }
