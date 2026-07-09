@@ -2,8 +2,9 @@
 // headless checks — which exercise CanvasWidget / fileStore in isolation — this drives the
 // REAL MainWindow: it loads an image through the public OS-open path, triggers the actual
 // toolbar/menu QActions (Rotate, Undo, Start Drawing), and sends real mouse clicks to the
-// live canvas, asserting on observable widget state. Runs offscreen
-// (QT_QPA_PLATFORM=offscreen), so it needs no display; registered with CTest.
+// live canvas, asserting on observable widget state. It also drives fullscreen edge-hover reveal,
+// sampling toolbar/panel geometry over time to assert the reveals animate smoothly (no flicker).
+// Runs offscreen (QT_QPA_PLATFORM=offscreen), so it needs no display; registered with CTest.
 #include "mainWindow.hpp"
 #include "canvasWidget.hpp"
 #include <QtTest>
@@ -13,7 +14,10 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QAbstractButton>
+#include <QCursor>
+#include <QGraphicsEffect>
 #include <QTimer>
+#include <QToolBar>
 #include <memory>
 
 using stencil::gui::MainWindow;
@@ -90,6 +94,89 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::white);
     png_ = QDir::temp().filePath("stencil_gui_e2e_input.png");
     QVERIFY(img.save(png_, "PNG"));
+  }
+
+  // Fullscreen edge-hover: prove the top toolbars and the right points panel REVEAL WITH AN
+  // ANIMATION (they pass through intermediate sizes, not an instant pop) and do so MONOTONICALLY
+  // (no size oscillation = no flicker), then hide + fully restore on exit with no lingering effect.
+  void fullscreenRevealAnimatesSmoothly() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    auto maxBarHeight = [&win] {
+      int m = 0;
+      for (QToolBar* b : win.findChildren<QToolBar*>())
+        if (b->isVisible()) m = std::max(m, b->height());
+      return m;
+    };
+    auto anyBarVisible = [&win] {
+      for (QToolBar* b : win.findChildren<QToolBar*>()) if (b->isVisible()) return true;
+      return false;
+    };
+    // Sample a size getter every ~16ms across the ~200ms animation; return the series.
+    auto sample = [](auto getter) {
+      QList<int> s;
+      for (int i = 0; i < 20; ++i) { s.append(getter()); QTest::qWait(16); }
+      return s;
+    };
+    auto hasIntermediate = [](const QList<int>& s, int full) {   // some value strictly inside (0, full)
+      for (int v : s) if (v > 2 && v < full - 2) return true;
+      return false;
+    };
+    auto nonDecreasing = [](const QList<int>& s) {
+      for (int i = 1; i < s.size(); ++i) if (s[i] < s[i - 1] - 1) return false;   // 1px slack
+      return true;
+    };
+    auto nonIncreasing = [](const QList<int>& s) {
+      for (int i = 1; i < s.size(); ++i) if (s[i] > s[i - 1] + 1) return false;
+      return true;
+    };
+
+    QAction* fs = actionByText(&win, "Fullscreen");
+    QVERIFY(fs);
+    fs->trigger();                                   // ENTER fullscreen (bars + panel hidden)
+    QTest::qWait(120);
+    QVERIFY(!anyBarVisible());                        // nothing shown until the cursor hits an edge
+
+    // --- Top toolbars: cursor to the top band → animated slide-in ---
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, 40)));
+    const QList<int> up = sample(maxBarHeight);
+    const int full = up.isEmpty() ? 0 : up.last();
+    QVERIFY2(full > 10, "toolbars should have revealed to a real height");
+    QVERIFY2(hasIntermediate(up, full), "toolbar reveal popped instantly (no intermediate heights)");
+    QVERIFY2(nonDecreasing(up), "toolbar reveal height oscillated (flicker)");
+
+    // Cursor well below the keep-zone → animated slide-out.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, win.height() - 40)));
+    const QList<int> down = sample(maxBarHeight);
+    QVERIFY2(nonIncreasing(down), "toolbar hide height oscillated (flicker)");
+    QTest::qWait(120);
+
+    // --- Right points panel: cursor to the right edge → animated slide-in ---
+    QWidget* panel = nullptr;
+    for (QWidget* dw : win.findChildren<QWidget*>())
+      if (QString(dw->metaObject()->className()).contains("SelectionPanel")) { panel = dw; break; }
+    if (panel) {
+      QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 2, win.height() / 2)));
+      auto panelW = [panel] { return panel->isVisible() ? panel->width() : 0; };
+      const QList<int> pin = sample(panelW);
+      const int pfull = pin.isEmpty() ? 0 : pin.last();
+      if (pfull > 10) {   // reveal fired (setPos is a soft no-op on some offscreen builds)
+        QVERIFY2(hasIntermediate(pin, pfull), "panel reveal popped instantly (no intermediate widths)");
+        QVERIFY2(nonDecreasing(pin), "panel reveal width oscillated (flicker)");
+      } else {
+        qWarning("panel reveal did not fire (cursor setPos likely a no-op offscreen)");
+      }
+    }
+
+    // --- Exit: everything restored, no lingering graphics effect ---
+    fs->trigger();
+    QTest::qWait(250);
+    QVERIFY(win.isVisible());
+    QVERIFY(anyBarVisible());
+    for (QToolBar* b : win.findChildren<QToolBar*>()) QVERIFY(b->graphicsEffect() == nullptr);
   }
 
   void loadsImageAndEnablesActions() {

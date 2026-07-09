@@ -2601,8 +2601,8 @@ namespace stencil::gui {
     else { from = selPanel_->width() > 0 ? selPanel_->width() : full; to = 0; }
     if (!animate) { selPanel_->setFixedWidth(to); finish(); return; }
     panelAnim_ = new QVariantAnimation(this);
-    panelAnim_->setDuration(200);
-    panelAnim_->setEasingCurve(QEasingCurve::InOutCubic);
+    panelAnim_->setDuration(280);
+    panelAnim_->setEasingCurve(QEasingCurve::OutCubic);   // fast start, soft landing — smoother than InOut
     panelAnim_->setStartValue(from);
     panelAnim_->setEndValue(to);
     connect(panelAnim_, &QVariantAnimation::valueChanged, this,
@@ -2618,6 +2618,20 @@ namespace stencil::gui {
     for (QToolBar* b : findChildren<QToolBar*>())
       if (b != headerToolbar_) bars.append(b);
     if (bars.isEmpty()) return;
+    if (!animate) {
+      if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
+      for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); b->setVisible(show); }
+      positionOverlayArrows();
+      return;
+    }
+    animateBarsHeight(bars, show);
+  }
+
+  // Height slide shared by the pill collapse/expand and the fullscreen edge-hover reveal. Pure geometry
+  // (setFixedHeight pins min==max each frame so QMainWindow's layout can't override it) — no opacity /
+  // graphics effect, which is what keeps it flicker-free through QMainWindow's per-frame relayout.
+  void MainWindow::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
+    if (bars.isEmpty()) return;
     if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
     auto release = [bars] {
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
@@ -2626,18 +2640,12 @@ namespace stencil::gui {
     int full = 0;
     for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
     if (full <= 0) full = 40;
-    if (!animate) {
-      release();
-      for (QToolBar* b : bars) b->setVisible(show);
-      positionOverlayArrows();
-      return;
-    }
     const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
     const int to = show ? full : 0;
     if (show) for (QToolBar* b : bars) { b->setFixedHeight(0); b->show(); }
     barsAnim_ = new QVariantAnimation(this);
-    barsAnim_->setDuration(200);
-    barsAnim_->setEasingCurve(QEasingCurve::InOutCubic);
+    barsAnim_->setDuration(280);
+    barsAnim_->setEasingCurve(QEasingCurve::OutCubic);   // fast start, soft landing — smoother than InOut
     barsAnim_->setStartValue(from);
     barsAnim_->setEndValue(to);
     connect(barsAnim_, &QVariantAnimation::valueChanged, this, [bars, this](const QVariant& v) {
@@ -2658,6 +2666,12 @@ namespace stencil::gui {
       // Exit: stop the hover poll and restore the top menu + points panel (right, as before).
       fsActive_ = false;
       if (fsHoverTimer_) fsHoverTimer_->stop();
+      // Cancel any in-flight edge-hover slide and release the pinned toolbar heights so the restore
+      // below starts from a clean state (a leftover animation / fixed height would fight it).
+      if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
+      for (QToolBar* b : findChildren<QToolBar*>()) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
+      fsBarsShown_ = false;
+      fsPanelShown_ = false;
       showNormal();
       if (menuBar()) menuBar()->setVisible(true);
       // The header row (Controls pill + project name) ALWAYS returns — it's the only way to re-show
@@ -2677,13 +2691,19 @@ namespace stencil::gui {
       // the points panel (kept on the RIGHT) when it touches the RIGHT edge — mirrors the browser.
       fsWasToolbars_ = actToolbars_ ? actToolbars_->isChecked() : true;
       fsWasPanel_ = actPanel_ ? actPanel_->isChecked() : true;   // was the panel expanded (vs rail)?
+      // Capture the panel's real width BEFORE hiding it, so the edge-hover reveal slides to exactly
+      // that width instead of setPanelShown's 320px default — which would overshoot the panel's natural
+      // width and snap back at the end of the slide (a visible jump).
+      if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       setToolbarsVisible(false);
       if (menuBar()) menuBar()->setVisible(false);
       selPanel_->setVisible(false);
+      fsBarsShown_ = false;    // both start hidden; the edge-hover reveal slides them in
+      fsPanelShown_ = false;
       fsActive_ = true;
       showFullScreen();
       setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
-      if (fsHoverTimer_) fsHoverTimer_->start(50);
+      if (fsHoverTimer_) fsHoverTimer_->start(16);   // ~60Hz poll: reveal reacts immediately on hover
     }
   }
 
@@ -2695,22 +2715,33 @@ namespace stencil::gui {
     const QPoint p = mapFromGlobal(QCursor::pos());
     const int w = width(), h = height();
     if (p.x() < 0 || p.y() < 0 || p.x() > w || p.y() > h) return;  // cursor outside the window
-    const bool tbVisible = !findChildren<QToolBar*>().isEmpty() && findChildren<QToolBar*>().first()->isVisible();
-    const int tbBand = 150;   // approx combined height of the toolbar rows (keep-zone once shown)
-    // Reveal in a band that STARTS a bit below the very top edge (skip y<8) — on macOS the absolute
-    // top is grabbed by the system menu bar + window title, so the editor toolbar reveals when the
-    // cursor is hovered a little lower, below that chrome.
-    const bool wantTb = tbVisible ? (p.y() < tbBand) : (p.y() > 8 && p.y() < 120);
-    if (wantTb != tbVisible) setToolbarsVisible(wantTb);
-    const bool pnlVisible = selPanel_->isVisible();
-    const int pnlW = std::max(280, selPanel_->width());
-    const bool wantPnl = pnlVisible ? (p.x() > w - pnlW) : (p.x() > w - 5);
-    if (wantPnl != pnlVisible) {
-      if (wantPnl) {  // reveal the full panel when the cursor hits the right edge
-        selPanel_->setMinimumWidth(0);
-        selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
-      }
-      selPanel_->setVisible(wantPnl);
+    // Top toolbars: slide them in (all rows incl. header — fullscreen hid them) when the cursor enters
+    // the top band, keep them while it stays within the taller keep-zone. Drive off the tracked target
+    // (fsBarsShown_), NOT live isVisible(): during an animated hide the bars stay visible until the
+    // slide ends, so reading isVisible() here would restart the hide every 50ms tick (that's flicker).
+    const int tbBand = 150;   // keep-zone once shown (approx combined toolbar-row height)
+    // The reveal band (only checked while hidden). On macOS the very top strip is grabbed by the
+    // auto-revealing system menu bar, so start the band LOWER (clear that chrome) and make it SHORTER —
+    // a slim hot-zone just below the menu bar. Elsewhere the whole top edge is ours.
+#ifdef Q_OS_MACOS
+    const int revealTop = 26, revealBot = 60;   // clear the ~24px macOS menu bar; 34px band
+#else
+    const int revealTop = 0, revealBot = 120;
+#endif
+    const bool wantTb = fsBarsShown_ ? (p.y() < tbBand) : (p.y() > revealTop && p.y() < revealBot);
+    if (wantTb != fsBarsShown_) {
+      fsBarsShown_ = wantTb;
+      animateBarsHeight(findChildren<QToolBar*>(), wantTb);   // reuse the pill's smooth height slide
+    }
+
+    // Right points panel: same hysteresis, driven through the panel's own width slide (setPanelShown).
+    // The keep-zone uses a STABLE width (the remembered/restore width), not the live animating width —
+    // a moving boundary would fall behind the cursor mid-slide and re-trigger a hide (flicker).
+    const int pnlKeep = std::max(280, panelRestoreWidth_ > 120 ? panelRestoreWidth_ : 320);
+    const bool wantPnl = fsPanelShown_ ? (p.x() > w - pnlKeep) : (p.x() > w - 5);
+    if (wantPnl != fsPanelShown_) {
+      fsPanelShown_ = wantPnl;
+      setPanelShown(wantPnl, true);
     }
   }
 
