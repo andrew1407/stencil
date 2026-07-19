@@ -62,6 +62,9 @@ public sealed record UserSession
     public string? ActiveProjectId { get; init; }
     public string? ActiveProjectName { get; init; }
 
+    /// <summary>The active project's free-text description ("" / null = none), shown in /status.</summary>
+    public string? ActiveProjectDescription { get; init; }
+
     /// <summary>The active project's creation time (epoch ms), shown in /status. 0 when none.</summary>
     public long ActiveProjectCreatedAt { get; init; }
 

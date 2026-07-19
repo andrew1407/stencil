@@ -79,7 +79,7 @@ namespace stencil::gui {
           {"maximize",
            R"(<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>)"},
           {"fit",
-           R"(<polyline points="4 9 4 4 9 4"/><polyline points="20 9 20 4 15 4"/><polyline points="4 15 4 20 9 20"/><polyline points="20 15 20 20 15 20"/>)"},
+           R"(<rect x="3" y="4" width="18" height="16" rx="2"/><rect x="8" y="9" width="8" height="6" rx="1"/>)"},
           {"link",
            R"(<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>)"},
           {"incognito",

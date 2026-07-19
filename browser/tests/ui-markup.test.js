@@ -21,9 +21,9 @@ const IDS = [
     'ctx-tooltip-menu', 'ctx-tooltip-sub', 'ctx-tt-enabled', 'ctx-tt-page', 'ctx-tt-screen', 'ctx-tt-coords',
     'fs-top-trigger', 'fs-right-trigger', 'fs-controls-panel', 'fs-exit-btn', 'fs-selection-panel',
     'fs-points-panel', 'global-drop-overlay', 'toggle-controls', 'hints-btn', 'hints-popup', 'controls-body',
-    'image-size-display', 'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
+    'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
     'marker-size', 'line-style', 'start-drawing', 'stop-drawing', 'draw-mode-toggle', 'undo', 'redo', 'show-points',
-    'show-lines', 'clear-all-lines', 'zoom-out', 'zoom-input', 'zoom-in', 'zoom-fit', 'page-size', 'unit-select', 'custom-size-group',
+    'show-lines', 'clear-all-lines', 'zoom-out', 'zoom-input', 'zoom-menu', 'zoom-in', 'zoom-fit', 'page-size', 'unit-select', 'custom-size-group',
     'custom-page-width', 'custom-page-height', 'custom-unit-label', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
     'formula-error', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
     'save-status', 'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
@@ -60,7 +60,7 @@ const IDS = [
     'confirm-modal-confirm', 'confirm-modal-confirm-text'
 ];
 
-test('fixture has exactly 202 IDs', () => {
+test('fixture has exactly 204 IDs', () => {
     assert.strictEqual(IDS.length, 204);
 });
 

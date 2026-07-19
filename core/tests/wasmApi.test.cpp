@@ -25,6 +25,7 @@ extern "C" {
   void stencil_applyFilterRGBA(int, std::uint8_t*, int, int, int, int);
   void stencil_applyContourRGBA(std::uint8_t*, int, int);
   void stencil_rotatePoints(double*, int, double, double, double);
+  void stencil_flipPoints(double*, int, int, double, double);
   void stencil_boundingBoxCenter(const double*, int, double*);
   double stencil_clampScale(double);
   void stencil_anchoredZoom(double, double, double, double, double, double,
@@ -38,6 +39,8 @@ extern "C" {
                                     double*);
   void stencil_moveCropClamped(double, double, double, double, double, double,
                                double, double, double*);
+  void stencil_scaleCropCentered(double, double, double, double, double, double,
+                                 double, double, double*);
   double stencil_cropResizeScale(double, double);
   void stencil_cropChange(double, double, double, double, double, double, double,
                           double, double*);
@@ -153,6 +156,22 @@ TEST_SUITE("wasmApi") {
     CHECK(pts[1] == doctest::Approx(10.0));
   }
 
+  TEST_CASE("stencil_flipPoints mirrors a flat array in place about (cx,cy)") {
+    // Horizontal flip (int flag != 0): reflect x about cx, y untouched. Two points
+    // exercise the pointer write-back for count > 1.
+    double h[] = {2, 3, 8, 9};  // cx = 5
+    stencil_flipPoints(h, 2, 1, 5, 0);
+    CHECK(h[0] == doctest::Approx(8.0));  // 2 -> 8
+    CHECK(h[1] == doctest::Approx(3.0));  // y kept
+    CHECK(h[2] == doctest::Approx(2.0));  // 8 -> 2
+    CHECK(h[3] == doctest::Approx(9.0));
+    // Vertical flip (flag == 0): reflect y about cy, x untouched.
+    double v[] = {2, 3};
+    stencil_flipPoints(v, 1, 0, 0, 10);
+    CHECK(v[0] == doctest::Approx(2.0));
+    CHECK(v[1] == doctest::Approx(17.0));  // 2*10 - 3
+  }
+
   TEST_CASE("stencil_boundingBoxCenter writes the bbox center") {
     const double pts[] = {0, 0, 10, 0, 10, 10, 0, 10};
     double out[2] = {0, 0};
@@ -162,7 +181,8 @@ TEST_SUITE("wasmApi") {
   }
 
   TEST_CASE("stencil_clampScale clamps into the zoom limits") {
-    CHECK(stencil_clampScale(10.0) == doctest::Approx(5.0));
+    CHECK(stencil_clampScale(100.0) == doctest::Approx(32.0));
+    CHECK(stencil_clampScale(10.0) == doctest::Approx(10.0));   // below the ceiling: passes through
     CHECK(stencil_clampScale(0.01) == doctest::Approx(0.05));
     CHECK(stencil_clampScale(1.0) == doctest::Approx(1.0));
   }
@@ -215,6 +235,25 @@ TEST_SUITE("wasmApi") {
     stencil_moveCropClamped(10, 10, 100, 80, 9999, 0, 500, 500, out);
     CHECK(out[0] == doctest::Approx(400.0));  // imageW - width
     CHECK(out[1] == doctest::Approx(10.0));
+  }
+
+  TEST_CASE("stencil_scaleCropCentered scales about the centre, caps and floors") {
+    double out[4] = {0, 0, 0, 0};
+    // Grow 1.5x about centre (100,100) in a 200x200 image: 80 -> 120, centre held.
+    stencil_scaleCropCentered(60, 60, 80, 80, 1.5, 1.0, 200, 200, out);
+    CHECK(out[2] == doctest::Approx(120.0));
+    CHECK(out[3] == doctest::Approx(120.0));
+    CHECK(out[0] + out[2] / 2.0 == doctest::Approx(100.0));  // centre x unchanged
+    CHECK(out[1] + out[3] / 2.0 == doctest::Approx(100.0));
+    // Over-grow: capped by the nearer edge to fill the image, repositioned in-bounds.
+    stencil_scaleCropCentered(60, 60, 80, 80, 100.0, 1.0, 200, 200, out);
+    CHECK(out[2] == doctest::Approx(200.0));
+    CHECK(out[0] == doctest::Approx(0.0));
+    CHECK(out[1] == doctest::Approx(0.0));
+    // Shrink hard: floored at the wrapper's baked-in default minSize (16).
+    stencil_scaleCropCentered(60, 60, 80, 80, 0.0001, 1.0, 200, 200, out);
+    CHECK(out[2] == doctest::Approx(16.0));
+    CHECK(out[3] == doctest::Approx(16.0));
   }
 
   TEST_CASE("stencil_cropResizeScale / cropChange report rescale vs flip") {

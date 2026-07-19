@@ -33,6 +33,9 @@ namespace stencil::gui {
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    // Mouse wheel + trackpad pinch (native zoom gesture) grow/shrink the crop from its centre.
+    void wheelEvent(QWheelEvent* event) override;
+    bool event(QEvent* event) override;
 
    private:
     core::Point toImage(const QPoint& widgetPos) const;  // display px -> image px

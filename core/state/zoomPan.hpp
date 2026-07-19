@@ -8,7 +8,7 @@ namespace stencil::core {
 
   // Zoom limits + wheel steps (zoomPan.js MIN/MAX/STEP/STEP_FAST).
   constexpr double kZoomMin = 0.05;
-  constexpr double kZoomMax = 5.0;
+  constexpr double kZoomMax = 32.0;   // 3200% — headroom to magnify small images/pixels
   constexpr double kZoomStep = 0.1;
   constexpr double kZoomStepFast = 0.3;
 

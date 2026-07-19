@@ -107,6 +107,7 @@ const makeApp = (over = {}) => {
     setCustomAccent(hex) { calls.push(['setCustomAccent', hex]); app.customAccent = hex; return hex; },
     setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
     rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
+    flipSelectedLine: rec('flipSelectedLine'), rotateSelectedLineQuarter: rec('rotateSelectedLineQuarter'),
     startDrawingMode: rec('startDrawingMode'), stopDrawingMode: rec('stopDrawingMode'),
     clearAllLines: rec('clearAllLines'), saveImage: rec('saveImage'),
     copyLayoutToClipboard: rec('copyLayoutToClipboard'), copyImageToClipboard: rec('copyImageToClipboard'),
@@ -249,6 +250,20 @@ test('line.rotate rotates points around the bbox centre by default', () => {
   const [p0, p1] = app.lines[0].points;
   assert.ok(Math.abs(p0.x - 5) < 1e-9 && Math.abs(p0.y - (-5)) < 1e-9);
   assert.ok(Math.abs(p1.x - 5) < 1e-9 && Math.abs(p1.y - 5) < 1e-9);
+});
+
+test('flipH/flipV/rotate90/rotateMinus90 route to the selected-line transforms (chainable)', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.flipH(), stencil);
+  assert.deepEqual(lastCall(app, 'flipSelectedLine'), ['flipSelectedLine', true]);
+  assert.equal(stencil.flipV(), stencil);
+  assert.deepEqual(lastCall(app, 'flipSelectedLine'), ['flipSelectedLine', false]);
+  assert.equal(stencil.rotate90(), stencil);
+  assert.deepEqual(lastCall(app, 'rotateSelectedLineQuarter'), ['rotateSelectedLineQuarter', 1]);
+  assert.equal(stencil.rotateMinus90(), stencil);
+  assert.deepEqual(lastCall(app, 'rotateSelectedLineQuarter'), ['rotateSelectedLineQuarter', -1]);
 });
 
 test('line.apply batch-updates style props and normalizes color/fillColor', () => {
@@ -556,6 +571,37 @@ test('crop derives the missing axis from the page proportion when only one axis 
   createStencil(app).crop({ x1: '0px', x2: '100px', y1: '0px', y2: '40px' });
   [, rect] = lastCall(app, 'applyCrop');
   assert.ok(near(rect.width, 100) && near(rect.height, 40), `free-form ${JSON.stringify(rect)}`);
+});
+
+test('crop({ scale }) scales the rect about its centre via applyCrop; rejects non-positive', () => {
+  const makeScaleApp = () => makeApp({
+    originalImage: {},
+    cropRect: { x: 60, y: 60, width: 80, height: 80 },   // centre (100,100) in a 200x200 image
+    effectiveOriginalDims: () => ({ w: 200, h: 200 }),
+    applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+  });
+
+  // Grow 1.5×: 80 → 120, centre held at (100,100), committed with recalc (chainable).
+  let app = makeScaleApp();
+  const stencil = createStencil(app);
+  assert.equal(stencil.crop({ scale: 1.5 }), stencil);
+  let [, rect, opts] = lastCall(app, 'applyCrop');
+  assert.ok(Math.abs(rect.width - 120) < 1e-6 && Math.abs(rect.height - 120) < 1e-6, JSON.stringify(rect));
+  assert.ok(Math.abs(rect.x + rect.width / 2 - 100) < 1e-6 && Math.abs(rect.y + rect.height / 2 - 100) < 1e-6);
+  assert.deepEqual(opts, { recalc: true });
+
+  // Shrink 0.5×: 80 → 40.
+  app = makeScaleApp();
+  createStencil(app).crop({ scale: 0.5 });
+  [, rect] = lastCall(app, 'applyCrop');
+  assert.ok(Math.abs(rect.width - 40) < 1e-6, JSON.stringify(rect));
+
+  // Non-positive / non-numeric scale throws BEFORE any applyCrop commit.
+  for (const bad of [0, -2, 'not-a-number']) {
+    const a = makeScaleApp();
+    assert.throws(() => createStencil(a).crop({ scale: bad }), /crop scale must be a positive number/);
+    assert.equal(called(a, 'applyCrop').length, 0);
+  }
 });
 
 // ── Incognito toggle guard ────────────────────────────────────────────────────────

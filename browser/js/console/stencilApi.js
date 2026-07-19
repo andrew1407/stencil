@@ -10,7 +10,7 @@
 //   (await stencil.load(url)).crop({ x2: '-10%' }).apply({ lineColor: 'aqua' })
 import { hotkeys } from '../core/hotkeys.js';
 import { resolveAxisPx } from '../core/units.js';
-import { cropAspect } from '../core/cropGeometry.js';
+import { cropAspect, scaleCropCentered } from '../core/cropGeometry.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
@@ -333,6 +333,9 @@ export const createStencil = (app) => {
       },
       // Whether this is a blank-image project (solid-colour background). Read-only.
       get blank() { return incognito ? false : !!meta()?.blank; },
+      // True when this project was opened from a portable .stencil file (drives the bronze
+      // projects-list outline / badge). Read-only provenance marker.
+      get fromFile() { return incognito ? false : !!meta()?.fromFile; },
       // Blank-fill colour ("#rrggbb"), or null for a non-blank project. Assigning recolours the
       // solid background in place (the drawn lines stay). Setting on a non-blank project is a no-op
       // (throws), per the "only blanks have a blank colour" rule.
@@ -628,6 +631,12 @@ export const createStencil = (app) => {
     // ── Editor actions (chainable) ──
     rotateLeft() { app.imageModel.rotateImage(-1); return stencil; },
     rotateRight() { app.imageModel.rotateImage(1); return stencil; },
+    // Transform the SELECTED line about its bbox centre (same pivot as the per-line rotate) —
+    // flip left↔right / top↔bottom, or rotate a quarter turn ±90. No selection is a no-op.
+    flipH() { app.flipSelectedLine(true); return stencil; },
+    flipV() { app.flipSelectedLine(false); return stencil; },
+    rotate90() { app.rotateSelectedLineQuarter(1); return stencil; },
+    rotateMinus90() { app.rotateSelectedLineQuarter(-1); return stencil; },
     undo() { app.undo(); return stencil; },
     redo() { app.redo(); return stencil; },
     startDrawing() { app.startDrawingMode(); return stencil; },
@@ -649,6 +658,22 @@ export const createStencil = (app) => {
     downloadLayout() { app.export.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
     set layout(data) { app.export.applyPastedLayout(data); },
+
+    // Save the whole project as a portable .stencil file (image + layout + metadata + optional
+    // theme; `opts.includeTheme` default true embeds light/dark + accent). Resolves to the facade.
+    saveProjectFile(opts = {}) { return app.export.saveProjectFile(opts).then(() => stencil); },
+    // Open a .stencil project. Pass a File or the raw JSON text; omit to show a file picker.
+    // Loads it as a fresh local project. Resolves to the facade.
+    openProjectFile(fileOrText) {
+      const p = fileOrText == null ? app.export.pickAndOpenProjectFile() : app.export.openProjectFile(fileOrText);
+      return p.then(() => stencil);
+    },
+    // Live two-way sync of a file-linked project to its .stencil (Chromium only): toggle `liveSync`,
+    // read `linkedFile` (name or null), `syncNow()` flushes a pending auto-save.
+    get liveSync() { return app.stencilSync.supported && app.stencilSync.liveSync; },
+    set liveSync(on) { app.stencilSync.liveSync = !!on; },
+    get linkedFile() { return app.stencilSync.linked ? app.stencilSync.name : null; },
+    syncNow() { return app.stencilSync.flush().then(() => stencil); },
 
     // Pan the canvas viewport by pixel deltas (positive x → right, y → down).
     move({ x = 0, y = 0 } = {}) {
@@ -711,10 +736,24 @@ export const createStencil = (app) => {
     // rather than kept; it keeps its current start edge. `album` (default false) picks the
     // orientation — false (portrait): height = width × (long/short side), width = height ÷ (…);
     // album true (landscape) is the inverse. Giving both axes (or neither) stays free-form.
+    // Alternatively, `{ scale }` grows (>1) / shrinks (<1) the current crop about its centre
+    // (aspect + centre kept, clamped), matching the modal's wheel/pinch — mutually exclusive
+    // with the edge tokens above.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
       const dims = app.imageModel.effectiveOriginalDims();   // { w, h } in rotated-original pixels
       const r = app.cropRect || app.imageModel.defaultCropRect();
+      // Scale the crop about its centre (aspect + centre kept, clamped to the image), the
+      // scripting equivalent of the crop modal's wheel/pinch gesture. `scale` > 1 grows the
+      // rect, < 1 shrinks it; it's mutually exclusive with the x1/y1/x2/y2 edge spec below.
+      if (spec.scale != null) {
+        const factor = Number(spec.scale);
+        if (!(factor > 0)) throw new Error('crop scale must be a positive number');
+        const aspect = r.height > 0 ? r.width / r.height : 1;
+        const next = scaleCropCentered(r, factor, aspect, dims.w, dims.h);
+        app.imageModel.applyCrop({ x: next.x, y: next.y, width: next.width, height: next.height }, { recalc: true });
+        return stencil;
+      }
       const ps = app.getPageDimensions();
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
       const edge = (tok, cur, lengthPx, pxPerCm) =>

@@ -19,6 +19,7 @@ class QComboBox;
 class QLabel;
 class QScrollArea;
 class QTimer;
+class QFileSystemWatcher;
 class QDoubleSpinBox;
 class QLineEdit;
 class QCheckBox;
@@ -28,6 +29,9 @@ class QVariantAnimation;
 class QJsonObject;
 class QActionGroup;
 class QWidgetAction;
+class QCheckBox;
+class QRadioButton;
+class QButtonGroup;
 class QImage;
 class QPixmap;
 class QMenu;
@@ -153,11 +157,17 @@ namespace stencil::gui {
     // buildToolbar() split into its three rows (call order preserves the
     // addToolBar/addToolBarBreak sequencing that fixes visual row order).
     void buildMainToolbar();
+    // Build a toolbar "section": a small uppercase label ABOVE a horizontal strip of the given
+    // actions' buttons (+ optional extra widgets) — the desktop match for the browser's stacked
+    // .ctrl-section (label on top of its button row).
+    class QWidget* makeToolSection(const QString& title, const QList<class QAction*>& actions,
+                                   const QList<class QWidget*>& extras = {});
     void buildProjectNameGroup(class QToolBar* bar);   // header-row project name + rename/colour group
     void updateImageSizeInfo();                        // refresh the header-row "Image Size" readout
     QPixmap makeLogoPixmap(int size) const;            // paint the mini line-chart logo (browser parity)
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
+    void buildImageInfoBar();
     QString hotkey(const QString& id, const QString& fallback) const;
     // The canonical page-format value ("A4"/"custom") behind the toolbar combo's
     // display label (the item data — the label text carries the physical size).
@@ -166,6 +176,15 @@ namespace stencil::gui {
     core::Point pageCoords(double imageX, double imageY) const;
     // Active display unit derived from settings_.units (cm default, else inches).
     core::UnitFormat unitFormat() const;
+    // Total real-world length of every drawn line segment, in centimetres, using the
+    // per-axis px→cm scale (formula- and unit-independent). Mirrors browser units.js
+    // layoutLineLengthCm; cached on the project meta at save time. 0 when nothing measurable.
+    double currentLineLengthCm() const;
+    // Stamp the display-only, canvas-derived tooltip fields (image px dims + total line
+    // length in cm) onto a project's meta from live editor state. imageW/H stay 0 when
+    // there's no image. Called wherever the active project entry is captured, to keep the
+    // capture points from diverging.
+    void stampCanvasMeta(core::ProjectMeta& meta) const;
     // Apply the current unit to the custom page spinboxes + their suffix label.
     void applyUnitToPageInputs();
     // Re-render the page-format combo's option labels in the current unit
@@ -202,6 +221,9 @@ namespace stencil::gui {
     // Assign shared line-art icons to every action + icon toolbutton, tinted to the
     // theme text color. Re-run from applyTheme() on each light/dark/accent change.
     void styleActionIcons(bool dark, const QColor& iconColor);
+    // Recolour the context-menu hosted checkboxes/radios' indicators to the theme TEXT colour
+    // (not the app-wide accent), so they read like the surrounding menu text.
+    void restyleContextToggles(const QColor& textColor);
     void toggleTheme();
     void applySettings(const Settings& s, bool persist);
     void openSettings();
@@ -333,7 +355,7 @@ namespace stencil::gui {
     // refresh, and (when announce) notify. pr.meta.name == the passed name. A
     // pathless canvas (blank / remote / video frame) is written to the state dir
     // first so the project keeps its pixels.
-    void createLocalProject(const QString& name, bool announce = true);
+    void createLocalProject(const QString& name, bool announce = true, bool fromFile = false);
     // Auto-persist the freshly-loaded canvas as a local project so it appears in
     // Projects immediately (browser parity: the active editor is always a saved
     // project). No-op while incognito, already bound to a project/server session,
@@ -378,7 +400,26 @@ namespace stencil::gui {
     // opening a server project and of an inline browser→desktop "Open in…" hand-off.
     // Unlike applyLayoutJson (the lines-only file-import path), this restores the crop,
     // rotation and filter too, so no dimension-mismatch prompt and nothing is dropped.
-    void loadImageWithLayout(const QImage& img, const QJsonObject& layout);
+    void loadImageWithLayout(const QImage& img, const QJsonObject& layout,
+                             const QByteArray& sourceBytes = {}, const QString& sourceExt = {});
+
+    // ── .stencil portable project files ──
+    // Open one (image + layout + metadata + optional theme) — also the OS-open / drag /
+    // file-arg entry for *.stencil (see openPathFromOS) — and save the current project as one.
+    void openProjectFile(const QString& path);
+    void saveProjectFileAs();
+
+    // ── .stencil live sync (opt-in): auto-save edits back to the linked file + watch it for
+    // external changes (another client), applying them in place or prompting on conflict.
+    // Mirrors the browser StencilSync. `stencilLink_` empty ⇒ not file-linked.
+    QByteArray buildStencilBytes();                 // serialize the current project to .stencil bytes
+    void linkStencilFile(const QString& path, const QByteArray& baseline);
+    void writeStencilNow(const QByteArray& prebuilt = {});  // write to the linked file; reuse prebuilt bytes if given
+    void scheduleStencilAutosave();                 // debounced auto-save on edit
+    void flushStencilAutosave();
+    void onStencilFileChanged(const QByteArray& prebuilt = {});  // watcher: external change → apply / prompt (reuse prebuilt local bytes)
+    void applyStencilExternal(const QByteArray& text, bool merge = false);
+    void toggleStencilLiveSync(bool on);
     // The current page format + x/y formulas (from global settings) as a layout-envelope meta,
     // passed to buildLayoutJson on server save so they round-trip to the browser/peers.
     fileStore::LayoutMeta currentLayoutMeta() const;
@@ -534,6 +575,15 @@ namespace stencil::gui {
     QLineEdit* formulaX_ = nullptr;
     QLineEdit* formulaY_ = nullptr;
     QLabel* formulaError_ = nullptr;
+    // Context-menu twins of the toolbar formula controls (the Transformation submenu, mirroring
+    // browser contextMenu.js): edits here drive the canonical toolbar widgets above, so the
+    // existing validate/apply/persist pipeline runs unchanged. Seeded in syncContextActions.
+    QWidgetAction* ctxAllowFormulasAct_ = nullptr;
+    QCheckBox* ctxAllowFormulas_ = nullptr;
+    QWidgetAction* ctxFormulaXAct_ = nullptr;
+    QWidgetAction* ctxFormulaYAct_ = nullptr;
+    QLineEdit* ctxFormulaX_ = nullptr;
+    QLineEdit* ctxFormulaY_ = nullptr;
 
     // ── Style toolbar row (S8; browser toolbar.js Image + Line Style + Draw
     // sections ~24-63). Filter combo + tint swatch, default line color/thickness/
@@ -541,6 +591,7 @@ namespace stencil::gui {
     // canvas DEFAULTS only — selected-line inline editing is owned by the
     // SelectionPanel (Step 10), per the plan's setSelectedLineStyle resolution.
     QToolButton* drawModeBtn_ = nullptr;
+    QToolButton* startDrawBtn_ = nullptr;   // Draw toolbar Start button; goes accent while drawing
     QToolButton* lineColorBtn_ = nullptr;
     QSpinBox* lineThickness_ = nullptr;
     QSpinBox* markerSize_ = nullptr;
@@ -619,6 +670,8 @@ namespace stencil::gui {
     // listener). Layout JSON export/import + clipboard, image save/copy/paste.
     QAction* actDownloadJson_ = nullptr;
     QAction* actUploadJson_ = nullptr;
+    QAction* actSaveProjectFile_ = nullptr;
+    QAction* actOpenProjectFile_ = nullptr;
     QAction* actCopyLayout_ = nullptr;
     QAction* actPasteLayout_ = nullptr;
     QAction* actSaveImage_ = nullptr;
@@ -650,27 +703,35 @@ namespace stencil::gui {
     QSpinBox* markerSpin_ = nullptr;
     QSpinBox* thickSpin_ = nullptr;
 
-    // Image Filter submenu (contextMenu.js:59-74): exclusive filter radio group +
-    // a custom-tint picker action shown only for "custom".
-    QActionGroup* filterGroup_ = nullptr;
+    // Image Filter submenu (contextMenu.js:59-74): the filter options are hosted QRadioButtons
+    // (exclusive QButtonGroup) so picking one keeps the menu open — like the browser's inline
+    // radios — instead of a plain QAction that dismisses it. actFilterX_ are their QWidgetActions.
+    QButtonGroup* filterButtons_ = nullptr;
     // Compare-with-original radio set (View → Compare), synced with compareCombo_.
     QActionGroup* compareGroup_ = nullptr;
-    QAction* actFilterNone_ = nullptr;
-    QAction* actFilterBW_ = nullptr;
-    QAction* actFilterSepia_ = nullptr;
-    QAction* actFilterInvert_ = nullptr;
-    QAction* actFilterContour_ = nullptr;
-    QAction* actFilterCustom_ = nullptr;
+    QWidgetAction* actFilterNone_ = nullptr;
+    QWidgetAction* actFilterBW_ = nullptr;
+    QWidgetAction* actFilterSepia_ = nullptr;
+    QWidgetAction* actFilterInvert_ = nullptr;
+    QWidgetAction* actFilterContour_ = nullptr;
+    QWidgetAction* actFilterCustom_ = nullptr;
     QAction* tintColorAction_ = nullptr;
 
-    // Tooltip submenu rows (contextMenu.js:96-107): per-row visibility toggles.
-    // Backed by the booleans below (no Settings persistence yet — see notes).
-    QAction* actTtPage_ = nullptr;
-    QAction* actTtScreen_ = nullptr;
-    QAction* actTtCoords_ = nullptr;
-    bool tooltipShowPage_ = true;
-    bool tooltipShowScreen_ = true;
-    bool tooltipShowCoords_ = true;
+    // Tooltip submenu (contextMenu.js:96-107): the enable toggle + per-row visibility
+    // toggles, hosted as real QCheckBoxes in QWidgetActions so a click flips them WITHOUT
+    // closing the menu (like the marker/thickness spinbox rows) and they render as proper
+    // checkboxes rather than the action's icon. actTooltip_ stays a plain QAction for the
+    // View menu; tooltipEnableCheck_ mirrors it inside the context menu.
+    QWidgetAction* actTooltipEnable_ = nullptr;
+    QCheckBox* tooltipEnableCheck_ = nullptr;
+    QWidgetAction* actTtPage_ = nullptr;
+    QWidgetAction* actTtScreen_ = nullptr;
+    QWidgetAction* actTtCoords_ = nullptr;
+    QCheckBox* ttPageCheck_ = nullptr;
+    QCheckBox* ttScreenCheck_ = nullptr;
+    QCheckBox* ttCoordsCheck_ = nullptr;
+    // Per-row visibility is the single source of truth in settings_ (persisted like the
+    // enable toggle): settings_.tooltipShowPage / tooltipShowScreen / tooltipShowCoords.
 
     // Units submenu (View ▸ Units): cm | inches, persisted via settings_.units.
     QAction* actUnitCm_ = nullptr;
@@ -703,6 +764,23 @@ namespace stencil::gui {
     // open / blank image. Folded into the project meta on create/save.
     QString currentSource_;
     QString currentResource_;
+
+    // Raw encoded bytes of the ORIGINAL image (empty ⇒ none), retained so a .stencil bundle
+    // embeds the untouched source (lossless) rather than a PNG re-encode. Set on a file/.stencil
+    // load, cleared on a synthetic original (blank / clipboard / video frame).
+    QByteArray sourceBytes_;
+    QString sourceExt_;
+    void setSourceBytes(const QByteArray& bytes, const QString& ext);
+    void retainSourceFromFile(const QString& path);   // read + retain a local image file's bytes
+
+    // ── .stencil live-sync state (see the openProjectFile/live-sync methods above) ──
+    QString stencilLink_;                            // linked .stencil path ("" = not linked)
+    QByteArray stencilBaseline_;                     // bytes we last wrote/read (the sync ancestor)
+    bool stencilLiveSync_ = false;                   // the opt-in toggle (per session)
+    bool stencilApplying_ = false;                   // guards auto-save while applying an external change
+    QFileSystemWatcher* stencilWatcher_ = nullptr;   // watches stencilLink_ for external edits
+    QTimer* stencilAutosaveTimer_ = nullptr;         // debounces auto-save on edit
+    QAction* actStencilLiveSync_ = nullptr;          // Data-menu toggle
     // Active session's blank-fill colour ("#rrggbb"), or "" for an ordinary image project. Set by
     // createBlankImageFromDialog, restored on open, folded into the project meta (blank/blankColor),
     // and recoloured in place by setActiveBlankColor. Non-empty ⇔ a blank project.

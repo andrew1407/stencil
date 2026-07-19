@@ -51,6 +51,7 @@ pub const Session = struct {
     temp: bool = false, // in-memory only (URL, blank, clipboard), not backed by a file on disk
     default_fmt: image.Format = .png,
     original: ?image.Rgba8 = null, // the untouched base image (owned); every view derives from it
+    source_bytes: ?[]u8 = null, // raw encoded bytes of `original` (owned); embedded verbatim in a .stencil (null ⇒ re-encode)
     history: std.ArrayList(EditState) = .empty, // [0] = pristine; the current state is history[cursor]
     cursor: usize = 0,
     working: ?image.Rgba8 = null, // the derived current view (owned), rebuilt on every change
@@ -202,14 +203,22 @@ pub const Session = struct {
 
     /// Replace the whole session with a freshly loaded source: a pristine (un-rotated,
     /// un-cropped, un-filtered) state over `img` as the new original.
-    pub fn loadImage(self: *Session, img: image.Rgba8, label: []const u8, temp: bool, fmt: image.Format) !void {
-        const dup = self.gpa.dupe(u8, label) catch |e| return freeImg(self.gpa, img, e);
+    /// `source_bytes` (optional, ownership transferred) are the raw encoded bytes of `img` in
+    /// `fmt`; kept so a .stencil bundle embeds the untouched original. Pass null when none exist
+    /// (blank / clipboard / a decoded peer image) and the bundle re-encodes from pixels.
+    pub fn loadImage(self: *Session, img: image.Rgba8, label: []const u8, temp: bool, fmt: image.Format, source_bytes: ?[]u8) !void {
+        const dup = self.gpa.dupe(u8, label) catch |e| {
+            if (source_bytes) |b| self.gpa.free(b);
+            return freeImg(self.gpa, img, e);
+        };
         self.clearAll();
         self.history.append(self.gpa, .{}) catch |e| {
             self.gpa.free(dup);
+            if (source_bytes) |b| self.gpa.free(b);
             return freeImg(self.gpa, img, e);
         };
         self.original = img;
+        self.source_bytes = source_bytes;
         self.label = dup;
         self.temp = temp;
         self.default_fmt = fmt;
@@ -398,6 +407,8 @@ pub const Session = struct {
         self.history.clearRetainingCapacity();
         if (self.original) |*o| o.deinit(self.gpa);
         self.original = null;
+        if (self.source_bytes) |b| self.gpa.free(b);
+        self.source_bytes = null;
         if (self.working) |*w| w.deinit(self.gpa);
         self.working = null;
         self.cursor = 0;

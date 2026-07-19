@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
-import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, cropChange, isAlbumOrientation } from '../core/cropGeometry.js';
+import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation } from '../core/cropGeometry.js';
 import { icon } from './icons.js';
 const { PAGE_SIZES } = constants;
 
@@ -160,6 +160,22 @@ export class StencilCropModal extends StencilElement {
     box.addEventListener('mousedown', e => onDown(e, 'move'));
     box.querySelectorAll('.crop-handle').forEach(h =>
       h.addEventListener('mousedown', e => onDown(e, 'resize', parseInt(h.dataset.corner, 10))));
+
+    // Mouse wheel / trackpad pinch (a ctrl+wheel event in Chromium) over the crop rect → grow/shrink
+    // it from its centre via core scaleCropCentered (aspect locked, clamped). passive:false to preventDefault.
+    document.getElementById('crop-stage').addEventListener('wheel', e => {
+      if (box.style.display === 'none' || iw <= 0) return;
+      // Only when the cursor is INSIDE the crop rect (not just anywhere over the image).
+      const b = box.getBoundingClientRect();
+      if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) return;
+      e.preventDefault();
+      const factor = Math.pow(1.0015, -e.deltaY);   // wheel up / pinch out → grow
+      rect = scaleCropCentered(rect, factor, aspect, iw, ih);
+      // If a move/resize drag is underway, re-anchor it to the new size + current cursor so the
+      // next mousemove doesn't snap the rect back to its pre-wheel size.
+      if (drag) { drag.startRect = { ...rect }; drag.startImg = toImage(e.clientX, e.clientY); }
+      renderBox();
+    }, { passive: false });
 
     orientBtn.addEventListener('click', () => { album = !album; recenter(); });
     document.getElementById('crop-cancel').addEventListener('click', close);

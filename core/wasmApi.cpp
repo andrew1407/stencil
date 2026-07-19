@@ -168,6 +168,20 @@ extern "C" {
     }
   }
 
+  // ── geometry transforms (drawingApp.js #flipSelectedLine) ──
+  // Mirror a flat [x0,y0,x1,y1,...] array of `count` points in place about
+  // (cx,cy): horizontal != 0 reflects x, else reflects y.
+  void stencil_flipPoints(double* pts, int count, int horizontal, double cx,
+                          double cy) {
+    if (!pts || count <= 0) return;
+    std::vector<Point> v = toPoints(pts, count);
+    flipPoints(v, horizontal != 0, cx, cy);
+    for (int i = 0; i < count; ++i) {
+      pts[2 * i] = v[i].x;
+      pts[2 * i + 1] = v[i].y;
+    }
+  }
+
   // Center of the axis-aligned bounding box of a flat point array -> out[0..1].
   // The rotation pivot used by #rotateSelectedLine when no point is focused.
   void stencil_boundingBoxCenter(const double* pts, int count, double* out) {
@@ -230,6 +244,14 @@ extern "C" {
                                double dy, double imageW, double imageH,
                                double* out) {
     const CropRect r = moveCropClamped(CropRect{x, y, w, h}, dx, dy, imageW, imageH);
+    writeRect(r, out);
+  }
+
+  void stencil_scaleCropCentered(double x, double y, double w, double h, double factor,
+                                 double aspectWoverH, double imageW, double imageH,
+                                 double* out) {
+    const CropRect r = scaleCropCentered(CropRect{x, y, w, h}, factor, aspectWoverH,
+                                         imageW, imageH);
     writeRect(r, out);
   }
 

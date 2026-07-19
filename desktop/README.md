@@ -178,6 +178,23 @@ produces the same packages as downloadable workflow artifacts without cutting a 
 > On Qt < 6.3 the install step can't bundle Qt automatically — run the platform's
 > `*deployqt` tool against the built app manually before packaging.
 
+## Project files (`.stencil`)
+
+The **Data** menu's *Open Project… (Ctrl+Shift+F)* / *Save Project As… (Ctrl+Shift+S)* read
+and write a portable **`.stencil`** file — the original image, the layout (crop/rotation/
+filter/lines/page), project metadata, and the current colour theme, all in one document that
+opens on any Stencil surface (see `browser/README.md`). Serialization lives in
+`fileStore::buildProjectFile` / `parseProjectFile` (QtCore-only, base64 image — the QImage
+codec work stays in `MainWindow::openProjectFile` / `saveProjectFileAs`); `openPathFromOS`
+routes a `*.stencil` double-click / drag / file-arg to the same open path.
+
+Packaging registers the type so the OS shows `.stencil` files with the Stencil icon and
+opens them on double-click: **macOS** via an exported `com.stencil.project` UTI +
+`CFBundleDocumentTypes` in `packaging/MacOSXBundleInfo.plist.in`; **Linux** via
+`packaging/stencil-mime.xml` (shared-mime-info) + a themed mimetype icon + the
+`application/x-stencil` entry in `packaging/stencil.desktop`. (Windows has in-app open/save
+but no installer-based association.)
+
 ## Test
 
 The **core's** Doctest suite (one suite per core module, the WebAssembly ABI, and the new

@@ -114,6 +114,8 @@ export class ProjectsStore {
     if (m.refreshPeriod == null) m.refreshPeriod = DEFAULT_PERIOD;
     if (m.autoRefresh == null) m.autoRefresh = true;
     if (!Array.isArray(m.keywords)) m.keywords = [];
+    if (typeof m.description !== 'string') m.description = '';
+    if (typeof m.lineLengthCm !== 'number') m.lineLengthCm = 0;
     if (typeof m.blank !== 'boolean') m.blank = false;
     if (typeof m.blankColor !== 'string') m.blankColor = '';
     return m;
@@ -219,6 +221,19 @@ export class ProjectsStore {
     const i = arr.findIndex(m => m && m.id === id);
     if (i === -1) return null;
     arr[i].keywords = normalizeKeywords(keywords);
+    this.#writeRegistry(arr);
+    return arr[i];
+  }
+
+  // Set a project's free-text description in its registry meta in place. `description` is
+  // "" (no description) or any string; it's trimmed and stored, clearing when empty. No-op
+  // (returns null) when the id is unknown. Like setColor(), leaves the payload + updatedAt
+  // untouched.
+  setDescription(id, description) {
+    const arr = this.#readRegistry();
+    const i = arr.findIndex(m => m && m.id === id);
+    if (i === -1) return null;
+    arr[i].description = String(description == null ? '' : description).trim();
     this.#writeRegistry(arr);
     return arr[i];
   }
@@ -411,6 +426,7 @@ export class ProjectsStore {
       id,
       name: safeLayout.imageBaseName || 'Untitled 1',
       color: '',
+      description: '',
       thumbnail: null,
       createdAt: now,
       updatedAt: now,
@@ -420,6 +436,9 @@ export class ProjectsStore {
       hasImage: !!image,
       imageW: safeLayout.imageWidth || null,
       imageH: safeLayout.imageHeight || null,
+      // Populated on the first real save (storage.js) once page metrics are live; a
+      // legacy-adopted layout starts at 0 rather than coupling this pure store to page-metrics.
+      lineLengthCm: 0,
     };
     this.upsert(meta, { image, layout: safeLayout });
     // upsert bumps updatedAt to Date.now(); pin to the requested `now` so the

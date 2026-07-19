@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define } from './base.js';
 import { StencilTooltip } from './tooltip.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
+import { wirePanelResizer } from '../utils.js';
 // ── Component: main content (canvas section + coordinates panel) ──
 // Owns the canvas/coord-panel markup and the coord-panel collapse behavior.
 export class StencilMainContent extends StencilElement {
@@ -25,13 +26,17 @@ export class StencilMainContent extends StencilElement {
                 <div class="drop-hint">${icon('lightbulb', { size: 14 })} Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
             </div>
 
+            <!-- Drag handle to resize the coordinates panel (browser parity with the desktop
+                 canvas↔panel splitter). Hidden while the panel is collapsed. -->
+            <div class="panel-resizer" id="panel-resizer" title="Drag to resize the panel"></div>
+
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
                     <div class="coord-tabs" role="tablist">
                         <button id="coord-tab-points" class="coord-tab coord-tab-active" role="tab" aria-selected="true" data-tab="points" title="Points of the selected line">Points</button>
                         <button id="coord-tab-lines" class="coord-tab" role="tab" aria-selected="false" data-tab="lines" title="All lines — select, inspect or remove">Lines</button>
                     </div>
-                    <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel" title="Hide panel">${icon('chevron-down')}</button>
+                    <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel" title="Hide panel">${icon('chevron-right')}</button>
                 </div>
                 <div id="coord-body">
                 <table class="coordinates-table" id="coordinates-table">
@@ -66,7 +71,9 @@ export class StencilMainContent extends StencilElement {
     btn.addEventListener('click', () => {
       hidden = !hidden;
       panel.classList.toggle('coord-collapsed', hidden);
-      btn.innerHTML = hidden ? icon('chevron-right') : icon('chevron-down');
+      // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide (collapse →)
+      // and LEFT to show (← expand) — not down, which wrongly implied a downward/bottom collapse.
+      btn.innerHTML = hidden ? icon('chevron-left') : icon('chevron-right');
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
@@ -90,6 +97,12 @@ export class StencilMainContent extends StencilElement {
     };
     tabPoints.addEventListener('click', () => selectTab('points'));
     tabLines.addEventListener('click', () => selectTab('lines'));
+
+    // ── Resizable coordinates panel: drag #panel-resizer to set the panel width (persisted).
+    // Mirrors the desktop canvas↔panel splitter. The panel sits on the RIGHT, so dragging the
+    // handle LEFT widens it. Width lives in the --coord-panel-width CSS var on :root.
+    const resizer = document.getElementById('panel-resizer');
+    if (resizer) wirePanelResizer(resizer, panel, { maxFactor: 0.7, restore: true });
   }
 }
 define('stencil-main-content', StencilMainContent);

@@ -120,6 +120,62 @@ public sealed class ServerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SetProjectNameRenamesTheActiveProjectAndRelabelsTheWorkingImage()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        string name = await _service.SetProjectNameAsync(UserId, "  Poster draft  ");
+        Assert.Equal("Poster draft", name); // trimmed
+        UserSession after = await _store.GetAsync(UserId);
+        Assert.Equal("Poster draft", after.ActiveProjectName);
+        Assert.Equal("Poster draft", after.ImageLabel); // the working-image label follows the name
+        Assert.Equal(5, after.ActiveProjectVersion); // bumped from the fetched v4
+    }
+
+    [Fact]
+    public async Task SetProjectNameRejectsABlankName()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectNameAsync(UserId, "   "));
+    }
+
+    [Fact]
+    public async Task SetProjectNameThrowsWithoutAnActiveProject()
+    {
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectNameAsync(UserId, "New"));
+    }
+
+    [Fact]
+    public async Task SetProjectDescriptionStoresItOnTheSessionForStatus()
+    {
+        _factory.ClientFor(ServerA).Seed(
+            new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
+            LayoutWithFilter("none"));
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+        await _service.FetchAsync(UserId, "Shared", url: null);
+
+        string desc = await _service.SetProjectDescriptionAsync(UserId, "A test poster");
+        Assert.Equal("A test poster", desc);
+        UserSession afterSet = await _store.GetAsync(UserId);
+        Assert.Equal("A test poster", afterSet.ActiveProjectDescription);
+
+        // An empty argument clears it back off the session.
+        await _service.SetProjectDescriptionAsync(UserId, "");
+        UserSession afterClear = await _store.GetAsync(UserId);
+        Assert.Equal("", afterClear.ActiveProjectDescription);
+    }
+
+    [Fact]
     public async Task SetProjectExpirySetsAndClearsTheActiveProject()
     {
         _factory.ClientFor(ServerA).Seed(
@@ -204,6 +260,22 @@ public sealed class ServerServiceTests : IDisposable
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(record.Id, session.ActiveProjectId);
         Assert.Equal("http://a:8090", session.ActiveServerUrl);
+    }
+
+    [Fact]
+    public async Task CreateProjectUploadsALocallyHeldDescription()
+    {
+        await SeedWorkingImageAsync();
+        // A description set before saving (via /project-description) rides on the session.
+        UserSession seeded = await _store.GetAsync(UserId);
+        await _store.SaveAsync(seeded with { ActiveProjectDescription = "A red study" });
+        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+
+        ProjectRecord record = await _service.CreateProjectAsync(UserId, "My Project", url: null);
+
+        Assert.Equal("A red study", record.Description); // uploaded in the create request
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal("A red study", session.ActiveProjectDescription); // kept on the now-server project
     }
 
     [Fact]

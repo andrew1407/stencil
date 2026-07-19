@@ -1,6 +1,9 @@
+using System.Text.Json;
+using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
 
@@ -224,7 +227,9 @@ public sealed class EditingService : IEditingService
             ActiveServerUrl = null,
             ActiveProjectId = null,
             ActiveProjectName = null,
+            ActiveProjectDescription = null,
             ActiveProjectCreatedAt = 0,
+            ActiveProjectExpiresAt = 0,
             ActiveProjectVersion = 0,
             ActiveProjectLayoutJson = null,
         };
@@ -452,6 +457,56 @@ public sealed class EditingService : IEditingService
     public string ExportLayoutJson(UserSession session) =>
         StencilJson.SerializeIndented(BuildLayout(session));
 
+    /// <inheritdoc />
+    public async Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        string extension = string.IsNullOrEmpty(project.ImageExt) ? ".png" : "." + project.ImageExt;
+        string path = await StoreOriginalBytesAsync(userId, project.ImageBytes, extension, ct);
+        // Probe the decoded image for its true dimensions (the file's w/h are advisory).
+        ImageSize size = await _cli.ProbeAsync(path, ct);
+        string label = string.IsNullOrEmpty(project.Name) ? "project" : project.Name;
+        UserSession reset = ResetToImage(session, path, size, label, project.Source);
+        // Rebuild crop/rotation/filter/lines from the layout — the same map used for server projects.
+        EditState edits = project.Layout is JsonElement layout
+            ? ProjectLayoutMapper.ToEditState(layout, size.Width, size.Height)
+            : new EditState();
+        UserSession updated = reset with
+        {
+            Edits = edits,
+            ActiveProjectLayoutJson = project.Layout?.GetRawText(),
+        };
+        await _store.SaveAsync(updated, ct);
+        return updated;
+    }
+
+    /// <inheritdoc />
+    public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.OriginalImagePath is null)
+        {
+            throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
+        }
+        byte[] originalBytes = await File.ReadAllBytesAsync(session.OriginalImagePath, ct);
+        string ext = Path.GetExtension(session.OriginalImagePath).TrimStart('.');
+        if (string.IsNullOrEmpty(ext)) ext = "png";
+        // Render for the RESULT dimensions the layout's imageWidth/imageHeight report.
+        RenderResult render = await RenderAsync(userId, ct);
+        var layout = ProjectLayoutWriter.Build(session.ActiveProjectLayoutJson, session.Edits, render.Width, render.Height);
+        var project = new StencilProject
+        {
+            Name = string.IsNullOrEmpty(session.ImageLabel) ? "project" : session.ImageLabel!,
+            Source = session.SourceUrl,
+            ImageBytes = originalBytes,
+            ImageExt = ext,
+            ImageWidth = session.OriginalWidth,
+            ImageHeight = session.OriginalHeight,
+            Layout = JsonSerializer.SerializeToElement(layout, StencilJson.Options),
+        };
+        return StencilProjectFile.BuildUtf8(project);
+    }
+
     /// <summary>
     /// Reset a session onto a freshly adopted base image: store the path/dimensions/label,
     /// clear the edit state and any active server project.
@@ -471,7 +526,9 @@ public sealed class EditingService : IEditingService
             ActiveServerUrl = null,
             ActiveProjectId = null,
             ActiveProjectName = null,
+            ActiveProjectDescription = null,
             ActiveProjectCreatedAt = 0,
+            ActiveProjectExpiresAt = 0,
             ActiveProjectVersion = 0,
             ActiveProjectLayoutJson = null,
         };

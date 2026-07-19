@@ -178,3 +178,25 @@ TEST_CASE("rotateLinePointsQuarter turns crop-local points and round-trips") {
     CHECK(rt[0].points[i].y == doctest::Approx(a.points[i].y));
   }
 }
+
+TEST_CASE("scaleCropCentered grows/shrinks about the centre, keeps aspect, clamps") {
+  const CropRect cur{60, 60, 80, 80};  // centre (100,100) in a 200x200 image
+  SUBCASE("grow keeps centre + square aspect") {
+    const CropRect r = scaleCropCentered(cur, 1.5, 1.0, 200, 200);
+    CHECK(r.width == doctest::Approx(120));
+    CHECK(r.height == doctest::Approx(120));
+    CHECK(r.x + r.width / 2 == doctest::Approx(100));
+    CHECK(r.y + r.height / 2 == doctest::Approx(100));
+  }
+  SUBCASE("over-grow is capped by the nearer edge and stays in bounds") {
+    const CropRect r = scaleCropCentered(cur, 100.0, 1.0, 200, 200);
+    CHECK(r.width == doctest::Approx(200));
+    CHECK(r.x >= -1e-9);
+    CHECK(r.x + r.width <= 200 + 1e-9);
+  }
+  SUBCASE("shrink floors at minSize") {
+    const CropRect r = scaleCropCentered(cur, 0.0001, 1.0, 200, 200);
+    CHECK(r.width == doctest::Approx(16));
+    CHECK(r.height == doctest::Approx(16));
+  }
+}

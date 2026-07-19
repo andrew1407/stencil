@@ -215,9 +215,9 @@ pub fn buildLayout(
 }
 
 /// One project as shown by `/projects`: name + image size + last-change timestamp, plus the
-/// project's custom name colour ("" = none, paint the name in the theme accent). Owns `name`
-/// and `color`.
-pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, expires_at: i64, w: i64, h: i64, color: []u8, keywords: [][]u8 };
+/// project's custom name colour ("" = none, paint the name in the theme accent) and free-text
+/// description ("" = none). Owns `name`, `color`, and `description`.
+pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, expires_at: i64, w: i64, h: i64, color: []u8, description: []u8, keywords: [][]u8 };
 
 /// Free a slice of owned strings (each string, then the slice). Used for keyword lists.
 pub fn freeStrList(gpa: std.mem.Allocator, items: [][]u8) void {
@@ -245,6 +245,7 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
             imageW: i64 = 0,
             imageH: i64 = 0,
             color: []const u8 = "",
+            description: []const u8 = "",
             keywords: []const []const u8 = &.{},
         },
     };
@@ -257,18 +258,22 @@ pub fn parseProjectList(gpa: std.mem.Allocator, body: []const u8) ![]ProjectInfo
         errdefer gpa.free(nm);
         const col = try gpa.dupe(u8, proj.color);
         errdefer gpa.free(col);
+        const desc = try gpa.dupe(u8, proj.description);
+        errdefer gpa.free(desc);
         const kws = try dupeStrList(gpa, proj.keywords);
         errdefer freeStrList(gpa, kws);
-        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col, .keywords = kws });
+        try list.append(gpa, .{ .name = nm, .created_at = proj.createdAt, .updated_at = proj.updatedAt, .expires_at = proj.expiresAt, .w = proj.imageW, .h = proj.imageH, .color = col, .description = desc, .keywords = kws });
     }
     return list.toOwnedSlice(gpa);
 }
 
-/// Free a slice returned by parseProjectList (each owned name + colour + keywords, then the slice).
+/// Free a slice returned by parseProjectList (each owned name + colour + description + keywords,
+/// then the slice).
 pub fn freeProjectList(gpa: std.mem.Allocator, items: []ProjectInfo) void {
     for (items) |it| {
         gpa.free(it.name);
         gpa.free(it.color);
+        gpa.free(it.description);
         freeStrList(gpa, it.keywords);
     }
     gpa.free(items);
@@ -299,6 +304,15 @@ pub fn parseProjectBlankColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
     defer p.deinit();
     return gpa.dupe(u8, p.value.project.blankColor);
+}
+
+/// Parse a single-project body ({ "project": { ..., "description": "..." } }) for its free-text
+/// description ("" when absent/empty). Caller owns the returned slice.
+pub fn parseProjectDescription(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
+    const T = struct { project: struct { description: []const u8 = "" } };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+    defer p.deinit();
+    return gpa.dupe(u8, p.value.project.description);
 }
 
 // ── REST client ──────────────────────────────────────────────────────────────
@@ -449,6 +463,27 @@ pub const Client = struct {
         const esc = try jsonEscape(self.gpa, color);
         defer self.gpa.free(esc);
         const payload = try std.fmt.allocPrint(self.gpa, "{{\"blankColor\":\"{s}\",\"version\":{d}}}", .{ esc, version });
+        defer self.gpa.free(payload);
+        const body = try self.request(.PUT, path, payload, "application/json");
+        self.gpa.free(body);
+    }
+
+    /// Read the active project's free-text description ("" = none).
+    pub fn getProjectDescription(self: *Client, id: []const u8) ![]u8 {
+        const body = try self.getProject(id);
+        defer self.gpa.free(body);
+        return parseProjectDescription(self.gpa, body);
+    }
+
+    /// PUT a project's free-text description ("" clears it), version-guarded (a stale version yields
+    /// Error.Conflict). Mirrors UpdateProjectRequest{description} — only the description is sent
+    /// (name/colour/layout untouched), riding the same EventUpdated fan-out so peers see it live.
+    pub fn updateProjectDescription(self: *Client, id: []const u8, description: []const u8, version: i64) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
+        defer self.gpa.free(path);
+        const esc = try jsonEscape(self.gpa, description);
+        defer self.gpa.free(esc);
+        const payload = try std.fmt.allocPrint(self.gpa, "{{\"description\":\"{s}\",\"version\":{d}}}", .{ esc, version });
         defer self.gpa.free(payload);
         const body = try self.request(.PUT, path, payload, "application/json");
         self.gpa.free(body);
@@ -1037,7 +1072,7 @@ test "buildLayout round-trips page format + formulas (omit-when-default)" {
 test "parseProjectList yields owned name/size/updatedAt/color records" {
     const a = testing.allocator;
     const body =
-        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000,\"expiresAt\":1700009999000,\"color\":\"#ff5623\"}," ++
+        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000,\"expiresAt\":1700009999000,\"color\":\"#ff5623\",\"description\":\"lead shot\"}," ++
         "{\"id\":\"p2\",\"name\":\"Beta\",\"imageW\":1024,\"imageH\":768,\"updatedAt\":0}]}";
     const items = try parseProjectList(a, body);
     defer freeProjectList(a, items);
@@ -1048,9 +1083,11 @@ test "parseProjectList yields owned name/size/updatedAt/color records" {
     try testing.expectEqual(@as(i64, 1700000000000), items[0].updated_at);
     try testing.expectEqual(@as(i64, 1700009999000), items[0].expires_at);
     try testing.expectEqualStrings("#ff5623", items[0].color);
+    try testing.expectEqualStrings("lead shot", items[0].description);
     try testing.expectEqualStrings("Beta", items[1].name);
     try testing.expectEqual(@as(i64, 0), items[1].expires_at); // no expiry → 0 (never)
     try testing.expectEqualStrings("", items[1].color); // no custom colour → empty
+    try testing.expectEqualStrings("", items[1].description); // no description → empty
 
     // An empty list parses to an empty (non-null) slice.
     const none = try parseProjectList(a, "{\"projects\":[]}");
@@ -1065,6 +1102,17 @@ test "parseProjectColor reads a single project's colour, empty when absent" {
     try testing.expectEqualStrings("#7c3aed", c);
 
     const none = try parseProjectColor(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}");
+    defer a.free(none);
+    try testing.expectEqualStrings("", none);
+}
+
+test "parseProjectDescription reads a single project's description, empty when absent" {
+    const a = testing.allocator;
+    const d = try parseProjectDescription(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"description\":\"a caption\"}}");
+    defer a.free(d);
+    try testing.expectEqualStrings("a caption", d);
+
+    const none = try parseProjectDescription(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}");
     defer a.free(none);
     try testing.expectEqualStrings("", none);
 }

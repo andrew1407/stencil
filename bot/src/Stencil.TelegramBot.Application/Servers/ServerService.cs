@@ -166,6 +166,7 @@ public sealed class ServerService : IServerService
                 ActiveServerUrl = connection.Url,
                 ActiveProjectId = full.Project.Id,
                 ActiveProjectName = full.Project.Name,
+                ActiveProjectDescription = full.Project.Description ?? "",
                 ActiveProjectCreatedAt = full.Project.CreatedAt,
                 ActiveProjectExpiresAt = full.Project.ExpiresAt,
                 ActiveProjectVersion = full.Project.Version,
@@ -189,9 +190,13 @@ public sealed class ServerService : IServerService
         var client = ClientFor(connection);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
+        // Carry any locally-held description (set via /project-description before saving) so the
+        // new project keeps it; null when none so the server applies its default (no description).
+        var description = string.IsNullOrEmpty(session.ActiveProjectDescription) ? null : session.ActiveProjectDescription;
         var request = new CreateProjectRequest
         {
             Name = name ?? session.ImageLabel ?? "Untitled",
+            Description = description,
             HasImage = true,
             ImageW = render.Width,
             ImageH = render.Height,
@@ -207,6 +212,7 @@ public sealed class ServerService : IServerService
             ActiveServerUrl = connection.Url,
             ActiveProjectId = record.Id,
             ActiveProjectName = record.Name,
+            ActiveProjectDescription = record.Description ?? description ?? "",
             ActiveProjectCreatedAt = record.CreatedAt,
             ActiveProjectExpiresAt = record.ExpiresAt,
             ActiveProjectVersion = version,
@@ -219,11 +225,7 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
@@ -253,11 +255,7 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var record = await UpdateFieldWithRetryAsync(
             client,
@@ -271,13 +269,56 @@ public sealed class ServerService : IServerService
     }
 
     /// <inheritdoc />
+    public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
+    {
+        var session = await RequireActiveSessionAsync(userId, ct);
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0)
+        {
+            throw new InvalidOperationException("A project name can't be empty.");
+        }
+        var client = ClientForActive(session);
+        var record = await UpdateFieldWithRetryAsync(
+            client,
+            session.ActiveProjectId,
+            v => new UpdateProjectRequest { Name = trimmed, Version = v },
+            "This project was edited elsewhere — reload it before renaming it.",
+            ct);
+        // The working-image label mirrors the project name (as /fetch seeds it), so update both.
+        var updated = session with
+        {
+            ActiveProjectVersion = record.Version,
+            ActiveProjectName = record.Name,
+            ImageLabel = record.Name,
+        };
+        await _store.SaveAsync(updated, ct);
+        return record.Name;
+    }
+
+    /// <inheritdoc />
+    public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
+    {
+        var session = await RequireActiveSessionAsync(userId, ct);
+        var client = ClientForActive(session);
+        var record = await UpdateFieldWithRetryAsync(
+            client,
+            session.ActiveProjectId,
+            v => new UpdateProjectRequest { Description = description, Version = v },
+            "This project was edited elsewhere — reload it before changing its description.",
+            ct);
+        var updated = session with
+        {
+            ActiveProjectVersion = record.Version,
+            ActiveProjectDescription = record.Description ?? "",
+        };
+        await _store.SaveAsync(updated, ct);
+        return record.Description ?? "";
+    }
+
+    /// <inheritdoc />
     public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
         return full.Project.BlankColor ?? "";
@@ -286,11 +327,7 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty result).
         var current = await client.GetProjectAsync(session.ActiveProjectId, ct);
@@ -312,11 +349,7 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
         var record = await UpdateFieldWithRetryAsync(
@@ -333,11 +366,7 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
-        }
+        var session = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var name = session.ActiveProjectName ?? session.ActiveProjectId;
         try
@@ -358,6 +387,7 @@ public sealed class ServerService : IServerService
             ActiveServerUrl = null,
             ActiveProjectId = null,
             ActiveProjectName = null,
+            ActiveProjectDescription = null,
             ActiveProjectCreatedAt = 0,
             ActiveProjectExpiresAt = 0,
             ActiveProjectVersion = 0,
@@ -446,6 +476,18 @@ public sealed class ServerService : IServerService
     {
         var connection = session.FindConnection(session.ActiveServerUrl!);
         return connection is not null ? ClientFor(connection) : _factory.Create(session.ActiveServerUrl!);
+    }
+
+    /// <summary>Load the session and assert it has an active server project, or throw. Shared
+    /// preamble for the field-mutating project commands (the pollers return null instead).</summary>
+    private async Task<UserSession> RequireActiveSessionAsync(long userId, CancellationToken ct)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            throw new InvalidOperationException("No active server project — /fetch or /create one first.");
+        }
+        return session;
     }
 
     /// <summary>Update a project, translating a version conflict into a friendly reload prompt.</summary>

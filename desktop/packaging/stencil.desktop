@@ -14,7 +14,7 @@ Keywords=image;annotation;drawing;polyline;rectangle;
 # File associations: double-click / "Open With" in the file manager launches the
 # app with the file as a positional arg. x-scheme-handler/stencil routes
 # stencil:// deep links (the cross-front-end "Open in…" feature) here too.
-MimeType=image/png;image/jpeg;image/bmp;image/gif;image/webp;video/mp4;video/quicktime;video/webm;video/x-matroska;application/json;x-scheme-handler/stencil;
+MimeType=image/png;image/jpeg;image/bmp;image/gif;image/webp;video/mp4;video/quicktime;video/webm;video/x-matroska;application/json;application/x-stencil;x-scheme-handler/stencil;
 # Right-click (Jump-list-style) launcher actions.
 Actions=Incognito;Projects;
 

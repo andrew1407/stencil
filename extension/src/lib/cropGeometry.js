@@ -125,6 +125,31 @@ export const moveCropClamped = (cur, dx, dy, imageW, imageH) => {
   };
 };
 
+// Scale a crop about its CENTRE by `factor` (>1 grows), aspect fixed, centre held (so growth
+// is capped by the nearer edge), floored at `minSize`. Mirrors core/geometry/cropGeometry
+// scaleCropCentered (and the editor's browser/js/core/cropGeometry.js) so the quick-crop
+// wheel/pinch resize matches the full editor.
+export const scaleCropCentered = (cur, factor, aspectWoverH, imageW, imageH, minSize = 16) => {
+  if (factor <= 0 || cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0) return { ...cur };
+  const cx = cur.x + cur.width * 0.5;
+  const cy = cur.y + cur.height * 0.5;
+  let w = cur.width * factor;
+  let h = w / aspectWoverH;
+  if (w < minSize) { w = minSize; h = w / aspectWoverH; }
+  if (h < minSize) { h = minSize; w = h * aspectWoverH; }
+  const maxHalfW = Math.min(cx, imageW - cx);
+  const maxHalfH = Math.min(cy, imageH - cy);
+  const wMax = Math.min(2 * maxHalfW, 2 * maxHalfH * aspectWoverH);
+  if (wMax > 0 && w > wMax) { w = wMax; h = w / aspectWoverH; }
+  let x = cx - w * 0.5;
+  let y = cy - h * 0.5;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + w > imageW) x = imageW - w;
+  if (y + h > imageH) y = imageH - h;
+  return { x, y, width: w, height: h };
+};
+
 // Snap a crop rect to integer pixels, clamped inside the original image.
 export const roundRect = (r, iw, ih) => {
   const w = Math.max(1, Math.min(Math.round(r.width), iw));

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   isAlbumOrientationJS, cropAspectJS, centeredCropJS, resizeCropFromCornerJS,
-  moveCropClampedJS, cropResizeScaleJS, cropChangeJS, scaleLinePoints,
+  moveCropClampedJS, scaleCropCenteredJS, cropResizeScaleJS, cropChangeJS, scaleLinePoints,
   rotateCropRectQuarterJS, rotateLinePointsQuarter
 } from '../js/core/cropGeometry.js';
 
@@ -152,4 +152,28 @@ test('rotateLinePointsQuarter turns crop-local points and round-trips', () => {
   rotateLinePointsQuarter(rt, boxH, boxW, false);
   const orig = mk()[0].points;
   rt[0].points.forEach((p, i) => { approx(p.x, orig[i].x); approx(p.y, orig[i].y); });
+});
+
+test('scaleCropCentered: grows/shrinks about the centre, keeps aspect, clamps to bounds', () => {
+  const cur = { x: 60, y: 60, width: 80, height: 80 };   // centre (100,100) in a 200x200 image
+  const centre = r => ({ cx: r.x + r.width / 2, cy: r.y + r.height / 2 });
+
+  // Grow 1.5×: centre unchanged, square aspect kept, still inside.
+  const bigger = scaleCropCenteredJS(cur, 1.5, 1, 200, 200);
+  approx(bigger.width, 120); approx(bigger.height, 120);
+  approx(centre(bigger).cx, 100); approx(centre(bigger).cy, 100);
+
+  // Shrink 0.5×: centre unchanged.
+  const smaller = scaleCropCenteredJS(cur, 0.5, 1, 200, 200);
+  approx(smaller.width, 40); approx(smaller.height, 40);
+  approx(centre(smaller).cx, 100); approx(centre(smaller).cy, 100);
+
+  // Over-grow: capped by the nearer edge (centre 100 → max half-extent 100 → width 200), stays in bounds.
+  const capped = scaleCropCenteredJS(cur, 100, 1, 200, 200);
+  approx(capped.width, 200); approx(capped.height, 200);
+  assert.ok(capped.x >= -1e-9 && capped.y >= -1e-9 && capped.x + capped.width <= 200 + 1e-9);
+
+  // Floor at minSize (default 16): can't shrink below it.
+  const tiny = scaleCropCenteredJS(cur, 0.0001, 1, 200, 200);
+  approx(tiny.width, 16); approx(tiny.height, 16);
 });

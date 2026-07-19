@@ -52,6 +52,23 @@ int main(int argc, char** argv) {
     check(r.meta.color.empty(), "absent color key → empty colour");
   }
 
+  // Provenance (fromFile): omitted when false, emitted + round-trips when true (drives the
+  // bronze projects-list outline for .stencil-opened projects).
+  {
+    Project bare;
+    bare.meta.id = "p4";
+    bare.meta.name = "Local";
+    check(!fileStore::projectToJson(bare).contains("fromFile"), "fromFile omitted when false");
+
+    Project fromFile;
+    fromFile.meta.id = "p5";
+    fromFile.meta.name = "FromStencil";
+    fromFile.meta.fromFile = true;
+    const QJsonObject o = fileStore::projectToJson(fromFile);
+    check(o.value("fromFile").toBool(), "fromFile emitted when true");
+    check(fileStore::projectFromJson(o).meta.fromFile, "fromFile round-trips");
+  }
+
   std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
   return failures ? 1 : 0;
 }

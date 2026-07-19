@@ -4,6 +4,7 @@ using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
@@ -149,14 +150,25 @@ public sealed class UpdateRouter
     private async Task<bool> TryConsumePendingInputAsync(long userId, long chatId, string reply, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
-        if (session.PendingInput != PendingInputs.ExpiryDuration)
+        string? pending = session.PendingInput;
+        if (pending is not (PendingInputs.ExpiryDuration or PendingInputs.ProjectName or PendingInputs.ProjectDescription))
         {
             return false;
         }
         await _store.SaveAsync(session with { PendingInput = null }, ct);
         string spec = reply.Trim();
         string[] args = spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        await _handlers.DispatchAsync(userId, chatId, new BotCommand("expire", spec, args), ct);
+        BotCommand command = pending switch
+        {
+            // The whole reply is the new name (names may contain spaces), so pass it verbatim.
+            PendingInputs.ProjectName => new BotCommand("projectname", spec, args),
+            // The whole reply is the description; a lone "-" is the clear convention (→ empty).
+            PendingInputs.ProjectDescription => spec == "-"
+                ? new BotCommand("projectdescription", "", [])
+                : new BotCommand("projectdescription", spec, args),
+            _ => new BotCommand("expire", spec, args),
+        };
+        await _handlers.DispatchAsync(userId, chatId, command, ct);
         return true;
     }
 
@@ -290,6 +302,11 @@ public sealed class UpdateRouter
             await ApplyLayoutDocumentAsync(userId, chatId, document.FileId, caption, ct);
             return;
         }
+        if (name.EndsWith(".stencil", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenProjectDocumentAsync(userId, chatId, document.FileId, ct);
+            return;
+        }
         if (IsImageDocument(document))
         {
             string ext = ExtensionOf(name, ".png");
@@ -331,6 +348,20 @@ public sealed class UpdateRouter
             return;
         }
         await _editing.ApplyLayoutAsync(userId, layout, ct);
+        await _handlers.RenderAndSendAsync(userId, chatId, ct);
+    }
+
+    /// <summary>Download a <c>.stencil</c> project document, adopt it (image + layout), then render.</summary>
+    private async Task OpenProjectDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
+    {
+        byte[] bytes = await DownloadBytesAsync(fileId, ct);
+        StencilProject? project = StencilProjectFile.Parse(bytes);
+        if (project is null)
+        {
+            await _bot.SendMessage(chatId, "That file isn't a valid .stencil project.", cancellationToken: ct);
+            return;
+        }
+        await _editing.OpenProjectFileAsync(userId, project, ct);
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
     }
 

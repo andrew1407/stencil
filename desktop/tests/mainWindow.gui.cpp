@@ -7,13 +7,19 @@
 // Runs offscreen (QT_QPA_PLATFORM=offscreen), so it needs no display; registered with CTest.
 #include "mainWindow.hpp"
 #include "canvasWidget.hpp"
+#include "fileStore.hpp"
 #include <QtTest>
 #include <QAction>
+#include <QFile>
 #include <QImage>
 #include <QDir>
 #include <QApplication>
 #include <QMessageBox>
 #include <QAbstractButton>
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QRadioButton>
+#include <QWidgetAction>
 #include <QCursor>
 #include <QGraphicsEffect>
 #include <QTimer>
@@ -96,6 +102,32 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(img.save(png_, "PNG"));
   }
 
+  // Regression: enabling the f(x,y) pill must reveal the x/y formula inputs, and they must
+  // stay visible across an image load and window resizes (the state the user drives).
+  void formulaToggleRevealsInputs() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* pill = win.findChild<QCheckBox*>("formulaPill");
+    QVERIFY(pill);
+    QLineEdit* fx = nullptr;
+    for (auto* e : win.findChildren<QLineEdit*>())
+      if (e->placeholderText().startsWith("x(x)")) fx = e;
+    QVERIFY(fx);
+    if (pill->isChecked()) { pill->setChecked(false); QTest::qWait(30); }
+    QVERIFY(!fx->isVisible());
+    QTest::mouseClick(pill, Qt::LeftButton, Qt::NoModifier, pill->rect().center());
+    QTest::qWait(60);
+    QVERIFY2(fx->isVisible(), "formula inputs should appear when f(x,y) is enabled");
+    win.openPathFromOS(png_);
+    QTest::qWait(120);
+    QVERIFY2(fx->isVisible(), "formula inputs should survive an image load");
+    win.resize(720, 800); QTest::qWait(80);
+    win.resize(1200, 800); QTest::qWait(80);
+    QVERIFY2(fx->isVisible(), "formula inputs should survive window resizes");
+  }
+
   // Fullscreen edge-hover: prove the top toolbars and the right points panel REVEAL WITH AN
   // ANIMATION (they pass through intermediate sizes, not an instant pop) and do so MONOTONICALLY
   // (no size oscillation = no flicker), then hide + fully restore on exit with no lingering effect.
@@ -154,7 +186,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(nonIncreasing(down), "toolbar hide height oscillated (flicker)");
     QTest::qWait(120);
 
-    // --- Right points panel: cursor to the right edge → animated slide-in ---
+    // --- Right points panel: cursor to the right edge → animated slide-in reveal ---
     QWidget* panel = nullptr;
     for (QWidget* dw : win.findChildren<QWidget*>())
       if (QString(dw->metaObject()->className()).contains("SelectionPanel")) { panel = dw; break; }
@@ -278,32 +310,43 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
 
-    // Normalize to a known baseline via the real "None" action: applyImageFilter
-    // PERSISTS the chosen mode to settings, so a prior run/test can start this
-    // canvas non-"none". Drive it rather than assuming the default (order-safe).
-    QAction* none = actionByText(&win, "None");
+    // The context-menu filter options are hosted QRadioButtons (an exclusive QButtonGroup) so
+    // picking one keeps the menu open; find them by their "filterValue" property and drive them.
+    // The radios live inside QWidgetActions' default widgets (setDefaultWidget reparents them out
+    // of the window until a menu shows them), so reach them via the actions, not win's children.
+    auto filterRadio = [&](const QString& value) -> QRadioButton* {
+      for (QWidgetAction* a : win.findChildren<QWidgetAction*>())
+        if (QWidget* dw = a->defaultWidget())
+          for (QRadioButton* r : dw->findChildren<QRadioButton*>())
+            if (r->property("filterValue").toString() == value) return r;
+      return nullptr;
+    };
+
+    // Normalize to a known baseline via the real "None" radio: applyImageFilter PERSISTS the
+    // chosen mode to settings, so a prior run/test can start this canvas non-"none". Drive it
+    // rather than assuming the default (order-safe).
+    QRadioButton* none = filterRadio("none");
     QVERIFY(none);
-    none->trigger();
+    none->setChecked(true);
     QCOMPARE(canvas->imageFilter(), QString("none"));
 
-    // Trigger the SHARED filter QAction (the toolbar Style row and the canvas
-    // context menu reuse the same object): it runs the real applyImageFilter
-    // path and lands the mode on the live canvas.
-    QAction* bw = actionByText(&win, "Black && White");
+    // Check the SHARED filter path (toggling the radio runs the real applyImageFilter, which also
+    // syncs the toolbar combo) and lands the mode on the live canvas.
+    QRadioButton* bw = filterRadio("bw");
     QVERIFY(bw && bw->isEnabled());
-    bw->trigger();
+    bw->setChecked(true);
     QCOMPARE(canvas->imageFilter(), QString("bw"));      // menu/toolbar wiring reached the canvas
     beat();
 
-    // Switching filters is live and mutually exclusive (one action group).
-    QAction* sepia = actionByText(&win, "Sepia");
+    // Switching filters is live and mutually exclusive (one button group).
+    QRadioButton* sepia = filterRadio("sepia");
     QVERIFY(sepia);
-    sepia->trigger();
+    sepia->setChecked(true);
     QCOMPARE(canvas->imageFilter(), QString("sepia"));
     QVERIFY(!bw->isChecked());                            // exclusive group cleared the old mode
     beat();
 
-    none->trigger();   // leave the persisted filter clean for other tests/runs
+    none->setChecked(true);   // leave the persisted filter clean for other tests/runs
   }
 
   void clearAllActionEmptiesCanvas() {
@@ -353,6 +396,99 @@ class MainWindowGuiTest : public QObject {
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
+    beat();
+  }
+
+  // Opening a .stencil project file (the real OS-open / drag / file-arg path) decodes its
+  // embedded image and adopts its layout — image + lines + rotation — into the live canvas.
+  void opensStencilProjectFile() {
+    // Author a .stencil bundling the test PNG's bytes + a one-line, quarter-rotated layout.
+    QByteArray png;
+    {
+      QFile f(png_);
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      png = f.readAll();
+    }
+    stencil::core::Lines lines;
+    stencil::core::Line l;
+    l.points = {{10, 10}, {40, 40}};
+    l.color = "#ff0000";
+    lines.push_back(l);
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = "GUI Project";
+    pf.imageExt = "png";
+    pf.imageBytes = png;
+    pf.imageWidth = 240;
+    pf.imageHeight = 160;
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, lines, "none", "#7c3aed", {}, 1, {});
+    const QString path = QDir::temp().filePath("stencil_gui_e2e_project.stencil");
+    {
+      QFile wf(path);
+      QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate));
+      wf.write(stencil::gui::fileStore::buildProjectFile(pf));
+    }
+
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    win.openPathFromOS(path);   // routes *.stencil -> openProjectFile
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QVERIFY(canvas);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QCOMPARE(canvas->rotationQuarters(), 1);                 // layout rotation adopted
+    QVERIFY(totalPoints(canvas) > 0);                        // the line was adopted
+    beat();
+  }
+
+  // Live sync: a project linked to a .stencil with live-sync ON auto-saves edits back to the
+  // file (debounced). Drives openProjectFile linking → the "Live Sync with File" toggle →
+  // an edit → onCanvasChanged → scheduleStencilAutosave → flushStencilAutosave writing the file.
+  void liveSyncAutosavesEditsToFile() {
+    QByteArray png;
+    { QFile f(png_); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = "Live";
+    pf.imageExt = "png";
+    pf.imageBytes = png;
+    pf.imageWidth = 240;
+    pf.imageHeight = 160;
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});   // rotation 0
+    const QString path = QDir::temp().filePath("stencil_gui_livesync.stencil");
+    { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
+
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    win.openPathFromOS(path);
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QVERIFY(canvas);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QCOMPARE(canvas->rotationQuarters(), 0);
+
+    QAction* live = actionByText(&win, "Live Sync with File");
+    QVERIFY(live);
+    QVERIFY(live->isEnabled());     // enabled because the project is file-linked
+    live->setChecked(true);         // toggled → toggleStencilLiveSync(true)
+
+    QAction* rotate = actionByText(&win, "Rotate Right");
+    QVERIFY(rotate);
+    rotate->trigger();
+    QCOMPARE(canvas->rotationQuarters(), 1);
+
+    // Auto-save is debounced (~800ms) — wait for the linked file to reflect the rotation.
+    auto fileRotation = [&]() -> int {
+      QFile rf(path);
+      if (!rf.open(QIODevice::ReadOnly)) return -1;
+      stencil::gui::fileStore::ProjectFileData out;
+      QString err;
+      if (!stencil::gui::fileStore::parseProjectFile(rf.readAll(), out, &err)) return -1;
+      int w = 0, h = 0;
+      stencil::core::CropRect crop;
+      int rot = 0;
+      stencil::gui::fileStore::parseLayoutJson(out.layout, w, h, &crop, &rot);
+      return rot;
+    };
+    QTRY_COMPARE_WITH_TIMEOUT(fileRotation(), 1, 4000);   // the edit auto-saved into the linked file
     beat();
   }
 

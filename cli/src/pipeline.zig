@@ -21,7 +21,7 @@ const BLANK_MIN = 1;
 const BLANK_MAX = 8192;
 
 /// A decoded source plus the format to fall back to when the output lacks an extension.
-pub const Source = struct { img: image.Rgba8, default_fmt: image.Format };
+pub const Source = struct { img: image.Rgba8, default_fmt: image.Format, bytes: []u8 };
 
 pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     // 1) Acquire the source as an owned RGBA8 buffer, and note the format to fall back
@@ -65,6 +65,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         const src = try acquireInput(gpa, io, input, opts.frame);
         img = src.img;
         default_fmt = src.default_fmt;
+        gpa.free(src.bytes);   // one-shot raster path doesn't bundle a project — source bytes unneeded
     } else {
         logo.print("error: no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
         return error.NoSource;
@@ -165,7 +166,7 @@ fn baseName(path: []const u8) []const u8 {
 /// Decode an image (or video frame) from a file path or http(s) URL into an owned buffer.
 pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) !Source {
     const bytes = try loadSource(gpa, io, input, frame);
-    defer gpa.free(bytes);
+    errdefer gpa.free(bytes);
     var default_fmt: image.Format = .png;
     const img = image.decode(gpa, bytes) catch |e| {
         logo.print("error: could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
@@ -174,7 +175,9 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
     if (extOf(input)) |e| {
         if (image.formatFromExt(e)) |f| default_fmt = f;
     }
-    return .{ .img = img, .default_fmt = default_fmt };
+    // Keep the raw encoded source bytes (owned by the caller) so a .stencil bundle embeds the
+    // untouched original instead of a lossy re-encode.
+    return .{ .img = img, .default_fmt = default_fmt, .bytes = bytes };
 }
 
 /// Crop in place using a crop spec string; page metrics are derived from the current dims.

@@ -243,6 +243,14 @@ export class SettingsController {
     if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
     const ctxCb = document.getElementById('ctx-allow-formulas');
     if (ctxCb) ctxCb.checked = checked;
+    // Main toolbar pill: reflect the checked state as the accent-filled `.on` class (a
+    // deterministic toggle — the CSS :has() selector doesn't restyle reliably on programmatic
+    // state changes).
+    const mainCb = document.getElementById('allow-formulas');
+    if (mainCb) {
+      mainCb.checked = checked;
+      mainCb.closest('.pill-toggle')?.classList.toggle('on', checked);
+    }
   }
 
   showFormulaError(hasError) {

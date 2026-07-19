@@ -97,6 +97,8 @@ public sealed class FakeStencilServerClient : IStencilServerClient
         {
             Id = id,
             Name = request.Name ?? "Untitled",
+            Description = request.Description,
+            Color = request.Color,
             HasImage = request.HasImage,
             ImageW = request.ImageW,
             ImageH = request.ImageH,
@@ -126,6 +128,8 @@ public sealed class FakeStencilServerClient : IStencilServerClient
             Version = existing.Version + 1,
             Name = request.Name ?? existing.Name,
             Color = request.Color ?? existing.Color,
+            Description = request.Description ?? existing.Description,
+            BlankColor = request.BlankColor ?? existing.BlankColor,
             ExpiresAt = request.ExpiresAt ?? existing.ExpiresAt,
         };
         _projects[id] = updated;

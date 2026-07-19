@@ -1,7 +1,7 @@
 import { ProjectsStore, shouldPersist, addPeriod, DEFAULT_PERIOD } from './projectsStore.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
-import { normalizePageSize } from './units.js';
+import { normalizePageSize, layoutLineLengthCm } from './units.js';
 import { serializeSession } from './layout.js';
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
@@ -104,11 +104,17 @@ export class Storage {
       // Per-project accent colour: preserved across saves (set only via setProjectColor).
       // "" => no custom colour (theme fallback).
       color: this.store.getMeta(this.activeId)?.color || '',
+      // Free-text description: preserved across saves like colour (set only via setDescription).
+      // "" => no description.
+      description: this.store.getMeta(this.activeId)?.description || '',
       // Blank-image marker + fill colour, sourced from the active session (set at blank creation
       // and by setBlankColor, restored on open). Non-empty colour ⇔ blank project; "" / false for
       // ordinary image projects.
       blank: !!this.app.blankColor,
       blankColor: this.app.blankColor || '',
+      // Provenance: opened from a portable .stencil file (drives the bronze projects-list
+      // outline). Sourced from the active session like blank/blankColor above.
+      fromFile: !!this.app.fromFile,
       thumbnail: this.#makeThumbnail(),
       createdAt: this.store.getMeta(this.activeId)?.createdAt ?? Date.now(),
       // Expiration is owned by the expiration modal / open-time snap; a plain edit
@@ -119,6 +125,9 @@ export class Storage {
       hasImage: !!this.app.imageDataUrl,
       imageW: this.app.canvas.width,
       imageH: this.app.canvas.height,
+      // Cached real-world length of all drawn lines (cm), computed from the same layout so
+      // the projects-list tooltip needn't reload the image-heavy payload to measure it.
+      lineLengthCm: layoutLineLengthCm(layout),
       // Mirror provenance into the registry meta so the projects list and the
       // extension-launch "resume" match can use it without reading the payload.
       source: this.app.imageSource || null,
@@ -137,6 +146,8 @@ export class Storage {
     // Tell other tabs this project changed so any tab viewing it re-syncs its
     // editor. Debounced so a burst of edits coalesces into one broadcast.
     this.#scheduleSyncBroadcast();
+    // Auto-save the linked .stencil file too, when live file sync is on (debounced, no-op otherwise).
+    this.app.stencilSync?.onEdit();
   }
 
   // Trailing-edge debounce of the "project updated" cross-tab broadcast.
@@ -468,12 +479,9 @@ export class Storage {
           this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
 
           if (layout.zoom) {
-            this.app.zoomPan.setZoom(layout.zoom);
+            this.app.zoomPan.setZoom(layout.zoom);   // also sizes the viewport (syncViewportHeight)
             const vp = document.getElementById('canvas-viewport');
             if (vp) {
-              const availH = Math.max(200, window.innerHeight - 220);
-              const fittedH = Math.round(this.app.image.height * this.app.scale);
-              vp.style.maxHeight = Math.min(fittedH + 4, availH) + 'px';
               requestAnimationFrame(() => {
                 if (this.activeId !== targetId) return;
                 vp.scrollLeft = layout.scrollLeft || 0;

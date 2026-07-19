@@ -79,6 +79,8 @@ src/
   video.zig          # ffmpeg frame grab (to PNG on stdout)
   net.zig            # std.http(s) URL fetch (native TLS, no external tool)
   layout.zig         # std.json -> drawable lines
+  project.zig        # .stencil project files: parse/build (image + layout + metadata in one file)
+  project_cli.zig    # one-shot .stencil open/bundle (reuses the console Session for the layout)
 test_root.zig        # test entry point (inline unit tests + the integration suite)
 tests/
   *_test.zig         # integration tests (decode, crop, rotate, format, layout, e2e)
@@ -184,6 +186,27 @@ stencil -i clip.mp4 -f 24 frame.png
 
 # Crop a single axis and derive the other from the page proportion, landscape
 stencil -i wide.png -c "x1=0 x2=1200px" --album out.png
+```
+
+### Project files (`.stencil`)
+
+A `.stencil` file is one portable document bundling a whole project — the original image, the
+layout (crop/rotation/filter/lines), and metadata — openable in every Stencil surface (see
+`browser/README.md`). The CLI reads and writes it on either side of a one-shot, and via
+`/open` / `/save` in `--console`:
+
+```bash
+# Render a project someone shared to a PNG (crop/rotation/filter/lines are applied for you)
+stencil -i project.stencil out.png
+
+# Bundle an image + edits into a portable project (prints "wrote out.stencil (project)")
+stencil -i photo.jpg -c "x1=10% x2=90%" -r 1 --filter sepia out.stencil
+
+# In the REPL: open a project, edit, save it back
+stencil --console
+> /open project.stencil
+> rotate 1
+> /save project.stencil
 ```
 
 ### Scraping a page

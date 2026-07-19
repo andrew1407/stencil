@@ -1,6 +1,7 @@
 #pragma once
 #include "fileStore.hpp"
 #include "serverClient.hpp"
+#include "tooltipRows.hpp"  // core::UnitFormat for the tooltip's "Line: <len> <unit>" row
 #include <QDialog>
 #include <QHash>
 #include <QPair>
@@ -73,9 +74,12 @@ namespace stencil::gui {
     // server projects shown with a golden outline. `thumbs` maps a local project
     // id to its pre-rendered EDITED-result preview (filtered image + drawn lines),
     // shown as the row icon; the caller renders them via the canvas/export path.
+    // `unit` is the active display unit (cm/inches); it converts each local project's
+    // cached lineLengthCm into a "Line: <len> <unit>" row in the per-row tooltip.
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             stencil::net::ConnectionManager* connections = nullptr,
                             const QHash<QString, QPixmap>& thumbs = {},
+                            core::UnitFormat unit = {},
                             QWidget* parent = nullptr);
 
     Action action() const { return action_; }
@@ -157,6 +161,7 @@ namespace stencil::gui {
 
     std::vector<Project> projects_;
     long long now_ = 0;
+    core::UnitFormat unit_;  // active display unit for the tooltip's line-length row
     stencil::net::ConnectionManager* connections_ = nullptr;
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.
     QHash<QString, QPixmap> thumbs_;

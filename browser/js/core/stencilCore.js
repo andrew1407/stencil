@@ -56,9 +56,9 @@ class StencilCore {
     'stencil_formulaApply', 'stencil_parseDuration', 'stencil_clampScale', 'stencil_shouldCloseShape',
     'stencil_isAlbumOrientation', 'stencil_cropAspect', 'stencil_cropResizeScale',
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
-    'stencil_rotatePoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
+    'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
   ];
 
   // Names of required exports the instantiated module does not expose as callables.
@@ -84,10 +84,10 @@ class StencilCore {
   get opNames() {
     return [
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply', 'parseDuration',
-      'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'boundingBoxCenter',
+      'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-      'moveCropClamped', 'cropResizeScale', 'cropChange',
+      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange',
     ];
   }
 
@@ -128,6 +128,8 @@ class StencilCore {
       core.ccall('stencil_pixelToPageRaw', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, dW, dH, cw, ch, out, out + F64]);
     const cRotate     = (ptr, n, cx, cy, ang) =>
       core.ccall('stencil_rotatePoints', null, ['number', 'number', 'number', 'number', 'number'], [ptr, n, cx, cy, ang]);
+    const cFlip       = (ptr, n, horizontal, cx, cy) =>
+      core.ccall('stencil_flipPoints', null, ['number', 'number', 'number', 'number', 'number'], [ptr, n, horizontal, cx, cy]);
     const cBboxCenter = (ptr, n, out) =>
       core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
     const cFilter     = (mode, ptr, n, r, g, b) =>
@@ -140,6 +142,8 @@ class StencilCore {
       core.ccall('stencil_resizeCropFromCorner', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out]);
     const cMoveCrop   = (x, y, w, h, dx, dy, iw, ih, out) =>
       core.ccall('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, dx, dy, iw, ih, out]);
+    const cScaleCrop  = (x, y, w, h, factor, aspect, iw, ih, out) =>
+      core.ccall('stencil_scaleCropCentered', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, factor, aspect, iw, ih, out]);
     const cCropChange = (ox, oy, ow, oh, nx, ny, nw, nh, out) =>
       core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
     const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
@@ -280,6 +284,24 @@ class StencilCore {
         }
       },
 
+      // Mirror each point about (cx, cy): horizontal → x' = 2cx - x, vertical → y' = 2cy - y.
+      // `horizontal` crosses the ABI as an int (1/0), like the other flag args.
+      flipPoints(points, horizontal, cx, cy) {
+        if (points.length === 0) return;
+        const { ptr, n } = allocPoints(points);
+        try {
+          cFlip(ptr, n, horizontal ? 1 : 0, cx, cy);
+          // HEAPF64 may have detached if memory grew; re-view before reading back.
+          const back = new Float64Array(core.HEAPF64.buffer, ptr, n * 2);
+          for (let i = 0; i < n; i++) {
+            points[i].x = back[2 * i];
+            points[i].y = back[2 * i + 1];
+          }
+        } finally {
+          core._free(ptr);
+        }
+      },
+
       boundingBoxCenter(points) {
         const { ptr, n } = allocPoints(points);
         const out = core._malloc(2 * F64);
@@ -338,6 +360,10 @@ class StencilCore {
 
       moveCropClamped(cur, dx, dy, imageW, imageH) {
         return withRectOut(out => cMoveCrop(cur.x, cur.y, cur.width, cur.height, dx, dy, imageW, imageH, out));
+      },
+
+      scaleCropCentered(cur, factor, aspectWoverH, imageW, imageH) {
+        return withRectOut(out => cScaleCrop(cur.x, cur.y, cur.width, cur.height, factor, aspectWoverH, imageW, imageH, out));
       },
 
       cropResizeScale(oldWidth, newWidth) {

@@ -20,6 +20,9 @@ rotation) is ported one-to-one from ``session.applyCrop`` / ``session.applyRotat
 
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 import os
 import urllib.request
 import urllib.parse
@@ -38,6 +41,13 @@ _MAX_STATES = 64
 # Fallback A4 page (cm) if the core has no named page table — matches pipeline.zig's
 # `core.namedPageSize("A4") orelse core.Page{ .w = 21.0, .h = 29.7 }`.
 _A4_FALLBACK = (21.0, 29.7)
+
+# Image extension → MIME for the `.stencil` data URL (default image/png).
+_EXT_MIME = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
+    "webp": "image/webp", "bmp": "image/bmp",
+}
+_BASE64_MARKER = "base64,"
 
 
 @dataclass
@@ -67,6 +77,32 @@ class _Snapshot:
         )
 
 
+def _clean_keywords(kw) -> List[str]:
+    """Trim keywords and drop empties/non-strings — port of projectFile.js ``cleanKeywords``.
+
+    Kept deliberately simple (no dedupe/lower-casing) so a ``.stencil`` round-trip preserves
+    the exact tag list every other surface reads/writes.
+    """
+    if not isinstance(kw, list):
+        return []
+    return [k.strip() for k in kw if isinstance(k, str) and k.strip()]
+
+
+def _sniff_image_ext(data: bytes) -> Optional[str]:
+    """Best-effort image format from magic bytes (for a lossless save when there's no filename)."""
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if data[:2] == b"\xff\xd8":
+        return "jpg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    if data[:2] == b"BM":
+        return "bmp"
+    return None
+
+
 # Source object types accepted by Editor.load().
 LoadSource = Union[str, bytes, bytearray, Image]
 # Layout-ish inputs accepted by draw()/apply_layout().
@@ -87,6 +123,10 @@ class Editor:
         # codec-only construction stays cheap and tests can pass an explicit handle.
         self._core = core
         self._original: Optional[Image] = None
+        # Raw encoded bytes of the original + its ext (None ⇒ none), kept so save_project embeds
+        # the untouched source (lossless) instead of a PNG re-encode. See _set_source.
+        self._source_bytes: Optional[bytes] = None
+        self._source_ext: Optional[str] = None
         self._history: List[_Snapshot] = []
         self._cursor: int = 0
         # Project name = image basename without extension; "layout" is the documented
@@ -98,6 +138,9 @@ class Editor:
         # Custom per-project accent colour painting the project name; "" = theme fallback
         # (mirrors ProjectMeta.color / the server ProjectRecord `color` field).
         self._color: str = ""
+        # Free-text keywords/tags (project-level; ride the .stencil file + the server
+        # ProjectRecord.keywords). Trimmed, empties dropped — matches projectFile.js cleanKeywords.
+        self._keywords: List[str] = []
         # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
         self._allow_formulas: bool = False
         self._formula_x: str = ""
@@ -134,27 +177,39 @@ class Editor:
         """
         img: Image
         derived_name: str
+        # Raw encoded source bytes + ext, kept verbatim for a lossless save_project (None ⇒ none).
+        src_bytes: Optional[bytes] = None
+        src_ext: Optional[str] = None
         if isinstance(src, Image):
             # Copy so later in-place core ops never mutate the caller's image.
             img = src.copy()
             derived_name = "image"
         elif isinstance(src, (bytes, bytearray)):
-            img = Image.decode(bytes(src))
+            src_bytes = bytes(src)
+            img = Image.decode(src_bytes)
+            src_ext = _sniff_image_ext(src_bytes)
             derived_name = "image"
         elif isinstance(src, str):
             if self._is_url(src):
-                raw = self._fetch_url(src)
-                img = Image.decode(raw)
+                src_bytes = self._fetch_url(src)
+                img = Image.decode(src_bytes)
+                src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
                 derived_name = self._name_from_url(src)
                 # Default the recorded source to the URL we fetched.
                 if source is None:
                     source = src
             else:
-                img = Image.open(src)
+                # Read the file once and decode from the bytes (Image.open is just read+decode),
+                # keeping the verbatim bytes for lossless .stencil embedding.
+                with open(src, "rb") as fh:
+                    src_bytes = fh.read()
+                img = Image.decode(src_bytes)
                 derived_name = self._name_from_path(src)
+                src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
         else:
             raise TypeError("unsupported load source: %r" % type(src))
-        self._set_source(img, name=name or derived_name, source=source, resource=resource)
+        self._set_source(img, name=name or derived_name, source=source, resource=resource,
+                         source_bytes=src_bytes, source_ext=src_ext)
         return self
 
     def blank(
@@ -195,14 +250,20 @@ class Editor:
         name: str,
         source: Optional[str] = None,
         resource: Optional[str] = None,
+        source_bytes: Optional[bytes] = None,
+        source_ext: Optional[str] = None,
     ) -> None:
         """Adopt ``img`` as the new original and reset history to a single pristine state."""
         self._original = img
+        # Retain the raw source only with a known ext (else save_project re-encodes to PNG).
+        self._source_bytes = source_bytes if source_ext else None
+        self._source_ext = (source_ext or "").lower() or None
         self._name = name or "layout"
         self._source = source
         self._resource = resource
-        # A fresh source is a fresh project, so its custom accent resets to "".
+        # A fresh source is a fresh project, so its custom accent + keywords reset.
         self._color = ""
+        self._keywords = []
         self._history = [_Snapshot()]
         self._cursor = 0
 
@@ -623,6 +684,93 @@ class Editor:
             fh.write(text)
         return out_path
 
+    # ── portable .stencil project files ─────────────────────────────────────────
+    def save_project(self, path: str) -> str:
+        """Write the project (ORIGINAL image + export layout + metadata) as one portable ``.stencil`` file; returns the path."""
+        orig = self._require_original()
+        # Embed the untouched source bytes verbatim (lossless); only re-encode from pixels for a
+        # synthetic original (blank / an in-memory Image) that has none.
+        if self._source_bytes is not None:
+            image_bytes = self._source_bytes
+            ext = self._source_ext or "png"
+        else:
+            image_bytes = orig.encode("png")
+            ext = "png"
+        mime = _EXT_MIME.get(ext, "image/png")
+        doc: dict = {
+            "format": "stencil-project",
+            "version": 1,
+            "name": self._name or "Untitled",
+        }
+        if self._color:
+            doc["color"] = self._color
+        if self._keywords:
+            doc["keywords"] = list(self._keywords)
+        if self._source:
+            doc["source"] = self._source
+        if self._resource:
+            doc["resource"] = self._resource
+        doc["image"] = {
+            "dataUrl": "data:%s;base64,%s" % (mime, base64.b64encode(image_bytes).decode("ascii")),
+            "ext": ext,
+            "w": orig.width,
+            "h": orig.height,
+        }
+        doc["layout"] = self.layout().to_dict()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(doc, indent=2))
+        return path
+
+    def open_project(self, src) -> "Editor":
+        """Load a ``.stencil`` project (path, JSON ``bytes``/``str``, or ``dict``) — image + layout + metadata — into this editor; returns self. A ``theme`` block is ignored."""
+        if isinstance(src, dict):
+            doc = src
+        else:
+            if isinstance(src, (bytes, bytearray)):
+                text = bytes(src).decode("utf-8")
+            elif isinstance(src, str) and src.lstrip().startswith("{"):
+                text = src  # a JSON string, not a path
+            elif isinstance(src, str):
+                with open(src, "r", encoding="utf-8") as fh:
+                    text = fh.read()
+            else:
+                raise TypeError("unsupported project source: %r" % type(src))
+            doc = json.loads(text)
+        if not isinstance(doc, dict) or doc.get("format") != "stencil-project":
+            raise ValueError("not a Stencil project file")
+        version = doc.get("version", 0)
+        if not isinstance(version, int) or version < 1:
+            raise ValueError("unrecognized project-file version")
+        if version > 1:
+            raise ValueError("this project needs a newer pystencil (file version %d)" % version)
+        image = doc.get("image")
+        if not isinstance(image, dict):
+            raise ValueError("project file has no embedded image")
+        data_url = image.get("dataUrl", "")
+        marker = data_url.find(_BASE64_MARKER)
+        if marker < 0:
+            raise ValueError("project file has no embedded image")
+        try:
+            image_bytes = base64.b64decode(data_url[marker + len(_BASE64_MARKER) :])
+        except (binascii.Error, ValueError):
+            # Match every other bad-input path here (and C#/Zig): a malformed payload is a ValueError.
+            raise ValueError("project file has a malformed embedded image") from None
+        self.load(
+            image_bytes,
+            name=doc.get("name") or "Untitled",
+            source=doc.get("source"),
+            resource=doc.get("resource"),
+        )
+        # Keep the embedded original verbatim (authoritative ext from the doc) so a re-save is lossless.
+        self._source_bytes = image_bytes
+        self._source_ext = (image.get("ext") or self._source_ext or "png").lower()
+        self._color = doc.get("color") or ""
+        self._keywords = _clean_keywords(doc.get("keywords"))
+        layout = doc.get("layout")
+        if isinstance(layout, dict):
+            self.apply_layout(layout)
+        return self
+
     # ── introspection ──────────────────────────────────────────────────────────
     @property
     def image_size(self) -> Tuple[int, int]:
@@ -657,6 +805,19 @@ class Editor:
         if parsed is None:
             raise ValueError("invalid project colour: %r" % color)
         self._color = "#%02x%02x%02x" % (parsed[0], parsed[1], parsed[2])
+        return self
+
+    @property
+    def keywords(self) -> List[str]:
+        """The project's keywords/tags (trimmed, empties dropped). These ride the saved
+        ``.stencil`` file and a server project's ``ProjectRecord.keywords``."""
+        return list(self._keywords)
+
+    def set_keywords(self, keywords) -> "Editor":
+        """Replace the project keywords with a list of strings (trimmed, empties/non-strings
+        dropped — mirrors projectFile.js ``cleanKeywords`` and the browser
+        ``projectsStore.setKeywords``). Returns self for chaining."""
+        self._keywords = _clean_keywords(keywords)
         return self
 
     def has_image(self) -> bool:

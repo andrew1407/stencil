@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shared-MIME-info definition for Stencil's portable project files (.stencil).
+  Installed to share/mime/packages/; `update-mime-database` (run by the package
+  manager / desktop on install) registers the application/x-stencil type so the
+  file manager gives .stencil files the Stencil icon and double-click-to-open
+  (routed to stencil_gui via the MimeType line in stencil.desktop). The icon is
+  installed as share/icons/hicolor/scalable/mimetypes/application-x-stencil.svg.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-stencil">
+    <comment>Stencil project</comment>
+    <sub-class-of type="application/json"/>
+    <glob pattern="*.stencil"/>
+    <icon name="application-x-stencil"/>
+  </mime-type>
+</mime-info>

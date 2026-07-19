@@ -132,6 +132,7 @@ body.fullscreen-mode .controls-wrapper,
 body.fullscreen-mode .info,
 body.fullscreen-mode .drop-hint,
 body.fullscreen-mode .main-content > .coordinates-panel,
+body.fullscreen-mode .panel-resizer,
 body.fullscreen-mode #selection-panel {
     display: none !important;
 }
@@ -191,12 +192,13 @@ body.fullscreen-mode .canvas-viewport {
     opacity: 1;
 }
 
-/* Right slide-in: points list */
+/* Right slide-in: points list. Width follows the user's resized panel width (--coord-panel-width,
+   shared with the normal-mode panel + its drag handle), clamped so it never dominates the screen. */
 #fs-points-panel {
     top: 0;
     bottom: 0;
     right: 0;
-    width: 360px;
+    width: clamp(240px, var(--coord-panel-width, 360px), 86vw);
     transform: translateX(100%);
     opacity: 0;
     padding: 12px;
@@ -208,6 +210,45 @@ body.fullscreen-mode .canvas-viewport {
     transform: translateX(0);
     opacity: 1;
 }
+/* Fullscreen panel drag-resizer: sits at the panel's left edge (right = the width var) and only
+   shows while the panel is revealed. Dragging updates --coord-panel-width, which resizes the panel
+   AND moves this handle in lockstep (shared var). */
+#fs-panel-resizer {
+    display: none;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: clamp(240px, var(--coord-panel-width, 360px), 86vw);
+    width: 10px;
+    z-index: 10001;
+    cursor: col-resize;
+    /* Slide in from the right IN LOCKSTEP with the points panel (same distance = the panel
+       width, same 0.25s ease) instead of popping in via a display toggle. Hidden off to the
+       right and non-interactive so it never blocks the right-edge hover trigger. */
+    transform: translateX(clamp(240px, var(--coord-panel-width, 360px), 86vw));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+body.fullscreen-mode #fs-panel-resizer { display: block; }
+body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+#fs-panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 44px;
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, height 0.15s;
+}
+#fs-panel-resizer:hover::before, #fs-panel-resizer.dragging::before { background: var(--accent); height: 68px; }
 
 /* Trigger zones — invisible hover strips */
 #fs-top-trigger,
@@ -342,7 +383,8 @@ body.fullscreen-mode #fs-points-panel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    /* Theme text colour (not accent) so the Show Points/Lines ticks read like the menu text. */
+    color: var(--text-main);
 }
 
 /* Submenu — position:fixed set dynamically by JS so it never clips off-screen */
@@ -378,7 +420,17 @@ body.fullscreen-mode #fs-points-panel {
     user-select: none;
 }
 .ctx-checkbox-item:hover { background: var(--bg-coord-hover); }
-.ctx-checkbox-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
+/* Context-menu checkbox: override the app-wide accent box (see the appearance:none base rule
+   at the top) so the outline + tick use the theme TEXT colour and read like the menu text. The
+   tick is a mask filled by the box colour, so it follows the theme in both light and dark. */
+.ctx-checkbox-item input[type=checkbox] { border-color: var(--text-main); cursor: pointer; }
+.ctx-checkbox-item input[type=checkbox]:checked {
+    background-color: var(--text-main);
+    border-color: transparent;
+    background-image: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
 
 /* Inline controls inside submenus */
 .ctx-row {
@@ -431,7 +483,15 @@ body.fullscreen-mode #fs-points-panel {
     font-size: 13px;
 }
 .ctx-radio-item:hover { background: var(--bg-coord-hover); }
-.ctx-radio-item input[type=radio] { accent-color: var(--accent); }
+/* Context-menu radio: override the app-wide accent (see the appearance:none base rule at the
+   top) so the ring + dot use the theme TEXT colour — a text-coloured dot on a transparent box,
+   legible in both light and dark, matching the menu text. */
+.ctx-radio-item input[type=radio] { border-color: var(--text-main); }
+.ctx-radio-item input[type=radio]:checked {
+    background-color: transparent;
+    border-color: var(--text-main);
+    background-image: radial-gradient(circle, var(--text-main) 0 2.6px, transparent 3.1px);
+}
 .ctx-sub-label {
     padding: 5px 14px 3px;
     font-size: 11px;
@@ -570,19 +630,30 @@ body.fullscreen-mode #fs-points-panel {
 #install-menu [role="menuitem"][hidden] { display: none; }
 #install-menu .install-ic { font-size: 16px; }
 
-/* ── Settings gear button ── */
-#settings-btn, #visuals-btn, #info-btn {
+/* ── Ghost icon buttons in the Settings section (gear/palette/help + fullscreen +
+   incognito) — one shared flat, square outline so the whole row reads as a set,
+   rather than a mix of pills and accent-filled squares. The active toggles
+   (fullscreen while on, incognito while on) fill with the accent below. ── */
+#settings-btn, #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle {
     background: transparent;
     border: 1px solid var(--border-main) !important;
     color: var(--text-main);
     font-size: 18px;
     padding: 4px 10px;
     line-height: 1;
-    border-radius: 20px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
-#settings-btn:hover, #visuals-btn:hover, #info-btn:hover { background: var(--bg-info); }
+#settings-btn:hover, #visuals-btn:hover, #info-btn:hover,
+#fullscreen-toggle:not(.active):hover, #incognito-toggle:not(.active):hover { background: var(--bg-info); }
+/* Active toggle → accent fill (matches the primary toolbar icons). */
+#fullscreen-toggle.active, #incognito-toggle.active {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: #fff;
+}
+#fullscreen-toggle.active:hover, #incognito-toggle.active:hover { background: var(--accent-2); border-color: var(--accent-2) !important; }
 
 /* ── Settings modal ── */
 #settings-modal-overlay {
@@ -1121,6 +1192,8 @@ stencil-fullscreen-layer { display: contents; }
 /* Flex row so the date, expiry, and the gold server badge sit on one baseline with
    a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
 .project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+/* Free-text description line under a project's metadata — one truncated line. */
+.project-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-sub.project-expired { color: var(--danger); font-weight: 600; }
 .project-sub.project-expiring { color: var(--warning); font-weight: 600; }
 .project-open-elsewhere { color: var(--accent); }
@@ -1145,6 +1218,45 @@ stencil-fullscreen-layer { display: contents; }
     color: var(--remote-gold); font-weight: 600;
 }
 .project-remote-badge .ic { color: var(--remote-gold); }
+
+/* File-origin (imported from a .stencil) projects: a bronze outline + a small file badge,
+   so an offline project file reads as distinct from both plain-local rows and the golden
+   server rows. Bronze is warmer/coppery vs the server gold, so the two don't blur together. */
+:root { --file-bronze: #c1783c; }
+.project-row.project-file {
+    border-color: var(--file-bronze);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--file-bronze) 60%, transparent);
+}
+.project-file-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--file-bronze); font-weight: 600;
+}
+.project-file-badge .ic { color: var(--file-bronze); }
+
+/* Pill toggle: an accent-OUTLINED chip when off (transparent fill, accent text), and
+   accent-FILLED with contrasting text when on. The native checkbox is the (hidden) state
+   source; the label chrome shows it. Used for the f(x,y) formula toggle. */
+.pill-toggle {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;
+    padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--accent); color: var(--accent);
+    background: transparent;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.pill-toggle:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pill-toggle > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+/* ON: accent-filled with contrasting text. Driven by a JS class toggle (settingsController
+   .syncFormulaUI / the change handler) — deterministic across programmatic state changes. */
+.pill-toggle.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Plain local (browser-storage) projects: a muted globe badge (no row outline) — the
+   neutral third state next to the golden server + bronze file rows. */
+.project-local-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-muted, #8b93a7); font-weight: 500;
+}
+.project-local-badge .ic { color: var(--text-muted, #8b93a7); }
 
 /* Move-between-storage buttons: gold tint to read as "to/from server". */
 .project-to-server:hover, .project-to-local:hover { color: var(--remote-gold); border-color: var(--remote-gold); }
@@ -1295,19 +1407,7 @@ stencil-fullscreen-layer { display: contents; }
 /* ── Incognito mode ─────────────────────────────────────────────── */
 /* A neutral ghost button when off; fills with the chosen theme accent when on, so
    the "edits aren't saved" state reads in whatever accent the user picked. */
-#incognito-toggle {
-    background: transparent;
-    border: 1px solid var(--border-main) !important;
-    color: var(--text-main);
-    transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-#incognito-toggle:hover { background: var(--bg-info); }
-#incognito-toggle.active {
-    background: var(--accent);
-    border-color: var(--accent) !important;
-    color: #fff;
-}
-#incognito-toggle.active:hover { background: var(--accent-2); border-color: var(--accent-2) !important; }
+/* Base + active styling shared with the other Settings ghost buttons above. */
 #incognito-toggle:disabled { opacity: 0.45; cursor: default; }
 /* A dashed outline + corner badge make it obvious nothing here is being saved —
    both tinted to the current accent. */

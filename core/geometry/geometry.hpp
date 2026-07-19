@@ -80,6 +80,12 @@ namespace stencil::core {
   void rotatePoints(std::vector<Point>& points, double cx, double cy,
                     double angle);
 
+  // Mirror `points` in place about pivot (cx, cy): horizontal reflects each x
+  // (x' = 2*cx - x), else reflects each y (y' = 2*cy - y). Port of the new
+  // #flipSelectedLine (browser/js/core/drawingApp.js).
+  void flipPoints(std::vector<Point>& points, bool horizontal, double cx,
+                  double cy);
+
   // Center of the axis-aligned bounding box of `points`. Port of the bbox-center
   // pivot in #rotateSelectedLine (~1844). Returns {0,0} for an empty list.
   Point boundingBoxCenter(const std::vector<Point>& points);

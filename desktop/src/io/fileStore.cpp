@@ -167,6 +167,106 @@ namespace stencil::gui {
     return m;
   }
 
+  // ── .stencil portable project files ──────────────────────────────────────────
+  namespace {
+    QString stencilMimeForExt(const QString& ext) {
+      const QString e = ext.toLower();
+      if (e == "png") return "image/png";
+      if (e == "jpg" || e == "jpeg") return "image/jpeg";
+      if (e == "bmp") return "image/bmp";
+      if (e == "webp") return "image/webp";
+      if (e == "gif") return "image/gif";
+      return "application/octet-stream";
+    }
+  }
+
+  QByteArray fileStore::buildProjectFile(const ProjectFileData& pf) {
+    QJsonObject root;
+    root["format"] = "stencil-project";
+    root["version"] = kStencilFileVersion;
+    root["name"] = pf.name.isEmpty() ? QStringLiteral("Untitled") : pf.name;
+    if (!pf.color.isEmpty()) root["color"] = pf.color;
+    if (!pf.description.isEmpty()) root["description"] = pf.description;
+    if (!pf.keywords.isEmpty()) root["keywords"] = QJsonArray::fromStringList(pf.keywords);
+    if (!pf.source.isEmpty()) root["source"] = pf.source;
+    if (!pf.resource.isEmpty()) root["resource"] = pf.resource;
+    if (pf.blank) {
+      root["blank"] = true;
+      if (!pf.blankColor.isEmpty()) root["blankColor"] = pf.blankColor;
+    }
+    QJsonObject img;
+    img["dataUrl"] = "data:" + stencilMimeForExt(pf.imageExt) + ";base64,"
+                     + QString::fromLatin1(pf.imageBytes.toBase64());
+    img["ext"] = pf.imageExt;
+    img["w"] = pf.imageWidth;
+    img["h"] = pf.imageHeight;
+    root["image"] = img;
+    root["layout"] = pf.layout;
+    if (pf.hasTheme) {
+      QJsonObject theme;
+      if (!pf.themeMode.isEmpty()) theme["mode"] = pf.themeMode;
+      if (!pf.themeAccent.isEmpty()) theme["accent"] = pf.themeAccent;
+      if (!theme.isEmpty()) root["theme"] = theme;
+    }
+    return QJsonDocument(root).toJson(QJsonDocument::Indented);
+  }
+
+  bool fileStore::parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err) {
+    QJsonParseError pe{};
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &pe);
+    if (doc.isNull() || !doc.isObject()) {
+      if (err) *err = QStringLiteral("Not valid JSON: ") + pe.errorString();
+      return false;
+    }
+    const QJsonObject o = doc.object();
+    if (o.value("format").toString() != "stencil-project") {
+      if (err) *err = QStringLiteral("Not a Stencil project file.");
+      return false;
+    }
+    const int ver = o.value("version").toInt(0);
+    if (ver < 1) {
+      if (err) *err = QStringLiteral("Unrecognized project-file version.");
+      return false;
+    }
+    if (ver > kStencilFileVersion) {
+      if (err) *err = QStringLiteral("This project needs a newer Stencil.");
+      return false;
+    }
+    const QJsonObject img = o.value("image").toObject();
+    const QString dataUrl = img.value("dataUrl").toString();
+    const int marker = dataUrl.indexOf("base64,");
+    if (marker < 0) {
+      if (err) *err = QStringLiteral("Project file has no embedded image.");
+      return false;
+    }
+    out.imageBytes = QByteArray::fromBase64(dataUrl.mid(marker + 7).toLatin1());
+    if (out.imageBytes.isEmpty()) {
+      if (err) *err = QStringLiteral("Project image could not be decoded.");
+      return false;
+    }
+    out.imageExt = img.value("ext").toString("png");
+    out.imageWidth = img.value("w").toInt(0);
+    out.imageHeight = img.value("h").toInt(0);
+    out.layout = o.value("layout").toObject();
+    out.name = o.value("name").toString("Untitled");
+    out.color = o.value("color").toString();
+    out.description = o.value("description").toString();
+    out.keywords.clear();
+    const QJsonArray kws = o.value("keywords").toArray();
+    for (const auto& v : kws) out.keywords << v.toString();
+    out.source = o.value("source").toString();
+    out.resource = o.value("resource").toString();
+    out.blank = o.value("blank").toBool(false);
+    out.blankColor = o.value("blankColor").toString();
+    const QJsonObject theme = o.value("theme").toObject();
+    if (!theme.isEmpty()) {
+      out.hasTheme = true;
+      out.themeMode = theme.value("mode").toString();
+      out.themeAccent = theme.value("accent").toString();
+    }
+    return true;
+  }
+
   QString fileStore::stateDir() {
     const QString dir = baseDir();
     QDir().mkpath(dir);
@@ -209,6 +309,9 @@ namespace stencil::gui {
     s.formulaX = o.value("formulaX").toString(s.formulaX);
     s.formulaY = o.value("formulaY").toString(s.formulaY);
     s.tooltipEnabled = o.value("tooltipEnabled").toBool(s.tooltipEnabled);
+    s.tooltipShowPage = o.value("tooltipShowPage").toBool(s.tooltipShowPage);
+    s.tooltipShowScreen = o.value("tooltipShowScreen").toBool(s.tooltipShowScreen);
+    s.tooltipShowCoords = o.value("tooltipShowCoords").toBool(s.tooltipShowCoords);
     // Image filter + custom tint (browser storage.js:309-311).
     s.imageFilter = o.value("imageFilter").toString(s.imageFilter);
     s.filterColor = o.value("filterColor").toString(s.filterColor);
@@ -238,6 +341,9 @@ namespace stencil::gui {
     o["formulaX"] = s.formulaX;
     o["formulaY"] = s.formulaY;
     o["tooltipEnabled"] = s.tooltipEnabled;
+    o["tooltipShowPage"] = s.tooltipShowPage;
+    o["tooltipShowScreen"] = s.tooltipShowScreen;
+    o["tooltipShowCoords"] = s.tooltipShowCoords;
     o["imageFilter"] = s.imageFilter;
     o["filterColor"] = s.filterColor;
     o["holdDrawDelay"] = s.holdDrawDelay;
@@ -308,6 +414,8 @@ namespace stencil::gui {
     pr.meta.resource = o.value("resource").toString().toStdString();
     // Per-project accent color (empty = theme default). Mirrors the browser record.
     pr.meta.color = o.value("color").toString().toStdString();
+    // Per-project free-text description (empty = none). Mirrors the browser record.
+    pr.meta.description = o.value("description").toString().toStdString();
     // Per-project search keywords (empty = none). Mirrors the browser record.
     pr.meta.keywords.clear();
     for (const auto& kv : o.value("keywords").toArray()) {
@@ -317,6 +425,13 @@ namespace stencil::gui {
     // Blank-image fill colour (empty = not a blank project). `blank` is derived. Mirrors browser.
     pr.meta.blankColor = o.value("blankColor").toString().toStdString();
     pr.meta.blank = !pr.meta.blankColor.empty();
+    // Provenance: opened from a .stencil file (drives the bronze projects-list outline).
+    pr.meta.fromFile = o.value("fromFile").toBool(false);
+    // Cached image px dimensions + total drawn-line length (cm); 0/absent for legacy
+    // projects (re-stamped from live state on the next save). Mirrors the browser record.
+    pr.meta.imageW = o.value("imageW").toInt(0);
+    pr.meta.imageH = o.value("imageH").toInt(0);
+    pr.meta.lineLengthCm = o.value("lineLengthCm").toDouble(0);
     pr.lines = linesFromJson(o.value("lines").toArray());
     pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
@@ -363,6 +478,8 @@ namespace stencil::gui {
     if (!pr.meta.resource.empty()) o["resource"] = QString::fromStdString(pr.meta.resource);
     // Per-project accent color: omit when empty so a plain project's bytes are unchanged.
     if (!pr.meta.color.empty()) o["color"] = QString::fromStdString(pr.meta.color);
+    // Per-project description: omit when empty so a plain project's bytes are unchanged.
+    if (!pr.meta.description.empty()) o["description"] = QString::fromStdString(pr.meta.description);
     // Per-project search keywords: omit when empty so a plain project's bytes are unchanged.
     if (!pr.meta.keywords.empty()) {
       QJsonArray kw;
@@ -371,6 +488,14 @@ namespace stencil::gui {
     }
     // Blank-image fill colour: omit when empty so an ordinary project's bytes are unchanged.
     if (!pr.meta.blankColor.empty()) o["blankColor"] = QString::fromStdString(pr.meta.blankColor);
+    // Provenance: omit unless set, so a plain project's bytes stay unchanged.
+    if (pr.meta.fromFile) o["fromFile"] = true;
+    // Cached image px dimensions + total drawn-line length (cm), display-only tooltip
+    // data: each omitted when 0/empty so a plain project's bytes stay unchanged. Not
+    // synced to the server (mirrors the browser project's imageW/imageH/lineLengthCm).
+    if (pr.meta.imageW > 0) o["imageW"] = pr.meta.imageW;
+    if (pr.meta.imageH > 0) o["imageH"] = pr.meta.imageH;
+    if (pr.meta.lineLengthCm > 0) o["lineLengthCm"] = pr.meta.lineLengthCm;
     o["lines"] = linesToJson(pr.lines);
     if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
     if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;

@@ -29,6 +29,11 @@ namespace stencil::core {
     bool hasImage = false;
     int imageW = 0;
     int imageH = 0;
+    // Cached real-world length of all drawn line segments, in centimetres, computed at
+    // save time (page size + image dims + points are all live then). 0 = none / legacy.
+    // Display-only; converted to the active unit for the projects-list tooltip. Mirrors
+    // the browser project's `lineLengthCm` field. Not synced to the server.
+    double lineLengthCm = 0.0;
     // Provenance: the image/video's own URL (source) and the web page it was
     // pulled from (resource). Empty for plain local uploads; set by the
     // add-by-URL flow. Mirrors the browser project's source/resource fields.
@@ -39,6 +44,9 @@ namespace stencil::core {
     // custom colour (fall back to the active theme accent). Mirrors the
     // browser project's `color` field.
     std::string color;
+    // Optional free-text description shown/edited in the projects list. Empty = none.
+    // Mirrors the browser project's `description` field + the server ProjectRecord.
+    std::string description;
     // Optional search keywords (normalised: trimmed, non-empty, deduped). Mirrors the
     // browser project's `keywords` field + the server ProjectRecord.Keywords; used by the
     // keyword search + the CLI /keywords commands. Empty = none.
@@ -50,6 +58,10 @@ namespace stencil::core {
     // project's blank/blankColor fields + the server ProjectRecord.
     bool blank = false;
     std::string blankColor;
+    // Provenance: opened from a portable .stencil project file (mirrors the browser project's
+    // meta.fromFile). Drives the projects list's bronze outline / .stencil badge; a plain local
+    // project leaves it false. Persisted by the GUI adapter (desktop/fileStore).
+    bool fromFile = false;
   };
 
   class ProjectsStore {

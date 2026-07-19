@@ -123,7 +123,10 @@ export class ControlsBinder {
         app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
       }
     };
-    document.getElementById('allow-formulas').addEventListener('change', e => app.settings.setAllowFormulas(e.target.checked));
+    document.getElementById('allow-formulas').addEventListener('change', e => {
+      e.target.closest('.pill-toggle')?.classList.toggle('on', e.target.checked);
+      app.settings.setAllowFormulas(e.target.checked);
+    });
     document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
     document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
   }
@@ -271,6 +274,11 @@ export class ControlsBinder {
     document.getElementById('save-image').addEventListener('click', () => app.export.saveImage());
     document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
     document.getElementById('upload-json').addEventListener('change', e => app.export.uploadJSON(e));
+    // Shift+click saves without embedding the light/dark + accent theme (a portable, theme-neutral
+    // .stencil); a plain click carries it. The hotkey/synthetic-click path has no shiftKey → theme in.
+    document.getElementById('save-project-btn').addEventListener('click', e => app.export.saveProjectFile({ includeTheme: !e.shiftKey }));
+    document.getElementById('open-project-btn').addEventListener('click', () => app.export.pickAndOpenProjectFile());
+    document.getElementById('live-sync-btn').addEventListener('click', () => { app.stencilSync.liveSync = !app.stencilSync.liveSync; });
     document.getElementById('clear-storage').addEventListener('click', async () => {
       if (app.storage.temporary || app.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
@@ -318,18 +326,54 @@ export class ControlsBinder {
   wireZoomControls() {
     const app = this.app;
     const zoomInput = document.getElementById('zoom-input');
-    const applyZoomInput = () => {
+    // Apply the typed zoom. `commit` (change/Enter/preset-pick) reverts an out-of-range value to
+    // the current zoom; live typing (input) just skips invalid/partial values so it never fights
+    // the caret. Accepts the full 5%–3200% range (matches the input max, presets, core clampScale).
+    const applyZoomInput = (commit = false) => {
       const val = parseFloat(zoomInput.value);
-      if (!isNaN(val) && val >= 5 && val <= 500) {
+      if (!isNaN(val) && val >= 5 && val <= 3200) {
         app.zoomPan.zoomAroundCenter(val / 100);
-      } else {
+      } else if (commit) {
         zoomInput.value = Math.round(app.scale * 100);
       }
     };
-    zoomInput.addEventListener('change', applyZoomInput);
+    // Live update as you type (matches the desktop combobox, which applies on every keystroke),
+    // plus a committing pass on change/Enter that also snaps back an invalid final value.
+    zoomInput.addEventListener('input', () => applyZoomInput(false));
+    zoomInput.addEventListener('change', () => applyZoomInput(true));
+
+    // ── Preset dropdown: opens on focus/click, so the input offers BOTH free typing and
+    // one-click preset selection (the native datalist on number inputs is unreliable). ──
+    const ZOOM_PRESETS = [10, 25, 50, 75, 100, 125, 150, 200, 300, 400, 500, 800, 1600, 3200];
+    const zoomMenu = document.getElementById('zoom-menu');
+    const openZoomMenu = () => {
+      if (!zoomMenu || zoomInput.disabled) return;
+      const cur = Math.round(app.scale * 100);
+      zoomMenu.innerHTML = ZOOM_PRESETS.map(p =>
+        `<div class="zoom-menu-item${p === cur ? ' active' : ''}" data-val="${p}" role="option">${p}%</div>`).join('');
+      zoomMenu.hidden = false;
+    };
+    const closeZoomMenu = () => { if (zoomMenu) zoomMenu.hidden = true; };
+    zoomInput.addEventListener('focus', openZoomMenu);
+    zoomInput.addEventListener('click', openZoomMenu);
+    if (zoomMenu) {
+      // mousedown (not click) so it fires before the input's blur hides the menu.
+      zoomMenu.addEventListener('mousedown', e => {
+        const item = e.target.closest('.zoom-menu-item');
+        if (!item) return;
+        e.preventDefault();
+        zoomInput.value = item.dataset.val;
+        applyZoomInput(true);
+        closeZoomMenu();
+        zoomInput.blur();
+      });
+    }
+    zoomInput.addEventListener('blur', () => setTimeout(closeZoomMenu, 120));
+    document.addEventListener('click', e => { if (!e.target.closest('.zoom-input-wrap')) closeZoomMenu(); });
+
     zoomInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); applyZoomInput(); zoomInput.blur(); }
-      if (e.key === 'Escape') { zoomInput.value = Math.round(app.scale * 100); zoomInput.blur(); }
+      if (e.key === 'Enter') { e.preventDefault(); applyZoomInput(true); closeZoomMenu(); zoomInput.blur(); }
+      if (e.key === 'Escape') { zoomInput.value = Math.round(app.scale * 100); closeZoomMenu(); zoomInput.blur(); }
     });
     // Prevent zoom input scroll from zooming the canvas
     zoomInput.addEventListener('wheel', e => e.stopPropagation());
@@ -417,6 +461,12 @@ export class ControlsBinder {
       // Deselect to rotate the image again. Alt+Shift+R (right) is unaffected by the chord.
       rotateImageLeft: () => { if (app.image && app.selectedIndices().length === 0) app.imageModel.rotateImage(-1); },
       rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
+      // Alt+Shift+Arrow transforms of the SELECTED line — flip about / rotate ±90 around its bbox
+      // centre (same pivot as the arbitrary-angle rotate). The methods no-op without a selection.
+      flipLineHorizontal: () => app.flipSelectedLine(true),
+      flipLineVertical: () => app.flipSelectedLine(false),
+      rotateLineCW90: () => app.rotateSelectedLineQuarter(1),
+      rotateLineCCW90: () => app.rotateSelectedLineQuarter(-1),
       copyImage: () => app.export.copyImageToClipboard(),
       copyLayout: () => app.export.copyLayoutToClipboard(),
       // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
@@ -438,6 +488,9 @@ export class ControlsBinder {
       cropImage: () => clickIfActive('crop-image'),
       downloadJson: () => clickIfActive('download-json'),
       uploadJson: () => clickIfActive('upload-json-btn'),
+      saveProject: () => clickIfActive('save-project-btn'),
+      openProject: () => clickIfActive('open-project-btn'),
+      toggleLiveSync: () => clickIfActive('live-sync-btn'),
       openProjects: () => clickIfActive('projects-btn'),
       openServers: () => clickIfActive('connect-btn'),
       openLinks: () => clickIfActive('links-btn'),
@@ -448,13 +501,23 @@ export class ControlsBinder {
     // Editing hotkeys are inert while a compare view is active (it's read-only).
     const EDIT_HOTKEYS = new Set([
       'startDraw', 'stopDraw', 'undo', 'redo', 'clearAllLines', 'deleteLine', 'deletePoint',
+      'flipLineHorizontal', 'flipLineVertical', 'rotateLineCW90', 'rotateLineCCW90',
     ]);
+    // The Alt+Shift+Arrow line transforms — flip ↑/↓, rotate ±90 ↔ — act on the selection only.
+    // ↑/↓ share their combo with big-zoom, so the loop routes the shared chord by selection below.
+    const LINE_TRANSFORM_HOTKEYS = new Set(['flipLineHorizontal', 'flipLineVertical', 'rotateLineCW90', 'rotateLineCCW90']);
     document.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;
       for (const def of HOTKEY_DEFS) {
         const combo = hotkeys.get(def.id);
         if (!combo) continue;
         if (!matchHotkey(e, combo)) continue;
+        // Alt+Shift+↑/↓ big-zooms with nothing selected but flips the SELECTED line otherwise; ↔
+        // rotates it ±90. Route the shared chord by selection: yield big-zoom to the flip binding
+        // (it comes later in the registry) when a line is selected, and let the transforms fall
+        // through when none is — ↑/↓ then reach big-zoom above, ↔ simply no-op.
+        if ((def.id === 'zoomInBig' || def.id === 'zoomOutBig') && app.selectedIndices().length >= 1 && !app.compareReadOnly()) continue;
+        if (LINE_TRANSFORM_HOTKEYS.has(def.id) && app.selectedIndices().length === 0) continue;
         // Skip 'paste' here — let the browser fire its native paste event
         if (def.id === 'paste') return;
         // Compare view is read-only — swallow editing shortcuts (but keep view/nav ones).
@@ -684,12 +747,14 @@ export class ControlsBinder {
           .catch(() => notify('Could not load the dragged image — the site may block cross-origin downloads. Try the extension or desktop app.', 'fail'));
         return;
       }
-      if (file.type.startsWith('image/')) {
+      if (file.name.endsWith('.stencil')) {
+        app.export.openProjectFile(file);   // a whole .stencil project ignores the save/incognito split
+      } else if (file.type.startsWith('image/')) {
         handleImageDrop(file, incognito);
       } else if (file.name.endsWith('.json') || file.type === 'application/json') {
         app.loadJSONFromFile(file);   // a .json layout ignores the save/incognito split
       } else {
-        notify('Please drop an image or a .json file', 'fail');
+        notify('Please drop an image, a .json layout, or a .stencil project', 'fail');
       }
     });
 
@@ -838,9 +903,9 @@ export class ControlsBinder {
       const delta = Math.max(-cap, Math.min(cap, -px * factor));
       const sz = this.#smoothZoom;
 
-      // Accumulate target scale
+      // Accumulate target scale (clampScale = the shared [0.05, kZoomMax] zoom bound)
       const base = sz.target !== null ? sz.target : app.scale;
-      sz.target = Math.max(0.05, Math.min(5, base + delta));
+      sz.target = app.zoomPan.clampScale(base + delta);
 
       // Focal point in image-space (unscaled pixels).
       // Works in both fullscreen (viewport fixed at 0,0) and normal mode.
