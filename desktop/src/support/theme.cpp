@@ -188,9 +188,13 @@ namespace stencil::gui {
       }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
-      QToolButton:checked {
-        background: %ACCENT_SOFT2%; border-color: %ACCENT%; color: %ACCENT2%;
+      /* Active toggle → SOLID accent fill with white text, matching the browser's
+         .active toolbar buttons (fullscreen while on, incognito while on) rather than
+         a soft tint — so an enabled toggle clearly reads as active. */
+      QToolButton:checked, QToolButton[drawActive="true"] {
+        background: %ACCENT%; border-color: %ACCENT%; color: white;
       }
+      QToolButton:checked:hover, QToolButton[drawActive="true"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
       /* Disabled: a filled, low-contrast "inactive" chip (matches QPushButton:disabled)
          so a greyed toolbar button reads clearly. The :checked:disabled override is
          higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
@@ -261,6 +265,15 @@ namespace stencil::gui {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
       QComboBox::drop-down { border: 0; width: 18px; }
+      /* A visible down-caret so an (editable) combo clearly reads as a picker — a CSS
+         border-triangle, no image resource needed. */
+      QComboBox::down-arrow {
+        width: 0; height: 0; margin-right: 5px;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid %MUTED%;
+      }
+      QComboBox::down-arrow:hover { border-top-color: %ACCENT%; }
       QComboBox QAbstractItemView {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
         border-radius: 6px; padding: 3px; outline: none;
@@ -285,6 +298,16 @@ namespace stencil::gui {
         background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
       }
       QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
+      /* f(x,y) formula toggle: an accent PILL (matches the browser's .pill-toggle) — accent
+         outline + text when off, accent-filled with white text when on. The tick indicator is
+         hidden; the whole chip conveys the state. */
+      QCheckBox#formulaPill {
+        border: 1px solid %ACCENT%; border-radius: 6px; padding: 4px 10px;
+        color: %ACCENT%; font-weight: 600; background: transparent; spacing: 0px;
+      }
+      QCheckBox#formulaPill::indicator { width: 0px; height: 0px; margin: 0px; border: none; }
+      QCheckBox#formulaPill:hover { background: %ACCENT_SOFT%; }
+      QCheckBox#formulaPill:checked { background: %ACCENT%; color: white; border-color: %ACCENT%; }
       /* Projects-list row checkboxes: a light, clearly-outlined box so it reads on BOTH a dark
          row and the purple selected row (the default dark-fill box vanished on dark rows). Unified
          look in every state; checked fills with the accent + a tick. */

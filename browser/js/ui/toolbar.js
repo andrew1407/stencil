@@ -4,7 +4,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { pageFormatOptions } from '../core/units.js';
-// ── Component: toolbar (controls-wrapper + all 8 sections) ──────
+// ── Component: toolbar (controls-wrapper + all control sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
 export class StencilToolbar extends StencilElement {
@@ -53,12 +53,44 @@ export class StencilToolbar extends StencilElement {
                         <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
                     </span>
-                    <span id="image-size-display" style="display:none;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;"></span>
-                    <!-- Blank-image fill colour: a swatch next to the size pill, shown only for blank projects. Click to recolour the background (lines are kept). -->
+                    <!-- Blank-image fill colour: a swatch next to the image actions, shown only for blank projects. Click to recolour the background (lines are kept). -->
                     <button id="blank-color-btn" type="button" title="Blank background colour — recolour this blank image (keeps your lines)" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
                         <span id="blank-color-swatch" style="width:13px;height:13px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
                     </button>
                     <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
+            <!-- ── Section: Projects ── -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Projects</div>
+                <div class="ctrl-section-row">
+                    <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects" title="Projects">${icon('layers')}</button>
+                    <button id="save-project-btn" class="btn-icon" data-hk-title="saveProject" data-title="Save Project (.stencil) — image + layout + settings in one file (Shift+click: without theme)" data-disabled-reason="Open an image first" title="Save Project (.stencil) — Shift+click to save without the theme">${icon('save')}</button>
+                    <button id="open-project-btn" class="btn-icon" data-hk-title="openProject" data-title="Open Project (.stencil)" title="Open Project (.stencil)">${icon('folder')}</button>
+                    <button id="live-sync-btn" class="btn-icon" data-hk-title="toggleLiveSync" data-title="Live sync this project to its .stencil file (auto-save + watch for changes)" title="Live sync to file" disabled>${icon('refresh-cw')}</button>
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
+            <!-- ── Section: Share (server connect + source/resource links) ── -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Share</div>
+                <div class="ctrl-section-row">
+                    <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
+                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Open an image first to edit its links" title="Source &amp; resource links for the current image">${icon('link')}</button>
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
+            <!-- ── Section: Edit (adjust the current image + undo/redo) ── -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Edit</div>
+                <div class="ctrl-section-row">
                     <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
@@ -68,9 +100,11 @@ export class StencilToolbar extends StencilElement {
                         <option value="custom">Tint</option>
                     </select>
                     <input type="color" id="filter-color" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
-                    <button id="crop-image" class="btn-icon-text" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop" title="Crop image — pick the page-shaped region to show on the canvas">${icon('crop')}<span>Crop</span></button>
+                    <button id="crop-image" class="btn-icon" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop" title="Crop image — pick the page-shaped region to show on the canvas">${icon('crop')}</button>
                     <button id="rotate-left" class="btn-icon" data-hk-title="rotateImageLeft" data-title="Rotate image left" data-disabled-reason="Load an image to rotate" title="Rotate image left">${icon('rotate-ccw')}</button>
                     <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate" title="Rotate image right">${icon('rotate-cw')}</button>
+                    <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo" title="Undo">${icon('undo')}</button>
+                    <button id="redo" disabled class="btn-icon" data-hk-title="redo" data-title="Redo" data-disabled-reason="Nothing to redo" title="Redo">${icon('redo')}</button>
                 </div>
             </div>
 
@@ -100,8 +134,6 @@ export class StencilToolbar extends StencilElement {
                     <button id="start-drawing" class="btn-icon-text" data-hk-title="startDraw" data-title="Start Drawing" data-disabled-reason="Load an image to start drawing" title="Start Drawing">${icon('play', { size: 13 })}<span>Start</span></button>
                     <button id="stop-drawing" disabled class="btn-icon-text" data-hk-title="stopDraw" data-title="Stop Drawing" data-disabled-reason="Start drawing first" title="Stop Drawing">${icon('stop', { size: 13 })}<span>Stop</span></button>
                     <button id="draw-mode-toggle" class="btn-icon-text" data-title="Drawing mode: Line" data-disabled-reason="Load an image to switch line / rectangle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line}<span>Line</span></button>
-                    <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo" title="Undo">${icon('undo')}</button>
-                    <button id="redo" disabled class="btn-icon" data-hk-title="redo" data-title="Redo" data-disabled-reason="Nothing to redo" title="Redo">${icon('redo')}</button>
                 </div>
             </div>
 
@@ -124,7 +156,7 @@ export class StencilToolbar extends StencilElement {
                         <option value="vertical">Split ↔ (vertical)</option>
                         <option value="horizontal">Split ↕ (horizontal)</option>
                     </select>
-                    <button id="clear-all-lines" class="danger btn-icon-text" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('trash')}<span>Clear</span></button>
+                    <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('trash')}</button>
                 </div>
             </div>
 
@@ -137,7 +169,13 @@ export class StencilToolbar extends StencilElement {
                     <div class="zoom-controls">
                         <button id="zoom-out" class="btn-icon" data-title="Zoom out" data-disabled-reason="Load an image to zoom" title="Zoom out">${icon('minus')}</button>
                         <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom" title="Zoom in">${icon('plus')}</button>
-                        <input type="number" id="zoom-input" value="100" min="5" max="500" data-title="Zoom %" data-disabled-reason="Load an image to zoom" title="Zoom % (Enter to apply)">
+                        <!-- Zoom % — type an exact value OR pick a preset from the dropdown that
+                             opens on focus/click (custom menu; native datalist on number inputs is
+                             unreliable). Presets are populated by wireZoomControls. -->
+                        <span class="zoom-input-wrap">
+                            <input type="number" id="zoom-input" value="100" min="5" max="3200" autocomplete="off" data-title="Zoom %" data-disabled-reason="Load an image to zoom" title="Zoom % — type an exact value or pick a preset">
+                            <div class="zoom-menu" id="zoom-menu" role="listbox" hidden></div>
+                        </span>
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>
                         <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom" title="Fit to window">${icon('fit')}</button>
                     </div>
@@ -168,7 +206,7 @@ export class StencilToolbar extends StencilElement {
                         <input type="number" id="custom-page-height" value="29.7" min="0.1" max="500" step="0.1" style="width:96px">
                         <span id="custom-unit-label" style="font-size:12px;color:var(--text-muted);">cm</span>
                     </span>
-                    <label style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:6px;">
+                    <label class="pill-toggle" style="margin-left:6px;" title="Transform page coordinates with a formula f(x,y)">
                         <input type="checkbox" id="allow-formulas"> 𝑓(x,y)
                     </label>
                     <span id="formula-inputs" style="display:none;align-items:center;gap:6px;">
@@ -185,10 +223,10 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
-                    <button id="download-json" class="btn-icon-text" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}<span>JSON</span></button>
+                    <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}</button>
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy" title="Copy full Layout JSON (lines + all applied edits)">${icon('copy')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
-                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" title="Upload Layout JSON">${icon('upload')}</button>
+                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first" title="Upload Layout JSON">${icon('upload')}</button>
                     <button id="clear-storage" class="danger btn-icon" data-title="Clear (remove) current project" title="Clear (remove) current project">${icon('trash')}</button>
                     <span id="save-status" style="font-size:12px;color:#555;min-width:70px;"></span>
                 </div>
@@ -196,15 +234,12 @@ export class StencilToolbar extends StencilElement {
 
             <div class="ctrl-sep"></div>
 
-            <!-- ── Section: App ── -->
+            <!-- ── Section: Settings ── -->
             <div class="ctrl-section">
-                <div class="ctrl-section-label">App</div>
+                <div class="ctrl-section-label">Settings</div>
                 <div class="ctrl-section-row">
                     <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
                     <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" data-disabled-reason="Load an image to view fullscreen" title="Fullscreen">${icon('maximize')}</button>
-                    <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects" title="Projects">${icon('layers')}</button>
-                    <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
-                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Open an image first to edit its links" title="Source &amp; resource links for the current image">${icon('link')}</button>
                     <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
                     <button id="settings-btn" class="btn-icon" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
                     <button id="visuals-btn" class="btn-icon" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>

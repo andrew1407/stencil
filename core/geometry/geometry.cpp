@@ -114,6 +114,17 @@ namespace stencil::core {
     }
   }
 
+  // Port of browser/js/core/drawingApp.js #flipSelectedLine reflection.
+  void flipPoints(std::vector<Point>& points, bool horizontal, double cx,
+                  double cy) {
+    for (Point& p : points) {
+      if (horizontal)
+        p.x = 2.0 * cx - p.x;
+      else
+        p.y = 2.0 * cy - p.y;
+    }
+  }
+
   // Port of the bbox-center pivot in #rotateSelectedLine (~1844).
   Point boundingBoxCenter(const std::vector<Point>& points) {
     if (points.empty()) return Point{0.0, 0.0};

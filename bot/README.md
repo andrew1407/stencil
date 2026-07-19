@@ -198,7 +198,11 @@ or uncompressed both work), or by pasting an **image link** (a bare `http(s)` UR
 `/crop x1=10% x2=90% y1=10% y2=90%`, `/filter bw`, or `/draw rect 20%,20% 80%,80%`. Send a
 **video** (or video file) to grab a frame — caption `/frame n` to pick a specific frame,
 otherwise frame 0 is used. A `.json` document with caption `/apply` draws that whole layout
-onto the image.
+onto the image. Send a **`.stencil` project file** to open a whole project at once — its image
+plus its layout (crop/rotation/filter/lines) — and `/project` downloads the current working
+image + edits as one portable `.stencil` file (openable on every Stencil surface; see
+`browser/README.md`). Parsing/serialization is `StencilProjectFile` (Domain); the layout maps
+to/from the session `EditState` with the same `ProjectLayoutMapper`/`Writer` used for server projects.
 
 **Image**
 

@@ -210,6 +210,7 @@ namespace stencil::net {
                      p.id = o.value("id").toString();
                      p.name = o.value("name").toString();
                      p.color = o.value("color").toString();
+                     p.description = o.value("description").toString();
                      p.blankColor = o.value("blankColor").toString();
                      for (const QJsonValue& kv : o.value("keywords").toArray())
                        if (!kv.toString().isEmpty()) p.keywords << kv.toString();
@@ -270,6 +271,7 @@ namespace stencil::net {
                    meta.id = p.value("id").toString();
                    meta.name = p.value("name").toString();
                    meta.color = p.value("color").toString();
+                   meta.description = p.value("description").toString();
                    meta.hasImage = p.value("hasImage").toBool();
                    meta.imageW = p.value("imageW").toInt();
                    meta.imageH = p.value("imageH").toInt();

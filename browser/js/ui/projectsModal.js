@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
-import { wireNameEditor, notify } from '../utils.js';
+import { wireNameEditor, notify, cmToUnit, unitLabel } from '../utils.js';
 import { icon } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
@@ -204,6 +204,22 @@ export class StencilProjectsModal extends StencilElement {
       }
     };
 
+    // Multi-line hover tooltip for a project row (used by local + server rows). Shows the
+    // image dimensions + orientation and the free-text description when present. Line length
+    // The line length is read from the cached `lineLengthCm` on the registry meta (computed at
+    // save time), so we never reload a project's image-heavy payload just to measure it.
+    const projectTooltip = meta => {
+      const lines = [];
+      const w = meta.imageW;
+      const h = meta.imageH;
+      if (w && h) lines.push(`${w}x${h} px · ${h >= w ? 'portrait' : 'landscape'}`);
+      if (meta.lineLengthCm > 0) {
+        lines.push(`Line: ${(+cmToUnit(meta.lineLengthCm, app.unit)).toFixed(1)} ${unitLabel(app.unit)}`);
+      }
+      if (meta.description) lines.push(`Description: ${meta.description}`);
+      return lines.join('\n');
+    };
+
     const expiryLabel = meta => {
       if (store.isExpired(meta)) return { text: 'EXPIRED', expired: true, soon: false };
       const at = store.expiresAt(meta);
@@ -341,6 +357,10 @@ export class StencilProjectsModal extends StencilElement {
       // it IS that server project (opened/saved), shown once with its real thumbnail.
       const serverLinked = !opts.temp && meta && meta.remoteId && meta.address;
       if (serverLinked) row.classList.add('project-remote');
+      // A project imported from a portable .stencil file (and not server-linked) gets a
+      // bronze outline — distinct from a plain local project and the golden server rows.
+      const fileLinked = !opts.temp && meta && meta.fromFile && !serverLinked;
+      if (fileLinked) row.classList.add('project-file');
 
       // Multi-select checkbox (saved rows only; the synthetic temp/incognito row has none).
       if (!opts.temp) {
@@ -381,6 +401,9 @@ export class StencilProjectsModal extends StencilElement {
       // shadow (from .project-name CSS) so even a light custom colour stays legible on a light
       // theme. Empty → CSS keeps the fixed grey + the same shadow.
       if (!opts.temp && meta.color) name.style.color = meta.color;
+      // Informative hover tooltip: dimensions/orientation (+ description when set). Saved rows
+      // only — the synthetic temp/incognito row has no meta to describe.
+      if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) row.title = tip; }
       info.appendChild(name);
 
       // Inline rename: swap the name div for an input (✎ button or double-click).
@@ -452,16 +475,37 @@ export class StencilProjectsModal extends StencilElement {
           open.textContent = ' · open in another tab';
           sub.appendChild(open);
         }
-        // Golden server badge on a server-linked local row, so it reads as the same
-        // shared project as its (now-deduped) remote row.
+        // Origin badge — one per row, with an icon + tooltip naming where the project lives:
+        // golden server, bronze .stencil file, or (default) a browser-storage globe. Incognito
+        // rows are never persisted, so they get none.
         if (serverLinked) {
           const badge = document.createElement('span');
           badge.className = 'project-remote-badge';
+          badge.title = `Shared server project — ${meta.address}`;
           badge.innerHTML = `${icon('server', { size: 12 })}<span>${escapeHtml(meta.address)}</span>`;
+          sub.appendChild(badge);
+        } else if (fileLinked) {
+          const badge = document.createElement('span');
+          badge.className = 'project-file-badge';
+          badge.title = 'Opened from a .stencil project file';
+          badge.innerHTML = `${icon('file-text', { size: 12 })}<span>.stencil</span>`;
+          sub.appendChild(badge);
+        } else if (!opts.incognito) {
+          const badge = document.createElement('span');
+          badge.className = 'project-local-badge';
+          badge.title = 'Stored in this browser';
+          badge.innerHTML = `${icon('globe', { size: 12 })}<span>browser</span>`;
           sub.appendChild(badge);
         }
       }
       info.appendChild(sub);
+      // Free-text description line (when set): a single truncated line under the metadata.
+      if (!opts.temp && meta.description) {
+        const desc = document.createElement('div');
+        desc.className = 'project-desc';
+        desc.textContent = meta.description;
+        info.appendChild(desc);
+      }
       row.appendChild(info);
 
       if (!opts.temp) {
@@ -544,6 +588,17 @@ export class StencilProjectsModal extends StencilElement {
           render();
         };
 
+        // Edit the project's free-text description via a prompt. The store trims + stores it;
+        // an empty value clears it. Mirrors editKeywords / the colour picker above.
+        const editDescription = async () => {
+          const cur = meta.description || '';
+          const v = await app.prompt('Description:', { title: 'Project description', confirmLabel: 'Save', defaultValue: cur });
+          if (v == null) return;
+          const updated = store.setDescription(meta.id, v);
+          if (updated) meta.description = updated.description;
+          render();
+        };
+
         // One menu definition, shared by the "⋯" button and a right-click on the row.
         const menuItems = () => [
           isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
@@ -552,6 +607,7 @@ export class StencilProjectsModal extends StencilElement {
           { icon: 'palette', label: 'Set colour…', onClick: pickColor },
           meta.color ? { icon: 'x', label: 'Clear colour', onClick: clearColor } : null,
           { icon: 'flag', label: 'Keywords…', onClick: editKeywords },
+          { icon: 'file-text', label: 'Description…', onClick: editDescription },
           { icon: 'calendar', label: 'Expiration…', onClick: () => document.querySelector('stencil-expiration-modal')?.openFor(meta.id) },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
           (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
@@ -670,6 +726,8 @@ export class StencilProjectsModal extends StencilElement {
       name.textContent = meta.name || 'Untitled';
       // Server projects carry `color` in their ProjectRecord — paint the name with it.
       if (meta.color) name.style.color = meta.color;
+      // Same informative hover tooltip as local rows (dimensions/orientation + description).
+      { const tip = projectTooltip(meta); if (tip) name.title = tip; }
       const sub = document.createElement('div');
       sub.className = 'project-sub';
       // Server projects carry createdAt in their ProjectRecord — show it (they have

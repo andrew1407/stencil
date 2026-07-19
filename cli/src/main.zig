@@ -5,6 +5,8 @@ const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
 const scrape = @import("scrape.zig");
+const project = @import("project.zig");
+const project_cli = @import("project_cli.zig");
 const logo = @import("logo.zig");
 
 pub fn main(init: std.process.Init) !void {
@@ -45,6 +47,17 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
+    // A `.stencil` project on either side reuses the console Session so its layout renders like the editors; server mode stays on the raster pipeline.
+    if (opts.server == null and
+        ((opts.input != null and project.isStencilPath(opts.input.?)) or
+            (opts.output != null and project.isStencilPath(opts.output.?))))
+    {
+        project_cli.runOneShot(gpa, io, opts) catch {
+            std.process.exit(1);
+        };
+        return;
+    }
+
     pipeline.run(gpa, io, opts) catch {
         // pipeline.run prints a human-readable reason before failing.
         std.process.exit(1);
@@ -62,6 +75,8 @@ test {
     _ = @import("scrape.zig");
     _ = @import("serverClient.zig");
     _ = @import("pipeline.zig");
+    _ = @import("project.zig");
+    _ = @import("project_cli.zig");
     _ = @import("console.zig");
     _ = @import("theme.zig");
     _ = @import("line_edit.zig");

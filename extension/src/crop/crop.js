@@ -4,7 +4,7 @@
 // zoom. Then "Keep original" (full image + crop rect) or "Cut cropped part" (bake the
 // region), opening a tab.
 import {
-  cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
+  cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered,
   roundRect, isAlbumOrientation, pageDims, pageSizeOptions
 } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
@@ -156,7 +156,22 @@ document.getElementById('zoom-fit').addEventListener('click', fitToWindow);
 viewport.addEventListener('wheel', (e) => {
   if (!state.imgW) return;
   e.preventDefault();
-  setZoom(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
+  // Wheel / trackpad-pinch OVER the crop rect grows/shrinks it FROM ITS CENTRE (matching the
+  // editor's core scaleCropCentered); anywhere else it zooms the view as before. A pinch is a
+  // ctrl+wheel event in Chromium, so it flows through here too.
+  const box = cropBox.getBoundingClientRect();
+  const overBox = e.clientX >= box.left && e.clientX <= box.right &&
+                  e.clientY >= box.top && e.clientY <= box.bottom;
+  if (overBox) {
+    const factor = Math.pow(1.0015, -e.deltaY);   // wheel up / pinch out → grow
+    state.crop = roundRect(scaleCropCentered(state.crop, factor, aspect(), state.imgW, state.imgH), state.imgW, state.imgH);
+    // Re-anchor an in-progress drag so the next pointer-move doesn't snap the size back.
+    if (drag) { drag.startCrop = { ...state.crop }; drag.start = toImageSpace(e.clientX, e.clientY); }
+    layoutOverlay();
+    renderPreview();
+  } else {
+    setZoom(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
+  }
 }, { passive: false });
 
 // The viewport only reaches its real size a moment after the modal iframe (and the flex

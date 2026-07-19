@@ -1,0 +1,51 @@
+{
+  "format": "stencil-project",
+  "version": 1,
+  "name": "e2e project",
+  "color": "#7c3aed",
+  "keywords": [
+    "e2e"
+  ],
+  "image": {
+    "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAYAAACzzX7wAAAAEklEQVR42mM4oaHxHx9moL0CADTzQuG/ThqFAAAAAElFTkSuQmCC",
+    "ext": "png",
+    "w": 8,
+    "h": 4
+  },
+  "layout": {
+    "imageWidth": 4,
+    "imageHeight": 8,
+    "lines": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 3,
+            "y": 6
+          }
+        ],
+        "color": "#ff0000",
+        "thickness": 2,
+        "markerSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent"
+      }
+    ],
+    "imageFilter": "none",
+    "rotationQuarters": 1,
+    "cropRect": {
+      "x": 0,
+      "y": 0,
+      "width": 4,
+      "height": 8
+    }
+  },
+  "theme": {
+    "mode": "dark",
+    "accent": "violet"
+  }
+}

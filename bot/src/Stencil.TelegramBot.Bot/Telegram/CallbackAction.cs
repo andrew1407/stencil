@@ -66,11 +66,53 @@ public sealed class CallbackAction
             await _bot.SendMessage(chatId, "Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W, Sepia, Invert and Contour have their own buttons; None clears it.)", cancellationToken: ct);
             return;
         }
+        // Rename can't act on a single tap (it needs the new name), so arm the pending free-text
+        // prompt — the user's next plain message is consumed as the name (see UpdateRouter).
+        if (data == "name:menu")
+        {
+            UserSession session = await _store.GetAsync(userId, ct);
+            if (!session.HasImage)
+            {
+                await _bot.SendMessage(chatId, "No working image to name — upload a photo or use /blank first.", cancellationToken: ct);
+                return;
+            }
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectName }, ct);
+            string current = session.ActiveProjectName ?? session.ImageLabel ?? "this image";
+            await _bot.SendMessage(chatId, $"Send the new name for '{current}'.", cancellationToken: ct);
+            return;
+        }
+        // Describe: same as Rename — arm the free-text prompt; the next plain message is the
+        // description (which for an unsaved image is held locally and uploaded on /create).
+        if (data == "desc:menu")
+        {
+            UserSession session = await _store.GetAsync(userId, ct);
+            if (!session.HasImage)
+            {
+                await _bot.SendMessage(chatId, "No working image to describe — upload a photo or use /blank first.", cancellationToken: ct);
+                return;
+            }
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectDescription }, ct);
+            // Echo the current description first (like Rename echoes the current name) so this
+            // doubles as "view it" — the only place the description is visible besides /status.
+            string currentDesc = string.IsNullOrEmpty(session.ActiveProjectDescription)
+                ? "No description set yet."
+                : $"Current description:\n{session.ActiveProjectDescription}";
+            await _bot.SendMessage(chatId, $"{currentDesc}\n\nSend a new description (or \"-\" to clear it).", cancellationToken: ct);
+            return;
+        }
         // Group buttons swap the inline keyboard in place (submenu navigation), no edit performed.
         // Returning to the main edit menu re-reads the session so the project-actions row (shown
         // only for a server project) is restored after a submenu detour.
         if (data.StartsWith("m:", StringComparison.Ordinal))
         {
+            // The Download submenu offers the layout JSON only when there are applied edits.
+            if (data == "m:download")
+            {
+                UserSession dl = await _store.GetAsync(userId, ct);
+                await _bot.EditMessageReplyMarkup(chatId, query.Message.MessageId,
+                    Keyboards.DownloadSubmenu(!dl.Edits.IsEmpty), cancellationToken: ct);
+                return;
+            }
             InlineKeyboardMarkup markup = data switch
             {
                 "m:edit" => Keyboards.EditSubmenu(),

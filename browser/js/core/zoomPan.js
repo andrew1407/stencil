@@ -8,7 +8,7 @@ export class ZoomPan {
 
   // Clamp a scale into the zoom limits. Delegates to the shared C++ core (wasm)
   // clampScale when loaded; the JS bound is the reference + fallback.
-  clampScale = core.bind('clampScale', s => Math.max(0.05, Math.min(5, s)));
+  clampScale = core.bind('clampScale', s => Math.max(0.05, Math.min(32, s)));
 
   updateZoomRectOverlay() {
     const overlay = document.getElementById('zoom-rect-overlay');
@@ -55,6 +55,32 @@ export class ZoomPan {
     });
   }
 
+  // Available height for the canvas viewport in normal (non-fullscreen) mode: the space
+  // from the viewport's own top edge down to the window bottom, minus the status line +
+  // drop hint that sit below it. Measured live (not a fixed guess) so it tracks the real
+  // toolbar height and follows window resizes. Fullscreen uses the whole window height.
+  availContentHeight() {
+    if (document.body.classList.contains('fullscreen-mode')) return window.innerHeight;
+    const vp = document.getElementById('canvas-viewport');
+    const top = vp ? vp.getBoundingClientRect().top : 140;
+    return Math.max(200, window.innerHeight - top - 96);   // ~coord-status + drop-hint below
+  }
+
+  // Viewport max-height that hugs the image at `scale` (+4px) but never exceeds the available
+  // height. Shared by syncViewportHeight and the up-front sizing in zoomAroundCenter.
+  #viewportMaxHeightPx(scale) {
+    return Math.min(Math.round(this.app.canvas.height * scale) + 4, this.availContentHeight());
+  }
+
+  // Size the viewport to hug the on-screen image but GROW with zoom, up to the available
+  // height — so zooming in reveals more of the image instead of scrolling a thin strip
+  // frozen at the fitted height. No-op without an image or in fullscreen (sized elsewhere).
+  syncViewportHeight() {
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp || !this.app.image || document.body.classList.contains('fullscreen-mode')) return;
+    vp.style.maxHeight = this.#viewportMaxHeightPx(this.app.scale) + 'px';
+  }
+
   setZoom(newScale, persist = true) {
     // No image → there's nothing to scale; ignore zoom requests entirely.
     if (!this.app.image) return;
@@ -62,6 +88,7 @@ export class ZoomPan {
     this.app.scale = newScale;
     this.app.canvas.style.width = (this.app.canvas.width * newScale) + 'px';
     this.app.canvas.style.height = (this.app.canvas.height * newScale) + 'px';
+    this.syncViewportHeight();   // grow/shrink the viewport with the new zoom level
     this.setZoomInputValue(Math.round(newScale * 100));
     // Persist zoom level (scroll is saved via the debounced scroll listener)
     if (persist && this.app.image) this.app.storage.save();
@@ -124,6 +151,11 @@ export class ZoomPan {
       return;
     }
     newScale = this.clampScale(newScale);
+
+    // Grow the viewport to the target zoom's height up front (before the centering math
+    // reads clientHeight) so zooming in has room to scroll instead of being confined to
+    // the old fitted strip. Capped at the available height; hugs the image when smaller.
+    vp.style.maxHeight = this.#viewportMaxHeightPx(newScale) + 'px';
 
     // Cancel any in-flight animation; start from whatever is on screen NOW
     if (this.app.zoomAnimRaf) {
@@ -218,16 +250,11 @@ export class ZoomPan {
     const fit = Math.min(scaleW, scaleH, 1); // never upscale beyond 100% on fit
     this.setZoom(Math.round(fit * 100) / 100);
 
-    // Size viewport to show the fitted image fully (cap at availH)
+    // Viewport height: in normal mode setZoom() above already sized it adaptively via
+    // syncViewportHeight() (hugs the fitted image, grows with later zoom). In fullscreen the
+    // maxHeight/maxWidth are set by toggleFullscreen — don't override or the image re-clips.
     const viewport = document.getElementById('canvas-viewport');
     if (viewport) {
-      if (!isFS) {
-        // Normal mode: shrink viewport to fit image snugly
-        const fittedH = Math.round(this.app.image.height * this.app.scale);
-        viewport.style.maxHeight = Math.min(fittedH + 4, availH) + 'px';
-      }
-      // In fullscreen: viewport maxHeight/maxWidth are already set by toggleFullscreen;
-      // don't override them or the image will be clipped again
       // Reset scroll to top-left on fit
       viewport.scrollLeft = 0;
       viewport.scrollTop = 0;

@@ -28,6 +28,8 @@ namespace stencil::net {
     // Per-project accent color ("#rrggbb" or empty = theme default). Mirrors
     // protocol.ProjectRecord.Color so the shared name colour survives a re-list.
     QString color;
+    // Per-project free-text description ("" = none). Mirrors protocol.ProjectRecord.Description.
+    QString description;
     // Search keywords. Mirrors protocol.ProjectRecord.Keywords.
     QStringList keywords;
     // Blank-image fill colour ("#rrggbb" or empty = ordinary image). Mirrors
@@ -112,6 +114,14 @@ namespace stencil::net {
                             std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
     void updateProjectColorAsync(const QString& id, const QString& color, qint64 version,
                                  std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
+    // Update just the description (empty string clears it), mirroring updateProjectColorAsync.
+    // Defined inline (header-only) so it reuses the private putGuarded without a matching .cpp edit.
+    void updateProjectDescriptionAsync(const QString& id, const QString& description, qint64 version,
+                                       std::function<void(bool ok, qint64 newVersion, bool conflict)> done) {
+      QJsonObject obj;
+      obj.insert("description", description);  // always sent (even "") so a clear reaches the server
+      putGuarded(id, obj, version, "update", done);
+    }
     void updateProjectNameAsync(const QString& id, const QString& name, qint64 version,
                                 std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
     void uploadFileAsync(const QString& id, const QString& kind, const QByteArray& bytes,

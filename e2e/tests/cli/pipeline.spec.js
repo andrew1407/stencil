@@ -108,4 +108,29 @@ test.describe('cli pipeline', () => {
     expect(r.code).not.toBe(0);
     expect(r.stderr).toMatch(/^error:/m);
   });
+
+  // Cross-surface: a .stencil project authored in the shared format (fixtures/project.stencil —
+  // an 8x4 image with a quarter-turn in its layout) opens in the CLI and renders exactly what
+  // every other surface would — the embedded layout's rotation is applied, so 8x4 -> 4x8.
+  test('opens a .stencil project as input and renders its embedded layout', async ({}, testInfo) => {
+    const dir = testInfo.outputPath();
+    const out = path.join(dir, 'from-project.png');
+    const r = runCli(['-i', path.join(FIXTURES, 'project.stencil'), out], { cwd: dir });
+    expect(r.code, r.out).toBe(0);
+    expect(pngSize(out)).toEqual({ width: 4, height: 8 }); // 8x4 rotated a quarter turn
+  });
+
+  // …and the CLI can write the same portable format back out (an informational
+  // "wrote … (project)" line, deliberately without a WxH size token — see cli/CONTRACT.md).
+  test('bundles an image into a .stencil project file', async ({}, testInfo) => {
+    const dir = testInfo.outputPath();
+    const input = makeInput(dir); // 8x4
+    const out = path.join(dir, 'bundle.stencil');
+    const r = runCli(['-i', input, out], { cwd: dir });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toMatch(/wrote .*\(project\)/);
+    const doc = JSON.parse(readFileSync(out, 'utf8'));
+    expect(doc.format).toBe('stencil-project');
+    expect(doc.image.dataUrl).toMatch(/^data:image\/png;base64,/);
+  });
 });

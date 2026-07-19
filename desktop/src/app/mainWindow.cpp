@@ -38,6 +38,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QBuffer>
 #include <QClipboard>
@@ -54,6 +55,7 @@
 #include <QEasingCurve>
 #include <QEventLoop>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
 #include <QShortcut>
@@ -68,6 +70,10 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
+#include <QPaintEvent>
+#include <QAbstractItemView>
+#include <QAbstractButton>
+#include <QMouseEvent>
 #include <QPixmap>
 #include <QPointer>
 #include <QSet>
@@ -77,6 +83,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -88,6 +95,7 @@
 #include <QMimeData>
 #include <QCloseEvent>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QGridLayout>
 #include <QKeyEvent>
 #include <QNativeGestureEvent>
@@ -103,6 +111,7 @@
 #include <QStatusBar>
 #include <QTimer>
 #include <QToolBar>
+#include <QStyle>
 #include <QToolButton>
 #include <QWidgetAction>
 #include <algorithm>
@@ -115,6 +124,167 @@ namespace stencil::gui {
     void fetchUrlBytesAsync(QObject* ctx, const QString& url, std::function<void(QByteArray)> done);
 
     long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
+
+    // A QMenu whose hosted checkbox/radio rows toggle WITHOUT closing the menu (browser parity:
+    // the inline controls stay live). QMenu's own mouseReleaseEvent closes the popup on release
+    // over a QWidgetAction, so we intercept clicks that land on a hosted button: drive the button
+    // and swallow the event, never calling the base handler. Normal action rows fall through.
+    class StayOpenMenu : public QMenu {
+     public:
+      using QMenu::QMenu;
+
+     protected:
+      QAbstractButton* toggleAt(const QPoint& p) {
+        for (QWidget* c = childAt(p); c && c != this; c = c->parentWidget()) {
+          if (auto* b = qobject_cast<QAbstractButton*>(c)) return b;
+          if (auto* b = c->findChild<QAbstractButton*>()) return b;
+        }
+        return nullptr;
+      }
+      // A checkable, enabled plain action under the cursor (e.g. Show Points / Show Lines, or the
+      // Style line-style radios) that should toggle in place instead of dismissing the menu.
+      QAction* checkableAt(const QPoint& p) {
+        QAction* a = actionAt(p);
+        return (a && a->isCheckable() && a->isEnabled()) ? a : nullptr;
+      }
+      void mousePressEvent(QMouseEvent* e) override {
+        if (e->button() == Qt::LeftButton && (toggleAt(e->pos()) || checkableAt(e->pos()))) {
+          e->accept();
+          return;
+        }
+        QMenu::mousePressEvent(e);
+      }
+      void mouseReleaseEvent(QMouseEvent* e) override {
+        if (e->button() == Qt::LeftButton) {
+          if (QAbstractButton* b = toggleAt(e->pos())) {
+            if (b->isEnabled()) b->click();   // checkbox toggles; radio checks (exclusive group)
+            e->accept();
+            return;                           // do NOT call base → the menu stays open
+          }
+          if (QAction* a = checkableAt(e->pos())) {
+            // Exclusive group → select (never uncheck); independent toggle → flip. Fires toggled.
+            if (QActionGroup* g = a->actionGroup(); g && g->isExclusive())
+              a->setChecked(true);
+            else
+              a->toggle();
+            e->accept();
+            return;                           // keep the menu open
+          }
+        }
+        QMenu::mouseReleaseEvent(e);
+      }
+    };
+
+    // ── Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
+    // the browser/extension CSS shimmer. Qt style sheets can't animate a sweep, so this is a
+    // transparent, mouse-through child overlay that paints an animated diagonal highlight.
+    // installHoverShimmer(w) attaches one to any button; it lives/dies with its target.
+    class ShimmerOverlay : public QWidget {
+    public:
+      // Whole-widget mode: sweeps the whole target on hover-enter. View mode (view != null): sweeps
+      // the hovered ROW of an item view (points/lines panel), tracked via the viewport's mouse-move.
+      explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr)
+          : QWidget(view ? view->viewport() : target),
+            target_(view ? view->viewport() : target), view_(view) {
+        // A child overlay that alpha-blends over the target. NO WA_TranslucentBackground (that's a
+        // top-level-window attribute and stops a child from rendering); WA_NoSystemBackground so
+        // Qt doesn't erase our area and the target shows through the un-painted (transparent) parts.
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setAttribute(Qt::WA_NoSystemBackground);
+        anim_ = new QVariantAnimation(this);
+        anim_->setStartValue(0.0);
+        anim_->setEndValue(1.0);
+        anim_->setDuration(650);
+        anim_->setEasingCurve(QEasingCurve::InOutSine);
+        QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
+                         [this](const QVariant& v) { progress_ = v.toReal(); update(); });
+        QObject::connect(anim_, &QVariantAnimation::finished, this, [this] { progress_ = -1.0; update(); });
+        target_->installEventFilter(this);
+        if (view_) target_->setMouseTracking(true);   // so we get MouseMove without a button held
+        setGeometry(target_->rect());
+        raise();
+        show();   // stays present (transparent); paints only while the sweep animates
+      }
+
+    protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (o == target_) {
+          switch (e->type()) {
+            case QEvent::Resize:
+            case QEvent::Move:
+            case QEvent::Show:
+              setGeometry(target_->rect());
+              raise();
+              break;
+            case QEvent::Enter:
+              if (!view_ && target_->isEnabled()) startSweep(rect());
+              break;
+            case QEvent::Leave:
+              // Cancel the sweep the instant the cursor leaves, so a fast pass over many items
+              // doesn't leave a trail of animations still playing out on already-unhovered widgets.
+              hoveredRow_ = -1;
+              anim_->stop();
+              progress_ = -1.0;
+              update();
+              break;
+            case QEvent::MouseMove:
+              if (view_) {
+                const QModelIndex idx = view_->indexAt(static_cast<QMouseEvent*>(e)->pos());
+                const int row = idx.isValid() ? idx.row() : -1;
+                if (row != hoveredRow_) {
+                  hoveredRow_ = row;
+                  if (row >= 0) {
+                    QRect r = view_->visualRect(idx);
+                    r.setLeft(0);
+                    r.setRight(target_->width());
+                    startSweep(r);
+                  }
+                }
+              }
+              break;
+            default:
+              break;
+          }
+        }
+        return QWidget::eventFilter(o, e);
+      }
+      void paintEvent(QPaintEvent*) override {
+        if (progress_ < 0.0) return;
+        const QRect b = band_.isEmpty() ? rect() : band_;
+        if (b.width() <= 0 || b.height() <= 0) return;
+        const qreal bw = b.width() * 0.5;
+        const qreal cx = b.left() - bw + progress_ * (b.width() + 2 * bw);   // off-left → off-right
+        QLinearGradient g(cx - bw, b.top(), cx + bw, b.bottom());            // diagonal light band
+        g.setColorAt(0.0, QColor(255, 255, 255, 0));
+        g.setColorAt(0.5, QColor(255, 255, 255, 95));
+        g.setColorAt(1.0, QColor(255, 255, 255, 0));
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.fillRect(b, g);
+      }
+
+    private:
+      void startSweep(const QRect& band) { band_ = band; anim_->stop(); anim_->start(); }
+      QWidget* target_;
+      QAbstractItemView* view_;
+      QVariantAnimation* anim_ = nullptr;
+      qreal progress_ = -1.0;
+      QRect band_;
+      int hoveredRow_ = -1;
+    };
+
+    void installHoverShimmer(QWidget* target) {
+      if (target && !target->property("_shimmer").toBool()) {
+        target->setProperty("_shimmer", true);   // guard against double-install
+        new ShimmerOverlay(target);               // parented to target
+      }
+    }
+    void installRowShimmer(QAbstractItemView* view) {
+      if (view && !view->property("_shimmer").toBool()) {
+        view->setProperty("_shimmer", true);
+        new ShimmerOverlay(nullptr, view);   // parented to the view's viewport
+      }
+    }
 
     // On macOS the primary delete key emits Backspace (⌫), so the shared
     // "Alt+Delete" defaults must bind to Backspace to fire on the key Mac users
@@ -183,6 +353,11 @@ namespace stencil::gui {
 
     selPanel_ = new SelectionPanel(this);
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
+    // Shared hover shimmer for the right Points/Lines panel: per-button on its buttons, and
+    // per-ROW on its points table + lines list (item-view rows aren't widgets, so the overlay
+    // tracks the hovered row) — matching the browser's coord-panel shimmer.
+    for (QAbstractButton* b : selPanel_->findChildren<QAbstractButton*>()) installHoverShimmer(b);
+    for (QAbstractItemView* v : selPanel_->findChildren<QAbstractItemView*>()) installRowShimmer(v);
 
     notify_ = new Notifications(scroll_->viewport());
     // Server-project session domain (remoteSession.hpp): owns the remote-link state + the
@@ -206,7 +381,11 @@ namespace stencil::gui {
     projectZones_ = new ProjectDragZones(scroll_->viewport());
     tooltip_ = new CanvasTooltip(this);  // floating hover tooltip (S12)
 
+    // Live cursor coord readout (Pixel/Page/To edge) at the bottom of the window — the desktop
+    // equivalent of the browser's #coord-status bar below the canvas. It's empty while the cursor
+    // is off the canvas (no "Ready" filler, matching the browser) and hidden during fullscreen.
     status_ = new QLabel("Open an image — or create a blank one — to begin", this);
+    status_->setStyleSheet("font-family: monospace; padding: 0 6px;");
     statusBar()->addWidget(status_);
 
     // S10 custom page + the full ISO 216/269 A/B/C series. Items carry the
@@ -221,7 +400,7 @@ namespace stencil::gui {
     pageSize_->setToolTip(
         "Page format used for cm/inch measurements (ISO A/B/C series, or custom)");
     zoom_ = new QComboBox(this);
-    zoom_->addItems({"25%", "50%", "75%", "100%", "150%", "200%", "400%"});
+    zoom_->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
     zoom_->setToolTip("Zoom level — pick a preset or type an exact percent");
     // Editable so the user can type an exact percent, but NoInsert so reflecting
     // a programmatic zoom (Ctrl+wheel) never appends list items — mirrors browser
@@ -229,6 +408,11 @@ namespace stencil::gui {
     zoom_->setEditable(true);
     zoom_->setInsertPolicy(QComboBox::NoInsert);
     zoom_->setCurrentText("100%");
+    // Open the preset list as soon as the field is focused (click/tab), so a single control
+    // offers BOTH typing and preset-picking without a separate dropdown gesture — the popup
+    // still lets the user keep typing. Guarded by focus reason so it doesn't reopen when focus
+    // returns from the just-closed popup (which would loop).
+    zoom_->lineEdit()->installEventFilter(this);
 
     autosaveTimer_ = new QTimer(this);
     autosaveTimer_->setSingleShot(true);
@@ -325,6 +509,22 @@ namespace stencil::gui {
         hotkeyLabels_.insert(id, o.value("label").toString());
         hotkeys_.insert(id, def);
       }
+    }
+    // Selected-line flip / rotate-90 chords (Alt+Shift+arrow). These fire from
+    // keyPressEvent (like the Alt+R+arrow rotate), so they have no live QAction —
+    // register them as defaults + labels only, so the shortcuts dialog still lists
+    // them for discovery. Qt-style arrow tokens ("Up"…) so QKeySequence parses them.
+    struct ChordDef { const char* id; const char* seq; const char* label; };
+    static const ChordDef kLineTransformChords[] = {
+        {"flipLineHorizontal", "Alt+Shift+Up", "Flip Selected Line Horizontal"},
+        {"flipLineVertical", "Alt+Shift+Down", "Flip Selected Line Vertical"},
+        {"rotateLineCW90", "Alt+Shift+Right", "Rotate Selected Line +90°"},
+        {"rotateLineCCW90", "Alt+Shift+Left", "Rotate Selected Line −90°"},
+    };
+    for (const auto& c : kLineTransformChords) {
+      hotkeyDefaults_.insert(c.id, c.seq);
+      hotkeyLabels_.insert(c.id, c.label);
+      hotkeys_.insert(c.id, c.seq);
     }
     const auto overrides = fileStore::loadHotkeys();
     for (auto it = overrides.begin(); it != overrides.end(); ++it)
@@ -587,7 +787,7 @@ namespace stencil::gui {
     actSaveSession_ = mk("Save Session", "Ctrl+S");
     actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
     actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
-    actTooltip_ = mk("Hover Tooltip", QString());
+    actTooltip_ = mk("Show Tooltips", QString());   // browser label parity (was "Hover Tooltip")
     actTooltip_->setCheckable(true);
     // Allow-formulas toggle (S11), also reachable from the View menu so the
     // f(x,y) inputs aren't lost when the toolbar overflows. Two-way synced with
@@ -601,6 +801,13 @@ namespace stencil::gui {
     // live; the JSON file export/import are menu-only (no browser hotkey).
     actDownloadJson_ = mk("Export Layout JSON…", hotkey("downloadJson", "Ctrl+Shift+J"));
     actUploadJson_ = mk("Import Layout JSON…", hotkey("uploadJson", "Ctrl+Shift+U"));
+    // Whole-project files (.stencil): image + layout + settings + theme in one portable file.
+    actSaveProjectFile_ = mk("Save Project As… (.stencil)", hotkey("saveProject", "Ctrl+Shift+S"));
+    actOpenProjectFile_ = mk("Open Project… (.stencil)", hotkey("openProject", "Ctrl+Shift+F"));
+    actStencilLiveSync_ = mk("Live Sync with File", QString());
+    actStencilLiveSync_->setCheckable(true);
+    actStencilLiveSync_->setEnabled(false);   // enabled once the project is linked to a .stencil file
+    actStencilLiveSync_->setToolTip("Auto-save edits to the linked .stencil file and reload it when another app changes it");
     actCopyLayout_ = mk("Copy Layout JSON", hotkey("copyLayout", "Ctrl+Alt+C"));
     actPasteLayout_ = mk("Paste Layout JSON", QString());
     actSaveImage_ = mk("Save Image…", hotkey("saveImage", "Ctrl+Shift+D"));
@@ -613,6 +820,13 @@ namespace stencil::gui {
     // Layout/image export + clipboard actions route to DataExportController (dataExport_).
     connect(actDownloadJson_, &QAction::triggered, this, [this] { dataExport_->downloadLayout(); });
     connect(actUploadJson_, &QAction::triggered, this, [this] { dataExport_->uploadLayout(); });
+    connect(actSaveProjectFile_, &QAction::triggered, this, [this] { saveProjectFileAs(); });
+    connect(actStencilLiveSync_, &QAction::toggled, this, [this](bool on) { toggleStencilLiveSync(on); });
+    connect(actOpenProjectFile_, &QAction::triggered, this, [this] {
+      const QString path = QFileDialog::getOpenFileName(
+          this, "Open project", QString(), "Stencil project (*.stencil)");
+      if (!path.isEmpty()) openProjectFile(path);
+    });
     connect(actCopyLayout_, &QAction::triggered, this, [this] { dataExport_->copyLayout(); });
     connect(actPasteLayout_, &QAction::triggered, this, [this] { dataExport_->pasteLayout(); });
     connect(actSaveImage_, &QAction::triggered, this, [this] { dataExport_->saveImageFile(); });
@@ -625,6 +839,9 @@ namespace stencil::gui {
     actIncognito_->setToolTip(
         "Incognito — edit without saving (choose before adding an image)");
 
+    // Fullscreen is a toggle: its toolbar button shows the accent "active" fill
+    // (QToolButton:checked) while fullscreen is on, mirroring the browser.
+    actFullscreen_->setCheckable(true);
     actShowPoints_->setCheckable(true);
     actShowLines_->setCheckable(true);
     actPanel_->setCheckable(true);
@@ -755,6 +972,8 @@ namespace stencil::gui {
     hotkeyActions_["saveImage"] = actSaveImage_;
     hotkeyActions_["downloadJson"] = actDownloadJson_;
     hotkeyActions_["uploadJson"] = actUploadJson_;
+    hotkeyActions_["saveProject"] = actSaveProjectFile_;
+    hotkeyActions_["openProject"] = actOpenProjectFile_;
     hotkeyActions_["openServers"] = actConnect_;
     hotkeyActions_["openLinks"] = actLinks_;
     hotkeyActions_["toggleIncognito"] = actIncognito_;
@@ -813,18 +1032,26 @@ namespace stencil::gui {
     // in QWidgetActions, and an exclusive line-style radio group. All three push
     // canvas DEFAULTS (the context menu, like the toolbar, edits defaults only —
     // selection edits live in the SelectionPanel per the plan's resolution).
-    auto styleRow = [this](const QString& label, QSpinBox*& spin, int lo, int hi,
-                           QWidgetAction*& act) {
+    // Shared QWidgetAction row scaffold: a QWidget + HBox with the standard menu-row margins,
+    // wrapped in a QWidgetAction (so clicking the hosted control doesn't dismiss the menu).
+    // Returns the layout to fill; its parentWidget() is the host QWidget. Sets `act`.
+    auto makeMenuRow = [this](QWidgetAction*& act, int topM = 4, int botM = 4) {
       auto* w = new QWidget(this);
       auto* lay = new QHBoxLayout(w);
-      lay->setContentsMargins(14, 4, 14, 4);
+      lay->setContentsMargins(14, topM, 14, botM);
+      act = new QWidgetAction(this);
+      act->setDefaultWidget(w);
+      return lay;
+    };
+    auto styleRow = [this, &makeMenuRow](const QString& label, QSpinBox*& spin, int lo, int hi,
+                                         QWidgetAction*& act) {
+      auto* lay = makeMenuRow(act);
+      auto* w = lay->parentWidget();
       lay->addWidget(new QLabel(label, w));
       spin = new QSpinBox(w);
       spin->setRange(lo, hi);
       lay->addStretch(1);
       lay->addWidget(spin);
-      act = new QWidgetAction(this);
-      act->setDefaultWidget(w);
     };
     styleRow("Marker Size", markerSpin_, 1, 30, markerSizeAction_);
     styleRow("Line Thickness", thickSpin_, 1, 20, thicknessAction_);
@@ -867,16 +1094,22 @@ namespace stencil::gui {
 
     // ── Image Filter submenu (contextMenu.js:59-74, 504-526). Exclusive radio
     // group + a custom-tint picker action shown only when "custom" is active.
-    filterGroup_ = new QActionGroup(this);
-    filterGroup_->setExclusive(true);
-    auto mkFilter = [this](const QString& text, const QString& value) {
-      auto* a = new QAction(text, this);
-      a->setCheckable(true);
-      a->setData(value);
-      filterGroup_->addAction(a);
-      connect(a, &QAction::triggered, this,
-              [this, value] { applyImageFilter(value); });
-      return a;
+    filterButtons_ = new QButtonGroup(this);
+    filterButtons_->setExclusive(true);
+    auto mkFilter = [this, &makeMenuRow](const QString& text, const QString& value) {
+      QWidgetAction* act;
+      auto* lay = makeMenuRow(act);
+      auto* rb = new QRadioButton(text, lay->parentWidget());
+      rb->setProperty("filterValue", value);
+      filterButtons_->addButton(rb);
+      // Expand across the row so the whole strip is the radio's hit area (label + trailing space),
+      // and the radio itself consumes the click so the menu stays open.
+      rb->setSizePolicy(QSizePolicy::Expanding, rb->sizePolicy().verticalPolicy());
+      lay->addWidget(rb);
+      // toggled(true) fires for the newly-selected radio; applyImageFilter is a no-op-safe re-set.
+      connect(rb, &QRadioButton::toggled, this,
+              [this, value](bool on) { if (on) applyImageFilter(value); });
+      return act;
     };
     actFilterNone_ = mkFilter("None", "none");
     actFilterBW_ = mkFilter("Black && White", "bw");
@@ -894,23 +1127,84 @@ namespace stencil::gui {
       if (c.isValid()) applyTintColor(c);
     });
 
-    // ── Tooltip row toggles (contextMenu.js:96-107, 546-557). Per-row
-    // visibility, backed by the MainWindow booleans (consumed in onHoverDetail).
-    // NOTE: these are not yet persisted to Settings (fileStore is frozen for this
-    // step) — see the gap note in the structured result.
-    auto mkTtRow = [this](const QString& text, bool& backing) {
-      auto* a = new QAction(text, this);
-      a->setCheckable(true);
-      a->setChecked(backing);
-      connect(a, &QAction::toggled, this, [this, &backing](bool on) {
-        backing = on;
-        onHovered(lastHoverX_, lastHoverY_);  // refresh the live tooltip
-      });
-      return a;
+    // ── Tooltip toggles (contextMenu.js:96-107, 546-557). Hosted as real QCheckBoxes
+    // in QWidgetActions (like the marker/thickness spinbox rows) so a click flips them
+    // WITHOUT dismissing the menu — the browser's context menu likewise keeps its inline
+    // checkboxes/sliders live — and so they render as checkboxes, not the action's icon.
+    // Per-row visibility is backed by the MainWindow booleans (consumed in onHoverDetail).
+    auto mkCheckRow = [this, &makeMenuRow](const QString& text, bool checked, QCheckBox*& box,
+                                           QWidgetAction*& act) {
+      auto* lay = makeMenuRow(act);
+      box = new QCheckBox(text, lay->parentWidget());
+      box->setChecked(checked);
+      // Expand the button across the row so its own hit area (which toggles AND consumes the
+      // click, keeping the menu open) covers the whole strip — label and trailing space included,
+      // not just the tiny indicator. QMenu widens the QWidgetAction widget to the menu width.
+      box->setSizePolicy(QSizePolicy::Expanding, box->sizePolicy().verticalPolicy());
+      lay->addWidget(box);
     };
-    actTtPage_ = mkTtRow("Page (cm)", tooltipShowPage_);
-    actTtScreen_ = mkTtRow("Screen (px)", tooltipShowScreen_);
-    actTtCoords_ = mkTtRow("To Edge (cm)", tooltipShowCoords_);
+    // Enable toggle: drives settings_.tooltipEnabled and mirrors the View-menu actTooltip_.
+    mkCheckRow("Show Tooltips", settings_.tooltipEnabled, tooltipEnableCheck_, actTooltipEnable_);
+    connect(tooltipEnableCheck_, &QCheckBox::toggled, this, [this](bool on) {
+      settings_.tooltipEnabled = on;
+      {
+        QSignalBlocker b(actTooltip_);
+        actTooltip_->setChecked(on);  // keep the View-menu item in lock-step
+      }
+      persistSettings();
+      if (!on)
+        tooltip_->hide();
+      else if (!QApplication::activePopupWidget())
+        onHovered(lastHoverX_, lastHoverY_);  // re-show at the current hover (not while the menu's up)
+    });
+    // The three per-row toggles write straight into settings_ (the source of truth), persist,
+    // and refresh the live tooltip. Binding `backing` to the settings_ field keeps them in sync.
+    auto mkRowToggle = [this, &mkCheckRow](const QString& text, bool& backing,
+                                           QCheckBox*& box, QWidgetAction*& act) {
+      mkCheckRow(text, backing, box, act);
+      connect(box, &QCheckBox::toggled, this, [this, &backing](bool on) {
+        backing = on;
+        persistSettings();
+        // Don't refresh the live tooltip while the context menu is up — showing that top-level
+        // tooltip window would steal the popup's grab and dismiss the menu.
+        if (!QApplication::activePopupWidget()) onHovered(lastHoverX_, lastHoverY_);
+      });
+    };
+    mkRowToggle("Page (cm)", settings_.tooltipShowPage, ttPageCheck_, actTtPage_);
+    mkRowToggle("Screen (px)", settings_.tooltipShowScreen, ttScreenCheck_, actTtScreen_);
+    mkRowToggle("To Edge (cm)", settings_.tooltipShowCoords, ttCoordsCheck_, actTtCoords_);
+
+    // ── Transformation submenu formula controls (contextMenu.js:84-100): an "Allow Formulas"
+    // checkbox and x(x)/y(y) inputs, hosted so the submenu stays open. They are twins of the
+    // toolbar formula widgets — edits here drive those (setChecked/setText), so the existing
+    // validate/apply/persist/co-edit-push pipeline runs unchanged. Seeded in syncContextActions.
+    mkCheckRow("Allow Formulas", settings_.allowFormulas, ctxAllowFormulas_, ctxAllowFormulasAct_);
+    connect(ctxAllowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
+      allowFormulas_->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
+      if (ctxFormulaXAct_) ctxFormulaXAct_->setVisible(on);
+      if (ctxFormulaYAct_) ctxFormulaYAct_->setVisible(on);
+    });
+    auto mkFormulaRow = [this, &makeMenuRow](const QString& label, const QString& placeholder,
+                                             QLineEdit*& edit, QWidgetAction*& act) {
+      auto* lay = makeMenuRow(act, 2, 4);
+      auto* w = lay->parentWidget();
+      lay->addWidget(new QLabel(label, w));
+      edit = new QLineEdit(w);
+      edit->setPlaceholderText(placeholder);
+      edit->setFixedWidth(150);
+      lay->addStretch(1);
+      lay->addWidget(edit);
+    };
+    mkFormulaRow("x(x)=", "e.g. x + 9", ctxFormulaX_, ctxFormulaXAct_);
+    mkFormulaRow("y(y)=", "e.g. (y-7)*4", ctxFormulaY_, ctxFormulaYAct_);
+    // Mirror context edits into the canonical toolbar inputs (guarded to avoid a feedback loop),
+    // which fires validateAndApplyFormulas() with its inline error + persistence.
+    connect(ctxFormulaX_, &QLineEdit::textChanged, this, [this](const QString& t) {
+      if (formulaX_->text() != t) formulaX_->setText(t);
+    });
+    connect(ctxFormulaY_, &QLineEdit::textChanged, this, [this](const QString& t) {
+      if (formulaY_->text() != t) formulaY_->setText(t);
+    });
 
     // ── Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
     // Switching re-renders every length readout (status bar, tooltip, selection
@@ -970,6 +1264,10 @@ namespace stencil::gui {
     auto* data = menuBar()->addMenu("&Data");
     data->addAction(actDownloadJson_);
     data->addAction(actUploadJson_);
+    data->addSeparator();
+    data->addAction(actOpenProjectFile_);
+    data->addAction(actSaveProjectFile_);
+    data->addAction(actStencilLiveSync_);
     data->addSeparator();
     data->addAction(actCopyLayout_);
     data->addAction(actPasteLayout_);
@@ -1047,6 +1345,56 @@ namespace stencil::gui {
     buildMainToolbar();
     buildPageFormulaToolbar();
     buildStyleToolbar();
+    buildImageInfoBar();
+    // Shared hover shimmer on every interactive control across the toolbar rows (buttons, combos,
+    // spinboxes, the f(x,y) checkbox, text fields) so the whole toolbar has one consistent hover
+    // treatment — not just the makeToolSection icons.
+    for (QToolBar* tb : findChildren<QToolBar*>()) {
+      for (QToolButton* b : tb->findChildren<QToolButton*>())
+        if (b != logoBtn_) installHoverShimmer(b);   // skip the logo (its own art/affordance)
+      for (QComboBox* c : tb->findChildren<QComboBox*>()) installHoverShimmer(c);
+      for (QAbstractSpinBox* s : tb->findChildren<QAbstractSpinBox*>()) installHoverShimmer(s);
+      for (QCheckBox* c : tb->findChildren<QCheckBox*>()) installHoverShimmer(c);   // f(x,y) pill
+      for (QLineEdit* le : tb->findChildren<QLineEdit*>())
+        if (le != projectName_) installHoverShimmer(le);   // skip the rename field
+    }
+  }
+
+  // Build a toolbar "section": a small uppercase label ABOVE a horizontal strip of the given
+  // actions' buttons (+ optional trailing widgets like the zoom combo). The desktop counterpart
+  // of the browser's stacked .ctrl-section (label on top of the button row), so the toolbar groups
+  // are NAMED with the header above the icons — not a bare inline label beside them.
+  QWidget* MainWindow::makeToolSection(const QString& title, const QList<QAction*>& actions,
+                                       const QList<QWidget*>& extras) {
+    auto* section = new QWidget(this);
+    auto* col = new QVBoxLayout(section);
+    col->setContentsMargins(6, 1, 6, 1);
+    col->setSpacing(3);
+    auto* label = new QLabel(title.toUpper(), section);
+    label->setObjectName("sectionLabel");
+    label->setStyleSheet("color:#7a828c;font-size:9px;font-weight:700;letter-spacing:0.6px;");
+    label->setAlignment(Qt::AlignLeft);   // left-aligned header, matching the browser sections
+    col->addWidget(label);
+    auto* rowWidget = new QWidget(section);
+    auto* row = new QHBoxLayout(rowWidget);
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(2);
+    for (QAction* a : actions) {
+      auto* btn = new QToolButton(rowWidget);
+      btn->setDefaultAction(a);   // reflects the action's icon / tooltip / enabled / checked state
+      btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+      btn->setAutoRaise(true);
+      btn->setIconSize(QSize(18, 18));
+      // A standalone QToolButton does NOT auto-hide when its action is hidden (unlike a toolbar
+      // action-widget), so mirror visibility explicitly for the gated ones (Open-in, Clear-project).
+      btn->setVisible(a->isVisible());
+      connect(a, &QAction::changed, btn, [a, btn] { btn->setVisible(a->isVisible()); });
+      if (a == actStartDraw_) startDrawBtn_ = btn;   // styled accent while a draw session is active
+      row->addWidget(btn);
+    }
+    for (QWidget* ex : extras) { ex->setParent(rowWidget); row->addWidget(ex); }
+    col->addWidget(rowWidget);
+    return section;
   }
 
   void MainWindow::buildMainToolbar() {
@@ -1095,11 +1443,11 @@ namespace stencil::gui {
     headerToolbar_->addWidget(controlsPill_);
     headerToolbar_->addSeparator();
     buildProjectNameGroup(headerToolbar_);
-    // Always-visible "Image Size: W × H px" readout (browser parity — its own bar that survives the
-    // toolbar collapse). Sits after the project group's trailing spacer, so it right-aligns.
+    // "Image Size: W × H px" readout. Created here but placed in its own full-width bar
+    // BELOW the toolbars (see buildImageInfoBar) — browser parity with the #image-info bar,
+    // left-aligned above the canvas rather than tucked in the top-right corner.
     imageSizeInfo_ = new QLabel(this);
-    imageSizeInfo_->setStyleSheet("color:#9aa0a8;padding:0 10px;");
-    headerToolbar_->addWidget(imageSizeInfo_);
+    imageSizeInfo_->setStyleSheet("color:#9aa0a8;padding:2px 10px;");
     addToolBarBreak();
 
     // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
@@ -1113,50 +1461,48 @@ namespace stencil::gui {
     tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
     tb->setIconSize(QSize(18, 18));
 
-    tb->addAction(actOpen_);
-    tb->addAction(actLinks_);
-    // Connect/Servers affordance on the top bar (mirrors the browser's #connect-btn
-    // icon button) — not just the Project-menu entry, so it is one click away.
-    tb->addAction(actConnect_);
-    // "Open in…" (browser / Telegram) — mirrors the browser's #open-in-btn.
-    tb->addAction(actOpenIn_);
-    // Clear (remove) the current project/editor — the browser's #clear-storage trash
-    // button. A danger action beside the project affordances; hidden for server
-    // projects (refreshActions), which are removed only from the projects dialog.
-    tb->addAction(actClearProject_);
-    // Incognito as a checkable toolbar icon (mirrors the browser's #incognito-toggle):
-    // bound to the SAME actIncognito_ as the View-menu entry, so toggle state, the
-    // active highlight (QAction checked), and the disabled-when-an-image-is-loaded
-    // gating (refreshActions) stay in lockstep across both surfaces.
-    tb->addAction(actIncognito_);
-    tb->addAction(actCrop_);
-    tb->addAction(actRotateLeft_);
-    tb->addAction(actRotateRight_);
-    // Blank-background control in the IMAGE group (browser parity): a colour swatch + "Blank"
-    // label, shown only for blank projects. The swatch shows the current fill; clicking recolours
-    // it (drawn lines are kept). Gated + swatch updated in updateProjectTitle.
+    // Named, stacked groups (label ABOVE the icon row via makeToolSection) mirror the browser
+    // topbar order: Image · Projects · Share · Edit · Draw · Zoom · Settings.
+    // Blank-background swatch (browser parity): a colour button shown only for blank projects,
+    // recolouring the fill (lines kept). Lives in the IMAGE group; gated in updateProjectTitle.
     blankColorBtn_ = new QToolButton(this);
-    blankColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);   // just the colour swatch — keeps the toolbar compact
+    blankColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     blankColorBtn_->setAutoRaise(true);
+    blankColorBtn_->setIconSize(QSize(18, 18));
     blankColorBtn_->setToolTip("Blank background colour — recolour this blank image (keeps your lines)");
-    blankColorBtnAction_ = tb->addWidget(blankColorBtn_);
-    blankColorBtnAction_->setVisible(false);
+    blankColorBtn_->setVisible(false);
     connect(blankColorBtn_, &QToolButton::clicked, this, [this] { setActiveBlankColor(); });
+
+    // Image = open + the per-image actions (download/copy/open-in), matching the browser's
+    // IMAGE cluster, plus the blank-fill swatch. (actOpenIn_ moved here from Projects.)
+    tb->addWidget(makeToolSection("Image", {actOpen_, actSaveImage_, actCopyImage_, actOpenIn_}, {blankColorBtn_}));
     tb->addSeparator();
-    tb->addAction(actStartDraw_);
-    tb->addAction(actStopDraw_);
-    tb->addAction(actNewLine_);
+    // Projects = open editor list + save/open .stencil + live-sync, matching the browser's
+    // PROJECTS cluster (layers / save / folder / refresh). Clear-project stays in the menu bar.
+    tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_}));
     tb->addSeparator();
-    tb->addAction(actUndo_);
-    tb->addAction(actRedo_);
+    // Share = the browser's merged Servers + Links (connect to share/co-edit + image source links).
+    tb->addWidget(makeToolSection("Share", {actConnect_, actLinks_}));
     tb->addSeparator();
-    tb->addWidget(new QLabel("  Zoom: ", this));
-    tb->addWidget(zoom_);
-    // Fullscreen icon (browser parity). The points panel + top-menu show/hide live IN their menus:
-    // the "Controls" pill in the header row (above) and a chevron in the panel header — not floating
-    // buttons over the canvas. A small right-edge tab only re-opens the panel once it's fully hidden.
+    // Edit = adjust the current image + undo/redo (the browser's new Edit section).
+    tb->addWidget(makeToolSection("Edit", {actCrop_, actRotateLeft_, actRotateRight_, actUndo_, actRedo_}));
     tb->addSeparator();
-    tb->addAction(actFullscreen_);
+    // Draw = Start + Stop, mirroring the browser toolbar's Draw section (no New Line button there;
+    // New Line stays on the Edit menu / Alt+N). The Line/Rect mode toggle sits in the Style row.
+    tb->addWidget(makeToolSection("Draw", {actStartDraw_, actStopDraw_}));
+    tb->addSeparator();
+    // Zoom = the editable percent combo + a Fit-to-window button (browser parity — the browser's
+    // zoom section ends with the fit icon). The combo replaces the browser's +/- steppers (type or
+    // pick a preset). Fit button built here so it sits AFTER the combo, like the browser.
+    auto* zoomFitBtn = new QToolButton(this);
+    zoomFitBtn->setDefaultAction(actFit_);
+    zoomFitBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    zoomFitBtn->setAutoRaise(true);
+    zoomFitBtn->setIconSize(QSize(18, 18));
+    tb->addWidget(makeToolSection("Zoom", {}, {zoom_, zoomFitBtn}));
+    tb->addSeparator();
+    // Settings = incognito + fullscreen (theme/shortcuts/help live in the menu bar).
+    tb->addWidget(makeToolSection("Settings", {actIncognito_, actFullscreen_}));
   }
 
   // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
@@ -1298,7 +1644,10 @@ namespace stencil::gui {
     tb2->addSeparator();
 
     // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
-    allowFormulas_ = new QCheckBox("f(x,y)", this);
+    allowFormulas_ = new QCheckBox("𝑓(x,y)", this);
+    // Styled as an accent PILL toggle (theme.cpp QCheckBox#formulaPill): accent outline + text
+    // when off, accent-filled with contrasting text when on — matching the browser toolbar.
+    allowFormulas_->setObjectName("formulaPill");
     allowFormulas_->setToolTip(
         "Enable x/y coordinate transform formulas applied to the points table");
     tb2->addWidget(allowFormulas_);
@@ -1335,6 +1684,16 @@ namespace stencil::gui {
     // Theme / Incognito / Settings / Projects / Info live in the menu bar only —
     // keeping them off the toolbar prevents overflow from hiding the inline
     // formula inputs (and mirrors the browser's leaner top bar).
+  }
+
+  // Full-width "Image Size: W × H px" bar below the tool rows (browser parity with the
+  // #image-info strip above the canvas), replacing the old top-right header placement.
+  void MainWindow::buildImageInfoBar() {
+    addToolBarBreak();
+    auto* bar = addToolBar("Image Size");
+    bar->setMovable(false);
+    bar->setObjectName("imageInfoBar");
+    bar->addWidget(imageSizeInfo_);   // left-aligned label; the bar spans the window width
   }
 
   void MainWindow::buildStyleToolbar() {
@@ -1552,9 +1911,13 @@ namespace stencil::gui {
         imageFilter_->setCurrentIndex(idx);
       }
     }
-    if (filterGroup_) {  // sync context-menu radio group
-      for (QAction* a : filterGroup_->actions())
-        if (a->data().toString() == mode) { a->setChecked(true); break; }
+    if (filterButtons_) {  // sync context-menu radio group (blocked so it doesn't re-apply)
+      for (QAbstractButton* b : filterButtons_->buttons())
+        if (b->property("filterValue").toString() == mode) {
+          QSignalBlocker bl(b);
+          b->setChecked(true);
+          break;
+        }
     }
     if (filterColorAct_) filterColorAct_->setVisible(mode == "custom");
     canvas_->setImageFilter(mode, filterColorValue_);
@@ -1606,6 +1969,7 @@ namespace stencil::gui {
       notify_->error("Failed to load image");
       return false;
     }
+    retainSourceFromFile(path);   // keep the untouched file bytes for a lossless .stencil bundle
     currentSource_.clear();  // a local file has no source/resource provenance
     currentResource_.clear();
     blankColor_.clear();     // a loaded image is not a blank project
@@ -1926,6 +2290,7 @@ namespace stencil::gui {
     }
     activeProjectId_.clear();  // a new blank is a fresh editor, not the old project
     canvas_->loadFromImage(img);
+    setSourceBytes({}, {});  // synthetic blank → re-encode from pixels on bundle
     currentSource_.clear();  // a generated blank image has no provenance
     currentResource_.clear();
     blankColor_ = color.name();  // mark this session as a (recolourable) blank of this fill
@@ -2015,6 +2380,39 @@ namespace stencil::gui {
   core::UnitFormat MainWindow::unitFormat() const {
     if (settings_.units == "in") return {1.0 / 2.54, "in"};
     return {1.0, "cm"};
+  }
+
+  // Total real-world length of every drawn line segment, in centimetres. Uses the raw
+  // per-axis px→cm scale of pixelToPageRaw (NOT the formula/pageCoords path), so it is
+  // independent of the display unit and of any coordinate formulas — mirroring
+  // browser/js/core/units.js layoutLineLengthCm. Cached on the project meta at save
+  // time to feed the projects-list tooltip cheaply. 0 when nothing is measurable.
+  double MainWindow::currentLineLengthCm() const {
+    const core::PageSize dims = currentPageDimensions();  // cm; already landscape-swaps
+    const int cw = canvas_->imageWidth(), ch = canvas_->imageHeight();
+    if (cw <= 0 || ch <= 0) return 0.0;
+    const double sx = dims.width / cw, sy = dims.height / ch;
+    const auto sumLine = [&](const core::Line& ln) {
+      double t = 0.0;
+      const auto& pts = ln.points;
+      for (std::size_t i = 1; i < pts.size(); ++i)
+        t += std::hypot((pts[i].x - pts[i - 1].x) * sx, (pts[i].y - pts[i - 1].y) * sy);
+      return t;
+    };
+    // Sum committed lines by const-ref (no allLines() copy), then the in-progress line if any.
+    double total = 0.0;
+    for (const auto& ln : canvas_->lines()) total += sumLine(ln);
+    if (!canvas_->currentLine().points.empty()) total += sumLine(canvas_->currentLine());
+    return total;
+  }
+
+  // Stamp the display-only tooltip fields onto `meta` from the live canvas: image px
+  // dimensions (0 when there is no image) and the total drawn-line length in cm.
+  void MainWindow::stampCanvasMeta(core::ProjectMeta& meta) const {
+    const bool hasImg = canvas_->hasImage();
+    meta.imageW = hasImg ? canvas_->imageWidth() : 0;
+    meta.imageH = hasImg ? canvas_->imageHeight() : 0;
+    meta.lineLengthCm = currentLineLengthCm();
   }
 
   // Render the custom page spinboxes + their suffix label in the active unit.
@@ -2132,6 +2530,14 @@ namespace stencil::gui {
     const bool drawing = canvas_->isDrawing();
     actStartDraw_->setEnabled(canvas_->hasImage() && !drawing && !ro);
     actStopDraw_->setEnabled(drawing && !ro);
+    // Accent-fill the Start button while a draw session is live (browser parity: start-drawing
+    // gains the .active class). A dynamic property + repolish, so we don't make the action itself
+    // checkable (which would add a stray check-mark to the Edit/context menus).
+    if (startDrawBtn_ && startDrawBtn_->property("drawActive").toBool() != drawing) {
+      startDrawBtn_->setProperty("drawActive", drawing);
+      startDrawBtn_->style()->unpolish(startDrawBtn_);
+      startDrawBtn_->style()->polish(startDrawBtn_);
+    }
     // These are otherwise always enabled (they no-op internally when nothing applies);
     // the only gate is the read-only compare view.
     actNewLine_->setEnabled(!ro);
@@ -2160,6 +2566,7 @@ namespace stencil::gui {
     actDownloadJson_->setEnabled(hasLines);
     actCopyLayout_->setEnabled(hasLines);
     actUploadJson_->setEnabled(hasImg);
+    actSaveProjectFile_->setEnabled(hasImg);
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
@@ -2195,6 +2602,7 @@ namespace stencil::gui {
     onSelectionChanged();
     scheduleAutosave();
     remoteSync_->scheduleRemotePush();   // live co-edit: push the edit to the server for peers
+    scheduleStencilAutosave();           // live file sync: auto-save the edit to the linked .stencil
   }
 
   // Live co-edit push/pull (scheduleRemotePush / startRemotePoll / stopRemotePoll +
@@ -2244,10 +2652,22 @@ namespace stencil::gui {
     // ── Build the menu tree. Order mirrors contextMenu.js inner() (~5-108):
     // Image/Layout · Fullscreen · Fit · — · Draw · DrawMode · DrawRect · — ·
     // Show Points/Lines · Clear · — · Style · Filter · Transformation · Tooltip.
-    QMenu menu(this);
+    // StayOpenMenu keeps the menu open when a hosted checkbox/radio row is clicked (a plain QMenu
+    // closes on release over a QWidgetAction). Submenus are StayOpenMenus too, for the same reason.
+    StayOpenMenu menu(this);
+
+    // Submenu-parent icons mirror contextMenu.js (folder / palette / image / function / message).
+    // The menu is rebuilt per right-click, so the icons are (re)applied here in the current theme's
+    // icon colour.
+    const int subIcon = 18;
+    auto subMenu = [&](const char* icon, const QString& title) {
+      auto* m = new StayOpenMenu(title, &menu);
+      menu.addMenu(m)->setIcon(themedIcon(QString::fromLatin1(icon), iconColor_, subIcon));
+      return m;
+    };
 
     // Image / Layout submenu (contextMenu.js:7-22).
-    QMenu* layout = menu.addMenu("Image / Layout");
+    QMenu* layout = subMenu("folder", "Image / Layout");
     layout->addAction(actCopyImage_);
     layout->addAction(actPasteImage_);
     layout->addAction(actSaveImage_);  // "Download Image"
@@ -2275,7 +2695,7 @@ namespace stencil::gui {
     menu.addSeparator();
 
     // Style submenu (contextMenu.js:39-57).
-    QMenu* style = menu.addMenu("Style");
+    QMenu* style = subMenu("palette", "Style");
     style->addAction(markerSizeAction_);
     style->addAction(thicknessAction_);
     style->addSeparator();
@@ -2284,7 +2704,7 @@ namespace stencil::gui {
     style->addAction(actStyleDotted_);
 
     // Image Filter submenu (contextMenu.js:59-74).
-    QMenu* filter = menu.addMenu("Image Filter");
+    QMenu* filter = subMenu("image", "Image Filter");
     filter->addAction(actFilterNone_);
     filter->addAction(actFilterBW_);
     filter->addAction(actFilterSepia_);
@@ -2294,14 +2714,19 @@ namespace stencil::gui {
     filter->addSeparator();
     filter->addAction(tintColorAction_);
 
-    // Transformation submenu (contextMenu.js:76-95): reuse the formulas toggle.
-    QMenu* transform = menu.addMenu("Transformation");
-    transform->addAction(actAllowFormulas_);
+    // Transformation submenu (contextMenu.js:76-100): a "Coordinate Formulas" section with the
+    // Allow Formulas checkbox and the x(x)/y(y) inputs (shown only while formulas are enabled).
+    QMenu* transform = subMenu("function", "Transformation");
+    transform->addSection("Coordinate Formulas");
+    transform->addAction(ctxAllowFormulasAct_);
+    transform->addAction(ctxFormulaXAct_);
+    transform->addAction(ctxFormulaYAct_);
 
-    // Tooltip submenu (contextMenu.js:96-107): enable toggle + the 3 row toggles.
-    QMenu* tt = menu.addMenu("Tooltip");
-    tt->addAction(actTooltip_);
-    tt->addSeparator();
+    // Tooltip submenu (contextMenu.js:96-107): enable toggle + the 3 row toggles, all
+    // hosted QCheckBoxes so toggling one keeps the menu open (browser-parity live inputs).
+    QMenu* tt = subMenu("message", "Tooltip");
+    tt->addAction(actTooltipEnable_);
+    tt->addSection("Show in Tooltip");   // browser parity: labelled header before the row toggles
     tt->addAction(actTtPage_);
     tt->addAction(actTtScreen_);
     tt->addAction(actTtCoords_);
@@ -2326,6 +2751,7 @@ namespace stencil::gui {
     actDownloadJson_->setEnabled(hasLines);
     actPasteLayout_->setEnabled(hasImg);
     actUploadJson_->setEnabled(hasImg);
+    actSaveProjectFile_->setEnabled(hasImg);
 
     // Draw-mode bridge label (contextMenu.js:249-252).
     const bool isRect = canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
@@ -2344,17 +2770,33 @@ namespace stencil::gui {
 
     // Image-filter submenu (contextMenu.js:278-282): check the active filter and
     // show the tint action only for custom.
-    for (QAction* a : filterGroup_->actions())
-      a->setChecked(a->data().toString() == settings_.imageFilter);
+    for (QAbstractButton* b : filterButtons_->buttons()) {
+      QSignalBlocker bl(b);   // seeding the check state must not re-fire applyImageFilter
+      b->setChecked(b->property("filterValue").toString() == settings_.imageFilter);
+    }
     tintColorAction_->setVisible(settings_.imageFilter == "custom");
 
-    // Tooltip rows (contextMenu.js:289-293).
+    // Tooltip enable toggle + rows (contextMenu.js:289-293). Refresh the hosted checkboxes so
+    // their state is correct the moment the menu opens (blocked so seeding doesn't re-fire the
+    // toggle handlers). actTooltip_ (the View-menu twin) is kept in sync by the enable handler.
     {
-      QSignalBlocker bp(actTtPage_), bs(actTtScreen_), bc(actTtCoords_);
-      actTtPage_->setChecked(tooltipShowPage_);
-      actTtScreen_->setChecked(tooltipShowScreen_);
-      actTtCoords_->setChecked(tooltipShowCoords_);
+      QSignalBlocker be(tooltipEnableCheck_), bp(ttPageCheck_), bs(ttScreenCheck_), bc(ttCoordsCheck_);
+      tooltipEnableCheck_->setChecked(settings_.tooltipEnabled);
+      ttPageCheck_->setChecked(settings_.tooltipShowPage);
+      ttScreenCheck_->setChecked(settings_.tooltipShowScreen);
+      ttCoordsCheck_->setChecked(settings_.tooltipShowCoords);
     }
+
+    // Transformation submenu (contextMenu.js:294-297): seed the formula twins from settings_ and
+    // show the x/y inputs only while formulas are enabled (blocked so seeding doesn't re-apply).
+    {
+      QSignalBlocker ba(ctxAllowFormulas_), bx(ctxFormulaX_), by(ctxFormulaY_);
+      ctxAllowFormulas_->setChecked(settings_.allowFormulas);
+      ctxFormulaX_->setText(settings_.formulaX);
+      ctxFormulaY_->setText(settings_.formulaY);
+    }
+    ctxFormulaXAct_->setVisible(settings_.allowFormulas);
+    ctxFormulaYAct_->setVisible(settings_.allowFormulas);
   }
 
   // Build + show the hover tooltip (S12). Port of tooltip.js applyHover:
@@ -2379,9 +2821,9 @@ namespace stencil::gui {
       // Per-row visibility from the context-menu Tooltip submenu (S11; mirrors
       // contextMenu.js tooltipShowScreen/Page/Coords -> tooltip.js show()).
       core::TooltipRowFlags flags;
-      flags.showScreen = tooltipShowScreen_;
-      flags.showPage = tooltipShowPage_;
-      flags.showCoords = tooltipShowCoords_;
+      flags.showScreen = settings_.tooltipShowScreen;
+      flags.showPage = settings_.tooltipShowPage;
+      flags.showCoords = settings_.tooltipShowCoords;
       const auto coreRows =
           core::buildTooltipRows({px, py}, page, dims, flags, unitFormat());
       std::vector<std::pair<QString, QString>> out;
@@ -2486,6 +2928,7 @@ namespace stencil::gui {
       }
       activeProjectId_.clear();  // pasted image is a fresh editor (a new project)
       canvas_->loadFromImage(img);
+      setSourceBytes({}, {});  // clipboard pixels have no encoded source → re-encode on bundle
       currentSource_.clear();
       currentResource_.clear();
       refreshActions();
@@ -2505,7 +2948,7 @@ namespace stencil::gui {
   void MainWindow::zoomOut() { setZoom(canvas_->scale() * 0.8); }
 
   void MainWindow::setZoom(double scale, bool syncCombo) {
-    scale = std::clamp(scale, 0.05, 5.0);  // LIMITS.zoomMin / zoomMax
+    scale = core::clampScale(scale);  // shared [kZoomMin, kZoomMax] bound (core/state/zoomPan)
     canvas_->setScale(scale);
     if (syncCombo) {
       const QString pct = QString::number(qRound(scale * 100)) + "%";
@@ -2674,6 +3117,7 @@ namespace stencil::gui {
       fsPanelShown_ = false;
       showNormal();
       if (menuBar()) menuBar()->setVisible(true);
+      statusBar()->setVisible(true);   // restore the bottom coord readout
       // The header row (Controls pill + project name) ALWAYS returns — it's the only way to re-show
       // the tool rows, so it must never stay hidden. The tool rows restore to their pre-fullscreen
       // shown/collapsed state (setToolbarsShown keeps the header, unlike setToolbarsVisible).
@@ -2697,14 +3141,19 @@ namespace stencil::gui {
       if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       setToolbarsVisible(false);
       if (menuBar()) menuBar()->setVisible(false);
-      selPanel_->setVisible(false);
-      fsBarsShown_ = false;    // both start hidden; the edge-hover reveal slides them in
+      statusBar()->setVisible(false);   // hide the bottom bar so the canvas fills the screen
+      if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
+      selPanel_->setVisible(false);   // hidden in fullscreen; revealed on right-edge hover
+      fsBarsShown_ = false;
       fsPanelShown_ = false;
       fsActive_ = true;
       showFullScreen();
       setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
       if (fsHoverTimer_) fsHoverTimer_->start(16);   // ~60Hz poll: reveal reacts immediately on hover
     }
+    // Reflect the on/off state on the toolbar button (accent fill via QToolButton:checked).
+    // Guarded so it never re-enters through a toggled slot.
+    if (actFullscreen_) { QSignalBlocker b(actFullscreen_); actFullscreen_->setChecked(fsActive_); }
   }
 
   // Fullscreen edge-hover reveal: show the toolbars while the cursor is at/over the TOP band, and
@@ -2734,11 +3183,13 @@ namespace stencil::gui {
       animateBarsHeight(findChildren<QToolBar*>(), wantTb);   // reuse the pill's smooth height slide
     }
 
-    // Right points panel: same hysteresis, driven through the panel's own width slide (setPanelShown).
-    // The keep-zone uses a STABLE width (the remembered/restore width), not the live animating width —
-    // a moving boundary would fall behind the cursor mid-slide and re-trigger a hide (flicker).
-    const int pnlKeep = std::max(280, panelRestoreWidth_ > 120 ? panelRestoreWidth_ : 320);
-    const bool wantPnl = fsPanelShown_ ? (p.x() > w - pnlKeep) : (p.x() > w - 5);
+    // Right points panel: reveal it when the cursor hits the right edge (a generous 28px band, not
+    // 5px which was near-impossible to hit). Once shown, KEEP it shown while the cursor stays in the
+    // right third of the window — a wide keep-zone so dragging the dock splitter to RESIZE the panel
+    // (setPanelShown's finish() releases the fixed width, so the splitter is draggable) doesn't stray
+    // out of the zone and auto-hide the panel mid-drag.
+    const int pnlKeep = std::max(w / 3, (selPanel_->isVisible() ? selPanel_->width() : 0) + 140);
+    const bool wantPnl = fsPanelShown_ ? (p.x() > w - pnlKeep) : (p.x() > w - 28);
     if (wantPnl != fsPanelShown_) {
       fsPanelShown_ = wantPnl;
       setPanelShown(wantPnl, true);
@@ -2800,6 +3251,24 @@ namespace stencil::gui {
         !canvas_->compareReadOnly() && (key == Qt::Key_Left || key == Qt::Key_Right)) {
       constexpr double kRotStep = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
       canvas_->rotateSelectedLine((key == Qt::Key_Left ? -kRotStep : kRotStep));
+      event->accept();
+      return;
+    }
+
+    // Alt+Shift + arrow → flip / rotate-90 the selected line(s) about the selection's
+    // bounding-box centre (browser parity: ↑ flip horizontal, ↓ flip vertical,
+    // → rotate +90°, ← rotate −90°). Rotate-90 reuses the arbitrary-angle rotate path.
+    // Only fires with a selection and outside a read-only compare view (mirrors Alt+R).
+    if ((mods & Qt::AltModifier) && (mods & Qt::ShiftModifier) &&
+        !(mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
+        canvas_->selectionCount() >= 1 && !canvas_->compareReadOnly() &&
+        (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left ||
+         key == Qt::Key_Right)) {
+      constexpr double kQuarterTurn = 3.14159265358979323846 / 2.0;  // ±90° about the centre
+      if (key == Qt::Key_Up) canvas_->flipSelectedLine(true);
+      else if (key == Qt::Key_Down) canvas_->flipSelectedLine(false);
+      else if (key == Qt::Key_Right) canvas_->rotateSelectedLine(kQuarterTurn);
+      else canvas_->rotateSelectedLine(-kQuarterTurn);  // Key_Left
       event->accept();
       return;
     }
@@ -2907,8 +3376,11 @@ namespace stencil::gui {
     set(actZoomIn_, "plus");
     set(actZoomOut_, "minus");
     set(actFit_, "fit");
-    set(actShowPoints_, "eye");
-    set(actShowLines_, "eye");
+    // Show Points / Show Lines are checkable toggles: leave them icon-less so the menu renders
+    // its native check-mark for the on state (browser contextMenu.js parity — a check when shown,
+    // nothing when hidden). An icon here would take the check column and mask the on/off state.
+    if (actShowPoints_) actShowPoints_->setIcon(QIcon());
+    if (actShowLines_) actShowLines_->setIcon(QIcon());
     // Arrow toggles (browser parity): a chevron to collapse the points panel (→, it's on the right)
     // and the toolbars (↑). The panel chevron flips ←/→ with its shown state in refreshActions.
     set(actPanel_, actPanel_ && actPanel_->isChecked() ? "chevron-right" : "chevron-left");
@@ -2918,27 +3390,25 @@ namespace stencil::gui {
     set(actAllowFormulas_, "function");
     set(actUnitCm_, "ruler");
     set(actUnitIn_, "ruler");
-    // Incognito: the normal glyph is the mask; when the toggle is DISABLED (an image
-    // is loaded, so the mode is locked), Qt shows the Disabled-mode pixmap instead —
-    // a lock — making it obvious the mode can't be changed, not just a greyed mask.
-    if (actIncognito_) {
-      QIcon ic = themedIcon("incognito", iconColor, s);
-      ic.addPixmap(themedIcon("lock", themePalette(dark, settings_.accentColor).textMuted, s).pixmap(s, s),
-                   QIcon::Disabled);
-      actIncognito_->setIcon(ic);
-    }
+    // Incognito: always the mask glyph (browser parity — the browser keeps the same icon and
+    // just dims it when disabled). Qt auto-greys the icon for the disabled/locked state, so we
+    // don't swap in a separate lock glyph.
+    if (actIncognito_) actIncognito_->setIcon(themedIcon("incognito", iconColor, s));
     set(actSettings_, "gear");
     // Project / data
-    set(actProjects_, "folder");
+    set(actProjects_, "layers");          // browser projects-btn glyph (layers, not folder)
     set(actNewProject_, "file-text");
     set(actSaveProject_, "save");
+    set(actSaveProjectFile_, "save");     // Projects toolbar: Save Project (.stencil)
+    set(actOpenProjectFile_, "folder");   // Projects toolbar: Open Project (.stencil)
+    set(actStencilLiveSync_, "refresh");  // Projects toolbar: live sync to file
     set(actClearProject_, "trash");
     set(actSaveSession_, "clipboard");
     set(actDownloadJson_, "download");
     set(actUploadJson_, "upload");
     set(actCopyLayout_, "copy");
     set(actPasteLayout_, "paste");
-    set(actSaveImage_, "image");
+    set(actSaveImage_, "download");        // browser save-image glyph (download)
     set(actCopyImage_, "copy");
     set(actPasteImage_, "paste");
     // Help
@@ -2946,7 +3416,7 @@ namespace stencil::gui {
     set(actShortcuts_, "help");
     set(actQuit_, "power");
     // Context-menu extras
-    set(actDrawModeToggle_, "pencil");
+    set(actDrawModeToggle_, "rect");   // browser contextMenu.js parity (rect outline, not a pencil)
     set(actDrawRectNow_, "rect-filled");
     // The theme toggle shows the destination scheme (sun when dark, moon when light),
     // matching the browser's toggle glyph.
@@ -2969,6 +3439,47 @@ namespace stencil::gui {
       drawModeBtn_->setIcon(
           themedIcon(rect ? "rect-filled" : "pencil", iconColor, 16));
     }
+    restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
+  }
+
+  // Recolour the context-menu hosted checkboxes/radios so their indicators use the theme TEXT
+  // colour, matching the surrounding menu text rather than the app-wide accent (which the global
+  // QSS applies to every other QCheckBox/QRadioButton). The check/dot glyphs are rasterised in
+  // the text colour and cached on disk keyed by hex, so a theme switch regenerates them without
+  // Qt serving a stale QSS-image cache. Applied per-widget so only these menu controls change.
+  void MainWindow::restyleContextToggles(const QColor& textColor) {
+    const QString hex = textColor.name().mid(1);  // "rrggbb"
+    const QString checkPath = QDir::tempPath() + "/stencil-ctx-check-" + hex + ".png";
+    const QString dotPath = QDir::tempPath() + "/stencil-ctx-dot-" + hex + ".png";
+    if (!QFileInfo::exists(checkPath))
+      themedIcon("check", textColor, 12).pixmap(12, 12).save(checkPath, "PNG");
+    if (!QFileInfo::exists(dotPath)) {
+      QPixmap dot(12, 12);
+      dot.fill(Qt::transparent);
+      {
+        QPainter p(&dot);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen);
+        p.setBrush(textColor);
+        p.drawEllipse(3, 3, 6, 6);
+      }  // painter destroyed before save
+      dot.save(dotPath, "PNG");
+    }
+    const QString css =
+        QStringLiteral(
+            "QCheckBox::indicator,QRadioButton::indicator{width:15px;height:15px;"
+            "border:1px solid %1;background:transparent;}"
+            "QCheckBox::indicator{border-radius:4px;}"
+            "QRadioButton::indicator{border-radius:8px;}"
+            "QCheckBox::indicator:checked{image:url(\"%2\");}"
+            "QRadioButton::indicator:checked{image:url(\"%3\");}")
+            .arg(textColor.name(), checkPath, dotPath);
+    QList<QWidget*> toggles = {tooltipEnableCheck_, ttPageCheck_, ttScreenCheck_,
+                               ttCoordsCheck_, ctxAllowFormulas_};
+    if (filterButtons_)
+      for (QAbstractButton* b : filterButtons_->buttons()) toggles.append(b);
+    for (QWidget* w : toggles)
+      if (w) w->setStyleSheet(css);
   }
 
   // One-shot first-show fade-in (browser appReveal counterpart). Ramps window
@@ -3259,7 +3770,8 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
 
-    ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(), this);
+    ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
+                       unitFormat(), this);
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
     if (dlg.exec() != QDialog::Accepted) return;
 
@@ -3541,6 +4053,21 @@ namespace stencil::gui {
       return k;
     }
 
+    // Read all of `path` into `out`; false (leaving `out` untouched) on open failure.
+    bool readFileBytes(const QString& path, QByteArray& out) {
+      QFile f(path);
+      if (!f.open(QIODevice::ReadOnly)) return false;
+      out = f.readAll();
+      return true;
+    }
+    // Overwrite `path` with `data` (truncating); false on open failure.
+    bool writeFileBytes(const QString& path, const QByteArray& data) {
+      QFile f(path);
+      if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+      f.write(data);
+      return true;
+    }
+
     // GET an http(s) URL's bytes (no auth) with a 10s timeout,
     // delivering them to `done` on the event loop (empty on any failure/timeout). `ctx` owns the
     // transient QNetworkAccessManager — if `ctx` is destroyed mid-fetch the nam dies with it, the
@@ -3585,7 +4112,10 @@ namespace stencil::gui {
   // Adopt a full layout envelope onto `img` (crop + rotation + filter + lines +
   // page/formulas). Shared by openServerProject and the inline browser→desktop
   // "Open in…" hand-off so both restore the exact session — not just the lines.
-  void MainWindow::loadImageWithLayout(const QImage& img, const QJsonObject& layout) {
+  void MainWindow::loadImageWithLayout(const QImage& img, const QJsonObject& layout,
+                                       const QByteArray& sourceBytes, const QString& sourceExt) {
+    // Retain the untouched source bytes for a lossless .stencil re-bundle (empty ⇒ re-encode).
+    setSourceBytes(sourceBytes, sourceExt);
     // Adopt the page format + formulas before sizing the canvas page below.
     adoptServerLayoutMeta(layout);
     const core::PageSize page = naturalPageCm(pageSizeValue(),
@@ -4018,11 +4548,275 @@ namespace stencil::gui {
   // image or video opened via the --src path.
   void MainWindow::openPathFromOS(const QString& path, int frame) {
     if (path.isEmpty()) return;
-    if (QFileInfo(path).suffix().compare("json", Qt::CaseInsensitive) == 0) {
+    const QString suffix = QFileInfo(path).suffix();
+    if (suffix.compare("json", Qt::CaseInsensitive) == 0) {
       applyLayoutFromSource(path);
       return;
     }
+    // A whole .stencil project (double-click / drag / file arg) loads image + layout + theme.
+    if (suffix.compare("stencil", Qt::CaseInsensitive) == 0) {
+      openProjectFile(path);
+      return;
+    }
     openImageSource(path, frame);
+  }
+
+  // Open a portable .stencil project: decode its embedded ORIGINAL image, adopt its layout, provenance, and (only if present) theme. Mirrors browser DrawingApp.applyProjectFile.
+  void MainWindow::openProjectFile(const QString& path) {
+    QByteArray bytes;
+    if (!readFileBytes(path, bytes)) {
+      notify_->error("Could not read the project file");
+      return;
+    }
+    fileStore::ProjectFileData pf;
+    QString err;
+    if (!fileStore::parseProjectFile(bytes, pf, &err)) {
+      notify_->error("Invalid .stencil file: " + err);
+      return;
+    }
+    QImage img;
+    if (!img.loadFromData(pf.imageBytes)) {
+      notify_->error("Could not decode the project image");
+      return;
+    }
+    activeProjectId_.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
+    loadImageWithLayout(img, pf.layout, pf.imageBytes, pf.imageExt);
+    currentSource_ = pf.source;
+    currentResource_ = pf.resource;
+    // Apply the file's theme only when it carried one, so opening a themeless project never
+    // changes the user's current theme. A custom-hex accent is ignored (desktop uses presets).
+    if (pf.hasTheme) {
+      bool changed = false;
+      if (pf.themeMode == "light" || pf.themeMode == "dark") {
+        settings_.themeMode = pf.themeMode;
+        changed = true;
+      }
+      if (!pf.themeAccent.isEmpty()) {
+        for (const auto& preset : accentPresets()) {
+          if (pf.themeAccent == preset.key) {
+            settings_.accentColor = pf.themeAccent;
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) {
+        applyTheme();
+        fileStore::saveSettings(settings_);
+      }
+    }
+    // Persist as a local file-origin project so it shows the bronze .stencil outline + badge in the Projects list.
+    createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
+    // Link this file as the project's live-sync target (auto-save + watch when live sync is on).
+    linkStencilFile(path, bytes);
+    fitToWindow();
+    notify_->success("Opened project " + pf.name);
+  }
+
+  // Serialize the current project to .stencil bytes (ORIGINAL image + layout + metadata + theme); shared by Save Project As and live-sync auto-save. Mirrors browser ExportService.saveProjectFile.
+  void MainWindow::setSourceBytes(const QByteArray& bytes, const QString& ext) {
+    sourceBytes_ = bytes;
+    sourceExt_ = ext.trimmed().toLower();
+  }
+
+  // Read + retain a local image file's raw bytes so a later .stencil bundle embeds the untouched
+  // original (lossless). Clears the retained source on a read failure or a missing suffix.
+  void MainWindow::retainSourceFromFile(const QString& path) {
+    const QString ext = QFileInfo(path).suffix().toLower();
+    QByteArray bytes;
+    if (!ext.isEmpty()) readFileBytes(path, bytes);
+    setSourceBytes(bytes, ext);   // empty bytes ⇒ buildStencilBytes re-encodes from pixels
+  }
+
+  QByteArray MainWindow::buildStencilBytes() {
+    if (!canvas_->hasImage()) return {};
+    const QImage& orig = canvas_->originalImage();
+    QByteArray png;
+    QString ext = QStringLiteral("png");
+    if (!sourceBytes_.isEmpty()) {
+      png = sourceBytes_;                                  // untouched original (lossless)
+      if (!sourceExt_.isEmpty()) ext = sourceExt_;
+    } else {
+      QBuffer buf(&png);                                  // synthetic original — encode from pixels
+      buf.open(QIODevice::WriteOnly);
+      orig.save(&buf, "PNG");
+    }
+    fileStore::ProjectFileData pf;
+    pf.name = projectBaseName();
+    pf.imageExt = ext;
+    pf.imageBytes = png;
+    pf.imageWidth = orig.width();
+    pf.imageHeight = orig.height();
+    pf.source = currentSource_;
+    pf.resource = currentResource_;
+    if (const Project* pr = findProject(activeProjectId_.toStdString())) {
+      pf.color = QString::fromStdString(pr->meta.color);
+      for (const auto& k : pr->meta.keywords) pf.keywords << QString::fromStdString(k);
+      pf.blank = pr->meta.blank;
+      pf.blankColor = QString::fromStdString(pr->meta.blankColor);
+    }
+    pf.layout = fileStore::buildLayoutJson(
+        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
+        settings_.imageFilter, settings_.filterColor,
+        canvas_->cropRect(), canvas_->rotationQuarters(), currentLayoutMeta());
+    pf.hasTheme = true;
+    pf.themeMode = resolveDark(settings_.themeMode) ? "dark" : "light";
+    pf.themeAccent = settings_.accentColor;
+    return fileStore::buildProjectFile(pf);
+  }
+
+  void MainWindow::saveProjectFileAs() {
+    if (!canvas_->hasImage()) {
+      notify_->error("Load an image first");
+      return;
+    }
+    const QString suggested = projectBaseName() + ".stencil";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Save project", suggested, "Stencil project (*.stencil)");
+    if (path.isEmpty()) return;
+    const QByteArray out = buildStencilBytes();
+    if (!writeFileBytes(path, out)) {
+      notify_->error("Could not write the project file");
+      return;
+    }
+    linkStencilFile(path, out);   // this file becomes the project's live-sync target
+    notify_->success("Project saved");
+  }
+
+  // ── .stencil live sync ───────────────────────────────────────────────────────
+  namespace {
+    // Union two line lists, de-duplicating by the compact JSON of each line (a merge that keeps
+    // both editors' annotations without duplicating a round-tripped twin — mirrors browser mergeLines).
+    core::Lines mergeLinesUnion(const core::Lines& base, const core::Lines& extra) {
+      core::Lines out = base;
+      QSet<QString> seen;
+      auto keyOf = [](const core::Line& l) {
+        return QString::fromUtf8(QJsonDocument(fileStore::lineToJson(l)).toJson(QJsonDocument::Compact));
+      };
+      for (const auto& l : base) seen.insert(keyOf(l));
+      for (const auto& l : extra) {
+        const QString k = keyOf(l);
+        if (!seen.contains(k)) { out.push_back(l); seen.insert(k); }
+      }
+      return out;
+    }
+  }  // namespace
+
+  void MainWindow::linkStencilFile(const QString& path, const QByteArray& baseline) {
+    stencilLink_ = path;
+    stencilBaseline_ = baseline;
+    if (!stencilWatcher_) {
+      stencilWatcher_ = new QFileSystemWatcher(this);
+      connect(stencilWatcher_, &QFileSystemWatcher::fileChanged, this, [this](const QString&) { onStencilFileChanged(); });
+    }
+    if (!stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
+    if (stencilLiveSync_ && !path.isEmpty()) stencilWatcher_->addPath(path);
+    if (actStencilLiveSync_) actStencilLiveSync_->setEnabled(!stencilLink_.isEmpty());
+  }
+
+  void MainWindow::scheduleStencilAutosave() {
+    if (stencilLink_.isEmpty() || !stencilLiveSync_ || stencilApplying_) return;
+    if (!stencilAutosaveTimer_) {
+      stencilAutosaveTimer_ = new QTimer(this);
+      stencilAutosaveTimer_->setSingleShot(true);
+      connect(stencilAutosaveTimer_, &QTimer::timeout, this, &MainWindow::flushStencilAutosave);
+    }
+    stencilAutosaveTimer_->start(800);
+  }
+
+  void MainWindow::flushStencilAutosave() {
+    if (stencilLink_.isEmpty() || !stencilLiveSync_ || !canvas_->hasImage()) return;
+    const QByteArray cur = buildStencilBytes();
+    if (cur == stencilBaseline_) return;   // no local change
+    // Race: if the file changed externally since our baseline, route to the change handler
+    // (apply / prompt) instead of clobbering it — reusing `cur` so it needn't rebuild them.
+    QByteArray ext;
+    if (readFileBytes(stencilLink_, ext) && ext != stencilBaseline_) {
+      onStencilFileChanged(cur);
+      return;
+    }
+    writeStencilNow(cur);   // reuse the bytes we just built (no second PNG re-encode)
+    notify_->info("Synced to file");
+  }
+
+  void MainWindow::writeStencilNow(const QByteArray& prebuilt) {
+    if (stencilLink_.isEmpty()) return;
+    const QByteArray cur = prebuilt.isEmpty() ? buildStencilBytes() : prebuilt;
+    QFile wf(stencilLink_);
+    if (!wf.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    wf.write(cur);
+    wf.close();
+    stencilBaseline_ = cur;
+    // QFileSystemWatcher drops a path once its file is replaced — re-add so we keep watching.
+    if (stencilWatcher_ && !stencilWatcher_->files().contains(stencilLink_)) stencilWatcher_->addPath(stencilLink_);
+  }
+
+  void MainWindow::onStencilFileChanged(const QByteArray& prebuilt) {
+    if (stencilLink_.isEmpty()) return;
+    if (stencilWatcher_ && !stencilWatcher_->files().contains(stencilLink_)) stencilWatcher_->addPath(stencilLink_);
+    QByteArray ext;
+    if (!readFileBytes(stencilLink_, ext)) return;
+    if (ext.isEmpty() || ext == stencilBaseline_) return;   // no external change vs our baseline
+    const QByteArray cur = prebuilt.isEmpty() ? buildStencilBytes() : prebuilt;
+    if (cur == stencilBaseline_) {                          // no local edits → apply theirs
+      applyStencilExternal(ext);
+      return;
+    }
+    // Conflict: both changed since the baseline — prompt (mirrors the browser 3-way choice).
+    QMessageBox box(this);
+    box.setWindowTitle(tr("File changed"));
+    box.setText(tr("“%1” was changed outside the app and conflicts with your unsaved edits.")
+                    .arg(QFileInfo(stencilLink_).fileName()));
+    QPushButton* theirs = box.addButton(tr("Take file’s version"), QMessageBox::AcceptRole);
+    QPushButton* merge = box.addButton(tr("Merge lines"), QMessageBox::ActionRole);
+    box.addButton(tr("Keep mine (overwrite file)"), QMessageBox::RejectRole);
+    box.exec();
+    if (box.clickedButton() == theirs) applyStencilExternal(ext);
+    else if (box.clickedButton() == merge) applyStencilExternal(ext, /*merge=*/true);
+    else writeStencilNow(cur);   // keep mine → overwrite the file (reuse the bytes we built)
+  }
+
+  void MainWindow::applyStencilExternal(const QByteArray& text, bool merge) {
+    fileStore::ProjectFileData pf;
+    QString err;
+    if (!fileStore::parseProjectFile(text, pf, &err)) {
+      notify_->error("Could not read the changed project file");
+      return;
+    }
+    QImage img;
+    if (!img.loadFromData(pf.imageBytes)) return;
+    QJsonObject layout = pf.layout;
+    if (merge) {
+      int w = 0, h = 0;
+      const core::Lines fileLines = fileStore::parseLayoutJson(pf.layout, w, h);
+      layout["lines"] = fileStore::linesToJson(mergeLinesUnion(fileLines, canvas_->allLines()));
+    }
+    stencilApplying_ = true;
+    loadImageWithLayout(img, layout, pf.imageBytes, pf.imageExt);
+    stencilApplying_ = false;
+    if (merge) {
+      writeStencilNow();   // push the merged result back to the file
+      notify_->success("Merged with file");
+    } else {
+      stencilBaseline_ = text;
+      notify_->success("Reloaded from file");
+    }
+    refreshActions();
+  }
+
+  void MainWindow::toggleStencilLiveSync(bool on) {
+    stencilLiveSync_ = on;
+    if (on && !stencilLink_.isEmpty()) {
+      QFile rf(stencilLink_);
+      if (rf.open(QIODevice::ReadOnly)) { stencilBaseline_ = rf.readAll(); rf.close(); }
+      if (stencilWatcher_) stencilWatcher_->addPath(stencilLink_);
+      scheduleStencilAutosave();   // push any pending local edits
+      notify_->success(tr("Live sync on — auto-saving to %1").arg(QFileInfo(stencilLink_).fileName()));
+    } else {
+      if (stencilWatcher_ && !stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
+      if (on) notify_->info("Open or save a .stencil file first to enable live sync");
+      else notify_->info("Live sync off");
+    }
   }
 
   bool MainWindow::openProjectByName(const QString& name) {
@@ -4081,13 +4875,16 @@ namespace stencil::gui {
     bool ok = false;
     if (!localPath.isEmpty())
       ok = canvas_->loadImage(localPath);  // path-backed (keeps it for saves)
-    if (!ok) {
+    if (ok) {
+      retainSourceFromFile(localPath);   // lossless .stencil bundle from the untouched file
+    } else {
       if (image.isNull()) {
         notify_->error("Failed to open the image");
         pendingLaunchLayout_.clear();
         return;
       }
       canvas_->loadFromImage(image);  // remote image / video frame (in-memory)
+      setSourceBytes({}, {});         // in-memory frame/remote → re-encode on bundle
     }
     // Quick pre-load crop (links modal): override the default page-aspect auto-crop
     // with the chosen page + orientation, or load the full frame uncropped. Applies
@@ -4479,7 +5276,7 @@ namespace stencil::gui {
 
   // Build a Project from the current canvas, persist it, mark it active, refresh,
   // and notify. pr.meta.name == the passed name.
-  void MainWindow::createLocalProject(const QString& name, bool announce) {
+  void MainWindow::createLocalProject(const QString& name, bool announce, bool fromFile) {
     remoteSession_->link().unbind();  // a freshly created local project is not server-linked
     remoteSync_->stopRemotePoll();   // no longer a server session
     Project pr;
@@ -4509,6 +5306,8 @@ namespace stencil::gui {
     pr.meta.resource = currentResource_.toStdString();
     pr.meta.blankColor = blankColor_.toStdString();  // blank-fill colour (empty = ordinary image)
     pr.meta.blank = !blankColor_.isEmpty();
+    pr.meta.fromFile = fromFile;  // provenance: opened from a .stencil (bronze projects-list outline)
+    stampCanvasMeta(pr.meta);     // cache image px dims + line length (cm) for the projects-list tooltip
     projectList_.push_back(pr);
     activeProjectId_ = QString::fromStdString(pr.meta.id);
     fileStore::saveProjects(projectList_);
@@ -4763,6 +5562,7 @@ namespace stencil::gui {
     pr->rotationQuarters = canvas_->rotationQuarters();
     pr->meta.updatedAt = nowMs();
     pr->meta.hasImage = !pr->imagePath.isEmpty();
+    stampCanvasMeta(pr->meta);  // refresh cached image px dims + line length (cm) for the tooltip
     // Keep provenance unless the active image carries its own (a save shouldn't
     // wipe links set via the Links dialog, but a fresh URL-loaded image updates them).
     if (!currentSource_.isEmpty()) pr->meta.source = currentSource_.toStdString();
@@ -4984,10 +5784,10 @@ namespace stencil::gui {
     // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
     // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
     // Paint its icon as a live swatch of the current fill colour.
-    if (blankColorBtnAction_) {
+    if (blankColorBtn_) {
       const bool showBlank = !blankColor_.isEmpty() && !nameEditing_;
-      blankColorBtnAction_->setVisible(showBlank);
-      if (showBlank && blankColorBtn_) {
+      blankColorBtn_->setVisible(showBlank);   // now a plain layout widget, gated directly
+      if (showBlank) {
         QPixmap sw(14, 14);
         QColor c(blankColor_);
         sw.fill(c.isValid() ? c : QColor("#ffffff"));
@@ -5086,6 +5886,27 @@ namespace stencil::gui {
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fsActive_) {
       toggleFullscreen();
       return true;
+    }
+    // Zoom field → open the preset list without the separate arrow. Trigger on the click's
+    // mouse-RELEASE (not press/focus): showing the popup during the press cycle lets the pending
+    // release land outside it and immediately dismiss it (macOS), so it just flashed. Tab/keyboard
+    // focus opens it too. The field stays editable, so the user can still type over the popup.
+    if (zoom_ && obj == zoom_->lineEdit()) {
+      const auto openPopup = [this] {
+        QTimer::singleShot(0, this, [this] {
+          if (zoom_ && zoom_->lineEdit()->hasFocus() && !zoom_->view()->isVisible()) zoom_->showPopup();
+        });
+      };
+      if (event->type() == QEvent::MouseButtonRelease &&
+          static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+        openPopup();
+      } else if (event->type() == QEvent::FocusIn) {
+        const auto reason = static_cast<QFocusEvent*>(event)->reason();
+        if (reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason ||
+            reason == Qt::ShortcutFocusReason)
+          openPopup();
+      }
+      return false;   // never consume — the field's caret / typing must behave normally
     }
     // Logo double-click → custom theme-colour picker (browser parity). Cancels the pending single-
     // click accent-cycle first, then opens the non-native colour dialog seeded with the current accent.
@@ -5295,6 +6116,7 @@ namespace stencil::gui {
     QImage img(canvas_->imageWidth(), canvas_->imageHeight(), QImage::Format_RGB32);
     img.fill(c);
     canvas_->loadFromImage(img);
+    setSourceBytes({}, {});  // recoloured blank is synthetic → re-encode on bundle
     if (!keep.empty()) canvas_->setLines(keep);
     blankColor_ = c.name();
     // Persist the new fill into the active local project's meta + raster so a reopen shows it.
@@ -5417,9 +6239,11 @@ namespace stencil::gui {
   }
 
   void MainWindow::updateStatusIdle() {
+    // Cursor off the canvas: show nothing when an image is loaded (no "Ready" filler,
+    // matching the browser), only the idle hint while there's no image at all.
     status_->setText(canvas_->hasImage()
-                         ? "Ready"
-                         : "Open an image — or create a blank one — to begin");
+                         ? QString()
+                         : QStringLiteral("Open an image — or create a blank one — to begin"));
   }
 
 }

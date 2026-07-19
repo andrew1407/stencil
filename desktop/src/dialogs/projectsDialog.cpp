@@ -200,14 +200,37 @@ namespace stencil::gui {
           }
           p->restore();
         }
+        // Origin outline: golden for a server (shared) row, bronze for a .stencil file-origin
+        // row (mirrors the browser's `.project-remote` / `.project-file` borders).
         const bool remote = !idx.data(Qt::UserRole + 1).toString().isEmpty();
-        if (remote) {
+        const bool fileOrigin = idx.data(Qt::UserRole + 6).toBool();
+        if (remote || fileOrigin) {
           p->save();
           p->setRenderHint(QPainter::Antialiasing, true);
           p->setBrush(Qt::NoBrush);
-          p->setPen(QPen(QColor("#d4a017"), 2));
+          p->setPen(QPen(QColor(remote ? "#d4a017" : "#c1783c"), 2));
           p->drawRoundedRect(QRectF(opt.rect).adjusted(1, 1, -1, -1), 6, 6);
           p->restore();
+        }
+        // Origin glyph badge over the thumbnail's bottom-right corner: `server` (gold, shared),
+        // `file-text` (bronze, .stencil), or `monitor` (grey, this-computer local storage) — the
+        // desktop counterpart of the browser badges (server icon uses this computer, not a browser).
+        if (realRow) {
+          const QString gname = remote ? QStringLiteral("server")
+                                       : (fileOrigin ? QStringLiteral("file-text") : QStringLiteral("monitor"));
+          const QColor gcol = remote ? QColor("#d4a017") : (fileOrigin ? QColor("#c1783c") : QColor("#9aa4b2"));
+          const QRect dec = st->subElementRect(QStyle::SE_ItemViewItemDecoration, &o, o.widget);
+          if (dec.isValid() && hasIcon(gname)) {
+            const int gs = 16;
+            const QRect gr(dec.right() - gs + 1, dec.bottom() - gs + 1, gs, gs);
+            p->save();
+            p->setRenderHint(QPainter::Antialiasing, true);
+            p->setPen(Qt::NoPen);
+            p->setBrush(QColor(0, 0, 0, 160));   // dark disc so the glyph reads over any thumbnail
+            p->drawEllipse(QRectF(gr).adjusted(-2, -2, 2, 2));
+            themedIcon(gname, gcol, gs).paint(p, gr);
+            p->restore();
+          }
         }
         // Kebab dots only on real (selectable) rows — skip "No projects yet" /
         // "Loading…" placeholders, which carry no project id.
@@ -243,9 +266,10 @@ namespace stencil::gui {
   ProjectsDialog::ProjectsDialog(const std::vector<Project>& projects, long long now,
                                  stencil::net::ConnectionManager* connections,
                                  const QHash<QString, QPixmap>& thumbs,
+                                 core::UnitFormat unit,
                                  QWidget* parent)
-      : QDialog(parent), projects_(projects), now_(now), connections_(connections),
-        thumbs_(thumbs) {
+      : QDialog(parent), projects_(projects), now_(now), unit_(unit),
+        connections_(connections), thumbs_(thumbs) {
     setWindowTitle("Projects");
     // Twice the previous width so the "<name> — <url>" labels fit without eliding early.
     setMinimumSize(760, 320);
@@ -715,6 +739,25 @@ namespace stencil::gui {
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
 
+    // Multi-line row tooltip (Qt honours the \n's), in order: image size + orientation, the
+    // total drawn-line length in the active unit (local rows only — cached as lineLengthCm at
+    // save time), the description when set, and the origin note. `lineLenCm` is 0 to omit the
+    // Line row (server rows don't carry a line length).
+    auto rowTooltip = [&](int w, int h, double lineLenCm, const QString& description,
+                          const QString& origin) {
+      QStringList lines;
+      if (w > 0 && h > 0)
+        lines << QString("%1x%2 px   ·   %3").arg(w).arg(h).arg(
+            h >= w ? QStringLiteral("portrait") : QStringLiteral("landscape"));
+      if (lineLenCm > 0)
+        lines << QString("Line: %1 %2")
+                     .arg(lineLenCm * unit_.factor, 0, 'f', 1)
+                     .arg(QString::fromStdString(unit_.label));
+      if (!description.isEmpty()) lines << QString("Description: %1").arg(description);
+      lines << origin;
+      return lines.join('\n');
+    };
+
     // Build one LOCAL project row (edited-result thumb, expiry-aware name colour, checkbox).
     auto buildLocalRow = [&](const Project& pr) {
       // Name · created · expiry only — no line/point counts (mirrors the browser projects list).
@@ -757,6 +800,13 @@ namespace stencil::gui {
       QStringList kw;
       for (const auto& k : pr.meta.keywords) kw << QString::fromStdString(k);
       it->setData(Qt::UserRole + 5, kw.join(' '));
+      // UserRole+6: file-origin marker (opened from a .stencil) → the delegate's bronze outline
+      // + file glyph. The tooltip names where the project lives (local disk vs a .stencil file).
+      it->setData(Qt::UserRole + 6, pr.meta.fromFile);
+      it->setToolTip(rowTooltip(pr.meta.imageW, pr.meta.imageH, pr.meta.lineLengthCm,
+                                QString::fromStdString(pr.meta.description),
+                                pr.meta.fromFile ? QStringLiteral("Opened from a .stencil project file")
+                                                 : QStringLiteral("Stored on this computer")));
     };
 
     // Build one SERVER (shared) project row: golden outline (delegate) + server badge.
@@ -783,7 +833,8 @@ namespace stencil::gui {
       it->setData(Qt::UserRole + 4,
                   (!sp.color.isEmpty() && custom.isValid()) ? custom : QColor("#80868f"));
       it->setData(Qt::UserRole + 5, sp.keywords.join(' '));  // keyword search key
-      it->setToolTip(QString("Server project on %1").arg(sp.serverUrl));
+      it->setToolTip(rowTooltip(sp.imageW, sp.imageH, 0.0, sp.description,
+                                QString("Server project on %1").arg(sp.serverUrl)));
       // Edited preview: the project's rendered `result` (falling back to the
       // `original` if it was never saved), mirroring the browser modal's
       // makeRemoteRow result-with-original-fallback. Cached by id+version so the
@@ -983,6 +1034,61 @@ namespace stencil::gui {
     const QColor ico = palette().color(QPalette::WindowText);
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     QMenu menu(this);
+
+    // "Description…" — edit the row's free-text description inline (no accept()/close), mirroring the
+    // colour edit but persisting straight to the local registry (fileStore) or the server
+    // (updateProjectDescriptionAsync), then refreshing the list + its tooltip. An empty value clears.
+    auto editDescription = [this, it] {
+      const QString id = it->data(Qt::UserRole).toString();
+      const QString server = it->data(Qt::UserRole + 1).toString();
+      QString current;
+      if (server.isEmpty()) {
+        for (const auto& p : projects_)
+          if (QString::fromStdString(p.meta.id) == id) {
+            current = QString::fromStdString(p.meta.description);
+            break;
+          }
+      } else {
+        for (const auto& sp : remote_)
+          if (sp.id == id && sp.serverUrl == server) { current = sp.description; break; }
+      }
+      bool ok = false;
+      QString text = QInputDialog::getMultiLineText(this, tr("Project description"),
+                                                    tr("Description (leave empty to clear):"),
+                                                    current, &ok);
+      if (!ok) return;
+      text = text.trimmed().left(2000);   // soft-cap ~2000 chars (UI only; core does no validation)
+      if (text == current) return;        // nothing changed
+      if (server.isEmpty()) {
+        // Local row: update the registry copy + persist, then refresh the list/tooltip.
+        for (auto& p : projects_)
+          if (QString::fromStdString(p.meta.id) == id) { p.meta.description = text.toStdString(); break; }
+        fileStore::saveProjects(projects_);
+        refresh();
+      } else {
+        // Server row: guarded PUT ("" clears). On success update the cached record so the tooltip
+        // reflects it immediately (until the next live re-list), then refresh.
+        stencil::net::ServerClient* c = connections_ ? connections_->find(server) : nullptr;
+        if (!c) return;
+        qint64 version = 0;
+        for (const auto& sp : remote_)
+          if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
+        QPointer<ProjectsDialog> self(this);
+        c->updateProjectDescriptionAsync(
+            id, text, version,
+            [this, self, id, server, text](bool ok2, qint64 newVersion, bool) {
+              if (!self || !ok2) return;
+              for (auto& sp : remote_)
+                if (sp.id == id && sp.serverUrl == server) {
+                  sp.description = text;
+                  sp.version = newVersion;
+                  break;
+                }
+              refresh();
+            });
+      }
+    };
+
     // Same actions/order as the browser modal's overflow menu (slots act on the current row).
     if (remote) {
       menu.addAction(themedIcon("folder", ico, 16), "Open from server", this,
@@ -996,6 +1102,7 @@ namespace stencil::gui {
                      &ProjectsDialog::setColorSelected);
       menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
                      &ProjectsDialog::clearColorSelected);
+      menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
     } else {
       menu.addAction(themedIcon("folder", ico, 16), "Open", this,
                      &ProjectsDialog::openSelected);
@@ -1016,6 +1123,7 @@ namespace stencil::gui {
                      &ProjectsDialog::setColorSelected);
       menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
                      &ProjectsDialog::clearColorSelected);
+      menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
       menu.addSeparator();
       // Destructive: a red trash glyph echoes the browser's red "Remove" item.
       menu.addAction(themedIcon("trash", QColor("#dc3545"), 16), "Remove", this,

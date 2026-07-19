@@ -79,12 +79,13 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), store.ProjectPatch{
-		Name:       req.Name,
-		Color:      req.Color,
-		Keywords:   req.Keywords,
-		BlankColor: req.BlankColor,
-		ExpiresAt:  req.ExpiresAt,
-		Layout:     req.Layout,
+		Name:        req.Name,
+		Color:       req.Color,
+		Description: req.Description,
+		Keywords:    req.Keywords,
+		BlankColor:  req.BlankColor,
+		ExpiresAt:   req.ExpiresAt,
+		Layout:      req.Layout,
 	}, req.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):

@@ -90,3 +90,40 @@ input[type="radio"]:checked {
   background-image: radial-gradient(circle, #fff 0 2.6px, transparent 3.1px);
 }
 input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cursor: default; }
+
+/* Short toggle CHIPS (.chk) as accent PILLS — matching the editor's f(x,y) toggle: accent
+   outline + text when off, accent-filled with white text when on. The native checkbox is
+   hidden; the whole chip conveys the state. Shared by the popup filter/option chips and the
+   options page's compact toggles. (Descriptive, sentence-label settings stay plain checkboxes.) */
+.chk {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--accent); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px;
+  background: transparent; user-select: none;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.chk:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.chk > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+.chk:has(> input:checked) { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for the
+   extension's interactive items (icon buttons, mini buttons, chips, image thumbs), matching the
+   browser app + desktop. Clipped ::after gradient; honours prefers-reduced-motion. ── */
+.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .shimmer { position: relative; overflow: hidden; }
+.icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after, .shimmer::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%,
+    color-mix(in srgb, #ffffff 42%, transparent) 50%, transparent 62%);
+  transform: translateX(-135%); opacity: 0;
+}
+.icon-btn:hover:not(:disabled)::after, .mini:hover:not(:disabled)::after,
+.btn-icon-text:hover:not(:disabled)::after, .thumb:hover::after, .chk:hover::after, .shimmer:hover::after {
+  animation: ui-shimmer 0.7s ease;
+}
+@keyframes ui-shimmer {
+  from { transform: translateX(-135%); opacity: 1; }
+  to   { transform: translateX(135%);  opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after, .shimmer::after { content: none; }
+}

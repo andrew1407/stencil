@@ -102,6 +102,48 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
   return { refresh };
 };
 
+// ── Coordinates-panel drag resizer ──────────────────────────────
+// Wire a drag handle that resizes the right-hand coordinates panel by writing the shared
+// `--coord-panel-width` CSS var (clamped, persisted to localStorage). Used by both the normal
+// (mainContent) and fullscreen (fullscreenLayer) panels. Dragging the handle LEFT widens the
+// panel. `panel` is measured for the live/persisted width; `maxFactor` caps width at that
+// fraction of the window. `onStart`/`onEnd` hook a drag (fullscreen pauses its auto-hide);
+// `restore` re-applies the persisted width on wire. Returns { isDragging } for hover logic.
+const COORD_PANEL_WIDTH_KEY = 'drawingApp_coordPanelWidth';
+export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onEnd, restore = false } = {}) => {
+  const clamp = (w) => Math.max(240, Math.min(640, Math.round(window.innerWidth * maxFactor), w));
+  const setWidth = (w) => document.documentElement.style.setProperty('--coord-panel-width', clamp(w) + 'px');
+  if (restore) {
+    let saved = NaN;
+    try { saved = parseInt(localStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }
+    if (Number.isFinite(saved)) setWidth(saved);
+  }
+  let startX = 0, startW = 0, dragging = false;
+  const onMove = (e) => { if (dragging) setWidth(startW + (startX - e.clientX)); };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    try { localStorage.setItem(COORD_PANEL_WIDTH_KEY, String(Math.round(panel.getBoundingClientRect().width))); } catch { /* storage blocked */ }
+    onEnd?.();
+  };
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startW = panel.getBoundingClientRect().width;
+    resizer.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    onStart?.();
+  });
+  return { isDragging: () => dragging };
+};
+
 // ── Notification balloon ────────────────────────────────────────
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.

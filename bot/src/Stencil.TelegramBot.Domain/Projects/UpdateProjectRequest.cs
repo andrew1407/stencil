@@ -17,6 +17,9 @@ public sealed record UpdateProjectRequest
     public string? Name { get; init; }
     public string? Color { get; init; }
 
+    /// <summary>Free-text description: null leaves it unchanged; <c>""</c> clears it.</summary>
+    public string? Description { get; init; }
+
     /// <summary>Blank-image fill colour (<c>#rrggbb</c>): null leaves it unchanged. Only a blank
     /// project has one — setting on an ordinary image project has no visible effect server-side.</summary>
     public string? BlankColor { get; init; }

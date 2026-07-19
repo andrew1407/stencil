@@ -51,7 +51,7 @@ func (s *Store) Close() { s.pool.Close() }
 
 // projectCols is the canonical column list / order for project row scans.
 const projectCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-	source, resource, color, original_path, result_path, original_content, layout, owner_session, version, keywords, blank_color`
+	source, resource, color, description, original_path, result_path, original_content, layout, owner_session, version, keywords, blank_color`
 
 // Keywords persist as a newline-joined text blob ("" = none). joinKeywords normalizes
 // (trims, drops blanks, dedupes case-insensitively, preserves order); splitKeywords is its
@@ -101,7 +101,7 @@ func scanProject(row rowScanner) (protocol.ProjectRecord, error) {
 	)
 	err := row.Scan(
 		&rec.ID, &rec.Name, &rec.CreatedAt, &rec.UpdatedAt, &rec.ExpiresAt, &rec.HasImage,
-		&rec.ImageW, &rec.ImageH, &rec.Source, &rec.Resource, &rec.Color,
+		&rec.ImageW, &rec.ImageH, &rec.Source, &rec.Resource, &rec.Color, &rec.Description,
 		&rec.OriginalPath, &rec.ResultPath, &rec.OriginalContent,
 		&layout, &owner, &rec.Version, &keywords, &rec.BlankColor,
 	)
@@ -214,11 +214,11 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`INSERT INTO projects
 			(id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-			 source, resource, color, original_content, layout, owner_session, keywords, blank_color, version)
-		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,0)
+			 source, resource, color, description, original_content, layout, owner_session, keywords, blank_color, version)
+		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,0)
 		 RETURNING `+projectCols,
 		id, name, now, req.ExpiresAt, req.HasImage, req.ImageW, req.ImageH,
-		req.Source, req.Resource, req.Color, req.OriginalContent, layout, owner, joinKeywords(req.Keywords), req.BlankColor))
+		req.Source, req.Resource, req.Color, req.Description, req.OriginalContent, layout, owner, joinKeywords(req.Keywords), req.BlankColor))
 	if err != nil {
 		return protocol.ProjectRecord{}, fmt.Errorf("create project: %w", err)
 	}
@@ -228,12 +228,13 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 // ProjectPatch bundles the optionally-updated fields of an UpdateProject call.
 // A nil pointer (or empty Layout) leaves that column untouched.
 type ProjectPatch struct {
-	Name       *string
-	Color      *string
-	Keywords   *[]string // nil => unchanged; empty slice clears
-	BlankColor *string   // nil => unchanged; "" clears (→ not blank)
-	ExpiresAt  *int64
-	Layout     json.RawMessage
+	Name        *string
+	Color       *string
+	Description *string   // nil => unchanged; "" clears
+	Keywords    *[]string // nil => unchanged; empty slice clears
+	BlankColor  *string   // nil => unchanged; "" clears (→ not blank)
+	ExpiresAt   *int64
+	Layout      json.RawMessage
 }
 
 // UpdateProject applies a last-writer-wins update guarded by expectedVersion.
@@ -252,6 +253,7 @@ func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch
 		`UPDATE projects SET
 			name = COALESCE($2, name),
 			color = COALESCE($3, color),
+			description = COALESCE($10, description),
 			keywords = COALESCE($8, keywords),
 			blank_color = COALESCE($9, blank_color),
 			expires_at = COALESCE($7, expires_at),
@@ -260,7 +262,7 @@ func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch
 			version = version + 1
 		 WHERE id = $1 AND version = $6
 		 RETURNING `+projectCols,
-		id, patch.Name, patch.Color, layoutArg, nowMs(), expectedVersion, patch.ExpiresAt, kwArg, patch.BlankColor))
+		id, patch.Name, patch.Color, layoutArg, nowMs(), expectedVersion, patch.ExpiresAt, kwArg, patch.BlankColor, patch.Description))
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Disambiguate not-found from version conflict.
 		if _, e := s.GetProject(ctx, id); errors.Is(e, ErrNotFound) {

@@ -58,6 +58,20 @@ public interface IServerService
     /// </summary>
     Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default);
 
+    /// <summary>
+    /// Rename the active project, version-guarded, and broadcast to peers. Returns the effective
+    /// name the server stored. Requires an active project and a non-blank name. Mirrors the CLI's
+    /// project rename.
+    /// </summary>
+    Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default);
+
+    /// <summary>
+    /// Set the active project's free-text description (or <c>""</c> to clear it), version-guarded,
+    /// and broadcast to peers. Returns the effective description. Requires an active project.
+    /// Mirrors the CLI's <c>/project-description</c>.
+    /// </summary>
+    Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default);
+
     /// <summary>Read the active project's blank fill colour ("" = not a blank image).</summary>
     Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default);
 

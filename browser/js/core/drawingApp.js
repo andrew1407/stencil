@@ -21,8 +21,9 @@ import { ControlsBinder } from './controlsBinder.js';
 import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
-import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState } from './layout.js';
+import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
 import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
+import { StencilSync } from './stencilSync.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect } from '../ui/customSelect.js';
@@ -99,6 +100,8 @@ export class DrawingApp {
     // createBlankImage, restored on open, persisted into project meta (storage.js). Non-empty ⇔
     // this is a blank project (whose solid background can be recoloured after creation).
     this.blankColor = '';
+    // True when opened from a portable .stencil file (provenance → bronze projects-list outline).
+    this.fromFile = false;
     this.lines = [];
     this.currentLine = null;
     this.isDrawing = false;
@@ -241,6 +244,9 @@ export class DrawingApp {
     this.imageModel = new ImageModel(this);
     // Live co-edit push/pull + server writes (see remoteSyncController.js).
     this.remoteSync = new RemoteSyncController(this);
+    // Live two-way sync between a file-linked project and its .stencil on disk (opt-in;
+    // File System Access / Chromium only — no-ops elsewhere). See stencilSync.js.
+    this.stencilSync = new StencilSync(this);
     // Touch + hold-to-draw alternative input (see inputController.js). Wired in initEventListeners.
     this.input = new InputController(this);
     // Mouse pan / drag / rect / zoom-rect wiring (see pointerController.js).
@@ -255,9 +261,18 @@ export class DrawingApp {
     this.controls = new ControlsBinder(this);
 
     this.initEventListeners();
-    // Set a sensible initial viewport height
-    const vp = document.getElementById('canvas-viewport');
-    if (vp) vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
+    // Size the canvas viewport to the available height, and keep it adaptive: re-run on
+    // window resize so the viewport (and, with an image, its zoom-aware height) tracks the
+    // window instead of freezing at the boot-time value. syncViewportHeight hugs+grows with
+    // zoom once an image is loaded; before that we just fill the available height.
+    const syncViewport = () => {
+      const vp = document.getElementById('canvas-viewport');
+      if (!vp || document.body.classList.contains('fullscreen-mode')) return;
+      if (this.image) this.zoomPan.syncViewportHeight();
+      else vp.style.maxHeight = this.zoomPan.availContentHeight() + 'px';
+    };
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
     // Boot synchronously into a blank temporary editor (migrate + sweep only); the
     // projects component decides whether to offer a chooser after readiness.
     this.restoreFromLocalStorage();
@@ -401,6 +416,11 @@ export class DrawingApp {
   // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
   loadImageFromFile(file, opts = {}) {
     const replaceInPlace = !!opts.replaceInPlace;
+    // A fresh (non-in-place) load starts a DIFFERENT project — drop any .stencil file link the
+    // previous project held, or live-sync auto-save would keep writing this new project into the
+    // old project's file and overwrite it. A .stencil open re-links right after (see
+    // ExportService.pickAndOpenProjectFile); an in-place replace keeps the same project + link.
+    if (!replaceInPlace) this.stencilSync?.unlink();
     // Replacing an existing project's image in place: capture what must survive the swap —
     // the annotations to keep, and the OLD image's pin identity to clear — before they're overwritten.
     const keptLines = (replaceInPlace && opts.keepAnnotations) ? this.lines : null;
@@ -549,6 +569,9 @@ export class DrawingApp {
         // recolour keeps it. This drives the meta blank/blankColor persisted by storage.save().
         if (opts.blankColor != null) this.blankColor = opts.blankColor;
         else if (!replaceInPlace) this.blankColor = '';
+        // File-origin provenance: a .stencil open passes fromFile; any other fresh load clears
+        // it (a replace-in-place keeps the project's existing origin).
+        if (!replaceInPlace) this.fromFile = !!opts.fromFile;
         this.zoomPan.fitToWindow();
         this.updateInfo();
         this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
@@ -564,6 +587,11 @@ export class DrawingApp {
         if ((opts.remoteId || opts.adoptLayout) && opts.color != null && this.activeProjectId != null) {
           this.storage.store.setColor(this.activeProjectId, normalizeHex(opts.color) || '');
           this.updateProjectTitle();
+        }
+        // Restore a .stencil project's search keywords into the local meta (same local-only
+        // adopt as the accent colour above; applied via the store so the projects list matches).
+        if ((opts.remoteId || opts.adoptLayout) && Array.isArray(opts.keywords) && opts.keywords.length && this.activeProjectId != null) {
+          this.storage.store.setKeywords(this.activeProjectId, opts.keywords);
         }
 
         // Replace-in-place post-steps: optional rename, unpin the OLD image, push the new
@@ -1742,7 +1770,9 @@ export class DrawingApp {
     const el = this.coordStatus ??= document.getElementById('coord-status');
     if (!el) return;
     if (!this.image || x === undefined) {
-      el.textContent = this.image ? 'Ready' : 'Open an image to begin';
+      // Cursor off the canvas: show nothing when an image is loaded (no "Ready" filler),
+      // only the idle hint while there's no image at all.
+      el.textContent = this.image ? '' : 'Open an image to begin';
       return;
     }
     const page = this.pixelToPageCoords(x, y);
@@ -1879,24 +1909,58 @@ export class DrawingApp {
     });
   }
 
-  // Rotate the selected line(s) together about their combined bounding-box centre.
-  #rotateLines(indices, angle) {
-    const lines = indices.map((i) => this.lines[i]).filter((l) => l && l.points.length);
-    if (!lines.length) return;
-    const { x: cx, y: cy } = this.#bboxCenterOf(lines.flatMap((l) => l.points));
-    for (const l of lines) this.#rotatePointsAbout(l.points, cx, cy, angle);
-    this.renderer.redraw();
+  // Mirror every point in `pts` about (cx, cy) — horizontal flips left↔right (x' = 2cx - x),
+  // vertical flips top↔bottom (y' = 2cy - y) — via the shared C++ core with a JS fallback.
+  #flipPointsAbout(pts, horizontal, cx, cy) {
+    const flip = core.op('flipPoints');
+    if (flip) { flip(pts, horizontal, cx, cy); return; }
+    pts.forEach((p) => {
+      if (horizontal) p.x = 2 * cx - p.x;
+      else p.y = 2 * cy - p.y;
+    });
+  }
+
+  // Debounced history+storage save shared by the in-place geometry transforms (rotate/flip):
+  // a burst of key-repeats or wheel steps collapses into a single undo step / persist.
+  #scheduleTransformSave() {
     clearTimeout(this.#rotateSaveTimer);
     this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
   }
 
-  rotateSelectedLine(angle) {
-    // 2+ selected → rotate the whole set about their combined centre.
+  // Apply an in-place per-line transform `op(points, cx, cy)` to the current selection about the
+  // selection's bounding-box centre (≥2 selected → combined centre; exactly 1 → that line's
+  // centre). Redraws, refreshes the coord table for a focused single line, and schedules the
+  // debounced save. Shared by flipSelectedLine and the centre-pivot rotate path; no-op when the
+  // selection is empty or a single line has fewer than 2 points.
+  #transformSelection(op) {
     const sel = this.selectedIndices();
-    if (sel.length >= 2) { this.#rotateLines(sel, angle); return; }
+    if (sel.length >= 2) {
+      const lines = sel.map((i) => this.lines[i]).filter((l) => l && l.points.length);
+      if (!lines.length) return;
+      const { x: cx, y: cy } = this.#bboxCenterOf(lines.flatMap((l) => l.points));
+      for (const l of lines) op(l.points, cx, cy);
+    } else {
+      const line = this.lines[this.selectedLineIdx];
+      if (!line || line.points.length < 2) return;
+      const { x: cx, y: cy } = this.#bboxCenterOf(line.points);
+      op(line.points, cx, cy);
+      if (this.coordLineIdx === this.selectedLineIdx) this.coordTable.update(line.points, this.selectedLineIdx);
+    }
+    this.renderer.redraw();
+    this.#scheduleTransformSave();
+  }
+
+  rotateSelectedLine(angle) {
+    // 2+ selected → rotate the whole set about their combined centre (the shared bbox path).
+    const sel = this.selectedIndices();
+    if (sel.length >= 2) {
+      this.#transformSelection((pts, cx, cy) => this.#rotatePointsAbout(pts, cx, cy, angle));
+      return;
+    }
     const line = this.lines[this.selectedLineIdx];
     if (!line || line.points.length < 2) return;
-    // One selected: pivot on the focused point when there is one, else the line's bbox centre.
+    // One selected: pivot on the focused point when there is one, else the line's bbox centre —
+    // a rotate-only special case, so it doesn't go through #transformSelection's centre pivot.
     let cx;
     let cy;
     if (this.coordLineIdx === this.selectedLineIdx && this.focusedPtIdx >= 0
@@ -1909,8 +1973,20 @@ export class DrawingApp {
     this.#rotatePointsAbout(line.points, cx, cy, angle);
     this.renderer.redraw();
     if (this.coordLineIdx === this.selectedLineIdx) this.coordTable.update(line.points, this.selectedLineIdx);
-    clearTimeout(this.#rotateSaveTimer);
-    this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
+    this.#scheduleTransformSave();
+  }
+
+  // Flip the selected line(s) about the selection's bounding-box centre — the same pivot the
+  // arbitrary-angle rotate uses. `horizontal` mirrors left↔right, else top↔bottom. Debounced
+  // history save like rotateSelectedLine; no selection is a no-op.
+  flipSelectedLine(horizontal) {
+    this.#transformSelection((pts, cx, cy) => this.#flipPointsAbout(pts, horizontal, cx, cy));
+  }
+
+  // Rotate the selected line(s) a quarter turn (dir > 0 → +90° CW, dir < 0 → -90°) — reuses the
+  // arbitrary-angle rotate path so the pivot and debounced save are identical.
+  rotateSelectedLineQuarter(dir) {
+    this.rotateSelectedLine(dir * (Math.PI / 2));
   }
 
   // Translate every selected line by (dx, dy) image-space px — the arrow-key nudge. Mirrors the
@@ -1927,8 +2003,7 @@ export class DrawingApp {
     this.renderer.redraw();
     if (sel.includes(this.coordLineIdx) && this.lines[this.coordLineIdx])
       this.coordTable.update(this.lines[this.coordLineIdx].points, this.coordLineIdx);
-    clearTimeout(this.#rotateSaveTimer);
-    this.#rotateSaveTimer = setTimeout(() => { this.saveHistory(); this.storage.save(); }, 280);
+    this.#scheduleTransformSave();
     return this;
   }
 
@@ -2035,10 +2110,16 @@ export class DrawingApp {
     setDisabled('image-filter', !hasImage);
     setDisabled('compare-mode', !hasImage);
     setDisabled('save-image', !hasImage);
+    // Saving a .stencil bundles the current image — needs one; opening a .stencil is always allowed.
+    setDisabled('save-project-btn', !hasImage);
+    this.updateStencilSyncUI();   // live-sync toggle reflects link/support/on state
     // Image Links edit the CURRENT image's provenance — nothing to edit without one.
     setDisabled('links-btn', !hasImage);
     setDisabled('download-json', !hasLines);
     setDisabled('copy-json-btn', !hasLines);
+    // Importing a layout draws it onto the CURRENT image — needs one loaded (the handler also
+    // guards with a toast, but disable the button to match the desktop + the other image actions).
+    setDisabled('upload-json-btn', !hasImage);
     setDisabled('clear-all-lines', !hasLines || ro);
     // State-aware Image section: the compact "Load Image" button shows only when
     // empty; the image-actions group (download/copy/share/open) shows only with an
@@ -2141,22 +2222,16 @@ export class DrawingApp {
 
   updateInfo() {
     const info = document.getElementById('image-info');
-    const sizeDisplay = document.getElementById('image-size-display');
     const blankBtn = document.getElementById('blank-color-btn');
     const blankSwatch = document.getElementById('blank-color-swatch');
-    // A blank project writes "· blank" into the size readouts + reveals the recolour swatch.
+    // A blank project writes "· blank" into the size readout + reveals the recolour swatch.
     const isBlank = this.activeIsBlank();
     if (this.image) {
       const blankTag = isBlank ? '  ·  blank' : '';
       // Just the image size — the shortcut hints live in the "?" popup (hints-btn), not this bar.
       info.textContent = `Image Size: ${this.canvas.width} × ${this.canvas.height} px${blankTag}`;
-      if (sizeDisplay) {
-        sizeDisplay.innerHTML = `${icon('ruler', { size: 13 })} ${this.canvas.width} × ${this.canvas.height} px${isBlank ? ' · blank' : ''}`;
-        sizeDisplay.style.display = 'inline-flex';
-      }
     } else {
       info.textContent = 'No image loaded. Upload an image to start.';
-      if (sizeDisplay) sizeDisplay.style.display = 'none';
     }
     // Blank-fill recolour swatch: sits beside the size pill, shown only for a blank project.
     if (blankBtn) blankBtn.style.display = (this.image && isBlank) ? 'inline-flex' : 'none';
@@ -2281,6 +2356,9 @@ export class DrawingApp {
     this.remoteLink = null;
     this.pendingRemoteAddress = null;   // drop any un-consumed newEditor({ address }) arming
     this.blankColor = '';               // fresh editor is not a blank project until one is created
+    this.fromFile = false;              // …nor a file-origin project until a .stencil is opened
+    this.stencilSync?.unlink();         // drop any .stencil live-sync link so a new/empty project
+                                        // can't auto-save over the previous project's linked file
     this.storage.newTemporary();
     this.tabs.reportActive(null);
     this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
@@ -2481,6 +2559,121 @@ export class DrawingApp {
       formulaX: this.formulaX,
       formulaY: this.formulaY,
     });
+  }
+
+  // ── .stencil project files (portable single-file projects) ──────────────
+  // Gather this session into the shape projectFile.buildProjectFile wants (ORIGINAL image +
+  // export layout + metadata + opt-in theme); JSON/IO live in ExportService + projectFile.js.
+  projectFileState({ includeTheme = true } = {}) {
+    const meta = (this.activeProjectId != null && this.storage.store.getMeta(this.activeProjectId)) || {};
+    const state = {
+      name: meta.name || this.imageBaseName || 'Untitled',
+      color: meta.color || '',
+      keywords: Array.isArray(meta.keywords) ? meta.keywords : [],
+      source: this.imageSource || '',
+      resource: this.imageResource || '',
+      blank: !!this.blankColor,
+      blankColor: this.blankColor || '',
+      layout: this.currentLayoutPayload(),
+    };
+    if (this.imageDataUrl) {
+      state.image = {
+        dataUrl: this.imageDataUrl,          // the ORIGINAL (crop/rotation live in layout)
+        ext: this.imageExt || 'png',
+        w: this.originalImage ? this.originalImage.width : 0,
+        h: this.originalImage ? this.originalImage.height : 0,
+      };
+    }
+    if (includeTheme) state.theme = { mode: this.theme, accent: this.customAccent || this.accent };
+    return state;
+  }
+
+  // Apply a parsed .stencil as a NEW local project (flush → reset → load ORIGINAL image + adopt
+  // its layout/metadata via the server-reopen path, then the theme only if the file carried one).
+  // Returns the project name.
+  async applyProjectFile(project) {
+    if (!project || !project.image || !project.image.dataUrl) throw new Error('Project file has no image');
+    const name = project.name || 'Untitled';
+    const blob = await (await fetch(project.image.dataUrl)).blob();
+    const ext = project.image.ext || 'png';
+    const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
+    // Open as a distinct project (mirror openImageHere: flush current, reset, then load).
+    if (!this.storage.incognito) this.storage.save();
+    this.newEditor();
+    this.loadImageFromFile(file, {
+      name,
+      source: project.source || '',
+      resource: project.resource || '',
+      layout: project.layout,
+      adoptLayout: true,
+      color: project.color || '',
+      keywords: project.keywords || [],
+      blankColor: project.blank ? (project.blankColor || '') : undefined,
+      fromFile: true,   // mark provenance so the projects list shows a bronze .stencil outline
+    });
+    // Theme is a global setting; apply it ONLY when the file opted to carry one, so opening a
+    // themeless project never changes the user's current theme.
+    const t = project.theme;
+    if (t) {
+      if (t.mode) this.setTheme(t.mode);
+      if (t.accent) { if (isAccent(t.accent)) this.setAccent(t.accent); else this.setCustomAccent(t.accent); }
+    }
+    return name;
+  }
+
+  // Update the CURRENT project's layout in place from a parsed .stencil (live file sync, no new
+  // editor) via the server-co-edit adopt path, optionally union-merging lines on a conflict.
+  applyProjectFileInPlace(project, opts = {}) {
+    if (!project || !this.image) return;
+    const layout = project.layout || {};
+    const verdict = validateLayout(layout, {
+      hasImage: !!this.image, imgW: this.canvas.width, imgH: this.canvas.height,
+      hasExistingLines: !!(this.lines && this.lines.length),
+    });
+    if (!verdict.ok) return;
+    this.lines = opts.mergeLines ? mergeLines(verdict.lines, this.lines) : verdict.lines;
+    if (Number.isInteger(layout.rotationQuarters)) this.rotationQuarters = layout.rotationQuarters;
+    if (layout.cropRect) this.cropRect = this.imageModel.roundRect(layout.cropRect);
+    this.imageModel.rebuildCroppedImage();
+    this.remoteSync.adoptServerFilter(layout);
+    this.remoteSync.adoptServerFormulas(layout);
+    this.remoteSync.adoptServerPageFormat(layout);
+    this.currentLine = null;
+    this.history.reset(this.lines);
+    this.zoomPan.fitToWindow();
+    this.updateInfo();
+    this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
+    this.renderer.redraw();
+    this.updateButtons();
+    this.storage.save();
+  }
+
+  // A 3-way conflict prompt for live file sync (the file changed AND you have un-synced edits),
+  // built from two confirms so it reuses the existing modal: → 'theirs' | 'merge' | 'mine'.
+  async chooseFileConflict(name = '.stencil') {
+    if (await this.confirm(
+      `“${name}” was changed outside the app and conflicts with your unsaved edits. Reload the file’s version (discard yours)?`,
+      { title: 'File changed', confirmLabel: 'Take file’s version', cancelLabel: 'Keep / merge…' })) {
+      return 'theirs';
+    }
+    return (await this.confirm(
+      'Merge instead — combine your lines with the file’s?',
+      { title: 'Merge changes', confirmLabel: 'Merge both', cancelLabel: 'Keep mine (overwrite file)' }))
+      ? 'merge' : 'mine';
+  }
+
+  // Reflect the live-sync button state (label/enabled/active). Called on link/unlink/toggle.
+  updateStencilSyncUI() {
+    const btn = document.getElementById('live-sync-btn');
+    if (!btn) return;
+    const s = this.stencilSync;
+    const on = s.supported && s.linked && s.liveSync;
+    btn.classList.toggle('active', on);
+    btn.disabled = !(s.supported && s.linked);
+    btn.title = !s.supported ? 'Live file sync needs a Chromium browser (File System Access API)'
+      : !s.linked ? 'Open or save a .stencil file first to enable live sync'
+        : on ? `Live sync ON — auto-saving to ${s.name} and watching it for changes`
+          : `Live sync OFF — click to auto-save to ${s.name} and watch it for changes`;
   }
 
   // Ask the browser extension (if installed) to UNPIN an image — fired on any in-project image

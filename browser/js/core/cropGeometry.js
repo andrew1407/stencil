@@ -67,6 +67,29 @@ export const moveCropClampedJS = (cur, dx, dy, imageW, imageH) => {
 export const cropResizeScaleJS = (oldWidth, newWidth) =>
   oldWidth > 0 ? newWidth / oldWidth : 1;
 
+// JS reference for scaleCropCentered (must match core cropGeometry.cpp op-for-op; wasm-parity
+// enforces it): scale the crop about its centre by `factor` — aspect kept, capped, floored at minSize.
+export const scaleCropCenteredJS = (cur, factor, aspectWoverH, imageW, imageH, minSize = 16) => {
+  if (factor <= 0 || cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0) return { ...cur };
+  const cx = cur.x + cur.width * 0.5;
+  const cy = cur.y + cur.height * 0.5;
+  let w = cur.width * factor;
+  let h = w / aspectWoverH;
+  if (w < minSize) { w = minSize; h = w / aspectWoverH; }
+  if (h < minSize) { h = minSize; w = h * aspectWoverH; }
+  const maxHalfW = Math.min(cx, imageW - cx);
+  const maxHalfH = Math.min(cy, imageH - cy);
+  const wMax = Math.min(2 * maxHalfW, 2 * maxHalfH * aspectWoverH);
+  if (wMax > 0 && w > wMax) { w = wMax; h = w / aspectWoverH; }
+  let x = cx - w * 0.5;
+  let y = cy - h * 0.5;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + w > imageW) x = imageW - w;
+  if (y + h > imageH) y = imageH - h;
+  return { x, y, width: w, height: h };
+};
+
 export const cropChangeJS = (oldRect, newRect) => {
   const orientationChanged =
     isAlbumOrientationJS(oldRect.width, oldRect.height) !==
@@ -123,6 +146,7 @@ export const centeredCrop = core.bind('centeredCrop', centeredCropJS);
 export const resizeCropFromCorner = core.bind('resizeCropFromCorner', resizeCropFromCornerJS);
 
 export const moveCropClamped = core.bind('moveCropClamped', moveCropClampedJS);
+export const scaleCropCentered = core.bind('scaleCropCentered', scaleCropCenteredJS);
 
 export const cropResizeScale = core.bind('cropResizeScale', cropResizeScaleJS);
 
