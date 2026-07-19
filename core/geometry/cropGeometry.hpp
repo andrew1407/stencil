@@ -47,6 +47,13 @@ namespace stencil::core {
   CropRect moveCropClamped(const CropRect& cur, double dx, double dy,
                            double imageW, double imageH);
 
+  // Scale a crop about its CENTRE by `factor` (>1 grows, <1 shrinks), keeping
+  // `aspectWoverH` fixed. The centre stays put, so growth is capped by the nearer
+  // image edge on each axis; neither side drops below `minSize`. Drives the
+  // mouse-wheel / trackpad-pinch resize in the crop UI.
+  CropRect scaleCropCentered(const CropRect& cur, double factor, double aspectWoverH,
+                             double imageW, double imageH, double minSize = 16.0);
+
   // Uniform scale that maps crop-local points from an old crop width to a new one
   // (aspect is preserved, so the same factor applies to x and y). 1.0 if oldWidth
   // is non-positive.

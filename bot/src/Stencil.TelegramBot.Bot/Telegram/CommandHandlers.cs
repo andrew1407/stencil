@@ -68,6 +68,8 @@ public sealed class CommandHandlers
             "save" => SaveAsync(userId, chatId, ct),
             "sync" => SyncAsync(userId, chatId, cmd, ct),
             "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
+            "projectname" or "project_name" or "project-name" or "pname" or "rename" => ProjectNameAsync(userId, chatId, cmd, ct),
+            "projectdescription" or "project_description" or "project-description" or "pdesc" => ProjectDescriptionAsync(userId, chatId, cmd, ct),
             "blankcolor" or "blank_color" or "blank-color" or "bcolor" => BlankColorAsync(userId, chatId, cmd, ct),
             "expire" or "expiry" or "expiration" => ExpireAsync(userId, chatId, cmd, ct),
             "delete" or "remove" or "deleteproject" or "delete_project" => DeleteProjectAsync(userId, chatId, cmd, ct),
@@ -99,6 +101,7 @@ public sealed class CommandHandlers
             "image" => ImageAsync(userId, chatId, ct),
             "layout" => LayoutAsync(userId, chatId, cmd, ct),
             "json" => JsonAsync(userId, chatId, ct),
+            "project" => ProjectAsync(userId, chatId, ct),
             "status" => StatusAsync(userId, chatId, ct),
             "cancel" => CancelAsync(chatId, ct),
             _ => UnknownAsync(chatId, ct),
@@ -997,6 +1000,70 @@ public sealed class CommandHandlers
             cancellationToken: ct);
     }
 
+    /// <summary>Rename the working image, or — when it's a saved server project — the project:
+    /// <c>/project-name &lt;text&gt;</c> (the whole remainder is the new name; a blank argument is
+    /// rejected). For a not-yet-saved image this just relabels it, which is the name <c>/create</c>
+    /// will save it under.</summary>
+    private async Task ProjectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        // Free text: the whole remainder is the name (project names may contain spaces).
+        string name = cmd.ArgumentText.Trim();
+        if (name.Length == 0)
+        {
+            await _bot.SendMessage(chatId, "Usage: /project-name <new name>, e.g. /project-name Poster draft", cancellationToken: ct);
+            return;
+        }
+        UserSession session = await _store.GetAsync(userId, ct);
+        // A saved server project renames on the server (version-guarded, broadcast to peers).
+        if (session.ActiveProjectId is not null)
+        {
+            string effective = await _servers.SetProjectNameAsync(userId, name, ct);
+            await _bot.SendMessage(chatId, $"Project renamed to: {effective}", cancellationToken: ct);
+            return;
+        }
+        // No server project yet — just relabel the local working image (the /create default name).
+        if (!session.HasImage)
+        {
+            await _bot.SendMessage(chatId, "No working image to name — upload a photo or use /blank first.", cancellationToken: ct);
+            return;
+        }
+        await _store.SaveAsync(session with { ImageLabel = name }, ct);
+        await _bot.SendMessage(chatId, $"Working image renamed to: {name} — /create will save it under this name.", cancellationToken: ct);
+    }
+
+    /// <summary>Set the description of the working image, or — when it's a saved server project —
+    /// the project: <c>/project-description &lt;text&gt;</c> (an empty argument clears it). For a
+    /// not-yet-saved image this is held locally and uploaded when <c>/create</c> saves it.</summary>
+    private async Task ProjectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        // Free text: the whole remainder is the description; empty clears it.
+        string description = cmd.ArgumentText.Trim();
+        UserSession session = await _store.GetAsync(userId, ct);
+        // A saved server project writes through to the server (version-guarded, broadcast to peers).
+        if (session.ActiveProjectId is not null)
+        {
+            string effective = await _servers.SetProjectDescriptionAsync(userId, description, ct);
+            await _bot.SendMessage(
+                chatId,
+                effective.Length == 0 ? "Project description cleared." : $"Project description set:\n{effective}",
+                cancellationToken: ct);
+            return;
+        }
+        // No server project yet — hold the description locally (uploaded when /create saves it).
+        if (!session.HasImage)
+        {
+            await _bot.SendMessage(chatId, "No working image to describe — upload a photo or use /blank first.", cancellationToken: ct);
+            return;
+        }
+        await _store.SaveAsync(session with { ActiveProjectDescription = description }, ct);
+        await _bot.SendMessage(
+            chatId,
+            description.Length == 0
+                ? "Description cleared."
+                : $"Description set (saved with the project on /create):\n{description}",
+            cancellationToken: ct);
+    }
+
     /// <summary>Recolour the active BLANK project's background fill: <c>/blank-color &lt;#hex|name&gt;</c>
     /// (blanks only). Bare shows the current fill.</summary>
     private async Task BlankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -1110,6 +1177,25 @@ public sealed class CommandHandlers
         using MemoryStream stream = new(bytes);
         InputFileStream document = InputFile.FromStream(stream, fileName);
         await _bot.SendDocument(chatId, document, caption: "Layout JSON", cancellationToken: ct);
+    }
+
+    /// <summary>Export and send the whole project as a portable <c>.stencil</c> document.</summary>
+    private async Task ProjectAsync(long userId, long chatId, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (!session.HasImage)
+        {
+            await _bot.SendMessage(
+                chatId,
+                "No working image — upload a photo or use /blank first.",
+                cancellationToken: ct);
+            return;
+        }
+        byte[] bytes = await _editing.ExportProjectFileAsync(userId, ct);
+        string fileName = $"{SafeLabel(session.ImageLabel)}.stencil";
+        using MemoryStream stream = new(bytes);
+        InputFileStream document = InputFile.FromStream(stream, fileName);
+        await _bot.SendDocument(chatId, document, caption: "Stencil project", cancellationToken: ct);
     }
 
     private async Task StatusAsync(long userId, long chatId, CancellationToken ct)

@@ -57,21 +57,20 @@ button:not(:disabled):active {
 /* Primary action buttons get a faint sheen sweep on hover. Scoped to the
    accent-coloured controls/toolbar buttons so icon/ghost buttons (theme toggle,
    settings gear, close ✕) stay flat. */
-.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(:disabled) {
+.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled) {
     background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
     background-size: 220% 100%;
     background-repeat: no-repeat;
     background-position: 200% 0;
 }
-.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(:disabled):hover {
+.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled):hover {
     animation: shimmerSweep 0.7s ease;
 }
 
-/* Ghost/icon buttons: smooth rotate-in flourish for the theme toggle. */
+/* Icon buttons use the shared hover shimmer (layout.css), so no per-button magnify here — a
+   consistent hover treatment across the toolbar. Keep the theme toggle's press feedback only. */
 #theme-toggle { transition: background 0.2s, border-color 0.2s, transform 0.3s ease; }
-#theme-toggle:hover { transform: rotate(20deg) scale(1.08); }
-#theme-toggle:active { transform: rotate(0) scale(0.95); }
-#settings-btn:hover, #visuals-btn:hover, #info-btn:hover { transform: scale(1.08); }
+#theme-toggle:active { transform: scale(0.95); }
 
 /* ── Modal appearance: backdrop fade + content pop ──────────────────── */
 #settings-modal-overlay.modal-open,
@@ -129,7 +128,7 @@ button:not(:disabled):active {
 .accent-dd-opt:hover { transform: translateX(2px); }
 #install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
 #install-menu [role="menuitem"]:hover { transform: translateX(2px); }
-#install-toggle:hover { transform: translateY(-2px) scale(1.06); }
+/* #install-toggle uses the shared hover shimmer — no magnify (consistent hover). */
 
 /* ── Notification balloon: springy entrance (overrides the linear ease) ─ */
 #notify-balloon {
@@ -232,8 +231,9 @@ select:focus {
     .settings-header, .settings-footer { padding: 10px 12px; }
     .settings-body { padding: 10px 12px; }
     .info-key { flex: 0 0 130px; }
-    /* The fullscreen points drawer should never exceed the screen. */
-    #fs-points-panel { width: min(360px, 86vw); }
+    /* The fullscreen points drawer follows the user's resized panel width (--coord-panel-width,
+       set by the drag handle), clamped so it never exceeds the screen. */
+    #fs-points-panel { width: clamp(240px, var(--coord-panel-width, 360px), 86vw); }
 }
 
 /* Phones (portrait): compact typography & full-bleed modals. */

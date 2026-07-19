@@ -1,5 +1,6 @@
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
@@ -113,6 +114,15 @@ public interface IEditingService
     /// fresh result file. Does not mutate the session. Throws when no working image is loaded.
     /// </summary>
     Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>Open a <c>.stencil</c> project: adopt its ORIGINAL image and rebuild the <see cref="EditState"/> from its layout, clearing any active server project.</summary>
+    Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bundle the current project — the ORIGINAL image + the export layout + metadata — into
+    /// portable <c>.stencil</c> bytes (openable on every Stencil surface). Throws when no image.
+    /// </summary>
+    Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default);
 
     /// <summary>
     /// Scrape a web page's media into a fresh per-user scratch directory via the CLI

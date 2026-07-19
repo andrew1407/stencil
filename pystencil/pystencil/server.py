@@ -89,8 +89,8 @@ class ServerError(Exception):
 # edit counter (any save bumps it); name/color are the user-visible metadata. A change
 # in any of these marks a project "updated" — the same fields the browser/desktop pick
 # up when they reload a peer's change.
-_WATCHED_FIELDS = ("version", "name", "color")
-_FIELD_DEFAULT = {"version": 0, "name": "", "color": ""}
+_WATCHED_FIELDS = ("version", "name", "color", "description")
+_FIELD_DEFAULT = {"version": 0, "name": "", "color": "", "description": ""}
 
 # Attempts for a version-guarded field write before giving up on sustained conflict
 # (matches the CLI's putProjectField retry count).
@@ -103,7 +103,7 @@ def diff_projects(prev: list, curr: list) -> list:
 
     Returns a list of dicts ``{id, kind, fields, project}`` where ``kind`` is
     ``'created'`` | ``'updated'`` | ``'deleted'`` and ``fields`` lists which of
-    name/color/version changed (only for 'updated'; empty for created/deleted).
+    name/color/description/version changed (only for 'updated'; empty for created/deleted).
     `project` is the current record (the prior record for a deletion).
     """
     prev_by = {p.get("id"): p for p in (prev or []) if p.get("id")}
@@ -327,6 +327,7 @@ class ServerConnection:
         layout: Any = None,
         name: str | None = None,
         color: str | None = None,
+        description: str | None = None,
         expires_at: int | None = None,
         version: int = 0,
     ) -> dict:
@@ -336,8 +337,10 @@ class ServerConnection:
         409 which surfaces as ServerError(code="conflict"). `color` rides the
         same nil-means-unchanged contract as `name` (UpdateProjectRequest.Color
         is *string): pass "" to clear the custom accent, a "#rrggbb" hex to set
-        it, or leave it None to keep the server's current value. `expires_at`
-        (epoch ms; 0 = keep forever) follows the same contract via
+        it, or leave it None to keep the server's current value. `description`
+        rides the same contract (UpdateProjectRequest.Description is *string):
+        pass "" to clear, text to set, or None to keep the current value.
+        `expires_at` (epoch ms; 0 = keep forever) follows the same contract via
         UpdateProjectRequest.ExpiresAt (*int64): leave it None to keep the
         current expiry.
         """
@@ -346,6 +349,8 @@ class ServerConnection:
             body["name"] = name
         if color is not None:
             body["color"] = color
+        if description is not None:
+            body["description"] = description
         if expires_at is not None:
             body["expiresAt"] = expires_at
         if layout is not None:
@@ -378,6 +383,13 @@ class ServerConnection:
         so other front-ends (browser/desktop/CLI) pick the new name up live."""
         return self._update_field_with_retry(pid, name=name)
 
+    def set_project_description(self, pid: str, description: str) -> dict:
+        """Set a server project's description under the last-writer-wins guard, retrying on a
+        conflict so a peer's concurrent edit doesn't drop the change (see
+        _update_field_with_retry). Pass "" to clear it. The server broadcasts the change to
+        every connected client, so other front-ends pick the new description up live."""
+        return self._update_field_with_retry(pid, description=description)
+
     def set_project_expiration(self, pid: str, expires_at: int) -> dict:
         """Set a server project's expiry (epoch ms; 0 = keep forever) under the last-writer-wins
         guard, retrying on a conflict (see _update_field_with_retry). The server stamps it and
@@ -401,6 +413,14 @@ class ServerConnection:
         """
         proj = self._project_record(pid)
         return (proj.get("color", "") or "") if proj else ""
+
+    def get_project_description(self, pid: str) -> str:
+        """GET /projects/{id} and return its ProjectRecord `description`.
+
+        Mirrors get_project_color — an unset/missing value comes back as "".
+        """
+        proj = self._project_record(pid)
+        return (proj.get("description", "") or "") if proj else ""
 
     def delete_project(self, pid: str) -> None:
         """DELETE /projects/{id} (204 No Content)."""
@@ -445,6 +465,7 @@ class ServerConnection:
         image: Any = None,
         source: str | None = None,
         resource: str | None = None,
+        description: str | None = None,
         layout: Any = None,
     ) -> dict:
         """Create a project and (when an image is given) upload the original.
@@ -458,6 +479,7 @@ class ServerConnection:
             name=name or "Untitled",
             source=source or "",
             resource=resource or "",
+            description=description,
             hasImage=has_image,
             layout=layout,
         )

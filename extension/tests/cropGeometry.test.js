@@ -1,12 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped,
+  cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered,
   roundRect, isAlbumOrientation, pageDims, pageSizeLabel, pageSizeOptions, PAGE_SIZES
 } from '../src/lib/cropGeometry.js';
 // The editor's table, straight from the same repo — the drift guard below pins the
 // extension's hand-copied PAGE_SIZES to it.
 import browserConstants from '../../browser/js/config/constants.json' with { type: 'json' };
+// The editor's own scaleCropCentered JS reference — the drift guard below pins the
+// extension's hand-copied port to it op-for-op (node --test never loads wasm).
+import { scaleCropCenteredJS } from '../../browser/js/core/cropGeometry.js';
 
 test('cropAspect: A3 album vs portrait, invalid → 1', () => {
   assert.ok(Math.abs(cropAspect(29.7, 42, true) - 42 / 29.7) < 1e-9);
@@ -37,6 +40,52 @@ test('moveCropClamped: clamps to image bounds', () => {
   const cur = { x: 100, y: 100, width: 400, height: 300 };
   assert.deepEqual(moveCropClamped(cur, -1000, -1000, 2000, 2000), { x: 0, y: 0, width: 400, height: 300 });
   assert.deepEqual(moveCropClamped(cur, 5000, 5000, 2000, 2000), { x: 1600, y: 1700, width: 400, height: 300 });
+});
+
+test('scaleCropCentered: grows/shrinks about the centre, keeps aspect, floors at minSize', () => {
+  const cur = { x: 60, y: 60, width: 80, height: 80 };   // centre (100,100) in a 200x200 image
+  const centre = r => ({ cx: r.x + r.width / 2, cy: r.y + r.height / 2 });
+
+  const bigger = scaleCropCentered(cur, 1.5, 1, 200, 200);
+  assert.ok(Math.abs(bigger.width - 120) < 1e-9 && Math.abs(bigger.height - 120) < 1e-9);
+  assert.ok(Math.abs(centre(bigger).cx - 100) < 1e-9 && Math.abs(centre(bigger).cy - 100) < 1e-9);
+
+  const smaller = scaleCropCentered(cur, 0.5, 1, 200, 200);
+  assert.ok(Math.abs(smaller.width - 40) < 1e-9 && Math.abs(smaller.height - 40) < 1e-9);
+
+  // Floor at minSize (default 16): can't shrink below it.
+  const tiny = scaleCropCentered(cur, 0.0001, 1, 200, 200);
+  assert.ok(Math.abs(tiny.width - 16) < 1e-9 && Math.abs(tiny.height - 16) < 1e-9);
+});
+
+test('scaleCropCentered: off-centre growth is capped by the nearer edge and repositioned in-bounds', () => {
+  // Centre (40,100): nearer horizontal edge is 40px away, so width caps at 80 even asked to grow huge.
+  const cur = { x: 20, y: 80, width: 40, height: 40 };
+  const capped = scaleCropCentered(cur, 100, 1, 200, 200);
+  assert.ok(Math.abs(capped.width - 80) < 1e-9 && Math.abs(capped.height - 80) < 1e-9);
+  assert.ok(capped.x >= -1e-9 && capped.y >= -1e-9);
+  assert.ok(capped.x + capped.width <= 200 + 1e-9 && capped.y + capped.height <= 200 + 1e-9);
+});
+
+test('scaleCropCentered: invalid inputs return an untouched copy', () => {
+  const cur = { x: 10, y: 10, width: 30, height: 20 };
+  assert.deepEqual(scaleCropCentered(cur, 0, 1, 200, 200), cur);   // factor <= 0
+  assert.deepEqual(scaleCropCentered(cur, -2, 1, 200, 200), cur);
+  assert.deepEqual(scaleCropCentered(cur, 2, 0, 200, 200), cur);   // non-positive aspect
+  const zero = { x: 0, y: 0, width: 0, height: 0 };
+  assert.deepEqual(scaleCropCentered(zero, 2, 1, 200, 200), zero); // zero size
+  assert.notStrictEqual(scaleCropCentered(cur, 0, 1, 200, 200), cur); // a copy, not the same ref
+});
+
+test('scaleCropCentered matches the browser editor reference (drift guard)', () => {
+  // Same inputs must yield identical rects on both surfaces (aspect, cap, floor, reposition).
+  const cases = [
+    [{ x: 60, y: 60, width: 80, height: 80 }, 1.5, 1, 200, 200, 16],
+    [{ x: 20, y: 80, width: 40, height: 40 }, 100, 1, 200, 200, 16],
+    [{ x: 100, y: 50, width: 200, height: 100 }, 0.7, 2, 640, 480, 16],
+    [{ x: 5, y: 5, width: 30, height: 45 }, 0.01, 30 / 45, 400, 600, 24]
+  ];
+  for (const args of cases) assert.deepEqual(scaleCropCentered(...args), scaleCropCenteredJS(...args));
 });
 
 test('roundRect: integers, clamped inside the image', () => {

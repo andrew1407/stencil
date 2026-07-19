@@ -137,7 +137,19 @@ end with `)`; take the **first whitespace-delimited token** of the inner tail; `
 parse both sides as unsigned integers. Any step failing ⇒ this line is not a success line.
 
 > Note: console mode also prints `wrote {path} (layout)` for a layout export; it is not a
-> size line (`(layout)` has no `x`) and is out of scope for this contract.
+> size line (`(layout)` has no `x`) and is out of scope for this contract. Likewise, saving a
+> **`.stencil` project** — the console's `/save x.stencil`, or the one-shot when the input OR
+> output is a `.stencil` (`-i in.stencil out.stencil`, `-i photo.png out.stencil`) — prints
+> `wrote {path} (project)`. `(project)` also has no `x`, so `parse_wrote` ignores it too; a
+> `.stencil` bundle is not a raster and carries no size token. (A one-shot `.stencil` **input**
+> rendered to a raster output still prints the normal `wrote … ({W}x{H} px · …)` line.)
+>
+> The `.stencil` bundle carries optional string metadata (`color`, `description`, `source`,
+> `resource`) alongside the image + layout; each is **omitted from the JSON when empty** and
+> round-trips through `project.build`/`project.parse`. `description` is a free-text caption with
+> no length limit in the core. In `--console` mode (out of scope for this contract) the
+> `/project-description [<text…>]` command sets the active server project's description, or
+> clears it when no text is given; the current value is shown in the `/projects` listing.
 
 ### 2.2 Server-delivery lines — `updated …` / `created …`
 

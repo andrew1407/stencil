@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
+pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -56,6 +56,7 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "projects") or eq(w, "ls")) return .projects;
     if (eq(w, "project-color") or eq(w, "projectcolor") or eq(w, "pcolor")) return .project_color;
     if (eq(w, "blank-color") or eq(w, "blankcolor") or eq(w, "bcolor")) return .blank_color;
+    if (eq(w, "project-description") or eq(w, "projectdescription") or eq(w, "description") or eq(w, "desc")) return .project_description;
     // Keyword commands (order-independent — verbOf matches the whole word). More-specific
     // variants first for readability; exact matching means suffixes never shadow "keywords".
     if (eq(w, "keywords-search") or eq(w, "keywordssearch") or eq(w, "kwsearch")) return .keywords_search;
@@ -229,6 +230,8 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("pcolor").? == .project_color);
     try testing.expect(verbOf("blank-color").? == .blank_color);
     try testing.expect(verbOf("bcolor").? == .blank_color);
+    try testing.expect(verbOf("project-description").? == .project_description);
+    try testing.expect(verbOf("desc").? == .project_description);
     // Keyword verbs + aliases; the -search/-add/-del suffixes don't shadow bare "keywords".
     try testing.expect(verbOf("keywords").? == .keywords);
     try testing.expect(verbOf("kw").? == .keywords);

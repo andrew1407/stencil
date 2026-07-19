@@ -195,12 +195,6 @@ namespace stencil::gui {
     hh->setHighlightSections(false);
     ptsLay->addWidget(points_, 1);
 
-    auto* measHdr = new QLabel("MEASUREMENTS", ptsTab);
-    measHdr->setObjectName("panelSectionHeader");
-    ptsLay->addWidget(measHdr);
-    measurements_ = new QLabel("No selection", ptsTab);
-    measurements_->setWordWrap(true);
-    ptsLay->addWidget(measurements_);
     tabs_->addTab(ptsTab, "Points");
 
     // Lines tab — a flat list of every committed line (browser #lines-list). Each row: color
@@ -325,7 +319,8 @@ namespace stencil::gui {
     if (!multiLabel_) return;
     if (n >= 2) {
       multiLabel_->setText(QString("%1 lines selected — Ctrl+Shift+click to add/remove · "
-                                   "Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all")
+                                   "Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all · "
+                                   "Alt+Shift+arrows to flip / rotate 90°")
                                .arg(n));
       multiLabel_->setVisible(true);
     } else {
@@ -460,10 +455,7 @@ namespace stencil::gui {
     }
     updating_ = false;
 
-    if (!line || line->points.empty()) {
-      measurements_->setText("No selection");
-      return;
-    }
+    if (!line || line->points.empty()) return;
 
     // Build the editable points table. `updating_` suppresses the itemChanged handler while we
     // set cell text (only a USER edit should fire pointCoordChanged). X/Y are editable px cells
@@ -502,21 +494,6 @@ namespace stencil::gui {
       points_->selectRow(selectedPoint);
     points_->resizeRowsToContents();
     updating_ = false;
-
-    // Total polyline length in pixels (consecutive euclidean distances).
-    double total = 0.0;
-    for (std::size_t i = 1; i < line->points.size(); ++i) {
-      const auto& a = line->points[i - 1];
-      const auto& b = line->points[i];
-      total += std::hypot(b.x - a.x, b.y - a.y);
-    }
-    const int segments = line->points.size() > 1
-                             ? static_cast<int>(line->points.size()) - 1
-                             : 0;
-    measurements_->setText(QString("Points: %1\nSegments: %2\nTotal length: %3 px")
-                               .arg(line->points.size())
-                               .arg(segments)
-                               .arg(total, 0, 'f', 2));
   }
 
   bool SelectionPanel::eventFilter(QObject* obj, QEvent* event) {

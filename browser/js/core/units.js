@@ -55,6 +55,38 @@ const PAGE_NAME_BY_LOWER = Object.fromEntries(
 export const normalizePageSize = (s) =>
   PAGE_NAME_BY_LOWER[String(s || '').trim().toLowerCase()] ?? null;
 
+// Total real-world length of every drawn line segment in a saved layout, in centimetres.
+// Uses the same named-size + landscape-swap rule as DrawingApp.getPageDimensions and the
+// per-axis px→cm scale of pixelToPageRaw, so the result is independent of the display unit
+// and of any coordinate formulas. Returns 0 when there is nothing measurable. Cached on the
+// project meta as `lineLengthCm` at save time to feed the projects-list tooltip cheaply.
+export const layoutLineLengthCm = (layout) => {
+  const lines = layout && layout.lines;
+  const cw = layout && layout.imageWidth;
+  const ch = layout && layout.imageHeight;
+  if (!Array.isArray(lines) || !lines.length || !cw || !ch) return 0;
+  let pw, ph;
+  if (layout.pageSize === 'custom') {
+    pw = layout.customPageWidth;
+    ph = layout.customPageHeight;
+  } else {
+    const ps = PAGE_SIZES[layout.pageSize] || PAGE_SIZES.A4;
+    // Named sizes swap to landscape when the image is wider than tall.
+    if (cw > ch) { pw = ps.height; ph = ps.width; } else { pw = ps.width; ph = ps.height; }
+  }
+  if (!pw || !ph) return 0;
+  const sx = pw / cw, sy = ph / ch;
+  let total = 0;
+  for (const ln of lines) {
+    const pts = ln && ln.points;
+    if (!Array.isArray(pts)) continue;
+    for (let i = 1; i < pts.length; i++) {
+      total += Math.hypot((pts[i].x - pts[i - 1].x) * sx, (pts[i].y - pts[i - 1].y) * sy);
+    }
+  }
+  return total;
+};
+
 // Selector label for a named page format in the given display unit, e.g.
 // "A4 (21 × 29.7 cm)" / "A4 (8.27 × 11.69 in)" (≤2 decimals, trailing zeros
 // trimmed). Shared by the toolbar/links-modal option lists and applyUnitToUI's

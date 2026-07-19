@@ -18,7 +18,7 @@ import { parseDuration } from '../js/core/durationParser.js';
 import { applyContourRGBA } from '../js/core/contourFilter.js';
 import constants from '../js/config/constants.json' with { type: 'json' };
 import {
-  cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS,
+  cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
   cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
 } from '../js/core/cropGeometry.js';
 
@@ -128,8 +128,8 @@ wtest('parseHex: wasm matches JS reference, invalid yields null (output-pointer 
 
 wtest('clampScale: wasm matches the JS zoom bound', () => {
   const fn = core.op('clampScale');
-  const clampJs = s => Math.max(0.05, Math.min(5, s));
-  for (const s of [99, 0.001, 1, 5, 0.05, -3]) {
+  const clampJs = s => Math.max(0.05, Math.min(32, s));
+  for (const s of [99, 0.001, 1, 5, 32, 40, 0.05, -3]) {
     assert.strictEqual(fn(s), clampJs(s), `scale ${s}`);
   }
 });
@@ -183,6 +183,19 @@ wtest('rotatePoints + boundingBoxCenter: wasm matches JS rotation (in/out array 
   });
 });
 
+wtest('flipPoints: wasm matches JS reflection about the bbox centre (int flag marshalling)', () => {
+  const flipPoints = core.op('flipPoints');
+  const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
+  const cx = 5, cy = 5;   // bbox centre of the square
+  // Horizontal: x' = 2cx - x (y untouched); vertical: y' = 2cy - y (x untouched).
+  const gotH = pts.map(p => ({ ...p }));
+  flipPoints(gotH, true, cx, cy);
+  gotH.forEach((p, i) => assert.ok(Math.abs(p.x - (2 * cx - pts[i].x)) < 1e-9 && Math.abs(p.y - pts[i].y) < 1e-9, `h point ${i}`));
+  const gotV = pts.map(p => ({ ...p }));
+  flipPoints(gotV, false, cx, cy);
+  gotV.forEach((p, i) => assert.ok(Math.abs(p.x - pts[i].x) < 1e-9 && Math.abs(p.y - (2 * cy - pts[i].y)) < 1e-9, `v point ${i}`));
+});
+
 wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshalling)', () => {
   const isAlbum = core.op('isAlbumOrientation');
   const cropAspect = core.op('cropAspect');
@@ -204,6 +217,11 @@ wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshallin
   rectClose(resizeCorner(cur, 2, 5000, 5000, aspect, 200, 200, 16), resizeCropFromCornerJS(cur, 2, 5000, 5000, aspect, 200, 200, 16));
   rectClose(moveCrop(cur, 9999, 0, 500, 500), moveCropClampedJS(cur, 9999, 0, 500, 500));
   assert.ok(Math.abs(resizeScale(100, 250) - cropResizeScaleJS(100, 250)) < 1e-9);
+  const scaleCrop = core.op('scaleCropCentered');
+  const centred = { x: 60, y: 60, width: 80, height: 80 };
+  rectClose(scaleCrop(centred, 1.5, 1, 200, 200), scaleCropCenteredJS(centred, 1.5, 1, 200, 200));   // grow, clamps at nearer edge
+  rectClose(scaleCrop(centred, 0.5, 1, 200, 200), scaleCropCenteredJS(centred, 0.5, 1, 200, 200));   // shrink from centre
+  rectClose(scaleCrop(centred, 100, 1, 200, 200), scaleCropCenteredJS(centred, 100, 1, 200, 200));   // over-grow → capped
 
   const portrait = { x: 0, y: 0, width: 100, height: 141 };
   const album = { x: 0, y: 0, width: 141, height: 100 };

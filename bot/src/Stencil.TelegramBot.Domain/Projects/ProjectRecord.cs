@@ -25,6 +25,8 @@ public sealed record ProjectRecord
     public string? Source { get; init; }
     public string? Resource { get; init; }
     public string? Color { get; init; }
+    /// <summary>Free-text project description (or <c>""</c>/absent = none).</summary>
+    public string? Description { get; init; }
     /// <summary>Blank-image fill colour <c>#rrggbb</c> (or <c>""</c> = ordinary image project).</summary>
     public string? BlankColor { get; init; }
     public long Version { get; init; }

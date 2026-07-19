@@ -1,5 +1,6 @@
 import { notify } from '../utils.js';
 import { validateLayout } from './layout.js';
+import { serializeProjectFile, parseProjectFile } from './projectFile.js';
 
 // ── ExportService: image/layout export, clipboard, and file IO ──────
 // Extracted from drawingApp.js (the export/clipboard/upload cluster). Holds no state
@@ -9,6 +10,17 @@ import { validateLayout } from './layout.js';
 export class ExportService {
   constructor(app) {
     this.app = app;
+  }
+
+  // Trigger a client-side download of `blob` as `filename` via a transient <a> (the
+  // object-URL dance shared by downloadJSON and the .stencil save fallback).
+  #downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // Render the image (with its current filter) plus all visible lines/points onto a
@@ -89,12 +101,7 @@ export class ExportService {
     const data = app.currentLayoutPayload();
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${app.imageBaseName || 'drawing'}-layout.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    this.#downloadBlob(blob, `${app.imageBaseName || 'drawing'}-layout.json`);
   }
 
   uploadJSON(e) {
@@ -153,6 +160,78 @@ export class ExportService {
       () => notify('Layout JSON copied', 'ok'),
       err => notify('Copy failed: ' + (err.message || err), 'fail')
     );
+  }
+
+  // ── .stencil project file: whole-project save/open (image + layout + metadata + optional theme) ──
+  // Saves via the File System Access Save-As dialog when supported, else the download-blob fallback.
+  async saveProjectFile({ includeTheme = true } = {}) {
+    const app = this.app;
+    if (!app.image || !app.imageDataUrl) { notify('Open an image first', 'fail'); return; }
+    const text = serializeProjectFile(app.projectFileState({ includeTheme }));
+    const base = (app.storage.store.getMeta(app.activeProjectId)?.name || app.imageBaseName || 'project')
+      .replace(/[/\\?%*:|"<>]/g, '-').trim() || 'project';
+    const filename = `${base}.stencil`;
+    try {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'Stencil project', accept: { 'application/x-stencil': ['.stencil'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        // Keep the handle so the project can live-sync to this file (auto-save + watch).
+        await app.stencilSync.link(handle, handle.name || filename);
+      } else {
+        this.#downloadBlob(new Blob([text], { type: 'application/x-stencil' }), filename);
+      }
+      notify('Project saved', 'ok');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;   // user cancelled the picker — not an error
+      notify('Could not save project: ' + (err.message || err), 'fail');
+    }
+  }
+
+  // Open a .stencil project from a File (file input / drag-drop) or raw JSON text. Validates,
+  // then hands off to DrawingApp.applyProjectFile (which loads it as a fresh local project).
+  async openProjectFile(input) {
+    const app = this.app;
+    let text;
+    try { text = typeof input === 'string' ? input : await input.text(); }
+    catch { notify('Could not read project file', 'fail'); return; }
+    const res = parseProjectFile(text);
+    if (!res.ok) { notify('Invalid .stencil file: ' + res.error, 'fail'); return; }
+    try {
+      const name = await app.applyProjectFile(res.project);
+      notify(`Opened project “${name}”`, 'ok');
+    } catch (err) {
+      notify('Could not open project: ' + (err.message || err), 'fail');
+    }
+  }
+
+  // Prompt for a .stencil file (FS Access open picker when available, else a transient <input>).
+  async pickAndOpenProjectFile() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'Stencil project', accept: { 'application/x-stencil': ['.stencil'] } }],
+          multiple: false,
+        });
+        const file = await handle.getFile();
+        await this.openProjectFile(file);
+        // Keep the handle so this project can live-sync to the file it was opened from.
+        await this.app.stencilSync.link(handle, file.name);
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        notify('Could not open project: ' + (err.message || err), 'fail');
+      }
+      return;
+    }
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.stencil,application/x-stencil';
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) this.openProjectFile(f); };
+    inp.click();
   }
 
   // ── Apply a layout object pasted from the clipboard ──

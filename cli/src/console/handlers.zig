@@ -14,6 +14,7 @@ const theme = @import("../theme.zig");
 const clipboard = @import("../clipboard.zig");
 const commands = @import("commands.zig");
 const layout_mod = @import("../layout.zig");
+const project = @import("../project.zig");
 const ui = @import("ui.zig");
 const Session = @import("session.zig").Session;
 const Action = commands.Action;
@@ -25,8 +26,18 @@ pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
         logo.print("error: upload needs a path or URL — e.g. '/upload photo.png'\n", .{});
         return;
     }
+    // A whole .stencil project loads its image + layout (crop/rotation/filter/lines) at once.
+    if (project.isStencilPath(arg)) return openProject(session, io, arg);
     const src = pipeline.acquireInput(session.gpa, io, arg, 0) catch return; // message already printed
-    try session.loadImage(src.img, arg, net.isUrl(arg), src.default_fmt);
+    try session.loadImage(src.img, arg, net.isUrl(arg), src.default_fmt, src.bytes);
+    ui.redraw(session);
+}
+
+/// `/upload <file>.stencil` — load a portable project: decode its embedded ORIGINAL image and
+/// adopt its layout (crop/rotation/filter/lines) so the view matches the browser/desktop editors.
+fn openProject(session: *Session, io: std.Io, path: []const u8) !void {
+    var proj = project.loadInto(session, io, path) catch return; // message already printed
+    proj.deinit();
     ui.redraw(session);
 }
 
@@ -50,7 +61,7 @@ pub fn doSourceUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     defer session.gpa.free(loaded.url);
     // A `name=` token overrides the URL-derived label (parity with pystencil's name=).
     const label = if (o.name.len != 0) o.name else loaded.url;
-    try session.loadImage(loaded.img, label, true, loaded.fmt);
+    try session.loadImage(loaded.img, label, true, loaded.fmt, null);
     ui.redraw(session);
 }
 
@@ -120,7 +131,7 @@ pub fn doBlank(session: *Session, arg: []const u8) !void {
         }
     }
     const img = try pipeline.acquireBlank(session.gpa, blank);
-    try session.loadImage(img, "blank", true, .png);
+    try session.loadImage(img, "blank", true, .png, null);
     // Keep the page the blank was actually created on as the session's picked format. Explicit
     // dims size the blank but keep the previous /format pick (matching the Telegram bot, which
     // preserves its session PageFormat across an explicit-dims /blank).
@@ -163,6 +174,8 @@ pub fn doSave(session: *Session, io: std.Io, arg: []const u8) !void {
             session.dirty = false; // a manual push satisfies any pending sync
         },
         .local => {
+            // A `.stencil` path saves the whole project (image + layout + metadata) in one file.
+            if (project.isStencilPath(arg)) return saveProject(session, io, arg);
             // The wrote line reports the page actually used — the same label the session
             // header shows (named pick oriented to the image, or "custom <w>×<h>cm").
             const page_label = try session.pageFormatLabel();
@@ -190,6 +203,14 @@ pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
         return;
     };
     logo.print("wrote {s} (layout)\n", .{path});
+}
+
+/// `/save <file>.stencil` — bundle the ORIGINAL image + layout + metadata; prints a `/layout`-style line outside the mcp/bot `wrote`-line contract.
+fn saveProject(session: *Session, io: std.Io, path: []const u8) !void {
+    project.saveInto(session, io, path, .{
+        .name = commands.projectBaseName(session.label orelse "project"),
+        .color = session.remote_color orelse "",
+    }) catch {}; // message already printed; the console keeps running
 }
 
 fn printFormula(session: *Session) void {
@@ -450,8 +471,9 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
 }
 
 /// One rendered project row; all fields owned so rows outlive the per-server lists they came
-/// from. `color` is the project's custom name colour ("" = none → paint in the theme accent).
-const ProjectRow = struct { name: []u8, size: []u8, created: []u8, expires: []u8, changed: []u8, color: []u8, server: []const u8 };
+/// from. `color` is the project's custom name colour ("" = none → paint in the theme accent);
+/// `description` is the free-text caption ("" = none → shown as a trailing dimmed note).
+const ProjectRow = struct { name: []u8, size: []u8, created: []u8, expires: []u8, changed: []u8, color: []u8, description: []u8, server: []const u8 };
 
 fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
     for (rows.items) |r| {
@@ -461,6 +483,7 @@ fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
         gpa.free(r.expires);
         gpa.free(r.changed);
         gpa.free(r.color);
+        gpa.free(r.description);
     }
     rows.deinit(gpa);
 }
@@ -491,7 +514,9 @@ fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: 
         errdefer gpa.free(expires);
         const color = try gpa.dupe(u8, p.color);
         errdefer gpa.free(color);
-        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .expires = expires, .changed = changed, .color = color, .server = if (multi) client.base else "" });
+        const description = try gpa.dupe(u8, p.description);
+        errdefer gpa.free(description);
+        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .expires = expires, .changed = changed, .color = color, .description = description, .server = if (multi) client.base else "" });
     }
 }
 
@@ -509,16 +534,17 @@ fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool) vo
         erw = @max(erw, r.expires.len);
         cw = @max(cw, r.changed.len);
     }
-    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "EXPIRES", erw, "CHANGED", cw, if (multi) "SERVER" else null); // header: no colour
+    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "EXPIRES", erw, "CHANGED", cw, if (multi) "SERVER" else null, ""); // header: no colour/description
     for (rows) |r| {
         var buf: [20]u8 = undefined;
-        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.expires, erw, r.changed, cw, if (multi) r.server else null);
+        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.expires, erw, r.changed, cw, if (multi) r.server else null, r.description);
     }
 }
 
 /// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
-/// column ("" = plain). Best-effort.
-fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, expires: []const u8, erw: usize, changed: []const u8, cw: usize, srv: ?[]const u8) void {
+/// column ("" = plain); a non-empty `desc` is appended as a trailing dimmed note (truncated).
+/// Best-effort.
+fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, expires: []const u8, erw: usize, changed: []const u8, cw: usize, srv: ?[]const u8, desc: []const u8) void {
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(gpa);
     appendCol(gpa, &line, "  ", 0); // 2-space indent (no padding)
@@ -532,7 +558,28 @@ fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: 
     } else {
         appendCol(gpa, &line, changed, 0); // final column
     }
+    appendDesc(gpa, &line, desc); // trailing "— <caption>" note, when present
     logo.print("{s}\n", .{line.items});
+}
+
+/// Append a free-text description as a trailing dimmed "— <caption>" note after the last column,
+/// truncated to ~48 bytes (with an ellipsis) so a long caption can't blow up the row. Truncation
+/// backs off any partial UTF-8 codepoint so we never emit an invalid byte. No-op when empty.
+/// Best-effort.
+fn appendDesc(gpa: std.mem.Allocator, line: *std.ArrayList(u8), desc: []const u8) void {
+    if (desc.len == 0) return;
+    const on = logo.colorEnabled();
+    line.appendSlice(gpa, "  ") catch return;
+    if (on) line.appendSlice(gpa, "\x1b[2m") catch {}; // faint
+    line.appendSlice(gpa, "— ") catch return;
+    if (desc.len > 48) {
+        // Back off from byte 48 to a codepoint boundary (skip UTF-8 continuation bytes 0b10xxxxxx).
+        var end: usize = 48;
+        while (end > 0 and (desc[end] & 0xC0) == 0x80) : (end -= 1) {}
+        line.appendSlice(gpa, desc[0..end]) catch return;
+        line.appendSlice(gpa, "…") catch {};
+    } else line.appendSlice(gpa, desc) catch return;
+    if (on) line.appendSlice(gpa, logo.resetSeq()) catch {};
 }
 
 /// Append `text`, then (when width > 0) pad with spaces to `width` plus a 2-space column gap.
@@ -561,16 +608,26 @@ fn appendName(gpa: std.mem.Allocator, line: *std.ArrayList(u8), name: []const u8
 /// argument it prints the current colour rendered in that colour; a '#hex'/CSS-name is validated
 /// via the core colour parser, normalised to "#rrggbb", and PUT to the server; 'clear'/'none'/
 /// 'default' resets it to "" (theme fallback).
-pub fn doProjectColor(session: *Session, arg: []const u8) !void {
+/// The connected client + id for the active server project, or null (with an error already
+/// printed) when there is no active project or its server isn't connected. Shared preamble for
+/// the `/project-*`, `/rename`, `/expire` handlers.
+const ActiveProject = struct { client: *server.Client, id: []const u8 };
+fn requireActiveProject(session: *Session) ?ActiveProject {
     if (!session.hasRemote()) {
         logo.print("error: no active server project — '/fetch <name>' first\n", .{});
-        return;
+        return null;
     }
     const client = session.findServer(session.remote_url.?) orelse {
         logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
-        return;
+        return null;
     };
-    const id = session.remote_id.?;
+    return .{ .client = client, .id = session.remote_id.? };
+}
+
+pub fn doProjectColor(session: *Session, arg: []const u8) !void {
+    const active = requireActiveProject(session) orelse return;
+    const client = active.client;
+    const id = active.id;
     const trimmed = std.mem.trim(u8, arg, " \t");
 
     // No argument: read and show the project's current colour, rendered in it.
@@ -609,15 +666,9 @@ pub fn doProjectColor(session: *Session, arg: []const u8) !void {
 /// blank-image project has one; setting recolours its stored blank metadata (the front-end that
 /// owns the canvas regenerates the raster). No clear form — a blank always has a fill.
 pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
-    if (!session.hasRemote()) {
-        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
-        return;
-    }
-    const client = session.findServer(session.remote_url.?) orelse {
-        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
-        return;
-    };
-    const id = session.remote_id.?;
+    const active = requireActiveProject(session) orelse return;
+    const client = active.client;
+    const id = active.id;
     const trimmed = std.mem.trim(u8, arg, " \t");
 
     // Current fill colour ("" = not a blank project).
@@ -649,13 +700,35 @@ pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
     printProjectColor("blank colour set to", color);
 }
 
+/// `/project-description [<text...>]` — set (or, with no text, clear) the active server project's
+/// free-text description. The current value is shown in the `/projects` listing (a trailing note),
+/// so this command is set/clear only; the whole argument is the description verbatim. A ~2000-char
+/// soft cap guards against pathological input (the core imposes no length limit).
+pub fn doProjectDescription(session: *Session, arg: []const u8) !void {
+    const active = requireActiveProject(session) orelse return;
+    const client = active.client;
+    const id = active.id;
+    const trimmed = std.mem.trim(u8, arg, " \t");
+    if (trimmed.len > 2000) {
+        logo.print("error: description too long ({d} bytes) — keep it under 2000\n", .{trimmed.len});
+        return;
+    }
+
+    if (!putProjectField(session, client, id, trimmed, .description)) return; // message already printed
+    if (trimmed.len == 0) {
+        logo.print("project description cleared\n", .{});
+    } else {
+        logo.print("project description set\n", .{});
+    }
+}
+
 /// A reset keyword for `/project-color`: clears the custom colour back to the theme accent.
 fn isClearWord(s: []const u8) bool {
     const eq = std.ascii.eqlIgnoreCase;
     return eq(s, "clear") or eq(s, "none") or eq(s, "default");
 }
 
-const ProjectField = enum { color, name, blank_color };
+const ProjectField = enum { color, name, blank_color, description };
 
 /// Version-guarded PUT of one project metadata field (colour or name) with a 409 retry (a peer
 /// saved first → re-read the version and retry), mirroring pushLayout. Advances the LWW guard so
@@ -668,6 +741,7 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
             .color => client.updateProjectColor(id, value, session.remote_version),
             .name => client.updateProjectName(id, value, session.remote_version),
             .blank_color => client.updateProjectBlankColor(id, value, session.remote_version),
+            .description => client.updateProjectDescription(id, value, session.remote_version),
         };
         res catch |e| {
             if (e == server.Error.Conflict) {
@@ -680,6 +754,7 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
                 .color => logo.print("error: could not set the project colour ({s})\n", .{@errorName(e)}),
                 .name => logo.print("error: could not rename the project ({s})\n", .{@errorName(e)}),
                 .blank_color => logo.print("error: could not set the blank colour ({s})\n", .{@errorName(e)}),
+                .description => logo.print("error: could not set the description ({s})\n", .{@errorName(e)}),
             }
             return false;
         };
@@ -954,20 +1029,13 @@ fn doKeywordsChange(session: *Session, arg: []const u8, mode: KwMode) !void {
 /// `/rename <new name>` — rename the active fetched project, pushed live to the server
 /// (version-guarded). Updates the displayed label + reprints the header.
 pub fn doRename(session: *Session, arg: []const u8) !void {
-    if (!session.hasRemote()) {
-        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
-        return;
-    }
-    const client = session.findServer(session.remote_url.?) orelse {
-        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
-        return;
-    };
+    const active = requireActiveProject(session) orelse return;
     const name = std.mem.trim(u8, arg, " \t");
     if (name.len == 0) {
         logo.print("error: give a new name — e.g. '/rename MyProject'\n", .{});
         return;
     }
-    if (!putProjectField(session, client, session.remote_id.?, name, .name)) return;
+    if (!putProjectField(session, active.client, active.id, name, .name)) return;
     session.setLabel(name) catch {};
     logo.print("renamed to \"{s}\"\n", .{name});
     ui.status(session); // reprint "image: <name> …" with the new name
@@ -984,14 +1052,8 @@ pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
         printExpireFormats();
         return;
     }
-    if (!session.hasRemote()) {
-        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
-        return;
-    }
-    const client = session.findServer(session.remote_url.?) orelse {
-        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
-        return;
-    };
+    const active = requireActiveProject(session) orelse return;
+    const client = active.client;
     const ms = core.parseDuration(session.gpa, spec) orelse {
         logo.print("error: invalid duration '{s}'\n", .{spec});
         printExpireFormats();
@@ -999,7 +1061,7 @@ pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
     };
     const now = std.Io.Clock.real.now(io).toMilliseconds();
     const expires_at: i64 = if (ms == 0) 0 else now + ms;
-    if (!putProjectExpiry(session, client, session.remote_id.?, expires_at)) return; // message printed
+    if (!putProjectExpiry(session, client, active.id, expires_at)) return; // message printed
     if (expires_at == 0) {
         logo.print("expiration cleared — project kept forever\n", .{});
     } else {
@@ -1109,7 +1171,7 @@ pub fn doFetch(session: *Session, io: std.Io, arg: []const u8) !void {
         logo.print("error: could not decode server image ({s})\n", .{@errorName(e)});
         return;
     };
-    try session.loadImage(img, name, true, .png);
+    try session.loadImage(img, name, true, .png, null);
     try session.setRemote(client.base, ref.id);
     session.remote_version = ref.version; // seed the LWW guard for live auto-pull
     // Adopt the project's custom name colour so the status header paints "<name>" in it.
@@ -1264,7 +1326,7 @@ fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
         logo.print("↺ pull failed: could not decode the server image ({s})\n", .{@errorName(err)});
         return;
     };
-    session.loadImage(img, e.name, true, session.default_fmt) catch |err| {
+    session.loadImage(img, e.name, true, session.default_fmt, null) catch |err| {
         logo.print("↺ pull failed ({s})\n", .{@errorName(err)});
         return;
     };
@@ -1539,7 +1601,7 @@ pub fn doPaste(session: *Session, io: std.Io) !void {
         logo.print("error: the clipboard image could not be decoded ({s})\n", .{@errorName(e)});
         return;
     };
-    try session.loadImage(img, "clipboard", true, .png);
+    try session.loadImage(img, "clipboard", true, .png, null);
     ui.redraw(session);
 }
 

@@ -212,7 +212,7 @@ export class InputController {
         const [a, b] = [e.touches[0], e.touches[1]];
         const mid = midpoint(a, b);
         const factor = touchDist(a, b) / st.startDist;
-        const newScale = Math.max(0.05, Math.min(5, st.startScale * factor));
+        const newScale = this.app.zoomPan.clampScale(st.startScale * factor);   // shared [0.05, kZoomMax] bound
         st.pending = { scale: newScale, midX: mid.x, midY: mid.y };
         if (!st.raf) st.raf = requestAnimationFrame(applyPinch);
         return;

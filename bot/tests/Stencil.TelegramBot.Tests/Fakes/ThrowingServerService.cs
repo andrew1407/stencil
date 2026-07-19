@@ -21,6 +21,8 @@ public sealed class ThrowingServerService : IServerService
     public Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default) => Fail<Task<ProjectRecord>>();
     public Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default) => Fail<Task<ProjectRecord>>();
     public Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default) => Fail<Task<string>>();
+    public Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default) => Fail<Task<string>>();
+    public Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default) => Fail<Task<string>>();
     public Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default) => Fail<Task<string>>();
     public Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default) => Fail<Task<string>>();
     public Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default) => Fail<Task<long>>();

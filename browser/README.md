@@ -78,6 +78,44 @@ graph TD
   standalone helper that forwards `#stencil-desktop=<encoded stencil:// URL>` to the
   OS scheme — useful for opening a `stencil://` link shared through a channel that
   won't linkify custom schemes (it validates the target is exactly `stencil:`)
+- **Project files (`.stencil`)**: save a whole project — original image, layout, and
+  settings (plus, optionally, the current colour theme) — as one portable file, openable
+  on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.
+
+## Project files (`.stencil`)
+
+A `.stencil` file is a **single JSON document** that bundles a whole project so it can be
+moved between machines and surfaces: the **original** image (base64 `data:` URL, with
+crop/rotation kept in the layout), the shared export **layout** (lines + filter + crop +
+page + formulas), project **metadata** (name, accent, keywords, provenance, blank fill),
+and an **optional** local colour **theme** (light/dark + accent) written only when you opt in.
+
+Save with the **Project** button in the Data section (or `Ctrl+Shift+S`; **Shift+click** to
+save a theme-neutral file), open with the folder button next to it (`Ctrl+Shift+F`) or by
+dropping a `.stencil` onto the canvas. The **live-sync** toggle (`Ctrl+Shift+Y`) keeps a
+file-linked project auto-saved to (and watching) its `.stencil` on disk. The
+same file opens in the CLI (`stencil -i project.stencil out.png`, or `/open` in `--console`),
+the desktop app, `pystencil` (`Editor.open_project`), and the Telegram bot.
+
+```jsonc
+{
+  "format": "stencil-project",
+  "version": 1,
+  "name": "road sign",
+  "color": "#7c3aed",
+  "image": { "dataUrl": "data:image/png;base64,iVBOR…", "ext": "png", "w": 1280, "h": 720 },
+  "layout": { "imageWidth": 1280, "imageHeight": 720, "lines": [ /* … */ ],
+              "cropRect": { "x": 0, "y": 0, "width": 1280, "height": 720 },
+              "rotationQuarters": 0, "imageFilter": "none" },
+  "theme": { "mode": "dark", "accent": "violet" }
+}
+```
+
+The (de)serializer is `js/core/projectFile.js` (pure, DOM-free, reuses `layout.js`'s
+`buildLayoutPayload` + `sanitizeLines`); IO lives in `ExportService`
+(`saveProjectFile` / `openProjectFile`, exposed on `window.stencil`). It's an adapter-level
+format — **not** part of `core/` — so each surface serializes it independently; the `e2e/`
+cross-surface check (author in the browser, open in the CLI) guards that they agree.
 
 ## Running
 
@@ -219,6 +257,7 @@ stencil.newEditor();                   // clear to a fresh blank (unsaved) edito
 await stencil.blank('red', { size: { width: 800, height: 600 } });  // blank image to draw on
 await stencil.blank();                 // white, sized to the current page (any CSS color)
 stencil.crop({ x1: '10%', y1: '10%', x2: '-10%', y2: '-10%' });  // %, '3cm'/'-4in', px; '-' = from end
+stencil.crop({ scale: 1.2 });          // grow (>1) / shrink (<1) the crop about its centre (aspect kept)
 stencil.move({ x: 10, y: -5 });        // pan the view by px
 stencil.downloadImage();               // download image + lines (PNG)
 stencil.copyImage();                   // copy the rendered image to the clipboard

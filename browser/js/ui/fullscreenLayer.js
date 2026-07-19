@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
+import { wirePanelResizer } from '../utils.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
 // controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
@@ -26,6 +27,9 @@ export class StencilFullscreenLayer extends StencilElement {
     <div id="fs-points-panel">
         <!-- Coord panel content will be mirrored here by JS -->
     </div>
+    <!-- Drag handle to resize the fullscreen points panel (sibling of the panel so the panel's
+         innerHTML re-clone doesn't wipe it). Positioned at the panel's left edge via the width var. -->
+    <div id="fs-panel-resizer" title="Drag to resize the panel"></div>
     `;
   }
   static template() { return hostTag('stencil-fullscreen-layer', '', StencilFullscreenLayer.inner()); }
@@ -185,6 +189,22 @@ export class StencilFullscreenLayer extends StencilElement {
     fsPointsPanel.addEventListener('mouseenter', () => { clearTimeout(pointsHideTimer); });
     fsPointsPanel.addEventListener('mouseleave', hidePointsPanel);
 
+    // ── Fullscreen panel resizer: drag to set --coord-panel-width (shared with normal mode +
+    // persisted). The panel is on the RIGHT, so dragging the handle LEFT widens it. The hooks
+    // pause the panel's auto-hide during a drag. ──
+    const fsResizer = document.getElementById('fs-panel-resizer');
+    if (fsResizer) {
+      const pauseAutoHide = () => clearTimeout(pointsHideTimer);
+      const drag = wirePanelResizer(fsResizer, fsPointsPanel, {
+        maxFactor: 0.86, onStart: pauseAutoHide, onEnd: pauseAutoHide,
+      });
+      // The resizer sits just OUTSIDE the panel's left edge, so moving onto it fires the panel's
+      // mouseleave (→ auto-hide). Treat it as part of the panel's hover zone so the panel (and thus
+      // the resizer) stays put while you reach for / drag it.
+      fsResizer.addEventListener('mouseenter', pauseAutoHide);
+      fsResizer.addEventListener('mouseleave', () => { if (!drag.isDragging()) hidePointsPanel(); });
+    }
+
     // ── Enter / Exit fullscreen ──
     const toggleFullscreen = () => {
       // Entering fullscreen needs an image to view; block it otherwise (the
@@ -209,8 +229,9 @@ export class StencilFullscreenLayer extends StencilElement {
       fsBtn.innerHTML = icon('maximize');
       fsBtn.dataset.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode';
       fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
-      fsBtn.style.background = isFullscreen ? '#7c3aed' : '';
-      fsBtn.style.color = isFullscreen ? '#fff' : '';
+      // Accent-fill only while fullscreen is active (via the shared .active ghost-button style),
+      // so the button reads flat like the rest of the Settings row when not in fullscreen.
+      fsBtn.classList.toggle('active', isFullscreen);
 
       // Helper: restore the saved zoom level and re-centre the viewport on the
       // same image-space point.  Falls back to fitToWindow if no state was saved.
@@ -235,9 +256,10 @@ export class StencilFullscreenLayer extends StencilElement {
           if (app && app.selectedLineIdx >= 0) app.syncFsSelectionPanel(app.lines[app.selectedLineIdx]);
         });
       } else {
-        // Restore normal viewport max-height (CSS position:fixed removed by class toggle)
+        // Restore normal viewport max-height (CSS position:fixed removed by class toggle).
+        // Use the adaptive available height; restoreView()'s refit then hugs+grows it to zoom.
         if (vp) {
-          vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
+          vp.style.maxHeight = (app && app.zoomPan ? app.zoomPan.availContentHeight() : Math.max(300, window.innerHeight - 220)) + 'px';
           vp.style.maxWidth = '';
         }
         fsControlsPanel.classList.remove('fs-panel-visible');

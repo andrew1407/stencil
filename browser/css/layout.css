@@ -158,6 +158,77 @@ button.danger:hover {
     justify-content: center;
 }
 .btn-icon .ic { vertical-align: 0; }
+
+/* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for
+   interactive controls (icon buttons, text buttons, and any .shimmer opt-in item), so icons and
+   items across the app feel consistent. The sweep is a clipped ::after gradient; honours
+   prefers-reduced-motion. ── */
+button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
+.accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
+.project-menu-item, .lines-list-row, .shimmer { position: relative; overflow: hidden; }
+button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
+.idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .project-row::after,
+.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after, .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(115deg, transparent 38%,
+        color-mix(in srgb, #ffffff 55%, transparent) 50%, transparent 62%);
+    transform: translateX(-135%);
+    opacity: 0;
+}
+button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
+.btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
+.idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
+.project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
+.project-menu-item:hover::after, .lines-list-row:hover::after, .shimmer:hover::after {
+    animation: ui-shimmer 0.75s ease;
+}
+@keyframes ui-shimmer {
+    from { transform: translateX(-135%); opacity: 1; }
+    to   { transform: translateX(135%);  opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+    button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
+    .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .shimmer::after { content: none; }
+}
+/* Text / number / search inputs (e.g. the URL & link fields) can't host an ::after, so their
+   hover shimmer is an animated background band layered over the field's own background-colour
+   (a mostly-transparent white gradient, so the field colour shows through). Selects keep their
+   custom carets, so they use the ::after path via the `button` rules only where applicable. */
+input[type="text"], input[type="number"], input[type="search"] {
+    background-repeat: no-repeat;
+    background-size: 250% 100%;
+    background-position: 185% 0;
+}
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus) {
+    background-image: linear-gradient(115deg, transparent 42%,
+        color-mix(in srgb, #ffffff 26%, transparent) 50%, transparent 58%);
+    animation: ui-shimmer-bg 0.75s ease;
+}
+@keyframes ui-shimmer-bg {
+    from { background-position: 185% 0; }
+    to   { background-position: -85% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover { animation: none; background-image: none; }
+}
+/* Points table rows shimmer on hover too (a background band — table rows can't host an ::after).
+   Skips focused/highlighted rows so their own pulse animation isn't overridden. */
+.coordinates-table tbody tr { background-repeat: no-repeat; background-size: 250% 100%; background-position: 185% 0; }
+.coordinates-table tbody tr:hover:not(.row-focused):not(.row-highlighted) {
+    background-image: linear-gradient(115deg, transparent 40%,
+        color-mix(in srgb, #ffffff 24%, transparent) 50%, transparent 60%);
+    animation: ui-shimmer-bg 0.75s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    .coordinates-table tbody tr:hover { animation: none; background-image: none; }
+}
 /* Disabled controls must still receive pointer events so their title tooltip
    (the reason) shows on hover — :disabled normally swallows them. A disabled
    button never dispatches click, so this only re-enables the tooltip. */
@@ -170,7 +241,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     font-size: 18px;
     padding: 4px 10px;
     line-height: 1;
-    border-radius: 20px;
+    border-radius: 4px;
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
 }
@@ -230,6 +301,10 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Reserve one filled line's height (1 line + vertical padding + border, box-sizing:
+       border-box) so the bar keeps its height when the readout is empty (cursor off the
+       canvas) — no layout jump as the cursor enters/leaves. */
+    min-height: calc(1.2em + 14px);
 }
 .drop-hint {
     margin-top: 8px;
@@ -251,6 +326,33 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     font-size: 16px;
     line-height: 1;
 }
+.zoom-input-wrap { position: relative; display: inline-flex; }
+/* Zoom preset dropdown — opens on focus/click of #zoom-input; type or click a preset. */
+.zoom-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 60;
+    min-width: 100%;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--bg-page);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    padding: 4px 0;
+}
+.zoom-menu[hidden] { display: none; }
+.zoom-menu-item {
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--text-main);
+}
+.zoom-menu-item:hover, .zoom-menu-item.active { background: var(--accent); color: #fff; }
 #zoom-input {
     min-width: 52px;
     width: 62px;
@@ -442,14 +544,47 @@ input[type="color"] {
 
 /* ── Coordinates panel ── */
 .coordinates-panel {
-    min-width: 320px;
-    max-width: 420px;
+    /* Width is user-resizable via #panel-resizer (drag handle), persisted as --coord-panel-width;
+       clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
+    flex: 0 0 auto;
+    width: var(--coord-panel-width, 360px);
+    min-width: 240px;
+    max-width: 640px;
     background: var(--bg-coord-panel);
     padding: 10px 12px;
     border-radius: 5px;
     margin-top: 20px;
-    transition: min-width 0.2s, max-width 0.2s, padding 0.2s;
+    transition: padding 0.2s;
 }
+/* Vertical drag handle between the canvas and the coordinates panel — the browser counterpart of
+   the desktop canvas↔panel splitter. Sits in the .main-content flex row (see mainContent.js). */
+.panel-resizer {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: 8px;
+    margin-top: 20px;
+    border-radius: 3px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s;
+}
+/* Always-visible grip so the handle is discoverable (a short vertical bar, centered). */
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 34px;
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, height 0.15s;
+}
+.panel-resizer:hover::before, .panel-resizer.dragging::before { background: var(--accent); height: 52px; }
+/* No resizing while the panel is collapsed to its 36px rail. */
+.main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
 .coordinates-panel.coord-collapsed {
     min-width: unset;
     max-width: unset;
@@ -481,9 +616,6 @@ input[type="color"] {
     border: none !important;
     font-size: 16px;
     padding: 2px 4px;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
     margin: 0 auto;
     display: block;
 }
@@ -562,8 +694,8 @@ input[type="color"] {
     color: var(--text-main);
 }
 .coordinates-table th { background: var(--bg-coord-th); color: white; font-weight: bold; }
-.coordinates-table tr:nth-child(even) { background: var(--bg-coord-even); }
-.coordinates-table tbody tr:hover { background: var(--bg-coord-hover); cursor: pointer; }
+.coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
+.coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
 .coordinates-table tbody tr.row-highlighted {
     background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
     outline: 2px solid var(--accent);

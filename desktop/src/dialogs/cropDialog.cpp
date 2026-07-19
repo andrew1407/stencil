@@ -3,7 +3,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
+#include <QWheelEvent>
 #include <QPainterPath>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -138,6 +140,37 @@ namespace stencil::gui {
   void CropPreview::mouseReleaseEvent(QMouseEvent*) {
     drag_ = Drag::None;
     dragCorner_ = -1;
+  }
+
+  // Mouse wheel over the crop rect grows/shrinks it about its centre (aspect locked, clamped) via core::scaleCropCentered — mirrors the browser.
+  void CropPreview::wheelEvent(QWheelEvent* e) {
+    const double dy = e->angleDelta().y();
+    const QPoint pos = e->position().toPoint();
+    if (iw_ <= 0 || dy == 0.0 || !displayRect().contains(pos)) { e->ignore(); return; }
+    rect_ = core::scaleCropCentered(rect_, std::pow(1.0015, dy), aspect_, iw_, ih_);
+    // Re-anchor an in-progress move/resize drag so the next mouse-move doesn't snap the size back.
+    if (drag_ != Drag::None) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+    update();
+    emit cropChanged();
+    e->accept();
+  }
+
+  // Trackpad pinch (native ZOOM gesture) scales the crop from its centre when the cursor is inside — mirrors the browser ctrl+wheel pinch.
+  bool CropPreview::event(QEvent* e) {
+    if (e->type() == QEvent::NativeGesture) {
+      auto* g = static_cast<QNativeGestureEvent*>(e);
+      if (g->gestureType() == Qt::ZoomNativeGesture && iw_ > 0) {
+        const QPoint pos = g->position().toPoint();
+        if (displayRect().contains(pos)) {
+          rect_ = core::scaleCropCentered(rect_, 1.0 + g->value(), aspect_, iw_, ih_);
+          if (drag_ != Drag::None) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+          update();
+          emit cropChanged();
+          return true;
+        }
+      }
+    }
+    return QWidget::event(e);
   }
 
   // ── CropDialog ───────────────────────────────────────────────────────────

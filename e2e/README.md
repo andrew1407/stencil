@@ -54,6 +54,7 @@ fixtures/            host page (+ pixel.png) the extension scanner loads over ht
 tests/
   browser/   app.smoke     — window.stencil: blank/draw/rotate/crop, deep link
              editor        — real pointer drawing, undo/redo, crop tokens + px↔page, apply(), save→reload
+             project-file  — .stencil open (image+layout+theme) + save→re-open round-trip via the facade
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
   fullstack/ collab.smoke  — two clients + real server: create → cross-client visibility
@@ -62,7 +63,9 @@ tests/
              events        — global /events feed (created/updated/deleted), peer-join, cursor relay
              files         — file-endpoint error paths + result-kind round-trip
   cli/       pipeline      — Zig binary black-box: blank/rotate/crop/filter/layout/URL-input,
-                             ext auto-fill, error contract; asserts the written PNG's IHDR dims
+                             ext auto-fill, error contract; asserts the written PNG's IHDR dims.
+                             Also opens the SAME fixtures/project.stencil the browser spec opens
+                             (cross-surface parity) + bundles an image back into a .stencil
 ```
 
 ### Known gaps (deliberate)

@@ -2,10 +2,12 @@
 #include "cropGeometry.hpp"
 #include "models.hpp"
 #include "projectsStore.hpp"
+#include <QByteArray>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 #include <optional>
 #include <vector>
 
@@ -51,6 +53,11 @@ namespace stencil::gui {
     QString formulaY;
     // Hover tooltip over the canvas (browser tooltipEnabled, default true).
     bool tooltipEnabled = true;
+    // Per-row visibility inside the hover tooltip (browser tooltipShowPage/Screen/Coords,
+    // all default true) — the three checkboxes in the context-menu Tooltip submenu.
+    bool tooltipShowPage = true;
+    bool tooltipShowScreen = true;
+    bool tooltipShowCoords = true;
     // Image filter + custom tint (browser drawingApp.js:83-84). "none" | "bw" |
     // "sepia" | "invert" | "contour" | "custom"; filterColor is the custom
     // duotone tint.
@@ -158,6 +165,31 @@ namespace stencil::gui {
     LayoutMeta parseLayoutMeta(const QJsonObject& o);
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
+
+    // ── .stencil portable project files (image + layout + metadata + optional theme) ──
+    // One self-contained JSON doc shared by every Stencil surface; QtCore-only (image as base64, no QImage) so it stays headless-testable. Mirrors browser/js/core/projectFile.js.
+    inline constexpr int kStencilFileVersion = 1;
+    struct ProjectFileData {
+      QString name = "Untitled";
+      QString color;              // "#rrggbb" or "" (omitted from the file when empty)
+      QString description;        // free-text description or "" (omitted from the file when empty)
+      QStringList keywords;
+      QString source, resource;
+      bool blank = false;
+      QString blankColor;
+      QByteArray imageBytes;      // ENCODED original image (PNG/JPEG…), NOT base64
+      QString imageExt = "png";
+      int imageWidth = 0, imageHeight = 0;
+      QJsonObject layout;         // the export layout (fileStore::buildLayoutJson)
+      bool hasTheme = false;
+      QString themeMode;          // "light" | "dark"
+      QString themeAccent;        // accent preset key or "#rrggbb"
+    };
+    // Serialize a project to pretty-printed .stencil JSON bytes.
+    QByteArray buildProjectFile(const ProjectFileData& pf);
+    // Parse + validate. Returns false (and sets *err when given) on a bad/foreign/too-new file;
+    // on success `out.imageBytes` holds the DECODED image and `out.layout` the layout object.
+    bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
 
     QString hotkeysPath();
     // Shortcut overrides (id -> key sequence), layered over hotkeysConfig.json

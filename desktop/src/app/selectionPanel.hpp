@@ -90,7 +90,6 @@ namespace stencil::gui {
     QTabWidget* tabs_ = nullptr;     // Points | Lines
     QTableWidget* points_ = nullptr;
     QListWidget* lines_ = nullptr;   // Lines tab: one row per committed line
-    QLabel* measurements_ = nullptr;
     QLabel* multiLabel_ = nullptr;   // "N lines selected" note (multi-select mode)
     QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
 

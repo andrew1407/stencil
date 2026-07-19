@@ -1976,13 +1976,13 @@ namespace stencil::gui {
     scheduleEditCommit();
   }
 
-  // Ctrl+Shift+wheel: rotate the selected line about its bounding-box center, or
-  // about the focused point when one is selected. Port of #rotateSelectedLine
-  // (~1834).
-  void CanvasWidget::rotateSelectedLine(double angleRad) {
+  // Apply `op` (rotate/flip) in place to the selection about its pivot: ≥2 selected → the whole
+  // set about their combined bounding-box centre; 1 → the focused point, else that line's bbox
+  // centre. Redraws + emits selectionChanged + schedules the debounced commit. Shared scaffold so
+  // rotate and flip can't drift (no new core op, no parity change).
+  void CanvasWidget::transformSelection(
+      const std::function<void(std::vector<core::Point>&, double, double)>& op) {
     if (compareReadOnly()) return;   // read-only compare view
-    // 2+ selected → rotate the whole set about their combined bounding-box centre (reuses the
-    // same core boundingBoxCenter/rotatePoints ops per line — no new core op, no parity change).
     const auto sel = selectedIndices();
     if (sel.size() >= 2) {
       std::vector<core::Point> all;
@@ -1990,31 +1990,42 @@ namespace stencil::gui {
         for (const auto& p : lines_[i].points) all.push_back(p);
       if (all.size() < 2) return;
       const core::Point c = core::boundingBoxCenter(all);
-      for (int i : sel) core::rotatePoints(lines_[i].points, c.x, c.y, angleRad);
-      update();
-      emit selectionChanged();
-      scheduleEditCommit();
-      return;
-    }
-
-    core::Line* line = selectedLine();
-    if (!line || line->points.size() < 2) return;
-
-    double cx;
-    double cy;
-    if (selectedPoint_ >= 0 &&
-        selectedPoint_ < static_cast<int>(line->points.size())) {
-      cx = line->points[selectedPoint_].x;
-      cy = line->points[selectedPoint_].y;
+      for (int i : sel) op(lines_[i].points, c.x, c.y);
     } else {
-      const core::Point c = core::boundingBoxCenter(line->points);
-      cx = c.x;
-      cy = c.y;
+      core::Line* line = selectedLine();
+      if (!line || line->points.size() < 2) return;
+      double cx;
+      double cy;
+      if (selectedPoint_ >= 0 &&
+          selectedPoint_ < static_cast<int>(line->points.size())) {
+        cx = line->points[selectedPoint_].x;
+        cy = line->points[selectedPoint_].y;
+      } else {
+        const core::Point c = core::boundingBoxCenter(line->points);
+        cx = c.x;
+        cy = c.y;
+      }
+      op(line->points, cx, cy);
     }
-    core::rotatePoints(line->points, cx, cy, angleRad);
     update();
     emit selectionChanged();
     scheduleEditCommit();
+  }
+
+  // Ctrl+Shift+wheel / Alt+R+←/→: rotate the selected line(s) about the selection pivot.
+  // Port of #rotateSelectedLine (~1834).
+  void CanvasWidget::rotateSelectedLine(double angleRad) {
+    transformSelection([angleRad](std::vector<core::Point>& pts, double cx, double cy) {
+      core::rotatePoints(pts, cx, cy, angleRad);
+    });
+  }
+
+  // Alt+Shift+↑/↓: mirror the selected line(s) about the selection pivot (horizontal == left↔right,
+  // x' = 2*cx - x; otherwise top↔bottom, y' = 2*cy - y) — core::flipPoints in place of the rotate.
+  void CanvasWidget::flipSelectedLine(bool horizontal) {
+    transformSelection([horizontal](std::vector<core::Point>& pts, double cx, double cy) {
+      core::flipPoints(pts, horizontal, cx, cy);
+    });
   }
 
   // Translate every selected line by (dx, dy) image-space px — the arrow-key nudge (mirror of

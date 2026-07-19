@@ -12,6 +12,7 @@ public sealed record CreateProjectRequest
     public string? Source { get; init; }
     public string? Resource { get; init; }
     public string? Color { get; init; }
+    public string? Description { get; init; }
     public bool HasImage { get; init; }
     public int ImageW { get; init; }
     public int ImageH { get; init; }

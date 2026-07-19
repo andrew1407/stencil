@@ -23,22 +23,33 @@ public static class Keyboards
         List<InlineKeyboardButton[]> rows = MainRows();
         if (hasActiveProject)
         {
-            rows.Add(ProjectActionsRow());
+            rows.Add(ProjectActionsRow(hasActiveProject: true));
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     /// <summary>
-    /// The active-project actions shared by <see cref="StatusMenu"/> and <see cref="EditMenu"/>:
-    /// set expiry and remove. Both tokens dispatch the equivalent command (which replies with the
-    /// picker / confirmation as a fresh message), so they work identically from either menu.
+    /// The project-actions row shared by <see cref="StatusMenu"/> and <see cref="EditMenu"/>.
+    /// Rename and Describe are always offered (they also apply to a not-yet-saved working image,
+    /// carried into <c>/create</c>); Expiration and Remove need a saved server project, so they
+    /// appear only when <paramref name="hasActiveProject"/>. Each token dispatches the equivalent
+    /// command (which replies with the prompt / picker / confirmation as a fresh message), so they
+    /// work identically from either menu.
     /// </summary>
-    private static InlineKeyboardButton[] ProjectActionsRow() =>
-        new[]
+    private static InlineKeyboardButton[] ProjectActionsRow(bool hasActiveProject)
+    {
+        List<InlineKeyboardButton> buttons = new()
         {
-            InlineKeyboardButton.WithCallbackData("⏳ Expiration", "exp:menu"),
-            InlineKeyboardButton.WithCallbackData("🗑 Remove", "del:menu"),
+            InlineKeyboardButton.WithCallbackData("✏️ Rename", "name:menu"),
+            InlineKeyboardButton.WithCallbackData("📝 Describe", "desc:menu"),
         };
+        if (hasActiveProject)
+        {
+            buttons.Add(InlineKeyboardButton.WithCallbackData("⏳ Expiration", "exp:menu"));
+            buttons.Add(InlineKeyboardButton.WithCallbackData("🗑 Remove", "del:menu"));
+        }
+        return buttons.ToArray();
+    }
 
     /// <summary>
     /// The delete-project confirmation (destructive, so it never fires on a single tap): a
@@ -130,17 +141,34 @@ public static class Keyboards
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📄 JSON", "json"),
+                InlineKeyboardButton.WithCallbackData("⬇️ Download", "m:download"),
                 InlineKeyboardButton.WithCallbackData("🧼 Reset", "reset"),
                 InlineKeyboardButton.WithCallbackData("💾 Save", "save"),
             },
         };
-        // When the working image is a saved server project, surface its project actions right here
-        // (this is the menu shown after /fetch), not only on /status. Same tokens as StatusMenu.
-        if (hasActiveProject)
+        // The edit menu always rides a rendered image, so Rename is always available here; the
+        // server-only Expiration/Remove buttons ride along only when it's a saved server project
+        // (the menu shown after /fetch). Same tokens as StatusMenu.
+        rows.Add(ProjectActionsRow(hasActiveProject));
+        return new InlineKeyboardMarkup(rows);
+    }
+
+    /// <summary>Download submenu: rendered image, layout JSON (only when edits exist), whole .stencil project, plus Back.</summary>
+    public static InlineKeyboardMarkup DownloadSubmenu(bool hasEdits)
+    {
+        List<InlineKeyboardButton[]> rows = new()
         {
-            rows.Add(ProjectActionsRow());
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🖼 Image", "image"),
+                InlineKeyboardButton.WithCallbackData("📦 Project", "project"),
+            },
+        };
+        if (hasEdits)
+        {
+            rows.Add(new[] { InlineKeyboardButton.WithCallbackData("📄 Layout JSON", "json") });
         }
+        rows.Add(BackRow());
         return new InlineKeyboardMarkup(rows);
     }
 

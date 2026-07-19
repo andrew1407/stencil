@@ -9,4 +9,10 @@ public static class PendingInputs
 {
     /// <summary>Awaiting a free-text expiry duration for the active project (e.g. "3 days").</summary>
     public const string ExpiryDuration = "expiry";
+
+    /// <summary>Awaiting a free-text new name for the active project (the Rename button).</summary>
+    public const string ProjectName = "projectname";
+
+    /// <summary>Awaiting a free-text description for the working image / project (the Describe button).</summary>
+    public const string ProjectDescription = "projectdescription";
 }

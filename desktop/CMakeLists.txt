@@ -296,6 +296,17 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_projectkeywords_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # .stencil portable project file round-trip (fileStore::buildProjectFile <-> parseProjectFile):
+  # image + layout + metadata + optional theme, cross-surface parity with browser projectFile.js.
+  add_executable(stencil_projectfile_headless
+    tests/projectFile.headless.cpp
+    src/io/fileStore.cpp)
+  target_include_directories(stencil_projectfile_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projectfile_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_projectfile_headless COMMAND stencil_projectfile_headless)
+  set_tests_properties(stencil_projectfile_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Server-connected transfer check: drives the extracted ProjectTransferController's
   # copy/move-to-server against a real running server (self-skips when none is reachable —
   # point it at one with STENCIL_TEST_SERVER, default http://localhost:8090).
@@ -372,6 +383,12 @@ if(Qt6_FOUND)
     install(FILES packaging/stencil.desktop DESTINATION share/applications)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
       DESTINATION share/icons/hicolor/scalable/apps RENAME stencil.svg)
+    # .stencil file-type association: the shared-mime-info definition (registers the
+    # application/x-stencil type + *.stencil glob) plus its themed file icon, so the file
+    # manager gives .stencil files the Stencil logo and double-click-to-open.
+    install(FILES packaging/stencil-mime.xml DESTINATION share/mime/packages)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
+      DESTINATION share/icons/hicolor/scalable/mimetypes RENAME application-x-stencil.svg)
   endif()
 
   # Qt's own deployment helper (Qt >= 6.3) runs the right *deployqt tool at install

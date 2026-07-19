@@ -70,6 +70,9 @@ namespace stencil::gui {
 
     // Committed lines only; allLines() also includes the in-progress line (for save).
     const core::Lines& lines() const { return lines_; }
+    // The in-progress line (empty points ⇒ none) — lets callers read committed + current
+    // without allLines()'s whole-vector copy.
+    const core::Line& currentLine() const { return currentLine_; }
     core::Lines allLines() const;
     void setLines(const core::Lines& lines);  // replace all, reset history
 
@@ -127,6 +130,7 @@ namespace stencil::gui {
     void removeLineByIndex(int idx);            // delete line `idx` (list 🗑)
     // ── keyboard transforms of the selection (MainWindow arrow-key handler) ──
     void rotateSelectedLine(double angleRad);   // Alt+R+←/→ and Ctrl+Shift+wheel
+    void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
     // ── image filters (S3; port of browser/js/core/renderer.js) ──
@@ -327,6 +331,10 @@ namespace stencil::gui {
     void refreshHoverForModifiers();
     void adjustThicknessAtCursor(double imageX, double imageY, int dir);
     void scheduleEditCommit();  // debounced commitHistory for wheel edits
+    // Apply an in-place per-line transform `op(points, cx, cy)` to the selection about its pivot
+    // (≥2 selected → combined bbox centre; 1 → focused point, else that line's bbox centre), then
+    // redraw + selectionChanged + debounced commit. Shared by rotateSelectedLine/flipSelectedLine.
+    void transformSelection(const std::function<void(std::vector<core::Point>&, double, double)>& op);
 
     QImage image_;
     // Crop: the full original bitmap + the page-shaped sub-rectangle shown in

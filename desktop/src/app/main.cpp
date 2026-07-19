@@ -82,6 +82,9 @@ int main(int argc, char** argv) {
   StencilApplication app(argc, argv);
   app.setApplicationName("Stencil");
   app.setOrganizationName("Stencil");
+  // Show each action's shortcut in the canvas context menu too (Qt hides shortcuts in context
+  // menus by default), matching the browser context menu's right-aligned hotkey hints.
+  app.setAttribute(Qt::AA_DontShowShortcutsInContextMenus, false);
   // Window/taskbar icon: the browser app's favicon as a Qt resource. Skipped on
   // macOS, where setWindowIcon() would shadow the bundle's themed AppIcon in the
   // Dock (macOS windows have no title-bar icon); desktop-file is X11/Wayland-only.

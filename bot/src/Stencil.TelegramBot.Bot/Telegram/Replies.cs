@@ -38,6 +38,7 @@ public static class Replies
         sb.AppendLine("/image — re-render and re-send the current result image");
         sb.AppendLine("/layout <json | link> — apply a layout JSON (or upload the .json file)");
         sb.AppendLine("/json — download the layout JSON");
+        sb.AppendLine("/project — download the whole project as a .stencil file (send one back to open it)");
         sb.AppendLine("/status — show the working image, edits and connections");
         sb.AppendLine();
         sb.AppendLine("Drawing (annotate the image — coords are pixels or x%,y%):");
@@ -57,7 +58,9 @@ public static class Replies
         sb.AppendLine("/create [name] — save the result as a new project");
         sb.AppendLine("/save — save back to the active project");
         sb.AppendLine("/sync [on|off] — live mode: auto-upload edits + pull peers' changes");
+        sb.AppendLine("/project-name <text> — rename the working image (or the active project)");
         sb.AppendLine("/project-color <#hex|name|clear> — set the project's accent colour");
+        sb.AppendLine("/project-description <text> — set the description (empty clears; saved on /create)");
         sb.AppendLine("/expire <n unit | never> — set the project's expiry, e.g. /expire 3 days");
         sb.AppendLine("/delete — remove the active project from the server (asks to confirm)");
         sb.AppendLine();
@@ -78,6 +81,12 @@ public static class Replies
             if (session.SourceUrl is string src)
             {
                 sb.AppendLine($"  source: {src}");
+            }
+            // The description belongs to the working image whether or not it's saved to a server yet
+            // (set via /project-description; carried into /create), so show it here in both cases.
+            if (!string.IsNullOrEmpty(session.ActiveProjectDescription))
+            {
+                sb.AppendLine($"  description: {session.ActiveProjectDescription}");
             }
         }
         else
@@ -316,6 +325,10 @@ public static class Replies
             string expires = FmtDate(p.Record.ExpiresAt);
             string expiresBit = expires.Length == 0 ? "" : $" · expires {expires}";
             sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit}{expiresBit} @ {Host(p.ServerUrl)}");
+            if (!string.IsNullOrEmpty(p.Record.Description))
+            {
+                sb.AppendLine($"    {p.Record.Description}");
+            }
         }
         if (projects.Count > shown)
         {

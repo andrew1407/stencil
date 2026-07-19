@@ -183,6 +183,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .projects => try handlers.doProjects(session, io, cmd.arg),
         .project_color => try handlers.doProjectColor(session, cmd.arg),
         .blank_color => try handlers.doProjectBlankColor(session, cmd.arg),
+        .project_description => try handlers.doProjectDescription(session, cmd.arg),
         .keywords => try handlers.doKeywords(session, cmd.arg),
         .keywords_search => try handlers.doKeywordsSearch(session, cmd.arg),
         .keywords_add => try handlers.doKeywordsAdd(session, cmd.arg),

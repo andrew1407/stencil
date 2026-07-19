@@ -269,6 +269,27 @@ test('setKeywords normalizes + stores in place, no updatedAt bump; null on unkno
   assert.strictEqual(s.setKeywords('nope', ['x']), null);       // unknown id → null
 });
 
+test('normalizeMeta default-fills description/lineLengthCm on legacy projects', () => {
+  const shim = makeShim();
+  shim.setItem(REGISTRY_KEY, JSON.stringify([{ id: 'leg', name: 'Legacy', createdAt: 1000, updatedAt: 2000 }]));
+  const s = new ProjectsStore(shim);
+  assert.strictEqual(s.getMeta('leg').description, '');
+  assert.strictEqual(s.getMeta('leg').lineLengthCm, 0);
+});
+
+test('setDescription trims/clears in place, no updatedAt bump; null on unknown id', () => {
+  const shim = makeShim();
+  const s = new ProjectsStore(shim);
+  s.upsert(meta('p1', { updatedAt: 5000 }), { image: null, layout: {} });
+  const before = s.getMeta('p1').updatedAt;
+  assert.strictEqual(s.setDescription('p1', '  a floor plan  ').description, 'a floor plan');  // trimmed
+  assert.strictEqual(s.getMeta('p1').description, 'a floor plan');
+  assert.strictEqual(s.getMeta('p1').updatedAt, before);        // not bumped (like setColor)
+  assert.strictEqual(s.setDescription('p1', '   ').description, '');  // whitespace-only clears
+  assert.strictEqual(s.setDescription('p1', null).description, '');   // null clears
+  assert.strictEqual(s.setDescription('nope', 'x'), null);      // unknown id → null
+});
+
 test('migrateLegacy creates one project, sets flag; second call no-op', () => {
   const shim = makeShim();
   shim.setItem('drawingApp_image', 'legacyImg');
