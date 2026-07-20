@@ -81,9 +81,9 @@ pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
     if (!exitedOk(res.term)) return Error.Failed;
 }
 
-/// Put UTF-8 `text` on the clipboard (macOS `pbcopy`). Used by the full-screen console's
-/// drag-to-copy. Routed through a temp file + `sh -c 'pbcopy < file'` to avoid stdin plumbing,
-/// mirroring writeImage.
+/// Put UTF-8 `text` on the clipboard (macOS `pbcopy`). Used by the full-screen console's Ctrl-S
+/// "copy the selection". Routed through a temp file + `sh -c 'pbcopy < file'` to avoid stdin
+/// plumbing, mirroring writeImage.
 pub fn writeText(gpa: std.mem.Allocator, io: std.Io, text: []const u8) !void {
     if (builtin.os.tag != .macos) return Error.Unsupported;
 

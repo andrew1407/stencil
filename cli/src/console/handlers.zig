@@ -1703,8 +1703,9 @@ fn hsvToRgb(h: f64, s: f64, v: f64) [3]u8 {
 }
 
 /// `/mouse [on|off]` (bare toggles): enable or disable mouse reporting in full-screen mode.
-/// Turning it OFF hands the mouse back to the terminal so you can select/copy text; turning it
-/// ON re-enables logo clicks + wheel scrolling. No-op (with a note) outside full-screen.
+/// Turning it OFF hands the mouse back to the terminal for native select/copy; turning it ON
+/// re-enables logo clicks + wheel scrolling + the visual drag-selection. No-op (with a note)
+/// outside full-screen.
 pub fn doMouse(session: *Session, arg: []const u8) void {
     _ = session;
     const s = screen.current() orelse {
@@ -1723,9 +1724,9 @@ pub fn doMouse(session: *Session, arg: []const u8) void {
     };
     s.setMouse(on);
     if (on)
-        logo.print("mouse on — click the logo to change the theme, wheel to scroll\n", .{})
+        logo.print("mouse on — click the logo to theme, drag to select (Ctrl-S copies), wheel to scroll\n", .{})
     else
-        logo.print("mouse off — you can select/copy text now; '/mouse on' to re-enable clicks\n", .{});
+        logo.print("mouse off — you can select/copy text natively now; '/mouse on' to re-enable clicks\n", .{});
 }
 
 // ── tests (pure routing / debounce logic) ──────────────────────────────────────
