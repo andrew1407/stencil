@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
+pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, mouse, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -45,6 +45,7 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "copy") or eq(w, "yank")) return .copy;
     if (eq(w, "paste")) return .paste;
     if (eq(w, "theme") or eq(w, "themes")) return .theme;
+    if (eq(w, "mouse")) return .mouse;
     if (eq(w, "status") or eq(w, "info") or eq(w, "image")) return .status;
     if (eq(w, "help") or eq(w, "?") or eq(w, "h")) return .help;
     if (eq(w, "exit") or eq(w, "quit") or eq(w, "q")) return .quit;

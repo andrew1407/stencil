@@ -16,6 +16,7 @@ const commands = @import("commands.zig");
 const layout_mod = @import("../layout.zig");
 const project = @import("../project.zig");
 const ui = @import("ui.zig");
+const screen = @import("screen.zig");
 const Session = @import("session.zig").Session;
 const Action = commands.Action;
 
@@ -1620,7 +1621,7 @@ pub fn doTheme(session: *Session, arg: []const u8) void {
     // A named preset, with 'default' as an alias for the default accent (violet).
     const key = if (std.ascii.eqlIgnoreCase(arg, "default")) theme.default_key else arg;
     if (theme.find(key)) |a| {
-        applyAccent(session, a.rgb, a.key, a.hex);
+        applyAccent(session, a.rgb, a.key, a.hex, true);
         return;
     }
 
@@ -1628,20 +1629,103 @@ pub fn doTheme(session: *Session, arg: []const u8) void {
     if (core.parseColor(session.gpa, arg)) |c| {
         var hexbuf: [8]u8 = undefined;
         const hex = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ c.r, c.g, c.b }) catch "#??????";
-        applyAccent(session, .{ c.r, c.g, c.b }, hex, hex);
+        applyAccent(session, .{ c.r, c.g, c.b }, hex, hex, true);
         return;
     }
 
     logo.print("error: unknown theme '{s}' — type '/theme' to list them, or give a colour like #ff5623\n", .{arg});
 }
 
-// Repaint everything in a new accent: the logo's RGB, the stored label, the screen, and a
-// confirmation line. `label` is the preset key or a custom '#hex'; `hex` is shown in the message.
-fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8) void {
+// Repaint everything in a new accent: the logo's RGB, the stored label and the screen. When
+// `announce` is set it also prints a "theme set to …" line — the typed `/theme` command does,
+// but logo clicks stay silent (the recoloured logo is feedback enough).
+fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8, announce: bool) void {
     logo.setAccent(rgb);
     ui.setAccent(label);
-    ui.redraw(session); // repaint the logo outline in the new accent
-    logo.print("theme set to {s} ({s})\n", .{ label, hex });
+    // In full-screen mode recapture the pinned logo header in the new accent (keeping the
+    // scrollback); otherwise fall back to the classic clear-and-reprint.
+    if (screen.current()) |s| s.onThemeChanged() else ui.redraw(session);
+    if (announce) logo.print("theme set to {s} ({s})\n", .{ label, hex });
+}
+
+/// Advance to the next accent preset (wrapping), or reset to the default when a custom colour
+/// is active — the single-click-on-logo behaviour, mirroring the browser (accents.js). Silent.
+pub fn cycleTheme(session: *Session) void {
+    const key = screen.nextAccentKey(ui.currentAccentKey());
+    const a = theme.find(key) orelse theme.accents[0];
+    applyAccent(session, a.rgb, a.key, a.hex, false);
+}
+
+/// Set a random vivid custom colour (outside the preset list) — the double-click-on-logo
+/// behaviour, the terminal stand-in for the browser logo's colour picker. Silent. `seed` varies
+/// per click (the caller passes the click time) so each double-click yields a different hue.
+pub fn randomCustomTheme(session: *Session, seed: u64) void {
+    var prng = std.Random.DefaultPrng.init(seed);
+    const h = @as(f64, @floatFromInt(prng.random().intRangeLessThan(u16, 0, 360)));
+    const rgb = hsvToRgb(h, 0.7, 0.95); // always vivid + readable, essentially never a preset
+    var hexbuf: [8]u8 = undefined;
+    const hex = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ rgb[0], rgb[1], rgb[2] }) catch "#??????";
+    applyAccent(session, rgb, hex, hex, false);
+}
+
+fn hsvToRgb(h: f64, s: f64, v: f64) [3]u8 {
+    const c = v * s;
+    const hp = h / 60.0;
+    const x = c * (1.0 - @abs(@mod(hp, 2.0) - 1.0));
+    var r: f64 = 0;
+    var g: f64 = 0;
+    var b: f64 = 0;
+    if (hp < 1) {
+        r = c;
+        g = x;
+    } else if (hp < 2) {
+        r = x;
+        g = c;
+    } else if (hp < 3) {
+        g = c;
+        b = x;
+    } else if (hp < 4) {
+        g = x;
+        b = c;
+    } else if (hp < 5) {
+        r = x;
+        b = c;
+    } else {
+        r = c;
+        b = x;
+    }
+    const m = v - c;
+    return .{
+        @intFromFloat(@round((r + m) * 255.0)),
+        @intFromFloat(@round((g + m) * 255.0)),
+        @intFromFloat(@round((b + m) * 255.0)),
+    };
+}
+
+/// `/mouse [on|off]` (bare toggles): enable or disable mouse reporting in full-screen mode.
+/// Turning it OFF hands the mouse back to the terminal so you can select/copy text; turning it
+/// ON re-enables logo clicks + wheel scrolling. No-op (with a note) outside full-screen.
+pub fn doMouse(session: *Session, arg: []const u8) void {
+    _ = session;
+    const s = screen.current() orelse {
+        logo.print("mouse control is only available in --console-full-screen\n", .{});
+        return;
+    };
+    const on = if (arg.len == 0)
+        !s.mouseOn()
+    else if (std.ascii.eqlIgnoreCase(arg, "on"))
+        true
+    else if (std.ascii.eqlIgnoreCase(arg, "off"))
+        false
+    else {
+        logo.print("usage: /mouse [on|off] (bare toggles) — off lets you select text\n", .{});
+        return;
+    };
+    s.setMouse(on);
+    if (on)
+        logo.print("mouse on — click the logo to change the theme, wheel to scroll\n", .{})
+    else
+        logo.print("mouse off — you can select/copy text now; '/mouse on' to re-enable clicks\n", .{});
 }
 
 // ── tests (pure routing / debounce logic) ──────────────────────────────────────

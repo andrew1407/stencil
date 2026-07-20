@@ -65,9 +65,9 @@ pub fn hostOf(url: []const u8) ?[]const u8 {
 /// fetches from the user's own dev/fixture server on localhost (the project's own e2e does
 /// exactly this), and loopback is the CLI process's own trust domain, not a network pivot.
 /// When `strict` is true, loopback is ALSO blocked — used for sub-resource URLs harvested
-/// from untrusted scanned page content, which must not be able to reach loopback services
-/// (`.claude/rules/security.md`: never connect to a host discovered in fetched/scanned
-/// content). This is the pure/literal check; `fetch` additionally resolves DNS names and
+/// from untrusted scanned page content, which must never reach a host it discovered in that
+/// content, loopback services included. This is the pure/literal check; `fetch` additionally
+/// resolves DNS names and
 /// blocks those pointing at an internal address (`hostResolvesToBlocked`). The server-connect
 /// path is intentionally exempt (users name their own servers).
 pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {

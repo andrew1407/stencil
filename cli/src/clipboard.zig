@@ -10,10 +10,19 @@ pub const Error = error{ Unsupported, ToolMissing, NoImage, Failed };
 
 const MAX_IMAGE = 64 << 20; // 64 MiB cap on a clipboard image
 
+// The per-user temp directory ($TMPDIR, as macOS sets it), any trailing slash trimmed; falls
+// back to /tmp. Preferred over a hardcoded /tmp so the scratch file isn't a predictable name in
+// a world-writable dir. Scratch filenames also carry the PID, so concurrent CLI instances never
+// collide on the same temp file.
+fn tmpDir() []const u8 {
+    const t = std.c.getenv("TMPDIR") orelse return "/tmp";
+    return std.mem.trimEnd(u8, std.mem.span(t), "/");
+}
+
 // AppleScript: dump the clipboard's PNG to a temp file and echo its path, or "" if the
-// clipboard holds no image.
-const read_script =
-    \\set p to (POSIX path of (path to temporary items)) & "stencil_clip_in.png"
+// clipboard holds no image. `{d}` is the PID (see tmpDir) so concurrent reads don't clash.
+const read_script_fmt =
+    \\set p to (POSIX path of (path to temporary items)) & "stencil_clip_in.{d}.png"
     \\try
     \\  set d to the clipboard as «class PNGf»
     \\on error
@@ -30,7 +39,10 @@ const read_script =
 pub fn readImage(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     if (builtin.os.tag != .macos) return Error.Unsupported;
 
-    const res = std.process.run(gpa, io, .{ .argv = &.{ "osascript", "-e", read_script } }) catch |e| switch (e) {
+    const script = try std.fmt.allocPrint(gpa, read_script_fmt, .{std.c.getpid()});
+    defer gpa.free(script);
+
+    const res = std.process.run(gpa, io, .{ .argv = &.{ "osascript", "-e", script } }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -51,7 +63,8 @@ pub fn readImage(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
 pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
     if (builtin.os.tag != .macos) return Error.Unsupported;
 
-    const path = "/tmp/stencil_clip_out.png";
+    const path = try std.fmt.allocPrint(gpa, "{s}/stencil_clip_out.{d}.png", .{ tmpDir(), std.c.getpid() });
+    defer gpa.free(path);
     const dir = std.Io.Dir.cwd();
     dir.writeFile(io, .{ .sub_path = path, .data = png }) catch return Error.Failed;
     defer dir.deleteFile(io, path) catch {};
@@ -60,6 +73,30 @@ pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
     defer gpa.free(script);
 
     const res = std.process.run(gpa, io, .{ .argv = &.{ "osascript", "-e", script } }) catch |e| switch (e) {
+        error.FileNotFound => return Error.ToolMissing,
+        else => return e,
+    };
+    defer gpa.free(res.stderr);
+    defer gpa.free(res.stdout);
+    if (!exitedOk(res.term)) return Error.Failed;
+}
+
+/// Put UTF-8 `text` on the clipboard (macOS `pbcopy`). Used by the full-screen console's
+/// drag-to-copy. Routed through a temp file + `sh -c 'pbcopy < file'` to avoid stdin plumbing,
+/// mirroring writeImage.
+pub fn writeText(gpa: std.mem.Allocator, io: std.Io, text: []const u8) !void {
+    if (builtin.os.tag != .macos) return Error.Unsupported;
+
+    const path = try std.fmt.allocPrint(gpa, "{s}/stencil_clip_text.{d}.txt", .{ tmpDir(), std.c.getpid() });
+    defer gpa.free(path);
+    const dir = std.Io.Dir.cwd();
+    dir.writeFile(io, .{ .sub_path = path, .data = text }) catch return Error.Failed;
+    defer dir.deleteFile(io, path) catch {};
+
+    const cmd = try std.fmt.allocPrint(gpa, "pbcopy < '{s}'", .{path});
+    defer gpa.free(cmd);
+
+    const res = std.process.run(gpa, io, .{ .argv = &.{ "sh", "-c", cmd } }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };

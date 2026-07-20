@@ -4,7 +4,7 @@ import { applyContourRGBA } from '../js/core/contourFilter.js';
 
 // JS reference for the core's contour (Sobel edge) filter. These cases mirror
 // core/tests/imageFilter.test.cpp's applyContourRGBA suite — the two must stay
-// byte-identical (the pinned integer-only math; parity contract, CLAUDE.md).
+// byte-identical (the pinned integer-only math).
 
 test('applyContourRGBA maps a uniform image to all white, keeping alpha', () => {
   // 3x2 of one color: every Sobel gradient is 0, so mag 0 → 255 everywhere.
