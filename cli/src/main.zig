@@ -31,7 +31,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (opts.console) {
-        console.run(gpa, io) catch {
+        console.run(gpa, io, opts.console_full_screen) catch {
             std.process.exit(1);
         };
         return;

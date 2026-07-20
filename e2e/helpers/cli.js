@@ -1,7 +1,7 @@
 // Helpers for driving the Zig CLI as a black box — the same argv/outcome contract the
-// MCP server and the Telegram bot depend on (documented in CLAUDE.md): a `wrote {path}
-// ({w}x{h} px · {page})` line on STDERR and exit 0 on success; an `error: …` line on
-// STDERR and a non-zero exit on failure.
+// MCP server and the Telegram bot depend on: a `wrote {path} ({w}x{h} px · {page})` line
+// on STDERR and exit 0 on success; an `error: …` line on STDERR and a non-zero exit on
+// failure.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
