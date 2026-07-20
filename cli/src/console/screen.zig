@@ -8,6 +8,8 @@
 //! Mouse tracking (SGR 1006) is enabled so a click on the pinned logo cycles the accent and a
 //! double-click drops the user into a custom-colour entry — the terminal-native equivalent of
 //! the browser logo's single-click-cycle / double-click-colour-picker (browser/js/ui/toolbar.js).
+//! Dragging over output paints a translucent theme-colour highlight; Ctrl-S copies it (Cmd-C can't
+//! reach the app under mouse tracking), or `/mouse off` restores native selection.
 //!
 //! It leans on `logo.zig`'s output sink: while the screen is active every `logo.print` is
 //! routed into `append`, so the many existing handlers keep printing exactly as before and
@@ -46,8 +48,8 @@ pub const Screen = struct {
     mouse_on: bool = false, // SGR mouse reporting state (toggled by /mouse)
     wordmark_row: u16 = 0, // 1-based screen row of "S T E N C I L" (0 = not found)
     wordmark_col: u16 = 0, // 1-based starting column of the wordmark
-    // In-app text selection (drag to highlight, release to copy) — works while mouse tracking is
-    // on, which the terminal would otherwise deny native selection. Coords are 1-based screen cells.
+    // In-app text selection (drag to highlight) — works while mouse tracking is on, which would
+    // otherwise deny native selection. Extracted on release, copied only on Ctrl-S. 1-based cells.
     sel_active: bool = false, // a drag is in progress
     has_sel: bool = false, // a highlight is currently drawn
     sel_ar: u16 = 0, // anchor (drag start) row/col
@@ -99,11 +101,11 @@ pub const Screen = struct {
     }
 
     /// Enable/disable SGR mouse reporting. Off hands the mouse back to the terminal so the user
-    /// can select/copy text (mouse tracking otherwise suppresses native selection).
+    /// can select/copy text natively (mouse tracking otherwise suppresses native selection).
     pub fn setMouse(self: *Screen, on: bool) void {
         if (on and self.mouse_on) return; // already on (a disable always re-emits, for safe teardown)
         self.mouse_on = on;
-        // 1002 = button + drag-motion reporting (needed for drag-to-select), 1006 = SGR coords.
+        // 1002 = button + drag-motion reporting (needed for the drag-to-highlight visual), 1006 = SGR coords.
         ttyWrite(self.fd, if (on) "\x1b[?1002h\x1b[?1006h" else "\x1b[?1002l\x1b[?1006l");
         if (g_screen == self) self.drawStatusBar(); // reflect the state in the rule hint
     }
@@ -160,7 +162,7 @@ pub const Screen = struct {
         return row >= 1 and row <= self.headerRows();
     }
 
-    // ── in-app text selection ─────────────────────────────────────────────────────
+    // ── in-app text selection (visual only) ────────────────────────────────────────
 
     const SelRange = struct { sr: u16, sc: u16, er: u16, ec: u16 };
 
@@ -205,8 +207,7 @@ pub const Screen = struct {
     }
 
     /// Finish the drag: extract the highlighted text into `sel_buf` and KEEP the highlight on
-    /// screen. The selection is NOT copied automatically — it stays visible until Ctrl+C copies it
-    /// (or new output invalidates it). No-op for a plain click (no drag).
+    /// screen. Nothing is copied until Ctrl-S. No-op for a plain click (no drag).
     pub fn selEnd(self: *Screen) void {
         if (!self.sel_active) return;
         self.sel_active = false;
@@ -215,7 +216,7 @@ pub const Screen = struct {
         self.paintBody(); // settle the final highlight (drag is over)
     }
 
-    /// Whether a finished, still-highlighted selection is present (and thus copyable via Ctrl+C).
+    /// Whether a finished, still-highlighted selection is present (and thus copyable via Ctrl-S).
     pub fn hasSelection(self: *Screen) bool {
         return self.has_sel and !self.sel_active;
     }
@@ -486,7 +487,7 @@ pub const Screen = struct {
     /// Wheel/PageUp/PageDown/End. `up` older, `!up` newer; `page` uses a viewport-sized step.
     pub fn scroll(self: *Screen, up: bool, page: bool) void {
         // The highlight is keyed to screen rows, so scrolling would leave it over different text —
-        // drop it first (the extracted text stays in sel_buf until overwritten).
+        // drop it first.
         self.has_sel = false;
         self.sel_active = false;
         const step: usize = if (page) @max(1, self.bodyRows()) else wheel_step;
@@ -612,7 +613,7 @@ fn appendBytes(out: []u8, oi: *usize, s: []const u8) void {
 // Selection wash opacity: the accent is applied at this fraction over the (dark) terminal
 // background, so the highlight reads as a translucent tint of the theme colour rather than a solid
 // fill. Lower = more transparent.
-const sel_alpha_pct = 35;
+const sel_alpha_pct = 55;
 
 /// A background SGR that washes the current accent over the terminal background at `sel_alpha_pct`%
 /// — the translucent theme-colour selection highlight. There is no grey floor, so a low accent
@@ -922,14 +923,14 @@ test "parseMouse: SGR press/release, wheel classification" {
 
 test "clipHighlight: washes the selected columns in the accent, keeps the row's own colours" {
     logo.init(false); // colour on
-    logo.setAccent(.{ 100, 100, 100 }); // washed at 35% over black → 48;2;35;35;35
+    logo.setAccent(.{ 100, 100, 100 }); // washed at 55% over black → 48;2;55;55;55
     defer logo.setAccent(theme.rgbOf(theme.default_key));
     var out: [256]u8 = undefined;
     // The red fg is preserved; the accent wash brackets visible columns [2,5).
     const r = clipHighlight("\x1b[31mabcdef\x1b[0m", 10, 2, 5, &out);
-    try testing.expectEqualStrings("\x1b[31mab\x1b[48;2;35;35;35mcde\x1b[49mf\x1b[0m\x1b[0m", r);
+    try testing.expectEqualStrings("\x1b[31mab\x1b[48;2;55;55;55mcde\x1b[49mf\x1b[0m\x1b[0m", r);
     // A wash reaching the end closes the bg before the final reset.
-    try testing.expectEqualStrings("\x1b[48;2;35;35;35mabc\x1b[49m\x1b[0m", clipHighlight("abc", 10, 0, 3, &out));
+    try testing.expectEqualStrings("\x1b[48;2;55;55;55mabc\x1b[49m\x1b[0m", clipHighlight("abc", 10, 0, 3, &out));
 }
 
 test "visibleSlice: plain visible characters within a column range" {

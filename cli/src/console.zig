@@ -82,7 +82,7 @@ fn logoCustom(raw: *anyopaque) void {
     handlers.randomCustomTheme(c.session, seed);
 }
 
-// A completed drag-selection: copy its text to the clipboard and note it in the scrollback.
+// Ctrl-S in full-screen mode: copy the current visual selection to the clipboard and note it.
 fn copySelection(raw: *anyopaque, text: []const u8) void {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
     clipboard.writeText(c.session.gpa, c.io, text) catch {
