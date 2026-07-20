@@ -70,7 +70,8 @@ src/
     commands.zig     #   command grammar (pure parsing: verbs, transforms, /blank, album)
     ui.zig           #   presentation: header, acks, prompt, help, /theme listing
     handlers.zig     #   command implementations over pipeline.zig's steps
-  line_edit.zig      # raw-mode line editor: Up/Down history, cursor keys (TTY only)
+    screen.zig       #   full-screen TUI: pinned logo header, scrollback, mouse (TTY only)
+  line_edit.zig      # raw-mode line editor: Up/Down history, cursor keys, mouse (TTY only)
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
   clipboard.zig      # /paste + /copy clipboard image I/O (macOS via osascript)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
@@ -145,6 +146,7 @@ stencil [options] <output>
 | `--source-format <s>` | Format tokens, `\|`-joined, e.g. `png\|jpg\|webp\|mp4` (default `all`; unknown-ext items bucket as `etc`). |
 | `--source-min-width` / `--source-max-width` / `--source-min-height` / `--source-max-height` `<px>` | Inclusive pixel bounds (`0` = unset); images are measured from a header sniff, unmeasured items pass. |
 | `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
+| `--console-full-screen` | Console in a [full-screen TUI](#console-mode): pinned logo header, scrollback (wheel/PgUp/PgDn), click the logo to change the theme. Implies `--console`; falls back to the plain editor on a too-small terminal. |
 | `--server <url>` | Connect to a [collaboration server](../server/README.md); then `-i <name>` names a **server project** to fetch and edit. |
 | `--remote-update` | With `--server`, write the result back into the fetched server project. |
 | `--remote <url>` | Upload the result as a **new** project on a server (for a local/web input). |
@@ -276,6 +278,24 @@ be set to send Meta/Esc+ — Terminal.app: *Use Option as Meta key*; iTerm2: Opt
 Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twice (or use
 `/exit` / **Ctrl-D**) — the first press arms the exit, so any other key cancels it.
 
+`stencil --console-full-screen` runs it as a **full-screen TUI**: the logo banner is pinned as
+a fixed header at the top, output flows just beneath it with a strong accent-coloured rule and
+the terse `>` prompt floating right below the last line, and each command you run is echoed
+above its output so it's clear what produced what. Older output stays in a scrollback you can
+page back through (**mouse wheel**, **PgUp** / **PgDn**). Mouse reporting is on, so — mirroring
+the browser app's clickable logo — a **click on the pinned logo cycles the accent colour**
+through the presets (wrapping), and a **double-click sets a random custom colour** outside the
+preset list (a short debounce distinguishes the two). Either way the logo plays a
+`S T E N C I L` colour-wave, everything tinted in the accent (logo, rule, prompt,
+**and previously-printed output**) recolours, and there's no confirmation line — the recolour is
+the feedback. **Dragging over output selects text** (highlighted live) and **copies it to the
+clipboard on release** — an in-app selection, so it works even though mouse tracking is on
+(which normally suppresses the terminal's native selection). `/mouse off` still hands the mouse
+fully back to the terminal if you prefer native selection. If the terminal is too short or its
+size can't be read, it falls back to the plain line-oriented editor; `NO_COLOR` keeps
+full-screen but renders it monochrome. Plain `--console` stays line-oriented (banner printed
+inline, scrolling via the terminal's own scrollback).
+
 | Command | Effect |
 |---|---|
 | `/upload <path\|url>` | Load an image (or video frame) as the working image (TTY: asks for a yes/no confirmation first). Aliases: `open`, `load`. |
@@ -302,8 +322,9 @@ Otherwise use the `/copy` and `/paste` commands.) To leave, press **Ctrl-C** twi
 | `/copy` | Copy the current image to the clipboard (macOS). Also bound to **Ctrl-Alt-C** (paste is **Ctrl-Alt-V**). |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |
 | `/project-color [#hex\|name\|clear]` | Get or set the **active fetched project's** accent colour — the colour its NAME is painted in (here in the `/projects` table, and across the browser/desktop editors). With no argument, prints the current colour rendered in that colour; with a value (`#ff5623`, a CSS colour name, validated via the core colour parser) sets it and pushes the change to the server (LWW-guarded, so it syncs to every client with the project open); `clear`/`none`/`default` resets it to the neutral grey. Needs an active server project (`/fetch` first). |
-| `/theme [name\|#hex]` | List the accent colours, or switch: a preset name, `default` (violet), or any colour like `#ff5623`. Also repaints the logo. |
-| `/clear` | Clear the screen and redraw the logo + image header. Alias: `cls`. |
+| `/theme [name\|#hex]` | List the accent colours, or switch: a preset name, `default` (violet), or any colour like `#ff5623`. Also repaints the logo. In full-screen mode you can also **click the pinned logo** to cycle presets, or **double-click** it for a random custom colour. |
+| `/mouse [on\|off]` | Full-screen only (a bare `/mouse` toggles): turn mouse reporting off to select/copy terminal text, or on to re-enable logo clicks + wheel scrolling. |
+| `/clear` | Clear the scrollback (full-screen) or the screen, and redraw the image header. Alias: `cls`. |
 | `/drop` | Forget the working image entirely. Aliases: `close`, `forget`. |
 | `/help` | List the commands. Aliases: `?`, `h`. |
 | `/exit` | Leave console mode. Aliases: `quit`, `q`, **Ctrl-D**, or **Ctrl-C** pressed twice. |
@@ -355,6 +376,22 @@ Two layers run together:
 
 The core's own geometry/crop/raster logic is additionally covered by its Doctest suite
 (`../core`).
+
+### Full-screen TUI smoke check
+
+The raw-mode `--console-full-screen` renderer only runs on a real terminal, so it can't be
+covered by `zig build test` (which never enters raw mode). `scripts/tui_smoke.py` (stdlib
+Python, macOS/Linux) drives the built binary over a pseudo-terminal and asserts on the escape
+stream it emits — alt-screen entry, the pinned header, mouse reporting, the accent rule, a
+theme cycle from a synthetic logo click, and a clean teardown:
+
+```bash
+zig build && python3 scripts/tui_smoke.py    # or: python3 scripts/tui_smoke.py path/to/stencil
+```
+
+It is **not** wired into CI — it's timing-dependent (the deferred single-click and the logo
+flourish are clock-paced) — so run it manually when touching `console/screen.zig` or
+`line_edit.zig`.
 
 ### Benchmark
 

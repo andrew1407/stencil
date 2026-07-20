@@ -13,6 +13,7 @@ pub const Blank = struct {
 pub const Options = struct {
     help: bool = false,
     console: bool = false,
+    console_full_screen: bool = false, // --console-full-screen: pinned logo header + scrollback + mouse
     input: ?[]const u8 = null,
     frame: u32 = 0,
     blank: ?Blank = null,
@@ -89,6 +90,9 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
             opts.help = true;
         } else if (eq(arg, "--console") or eq(arg, "--repl")) {
             opts.console = true;
+        } else if (eq(arg, "--console-full-screen") or eq(arg, "--console-fullscreen")) {
+            opts.console = true; // full-screen implies console mode
+            opts.console_full_screen = true;
         } else if (eq(arg, "-i") or eq(arg, "--input")) {
             if (opts.blank != null or opts.source_site != null) return Error.DuplicateSource;
             opts.input = try value(&st, "--input");
@@ -257,6 +261,11 @@ test "parse: --console / --repl activate console mode" {
     try testing.expect((try parse(a, &c2)).console);
     const c3 = [_][:0]const u8{ "-i", "in.png", "out.png" };
     try testing.expect(!(try parse(a, &c3)).console);
+    // --console-full-screen implies console mode and sets the full-screen bit.
+    const c4 = [_][:0]const u8{"--console-full-screen"};
+    const o4 = try parse(a, &c4);
+    try testing.expect(o4.console and o4.console_full_screen);
+    try testing.expect(!(try parse(a, &c1)).console_full_screen); // plain --console stays line-oriented
 }
 
 test "parse: input and blank are mutually exclusive" {

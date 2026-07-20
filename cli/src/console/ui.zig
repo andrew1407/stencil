@@ -6,6 +6,7 @@ const std = @import("std");
 const logo = @import("../logo.zig");
 const theme = @import("../theme.zig");
 const core = @import("../core.zig");
+const screen = @import("screen.zig");
 const Session = @import("session.zig").Session;
 
 var interactive: bool = false; // true when driving a TTY (enables screen clears + colour)
@@ -21,7 +22,7 @@ pub const completions = [_][]const u8{
     "layout",      "formula",  "format",
     "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "blank-color", "rename",
     "keywords",    "keywords-search", "keywords-add", "keywords-del",
-    "expire",      "fetch",    "sync",        "copy",     "status",  "theme",   "clear",   "drop",
+    "expire",      "fetch",    "sync",        "copy",     "status",  "theme",   "mouse",  "clear",   "drop",
     "help",        "exit",
 };
 
@@ -37,8 +38,18 @@ pub fn setAccent(key: []const u8) void {
     current_accent = accent_store[0..n];
 }
 
+/// The active accent label (a preset key or a custom '#hex') — used by the logo single-click
+/// to compute the next accent.
+pub fn currentAccentKey() []const u8 {
+    return current_accent;
+}
+
 pub fn promptStr(session: *Session) []const u8 {
-    return if (session.hasImage()) "stencil*> " else "stencil> "; // '*' marks an image is loaded
+    // Full-screen mode has a pinned logo header already, so the prompt is just a terse '>'
+    // ('*' still marks a loaded image). Plain/piped mode keeps the explicit 'stencil>' name.
+    if (screen.current() != null)
+        return if (session.hasImage()) "*> " else "> ";
+    return if (session.hasImage()) "stencil*> " else "stencil> ";
 }
 
 // The header line under the logo: the working image's identity + current size + edit
@@ -90,7 +101,14 @@ pub fn ack(session: *Session, verb: []const u8) void {
 }
 
 // Clear the screen (interactive only) and reprint the logo + header — the "image on top".
+// In full-screen mode the logo is a pinned header, so just clear the scrollback and reprint
+// the status line into it.
 pub fn redraw(session: *Session) void {
+    if (screen.current()) |s| {
+        s.clearScrollback();
+        status(session);
+        return;
+    }
     if (interactive) {
         logo.print("\x1b[2J\x1b[3J\x1b[H", .{});
         logo.banner();
@@ -147,6 +165,14 @@ pub fn listFormats(session: *Session) void {
 }
 
 pub fn intro() void {
+    if (screen.current() != null) {
+        logo.print(
+            \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
+            \\recall history. '/help' lists commands, '/exit' leaves.
+            \\
+        , .{});
+        return;
+    }
     logo.print(
         \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
         \\recall history; Ctrl-Alt-V pastes / Ctrl-Alt-C copies an image. '/help' lists
@@ -216,6 +242,7 @@ pub fn help() void {
     helpSection(a, r, "System");
     helpRow(a, r, "/status", "show the working image (path, size, edit position)");
     helpRow(a, r, "/theme [name]", "list or switch the accent colour (default violet)");
+    helpRow(a, r, "/mouse [on|off]", "full-screen: toggle mouse (off frees text selection)");
     helpRow(a, r, "/clear", "clear the screen, redraw the logo + image header");
     helpRow(a, r, "/drop", "forget the working image entirely");
     helpRow(a, r, "/help   /exit", "show this list / leave (Ctrl-D, or Ctrl-C twice)");

@@ -7,6 +7,7 @@
 //! buffered reader in console.zig, so this never runs in CI.
 const std = @import("std");
 const logo = @import("logo.zig");
+const screen_mod = @import("console/screen.zig");
 
 pub const max_line = 4096; // editing buffer size; commands (URLs, crop specs) fit easily
 pub const max_history = 50; // last-N entered commands kept for Up/Down
@@ -64,7 +65,22 @@ pub const Editor = struct {
     idle_cb: ?*const fn (*anyopaque) bool = null,  // returns true if it printed → repaint the prompt
     idle_ctx: ?*anyopaque = null,
 
+    // Full-screen ("screen mode") wiring, all null in the plain line-oriented mode. When
+    // `screen` is set the prompt is drawn at its fixed bottom row (rather than in place with a
+    // bare '\r') and mouse wheel / logo clicks drive the screen directly.
+    screen: ?*screen_mod.Screen = null,
+    io: ?std.Io = null, // for double-click timing (monotonic clock)
+    // Single-click on the logo runs `logo_cycle_cb` (advance the accent); a second click within
+    // `double_click_ms` runs `logo_custom_cb` (set a random custom colour). Both share `logo_ctx`.
+    logo_cycle_cb: ?*const fn (*anyopaque) void = null,
+    logo_custom_cb: ?*const fn (*anyopaque) void = null,
+    logo_ctx: ?*anyopaque = null,
+    // Called with the text of a completed drag-selection so the caller can copy it to the clipboard.
+    copy_text_cb: ?*const fn (*anyopaque, []const u8) void = null,
+
     const ByteResult = union(enum) { byte: u8, idle, closed };
+    const double_click_ms: i64 = 500; // two logo clicks within this window = double-click (a
+    // single click is deferred this long before it cycles, so a slower double-click still lands)
 
     /// Put `tty_fd` into raw mode (no canonical line editing, no echo, no signal keys).
     pub fn init(tty_fd: std.posix.fd_t) !Editor {
@@ -99,19 +115,48 @@ pub const Editor = struct {
             (std.mem.indexOfAny(u8, line, " \t") orelse line.len)
         else
             0;
-        self.writeAll("\r");
-        self.writeAll(logo.accentSeq());
+        self.gotoLineStart();
+        self.writeAll(logo.accentReal());
         self.writeAll(prompt);
         self.writeAll(line[0..cmd_end]);
         self.writeAll(logo.resetSeq());
         self.writeAll(line[cmd_end..]);
         self.writeAll("\x1b[K");
-        self.writeAll("\r");
+        self.gotoLineStart();
         const vis = prompt.len + pos;
         if (vis > 0) {
             var fbuf: [16]u8 = undefined;
             self.writeAll(std.fmt.bufPrint(&fbuf, "\x1b[{d}C", .{vis}) catch return);
         }
+    }
+
+    // Park the cursor at column 1 of the input line: the fixed prompt row in screen mode,
+    // otherwise the current row (a bare carriage return), matching the legacy behaviour.
+    fn gotoLineStart(self: *Editor) void {
+        if (self.screen) |s| {
+            var b: [16]u8 = undefined;
+            self.writeAll(std.fmt.bufPrint(&b, "\x1b[{d};1H", .{s.promptRow()}) catch "\r");
+        } else {
+            self.writeAll("\r");
+        }
+    }
+
+    // End the current input line. In screen mode the prompt is a fixed bottom row, so a real
+    // newline would line-feed and scroll the whole alt-screen (eating the pinned header) — so
+    // instead just clear the prompt row in place; the command is echoed into the scrollback by
+    // the caller. In the plain editor, emit the usual CR+LF to advance to the next line.
+    fn endPromptLine(self: *Editor) void {
+        if (self.screen != null) {
+            self.gotoLineStart();
+            self.writeAll("\x1b[2K");
+        } else {
+            self.writeAll("\r\n");
+        }
+    }
+
+    fn nowMs(self: *Editor) i64 {
+        const io = self.io orelse return 0;
+        return std.Io.Clock.now(.awake, io).toMilliseconds();
     }
 
     fn readByte(self: *Editor) ?u8 {
@@ -131,26 +176,58 @@ pub const Editor = struct {
         return if (n == 0) .closed else .{ .byte = b[0] };
     }
 
+    // Whether a byte is readable within `timeout_ms` — a peek that does NOT consume, unlike pollByte.
+    fn waitReadable(self: *Editor, timeout_ms: i32) bool {
+        var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
+        const ready = std.posix.poll(&pfd, timeout_ms) catch return false;
+        return ready > 0;
+    }
+
+    // A physical click emits a press report (…M) and then a release report (…m). When a double-click
+    // fires the custom-colour callback — which animates the logo — the second click's release is
+    // still queued; left there it counts as "pending input" and aborts the flourish the instant it
+    // starts (screen.sleepOrAbort). Swallow that one release first. A press is always followed by its
+    // own release before any later click's press, so consuming a single report can never drop a click.
+    fn drainMouseRelease(self: *Editor) void {
+        if (!self.waitReadable(20)) return; // release not here yet (or none coming) — nothing to drain
+        const b = self.readByte() orelse return;
+        if (b != 27) return; // a CSI mouse report starts with ESC; anything else isn't the release
+        if ((self.readByte() orelse return) != '[') return;
+        if ((self.readByte() orelse return) != '<') return;
+        while (self.readByte()) |c| {
+            if (c == 'M' or c == 'm') break; // consumed through the report's final byte
+        }
+    }
+
     /// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
     /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C, exit),
     /// `.copy` (Ctrl-Alt-C) or `.paste` (Ctrl-Alt-V). The Alt-modified chords arrive as an
     /// ESC prefix (the Meta convention) followed by the Ctrl byte. `armed` carries the
     /// two-Ctrl-C exit guard across calls: any key but Ctrl-C disarms it, so the caller can
     /// require two presses to leave. `completions` are command names for Tab-complete.
-    pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool) Input {
-        var len: usize = 0;
-        var pos: usize = 0;
+    pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool, preset: []const u8) Input {
+        var len: usize = @min(preset.len, buf.len);
+        if (len != 0) @memcpy(buf[0..len], preset[0..len]); // start with any prefilled text
+        var pos: usize = len;
         var hidx: usize = hist.items.items.len; // == items.len means "the fresh line"
         var stash: [max_line]u8 = undefined; // the in-progress line, parked while browsing
         var stash_len: usize = 0;
-        self.refresh(prompt, buf[0..0], 0);
+        // Logo click debounce: a single click is deferred by `double_click_ms` so a second click
+        // can supersede it as a double-click. `click_pending` is armed on the first click and
+        // fired (cycle the accent) once the window lapses with no second click.
+        var click_pending = false;
+        var click_at: i64 = 0;
+        self.refresh(prompt, buf[0..len], pos);
 
         while (true) {
-            // Poll with a timeout only when an idle hook is set, so we can refresh the live title
-            // between keystrokes; otherwise block normally. On idle: clear the line, run the hook
-            // (which may print a peer's change above), then redraw the prompt + in-progress input.
+            // Timeout: short while a logo click is pending (so it resolves promptly), else the
+            // 500ms idle-hook cadence, else block indefinitely.
+            const timeout: i32 = if (click_pending) blk: {
+                const rem = double_click_ms - (self.nowMs() - click_at);
+                break :blk if (rem <= 0) 1 else @intCast(@min(rem, @as(i64, 500)));
+            } else if (self.idle_cb != null) 500 else -1;
             const ch = blk: {
-                switch (self.pollByte(if (self.idle_cb != null) 500 else -1)) {
+                switch (self.pollByte(timeout)) {
                     .closed => {
                         if (len == 0) return .eof;
                         continue;
@@ -158,6 +235,13 @@ pub const Editor = struct {
                     // Only repaint when the hook actually printed something (it clears the line
                     // itself first) — otherwise stay silent so the idle prompt never flickers.
                     .idle => {
+                        // A pending logo click that outlived the double-click window is a single click.
+                        if (click_pending and self.nowMs() - click_at >= double_click_ms) {
+                            click_pending = false;
+                            if (self.logo_cycle_cb) |cb| cb(self.logo_ctx.?);
+                            self.refresh(prompt, buf[0..len], pos);
+                            continue;
+                        }
                         if (self.idle_cb) |cb| {
                             if (cb(self.idle_ctx.?)) self.refresh(prompt, buf[0..len], pos);
                         }
@@ -169,15 +253,25 @@ pub const Editor = struct {
             if (ch != 3) armed.* = false; // any key but Ctrl-C disarms the exit guard
             switch (ch) {
                 '\r', '\n' => {
-                    self.writeAll("\r\n");
+                    self.endPromptLine();
                     return .{ .line = len };
                 },
-                3 => { // Ctrl-C: confirm exit (the caller requires two presses)
-                    self.writeAll("\r\n");
+                3 => { // Ctrl-C: copy an active text selection if there is one, else confirm exit
+                    if (self.screen) |s| {
+                        if (s.hasSelection()) {
+                            const text = s.takeSelection();
+                            if (text.len != 0) {
+                                if (self.copy_text_cb) |cb| cb(self.logo_ctx.?, text);
+                            }
+                            self.refresh(prompt, buf[0..len], pos);
+                            continue;
+                        }
+                    }
+                    self.endPromptLine();
                     return .interrupt;
                 },
                 4 => { // Ctrl-D (EOF): leave the console
-                    self.writeAll("\r\n");
+                    self.endPromptLine();
                     return .eof;
                 },
                 21 => { // Ctrl-U: clear the line
@@ -200,18 +294,28 @@ pub const Editor = struct {
                     len -= 1;
                     self.refresh(prompt, buf[0..len], pos);
                 },
-                27 => { // ESC: a nav sequence (arrows/Home/End/Del), or an Alt-modified chord
+                27 => { // ESC: a nav/mouse sequence, or an Alt-modified chord
                     const nxt = self.readByte() orelse continue; // lone ESC: ignore
                     switch (nxt) {
                         3 => { // Ctrl-Alt-C: copy the image to the clipboard
-                            self.writeAll("\r\n");
+                            self.endPromptLine();
                             return .copy;
                         },
                         22 => { // Ctrl-Alt-V: paste an image from the clipboard
-                            self.writeAll("\r\n");
+                            self.endPromptLine();
                             return .paste;
                         },
-                        '[', 'O' => self.escape(prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len),
+                        '[' => {
+                            const b2 = self.readByte() orelse continue;
+                            if (b2 == '<') // SGR mouse report
+                                self.handleMouse(prompt, buf, &len, &pos, &click_pending, &click_at)
+                            else
+                                self.escape(b2, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                        },
+                        'O' => {
+                            const code = self.readByte() orelse continue;
+                            self.escape(code, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                        },
                         else => {}, // other Alt-combo: ignore
                     }
                 },
@@ -229,7 +333,11 @@ pub const Editor = struct {
     /// Ask a yes/no question on the raw-mode tty and read a single keypress. 'y' or Enter
     /// confirm (yes is the default); 'n', Esc or Ctrl-C decline. Used to guard `/upload`.
     pub fn confirm(self: *Editor, question: []const u8) bool {
-        self.writeAll(logo.accentSeq());
+        if (self.screen != null) { // draw the question on the fixed prompt row
+            self.gotoLineStart();
+            self.writeAll("\x1b[2K");
+        }
+        self.writeAll(logo.accentReal());
         self.writeAll(question);
         self.writeAll(" (Y/n) ");
         self.writeAll(logo.resetSeq());
@@ -237,11 +345,25 @@ pub const Editor = struct {
             const ch = self.readByte() orelse return false; // closed tty -> treat as decline
             switch (ch) {
                 'y', 'Y', '\r', '\n' => {
-                    self.writeAll("yes\r\n");
+                    self.finishConfirm(question, true);
                     return true;
                 },
-                'n', 'N', 27, 3 => { // 'n', Esc or Ctrl-C
-                    self.writeAll("no\r\n");
+                'n', 'N', 3 => { // 'n' or Ctrl-C
+                    self.finishConfirm(question, false);
+                    return false;
+                },
+                27 => { // Esc declines — but in screen mode a mouse report also starts with ESC,
+                    // so swallow a trailing CSI (ESC '[' … final) and ignore it rather than decline.
+                    if (self.screen != null) {
+                        switch (self.pollByte(2)) {
+                            .byte => |b2| if (b2 == '[') {
+                                self.drainCsi();
+                                continue;
+                            },
+                            else => {}, // lone Esc → fall through to decline
+                        }
+                    }
+                    self.finishConfirm(question, false);
                     return false;
                 },
                 else => {},
@@ -249,10 +371,27 @@ pub const Editor = struct {
         }
     }
 
-    // Handle an ESC-introduced navigation sequence (arrow keys, Home/End, Delete). The caller
-    // (readLine) has already consumed the ESC and the '[' / 'O' intro byte.
-    fn escape(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
-        const code = self.readByte() orelse return;
+    // After a mouse/nav ESC '[' arrives during confirm(), consume through the sequence's final
+    // byte (0x40..0x7e) so the whole report is swallowed and ignored.
+    fn drainCsi(self: *Editor) void {
+        while (self.readByte()) |b| {
+            if (b >= 0x40 and b <= 0x7e) break;
+        }
+    }
+
+    fn finishConfirm(self: *Editor, question: []const u8, yes: bool) void {
+        if (self.screen != null) {
+            logo.print("{s} {s}\n", .{ question, if (yes) "yes" else "no" }); // record in scrollback
+            self.gotoLineStart();
+            self.writeAll("\x1b[2K");
+        } else {
+            self.writeAll(if (yes) "yes\r\n" else "no\r\n");
+        }
+    }
+
+    // Handle an ESC-introduced navigation sequence (arrow keys, Home/End, Delete, Page Up/Down).
+    // The caller (readLine) has already consumed the ESC, the '[' / 'O' intro byte, and `code`.
+    fn escape(self: *Editor, code: u8, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
         switch (code) {
             'A' => self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, true),
             'B' => self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, false),
@@ -280,7 +419,63 @@ pub const Editor = struct {
                     self.refresh(prompt, buf[0..len.*], pos.*);
                 }
             },
+            '5', '6' => { // Page Up / Page Down: scroll the screen-mode scrollback a page
+                _ = self.readByte(); // consume the trailing '~'
+                if (self.screen) |s| {
+                    s.scroll(code == '5', true);
+                    self.refresh(prompt, buf[0..len.*], pos.*);
+                }
+            },
             else => {},
+        }
+    }
+
+    // Handle an SGR mouse report (`ESC [ <` already consumed): read up to the final 'M'/'m',
+    // parse it, and act — wheel scrolls the scrollback; a left-click on the pinned logo ARMS a
+    // deferred single-click (cycle, fired by readLine after the double-click window), and a
+    // *second* click within that window supersedes it as a double-click (random custom colour).
+    // Deferring avoids the first click's animation blocking the double-click detection. Else ignored.
+    fn handleMouse(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, click_pending: *bool, click_at: *i64) void {
+        var mb: [32]u8 = undefined;
+        var mi: usize = 0;
+        while (mi < mb.len) {
+            const b = self.readByte() orelse break;
+            mb[mi] = b;
+            mi += 1;
+            if (b == 'M' or b == 'm') break;
+        }
+        const ev = screen_mod.parseMouse(mb[0..mi]) orelse return;
+        const s = self.screen orelse return;
+        if (ev.isWheelUp()) {
+            s.scroll(true, false);
+            self.refresh(prompt, buf[0..len.*], pos.*);
+        } else if (ev.isWheelDown()) {
+            s.scroll(false, false);
+            self.refresh(prompt, buf[0..len.*], pos.*);
+        } else if (ev.isLeftDrag()) {
+            s.selDrag(ev.col, ev.row); // extend a text selection
+            self.refresh(prompt, buf[0..len.*], pos.*);
+        } else if (ev.isRelease()) {
+            if (s.selActive()) { // finished a drag → keep the highlight; Ctrl+C copies it
+                s.selEnd();
+                self.refresh(prompt, buf[0..len.*], pos.*);
+            }
+        } else if (ev.isLeftPress()) {
+            if (s.inHeader(ev.row)) { // logo click: deferred single (cycle) / double (custom)
+                const now = self.nowMs();
+                if (click_pending.* and now - click_at.* <= double_click_ms) {
+                    click_pending.* = false;
+                    self.drainMouseRelease(); // eat this click's trailing release so the flourish plays
+                    if (self.logo_custom_cb) |cb| cb(self.logo_ctx.?);
+                    self.refresh(prompt, buf[0..len.*], pos.*);
+                } else {
+                    click_pending.* = true;
+                    click_at.* = now;
+                }
+            } else { // press on an output row → begin a text selection
+                s.selStart(ev.col, ev.row);
+                self.refresh(prompt, buf[0..len.*], pos.*);
+            }
         }
     }
 
@@ -343,6 +538,16 @@ pub const Editor = struct {
     }
 
     fn listMatches(self: *Editor, completions: []const []const u8, base: []const u8) void {
+        // In screen mode, emit into the scrollback (one line) so the frame/header stay put;
+        // the caller redraws the prompt afterwards. Otherwise print inline under the prompt.
+        if (self.screen != null) {
+            for (completions) |cand| {
+                if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base))
+                    logo.print("{s}  ", .{cand});
+            }
+            logo.print("\n", .{});
+            return;
+        }
         self.writeAll("\r\n");
         for (completions) |cand| {
             if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base)) {

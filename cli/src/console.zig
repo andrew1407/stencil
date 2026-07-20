@@ -11,18 +11,16 @@ const session_mod = @import("console/session.zig");
 const commands = @import("console/commands.zig");
 const ui = @import("console/ui.zig");
 const handlers = @import("console/handlers.zig");
+const screen = @import("console/screen.zig");
+const clipboard = @import("clipboard.zig");
 
 pub const Session = session_mod.Session;
 
 const LINE_BUF = 64 * 1024; // piped-input line cap: long crop specs / URLs fit on one line
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io) !void {
+pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool) !void {
     var session = Session{ .gpa = gpa };
     defer session.deinit();
-
-    logo.banner();
-    ui.intro();
-    ui.status(&session);
 
     const stdin_file = std.Io.File.stdin();
     const is_tty = stdin_file.isTty(io) catch false;
@@ -31,34 +29,89 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io) !void {
         ui.setInteractive(true);
         defer ed.deinit();
         defer ui.setInteractive(false);
-        runInteractive(gpa, io, &session, ed);
+        // Full-screen mode (pinned logo header + scrollback + mouse) is opt-in via
+        // --console-full-screen. If the terminal is too small or its size can't be read it
+        // falls back to the plain banner + line editor. The logo banner is only printed inline
+        // in the fallback — in screen mode it IS the header.
+        var scr = screen.Screen{ .gpa = gpa, .io = io };
+        const started = full_screen and (if (scr.start()) |_| true else |_| false);
+        if (started) {
+            defer scr.deinit();
+            ed.screen = &scr;
+            ed.io = io;
+            scr.in_fd = stdin_file.handle; // lets the theme flourish abort when a click is queued
+            ui.intro();
+            ui.status(&session);
+            runInteractive(gpa, io, &session, ed, &scr);
+        } else {
+            logo.banner();
+            ui.intro();
+            ui.status(&session);
+            runInteractive(gpa, io, &session, ed, null);
+        }
     } else {
+        logo.banner();
+        ui.intro();
+        ui.status(&session);
         runPiped(io, &session);
     }
 }
 
-// Idle hook: while the user sits at the prompt, poll the live events feed so a peer's name/colour
-// change to the active project surfaces without waiting for the next keystroke.
-const IdleCtx = struct { session: *Session, io: std.Io };
+// Idle hook: while the user sits at the prompt, poll the live events feed (so a peer's
+// name/colour change surfaces without a keystroke) and, in screen mode, re-measure the
+// terminal so a resize repaints — no SIGWINCH handler needed.
+const IdleCtx = struct { session: *Session, io: std.Io, screen: ?*screen.Screen = null };
 fn idleTick(raw: *anyopaque) bool {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
-    return handlers.pollEvents(c.session, c.io); // true → the line editor repaints the prompt
+    const resized = if (c.screen) |s| s.tick() else false;
+    const evented = handlers.pollEvents(c.session, c.io);
+    return resized or evented; // true → the line editor repaints the prompt
 }
 
-fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor) void {
+// Single-click on the pinned logo: advance the accent, mirroring the browser logo.
+fn logoCycle(raw: *anyopaque) void {
+    const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    handlers.cycleTheme(c.session);
+}
+
+// Double-click on the pinned logo: set a random custom colour outside the preset list. The
+// click time seeds the RNG so each double-click lands on a different hue.
+fn logoCustom(raw: *anyopaque) void {
+    const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    const seed: u64 = @bitCast(std.Io.Clock.now(.awake, c.io).toMilliseconds());
+    handlers.randomCustomTheme(c.session, seed);
+}
+
+// A completed drag-selection: copy its text to the clipboard and note it in the scrollback.
+fn copySelection(raw: *anyopaque, text: []const u8) void {
+    const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    clipboard.writeText(c.session.gpa, c.io, text) catch {
+        logo.print("could not copy the selection to the clipboard\n", .{});
+        return;
+    };
+    logo.print("copied {d} chars to the clipboard\n", .{text.len});
+}
+
+fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor, scr: ?*screen.Screen) void {
     var hist = line_edit.History{ .gpa = gpa };
     defer hist.deinit();
     var buf: [line_edit.max_line]u8 = undefined;
     var armed = false; // one Ctrl-C arms exit; a second one in a row confirms it
-    var idle_ctx = IdleCtx{ .session = session, .io = io };
+    var idle_ctx = IdleCtx{ .session = session, .io = io, .screen = scr };
     ed.idle_cb = idleTick;
     ed.idle_ctx = &idle_ctx;
+    if (scr != null) {
+        ed.logo_cycle_cb = logoCycle;
+        ed.logo_custom_cb = logoCustom;
+        ed.copy_text_cb = copySelection;
+        ed.logo_ctx = &idle_ctx;
+    }
     while (true) {
         // A TTY read always blocks, so this is the burst-settled boundary: flush any
         // pending sync upload and surface any concurrent server edits before the prompt.
         handlers.flushSync(session, false);
         _ = handlers.pollEvents(session, io);
-        switch (ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions, &armed)) {
+        switch (ed.readLine(ui.promptStr(session), &buf, &hist, &ui.completions, &armed, "")) {
             .eof => break, // Ctrl-D / closed tty
             .interrupt => { // Ctrl-C: require a second press in a row to leave
                 if (armed) break;
@@ -74,6 +127,10 @@ fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *li
             .line => |n| {
                 const line = buf[0..n];
                 hist.add(line);
+                // In full-screen mode the prompt is a fixed row that gets cleared, so echo the
+                // command into the scrollback first — otherwise its output has no visible source.
+                if (scr != null and line.len != 0)
+                    logo.print("{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), line });
                 if (!confirmUpload(ed, session, line)) continue; // guard /upload + /source-upload behind a yes/no prompt
                 if (dispatch(session, io, line)) break;
             },
@@ -176,6 +233,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .copy => try handlers.doCopy(session, io),
         .paste => try handlers.doPaste(session, io),
         .theme => handlers.doTheme(session, cmd.arg),
+        .mouse => handlers.doMouse(session, cmd.arg),
         .connect => try handlers.doConnect(session, io, cmd.arg),
         .disconnect => try handlers.doDisconnect(session, cmd.arg),
         .reconnect => try handlers.doReconnect(session, io, cmd.arg),
@@ -207,4 +265,5 @@ test {
     _ = @import("console/commands.zig");
     _ = @import("console/ui.zig");
     _ = @import("console/handlers.zig");
+    _ = @import("console/screen.zig");
 }

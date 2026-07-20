@@ -41,10 +41,33 @@ pub fn setAccent(rgb: [3]u8) void {
     refreshAccent();
 }
 
+// When set (by the full-screen console), accentSeq() returns a one-byte SENTINEL (0x01) instead
+// of the literal escape, so accent-coloured output stored in the scrollback is re-tinted to the
+// *current* accent every repaint (screen.clip expands 0x01 → accentReal()). This is what lets a
+// theme change recolour already-printed help/echoes. Direct-to-terminal writers (the prompt) use
+// accentReal() so they never emit the raw sentinel.
+var accent_sentinel_on: bool = false;
+pub const accent_sentinel = "\x01";
+pub fn setAccentSentinel(on: bool) void {
+    accent_sentinel_on = on;
+}
+
 /// SGR escape for the current accent, and the reset; both "" when colour is off. Used by
-/// the line editor to colour the prompt and the typed command.
+/// the line editor to colour the prompt and the typed command. In sentinel mode this returns
+/// the 0x01 placeholder instead (see setAccentSentinel).
 pub fn accentSeq() []const u8 {
+    return if (accent_sentinel_on) accent_sentinel else accent_slice;
+}
+
+/// The real accent SGR escape, never the sentinel — for direct terminal writes.
+pub fn accentReal() []const u8 {
     return accent_slice;
+}
+
+/// The current accent as a raw RGB triple — used by the full-screen console to tint the
+/// text-selection highlight with a translucent wash of the live theme colour.
+pub fn accentRgb() [3]u8 {
+    return accent_rgb;
 }
 pub fn resetSeq() []const u8 {
     return c(Ansi.reset);
@@ -57,8 +80,35 @@ fn c(comptime code: []const u8) []const u8 {
     return if (use_color) code else "";
 }
 
-/// Print to stderr (the CLI's human channel).
+// Optional output sink. When set (by the full-screen console in screen.zig), every `print`
+// is routed here instead of straight to stderr, so human output can be captured into the
+// scrollback buffer and redrawn inside the pinned-header viewport. It's also reused to
+// capture `banner()` into the fixed header. Unset (the default) = plain stderr, so one-shot
+// mode, piped console input and CI are completely unaffected.
+var sink_fn: ?*const fn (*anyopaque, []const u8) void = null;
+var sink_ctx: *anyopaque = undefined;
+
+/// Route subsequent `print` output to `f` instead of stderr.
+pub fn setSink(f: *const fn (*anyopaque, []const u8) void, ctx: *anyopaque) void {
+    sink_fn = f;
+    sink_ctx = ctx;
+}
+
+/// Restore the default stderr destination.
+pub fn clearSink() void {
+    sink_fn = null;
+}
+
+/// Print to the CLI's human channel — stderr by default, or the active sink (the full-screen
+/// scrollback) when one is installed. On a formatting overflow it falls back to stderr.
 pub fn print(comptime fmt: []const u8, args: anytype) void {
+    if (sink_fn) |f| {
+        var buf: [8192]u8 = undefined;
+        if (std.fmt.bufPrint(&buf, fmt, args)) |s| {
+            f(sink_ctx, s);
+            return;
+        } else |_| {} // too long for one chunk — fall through to stderr
+    }
     std.debug.print(fmt, args);
 }
 
@@ -210,6 +260,8 @@ pub fn usage() void {
         \\      --filter <f>           Apply bw | sepia | invert | contour | <color>;
         \\                             overrides the layout filter
         \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
+        \\      --console-full-screen  Console in a full-screen TUI: pinned logo header,
+        \\                             scrollback (wheel/PgUp/PgDn), click logo to change theme
         \\  -h, --help                 Show this help
         \\
         \\{s}Scrape a web page (mutually exclusive with the source flags){s}
