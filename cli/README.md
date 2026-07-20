@@ -270,8 +270,24 @@ stencil --console
 
 The leading `/` is optional (`crop ...` ≡ `/crop ...`). On a TTY you also get raw-mode line
 editing: **Tab** completes the command word, **Up/Down** recall the last 50 commands,
-Left/Right/Home/End/Backspace edit the line, and the prompt + leading `/command` token
-render in the brand accent. Two clipboard chords work mid-prompt: **Ctrl-Alt-V** pastes an
+Left/Right/Home/End/Backspace edit the line, and **Ctrl-A/E** jump to line start/end. Word
+motion and deletion work too: **Alt/Option + ←/→** (or **Alt-b/f**) move by word, **Ctrl-W** /
+**Alt-Backspace** delete the word before the cursor, **Alt-d** deletes the word ahead, **Ctrl-U**
+clears the line and **Ctrl-K** kills to end.
+
+> **macOS: enabling the modifier keys.** The word-motion chords only work if your terminal
+> actually *sends* them — by default macOS Terminal.app swallows **Option+arrow** and never
+> passes **⌘+arrow** to any app. Turn them on once: **Terminal.app** → Settings → Profiles →
+> Keyboard → check *Use Option as Meta key* (gives you Option+←/→ and Option-Delete);
+> **iTerm2** → Settings → Profiles → Keys → Key Mappings → Presets → *Natural Text Editing*
+> (also maps ⌘+←/→ to line start/end and ⌘/Option-Delete). ⌘+arrow can't be delivered to a
+> program in Terminal.app at all — use iTerm2's preset, or the portable **Ctrl-A/E** (line
+> start/end) and **Ctrl-W** (delete word) which need no configuration and work in every terminal
+> and OS. **Ctrl-S** copies the current mouse text-selection to
+the clipboard (full-screen mode). Multi-line **pastes** are bracketed, so they land in the input
+as a single editable line (newlines become spaces) and nothing runs until you press Enter; a line
+wider than the window scrolls horizontally to keep the cursor visible. The prompt + leading `/command` token render in the brand accent. Two clipboard chords
+work mid-prompt: **Ctrl-Alt-V** pastes an
 image from the clipboard as the working image, and **Ctrl-Alt-C** copies the current image to
 the clipboard. (These arrive as a Meta/ESC prefix, so on macOS the terminal's Option key must
 be set to send Meta/Esc+ — Terminal.app: *Use Option as Meta key*; iTerm2: Option key → *Esc+*.
@@ -288,10 +304,12 @@ through the presets (wrapping), and a **double-click sets a random custom colour
 preset list (a short debounce distinguishes the two). Either way the logo plays a
 `S T E N C I L` colour-wave, everything tinted in the accent (logo, rule, prompt,
 **and previously-printed output**) recolours, and there's no confirmation line — the recolour is
-the feedback. **Dragging over output selects text** (highlighted live) and **copies it to the
-clipboard on release** — an in-app selection, so it works even though mouse tracking is on
-(which normally suppresses the terminal's native selection). `/mouse off` still hands the mouse
-fully back to the terminal if you prefer native selection. If the terminal is too short or its
+the feedback. **Dragging over output selects text** — the selection is drawn as a translucent
+wash of the live theme colour and stays highlighted after you release. Nothing is copied
+automatically; press **Ctrl-S** to copy the highlighted text to the clipboard (on macOS the
+system's ⌘C can't reach the app while mouse tracking is on, so Ctrl-S is the copy key), then
+paste it anywhere with ⌘V. Prefer the terminal's own selection? Run `/mouse off` to hand the
+mouse fully back for native select + copy. If the terminal is too short or its
 size can't be read, it falls back to the plain line-oriented editor; `NO_COLOR` keeps
 full-screen but renders it monochrome. Plain `--console` stays line-oriented (banner printed
 inline, scrolling via the terminal's own scrollback).

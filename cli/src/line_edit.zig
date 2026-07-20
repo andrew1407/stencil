@@ -75,7 +75,7 @@ pub const Editor = struct {
     logo_cycle_cb: ?*const fn (*anyopaque) void = null,
     logo_custom_cb: ?*const fn (*anyopaque) void = null,
     logo_ctx: ?*anyopaque = null,
-    // Called with the text of a completed drag-selection so the caller can copy it to the clipboard.
+    // Ctrl-S: called with the visual selection's text to copy it to the clipboard.
     copy_text_cb: ?*const fn (*anyopaque, []const u8) void = null,
 
     const ByteResult = union(enum) { byte: u8, idle, closed };
@@ -89,11 +89,16 @@ pub const Editor = struct {
         raw.lflag.ICANON = false;
         raw.lflag.ECHO = false;
         raw.lflag.ISIG = false; // we handle Ctrl-C / Ctrl-D ourselves
+        raw.iflag.IXON = false; // let Ctrl-S reach us (copy) instead of XON/XOFF flow control
+        raw.iflag.IXOFF = false;
         try std.posix.tcsetattr(tty_fd, .FLUSH, raw);
+        // Bracketed paste (ESC[200~ … ESC[201~): a multi-line paste lands in the buffer as one line.
+        _ = std.c.write(std.posix.STDERR_FILENO, "\x1b[?2004h", 8);
         return .{ .fd_in = tty_fd, .fd_out = std.posix.STDERR_FILENO, .orig = orig };
     }
 
     pub fn deinit(self: *Editor) void {
+        _ = std.c.write(self.fd_out, "\x1b[?2004l", 8); // disable bracketed paste
         std.posix.tcsetattr(self.fd_in, .FLUSH, self.orig) catch {};
     }
 
@@ -115,15 +120,30 @@ pub const Editor = struct {
             (std.mem.indexOfAny(u8, line, " \t") orelse line.len)
         else
             0;
+        // Full-screen mode has autowrap OFF, so scroll a horizontal window to keep the cursor
+        // visible on a line wider than the terminal. Plain mode wraps and leaves off = 0.
+        var off: usize = 0; // first visible byte of `line`
+        var vis_end: usize = line.len; // last visible byte (exclusive)
+        if (self.screen) |s| {
+            const cols: usize = s.cols;
+            const avail: usize = if (cols > prompt.len) cols - prompt.len else 1;
+            if (line.len >= avail) {
+                if (pos + 1 > avail) off = pos + 1 - avail; // keep the cursor at/inside the right edge
+                vis_end = @min(off + avail, line.len);
+            }
+        }
+        const vline = line[off..vis_end];
+        // Where the accent-coloured command token ends within the visible window.
+        const split: usize = if (cmd_end > off) @min(cmd_end - off, vline.len) else 0;
         self.gotoLineStart();
         self.writeAll(logo.accentReal());
         self.writeAll(prompt);
-        self.writeAll(line[0..cmd_end]);
+        self.writeAll(vline[0..split]);
         self.writeAll(logo.resetSeq());
-        self.writeAll(line[cmd_end..]);
+        self.writeAll(vline[split..]);
         self.writeAll("\x1b[K");
         self.gotoLineStart();
-        const vis = prompt.len + pos;
+        const vis = prompt.len + (pos - off);
         if (vis > 0) {
             var fbuf: [16]u8 = undefined;
             self.writeAll(std.fmt.bufPrint(&fbuf, "\x1b[{d}C", .{vis}) catch return);
@@ -256,17 +276,7 @@ pub const Editor = struct {
                     self.endPromptLine();
                     return .{ .line = len };
                 },
-                3 => { // Ctrl-C: copy an active text selection if there is one, else confirm exit
-                    if (self.screen) |s| {
-                        if (s.hasSelection()) {
-                            const text = s.takeSelection();
-                            if (text.len != 0) {
-                                if (self.copy_text_cb) |cb| cb(self.logo_ctx.?, text);
-                            }
-                            self.refresh(prompt, buf[0..len], pos);
-                            continue;
-                        }
-                    }
+                3 => { // Ctrl-C: confirm exit (a second press in a row leaves)
                     self.endPromptLine();
                     return .interrupt;
                 },
@@ -278,6 +288,20 @@ pub const Editor = struct {
                     len = 0;
                     pos = 0;
                     self.refresh(prompt, buf[0..0], 0);
+                },
+                19 => if (self.screen) |s| { // Ctrl-S: copy the current visual selection to the clipboard
+                    if (s.hasSelection()) {
+                        const text = s.takeSelection();
+                        if (text.len != 0) {
+                            if (self.copy_text_cb) |cb| cb(self.logo_ctx.?, text);
+                        }
+                    }
+                    self.refresh(prompt, buf[0..len], pos);
+                },
+                23 => self.deleteWordBack(prompt, buf, &len, &pos), // Ctrl-W: delete the word before the cursor
+                11 => if (pos < len) { // Ctrl-K: kill from the cursor to end of line
+                    len = pos;
+                    self.refresh(prompt, buf[0..len], pos);
                 },
                 1 => { // Ctrl-A: home
                     pos = 0;
@@ -294,7 +318,7 @@ pub const Editor = struct {
                     len -= 1;
                     self.refresh(prompt, buf[0..len], pos);
                 },
-                27 => { // ESC: a nav/mouse sequence, or an Alt-modified chord
+                27 => { // ESC: a nav/mouse sequence, or an Alt/Meta-modified chord
                     const nxt = self.readByte() orelse continue; // lone ESC: ignore
                     switch (nxt) {
                         3 => { // Ctrl-Alt-C: copy the image to the clipboard
@@ -305,16 +329,45 @@ pub const Editor = struct {
                             self.endPromptLine();
                             return .paste;
                         },
+                        // Meta (Alt/Option) word chords — emacs bindings, also Option+←/→.
+                        'b' => { // Alt-b: word left
+                            pos = wordLeft(buf[0..len], pos);
+                            self.refresh(prompt, buf[0..len], pos);
+                        },
+                        'f' => { // Alt-f: word right
+                            pos = wordRight(buf[0..len], pos);
+                            self.refresh(prompt, buf[0..len], pos);
+                        },
+                        'd' => self.deleteWordFwd(prompt, buf, &len, &pos), // Alt-d: delete word forward
+                        8, 127 => self.deleteWordBack(prompt, buf, &len, &pos), // Alt-Backspace: delete word back
+                        // Meta-prefixed sequence (ESC ESC [ D = Option+Left under "Option as Meta"):
+                        // the leading ESC is the modifier, so parse the inner CSI and force word-motion.
+                        27 => {
+                            const intro = self.readByte() orelse continue;
+                            if (intro == '[' or intro == 'O') {
+                                var params: [16]u8 = undefined;
+                                const r = self.collectCsi(&params);
+                                self.csi(params[0..r.np], r.final, true, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                            }
+                        },
                         '[' => {
                             const b2 = self.readByte() orelse continue;
-                            if (b2 == '<') // SGR mouse report
-                                self.handleMouse(prompt, buf, &len, &pos, &click_pending, &click_at)
-                            else
-                                self.escape(b2, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                            if (b2 == '<') { // SGR mouse report
+                                self.handleMouse(prompt, buf, &len, &pos, &click_pending, &click_at);
+                            } else {
+                                // Collect the CSI params so a modified key like Alt-Left
+                                // (ESC [ 1 ; 3 D) parses as one sequence, not "1;3D" in the buffer.
+                                var params: [16]u8 = undefined;
+                                const r = self.collectCsi2(b2, &params);
+                                if (r.final == '~' and std.mem.eql(u8, params[0..r.np], "200")) // bracketed paste start
+                                    self.readPaste(prompt, buf, &len, &pos)
+                                else
+                                    self.csi(params[0..r.np], r.final, false, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                            }
                         },
-                        'O' => {
+                        'O' => { // application cursor keys: ESC O <final>, no parameters
                             const code = self.readByte() orelse continue;
-                            self.escape(code, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
+                            self.csi(&.{}, code, false, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
                         },
                         else => {}, // other Alt-combo: ignore
                     }
@@ -389,18 +442,43 @@ pub const Editor = struct {
         }
     }
 
-    // Handle an ESC-introduced navigation sequence (arrow keys, Home/End, Delete, Page Up/Down).
-    // The caller (readLine) has already consumed the ESC, the '[' / 'O' intro byte, and `code`.
-    fn escape(self: *Editor, code: u8, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
-        switch (code) {
+    const CsiResult = struct { np: usize, final: u8 };
+
+    // Read CSI parameter bytes (digits and ';') into `out`, returning the final non-param byte.
+    fn collectCsi(self: *Editor, out: []u8) CsiResult {
+        return self.collectCsi2(self.readByte() orelse 0, out);
+    }
+    // Same, but `first` is a parameter byte the caller already read (e.g. while sniffing for '<').
+    fn collectCsi2(self: *Editor, first: u8, out: []u8) CsiResult {
+        var np: usize = 0;
+        var bb = first;
+        while ((bb >= '0' and bb <= '9') or bb == ';') {
+            if (np < out.len) {
+                out[np] = bb;
+                np += 1;
+            }
+            bb = self.readByte() orelse break;
+        }
+        return .{ .np = np, .final = bb };
+    }
+
+    // Act on a collected CSI nav sequence (`ESC [ params final`, mouse excluded). A modifier param
+    // > 1 or a Meta ESC prefix (`force_word`) turns a plain arrow into a word jump. Application-
+    // cursor keys (`ESC O <final>`) arrive with empty params.
+    fn csi(self: *Editor, params: []const u8, final: u8, force_word: bool, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
+        var it = std.mem.splitScalar(u8, params, ';');
+        const code: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
+        const mod: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
+        const word = force_word or mod > 1; // any modifier on an arrow = move by word
+        switch (final) {
             'A' => self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, true),
             'B' => self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, false),
-            'C' => if (pos.* < len.*) {
-                pos.* += 1;
+            'C' => { // Right (modified = word right)
+                pos.* = if (word) wordRight(buf[0..len.*], pos.*) else @min(pos.* + 1, len.*);
                 self.refresh(prompt, buf[0..len.*], pos.*);
             },
-            'D' => if (pos.* > 0) {
-                pos.* -= 1;
+            'D' => { // Left (modified = word left)
+                pos.* = if (word) wordLeft(buf[0..len.*], pos.*) else pos.* -| 1;
                 self.refresh(prompt, buf[0..len.*], pos.*);
             },
             'H' => {
@@ -411,23 +489,83 @@ pub const Editor = struct {
                 pos.* = len.*;
                 self.refresh(prompt, buf[0..len.*], pos.*);
             },
-            '3' => { // Delete: consume the trailing '~', then drop the char under the cursor
-                _ = self.readByte();
-                if (pos.* < len.*) {
-                    std.mem.copyForwards(u8, buf[pos.* .. len.* - 1], buf[pos.* + 1 .. len.*]);
-                    len.* -= 1;
+            '~' => switch (code) {
+                1, 7 => { // Home
+                    pos.* = 0;
                     self.refresh(prompt, buf[0..len.*], pos.*);
-                }
-            },
-            '5', '6' => { // Page Up / Page Down: scroll the screen-mode scrollback a page
-                _ = self.readByte(); // consume the trailing '~'
-                if (self.screen) |s| {
-                    s.scroll(code == '5', true);
+                },
+                4, 8 => { // End
+                    pos.* = len.*;
                     self.refresh(prompt, buf[0..len.*], pos.*);
-                }
+                },
+                3 => { // Delete (modified = delete word forward)
+                    if (word) {
+                        self.deleteWordFwd(prompt, buf, len, pos);
+                    } else if (pos.* < len.*) {
+                        std.mem.copyForwards(u8, buf[pos.* .. len.* - 1], buf[pos.* + 1 .. len.*]);
+                        len.* -= 1;
+                        self.refresh(prompt, buf[0..len.*], pos.*);
+                    }
+                },
+                5, 6 => if (self.screen) |s| { // Page Up / Page Down: scroll the scrollback a page
+                    s.scroll(code == 5, true);
+                    self.refresh(prompt, buf[0..len.*], pos.*);
+                },
+                else => {},
             },
             else => {},
         }
+    }
+
+    // Delete from the start of the word before the cursor up to the cursor (Ctrl-W / Alt-Backspace).
+    fn deleteWordBack(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
+        const start = wordLeft(buf[0..len.*], pos.*);
+        if (start == pos.*) return;
+        const removed = pos.* - start;
+        std.mem.copyForwards(u8, buf[start .. len.* - removed], buf[pos.*..len.*]);
+        len.* -= removed;
+        pos.* = start;
+        self.refresh(prompt, buf[0..len.*], pos.*);
+    }
+
+    // Delete from the cursor to the end of the word ahead of it (Alt-d / modified Delete).
+    fn deleteWordFwd(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
+        const end = wordRight(buf[0..len.*], pos.*);
+        if (end == pos.*) return;
+        const removed = end - pos.*;
+        std.mem.copyForwards(u8, buf[pos.* .. len.* - removed], buf[end..len.*]);
+        len.* -= removed;
+        self.refresh(prompt, buf[0..len.*], pos.*);
+    }
+
+    // Read a bracketed paste (`ESC [ 200 ~` consumed) up to the `ESC [ 201 ~` end marker and insert
+    // it at the cursor. Control bytes (notably newlines) become spaces, so it lands as one line.
+    fn readPaste(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
+        while (true) {
+            const b = self.readByte() orelse break;
+            if (b == 27) { // an escape inside the paste — the only one we expect is the end marker
+                if ((self.readByte() orelse break) != '[') continue; // unknown → drop the introducer
+                var pr: [8]u8 = undefined;
+                var pn: usize = 0;
+                var bb = self.readByte() orelse break;
+                while ((bb >= '0' and bb <= '9') or bb == ';') {
+                    if (pn < pr.len) {
+                        pr[pn] = bb;
+                        pn += 1;
+                    }
+                    bb = self.readByte() orelse break;
+                }
+                if (bb == '~' and std.mem.eql(u8, pr[0..pn], "201")) break; // end of paste
+                continue; // some other CSI inside the paste — ignore it
+            }
+            const c: u8 = if (b < 0x20 or b == 0x7f) ' ' else b; // newlines/controls → space
+            if (len.* >= buf.len) continue; // buffer full — drop the rest of the paste
+            if (pos.* < len.*) std.mem.copyBackwards(u8, buf[pos.* + 1 .. len.* + 1], buf[pos.*..len.*]);
+            buf[pos.*] = c;
+            pos.* += 1;
+            len.* += 1;
+        }
+        self.refresh(prompt, buf[0..len.*], pos.*);
     }
 
     // Handle an SGR mouse report (`ESC [ <` already consumed): read up to the final 'M'/'m',
@@ -453,10 +591,10 @@ pub const Editor = struct {
             s.scroll(false, false);
             self.refresh(prompt, buf[0..len.*], pos.*);
         } else if (ev.isLeftDrag()) {
-            s.selDrag(ev.col, ev.row); // extend a text selection
+            s.selDrag(ev.col, ev.row); // extend the visual text selection
             self.refresh(prompt, buf[0..len.*], pos.*);
         } else if (ev.isRelease()) {
-            if (s.selActive()) { // finished a drag → keep the highlight; Ctrl+C copies it
+            if (s.selActive()) { // finished a drag → settle the highlight (visual only, no copy)
                 s.selEnd();
                 self.refresh(prompt, buf[0..len.*], pos.*);
             }
@@ -472,7 +610,7 @@ pub const Editor = struct {
                     click_pending.* = true;
                     click_at.* = now;
                 }
-            } else { // press on an output row → begin a text selection
+            } else { // press on an output row → begin a visual text selection
                 s.selStart(ev.col, ev.row);
                 self.refresh(prompt, buf[0..len.*], pos.*);
             }
@@ -590,6 +728,28 @@ fn copyInto(buf: []u8, src: []const u8) usize {
     return n;
 }
 
+// A word character for cursor motion: anything non-whitespace. Word jumps skip a run of
+// separators, then the run of word characters (bash/emacs-style).
+fn isWordChar(c: u8) bool {
+    return c > ' ' and c != 0x7f;
+}
+
+/// One word to the LEFT of `pos`: back over separators, then over the word. 0 at line start.
+fn wordLeft(line: []const u8, pos: usize) usize {
+    var p = @min(pos, line.len);
+    while (p > 0 and !isWordChar(line[p - 1])) p -= 1;
+    while (p > 0 and isWordChar(line[p - 1])) p -= 1;
+    return p;
+}
+
+/// One word to the RIGHT of `pos`: forward over separators, then over the word. `line.len` at end.
+fn wordRight(line: []const u8, pos: usize) usize {
+    var p = @min(pos, line.len);
+    while (p < line.len and !isWordChar(line[p])) p += 1;
+    while (p < line.len and isWordChar(line[p])) p += 1;
+    return p;
+}
+
 const testing = std.testing;
 
 test "History.add: trims, dedups consecutive, caps at max_history" {
@@ -620,4 +780,18 @@ test "completion helpers: common prefix and command fill-in" {
     var buf: [32]u8 = undefined;
     try testing.expectEqualStrings("/upload ", buf[0..setCommand(&buf, true, "upload", true)]);
     try testing.expectEqualStrings("rotate", buf[0..setCommand(&buf, false, "rotate", false)]);
+}
+
+test "wordLeft/wordRight: jump over separator runs then the word" {
+    const s = "/crop 10 20 to end";
+    //         0123456789...
+    try testing.expectEqual(@as(usize, 12), wordLeft(s, 14)); // inside "to" → start of "to"
+    try testing.expectEqual(@as(usize, 9), wordLeft(s, 11)); // start of "20"
+    try testing.expectEqual(@as(usize, 0), wordLeft(s, 5)); // from the space back to line start
+    try testing.expectEqual(@as(usize, 0), wordLeft(s, 0)); // already home
+
+    try testing.expectEqual(@as(usize, 5), wordRight(s, 0)); // over "/crop" to the space's end... "/crop"
+    try testing.expectEqual(@as(usize, 8), wordRight(s, 5)); // over " 10"
+    try testing.expectEqual(@as(usize, s.len), wordRight(s, 15)); // "end" → end of line
+    try testing.expectEqual(@as(usize, s.len), wordRight(s, s.len)); // already at end
 }
