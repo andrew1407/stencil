@@ -26,14 +26,27 @@
   var has = function (k) {
     return ACCENTS.some(function (a) { return a.key === k; });
   };
-  var read = function () {
+  // Both prefs below are a validated localStorage read/write (private mode can throw).
+  var readPref = function (key, valid, fallback) {
     try {
-      var v = localStorage.getItem(KEY);
-      return has(v) ? v : DEFAULT;
+      var v = localStorage.getItem(key);
+      return valid(v) ? v : fallback;
     } catch (e) {
-      return DEFAULT;
+      return fallback;
     }
   };
+  var writePref = function (key, v) {
+    try { localStorage.setItem(key, v); } catch (e) { /* private mode */ }
+  };
+  // Mirror into chrome.storage.local for contexts that can't read this page's
+  // localStorage (the service worker, the page-API bridge).
+  var mirror = function (obj) {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
+        chrome.storage.local.set(obj);
+    } catch (e) { /* no chrome.storage on this page */ }
+  };
+  var read = function () { return readPref(KEY, has, DEFAULT); };
   var hexOf = function (k) {
     for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
@@ -60,21 +73,14 @@
     link.type = 'image/svg+xml';
     link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hexOf(has(k) ? k : DEFAULT)));
   };
-  // Mirror the accent KEY into chrome.storage.local so non-page contexts that can't read
-  // this page's localStorage (the service worker, the page-API bridge) can resolve the
-  // accent — e.g. to colour the on-page highlight to match the theme (lib/highlightColor.js).
-  var mirror = function (k) {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
-        chrome.storage.local.set({ stencil_accent: k });
-    } catch (e) { /* no chrome.storage on this page */ }
-  };
+  // The mirrored accent lets non-page contexts colour the on-page highlight to match
+  // the theme (lib/highlightColor.js).
   var apply = function (k) {
     document.documentElement.setAttribute('data-accent', has(k) ? k : DEFAULT);
     applyFavicon(k);
+    mirror({ stencil_accent: has(k) ? k : DEFAULT });
   };
   apply(read());
-  mirror(read());
   window.StencilAccent = {
     list: ACCENTS,
     storageKey: KEY,
@@ -82,12 +88,59 @@
     hexOf: hexOf,
     set: function (k) {
       var next = has(k) ? k : DEFAULT;
-      try { localStorage.setItem(KEY, next); } catch (e) { /* private mode */ }
+      writePref(KEY, next);
       apply(next);
-      mirror(next);
       return next;
     },
   };
+  // ── Appearance (light / dark / follow the OS) ───────────────────────────────
+  // Stores the CHOSEN mode but stamps the RESOLVED one on <html data-theme="…">, so
+  // lib/theme.css needs a single dark palette. Mirrors browser/js/prePaintTheme.js.
+  var TKEY = 'stencil_theme';
+  var MODES = ['system', 'light', 'dark'];
+  var isMode = function (m) { return MODES.indexOf(m) >= 0; };
+  var darkQuery = function () {
+    try { return window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return null; }
+  };
+  var readTheme = function () { return readPref(TKEY, isMode, 'system'); };
+  var resolveTheme = function (mode) {
+    if (mode === 'light' || mode === 'dark') return mode;
+    var q = darkQuery();
+    return q && q.matches ? 'dark' : 'light';
+  };
+  var applyTheme = function (mode) {
+    document.documentElement.setAttribute('data-theme', resolveTheme(mode));
+    mirror({ stencil_theme: mode });
+  };
+  applyTheme(readTheme());
+  // 'system' has to keep tracking the OS: the attribute, not the media query, now
+  // drives the palette.
+  if (darkQuery()) {
+    darkQuery().addEventListener('change', function () {
+      if (readTheme() === 'system') applyTheme('system');
+    });
+  }
+  window.StencilTheme = {
+    modes: MODES,
+    storageKey: TKEY,
+    get: readTheme,
+    resolved: function () { return resolveTheme(readTheme()); },
+    set: function (mode) {
+      var next = isMode(mode) ? mode : 'system';
+      writePref(TKEY, next);
+      applyTheme(next);
+      return next;
+    },
+    // Fires when ANOTHER surface changes the mode (see the storage listener below).
+    onChange: function (fn) {
+      try {
+        window.addEventListener('storage', function (e) {
+          if (e.key === TKEY || e.key === null) fn(readTheme());
+        });
+      } catch (e) { /* no window — not a page context */ }
+    },
+  };
+
   // Live cross-page sync: localStorage is shared across all same-origin extension pages,
   // and the `storage` event fires in every OTHER document when one of them writes KEY. So
   // changing the accent in the options page (or popup) re-applies here without a reload —
@@ -96,6 +149,7 @@
   try {
     window.addEventListener('storage', function (e) {
       if (e.key === KEY || e.key === null) apply(read());   // key===null on localStorage.clear()
+      if (e.key === TKEY || e.key === null) applyTheme(readTheme());
     });
   } catch (e) { /* no window — not a page context */ }
 })();
