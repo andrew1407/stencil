@@ -1,13 +1,14 @@
-/* ── Shared theme — follows the OS light/dark preference ──────────────────────
+/* ── Shared theme — OS light/dark, overridable in Options ─────────────────────
    Single source of truth for the extension's own pages (popup, crop, options);
-   link BEFORE a page's stylesheet. Light is default; @media (prefers-color-scheme:
-   dark) swaps in the dark palette, so the UI tracks the system live with no JS —
-   the same prefers-color-scheme contract the browser app (browser/css/theme.css)
-   and desktop app (QStyleHints::colorScheme) follow. color-scheme also lets native
-   bits (form controls, scrollbars) match. The injected in-page modal (lib/overlay.js)
-   can't link this — it must be self-contained — so it carries the media query inline. */
-:root {
-  color-scheme: light dark;
+   link BEFORE a page's stylesheet. Light is default; the dark palette hangs off
+   <html data-theme="dark">, which lib/accent.js stamps pre-paint from the saved
+   Appearance mode ('system' follows prefers-color-scheme live) — the same
+   data-theme contract as the browser app (js/prePaintTheme.js); the desktop app
+   follows QStyleHints::colorScheme. color-scheme also lets native bits (form
+   controls, scrollbars) match. The injected in-page modal (lib/overlay.js) can't
+   link this — it must be self-contained — so it carries the media query inline. */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
   /* Light (default) */
   --bg: #f4f5f7;
   --panel: #ffffff;
@@ -24,20 +25,19 @@
   --check-a: #e7eaf0;
   --check-b: #dfe2ea;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #21242d;
-    --panel: #2b2f3a;
-    --panel-2: #343948;
-    --line: #3d4354;
-    --text: #e8eaf0;
-    --muted: #9aa0b0;
-    /* Same accent (from :root / data-accent); only the shade flips lighter. */
-    --accent-2: color-mix(in srgb, var(--accent) 78%, white);
-    --yellow: #ffd400;
-    --check-a: #2a2e38;
-    --check-b: #262a33;
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #21242d;
+  --panel: #2b2f3a;
+  --panel-2: #343948;
+  --line: #3d4354;
+  --text: #e8eaf0;
+  --muted: #9aa0b0;
+  /* Same accent (from :root / data-accent); only the shade flips lighter. */
+  --accent-2: color-mix(in srgb, var(--accent) 78%, white);
+  --yellow: #ffd400;
+  --check-a: #2a2e38;
+  --check-b: #262a33;
 }
 /* Accent presets — set only --accent; --accent-2 and the glows derive from it.
    Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
@@ -103,8 +103,18 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
 .chk:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* Off in dark: --accent is too deep a violet against the dark panel at label sizes, so
+   borrow the lighter shade. The :not() is load-bearing — this out-specifies the ON rule,
+   which would otherwise lose its white label to the light accent. */
+:root[data-theme="dark"] .chk:not(:has(> input:checked)) {
+  color: var(--accent-2); border-color: var(--accent-2);
+}
 .chk > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
-.chk:has(> input:checked) { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* On: accent fill + white label, shadowed to stay crisp at small sizes on both themes. */
+.chk:has(> input:checked) {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
 
 /* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for the
    extension's interactive items (icon buttons, mini buttons, chips, image thumbs), matching the

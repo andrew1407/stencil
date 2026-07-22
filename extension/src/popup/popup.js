@@ -302,7 +302,7 @@ const stopSharedPolling = () => {
 };
 window.addEventListener('pagehide', stopSharedPolling);
 
-// Build a checkbox per format (common ones + any extra the page uses). All start
+// Build a `.chk` pill per format (common ones + any extra the page uses). All start
 // checked (= no filtering); the toggle button flips select-all / deselect-all.
 const populateFormats = () => {
   const present = new Set(distinctFormats(state.all));
@@ -313,9 +313,11 @@ const populateFormats = () => {
   const extras = [...present].filter(f => !known.has(f));
   const formats = [...COMMON_FORMATS, ...VIDEO_FORMATS, ...extras, UNKNOWN_FORMAT];
   const box = document.getElementById('f-formats');
-  box.innerHTML = formats.map(f =>
-    `<label class="${present.has(f) ? '' : 'absent'}"><input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`
-  ).join('');
+  box.innerHTML = formats.map(f => {
+    const absent = !present.has(f);
+    return `<label class="chk${absent ? ' absent' : ''}"${absent ? ' title="Not present on this page"' : ''}>`
+      + `<input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`;
+  }).join('');
   box.querySelectorAll('input').forEach(cb =>
     cb.addEventListener('change', () => {
       updateToggleLabel();
@@ -1463,6 +1465,25 @@ for (const head of document.querySelectorAll('.section-head')) {
 }));
 document.getElementById('rescan').addEventListener('click', scan);
 document.getElementById('open-options').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+// Dark / light toggle (mirrors the editor's moon button). It pins the opposite of
+// what's PAINTED, so the first click flips what you see even while the mode is still
+// 'system'; Options offers the full System / Light / Dark choice.
+const themePref = window.StencilTheme;
+const themeBtn = document.getElementById('theme-toggle');
+if (themePref && themeBtn) {
+  const syncThemeBtn = () => {
+    const dark = themePref.resolved() === 'dark';
+    themeBtn.innerHTML = icon(dark ? 'sun' : 'moon');
+    themeBtn.title = dark ? 'Switch to the light theme' : 'Switch to the dark theme';
+  };
+  themeBtn.addEventListener('click', () => {
+    themePref.set(themePref.resolved() === 'dark' ? 'light' : 'dark');
+    syncThemeBtn();
+  });
+  themePref.onChange(syncThemeBtn);
+  syncThemeBtn();
+}
 
 // Popup only: promote this view into the docked side panel (same UI, but it persists
 // while you work the page and re-scans on tab switch). Opening a side panel needs a

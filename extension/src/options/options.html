@@ -110,6 +110,14 @@
     <div id="accent" class="accent-dd"></div>
     <div class="help">The brand accent used across the popup, side panel, quick crop and these options. Applies instantly and is remembered on this device.</div>
 
+    <label class="f" for="appearance">Appearance</label>
+    <select id="appearance">
+      <option value="system">System (follow the OS)</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+    <div class="help">Light or dark for the popup, side panel, quick crop and this page. Applies instantly, is remembered on this device, and can also be flipped from the popup's moon button.</div>
+
     <label class="f" for="editorUrl">Editor URL</label>
     <input id="editorUrl" type="url" placeholder="http://localhost:8080/">
     <div class="help">The Stencil browser app served over HTTP (e.g. <code>npm run serve</code> → <code>http://localhost:8080/</code>). The full editor opens in a new tab; the quick crop opens as an in-page modal.</div>

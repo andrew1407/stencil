@@ -33,13 +33,19 @@ graph TD
 **Toolbar popup** (click the extension icon)
 - Scans the active tab for `<img>`, inline `<svg><image>` and CSS
   `background-image` URLs (deduped, capped at 1000).
-- **Search** by file name or URL, a **format dropdown** (All + the common web
-  formats: png/jpg/gif/webp/svg/avif/bmp/ico/tiff, plus any others the page uses),
+- **Search** by file name or URL, a **format pill per type** (the common web formats:
+  png/jpg/gif/webp/svg/avif/bmp/ico/tiff, the video containers, plus any others the page
+  uses — same accent on/off chips as the include toggles, with Select/Deselect all),
   **min/max width & height** (empty = no bound), and toggles to **include `<img>`**
   and/or **background-image** sources. Background images have no size in the DOM, so
   they're shown by default and measured lazily so the size filters can apply once known.
 - **Lazy rendering**: rows are added in batches as you scroll (good for image-heavy pages).
 - Hover a thumbnail for an enlarged preview.
+- **Light / dark**: the header's moon/sun button flips the theme for every extension
+  surface; **Options → Appearance** offers the full System / Light / Dark choice. The mode
+  lives in `localStorage` and `lib/accent.js` stamps `<html data-theme>` before first paint,
+  so there's no flash and already-open surfaces re-theme without a reload (same `data-theme`
+  contract as the browser app's `js/prePaintTheme.js`).
 
 **Server connections & shared pins** (`lib/connections.js`)
 - Connect to one or more [Stencil collaboration servers](../server/README.md) from
@@ -187,7 +193,8 @@ src/
     pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
     connections.js   collaboration-server connections + SHARED pins (REST mirror of server/internal/protocol)
     messages.js      cross-context message `type`/`source` constants (no magic strings)
-    theme.css        shared dark-theme palette (linked by popup/crop/options)
+    theme.css        shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
+    accent.js        pre-paint accent + appearance (light/dark/system) resolver, localStorage-backed
 tests/                   node:test unit tests for the pure modules
 ```
 

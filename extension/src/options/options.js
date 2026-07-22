@@ -52,6 +52,17 @@ if (accent) {
   sync();
 }
 
+// Appearance — like the accent, it lives in localStorage via lib/accent.js rather than
+// in the saved settings, so it applies instantly, independent of the Save button.
+const themePref = window.StencilTheme;
+const appearance = document.getElementById('appearance');
+if (themePref && appearance) {
+  const syncAppearance = () => { appearance.value = themePref.get(); };
+  appearance.addEventListener('change', () => { themePref.set(appearance.value); syncAppearance(); });
+  themePref.onChange(syncAppearance);
+  syncAppearance();
+}
+
 // ── On-page highlight colour: "theme" (follow the accent) or a custom hex ─────
 const hlMode = document.getElementById('hl-mode');
 const hlColor = document.getElementById('hl-color');
