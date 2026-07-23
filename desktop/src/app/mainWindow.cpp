@@ -808,6 +808,9 @@ namespace stencil::gui {
     actStencilLiveSync_->setCheckable(true);
     actStencilLiveSync_->setEnabled(false);   // enabled once the project is linked to a .stencil file
     actStencilLiveSync_->setToolTip("Auto-save edits to the linked .stencil file and reload it when another app changes it");
+    actDeleteProjectFile_ = mk("Delete Project File (.stencil)", QString());
+    actDeleteProjectFile_->setEnabled(false);   // enabled once the project is linked to a .stencil file
+    actDeleteProjectFile_->setToolTip("Delete the linked .stencil file from disk (the project stays open here)");
     actCopyLayout_ = mk("Copy Layout JSON", hotkey("copyLayout", "Ctrl+Alt+C"));
     actPasteLayout_ = mk("Paste Layout JSON", QString());
     actSaveImage_ = mk("Save Image…", hotkey("saveImage", "Ctrl+Shift+D"));
@@ -822,6 +825,7 @@ namespace stencil::gui {
     connect(actUploadJson_, &QAction::triggered, this, [this] { dataExport_->uploadLayout(); });
     connect(actSaveProjectFile_, &QAction::triggered, this, [this] { saveProjectFileAs(); });
     connect(actStencilLiveSync_, &QAction::toggled, this, [this](bool on) { toggleStencilLiveSync(on); });
+    connect(actDeleteProjectFile_, &QAction::triggered, this, [this] { deleteProjectFile(); });
     connect(actOpenProjectFile_, &QAction::triggered, this, [this] {
       const QString path = QFileDialog::getOpenFileName(
           this, "Open project", QString(), "Stencil project (*.stencil)");
@@ -1268,6 +1272,7 @@ namespace stencil::gui {
     data->addAction(actOpenProjectFile_);
     data->addAction(actSaveProjectFile_);
     data->addAction(actStencilLiveSync_);
+    data->addAction(actDeleteProjectFile_);
     data->addSeparator();
     data->addAction(actCopyLayout_);
     data->addAction(actPasteLayout_);
@@ -1479,7 +1484,7 @@ namespace stencil::gui {
     tb->addSeparator();
     // Projects = open editor list + save/open .stencil + live-sync, matching the browser's
     // PROJECTS cluster (layers / save / folder / refresh). Clear-project stays in the menu bar.
-    tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_}));
+    tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_, actDeleteProjectFile_}));
     tb->addSeparator();
     // Share = the browser's merged Servers + Links (connect to share/co-edit + image source links).
     tb->addWidget(makeToolSection("Share", {actConnect_, actLinks_}));
@@ -3402,6 +3407,7 @@ namespace stencil::gui {
     set(actSaveProjectFile_, "save");     // Projects toolbar: Save Project (.stencil)
     set(actOpenProjectFile_, "folder");   // Projects toolbar: Open Project (.stencil)
     set(actStencilLiveSync_, "refresh");  // Projects toolbar: live sync to file
+    set(actDeleteProjectFile_, "trash");  // Projects toolbar: delete the linked .stencil file
     set(actClearProject_, "trash");
     set(actSaveSession_, "clipboard");
     set(actDownloadJson_, "download");
@@ -4683,6 +4689,33 @@ namespace stencil::gui {
     notify_->success("Project saved");
   }
 
+  // Delete the linked .stencil file from disk (after a confirm), then unlink so live-sync stops.
+  // The project itself stays open in the editor — only the on-disk file is removed. On a failed
+  // remove the link is kept. Mirrors the browser ExportService.deleteProjectFile.
+  void MainWindow::deleteProjectFile() {
+    if (stencilLink_.isEmpty()) {
+      notify_->error("No linked .stencil file to delete");
+      return;
+    }
+    const QString path = stencilLink_;
+    const QString shown = QFileInfo(path).fileName();
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Delete project file"));
+    box.setText(tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown));
+    QPushButton* del = box.addButton(tr("Delete"), QMessageBox::AcceptRole);
+    QPushButton* cancel = box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+    box.setDefaultButton(cancel);   // default to the safe choice for a destructive action
+    box.exec();
+    if (box.clickedButton() != del) { notify_->info("Delete canceled"); return; }
+
+    if (!QFile::remove(path)) {
+      notify_->error("Could not delete the project file");   // keep the link so live-sync survives
+      return;
+    }
+    unlinkStencilFile();   // gone from disk → nothing to sync to
+    notify_->success(tr("Deleted “%1”").arg(shown));
+  }
+
   // ── .stencil live sync ───────────────────────────────────────────────────────
   namespace {
     // Union two line lists, de-duplicating by the compact JSON of each line (a merge that keeps
@@ -4712,6 +4745,19 @@ namespace stencil::gui {
     if (!stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
     if (stencilLiveSync_ && !path.isEmpty()) stencilWatcher_->addPath(path);
     if (actStencilLiveSync_) actStencilLiveSync_->setEnabled(!stencilLink_.isEmpty());
+    if (actDeleteProjectFile_) actDeleteProjectFile_->setEnabled(!stencilLink_.isEmpty());
+  }
+
+  // Drop the .stencil file link (mirrors the browser StencilSync.unlink()): stop the pending
+  // auto-save + the watcher and disable the file-linked actions. The project stays open; there is
+  // just no file to sync to anymore.
+  void MainWindow::unlinkStencilFile() {
+    if (stencilAutosaveTimer_) stencilAutosaveTimer_->stop();
+    if (stencilWatcher_ && !stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
+    stencilLink_.clear();
+    stencilBaseline_.clear();
+    if (actStencilLiveSync_) actStencilLiveSync_->setEnabled(false);
+    if (actDeleteProjectFile_) actDeleteProjectFile_->setEnabled(false);
   }
 
   void MainWindow::scheduleStencilAutosave() {

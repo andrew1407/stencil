@@ -2674,6 +2674,13 @@ export class DrawingApp {
       : !s.linked ? 'Open or save a .stencil file first to enable live sync'
         : on ? `Live sync ON — auto-saving to ${s.name} and watching it for changes`
           : `Live sync OFF — click to auto-save to ${s.name} and watch it for changes`;
+    // Delete is only meaningful for a file-linked project (there's a retained handle to remove).
+    const del = document.getElementById('delete-project-btn');
+    if (del) {
+      del.disabled = !s.linked;
+      del.title = s.linked ? `Delete “${s.name}” from disk (the project stays open here)`
+        : 'Open or save a .stencil file first';
+    }
   }
 
   // Ask the browser extension (if installed) to UNPIN an image — fired on any in-project image

@@ -674,6 +674,9 @@ export const createStencil = (app) => {
     set liveSync(on) { app.stencilSync.liveSync = !!on; },
     get linkedFile() { return app.stencilSync.linked ? app.stencilSync.name : null; },
     syncNow() { return app.stencilSync.flush().then(() => stencil); },
+    // Delete the linked .stencil file from disk (Chromium only); confirms first, then unlinks so
+    // live-sync stops. The project stays open in the editor. Resolves to the facade.
+    deleteProjectFile() { return app.export.deleteProjectFile().then(() => stencil); },
 
     // Pan the canvas viewport by pixel deltas (positive x → right, y → down).
     move({ x = 0, y = 0 } = {}) {

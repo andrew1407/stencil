@@ -408,12 +408,14 @@ namespace stencil::gui {
     // file-arg entry for *.stencil (see openPathFromOS) — and save the current project as one.
     void openProjectFile(const QString& path);
     void saveProjectFileAs();
+    void deleteProjectFile();   // delete the linked .stencil file from disk (confirm), then unlink
 
     // ── .stencil live sync (opt-in): auto-save edits back to the linked file + watch it for
     // external changes (another client), applying them in place or prompting on conflict.
     // Mirrors the browser StencilSync. `stencilLink_` empty ⇒ not file-linked.
     QByteArray buildStencilBytes();                 // serialize the current project to .stencil bytes
     void linkStencilFile(const QString& path, const QByteArray& baseline);
+    void unlinkStencilFile();                       // drop the link: stop auto-save + watcher, disable the file-linked actions (mirrors StencilSync.unlink)
     void writeStencilNow(const QByteArray& prebuilt = {});  // write to the linked file; reuse prebuilt bytes if given
     void scheduleStencilAutosave();                 // debounced auto-save on edit
     void flushStencilAutosave();
@@ -672,6 +674,7 @@ namespace stencil::gui {
     QAction* actUploadJson_ = nullptr;
     QAction* actSaveProjectFile_ = nullptr;
     QAction* actOpenProjectFile_ = nullptr;
+    QAction* actDeleteProjectFile_ = nullptr;   // delete the linked .stencil file (enabled only when linked)
     QAction* actCopyLayout_ = nullptr;
     QAction* actPasteLayout_ = nullptr;
     QAction* actSaveImage_ = nullptr;

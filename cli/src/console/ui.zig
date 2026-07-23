@@ -18,7 +18,7 @@ var current_accent: []const u8 = theme.default_key;
 pub const completions = [_][]const u8{
     "upload",      "source-upload", "scrape", "paste",    "blank",       "apply",    "crop",   "rotate",
     "filter",      "bw",       "sepia",       "invert",   "contour", "tint",
-    "none",        "exec",     "undo",        "redo",     "reset",  "save",
+    "none",        "exec",     "undo",        "redo",     "reset",  "save",   "delete",
     "layout",      "formula",  "format",
     "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "blank-color", "rename",
     "keywords",    "keywords-search", "keywords-add", "keywords-del",
@@ -218,6 +218,7 @@ pub fn help() void {
 
     helpSection(a, r, "Save");
     helpRow(a, r, "/save [path]", "write to a file; a bare /save pushes to the active server project");
+    helpRow(a, r, "/delete <file.stencil>", "delete a local .stencil project file from disk");
     helpRow(a, r, "/layout [path]", "save the layout JSON (bare = <project>.json; a dir saves <project>.json there)");
     helpRow(a, r, "/formula [x|y <expr>|on|off|clear]", "set the x/y coord-transform formulas (saved in the layout)");
     helpRow(a, r, "/copy", "copy the current image to the clipboard (macOS)");

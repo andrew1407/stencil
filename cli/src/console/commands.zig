@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, source_upload, blank, save, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, mouse, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
+pub const Verb = enum { upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, mouse, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -33,6 +33,8 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "source-upload") or eq(w, "sourceupload") or eq(w, "scrape")) return .source_upload;
     if (eq(w, "blank") or eq(w, "new")) return .blank;
     if (eq(w, "save") or eq(w, "write")) return .save;
+    // Delete a local .stencil project file from disk (parity with the browser/desktop trash button).
+    if (eq(w, "delete") or eq(w, "del") or eq(w, "remove") or eq(w, "rm")) return .delete;
     if (eq(w, "layout") or eq(w, "exportlayout") or eq(w, "savelayout")) return .layout;
     if (eq(w, "formula") or eq(w, "formulas")) return .formula;
     if (eq(w, "format") or eq(w, "formats")) return .format;
@@ -243,6 +245,13 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("keywords-rm").? == .keywords_del);
     try testing.expect(verbOf("fetch").? == .fetch);
     try testing.expect(verbOf("sync").? == .sync);
+
+    // Delete a local .stencil project file (and its aliases); not shadowed by drop/keywords-del.
+    try testing.expect(verbOf("delete").? == .delete);
+    try testing.expect(verbOf("del").? == .delete);
+    try testing.expect(verbOf("remove").? == .delete);
+    try testing.expect(verbOf("rm").? == .delete);
+    try testing.expect(verbOf("drop").? == .drop); // still distinct from delete
 
     // /format is a session verb (page format), not a transform.
     try testing.expect(verbOf("format").? == .format);
