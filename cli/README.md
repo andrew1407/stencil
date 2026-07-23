@@ -209,7 +209,12 @@ stencil --console
 > /open project.stencil
 > rotate 1
 > /save project.stencil
+> /delete old.stencil        # delete a local .stencil file from disk (aliases: del / remove / rm)
 ```
+
+`/delete <file.stencil>` removes a local `.stencil` file from disk (parity with the
+browser/desktop trash button). It is scoped to `.stencil` paths — it won't delete other
+files or URLs — and leaves the open session untouched.
 
 ### Scraping a page
 

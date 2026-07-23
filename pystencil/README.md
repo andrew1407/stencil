@@ -139,13 +139,16 @@ ed.save("out.png")             # encode the derived view → file (format from e
 ed.save_layout("out.json")     # write the structured layout JSON (see /layout semantics)
 ed.save_project("proj.stencil")  # portable project file: image + layout + metadata in one file
 Editor().open_project("proj.stencil")  # …and read it back (or on any Stencil surface)
+Editor.delete_project("old.stencil")   # delete a local .stencil file from disk (staticmethod)
 ```
 
 A **`.stencil`** file bundles a whole project — the original image (base64), the layout, and
 metadata — in one portable JSON document openable on every Stencil surface (see
 `browser/README.md`). `save_project(path)` / `open_project(src)` (a path, JSON `bytes`/`str`,
 or a parsed `dict`) are stdlib-only (`json` + `base64`); `open_project` decodes the image and
-adopts the layout via `apply_layout`.
+adopts the layout via `apply_layout`. `Editor.delete_project(path)` deletes a local `.stencil`
+file from disk (parity with the browser/desktop trash button + the CLI `/delete` verb); it is a
+stateless staticmethod scoped to `.stencil` paths — a loaded editor is unaffected.
 
 The editor keeps an **untouched original** plus a history of edit snapshots; the current
 view is **derived on demand** — `rotate → crop → filter → rasterise lines` — mirroring the

@@ -234,6 +234,35 @@ export class ExportService {
     inp.click();
   }
 
+  // Delete the linked .stencil file from disk (Chromium FileSystemHandle.remove()) after a confirm,
+  // then drop the link so live-sync stops. Needs a retained handle, so only a file-linked project
+  // (saved/opened via the picker) can — the project stays open; only the on-disk file is removed.
+  async deleteProjectFile() {
+    const app = this.app;
+    const sync = app.stencilSync;
+    if (!sync.linked) { notify('No linked .stencil file to delete', 'fail'); return; }
+    const handle = sync.handle;
+    if (typeof handle.remove !== 'function') {
+      notify('Deleting files needs a newer Chromium browser', 'fail');
+      return;
+    }
+    const name = sync.name || 'this project file';
+    if (!(await app.confirm(
+      `Delete “${name}” from disk? This can’t be undone. The project stays open here.`,
+      { title: 'Delete project file', confirmLabel: 'Delete file', cancelLabel: 'Cancel' }))) {
+      notify('Delete canceled', 'fail');
+      return;
+    }
+    try {
+      await handle.remove();
+      sync.unlink();               // stop auto-save/watch — there's no file to sync to anymore
+      notify(`Deleted “${name}”`, 'ok');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;   // some impls surface a cancelled perm prompt as AbortError
+      notify('Could not delete file: ' + (err.message || err), 'fail');
+    }
+  }
+
   // ── Apply a layout object pasted from the clipboard ──
   async applyPastedLayout(data) {
     await this.#applyValidatedLayout(data, {

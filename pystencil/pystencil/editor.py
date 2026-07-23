@@ -771,6 +771,19 @@ class Editor:
             self.apply_layout(layout)
         return self
 
+    @staticmethod
+    def delete_project(path: str) -> str:
+        """Delete a local ``.stencil`` file from disk; returns the deleted path.
+
+        Parity with the browser/desktop trash button and the CLI ``/delete``. Scoped to
+        ``.stencil`` paths and stateless (a loaded project stays loaded). Raises ``ValueError``
+        for a non-``.stencil`` path, ``FileNotFoundError`` when the file is missing.
+        """
+        if not isinstance(path, str) or not path.lower().endswith(".stencil"):
+            raise ValueError("delete_project only removes .stencil files: %r" % (path,))
+        os.remove(path)
+        return path
+
     # ── introspection ──────────────────────────────────────────────────────────
     @property
     def image_size(self) -> Tuple[int, int]:

@@ -37,6 +37,7 @@
   { "id": "saveProject", "label": "Save Project (.stencil)", "default": "Ctrl+Shift+S" },
   { "id": "openProject", "label": "Open Project (.stencil)", "default": "Ctrl+Shift+F" },
   { "id": "toggleLiveSync", "label": "Toggle Live File Sync", "default": "Ctrl+Shift+Y" },
+  { "id": "deleteProject", "label": "Delete Project File (.stencil)", "default": "Ctrl+Shift+Backspace" },
   { "id": "openProjects", "label": "Open Projects", "default": "Ctrl+Shift+P" },
   { "id": "openServers", "label": "Open Servers / Connect", "default": "Ctrl+Shift+K" },
   { "id": "openLinks", "label": "Open Image Links", "default": "Ctrl+Shift+L" },
