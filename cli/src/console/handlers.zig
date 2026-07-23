@@ -214,6 +214,33 @@ fn saveProject(session: *Session, io: std.Io, path: []const u8) !void {
     }) catch {}; // message already printed; the console keeps running
 }
 
+/// Which rejection (if any) blocks a `/delete <arg>` before touching disk. Pure so the guard
+/// order is unit-tested without I/O — mirrors saveTarget.
+pub const DeleteReject = enum { ok, empty, url, not_stencil, traversal };
+pub fn deleteReject(arg: []const u8) DeleteReject {
+    if (arg.len == 0) return .empty;
+    if (net.isUrl(arg)) return .url; // URLs aren't local files
+    if (!project.isStencilPath(arg)) return .not_stencil; // scoped to project files, not a general rm
+    if (pipeline.hasParentTraversal(arg)) return .traversal; // no escaping the cwd (parity with /save)
+    return .ok;
+}
+
+/// `/delete <file>.stencil` (aliases `del`/`remove`/`rm`) — delete a local `.stencil` project file
+/// from disk (parity with the browser/desktop trash button). Nothing about the open session
+/// changes; the guards keep the console from becoming a general file remover.
+pub fn doDelete(io: std.Io, arg: []const u8) !void {
+    switch (deleteReject(arg)) {
+        .ok => {},
+        .empty => return logo.print("error: delete needs a .stencil path — e.g. '/delete project.stencil'\n", .{}),
+        .url => return logo.print("error: delete only removes local files, not URLs\n", .{}),
+        .not_stencil => return logo.print("error: delete only removes .stencil project files (got '{s}')\n", .{arg}),
+        .traversal => return logo.print("error: refusing to delete a path that escapes the working directory: '{s}'\n", .{arg}),
+    }
+    std.Io.Dir.cwd().deleteFile(io, arg) catch |e|
+        return logo.print("error: could not delete {s} ({s})\n", .{ arg, @errorName(e) });
+    logo.print("deleted {s}\n", .{arg});
+}
+
 fn printFormula(session: *Session) void {
     const fx = if (session.formula_x.len != 0) session.formula_x else "(identity)";
     const fy = if (session.formula_y.len != 0) session.formula_y else "(identity)";
@@ -1761,6 +1788,16 @@ test "saveTarget routes a path to local, a bare save to the active project, else
     try testing.expectEqual(SaveTarget.server, saveTarget(0, true));
     // A bare /save with nothing to write to is an error.
     try testing.expectEqual(SaveTarget.none, saveTarget(0, false));
+}
+
+test "deleteReject: empty/url/non-stencil/traversal guards gate a local .stencil delete" {
+    try testing.expectEqual(DeleteReject.empty, deleteReject(""));
+    try testing.expectEqual(DeleteReject.url, deleteReject("https://x/a.stencil"));
+    try testing.expectEqual(DeleteReject.not_stencil, deleteReject("notes.txt"));
+    try testing.expectEqual(DeleteReject.traversal, deleteReject("../up.stencil"));
+    try testing.expectEqual(DeleteReject.traversal, deleteReject("sub/../../up.stencil"));
+    try testing.expectEqual(DeleteReject.ok, deleteReject("project.stencil"));
+    try testing.expectEqual(DeleteReject.ok, deleteReject("sub/dir/project.stencil"));
 }
 
 test "pullAction: live-pull a newer peer edit, warn on local edits, ignore self/old" {

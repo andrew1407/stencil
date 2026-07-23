@@ -53,11 +53,11 @@ namespace {
     if (ok && ms > 0) QTest::qWait(ms);
   }
 
-  // The quit-confirmation is a modal QMessageBox that blocks the triggering call. Arm this
-  // BEFORE triggering Quit: it waits for the box to appear and clicks the button whose label
-  // matches (the dialog uses custom "Quit"/"Cancel" buttons, not standard Yes/No roles),
-  // letting the otherwise-blocked trigger() return with that answer.
-  void dismissQuitDialog(const QString& buttonText) {
+  // A confirmation is a modal QMessageBox that blocks the triggering call (Quit, Delete Project
+  // File, …). Arm this BEFORE triggering the action: it waits for the box to appear and clicks the
+  // button whose label matches (the dialogs use custom "Quit"/"Cancel"/"Delete" buttons, not
+  // standard Yes/No roles), letting the otherwise-blocked trigger() return with that answer.
+  void dismissModal(const QString& buttonText) {
     QTimer::singleShot(0, [buttonText]() {
       for (int i = 0; i < 200; ++i) {
         if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
@@ -392,7 +392,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(clear);
     QVERIFY(clear->isVisible());   // shown for a local/temporary editor (hidden only for server projects)
 
-    dismissQuitDialog("Yes");      // blocks on the confirm until the timer clicks Yes
+    dismissModal("Yes");      // blocks on the confirm until the timer clicks Yes
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
@@ -492,6 +492,44 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // Deleting the linked .stencil file removes it from disk and unlinks the project (the live-sync
+  // + delete actions disable), while the project stays open in the canvas. Drives openProjectFile
+  // linking → the "Delete Project File (.stencil)" action → the confirm (auto-clicked "Delete").
+  void deletesLinkedProjectFile() {
+    QByteArray png;
+    { QFile f(png_); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = "Doomed";
+    pf.imageExt = "png";
+    pf.imageBytes = png;
+    pf.imageWidth = 240;
+    pf.imageHeight = 160;
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});
+    const QString path = QDir::temp().filePath("stencil_gui_delete.stencil");
+    { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
+
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    win.openPathFromOS(path);
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QVERIFY(canvas);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+
+    QAction* del = actionByText(&win, "Delete Project File (.stencil)");
+    QVERIFY(del);
+    QVERIFY(del->isEnabled());       // enabled because the project is file-linked
+    QVERIFY(QFile::exists(path));
+
+    dismissModal("Delete");          // auto-click "Delete" on the confirm modal
+    del->trigger();
+
+    QTRY_VERIFY_WITH_TIMEOUT(!QFile::exists(path), 4000);   // the file was removed from disk
+    QVERIFY(!del->isEnabled());      // unlinked → the delete action disables again
+    QVERIFY(canvas->hasImage());     // the project itself stays open in the editor
+    beat();
+  }
+
   // Quitting pops an "are you sure?" confirmation; answering No cancels the close and
   // leaves the window up (the Quit action, Ctrl+Q, and the title-bar X all go through it).
   void quitDialogCancelKeepsWindowOpen() {
@@ -500,7 +538,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QAction* quit = actionByText(&win, "Quit");
     QVERIFY(quit);
-    dismissQuitDialog("Cancel");     // blocks on the modal until the timer clicks Cancel
+    dismissModal("Cancel");     // blocks on the modal until the timer clicks Cancel
     quit->trigger();
     QVERIFY(win.isVisible());        // Cancel → close cancelled, window stays open
   }
@@ -512,7 +550,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QAction* quit = actionByText(&win, "Quit");
     QVERIFY(quit);
-    dismissQuitDialog("Quit");
+    dismissModal("Quit");
     quit->trigger();
     QTRY_VERIFY(!win.isVisible());   // Quit → the window closes
   }

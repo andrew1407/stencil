@@ -104,6 +104,32 @@ class ProjectFileTests(unittest.TestCase):
                 out = json.load(fh)
             self.assertEqual(out["keywords"], ["from-browser", "shared"])
 
+    def test_delete_project(self):
+        # Parity with the browser/desktop trash button + CLI /delete: remove the file from disk,
+        # while a loaded editor stays loaded (delete_project is stateless).
+        ed = self._authored()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "p.stencil")
+            ed.save_project(path)
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(Editor.delete_project(path), path)
+            self.assertFalse(os.path.exists(path))
+            self.assertTrue(ed.has_image())  # the open project is untouched
+
+    def test_delete_project_rejects_non_stencil(self):
+        with tempfile.TemporaryDirectory() as d:
+            other = os.path.join(d, "notes.txt")
+            with open(other, "w") as fh:
+                fh.write("keep me")
+            with self.assertRaises(ValueError):
+                Editor.delete_project(other)
+            self.assertTrue(os.path.exists(other))  # a non-.stencil file is never removed
+
+    def test_delete_project_missing_raises(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(FileNotFoundError):
+                Editor.delete_project(os.path.join(d, "gone.stencil"))
+
     def test_rejects_foreign_or_too_new(self):
         with self.assertRaises(ValueError):
             Editor().open_project('{"version":1}')  # no format marker

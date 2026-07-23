@@ -93,8 +93,10 @@ and an **optional** local colour **theme** (light/dark + accent) written only wh
 Save with the **Project** button in the Data section (or `Ctrl+Shift+S`; **Shift+click** to
 save a theme-neutral file), open with the folder button next to it (`Ctrl+Shift+F`) or by
 dropping a `.stencil` onto the canvas. The **live-sync** toggle (`Ctrl+Shift+Y`) keeps a
-file-linked project auto-saved to (and watching) its `.stencil` on disk. The
-same file opens in the CLI (`stencil -i project.stencil out.png`, or `/open` in `--console`),
+file-linked project auto-saved to (and watching) its `.stencil` on disk. The **trash** button
+(`Ctrl+Shift+Backspace`) deletes the linked `.stencil` from disk after a confirm — the project
+stays open in the editor, only its on-disk file is removed (Chromium only; enabled once linked).
+The same file opens in the CLI (`stencil -i project.stencil out.png`, or `/open` in `--console`),
 the desktop app, `pystencil` (`Editor.open_project`), and the Telegram bot.
 
 ```jsonc

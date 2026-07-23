@@ -212,6 +212,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .source_upload => try handlers.doSourceUpload(session, io, cmd.arg),
         .blank => try handlers.doBlank(session, cmd.arg),
         .save => try handlers.doSave(session, io, cmd.arg),
+        .delete => try handlers.doDelete(io, cmd.arg),
         .layout => try handlers.doLayout(session, io, cmd.arg),
         // Formulas / the page format ride the layout, so a real change syncs to the server —
         // but the bare listing and rejected-argument paths mutate nothing and stay clean

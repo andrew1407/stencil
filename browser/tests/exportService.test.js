@@ -210,3 +210,59 @@ test('pickAndOpenProjectFile: cancelled Open picker (AbortError) is silent', asy
     assert.equal(notifications.length, 0);
   } finally { delete globalThis.window; }
 });
+
+// ── .stencil project file delete ─────────────────────────────────────────────
+// A fake StencilSync exposing just what deleteProjectFile touches: linked/handle/name + unlink().
+const makeSync = (over = {}) => ({
+  linked: true, name: 'plan.stencil',
+  handle: { remove: async () => {} },
+  unlinked: 0, unlink() { this.unlinked++; },
+  ...over,
+});
+
+test('deleteProjectFile: no linked file → fail notify, nothing removed', async () => {
+  reset();
+  const app = makeApp({ stencilSync: makeSync({ linked: false }) });
+  await new ExportService(app).deleteProjectFile();
+  assert.deepEqual(lastNote(), ['No linked .stencil file to delete', 'fail']);
+  assert.equal(app.stencilSync.unlinked, 0);
+});
+
+test('deleteProjectFile: handle without remove() → newer-browser fail notify', async () => {
+  reset();
+  const app = makeApp({ stencilSync: makeSync({ handle: {} }) });
+  await new ExportService(app).deleteProjectFile();
+  assert.deepEqual(lastNote(), ['Deleting files needs a newer Chromium browser', 'fail']);
+  assert.equal(app.stencilSync.unlinked, 0);
+});
+
+test('deleteProjectFile: confirm declined → "Delete canceled", not removed', async () => {
+  reset();
+  let removed = 0;
+  const sync = makeSync({ handle: { remove: async () => { removed++; } } });
+  const app = makeApp({ confirm: async () => false, stencilSync: sync });
+  await new ExportService(app).deleteProjectFile();
+  assert.deepEqual(lastNote(), ['Delete canceled', 'fail']);
+  assert.equal(removed, 0);
+  assert.equal(sync.unlinked, 0);
+});
+
+test('deleteProjectFile: confirmed → handle.remove() + unlink() + ok notify', async () => {
+  reset();
+  let removed = 0;
+  const sync = makeSync({ handle: { remove: async () => { removed++; } } });
+  const app = makeApp({ confirm: async () => true, stencilSync: sync });
+  await new ExportService(app).deleteProjectFile();
+  assert.equal(removed, 1);
+  assert.equal(sync.unlinked, 1);          // link dropped so live-sync stops
+  assert.deepEqual(lastNote(), ['Deleted “plan.stencil”', 'ok']);
+});
+
+test('deleteProjectFile: remove() throwing → error notify, link kept', async () => {
+  reset();
+  const sync = makeSync({ handle: { remove: async () => { throw new Error('locked'); } } });
+  const app = makeApp({ confirm: async () => true, stencilSync: sync });
+  await new ExportService(app).deleteProjectFile();
+  assert.deepEqual(lastNote(), ['Could not delete file: locked', 'fail']);
+  assert.equal(sync.unlinked, 0);          // failed delete leaves the project linked
+});

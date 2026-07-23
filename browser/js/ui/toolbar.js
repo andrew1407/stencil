@@ -71,6 +71,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="save-project-btn" class="btn-icon" data-hk-title="saveProject" data-title="Save Project (.stencil) — image + layout + settings in one file (Shift+click: without theme)" data-disabled-reason="Open an image first" title="Save Project (.stencil) — Shift+click to save without the theme">${icon('save')}</button>
                     <button id="open-project-btn" class="btn-icon" data-hk-title="openProject" data-title="Open Project (.stencil)" title="Open Project (.stencil)">${icon('folder')}</button>
                     <button id="live-sync-btn" class="btn-icon" data-hk-title="toggleLiveSync" data-title="Live sync this project to its .stencil file (auto-save + watch for changes)" title="Live sync to file" disabled>${icon('refresh-cw')}</button>
+                    <button id="delete-project-btn" class="btn-icon" data-hk-title="deleteProject" data-title="Delete the linked .stencil file from disk (the project stays open here)" data-disabled-reason="Open or save a .stencil file first" title="Delete linked .stencil file" disabled>${icon('trash')}</button>
                 </div>
             </div>
 

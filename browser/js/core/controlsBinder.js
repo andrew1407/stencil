@@ -279,6 +279,7 @@ export class ControlsBinder {
     document.getElementById('save-project-btn').addEventListener('click', e => app.export.saveProjectFile({ includeTheme: !e.shiftKey }));
     document.getElementById('open-project-btn').addEventListener('click', () => app.export.pickAndOpenProjectFile());
     document.getElementById('live-sync-btn').addEventListener('click', () => { app.stencilSync.liveSync = !app.stencilSync.liveSync; });
+    document.getElementById('delete-project-btn').addEventListener('click', () => app.export.deleteProjectFile());
     document.getElementById('clear-storage').addEventListener('click', async () => {
       if (app.storage.temporary || app.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
@@ -491,6 +492,7 @@ export class ControlsBinder {
       saveProject: () => clickIfActive('save-project-btn'),
       openProject: () => clickIfActive('open-project-btn'),
       toggleLiveSync: () => clickIfActive('live-sync-btn'),
+      deleteProject: () => clickIfActive('delete-project-btn'),
       openProjects: () => clickIfActive('projects-btn'),
       openServers: () => clickIfActive('connect-btn'),
       openLinks: () => clickIfActive('links-btn'),
