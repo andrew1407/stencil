@@ -110,6 +110,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .badge.video { color: #4ade80; }
 .badge.fmt { color: var(--accent-2); }
 .badge.poster { color: #38bdf8; border-color: #38bdf8; }
+.badge.meta { color: #c084fc; border-color: #c084fc; }
 /* Already-opened-in-an-editor cue: a yellow OUTLINE flag badge (matching the pinned/shared
    badges below) + a yellow row outline — not a loud filled block. */
 .badge.opened { color: var(--yellow); border-color: var(--yellow); font-weight: 600; }

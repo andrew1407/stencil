@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <title>Stencil E2E — host page</title>
   <style>
-    /* A background-image element for the scanner's CSS-background path. */
-    #bg { width: 40px; height: 40px; background-image: url("/__e2e__/pixel.png"); }
+    /* A background-image element for the scanner's CSS-background path. Distinct query from
+       the <img> below so the two are separate rows — the scanner dedupes by absolute URL, so
+       an identical URL used as both <img> and background collapses to one entry. */
+    #bg { width: 40px; height: 40px; background-image: url("/__e2e__/pixel.png?bg=1"); }
   </style>
 </head>
 <body>

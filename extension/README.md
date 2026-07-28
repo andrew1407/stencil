@@ -10,7 +10,7 @@ including a quick page-aspect crop. Vanilla JS, no build step.
 ```mermaid
 graph TD
     subgraph EXT["extension/ — Chrome MV3, vanilla JS"]
-      SCAN["lib/imageScan.js — scan &lt;img&gt; / &lt;svg&gt; / bg / &lt;video&gt;"]
+      SCAN["lib/imageScan.js — scan img/srcset/input/svg/icons/meta/video + every CSS image"]
       SURF["surfaces — popup · side panel · DevTools panel · context menu"]
       CROP["crop/ — quick page-aspect crop"]
       CONN["lib/connections.js — server REST mirror"]
@@ -31,8 +31,16 @@ graph TD
 ## Features
 
 **Toolbar popup** (click the extension icon)
-- Scans the active tab for `<img>`, inline `<svg><image>` and CSS
-  `background-image` URLs (deduped, capped at 1000).
+- Scans the active tab for **every way an image URL can appear** (deduped by absolute URL,
+  capped at 1000): `<img>` (incl. `srcset`/`<picture><source>` alternates), `<input type=image>`,
+  inline `<svg><image>`/`<feImage>`, `<video>` (current frame + poster), favicons /
+  `apple-touch-icon` / `mask-icon` `<link>`s, image `preload`/`prefetch` hints,
+  `og:image`/`twitter:image` (and `itemprop=image`) `<meta>`, web-app-manifest icons, and
+  **every CSS image reference** — `background-image`, `content` (`::before`/`::after`),
+  `border-image-source`, `list-style-image`, `mask-image`, `cursor`, `shape-outside`, and
+  `image-set()`. Inline-SVG data URIs and `url(#id)` paint/clip/filter refs are skipped (not
+  shareable images). Each source maps onto the existing `img`/`bg` kinds, so the filters,
+  badges and include-toggles are unchanged.
 - **Search** by file name or URL, a **format pill per type** (the common web formats:
   png/jpg/gif/webp/svg/avif/bmp/ico/tiff, the video containers, plus any others the page
   uses — same accent on/off chips as the include toggles, with Select/Deselect all),
@@ -206,17 +214,25 @@ scripting from the DevTools console. Entries hold the **live DOM element**.
 
 ```js
 // Lists (these honor the live filters below):
-stencil.items;                     // every <img>/<svg image>/<video>/background on the page
-stencil.images;                    // just <img> + inline <svg><image>
-stencil.backgrounds;               // just CSS background-image elements
+stencil.items;                     // every image reference on the page (all of the below)
+stencil.images;                    // kind 'image': <img> (+ srcset/<picture> alternates),
+                                   //   <input type=image>, <svg><image>/<feImage>, favicons,
+                                   //   preload/prefetch hints, og:image/twitter:image <meta>
+stencil.backgrounds;               // kind 'background': every CSS image reference —
+                                   //   background-image, content, border-image-source,
+                                   //   list-style-image, mask-image, cursor, shape-outside, image-set()
+stencil.icons;                     // icon/metadata images (e.meta): favicons, og:/twitter: <meta>,
+                                   //   preload/prefetch hints — excluded from `images`
 stencil.videos;                    // just the <video> elements
 stencil.posters;                   // the poster image of every <video> that has one
 stencil.pins;                      // just the entries currently pinned on this site
+// (The synchronous page API omits web-app-manifest icons — those need an async fetch and
+//  surface only in the popup/side-panel/DevTools list.)
 
 // ── Live filters (mirror — and stay in two-way sync with — the popup's controls) ──
 stencil.formats;                   // a per-format toggle map: { png: true, jpg: true, mp4: true }
 stencil.formats.png = false;       // …turn a format off (Object.keys lists those present)
-stencil.kinds;                     // a per-category toggle map: { image, background, video, poster }
+stencil.kinds;                     // a per-category toggle map: { image, background, video, poster, meta }
 stencil.kinds.video = false;       // …hide a whole category (the popup's include checkboxes)
 stencil.searchText = 'logo';       // name/URL substring filter
 stencil.minWidth = 200;            // size bounds: minWidth/maxWidth/minHeight/maxHeight (or null)
@@ -236,6 +252,7 @@ e.name;                            // a derived "file.ext" name
 e.format;                          // 'png' | 'jpg' | 'webp' | … ('' if undetectable)
 e.width; e.height;                 // intrinsic px where known (0 if not, e.g. unloaded bg)
 e.poster;                          // true for a stencil.posters entry
+e.meta;                            // true for an icon/metadata image (favicon/meta/manifest/preload)
 e.pinned;                          // pinned on this site? — assignable get/set
 e.isEdited;                        // was/is this image opened (edited) in an editor? (read-only)
 e.open();                          // → open in the editor (in-page modal); returns the facade

@@ -1,0 +1,7 @@
+{
+  "name": "Stencil E2E",
+  "icons": [
+    { "src": "pixel.png?manifest=icon-192", "sizes": "192x192", "type": "image/png" },
+    { "src": "/__e2e__/pixel.png?manifest=icon-512", "sizes": "512x512", "type": "image/png" }
+  ]
+}

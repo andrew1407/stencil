@@ -56,6 +56,19 @@ test('passesFilters: video-poster toggle is independent of the img toggle', () =
   assert.equal(passesFilters(poster, {}), true);
 });
 
+test('passesFilters: icon/metadata toggle is independent of the img toggle', () => {
+  const favicon = { kind: 'img', src: 'favicon.ico', name: 'favicon.ico', meta: true, w: 0, h: 0 };
+  const plain = { kind: 'img', src: 'a.jpg', name: 'a.jpg', w: 100, h: 100 };
+  // includeMeta controls icon/metadata images; the img toggle does not touch them.
+  assert.equal(passesFilters(favicon, { includeMeta: false }), false);
+  assert.equal(passesFilters(favicon, { includeImg: false }), true);
+  assert.equal(passesFilters(favicon, { includeMeta: true, includeImg: false }), true);
+  // Conversely, hiding icons leaves plain images alone.
+  assert.equal(passesFilters(plain, { includeMeta: false }), true);
+  // Default (no keys) → icons show.
+  assert.equal(passesFilters(favicon, {}), true);
+});
+
 test('passesFilters: video toggle + per-format video filtering', () => {
   const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'clip.mp4', videoUrl: 'https://x.com/clip.mp4', w: 1280, h: 720 };
   // The dedicated 'video' toggle hides/shows videos regardless of format.
