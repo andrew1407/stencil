@@ -364,7 +364,8 @@ const readFilters = () => {
     includeImg: document.getElementById('f-img').checked,
     includeBg: document.getElementById('f-bg').checked,
     includeVideo: document.getElementById('f-video').checked,
-    includePosters: document.getElementById('f-poster').checked
+    includePosters: document.getElementById('f-poster').checked,
+    includeMeta: document.getElementById('f-meta').checked
   };
 };
 
@@ -391,7 +392,7 @@ const saveFilters = () => {
   const f = readFilters();
   persistedFilters = {
     search: f.search, regex: f.regex, minW: f.minW, maxW: f.maxW, minH: f.minH, maxH: f.maxH,
-    includeImg: f.includeImg, includeBg: f.includeBg, includeVideo: f.includeVideo, includePosters: f.includePosters,
+    includeImg: f.includeImg, includeBg: f.includeBg, includeVideo: f.includeVideo, includePosters: f.includePosters, includeMeta: f.includeMeta,
     disabledFormats: formatCheckboxes().filter(c => !c.checked).map(c => c.value),   // store the OFF ones (new formats default on)
   };
   lastSavedJson = JSON.stringify(persistedFilters);
@@ -406,7 +407,7 @@ const restoreStaticFilters = () => {
   setV('f-search', f.search); setV('f-minw', f.minW); setV('f-maxw', f.maxW); setV('f-minh', f.minH); setV('f-maxh', f.maxH);
   const setC = (id, v) => { const el = document.getElementById(id); if (el && typeof v === 'boolean') el.checked = v; };
   setC('f-regex', f.regex);
-  setC('f-img', f.includeImg); setC('f-bg', f.includeBg); setC('f-video', f.includeVideo); setC('f-poster', f.includePosters);
+  setC('f-img', f.includeImg); setC('f-bg', f.includeBg); setC('f-video', f.includeVideo); setC('f-poster', f.includePosters); setC('f-meta', f.includeMeta);
 };
 
 const applyFilters = () => {
@@ -529,6 +530,13 @@ const renderRow = (image) => {
     pb.textContent = 'poster';
     pb.title = 'A video’s preview (poster) image — independent of its frames';
     sub.appendChild(pb);
+  } else if (image.meta) {
+    // Page furniture — favicon, social-preview <meta>, manifest icon, or preload hint.
+    const mb = document.createElement('span');
+    mb.className = 'badge meta';
+    mb.textContent = 'icon';
+    mb.title = 'An icon / metadata image — favicon, og:/twitter: preview, manifest icon, or preload';
+    sub.appendChild(mb);
   }
   const f = document.createElement('span');
   f.className = 'badge fmt';
@@ -1372,7 +1380,7 @@ document.getElementById('f-search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(applyFilters, 150);
 });
-['f-regex', 'f-img', 'f-bg', 'f-video', 'f-poster'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+['f-regex', 'f-img', 'f-bg', 'f-video', 'f-poster', 'f-meta'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 
 // Opened-images toggles (persisted to settings so they follow the user and stay in
 // sync with the options page). "mark opened" needs a re-annotate (badges depend on

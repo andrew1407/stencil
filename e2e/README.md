@@ -50,13 +50,15 @@ helpers/
   boot.js            gotoApp(page): navigate, clear state, await window.stencil
   serverApi.js       REST helpers (token issuance, project CRUD) over Playwright's request
   wire.js            WS (ws lib) + raw-TCP (net) clients for the live-edit protocol
-fixtures/            host page (+ pixel.png) the extension scanner loads over http
+fixtures/            host pages (+ pixel.png / site.webmanifest) the extension scanner loads over http
+                     (page-with-image.html · all-image-sources.html — one of every image reference)
 tests/
   browser/   app.smoke     — window.stencil: blank/draw/rotate/crop, deep link
              editor        — real pointer drawing, undo/redo, crop tokens + px↔page, apply(), save→reload
              project-file  — .stencil open (image+layout+theme) + save→re-open round-trip via the facade
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
+             scan-sources  — every HTML/CSS image reference (img/srcset/input/svg/icons/meta + CSS) is scanned
   fullstack/ collab.smoke  — two clients + real server: create → cross-client visibility
              liveedit      — A auto-reloads a peer's server-side edit (live co-edit path)
   server/    rest.smoke, ws.smoke — REST lifecycle + hello→subscribe→welcome→edit/save/TCP

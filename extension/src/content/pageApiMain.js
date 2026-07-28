@@ -34,6 +34,32 @@
     const url = m ? m[2].trim() : '';
     return (!url || url.startsWith('data:image/svg')) ? '' : url;
   };
+  // Inline mirror of lib/pageImages.js cssImageUrls (see pageApiMainMirror.test.js). Every
+  // image url() in a CSS value, minus inline-SVG data URIs and #fragment paint/filter refs.
+  const cssImageUrls = (cssValue) => {
+    const s = String(cssValue || '');
+    if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
+    const re = /url\((['"]?)(.*?)\1\)/g;
+    const urls = [];
+    let m;
+    while ((m = re.exec(s))) {
+      const u = (m[2] || '').trim();
+      if (!u || u.startsWith('#') || u.startsWith('data:image/svg')) continue;
+      urls.push(u);
+    }
+    return urls;
+  };
+  // Inline mirror of lib/pageImages.js srcsetUrls — the URL token of each srcset candidate.
+  const srcsetUrls = (srcset) => {
+    const s = String(srcset || '').trim();
+    if (!s) return [];
+    const urls = [];
+    for (const cand of s.split(',')) {
+      const u = cand.trim().split(/\s+/)[0];
+      if (u) urls.push(u);
+    }
+    return urls;
+  };
   const nameFromUrl = (url, fallback = 'image') => {
     const s = String(url || '');
     try {
@@ -74,13 +100,25 @@
     } catch { return null; }   // cross-origin / tainted
   };
 
+  // CSS properties whose value can hold an image url() — mirrors imageScan.js.
+  const CSS_IMG_PROPS = ['backgroundImage', 'content', 'borderImageSource', 'listStyleImage', 'maskImage', 'webkitMaskImage', 'cursor', 'shapeOutside'];
+  const PSEUDOS = [null, '::before', '::after'];
+  const firstCssImageUrl = (el, pseudo = null) => {
+    let cs;
+    try { cs = getComputedStyle(el, pseudo); } catch { return ''; }   // cross-origin sheet
+    for (const prop of CSS_IMG_PROPS) { const u = cssImageUrls(cs[prop])[0]; if (u) return u; }
+    return '';
+  };
   const elementUrl = (el) => {
     if (!el || el.nodeType !== 1) return { kind: null, url: '' };
     const tag = (el.tagName || '').toLowerCase();
     if (tag === 'img') return { kind: 'image', url: el.currentSrc || el.getAttribute('src') || '' };
-    if (tag === 'image') return { kind: 'image', url: el.getAttribute('href') || el.getAttribute('xlink:href') || '' };
+    if (tag === 'image' || tag === 'feimage') return { kind: 'image', url: el.getAttribute('href') || el.getAttribute('xlink:href') || '' };
+    if (tag === 'input' && (el.getAttribute('type') || '').toLowerCase() === 'image') return { kind: 'image', url: el.currentSrc || el.getAttribute('src') || '' };
     if (tag === 'video') return { kind: 'video', url: el.currentSrc || el.getAttribute('src') || el.getAttribute('poster') || '' };
-    try { const bg = bgImageUrl(getComputedStyle(el).backgroundImage); if (bg) return { kind: 'background', url: bg }; } catch { /* cross-origin sheet */ }
+    if (tag === 'link' && /(^|\s)(icon|apple-touch-icon(-precomposed)?|mask-icon)(\s|$)/i.test(el.getAttribute('rel') || '')) return { kind: 'image', url: el.getAttribute('href') || '' };
+    if (tag === 'meta' && (el.getAttribute('property') || el.getAttribute('name') || el.getAttribute('itemprop') || '').toLowerCase().includes('image')) return { kind: 'image', url: el.getAttribute('content') || '' };
+    const bg = firstCssImageUrl(el); if (bg) return { kind: 'background', url: bg };
     return { kind: null, url: '' };
   };
 
@@ -118,12 +156,15 @@
     send({ type: MSG.PAGE_PIN, pin: !!on, url, source: url, name: entry.name, kind: entry.kind, resource: location.href });
   };
 
-  const makeEntry = (el, kind, url, poster = false) => guard({
+  const makeEntry = (el, kind, url, poster = false, meta = false) => guard({
     __stencilEntry: true,
     element: el,
     kind,
     url,
     poster,
+    // Page-furniture image (favicon / og:/twitter: <meta> / manifest icon / preload) — gated
+    // by the "Icons & metadata" toggle, kept out of the plain `images` list. Read-only.
+    meta,
     get name() { return nameFromUrl(url, kind === 'video' ? 'video' : 'image'); },
     get format() { return formatOf(url); },
     get width() { return entryDims(el, kind).w; },
@@ -139,20 +180,45 @@
     unpin() { setPinnedState(this, false); return this; },
   });
 
-  // Scan the page → entry objects (live elements). Bounded element walk for backgrounds.
+  // Absolutise a raw src/href/content value against the page URL so entries carry a real,
+  // openable, dedupe-stable URL (a favicon/meta ref is often page-relative). data:/blob: pass
+  // through unchanged. Matches imageScan.js, which absolutises every pushed source.
+  const absUrl = (raw) => { const s = raw && String(raw).trim(); if (!s) return ''; try { return new URL(s, location.href).href; } catch { return s; } };
+
+  // A prefetch <link> has no `as`, so only treat it as an image when its href clearly is one.
+  const IMG_EXT = /\.(png|jpe?g|gif|webp|avif|bmp|ico|cur|svg|tiff?)(?:[?#]|$)/i;
+
+  // Scan the page → entry objects (live elements), covering every HTML/CSS image reference.
+  // Deduped by absolute URL (so one <img srcset> can list several alternates, and a poster
+  // that's also a plain <img> collapses to one). Bounded element walk for CSS images.
   const scan = () => {
     const out = [], seen = new Set();
-    const add = (el, kind, url) => { if (url && !seen.has(el)) { seen.add(el); out.push(makeEntry(el, kind, url)); } };
+    // meta flags an icon/metadata image (favicon/<meta>/preload) — gated separately in passes().
+    const add = (el, kind, raw, meta = false) => { const url = absUrl(raw); if (!url || seen.has(url)) return; seen.add(url); out.push(makeEntry(el, kind, url, false, meta)); };
     document.querySelectorAll('img').forEach((el) => add(el, 'image', el.currentSrc || el.getAttribute('src') || ''));
-    document.querySelectorAll('image').forEach((el) => add(el, 'image', el.getAttribute('href') || el.getAttribute('xlink:href') || ''));
+    // srcset alternates (<img srcset> + <picture><source srcset>) — one element, many URLs.
+    document.querySelectorAll('img[srcset], source[srcset]').forEach((el) => srcsetUrls(el.getAttribute('srcset')).forEach((u) => add(el, 'image', u)));
+    document.querySelectorAll('image, feImage').forEach((el) => add(el, 'image', el.getAttribute('href') || el.getAttribute('xlink:href') || ''));
+    document.querySelectorAll('input[type="image"]').forEach((el) => add(el, 'image', el.currentSrc || el.getAttribute('src') || ''));
     document.querySelectorAll('video').forEach((el) => add(el, 'video', el.currentSrc || el.getAttribute('src') || el.getAttribute('poster') || ''));
+    // Favicons + apple-touch/mask icons, image preloads/prefetches (+ their imagesrcset) — meta.
+    document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"], link[rel="mask-icon"], link[rel="preload"][as="image"], link[rel="prefetch"]').forEach((el) => {
+      const rel = (el.getAttribute('rel') || '').toLowerCase();
+      const href = el.getAttribute('href') || '';
+      if (href && (!rel.includes('prefetch') || IMG_EXT.test(href))) add(el, 'image', href, true);
+      srcsetUrls(el.getAttribute('imagesrcset')).forEach((u) => add(el, 'image', u, true));
+    });
+    // Social-sharing / structured-data preview images (Open Graph, Twitter, schema.org) — meta.
+    document.querySelectorAll('meta[property="og:image"], meta[property="og:image:url"], meta[property="og:image:secure_url"], meta[name="twitter:image"], meta[name="twitter:image:src"], meta[itemprop="image"]').forEach((el) => add(el, 'image', el.getAttribute('content') || '', true));
+    // Every CSS image reference on every element + its ::before/::after generated content.
     const all = document.querySelectorAll('*');
     for (let i = 0; i < all.length && i < 8000; i++) {
       const el = all[i];
-      if (seen.has(el)) continue;
-      let bg = '';
-      try { bg = bgImageUrl(getComputedStyle(el).backgroundImage); } catch { /* ignore */ }
-      if (bg) add(el, 'background', bg);
+      for (const pseudo of PSEUDOS) {
+        let cs;
+        try { cs = getComputedStyle(el, pseudo); } catch { continue; }
+        for (const prop of CSS_IMG_PROPS) for (const u of cssImageUrls(cs[prop])) add(el, 'background', u);
+      }
     }
     return out;
   };
@@ -166,7 +232,7 @@
     searchText: '',
     regex: false,                   // treat searchText as a case-insensitive RegExp (stencil.regex)
     disabledFormats: new Set(),     // lowercase formats toggled off via stencil.formats.<f> = false
-    image: true, background: true, video: true, poster: true,   // kind toggles (stencil.kinds.<k>)
+    image: true, background: true, video: true, poster: true, meta: true,   // kind toggles (stencil.kinds.<k>)
     minWidth: null, maxWidth: null, minHeight: null, maxHeight: null,
   };
   const isNum = (v) => typeof v === 'number' && !isNaN(v);
@@ -180,6 +246,7 @@
   };
   const passes = (e) => {
     if (e.poster) { if (!filters.poster) return false; }
+    else if (e.meta) { if (!filters.meta) return false; }        // icon / metadata toggle
     else if (!filters[e.kind]) return false;                     // kind toggle: image / background / video
     if (filters.searchText && !searchMatch(`${e.name} ${e.url}`, filters.searchText, filters.regex)) return false;
     if (e.format && filters.disabledFormats.has(e.format)) return false;
@@ -264,7 +331,7 @@
   let syncing = false;   // true while applying a pushed update, so we don't echo it back
   const toPopupShape = () => ({
     search: filters.searchText, regex: filters.regex, minW: filters.minWidth, maxW: filters.maxWidth, minH: filters.minHeight, maxH: filters.maxHeight,
-    includeImg: filters.image, includeBg: filters.background, includeVideo: filters.video, includePosters: filters.poster,
+    includeImg: filters.image, includeBg: filters.background, includeVideo: filters.video, includePosters: filters.poster, includeMeta: filters.meta,
     disabledFormats: [...filters.disabledFormats],
   });
   const fromPopupShape = (f) => {
@@ -274,6 +341,7 @@
     filters.minWidth = f.minW ?? null; filters.maxWidth = f.maxW ?? null; filters.minHeight = f.minH ?? null; filters.maxHeight = f.maxH ?? null;
     filters.image = f.includeImg !== false; filters.background = f.includeBg !== false;
     filters.video = f.includeVideo !== false; filters.poster = f.includePosters !== false;
+    filters.meta = f.includeMeta !== false;
     filters.disabledFormats = new Set(Array.isArray(f.disabledFormats) ? f.disabledFormats : []);
   };
   const persistFilters = () => { if (!syncing) try { send({ type: MSG.PAGE_SET_FILTERS, filters: toPopupShape() }); } catch { /* bridge gone */ } };
@@ -317,11 +385,11 @@
     return obj;
   };
 
-  // Live { image, background, video, poster: boolean } map for stencil.kinds — assigning
+  // Live { image, background, video, poster, meta: boolean } map for stencil.kinds — assigning
   // false hides that category from the list getters (the popup's include-* checkboxes).
   const kindsToggle = () => {
     const obj = {};
-    for (const k of ['image', 'background', 'video', 'poster']) Object.defineProperty(obj, k, {
+    for (const k of ['image', 'background', 'video', 'poster', 'meta']) Object.defineProperty(obj, k, {
       enumerable: true, configurable: true,
       get: () => filters[k],
       set: (v) => { filters[k] = !!v; onFilterChange(); },
@@ -407,10 +475,13 @@
     set enabled(v) { if (!v) send({ type: MSG.PAGE_DISABLE }); },
     // Scan of the page's images/videos/backgrounds, honoring the live filters below.
     get items() { return scanFiltered(); },
-    // Just the images: <img> + inline <svg><image>.
-    get images() { return scanFiltered().filter((e) => e.kind === 'image'); },
-    // Just CSS background-image elements.
+    // Just the content images: <img> (+ srcset/<picture> alternates), <input type=image>,
+    // inline <svg><image>/<feImage>. Excludes icon/metadata images — see `icons`.
+    get images() { return scanFiltered().filter((e) => e.kind === 'image' && !e.meta); },
+    // Just CSS image elements (background-image, content, mask, border-image, …).
     get backgrounds() { return scanFiltered().filter((e) => e.kind === 'background'); },
+    // Icon / metadata images: favicons, og:/twitter: <meta>, manifest icons, preload hints.
+    get icons() { return scanFiltered().filter((e) => e.meta); },
     // Just the <video> elements.
     get videos() { return scanFiltered().filter((e) => e.kind === 'video'); },
     // The currently-pinned scanned entries (honors the live filters, like `items`).
@@ -437,7 +508,7 @@
     // Reset every filter and clear the highlight.
     resetFilters() {
       filters.searchText = ''; filters.regex = false; filters.disabledFormats.clear();
-      filters.image = filters.background = filters.video = filters.poster = true;
+      filters.image = filters.background = filters.video = filters.poster = filters.meta = true;
       filters.minWidth = filters.maxWidth = filters.minHeight = filters.maxHeight = null;
       clearHighlight();
       persistFilters();

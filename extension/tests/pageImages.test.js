@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bgImageUrl, nameFromUrl, videoHasFrame } from '../src/lib/pageImages.js';
+import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, videoHasFrame } from '../src/lib/pageImages.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
   assert.equal(bgImageUrl('url("https://a.com/x.png")'), 'https://a.com/x.png');
@@ -9,6 +9,38 @@ test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () =
   assert.equal(bgImageUrl('none'), '');
   assert.equal(bgImageUrl('url(data:image/svg+xml;base64,AAAA)'), '');   // inline svg → not shareable
   assert.equal(bgImageUrl(''), '');
+});
+
+test('cssImageUrls: every url() in a CSS value; drops svg-data + #fragment refs', () => {
+  assert.deepEqual(cssImageUrls('url("https://a.com/x.png")'), ['https://a.com/x.png']);
+  // Multiple backgrounds / image-set() nest several url() tokens — take them all, in order.
+  assert.deepEqual(cssImageUrls('url(top.png), url(bottom.png)'), ['top.png', 'bottom.png']);
+  assert.deepEqual(cssImageUrls('image-set(url("a.png") 1x, url("a@2x.png") 2x)'), ['a.png', 'a@2x.png']);
+  assert.deepEqual(cssImageUrls('url(  spaced.png  )'), ['spaced.png']);
+  // url(#…) is an in-document paint-server / filter / clip-path ref, NOT an image.
+  assert.deepEqual(cssImageUrls('url(#clip)'), []);
+  assert.deepEqual(cssImageUrls('url(data:image/svg+xml;base64,AAAA)'), []);   // inline svg
+  assert.deepEqual(cssImageUrls('none'), []);
+  assert.deepEqual(cssImageUrls('linear-gradient(#000,#fff)'), []);
+  assert.deepEqual(cssImageUrls(''), []);
+});
+
+test('srcsetUrls: candidate URLs, descriptors dropped', () => {
+  assert.deepEqual(srcsetUrls('small.jpg 480w, large.jpg 1024w'), ['small.jpg', 'large.jpg']);
+  assert.deepEqual(srcsetUrls('img.png 1x, img@2x.png 2x'), ['img.png', 'img@2x.png']);
+  assert.deepEqual(srcsetUrls('solo.png'), ['solo.png']);
+  assert.deepEqual(srcsetUrls('  x.png   2x  '), ['x.png']);
+  assert.deepEqual(srcsetUrls(''), []);
+});
+
+test('manifestIconUrls: icon srcs resolved against the manifest URL', () => {
+  const manifest = { icons: [{ src: 'icon-192.png' }, { src: '/abs/icon-512.png' }, { notSrc: 1 }] };
+  assert.deepEqual(
+    manifestIconUrls(manifest, 'https://a.com/app/site.webmanifest'),
+    ['https://a.com/app/icon-192.png', 'https://a.com/abs/icon-512.png'],
+  );
+  assert.deepEqual(manifestIconUrls({}, 'https://a.com/m.json'), []);
+  assert.deepEqual(manifestIconUrls(null, 'https://a.com/m.json'), []);
 });
 
 test('nameFromUrl: filename from path, query-stripped, data URL ext', () => {

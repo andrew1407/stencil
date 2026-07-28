@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stencil E2E — every image source</title>
+
+  <!-- Favicons + mask icon (all resolve to the harness pixel; distinct query = distinct URL). -->
+  <link rel="icon" href="/__e2e__/pixel.png?icon=favicon">
+  <link rel="apple-touch-icon" href="/__e2e__/pixel.png?icon=apple">
+  <link rel="mask-icon" href="/__e2e__/pixel.png?icon=mask">
+
+  <!-- Image preload / prefetch resource hints. -->
+  <link rel="preload" as="image" href="/__e2e__/pixel.png?link=preload">
+  <link rel="prefetch" href="/__e2e__/pixel.png?link=prefetch">
+
+  <!-- Social-sharing / structured-data preview images. -->
+  <meta property="og:image" content="/__e2e__/pixel.png?meta=og">
+  <meta name="twitter:image" content="/__e2e__/pixel.png?meta=twitter">
+  <meta itemprop="image" content="/__e2e__/pixel.png?meta=itemprop">
+
+  <!-- Web-app manifest (its icons are found only by the async popup-injected scanner, not
+       by the synchronous window.stencil page API — the e2e asserts the page API). -->
+  <link rel="manifest" href="/__e2e__/site.webmanifest">
+
+  <style>
+    /* Every CSS image reference the scanner understands → window.stencil.backgrounds. */
+    #css-bg      { width: 40px; height: 40px; background-image: url("/__e2e__/pixel.png?css=bg"); }
+    #css-content::before { content: url("/__e2e__/pixel.png?css=content"); }
+    #css-border  { border: 10px solid; border-image-source: url("/__e2e__/pixel.png?css=border"); }
+    #css-list    { list-style-image: url("/__e2e__/pixel.png?css=list"); }
+    #css-mask    { width: 40px; height: 40px; background: #333;
+                   mask-image: url("/__e2e__/pixel.png?css=mask");
+                   -webkit-mask-image: url("/__e2e__/pixel.png?css=mask"); }
+    #css-cursor  { cursor: url("/__e2e__/pixel.png?css=cursor"), auto; }
+    #css-shape   { float: left; width: 40px; height: 40px; shape-outside: url("/__e2e__/pixel.png?css=shape"); }
+    #css-set     { width: 40px; height: 40px;
+                   background-image: image-set(url("/__e2e__/pixel.png?css=imageset") 1x); }
+  </style>
+</head>
+<body>
+  <h1>Every way an image can be referenced</h1>
+
+  <!-- Direct <img>, plus srcset alternates and a <picture> source. -->
+  <img id="plain" alt="plain" src="/__e2e__/pixel.png?img=plain">
+  <img id="responsive" alt="responsive"
+       src="/__e2e__/pixel.png?srcset=fallback"
+       srcset="/__e2e__/pixel.png?srcset=1x 1x, /__e2e__/pixel.png?srcset=2x 2x">
+  <picture>
+    <source type="image/webp" srcset="/__e2e__/pixel.png?picture=webp">
+    <img alt="picture" src="/__e2e__/pixel.png?picture=fallback">
+  </picture>
+
+  <!-- <input type=image> submit button. -->
+  <input type="image" alt="submit" src="/__e2e__/pixel.png?input=btn">
+
+  <!-- Inline SVG <image> and a filter <feImage>. -->
+  <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <image href="/__e2e__/pixel.png?svg=image" width="40" height="40"></image>
+    <filter id="f"><feImage href="/__e2e__/pixel.png?svg=feimage"></feImage></filter>
+  </svg>
+
+  <!-- CSS-image carriers. -->
+  <div id="css-bg"></div>
+  <div id="css-content"></div>
+  <div id="css-border"></div>
+  <ul><li id="css-list">list item</li></ul>
+  <div id="css-mask"></div>
+  <div id="css-cursor">hover me</div>
+  <div id="css-shape"></div>
+  <div id="css-set"></div>
+</body>
+</html>

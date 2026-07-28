@@ -1,7 +1,8 @@
 // Mirror-equality guard for the MAIN-world window.stencil script.
 //
 // src/lib/pageImages.js is the unit-tested SOURCE OF TRUTH for a handful of pure
-// helpers (bgImageUrl / nameFromUrl / videoHasFrame). src/content/pageApiMain.js runs
+// helpers (bgImageUrl / cssImageUrls / srcsetUrls / nameFromUrl / videoHasFrame).
+// src/content/pageApiMain.js runs
 // in the page's MAIN world, which can't import ES modules, so it carries an inline
 // MIRROR of those same helpers. Nothing forces the two to agree — a fix applied to one
 // copy but not the other would silently drift.
@@ -38,6 +39,8 @@ const extractFn = (name, { block }) => {
 };
 
 const mainBgImageUrl = extractFn('bgImageUrl', { block: true });
+const mainCssImageUrls = extractFn('cssImageUrls', { block: true });
+const mainSrcsetUrls = extractFn('srcsetUrls', { block: true });
 const mainNameFromUrl = extractFn('nameFromUrl', { block: true });
 const mainVideoHasFrame = extractFn('videoHasFrame', { block: false });
 
@@ -70,6 +73,39 @@ test('bgImageUrl: inline MAIN-world copy matches the pageImages.js source of tru
     [undefined],
     [0],
     ['URL("https://a.com/UPPER.png")'],
+  ]);
+});
+
+test('cssImageUrls: inline MAIN-world copy matches the pageImages.js source of truth', () => {
+  assertAgree('cssImageUrls', truth.cssImageUrls, mainCssImageUrls, [
+    ['url("https://a.com/x.png")'],
+    ['url(a.png), url(b.png)'],
+    ['image-set(url("x.png") 1x, url("y.png") 2x)'],
+    ['url(  https://a.com/spaced.png  )'],
+    ['url(#clip)'],
+    ['url("#mask")'],
+    ['url(data:image/svg+xml;base64,AAAA)'],
+    ['url("data:image/png;base64,AAAA")'],
+    ['none'],
+    ['linear-gradient(#000, #fff)'],
+    [''],
+    [null],
+    [undefined],
+    [0],
+  ]);
+});
+
+test('srcsetUrls: inline MAIN-world copy matches the pageImages.js source of truth', () => {
+  assertAgree('srcsetUrls', truth.srcsetUrls, mainSrcsetUrls, [
+    ['a.png 1x, b.png 2x'],
+    ['small.jpg 480w, large.jpg 1024w'],
+    ['a.png 1x,b.png 2x'],
+    ['solo.png'],
+    ['  x.png   2x  '],
+    ['/pics/hero.png'],
+    [''],
+    [null],
+    [undefined],
   ]);
 });
 
