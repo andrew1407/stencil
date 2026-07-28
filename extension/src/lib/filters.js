@@ -72,10 +72,12 @@ export const matchesSearch = (item, f = {}) => {
 // Undetectable formats bucket as UNKNOWN_FORMAT ('etc'); empty bounds are null;
 // unknown-size items (w/h <= 0) pass size filters (measured later).
 export const passesFilters = (item, f = {}) => {
-  // A video poster lists as an <img> but has its own toggle (independent of the
-  // plain-image one), so it can be shown or hidden as a group.
+  // A video poster and an icon/metadata image both list as <img> but each has its own
+  // toggle (independent of the plain-image one), so they can be shown or hidden as a group.
   if (item.poster) {
     if (f.includePosters === false) return false;
+  } else if (item.meta) {
+    if (f.includeMeta === false) return false;
   } else {
     if (item.kind === 'img' && f.includeImg === false) return false;
     if (item.kind === 'bg' && f.includeBg === false) return false;
