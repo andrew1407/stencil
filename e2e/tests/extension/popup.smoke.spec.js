@@ -97,21 +97,25 @@ test.describe('extension popup + side panel UI', () => {
     await ui.setViewportSize({ width: 360, height: 600 });
     await ui.bringToFront(); // popup has no active-tab re-scan, so rows persist
 
-    await ui.locator('.row .more-btn').first().click();
-    await expect(ui.locator('#action-menu')).toBeVisible();
-
-    // Open, Open in…, and Pin are submenus; Crop is a plain top-level action (no submenu / caret).
-    expect(await ui.locator('#action-menu > .submenu > .submenu-head .submenu-label').allTextContents())
-      .toEqual(['Open', 'Open in…', 'Pin']);
-    expect(await ui.locator('#action-menu > button').allInnerTexts()).toContain('Crop');
-
-    // Hover the Open submenu → its flyout shows and stays fully inside the viewport
-    // (regression: the action menu's transform used to push a fixed-positioned flyout
-    // off-screen; it's now absolute-positioned + viewport-clamped).
+    // Retried: under xvfb Chromium may natively scroll the list once right after the
+    // click, which closes the menu by design; the next attempt runs on a settled list.
     const open = ui.locator('#action-menu > .submenu').first();
-    await open.hover();
     const flyout = open.locator('.flyout');
-    await expect(flyout).toBeVisible();
+    await expect(async () => {
+      await ui.locator('.row .more-btn').first().click();
+      await expect(ui.locator('#action-menu')).toBeVisible({ timeout: 2000 });
+
+      // Open, Open in…, and Pin are submenus; Crop is a plain top-level action (no submenu / caret).
+      expect(await ui.locator('#action-menu > .submenu > .submenu-head .submenu-label').allTextContents())
+        .toEqual(['Open', 'Open in…', 'Pin']);
+      expect(await ui.locator('#action-menu > button').allInnerTexts()).toContain('Crop');
+
+      // Hover the Open submenu → its flyout shows and stays fully inside the viewport
+      // (regression: the action menu's transform used to push a fixed-positioned flyout
+      // off-screen; it's now absolute-positioned + viewport-clamped).
+      await open.hover({ timeout: 5000 });
+      await expect(flyout).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 60_000 });
     const box = await flyout.boundingBox();
     const vp = ui.viewportSize();
     expect(box.x).toBeGreaterThanOrEqual(-1);
