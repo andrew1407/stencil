@@ -99,7 +99,7 @@ public static class Replies
         sb.AppendLine("Server commands:");
         sb.AppendLine("/connect <url> [token] — connect to a collaboration server");
         sb.AppendLine("/disconnect [url] — forget a connection");
-        sb.AppendLine("/connections — list connected servers");
+        sb.AppendLine("/connections [admin|session] — list connected servers (filter by credential)");
         sb.AppendLine("/projects [url] — list projects (as buttons)");
         sb.AppendLine("/fetch <name|id> — load a project as the working image");
         sb.AppendLine("/create [name] — save the result as a new project");
@@ -447,20 +447,38 @@ public static class Replies
         return string.Join(", ", parts);
     }
 
-    /// <summary>List the remembered connections (or a hint to /connect when none).</summary>
-    public static string ConnectionsText(IReadOnlyList<ServerConnectionInfo> connections)
+    /// <summary>Usage hint for <c>/connections</c> with an unrecognised filter argument.</summary>
+    public static string ConnectionsUsage() =>
+        "Use /connections to list every connection, /connections admin for the ones connected "
+        + "with the server's admin token, and /connections session for the rest.";
+
+    /// <summary>
+    /// List the remembered connections (or a hint when none). <paramref name="filter"/> is the
+    /// applied <c>admin</c>/<c>session</c> narrowing (empty = all), and admin-token connections
+    /// are marked — never the token itself.
+    /// </summary>
+    public static string ConnectionsText(IReadOnlyList<ServerConnectionInfo> connections, string filter = "")
     {
         if (connections.Count == 0)
         {
-            return "No connections. Use /connect <url> [token] to add one.";
+            return filter.Length == 0
+                ? "No connections. Use /connect <url> [token] to add one."
+                : $"No {filter}-token connections. /connections lists them all.";
         }
+        string header = filter switch
+        {
+            "admin" => $"Admin-token connections ({connections.Count}):",
+            "session" => $"Session-token connections ({connections.Count}):",
+            _ => $"Connections ({connections.Count}):",
+        };
         StringBuilder sb = new();
-        sb.AppendLine($"Connections ({connections.Count}):");
+        sb.AppendLine(header);
         for (int i = 0; i < connections.Count; i++)
         {
             ServerConnectionInfo c = connections[i];
             string tls = c.VerifyTls ? "" : " (TLS verification off)";
-            sb.AppendLine($"{i + 1}. {c.Url}{tls}");
+            string kind = c.CredentialKind == CredentialKind.Admin ? " [admin]" : "";
+            sb.AppendLine($"{i + 1}. {c.Url}{kind}{tls}");
         }
         return sb.ToString().TrimEnd();
     }

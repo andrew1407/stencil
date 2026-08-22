@@ -110,10 +110,28 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 
-    private async Task ConnectionsAsync(long userId, long chatId, CancellationToken ct)
+    /// <summary>
+    /// List the remembered connections: <c>/connections [admin|session]</c> — bare lists them all,
+    /// <c>admin</c> only those whose credential proved to be the server's admin token,
+    /// <c>session</c> only the rest.
+    /// </summary>
+    private async Task ConnectionsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
+        string filter = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
+        if (filter is not ("" or "admin" or "session"))
+        {
+            await _bot.SendMessage(chatId, Replies.ConnectionsUsage(), cancellationToken: ct);
+            return;
+        }
         IReadOnlyList<ServerConnectionInfo> connections = await _servers.ConnectionsAsync(userId, ct);
-        await _bot.SendMessage(chatId, Replies.ConnectionsText(connections), cancellationToken: ct);
+        if (filter.Length > 0)
+        {
+            bool wantAdmin = filter == "admin";
+            connections = connections
+                .Where(c => (c.CredentialKind == CredentialKind.Admin) == wantAdmin)
+                .ToList();
+        }
+        await _bot.SendMessage(chatId, Replies.ConnectionsText(connections, filter), cancellationToken: ct);
     }
 
     /// <summary>List projects (across all servers, or one) as tappable buttons.</summary>

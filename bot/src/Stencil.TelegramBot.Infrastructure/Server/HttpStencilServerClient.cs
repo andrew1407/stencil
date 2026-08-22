@@ -5,6 +5,7 @@ using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Serialization;
+using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
@@ -25,13 +26,16 @@ public sealed class HttpStencilServerClient : IStencilServerClient
     private readonly HttpClient _http;
     private string _token;
     private string _credential;
+    private CredentialKind _kind;
 
-    public HttpStencilServerClient(HttpClient http, string baseUrl, string? token, string? credential = null)
+    public HttpStencilServerClient(HttpClient http, string baseUrl, string? token, string? credential = null,
+        CredentialKind credentialKind = CredentialKind.None)
     {
         _http = http;
         BaseUrl = UrlNormalizer.Normalize(baseUrl);
         _token = token ?? "";
         _credential = credential ?? "";
+        _kind = credentialKind;
     }
 
     /// <summary>The normalised origin this client talks to (<c>scheme://host[:port]</c>).</summary>
@@ -43,9 +47,10 @@ public sealed class HttpStencilServerClient : IStencilServerClient
     /// token, validate it by listing projects. When that probe 401/403s the value may be the
     /// server's ADMIN token — <see cref="SendAsync"/> re-mints with it as bearer and retries, so
     /// the minted session token is adopted; a failed mint surfaces the probe's own rejection.
-    /// The effective token is stored on this client and returned.
+    /// The effective token is stored on this client and returned with the credential kind the
+    /// handshake proved (browser <c>handshake()</c> parity).
     /// </summary>
-    public async Task<string> ConnectAsync(string? token, CancellationToken ct = default)
+    public async Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default)
     {
         if (token is not null)
         {
@@ -56,15 +61,28 @@ public sealed class HttpStencilServerClient : IStencilServerClient
             using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, "/auth/token", EmptyBody(), ct)
                 .ConfigureAwait(false);
             _token = JsonRead.ReadString(doc.RootElement, "token");
+            _kind = CredentialKind.None; // minted anonymously: there is no credential to classify
         }
         else
         {
             // The credential is what the user supplied — it outlives server restarts
             // (SendAsync re-mints with it when a stored session token goes stale).
             _credential = _token;
+            // A credential already proven to be an admin token cannot list projects, so mint
+            // straight away instead of spending a probe that always 401s.
+            if (_kind == CredentialKind.Admin && await TryMintAsync(ct).ConfigureAwait(false) is string minted)
+            {
+                _token = minted;
+            }
             await ListProjectsAsync(ct).ConfigureAwait(false);
+            // SendAsync's rescue round promotes the kind when the probe had to be re-minted;
+            // a credential that listed directly is simply a session token.
+            if (_kind != CredentialKind.Admin)
+            {
+                _kind = CredentialKind.Session;
+            }
         }
-        return _token;
+        return new ServerHandshake(_token, _kind);
     }
 
     /// <summary><c>GET /projects</c> → the project records.</summary>
@@ -208,6 +226,11 @@ public sealed class HttpStencilServerClient : IStencilServerClient
                 response.Dispose();
                 _token = minted;
                 response = await SendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                {
+                    // It minted AND the session works: this credential is an admin token.
+                    _kind = CredentialKind.Admin;
+                }
             }
         }
         return response;

@@ -1,7 +1,7 @@
 import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl, originPattern } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins, setPinKeywords, pinMatchesSearch, pinKeywords } from '../lib/pins.js';
-import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer, normalizeUrl } from '../lib/connections.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connections.js';
 import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
@@ -487,6 +487,12 @@ const connToken = document.getElementById('conn-token');
 const connStatus = document.getElementById('conn-status');
 const connListEl = document.getElementById('conn-list');
 const connEmptyEl = document.getElementById('conn-empty');
+const connFiltersEl = document.getElementById('conn-filters');
+// View-only kind filter ('all' | 'admin' | 'other') — not persisted, unlike the pin filters.
+const connKind = () => {
+  const on = connFiltersEl && connFiltersEl.querySelector('input:checked');
+  return on ? on.value : 'all';
+};
 
 // Wipe hold + refresh gate (browser connect modal's pattern, via createListHold): while
 // a row's leave/materialize plays, the storage.onChanged echo is deferred and the empty
@@ -494,11 +500,14 @@ const connEmptyEl = document.getElementById('conn-empty');
 const connHold = createListHold({ settle: () => { renderConnections(); connListEl.style.minHeight = ''; } });
 
 const renderConnections = async () => {
-  const conns = await loadConnections();
+  const all = await loadConnections();
+  const conns = filterConnections(all, connKind());
   connListEl.innerHTML = '';
   for (const c of conns) {
     const li = document.createElement('li');
-    li.className = 'pin-row';
+    // Same .pin-row shell as the pinned-image rows; .conn-row carries the thumb-less padding.
+    li.className = 'pin-row conn-row' + (isAdminConnection(c) ? ' conn-admin' : '');
+    if (isAdminConnection(c)) li.title = 'Admin connection — its credential can mint session tokens';
     li.dataset.url = c.url;   // the leave/materialize animations find the row by url
     const info = document.createElement('div');
     info.className = 'pin-info';
@@ -514,6 +523,13 @@ const renderConnections = async () => {
     label.className = 'conn-label';
     label.textContent = hostLabel(c.url);
     name.append(label);
+    if (isAdminConnection(c)) {
+      const badge = document.createElement('span');
+      badge.className = 'pin-badge-server conn-badge-admin';
+      badge.textContent = 'admin';
+      badge.title = 'Admin credential — this connection can mint session tokens';
+      name.append(badge);
+    }
     name.title = c.url;
     info.appendChild(name);
     // Probe reachability (auth-checked via GET /projects) and recolor the dot.
@@ -534,8 +550,9 @@ const renderConnections = async () => {
     });
     const remove = document.createElement('button');
     remove.className = 'pin-btn danger';
-    remove.title = 'Remove connection';
-    remove.innerHTML = icon('x', { size: 15 });
+    // A trash glyph, not an x — this deletes the connection and its saved token.
+    remove.title = 'Remove connection — forgets its saved token';
+    remove.innerHTML = icon('trash', { size: 15 });
     remove.addEventListener('click', async () => {
       // The row scatters before the list is rebuilt without it (browser connect
       // modal parity): the list's height is pinned and the re-render deferred until
@@ -553,9 +570,17 @@ const renderConnections = async () => {
   }
   // Mid-wipe the empty state stays hidden — it waits for the hold's settle render.
   connEmptyEl.hidden = !emptyStateVisible(conns.length, connHold.holding);
+  connEmptyEl.textContent = all.length
+    ? 'No connections match this filter.'
+    : 'No servers connected yet.';
+  // The filter is only worth showing once there is something to filter.
+  if (connFiltersEl) connFiltersEl.hidden = all.length === 0;
   const reconnectAll = document.getElementById('conn-reconnect-all');
-  if (reconnectAll) reconnectAll.hidden = conns.length === 0;
+  if (reconnectAll) reconnectAll.hidden = all.length === 0;
 };
+
+if (connFiltersEl)
+  connFiltersEl.querySelectorAll('input').forEach((r) => r.addEventListener('change', renderConnections));
 
 // Reconnect every saved server (re-validate / reissue tokens), then re-render the dots.
 document.getElementById('conn-reconnect-all').addEventListener('click', async () => {
@@ -575,6 +600,9 @@ document.getElementById('conn-add').addEventListener('click', async () => {
     connUrl.value = '';
     connToken.value = '';
     connStatus.innerHTML = icon('check', { size: 13 }) + ' Connected';
+    // Back to All, or the filter in force could hide the row that was just added.
+    const allPill = connFiltersEl && connFiltersEl.querySelector('input[value="all"]');
+    if (allPill) allPill.checked = true;
     // The new row materializes — the removal played backwards (its box expands while
     // a dust copy gathers into it). On the same hold as a removal, so the
     // storage.onChanged echo can't rebuild the list mid-animation.

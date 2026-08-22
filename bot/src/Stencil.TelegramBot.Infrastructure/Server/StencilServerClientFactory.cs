@@ -1,5 +1,6 @@
 using System.Net.Security;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
@@ -29,14 +30,15 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     /// certificate validation is bypassed when <paramref name="verifyTls"/> is false. The client
     /// carries the configured request timeout so a slow server can't block a handler indefinitely.
     /// </summary>
-    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null)
+    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null,
+        CredentialKind credentialKind = CredentialKind.None)
     {
         SocketsHttpHandler handler = (verifyTls ? _verifying : _insecure).Value;
         HttpClient http = new(handler, disposeHandler: false)
         {
             Timeout = _timeout,
         };
-        return new HttpStencilServerClient(http, NormalizeUrl(url), token, credential);
+        return new HttpStencilServerClient(http, NormalizeUrl(url), token, credential, credentialKind);
     }
 
     /// <summary>Normalise a raw URL to a stable origin (<c>scheme://host[:port]</c>).</summary>

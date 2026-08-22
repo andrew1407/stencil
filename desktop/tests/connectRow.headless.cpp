@@ -1,17 +1,11 @@
 // Headless check for the Servers dialog's connection rows (dialogs/connectDialog):
-//   - a long URL ELIDES inside the list viewport (tooltip keeps the full text), the
-//     trailing per-row buttons stay inside the row, rows never exceed the viewport
-//     width, and the horizontal scrollbar is off — the row used to grow past the
-//     viewport and clip mid-character behind a horizontal scrollbar;
-//   - removal retires-then-finalizes (projectsDialog parity): the row blanks at once,
-//     its empty slot is held while the disintegrate dust plays, and the "No servers
-//     connected." empty state appears only AFTER the animation completes;
-//   - a newly-connected row materializes with the reverse (Sweep::Gather): the slot
-//     opens with the row hidden under the motes, then the real row appears.
-// A mock QTcpServer stands in for the collaboration server (POST /auth/token → 200),
-// so no Go server is needed. Built only when Qt is present, like the other *.headless.
+// a long URL elides inside the viewport, each row is a projects-style card whose
+// outline is never clipped (and hovers as one), a row the viewport cuts dissolves at
+// the edge, removal retires-then-finalizes, and a new row gathers in. A mock
+// QTcpServer stands in for the collaboration server, so no Go server is needed.
 #include "connectDialog.hpp"
 #include "disintegrateOverlay.hpp"
+#include "dissolveEffect.hpp"   // the scroll-edge fade the rows carry
 #include "serverClient.hpp"
 
 #include <QApplication>
@@ -32,6 +26,7 @@
 
 using stencil::gui::ConnectDialog;
 using stencil::gui::DisintegrateOverlay;
+using stencil::gui::DissolveEffect;
 using stencil::net::ConnectionManager;
 
 #include "support/check.hpp"
@@ -114,11 +109,41 @@ int main(int argc, char** argv) {
     check(right <= vpw, "action button sits fully inside the viewport");
   }
 
+  // ── The row is a CARD whose outline is never clipped. QListView insets every item
+  // by the list's spacing on BOTH sides, so a viewport-wide slot overhung the right
+  // edge — which is where the gold admin outline was lost.
+  check(list->item(0)->sizeHint().width() + 2 * list->spacing() <= vpw,
+        "the row slot leaves the list's spacing on both sides");
+  check(row && row->mapTo(list->viewport(), QPoint(row->width(), 0)).x() <= vpw - list->spacing(),
+        "…so the row's right edge (and its outline) stays inside the viewport");
+  // Height likewise: measured after parenting, so the cascaded card sheet is in it.
+  check(list->item(0)->sizeHint().height() >= row->sizeHint().height(),
+        "the row slot is at least as tall as the row wants to be");
+  check(row->height() == list->item(0)->sizeHint().height(),
+        "…and the row widget fills exactly that slot");
+  check(row->objectName() == QStringLiteral("connRow"),
+        "a plain connection row is a card like the projects rows");
+  check(list->styleSheet().contains(QStringLiteral("border-radius:6px")),
+        "…styled by the list's own cascading row sheet");
+
+  // ── Hover follows the whole card: Qt sends Enter/Leave to the child under the
+  // pointer, and hovering a label must not blink the wash off.
+  QLabel* hoverTarget = urlLabel ? urlLabel : row->findChild<QLabel*>();
+  if (hoverTarget) {
+    hoverTarget->setAttribute(Qt::WA_UnderMouse, true);
+    QEvent enter(QEvent::Enter);
+    QApplication::sendEvent(hoverTarget, &enter);
+    check(row->property("hovered").toBool(), "hovering a child hovers the whole row card");
+    hoverTarget->setAttribute(Qt::WA_UnderMouse, false);
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(hoverTarget, &leave);
+    check(!row->property("hovered").toBool(), "…and leaving it un-hovers the card");
+  }
+
   // ── Removal: retire-then-finalize — slot held, empty state only after the dust.
-  QPushButton* disc = nullptr;
-  for (QPushButton* b : btns)
-    if (b->toolTip() == QStringLiteral("Disconnect")) disc = b;
+  QPushButton* disc = row->findChild<QPushButton*>(QStringLiteral("rowDisconnect"));
   check(disc != nullptr, "finds the row's disconnect button");
+  if (disc) check(disc->toolTip() == QStringLiteral("Disconnect"), "…which says what it does");
   auto* dismiss = new QTimer;  // answers the confirm box that blocks disc->click()
   dismiss->setInterval(20);
   QObject::connect(dismiss, &QTimer::timeout, [dismiss] {
@@ -208,6 +233,42 @@ int main(int argc, char** argv) {
       for (QPushButton* b : mbtns)
         check(b->mapTo(mlist->viewport(), QPoint(b->width(), 0)).x() <= mlist->viewport()->width(),
               "compact row action button sits inside the viewport");
+    }
+  }
+
+  // ── Scroll edges: a row the viewport cuts dissolves instead of being sliced
+  // across its outline (projects-list parity).
+  {
+    ConnectionManager many;
+    QString e;
+    for (int i = 0; i < 8; ++i)
+      many.connectTo(QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
+    ConnectDialog tall(&many);
+    tall.resize(520, 430);   // shorter than eight rows: the list has to scroll
+    tall.show();
+    pumpFor(120);
+    auto* tl = tall.findChild<QListWidget*>(QStringLiteral("connList"));
+    check(tl != nullptr && tl->count() == 8, "eight rows in the short list");
+    if (tl && tl->count() == 8) {
+      check(tl->verticalScrollBar()->maximum() > 0, "…which therefore scrolls");
+      const int viewH = tl->viewport()->height();
+      int whole = -1, cut = -1;
+      for (int i = 0; i < tl->count(); ++i) {
+        QWidget* w = tl->itemWidget(tl->item(i));
+        if (!w) continue;
+        const int top = w->mapTo(tl->viewport(), QPoint(0, 0)).y();
+        if (top >= 0 && top + w->height() <= viewH) { if (whole < 0) whole = i; }
+        else if (top < viewH && top + w->height() > viewH) cut = i;
+      }
+      check(whole >= 0 && cut >= 0, "…with both a whole row and one the bottom edge cuts");
+      if (whole >= 0 && cut >= 0) {
+        auto* wholeFx =
+            dynamic_cast<DissolveEffect*>(tl->itemWidget(tl->item(whole))->graphicsEffect());
+        auto* cutFx =
+            dynamic_cast<DissolveEffect*>(tl->itemWidget(tl->item(cut))->graphicsEffect());
+        check(!wholeFx || wholeFx->dissolve() <= 0.0, "a fully visible row is not dissolved");
+        check(cutFx && cutFx->dissolve() > 0.0, "…while the clipped row fades at the edge");
+      }
     }
   }
 

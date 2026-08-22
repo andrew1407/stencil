@@ -448,17 +448,59 @@ fn reconnectAt(session: *Session, io: std.Io, i: usize) bool {
     return true;
 }
 
-/// `/connections` — list the connected servers, each with a live reachability status
-/// (a quick GET probe per server) and a badge for the active project's server.
-pub fn doConnections(session: *Session) void {
+/// Which credential kinds `/connections` lists.
+pub const ConnFilter = enum { all, admin, session };
+
+/// Parse the optional `/connections` argument: "" (or "all") lists everything, "admin"
+/// only admin-credential connections, "session" only the rest. Null = unrecognised word,
+/// which the caller answers with a usage note rather than an error.
+pub fn parseConnFilter(arg: []const u8) ?ConnFilter {
+    const w = std.mem.trim(u8, arg, " \t\r\n");
+    if (w.len == 0 or std.ascii.eqlIgnoreCase(w, "all")) return .all;
+    if (std.ascii.eqlIgnoreCase(w, "admin")) return .admin;
+    if (std.ascii.eqlIgnoreCase(w, "session")) return .session;
+    return null;
+}
+
+/// True when a connection of `kind` belongs in a listing filtered by `f`.
+pub fn connFilterMatches(f: ConnFilter, kind: server.CredentialKind) bool {
+    return switch (f) {
+        .all => true,
+        .admin => kind == .admin,
+        .session => kind != .admin, // non-admin: a plain session token, or none at all
+    };
+}
+
+/// `/connections [admin|session]` — list the connected servers, each with a live
+/// reachability status (a quick GET probe per server), an `[admin]` tag when the
+/// credential is an admin token, and a badge for the active project's server.
+pub fn doConnections(session: *Session, arg: []const u8) void {
+    const filter = parseConnFilter(arg) orelse {
+        logo.err("usage: /connections [admin|session]\n", .{});
+        return;
+    };
     if (session.servers.items.len == 0) {
         logo.print("no server connections — use '/connect <url>'\n", .{});
         return;
     }
-    logo.print("connections ({d}):\n", .{session.servers.items.len});
+    var shown: usize = 0;
     for (session.servers.items) |*c| {
+        if (connFilterMatches(filter, c.credential_kind)) shown += 1;
+    }
+    if (shown == 0) {
+        logo.print("no {s} connections (of {d})\n", .{ @tagName(filter), session.servers.items.len });
+        return;
+    }
+    logo.print("connections ({d}):\n", .{shown});
+    for (session.servers.items) |*c| {
+        if (!connFilterMatches(filter, c.credential_kind)) continue;
         const active = session.remote_url != null and std.mem.eql(u8, session.remote_url.?, c.base);
-        logo.print("  {s}  [{s}]{s}\n", .{ c.base, probeStatus(c), if (active) "  (active project)" else "" });
+        logo.print("  {s}{s}  [{s}]{s}\n", .{
+            c.base,
+            if (c.credential_kind == .admin) "  [admin]" else "",
+            probeStatus(c),
+            if (active) "  (active project)" else "",
+        });
     }
 }
 
@@ -1467,3 +1509,20 @@ test "deleteReject: empty/url/non-stencil/traversal guards gate a local .stencil
     try testing.expectEqual(DeleteReject.ok, deleteReject("sub/dir/project.stencil"));
 }
 
+
+test "parseConnFilter: blank/all lists everything, admin+session filter, junk = usage" {
+    try testing.expectEqual(ConnFilter.all, parseConnFilter("").?);
+    try testing.expectEqual(ConnFilter.all, parseConnFilter("  ").?);
+    try testing.expectEqual(ConnFilter.all, parseConnFilter("ALL").?);
+    try testing.expectEqual(ConnFilter.admin, parseConnFilter("admin").?);
+    try testing.expectEqual(ConnFilter.session, parseConnFilter(" Session ").?);
+    try testing.expect(parseConnFilter("bogus") == null);
+    try testing.expect(parseConnFilter("adminx") == null);
+
+    // "session" means non-admin, which includes an anonymously-minted connection.
+    try testing.expect(connFilterMatches(.all, .none) and connFilterMatches(.all, .admin));
+    try testing.expect(connFilterMatches(.admin, .admin));
+    try testing.expect(!connFilterMatches(.admin, .session) and !connFilterMatches(.admin, .none));
+    try testing.expect(connFilterMatches(.session, .session) and connFilterMatches(.session, .none));
+    try testing.expect(!connFilterMatches(.session, .admin));
+}

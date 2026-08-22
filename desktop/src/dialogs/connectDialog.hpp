@@ -7,6 +7,7 @@
 #include <QString>
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -32,6 +33,17 @@ namespace stencil::gui {
 
    private:
     void rebuildList();
+    // The row cards' QSS (projects-row look + the gold/amber connection states),
+    // set once on the list so it cascades to every row widget.
+    QString rowStyleSheet() const;
+    // Width a row slot may take: the viewport minus the list's spacing on both sides.
+    int rowWidth() const;
+    // Fade rows toward the list's edges as it scrolls, instead of cutting one
+    // mid-outline (the widget twin of the projects delegate's reveal dissolve).
+    void applyRowReveal();
+    // Hide the rows the All / Admin / Non-admin picker excludes (view state only —
+    // never persisted) and show the "nothing matches" line when none survive.
+    void applyKindFilter();
     // Sign in again on a row whose session expired: fresh session first, then a
     // token prompt (session OR admin token) if the server refuses.
     void reauthenticate(const QString& url);
@@ -53,6 +65,8 @@ namespace stencil::gui {
     // "Auto-connect on open" — moved here from Settings (it's a connection
     // preference); persisted to net::connectionStore on toggle.
     QCheckBox* autoConnect_ = nullptr;
+    // "Show:" All / Admin / Non-admin — a view filter over the rows, not a setting.
+    QComboBox* kindFilter_ = nullptr;
     // Multi-select: urls checked for a batch reconnect/disconnect, + the toolbar.
     QSet<QString> selected_;
     // Retire-then-finalize (projectsDialog parity): urls whose removal dust is playing.

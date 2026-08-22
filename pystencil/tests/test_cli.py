@@ -908,9 +908,10 @@ class _StubConn:
     """A stand-in live ServerConnection: a base URL, a token that must never leak
     into a prompt, and a canned project listing."""
 
-    def __init__(self, base, projects=(), token="sekrit-token") -> None:
+    def __init__(self, base, projects=(), token="sekrit-token", credential_kind="none") -> None:
         self.base = base
         self.token = token
+        self.credential_kind = credential_kind
         self._projects = [
             {"name": n, "id": "p%d" % i} for i, n in enumerate(projects)
         ]
@@ -956,6 +957,36 @@ class ReplDisconnectCommandTest(unittest.TestCase):
         self.assertIn("not connected to http://b.example:9", text)
         self.assertIn("disconnected from http://a.example:8090", text)
         self.assertEqual(repl._manager.connections, [])
+
+    def test_connections_tags_admin_rows_and_filters_on_the_kind(self) -> None:
+        admin = _StubConn("http://a.example:8090", credential_kind="admin")
+        sess = _StubConn("http://b.example:8090", credential_kind="session")
+        repl, out = _wire_repl(_MockLlmClient(""), [admin, sess])
+        repl.run(io.StringIO("/connections\n"))
+        text = out.getvalue()
+        self.assertIn("http://a.example:8090  [admin]", text)
+        self.assertIn("http://b.example:8090\n", text)
+        self.assertNotIn("sekrit-token", text)  # tokens never printed
+
+        repl, out = _wire_repl(_MockLlmClient(""), [admin, sess])
+        repl.run(io.StringIO("/connections admin\n"))
+        text = out.getvalue()
+        self.assertIn("http://a.example:8090  [admin]", text)
+        self.assertNotIn("b.example", text)
+
+        repl, out = _wire_repl(_MockLlmClient(""), [admin, sess])
+        repl.run(io.StringIO("/servers session\n"))
+        text = out.getvalue()
+        self.assertIn("http://b.example:8090", text)
+        self.assertNotIn("a.example", text)
+
+    def test_connections_unknown_filter_prints_usage_and_empty_result(self) -> None:
+        admin = _StubConn("http://a.example:8090", credential_kind="admin")
+        repl, out = _wire_repl(_MockLlmClient(""), [admin])
+        repl.run(io.StringIO("/connections bogus\n/connections session\n"))
+        text = out.getvalue()
+        self.assertIn("usage: /connections [admin|session]", text)
+        self.assertIn("no session connections (of 1)", text)
 
     def test_help_lists_disconnect_and_delete(self) -> None:
         out = io.StringIO()

@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
@@ -12,8 +13,9 @@ public sealed class MockServerClientFactory : IStencilServerClientFactory
 {
     private readonly Dictionary<string, MockStencilServerClient> _clients = new();
 
-    /// <summary>Every <see cref="Create"/> call (normalised url, token, TLS choice, credential), in order.</summary>
-    public List<(string Url, string? Token, bool VerifyTls, string? Credential)> Created { get; } = new();
+    /// <summary>Every <see cref="Create"/> call (normalised url, token, TLS choice, credential,
+    /// credential kind), in order.</summary>
+    public List<(string Url, string? Token, bool VerifyTls, string? Credential, CredentialKind Kind)> Created { get; } = new();
 
     /// <summary>Get (or lazily make) the mock client for <paramref name="url"/>'s origin.</summary>
     public MockStencilServerClient ClientFor(string url)
@@ -28,10 +30,11 @@ public sealed class MockServerClientFactory : IStencilServerClientFactory
     }
 
     /// <inheritdoc />
-    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null)
+    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null,
+        CredentialKind credentialKind = CredentialKind.None)
     {
         string normalized = NormalizeUrl(url);
-        Created.Add((normalized, token, verifyTls, credential));
+        Created.Add((normalized, token, verifyTls, credential, credentialKind));
         return ClientFor(normalized);
     }
 

@@ -278,6 +278,15 @@ A `ConnectionManager` holds several connections at once (`connect`/`disconnect`/
 `ServerError(code="conflict")` (HTTP 409). Self-signed TLS is opt-in via an `ssl` context
 option; the default verifies normally.
 
+`conn.credential_kind` records what the value you supplied turned out to **be**:
+`"admin"` once it has proven it can mint a session token (at connect, or on a mid-session
+re-mint after a server restart), `"session"` once it passed the `GET /projects` probe
+directly, `"none"` when nothing was supplied (the token was minted anonymously), and `""`
+until `connect()` classifies it. In the console, `/connections [admin|session]` lists the
+live servers — tagging admin-credential rows `[admin]`, never printing token values — with
+no argument listing everything, `admin` only the admin-credential connections, `session`
+only the rest; any other word prints a short usage note.
+
 **Watching for project changes.** This client is REST-only (no `/ws` feed), so it tracks a
 peer's name/colour/version changes by **polling** — the same model as the desktop's poll timer.
 `diff_projects(prev, curr)` is a pure diff into `{id, kind, fields, project}` events

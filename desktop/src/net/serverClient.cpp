@@ -63,6 +63,18 @@ namespace stencil::net {
     return base + "#token=" + token;
   }
 
+  QString ServerClient::kindTag(CredentialKind k) {
+    return k == CredentialKind::Admin     ? QStringLiteral("admin")
+           : k == CredentialKind::Session ? QStringLiteral("session")
+                                          : QString();
+  }
+
+  ServerClient::CredentialKind ServerClient::kindFromTag(const QString& tag) {
+    if (tag == QLatin1String("admin")) return CredentialKind::Admin;
+    if (tag == QLatin1String("session")) return CredentialKind::Session;
+    return CredentialKind::None;
+  }
+
   QNetworkRequest ServerClient::buildRequest(const QString& path,
                                              const QString& contentType,
                                              const QString& bearer) const {
@@ -133,8 +145,16 @@ namespace stencil::net {
                                           return;
                                         }
                                         token_ = tok;
-                                        requestAsync(method, path, body, contentType,
-                                                     std::move(done), /*retried=*/true);
+                                        requestAsync(
+                                            method, path, body, contentType,
+                                            [this, done = std::move(done)](int st, QByteArray rb) {
+                                              // It minted AND the session works: this
+                                              // credential is an admin token (browser parity).
+                                              if (st >= 200 && st < 300)
+                                                kind_ = CredentialKind::Admin;
+                                              done(st, rb);
+                                            },
+                                            /*retried=*/true);
                                       },
                                       /*retried=*/true);
                          return;
@@ -152,8 +172,9 @@ namespace stencil::net {
                      });
   }
 
-  bool ServerClient::connect(const QString& token) {
+  bool ServerClient::connect(const QString& token, CredentialKind hint) {
     credential_ = token;
+    kind_ = CredentialKind::None;   // re-proven below by whichever path gets in
     status_ = Status::Connecting;
     // A refused credential is Expired, not Error: see the enum's note.
     const auto failAuth = [this](const QString& msg) {
@@ -181,10 +202,27 @@ namespace stencil::net {
       const QJsonObject obj = QJsonDocument::fromJson(body).object();
       token_ = obj.value("token").toString();
       if (token_.isEmpty()) return fail("server returned no token");
+    } else if (hint == CredentialKind::Admin) {
+      // A credential already PROVEN to be an admin token mints straight away — probing
+      // it as a session token can only 401 (browser handshake parity). If the server has
+      // since stopped accepting it, this lands in the same Expired state as any refusal.
+      token_ = token;   // the mint carries the credential as bearer
+      int mint = 0;
+      const QByteArray minted =
+          request("POST", "/auth/token", "{}", "application/json", mint);
+      if (mint < 200 || mint >= 300) {
+        token_.clear();
+        return failAuth(QString("admin token rejected (HTTP %1)").arg(mint));
+      }
+      token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
+      if (token_.isEmpty()) return fail("server returned no token");
+      kind_ = CredentialKind::Admin;
     } else {
       token_ = token;
       request("GET", "/projects", {}, {}, status);
-      if (status < 200 || status >= 300) {
+      if (status >= 200 && status < 300) {
+        kind_ = CredentialKind::Session;   // the token IS a session token
+      } else {
         // Not a session token — but it may be the server's ADMIN token (the gate
         // operators hold): try minting a session WITH it. Entering ADMIN_TOKEN in
         // the Token field then just works, instead of a bare 401.
@@ -194,6 +232,7 @@ namespace stencil::net {
         if (mint >= 200 && mint < 300) {
           token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
           if (token_.isEmpty()) return fail("server returned no token");
+          kind_ = CredentialKind::Admin;   // it minted: an admin credential
         } else {
           token_.clear();
           return failAuth(QString("token rejected (HTTP %1)").arg(status));
@@ -206,8 +245,10 @@ namespace stencil::net {
 
   // ── Async REST surface (mirrors the synchronous methods above op-for-op) ──
 
-  void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done) {
+  void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done,
+                                  CredentialKind hint) {
     credential_ = token;
+    kind_ = CredentialKind::None;   // re-proven below by whichever path gets in
     status_ = Status::Connecting;
     if (base_.isEmpty()) {
       err_ = "empty server URL";
@@ -241,11 +282,37 @@ namespace stencil::net {
                      status_ = Status::Connected;
                      done(true);
                    });
+    } else if (hint == CredentialKind::Admin) {
+      // Known admin credential: mint straight away, no doomed probe (sync-path parity).
+      token_ = token;
+      requestAsync("POST", "/auth/token", "{}", "application/json",
+                   [this, done = std::move(done)](int mint, QByteArray body) {
+                     if (mint < 200 || mint >= 300) {
+                       err_ = QString("admin token rejected (HTTP %1)").arg(mint);
+                       token_.clear();
+                       status_ = Status::Expired;
+                       qWarning("stencil: admin token refused by %s — reconnect to sign in again",
+                                qPrintable(base_));
+                       done(false);
+                       return;
+                     }
+                     token_ = QJsonDocument::fromJson(body).object().value("token").toString();
+                     if (token_.isEmpty()) {
+                       err_ = "server returned no token";
+                       status_ = Status::Error;
+                       done(false);
+                       return;
+                     }
+                     kind_ = CredentialKind::Admin;
+                     status_ = Status::Connected;
+                     done(true);
+                   });
     } else {
       token_ = token;
       requestAsync("GET", "/projects", {}, {},
                    [this, done = std::move(done)](int status, QByteArray) mutable {
                      if (status >= 200 && status < 300) {
+                       kind_ = CredentialKind::Session;   // the token IS a session token
                        status_ = Status::Connected;
                        done(true);
                        return;
@@ -257,6 +324,7 @@ namespace stencil::net {
                                     if (mint >= 200 && mint < 300) {
                                       token_ = QJsonDocument::fromJson(body).object().value("token").toString();
                                       if (!token_.isEmpty()) {
+                                        kind_ = CredentialKind::Admin;  // it minted: admin
                                         status_ = Status::Connected;
                                         done(true);
                                         return;
@@ -286,7 +354,9 @@ namespace stencil::net {
     // exists (connectAsync probes it, then mint-falls-back). Reconnecting with the
     // minted session token instead would also overwrite credential_ with it.
     if (!credential_.isEmpty()) {
-      connectAsync(credential_, std::move(done));
+      // A REUSED credential keeps what we learned about it, so a known admin one
+      // never probes again (browser reconnectOne parity).
+      connectAsync(credential_, std::move(done), kind_);
       return;
     }
     // Re-validate the token we hold; if it's been rejected/cleared, issue a fresh one.
@@ -585,7 +655,8 @@ namespace stencil::net {
 
   ConnectionManager::~ConnectionManager() { qDeleteAll(clients_); }
 
-  bool ConnectionManager::connectTo(const QString& url, const QString& token, QString& err) {
+  bool ConnectionManager::connectTo(const QString& url, const QString& token, QString& err,
+                                    ServerClient::CredentialKind kindHint) {
     // Invite link: a "#token=<tok>" fragment supplies the credential — split it off
     // before normalization (which drops fragments). An explicitly-typed token wins.
     QString linkToken;
@@ -597,7 +668,9 @@ namespace stencil::net {
       return false;
     }
     auto* client = new ServerClient(base);
-    if (!client->connect(cred)) {
+    // The hint is only ever supplied by a caller REUSING a proven credential (the saved
+    // set); a freshly typed or invite-link token arrives without one and probes first.
+    if (!client->connect(cred, kindHint)) {
       err = client->lastError();
       // A REFUSED CREDENTIAL keeps its place: the server is fine and the URL worth
       // keeping, so the row can offer a sign-in. An unreachable host is still
@@ -688,8 +761,10 @@ namespace stencil::net {
     QVector<SavedServer> out;
     out.reserve(clients_.size());
     // Persist the CREDENTIAL, never the minted session token — sessions die
-    // with a server restart; the credential re-mints on the next connect.
-    for (auto* c : clients_) out.push_back({c->base(), c->credential()});
+    // with a server restart; the credential re-mints on the next connect. Its KIND
+    // rides along so the next launch knows an admin credential without re-probing.
+    for (auto* c : clients_)
+      out.push_back({c->base(), c->credential(), ServerClient::kindTag(c->credentialKind())});
     return out;
   }
 

@@ -267,6 +267,29 @@ def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> N
         baseline = current
 
 
+def parse_credential_filter(arg: str) -> str | None:
+    """Parse a connections-listing filter word (CLI `/connections [admin|session]`).
+
+    "" (or "all") keeps everything, "admin" keeps admin-credential connections,
+    "session" keeps the rest. None = unrecognised, for a usage note.
+    """
+    w = (arg or "").strip().lower()
+    if w in ("", "all"):
+        return "all"
+    if w in ("admin", "session"):
+        return w
+    return None
+
+
+def credential_filter_matches(flt: str, kind: str) -> bool:
+    """True when a connection of credential `kind` belongs in a `flt` listing."""
+    if flt == "admin":
+        return kind == "admin"
+    if flt == "session":
+        return kind != "admin"  # a plain session token, or none supplied
+    return True
+
+
 class ServerConnection:
     """A single connected Stencil server (validated token + REST surface)."""
 
@@ -278,6 +301,11 @@ class ServerConnection:
         # What the user supplied — outlives a server restart (_request re-mints
         # with it when the stored session token goes stale). "" = none supplied.
         self.credential = token or ""
+        # What that credential turned out to BE (browser connectionManager parity):
+        # "admin" once it has PROVEN it can mint a session token (at connect or on a
+        # mid-session re-mint), "session" once it passed the GET /projects probe
+        # directly, "none" when nothing was supplied. "" until connect() classifies it.
+        self.credential_kind = "" if self.credential else "none"
         # 'disconnected' until connect() validates/acquires a token, then
         # 'connected', or 'error' if the handshake fails (mirrors the browser
         # UI-dot status, minus the live 'connecting' transition we don't model).
@@ -368,8 +396,11 @@ class ServerConnection:
             except Exception:
                 raise err from None  # failed re-mint: surface the original error
             self.token = (r or {}).get("token", "")
-            return self._request(
+            out = self._request(
                 method, path, body=body, raw=raw, query=query, _retried=True)
+            # It minted AND the retried request works: the credential is an admin token.
+            self.credential_kind = "admin"
+            return out
 
     # ── handshake ──
     def connect(self) -> "ServerConnection":
@@ -385,6 +416,10 @@ class ServerConnection:
             else:
                 try:
                     self._request("GET", "/projects")  # validate access
+                    # A probe that passed without _request re-minting (which would have
+                    # said "admin" already) means an ordinary session token.
+                    if self.credential_kind != "admin":
+                        self.credential_kind = "session"
                 except ServerError as err:
                     # Browser/desktop parity: the value may be the server's
                     # ADMIN token — it can't list projects, but it can MINT.
@@ -395,6 +430,8 @@ class ServerConnection:
                     r = self._request("POST", "/auth/token", body={})
                     self.token = (r or {}).get("token", "")
                     self._request("GET", "/projects")
+                    # Minted, and the session it minted works: proven admin credential.
+                    self.credential_kind = "admin"
         except Exception:
             self.status = "error"
             raise

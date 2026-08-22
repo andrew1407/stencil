@@ -73,6 +73,14 @@ namespace stencil::net {
     // committed, hit a stale-version 409 (Conflict), or hard-failed for another reason.
     enum class GuardOutcome { Committed, Conflict, Failed };
 
+    // What the stored credential IS (browser parity: ServerConnection.credentialKind):
+    //   Admin   — PROVEN able to mint a session token: the /projects probe failed (or
+    //             was skipped for a known admin credential) and minting WITH it worked,
+    //             at connect OR mid-session. Only these can mint invites.
+    //   Session — the supplied token passed the /projects probe directly.
+    //   None    — no credential at all: the session was minted anonymously.
+    enum class CredentialKind { None, Session, Admin };
+
     explicit ServerClient(const QString& url);
     ~ServerClient();
 
@@ -99,8 +107,10 @@ namespace stencil::net {
     // Validate a supplied token (GET /projects) or issue a fresh one
     // (POST /auth/token). Returns true when the connection is usable. Synchronous: the initial
     // connect handshake stays inline (ConnectionManager::connectTo drives it at startup + in the
-    // connect dialog); every other REST call below is async.
-    bool connect(const QString& token = QString());
+    // connect dialog); every other REST call below is async. `hint` is a PREVIOUSLY PROVEN kind
+    // (restored from the saved connections): Admin mints straight away instead of spending a
+    // doomed probe on a token that can never list projects.
+    bool connect(const QString& token = QString(), CredentialKind hint = CredentialKind::None);
 
     const QString& base() const { return base_; }
     const QString& token() const { return token_; }
@@ -109,6 +119,13 @@ namespace stencil::net {
     const QString& credential() const { return credential_; }
     const QString& lastError() const { return err_; }
     Status status() const { return status_; }
+    // …and what that credential turned out to be (persisted alongside it).
+    CredentialKind credentialKind() const { return kind_; }
+    bool isAdmin() const { return kind_ == CredentialKind::Admin; }
+
+    // Persistence tags for CredentialKind — "admin" / "session" / "" (None).
+    static QString kindTag(CredentialKind k);
+    static CredentialKind kindFromTag(const QString& tag);
 
     // ── Async REST surface ───────────────────────────────────────────────────
     // Non-blocking: each kicks off the request and invokes `done` on the GUI thread
@@ -118,7 +135,8 @@ namespace stencil::net {
     // context — callers must guard it (QPointer) so a reply finishing after the caller
     // is destroyed is a safe no-op; a reply finishing after THIS client is destroyed is
     // already safe (the connection is bound to nam_, which dies with the client).
-    void connectAsync(const QString& token, std::function<void(bool ok)> done);
+    void connectAsync(const QString& token, std::function<void(bool ok)> done,
+                      CredentialKind hint = CredentialKind::None);
     void reconnectAsync(std::function<void(bool ok)> done);
     void listProjectsAsync(std::function<void(bool ok, QVector<ServerProject> projects)> done);
     void createProjectAsync(const QString& name, const QString& source, const QString& resource,
@@ -192,6 +210,7 @@ namespace stencil::net {
     QString base_;
     QString token_;
     QString credential_;
+    CredentialKind kind_ = CredentialKind::None;
     QString err_;
     Status status_ = Status::Connecting;
   };
@@ -205,7 +224,9 @@ namespace stencil::net {
     ~ConnectionManager() override;
 
     // Connect (and add) a server. Returns true on success; sets `err` otherwise.
-    bool connectTo(const QString& url, const QString& token, QString& err);
+    // `kindHint` carries a previously proven CredentialKind (from the saved set).
+    bool connectTo(const QString& url, const QString& token, QString& err,
+                   ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::None);
     // Disconnect a url, or (empty url) the most recently added connection.
     void disconnectFrom(const QString& url = QString());
     // Reorder the live connection set: move the client at index `from` to index `to`

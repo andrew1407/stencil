@@ -342,6 +342,14 @@ pub fn parseProjectDescription(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
 
 // ── REST client ──────────────────────────────────────────────────────────────
 
+/// What a connection's credential turned out to BE (mirrors the browser's
+/// connectionManager credentialKind, with the anonymous case named).
+pub const CredentialKind = enum {
+    none, // nothing supplied — the session was minted unauthenticated
+    session, // the supplied token passed the GET /projects probe directly
+    admin, // the supplied token PROVED it can mint a session token
+};
+
 pub const Client = struct {
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -349,6 +357,7 @@ pub const Client = struct {
     token: []u8, // owned session token
     auth: []u8, // owned "Bearer <token>"
     credential: []u8, // owned user-supplied token ("" = self-issued); reconnects reuse it
+    credential_kind: CredentialKind = .none, // what that credential proved to be
     transport: Transport = rawRequest,
 
     pub fn deinit(self: *Client) void {
@@ -371,7 +380,10 @@ pub const Client = struct {
         return self.send(method, path, payload, content_type) catch |e| {
             if (e != Error.Unauthorized or self.credential.len == 0) return e;
             self.remint() catch return e; // surface the original rejection
-            return self.send(method, path, payload, content_type);
+            const body = try self.send(method, path, payload, content_type);
+            // It minted AND the retried request works: the credential is an admin token.
+            self.credential_kind = .admin;
+            return body;
         };
     }
 
@@ -647,48 +659,69 @@ pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?
     if (isInsecureRemote(base))
         logo.note("connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
 
-    const token = try resolveToken(gpa, io, base, invite.token);
-    errdefer gpa.free(token);
-    const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{token});
+    const resolved = try resolveToken(gpa, io, base, invite.token, rawRequest);
+    errdefer gpa.free(resolved.token);
+    const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{resolved.token});
     errdefer gpa.free(auth);
     const credential = try gpa.dupe(u8, invite.token orelse "");
     errdefer gpa.free(credential);
-    return Client{ .gpa = gpa, .io = io, .base = base, .token = token, .auth = auth, .credential = credential };
+    return Client{
+        .gpa = gpa,
+        .io = io,
+        .base = base,
+        .token = resolved.token,
+        .auth = auth,
+        .credential = credential,
+        .credential_kind = resolved.kind,
+    };
 }
+
+/// A resolved session: the token the connection runs on plus what the supplied
+/// credential proved to be. Caller owns `token`.
+const Resolved = struct { token: []u8, kind: CredentialKind };
 
 /// The session token a connection runs on: a supplied token is validated with a GET
 /// /projects probe — one the server rejects is retried as an ADMIN credential (mint a
 /// session with it as bearer) — and no token issues a fresh session unauthenticated.
-fn resolveToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, token_opt: ?[]const u8) ![]u8 {
+/// `transport` is the HTTP seam (rawRequest in production, a fake in tests).
+fn resolveToken(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    base: []const u8,
+    token_opt: ?[]const u8,
+    transport: Transport,
+) !Resolved {
     if (token_opt) |t| {
         const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{t});
         defer gpa.free(auth);
         const probe_url = try std.fmt.allocPrint(gpa, "{s}/projects", .{base});
         defer gpa.free(probe_url);
-        if (rawRequest(gpa, io, probe_url, .GET, null, &.{.{ .name = "authorization", .value = auth }})) |body| {
+        if (transport(gpa, io, probe_url, .GET, null, &.{.{ .name = "authorization", .value = auth }})) |body| {
             gpa.free(body);
-            return gpa.dupe(u8, t);
+            // It lists projects: an ordinary session token, not an admin credential.
+            return .{ .token = try gpa.dupe(u8, t), .kind = .session };
         } else |e| {
             if (e != Error.Unauthorized) return e;
             // Not a session token — but it may be the server's ADMIN token: try minting
             // a session with it. If that fails too, report the probe's rejection (the
             // mint's "admin token required" would misname a plain wrong token).
             const probe_reject = saveReject();
-            const body = issueToken(gpa, io, base, auth) catch |e2| {
+            const body = issueToken(gpa, io, base, auth, transport) catch |e2| {
                 if (e2 == Error.Unauthorized) restoreReject(probe_reject);
                 return e2;
             };
             defer gpa.free(body);
-            return parseToken(gpa, body);
+            // Minting succeeded: the credential is proven admin (browser handshake parity).
+            return .{ .token = try parseToken(gpa, body), .kind = .admin };
         }
     }
-    const body = try issueToken(gpa, io, base, null);
+    const body = try issueToken(gpa, io, base, null, transport);
     defer gpa.free(body);
-    return parseToken(gpa, body);
+    return .{ .token = try parseToken(gpa, body), .kind = .none };
 }
 
 /// POST /auth/token, optionally with an admin bearer, returning the response body.
-fn issueToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth_opt: ?[]const u8) ![]u8 {
+fn issueToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth_opt: ?[]const u8, transport: Transport) ![]u8 {
     const url = try std.fmt.allocPrint(gpa, "{s}/auth/token", .{base});
     defer gpa.free(url);
     var headers: [2]std.http.Header = undefined;
@@ -699,7 +732,7 @@ fn issueToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth_opt: ?[
         headers[n] = .{ .name = "authorization", .value = a };
         n += 1;
     }
-    return rawRequest(gpa, io, url, .POST, "{}", headers[0..n]);
+    return transport(gpa, io, url, .POST, "{}", headers[0..n]);
 }
 
 // ── last-rejection detail ────────────────────────────────────────────────────
@@ -1457,4 +1490,72 @@ test "a rejected re-mint surfaces the original Unauthorized, no retry loop" {
     try testing.expectError(Error.Unauthorized, c.listProjects());
     try testing.expectEqual(@as(usize, 2), FakeRemint.calls); // reject + failed mint only
     try testing.expectEqualStrings("stale", c.token); // session left untouched
+}
+
+test "a mid-session re-mint proves the credential is an admin token" {
+    FakeRemint.calls = 0;
+    FakeRemint.mint_ok = true;
+    var c = try remintTestClient("ADMIN");
+    defer c.deinit();
+    c.credential_kind = .session; // what the connect-time probe had concluded
+    const body = try c.listProjects();
+    defer testing.allocator.free(body);
+    try testing.expectEqual(CredentialKind.admin, c.credential_kind);
+
+    // A failed re-mint proves nothing: the kind is left as it was.
+    FakeRemint.mint_ok = false;
+    var d = try remintTestClient("ADMIN");
+    defer d.deinit();
+    d.credential_kind = .session;
+    try testing.expectError(Error.Unauthorized, d.listProjects());
+    try testing.expectEqual(CredentialKind.session, d.credential_kind);
+}
+
+// ── credential kind at connect time (fake transport) ─────────────────────────
+
+/// Transport where "SESSION" lists projects directly, "ADMIN" is refused by the probe
+/// but mints, and an unauthenticated mint succeeds (an open server).
+const FakeResolve = struct {
+    fn run(
+        gpa: std.mem.Allocator,
+        io: std.Io,
+        url: []const u8,
+        method: std.http.Method,
+        payload: ?[]const u8,
+        headers: []const std.http.Header,
+    ) TransportError![]u8 {
+        _ = io;
+        _ = payload;
+        _ = method;
+        const auth = FakeRemint.headerValue(headers, "authorization");
+        if (std.mem.endsWith(u8, url, "/auth/token")) {
+            if (auth.len != 0 and !std.mem.eql(u8, auth, "Bearer ADMIN")) return Error.Unauthorized;
+            return gpa.dupe(u8, "{\"token\":\"minted\"}");
+        }
+        if (std.mem.eql(u8, auth, "Bearer SESSION")) return gpa.dupe(u8, "{\"projects\":[]}");
+        return Error.Unauthorized;
+    }
+};
+
+test "resolveToken classifies the credential as session, admin, or none" {
+    const a = testing.allocator;
+    // A token the probe accepts is an ordinary session token, kept as-is.
+    var r = try resolveToken(a, undefined, "http://s", "SESSION", FakeResolve.run);
+    try testing.expectEqual(CredentialKind.session, r.kind);
+    try testing.expectEqualStrings("SESSION", r.token);
+    a.free(r.token);
+
+    // Refused by the probe but able to mint: proven admin, running on the minted session.
+    r = try resolveToken(a, undefined, "http://s", "ADMIN", FakeResolve.run);
+    try testing.expectEqual(CredentialKind.admin, r.kind);
+    try testing.expectEqualStrings("minted", r.token);
+    a.free(r.token);
+
+    // Nothing supplied: an anonymous mint, so there is no credential to classify.
+    r = try resolveToken(a, undefined, "http://s", null, FakeResolve.run);
+    try testing.expectEqual(CredentialKind.none, r.kind);
+    a.free(r.token);
+
+    // A plain wrong token neither probes nor mints.
+    try testing.expectError(Error.Unauthorized, resolveToken(a, undefined, "http://s", "NOPE", FakeResolve.run));
 }

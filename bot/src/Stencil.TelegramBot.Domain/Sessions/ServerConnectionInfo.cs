@@ -18,5 +18,9 @@ public sealed record ServerConnectionInfo
     /// separately from the live session token so a stale session can be re-minted.</summary>
     public string Credential { get; init; } = "";
 
+    /// <summary>What that credential proved to be at connect time (browser parity: the
+    /// persisted <c>kind</c>) — admin once it minted a session token that worked.</summary>
+    public CredentialKind CredentialKind { get; init; } = CredentialKind.None;
+
     public bool VerifyTls { get; init; } = true;
 }

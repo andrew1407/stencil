@@ -238,7 +238,7 @@ pub fn help() void {
 
     helpSection(a, r, "Connections");
     helpRow(a, r, "/connect <url [token]>", "connect to collaboration servers (token: session or admin, for gated servers)");
-    helpRow(a, r, "/connections", "list connected servers + reachability status");
+    helpRow(a, r, "/connections [admin|session]", "list connected servers + reachability status (filter by credential)");
     helpRow(a, r, "/disconnect [url]", "close a connection (or the most recent)");
     helpRow(a, r, "/reconnect [url]", "re-establish one connection (or all) and the live feed");
     helpRow(a, r, "/projects [url]", "list projects on a server (or all connected servers)");

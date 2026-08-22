@@ -307,7 +307,7 @@ a time). An album with no caption at all adopts only its last photo, with a sing
 
 | Command | Effect |
 |---|---|
-| `/connect <url> [token]` · `/disconnect [url]` · `/connections` | Manage server connections. The URL may be an **invite link** (`<url>#token=<tok>`) — its fragment supplies the token; a token argument still wins over it |
+| `/connect <url> [token]` · `/disconnect [url]` · `/connections [admin\|session]` | Manage server connections. The URL may be an **invite link** (`<url>#token=<tok>`) — its fragment supplies the token; a token argument still wins over it. Each connection remembers what its credential turned out to be (browser parity: an **admin** token can't list projects but mints session tokens, and is proven once a mint-then-validate round succeeds); `/connections` marks those `[admin]` and takes an optional `admin` / `session` filter — tokens themselves are never printed |
 | `/projects [url]` | List server projects as tappable buttons (tap to fetch) |
 | `/fetch <name\|id>` | Load a server project as the working image |
 | `/create [name]` | Publish the current result as a **new** server project |

@@ -840,7 +840,7 @@ test('boot reports an expired session as such — one warning, one clickable toa
 
 test('the connections modal shows expired rows with a labelled Reconnect', () => {
   const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('const urls = cm ? cm.knownUrls : []'), 'expired rows are listed too');
+  assert.ok(src.includes('const known = cm ? cm.knownUrls : []'), 'expired rows are listed too');
   assert.match(src, /expired: 'Session expired — reconnect to sign in again'/);
   assert.ok(src.includes("row.classList.add('connect-expired')"));
   // Mint first, then ask for a token — and the token may be the ADMIN one.
@@ -850,6 +850,10 @@ test('the connections modal shows expired rows with a labelled Reconnect', () =>
   assert.ok(src.includes("mgr().reconnectOne(url, String(token).trim())"));
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
   assert.match(css, /\.conn-status-expired \{ background: #e0a800/, 'amber, not the red of a dead server');
+  // The labelled button wears that amber as a FILL: every other row button is
+  // accent-filled, so an amber outline on an accent face was unreadable.
+  assert.match(css, /\.connect-row\.connect-expired \.connect-reconnect-one:not\(:disabled\) \{[^}]*background: #e0a800/,
+    'the row’s Reconnect is amber-filled to match the row it fixes');
 });
 
 // ── The dead credential must not cost a request on every boot ───────────────

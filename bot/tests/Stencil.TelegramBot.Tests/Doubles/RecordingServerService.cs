@@ -41,6 +41,9 @@ public sealed class RecordingServerService : IServerService
     /// <summary>Projects returned by <see cref="ListProjectsAsync"/> for the context suffix (null = throw like before).</summary>
     public List<ServerProjectInfo>? Projects { get; set; }
 
+    /// <summary>Connections returned by <see cref="ConnectionsAsync"/> (null = throw like before).</summary>
+    public List<ServerConnectionInfo>? Connections { get; set; }
+
     public Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
     {
         if (FailWith is string message)
@@ -109,7 +112,10 @@ public sealed class RecordingServerService : IServerService
         Disconnects.Add(url);
         return Task.FromResult(DisconnectResult);
     }
-    public Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default) => Fail<Task<IReadOnlyList<ServerConnectionInfo>>>();
+    public Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default) =>
+        Connections is null
+            ? Fail<Task<IReadOnlyList<ServerConnectionInfo>>>()
+            : Task.FromResult<IReadOnlyList<ServerConnectionInfo>>(Connections);
     public Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default) => Fail<Task<UserSession>>();
     public Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default) => Fail<Task<ProjectRecord>>();
     public Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default) => Fail<Task<string>>();

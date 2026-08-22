@@ -8,9 +8,10 @@ import {
   upsertConnection, dropConnection, connect, listProjects, collectSharedPins,
   addServer, removeServer, loadConnections, CONNECTIONS_KEY,
   pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
-  parseInviteUrl,
+  parseInviteUrl, isAdminConnection, filterConnections, reconnectServer,
 } from '../src/lib/connections.js';
 
+import { readFileSync } from 'node:fs';
 import { installChromeStub } from './helpers/chromeStub.js';
 
 const installStorageMock = () => {
@@ -274,4 +275,154 @@ test('a stale session token self-heals: re-mint with the stored credential, retr
     'POST /auth/token [adm]',
     'GET /projects [fresh]',
   ]);
+});
+
+// ── credentialKind: which connections hold an ADMIN credential ───────────────
+// A server whose admin token can MINT session tokens but cannot list projects
+// itself — the shape that proves the credential is an admin one.
+const adminGatedFetch = (adminTok, sessionTok = 'sess') => async (url, init = {}) => {
+  const auth = ((init.headers || {}).Authorization || '').replace('Bearer ', '');
+  const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+  if (new URL(url).pathname === '/auth/token')
+    return auth === adminTok ? json(200, { token: sessionTok }) : json(401, { message: 'admin required' });
+  return auth === sessionTok ? json(200, { projects: [] }) : json(401, { message: 'bad token' });
+};
+
+test('connect records credentialKind admin when the mint-then-validate path proves it', async () => {
+  const conn = await connect('http://a:1', 'adm', adminGatedFetch('adm'));
+  assert.equal(conn.credentialKind, 'admin');
+  assert.equal(conn.credential, 'adm');
+  assert.equal(conn.token, 'sess', 'the row runs on the minted session token');
+});
+
+test('connect leaves credentialKind empty for a session token and for anonymous', async () => {
+  // A token that lists projects straight away is an ordinary session token.
+  const session = await connect('http://a:1', 'sess-tok', tokenGatedFetch('sess-tok'));
+  assert.equal(session.credentialKind, '');
+  // No credential at all: the server issued the token itself.
+  const anon = await connect('srv:8090', '', mockFetch());
+  assert.equal(anon.credentialKind, '');
+  assert.equal(anon.credential, '');
+});
+
+test('an admin credential proved mid-session is recorded on the connection', async () => {
+  // Server restarted: 'dead' is refused, the stored credential re-mints and the retry works.
+  const conn = { url: 'http://srv:1', token: 'dead', credential: 'adm' };
+  await listProjects(conn, adminGatedFetch('adm', 'fresh'));
+  assert.equal(conn.token, 'fresh');
+  assert.equal(conn.credentialKind, 'admin');
+});
+
+test('upsertConnection persists credentialKind, defaulting to ""', () => {
+  const list = upsertConnection([], { url: 'http://a', token: 't', credentialKind: 'admin' });
+  assert.equal(list[0].credentialKind, 'admin');
+  assert.equal(upsertConnection([], { url: 'http://b', token: 't' })[0].credentialKind, '');
+  // Anything but the exact 'admin' marker is not admin.
+  assert.equal(upsertConnection([], { url: 'http://c', token: 't', credentialKind: 'ADMIN' })[0].credentialKind, '');
+});
+
+test('addServer persists credentialKind and it survives the re-read', async () => {
+  const mock = installStorageMock();
+  await addServer('http://a:1', 'adm', adminGatedFetch('adm'));
+  await addServer('http://b:2', 'sess-tok', tokenGatedFetch('sess-tok'));
+  const stored = await loadConnections();
+  assert.deepEqual(stored.map((c) => [c.url, c.credentialKind]),
+    [['http://b:2', ''], ['http://a:1', 'admin']]);
+  assert.equal(mock.peek()[CONNECTIONS_KEY][1].credentialKind, 'admin');
+  mock.reset();
+});
+
+test('reconnectServer keeps a known admin kind: only the session token is stored', async () => {
+  const mock = installStorageMock();
+  await addServer('http://a:1', 'adm', adminGatedFetch('adm'));
+  assert.equal((await loadConnections())[0].credentialKind, 'admin');
+  // Re-validating the SESSION token can never re-prove the admin credential behind it.
+  const after = await reconnectServer('http://a:1', adminGatedFetch('adm'));
+  assert.equal(after[0].credentialKind, 'admin');
+  assert.equal((await loadConnections())[0].credentialKind, 'admin');
+  mock.reset();
+});
+
+test('isAdminConnection tolerates rows saved before the field existed', () => {
+  assert.equal(isAdminConnection({ url: 'http://a', token: 't' }), false);
+  assert.equal(isAdminConnection({ url: 'http://a', credentialKind: '' }), false);
+  assert.equal(isAdminConnection({ url: 'http://a', credentialKind: 'admin' }), true);
+  assert.equal(isAdminConnection(null), false);
+});
+
+test('filterConnections splits the list three ways', () => {
+  const list = [
+    { url: 'http://a', credentialKind: 'admin' },
+    { url: 'http://b', credentialKind: '' },
+    { url: 'http://c' },                          // legacy row: no field
+  ];
+  assert.deepEqual(filterConnections(list, 'all').map((c) => c.url), ['http://a', 'http://b', 'http://c']);
+  assert.deepEqual(filterConnections(list, 'admin').map((c) => c.url), ['http://a']);
+  assert.deepEqual(filterConnections(list, 'other').map((c) => c.url), ['http://b', 'http://c']);
+  // Default + junk inputs behave like 'all' / an empty list.
+  assert.equal(filterConnections(list).length, 3);
+  assert.equal(filterConnections(list, 'nonsense').length, 3);
+  assert.deepEqual(filterConnections(null, 'admin'), []);
+});
+
+// ── The options page wires the kind cue + filter ──
+test('options page: golden admin outline and the three-way kind filter', () => {
+  const html = readFileSync(new URL('../src/options/options.html', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  // Gold outline, the same #f5c518 cue a server-backed pin wears.
+  assert.match(html, /\.pin-row\.conn-admin\s*\{[^}]*#f5c518/);
+  assert.match(js, /conn-admin/);
+  assert.match(js, /can mint session tokens/, 'the row explains what admin means');
+  // Three .chk accent pills, one choice (radios), All checked by default.
+  for (const v of ['all', 'admin', 'other'])
+    assert.match(html, new RegExp(`<input type="radio" name="conn-kind" value="${v}"`));
+  assert.match(html, /value="all" checked/);
+  assert.match(js, /filterConnections\(all, connKind\(\)\)/, 'the render filters the list');
+});
+
+// ── The connection row is styled as a sibling of the pinned-image rows ───────
+// Source-level pins: the row markup and the CSS it leans on live in two files with no
+// DOM to assert against under `node --test`, so the contract is checked as text.
+const optionsHtml = () => readFileSync(new URL('../src/options/options.html', import.meta.url), 'utf8');
+// Just the connections half of options.js — the pins renderer above it has its own buttons.
+const connectionsJs = () => {
+  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  return js.slice(js.indexOf('── Server connections'));
+};
+
+test('options page: removing a connection uses the destructive trash glyph', () => {
+  const js = connectionsJs();
+  assert.match(js, /remove\.innerHTML = icon\('trash'/, 'a delete uses the trash icon, not an x');
+  assert.doesNotMatch(js, /remove\.innerHTML = icon\('x'/);
+  assert.match(js, /remove\.className = 'pin-btn danger'/, 'it keeps the danger colour');
+  assert.match(js, /remove\.title = 'Remove connection/);
+});
+
+test('options page: row action buttons read as enabled at rest, disabled only when disabled', () => {
+  const html = optionsHtml();
+  // Resting face + border are accent-tinted (not the flat panel/line that read as greyed).
+  assert.match(html, /\.pin-btn \{[^}]*background:color-mix\(in srgb, var\(--btn-ink\) \d+%, var\(--panel\)\)/);
+  assert.match(html, /\.pin-btn \{[^}]*color:var\(--btn-ink\)/);
+  assert.match(html, /\.pin-btn \{[^}]*border:1px solid color-mix\(in srgb, var\(--btn-ink\)/);
+  // Dark borrows the lighter accent shade, like the .chk pills in lib/theme.css.
+  assert.match(html, /:root\[data-theme="dark"\] \{ --btn-ink:var\(--accent-2\)/);
+  // Hover is the enhancement (full accent fill) and never fires on a disabled button.
+  assert.match(html, /\.pin-btn:hover:not\(:disabled\) \{[^}]*background:var\(--accent\)/);
+  assert.match(html, /\.pin-btn:disabled \{[^}]*opacity:\.45[^}]*color:var\(--muted\)/);
+});
+
+test('options page: the connection row is a .pin-row sibling with its own padding', () => {
+  assert.match(connectionsJs(), /li\.className = 'pin-row conn-row'/);
+  const html = optionsHtml();
+  assert.match(html, /\.pin-row\.conn-row \{[^}]*padding:/, 'the thumb-less row sets its own padding');
+  assert.match(html, /\.pin-row:hover \{[^}]*border-color:/, 'rows share one hover cue');
+});
+
+test('options page: the kind pills are compact and the connect row wraps as a unit', () => {
+  const html = optionsHtml();
+  assert.match(html, /<div class="row conn-bar">/);
+  assert.match(html, /\.row\.conn-bar \{[^}]*flex-wrap:wrap/, 'the pills drop to their own line, not onto the buttons');
+  // Popup format-pill sizing (popup.css .formats .chk), right-aligned on the row.
+  assert.match(html, /\.conn-filters \.chk \{[^}]*font-size:11px/);
+  assert.match(html, /\.conn-filters \{[^}]*margin-left:auto/);
 });
