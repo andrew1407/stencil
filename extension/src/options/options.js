@@ -8,7 +8,9 @@ import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY 
 import { listModels } from '../llm/llmClient.js';
 import { serverTokenFor } from '../llm/llmSurface.js';
 import { initTooltips } from '../lib/controlTooltip.js';
+import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
+import { pinToWidestOption } from '../lib/fitWidest.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
 // up by lib/accent.js) so it applies flash-free across the extension's pages. It
@@ -294,7 +296,7 @@ const renderPinRow = (pin, serverSources) => {
   const name = document.createElement('div');
   name.className = 'pin-name';
   name.textContent = pin.name || pin.source;
-  name.title = pin.source;
+  setTip(name, pin.source);
   const sub = document.createElement('div');
   sub.className = 'pin-sub';
   const kindEl = document.createElement('span');
@@ -303,7 +305,7 @@ const renderPinRow = (pin, serverSources) => {
   const siteEl = document.createElement('span');
   siteEl.className = 'site';
   siteEl.textContent = hostLabel(pin.site);
-  siteEl.title = pin.site;
+  setTip(siteEl, pin.site);
   sub.append(kindEl, siteEl);
 
   // Keyword chips + an inline editor (comma/space separated). Saved via setPinKeywords.
@@ -349,12 +351,12 @@ const renderPinRow = (pin, serverSources) => {
   actions.className = 'pin-actions';
   const open = document.createElement('button');
   open.className = 'pin-btn';
-  open.title = 'Open in new tab';
+  setTip(open, 'Open in new tab', { label: true });
   open.innerHTML = icon('external', { size: 15 });
   open.addEventListener('click', () => { if (pin.source) chrome.tabs.create({ url: pin.source }); });
   const unpin = document.createElement('button');
   unpin.className = 'pin-btn danger';
-  unpin.title = 'Unpin';
+  setTip(unpin, 'Unpin', { label: true });
   unpin.innerHTML = icon('x', { size: 15 });
   unpin.addEventListener('click', async () => {
     // A DELETE, not a filter: the row scatters (the heavier effect) and leaves the DOM
@@ -416,9 +418,9 @@ const renderPins = async () => {
   const clearScoped = siteSel.value !== 'all';
   const clearCount = clearScoped ? matchPinsForSite(pins, siteSel.value).length : pins.length;
   pinClearBtn.textContent = clearScoped ? 'Clear site' : 'Clear all';
-  pinClearBtn.title = clearScoped
+  setTip(pinClearBtn, clearScoped
     ? `Remove all pinned images for ${hostLabel(siteSel.value)}`
-    : 'Remove every pinned image, on all sites';
+    : 'Remove every pinned image, on all sites');
   pinClearBtn.disabled = clearCount === 0;
 
   // Storage filter (which server a pin is stored on) — populated from connected servers,
@@ -572,7 +574,7 @@ const renderConnections = async () => {
     const li = document.createElement('li');
     // Same .pin-row shell as the pinned-image rows; .conn-row carries the thumb-less padding.
     li.className = 'pin-row conn-row' + (isAdminConnection(c) ? ' conn-admin' : '');
-    if (isAdminConnection(c)) li.title = 'Admin connection — its credential can mint session tokens';
+    if (isAdminConnection(c)) setTip(li, 'Admin connection — its credential can mint session tokens');
     li.dataset.url = c.url;   // the leave/materialize animations find the row by url
     const info = document.createElement('div');
     info.className = 'pin-info';
@@ -581,42 +583,45 @@ const renderConnections = async () => {
     // Status dot: yellow while we probe, green if reachable, red if not.
     const dot = document.createElement('span');
     dot.className = 'conn-status conn-status-connecting';
-    dot.title = 'Checking…';
+    dot.setAttribute('role', 'img');   // a bare <span> may not be named; the state is information
+    setTip(dot, 'Checking…', { label: true });
     name.append(dot);
     name.insertAdjacentHTML('beforeend', icon('server', { size: 14 }));
     const label = document.createElement('span');
     label.className = 'conn-label';
     label.textContent = hostLabel(c.url);
     name.append(label);
-    if (isAdminConnection(c)) {
-      const badge = document.createElement('span');
-      badge.className = 'pin-badge-server conn-badge-admin';
-      badge.textContent = 'admin';
-      badge.title = 'Admin credential — this connection can mint session tokens';
-      name.append(badge);
-    }
-    name.title = c.url;
+    setTip(name, c.url);
     info.appendChild(name);
     // Probe reachability (auth-checked via GET /projects) and recolor the dot.
     listProjects(c)
-      .then(() => { dot.className = 'conn-status conn-status-connected'; dot.title = 'Connected'; })
-      .catch(() => { dot.className = 'conn-status conn-status-error'; dot.title = 'Not reachable'; });
+      .then(() => { dot.className = 'conn-status conn-status-connected'; setTip(dot, 'Connected', { label: true }); })
+      .catch(() => { dot.className = 'conn-status conn-status-error'; setTip(dot, 'Not reachable', { label: true }); });
+    // The admin badge is a row child, NOT part of .conn-name: it belongs beside the
+    // action buttons, and out of the name it can't eat the host label's ellipsis budget.
+    let badge = null;
+    if (isAdminConnection(c)) {
+      badge = document.createElement('span');
+      badge.className = 'pin-badge-server conn-badge-admin';
+      badge.textContent = 'admin';
+      setTip(badge, 'Admin credential — this connection can mint session tokens');
+    }
     const actions = document.createElement('div');
     actions.className = 'pin-actions';
     const reconnect = document.createElement('button');
     reconnect.className = 'pin-btn';
-    reconnect.title = 'Reconnect (re-validate / reissue the token)';
+    setTip(reconnect, 'Reconnect (re-validate / reissue the token)', { label: true });
     reconnect.innerHTML = icon('refresh', { size: 15 });
     reconnect.addEventListener('click', async () => {
       dot.className = 'conn-status conn-status-connecting';
-      dot.title = 'Reconnecting…';
+      setTip(dot, 'Reconnecting…', { label: true });
       try { await reconnectServer(c.url); } catch { /* stays red on re-probe */ }
       renderConnections();
     });
     const remove = document.createElement('button');
     remove.className = 'pin-btn danger';
     // A trash glyph, not an x — this deletes the connection and its saved token.
-    remove.title = 'Remove connection — forgets its saved token';
+    setTip(remove, 'Remove connection — forgets its saved token', { label: true });
     remove.innerHTML = icon('trash', { size: 15 });
     remove.addEventListener('click', async () => {
       // The row scatters before the list is rebuilt without it (browser connect
@@ -632,7 +637,7 @@ const renderConnections = async () => {
       await settle();
     });
     actions.append(reconnect, remove);
-    li.append(info, actions);
+    li.append(info, ...(badge ? [badge] : []), actions);
     connListEl.appendChild(li);
   }
   connTransition.end({ skipEnter: materializingUrl ? [materializingUrl] : [] });
@@ -710,3 +715,9 @@ initTooltips();
 // is long enough to want its filter input.
 for (const el of document.querySelectorAll('select'))
   enhanceSelect(el, { search: el.id === 'page' });
+
+// The search-mode list is a fixed three-label set, and swapping its label must not
+// resize the control and shove the rest of the wrapping filter row — so it is pinned to
+// its own widest label (lib/fitWidest.js). The site/storage lists beside it carry
+// arbitrary hostnames and size to whatever they show.
+pinToWidestOption(pinSearchModeEl);

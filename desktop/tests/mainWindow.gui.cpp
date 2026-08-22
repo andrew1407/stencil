@@ -19,6 +19,7 @@
 #include "../src/app/scrollReveal.hpp"
 #include "fileStore.hpp"
 #include "connectDialog.hpp"
+#include "../src/support/appTooltip.hpp"
 #include "serverClient.hpp"
 #include "llmSettingsForm.hpp"
 #include "mediaLoader.hpp"
@@ -267,6 +268,14 @@ class MainWindowGuiTest : public QObject {
   Q_OBJECT
   QString png_;
 
+  // The suite runs with STENCIL_NO_ANIM=1; a case that drives real motion turns it off for
+  // its own scope. Hold the returned guard for as long as the animation must run.
+  [[nodiscard]] auto withMotion() {
+    const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
+    qunsetenv("STENCIL_NO_ANIM");
+    return qScopeGuard([noAnim] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
+  }
+
   // Build a shown MainWindow with our test image loaded; returns its live canvas.
   CanvasWidget* openLoaded(MainWindow& win) {
     win.resize(1000, 760);
@@ -448,6 +457,163 @@ class MainWindowGuiTest : public QObject {
     // tooltip has no keycap to draw and the chord does nothing.
     QCOMPARE(win.actStencilLiveSync_->shortcut(), QKeySequence(win.hotkey("toggleLiveSync", "Ctrl+Shift+Y")));
     QCOMPARE(win.actDeleteProjectFile_->shortcut(), QKeySequence(win.hotkey("deleteProject", "Ctrl+Shift+Backspace")));
+  }
+
+  // ── the fading control tooltip (support/appTooltip.hpp) ──
+  // A shown, enabled, tooltip-carrying toolbar button, plus the app's live tooltip panel.
+  QToolButton* tipCarrier(MainWindow& win) {
+    for (QToolButton* b : win.findChildren<QToolButton*>())
+      if (b->isVisible() && b->isEnabled() && !b->toolTip().isEmpty()) return b;
+    return nullptr;
+  }
+  static void sendToolTipTo(QWidget* w) {
+    const QPoint local(4, 4);
+    QHelpEvent ev(QEvent::ToolTip, local, w->mapToGlobal(local));
+    QApplication::sendEvent(w, &ev);
+  }
+
+  // Tooltips FADE in and out (browser #app-tooltip: 90 ms) instead of snapping. Qt's own
+  // QTipLabel cannot be animated, so QEvent::ToolTip is taken over — and the wake-up delay,
+  // the content and the placement all have to survive that swap.
+  void tooltipFadesInAndOut() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    win.raise();
+    win.activateWindow();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QToolButton* btn = tipCarrier(win);
+    QVERIFY2(btn, "no shown toolbar button with a tooltip");
+    stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
+    QVERIFY2(tip, "the app tooltip was never installed");
+    QVERIFY(!tip->isVisible());
+
+    // Park the pointer ON the control: the panel's anti-stranding heartbeat retires a
+    // tooltip whose control the pointer has left, and here it must not.
+    QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
+    sendToolTipTo(btn);
+    QVERIFY2(tip->isVisible(), "the tooltip did not take over QEvent::ToolTip");
+    QCOMPARE(tip->owner(), static_cast<QWidget*>(btn));
+    QVERIFY2(tip->windowOpacity() < 0.99, "it snapped in at full opacity");
+    QTRY_COMPARE_WITH_TIMEOUT(tip->windowOpacity(), 1.0, 1500);   // …and rose to solid
+    QTest::qWait(300);
+    QVERIFY2(tip->isVisible(), "it retired while the pointer was still on its control");
+    // Placed off the cursor and kept on screen.
+    const QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
+    QVERIFY2(screen.intersects(tip->geometry()), "the tooltip was placed off screen");
+    QLabel* body = tip->findChild<QLabel*>();
+    QVERIFY(body && !body->text().isEmpty());
+
+    // Leaving the control fades it OUT — still visible while it goes, gone at the end.
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(btn, &leave);
+    QVERIFY2(tip->fadingOut(), "it vanished instead of fading");
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 1500);
+
+    // Reduced motion: shown solid at once, hidden at once — the same end states.
+    qputenv("STENCIL_NO_ANIM", "1");
+    sendToolTipTo(btn);
+    QVERIFY(tip->isVisible());
+    QCOMPARE(tip->windowOpacity(), 1.0);
+    QApplication::sendEvent(btn, &leave);
+    QVERIFY2(!tip->isVisible(), "reduced motion still played the fade-out");
+    qunsetenv("STENCIL_NO_ANIM");
+    beat();
+  }
+
+  // A fast pointer sweep must never STRAND a tooltip: whatever happened to the control it
+  // described — hidden, disabled, or simply left behind without a Leave we saw — the panel
+  // goes on its own.
+  void fastPointerSweepStrandsNoTooltip() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    win.raise();
+    win.activateWindow();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QToolButton* btn = tipCarrier(win);
+    QVERIFY(btn);
+    stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
+    QVERIFY(tip);
+
+    // Shown for a control the pointer is nowhere near — the sweep already moved on, and no
+    // Leave was ever delivered for it.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    sendToolTipTo(btn);
+    QVERIFY(tip->isVisible());
+    // The cursor is nowhere near it (offscreen QPA parks it at the origin, and no Leave is
+    // synthesised) — the heartbeat is the only thing that can clear this.
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 3000);
+    QVERIFY(!tip->owner());
+    beat();
+  }
+
+  // The keycaps a tooltip is showing SHAKE when their shortcut is pressed — a brief,
+  // non-repeating "yes, that one" — instead of the tooltip simply being dismissed by the
+  // key. It settles back exactly where it was placed.
+  void pressingAShortcutShakesTheKeycapsOnScreen() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    win.raise();
+    win.activateWindow();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // A live, shortcut-carrying control whose tooltip therefore has keycaps to shake. A
+    // CHECKABLE one: sending the chord below really does fire the shortcut, and a toggle
+    // just flips (a dialog-opening action would park this test in a modal loop).
+    QToolButton* btn = nullptr;
+    for (QToolButton* b : win.findChildren<QToolButton*>()) {
+      if (!b->isVisible() || !b->isEnabled() || b->toolTip().isEmpty()) continue;
+      QAction* a = b->defaultAction();
+      if (a && a->isEnabled() && a->isCheckable() && !a->shortcut().isEmpty()) { btn = b; break; }
+    }
+    QVERIFY2(btn, "no enabled checkable shortcut-carrying toolbar button");
+    const QKeySequence seq = btn->defaultAction()->shortcut();
+    stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
+    QVERIFY(tip);
+
+    // Park the pointer ON the control so the anti-stranding heartbeat leaves it up.
+    QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
+    sendToolTipTo(btn);
+    QTRY_COMPARE_WITH_TIMEOUT(tip->windowOpacity(), 1.0, 1500);
+    const QPoint home = tip->pos();
+    QCOMPARE(tip->shakeOffset(), 0);
+
+    const QKeyCombination kc = seq[0];
+    QKeyEvent press(QEvent::KeyPress, kc.key(), kc.keyboardModifiers());
+    QApplication::sendEvent(win.canvas_, &press);
+    QVERIFY2(tip->shaking(), "the keycaps did not react to their own shortcut");
+    QVERIFY2(tip->isVisible(), "…and the key must not simply dismiss the tooltip");
+    // It really MOVES, and it is one pass — it settles back on its placement, not off it.
+    bool moved = false;
+    for (int i = 0; i < 30 && !moved; ++i) {
+      QTest::qWait(10);
+      moved = tip->shakeOffset() != 0;
+    }
+    QVERIFY2(moved, "the shake never left its resting position");
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::kShakeMs + 2000);
+    QCOMPARE(tip->pos(), home);
+    QCOMPARE(tip->shakeOffset(), 0);
+
+    // …and ANY other key still dismisses — Escape included. The shake acknowledges a
+    // shortcut; it is not a way to pin the tooltip open.
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(win.canvas_, &esc);
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 1500);
+
+    // Reduced motion: no shake at all, and the tooltip has not budged.
+    qputenv("STENCIL_NO_ANIM", "1");
+    sendToolTipTo(btn);
+    QVERIFY(tip->isVisible());
+    const QPoint restingPos = tip->pos();
+    QApplication::sendEvent(win.canvas_, &press);
+    QVERIFY2(!tip->shaking(), "reduced motion still shook the keycaps");
+    QCOMPARE(tip->pos(), restingPos);
+    qunsetenv("STENCIL_NO_ANIM");
+    beat();
   }
 
   // A dead icon says so under the pointer — the browser's `cursor: not-allowed` on a
@@ -2227,6 +2393,92 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(mode->text(),
              canvas->drawMode() == CanvasWidget::DrawMode::Rect ? QString("Rect")
                                                                 : QString("Line"));
+    beat();
+  }
+
+  // The Line/Rect toggle's two faces must read as SIBLINGS — one drawing vocabulary, not a
+  // stroked PENCIL (an edit verb, and the rename affordance's own glyph) beside a solid
+  // slab. Both are now outlines of the same weight on the same grid.
+  void drawModeGlyphsAreSiblings() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QToolButton* mode = win.drawModeBtn_;
+    QVERIFY(mode);
+    const char* kGlyph = stencil::gui::kFaceGlyphProperty;
+    QCOMPARE(mode->property(kGlyph).toString(), QString("line-dots"));
+    // The glyph is RECORDED when the swap settles, so let it land before reading it.
+    mode->click();
+    QTRY_COMPARE(mode->text(), QString("Rect"));
+    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("rect"));
+    mode->click();
+    QTRY_COMPARE(mode->text(), QString("Line"));
+    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("line-dots"));
+
+    // …and they really are the same KIND of picture. An OUTLINE is hollow where a filled
+    // slab is solid, and the two faces carry a comparable amount of ink — which is what
+    // "siblings" means here, and what a pencil-beside-a-slab pair failed.
+    const auto glyph = [](const QString& name) {
+      return stencil::gui::themedIcon(name, QColor(Qt::black), 32, false, 1.0)
+          .pixmap(32, 32).toImage().convertToFormat(QImage::Format_ARGB32);
+    };
+    const auto ink = [](const QImage& im) {
+      int on = 0;
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x)
+          if (qAlpha(im.pixel(x, y)) > 60) on++;
+      return double(on) / (im.width() * im.height());
+    };
+    // Well inside the rectangle, and well off both the strokes and the line's diagonal.
+    const auto solidInside = [](const QImage& im) {
+      return qAlpha(im.pixel(im.width() * 3 / 10, im.height() * 3 / 10)) > 60;
+    };
+    const QImage line = glyph("line-dots"), rect = glyph("rect"), slab = glyph("rect-filled");
+    QVERIFY2(solidInside(slab), "rect-filled is the SLAB this pair must not be");
+    QVERIFY2(!solidInside(rect), "the rect face is an outline");
+    QVERIFY2(!solidInside(line), "…and so is the line face");
+    const double li = ink(line), ri = ink(rect);
+    QVERIFY2(qMax(li, ri) < 2.0 * qMin(li, ri),
+             qPrintable(QString("the pair is lopsided: line %1 vs rect %2").arg(li).arg(ri)));
+    beat();
+  }
+
+  // The two Draw toggles are pinned so a label swap can't resize them and shove the row —
+  // but the pin must be a MEASUREMENT of the widest label, never a generous guess, or the
+  // short face ("Start", "Line") sits in a pool of dead space. Font/locale-independent:
+  // the check re-measures rather than naming a number.
+  void drawTogglesAreNoWiderThanTheirWidestLabel() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QTest::qWait(200);   // the pin is taken once the toolbar is built and shown
+
+    const auto naturalWidest = [](QToolButton* b, const QStringList& faces) {
+      const QString keep = b->text();
+      int widest = 0;
+      for (const QString& f : faces) {
+        b->setText(f);
+        widest = qMax(widest, b->sizeHint().width());
+      }
+      b->setText(keep);
+      return widest;
+    };
+    struct Case { QToolButton* btn; QStringList faces; const char* what; };
+    const QList<Case> cases = {
+        {win.startDrawBtn_, {QStringLiteral("Start"), QStringLiteral("Stop")}, "Start/Stop"},
+        {win.drawModeBtn_, {QStringLiteral("Line"), QStringLiteral("Rect")}, "Line/Rect"}};
+    for (const Case& c : cases) {
+      QVERIFY(c.btn);
+      QVERIFY2(c.btn->minimumWidth() == c.btn->maximumWidth(),
+               qPrintable(QString("%1: the width is not pinned at all").arg(c.what)));
+      const int want = naturalWidest(c.btn, c.faces);
+      QVERIFY2(c.btn->width() >= want,
+               qPrintable(QString("%1: pinned %2 < widest label %3 — the face would be clipped")
+                              .arg(c.what).arg(c.btn->width()).arg(want)));
+      QVERIFY2(c.btn->width() <= want,
+               qPrintable(QString("%1: pinned %2 vs widest label %3 — %4px of dead space")
+                              .arg(c.what).arg(c.btn->width()).arg(want).arg(c.btn->width() - want)));
+    }
     beat();
   }
 
@@ -7654,6 +7906,7 @@ class MainWindowGuiTest : public QObject {
   // appear underneath the falling particles, which reads as the clear happening twice.
   // It is held back for the length of the animation, and cannot be clicked while hidden.
   void clearHoldsTheIdleHintUntilTheDustLands() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
@@ -7684,6 +7937,7 @@ class MainWindowGuiTest : public QObject {
   // than appearing all at once, with the real canvas held back until the motes land.
   // Any fresh image, not just a dropped one — a created blank is covered below.
   void droppedImageAssemblesOutOfDust() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
     win.show();
@@ -7715,6 +7969,7 @@ class MainWindowGuiTest : public QObject {
   // A blank image is an image APPEARING, so it assembles like any other — it used to pop
   // into place while a dropped one animated, which is the inconsistency that was reported.
   void createdBlankImageAssemblesToo() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
     win.show();
@@ -7730,6 +7985,75 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
                              stencil::gui::DisintegrateOverlay::kMs + 2000);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, 2000);
+    beat();
+  }
+
+  // REGRESSION: REOPENING a saved project put its picture on screen with no arrival at all —
+  // the everyday way an image appears, and the one path that never played. Every user-facing
+  // "a picture lands on the canvas" now goes through playImageArrival.
+  void reopenedProjectAssemblesLikeAFreshImage() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    // Let the OPEN's own arrival finish, so what we see next belongs to the reopen.
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    const QString id = win.activeProjectId_;
+    QVERIFY2(!id.isEmpty(), "the loaded image was adopted as a local project");
+
+    QVERIFY(win.loadProjectIntoCanvas(id));
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(canvas->graphicsEffect()))
+      QVERIFY2(fx->opacity() < 0.01, "the real canvas waits behind the motes");
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, 2000);
+    beat();
+  }
+
+  // …but a REBIND is not an arrival: the same picture is already on screen (a move-to-local
+  // relinks the open editor), so it must not flourish.
+  void rebindingTheOpenProjectDoesNotReplayTheArrival() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+
+    QVERIFY(win.loadProjectIntoCanvas(win.activeProjectId_, /*animate=*/false));
+    QTest::qWait(150);
+    QVERIFY2(!win.findChild<QWidget*>(kDust), "a rebind is not an image appearing");
+    QVERIFY2(!canvas->graphicsEffect(), "…and it must never hide the canvas");
+    beat();
+  }
+
+  // Reduced motion: the image is simply THERE. The bug this pins is not the missing dust —
+  // it is the opacity effect, which used to stay on at 0 and leave the canvas blank for the
+  // whole 900 ms flight, i.e. "nothing plays and then it pops".
+  void reducedMotionShowsTheImageAtOnce() {
+    qputenv("STENCIL_NO_ANIM", "1");   // the suite's own default; set explicitly for the reader
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QTest::qWait(120);
+    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
+             "no dust under reduced motion");
+    QVERIFY2(!canvas->graphicsEffect(), "the end state, immediately: a visible canvas");
+
+    // The clear counterpart lands on its end state too — no scatter, and the empty-canvas
+    // invitation is back at once instead of waiting out an animation that never ran.
+    QAction* clear = actionByText(&win, "Clear Project");
+    QVERIFY(clear);
+    dismissModal("Yes");
+    clear->trigger();
+    QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
+    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
+             "no dust on the clear either");
+    QVERIFY2(!canvas->idleHintHidden(), "the invitation is not held back by a missing animation");
     beat();
   }
 

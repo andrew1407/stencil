@@ -95,9 +95,12 @@ test('newTemporary only animates when there was an image to clear', () => {
   assert.ok(guard, 'newTemporary no longer records whether an image was present');
   assert.match(guard, /this\.app\.image/, `the guard reads ${guard}, not the image`);
   // Both halves of the clear motion sit behind it: the dust and the empty-state hold.
-  const anim = body.match(/if \(ctx && hadImage\) \{([\s\S]*?)\n    \}/)?.[1] || '';
-  assert.match(anim, /ghostOut/, 'the dust is no longer guarded');
-  assert.match(anim, /canvas-clearing/, 'the empty-state hold is no longer guarded');
+  // The hold is behind ghostOut's own verdict too — under reduced motion no dust falls,
+  // and holding the emptied editor back anyway just blanks it for a second.
+  const cond = body.match(/if \(ctx && hadImage && (.+)\) \{([\s\S]*?)\n    \}/);
+  assert.ok(cond, 'the dust is no longer guarded');
+  assert.match(cond[1], /ghostOut\(this\.app\.canvas\)/, 'the hold waits on the dust actually playing');
+  assert.match(cond[2], /canvas-clearing/, 'the empty-state hold is no longer guarded');
 });
 
 // Collapsed to its rail, the points/lines panel shows one chevron. As a `display: block`

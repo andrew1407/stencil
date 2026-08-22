@@ -35,7 +35,7 @@ test('formatListFor without undetectable items still offers etc, marked absent',
 test('formatPillsHtml: all pills start checked; absent ones are dimmed and titled', () => {
   const html = formatPillsHtml(['png', 'gif'], new Set(['png']));
   assert.match(html, /<label class="chk"><input type="checkbox" value="png" checked>PNG<\/label>/);
-  assert.match(html, /<label class="chk absent" title="Not present on this page"><input type="checkbox" value="gif" checked>GIF<\/label>/);
+  assert.match(html, /<label class="chk absent" data-title="Not present on this page"><input type="checkbox" value="gif" checked>GIF<\/label>/);
 });
 
 // ── Stub DOM: the f-* controls + a pill box that parses its own innerHTML ──

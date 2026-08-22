@@ -78,6 +78,7 @@
 #include <QGraphicsOpacityEffect>
 
 #include "../support/themeSwapOverlay.hpp"  // palette-swap wipe
+#include "../support/appTooltip.hpp"           // the fading control tooltip
 #include "../support/disintegrateOverlay.hpp"  // the canvas scatters when cleared
 #include "../support/shimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
@@ -542,7 +543,7 @@ namespace stencil::gui {
               remoteSync_->startRemotePoll();
               updateProjectTitle();
             },
-            [this](const QString& id) { loadProjectIntoCanvas(id); },
+            [this](const QString& id, bool animate) { loadProjectIntoCanvas(id, animate); },
             [this] { refreshActions(); refreshDockMenu(); },
         });
 
@@ -552,6 +553,10 @@ namespace stencil::gui {
     buildToolbar();
     buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)
     bindRevealAnchors();    // every action records where its dialog should fly from
+
+    // Control tooltips FADE (support/appTooltip.hpp) instead of Qt's snapping QTipLabel.
+    // App-wide and idempotent, so a second window installs nothing new.
+    installAppTooltips();
 
     // ── wiring ── (after buildToolbar so the referenced widgets/actions exist)
     wireSignals();
@@ -3659,7 +3664,7 @@ namespace stencil::gui {
     return out;
   }
 
-  bool MainWindow::loadProjectIntoCanvas(const QString& id) {
+  bool MainWindow::loadProjectIntoCanvas(const QString& id, bool animate) {
     Project* pr = findProject(id.toStdString());
     if (!pr) return false;
     {
@@ -3690,6 +3695,7 @@ namespace stencil::gui {
     if (settings_.saveChatsWithProject) restoreChatFromDoc(pr->chat);
     refreshActions();
     fitToWindow();   // fit the opened project to the window (matches the browser)
+    if (animate) playImageArrival();   // a reopened project's picture APPEARS, like any other
     notify_->success(
         QString("Opened \"%1\"").arg(support::shortName(QString::fromStdString(pr->meta.name))));
     return true;
@@ -3842,8 +3848,13 @@ namespace stencil::gui {
         filterDirty_ = false;   // we just adopted the server/project filter
         refreshActions();
         // Fit the freshly-opened image to the window (matches the browser's switchToProject).
-        // Skipped for a silent live-poll reload so a peer's edit doesn't reset zoom/pan.
-        if (!silent) fitToWindow();
+        // Skipped for a silent live-poll reload so a peer's edit doesn't reset zoom/pan —
+        // which is also why the dust arrival is skipped there: a peer's stroke landing is
+        // an edit, not an image appearing.
+        if (!silent) {
+          fitToWindow();
+          playImageArrival();
+        }
         if (link) remoteSync_->startRemotePoll();   // live co-edit: watch for peer changes
         // Chat persistence (§12): a linked, user-initiated open pulls the
         // project's server-stored chat (silent live-poll reloads must not stomp
@@ -4286,6 +4297,7 @@ namespace stencil::gui {
       }
     }
     fitToWindow();
+    playImageArrival();   // a .stencil open is a fresh image landing (browser: ghostIn)
   }
 
   // Serialize the current project to .stencil bytes (ORIGINAL image + layout + metadata + theme); shared by Save Project As and live-sync auto-save. Mirrors browser ExportService.saveProjectFile.
@@ -4627,6 +4639,10 @@ namespace stencil::gui {
   // must never stay on a repainting canvas); snapshot BEFORE the effect goes on.
   void MainWindow::playImageArrival() {
     if (!canvas_) return;
+    // Reduced motion: the image is simply THERE. Not just "no dust" — the opacity effect
+    // has to go too, or the canvas sits blank for the whole flight and the arrival reads
+    // as the image failing to load.
+    if (support::motionReduced()) { canvas_->setGraphicsEffect(nullptr); return; }
 
     const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
         && !canvas_->visibleRegion().boundingRect().isEmpty()
@@ -4635,11 +4651,16 @@ namespace stencil::gui {
     auto* fx = new QGraphicsOpacityEffect(canvas_);
     fx->setOpacity(0.0);
     canvas_->setGraphicsEffect(fx);
+    // Only ever tear down OUR effect: two images arriving inside one flight (open, then
+    // open again) would otherwise let the first timer reveal the second one's canvas.
+    const QPointer<QGraphicsOpacityEffect> mine(fx);
+    const auto done = [this, mine] {
+      if (canvas_ && canvas_->graphicsEffect() == mine) canvas_->setGraphicsEffect(nullptr);
+    };
     if (dust) {
       // Hidden for the whole flight, then simply revealed — the motes have already drawn
       // it into place, so fading it up as well would double the arrival.
-      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
-                         [this] { if (canvas_) canvas_->setGraphicsEffect(nullptr); });
+      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_, done);
       return;
     }
     // No dust to play (a canvas not on screen yet, or too small to tile): fall back to
@@ -4651,8 +4672,7 @@ namespace stencil::gui {
     anim->setEasingCurve(QEasingCurve::OutCubic);
     connect(anim, &QVariantAnimation::valueChanged, canvas_,
             [fx](const QVariant& v) { fx->setOpacity(v.toDouble()); });
-    connect(anim, &QVariantAnimation::finished, canvas_,
-            [this] { if (canvas_) canvas_->setGraphicsEffect(nullptr); });
+    connect(anim, &QVariantAnimation::finished, canvas_, done);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
@@ -5166,7 +5186,8 @@ namespace stencil::gui {
     // The image scatters (browser ghostOut): snapshot BEFORE clearImage repaints.
     // Hosted on the scroll VIEWPORT and confined to visibleRegion() — a
     // window-parented overlay spilled across the panel and the chat dock.
-    if (canvas_ && scroll_ && scroll_->viewport()) {
+    const bool reduced = support::motionReduced();
+    if (!reduced && canvas_ && scroll_ && scroll_->viewport()) {
       const QRect vis = canvas_->visibleRegion().boundingRect();
       if (!vis.isEmpty())
         DisintegrateOverlay::overRect(canvas_, vis, scroll_->viewport(),
@@ -5176,10 +5197,13 @@ namespace stencil::gui {
     updateStatusIdle();   // the last hovered pixel must not outlive the image it named
     // …and keep the empty-canvas invitation off screen until the dust has landed, or the
     // "click to create a blank image" box appears underneath the falling particles and the
-    // clear reads as happening twice (browser parity: .canvas-clearing).
-    canvas_->setIdleHintHidden(true);
-    QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
-                       [this] { if (canvas_) canvas_->setIdleHintHidden(false); });
+    // clear reads as happening twice (browser parity: .canvas-clearing). With no dust to
+    // wait for there is nothing to hide it from, so it stays put.
+    if (!reduced) {
+      canvas_->setIdleHintHidden(true);
+      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
+                         [this] { if (canvas_) canvas_->setIdleHintHidden(false); });
+    }
     refreshActions();
     saveSessionNow();  // persist the cleared state so it doesn't restore on next launch
   }

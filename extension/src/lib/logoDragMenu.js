@@ -55,12 +55,11 @@ export const createLogoDragMenu = ({
   });
 
   if (logoEl) {
-    // An inline <svg> tooltips through a <title> CHILD, not the title attribute.
-    const tip = doc.createElementNS('http://www.w3.org/2000/svg', 'title');
-    tip.textContent = LOGO_DROP_HINT;
-    logoEl.prepend(tip);
+    // data-title, never an SVG <title> child or a title attribute — both raise Chrome's
+    // own popup on top of ours (lib/tip.js). The logo names itself with aria-label.
+    logoEl.dataset.title = LOGO_DROP_HINT;
     const h1 = doc.querySelector('header h1');
-    if (h1 && !h1.title) h1.title = LOGO_DROP_HINT;
+    if (h1 && h1.dataset && !h1.dataset.title) h1.dataset.title = LOGO_DROP_HINT;
   }
 
   // One action per release, no matter how many ways the release reaches us…

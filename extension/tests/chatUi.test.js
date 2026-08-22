@@ -109,7 +109,7 @@ test('clicking a chip PREFILLS the prompt and sends nothing', () => {
   const [first] = wrap.children;
   assert.equal(first.className, 'chat-suggest');
   assert.equal(first.textContent, SUGGESTIONS[0].label);
-  assert.equal(first.title, SUGGESTIONS[0].prompt);
+  assert.equal(first.attrs['data-title'], SUGGESTIONS[0].prompt);   // data-title, never the native `title`
   assert.equal(first.dataset.prompt, SUGGESTIONS[0].prompt);
 
   first.click();

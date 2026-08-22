@@ -4,7 +4,7 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { normalizePageSize, layoutLineLengthCm } from './units.js';
 import { serializeSession, normalizeCropRect } from './layout.js';
-import { ghostOut, flashLanding, GHOST_MS } from '../ui/motion.js';
+import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../ui/motion.js';
 
 // Projects-list thumbnail. It is ALSO the hover-zoom source (projectsModal magnifies it
 // ~1.67x), so it is sized for that, not for the 56px row — and it lives in the
@@ -376,7 +376,10 @@ export class Storage {
     this.temporary = false;
     this.incognito = false;
     this.app.activeProjectId = id;
-    this.loadPayloadIntoApp(proj.payload);
+    // An OPEN is an image appearing, so it arrives the same way a loaded file does.
+    // (The cross-tab sync path below shares this method and stays still: a peer's edit
+    // must not dissolve the picture out from under the person reading it.)
+    this.loadPayloadIntoApp(proj.payload, { landing: true });
     this.#autoRefreshOnOpen(id);
     return true;
   }
@@ -393,8 +396,9 @@ export class Storage {
   }
 
   // Apply a payload {image, layout} into app state + DOM; shared by loadProject()
-  // and the migration paths.
-  loadPayloadIntoApp(payload) {
+  // and the migration paths. `landing` plays the arrival once the image is on the
+  // canvas — on by an explicit open only (see loadProject).
+  loadPayloadIntoApp(payload, { landing = false } = {}) {
     try {
       const layout = (payload && payload.layout) || {};
       const imageDataUrl = (payload && payload.image) || null;
@@ -540,6 +544,9 @@ export class Storage {
 
           this.app.updateInfo();
           this.app.renderer.redraw();
+          // Same beat as the file loader: the picture is in the backing store, so the
+          // arrival goes up in THIS tick or a frame of the finished image flashes first.
+          if (landing) playCanvasArrival(this.app.canvas);
           this.app.updateButtons();
           this.app.updateCoordStatus();
           if (this.app.lines.length > 0)
@@ -621,8 +628,10 @@ export class Storage {
     // Copy the pixels into a throwaway overlay FIRST — clearRect is instant and would
     // leave nothing to animate. The empty state is ALSO held back for the animation,
     // or the blank editor pops in underneath while the dust is still falling.
-    if (ctx && hadImage) {
-      ghostOut(this.app.canvas);
+    // …and ONLY while there really are motes in front of it: ghostOut says so (the same
+    // contract as the arrival's ghostIn). Under reduced motion nothing falls, and holding
+    // the empty editor back anyway just blanked it for a second for no reason.
+    if (ctx && hadImage && ghostOut(this.app.canvas)) {
       const vp = document.getElementById('canvas-viewport');
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }

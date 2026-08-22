@@ -10,7 +10,14 @@ import ICONS_DATA from '../config/icons.json' with { type: 'json' };
 
 // Notes that used to sit on individual rows: 'eraser' wipes drawn lines and is
 // deliberately NOT the trash can (trash = delete project/file everywhere else);
-// 'more' is the overflow menu ("⋯"); 'sparkle' is the assistant chat-bubble mark.
+// 'more' is the overflow menu ("⋯"); 'sparkle' is the assistant chat-bubble mark;
+// 'line' and 'rect' are the draw-mode PAIR (the same two drag handles, joined by a
+// segment or the box they span — core/drawingApp.js DRAW_MODE_ICON is this pair
+// inline on a 16-grid, x1.5 apart).
+// Several glyphs carry class="ic-…" hooks on their parts (a trash lid, a download
+// arrow, the sun's rays). They are inert markup for anything that just draws the
+// glyph; what moves them is config/iconMotion.json — the canonical per-icon hover
+// motion every surface implements — via css/animations.css here.
 export const ICONS = ICONS_DATA;
 
 // Build an <svg> string for a named icon. `size` px (square), optional extra

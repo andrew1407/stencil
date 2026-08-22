@@ -222,11 +222,15 @@ button.danger:hover {
 .btn-icon-text .ic { vertical-align: 0; }
 /* The two Draw-group toggles swap their own label in place — Start↔Stop, Line↔Rect — and
    each pairing has a different text width, so an auto-width button resizes under the
-   cursor and shoves the rest of the row sideways mid-click. Pin one width wide enough for
-   the longest label of either pair and centre the content inside it, so toggling changes
-   what the button says and nothing about where anything sits. */
+   cursor and shoves the rest of the row sideways mid-click. The box is pinned to the
+   WIDER of that button's own two faces and its content centred inside, so toggling
+   changes what the button says and nothing about where anything sits.
+   The pin is measured at the real font by ui/motion.js pinWidestFace() and written as an
+   inline width — one hard-coded rem for both pairs was a guess, and left short labels
+   ("Start", "Line") swimming in dead space. This is the pre-measure floor: content width,
+   never narrower than the face on show. The two buttons may settle on different widths. */
 .btn-draw-fixed {
-    width: 5.5rem;
+    min-width: max-content;
     justify-content: center;
 }
 /* The Start/Stop toggle is an ACCENT toggle, not a status light: outlined while idle

@@ -38,6 +38,7 @@ import { createCollapsibleSections } from '../lib/collapsibleSections.js';
 import { createLogoDragMenu } from '../lib/logoDragMenu.js';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../lib/rowModel.js';
 import { initTooltips } from '../lib/controlTooltip.js';
+import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
 
 const listEl = document.getElementById('list');
@@ -525,7 +526,7 @@ const renderRow = (image) => {
   const name = document.createElement('div');
   name.className = 'name clickable';
   name.textContent = image.name;
-  name.title = rowTitle(image);
+  setTip(name, rowTitle(image));
   // Project rows paint the name in the project's custom `color`, or a fixed neutral grey when
   // unset. Values are inlined (not a CSS var) so a stale-cached theme.css can't blank the name.
   if (isProjectRow(image)) {
@@ -543,7 +544,7 @@ const renderRow = (image) => {
     span.className = b.cls;
     if (b.html) span.innerHTML = b.html;   // a fixed icon from lib/icons.js, never page data
     else span.textContent = b.text;
-    if (b.title) span.title = b.title;
+    if (b.title) span.dataset.title = b.title;
     return span;
   };
   const opened = isOpened(image);
@@ -572,7 +573,7 @@ const renderRow = (image) => {
     pinBtn = document.createElement('button');
     pinBtn.className = 'pin-btn' + (image.pinned ? ' active' : '');
     pinBtn.innerHTML = icon('pin', { size: 15 });
-    pinBtn.title = image.pinned ? 'Unpin' : 'Pin to top';
+    setTip(pinBtn, image.pinned ? 'Unpin' : 'Pin to top', { label: true });
     pinBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       // Unpin directly; when pinning, offer the local / on-server picker (servers
@@ -585,7 +586,7 @@ const renderRow = (image) => {
   const more = document.createElement('button');
   more.className = 'more-btn';
   more.textContent = '⋯';
-  more.title = 'Actions';
+  setTip(more, 'Actions', { label: true });
   more.addEventListener('click', (e) => {
     e.stopPropagation();
     openMenu(more, image);
@@ -1542,7 +1543,7 @@ if (themePref && themeBtn) {
   const syncThemeBtn = () => {
     const dark = themePref.resolved() === 'dark';
     themeBtn.innerHTML = icon(dark ? 'sun' : 'moon');
-    themeBtn.title = dark ? 'Switch to the light theme' : 'Switch to the dark theme';
+    setTip(themeBtn, dark ? 'Switch to the light theme' : 'Switch to the dark theme', { label: true });
   };
   themeBtn.addEventListener('click', () => {
     // Pass the button itself, so the palette floods out of it and never has to guess.

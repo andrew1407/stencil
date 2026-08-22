@@ -386,7 +386,9 @@ namespace stencil::gui {
     // Load a saved project (by id) into THIS window's canvas, mirroring the
     // browser switchToProject(): set page size, restore image + lines + crop,
     // mark it active. Returns false if no project with that id exists.
-    bool loadProjectIntoCanvas(const QString& id);
+    // `animate` plays the dust arrival (a picture is landing on the canvas); pass false
+    // for a REBIND, where the same image stays put and a flourish would be a lie.
+    bool loadProjectIntoCanvas(const QString& id, bool animate = true);
     // Open a saved project in a NEW top-level window, leaving this one untouched
     // (the desktop counterpart of the browser's "open in new tab"). The new
     // window owns itself (WA_DeleteOnClose) and reads projects from disk.

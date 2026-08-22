@@ -46,20 +46,30 @@
     .pin-head h1 { flex:1 1 auto; }
     .pin-filters { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .pin-filters .chk { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; }
-    /* One height for every control in the row (search / selects / pill / Clear all). */
-    .pin-filters select { width:auto; min-width:170px; padding:5px 10px; font-size:12px; }
+    /* One height for every control in the row (search / selects / pill / Clear all), and
+       each sizes to the label it shows — the site/storage lists carry hostnames of every
+       length, so a fixed px floor was only ever dead space around the short ones. The
+       search-mode list is the exception: its three labels are fixed and swapping them
+       must not shove the row, so options.js pins it to its own widest label. */
+    .pin-filters select { width:auto; padding:5px 10px; font-size:12px; }
     /* The custom list that replaces those selects (lib/customSelect.js) keeps their compact size. */
-    .pin-filters .accent-dd { width:auto; min-width:170px; }
+    .pin-filters .accent-dd { width:auto; }
     .pin-filters .accent-dd-trigger { padding:5px 10px; font-size:12px; }
     .pin-filters select:empty, .pin-filters select[hidden] { display:none; }
-    .pin-filters input[type="search"] { padding:5px 10px; font-size:12px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:180px; }
+    /* width:auto beats the form-field `input { width:100% }` above — as a full-width field
+       the search box claimed a whole row to itself and pushed the rest of the filters onto
+       two more. It sizes to the typing room below instead. */
+    .pin-filters input[type="search"] { width:auto; padding:5px 10px; font-size:12px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:180px; }
     /* Keyword chips + inline editor on a pin row. */
     .pin-keywords { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; align-items:center; }
     .pin-kw { font-size:11px; color:var(--muted); background:var(--panel-2,var(--panel)); border:1px solid var(--line); border-radius:10px; padding:1px 7px; }
     .pin-kw-edit { font-size:11px; color:var(--accent); background:none; border:none; cursor:pointer; padding:1px 4px; }
     .pin-kw-input { font-size:11px; padding:2px 6px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:160px; }
     .pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
-    .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; transition:border-color .12s ease; }
+    /* opacity is in the transition for the materialize veil: motion.js drops
+       .materialize-veil in one tick, so the row CROSSFADES up under the landed dust
+       instead of cutting in (see .materialize-veil in lib/animations.css). */
+    .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; transition:border-color .12s ease, opacity .22s ease; }
     .pin-row:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
     .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
     .pin-info { flex:1 1 auto; min-width:0; }
@@ -81,7 +91,10 @@
        server-backed pin wears below. */
     .pin-row.conn-admin { outline:2px solid #f5c518; outline-offset:-2px; }
     .pin-row.conn-admin .conn-name .ic { color:#f5c518; }
-    .conn-badge-admin { flex:none; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+    /* The badge is a ROW child, not part of the name: it sits against the action buttons
+       at the right, so a long host ellipsises inside .conn-label without ever pushing
+       the badge around. flex:none keeps it off the shrink budget. */
+    .conn-badge-admin { flex:none; font-size:11px; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
     /* Kind filter: the shared .chk accent pills (radio-backed, one choice), sitting at
        the right of the connect row rather than on a row of their own. Sized like the
        popup's format pills so they read as a compact filter next to the buttons; the
@@ -232,9 +245,9 @@
       <button id="conn-reconnect-all" hidden>Reconnect all</button>
       <span id="conn-status" class="saved"></span>
       <div id="conn-filters" class="conn-filters" hidden>
-        <label class="chk" title="Show every saved connection"><input type="radio" name="conn-kind" value="all" checked> All</label>
-        <label class="chk" title="Admin connections only — the credential can mint session tokens"><input type="radio" name="conn-kind" value="admin"> Admin</label>
-        <label class="chk" title="Ordinary session connections only — no admin credential"><input type="radio" name="conn-kind" value="other"> Non-admin</label>
+        <label class="chk" data-title="Show every saved connection"><input type="radio" name="conn-kind" value="all" checked> All</label>
+        <label class="chk" data-title="Admin connections only — the credential can mint session tokens"><input type="radio" name="conn-kind" value="admin"> Admin</label>
+        <label class="chk" data-title="Ordinary session connections only — no admin credential"><input type="radio" name="conn-kind" value="other"> Non-admin</label>
       </div>
     </div>
     <ul id="conn-list" class="pin-list"></ul>
@@ -300,16 +313,16 @@
     <div class="pin-head">
       <h1>Pinned images</h1>
       <div class="pin-filters">
-        <input type="search" id="pin-search" placeholder="Search pins…" title="Search pins by name and/or keywords">
-        <select id="pin-search-mode" title="What the search matches">
+        <input type="search" id="pin-search" placeholder="Search pins…" aria-label="Search pins" data-title="Search pins by name and/or keywords">
+        <select id="pin-search-mode" aria-label="What the search matches" data-title="What the search matches">
           <option value="common">Name + keywords</option>
           <option value="names">Names only</option>
           <option value="keywords">Keywords only</option>
         </select>
-        <label class="chk" title="Show pins that are also stored on a connected server (golden outline)"><input type="checkbox" id="pin-show-server" checked> Show server pins</label>
-        <select id="pin-store" title="Filter by the server a pin is stored on"></select>
-        <select id="pin-site" title="Filter pins by the site they were pinned on"></select>
-        <button id="pin-clear" class="pin-clear" title="Remove pinned images — every site, or just the selected one">Clear all</button>
+        <label class="chk" data-title="Show pins that are also stored on a connected server (golden outline)"><input type="checkbox" id="pin-show-server" checked> Show server pins</label>
+        <select id="pin-store" aria-label="Filter by the server a pin is stored on" data-title="Filter by the server a pin is stored on"></select>
+        <select id="pin-site" aria-label="Filter pins by the site they were pinned on" data-title="Filter pins by the site they were pinned on"></select>
+        <button id="pin-clear" class="pin-clear" data-title="Remove pinned images — every site, or just the selected one">Clear all</button>
       </div>
     </div>
     <p class="sub">Images and videos you pinned with the 📌 button, grouped by the site they were pinned on. Pinning floats them to the top of the popup list.</p>

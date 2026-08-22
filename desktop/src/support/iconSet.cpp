@@ -41,6 +41,14 @@ namespace stencil::gui {
                  R"(<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>)");
         m.insert("more-vertical",
                  R"(<circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/>)");
+        // The draw-mode toggle's LINE face — the port of DRAW_MODE_ICON.line in
+        // browser/js/core/drawingApp.js (a diagonal segment with filled endpoint dots,
+        // i.e. what the app actually draws), its 16-grid geometry scaled x1.5 onto the
+        // 24-grid every other glyph uses. It is a desktop extra only because the browser
+        // keeps this pair inline instead of in the shared canon; move it to
+        // browser/js/config/icons.json the day that changes, and drop it from here.
+        m.insert("line-dots",
+                 R"(<line x1="4.5" y1="19.5" x2="19.5" y2="4.5"/><circle cx="4.5" cy="19.5" r="3" fill="currentColor" stroke="none"/><circle cx="19.5" cy="4.5" r="3" fill="currentColor" stroke="none"/>)");
         return m;
       }();
       return t;

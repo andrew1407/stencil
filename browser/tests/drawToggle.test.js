@@ -14,8 +14,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { installDom, createStubElement } from './helpers/dom.js';
-import { swapContent, SWAP_CLASS, SWAP_GHOST_CLASS, SWAP_MS } from '../js/ui/motion.js';
+import { installDom, createStubElement, createStubDocument } from './helpers/dom.js';
+import { swapContent, pinWidestFace, SWAP_CLASS, SWAP_GHOST_CLASS, SWAP_MS } from '../js/ui/motion.js';
 
 // The two sync methods are instance methods that only touch the DOM + hotkeys, so they are
 // driven via `.call(mock)` on a stub document (the drawingApp-launch.test.js convention).
@@ -80,7 +80,88 @@ test('disabled still greys out, and the outline costs no width', () => {
   assert.match(layoutCss, /#draw-toggle \{\s*border: 1px solid transparent;\s*\}/,
     'the border is always there (transparent when off), so no state changes the box');
   assert.match(layoutCss, /\* \{[^}]*box-sizing: border-box/, 'border-box: the 1px outline is inside the pinned width');
-  assert.match(layoutCss, /\.btn-draw-fixed \{\s*width: 5\.5rem;/, 'the width stays pinned');
+});
+
+// ── 1b. The pinned box: measured, not guessed ───────────────────────────────
+// The pin used to be one hard-coded `width: 5.5rem` for BOTH pairs — a guess, so short
+// labels ("Start", "Line") floated in dead space. It is now measured per button at the
+// real font. What must still hold: a toggle never changes its own width.
+
+test('the stylesheet no longer guesses a width for the pair', () => {
+  const block = blocksFor(layoutCss, '.btn-draw-fixed')
+    .find((b) => b.sel.split('\n').pop().trim() === '.btn-draw-fixed');
+  assert.ok(block, '.btn-draw-fixed still owns the box');
+  assert.ok(!/[^-]width:\s*[\d.]+(rem|px|em|ch)/.test(block.body),
+    'no hard-coded width — a magic number only ever fits one font and one language');
+  assert.match(block.body, /min-width: max-content;/, 'the floor is the content itself');
+  assert.match(block.body, /justify-content: center;/, 'and the face stays centred in the box');
+});
+
+// A button that measures a face the way a browser would: a fixed box plus the label's
+// length. The two faces of a pair differ, which is the whole problem.
+const measurableBtn = () => {
+  const el = createStubElement('button');
+  el.getBoundingClientRect = () => ({
+    width: el.style.width === 'auto'
+      ? 26.4 + 7 * (el.innerHTML.match(/<span>([^<]*)</)?.[1].length || 0)
+      : parseFloat(el.style.width) || 0,
+  });
+  return el;
+};
+
+test('pinWidestFace pins the WIDER face, in px, and only measures once', () => {
+  const doc = createStubDocument();
+  const btn = measurableBtn();
+  const faces = ['<svg></svg><span>Start</span>', '<svg></svg><span>Stop</span>'];
+  btn.innerHTML = faces[0];
+  const px = pinWidestFace(btn, faces, { doc });
+  assert.equal(px, 62, '26.4 + 5 chars, rounded up — "Start", not "Stop"');
+  assert.equal(btn.style.width, '62px');
+  assert.equal(btn.innerHTML, faces[0], 'the face on show is put back after the probe');
+  // Once per element: syncDrawToggleUI runs on every isDrawing change and must not
+  // re-measure the world each time. A re-rendered toolbar hands over a NEW node.
+  assert.equal(pinWidestFace(btn, faces, { doc }), 0, 'the second call is a no-op');
+  assert.equal(pinWidestFace(btn, faces, { doc, force: true }), 62, 'unless forced (webfonts)');
+  assert.equal(pinWidestFace(measurableBtn(), faces, { doc }), 62, 'a fresh node re-measures');
+});
+
+test('pinWidestFace leaves the CSS floor alone when it cannot measure', () => {
+  const doc = createStubDocument();
+  // No layout (a stub element measures 0) — pinning 0px would collapse the button.
+  const flat = createStubElement('button');
+  assert.equal(pinWidestFace(flat, ['<span>Start</span>'], { doc }), 0);
+  assert.equal(flat.style.width, undefined, 'no inline width at all');
+  assert.equal(pinWidestFace(null, ['x'], { doc }), 0);
+  assert.equal(pinWidestFace(measurableBtn(), [], { doc }), 0);
+});
+
+test('a face swap never changes the button’s width', () => {
+  const doc = createStubDocument();
+  const btn = measurableBtn();
+  const faces = ['<svg></svg><span>Start</span>', '<svg></svg><span>Stop</span>'];
+  pinWidestFace(btn, faces, { doc });
+  const pinned = btn.style.width;
+  const win = installDom({}, {});
+  try {
+    swapContent(btn, faces[0], { key: 'start' });          // first paint
+    swapContent(btn, faces[1], { key: 'stop', setTimer: () => 0 });
+    assert.equal(btn.style.width, pinned, 'the box is the same after Start→Stop');
+    swapContent(btn, faces[0], { key: 'start', setTimer: () => 0 });
+    assert.equal(btn.style.width, pinned, 'and after Stop→Start');
+  } finally { win.restore?.(); }
+});
+
+test('both Draw-group toggles pin themselves from their own two faces', () => {
+  const src = read('../js/core/drawingApp.js');
+  for (const [sync, faces] of [
+    ['syncDrawToggleUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
+    ['syncDrawModeUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
+  ]) {
+    const body = src.slice(src.indexOf(`${sync}()`), src.indexOf(`${sync}()`) + 1200);
+    assert.match(body, faces, `${sync} pins from BOTH faces, not the one on show`);
+    assert.ok(body.indexOf('pinWidestFace') < body.indexOf('swapContent'),
+      `${sync} pins the box before the face moves into it`);
+  }
 });
 
 // ── 2. The swap: CSS ────────────────────────────────────────────────────────
@@ -322,4 +403,54 @@ test('the sync methods write the face through the shared swap, not innerHTML (so
   assert.ok(!/btn\.innerHTML\s*=/.test(body),
     'a raw innerHTML write cannot animate — that is what the green-button bug fix replaced');
   assert.equal((body.match(/swapContent\(/g) || []).length, 2, 'both toggles share one transition');
+});
+
+// ── 3. The two faces are a matched SET ──────────────────────────────────────
+// Line and Rect are one toggle, so they must read as siblings: same box, same stroke,
+// same two handles — (3,13) and (13,3), the corners a drag starts and ends on — with
+// only the shape joining them different. Before this they were different families: the
+// line carried endpoint dots, the rect was a bare outline with none.
+test('the Line and Rect glyphs are siblings, not two different families', async () => {
+  const { DRAW_MODE_ICON } = await import('../js/core/drawingApp.js');
+  const svgs = [DRAW_MODE_ICON.line, DRAW_MODE_ICON.rect];
+  for (const [name, svg] of Object.entries(DRAW_MODE_ICON)) {
+    assert.match(svg, /class="draw-mode-icon"/, `${name} keeps the class the swap targets`);
+    assert.match(svg, /width="13" height="13"/, `${name} stays 13px`);
+    assert.match(svg, /viewBox="0 0 16 16"/, `${name} shares the grid`);
+    assert.ok(!/#|rgb\(|var\(/.test(svg), `${name} paints in currentColor only`);
+    // The same two handles, filled, at the same radius.
+    assert.match(svg, /<circle cx="3" cy="13" r="2" fill="currentColor"\/>/, `${name} anchors the start handle`);
+    assert.match(svg, /<circle cx="13" cy="3" r="2" fill="currentColor"\/>/, `${name} anchors the end handle`);
+  }
+  // One stroke weight across the pair — a heavier rect would read as a different set.
+  const weights = new Set(svgs.flatMap((s) => [...s.matchAll(/stroke-width="([^"]+)"/g)].map((m) => m[1])));
+  assert.deepEqual([...weights], ['1.5'], 'one stroke weight across both faces');
+  // …and the rect really spans those two handles (3,3)→(13,13), so the dots sit ON it.
+  assert.match(DRAW_MODE_ICON.rect, /<rect x="3" y="3" width="10" height="10"/,
+    'the box spans the same corners the line connects');
+});
+
+// The pair also exists in the CANONICAL set now (config/icons.json `line` / `rect`), where
+// the desktop and the extension read it: the toolbar's inline 16-grid pair is the same
+// drawing on the shared 24-grid, scaled x1.5. The desktop paired a pencil with a solid
+// slab before it landed, which is exactly the drift this pins.
+test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid', async () => {
+  const { DRAW_MODE_ICON } = await import('../js/core/drawingApp.js');
+  const ICONS = JSON.parse(readFileSync(new URL('../js/config/icons.json', import.meta.url), 'utf8'));
+  // Every geometry number in the inline face, x1.5 (16-grid → 24-grid).
+  const scaled = (svg, attrs) => attrs.map((a) => {
+    const v = svg.match(new RegExp(`${a}="([\\d.]+)"`));
+    return v ? +(parseFloat(v[1]) * 1.5).toString() : null;
+  });
+  assert.deepEqual(scaled(DRAW_MODE_ICON.line, ['x1', 'y1', 'x2', 'y2']), [4.5, 19.5, 19.5, 4.5]);
+  assert.match(ICONS.line, /<line class="ic-stroke" x1="4.5" y1="19.5" x2="19.5" y2="4.5"\/>/);
+  // …from the <rect> element itself: the <svg> wrapper carries a width="13" of its own.
+  assert.deepEqual(scaled(DRAW_MODE_ICON.rect.match(/<rect[^>]*>/)[0], ['x', 'y', 'width', 'height']),
+    [4.5, 4.5, 15, 15]);
+  assert.match(ICONS.rect, /<rect class="ic-box" x="4.5" y="4.5" width="15" height="15" rx="1.5"\/>/);
+  // The same two handles, on the same corners, at the scaled radius.
+  for (const glyph of [ICONS.line, ICONS.rect]) {
+    assert.match(glyph, /<circle class="ic-handle" cx="4.5" cy="19.5" r="3" fill="currentColor" stroke="none"\/>/);
+    assert.match(glyph, /<circle class="ic-handle" cx="19.5" cy="4.5" r="3" fill="currentColor" stroke="none"\/>/);
+  }
 });

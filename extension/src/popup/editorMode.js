@@ -9,6 +9,7 @@ import { editableSrc, sourceOf } from '../lib/imageModel.js';
 import { icon } from '../lib/icons.js';
 import { createFilterTransition } from '../lib/motion.js';
 import { openPanelDialog } from './dialogShell.js';
+import { setTip } from '../lib/tip.js';
 
 // Preview refresh interval (ms) — the same poll-while-open the shared pins use, an MV3 popup
 // being too short-lived for a background channel. Cleared on pagehide / leaving editor mode.
@@ -74,7 +75,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     const b = document.createElement('span');
     b.className = `badge ${cls}`;
     b.textContent = text;
-    if (title) b.title = title;
+    if (title) setTip(b, title);
     return b;
   };
 
@@ -137,8 +138,8 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     el.className = 'ed-row' + (row.current ? ' current' : '');
     // The accent outline alone says "this tab" (see .ed-row.current) — a badge saying it too
     // cost a whole line in a 400px panel. The full name lives here, since the row ellipsizes it.
-    el.title = [row.projectName || row.title || row.url, row.current ? '(the tab this panel is on)' : '',
-      row.url, 'Click: focus this editor tab'].filter(Boolean).join('\n');
+    setTip(el, [row.projectName || row.title || row.url, row.current ? '(the tab this panel is on)' : '',
+      row.url, 'Click: focus this editor tab'].filter(Boolean).join('\n'));
 
     // Live preview (the tab's #canvas, downscaled by the editor page, unsaved edits included).
     // A silent bridge sends none — leave the slot blank, never an empty src.
@@ -181,7 +182,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     const more = document.createElement('button');
     more.className = 'more-btn';
     more.textContent = '⋯';
-    more.title = 'Actions';
+    setTip(more, 'Actions', { label: true });
     more.addEventListener('click', (e) => {
       e.stopPropagation();
       menu.open(more, rowMenuNodes(row, more));
@@ -268,7 +269,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     li.dataset.key = String(c.tabId);   // the filter transition diffs renders by this
     const el = document.createElement('div');
     el.className = 'src-row' + (selected.has(c.tabId) ? ' picked' : '');
-    el.title = `${c.title || c.host}\n${c.url}\n\nClick: ${selected.has(c.tabId) ? 'stop listing' : 'list'} this page’s images`;
+    setTip(el, `${c.title || c.host}\n${c.url}\n\nClick: ${selected.has(c.tabId) ? 'stop listing' : 'list'} this page’s images`);
 
     const box = document.createElement('input');
     box.type = 'checkbox';
@@ -303,7 +304,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     const more = document.createElement('button');
     more.className = 'more-btn';
     more.textContent = '⋯';
-    more.title = 'Actions';
+    setTip(more, 'Actions', { label: true });
     more.addEventListener('click', (e) => {
       e.stopPropagation();
       menu.open(more, choiceMenuNodes(c));

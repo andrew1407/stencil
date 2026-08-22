@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
       [] { return QString(); },  // remoteAddress
       [] { return QString(); },  // remoteId
       [](const QString&, const QString&, const QString&, const QString&, qint64) {},  // relink
-      [](const QString&) {},                                                          // load into canvas
+      [](const QString&, bool) {},                                                    // load into canvas
       [] {},                                                                          // afterChange
   };
   ProjectTransferController xfer(&notify, &canvas, &settings, &store, &list, hooks);

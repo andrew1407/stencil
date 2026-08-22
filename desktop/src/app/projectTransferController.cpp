@@ -209,7 +209,8 @@ namespace stencil::gui {
     importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/true, "",
                                [this, wasOpen](bool ok, QString newId) {
       if (!ok) return;
-      if (wasOpen) h_.loadProjectIntoCanvas(newId);  // rebind the editor to the new local project
+      // A rebind, not an arrival: the same picture is already on screen.
+      if (wasOpen) h_.loadProjectIntoCanvas(newId, /*animate=*/false);
       h_.afterChange();
       notify_->success("Moved to local storage");
     });
@@ -222,7 +223,7 @@ namespace stencil::gui {
                                [this](bool ok, QString newId) {
       if (!ok) return;
       h_.afterChange();
-      h_.loadProjectIntoCanvas(newId);  // open the detached copy (clears the remote link)
+      h_.loadProjectIntoCanvas(newId, /*animate=*/true);  // the detached copy OPENS (clears the remote link)
       notify_->success("Local copy created");
     });
   }

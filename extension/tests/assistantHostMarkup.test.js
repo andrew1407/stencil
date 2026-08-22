@@ -132,7 +132,7 @@ test('the drop target is the composer, cued by an animated icon over it', () => 
 // A 28–56px thumbnail can't tell two screenshots apart.
 test('hovering a small attachment thumbnail shows it large', () => {
   const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
-  assert.match(src, /wireThumbPreview\(img, \{ caption: img\.title \}\);/, 'the transcript strip is wired');
+  assert.match(src, /wireThumbPreview\(img, \{ caption \}\);/, 'the transcript strip is wired');
   assert.match(src, /wireThumbPreview\(img, \{ caption: p\.name \}\);/, 'and so are the pending chips');
   const ui = readFileSync(new URL('../src/lib/chatUi.js', import.meta.url), 'utf8');
   assert.match(ui, /export const wireThumbPreview = \(img, \{ doc = globalThis\.document/);

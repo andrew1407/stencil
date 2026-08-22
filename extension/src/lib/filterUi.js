@@ -29,7 +29,7 @@ export const formatListFor = (items) => {
 /** One `.chk` pill per format; a format absent from the page is dimmed and titled. */
 export const formatPillsHtml = (formats, present) => formats.map((f) => {
   const absent = !present.has(f);
-  return `<label class="chk${absent ? ' absent' : ''}"${absent ? ' title="Not present on this page"' : ''}>`
+  return `<label class="chk${absent ? ' absent' : ''}"${absent ? ' data-title="Not present on this page"' : ''}>`
     + `<input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`;
 }).join('');
 

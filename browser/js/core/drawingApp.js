@@ -34,21 +34,25 @@ import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
-import { arriveFrom, flashLanding, ghostIn, GHOST_MS, leaveThenRemove, swapContent } from '../ui/motion.js';
+import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 
 // Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
-// the button's text color (theme + label match). line = diagonal segment with
-// endpoint dots (polyline); rect = outlined rectangle.
+// the button's text color (theme + label match).
+// A matched PAIR, because they are one toggle: both anchor the same two handles —
+// (3,13) and (13,3), the corners a drag actually starts and ends on — in the same
+// 1.5 stroke. Only what joins them changes, a segment or the box it spans, so
+// Line↔Rect swaps between two siblings instead of two different families.
 export const DRAW_MODE_ICON = {
   line: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
     '<line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
     '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
   rect: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-    '<rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+    '<rect x="3" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
 };
 
 // Base name without its file extension (for project naming / source matching).
@@ -700,12 +704,7 @@ export class DrawingApp {
         if (!replaceInPlace && opts.landing !== false) {
           // Synchronously, in this same tick — a frame's delay would flash the finished
           // image before hiding it. redraw() above already filled the backing store.
-          const vp = document.querySelector('.canvas-viewport');
-          if (ghostIn(this.canvas)) {
-            if (vp) flashLanding(vp, 'canvas-assembling', GHOST_MS);
-          } else {
-            arriveFrom(document.getElementById('canvas-container'), opts.from);
-          }
+          playCanvasArrival(this.canvas, { from: opts.from });
         }
         this.updateButtons();
         this.updateCoordStatus();
@@ -981,10 +980,14 @@ export class DrawingApp {
     const btn = document.getElementById('draw-toggle');
     if (!btn) return;
     const on = !!this.isDrawing;
+    const face = (stop) => icon(stop ? 'stop' : 'play', { size: 13 }) +
+      `<span>${stop ? 'Stop' : 'Start'}</span>`;
+    // Pin the box to the WIDER of the two faces before swapping into either, so the
+    // toggle never resizes under the cursor (measured, not guessed — see motion.js).
+    pinWidestFace(btn, [face(false), face(true)]);
     // The face swaps on the shared transition (motion.js): the markup is written
     // synchronously, so however fast the toggling, what the button shows is isDrawing.
-    swapContent(btn, icon(on ? 'stop' : 'play', { size: 13 }) + `<span>${on ? 'Stop' : 'Start'}</span>`,
-      { key: on ? 'stop' : 'start' });
+    swapContent(btn, face(on), { key: on ? 'stop' : 'start' });
     btn.classList.toggle('active', on);
     // The tooltip's hotkey follows the state too: Alt+A starts, Alt+S stops.
     btn.dataset.hkTitle = on ? 'stopDraw' : 'startDraw';
@@ -1001,9 +1004,13 @@ export class DrawingApp {
     const btn = document.getElementById('draw-mode-toggle');
     if (btn) {
       const rect = this.drawMode === 'rect';
-      // Same swap as Start/Stop — one transition for the whole Draw group.
-      swapContent(btn, (rect ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
-        (rect ? '<span>Rect</span>' : '<span>Line</span>'), { key: this.drawMode });
+      const face = (r) => (r ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
+        (r ? '<span>Rect</span>' : '<span>Line</span>');
+      // Same pin and the same swap as Start/Stop — one idiom for the whole Draw group.
+      // The two pairs may settle on different widths; only each button's own stability
+      // matters. ("Line" and "Rect" are near-identical, "Start"/"Stop" are not.)
+      pinWidestFace(btn, [face(false), face(true)]);
+      swapContent(btn, face(rect), { key: this.drawMode });
       btn.dataset.title = this.drawMode === 'rect'
         ? 'Drawing mode: Rectangle (click to switch to Line)'
         : 'Drawing mode: Line (click to switch to Rectangle)';

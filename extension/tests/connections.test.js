@@ -397,7 +397,7 @@ test('options page: removing a connection uses the destructive trash glyph', () 
   assert.match(js, /remove\.innerHTML = icon\('trash'/, 'a delete uses the trash icon, not an x');
   assert.doesNotMatch(js, /remove\.innerHTML = icon\('x'/);
   assert.match(js, /remove\.className = 'pin-btn danger'/, 'it keeps the danger colour');
-  assert.match(js, /remove\.title = 'Remove connection/);
+  assert.match(js, /setTip\(remove, 'Remove connection/);
 });
 
 test('options page: row action buttons read as enabled at rest, disabled only when disabled', () => {
@@ -411,6 +411,20 @@ test('options page: row action buttons read as enabled at rest, disabled only wh
   // Hover is the enhancement (full accent fill) and never fires on a disabled button.
   assert.match(html, /\.pin-btn:hover:not\(:disabled\) \{[^}]*background:var\(--accent\)/);
   assert.match(html, /\.pin-btn:disabled \{[^}]*opacity:\.45[^}]*color:var\(--muted\)/);
+});
+
+test('options page: the admin badge sits at the RIGHT, beside the action buttons', () => {
+  const js = connectionsJs();
+  // A row child between .pin-info and .pin-actions — NOT inside .conn-name, where it
+  // would trail the host label and eat the ellipsis budget of a long one.
+  assert.match(js, /li\.append\(info, \.\.\.\(badge \? \[badge\] : \[\]\), actions\);/);
+  assert.doesNotMatch(js, /name\.append\(badge\)/);
+  assert.match(js, /setTip\(badge, 'Admin credential/, 'it keeps its explanation');
+  const html = optionsHtml();
+  // Still the gold cue, and it never shrinks or wraps as the host label grows.
+  assert.match(html, /\.pin-badge-server \{[^}]*color:#f5c518/);
+  assert.match(html, /\.conn-badge-admin \{[^}]*flex:none[^}]*white-space:nowrap/);
+  assert.match(html, /\.conn-label \{[^}]*text-overflow:ellipsis/, 'the host still ellipsises');
 });
 
 test('options page: the connection row is a .pin-row sibling with its own padding', () => {
