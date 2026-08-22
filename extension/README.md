@@ -228,6 +228,18 @@ circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fa
 Nothing to anchor to (a change pushed from another extension page) blooms from the centre;
 the last click is never the origin, which is how the circle used to end up in a corner.
 
+**Tooltips** are the app's own, never the browser's. Controls carry their description in
+`data-title` — set in markup, or through `setTip()` (`src/lib/tip.js`) when it is composed
+at runtime — and `src/lib/controlTooltip.js` (a port of `browser/js/ui/controlTooltip.js`)
+renders it as structure: a heading, keycaps for the shortcut, term/description rows,
+bullets. A native `title` would ALSO raise Chrome's own slow, unstyled popup on top of
+it, so nothing here sets one; `setTip(el, text, { label: true })` gives an icon-only
+control the `aria-label` that `title` used to supply. The one exception is the in-page
+modal shell (`src/lib/overlay.js`), which is injected into the host page where the
+tooltip controller does not run. The tooltip fades and rises in and out on a CSS
+*transition* — one shared element re-aimed, so a fast sweep across a toolbar can never
+stack animations or strand a tip. `tests/tip.test.js` pins all of that.
+
 ## AI assistant (LLM chat)
 
 > Setting a provider up end to end (Ollama / LM Studio / the collaboration server's

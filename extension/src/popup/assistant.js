@@ -25,6 +25,7 @@ import { makeDismissible, renderSuggestions, wireThumbPreview, AUTO_DISMISS_MS }
 import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../lib/chatMsgMenu.js';
 import { openPanelDialog } from './dialogShell.js';
 import { MSG } from '../lib/messages.js';
+import { setTip } from '../lib/tip.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, CHAT_LEAVE_MS, scatterGridFor,
 } from '../lib/motion.js';
@@ -240,9 +241,10 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       img.className = 'chat-attached-thumb';
       img.src = `data:${p.image.mediaType};base64,${p.image.data}`;
       img.alt = p.name;
-      img.title = Number.isInteger(p.index) ? `image #${p.index} from the page (${p.name})` : p.name;
+      const caption = Number.isInteger(p.index) ? `image #${p.index} from the page (${p.name})` : p.name;
+      setTip(img, caption);
       // 56px is too small to tell two screenshots apart — hovering shows it big.
-      wireThumbPreview(img, { caption: img.title });
+      wireThumbPreview(img, { caption });
       strip.appendChild(img);
     }
     transcriptEl.appendChild(strip);
@@ -256,7 +258,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
   const addRetry = (el, text, send, attachments = []) => {
     const retry = document.createElement('button');
     retry.className = 'chat-retry';
-    retry.title = 'Send this message again';
+    setTip(retry, 'Send this message again');
     retry.setAttribute('aria-label', 'Retry');
     retry.innerHTML = icon('refresh', { size: 13 });
     retry.addEventListener('click', () => { if (!busy) { el.remove(); send(text, attachments); } });
@@ -509,7 +511,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     if (!dot || !moreBtn) return;
     const gen = ++probeGen;
     dot.className = 'chat-status-dot';
-    moreBtn.title = 'More — attach, clear, settings\nChecking the configured LLM…';
+    setTip(moreBtn, 'More — attach, clear, settings\nChecking the configured LLM…', { label: true });
     const probe = await probeProvider(s, {
       getToken: async (u) => serverTokenFor(u, { connections: await loadConnections(), settings: s }),
     });
@@ -518,13 +520,13 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     const status = probe.ok
       ? `Connected${probe.detail ? ` — ${probe.detail}` : ''}`
       : (probe.detail || 'Unreachable');
-    moreBtn.title = [
+    setTip(moreBtn, [
       'More — attach, clear, settings',
       `Provider: ${s.provider}`,
       probe.url ? `Endpoint: ${probe.url.replace(/^https?:\/\//i, '')}` : '',
       `Model: ${s.model || 'server default'}`,
       `Status: ${status}`,
-    ].filter(Boolean).join('\n');
+    ].filter(Boolean).join('\n'), { label: true });
   };
 
   // ── Injected controller capabilities ───────────────────────────────────────
@@ -758,11 +760,11 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       name.className = 'chip-name';
       const label = Number.isInteger(p.index) ? `image #${p.index} from the page (${p.name})` : p.name;
       name.textContent = label;
-      name.title = label;   // the chip ellipsises it; the full name lives on the tooltip
+      setTip(name, label);   // the chip ellipsises it; the full name lives on the tooltip
       const x = document.createElement('button');
       x.className = 'chip-x';
       x.textContent = '×';
-      x.title = 'Remove';
+      setTip(x, 'Remove', { label: true });
       // The chip scatters before the tray rebuilds without it.
       x.addEventListener('click', () => chatLeave(x.parentElement, () => {
         pending.splice(i, 1); renderTray(); syncClearBtn();
@@ -854,7 +856,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     // While a turn runs the send button IS the stop button (browser parity).
     sendBtn.disabled = false;
     sendBtn.innerHTML = icon(b ? 'stop' : 'send', { size: 15 });
-    sendBtn.title = b ? 'Stop the response' : 'Send';
+    setTip(sendBtn, b ? 'Stop the response' : 'Send', { label: true });
     inputEl.disabled = b;
     syncClearBtn();
   };

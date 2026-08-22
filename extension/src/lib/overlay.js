@@ -88,6 +88,9 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   `;
 
   const wrap = document.createElement('div');
+  // The ONE place the extension still uses a native `title`: this shell is injected into
+  // the HOST page (executeScript({func}) — it can't import), so lib/controlTooltip.js
+  // never runs over it and data-title alone would leave the two icons unexplained.
   wrap.innerHTML =
     '<div class="backdrop"></div>' +
     '<div class="panel">' +

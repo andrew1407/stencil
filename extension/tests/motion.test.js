@@ -232,8 +232,8 @@ test('materialize: a missing element resolves without touching anything', async 
 
 test('animations.css: materialize is the leave reversed, veil outranks keyframes', () => {
   const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
-  assert.match(css, /\.materializing \{[^}]*animation: stRowMaterialize 0\.22s/,
-    'the box expands on the collapse’s own 220ms timer');
+  assert.match(css, /\.materializing \{[^}]*animation: stRowMaterialize 0\.32s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
+    'the box opens on one expo-out curve — 220ms of ease-out read as a pop');
   assert.match(css, /@keyframes stRowMaterialize \{\s*from \{ opacity: 0;[^}]*max-height: 0/,
     'the expansion starts from the collapsed end-state of stRowLeave');
   assert.match(css, /\.materialize-veil \{ opacity: 0 !important; \}/,

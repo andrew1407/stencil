@@ -579,6 +579,14 @@ namespace stencil::gui {
         background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 2px;
       }
+      /* …and the FADING twin that replaces it on controls (support/appTooltip.hpp). An
+         ordinary QFrame, so it counts its box once — hence the browser's real padding
+         here rather than QTipLabel's doubled 2px. */
+      QFrame#stencilAppTooltip {
+        background: %BG_CONTROLS%; border: 1px solid %ACCENT_RING%;
+        border-radius: 6px; padding: 7px 10px;
+      }
+      QLabel#stencilAppTooltipBody { background: transparent; color: %TEXT%; }
 
       /* ── Searchable combo popup (SearchComboBox, e.g. the page-format picker):
          the desktop rendering of the browser's .accent-dd-menu panel — rounded

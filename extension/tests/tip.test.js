@@ -1,0 +1,94 @@
+// src/lib/tip.js — how a control describes itself, and the rule it exists to enforce:
+// the extension's own UI never sets a native `title`, because Chrome's popup is slow,
+// unstyled, and would show ON TOP of lib/controlTooltip.js's. Everything goes through
+// `data-title`, which that controller already reads.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { setTip, tipLabel } from '../src/lib/tip.js';
+
+// ── Stub DOM ──
+const stubEl = () => {
+  const attrs = {};
+  return {
+    attrs,
+    setAttribute: (k, v) => { attrs[k] = v; },
+    removeAttribute: (k) => { delete attrs[k]; },
+  };
+};
+
+test('setTip writes data-title and never a title attribute', () => {
+  const el = setTip(stubEl(), 'Rescan page (Alt+R)');
+  assert.equal(el.attrs['data-title'], 'Rescan page (Alt+R)');
+  assert.equal(el.attrs.title, undefined);
+  assert.equal(el.attrs['aria-label'], undefined, 'a labelled control opts in');
+});
+
+test('{ label: true } gives an icon-only control the accessible name `title` used to', () => {
+  assert.equal(setTip(stubEl(), 'Rescan page (Alt+R)', { label: true }).attrs['aria-label'], 'Rescan page');
+  // The heading only: the shortcut hint, the em-dash gloss and the extra lines are prose.
+  assert.equal(tipLabel('More — attach, clear, settings\nChecking the configured LLM…'), 'More');
+  assert.equal(tipLabel('Remove connection — forgets its saved token'), 'Remove connection');
+  assert.equal(tipLabel('Unpin'), 'Unpin');
+  assert.equal(tipLabel(''), '');
+});
+
+test('empty text clears both attributes, and a missing element is a no-op', () => {
+  const el = setTip(stubEl(), 'Send', { label: true });
+  setTip(el, '', { label: true });
+  assert.deepEqual(el.attrs, {});
+  assert.equal(setTip(null, 'x'), null);
+  assert.equal(setTip({}, 'x').tag, undefined, 'an element with no setAttribute is skipped');
+});
+
+// ── The audit: no native tooltips anywhere the custom one runs ──
+// lib/overlay.js is the one exception and says so in its own comment: it is injected into
+// the HOST page (executeScript({func}) — it cannot import), so controlTooltip.js never
+// runs over it and data-title alone would leave its two icons unexplained.
+const NATIVE_TITLE_OK = new Set(['src/lib/overlay.js']);
+// controlTooltip.js blanks/restores a native title it finds (a port pinned byte-for-byte
+// against its browser twin); tipContent.js's `tip.title` is a plain object field.
+const NOT_A_CALL_SITE = new Set(['src/lib/controlTooltip.js', 'src/lib/tipContent.js']);
+
+const walk = (dir, out = []) => {
+  for (const name of readdirSync(dir)) {
+    const p = `${dir}/${name}`;
+    if (statSync(p).isDirectory()) walk(p, out);
+    else if (/\.(js|html)$/.test(name)) out.push(p);
+  }
+  return out;
+};
+const srcFiles = () => walk(new URL('../src', import.meta.url).pathname)
+  .map((p) => p.slice(p.indexOf('/src/') + 1));
+
+test('no control in the extension carries a native `title`', () => {
+  const root = new URL('../', import.meta.url).pathname;
+  let scanned = 0;
+  for (const rel of srcFiles()) {
+    const src = readFileSync(root + rel, 'utf8');
+    scanned++;
+    if (!NATIVE_TITLE_OK.has(rel))
+      assert.ok(!/\stitle="/.test(src), `${rel} sets a title="" attribute — use data-title`);
+    if (NOT_A_CALL_SITE.has(rel) || NATIVE_TITLE_OK.has(rel)) continue;
+    // `el.title = …` on a DOM node. dataset.title is exactly the right thing, so it stays.
+    const bad = src.split('\n').filter((l) => /[\w$)\]]\.title\s*=[^=]/.test(l) && !/dataset\.title/.test(l));
+    assert.deepEqual(bad, [], `${rel} assigns .title on an element — use setTip()`);
+  }
+  assert.ok(scanned > 20, 'the walk actually found the sources');
+});
+
+test('the custom tooltip fades and rises instead of blinking', () => {
+  const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  // A TRANSITION, not keyframes: a fast sweep re-points the one shared tooltip many
+  // times a second, and a transition simply re-aims from wherever it is.
+  assert.match(css, /#app-tooltip \{[^}]*transition: opacity 110ms ease, transform 110ms cubic-bezier\(0\.16, 1, 0\.3, 1\)/);
+  assert.match(css, /#app-tooltip \{[^}]*transform: translateY\(5px\) scale\(0\.97\)/);
+  assert.match(css, /#app-tooltip \{[^}]*transform-origin: top left/, 'it grows away from the cursor it is anchored to');
+  assert.match(css, /#app-tooltip\.visible \{ opacity: 1; transform: none; \}/);
+  // The keycap shake controlTooltip.js plays on a matching keystroke.
+  assert.match(css, /@keyframes keycapShake/);
+  assert.match(css, /\.tip-key\.key-shake \{[\s\S]*?animation: keycapShake/);
+  const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  assert.match(anims, /#app-tooltip \{ transition: none !important; transform: none !important; \}/,
+    'reduced motion lands it where it is, at full size');
+});

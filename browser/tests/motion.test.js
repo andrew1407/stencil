@@ -11,7 +11,8 @@ import {
   FLIP_MS, FLIP_EASING, FLIP_ACTIVE_CLASS,
   themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
   originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
-  dustDelay, dustEase, ghostIn, hasPixels, tileNoise,
+  dustDelay, dustEase, ghostIn, ghostOut, hasPixels, tileNoise,
+  playCanvasArrival, ASSEMBLING_CLASS, CLEARING_CLASS, GHOST_MS,
   createFilterAnimator, FILTER_LEAVING_CLASS, FILTER_ENTERING_CLASS, FILTER_LEAVE_MS,
   LEAVE_MS as LEAVE_MS_REF,
 } from '../js/ui/motion.js';
@@ -303,6 +304,16 @@ test('a mote covers most of its flight early and settles', () => {
   for (let k = 0.1; k < 1; k += 0.1) assert.ok(dustEase(k) > dustEase(k - 0.1), 'monotonic');
 });
 
+test('ghostOut declines the same way, so the emptied editor is not held back for nothing', () => {
+  assert.equal(ghostOut(null), false, 'no canvas');
+  assert.equal(ghostOut({ width: 0, height: 0 }), false, 'nothing to snapshot');
+  const prior = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true });
+  try {
+    assert.equal(ghostOut({ width: 100, height: 80, parentElement: {} }), false, 'reduced motion');
+  } finally { globalThis.matchMedia = prior; }
+});
+
 test('ghostIn declines rather than hiding a canvas it cannot animate', () => {
   // Every bail-out matters: the caller only hides the real canvas when this says yes,
   // so a false negative is a blank editor.
@@ -313,6 +324,75 @@ test('ghostIn declines rather than hiding a canvas it cannot animate', () => {
   try {
     assert.equal(ghostIn({ width: 100, height: 80, parentElement: {} }), false, 'reduced motion');
   } finally { globalThis.matchMedia = prior; }
+});
+
+// ── The arrival is played from ONE place, by every route ────────────────────
+// Regression: the arrival lived inline in the file loader only, so REOPENING a saved
+// project painted the picture with no motion at all — the exact "nothing plays when an
+// image appears" report. Both routes go through playCanvasArrival now; these tests fail
+// if either stops calling it, or if the helper stops animating.
+test('playCanvasArrival gathers the dust when it can, and hides the canvas for exactly that long', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const vp = el();
+  const box = el();
+  assert.equal(playCanvasArrival({}, { viewport: vp, container: box, ghost: () => true }), 'dust');
+  assert.ok(vp.has(ASSEMBLING_CLASS), 'the viewport holds the canvas back while the motes gather');
+  assert.ok(!box.has(LANDING_CLASS), 'and the flight is NOT played on top of it');
+  t.mock.timers.tick(GHOST_MS - 1);
+  assert.ok(vp.has(ASSEMBLING_CLASS), 'still up while the dust flies');
+  t.mock.timers.tick(2);
+  assert.ok(!vp.has(ASSEMBLING_CLASS), 'and the canvas is handed back at the end');
+});
+
+test('playCanvasArrival falls back to the landing flight when the dust cannot play', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const vp = el();
+  const box = el();
+  assert.equal(playCanvasArrival({}, { viewport: vp, container: box, ghost: () => false }), 'flight');
+  assert.ok(box.has(LANDING_CLASS), 'the container plays the plain landing instead');
+  assert.ok(!vp.has(ASSEMBLING_CLASS), 'and the canvas is never hidden — there is no dust to hide behind');
+  t.mock.timers.tick(701);
+  assert.ok(!box.has(LANDING_CLASS), 'one shot, then the class comes off');
+});
+
+test('playCanvasArrival: reduced motion still ends in the right state', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const prior = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true });
+  try {
+    const vp = el();
+    const box = el();
+    // The real ghostIn — it is what declines under the preference, and the canvas must
+    // NOT be hidden when nothing is going to gather in front of it.
+    assert.equal(playCanvasArrival({ width: 100, height: 80, parentElement: {} },
+      { viewport: vp, container: box }), 'flight');
+    assert.ok(!vp.has(ASSEMBLING_CLASS), 'never hidden behind dust that will not play');
+    t.mock.timers.tick(701);
+    assert.ok(!box.has(LANDING_CLASS), 'and no class is left behind');
+  } finally { globalThis.matchMedia = prior; }
+});
+
+test('playCanvasArrival survives having no DOM to reach for', () => {
+  assert.doesNotThrow(() => playCanvasArrival(null));
+});
+
+test('both routes that put an image on the canvas play the arrival', () => {
+  const loader = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
+  assert.match(loader, /playCanvasArrival\(this\.canvas, \{ from: opts\.from \}\)/,
+    'a freshly loaded file arrives');
+  const storage = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  // The open passes it; the cross-tab sync path (the other caller) deliberately does not.
+  assert.match(storage, /this\.loadPayloadIntoApp\(proj\.payload, \{ landing: true \}\)/,
+    'opening a saved project arrives too — this is the regression');
+  assert.match(storage, /if \(landing\) playCanvasArrival\(this\.app\.canvas\);/,
+    'and it is played once the restored image is in the backing store');
+  assert.match(storage, /syncActiveFromStorage\(\)[\s\S]*?this\.loadPayloadIntoApp\(payload\);/,
+    'a peer\'s edit syncing in from another tab stays still — no landing option');
+  // The clear-dissolve twin runs off the same pair of class names; keep them in step.
+  assert.equal(CLEARING_CLASS, 'canvas-clearing');
+  assert.equal(ASSEMBLING_CLASS, 'canvas-assembling');
+  assert.match(storage, /flashLanding\(vp, 'canvas-clearing', GHOST_MS\)/,
+    'and the clear still dissolves the outgoing image');
 });
 
 test('hasPixels tells a painted canvas from an empty one', () => {
@@ -327,6 +407,48 @@ test('hasPixels tells a painted canvas from an empty one', () => {
   assert.equal(hasPixels(sparse, 400, 300), true);
   assert.equal(hasPixels(null, 10, 10), false, 'no context');
   assert.equal(hasPixels(empty, 0, 0), false, 'no box');
+});
+
+// ── Icon hover ──────────────────────────────────────────────────────────────
+// The shimmer sweeps the BUTTON; nothing moved the glyph, so an icon-only control had
+// no hover motion of its own. A single shared turn-and-swell was the first answer and
+// the WRONG one — a uniform tilt means nothing, and on `minus` a glyph that swells reads
+// as "increase". Each icon now mimes its own action instead (config/iconMotion.json is
+// the canonical table; tests/iconMotion.test.js pins it). What stays shared is the
+// TRIGGER: one rule flips the `--ic-on` latch and switches on `--ic-play`.
+test('animations.css: one trigger drives every icon, and the generic tilt is gone', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  assert.ok(!/rotate\(-7deg\) scale\(1\.14\)/.test(css),
+    'the one-size-fits-all tilt+swell must not come back');
+  const hover = css.match(/^[^{}]*:hover\s*\n\s*:is\(\.ic, \.draw-mode-icon, \.ic \*, \.draw-mode-icon \*\) \{([^}]*)\}/m);
+  assert.ok(hover, 'the icon-hover trigger exists and reaches the PARTS, not just the glyph');
+  assert.match(hover[1], /--ic-on: 1;/, 'it flips the hold latch');
+  assert.match(hover[1], /animation-name: var\(--ic-play, none\);/, 'and starts the settle play');
+  assert.ok(!/transform:/.test(hover[1]),
+    'the trigger itself moves nothing — the per-icon rules do');
+  // The fold chevrons opt out as an ATTRIBUTE, so the rule stays at class specificity
+  // and the reduced-motion override below can still outrank it.
+  assert.match(css, /:not\(\[id\^="toggle-"\]\):hover/, 'the fold chevrons keep their own idiom');
+  assert.ok(!/:not\(#toggle-coord-panel\)/.test(css),
+    'as an attribute, so the rule stays at class specificity');
+  // A face mid-swap owns its own animation-name; the trigger must not steal it.
+  assert.match(css, /:not\(\.is-loading\):not\(\.swapping\)/);
+  // A glyph already animating owns its transform outright.
+  assert.match(css, /\.is-loading \.ic, \.is-loading \.ic \*, \.swapping > svg, \.swapping > svg \* \{ transition: none; \}/);
+});
+
+test('animations.css: reduced motion cancels the icon hover but not the chevrons’ state', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const block = css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?--ic-on: 0 !important;[\s\S]*?\n\}/);
+  assert.ok(block, 'the hover move is cancelled under the preference');
+  // Killing the latch and the keyframe switch leaves every glyph in its rest pose —
+  // which is also where every motion here ends, so the end state stays correct.
+  assert.match(block[0], /animation-name: none !important;/);
+  assert.match(block[0], /transition: none !important;/);
+  // The rotate(180deg) that says "this panel is folded" is STATE. An `!important`
+  // transform reset here would flatten it and the chevron would point the wrong way.
+  assert.ok(!/transform: none !important/.test(block[0]),
+    'nothing here outranks the fold chevrons’ own rotation');
 });
 
 test('animations.css: the canvas waits behind its own dust, both directions', () => {

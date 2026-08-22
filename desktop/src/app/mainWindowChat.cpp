@@ -1025,6 +1025,7 @@ namespace stencil::gui {
       // The same entry the .stencil / server paths use to adopt a bare QImage; an empty
       // layout means "just the picture", which is exactly what an attachment is.
       loadImageWithLayout(chatTurnAttachments_.first(), QJsonObject());
+      playImageArrival();   // it lands on the canvas like any other fresh image
     }
     ChatPlanTarget target(*this);
     llm::ExecResult res;

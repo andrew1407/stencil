@@ -659,6 +659,39 @@ export function swapContent(el, html, {
   return true;
 }
 
+// ── Pinning a swapping control's box ────────────────────────────────────────
+// A face that swaps in place must not resize the button under the cursor, so the Draw
+// group's two toggles are width-pinned. The pin is MEASURED, never guessed: each face is
+// written into THE BUTTON ITSELF at width:auto and measured there, so the number comes
+// from the real font, gap, padding and border — a clone loses whatever its id styles it
+// with. That survives a font swap, a zoom and a translated label; a hard-coded rem does
+// not. The whole probe is synchronous, so no intermediate face is ever painted, and the
+// original markup is put back before returning (the caller's swap sees no change).
+// Once per element — a re-rendered toolbar hands over a new node, which re-measures —
+// plus one re-measure when webfonts settle, since metrics can change under us.
+const facePinned = new WeakSet();
+export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = false } = {}) {
+  if (!el || !faces?.length || !el.style || !el.getBoundingClientRect) return 0;
+  if (!force && facePinned.has(el)) return 0;
+  const html0 = el.innerHTML, width0 = el.style.width;
+  el.style.width = 'auto';                 // beats the pin; min-width:max-content is the floor
+  let widest = 0;
+  for (const html of faces) {
+    el.innerHTML = html;
+    widest = Math.max(widest, el.getBoundingClientRect().width || 0);
+  }
+  el.innerHTML = html0;
+  el.style.width = width0;
+  if (!(widest > 0)) return 0;             // no layout (a stub, a hidden panel): keep the CSS floor
+  const px = Math.ceil(widest);
+  el.style.width = `${px}px`;
+  if (!facePinned.has(el)) {
+    facePinned.add(el);
+    doc?.fonts?.ready?.then?.(() => { if (el.isConnected !== false) pinWidestFace(el, faces, { doc, force: true }); });
+  }
+  return px;
+}
+
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
 // A removed element comes apart: one clone per tile, clipped to its own cell, drifting
 // off in a staggered sweep. The tiles live in a FIXED layer over the page — the row is
@@ -876,13 +909,17 @@ export const dustDelay = (cy, rows, n, reverse = false) => {
 // place, rather than crawling the last few pixels. Pure.
 export const dustEase = (k) => 1 - (1 - k) ** 3;
 
+// Returns true when the dust is actually playing — the same contract as ghostIn, and
+// for the same reason: the caller hides the emptied editor only while there are motes
+// in front of it. Under reduced motion (or any other bail-out) it said nothing, and the
+// editor was held blank for the whole 1.1s with nothing to look at.
 export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
-  if (typeof document === 'undefined' || !canvas?.width || !canvas.height) return;
-  if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return;
+  if (typeof document === 'undefined' || !canvas?.width || !canvas.height) return false;
+  if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
     const r = canvas.getBoundingClientRect();
-    if (r.width < 8 || r.height < 8) return;
+    if (r.width < 8 || r.height < 8) return false;
 
     // Grid sized so every mote is about DUST_CELL_PX on screen, then thinned if that
     // would exceed the particle ceiling.
@@ -952,7 +989,10 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
     };
     requestAnimationFrame(step);
     setTimeout(() => stage.remove(), ms + 400);   // belt and braces if rAF is throttled
-  } catch { /* decoration only — the clear still happens */ }
+    return true;
+  } catch {
+    return false;   // decoration only — the clear still happens
+  }
 }
 
 // ── Canvas dust, the other way (ghostIn) ────────────────────────────────────
@@ -1051,6 +1091,32 @@ export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
   } catch {
     return false;   // decoration only — the image is already loaded either way
   }
+}
+
+// ── The one place an image's ARRIVAL is played ──────────────────────────────
+// Every route that puts a picture on the canvas ends here: a fresh file load AND a
+// reopened project. It used to live inline in the loader only, so opening a saved
+// project painted the image with no motion at all.
+// Dust gather when ghostIn can run (the canvas waits behind it under
+// ASSEMBLING_CLASS), the drop-point flight when it can't. Returns which one played,
+// so the wiring is testable without a DOM.
+export const ASSEMBLING_CLASS = 'canvas-assembling';
+export const CLEARING_CLASS = 'canvas-clearing';
+
+export function playCanvasArrival(canvas, { from = null, viewport, container, ghost = ghostIn } = {}) {
+  const doc = typeof document !== 'undefined' ? document : null;
+  // Both looked up by ID: the loader used to reach for the viewport by CLASS, and the
+  // fullscreen layer clones the shell — two elements answering to one selector.
+  const vp = viewport !== undefined ? viewport : doc?.getElementById('canvas-viewport') || null;
+  const box = container !== undefined ? container : doc?.getElementById('canvas-container') || null;
+  if (ghost(canvas)) {
+    if (vp) flashLanding(vp, ASSEMBLING_CLASS, GHOST_MS);
+    return 'dust';
+  }
+  // ghostIn declined (reduced motion, a canvas too small, nothing painted yet) — the
+  // plain landing still runs, and is itself inert under reduced motion.
+  arriveFrom(box, from);
+  return 'flight';
 }
 
 // One-shot "it landed here" flash — restart-safe, so dropping twice in a row

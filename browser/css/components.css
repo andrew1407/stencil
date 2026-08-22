@@ -2041,9 +2041,17 @@ body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
     pointer-events: none;
     opacity: 0;
-    transition: opacity 90ms ease;
+    /* Appear/disappear as a short fade + rise, not a blink. A TRANSITION, deliberately,
+       not keyframes: sweeping the toolbar re-points the one shared tooltip many times a
+       second, and a transition simply re-aims from wherever it is — there is no animation
+       to restart, stack, or leave half-played on a control the pointer already left.
+       transform-origin sits at the top-left so the scale grows away from the cursor, which
+       is where controlTooltip.js anchors the box. */
+    transform: translateY(5px) scale(0.97);
+    transform-origin: top left;
+    transition: opacity 110ms ease, transform 110ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-#app-tooltip.visible { opacity: 1; }
+#app-tooltip.visible { opacity: 1; transform: none; }
 /* Heading: the control's name, with its shortcut pinned to the right of the same row. */
 .tip-head {
     display: flex;
@@ -2076,6 +2084,29 @@ body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
     vertical-align: middle;   /* centred on the sentence it sits in, not on its baseline */
 }
 .tip-plus { font-size: 13px; color: var(--text-shortcut); margin: 0 1px; vertical-align: middle; }
+/* ── Keycap shake (js/ui/controlTooltip.js) ──────────────────────────────────
+   Press the shortcut the visible tooltip is showing and its cap shakes once instead of
+   the tooltip blinking away — the answer to "was that the key?" lands on the cap itself.
+   That covers the disabled control too: greyed controls are exactly the ones whose tip
+   you are reading when the key does nothing. One shot, no repeat; every OTHER key still
+   dismisses the tooltip as before. The accent recolour is the half that survives reduced
+   motion, so the cap still answers when it may not move. */
+@keyframes keycapShake {
+    0%, 100% { transform: none; }
+    15% { transform: translateX(-3px) rotate(-3deg); }
+    38% { transform: translateX(3px) rotate(3deg); }
+    62% { transform: translateX(-2px) rotate(-2deg); }
+    84% { transform: translateX(2px) rotate(1.5deg); }
+}
+.tip-key.key-shake {
+    animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+    #app-tooltip { transition: none; transform: none; }
+    .tip-key.key-shake { animation: none; }
+}
 /* Rows: "term — description" pairs from the title, as an aligned two-column grid — the
    term and its description are direct grid children, so every row shares the columns. */
 .tip-rows {

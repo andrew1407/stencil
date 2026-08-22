@@ -24,11 +24,11 @@
     </span>
     <h1>Images</h1>
     <span id="count" class="count"></span>
-    <button id="open-chat" class="icon-btn" title="AI assistant — chat about the images on this page"></button>
-    <button id="open-sidepanel" class="icon-btn" title="Open as a docked side panel"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
-    <button id="theme-toggle" class="icon-btn" title="Toggle dark / light theme"></button>
-    <button id="rescan" class="icon-btn" title="Rescan page"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-    <button id="open-options" class="icon-btn" title="Settings"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button id="open-chat" aria-label="AI assistant" class="icon-btn" data-title="AI assistant — chat about the images on this page"></button>
+    <button id="open-sidepanel" aria-label="Open as a side panel" class="icon-btn" data-title="Open as a docked side panel"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+    <button id="theme-toggle" aria-label="Toggle theme" class="icon-btn" data-title="Toggle dark / light theme"></button>
+    <button id="rescan" aria-label="Rescan page" class="icon-btn" data-title="Rescan page"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+    <button id="open-options" aria-label="Settings" class="icon-btn" data-title="Settings"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </header>
 
   <div class="filters">
@@ -39,7 +39,7 @@
       <div class="section-head" role="button" tabindex="0" aria-expanded="true">
         <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         <span class="dlbl">Open editors</span>
-        <button id="ed-refresh" class="mini" type="button" title="Re-read every open editor tab (and its live canvas preview)">Refresh</button>
+        <button id="ed-refresh" class="mini" type="button" data-title="Re-read every open editor tab (and its live canvas preview)">Refresh</button>
       </div>
       <div class="section-body">
         <!-- The same search row as "Found resources" — input + regex pill — narrowing the
@@ -47,7 +47,7 @@
              which delegates to the very matchesSearch the image list uses). -->
         <div class="srow">
           <input id="ed-search" class="search" type="search" placeholder="Search by project, title or URL…" autocomplete="off">
-          <label class="chk regex-chk" title="Treat the search text as a regular expression"><input type="checkbox" id="ed-regex"><code>.*</code> Regex</label>
+          <label class="chk regex-chk" data-title="Treat the search text as a regular expression"><input type="checkbox" id="ed-regex"><code>.*</code> Regex</label>
         </div>
         <ul id="ed-list" class="ed-list"></ul>
       </div>
@@ -55,8 +55,8 @@
     <!-- Both toggles act on the SCANNED page, so they are meaningless on the editor
          (editor mode hides this row — see popup.css body.editor-mode). -->
     <div class="frow" id="row-highlight">
-      <label class="chk hl" title="Outline every &lt;img&gt; and background-image element on the page so you can see what Stencil can grab"><input type="checkbox" id="f-highlight"> highlight on page</label>
-      <label class="chk hl" title="Hover a list item to outline its element on the page (and scroll it into view). With ‘highlight on page’ on, hovering a page element also outlines its item here. Side panel / DevTools panel."><input type="checkbox" id="f-hover-hl"> highlight on hover</label>
+      <label class="chk hl" data-title="Outline every &lt;img&gt; and background-image element on the page so you can see what Stencil can grab"><input type="checkbox" id="f-highlight"> highlight on page</label>
+      <label class="chk hl" data-title="Hover a list item to outline its element on the page (and scroll it into view). With ‘highlight on page’ on, hovering a page element also outlines its item here. Side panel / DevTools panel."><input type="checkbox" id="f-hover-hl"> highlight on hover</label>
     </div>
     <div class="fsection">
       <div class="section-head" role="button" tabindex="0" aria-expanded="true">
@@ -65,18 +65,18 @@
       </div>
       <div class="section-body">
         <div class="frow">
-          <label class="chk" title="&lt;img&gt; (incl. srcset/&lt;picture&gt; alternates), &lt;input type=image&gt;, and inline &lt;svg&gt; images"><input type="checkbox" id="f-img" checked> images</label>
-          <label class="chk" title="Every CSS image: background-image, content, border-image, list-style, mask, cursor, shape-outside, image-set"><input type="checkbox" id="f-bg" checked> CSS images</label>
+          <label class="chk" data-title="&lt;img&gt; (incl. srcset/&lt;picture&gt; alternates), &lt;input type=image&gt;, and inline &lt;svg&gt; images"><input type="checkbox" id="f-img" checked> images</label>
+          <label class="chk" data-title="Every CSS image: background-image, content, border-image, list-style, mask, cursor, shape-outside, image-set"><input type="checkbox" id="f-bg" checked> CSS images</label>
           <label class="chk"><input type="checkbox" id="f-video" checked> video</label>
-          <label class="chk" title="Show video poster (preview cover) images, listed separately from the videos they belong to"><input type="checkbox" id="f-poster" checked> video posters</label>
-          <label class="chk" title="Page-furniture images: favicons, og:/twitter: preview &lt;meta&gt;, web-app-manifest icons, and image preload/prefetch hints"><input type="checkbox" id="f-meta" checked> icons &amp; metadata</label>
+          <label class="chk" data-title="Show video poster (preview cover) images, listed separately from the videos they belong to"><input type="checkbox" id="f-poster" checked> video posters</label>
+          <label class="chk" data-title="Page-furniture images: favicons, og:/twitter: preview &lt;meta&gt;, web-app-manifest icons, and image preload/prefetch hints"><input type="checkbox" id="f-meta" checked> icons &amp; metadata</label>
         </div>
         <div class="frow">
-          <label class="chk" title="Flag images already opened in an editor (yellow ⚑) and offer to resume them"><input type="checkbox" id="f-mark-opened"> mark opened</label>
-          <label class="chk" title="Sort images already opened in an editor to the top of the list"><input type="checkbox" id="f-opened-first"> opened first</label>
-          <label class="chk" title="Outline pinned images (gray) and float them to the top"><input type="checkbox" id="f-show-pinned"> show pinned</label>
-          <label class="chk" title="Show images stored on a connected server (golden outline)" id="f-server-pins-wrap" hidden><input type="checkbox" id="f-server-pins" checked> server pins</label>
-          <select id="f-server-store" title="Filter by the server a pin is stored on" hidden></select>
+          <label class="chk" data-title="Flag images already opened in an editor (yellow ⚑) and offer to resume them"><input type="checkbox" id="f-mark-opened"> mark opened</label>
+          <label class="chk" data-title="Sort images already opened in an editor to the top of the list"><input type="checkbox" id="f-opened-first"> opened first</label>
+          <label class="chk" data-title="Outline pinned images (gray) and float them to the top"><input type="checkbox" id="f-show-pinned"> show pinned</label>
+          <label class="chk" data-title="Show images stored on a connected server (golden outline)" id="f-server-pins-wrap" hidden><input type="checkbox" id="f-server-pins" checked> server pins</label>
+          <select id="f-server-store" aria-label="Filter by the server a pin is stored on" data-title="Filter by the server a pin is stored on" hidden></select>
         </div>
       </div>
     </div>
@@ -112,18 +112,18 @@
       <div class="section-head" role="button" tabindex="0" aria-expanded="true">
         <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         <span class="dlbl">Images from another page</span>
-        <button id="src-rescan" class="mini" type="button" title="Re-read the open pages, then rescan the picked one">Rescan</button>
+        <button id="src-rescan" class="mini" type="button" data-title="Re-read the open pages, then rescan the picked one">Rescan</button>
       </div>
       <div class="section-body">
         <!-- Filter by URL (regex on the pill, like every other search row here), then tick as
              many pages as you want — the list below merges them. -->
         <div class="srow">
           <input id="src-filter" class="search" type="search" placeholder="Filter pages by URL…" autocomplete="off">
-          <label class="chk regex-chk" title="Treat the filter text as a regular expression"><input type="checkbox" id="src-regex"><code>.*</code> Regex</label>
+          <label class="chk regex-chk" data-title="Treat the filter text as a regular expression"><input type="checkbox" id="src-regex"><code>.*</code> Regex</label>
         </div>
         <div class="src-tools">
-          <button id="src-all" class="mini" type="button" title="Tick every page the filter shows">Select all</button>
-          <button id="src-none" class="mini" type="button" title="Untick every page">Deselect all</button>
+          <button id="src-all" class="mini" type="button" data-title="Tick every page the filter shows">Select all</button>
+          <button id="src-none" class="mini" type="button" data-title="Untick every page">Deselect all</button>
         </div>
         <ul id="src-list" class="src-list"></ul>
         <div id="src-note" class="src-note"></div>
@@ -141,7 +141,7 @@
         <!-- Regex rides ON the search row as a pill, costing the section no height. -->
         <div class="srow">
           <input id="f-search" class="search" type="search" placeholder="Search by name or URL…" autocomplete="off">
-          <label class="chk regex-chk" title="Treat the search text as a regular expression"><input type="checkbox" id="f-regex"><code>.*</code> Regex</label>
+          <label class="chk regex-chk" data-title="Treat the search text as a regular expression"><input type="checkbox" id="f-regex"><code>.*</code> Regex</label>
         </div>
       </div>
     </div>
@@ -165,14 +165,14 @@
       <div id="chat-tray" class="chat-tray" hidden></div>
       <div class="chat-composer">
         <textarea id="chat-input" rows="2" placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"></textarea>
-        <button id="chat-send" class="chat-send" title="Send"></button>
+        <button id="chat-send" aria-label="Send" class="chat-send" data-title="Send"></button>
         <!-- Only Send stays inline; attach / clear / settings live behind the … -->
         <span class="chat-more-wrap">
-          <button id="chat-more-btn" class="chat-clear" aria-haspopup="true" aria-expanded="false" title="More — attach, clear, settings"><span id="chat-status-dot" class="chat-status-dot"></span></button>
+          <button id="chat-more-btn" aria-label="More" class="chat-clear" aria-haspopup="true" aria-expanded="false" data-title="More — attach, clear, settings"><span id="chat-status-dot" class="chat-status-dot"></span></button>
           <span class="chat-more-menu" id="chat-more-menu" hidden>
-            <button id="chat-attach-btn" class="chat-more-item" title="Attach an image">Add image</button>
-            <button id="chat-clear" class="chat-more-item" title="Clear the conversation">Clear history</button>
-            <button id="chat-open-options" class="chat-more-item" title="Assistant settings">Settings</button>
+            <button id="chat-attach-btn" class="chat-more-item" data-title="Attach an image">Add image</button>
+            <button id="chat-clear" class="chat-more-item" data-title="Clear the conversation">Clear history</button>
+            <button id="chat-open-options" class="chat-more-item" data-title="Assistant settings">Settings</button>
           </span>
         </span>
         <input type="file" id="chat-attach-input" accept="image/*,video/*" multiple hidden>

@@ -51,7 +51,12 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   trigger.className = 'accent-dd-trigger';
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-expanded', 'false');
-  if (selectEl.title) trigger.title = selectEl.title;
+  // The hidden <select> keeps the description + accessible name; the visible trigger
+  // inherits both (data-title, never `title` — see lib/tip.js).
+  const tip = selectEl.dataset ? selectEl.dataset.title : '';
+  if (tip) trigger.setAttribute('data-title', tip);
+  const aria = selectEl.getAttribute('aria-label');
+  if (aria) trigger.setAttribute('aria-label', aria);
   trigger.innerHTML =
     '<span class="accent-dd-name cs-cur"></span>' +
     `<span class="accent-dd-caret" aria-hidden="true">${icon('chevron-down', { size: 13 })}</span>`;

@@ -318,17 +318,23 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 .materializing {
     pointer-events: none;
     overflow: hidden;
-    animation: stRowMaterialize 0.22s cubic-bezier(0, 0, 0.6, 1) both;
+    /* Expo-out over 0.32s, not 0.22s of ease-out: the slot used to finish opening in
+       ~90ms, which reads as the list POPPING a gap rather than making room. */
+    animation: stRowMaterialize 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+/* Two frames, not three: box, spacing and opacity all ride the one curve, so nothing
+   lands on a step partway through. The move is a short rise (the mirror of .filter-in);
+   translateX(-14px) slid the row in sideways while the slot snapped open behind it. */
 @keyframes stRowMaterialize {
-    from { opacity: 0; transform: translateX(-14px) scale(0.97);
+    from { opacity: 0; transform: translateY(-6px) scale(0.985);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
-    40%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--enter-h, 200px); }
     to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
 }
 /* While the dust gathers the real row stays hidden — the motes ARE the row forming;
    motion.js lifts the veil the moment they land (wipeDurationMs). !important so the
-   veil outranks stRowMaterialize's animated opacity. */
+   veil outranks stRowMaterialize's animated opacity. The lift is a CUT unless the row
+   itself declares `transition: opacity` — with one it crossfades up under the motes
+   still sitting where they landed (see .pin-row in options.html). */
 .materialize-veil { opacity: 0 !important; }
 /* The gather: stTileScatter reversed. A tile starts where the scatter would have
    flung it (same deterministic --dx/--dy/--rot/--tile-scale) and flies home. Shorter
@@ -433,6 +439,9 @@ html.theme-swapping *::before, html.theme-swapping *::after {
        preference flipped underneath. A filtered-out row is gone, not faded. */
     .filter-out { display: none !important; }
     .filter-in { animation: none !important; }
+    /* The tooltip lands where it is, at full size — no rise, no scale. */
+    #app-tooltip { transition: none !important; transform: none !important; }
+    .tip-key.key-shake { animation: none !important; }
 }
 
 /* The composer's drop-to-attach cue: the icon bobs toward the input while a drag

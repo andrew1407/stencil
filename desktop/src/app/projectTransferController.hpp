@@ -40,7 +40,9 @@ namespace stencil::gui {
       // active id, sets the remote-link fields, starts polling, and repaints the title.
       std::function<void(const QString& serverUrl, const QString& newId, const QString& name,
                          const QString& color, qint64 version)> relinkActiveToServer;
-      std::function<void(const QString& id)> loadProjectIntoCanvas;
+      // `animate` plays the arrival: true when a picture really LANDS on the canvas,
+      // false for a rebind where the same image stays put.
+      std::function<void(const QString& id, bool animate)> loadProjectIntoCanvas;
       std::function<void()> afterChange;  // refreshActions + refreshDockMenu
     };
 

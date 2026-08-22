@@ -1,4 +1,5 @@
 import { leaveThenRemove } from './motion.js';
+import { setTip } from './tip.js';
 // ── Assistant transcript widgets (pure, unit-testable) ──────────────────────
 // Two small DOM builders the embedded Assistant section (src/popup/assistant.js)
 // uses, kept out of that chrome/DOM-bound module so `node --test` can drive them
@@ -30,7 +31,7 @@ export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDis
   const button = doc.createElement('button');
   button.type = 'button';
   button.className = 'x-dismiss';
-  button.title = 'Dismiss';
+  setTip(button, 'Dismiss');
   button.textContent = '×';
   if (button.setAttribute) button.setAttribute('aria-label', 'Dismiss');
 
@@ -142,7 +143,7 @@ export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
     b.type = 'button';
     b.className = 'chat-suggest';
     b.textContent = s.label;
-    b.title = s.prompt;
+    setTip(b, s.prompt);
     if (b.dataset) b.dataset.prompt = s.prompt;
     b.addEventListener('click', () => onPick(s.prompt));
     wrap.appendChild(b);

@@ -201,7 +201,11 @@ test('release and dismiss close the menu; armUpdate pulses the logo only for usa
   assert.equal(logoEl.classList.contains('drag-armed'), false);
 });
 
-test('the logo carries the drop hint as an SVG <title> child', () => {
+// data-title, not an SVG <title> child and not a title attribute: either of those
+// raises Chrome's own popup on top of the custom tooltip (src/lib/tip.js).
+test('the logo carries the drop hint as data-title, with no native <title>', () => {
   const { logoEl } = build();
-  assert.equal(logoEl.children[0].textContent, LOGO_DROP_HINT);
+  assert.equal(logoEl.dataset.title, LOGO_DROP_HINT);
+  assert.equal(logoEl.children.length, 0, 'no <title> child for the browser to render');
+  assert.equal(logoEl.title, '', 'and no title attribute either');
 });

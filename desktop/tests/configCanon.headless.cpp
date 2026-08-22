@@ -68,11 +68,43 @@ int main(int argc, char** argv) {
         std::printf("       missing glyph: %s\n", qPrintable(it.key()));
       }
     check(all, "every canon glyph is in the desktop icon table");
-    for (const char* extra : {"power", "search", "more-vertical"})
+    for (const char* extra : {"power", "search", "more-vertical", "line-dots"})
       check(hasIcon(extra), "desktop-only extra glyph present");
+    // The draw-mode pair must read as SIBLINGS. Both are stroked outlines on the same
+    // grid — neither carries the solid-fill attributes that made rect-filled a slab next
+    // to a pencil. (line-dots' endpoint DOTS are filled; its segment is not.)
+    check(hasIcon("line") && hasIcon("rect"), "the draw-mode pair is present");
+    // The canon now carries the pair itself (`line` + `rect`, the browser's inline
+    // DRAW_MODE_ICON scaled onto the 24-grid), so the check is on the BOX element: its
+    // two endpoint handles are filled dots, exactly as line's are — the segment and the
+    // box are not.
+    const QString rectGlyph = canon.value("rect").toString();
+    const int rectEl = rectGlyph.indexOf("<rect");
+    check(rectEl >= 0
+              && !rectGlyph.mid(rectEl, rectGlyph.indexOf('>', rectEl) - rectEl)
+                      .contains("fill=\"currentColor\""),
+          "the rect face is an outline, not a filled slab");
     const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, false, 1.0);
     check(!crop.isNull() && !crop.pixmap(24, 24).isNull(),
           "crop glyph rasterizes (spot-check)");
+    // Every glyph must still RASTERIZE with the browser's motion hooks in it: the
+    // canon carries class="ic-…" attributes and <g class="ic-…"> wrappers (browser
+    // js/config/iconMotion.json addresses them from CSS) which QSvgRenderer has no
+    // use for. They are inert here — but only if it draws the same picture anyway,
+    // so this rasterizes the WHOLE set and looks for actual ink.
+    bool drawn = true;
+    for (auto it = canon.begin(); it != canon.end(); ++it) {
+      const QImage img = themedIcon(it.key(), QColor("#7c3aed"), 24, false, 1.0)
+                             .pixmap(24, 24).toImage();
+      bool ink = false;
+      for (int y = 0; y < img.height() && !ink; ++y)
+        for (int x = 0; x < img.width() && !ink; ++x) ink = qAlpha(img.pixel(x, y)) > 0;
+      if (!ink) {
+        drawn = false;
+        std::printf("       renders blank: %s\n", qPrintable(it.key()));
+      }
+    }
+    check(drawn, "every canon glyph rasterizes with the motion hooks in it");
   }
 
   // ── layoutFields.json export subset vs buildLayoutJson ───────────────────

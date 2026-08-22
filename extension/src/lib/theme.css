@@ -115,6 +115,11 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   background: transparent; user-select: none;
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
+/* `display` above out-specifies the UA's [hidden] rule, so a chip a page hides from JS
+   (e.g. the popup's "server pins" pill, with no server connected) needs saying explicitly
+   — otherwise it keeps its box and its width in the filter row. popup.css does the same
+   for .fsection / .icon-btn, and .accent-dd below needs it for the same reason. */
+.chk[hidden] { display: none; }
 .chk:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 /* Off in dark: --accent is too deep a violet against the dark panel at label sizes, so
    borrow the lighter shade. The :not() is load-bearing — this out-specifies the ON rule,
@@ -172,9 +177,17 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 90ms ease;
+  /* Appear/disappear as a short fade + rise, not a blink. A TRANSITION, deliberately,
+     not keyframes: sweeping a toolbar re-points the ONE shared tooltip many times a
+     second, and a transition simply re-aims from wherever it is — nothing to restart,
+     stack, or leave half-played on a control the pointer already left. transform-origin
+     is top-left, where controlTooltip.js anchors the box, so it grows away from the
+     cursor. Mirrors #app-tooltip in browser/css/components.css. */
+  transform: translateY(5px) scale(0.97);
+  transform-origin: top left;
+  transition: opacity 110ms ease, transform 110ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-#app-tooltip.visible { opacity: 1; }
+#app-tooltip.visible { opacity: 1; transform: none; }
 .tip-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .tip-title { font-weight: 600; }
 .tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
@@ -187,6 +200,21 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   vertical-align: middle;
 }
 .tip-plus { font-size: 13px; color: var(--muted); margin: 0 1px; vertical-align: middle; }
+/* Keycap shake (controlTooltip.js SHAKE_CLASS): press the shortcut the open tooltip is
+   showing and its cap shakes once instead of the tooltip blinking away. The accent
+   recolour is the half that survives reduced motion. */
+@keyframes keycapShake {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-3px) rotate(-3deg); }
+  38% { transform: translateX(3px) rotate(3deg); }
+  62% { transform: translateX(-2px) rotate(-2deg); }
+  84% { transform: translateX(2px) rotate(1.5deg); }
+}
+.tip-key.key-shake {
+  animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .tip-rows {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin-top: 5px; max-width: 100%;
 }
@@ -208,6 +236,10 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
    the value source. Mirrors .cs-dd / .accent-dd in browser/css/components.css. ── */
 .cs-native { display: none; }
 .accent-dd { position: relative; display: block; }
+/* enhanceSelect mirrors the <select>'s `hidden` onto this wrapper, and `display` above
+   out-specifies the UA's [hidden] rule — without this an empty, hidden dropdown (the
+   per-server filters, with no server connected) still paints an empty box in the row. */
+.accent-dd[hidden] { display: none; }
 .accent-dd-trigger {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px;
   font: inherit; font-size: 14px; text-align: left; color: var(--text);

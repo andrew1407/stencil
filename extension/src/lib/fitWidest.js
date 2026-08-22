@@ -1,0 +1,35 @@
+// ── Pin a custom-select trigger to its widest option ─────────────────────────
+// A filter dropdown that changes width with its value shoves everything after it in the
+// row — which is why such a control gets a width pinned at all. Pin it to the WIDEST
+// label the list can show, measured in the trigger's own font: a hard-coded px floor is
+// a guess, and a guess is dead space around the short labels while still being too
+// narrow at another font size, another zoom level, or in translation.
+//
+// Only for lists whose options are FIXED and short. One carrying arbitrary content (a
+// hostname, a project name) would pin itself to its longest entry forever, which is the
+// same dead space by another route — those size to the label they show.
+
+// Returns the width it pinned (0 when there was nothing to measure).
+export function pinToWidestOption(selectEl) {
+  const wrap = selectEl && selectEl.closest ? selectEl.closest('.accent-dd') : null;
+  const name = wrap ? wrap.querySelector('.accent-dd-name') : null;
+  if (!name || !selectEl.options) return 0;
+  const prev = selectEl.value;
+  const restore = name.getAttribute('style') || '';
+  // Out of the flex flow at max-content for the walk, so the row's own shrinking can't
+  // shave a fraction off the label being measured. offsetWidth, not a client rect: this
+  // runs while the card still rides its stCardIn entrance (lib/animations.css), and a
+  // rect measured under that scale(.985) comes back a pixel short — permanently.
+  name.style.cssText = 'position:absolute; visibility:hidden; width:max-content; max-width:none;';
+  let widest = 0;
+  // Setting .value only re-syncs the label (customSelect wraps the setter and never
+  // dispatches change), and the walk is one frame, so nothing paints mid-walk.
+  for (const opt of selectEl.options) {
+    selectEl.value = opt.value;
+    widest = Math.max(widest, name.offsetWidth);
+  }
+  selectEl.value = prev;
+  name.setAttribute('style', restore);
+  if (widest) name.style.minWidth = `${widest}px`;
+  return widest;
+}
