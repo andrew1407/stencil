@@ -80,6 +80,7 @@
 #include "../support/themeSwapOverlay.hpp"  // palette-swap wipe
 #include "../support/appTooltip.hpp"           // the fading control tooltip
 #include "../support/disintegrateOverlay.hpp"  // the canvas scatters when cleared
+#include "../support/controlSwap.hpp"         // checkbox particles + combo value swap
 #include "../support/iconMotion.hpp"          // the per-icon hover motion
 #include "../support/shimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
@@ -216,6 +217,9 @@ namespace stencil::gui {
     qApp->installEventFilter(this);
     // …and the one that gives every icon button its own hover motion (iconMotion.hpp).
     installIconMotion();
+    // …and the one that gives every checkbox its particle toggle and every combo its
+    // value exchange, in whatever dialog they are built (controlSwap.hpp).
+    installControlSwap();
 
     selPanel_ = new SelectionPanel(this);
     // Named so QMainWindow::saveState() can persist/restore the dock layout

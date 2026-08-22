@@ -108,16 +108,51 @@ namespace stencil::gui {
       return fx;
     }
 
+    // The same scatter over an explicitly RENDERED pair of states, for a control whose
+    // glyph belongs to the style rather than to a widget of its own (a checkbox
+    // indicator): `particles` is the state that comes and goes, `base` the one left
+    // behind, painted opaque underneath so whatever the real control already shows
+    // never bleeds through. `at` is in host coordinates; `spread` scales the throw for
+    // a control far smaller than a list row, and `ms` shortens it to click feedback.
+    // `pad` widens the overlay around `at` WITHOUT moving the picture inside it: a row's
+    // motes travel a fraction of its own width and clip harmlessly, but a 16px control's
+    // leave its box at once, so the canvas has to be bigger than the thing on it.
+    static DisintegrateOverlay* overPixmaps(const QPixmap& particles, const QPixmap& base,
+                                            const QRect& at, QWidget* host, Sweep sweep,
+                                            int cols, int rows, int ms, double spread,
+                                            int pad = 0, const QString& name = QString()) {
+      if (!host || particles.isNull() || at.width() < 2 || at.height() < 2) return nullptr;
+      auto* fx = new DisintegrateOverlay(host, particles);
+      if (!name.isEmpty()) fx->setObjectName(name);
+      fx->base_ = base;
+      fx->sweep_ = sweep;
+      fx->cols_ = std::max(1, cols);
+      fx->rows_ = std::max(1, rows);
+      fx->spread_ = spread;
+      fx->pad_ = std::max(0, pad);
+      fx->setGeometry(at.adjusted(-fx->pad_, -fx->pad_, fx->pad_, fx->pad_));
+      fx->show();
+      fx->raise();
+      QTimer::singleShot(0, fx, [fx] { fx->raise(); });
+      fx->start(ms);
+      return fx;
+    }
+
    protected:
     void paintEvent(QPaintEvent*) override {
       if (snap_.isNull()) return;
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-      const double cw = double(width()) / cols_;
-      const double ch = double(height()) / rows_;
-      const double sx = double(snap_.width()) / width();     // snapshot is DPR-scaled
-      const double sy = double(snap_.height()) / height();
+      // Where the picture itself sits — the whole overlay unless `pad` widened it.
+      const QRectF box = QRectF(rect()).adjusted(pad_, pad_, -pad_, -pad_);
+      if (box.width() <= 0 || box.height() <= 0) return;
+      // The state left behind, under the particles.
+      if (!base_.isNull()) p.drawPixmap(box, base_, QRectF(base_.rect()));
+      const double cw = box.width() / cols_;
+      const double ch = box.height() / rows_;
+      const double sx = double(snap_.width()) / box.width();   // snapshot is DPR-scaled
+      const double sy = double(snap_.height()) / box.height();
       for (int cy = 0; cy < rows_; ++cy) {
         for (int cx = 0; cx < cols_; ++cx) {
           // The sweep runs BOTTOM→TOP: a cell's clock starts later the higher it sits,
@@ -144,19 +179,19 @@ namespace stencil::gui {
           // 0→1; gathering is the same journey read backwards, eased so a mote covers
           // most of the distance early and settles (browser dustEase).
           const double away = gather ? std::pow(1.0 - t, 3.0) : t;
-          const QRectF dst(cx * cw, cy * ch, cw, ch);
-          const QRectF src(dst.x() * sx, dst.y() * sy, dst.width() * sx, dst.height() * sy);
+          const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
+          const QRectF src(cx * cw * sx, cy * ch * sy, cw * sx, ch * sy);
           p.save();
           p.setOpacity(1.0 - away);
           // Fan out sideways rather than all sliding one way.
           p.translate(dst.center());
           // Rows rise off a list; a falling image drops (and accelerates, hence away²);
           // a gathering one comes FROM below and rises home — the fall inverted.
-          const double drift = 22 + progress * 34 + n * 30;
+          const double drift = (22 + progress * 34 + n * 30) * spread_;
           const double dy = sweep_ == Sweep::Fall ? away * away * drift * 1.6
                           : gather               ? away * drift * 1.6
                                                  : -away * drift;
-          p.translate(away * ((m - 0.5) * 66), dy);
+          p.translate(away * ((m - 0.5) * 66 * spread_), dy);
           p.rotate(away * (m - 0.5) * 70);
           const double scale = 1.0 - away * (0.65 - n * 0.3);
           p.scale(scale, scale);
@@ -176,9 +211,9 @@ namespace stencil::gui {
       hide();
     }
 
-    void start() {
+    void start(int ms = kMs) {
       auto* anim = new QVariantAnimation(this);
-      anim->setDuration(kMs);
+      anim->setDuration(std::max(1, ms));
       anim->setEasingCurve(QEasingCurve::Linear);   // the per-cell delays own the shaping
       anim->setStartValue(0.0);
       anim->setEndValue(1.0);
@@ -204,9 +239,12 @@ namespace stencil::gui {
     }
 
     QPixmap snap_;
+    QPixmap base_;          // the state left behind (overPixmaps only); null = nothing
     Sweep sweep_ = Sweep::Rows;
     int cols_ = kCols;
     int rows_ = kRows;
+    int pad_ = 0;           // slack around the picture for the motes to fly into
+    double spread_ = 1.0;   // throw distance, as a share of a list row's
     double t_ = 0.0;
   };
 

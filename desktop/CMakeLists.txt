@@ -317,6 +317,24 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_faceswap_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Form-control state swaps (support/controlSwap.hpp) — the checkbox's particle toggle
+  # and the combo's value exchange, driven on live widgets under the real app stylesheet
+  # (converge on the true state, no geometry change, rapid changes land, reduced motion
+  # goes straight to the end state). Needs theme for the QSS the indicator is drawn from,
+  # iconSet for faceSwap's glyphs and modalReveal for motionReduced().
+  add_executable(stencil_controlswap_headless
+    tests/controlSwap.headless.cpp
+    src/support/theme.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_controlswap_headless PRIVATE
+    ${STENCIL_GUI_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_link_libraries(stencil_controlswap_headless PRIVATE Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_controlswap_headless COMMAND stencil_controlswap_headless)
+  set_tests_properties(stencil_controlswap_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Per-icon hover motion (support/iconMotion.hpp) — the table against the glyph canon,
   # the semantic pins (plus grows / minus shrinks / the fullscreen corners invert / the
   # trash hinges at its lid), and the driver on a live button. Needs iconSet for the

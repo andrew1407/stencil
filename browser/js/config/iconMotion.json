@@ -81,10 +81,11 @@
     "x": {
       "action": "close / clear / disconnect — one motion for all three: they all mean “make this go away”",
       "mode": "settle",
-      "note": "the cross snaps shut and springs back",
+      "note": "the two strokes are drawn one after the other, the way you'd cross something out; each is 12√2 ≈ 16.97 units long",
       "parts": [{
-        "hook": null, "durationMs": 300,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 42, "scale": 0.7 }, { "at": 100, "scale": 1 }]
+        "hook": "ic-stroke", "durationMs": 180, "stagger": 180,
+        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 17,
+        "keyframes": [{ "at": 0, "dashOffset": 17 }, { "at": 100, "dashOffset": 0 }]
       }]
     },
     "crop": {
@@ -277,20 +278,20 @@
     "moon": {
       "action": "switch to the dark theme",
       "mode": "settle",
-      "note": "the moon rises into place",
+      "note": "the WHOLE moon rises into view from below the icon box, the way one clears a horizon — no turn, no part choreography",
       "parts": [{
         "hook": null, "durationMs": 380,
-        "keyframes": [{ "at": 0, "translate": [0, 4.5], "rotate": -14 }, { "at": 65, "translate": [0, -0.6], "rotate": 2 }, { "at": 100 }]
+        "keyframes": [{ "at": 0, "translate": [0, 18] }, { "at": 100 }]
       }]
     },
     "sun": {
       "action": "switch to the light theme",
       "mode": "settle",
-      "note": "the sun rises and its rays open out behind it",
-      "parts": [
-        { "hook": "ic-orb", "durationMs": 380, "keyframes": [{ "at": 0, "translate": [0, 4.5], "scale": 0.8 }, { "at": 65, "translate": [0, -0.5], "scale": 1.03 }, { "at": 100 }] },
-        { "hook": "ic-rays", "durationMs": 380, "delayMs": 90, "keyframes": [{ "at": 0, "scale": 0.45, "rotate": -40 }, { "at": 100 }] }
-      ]
+      "note": "the sun's twin: the WHOLE glyph, rays and all, rises from below on the same numbers",
+      "parts": [{
+        "hook": null, "durationMs": 380,
+        "keyframes": [{ "at": 0, "translate": [0, 18] }, { "at": 100 }]
+      }]
     },
     "maximize": {
       "action": "enter fullscreen (base) / leave it (variant `active`)",
@@ -359,10 +360,10 @@
     "help": {
       "action": "help",
       "mode": "settle",
-      "note": "the question mark cocks its head",
+      "note": "the question mark gives a quick tremor in place. TRANSLATION, not rotation: turning the mark about the icon centre swings it out of its own ring",
       "parts": [{
-        "hook": "ic-mark", "durationMs": 340,
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 30, "rotate": -9 }, { "at": 65, "rotate": 7 }, { "at": 100, "rotate": 0 }]
+        "hook": "ic-mark", "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
       }]
     },
     "info": {
@@ -392,11 +393,18 @@
     "image": {
       "action": "open an image",
       "mode": "settle",
-      "note": "the picture drops into the frame",
-      "parts": [{
-        "hook": "ic-photo", "durationMs": 380,
-        "keyframes": [{ "at": 0, "translate": [0, 3.5] }, { "at": 68, "translate": [0, -0.4] }, { "at": 100 }]
-      }]
+      "note": "the picture is DRAWN inside its frame — the ridge (≈22.6 units of polyline) draws itself and the little sun pops as it lands, the `line`/`rect` idiom. Nothing travels across the frame's outline, which sliding the contents in from below did",
+      "parts": [
+        {
+          "hook": "ic-ridge", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 23,
+          "keyframes": [{ "at": 0, "dashOffset": 23 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-orb", "durationMs": 300, "delayMs": 90, "originSelf": true,
+          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+        }
+      ]
     },
     "function": {
       "action": "transformation formula",

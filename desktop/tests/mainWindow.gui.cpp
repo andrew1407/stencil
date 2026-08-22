@@ -26,6 +26,7 @@
 #include "popover.hpp"
 #include "iconSet.hpp"
 #include "faceSwap.hpp"
+#include "controlSwap.hpp"
 #include "iconMotion.hpp"
 #include "guiHelpers.hpp"
 #include "theme.hpp"
@@ -10367,6 +10368,63 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(200);
     QVERIFY2(deferred.parked.isEmpty(), "a follow-up round was sent behind the reply");
     QCOMPARE(deferred.started, 1);
+    beat();
+  }
+
+  // The checkbox particle toggle and the combo value exchange are installed ONCE, on the
+  // application (support/controlSwap.hpp) — no dialog wires its own. What the real window
+  // has to prove is that the hook is actually on, that the real toolbar controls got it
+  // without a call site, and that both effects converge on the true state and leave the
+  // toolbar's geometry exactly where it was.
+  void controlSwapsAreInstalledAppWide() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY2(qApp->findChild<QObject*>(
+                 QString::fromLatin1(stencil::gui::kControlSwapFilterName),
+                 Qt::FindDirectChildrenOnly),
+             "MainWindow never installed the app-wide control-swap filter");
+    auto* box = win.showPointsCheck_;
+    auto* combo = win.pageSize_;
+    QVERIFY(box && combo);
+    QTRY_VERIFY(box->property(stencil::gui::kControlSwapWiredProperty).toBool());
+    QVERIFY2(combo->property(stencil::gui::kControlSwapWiredProperty).toBool(),
+             "a toolbar combo built before the window was shown went unwired");
+
+    // This suite runs under STENCIL_NO_ANIM; lift it just here so the REAL motion runs in
+    // the REAL window, then put it back for everything after.
+    qunsetenv("STENCIL_NO_ANIM");
+    const QRect boxGeom = box->geometry();
+    const QRect comboGeom = combo->geometry();
+    const bool was = box->isChecked();
+    box->setChecked(!was);
+    QCOMPARE(box->isChecked(), !was);
+    QCOMPARE(box->geometry(), boxGeom);
+    // Rapid toggling: the last state is the one that survives, with nothing stranded.
+    for (int i = 0; i < 6; ++i) { box->setChecked(i % 2 == 0); QTest::qWait(20); }
+    QTRY_VERIFY(win.findChildren<QWidget*>(
+                       QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
+    QVERIFY(box->isChecked());
+    QCOMPARE(box->geometry(), boxGeom);
+
+    if (combo->count() > 1) {
+      const int other = combo->currentIndex() == 0 ? 1 : 0;
+      combo->setCurrentIndex(other);
+      QCOMPARE(combo->currentIndex(), other);
+      QCOMPARE(combo->geometry(), comboGeom);
+      QTRY_VERIFY(!stencil::gui::ValueSwapOverlay::running(combo));
+      QCOMPARE(combo->currentIndex(), other);
+      QVERIFY2(combo->styleSheet().isEmpty(),
+               "the swap left its transparent-text override on the combo");
+      QCOMPARE(combo->geometry(), comboGeom);
+    }
+
+    qputenv("STENCIL_NO_ANIM", "1");
+    box->setChecked(was);
+    QCOMPARE(box->isChecked(), was);   // reduced motion still changes the state
+    QVERIFY(win.findChildren<QWidget*>(
+                   QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
     beat();
   }
 
