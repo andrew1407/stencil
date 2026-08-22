@@ -16,9 +16,11 @@ type issueTokenRequest struct {
 // handleIssueToken mints a new bearer token + session. The caller must present
 // the admin token (Authorization: Bearer <admin> or X-Admin-Token); with no
 // admin token configured, issuance is closed outright — config.Load generates a
-// per-boot token precisely so this can never be open.
+// per-boot token precisely so this can never be open by accident. AUTH_OPEN
+// (Deps.AuthOpen) is the explicit opt-out: issuance succeeds with no bearer at
+// all, though the per-IP rate limit and the admin token both keep working.
 func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
-	if !a.adminAuthorized(r) {
+	if !a.deps.AuthOpen && !a.adminAuthorized(r) {
 		writeErr(w, http.StatusUnauthorized, protocol.CodeUnauthorized, "admin token required to issue tokens")
 		return
 	}

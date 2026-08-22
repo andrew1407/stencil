@@ -98,6 +98,70 @@ func TestAdminTokenGatesIssuance(t *testing.T) {
 	}
 }
 
+// TestOpenAuthIssuance: with AuthOpen (AUTH_OPEN=1) issuance succeeds with no
+// bearer at all; the admin bearer keeps working; everything else stays
+// token-gated. The default (AuthOpen unset) stays closed — see
+// TestAdminTokenGatesIssuance.
+func TestOpenAuthIssuance(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+		AdminToken: testAdmin, AuthOpen: true})
+
+	// No bearer at all -> 200 with a real session token.
+	rec := do(t, api, http.MethodPost, "/auth/token", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("open issuance without bearer: code %d body %s", rec.Code, rec.Body.String())
+	}
+	var resp protocol.TokenResponse
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Token == "" {
+		t.Fatal("expected a token")
+	}
+	if rec := do(t, api, http.MethodGet, "/projects", resp.Token, nil); rec.Code != http.StatusOK {
+		t.Fatalf("minted token should authenticate: code %d", rec.Code)
+	}
+	// An explicit admin bearer still works too.
+	if tok := issueToken(t, api, testAdmin); tok == "" {
+		t.Fatal("admin bearer should still mint")
+	}
+	// Protected routes remain token-gated.
+	if rec := do(t, api, http.MethodGet, "/projects", "", nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth GET /projects should stay 401, got %d", rec.Code)
+	}
+}
+
+// TestOpenAuthStillRateLimited: the per-IP issuance limiter applies to open
+// issuance too.
+func TestOpenAuthStillRateLimited(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+		AuthOpen: true, AuthRatePerMin: 2})
+
+	issue := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/auth/token", nil)
+		req.RemoteAddr = "192.0.2.7:1"
+		rec := httptest.NewRecorder()
+		api.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	for i := 0; i < 2; i++ {
+		if rec := issue(); rec.Code != http.StatusOK {
+			t.Fatalf("open issue %d: code %d body %s", i, rec.Code, rec.Body.String())
+		}
+	}
+	if rec := issue(); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("flood should 429 in open mode, got %d", rec.Code)
+	}
+}
+
 func TestProjectLifecycleHTTP(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")

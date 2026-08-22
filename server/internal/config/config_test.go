@@ -265,3 +265,28 @@ func TestAbuseGuardOverridesAndValidation(t *testing.T) {
 		}
 	}
 }
+
+// AUTH_OPEN defaults off, parses bool forms, and rejects garbage.
+func TestAuthOpenConfig(t *testing.T) {
+	chdirTemp(t)
+	clearEnv(t)
+	t.Setenv("AUTH_OPEN", "")
+	os.Unsetenv("AUTH_OPEN")
+	if cfg, err := Load(); err != nil || cfg.AuthOpen {
+		t.Fatalf("default should be closed: %+v err %v", cfg.AuthOpen, err)
+	}
+	for _, v := range []string{"1", "true"} {
+		t.Setenv("AUTH_OPEN", v)
+		if cfg, err := Load(); err != nil || !cfg.AuthOpen {
+			t.Fatalf("AUTH_OPEN=%s should open issuance: %v err %v", v, cfg.AuthOpen, err)
+		}
+	}
+	t.Setenv("AUTH_OPEN", "0")
+	if cfg, err := Load(); err != nil || cfg.AuthOpen {
+		t.Fatalf("AUTH_OPEN=0 should stay closed: %v err %v", cfg.AuthOpen, err)
+	}
+	t.Setenv("AUTH_OPEN", "yes")
+	if _, err := Load(); err == nil {
+		t.Fatal("AUTH_OPEN=yes should be rejected")
+	}
+}

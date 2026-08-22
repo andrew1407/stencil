@@ -31,6 +31,23 @@ export const normalizeUrl = (raw) => {
   return u.origin;
 };
 
+// An invite link is a server URL carrying a session token in its FRAGMENT:
+// `<url>#token=<value>` (the fragment never goes over the wire). Split it before
+// normalizeUrl; any other fragment passes through untouched (origin drops it anyway).
+export const parseInviteUrl = (raw) => {
+  const s = String(raw == null ? '' : raw);
+  const at = s.indexOf('#');
+  const m = at < 0 ? null : /^token=(.+)$/.exec(s.slice(at + 1));
+  if (!m) return { url: s, token: '' };
+  let token = m[1];
+  try { token = decodeURIComponent(token); } catch { /* keep raw */ }
+  return { url: s.slice(0, at), token };
+};
+
+// The inverse: build `<normalized-url>#token=<token>` for sharing.
+export const buildInviteUrl = (url, token) =>
+  `${normalizeUrl(url)}#token=${encodeURIComponent(token)}`;
+
 // True when `origin` would send the bearer token + image bytes in CLEARTEXT to a remote
 // host (http scheme, not loopback) — the UI warns on these.
 export const isInsecureRemote = (origin) => {
@@ -218,6 +235,15 @@ export class ServerConnection {
     return resp.blob();
   }
 
+  // Mint a FRESH session token from this connection's credential and wrap it into an
+  // invite link (`<url>#token=<token>`) a teammate pastes into their Connect form.
+  async mintInvite() {
+    const r = await this._req('POST', '/auth/token', {
+      body: { label: 'invite' }, token: this.credential, retried: true,
+    });
+    return buildInviteUrl(this.url, r.token);
+  }
+
   // Stamp a remote project record so the UI can distinguish/route it.
   tagRemote(p) { return { ...p, [REMOTE_FLAG]: true, serverUrl: this.url }; }
 
@@ -320,10 +346,13 @@ export class ConnectionManager {
     const items = Array.isArray(spec) ? spec : [spec];
     for (const item of items) {
       const { url, token, kind } = typeof item === 'string' ? { url: item, token: '' } : (item || {});
-      const norm = normalizeUrl(url);
+      // Invite link: adopt the `#token=` fragment as the credential — an explicitly
+      // supplied token always wins over the fragment one.
+      const inv = parseInviteUrl(url);
+      const norm = normalizeUrl(inv.url);
       if (this._conns.has(norm)) continue;
       const conn = new ServerConnection(norm, {
-        token, kind, fetchImpl: this._fetch, WebSocketImpl: this._WS,
+        token: token || inv.token, kind, fetchImpl: this._fetch, WebSocketImpl: this._WS,
       });
       // Re-render the connections UI whenever this connection's status changes
       // (connecting → connected, or an unexpected drop → error).

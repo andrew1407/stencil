@@ -42,6 +42,8 @@ public sealed class ServerService : IServerService
     /// <inheritdoc />
     public async Task<ServerConnectionInfo> ConnectAsync(long userId, string url, string? token, bool verifyTls, CancellationToken ct = default)
     {
+        // Invite links carry the token as a '#token=' fragment; an explicit token wins.
+        (url, token) = InviteLink.Split(url, token);
         // The bot is open to any Telegram user, so vet the target before issuing any REST call:
         // localhost/LAN collaboration servers are intended, but link-local / cloud-metadata
         // (169.254.169.254, fe80::/10, …) hosts are an SSRF-only target and are rejected.

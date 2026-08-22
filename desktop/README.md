@@ -81,6 +81,11 @@ through `net/serverClient` (a `QNetworkAccessManager` REST client + a multi-conn
 `ConnectionManager`). The desktop talks to the server over Qt Network (REST) only — **no
 `QWebSocket` / third-party WebSocket dependency**.
 
+A connected row with a saved credential offers an **invite** action: it mints a fresh
+session token (`POST /auth/token`, label `invite`) and copies `<server-url>#token=<token>`
+to the clipboard. Pasting such a link into the dialog's **URL** field (Token left empty)
+adopts the fragment as the credential — a typed Token always wins over it.
+
 Connected servers expose their stored projects in the **Projects** dialog as a **golden band
 (gold fill + bold gold text) with a 🖧 badge**, listed alongside local projects and refreshed live by a short
 periodic re-list while the dialog is open (the REST stand-in for the browser's WebSocket

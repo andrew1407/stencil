@@ -29,6 +29,20 @@ export const normalizeUrl = (raw) => {
   return new URL(s).origin;
 };
 
+// An invite link is a server URL carrying a session token in its FRAGMENT:
+// `<url>#token=<value>` (the fragment never goes over the wire). Split it before
+// normalizeUrl; any other fragment passes through untouched (origin drops it anyway).
+// Port of the browser's connectionManager.js parseInviteUrl.
+export const parseInviteUrl = (raw) => {
+  const s = String(raw == null ? '' : raw);
+  const at = s.indexOf('#');
+  const m = at < 0 ? null : /^token=(.+)$/.exec(s.slice(at + 1));
+  if (!m) return { url: s, token: '' };
+  let token = m[1];
+  try { token = decodeURIComponent(token); } catch { /* keep raw */ }
+  return { url: s.slice(0, at), token };
+};
+
 // Map a server project to a shared-pin record, keyed by server origin + image source;
 // `shared`/`serverUrl`/`projectId` drive the golden outline and route opens.
 export const sharedPinFromProject = (proj, serverUrl) => ({
@@ -127,10 +141,13 @@ const req = async (conn, method, path, { body, raw, query, fetch: f = fetchImpl(
   return resp.json();
 };
 
-// Connect: normalize, then validate a supplied token or issue a fresh one.
+// Connect: normalize, then validate a supplied token or issue a fresh one. An invite
+// link's `#token=` fragment is adopted as the credential — an explicit token wins.
 export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
-  const url = normalizeUrl(rawUrl);
-  let tok = token;
+  const inv = parseInviteUrl(rawUrl);
+  const url = normalizeUrl(inv.url);
+  const supplied = token || inv.token;
+  let tok = supplied;
   if (!tok) {
     const r = await req({ url, token: '' }, 'POST', '/auth/token', { body: {}, fetch: f });
     tok = r.token;
@@ -146,9 +163,9 @@ export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
       await req({ url, token: tok }, 'GET', '/projects', { fetch: f });
     }
   }
-  // credential = what the user supplied: it outlives server restarts (req()
-  // re-mints with it when a stored session token goes stale).
-  return { url, token: tok, credential: token || '' };
+  // credential = what the user supplied (explicit token or the invite fragment):
+  // it outlives server restarts (req() re-mints with it when a session goes stale).
+  return { url, token: tok, credential: supplied || '' };
 };
 
 export const listProjects = async (conn, f = fetchImpl()) => {

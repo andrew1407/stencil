@@ -81,6 +81,9 @@ services:
       # Abuse limiter passthrough — the e2e harness sets 0 (off): its specs all
       # issue tokens from one IP and would trip the 10/min production default.
       AUTH_RATE_PER_MINUTE: "${AUTH_RATE_PER_MINUTE-}"
+      # Opt-in open issuance (AUTH_OPEN=1): tokens mint without the admin
+      # bearer. Trusted networks only — see server/.env.example.
+      AUTH_OPEN: "${AUTH_OPEN-}"
     volumes:
       - filestore:/data/filestore
     ports:
