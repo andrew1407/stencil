@@ -13,5 +13,10 @@ public sealed record ServerConnectionInfo
 {
     public required string Url { get; init; }
     public string Token { get; init; } = "";
+
+    /// <summary>The user-supplied connect value (may be the server's ADMIN token) — kept
+    /// separately from the live session token so a stale session can be re-minted.</summary>
+    public string Credential { get; init; } = "";
+
     public bool VerifyTls { get; init; } = true;
 }

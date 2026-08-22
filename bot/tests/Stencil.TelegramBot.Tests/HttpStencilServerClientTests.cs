@@ -33,6 +33,132 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
+    public async Task ConnectWithAdminTokenMintsSessionTokenAndRevalidates()
+    {
+        List<(string Path, string? Bearer)> calls = new();
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            calls.Add((req.RequestUri!.AbsolutePath, req.Headers.Authorization?.Parameter));
+            if (req.RequestUri.AbsolutePath == "/auth/token")
+            {
+                return CannedHttpMessageHandler.Json("{\"token\":\"sess-1\"}");
+            }
+            // /projects: the admin token can't list, the minted session token can.
+            return req.Headers.Authorization?.Parameter == "sess-1"
+                ? CannedHttpMessageHandler.Json("{\"projects\":[]}")
+                : CannedHttpMessageHandler.Json(
+                    "{\"code\":\"unauthorized\",\"message\":\"admin cannot list\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = Client(handler, token: null);
+
+        string token = await client.ConnectAsync("adm-secret");
+
+        Assert.Equal("sess-1", token);
+        Assert.Equal(["/projects", "/auth/token", "/projects"], calls.Select(c => c.Path).ToArray());
+        Assert.Equal("adm-secret", calls[1].Bearer); // the mint carried the admin token as bearer
+    }
+
+    [Fact]
+    public async Task ConnectWithWrongTokenSurfacesTheProbeRejection()
+    {
+        int requests = 0;
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            requests++;
+            return req.RequestUri!.AbsolutePath == "/auth/token"
+                ? CannedHttpMessageHandler.Json(
+                    "{\"code\":\"unauthorized\",\"message\":\"admin token required\"}", HttpStatusCode.Unauthorized)
+                : CannedHttpMessageHandler.Json(
+                    "{\"code\":\"unauthorized\",\"message\":\"invalid token\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = Client(handler, token: null);
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ConnectAsync("wrong"));
+
+        Assert.Equal(401, ex.Status);
+        Assert.Contains("invalid token", ex.Message); // the probe's error, not the mint's
+        Assert.Equal(2, requests); // probe + one mint attempt, no loop
+    }
+
+    [Fact]
+    public async Task ConnectNonAuthProbeErrorPropagatesWithoutMinting()
+    {
+        int requests = 0;
+        CannedHttpMessageHandler handler = new((_, _) =>
+        {
+            requests++;
+            return CannedHttpMessageHandler.Json(
+                "{\"code\":\"internal\",\"message\":\"boom\"}", HttpStatusCode.InternalServerError);
+        });
+        HttpStencilServerClient client = Client(handler, token: null);
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ConnectAsync("tok"));
+
+        Assert.Equal(500, ex.Status);
+        Assert.Equal(1, requests); // only auth failures trigger the mint fallback
+    }
+
+    [Fact]
+    public async Task StaleSessionTokenRemintsOnceWithTheCredentialAndRetries()
+    {
+        List<string> bearers = new();
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            bearers.Add(req.Headers.Authorization?.Parameter ?? "");
+            if (req.RequestUri!.AbsolutePath == "/auth/token")
+            {
+                return CannedHttpMessageHandler.Json("{\"token\":\"fresh\"}");
+            }
+            return req.Headers.Authorization?.Parameter == "fresh"
+                ? CannedHttpMessageHandler.Json("{\"projects\":[{\"id\":\"p1\",\"name\":\"A\"}]}")
+                : CannedHttpMessageHandler.Json(
+                    "{\"code\":\"unauthorized\",\"message\":\"unknown token\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", "stale", credential: "cred");
+
+        IReadOnlyList<ProjectRecord> projects = await client.ListProjectsAsync();
+
+        Assert.Single(projects);
+        Assert.Equal(["stale", "cred", "fresh"], bearers.ToArray());
+    }
+
+    [Fact]
+    public async Task AuthTokenFailureDoesNotLoopAndKeepsTheOriginalError()
+    {
+        int requests = 0;
+        CannedHttpMessageHandler handler = new((_, _) =>
+        {
+            requests++;
+            return CannedHttpMessageHandler.Json(
+                "{\"code\":\"unauthorized\",\"message\":\"session over\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", "stale", credential: "cred");
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+
+        Assert.Equal(401, ex.Status);
+        Assert.Contains("session over", ex.Message);
+        Assert.Equal(2, requests); // original + one mint attempt — never retried or recursed
+    }
+
+    [Fact]
+    public async Task AuthFailureWithoutACredentialDoesNotRemint()
+    {
+        int requests = 0;
+        CannedHttpMessageHandler handler = new((_, _) =>
+        {
+            requests++;
+            return CannedHttpMessageHandler.Json(
+                "{\"code\":\"unauthorized\",\"message\":\"nope\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = Client(handler, token: "sess");
+
+        await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+
+        Assert.Equal(1, requests);
+    }
+
+    [Fact]
     public async Task BearerHeaderIsPresentOnAListedCall()
     {
         CannedHttpMessageHandler handler = new((_, _) =>

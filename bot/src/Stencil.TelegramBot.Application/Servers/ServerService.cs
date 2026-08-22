@@ -50,10 +50,13 @@ public sealed class ServerService : IServerService
         var client = _factory.Create(url, token, verifyTls);
         var effectiveToken = await client.ConnectAsync(token, ct);
         var normalized = _factory.NormalizeUrl(url);
+        // credential = what the user supplied (may be the ADMIN token): kept beside the live
+        // session token so a later stale-session re-mint survives the round-tripped record.
         var info = new ServerConnectionInfo
         {
             Url = normalized,
             Token = effectiveToken,
+            Credential = token ?? "",
             VerifyTls = verifyTls,
         };
         var connections = session.Connections
@@ -509,9 +512,10 @@ public sealed class ServerService : IServerService
         return session.Connections[^1];
     }
 
-    /// <summary>Build a client for a remembered connection, reusing its stored token + TLS choice.</summary>
+    /// <summary>Build a client for a remembered connection, reusing its stored token +
+    /// credential + TLS choice (the credential re-mints a stale session token in place).</summary>
     private IStencilServerClient ClientFor(ServerConnectionInfo connection) =>
-        _factory.Create(connection.Url, connection.Token, connection.VerifyTls);
+        _factory.Create(connection.Url, connection.Token, connection.VerifyTls, connection.Credential);
 
     /// <summary>
     /// A client for the active project's server: its remembered connection (with token/TLS), or a

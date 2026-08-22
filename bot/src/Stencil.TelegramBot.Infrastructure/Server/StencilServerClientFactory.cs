@@ -29,14 +29,14 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     /// certificate validation is bypassed when <paramref name="verifyTls"/> is false. The client
     /// carries the configured request timeout so a slow server can't block a handler indefinitely.
     /// </summary>
-    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true)
+    public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null)
     {
         SocketsHttpHandler handler = (verifyTls ? _verifying : _insecure).Value;
         HttpClient http = new(handler, disposeHandler: false)
         {
             Timeout = _timeout,
         };
-        return new HttpStencilServerClient(http, NormalizeUrl(url), token);
+        return new HttpStencilServerClient(http, NormalizeUrl(url), token, credential);
     }
 
     /// <summary>Normalise a raw URL to a stable origin (<c>scheme://host[:port]</c>).</summary>

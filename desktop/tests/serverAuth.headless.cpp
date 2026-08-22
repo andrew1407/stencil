@@ -47,6 +47,8 @@ struct MockServer {
   QTcpServer server;
   int tokenStatus = 200;     // POST /auth/token
   int projectsStatus = 200;  // GET /projects (and everything else)
+  QByteArray mintToken = "tok";  // what a successful mint hands out
+  QByteArray goodBearer;     // non-empty: non-mint paths 401 unless this bearer is sent
   int tokenRequests = 0;
   int requests = 0;
 
@@ -58,8 +60,11 @@ struct MockServer {
           ++requests;
           const bool mint = head.contains("/auth/token");
           if (mint) ++tokenRequests;
-          const int status = mint ? tokenStatus : projectsStatus;
-          const QByteArray body = mint ? QByteArray("{\"token\":\"tok\"}") : QByteArray("[]");
+          const int status = mint ? tokenStatus
+                             : !goodBearer.isEmpty()
+                                 ? (head.contains("Bearer " + goodBearer) ? 200 : 401)
+                                 : projectsStatus;
+          const QByteArray body = mint ? "{\"token\":\"" + mintToken + "\"}" : QByteArray("[]");
           s->write("HTTP/1.1 " + QByteArray::number(status) + " X\r\n"
                    "Content-Type: application/json\r\nContent-Length: " +
                    QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
@@ -138,11 +143,14 @@ int main(int argc, char** argv) {
     ServerClient* cl = mgr.find(mock.url());
     check(cl && cl->status() == ServerClient::Status::Connected, "…and reads as connected");
     mock.projectsStatus = 401;   // the session lapses on the server
+    const int mintsBefore = mock.tokenRequests;
     bool done = false;
     cl->listProjectsAsync([&](bool, QVector<stencil::net::ServerProject>) { done = true; });
     pumpUntil([&] { return done; });
     check(cl->status() == ServerClient::Status::Expired,
           "a live session refused mid-flight becomes Expired");
+    check(mock.tokenRequests == mintsBefore,
+          "…with no re-mint: an anonymous session has no credential to mint with");
   }
 
   // ── the ADMIN token path still mints a session ──
@@ -168,6 +176,58 @@ int main(int argc, char** argv) {
     ServerClient* cl = mgr.find(mock.url());
     check(cl && cl->status() == ServerClient::Status::Connected && !cl->needsReauth(),
           "…with no re-auth needed");
+  }
+
+  // ── mid-session re-mint: the stored credential rescues a lapsed session ──
+  std::printf("mid-session re-mint:\n");
+  {
+    mock.projectsStatus = 200;
+    mock.tokenStatus = 200;
+    mock.goodBearer = "sess1";
+    mock.mintToken = "sess1";
+    ConnectionManager mgr;
+    QString err;
+    // Pasting the admin token: it can't list projects, but it mints "sess1".
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err),
+          "the admin credential connects by minting");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->token() == QStringLiteral("sess1"), "…and holds the minted session");
+
+    // The server restarts: it forgets "sess1" and mints "sess2" now.
+    mock.goodBearer = "sess2";
+    mock.mintToken = "sess2";
+    const int mintsBefore = mock.tokenRequests;
+    bool called = false, ok = false;
+    cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
+    pumpUntil([&] { return called; });
+    check(ok, "a lapsed session re-mints with the credential and retries in place");
+    check(cl->token() == QStringLiteral("sess2"), "…adopting the fresh session token");
+    check(cl->credential() == QStringLiteral("admin-token"), "…never replacing the credential");
+    check(cl->status() == ServerClient::Status::Connected, "…without ever reading as expired");
+    check(mock.tokenRequests == mintsBefore + 1, "exactly one mint for the rescue");
+  }
+
+  // ── the re-mint happens ONCE only: a dead credential lands Expired ──
+  {
+    mock.goodBearer = "sess3";
+    mock.mintToken = "sess3";
+    mock.tokenStatus = 200;
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err), "reconnects for the dead-credential round");
+    ServerClient* cl = mgr.find(mock.url());
+    // The server restarts AND rotates its admin token: nothing this client holds works.
+    mock.goodBearer = "sess4";
+    mock.tokenStatus = 401;
+    const int mintsBefore = mock.tokenRequests;
+    bool called = false, ok = true;
+    cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
+    pumpUntil([&] { return called; });
+    check(!ok, "the rescue fails when the credential no longer mints");
+    check(cl->status() == ServerClient::Status::Expired, "…and lands Expired");
+    check(mock.tokenRequests == mintsBefore + 1, "…after exactly ONE mint attempt (no loop)");
+    mock.goodBearer.clear();  // back to the scripted per-path statuses
+    mock.mintToken = "tok";
   }
 
   // ── the expired ROW: amber note + a labelled Reconnect that signs in again ──

@@ -259,6 +259,9 @@ class ServerConnection:
     def __init__(self, url: str, token: str | None = None, *, verify: bool = True) -> None:
         self.base = normalize_url(url)
         self.token = token or ""
+        # What the user supplied — outlives a server restart (_request re-mints
+        # with it when the stored session token goes stale). "" = none supplied.
+        self.credential = token or ""
         # 'disconnected' until connect() validates/acquires a token, then
         # 'connected', or 'error' if the handshake fails (mirrors the browser
         # UI-dot status, minus the live 'connecting' transition we don't model).
@@ -330,9 +333,27 @@ class ServerConnection:
         body: Any = None,
         raw: bool = False,
         query: dict | None = None,
+        _retried: bool = False,
     ) -> Any:
         req = self._build_request(method, path, body, raw=raw, query=query)
-        return self._open(req, raw=raw)
+        try:
+            return self._open(req, raw=raw)
+        except ServerError as err:
+            # A stored session token dies with a server restart — when we still
+            # hold the original credential, re-mint once and retry in place
+            # (port of extension connections.js req()).
+            if (_retried or path == "/auth/token" or not self.credential
+                    or err.status not in (401, 403)):
+                raise
+            try:
+                mint = self._build_request(
+                    "POST", "/auth/token", {}, token=self.credential)
+                r = self._open(mint)
+            except Exception:
+                raise err from None  # failed re-mint: surface the original error
+            self.token = (r or {}).get("token", "")
+            return self._request(
+                method, path, body=body, raw=raw, query=query, _retried=True)
 
     # ── handshake ──
     def connect(self) -> "ServerConnection":
@@ -348,9 +369,13 @@ class ServerConnection:
             else:
                 try:
                     self._request("GET", "/projects")  # validate access
-                except ServerError:
+                except ServerError as err:
                     # Browser/desktop parity: the value may be the server's
                     # ADMIN token — it can't list projects, but it can MINT.
+                    # Only an auth failure (or a status-less error) means that;
+                    # a 500 etc. propagates as-is.
+                    if err.status is not None and err.status not in (401, 403):
+                        raise
                     r = self._request("POST", "/auth/token", body={})
                     self.token = (r or {}).get("token", "")
                     self._request("GET", "/projects")

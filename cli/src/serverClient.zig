@@ -17,6 +17,18 @@ pub const Error = error{
     TlsNotSupported,
 };
 
+pub const TransportError = Error || std.mem.Allocator.Error;
+
+/// HTTP seam: rawRequest in production, swappable in tests.
+pub const Transport = *const fn (
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    url: []const u8,
+    method: std.http.Method,
+    payload: ?[]const u8,
+    headers: []const std.http.Header,
+) TransportError![]u8;
+
 // ── pure helpers (no network; unit-tested) ───────────────────────────────────
 
 /// Normalize a server URL to a clean origin: add http:// if no scheme, drop any
@@ -325,6 +337,7 @@ pub const Client = struct {
     token: []u8, // owned session token
     auth: []u8, // owned "Bearer <token>"
     credential: []u8, // owned user-supplied token ("" = self-issued); reconnects reuse it
+    transport: Transport = rawRequest,
 
     pub fn deinit(self: *Client) void {
         self.gpa.free(self.base);
@@ -334,7 +347,24 @@ pub const Client = struct {
     }
 
     /// GET/POST/etc. with the bearer header; returns owned response body bytes.
+    /// A stored session dies with a server restart/DB wipe — when connect() was given a
+    /// credential, re-mint one session and retry once in place (mirrors the extension).
     fn request(
+        self: *Client,
+        method: std.http.Method,
+        path: []const u8,
+        payload: ?[]const u8,
+        content_type: ?[]const u8,
+    ) ![]u8 {
+        return self.send(method, path, payload, content_type) catch |e| {
+            if (e != Error.Unauthorized or self.credential.len == 0) return e;
+            self.remint() catch return e; // surface the original rejection
+            return self.send(method, path, payload, content_type);
+        };
+    }
+
+    /// One request with the current bearer header; returns owned response body bytes.
+    fn send(
         self: *Client,
         method: std.http.Method,
         path: []const u8,
@@ -351,7 +381,28 @@ pub const Client = struct {
             headers[n] = .{ .name = "content-type", .value = ct };
             n += 1;
         }
-        return rawRequest(self.gpa, self.io, url, method, payload, headers[0..n]);
+        return self.transport(self.gpa, self.io, url, method, payload, headers[0..n]);
+    }
+
+    /// POST /auth/token with the stored credential as bearer, swapping in the new session.
+    fn remint(self: *Client) !void {
+        const url = try std.fmt.allocPrint(self.gpa, "{s}/auth/token", .{self.base});
+        defer self.gpa.free(url);
+        const bearer = try std.fmt.allocPrint(self.gpa, "Bearer {s}", .{self.credential});
+        defer self.gpa.free(bearer);
+        const headers = [_]std.http.Header{
+            .{ .name = "content-type", .value = "application/json" },
+            .{ .name = "authorization", .value = bearer },
+        };
+        const body = try self.transport(self.gpa, self.io, url, .POST, "{}", &headers);
+        defer self.gpa.free(body);
+        const token = try parseToken(self.gpa, body);
+        errdefer self.gpa.free(token);
+        const auth = try std.fmt.allocPrint(self.gpa, "Bearer {s}", .{token});
+        self.gpa.free(self.token);
+        self.gpa.free(self.auth);
+        self.token = token;
+        self.auth = auth;
     }
 
     pub fn listProjects(self: *Client) ![]u8 {
@@ -702,7 +753,7 @@ fn rawRequest(
     method: std.http.Method,
     payload: ?[]const u8,
     headers: []const std.http.Header,
-) ![]u8 {
+) TransportError![]u8 {
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
     var body: std.Io.Writer.Allocating = .init(gpa);
@@ -1293,4 +1344,84 @@ test "findIdByName matches case-insensitively, else null" {
     try testing.expectEqualStrings("p_2_b", id);
 
     try testing.expect((try findIdByName(a, body, "missing")) == null);
+}
+
+// ── mid-session re-mint (fake transport) ─────────────────────────────────────
+
+const FakeRemint = struct {
+    var calls: usize = 0;
+    var mint_ok: bool = true;
+
+    fn headerValue(headers: []const std.http.Header, name: []const u8) []const u8 {
+        for (headers) |h| if (std.ascii.eqlIgnoreCase(h.name, name)) return h.value;
+        return "";
+    }
+
+    fn run(
+        gpa: std.mem.Allocator,
+        io: std.Io,
+        url: []const u8,
+        method: std.http.Method,
+        payload: ?[]const u8,
+        headers: []const std.http.Header,
+    ) TransportError![]u8 {
+        _ = io;
+        _ = payload;
+        calls += 1;
+        const auth = headerValue(headers, "authorization");
+        if (std.mem.endsWith(u8, url, "/auth/token")) {
+            // The mint carries the stored credential as bearer.
+            if (method != .POST or !mint_ok or !std.mem.eql(u8, auth, "Bearer ADMIN"))
+                return Error.Unauthorized;
+            return gpa.dupe(u8, "{\"token\":\"fresh\",\"expiresAt\":0}");
+        }
+        // /projects: the stale session is rejected, the re-minted one accepted.
+        if (std.mem.eql(u8, auth, "Bearer fresh")) return gpa.dupe(u8, "{\"projects\":[]}");
+        return Error.Unauthorized;
+    }
+};
+
+fn remintTestClient(credential: []const u8) !Client {
+    const a = testing.allocator;
+    return Client{
+        .gpa = a,
+        .io = undefined, // the fake transport never touches it
+        .base = try a.dupe(u8, "http://s"),
+        .token = try a.dupe(u8, "stale"),
+        .auth = try a.dupe(u8, "Bearer stale"),
+        .credential = try a.dupe(u8, credential),
+        .transport = FakeRemint.run,
+    };
+}
+
+test "request re-mints once with the credential and retries a stale session" {
+    FakeRemint.calls = 0;
+    FakeRemint.mint_ok = true;
+    var c = try remintTestClient("ADMIN");
+    defer c.deinit();
+    const body = try c.listProjects();
+    defer testing.allocator.free(body);
+    try testing.expectEqualStrings("{\"projects\":[]}", body);
+    try testing.expectEqual(@as(usize, 3), FakeRemint.calls); // reject + mint + retry
+    try testing.expectEqualStrings("fresh", c.token);
+    try testing.expectEqualStrings("Bearer fresh", c.auth);
+}
+
+test "request without a credential propagates Unauthorized, no re-mint" {
+    FakeRemint.calls = 0;
+    FakeRemint.mint_ok = true;
+    var c = try remintTestClient("");
+    defer c.deinit();
+    try testing.expectError(Error.Unauthorized, c.listProjects());
+    try testing.expectEqual(@as(usize, 1), FakeRemint.calls);
+}
+
+test "a rejected re-mint surfaces the original Unauthorized, no retry loop" {
+    FakeRemint.calls = 0;
+    FakeRemint.mint_ok = false;
+    var c = try remintTestClient("ADMIN");
+    defer c.deinit();
+    try testing.expectError(Error.Unauthorized, c.listProjects());
+    try testing.expectEqual(@as(usize, 2), FakeRemint.calls); // reject + failed mint only
+    try testing.expectEqualStrings("stale", c.token); // session left untouched
 }

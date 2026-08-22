@@ -66,6 +66,21 @@ public sealed class ServerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ConnectPersistsTheCredentialAndReusesItForLaterClients()
+    {
+        ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA, token: "adm-secret", verifyTls: true);
+
+        // The user-supplied value rides beside the live session token…
+        Assert.Equal("adm-secret", info.Credential);
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal("adm-secret", Assert.Single(session.Connections).Credential);
+
+        // …and every later client is built with it, so a stale session can re-mint.
+        await _service.ListProjectsAsync(UserId, url: null);
+        Assert.Equal("adm-secret", _factory.Created[^1].Credential);
+    }
+
+    [Fact]
     public async Task ListProjectsAggregatesAndSkipsAThrowingServer()
     {
         _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = "p_a", Name = "Alpha" });
