@@ -92,6 +92,7 @@ const ensureTip = () => {
   tip.id = 'app-tooltip';
   tip.setAttribute('role', 'tooltip');
   document.body.appendChild(tip);
+  void tip.offsetWidth;   // flush the new node's style, else the first show can't transition
   return tip;
 };
 
