@@ -7301,7 +7301,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The hover shimmer must genuinely ANIMATE: after a hover-enter, the
-  // overlay's sweep progress ADVANCES between two samples inside the 650 ms
+  // overlay's sweep progress ADVANCES between two samples inside the 325 ms
   // window and clears (-1) on completion — not a band that pops in at a fixed
   // position and sits there (user report on text-entry fields). Exercised on a
   // shimmered text-entry control (toolbar spinbox) when visible, else any
@@ -7336,7 +7336,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(overlay->geometry(), target->rect());  // the band covers the control
 
     // Two-sample advance, re-triggering the sweep if a slow run let it finish
-    // between the samples (the sweep is only 650 ms long).
+    // between the samples (the sweep is only 325 ms long).
     bool advanced = false;
     qreal p1 = -1.0, p2 = -1.0;
     for (int attempt = 0; attempt < 3 && !advanced; ++attempt) {
@@ -7346,7 +7346,7 @@ class MainWindowGuiTest : public QObject {
       QApplication::sendEvent(target, &enter);
       QTRY_VERIFY(overlay->property("sweepProgress").toReal() >= 0.0);
       p1 = overlay->property("sweepProgress").toReal();
-      QTest::qWait(150);
+      QTest::qWait(75);
       p2 = overlay->property("sweepProgress").toReal();
       advanced = p2 > p1;
     }

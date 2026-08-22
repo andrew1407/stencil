@@ -46,7 +46,7 @@ namespace stencil::gui {
       anim_ = new QVariantAnimation(this);
       anim_->setStartValue(0.0);
       anim_->setEndValue(1.0);
-      anim_->setDuration(650);
+      anim_->setDuration(325);
       anim_->setEasingCurve(QEasingCurve::InOutSine);
       QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { setProgress(v.toReal()); });
