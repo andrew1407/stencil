@@ -2,13 +2,10 @@ import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 
 // ── InputController: touchscreen + hold-to-draw alternative input ───
-// Extracted from drawingApp.js. Owns the two alternative input flows — hold-to-draw (a
-// near-stationary press auto-enters drawing) and touchscreen (direct-manipulation drag +
-// two-finger pan/pinch) — plus their gesture state. The mouse pointer/drag path stays in
-// DrawingApp's #wirePanDrag; both reuse the same drag helpers, which DrawingApp exposes as
-// public methods (findNearestPointWithIdx / beginSegmentDrag / movePointTo / dragMove /
-// end*Drag / insertPointOnSegment) and public drag-state fields (draggingPoint / draggingSegment
-// / continue*Idx / dragJustEnded). Holds a back-reference to the app like the other collaborators.
+// Owns the two alternative input flows — hold-to-draw (a near-stationary press
+// auto-enters drawing) and touchscreen (direct-manipulation drag + two-finger pan/pinch).
+// The mouse pointer/drag path stays in DrawingApp's #wirePanDrag; both reuse the same
+// drag helpers and drag-state fields DrawingApp exposes publicly.
 export class InputController {
   // Hold-to-draw gesture state.
   #holdDraw = null;
@@ -25,10 +22,9 @@ export class InputController {
   }
 
   // ── Hold-to-draw: an alternative drawing flow ──────────────────
-  // A near-stationary plain-left press-and-hold auto-enters drawing and drops the first point;
-  // dwelling drops more; releasing commits and exits drawing again. The pure HoldDrawController
-  // (./holdDraw.js) decides timing/transitions; this wiring owns the DOM timers, coordinate
-  // conversion and rendering. Engaged only when NOT already drawing.
+  // Press-and-hold drops the first point; dwelling drops more; releasing commits and
+  // exits drawing. The pure HoldDrawController (./holdDraw.js) decides timing/transitions;
+  // this wiring owns the DOM timers, coordinate conversion and rendering.
   wireHoldDraw() {
     const app = this.app;
     const ctrl = this.#holdDraw = new HoldDrawController({ holdDelay: app.holdDrawDelay });

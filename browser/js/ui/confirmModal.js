@@ -5,7 +5,9 @@ import { icon } from './icons.js';
 // A single reusable yes/no modal replacing native confirm(). Call via the
 // instance method ask(message, opts) → Promise<boolean>; resolves true on Confirm,
 // false on Cancel / Close / overlay-click / Escape. opts: { title, confirmLabel,
-// cancelLabel, danger }. app.confirm() (drawingApp) delegates here.
+// cancelLabel, confirmIcon, danger }. app.confirm() (drawingApp) delegates here.
+// `confirmIcon` (and askAlt's `altIcon`) name a glyph from ui/icons.js — pass one
+// whenever the button says what it DOES, so the icon says the same thing.
 export class StencilConfirmModal extends StencilElement {
   static inner() {
     return `
@@ -42,27 +44,37 @@ export class StencilConfirmModal extends StencilElement {
     let choiceSelect = null;
     // When set, the dialog is in "prompt" mode: Confirm resolves the trimmed text.
     let promptInput = null;
+    // When set, the dialog has a THIRD button: Confirm resolves 'confirm', the extra
+    // button 'alt', and Cancel/Close/Escape null (see askAlt).
+    let altBtn = null;
     const settle = (val) => {
       overlay.classList.remove('modal-open');
       document.removeEventListener('keydown', onKey, true);
       const r = resolveCurrent; resolveCurrent = null;
       const selEl = choiceSelect; choiceSelect = null;
       const inp = promptInput; promptInput = null;
+      const alt = altBtn; altBtn = null;
       if (selEl) selEl.parentElement?.remove();   // drop the injected picker row
       if (inp) inp.parentElement?.remove();       // drop the injected prompt row
+      if (alt) alt.remove();                      // drop the injected third button
       if (!r) return;
       if (selEl) r(val ? selEl.value : null);
       else if (inp) r(val ? inp.value.trim() : null);
+      else if (alt) r(val === 'alt' ? 'alt' : (val ? 'confirm' : null));
       else r(val);
     };
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); settle(false); }
       else if (e.key === 'Enter') { e.preventDefault(); settle(true); }
     };
-    // Shared open: set labels/danger, show the overlay, arm the key handler.
+    // Shared open: set labels/icon/danger, show the overlay, arm the key handler.
     const beginDialog = (message, opts, defaultTitle) => {
       document.getElementById('confirm-modal-title-text').textContent = opts.title || defaultTitle;
       document.getElementById('confirm-modal-message').textContent = message || '';
+      // The glyph follows the ACTION, not the dialog: a plain yes/no keeps the check,
+      // but a named action ("Replace") shows what it does instead of a generic tick.
+      confirmBtn.innerHTML =
+        icon(opts.confirmIcon || 'check', { size: 14 }) + '<span id="confirm-modal-confirm-text"></span>';
       document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'Confirm';
       document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
       confirmBtn.classList.toggle('danger', !!opts.danger);
@@ -81,10 +93,11 @@ export class StencilConfirmModal extends StencilElement {
       if (resolveCurrent) {
         const prev = resolveCurrent;
         resolveCurrent = null;
-        prev(choiceSelect || promptInput ? null : false);
+        prev(choiceSelect || promptInput || altBtn ? null : false);
       }
       if (choiceSelect) { choiceSelect.parentElement?.remove(); choiceSelect = null; }
       if (promptInput) { promptInput.parentElement?.remove(); promptInput = null; }
+      if (altBtn) { altBtn.remove(); altBtn = null; }
     };
     // Build a one-element row (select or input) and inject it below the message.
     const injectRow = (el) => {
@@ -99,6 +112,29 @@ export class StencilConfirmModal extends StencilElement {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Confirm');
+      setTimeout(() => confirmBtn.focus(), 30);
+    });
+
+    // Three-button variant: Cancel | <altLabel> | <confirmLabel>. Resolves 'confirm',
+    // 'alt', or null — for a question with two real answers plus a way out, like
+    // "combine this layout with the existing lines, or replace them?".
+    // opts: { title, confirmLabel, altLabel, cancelLabel, confirmIcon, altIcon, danger }.
+    this.askAlt = (message, opts = {}) => new Promise(resolve => {
+      dismissPrevious();
+      resolveCurrent = resolve;
+      beginDialog(message, opts, 'Confirm');
+      // Injected at runtime, like the picker/prompt rows, so the static markup (and the
+      // markup tests) stay unchanged.
+      const btn = document.createElement('button');
+      btn.id = 'confirm-modal-alt';
+      btn.className = 'btn-icon-text';
+      // Carries a glyph like the other two — a bare word beside two icon buttons
+      // reads as the odd one out rather than as an equal choice.
+      btn.innerHTML = icon(opts.altIcon || 'plus', { size: 14 }) + '<span></span>';
+      btn.querySelector('span').textContent = opts.altLabel || 'Alternative';
+      btn.addEventListener('click', () => settle('alt'));
+      cancelBtn.parentElement.insertBefore(btn, cancelBtn.nextSibling);
+      altBtn = btn;
       setTimeout(() => confirmBtn.focus(), 30);
     });
 

@@ -6,20 +6,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { siteOf, pinKey, isPinnedIn, matchPinsForSite, sitesOf, addPinEntry, removePinEntry, removeSiteEntries, clearPins, loadPins, setPinned, setPinKeywords, projectNameColor, normalizeKeywords, pinKeywords, pinMatchesSearch, PIN_SEARCH_MODES, PINS_KEY } from '../src/lib/pins.js';
 
-// Minimal chrome.storage.local mock with an awaitable get/set, so the async wrappers
-// (loadPins/setPinned) can be driven from Node. The deferred resolution models real
-// storage latency — the gap during which a concurrent read-modify-write could race.
+// The shared chrome stub's storage.local has the awaitable get/set the async wrappers
+// (loadPins/setPinned) need; its deferred set models real storage latency — the gap
+// during which a concurrent read-modify-write could race.
+import { installChromeStub } from './helpers/chromeStub.js';
+
 const installStorageMock = () => {
-  let store = {};
-  globalThis.chrome = {
-    storage: {
-      local: {
-        get: async (key) => (key in store ? { [key]: store[key] } : {}),
-        set: async (obj) => { await Promise.resolve(); Object.assign(store, obj); },
-      },
-    },
-  };
-  return { reset: () => { store = {}; } };
+  const stub = installChromeStub();
+  return { reset: stub.reset };
 };
 
 const pin = (site, source, extra = {}) => ({ site, source, name: source, kind: 'image', t: 1, ...extra });

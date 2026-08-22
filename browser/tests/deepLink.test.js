@@ -5,6 +5,7 @@ import {
   OPEN_PARAM, readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl,
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
   buildDesktopBounceUrl, normalizeLaunchPayload, TELEGRAM_START_LIMIT,
+  LAUNCH_DATA_URL_MAX,
 } from '../js/core/deepLink.js';
 
 test('readOpenProjectId returns the project id from the open param', () => {
@@ -198,6 +199,13 @@ test('normalizeLaunchPayload rejects junk', () => {
   assert.strictEqual(normalizeLaunchPayload({ src: 'ftp://x/a.png' }), null);        // non-http(s) src
   assert.strictEqual(normalizeLaunchPayload({ server: { url: 'x' } }), null);        // id missing
   assert.strictEqual(normalizeLaunchPayload({ server: { id: 'p_1' } }), null);       // url missing
+});
+
+test('normalizeLaunchPayload accepts a dataUrl at the size cap, rejects one past it', () => {
+  const prefix = 'data:image/png;base64,';
+  const atLimit = prefix + 'A'.repeat(LAUNCH_DATA_URL_MAX - prefix.length);
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: atLimit }).kind, 'dataUrl');
+  assert.strictEqual(normalizeLaunchPayload({ dataUrl: atLimit + 'A' }), null);
 });
 
 test('normalizeLaunchPayload rejects a non-data: dataUrl (no http/javascript smuggling)', () => {

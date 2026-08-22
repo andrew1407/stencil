@@ -5,11 +5,10 @@ import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoin
 const { PAGE_SIZES } = constants;
 
 // ── ImageModel: non-destructive crop + quarter-turn rotation ────────
-// Extracted from drawingApp.js. Owns the geometry transforms over the app's `originalImage`
-// (never modified) → the working cropped `image`, tracked by `cropRect` (in rotated-original
-// pixels) and `rotationQuarters`. Holds no state itself: it reads/writes those fields on the
-// back-referenced app, matching the Renderer/Storage collaborator pattern. Pure geometry math
-// lives in cropGeometry.js (the wasm/JS-parity twin); this class only orchestrates it + canvas.
+// Owns the geometry transforms over the app's `originalImage` (never modified) → the
+// working cropped `image`, tracked by `cropRect` (rotated-original pixels) and
+// `rotationQuarters`. Holds no state itself; pure geometry math lives in cropGeometry.js
+// (the wasm/JS-parity twin) — this class only orchestrates it + canvas.
 export class ImageModel {
   constructor(app) {
     this.app = app;
@@ -74,8 +73,9 @@ export class ImageModel {
   // Snap a crop rect to integer pixels, clamped inside the rotated original image. Public —
   // loadImageFromFile clamps caller-supplied crops with it.
   roundRect(r, iw = this.rotatedOriginalDims().w, ih = this.rotatedOriginalDims().h) {
-    const w = Math.max(1, Math.min(Math.round(r.width), iw));
-    const h = Math.max(1, Math.min(Math.round(r.height), ih));
+    // Reads both wire spellings: canonical {w,h} wins over legacy {width,height}.
+    const w = Math.max(1, Math.min(Math.round(r.w ?? r.width), iw));
+    const h = Math.max(1, Math.min(Math.round(r.h ?? r.height), ih));
     const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
     const y = Math.max(0, Math.min(Math.round(r.y), ih - h));
     return { x, y, width: w, height: h };

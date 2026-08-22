@@ -1,6 +1,6 @@
 // Unit test for DrawingApp.hasEditingSession (js/core/drawingApp.js), the synchronous
 // predicate that drives the beforeunload leave-guard wired in index.js. We invoke the real
-// method via `.call(fakeThis)` with a minimal `this` — no DOM/class instance needed — and
+// method via `.call(stubThis)` with a minimal `this` — no DOM/class instance needed — and
 // pin exactly when leaving the tab should prompt: an image is loaded, OR the user has drawn
 // something (history.canUndo). An empty, untouched editor must NOT prompt.
 
@@ -9,9 +9,12 @@ import assert from 'node:assert/strict';
 
 // drawingApp.js reaches for a few globals at import time; supply the same minimal stubs the
 // other DrawingApp unit tests use so the module graph loads under `node --test`.
-globalThis.document = { getElementById: () => null };
-globalThis.location = { hash: '', pathname: '/app', search: '' };
-globalThis.history = { replaceState: () => {} };
+import { installDom } from './helpers/dom.js';
+
+installDom({}, {
+  location: { hash: '', pathname: '/app', search: '' },
+  history: { replaceState: () => {} },
+});
 
 const { DrawingApp } = await import('../js/core/drawingApp.js');
 const hasEditingSession = DrawingApp.prototype.hasEditingSession;

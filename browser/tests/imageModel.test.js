@@ -1,6 +1,6 @@
 // Unit tests for ImageModel (js/core/imageModel.js) — the crop/rotation geometry extracted
 // out of DrawingApp. The pure bits (roundRect, rotatedOriginalDims, defaultCropRect) need only
-// a fake app; the canvas-touching bits (rebuildCroppedImage via rotateImage/applyCrop) run
+// a stub app; the canvas-touching bits (rebuildCroppedImage via rotateImage/applyCrop) run
 // against a minimal document.createElement('canvas') stub so we can assert the crop/rotation
 // bookkeeping (rotationQuarters wrap, orientation-flip line clearing) without real rendering.
 
@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 const notifications = [];
 const balloon = { notify: (m, t) => notifications.push([m, t]) };
 
-// Fake canvas: records size, hands back a no-op 2D context.
+// Mock canvas: records size, hands back a no-op 2D context.
 const makeCanvas = () => ({
   width: 0, height: 0,
   getContext: () => ({ translate() {}, rotate() {}, drawImage() {} }),
@@ -55,6 +55,20 @@ test('roundRect: rounds + clamps inside the rotated original', () => {
   assert.deepEqual(m.roundRect({ x: -5, y: -5, width: 999, height: 999 }), { x: 0, y: 0, width: 200, height: 100 });
   // Sub-pixel values round; x clamps so the rect stays inside (x ≤ iw - width).
   assert.deepEqual(m.roundRect({ x: 190.4, y: 2.6, width: 20.5, height: 10.2 }), { x: 179, y: 3, width: 21, height: 10 });
+});
+
+test('roundRect: adopts canonical {w,h} and legacy {width,height} rects identically', () => {
+  const m = new ImageModel(makeApp());
+  // The adoption path (loadImageFromFile / applyProjectFileInPlace) feeds incoming
+  // layout cropRects straight through roundRect — both wire spellings must land
+  // on the same internal crop.
+  const canonical = m.roundRect({ x: 10, y: 20, w: 50, h: 40 });
+  const legacy = m.roundRect({ x: 10, y: 20, width: 50, height: 40 });
+  assert.deepEqual(canonical, { x: 10, y: 20, width: 50, height: 40 });
+  assert.deepEqual(legacy, canonical);
+  // Both spellings present → canonical wins.
+  assert.deepEqual(m.roundRect({ x: 0, y: 0, w: 30, h: 30, width: 99, height: 99 }),
+    { x: 0, y: 0, width: 30, height: 30 });
 });
 
 test('rotatedOriginalDims: swaps w/h on odd quarter-turns only', () => {

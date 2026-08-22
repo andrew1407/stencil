@@ -233,10 +233,10 @@ class StencilCore {
         return cClampScale(scale);
       },
 
-      shouldCloseShape(points, click, markerSize) {
+      shouldCloseShape(points, click, pointSize) {
         const { ptr, n } = allocPoints(points);
         try {
-          return cShouldClose(ptr, n, click.x, click.y, markerSize) === 1;
+          return cShouldClose(ptr, n, click.x, click.y, pointSize) === 1;
         } finally {
           core._free(ptr);
         }

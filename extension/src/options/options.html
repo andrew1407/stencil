@@ -15,7 +15,8 @@
     /* Brand header: logo + title. The logo's panel outline is stroke="currentColor",
        so `color` drives it → the outline tracks the chosen main theme accent. */
     .brand { display:flex; align-items:center; gap:12px; margin:0 0 4px; }
-    .brand .logo { width:34px; height:34px; flex:0 0 auto; color:var(--accent); transition:color .2s ease; }
+    .brand .logo { width:34px; height:34px; flex:0 0 auto; color:var(--accent); }
+    /* transition + hover pulse/rays come from lib/animations.css (.logo-wrap). */
     label.f { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; }
     /* Checkbox option groups share one row while they fit, wrapping (each option
        as a unit) only when the card is too narrow. */
@@ -45,7 +46,11 @@
     .pin-head h1 { flex:1 1 auto; }
     .pin-filters { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .pin-filters .chk { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; }
-    .pin-filters select { width:auto; min-width:170px; }
+    /* One height for every control in the row (search / selects / pill / Clear all). */
+    .pin-filters select { width:auto; min-width:170px; padding:5px 10px; font-size:12px; }
+    /* The custom list that replaces those selects (lib/customSelect.js) keeps their compact size. */
+    .pin-filters .accent-dd { width:auto; min-width:170px; }
+    .pin-filters .accent-dd-trigger { padding:5px 10px; font-size:12px; }
     .pin-filters select:empty, .pin-filters select[hidden] { display:none; }
     .pin-filters input[type="search"] { padding:5px 10px; font-size:12px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:180px; }
     /* Keyword chips + inline editor on a pin row. */
@@ -95,13 +100,16 @@
 <body>
   <div class="card">
     <div class="brand">
+      <!-- .logo-wrap carries the hover ray ring (lib/animations.css) — SVGs can't host ::before. -->
+      <span class="logo-wrap">
       <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Stencil">
         <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
         <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
         <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
-        <polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FF0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <g fill="#FF0" stroke="#000" stroke-width="1.25"><circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/></g>
+        <polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FF0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#FF0" stroke="#000" stroke-width="1.25"><circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/></g>
       </svg>
+      </span>
       <h1>Stencil Image Picker</h1>
     </div>
     <p class="sub">Where the editor is served, how it opens, and the default page size.</p>
@@ -157,6 +165,13 @@
     </label>
     <div class="help">Off by default. When on, a scripting API is injected into every page's main world so you can run e.g. <code>stencil.images</code>, <code>stencil.search('logo')</code>, or <code>stencil.open(el)</code> from the DevTools console. Leave off unless you need it.</div>
 
+    <label class="f" for="editorPageApi">Editor page scripting API</label>
+    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+      <input id="editorPageApi" type="checkbox" style="width:auto; margin-top:3px;" checked>
+      <span>Expose <code>stencil.extension</code> on the Stencil editor page (list open editors, scan another page's images, import into this editor)</span>
+    </label>
+    <div class="help">On by default. Unlike the toggle above, this touches <strong>only the editor URL configured at the top of this page</strong> — no other site sees it. It is what makes <code>stencil.extension</code> available in the editor's own console (e.g. <code>await stencil.extension.editors()</code>, <code>await stencil.extension.images(tabId)</code>, <code>await stencil.extension.open(0)</code>); with it off, <code>stencil.extension</code> is <code>null</code> and editor mode in the popup still works.</div>
+
     <label class="f" for="desktopScheme">Open in other apps</label>
     <input id="desktopScheme" type="text" placeholder="stencil">
     <div class="help">The URL scheme the <strong>Stencil desktop app</strong> registers, used by the <code>⋯</code> menu's <strong>Open in… ▸ Desktop app</strong> action (a <code>stencil://</code> link the OS routes to the app; the image rides inline). Leave blank to hide that action.</div>
@@ -188,6 +203,61 @@
     </div>
     <ul id="conn-list" class="pin-list"></ul>
     <div id="conn-empty" class="pin-empty" hidden>No servers connected yet.</div>
+  </div>
+
+  <div class="card">
+    <div class="pin-head">
+      <h1>AI assistant</h1>
+    </div>
+    <p class="sub">The chat assistant (the popup's ✦ button) plans <em>focus / open / attach</em> actions over the images scanned from the current page. Configure which LLM it talks to — see <code>llm-contract.md</code>.</p>
+
+    <label class="f" for="llm-provider">Provider</label>
+    <select id="llm-provider">
+      <option value="none">None (turned off)</option>
+      <option value="ollama">Ollama</option>
+      <option value="openai-compat">OpenAI API (LM Studio, vLLM, …)</option>
+      <option value="stencil-server">Stencil collaboration server</option>
+    </select>
+
+    <div id="llm-base-rows">
+      <label class="f" for="llm-baseurl">Base URL</label>
+      <input id="llm-baseurl" type="url" placeholder="http://localhost:11434">
+      <div class="help">Pre-filled with the provider's default (<code>http://localhost:11434</code> for Ollama, <code>http://localhost:1234/v1</code> for OpenAI-compatible); edit freely. The extension calls it with its own host permissions — no CORS setup (like <code>OLLAMA_ORIGINS</code>) is needed. Saving a non-localhost origin asks for permission to reach it.</div>
+
+      <label class="f" for="llm-apikey">API key (optional)</label>
+      <input id="llm-apikey" type="password" placeholder="empty for local servers (LM Studio needs none)">
+      <div class="help">Sent as <code>Authorization: Bearer</code> on OpenAI-compatible providers only. Stored in <code>chrome.storage.local</code> on this machine.</div>
+    </div>
+
+    <div id="llm-server-rows">
+      <label class="f" for="llm-serverurl">Stencil server URL</label>
+      <input id="llm-serverurl" type="url" placeholder="http://localhost:8090">
+      <div class="help">Which collaboration server proxies the LLM. Pre-filled with your first server connection (above); its stored token is used automatically when the URLs match.</div>
+
+      <label class="f" for="llm-servertoken">Access token (optional)</label>
+      <input id="llm-servertoken" type="password" placeholder="leave blank to use the matching connection's token">
+      <div class="help">Only needed when the server above is not in your connections list.</div>
+    </div>
+
+    <div id="llm-model-row">
+      <label class="f" for="llm-model">Model</label>
+      <input id="llm-model" type="text" list="llm-model-list" placeholder="empty = provider/server default (e.g. llama3.2-vision)">
+      <datalist id="llm-model-list"></datalist>
+    </div>
+
+    <div id="llm-tabs-row">
+      <label class="f" for="llm-sharetabs">Other open tabs</label>
+      <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+        <input id="llm-sharetabs" type="checkbox" style="width:auto; margin-top:3px;">
+        <span>Let the assistant see the titles and addresses of your other open tabs, so it can scan one on request</span>
+      </label>
+      <div class="help"><strong>Off by default.</strong> When on, a list of your other open tabs is included in <em>every</em> message sent to the LLM configured above — not only when you ask about another tab. Addresses are trimmed to the site and path (any <code>?query</code> is dropped), but the titles and pages you have open are still disclosed to that endpoint, which may not be on this machine. Leave off unless you want <code>scanTab</code>.</div>
+    </div>
+
+    <div class="row">
+      <button id="llm-save">Save</button>
+      <span id="llm-status" class="saved"></span>
+    </div>
   </div>
 
   <div class="card">

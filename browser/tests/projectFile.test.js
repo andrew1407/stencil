@@ -8,6 +8,7 @@ import {
   parseProjectFile,
   STENCIL_FILE_FORMAT,
   STENCIL_FILE_VERSION,
+  MAX_PROJECT_FILE_CHARS,
 } from '../js/core/projectFile.js';
 
 // A real 1×1 red PNG (data-URL) — small enough to inline, valid enough to decode.
@@ -24,7 +25,7 @@ const minimalDoc = () => ({
     imageHeight: 1,
     lines: [{
       points: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
-      color: '#ff0000', thickness: 2, markerSize: 4, style: 'solid', locked: false, fillColor: 'transparent',
+      color: '#ff0000', thickness: 2, pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent',
     }],
     imageFilter: 'none',
     rotationQuarters: 0,
@@ -107,7 +108,7 @@ test('blank projects round-trip their blank/blankColor hints', () => {
   assert.equal(res.project.blankColor, '#ffffff');
 });
 
-test('reject: missing format marker', () => {
+test('reject: missing format sentinel', () => {
   const doc = minimalDoc();
   delete doc.format;
   const res = parseProjectFile(doc);
@@ -137,6 +138,16 @@ test('reject: not JSON', () => {
   const res = parseProjectFile('{ not json');
   assert.equal(res.ok, false);
   assert.match(res.error, /JSON/);
+});
+
+test('reject: an over-limit JSON string, before parsing; at-limit still parses', () => {
+  const doc = JSON.stringify(minimalDoc());
+  // Trailing whitespace keeps the JSON valid — only the size check can reject it.
+  const over = doc + ' '.repeat(MAX_PROJECT_FILE_CHARS + 1 - doc.length);
+  const res = parseProjectFile(over);
+  assert.equal(res.ok, false);
+  assert.match(res.error, /too large/);
+  assert.equal(parseProjectFile(over.slice(0, MAX_PROJECT_FILE_CHARS)).ok, true);
 });
 
 test('security: hostile lines are sanitized (prototype pollution stripped, coords coerced)', () => {

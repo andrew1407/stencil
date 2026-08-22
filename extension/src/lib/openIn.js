@@ -1,18 +1,11 @@
 // ── "Open in…" cross-front-end deep links (extension) ───────────────────────
-// A popup/panel row can hand its image off to another Stencil front-end, mirroring the
-// browser app's toolbar "Open In…" menu:
-//   • Desktop app — a `stencil://open?…` OS-scheme link the desktop app registers. A page
-//     image rides INLINE (src=data:…, plus an optional layout); a server row sends only a
-//     server reference (the desktop connects like a fresh client — no token in the link).
-//   • Telegram bot — a `t.me/<bot>?start=<payload>` deep link carrying a (server, project id)
-//     reference in a 64-char start payload. Server rows only: a start payload can't carry
-//     image bytes, and an unsaved image has no id.
-//
-// These are PORTS of browser/js/core/deepLink.js (buildStencilSchemeUrl,
-// encodeTelegramStartPayload, buildTelegramLink) + the size guards from
-// browser/js/ui/openInModal.js. The extension can't import from browser/ (separate
-// subproject), so they're duplicated + unit-tested against the browser's golden vectors
-// (tests/openIn.test.js) so the links stay byte-compatible. Keep the two in sync.
+// A popup/panel row can hand its image off to another Stencil front-end: the desktop
+// app via a `stencil://open?…` OS-scheme link (page images ride INLINE as data:, server
+// rows send only a reference — no token in the link), or the Telegram bot via a
+// `t.me/<bot>?start=` deep link (server rows only: a start payload can't carry bytes).
+// PORTS of browser/js/core/deepLink.js + openInModal.js's size guards; the extension
+// can't import from browser/, so they're duplicated and unit-tested against the
+// browser's golden vectors (tests/openIn.test.js). Keep the two in sync.
 import { isLoopbackHost, normalizeUrl } from './connections.js';
 
 // Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
@@ -56,10 +49,9 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   ? btoa(bin)
   : Buffer.from(bin, 'binary').toString('base64'));
 
-// Encode (server origin, project id) into a t.me start payload:
-// "1" (version marker) + base64url("host[:port]|projectId"), padding stripped.
-// Returns null when the result would exceed Telegram's 64-char limit. The identical codec
-// exists in browser/js/core/deepLink.js, desktop/src/app/deepLink.cpp and the bot's
+// Encode (server origin, project id) into a t.me start payload: "1" (version prefix) +
+// base64url("host[:port]|projectId"), padding stripped; null when over the 64-char limit.
+// The identical codec exists in browser deepLink.js, desktop deepLink.cpp and the bot's
 // DeepLinkCodec.cs — keep them in sync (shared golden vectors in each suite's tests).
 export const encodeTelegramStartPayload = (serverUrl, projectId) => {
   const plain = `${compressOrigin(normalizeUrl(serverUrl))}|${projectId}`;

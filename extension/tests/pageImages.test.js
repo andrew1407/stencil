@@ -1,13 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, videoHasFrame } from '../src/lib/pageImages.js';
+import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/imageScan.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
   assert.equal(bgImageUrl('url("https://a.com/x.png")'), 'https://a.com/x.png');
   assert.equal(bgImageUrl("url('https://a.com/y.jpg')"), 'https://a.com/y.jpg');
   assert.equal(bgImageUrl('url(https://a.com/z.gif)'), 'https://a.com/z.gif');
   assert.equal(bgImageUrl('none'), '');
-  assert.equal(bgImageUrl('url(data:image/svg+xml;base64,AAAA)'), '');   // inline svg → not shareable
+  // Inline-SVG data URIs ARE listed now (rasterize.js renders them for attach/hand-off).
+  assert.equal(bgImageUrl('url(data:image/svg+xml;base64,AAAA)'), 'data:image/svg+xml;base64,AAAA');
   assert.equal(bgImageUrl(''), '');
 });
 
@@ -19,7 +21,7 @@ test('cssImageUrls: every url() in a CSS value; drops svg-data + #fragment refs'
   assert.deepEqual(cssImageUrls('url(  spaced.png  )'), ['spaced.png']);
   // url(#…) is an in-document paint-server / filter / clip-path ref, NOT an image.
   assert.deepEqual(cssImageUrls('url(#clip)'), []);
-  assert.deepEqual(cssImageUrls('url(data:image/svg+xml;base64,AAAA)'), []);   // inline svg
+  assert.deepEqual(cssImageUrls('url(data:image/svg+xml;base64,AAAA)'), ['data:image/svg+xml;base64,AAAA']);
   assert.deepEqual(cssImageUrls('none'), []);
   assert.deepEqual(cssImageUrls('linear-gradient(#000,#fff)'), []);
   assert.deepEqual(cssImageUrls(''), []);
@@ -57,4 +59,23 @@ test('videoHasFrame: needs decoded data, real dims, not poster-at-0', () => {
   assert.equal(videoHasFrame({ videoWidth: 640, videoHeight: 480, readyState: 4, paused: true, currentTime: 0 }), false);  // poster showing
   assert.equal(videoHasFrame({ videoWidth: 0, videoHeight: 0, readyState: 4, paused: false, currentTime: 1 }), false);     // no dims
   assert.equal(videoHasFrame(null), false);
+});
+
+// ── mergeScanFrames (src/lib/imageScan.js): flatten all-frames scan results ──
+test('mergeScanFrames dedupes by src across frames and keeps frame order', () => {
+  const results = [
+    { result: [{ src: 'a' }, { src: 'b' }] },
+    null,                                        // frame the script could not run in
+    { result: [{ src: 'b' }, { src: 'c' }] },    // dup across frames → first wins
+  ];
+  assert.deepEqual(mergeScanFrames(results).map((it) => it.src), ['a', 'b', 'c']);
+  assert.deepEqual(mergeScanFrames([]), []);
+  assert.deepEqual(mergeScanFrames(null), []);
+});
+
+test('mergeScanFrames caps at the limit; scan bounds match the popup values', () => {
+  const results = [{ result: [{ src: 'a' }, { src: 'b' }, { src: 'c' }] }];
+  assert.deepEqual(mergeScanFrames(results, 2).map((it) => it.src), ['a', 'b']);
+  assert.equal(MAX_IMAGES, 1000);
+  assert.ok(BLOCKED_SCHEMES.includes('chrome:') && BLOCKED_SCHEMES.includes('chrome-extension:'));
 });

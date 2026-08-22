@@ -217,7 +217,7 @@ export class StencilExpirationModal extends StencilElement {
     });
     els.keep.addEventListener('change', async () => {
       if (els.keep.checked) {
-        const ok = await app.confirm('Keep this project forever and remove its expiration date?', { title: 'Keep forever' });
+        const ok = await app.confirm('Keep this project forever and remove its expiration date?', { title: 'Keep forever', confirmIcon: 'calendar' });
         if (!ok) { els.keep.checked = false; return; }
         keep = true;
         expiresAt = 0;

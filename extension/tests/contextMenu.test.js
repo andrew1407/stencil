@@ -1,20 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle } from '../src/lib/contextMenu.js';
+import {
+  MENU, MENU_ITEMS, resolveContextAction, menuVisibilityFor, visibleMenu,
+  DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle,
+} from '../src/lib/contextMenu.js';
 
-test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests one deeper', () => {
-  // A single top-level parent (id=root, title "Stencil") so the submenu reads "Stencil"
-  // instead of the auto-grouped extension name. Everything else hangs off it; only the
-  // video Preview group nests a second level.
+test('MENU_ITEMS: a "Stencil" parent per group holds every item; Preview nests one deeper', () => {
+  // Two top-level parents, both titled "Stencil" (so the submenu reads "Stencil" rather
+  // than the auto-grouped extension name): the STATIC one for the native image/video/
+  // action contexts, and the DYNAMIC one for the probe-revealed background group. They
+  // are mutually exclusive in practice — see the "(empty)" tests below for why the split
+  // exists.
   const root = MENU_ITEMS.find(i => i.id === MENU.root);
   assert.ok(root && root.title === 'Stencil' && !root.parentId);
-  // Exactly one item has no parent: the root.
-  assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.root]);
-  // Distinct parents used: the root, the three "Open in editor ▸" group parents, and the
-  // Preview submenu parent.
+  const bgRoot = MENU_ITEMS.find(i => i.id === MENU.bgRoot);
+  assert.ok(bgRoot && bgRoot.title === 'Stencil' && !bgRoot.parentId);
+  assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.root, MENU.bgRoot]);
+  // Distinct parents used: the two roots, the three "Open in editor ▸" group parents, and
+  // the Preview submenu parent.
   const parents = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))].sort();
   assert.deepEqual(parents,
-    [MENU.openParent, MENU.frameOpenParent, MENU.bgOpenParent, MENU.previewParent, MENU.root].sort());
+    [MENU.openParent, MENU.frameOpenParent, MENU.bgOpenParent, MENU.previewParent, MENU.root, MENU.bgRoot].sort());
   // previewParent hangs off root; its 6 actions hang off it.
   assert.equal(MENU_ITEMS.find(i => i.id === MENU.previewParent).parentId, MENU.root);
   assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.previewParent).length, 6);
@@ -37,7 +43,7 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
   // The always-on native items (image actions, video current-frame actions) carry no
   // `visible` flag. The dynamically-gated groups (background, Preview, and the desktop-app
   // hand-off — gated on a configured scheme) do.
-  const native = MENU_ITEMS.filter(i => i.id !== MENU.root && !i.contexts.includes('all'));
+  const native = MENU_ITEMS.filter(i => i.id !== MENU.root && i.id !== MENU.bgRoot && !i.contexts.includes('all'));
   const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id) && !STATIC_DESKTOP_ITEMS.includes(i.id));
   assert.ok(nativeAlways.every(i => !('visible' in i)));
   // The desktop-app items start hidden; the worker reveals them only when a scheme is set.
@@ -48,16 +54,96 @@ test('MENU_ITEMS: one explicit "Stencil" parent holds every item; Preview nests 
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('MENU_ITEMS: dynamic background/link group hangs off the Stencil parent on the all-context, default-hidden', () => {
+test('MENU_ITEMS: dynamic background/link group hangs off its OWN root, default-hidden', () => {
   const bg = MENU_ITEMS.filter(i => DYNAMIC_ITEMS.includes(i.id));
-  // The "Open in editor ▸" parent + 5 nested open variants + crop + pin = 8.
-  assert.equal(bg.length, 8);
-  assert.equal(DYNAMIC_ITEMS.length, 8);
-  // Each hangs off the root (parent + crop/pin) or the bg "Open" parent, on 'all', so the
-  // group CAN show on a background div…
-  assert.ok(bg.every(i => (i.parentId === MENU.root || i.parentId === MENU.bgOpenParent) && i.contexts.includes('all')));
-  // …and every item carries its own visible:false, so the worker reveals them one by one.
+  // Its own root + the "Open in editor ▸" parent + 5 nested open variants + crop + pin = 9.
+  assert.equal(bg.length, 9);
+  assert.equal(DYNAMIC_ITEMS.length, 9);
+  // The group's ROOT is part of the group — revealed and hidden with its children, which
+  // is what makes an empty "Stencil ▸" submenu impossible.
+  assert.ok(DYNAMIC_ITEMS.includes(MENU.bgRoot));
+  // Each hangs off that root (or the bg "Open" parent), on 'all', so the group CAN show
+  // on a background div…
+  assert.ok(bg.every(i => (!i.parentId && i.id === MENU.bgRoot)
+    || i.parentId === MENU.bgRoot || i.parentId === MENU.bgOpenParent));
+  assert.ok(bg.every(i => i.contexts.includes('all')));
+  // …and every item carries its own visible:false, so the worker reveals them together.
   assert.ok(bg.every(i => i.visible === false));
+  // Nothing from the dynamic group is parented to the STATIC root: a background
+  // right-click must not be able to light up the static "Stencil" entry.
+  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.root && i.contexts.includes('all')).length, 0);
+});
+
+// ── The "(empty)" bug: a parent Chrome draws with nothing under it ──
+// Chrome decides a PARENT's visibility from its own `contexts` alone — never from
+// whether any child ended up visible. The old single contexts:['all'] root therefore
+// rendered on every right-click, and on a plain/background element (native children
+// don't apply, dynamic children still hidden) it painted as "Stencil ▸ (empty)".
+
+test('the static root declares only the contexts it can serve, so Chrome hides it elsewhere', () => {
+  const root = MENU_ITEMS.find(i => i.id === MENU.root);
+  assert.deepEqual(root.contexts, ['action', 'image', 'video']);
+  assert.ok(!root.contexts.includes('all'), 'contexts:[all] is what drew the empty submenu');
+  // Every child of the static root serves one of those contexts.
+  const kids = MENU_ITEMS.filter(i => i.parentId === MENU.root);
+  assert.ok(kids.length > 0);
+  assert.ok(kids.every(i => i.contexts.every(c => root.contexts.includes(c))));
+});
+
+test('a right-click with nothing to offer shows NO Stencil entry (never an empty submenu)', () => {
+  // Plain page element, nothing probed → not one item, so there is no parent to draw.
+  assert.deepEqual(visibleMenu('page'), []);
+  assert.deepEqual(visibleMenu('selection'), []);
+  assert.deepEqual(visibleMenu('link'), []);
+});
+
+test('a probed background reveals its own rooted group', () => {
+  const shown = visibleMenu('page', DYNAMIC_ITEMS);
+  assert.ok(shown.includes(MENU.bgRoot), 'the "Stencil" entry appears…');
+  assert.ok(shown.includes(MENU.bgOpen) && shown.includes(MENU.bgCrop) && shown.includes(MENU.bgPin),
+    '…with its actions under it');
+  assert.ok(!shown.includes(MENU.root), 'the static root stays hidden on a plain element');
+  // The image/video items are untouched by the reveal.
+  assert.ok(!shown.includes(MENU.open) && !shown.includes(MENU.frameOpen));
+});
+
+test('no visible parent is ever left without visible children, in every menu state', () => {
+  const byId = new Map(MENU_ITEMS.map(i => [i.id, i]));
+  const parentIds = new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId));
+  const states = [
+    ['plain element, nothing probed', 'page', []],
+    ['background probed', 'page', DYNAMIC_ITEMS],
+    ['background probed + desktop scheme', 'page', [...DYNAMIC_ITEMS, MENU.bgDesktop]],
+    ['a real <img>', 'image', []],
+    ['a real <img>, desktop scheme', 'image', STATIC_DESKTOP_ITEMS],
+    ['a <video> without a poster', 'video', []],
+    ['a <video> with a poster', 'video', PREVIEW_ITEMS],
+    ['the toolbar icon', 'action', []],
+    // Belt and braces: even a stale reveal (the probe said background, the click landed
+    // on an image) must not produce an empty parent.
+    ['stale reveal over an image', 'image', DYNAMIC_ITEMS],
+  ];
+  for (const [label, context, revealed] of states) {
+    const shown = new Set(visibleMenu(context, revealed));
+    for (const id of shown) {
+      if (!parentIds.has(id)) continue;                       // a leaf action
+      const kids = MENU_ITEMS.filter(i => i.parentId === id).filter(i => shown.has(i.id));
+      assert.ok(kids.length > 0, `${label}: "${byId.get(id).title}" would render EMPTY`);
+    }
+  }
+});
+
+test('menuVisibilityFor: what the probe found decides which group is revealed', () => {
+  assert.deepEqual(menuVisibilityFor({ url: 'https://a/bg.png' }), { bg: true, preview: false });
+  // An inline-SVG data URI background (the reported repro) is a URL like any other.
+  assert.deepEqual(menuVisibilityFor({ url: 'data:image/svg+xml,%3Csvg/%3E' }), { bg: true, preview: false });
+  // A real <img> reports imgUrl only (the native context builds the menu) → nothing revealed.
+  assert.deepEqual(menuVisibilityFor({ imgUrl: 'https://a/i.png' }), { bg: false, preview: false });
+  // A video: never the background group; the Preview group only with a poster.
+  assert.deepEqual(menuVisibilityFor({ video: true, url: 'data:image/jpeg;base64,FRAME' }), { bg: false, preview: false });
+  assert.deepEqual(menuVisibilityFor({ video: true, poster: 'https://a/p.jpg' }), { bg: false, preview: true });
+  assert.deepEqual(menuVisibilityFor(null), { bg: false, preview: false });
+  assert.deepEqual(menuVisibilityFor({}), { bg: false, preview: false });
 });
 
 test('MENU_ITEMS: video Preview submenu is default-hidden so it shows only when a poster exists', () => {

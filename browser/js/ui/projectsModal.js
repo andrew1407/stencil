@@ -1,9 +1,125 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
-import { wireNameEditor, notify, cmToUnit, unitLabel } from '../utils.js';
+import { wireNameEditor, notify, cmToUnit, unitLabel, isTouchLike, pointInRect, shortName } from '../utils.js';
 import { icon } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
+import { observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor } from './motion.js';
+import { normalizeUrl } from '../net/connectionManager.js';
+import { loadSavedServers } from '../net/connectionStore.js';
+
+// ── Opening a project row: gesture → intent ─────────────────────────────────
+// MOUSE   click            → confirm, this tab      dblclick        → open now, this tab
+//         ⌘/Ctrl+click     → confirm, NEW TAB       ⌘/Ctrl+dblclick → open now, NEW TAB
+//         Enter / Space    → confirm, this tab (⌘/Ctrl held → new tab), like a single click
+// TOUCH   tap              → confirm, this tab      new tab → the row's ⋯ menu
+//
+// Touch deliberately has NO hold gesture: press-and-hold is the list's drag-to-reorder
+// pickup (touchDrag.js), so the ⋯ menu is the touch route to a new tab. Movement always
+// wins: past the slop the gesture belongs to the drag/scroll and any pending open is
+// dropped. Pure — unit-tested.
+export const DOUBLE_CLICK_MS = 250;    // single-click actions wait this long for a dblclick
+export const DRAG_SLOP_PX = 10;        // travel that means "this is a drag/scroll, not a tap"
+export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
+  if (type === 'tap') return { confirm: true, target: 'here' };           // touch only
+  const target = (ctrlKey || metaKey) ? 'newtab' : 'here';
+  return { confirm: type !== 'dblclick', target };
+};
+
+// The gesture machine behind a row. The crux is the DEFERRED single click: a plain click
+// waits one double-click interval and a dblclick cancels it, so the confirmation modal
+// never flashes open and shut. Timers and the touch test are injected for DOM-free tests.
+export const createOpenGesture = ({
+  run,
+  touch = () => isTouchLike(),
+  delay = DOUBLE_CLICK_MS,
+  slop = DRAG_SLOP_PX,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+} = {}) => {
+  let clickTimer = null;
+  let press = null;          // { x, y, moved } while a pointer is down on the row
+  let swallowNextClick = false;
+  const cancelClick = () => { if (clickTimer !== null) { clearTimer(clickTimer); clickTimer = null; } };
+  return {
+    click(e = {}) {
+      cancelClick();
+      // The click synthesized after a long press (or a drag) must not also open.
+      if (swallowNextClick) { swallowNextClick = false; return; }
+      if (touch()) { run(rowOpenIntent({ type: 'tap' })); return; }
+      clickTimer = setTimer(() => {
+        clickTimer = null;
+        run(rowOpenIntent({ type: 'click', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
+      }, delay);
+    },
+    dblclick(e = {}) {
+      cancelClick();                     // …the pending single click never happens
+      if (touch()) return;               // touch has no double-click gesture
+      run(rowOpenIntent({ type: 'dblclick', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
+    },
+    key(e = {}) {
+      cancelClick();
+      run(rowOpenIntent({ type: 'key', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
+    },
+    // ── Pointer travel: MOVEMENT WINS ──
+    // Past the slop the gesture belongs to the drag/scroll: the pending open is dropped
+    // and the click that may follow the release is swallowed. Nothing here ever OPENS
+    // anything — the hold is the list's reorder pickup, not ours.
+    pressStart(pt = {}) {
+      swallowNextClick = false;
+      press = { x: pt.x || 0, y: pt.y || 0, moved: false };
+    },
+    pressMove(pt = {}) {
+      if (!press || press.moved) return false;
+      if (Math.abs((pt.x || 0) - press.x) <= slop && Math.abs((pt.y || 0) - press.y) <= slop) return false;
+      press.moved = true;
+      cancelClick();                     // a deferred single click never survives a drag
+      swallowNextClick = true;           // …nor does the click a drop may synthesize
+      return true;
+    },
+    pressEnd() { const moved = !!press && press.moved; press = null; return moved; },
+    // Drag pickup (HTML5 dragstart on mouse, the touch engine's onStart on finger).
+    dragStart() { cancelClick(); swallowNextClick = true; press = null; },
+    cancel() { cancelClick(); press = null; swallowNextClick = false; },
+    get pendingClick() { return clickTimer !== null; },
+    get dragging() { return !!press && press.moved; },
+  };
+};
+
+// Whether an out-of-band change (server event, peers echo, another tab) may rebuild the
+// list RIGHT NOW: never mid-drag (the rebuild destroys the dragged row) and never while a
+// removal wipe plays — those wait for beginRemoval's settle render. Pure — unit-tested.
+export const canRefreshList = ({ open = true, dragging = false, removing = false } = {}) =>
+  !!open && !dragging && !removing;
+
+// ── Server-listing cache (what the shimmer skeletons answer to) ─────────────
+// null cache = not loaded, [] = loaded/empty. ensure() starts at most one fetch; a token
+// drops a stale in-flight fetch after invalidate(), which must ALSO clear `loading` or
+// ensure() never fetches again and the skeletons never resolve. Pure factory — unit-tested.
+export const createRemoteListing = (load) => {
+  const s = { cache: null, loading: false, failed: false, token: 0 };
+  return {
+    get cache() { return s.cache; },
+    get loading() { return s.loading; },
+    get failed() { return s.failed; },
+    ensure(done = () => {}) {
+      if (s.cache !== null || s.loading) return;
+      s.loading = true;
+      s.failed = false;
+      const myToken = ++s.token;
+      load()
+        .then((list) => { if (myToken !== s.token) return; s.cache = list || []; s.loading = false; done(); })
+        .catch(() => { if (myToken !== s.token) return; s.cache = []; s.failed = true; s.loading = false; done(); });
+    },
+    invalidate() { s.cache = null; s.failed = false; s.loading = false; s.token++; },
+  };
+};
+
+// Skeleton rows may show ONLY while a server-listing fetch is genuinely in flight; a null
+// cache with no fetch running must fall through to the honest empty/error state, or the
+// skeletons stay up forever. Pure — unit-tested.
+export const showsRemoteSkeletons = ({ showServer = false, hasServers = false, cache = null, loading = false } = {}) =>
+  !!showServer && !!hasServers && cache === null && !!loading;
 
 // Remote-thumbnail blob cache keyed by `serverUrl|id|version`, so the many re-renders
 // (search keystrokes, live events, peer pings) reuse one fetch per project version
@@ -35,10 +151,8 @@ const remoteThumbBlob = (conn, meta) => {
   return p;
 };
 // ── Component: projects chooser / switcher modal ────────────────
-// Lists saved projects (most-recent first) + a synthetic row for the current temp
-// editor, with thumbnails/dates/expiry badges and an "open elsewhere" marker from
-// the TabsCoordinator peers feed. Rows built at runtime (static #projects-list
-// stays comment-only) to keep the markup tests' assertions green.
+// Lists saved projects + a synthetic row for the current temp editor. Rows built at
+// runtime (static #projects-list stays comment-only) to keep the markup tests green.
 export class StencilProjectsModal extends StencilElement {
   static inner() {
     return `
@@ -47,8 +161,12 @@ export class StencilProjectsModal extends StencilElement {
                 <h2>${icon('layers', { size: 18 })} Projects</h2>
                 <button class="app-modal-close btn-icon-text" id="projects-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
+            <!-- Search full-width on its own row; the filter selects sit on the row below
+                 (user decision — the shared single-row bar squeezed the search box). -->
             <div class="modal-search-bar">
                 <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
+            </div>
+            <div class="modal-search-bar projects-filter-row">
                 <select id="projects-filter" class="modal-filter" title="Filter projects">
                     <option value="all">All</option>
                     <option value="local">Local</option>
@@ -73,11 +191,12 @@ export class StencilProjectsModal extends StencilElement {
             <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
                 <span class="projects-batch-count" id="projects-batch-count">0 selected</span>
                 <span class="projects-batch-actions">
+                    <button id="projects-select-all" class="btn-icon-text" style="display:none" title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
                     <button id="projects-batch-move-server" class="btn-icon-text" title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
                     <button id="projects-batch-copy-server" class="btn-icon-text" title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
                     <button id="projects-batch-move-local" class="btn-icon-text" title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
                     <button id="projects-batch-copy-local" class="btn-icon-text" title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
-                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove</span></button>
+                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
                     <button id="projects-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
                 </span>
             </div>
@@ -126,7 +245,6 @@ export class StencilProjectsModal extends StencilElement {
     const loadSortMode = () => { const v = ssGet(SORT_KEY); return SORT_MODES.includes(v) ? v : 'name'; };
     const loadSearchMode = () => { const v = ssGet(SEARCH_MODE_KEY); return SEARCH_MODES.includes(v) ? v : 'common'; };
     let searchMode = loadSearchMode();
-    // What the search box matches, per the mode: names, keywords, or both ("common", default).
     const matchRow = (name, keywords, q) => {
       if (!q.trim()) return true;
       const kw = (keywords || []).join(' ');
@@ -138,13 +256,10 @@ export class StencilProjectsModal extends StencilElement {
     const saveOrder = (a) => ssSet(ORDER_KEY, JSON.stringify(a));
     let sortMode = loadSortMode();
 
-    // Cached server-project listing for this render cycle: null = not loaded, [] = loaded/empty.
-    // Cached (instead of re-fetched every keystroke, as the old renderRemote did) so mixed/date
-    // sort modes can interleave server + local rows from one snapshot; invalidated on
-    // connection/server-project changes and on each modal open.
-    let remoteCache = null;
-    let remoteLoading = false;
-    let remoteFailed = false;
+    // Cached server-project listing for this render cycle (createRemoteListing above),
+    // so mixed/date sort modes interleave server + local rows from one snapshot;
+    // invalidated on connection/server-project changes and on each modal open.
+    const remotes = createRemoteListing(() => app.connections.remoteProjects());
     // Live blob URLs for the current render's remote thumbnails. Kept alive (not revoked on
     // load) so the hover-magnify zoom can reuse them; freed at the start of the next render.
     const remoteObjectUrls = new Set();
@@ -171,16 +286,36 @@ export class StencilProjectsModal extends StencilElement {
       clear: document.getElementById('projects-batch-clear'),
     };
     const updateBatchBar = () => {
-      batchBar.style.display = selected.size ? '' : 'none';
+      // The bar hosts Select all too, so it shows whenever the list HAS selectable
+      // rows — the selection-only controls inside it come and go with the selection.
+      batchBar.style.display = (selected.size || selectables.size) ? '' : 'none';
+      batchCount.style.display = selected.size ? '' : 'none';
       batchCount.textContent = `${selected.size} selected`;
       const local = onlyLocalMovable();
       const remote = onlyRemoteMovable();
-      batchBtns.moveServer.disabled = !(local && hasServers());
-      batchBtns.copyServer.disabled = !(local && hasServers());
-      batchBtns.moveLocal.disabled = !remote;
-      batchBtns.copyLocal.disabled = !remote;
+      // Inapplicable directions are HIDDEN, not greyed: a local-only selection never
+      // moves "to local", so a disabled button is just noise.
+      const show = (btn, on) => { btn.style.display = on ? '' : 'none'; };
+      show(batchBtns.moveServer, local && hasServers());
+      show(batchBtns.copyServer, local && hasServers());
+      show(batchBtns.moveLocal, remote);
+      show(batchBtns.copyLocal, remote);
+      show(batchBtns.remove, selected.size > 0);
+      show(batchBtns.clear, selected.size > 0);
+      updateSelectAll();
     };
     const clearSelection = () => { selected.clear(); updateBatchBar(); };
+    // What THIS render offered a checkbox for (the filtered view) — the select-all pool.
+    const selectables = new Map();
+    const allSelected = () =>
+      selectables.size > 0 && [...selectables.keys()].every((k) => selected.has(k));
+    const updateSelectAll = () => {
+      const btn = document.getElementById('projects-select-all');
+      if (!btn) return;
+      btn.style.display = selectables.size ? '' : 'none';
+      const label = btn.querySelector('span');
+      if (label) label.textContent = allSelected() ? 'Deselect all' : 'Select all';
+    };
     const toggleSelect = (key, entry, on) => {
       if (on) selected.set(key, entry);
       else selected.delete(key);
@@ -192,7 +327,7 @@ export class StencilProjectsModal extends StencilElement {
       const urls = app.connections?.urls || [];
       if (!urls.length) return null;
       if (urls.length === 1) return urls[0];
-      return app.choose(message, { title: 'Choose server', confirmLabel: 'OK', options: urls.map(u => ({ value: u, label: u })) });
+      return app.choose(message, { title: 'Choose server', confirmLabel: 'OK', confirmIcon: 'server', options: urls.map(u => ({ value: u, label: u })) });
     };
 
     const fmtDate = ts => {
@@ -204,10 +339,9 @@ export class StencilProjectsModal extends StencilElement {
       }
     };
 
-    // Multi-line hover tooltip for a project row (used by local + server rows). Shows the
-    // image dimensions + orientation and the free-text description when present. Line length
-    // The line length is read from the cached `lineLengthCm` on the registry meta (computed at
-    // save time), so we never reload a project's image-heavy payload just to measure it.
+    // Row hover tooltip (local + server rows). The line length is read from the cached
+    // `lineLengthCm` on the registry meta (computed at save time), so we never reload a
+    // project's image-heavy payload just to measure it.
     const projectTooltip = meta => {
       const lines = [];
       const w = meta.imageW;
@@ -232,9 +366,14 @@ export class StencilProjectsModal extends StencilElement {
       };
     };
 
-    // Magnified hover preview: a fixed-position floating copy of a row's thumbnail
-    // that follows the cursor, shown while hovering a thumb that holds a real image
-    // (not the placeholder glyph). One reused element, shared by local + remote rows.
+    // Magnified hover preview: a fixed-position floating copy of a row's thumbnail that
+    // follows the cursor, shown while hovering a thumb that holds a real image (not the
+    // placeholder glyph). One reused element, shared by local + remote rows.
+    const PREVIEW_ZOOM = 1.67;
+    // A hover preview is a GLANCE, not a lightbox — it must leave the list underneath
+    // readable. Mirrored by the max-width/max-height backstop in components.css.
+    const PREVIEW_MAX_VW = 0.25;
+    const PREVIEW_MAX_VH = 0.20;
     let zoomEl = null;
     const ensureZoom = () => {
       if (zoomEl) return zoomEl;
@@ -244,7 +383,29 @@ export class StencilProjectsModal extends StencilElement {
       document.body.appendChild(zoomEl);
       return zoomEl;
     };
-    const hideZoom = () => { if (zoomEl) zoomEl.style.display = 'none'; };
+    const hideZoom = () => { if (zoomEl) { zoomEl.style.display = 'none'; zoomSize = null; } };
+    // Switching window never fires the row's mouseleave — hide on blur, or the
+    // zoom is still up when the user comes back (chatView hideThumbPreview parity).
+    window.addEventListener('blur', hideZoom);
+    // Holding Alt doubles the glance (every hover preview honours it — chat thumbs,
+    // extension, desktop): factor 2 on the zoom cap AND the viewport ceilings.
+    let zoomSize = null;   // {nw, nh} of the picture currently zoomed
+    let zoomAlt = false;
+    const applyZoomScale = () => {
+      if (!zoomEl || !zoomSize || zoomEl.style.display === 'none') return;
+      const f = zoomAlt ? 2 : 1;
+      const scale = Math.min(PREVIEW_ZOOM * f,
+        (window.innerWidth * PREVIEW_MAX_VW * f) / zoomSize.nw,
+        (window.innerHeight * PREVIEW_MAX_VH * f) / zoomSize.nh);
+      // The xl class doubles the CSS vw/vh caps too — they would clamp the explicit
+      // width right back to the un-Alt size otherwise.
+      zoomEl.classList.toggle('project-thumb-zoom-xl', zoomAlt);
+      const img = zoomEl.querySelector('img');
+      img.style.width = `${Math.round(zoomSize.nw * scale)}px`;
+      img.style.height = `${Math.round(zoomSize.nh * scale)}px`;
+    };
+    window.addEventListener('keydown', e => { if (e.key === 'Alt') { zoomAlt = true; applyZoomScale(); } });
+    window.addEventListener('keyup', e => { if (e.key === 'Alt') { zoomAlt = false; applyZoomScale(); } });
     const positionZoom = e => {
       if (!zoomEl) return;
       const pad = 18;
@@ -263,8 +424,18 @@ export class StencilProjectsModal extends StencilElement {
         const img = thumbEl.querySelector('img');
         if (!img || !img.src) return;   // placeholder glyph — nothing to magnify
         const z = ensureZoom();
-        z.querySelector('img').src = img.src;
+        const zImg = z.querySelector('img');
+        zImg.src = img.src;
+        // Sized here rather than left to the CSS caps: independent max-width/max-height
+        // clamping squashes a portrait thumb into a letterboxed landscape box. One scale
+        // factor keeps aspect, honours the viewport ceiling, never upscales past PREVIEW_ZOOM.
+        zoomSize = {
+          nw: img.naturalWidth || img.width || 160,
+          nh: img.naturalHeight || img.height || 160,
+        };
+        zoomAlt = e.altKey;   // Alt already held on entry counts too
         z.style.display = 'block';
+        applyZoomScale();
         positionZoom(e);
       });
       thumbEl.addEventListener('mousemove', positionZoom);
@@ -325,9 +496,26 @@ export class StencilProjectsModal extends StencilElement {
       }, 0);
     };
 
-    // Build a single row element for a project meta (or the temp synthetic row).
-    // After a move re-sorts the list, keep the moved item visible + focused so it doesn't
-    // appear to "jump away". Rows carry data-id; scroll the matching one into view.
+    // The rendered row for a project id — a delete plays it out before the rebuild.
+    const rowById = (id) => (id == null ? null : list.querySelector(`[data-id="${id}"]`));
+
+    // Call BEFORE a removal; await what it returns after. leaveThenRemove resolves on the
+    // short box-collapse while the ash falls much longer, so the list HEIGHT (it sizes the
+    // modal) and the re-render are both held until wipeDurationMs; out-of-band refresh
+    // triggers hold off too (canRefreshList).
+    let removalsInFlight = 0;
+    const beginRemoval = () => {
+      removalsInFlight++;
+      const held = list.getBoundingClientRect().height;
+      if (held) list.style.minHeight = `${held}px`;
+      return async () => {
+        await new Promise((r) => setTimeout(r, wipeDurationMs()));
+        removalsInFlight = Math.max(0, removalsInFlight - 1);
+        render();
+        list.style.minHeight = '';
+      };
+    };
+
     const scrollRowIntoView = (id) => {
       if (id == null) return;
       requestAnimationFrame(() => {
@@ -336,15 +524,13 @@ export class StencilProjectsModal extends StencilElement {
       });
     };
 
-    // Opening a project switches THIS tab's session (replacing any unsaved work) or spawns a new
-    // tab — so every open path (row click, the ⋯ "Open", the server "Open from server", and the
-    // drag-to-here / drag-to-new-tab zones) confirms first. Returns true to proceed. `newTab`
-    // tunes the wording (a new tab leaves the current one untouched).
+    // Opening replaces this tab's unsaved session (or spawns a tab), so every open path
+    // confirms first. Returns true to proceed; `newTab` tunes the wording.
     const confirmOpen = (name, newTab = false) => app.confirm(
       newTab
-        ? `Open "${name || 'Untitled'}" in a new tab?`
-        : `Open "${name || 'Untitled'}" here? Any unsaved changes in the current tab will be replaced.`,
-      { title: 'Open project', confirmLabel: 'Open', cancelLabel: 'Cancel' });
+        ? `Open "${shortName(name || 'Untitled')}" in a new tab?`
+        : `Open "${shortName(name || 'Untitled')}" here? Any unsaved changes in the current tab will be replaced.`,
+      { title: 'Open project', confirmLabel: 'Open', confirmIcon: 'folder', cancelLabel: 'Cancel' });
 
     const makeRow = (meta, opts = {}) => {
       const row = document.createElement('div');
@@ -370,6 +556,7 @@ export class StencilProjectsModal extends StencilElement {
         cb.className = 'project-select';
         cb.checked = selected.has(key);
         if (cb.checked) row.classList.add('project-selected');
+        selectables.set(key, { kind: 'local', id: meta.id, serverUrl: meta.address || null, isServer: isServerMeta(meta), meta });
         cb.addEventListener('click', e => e.stopPropagation());   // don't open the row
         cb.addEventListener('change', () => {
           toggleSelect(key, { kind: 'local', id: meta.id, serverUrl: meta.address || null, isServer: isServerMeta(meta), meta }, cb.checked);
@@ -401,15 +588,18 @@ export class StencilProjectsModal extends StencilElement {
       // shadow (from .project-name CSS) so even a light custom colour stays legible on a light
       // theme. Empty → CSS keeps the fixed grey + the same shadow.
       if (!opts.temp && meta.color) name.style.color = meta.color;
-      // Informative hover tooltip: dimensions/orientation (+ description when set). Saved rows
-      // only — the synthetic temp/incognito row has no meta to describe.
-      if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) row.title = tip; }
+      // Tooltip on the TEXT column, not the row: over the thumbnail the magnified image is
+      // the preview, and a native tooltip up the thumb's ancestor chain would cover it.
+      if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) info.title = tip; }
       info.appendChild(name);
 
-      // Inline rename: swap the name div for an input (✎ button or double-click).
-      // Commit on Enter/blur, cancel on Escape. Saved projects only.
+      // Inline rename. The name's dblclick stops propagation, so the ROW's dblclick never
+      // fires — but its two clicks did arm the deferred open, which would pop the
+      // confirmation modal over the rename input a moment later. Cancel it.
+      let rowGesture = null;
       const beginRename = () => {
         if (opts.temp) return;
+        rowGesture?.cancel();
         const wrap = document.createElement('span');
         wrap.className = 'project-rename-wrap';
         const input = document.createElement('input');
@@ -520,21 +710,21 @@ export class StencilProjectsModal extends StencilElement {
           let address = urls[0];
           if (urls.length > 1) {
             address = await app.choose(
-              `Move "${meta.name || 'Untitled'}" to which server? It becomes a server-backed project.`,
-              { title: 'Move to server', confirmLabel: 'Move', options: urls.map(u => ({ value: u, label: u })) });
+              `Move "${shortName(meta.name || 'Untitled')}" to which server? It becomes a server-backed project.`,
+              { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', options: urls.map(u => ({ value: u, label: u })) });
             if (!address) return;
           } else if (!(await app.confirm(
-            `Move "${meta.name || 'Untitled'}" to server ${address}? It becomes a server-backed project.`,
-            { title: 'Move to server', confirmLabel: 'Move' }))) {
+            `Move "${shortName(meta.name || 'Untitled')}" to server ${address}? It becomes a server-backed project.`,
+            { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload' }))) {
             return;
           }
           try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
           catch (err) { notify(`Could not move to server — ${err.message}`, 'fail'); }
         };
         const copyToServer = async () => {
-          const address = await pickServer(`Copy "${meta.name || 'Untitled'}" to which server?`);
+          const address = await pickServer(`Copy "${shortName(meta.name || 'Untitled')}" to which server?`);
           if (!address) return;
-          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
+          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
           if (name == null) return;
           try { await app.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
           catch (err) { notify(`Could not copy to server — ${err.message}`, 'fail'); }
@@ -542,21 +732,31 @@ export class StencilProjectsModal extends StencilElement {
         const removeRow = async () => {
           if (openElsewhere()) { notify('Open in another tab — close it there first', 'fail'); return; }
           const note = serverLinked
-            ? `Remove the local copy of "${meta.name || 'Untitled'}"? It stays on the server ${meta.address}.`
-            : `Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`;
-          if (!(await app.confirm(note, { title: 'Remove project', danger: true }))) return;
+            ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
+            : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
+          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash' }))) return;
+          // The row collapses away first; render() then rebuilds the list without it.
+          const settle = beginRemoval();
+          await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1));
           app.removeProject(meta.id);
-          render();
+          await settle();
         };
 
-        // The row opens the project on click; clicking the already-active project just
-        // closes the modal (it's already open in this tab). Other actions live behind "⋯".
-        const open = async () => {
+        // Opening the row per the gesture's intent (rowOpenIntent): `here` switches this
+        // tab, `newtab` spawns one, `confirm` gates behind the shared modal. Clicking the
+        // already-active project just closes the modal.
+        const openWithIntent = async ({ confirm = true, target = 'here' } = {}) => {
+          if (target === 'newtab') {
+            if (confirm && !(await confirmOpen(meta.name, true))) return;
+            app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses
+            return;
+          }
           if (isActive) { close(); return; }
-          if (!(await confirmOpen(meta.name))) return;
+          if (confirm && !(await confirmOpen(meta.name))) return;
           app.switchToProject(meta.id);
           close();
         };
+        const open = () => openWithIntent({ confirm: true, target: 'here' });
 
         // Per-row colour: a throwaway native colour picker paints the project name. A second
         // "Clear colour" item (shown only when a colour is set) resets it to the theme accent.
@@ -581,7 +781,7 @@ export class StencilProjectsModal extends StencilElement {
         // normalizes; a server-linked project also pushes them to the server.
         const editKeywords = async () => {
           const cur = (meta.keywords || []).join(' ');
-          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', confirmLabel: 'Save', defaultValue: cur });
+          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur });
           if (v == null) return;
           const updated = app.setProjectKeywords(meta.id, v.split(/[\s,]+/));
           if (updated) meta.keywords = updated.keywords;
@@ -592,7 +792,7 @@ export class StencilProjectsModal extends StencilElement {
         // an empty value clears it. Mirrors editKeywords / the colour picker above.
         const editDescription = async () => {
           const cur = meta.description || '';
-          const v = await app.prompt('Description:', { title: 'Project description', confirmLabel: 'Save', defaultValue: cur });
+          const v = await app.prompt('Description:', { title: 'Project description', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur });
           if (v == null) return;
           const updated = store.setDescription(meta.id, v);
           if (updated) meta.description = updated.description;
@@ -604,8 +804,8 @@ export class StencilProjectsModal extends StencilElement {
           isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
           { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(meta.id); } },
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
-          { icon: 'palette', label: 'Set colour…', onClick: pickColor },
-          meta.color ? { icon: 'x', label: 'Clear colour', onClick: clearColor } : null,
+          { icon: 'palette', label: 'Set color…', onClick: pickColor },
+          meta.color ? { icon: 'x', label: 'Clear color', onClick: clearColor } : null,
           { icon: 'flag', label: 'Keywords…', onClick: editKeywords },
           { icon: 'file-text', label: 'Description…', onClick: editDescription },
           { icon: 'calendar', label: 'Expiration…', onClick: () => document.querySelector('stencil-expiration-modal')?.openFor(meta.id) },
@@ -627,14 +827,43 @@ export class StencilProjectsModal extends StencilElement {
         actions.appendChild(menuBtn);
         row.appendChild(actions);
 
-        // Right-click anywhere on the row opens the same overflow menu at the cursor.
+        // Right-click (and, on touch, the long-press callout) opens the same overflow
+        // menu at the cursor — that menu is where "Open in new tab" lives for fingers.
         row.addEventListener('contextmenu', e => {
           e.preventDefault();
           showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
         });
 
         row.classList.add('project-clickable');
-        row.addEventListener('click', open);
+        // ── Open gestures (see rowOpenIntent): click / dblclick / ⌘-variants on a
+        // mouse, tap / long press on touch, Enter or Space from the keyboard. ──
+        const gesture = createOpenGesture({ run: (intent) => openWithIntent(intent) });
+        rowGesture = gesture;      // the rename editor cancels any pending open
+        row._openGesture = gesture;   // …and so do BOTH drag engines (see attachRowDrag)
+        row.addEventListener('click', (e) => gesture.click(e));
+        row.addEventListener('dblclick', (e) => gesture.dblclick(e));
+        // MOVEMENT WINS (see pressMove): past the slop the pending open is dropped and
+        // the drop's click swallowed — the hold belongs to touchDrag's reorder pickup.
+        row.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('input,button,select,.project-name-edit')) return;
+          gesture.pressStart({ x: e.clientX, y: e.clientY });
+        });
+        row.addEventListener('pointermove', (e) => gesture.pressMove({ x: e.clientX, y: e.clientY }));
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+          row.addEventListener(type, () => gesture.pressEnd());
+        }
+        // A real drag pickup (mouse HTML5 DnD; the touch engine reports its own below)
+        // kills any pending open outright.
+        row.addEventListener('dragstart', () => gesture.dragStart());
+        // Keyboard: the row is a real button. Enter/Space = a plain click (confirmed),
+        // ⌘/Ctrl held targets a new tab — the same mapping as the mouse.
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          gesture.key(e);
+        });
       } else if (opts.incognito && hasServers()) {
         // The incognito session has no menu, but it CAN be published to a server (it then
         // becomes a normal server-backed project and leaves incognito).
@@ -643,7 +872,7 @@ export class StencilProjectsModal extends StencilElement {
           let address = urls[0];
           if (urls.length > 1) {
             address = await app.choose('Save this incognito project to which server?',
-              { title: 'Save to server', confirmLabel: 'Save', options: urls.map(u => ({ value: u, label: u })) });
+              { title: 'Save to server', confirmLabel: 'Save', confirmIcon: 'upload', options: urls.map(u => ({ value: u, label: u })) });
             if (!address) return;
           }
           try { await app.publishIncognitoToServer(address); render(); }
@@ -683,6 +912,7 @@ export class StencilProjectsModal extends StencilElement {
         cb.className = 'project-select';
         cb.checked = selected.has(key);
         if (cb.checked) row.classList.add('project-selected');
+        selectables.set(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta });
         cb.addEventListener('click', e => e.stopPropagation());
         cb.addEventListener('change', () => {
           toggleSelect(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta }, cb.checked);
@@ -774,15 +1004,15 @@ export class StencilProjectsModal extends StencilElement {
 
       const moveToLocal = async () => {
         if (!(await app.confirm(
-          `Move "${meta.name || 'Untitled'}" to local storage? It will be removed from the server.`,
-          { title: 'Move to local', confirmLabel: 'Move' }))) return;
+          `Move "${shortName(meta.name || 'Untitled')}" to local storage? It will be removed from the server.`,
+          { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
         try { const newId = await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
         catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
       };
       // Detached local copy (prompts a name, default "<name>-copy"), leaving the server copy
       // in place; opens the new local project.
       const copyToLocal = async () => {
-        const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
+        const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
         if (name == null) return;
         try {
           const newId = await app.copyServerProjectToLocal(meta, { name });
@@ -794,8 +1024,8 @@ export class StencilProjectsModal extends StencilElement {
       // Incognito copy (no saving): load the project's content as an incognito session, in
       // this tab or a new one.
       const copyToIncognito = async () => {
-        const where = await app.choose(`Open an incognito copy of "${meta.name || 'Untitled'}" where?`,
-          { title: 'Incognito copy', confirmLabel: 'Open', options: [
+        const where = await app.choose(`Open an incognito copy of "${shortName(meta.name || 'Untitled')}" where?`,
+          { title: 'Incognito copy', confirmLabel: 'Open', confirmIcon: 'incognito', options: [
             { value: 'here', label: 'This tab (replace current)' },
             { value: 'newtab', label: 'New tab' },
           ] });
@@ -804,10 +1034,10 @@ export class StencilProjectsModal extends StencilElement {
         catch (err) { notify(`Could not open an incognito copy — ${err.message}`, 'fail'); }
       };
       const deleteFromServer = async () => {
-        if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true }))) return;
+        if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmIcon: 'trash' }))) return;
         const conn = app.connections && app.connections.get(meta.serverUrl);
         if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try { await conn.deleteProject(meta.id); render(); }
+        try { const settle = beginRemoval(); await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1)); await conn.deleteProject(meta.id); invalidateRemotes(); await settle(); }
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       };
 
@@ -856,19 +1086,23 @@ export class StencilProjectsModal extends StencilElement {
       return row;
     };
 
-    // Remote listing fetch: a token guards against a stale in-flight fetch resolving after
-    // the set changed. ensureRemotes() fills remoteCache once, then re-renders.
-    let remoteToken = 0;
+    // May an out-of-band trigger rebuild the list right now? (See canRefreshList — a
+    // skipped render is picked up by the settle render / endDrag's render instead.)
+    const mayRefresh = () => canRefreshList({
+      open: overlay.classList.contains('modal-open'),
+      dragging: dragActive,
+      removing: removalsInFlight > 0,
+    });
+
+    // ensureRemotes() fills the cache once, then re-renders — deferred to the
+    // settle/endDrag render while a wipe or drag holds (mayRefresh). Stale-fetch dropping
+    // lives in the factory, where it is unit-tested.
     const showsServer = () => filterMode === 'all' || filterMode === 'server';
     const ensureRemotes = () => {
-      if (!showsServer() || !hasServers() || remoteCache !== null || remoteLoading) return;
-      remoteLoading = true; remoteFailed = false;
-      const myToken = ++remoteToken;
-      app.connections.remoteProjects()
-        .then((list_) => { if (myToken !== remoteToken) return; remoteCache = list_ || []; remoteLoading = false; if (overlay.classList.contains('modal-open')) render(); })
-        .catch(() => { if (myToken !== remoteToken) return; remoteCache = []; remoteFailed = true; remoteLoading = false; if (overlay.classList.contains('modal-open')) render(); });
+      if (!showsServer() || !hasServers()) return;
+      remotes.ensure(() => { if (mayRefresh()) render(); });
     };
-    const invalidateRemotes = () => { remoteCache = null; remoteFailed = false; remoteToken++; };
+    const invalidateRemotes = () => remotes.invalidate();
 
     // ── Build one flat, sortable item list (local + cached server rows) ──
     // Each item carries a stable key, a lowercased name + a date for the comparators, an
@@ -889,9 +1123,9 @@ export class StencilProjectsModal extends StencilElement {
       if (showServer) for (const meta of localLinked)
         items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
       // Server (golden) rows from the cache, deduped against server-linked local rows.
-      if (showServer && Array.isArray(remoteCache)) {
+      if (showServer && Array.isArray(remotes.cache)) {
         const claimed = new Set(localLinked.map((m) => `${m.address}|${m.remoteId}`));
-        for (const meta of remoteCache) {
+        for (const meta of remotes.cache) {
           if (claimed.has(`${meta.serverUrl}|${meta.id}`)) continue;
           if (applySearch && !matchRow(meta.name, meta.keywords, q)) continue;
           items.push({ key: remoteRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: true, meta, build: () => makeRemoteRow(meta) });
@@ -922,13 +1156,10 @@ export class StencilProjectsModal extends StencilElement {
       setSortMode('manual');
     };
 
-    // ── Drag-out drop zones (feature #4) ──
-    // A three-zone overlay shown around the dialog while a project row is dragged: the top 70%
-    // splits into "Open here" (left) / "Open in a new tab" (right); the bottom 30% (full width) is
-    // a red "Remove" zone. The zones are PURELY VISUAL (pointer-events:none) — the action is
-    // decided from the pointer's RELEASE position (zoneForPoint), so dragging anywhere outside the
-    // dialog reliably triggers it (a hidden hit-target behind the modal card was unreachable).
-    // Remove confirms (Yes/No) like the ⋯-menu remove; open actions don't (like clicking Open).
+    // ── Drag-out drop zones ──
+    // Overlay around the dialog while a row is dragged: top 70% splits Open here / Open in
+    // a new tab, bottom 30% is Remove. Zones are PURELY VISUAL (pointer-events:none) — the
+    // action is decided from the pointer's RELEASE position (zoneForPoint). Every zone confirms.
     let zonesEl = null;
     let lastX = 0;
     let lastY = 0;
@@ -950,7 +1181,7 @@ export class StencilProjectsModal extends StencilElement {
     const zoneForPoint = (x, y) => {
       const card = overlay.querySelector('.app-modal');
       const r = card && card.getBoundingClientRect();
-      if (r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return null;  // over the dialog
+      if (r && pointInRect(x, y, r)) return null;  // over the dialog
       if (y > window.innerHeight * 0.7) return 'remove';
       return x < window.innerWidth / 2 ? 'here' : 'newtab';
     };
@@ -966,9 +1197,9 @@ export class StencilProjectsModal extends StencilElement {
       lastX = e.clientX; lastY = e.clientY;
       const zone = zoneForPoint(lastX, lastY);
       highlightZone(zone);
-      // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a 'copy'
-      // effect makes the browser REJECT the drop (no drop event fires → snap-back, no action). That
-      // silently broke the open zones while Remove ('move') worked. Keep every zone on 'move'.
+      // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a
+      // 'copy' effect makes the browser REJECT the drop (no drop event fires → snap-back,
+      // no action). Keep every zone on 'move'.
       if (zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
     };
     document.addEventListener('dragover', onDocDragOver);
@@ -1002,11 +1233,13 @@ export class StencilProjectsModal extends StencilElement {
         else if (action === 'remove') {
           const serverLinked = meta.remoteId && meta.address;
           const note = serverLinked
-            ? `Remove the local copy of "${meta.name || 'Untitled'}"? It stays on the server ${meta.address}.`
-            : `Remove project "${meta.name || 'Untitled'}"? This cannot be undone.`;
-          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) { render(); return; }
+            ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
+            : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
+          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
+          const settle = beginRemoval();
+          await leaveThenRemove(rowById(id), () => {}, scatterGridFor(1));
           app.removeProject(id);
-          render();
+          await settle();
         }
         return;
       }
@@ -1014,10 +1247,10 @@ export class StencilProjectsModal extends StencilElement {
       if (action === 'here') { if (!(await confirmOpen(meta.name))) { render(); return; } try { await openRemote(meta); close(); } catch (err) { notify(`Could not open server project — ${err.message}`, 'fail'); render(); } }
       else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openRemoteProjectInNewTab(meta); render(); }
       else if (action === 'remove') {
-        if (!(await app.confirm(`Delete server project "${meta.name || 'Untitled'}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) { render(); return; }
+        if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
         const conn = app.connections && app.connections.get(meta.serverUrl);
         if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try { await conn.deleteProject(meta.id); invalidateRemotes(); render(); }
+        try { const settle = beginRemoval(); await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1)); await conn.deleteProject(meta.id); invalidateRemotes(); await settle(); }
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       }
     };
@@ -1061,7 +1294,9 @@ export class StencilProjectsModal extends StencilElement {
       // the pointer engine (long-press to pick up; swipe to scroll). Mouse ignores this path.
       makeTouchDraggable(row, {
         canStart: (e) => !e.target.closest('input,button,select,.project-name-edit'),
-        onStart: () => { dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); },
+        // The pickup is a DRAG, never an open: drop any pending click intent (the engine
+        // also swallows the click after a real drag — this covers the pickup itself).
+        onStart: () => { row._openGesture?.dragStart(); dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); },
         onMove: (x, y) => {
           lastX = x; lastY = y;
           const zone = zoneForPoint(x, y);
@@ -1118,10 +1353,15 @@ export class StencilProjectsModal extends StencilElement {
           : mode === 'local' ? 'No local projects.'
             : 'No saved projects yet.';
 
+    // Rows fade + lift through the scroller as it scrolls. Bound once; the observer
+    // picks up each rebuild's rows itself, so render() stays untouched.
+    observeReveal(list, '.project-row');
+
     const render = () => {
       const q = search.value || '';
       hideZoom();
       closeMenu();   // a rebuilt list invalidates any open row menu
+      selectables.clear();   // repopulated below by every row that wires a checkbox
       // Free the previous render's remote thumbnail blob URLs (kept alive for the hover-zoom).
       for (const u of remoteObjectUrls) URL.revokeObjectURL(u);
       remoteObjectUrls.clear();
@@ -1153,15 +1393,18 @@ export class StencilProjectsModal extends StencilElement {
         list.appendChild(row);
       }
 
-      // Server listing still loading → shimmer skeletons after the sorted rows.
-      const loadingRemotes = showServer && hasServers() && remoteCache === null;
+      // Shimmer skeletons after the sorted rows — but ONLY while a fetch is genuinely in
+      // flight (showsRemoteSkeletons); on the bare null cache nothing would ever fill them.
+      const loadingRemotes = showsRemoteSkeletons({
+        showServer, hasServers: hasServers(), cache: remotes.cache, loading: remotes.loading,
+      });
       if (loadingRemotes) { list.appendChild(makeSkeletonRow()); list.appendChild(makeSkeletonRow()); }
 
       // Nothing to show (and not still loading) → an honest empty / error message.
       if (!list.querySelector('.project-row:not(.project-skeleton)') && !loadingRemotes) {
         const empty = document.createElement('div');
         empty.className = 'info-empty';
-        empty.textContent = remoteFailed ? 'Could not reach server.'
+        empty.textContent = remotes.failed ? 'Could not reach server.'
           : (q.trim() ? 'No matching projects.' : emptyLabelFor(filterMode));
         list.appendChild(empty);
       }
@@ -1173,6 +1416,12 @@ export class StencilProjectsModal extends StencilElement {
       clearAllBtn.title = hasServers()
         ? 'Delete every local project (server projects are not affected)'
         : 'Delete every saved project';
+      // …and only when there IS one. The synthetic "temporary (unsaved)" row is not a saved
+      // project — with just that on screen, Clear All wiped nothing and the row came straight
+      // back, which read as a removal that undid itself.
+      const clearable = list.querySelectorAll('.project-row:not(.project-temp):not(.project-remote):not(.project-skeleton)').length;
+      clearAllBtn.disabled = clearable === 0;
+      clearAllBtn.dataset.disabledReason = 'No saved projects to clear';
 
       updateBatchBar();
     };
@@ -1189,26 +1438,71 @@ export class StencilProjectsModal extends StencilElement {
     searchModeEl.value = searchMode;
     searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); render(); });
 
+    // Delete a server project even when this tab's live connection object is gone
+    // (dropped feed, listing served from cache): fall back to a direct authenticated
+    // DELETE with the token saved for that server.
+    const deleteRemoteProject = async (serverUrl, id) => {
+      const conn = app.connections?.get(serverUrl);
+      if (conn) { await conn.deleteProject(id); return; }
+      const saved = loadSavedServers().find((s) => {
+        try { return normalizeUrl(s.url) === normalizeUrl(serverUrl); } catch { return false; }
+      });
+      if (!saved) throw new Error(`not connected to ${serverUrl}`);
+      const res = await fetch(`${normalizeUrl(serverUrl)}/projects/${encodeURIComponent(id)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${saved.token}` },
+      });
+      if (!res.ok && res.status !== 404) {   // already-gone counts as removed
+        let msg = `HTTP ${res.status}`;
+        try { const body = await res.json(); if (body && body.message) msg = body.message; } catch { /* not JSON */ }
+        throw new Error(msg);
+      }
+    };
+
     // ── Batch actions over the checked rows ──
-    const runBatch = async (fn, okMsg, failMsg) => {
+    // Partial failure must be loud and specific: a row whose action failed comes back on
+    // the settle render, so without the summary the batch reads as silently dropping it.
+    const runBatch = async (fn, okMsg, failMsg, settle = null) => {
       let done = 0;
+      const failures = [];
       for (const s of sel()) {
-        try { await fn(s); done++; } catch (err) { notify(`${failMsg} — ${err.message}`, 'fail'); }
+        try { await fn(s); done++; }
+        catch (err) { failures.push({ name: shortName(s.meta?.name || 'Untitled'), message: err.message }); }
       }
       clearSelection();
-      render();
-      if (done) notify(`${okMsg} (${done})`, 'ok');
+      // `settle` is the hold the CALLER opened before the rows started leaving (it knows
+      // when that was); batches with no removal just re-render.
+      if (settle) await settle(); else render();
+      if (!failures.length) { if (done) notify(`${okMsg} (${done})`, 'ok'); return; }
+      const names = failures.slice(0, 3).map((f) => `"${f.name}"`).join(', ')
+        + (failures.length > 3 ? ` +${failures.length - 3} more` : '');
+      notify(done
+        ? `${okMsg} ${done} of ${done + failures.length} — failed on ${names}: ${failures[0].message}`
+        : `${failMsg} ${names} — ${failures[0].message}`, 'fail');
     };
     batchBtns.clear.addEventListener('click', () => { clearSelection(); render(); });
+    // Select-all toggles over the CURRENT render's rows (the filtered view), so a
+    // filtered "select all" never sweeps up projects the user cannot see.
+    document.getElementById('projects-select-all')?.addEventListener('click', () => {
+      if (allSelected()) selected.clear();
+      else for (const [k, e] of selectables) selected.set(k, e);
+      updateBatchBar();
+      render();
+    });
     batchBtns.remove.addEventListener('click', async () => {
       if (!selected.size) return;
-      if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true }))) return;
+      if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true, confirmIcon: 'trash' }))) return;
+      // Every selected row scatters at once, then the batch runs — one shared animation.
+      // Budgeted: scatterGridFor coarsens each row's grain on a mass removal so the
+      // TOTAL clone count stays bounded.
+      const settle = beginRemoval();
+      await Promise.all(sel().map((s, i) =>
+        leaveThenRemove(rowById(s.id), () => {}, scatterGridFor(selected.size, i))));
       await runBatch(async (s) => {
         if (s.kind === 'remote') {
-          const conn = app.connections?.get(s.serverUrl);
-          if (conn) await conn.deleteProject(s.id);
+          await deleteRemoteProject(s.serverUrl, s.id);
+          invalidateRemotes();
         } else { app.removeProject(s.id); }
-      }, 'Removed', 'Could not remove');
+      }, 'Removed', 'Could not remove', settle);
     });
     batchBtns.moveServer.addEventListener('click', async () => {
       const address = await pickServer('Move the selected projects to which server?');
@@ -1222,16 +1516,19 @@ export class StencilProjectsModal extends StencilElement {
     });
     batchBtns.moveLocal.addEventListener('click', async () => {
       if (!selected.size) return;
-      if (!(await app.confirm(`Move ${selected.size} server project(s) to local? They will be removed from the server.`, { title: 'Move to local', confirmLabel: 'Move' }))) return;
+      if (!(await app.confirm(`Move ${selected.size} server project(s) to local? They will be removed from the server.`, { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
       await runBatch(s => app.moveProjectToLocal(s.meta), 'Moved to local', 'Could not move');
     });
     batchBtns.copyLocal.addEventListener('click', async () => {
       await runBatch(s => app.copyServerProjectToLocal(s.meta), 'Copied to local', 'Could not copy');
     });
 
-    newEditorBtn.addEventListener('click', async () => {
-      if (!(await app.confirm('Discard current editor and start a new blank (unsaved) editor?', { title: 'New editor' }))) return;
-      app.newEditor();
+    // Opens a fresh editor tab; nothing is discarded here, so nothing to confirm.
+    newEditorBtn.addEventListener('click', () => {
+      if (!window.open(location.origin + location.pathname, '_blank')) {
+        notify('The browser blocked the new tab — allow pop-ups for this page', 'fail');
+        return;
+      }
       close();
     });
     clearAllBtn.addEventListener('click', async () => {
@@ -1239,39 +1536,47 @@ export class StencilProjectsModal extends StencilElement {
         ? 'Are you sure? This permanently deletes ALL local projects. Server projects are not affected.'
         : 'Are you sure? This permanently deletes ALL saved projects.';
       const title = hasServers() ? 'Delete all local projects' : 'Delete all projects';
-      if (!(await app.confirm(msg, { title, danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) return;
+      if (!(await app.confirm(msg, { title, danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) return;
+      // The whole list comes apart before it empties — the same leave every other removal
+      // plays, and the desktop's ProjectsDialog::scatterRows. Real saved rows only: the
+      // "temporary (unsaved)" row re-renders straight after, which read as an undone removal.
+      const doomed = [...list.querySelectorAll('.project-row:not(.project-temp)')];
+      const settle = beginRemoval();
+      await Promise.all(doomed.map((row, i) =>
+        leaveThenRemove(row, () => {}, scatterGridFor(doomed.length, i))));
       app.clearAllProjects();
-      render();
+      await settle();
     });
 
-    // Re-render when servers connect/disconnect or push live project events, so
-    // the golden remote rows stay current.
     window.addEventListener('stencil:connections-changed', () => {
-      // A connection connect/disconnect or a live server project-event invalidates the
-      // cached server listing so the next render re-fetches it. Guard against a mid-drag
-      // re-render destroying the dragged row.
+      // A connect/disconnect or live server project-event invalidates the cached listing
+      // so the next render re-fetches it. Guard against a mid-drag or mid-removal
+      // re-render destroying the dragged/leaving row (mayRefresh).
       invalidateRemotes();
-      if (!dragActive && overlay.classList.contains('modal-open')) render();
+      if (mayRefresh()) render();
     });
 
-    // Re-render when another tab changes the project set or peer activity (never mid-drag).
-    app.tabs.onProjectsChanged(() => { if (!dragActive && overlay.classList.contains('modal-open')) render(); });
+    // Re-render when another tab changes the project set or peer activity (never mid-drag
+    // or mid-removal — the state is still recorded; the deferred render shows it).
+    app.tabs.onProjectsChanged(() => { if (mayRefresh()) render(); });
     app.tabs.onPeers(ids => {
       peers = ids || [];
-      if (!dragActive && overlay.classList.contains('modal-open')) render();
+      if (mayRefresh()) render();
     });
     // Incognito sessions open in OTHER tabs (for the "Incognito tabs" filter).
     app.tabs.onIncognitoPeers(list => {
       incognitoPeers = list || [];
-      if (!dragActive && overlay.classList.contains('modal-open')) render();
+      if (mayRefresh()) render();
     });
 
-    // On-open chooser: offer it only if this is the only tab AND saved projects
-    // exist. Skipped when launched to open a specific project (?open=<id> deep link)
-    // or image (extension #stencil= hand-off) — user already chose; don't pop over
-    // it. Otherwise stay in the blank temporary editor.
+    // On-open chooser: only if this is the only tab AND saved projects exist. Skipped when
+    // launched to open a specific project (?open= deep link) or image (extension #stencil=
+    // hand-off) — the user already chose; don't pop over it.
     app.tabs.whenReady().then(({ youAreOnly }) => {
-      if (youAreOnly && store.list().length && !app.pendingOpenProjectId && !app.hasExternalLaunch) open();
+      // open(null), not open(): this one appears because the PAGE opened, not because the
+      // toolbar icon was pressed — so it drops in from above like the collapsing top menu
+      // instead of flying out of an icon nobody touched.
+      if (youAreOnly && store.list().length && !app.pendingOpenProjectId && !app.hasExternalLaunch) open(null);
     });
   }
 }

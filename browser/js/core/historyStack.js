@@ -11,10 +11,9 @@ export class HistoryStack {
   //   loadImage: step = lines.length > 0 ? 0 : -1;  restore: step = 0
   reset(lines, baseStep) {
     const step = baseStep !== undefined ? baseStep : (lines.length > 0 ? 0 : -1);
-    // A negative step means "no current snapshot" (a fresh / empty / imageless
-    // load): keep the history empty so canRedo() stays false. Storing a phantom
-    // empty snapshot here made canRedo() true (step -1 < length 1 - 1 = 0),
-    // surfacing a stray redo step right after creating a blank image.
+    // A negative step means "no current snapshot" (a fresh / empty / imageless load):
+    // keep the history empty so canRedo() stays false — a phantom empty snapshot would
+    // surface a stray redo step right after creating a blank image.
     this.history = step >= 0 ? [this.#clone(lines)] : [];
     this.historyStep = step;
   }

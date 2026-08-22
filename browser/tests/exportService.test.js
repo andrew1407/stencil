@@ -1,6 +1,6 @@
 // Unit tests for ExportService (js/core/exportService.js) — the export/clipboard/file-IO
 // cluster extracted out of DrawingApp. The service holds no state; it reads a back-referenced
-// `app` and routes mutations through the app's shared methods. We drive it with a minimal fake
+// `app` and routes mutations through the app's shared methods. We drive it with a minimal stub
 // app + a notify spy (notify() posts to a #notify-balloon element if present) and assert the
 // guard branches and the shared #applyValidatedLayout routing used by upload + paste.
 
@@ -8,15 +8,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 // notify() (utils.js) looks up #notify-balloon and calls its .notify(msg, type); spy on it.
+import { installDom } from './helpers/dom.js';
+
 const notifications = [];
 const balloon = { notify: (msg, type) => notifications.push([msg, type]) };
-globalThis.document = globalThis.document || {
-  getElementById: (id) => (id === 'notify-balloon' ? balloon : null),
-};
+installDom().register('notify-balloon', balloon);
 
 const { ExportService } = await import('../js/core/exportService.js');
 
-// A fake app carrying just what the driven paths touch. `record` collects calls to the
+// A mock app carrying just what the driven paths touch. `record` collects calls to the
 // shared app methods so we can assert the service delegates instead of reimplementing.
 const makeApp = (over = {}) => {
   const record = { saveHistory: 0, redraw: 0, updateButtons: 0, coordUpdate: [] };
@@ -26,6 +26,7 @@ const makeApp = (over = {}) => {
     lines: [],
     canvas: { width: 100, height: 80 },
     confirm: async () => true,
+    askAlt: async () => 'confirm',
     saveHistory() { record.saveHistory++; },
     renderer: { redraw() { record.redraw++; } },
     updateButtons() { record.updateButtons++; },
@@ -87,13 +88,69 @@ test('applyPastedLayout: valid payload installs lines + routes through app metho
   assert.deepEqual(lastNote(), ['Layout pasted from clipboard', 'ok']);
 });
 
-test('applyPastedLayout: replace-confirm declined → canceled, no mutation', async () => {
+test('applyPastedLayout over existing lines: Cancel → canceled, no mutation', async () => {
   reset();
-  // Existing lines + a valid payload triggers the replace confirm; decline it.
-  const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }], confirm: async () => false });
+  // Existing lines + a valid payload raises the Combine/Replace/Cancel prompt; back out.
+  const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }], askAlt: async () => null });
   await new ExportService(app).applyPastedLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] });
   assert.deepEqual(lastNote(), ['Layout paste canceled', 'fail']);
   assert.equal(app.record.saveHistory, 0);
+});
+
+test('the layout prompt gives each real answer its own glyph, not a generic tick', async () => {
+  reset();
+  let opts = null;
+  const app = makeApp({
+    image: {}, lines: [{ points: [{ x: 0, y: 0 }] }],
+    askAlt: async (_msg, o) => { opts = o; return null; },
+  });
+  await new ExportService(app).applyPastedLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] });
+  assert.equal(opts.confirmLabel, 'Replace');
+  assert.equal(opts.altLabel, 'Combine');
+  // Replace swaps one layout for the other; Combine stacks them. A check mark would
+  // say nothing about either, and a bare word beside two icon buttons reads as odd.
+  assert.equal(opts.confirmIcon, 'swap');
+  assert.equal(opts.altIcon, 'layers');
+  const { ICONS } = await import('../js/ui/icons.js');
+  assert.ok(ICONS[opts.confirmIcon], 'confirmIcon names a real glyph');
+  assert.ok(ICONS[opts.altIcon], 'altIcon names a real glyph');
+});
+
+test('applyPastedLayout over existing lines: Replace drops the old ones', async () => {
+  reset();
+  const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }], askAlt: async () => 'confirm' });
+  await new ExportService(app).applyPastedLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] });
+  assert.equal(app.lines.length, 1);
+  assert.deepEqual(app.lines[0].points, [{ x: 5, y: 5 }]);
+  assert.deepEqual(lastNote(), ['Layout pasted from clipboard', 'ok']);
+});
+
+test('applyPastedLayout over existing lines: Combine keeps them and adds the new on top', async () => {
+  reset();
+  const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }], askAlt: async () => 'alt' });
+  await new ExportService(app).applyPastedLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] });
+  assert.equal(app.lines.length, 2, 'the existing line survives');
+  assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }]);   // old first…
+  assert.deepEqual(app.lines[1].points, [{ x: 5, y: 5 }]);   // …new on top
+  assert.deepEqual(lastNote(), ['Layout pasted from clipboard (combined)', 'ok']);
+});
+
+test('installLayout: silent, and mode:"combine" appends instead of replacing', async () => {
+  reset();
+  const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }] });
+  const svc = new ExportService(app);
+  // No prompt is consulted and nothing is announced — this is the programmatic path.
+  app.askAlt = () => { throw new Error('installLayout must never prompt'); };
+  assert.equal(svc.installLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] }, { mode: 'combine' }), true);
+  assert.equal(app.lines.length, 2);
+  assert.equal(lastNote(), undefined, 'no toast');
+  // Default mode replaces.
+  svc.installLayout({ lines: [{ points: [{ x: 9, y: 9 }] }] });
+  assert.equal(app.lines.length, 1);
+  // history:false keeps it out of undo.
+  const before = app.record.saveHistory;
+  svc.installLayout({ lines: [{ points: [{ x: 1, y: 1 }] }] }, { history: false });
+  assert.equal(app.record.saveHistory, before);
 });
 
 // ── .stencil project file save/open ─────────────────────────────────────────
@@ -212,7 +269,7 @@ test('pickAndOpenProjectFile: cancelled Open picker (AbortError) is silent', asy
 });
 
 // ── .stencil project file delete ─────────────────────────────────────────────
-// A fake StencilSync exposing just what deleteProjectFile touches: linked/handle/name + unlink().
+// a stub StencilSync exposing just what deleteProjectFile touches: linked/handle/name + unlink().
 const makeSync = (over = {}) => ({
   linked: true, name: 'plan.stencil',
   handle: { remove: async () => {} },

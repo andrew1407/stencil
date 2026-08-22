@@ -14,6 +14,23 @@
 @keyframes appReveal      { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
 @keyframes overlayFadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
 @keyframes modalPop       { from { opacity: 0; transform: translateY(18px) scale(0.965); } to { opacity: 1; transform: none; } }
+/* Modal open/close anchored on the icon that opened it (ui/base.js sets the vars).
+   The defaults are modalPop's own offsets, so an unmeasurable opener — or reduced
+   motion, where base.js sets no vars — animates as it always did.
+   The opacity stops are what make the flight READABLE: the box reaches full opacity
+   while it is still icon-sized (and only starts fading on the way back once it is
+   nearly home), so you watch a window travel rather than a rectangle fade in. */
+@keyframes modalFromIcon  {
+    0%   { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
+    18%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes modalToIcon    {
+    0%   { opacity: 1; transform: none; }
+    70%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
+}
+@keyframes overlayFadeOut { from { opacity: 1; }                              to { opacity: 0; } }
 @keyframes popIn          { from { opacity: 0; transform: scale(0.94) translateY(-6px); }  to { opacity: 1; transform: none; } }
 @keyframes menuRise       { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
 @keyframes tooltipIn      { from { opacity: 0; transform: translateY(4px); }  to { opacity: 1; transform: none; } }
@@ -22,6 +39,7 @@
 @keyframes spinIn         { from { opacity: 0; transform: rotate(-90deg) scale(0.6); } to { opacity: 1; transform: none; } }
 @keyframes shimmerSweep   { from { background-position: 200% 0; }              to { background-position: -200% 0; } }
 @keyframes spin           { to { transform: rotate(360deg); } }
+@keyframes chatZoneNudge  { from { transform: translate(calc(var(--zone-nudge-x, 0px) * -1), calc(var(--zone-nudge-y, 0px) * -1)); } to { transform: translate(var(--zone-nudge-x, 0px), var(--zone-nudge-y, 0px)); } }
 /* Continuously spin the glyph inside any button marked busy (e.g. "Opening…"). */
 .is-loading .ic { animation: spin 0.8s linear infinite; }
 
@@ -46,7 +64,9 @@ button {
     transition: background 0.25s ease, color 0.2s ease,
                 transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-button:not(:disabled):not(.active):hover {
+/* The chat "…" trigger opts out: its hover is an ACCENT glow (components.css),
+   and this rule's specificity would bury it under the plain dark shadow. */
+button:not(:disabled):not(.active):not(.chat-row-menu-btn):hover {
     box-shadow: 0 3px 10px var(--shadow);
     transform: translateY(-1px);
 }
@@ -72,6 +92,60 @@ button:not(:disabled):active {
 #theme-toggle { transition: background 0.2s, border-color 0.2s, transform 0.3s ease; }
 #theme-toggle:active { transform: scale(0.95); }
 
+/* ── App logo hover: pulse + levitate + accent shine + orbiting rays ──
+   layout.css keeps the plain scale(1.08) hover; while this sheet is loaded the
+   hover becomes a 1.2s breathing loop instead — the mark swells to 1.12 and
+   floats up 2px while an accent drop-shadow brightens on the same beat, so the
+   glow reads as the pulse's light. Transform/filter only: the logo's box never
+   changes, so the topbar cannot reflow. Under prefers-reduced-motion the loop is
+   removed and the hover falls back to layout.css's simple scale.
+
+   Keyed on .logo-hover (a JS latch, ui/toolbar.js), NOT on :hover: clicking the
+   logo starts an accent view transition, and the browser force-drops the page's
+   :hover for its whole ~560ms — a :hover-gated animation was CANCELLED at the
+   swap's start and REPLAYED from zero at its end, so every click visibly reset
+   the loop. The latch mirrors real hover but holds through the swap (it treats a
+   pointerleave under html.theme-instant as the swap's synthetic one), keeping the
+   animation's clock untouched from pointer-in to pointer-out. */
+@keyframes logoPulse {
+    0%, 100% { transform: translateY(0) scale(1);
+               filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 25%, transparent)); }
+    50%      { transform: translateY(-2px) scale(1.12);
+               filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 80%, transparent)); }
+}
+.app-logo-wrap.logo-hover .app-logo { animation: logoPulse 1.2s ease-in-out infinite; }
+/* Ray layer: an accent conic-gradient of 8 soft spokes, clipped to a thin ring
+   just outside the mark by a radial mask. It turns slowly (one revolution / 8s)
+   while its opacity breathes on the SAME 1.2s beat as the pulse. Absolutely
+   positioned + pointer-events:none: it neither moves the topbar nor widens the
+   logo's hover/click target (clicks still cycle the accent, dblclick still opens
+   the picker parked next to the svg). Hidden at rest; the same .logo-hover latch
+   as the pulse drives it — the wrap is exactly the svg's box. */
+.app-logo-wrap::before {
+    content: "";
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from -5deg,
+        transparent 0deg, var(--accent) 4deg 6deg, transparent 10deg 45deg);
+    -webkit-mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
+    mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+@keyframes logoRaysSpin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes logoRaysShimmer { 0%, 100% { opacity: 0.14; } 50% { opacity: 0.4; } }
+.app-logo-wrap.logo-hover::before {
+    animation: logoRaysSpin 8s linear infinite,
+               logoRaysShimmer 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout.css's :hover scale(1.08) remains */
+    .app-logo-wrap::before { content: none; }                  /* no static ray ring either */
+}
+
 /* ── Modal appearance: backdrop fade + content pop ──────────────────── */
 #settings-modal-overlay.modal-open,
 .app-modal-overlay.modal-open {
@@ -79,29 +153,81 @@ button:not(:disabled):active {
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
+/* The POPOVER shape keeps the page readable: no dim (components.css) and no blur —
+   the point of anchoring it at the icon is working with the page still in view. */
+#settings-modal-overlay.modal-open.modal-popover,
+.app-modal-overlay.modal-open.modal-popover {
+    animation: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+/* easeOutCubic: the window leaves the icon quickly and visibly SLOWS as it settles into
+   place. Deliberately NOT the app's usual cubic-bezier(0.16, 1, …), which is ~50% done in
+   its first 30 ms — that hides the whole point, the small window leaving the icon. */
 #settings-modal-overlay.modal-open #settings-modal,
 .app-modal-overlay.modal-open .app-modal {
-    animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: modalFromIcon 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: transform, opacity;
+}
+/* One beat with no animation, so ui/base.js measures where the box lands rather than
+   where its own keyframe already moved it. */
+#settings-modal-overlay.modal-measuring #settings-modal,
+.app-modal-overlay.modal-measuring .app-modal {
+    animation: none !important;
+}
+/* Closing: the window shrinks into its icon. `modal-closing` is visual only — `modal-open`
+   is already gone — and pointer-transparent so it can't swallow the next click. */
+#settings-modal-overlay.modal-closing,
+.app-modal-overlay.modal-closing {
+    animation: overlayFadeOut 0.34s ease both;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    pointer-events: none;
+}
+#settings-modal-overlay.modal-closing.modal-popover,
+.app-modal-overlay.modal-closing.modal-popover {
+    animation: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+/* Closing accelerates INTO the icon, the mirror of the opening flight — but only
+   gently: a strong ease-in spends its first 200 ms barely moving and then snaps, which
+   reads as a glitch rather than a return trip. */
+#settings-modal-overlay.modal-closing #settings-modal,
+.app-modal-overlay.modal-closing .app-modal {
+    animation: modalToIcon 0.34s cubic-bezier(0.45, 0.05, 0.6, 0.9) both;
+    will-change: transform, opacity;
 }
 
 /* ── Context menu + submenus: scale/fade pop ────────────────────────── */
+/* Both floating menus (the canvas context menu and the chat row menu) GROW OUT
+   of the open point: JS stamps transform-origin with the click point relative
+   to the placed box (motion.js menuPopOrigin), after viewport clamping. */
+@keyframes menuPop { from { opacity: 0; transform: scale(0.62); } to { opacity: 1; transform: none; } }
 #ctx-menu.ctx-open {
     /* No `both` fill: keeping the animation's filled end-state leaves a
        `transform: matrix(1,0,0,1,0,0)` on the menu, which (even as an identity)
        makes it the containing block for its position:fixed submenus — so they
        anchor to the menu instead of the viewport and land off-screen. Letting the
        transform revert to none after the pop keeps submenu positioning correct. */
-    animation: popIn 0.14s ease;
-    transform-origin: top left;
+    animation: menuPop 0.14s ease-out;
+    transform-origin: top left;   /* fallback — contextMenu.js sets the click point */
+}
+.chat-row-menu { animation: menuPop 0.14s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+    #ctx-menu.ctx-open, .chat-row-menu { animation: none; }
 }
 .ctx-sub.ctx-sub-visible {
     animation: popIn 0.13s ease both;
     transform-origin: top left;
 }
 /* Slight slide of the menu items' hover highlight already comes from the
-   background transition in components.css; nudge the icon on hover. */
-.ctx-item { transition: background 0.12s, padding-left 0.12s; }
-.ctx-item:not(.ctx-disabled):hover { padding-left: 17px; }
+   background transition in components.css; nudge the row content on hover.
+   The 3px gained on the left is taken back on the right (14+14 → 17+11) so the
+   item's TOTAL width never changes — the menu is shrink-to-fit over nowrap
+   items, and a left-only nudge on the widest row jittered the whole menu wider. */
+.ctx-item { transition: background 0.12s, padding-left 0.12s, padding-right 0.12s; }
+.ctx-item:not(.ctx-disabled):hover { padding-left: 17px; padding-right: 11px; }
 
 /* ── Tooltip: fade/slide in (size-neutral so JS positioning stays exact) ─ */
 /* Tooltip stays display:block while tracking the cursor, so the entrance
@@ -122,17 +248,127 @@ button:not(:disabled):active {
 #install-host:focus-within #install-menu {
     animation: menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-/* Main-theme picker popup rises in like the other menus; rows nudge on hover. */
-.accent-dd-menu:not([hidden]) { animation: menuRise 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* ── Anchored menus: grow OUT OF the control they hang off, shrink back INTO it ──
+   The desktop's popovers fly out of their icon (modalFromIcon/modalToIcon do the same
+   for modals here), and an 8px menuRise on a 141×370 panel read as no motion at all —
+   2% of its own height, centre-anchored, with the eased curve spending 77% of it in the
+   first 40ms. These scale from the anchor CORNER instead, so the panel visibly emerges
+   from the mark. Shared + named: any menu that hangs off a control can use the pair,
+   it only has to point transform-origin at the edge it is anchored to.
+   The opacity stops are modalFromIcon's trick — full opacity while the box is still
+   small, so you watch a menu grow rather than a rectangle fade. */
+@keyframes menuFromAnchor {
+    0%   { opacity: 0; transform: translateY(-6px) scale(0.66); }
+    22%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes menuToAnchor {
+    0%   { opacity: 1; transform: none; }
+    60%  { opacity: 0.85; }
+    100% { opacity: 0; transform: translateY(-6px) scale(0.66); }
+}
+/* Origin = the corner nearest the control. The shared rule hangs the menu right-aligned
+   under its trigger (components.css right:0); the logo copy and the toolbar's custom
+   selects are left-aligned, so theirs is the other corner. Declared after, and on the
+   base selector, so the exit scales toward the same point as the entrance came from. */
+.accent-dd-menu { transform-origin: right top; }
+.logo-accent-menu, .cs-dd .accent-dd-menu { transform-origin: left top; }
+/* …and a list that flipped above its trigger (dropdownMenu.js placeMenu) grows out of its
+   bottom edge, so the motion still starts at the corner nearest the control. */
+.accent-dd-menu.dd-above { transform-origin: left bottom; }
+.accent-dd-menu:not([hidden]) { animation: menuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* The logo's right-click copy also LEAVES, shrinking back into the logo instead of
+   blinking off — the modal open/close idea, minus the backdrop. Declared after the
+   entrance rule so it wins while .dd-closing is up; toolbar.js hides the menu when the
+   exit finishes (animationend, with a fallback timer). */
+.logo-accent-menu.dd-closing { animation: menuToAnchor 0.18s ease both; }
+@media (prefers-reduced-motion: reduce) {
+    /* No growth, no shrink — toolbar.js hides the menu outright instead of waiting for
+       an exit that never plays (same idea as #ctx-menu / .chat-row-menu above). */
+    .accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing { animation: none; }
+}
 .accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
 .accent-dd-opt:hover { transform: translateX(2px); }
 #install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
 #install-menu [role="menuitem"]:hover { transform: translateX(2px); }
 /* #install-toggle uses the shared hover shimmer — no magnify (consistent hover). */
 
-/* ── Notification balloon: springy entrance (overrides the linear ease) ─ */
-#notify-balloon {
-    transition: opacity 0.25s ease, transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* ── AI assistant chat panel: slide in from its dock edge on open (and when the
+   dock side changes — the class swap restarts the matching animation); float pops
+   like the other popups. Close is instant (display:none can't transition), and the
+   global prefers-reduced-motion block below neutralises all of these. ─ */
+@keyframes chatSlideLeft   { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes chatSlideRight  { from { opacity: 0; transform: translateX(28px); }  to { opacity: 1; transform: none; } }
+@keyframes chatSlideTop    { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+@keyframes chatSlideBottom { from { opacity: 0; transform: translateY(28px); }  to { opacity: 1; transform: none; } }
+stencil-chat-panel.chat-open.chat-dock-left   { animation: chatSlideLeft 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-right  { animation: chatSlideRight 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-top    { animation: chatSlideTop 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-bottom { animation: chatSlideBottom 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Float = its own window: it grows out of the toolbar icon and shrinks back into
+   it, exactly like a modal (chatPanel.js feeds --modal-dx/dy/sx/sy). */
+stencil-chat-panel.chat-open.chat-dock-float  { animation: modalFromIcon 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+/* Closing: the same slide in reverse (chatPanel.js keeps .chat-open until it
+   finishes, then drops both classes — display:none can't animate on its own). */
+@keyframes chatSlideOutLeft   { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-28px); } }
+@keyframes chatSlideOutRight  { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(28px); } }
+@keyframes chatSlideOutTop    { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-28px); } }
+@keyframes chatSlideOutBottom { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(28px); } }
+@keyframes chatPopOut         { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.94) translateY(-6px); } }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-left   { animation: chatSlideOutLeft 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlideOutRight 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.34s ease both; }
+/* Phones render the panel as a CENTRED MODAL (components.css), so it takes the
+   app-wide modal motion — backdrop fade + content pop — instead of a dock slide,
+   whatever dock mode the session happens to hold. */
+@media (max-width: 680px) {
+    stencil-chat-panel.chat-open.chat-dock-left,
+    stencil-chat-panel.chat-open.chat-dock-right,
+    stencil-chat-panel.chat-open.chat-dock-top,
+    stencil-chat-panel.chat-open.chat-dock-bottom,
+    stencil-chat-panel.chat-open.chat-dock-float {
+        animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-left,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-right,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-top,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-float {
+        animation: chatPopOut 0.24s ease both;
+    }
+    body:has(stencil-chat-panel.chat-open) #chat-backdrop { animation: overlayFadeIn 0.22s ease both; }
+    body:has(stencil-chat-panel.chat-closing) #chat-backdrop { animation: overlayFadeOut 0.24s ease both; }
+}
+@keyframes overlayFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* ── Notification toasts: springy entrance, and an exit of its own ─────
+   Each toast is created in place (js/ui/notifications.js), so the entrance is an
+   animation rather than a class flip — and `backwards`, not `both`: filling the END
+   state forward would pin transform:none and kill the clickable toast's hover lift.
+   Without .notify-leaving the exit would just replay the spring backwards, which reads
+   as the toast bouncing back INTO view. Instead it drops away and shrinks. The
+   survivors close the gap by themselves — the column is a flex stack. */
+.notify-toast {
+    animation: notifyEnter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    transition: transform 0.2s ease;
+}
+@keyframes notifyEnter {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+}
+.notify-toast.notify-leaving {
+    animation: notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+    pointer-events: none;
+}
+@keyframes notifyLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(14px) scale(0.94); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .notify-toast { animation: none; }
+    .notify-toast.notify-leaving { animation: none; }
 }
 
 /* ── Coordinate table: smooth row hover + attention pulse ───────────── */
@@ -150,7 +386,10 @@ button:not(:disabled):active {
 .hotkey-cell { transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
 .hotkey-table tr td { transition: background 0.15s ease; }
 .vs-row, .info-item { transition: background 0.15s ease; }
-.vs-row:hover, .info-item:hover { background: var(--bg-coord-hover); }
+/* .vs-actions rows and the connect dialog's form rows are plain containers of
+   inputs/buttons, not data rows — no hover wash on any of them. */
+.vs-row:not(.vs-actions):not(stencil-connect-modal *):hover,
+.info-item:hover { background: var(--bg-coord-hover); }
 
 /* ── Idle "create blank image" affordance: invite a click ───────────── */
 .idle-create-btn { transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
@@ -162,11 +401,17 @@ button:not(:disabled):active {
 input[type="text"],
 input[type="number"],
 input[type="color"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
 select {
     transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.2s ease;
 }
 input[type="text"]:focus,
 input[type="number"]:focus,
+input[type="password"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
 select:focus {
     outline: none;
     border-color: var(--accent);
@@ -213,7 +458,6 @@ select:focus {
         transform: none;
         border: 1px solid var(--border-main) !important;
     }
-    .coordinates-panel.coord-collapsed .coord-panel-header { flex-direction: row; }
     /* Modals fill more of the narrow viewport. */
     #settings-modal, .app-modal { width: calc(100vw - 28px); }
 }
@@ -263,11 +507,6 @@ select:focus {
     button:not(:disabled):not(.active):hover { transform: none; box-shadow: none; }
 }
 
-/* Wide displays: let the workspace breathe a little more. */
-@media (min-width: 1800px) {
-    .container { max-width: 1680px; }
-}
-
 /* Print: hide chrome, show only the canvas/coords. */
 @media print {
     .controls-wrapper, #install-host, #notify-balloon, #ctx-menu,
@@ -287,4 +526,538 @@ select:focus {
         transition-duration: 0.001ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* Attachment chips rise into place as they're appended. Transcript rows used to
+   share this; they now ride the scroll-reveal below, which covers the entrance AND
+   the scroll — and an `animation: … both` end-state would out-rank its transform. */
+@keyframes chatMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.chat-attach-chip { animation: chatMsgIn 0.18s ease both; }
+@media (prefers-reduced-motion: reduce) {
+    .chat-attach-chip { animation: none; }
+}
+
+/* ── Theme / accent swap (js/ui/motion.js themeSwap) ─────────────────────────
+   The new palette floods out from the control that was pressed. With the View
+   Transitions API the two snapshots are stacked and the NEW one is clipped by a
+   growing circle (the animation is scripted, so both default cross-fades are
+   switched off here). Without it, every colour consumer gets one beat of
+   transition instead — the same idea, minus the wipe. */
+::view-transition-old(root),
+::view-transition-new(root) { mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 0; animation: none; }
+/* The UA also animates the GROUP (250ms), and it is the parent of both snapshots. When
+   the swap changes page height — a scrollbar coming or going as the palette flips — that
+   default retimes and rescales the pair underneath the wipe, so the circle appears to
+   stall and then jump. Only the wipe below should drive this transition. */
+::view-transition-group(root) { animation: none; }
+/* The reveal is DECLARATIVE, not scripted. A view transition ends the moment its
+   pseudo-elements have no animations left — so killing the default with
+   `animation: none` and then adding one from `ready.then()` races the teardown, and
+   the wipe visibly stops half way. Declaring it here means the animation exists on the
+   very first frame, and the transition waits for it. The origin and radius ride in as
+   custom properties (motion.js / accent.js set them on :root before starting). */
+::view-transition-new(root) {
+    z-index: 1;
+    /* The curve is chosen for the AREA it sweeps, not for the radius it moves: the wipe is
+       a CIRCLE, so the painted area grows as r², and any ease-OUT on the radius floods the
+       screen early and then spends its whole tail creeping over a sliver in the far corner
+       — which is exactly what "the animation stops in the middle and finishes later" is.
+       Measured as the fraction of the viewport recoloured, at t = 20/40/60/80/90%:
+         OutQuart  (0.165, 0.84, 0.44, 1)  →  .63 .90 .98  1    1     dead from 70% on
+         OutSine   (0.39, 0.575, 0.565, 1) →  .31 .63 .87  .99  1     dead from 80% on
+         this one  (0.4, 0.25, 0.95, 1)    →  .10 .35 .58  .82  .93   still moving at the end
+       So the radius eases IN slightly, and that is what makes the AREA grow evenly. The
+       trap on that side is going too far: cubic-bezier(0.33, 0, 0.25, 1) starts at
+       literally zero speed and then rushes (.12 → .64 between 20% and 40%), which reads as
+       a creep followed by a jump. Held to the area profile, not to the control points, by
+       browser/tests/motion.test.js.
+       All three surfaces run this same wipe now — the desktop evaluates these very control
+       points as a Qt easing (support/themeSwapOverlay.hpp swapEase) over the same duration,
+       so the length and the shape are one decision, not three. */
+    animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
+}
+/* PERCENTAGES, not pixels: they resolve against the pseudo-element's own box, so the wipe
+   still comes out of the button in an engine that measures that box in device pixels — a px
+   origin lands at half its offset there. motion.js swapPercent does the maths. */
+@keyframes themeSwapReveal {
+    from { clip-path: circle(0% at var(--swap-x, 50%) var(--swap-y, 50%)); }
+    to   { clip-path: circle(var(--swap-r, 150%) at var(--swap-x, 50%) var(--swap-y, 50%)); }
+}
+
+/* While a view transition CAPTURES the new state, every colour transition in the app
+   must be off. The snapshot is taken the instant the palette attribute flips — and
+   `body { transition: background 0.3s }` (plus every button/row transition) means that
+   at that instant the page is still wearing the OLD colours. The wipe then reveals a
+   half-changed page and the real colours creep in behind it, which reads as the theme
+   change lagging the animation. Suppressing transitions makes the snapshot final, so
+   the wipe reveals the finished theme. */
+html.theme-instant, html.theme-instant *,
+html.theme-instant *::before, html.theme-instant *::after {
+    transition: none !important;
+}
+
+html.theme-swapping, html.theme-swapping *,
+html.theme-swapping *::before, html.theme-swapping *::after {
+    transition: background-color 0.45s ease, background-image 0.45s ease, color 0.45s ease,
+                border-color 0.45s ease, outline-color 0.45s ease, fill 0.45s ease,
+                stroke 0.45s ease, box-shadow 0.45s ease !important;
+}
+
+/* ── Collapsing the toolbar (⌥C) and the coordinates panel ───────────────────
+   Both used to flip on a `display` / `width` switch, so half the page jumped in one
+   frame. They now fold on the SAME ease-out as the theme wipe — away at once, then
+   decelerating into place — so every collapse in the app settles the same way.
+   One token for both, and it is the wipe's curve: a fold that eases differently from
+   the palette flood reads as two unrelated apps.
+
+   The toolbar body is a one-row grid: `1fr → 0fr` is the only way to animate a box of
+   unknown, content-driven height without measuring it in JS (`height: auto` does not
+   transition). The row's child has to be allowed to be shorter than its own content —
+   hence min-height: 0 + overflow: hidden on it.
+   `#controls-body.hidden` used to be `display: none`; it is now visibility, held back
+   until the fold has finished (the delay MUST equal --fold-ms, or the toolbar blinks out
+   mid-fold), which keeps the collapsed toolbar out of the tab order and out of hit
+   testing exactly as before — and out of the theme wipe's origin lookup, which asks
+   checkVisibility (see js/ui/motion.js). */
+:root {
+    --fold-ms: 400ms;
+    --fold-fade-ms: 250ms;
+    /* A fold grows along ONE axis, so its area IS its height — it wants a plain ease-out
+       and deliberately does not take the wipe's area-corrected curve. */
+    --fold-ease: cubic-bezier(0.39, 0.575, 0.565, 1);   /* OutSine */
+}
+#controls-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--fold-ms) var(--fold-ease),
+                opacity var(--fold-fade-ms) var(--fold-ease),
+                visibility 0s;
+}
+/* The row can only reach zero if the child can: overflow clips the content, and the
+   child's own 12px block padding has to go with it — clipped content still leaves the
+   padding behind, which is what kept a 24px sliver of toolbar on screen. */
+#controls-body > * {
+    min-height: 0;
+    overflow: hidden;
+    transition: padding var(--fold-ms) var(--fold-ease);
+}
+#controls-body.hidden > * { padding-top: 0; padding-bottom: 0; }
+#controls-body.hidden {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition: grid-template-rows var(--fold-ms) var(--fold-ease),
+                opacity var(--fold-fade-ms) var(--fold-ease),
+                visibility 0s linear var(--fold-ms);   /* only once it has finished folding */
+}
+
+/* Both collapse toggles keep ONE chevron and turn it half a revolution (↑⇄↓, →⇄←) on the
+   fold's own curve, instead of swapping to the opposite glyph in a single frame. Mirrored
+   in the desktop app (MainWindow::positionOverlayArrows + SelectionPanel). */
+#toggle-controls .ic, #toggle-coord-panel .ic {
+    transition: transform var(--fold-ms) var(--fold-ease);
+}
+.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
+.coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg); }
+
+/* The coordinates panel slides between its resizable width and the 36px rail, and its
+   contents fade rather than blinking out. The width transition is SUPPRESSED while the
+   splitter is being dragged — an easing curve between the pointer and the panel edge
+   feels like lag, not polish. */
+.coordinates-panel {
+    transition: width var(--fold-ms) var(--fold-ease),
+                min-width var(--fold-ms) var(--fold-ease),
+                padding var(--fold-ms) var(--fold-ease);
+}
+.main-content:has(.panel-resizer.dragging) .coordinates-panel,
+.fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel { transition: none; }
+#coord-body, .coord-tabs {
+    opacity: 1;
+    /* `display` is what actually removes them (layout.css); allow-discrete keeps the
+       fade visible on the way out and @starting-style plays it on the way back in.
+       Where it is unsupported the panel still slides — only the fade is skipped. */
+    transition: opacity var(--fold-fade-ms) var(--fold-ease),
+                display var(--fold-fade-ms) allow-discrete;
+}
+.coordinates-panel.coord-collapsed #coord-body,
+.coordinates-panel.coord-collapsed .coord-tabs { opacity: 0; }
+/* Laid out inside the 36px rail they gave it the open panel's full height and pushed the
+   ⟩ button outside its right edge, so mainContent.js holds them out of the layout for the
+   slide. `transition: none` because a transitioned `display` flips only at the END —
+   which is that sliver. Not scoped to the stacked layout below 960px: nothing slides. */
+@media (min-width: 961px) {
+    .coordinates-panel.coord-folding #coord-body,
+    .coordinates-panel.coord-folding .coord-tabs {
+        display: none;
+        opacity: 0;
+        transition: none;
+    }
+}
+@starting-style {
+    .coordinates-panel:not(.coord-collapsed) #coord-body,
+    .coordinates-panel:not(.coord-collapsed) .coord-tabs { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #controls-body, #controls-body.hidden,
+    .coordinates-panel, #coord-body, .coord-tabs,
+    #toggle-controls .ic, #toggle-coord-panel .ic { transition: none !important; }
+}
+
+/* ── Scroll reveal (js/ui/motion.js) ─────────────────────────────────────────
+   Rows in a long scroller fade + lift into place as they enter and dissolve again
+   as they leave, so scrolling reads as motion instead of a jump. motion.js only
+   adds .reveal-item once it has an IntersectionObserver to drive it, so a browser
+   without one never leaves a row stuck at the dimmed rest state. Mirrored in
+   extension/src/lib/animations.css and desktop/src/app/scrollReveal.hpp. */
+@property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+.reveal-item {
+    /* 0 = fully assembled, 1 = fully dissolved. Registered above so it can be
+       TRANSITIONED — a plain custom property can't be, it would just jump. */
+    --dissolve: 1;
+    /* How far the wipe softens into each cut. motion.js (revealFeather) zeroes the end
+       the scroller is NOT clipping; these defaults are the entering state, which
+       assembles out of its own middle and so softens both ways. */
+    --fade-in: 10%;
+    --fade-out: 10%;
+    transform: none;
+    /* SHORT while scrolling: the dissolve now tracks scroll position continuously, and
+       a long transition would lag visibly behind the scrollbar. A row's FIRST ramp gets
+       the long one instead (.reveal-entering), so an arriving message still assembles
+       where you can see it. */
+    transition: --dissolve 0.14s linear, transform 0.14s linear;
+}
+.reveal-item.reveal-in { --dissolve: 0; transform: none; }
+/* Mounted ONLY while a row straddles an edge (motion.js) — normally one or two rows.
+   Every row carrying four gradient layers is what made a long transcript stutter, and a
+   row that is fully readable or fully clipped needs no mask at all. */
+.reveal-item.reveal-masked {
+    /* Four mask layers, UNIONed (`add`), so the row is solid when settled:
+         · THREE dot grains at different cell sizes (4/7/11px) and offsets. One grid
+           alone is a regular lattice — its dots line up and merge into joining
+           rectangles, which is exactly what stops it reading as sand. Three coprime
+           grids at different phases interfere, so the specks land irregularly and at
+           mixed sizes. Each dies at a different rate (80/95/110), so they thin out in
+           sequence rather than vanishing together.
+         · a bottom→top wipe: the region still fully intact. Its edge climbs as
+           --dissolve rises, so the row erodes upward — the same direction the
+           removal snap runs.
+       Union, not intersect: intersect would punch dot-holes through a settled row.
+       max() floors the radii, since a negative gradient stop is not meaningful. */
+    -webkit-mask-image:
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(78% - var(--dissolve) * 78%)),
+                        transparent max(0%, calc(84% - var(--dissolve) * 78%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(74% - var(--dissolve) * 95%)),
+                        transparent max(0%, calc(80% - var(--dissolve) * 95%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(70% - var(--dissolve) * 110%)),
+                        transparent max(0%, calc(76% - var(--dissolve) * 110%))),
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 10%)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 10%)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    mask-image:
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(78% - var(--dissolve) * 78%)),
+                        transparent max(0%, calc(84% - var(--dissolve) * 78%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(74% - var(--dissolve) * 95%)),
+                        transparent max(0%, calc(80% - var(--dissolve) * 95%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(70% - var(--dissolve) * 110%)),
+                        transparent max(0%, calc(76% - var(--dissolve) * 110%))),
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 10%)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 10%)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    /* The wipe is stretched to 3x the row's WIDTH and centred, so it also covers what a
+       row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
+       the layer stopping at the box edge the mask erased it (and its hit-testing with it:
+       the row stayed clickable, the control did not). Only the vertical mapping matters
+       to a `to bottom` gradient, and that is unchanged. */
+    -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
+    mask-position: 0 0, 2px 3px, 5px 1px, center top;
+    /* The wipe layer is the STILL-VISIBLE span, kept solid; the grain only ever shows
+       outside it. So a row you can read is untouched and the sanding happens on the
+       edge the scroller is already cutting off. */
+    -webkit-mask-repeat: repeat, repeat, repeat, no-repeat;
+    mask-repeat: repeat, repeat, repeat, no-repeat;
+    -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
+    mask-composite: add;
+    /* …and the mask must not CLIP to the row's box, or a child painted beside the bubble
+       (the "…" trigger) is cut away wholesale — invisible AND un-clickable, which is how
+       a partially scrolled message lost its actions. */
+    -webkit-mask-clip: no-clip;
+    mask-clip: no-clip;
+}
+/* Rows made of TEXT (the chat transcript, motion.js `smooth`) take the wipe layer ALONE:
+   the dot grain above eats letters mid-word on the cut edge, which reads as corrupted
+   rendering rather than as a dissolve (user report). One clean alpha fade instead, over
+   a FIXED band (motion.js REVEAL_SMOOTH_FEATHER) — 10% of a tall bubble dissolved a
+   whole paragraph. Everything else (project rows, cards) keeps the grain. */
+.reveal-item.reveal-smooth { --fade-in: 12px; --fade-out: 12px; }
+.reveal-item.reveal-smooth.reveal-masked {
+    -webkit-mask-image:
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 12px)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 12px)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    mask-image:
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 12px)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 12px)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    /* 3× the width, centred: the "…" trigger sits BESIDE the bubble, and a layer stopping
+       at the box edge erases it (and its hit-testing). Vertical mapping is unchanged. */
+    -webkit-mask-size: 300% 100%;
+    mask-size: 300% 100%;
+    -webkit-mask-position: center top;
+    mask-position: center top;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-clip: no-clip;
+    mask-clip: no-clip;
+}
+.reveal-item.reveal-entering {
+    transition: --dissolve 0.7s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* A half-dissolved row is a surprise, not motion — show it whole. */
+    .reveal-item { --dissolve: 0 !important; transform: none !important;
+                   -webkit-mask-image: none !important; mask-image: none !important; }
+}
+
+/* ── Leaving (js/ui/motion.js leaveThenRemove) ───────────────────────────────
+   A row about to be destroyed collapses and slides out first, so a delete reads as
+   the row going away instead of the list jumping. --leave-h is the row's measured
+   height, frozen by motion.js: `height: auto` has nothing to animate from. */
+.leaving {
+    pointer-events: none;
+    overflow: hidden;
+    animation: rowLeave 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes rowLeave {
+    from { opacity: 1; transform: none; max-height: var(--leave-h, 200px); }
+    60%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--leave-h, 200px); }
+    to   { opacity: 0; transform: translateX(-14px) scale(0.97);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+/* Transcript rows and chips sit in flex columns where a height collapse fights the
+   gap; a <tr> ignores max-height outright. Both just dissolve in place instead —
+   the particles above them carry the effect either way. */
+.chat-transcript > .leaving, .chat-results.leaving,
+.coordinates-table tbody tr.leaving {
+    animation: cardLeave 0.22s ease both;
+}
+@keyframes cardLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-6px) scale(0.97); }
+}
+/* …a CHAT entry melts into its own dust: eased out, sinking and shrinking a little
+   further than a list row (motion.js CHAT_LEAVE_MS). Deliberately OPACITY + TRANSFORM
+   only — an animated blur is composited per frame, and next to hundreds of drifting
+   particles that was the jank that made the removal feel slow and heavy. */
+.chat-transcript > .leaving, .ctx-assist-transcript > .leaving,
+.chat-results.leaving, .chat-attached.leaving {
+    animation: chatCardLeave 0.26s cubic-bezier(0.33, 0, 0.2, 1) both;
+    will-change: opacity, transform;
+}
+@keyframes chatCardLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+}
+/* A queued-attachment chip leaves a HORIZONTAL row: it melts like a chat card but
+   ALSO collapses its width (frozen in --leave-w by motion.js), so the chips behind
+   it slide over during the leave instead of jumping when the node is removed. The
+   final negative margin swallows the container's flex gap the removed chip owned. */
+.chat-attach-chip.leaving {
+    animation: chipLeave 0.42s cubic-bezier(0.33, 0, 0.2, 1) both;
+    will-change: opacity, transform;
+}
+@keyframes chipLeave {
+    from { opacity: 1; transform: none; max-width: var(--leave-w, 240px); }
+    30%  { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    /* Hold the slot while the scatter reads — the survivors wait, then glide. */
+    38%  { opacity: 0; transform: translateY(-8px) scale(0.95); max-width: var(--leave-w, 240px); }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.95); max-width: 0;
+           padding-left: 0; padding-right: 0; border-left-width: 0; border-right-width: 0;
+           margin-right: calc(0px - var(--chip-gap, 6px)); }
+}
+
+/* ── Disintegration (js/ui/motion.js disintegrate) ───────────────────────────
+   A removed row doesn't fade — it comes apart. motion.js clones it once per grid
+   cell and clips each clone to its own cell; the cells then drift off in a
+   left-to-right sweep, so the silhouette erodes from one edge instead of the whole
+   thing blowing apart at once. The layer is FIXED over the page because the row
+   underneath is collapsing to zero height at the same moment. */
+.disintegrate-host {
+    position: fixed;
+    z-index: 100010;
+    pointer-events: none;
+    overflow: visible;
+}
+.disintegrate-tile {
+    position: absolute;
+    inset: 0;
+    /* No `filter` here: a per-tile blur is a separate compositing pass EACH, and a few
+       hundred of them is what made a multi-row removal stutter. Transform + opacity alone
+       stay on the compositor, which is also how the desktop overlay draws its motes. */
+    will-change: transform, opacity;
+    animation: tileScatter 0.9s cubic-bezier(0.22, 0.55, 0.3, 1) both;
+}
+@keyframes tileScatter {
+    0%   { opacity: 1; transform: none; }
+    35%  { opacity: 0.85; }
+    100% {
+        opacity: 0;
+        transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6));
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .disintegrate-host { display: none; }
+}
+
+/* ── Materializing (js/ui/motion.js materialize) — the leave reversed ────────
+   A freshly-added row plays the removal backwards: its box expands out of nothing
+   on the collapse's own timer (so the list opens the gap the way it closes one)
+   while a dust copy of the row gathers over the list. --enter-h is the row's
+   measured natural height, frozen by motion.js. */
+.materializing {
+    pointer-events: none;
+    overflow: hidden;
+    animation: rowMaterialize 0.22s cubic-bezier(0, 0, 0.6, 1) both;
+}
+@keyframes rowMaterialize {
+    from { opacity: 0; transform: translateX(-14px) scale(0.97);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    40%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--enter-h, 200px); }
+    to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
+}
+/* While the dust gathers the real row stays hidden — the motes ARE the row forming;
+   motion.js lifts the veil the moment they land (wipeDurationMs). !important so the
+   veil outranks rowMaterialize's animated opacity (author !important beats keyframes). */
+.materialize-veil { opacity: 0 !important; }
+/* The gather: tileScatter reversed. A tile starts where the scatter would have flung
+   it (same deterministic --dx/--dy/--rot/--tile-scale) and flies home. Shorter than
+   the scatter so even the latest-starting mote (reversed sweep, ~0.42s of delay) has
+   landed by the time the veil lifts at DISINTEGRATE_MS. Declared after
+   .disintegrate-tile so the gather animation wins on the shared tile class. */
+.reintegrate-tile {
+    animation: tileGather 0.48s cubic-bezier(0.7, 0, 0.78, 0.45) both;
+}
+@keyframes tileGather {
+    0%   { opacity: 0;
+           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6)); }
+    65%  { opacity: 0.85; }
+    100% { opacity: 1; transform: none; }
+}
+
+/* While the dust falls, the freshly-emptied editor stays out of sight: the canvas is
+   cleared synchronously, so the "＋ Blank image" idle state would otherwise pop in
+   underneath the particles and read as the clear happening twice. It fades in as the
+   last motes land. */
+.canvas-viewport.canvas-clearing .idle-create,
+.canvas-viewport.canvas-clearing #canvas { opacity: 0; }
+/* The same trick for the arrival (ghostIn): the canvas is painted before the motes
+   have gathered, so it waits behind them and fades up as the last one lands —
+   otherwise the finished picture sits there while its own dust flies at it. */
+/* …and it goes out INSTANTLY: the shared transition below is there for the fade back UP
+   (when the class comes off, the last motes landing), but it applied to the hide too — so
+   a pasted image sat there at full strength for 280ms, fading, while its own dust flew at
+   it. That fade-out IS the blink in "the image appears, vanishes, then animates in". */
+.canvas-viewport.canvas-assembling #canvas { opacity: 0; transition: none; }
+.canvas-viewport .idle-create, .canvas-viewport #canvas { transition: opacity 0.28s ease; }
+
+/* ── Canvas dust (js/ui/motion.js ghostOut) ──────────────────────────────────
+   Clearing the canvas is instant and leaves nothing to animate, so the pixels are
+   snapshotted into this overlay and a particle system blows them away on it. One
+   element: dust needs thousands of motes, and thousands of DOM tiles would not
+   survive a frame. Positioning and the animation both live in JS. */
+.canvas-dust {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* ── Drop landing ────────────────────────────────────────────────────────────
+   The overlay leaves on an animation instead of blinking out, and the canvas it
+   was covering scales up into place with one accent pulse — so a dropped file is
+   visibly the thing that just appeared in the editor. */
+@keyframes dropOverlayOut { from { opacity: 1; } to { opacity: 0; transform: scale(1.02); } }
+#global-drop-overlay.drop-closing {
+    pointer-events: none;   /* must never swallow the drop it is dismissing for */
+    animation: dropOverlayOut 0.22s ease both;
+}
+@keyframes canvasLand {
+    from { opacity: 0; transform: scale(0.94) translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes canvasLandGlow {
+    from { box-shadow: 0 0 0 3px var(--accent), 0 18px 46px var(--shadow); }
+    to   { box-shadow: 0 0 0 0 transparent; }
+}
+.canvas-container.drop-landing {
+    animation: canvasLand 0.56s cubic-bezier(0.16, 1, 0.3, 1) both,
+               canvasLandGlow 0.7s ease both;
+}
+/* Dropped WITH a position (js/ui/motion.js arriveFrom): the canvas flies out of the point
+   the file was let go of, as an inline FLIP transform. So this variant contributes the
+   glow ONLY — canvasLand would animate `transform` too and the two would fight over it,
+   and the CSS animation would win, snapping the flight away mid-air. */
+.canvas-container.drop-arriving { animation: canvasLandGlow 0.7s ease both; }
+.canvas-container.arrive-active {
+    will-change: transform;
+    position: relative;
+    z-index: 3;   /* the flight starts scaled down over the page; it must paint above it */
+}
+@media (prefers-reduced-motion: reduce) {
+    #global-drop-overlay.drop-closing, .canvas-container.drop-landing,
+    .canvas-container.drop-arriving { animation: none; }
+    .canvas-container.arrive-active { will-change: auto; }
+}
+
+/* ── Assistant "thinking" dots ───────────────────────────────────────────────
+   The in-flight turn's placeholder: three dots bouncing in sequence, instead of a
+   static "…". Mirrored in extension/src/popup/popup.css and the desktop dock. */
+.chat-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 0;
+}
+.chat-typing i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+    animation: chat-typing-bounce 1.2s infinite ease-in-out;
+}
+.chat-typing i:nth-child(2) { animation-delay: 0.16s; }
+.chat-typing i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes chat-typing-bounce {
+    0%, 70%, 100% { transform: translateY(0); opacity: 0.45; }
+    35%           { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chat-typing i { animation: none; opacity: 0.6; }
+}
+
+/* The composer's drop-to-attach cue: the icon bobs toward the input while a drag
+   hovers it, so the target reads as "let go here" rather than a static outline.
+   The cue itself is styled in components.css (.chat-drop-cue). */
+.chat-drop-cue-icon { animation: chat-drop-bob 1s infinite ease-in-out; }
+@keyframes chat-drop-bob {
+    0%, 100% { transform: translateY(-2px); }
+    50%      { transform: translateY(2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chat-drop-cue-icon { animation: none; transform: none; }
+}
+
+/* The hover preview fades in once it has been measured and placed (the class the
+   placement adds), so it never flashes at its pre-measurement position. */
+.chat-thumb-preview { transition: opacity 0.12s ease; }
+@media (prefers-reduced-motion: reduce) {
+    .chat-thumb-preview { transition: none; }
 }

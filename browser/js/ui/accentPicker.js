@@ -1,15 +1,37 @@
 import { ACCENTS, accentHex, normalizeHex } from '../core/accents.js';
 import { icon } from './icons.js';
+import { showMenu, hideMenu } from './dropdownMenu.js';
 
-// Custom "main theme" dropdown: trigger showing the current colour swatch + name,
-// and a popup listbox where every option is a colour RECT next to its name. A native
-// <select> can't paint a per-option swatch on every OS (notably macOS), so this does
-// it explicitly. Calls onSelect(key) on choice; returns { set(key) } to re-sync the
-// trigger when the value changes elsewhere.
-//
-// `value` is either a preset key OR a custom #rrggbb hex — a custom colour (set from the
-// logo double-click, or the "Custom…" row here) shows as "Custom" with its own swatch,
-// so the dropdown always reflects the ACTUAL active accent, never a stale preset name.
+// Custom "main theme" dropdown: a native <select> can't paint a per-option colour
+// swatch on every OS (notably macOS), so this does it explicitly. `value` is a preset
+// key OR a custom #rrggbb — custom shows as "Custom" with its live swatch.
+// Shared preset rows, used by the Visuals dropdown below AND the logo's right-click
+// menu (ui/toolbar.js) — one list implementation, so the two can never drift; NO
+// "Custom…" row in either (custom colours come only from the logo double-click).
+// Every chip carries a ✓ that only the ACTIVE row shows (keyed off aria-selected;
+// desktop parity: mainWindow.cpp paints the same tick into the current swatch).
+export function fillAccentMenu(menu, onPick) {
+  for (const a of ACCENTS) {
+    const li = document.createElement('li');
+    li.className = 'accent-dd-opt';
+    li.setAttribute('role', 'option');
+    li.dataset.key = a.key;
+    li.innerHTML =
+      `<span class="accent-swatch" style="background:${a.hex}">` +
+      `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
+      `<span class="accent-dd-name">${a.label}</span>`;
+    li.addEventListener('click', () => onPick(a.key));
+    menu.appendChild(li);
+  }
+}
+
+// Reflect the active accent on the rows (aria-selected drives the highlight AND the ✓).
+// A non-preset value (custom hex, or null) simply selects nothing.
+export function markSelected(menu, value) {
+  for (const li of menu.children)
+    li.setAttribute('aria-selected', li.dataset.key === value ? 'true' : 'false');
+}
+
 export function buildAccentPicker(mount, { current, onSelect }) {
   const isPreset = (k) => ACCENTS.some((a) => a.key === k);
   const labelOf = (k) => (isPreset(k) ? ACCENTS.find((a) => a.key === k).label : 'Custom');
@@ -29,36 +51,26 @@ export function buildAccentPicker(mount, { current, onSelect }) {
   const curSw = mount.querySelector('.js-cur-sw');
   const curName = mount.querySelector('.js-cur-name');
 
-  for (const a of ACCENTS) {
-    const li = document.createElement('li');
-    li.className = 'accent-dd-opt';
-    li.setAttribute('role', 'option');
-    li.dataset.key = a.key;
-    li.innerHTML =
-      `<span class="accent-swatch" style="background:${a.hex}"></span>` +
-      `<span class="accent-dd-name">${a.label}</span>`;
-    li.addEventListener('click', () => choose(a.key));
-    menu.appendChild(li);
-  }
+  fillAccentMenu(menu, (key) => choose(key));
 
   // NOTE: no "Custom…" row — a custom colour is set ONLY from the header logo (double-click). The
   // dropdown just DISPLAYS the custom state in its trigger ("Custom" + the live swatch) below.
   const syncTrigger = () => {
     curSw.style.background = swatchOf(value);
     curName.textContent = labelOf(value);
-    for (const li of menu.children)
-      li.setAttribute('aria-selected', li.dataset.key === value ? 'true' : 'false');
+    markSelected(menu, value);
   };
-  const onDocClick = (e) => { if (!mount.contains(e.target)) close(); };
+  // The open menu is portaled to <body>, so test it as well as the picker itself.
+  const onDocClick = (e) => { if (!mount.contains(e.target) && !menu.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') { close(); trigger.focus(); } };
   const open = () => {
-    menu.hidden = false;
+    showMenu(menu, trigger);   // viewport-placed, so a modal's scroll box can't clip it
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocClick, true);
     document.addEventListener('keydown', onKey);
   };
   const close = () => {
-    menu.hidden = true;
+    hideMenu(menu);
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocClick, true);
     document.removeEventListener('keydown', onKey);

@@ -1,9 +1,65 @@
 import { core } from './stencilCore.js';
 
 // ── ZoomPan: zoom level, fit, hold-zoom, overlays ───────────────
+// Smallest canvas viewport we will size down to before letting the page scroll.
+const MIN_VIEWPORT_H = 120;
+// …and the same floor for the coordinates panel: below this the header + a row or two
+// would be clipped, and on a window that short something has to give anyway.
+const MIN_PANEL_H = 120;
+
+// Bottom padding + border + margin of every ancestor from el's parent up through <body>.
+// Used by availContentHeight() — counting just one level (body) over-reports the room
+// and leaves a permanent page scrollbar.
+const bottomInsetToPage = (el) => {
+  let total = 0;
+  for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+    const c = getComputedStyle(n);
+    total += (parseFloat(c.marginBottom) || 0);
+    if (n !== el) total += (parseFloat(c.paddingBottom) || 0) + (parseFloat(c.borderBottomWidth) || 0);
+  }
+  return total;
+};
+
+// What sits under the viewport inside its own column (status line + drop hint), summed
+// from the siblings themselves: the column is a stretched flex box (layout.css), so
+// measuring to the column's bottom EDGE counts leftover slack as occupied space.
+const belowInColumn = (vp) => {
+  let total = 0;
+  for (let n = vp.nextElementSibling; n; n = n.nextElementSibling) {
+    const c = getComputedStyle(n);
+    if (c.display === 'none') continue;
+    total += n.getBoundingClientRect().height + (parseFloat(c.marginTop) || 0) + (parseFloat(c.marginBottom) || 0);
+  }
+  return total;
+};
+
+// How long after the LAST zoom step the session is persisted. Trailing-edge: a
+// wheel/hold burst writes the final zoom once — one save, one "Saved" toast — instead
+// of a full layout + thumbnail write per notch.
+export const ZOOM_SAVE_DEBOUNCE_MS = 400;
+
+// Trailing-edge debounce, timers injectable so the collapse is unit-testable. Only the
+// last call in a burst runs `run`, after `delay` of quiet; `flush()` runs a pending
+// save NOW, `pending()` answers whether one is armed.
+export const createTrailingSave = (run, { delay = ZOOM_SAVE_DEBOUNCE_MS,
+                                          setTimer = setTimeout, clearTimer = clearTimeout } = {}) => {
+  let timer = null;
+  const fire = () => { timer = null; run(); };
+  const call = () => {
+    if (timer !== null) clearTimer(timer);
+    timer = setTimer(fire, delay);
+  };
+  call.flush = () => { if (timer === null) return; clearTimer(timer); fire(); };
+  call.pending = () => timer !== null;
+  return call;
+};
+
 export class ZoomPan {
   constructor(app) {
     this.app = app;
+    // The single debounced persistence path for every zoom route (wheel/hold steps via
+    // setZoom, the animated zoom's final snap): a burst saves once, at its end.
+    this.persistZoom = createTrailingSave(() => { if (this.app.image) this.app.storage.save(); });
   }
 
   // Clamp a scale into the zoom limits. Delegates to the shared C++ core (wasm)
@@ -55,30 +111,83 @@ export class ZoomPan {
     });
   }
 
-  // Available height for the canvas viewport in normal (non-fullscreen) mode: the space
-  // from the viewport's own top edge down to the window bottom, minus the status line +
-  // drop hint that sit below it. Measured live (not a fixed guess) so it tracks the real
-  // toolbar height and follows window resizes. Fullscreen uses the whole window height.
+  // Available height for the canvas viewport in normal mode: from the viewport's own top
+  // edge to the window bottom, minus the status line + drop hint below it. Measured live
+  // so it tracks the real toolbar height and resizes; fullscreen uses the whole window.
   availContentHeight() {
     if (document.body.classList.contains('fullscreen-mode')) return window.innerHeight;
     const vp = document.getElementById('canvas-viewport');
-    const top = vp ? vp.getBoundingClientRect().top : 140;
-    return Math.max(200, window.innerHeight - top - 96);   // ~coord-status + drop-hint below
+    if (!vp) return Math.max(200, window.innerHeight - 140 - 96);
+    const r = vp.getBoundingClientRect();
+    // What sits BELOW the viewport is MEASURED, never assumed — a fixed guess leaves a
+    // permanent scrollbar. Off the viewport's own column, NOT .container: that also
+    // encloses the coordinates panel, which grows with the point list.
+    const shell = vp.closest('.canvas-section') || vp.parentElement;
+    // Everything between the shell's bottom edge and the page bottom counts too: each
+    // ancestor up to <body> contributes its own bottom padding/border/margin; summing
+    // only body's leaves the page tall enough for a permanent window scrollbar.
+    const below = shell ? belowInColumn(vp) + bottomInsetToPage(shell) : 96;
+    // The floor must stay below ordinary window heights so the true fit wins; it only
+    // bites on a genuinely tiny window, where something has to give anyway.
+    return Math.max(MIN_VIEWPORT_H, Math.floor(window.innerHeight - r.top - below));
   }
 
-  // Viewport max-height that hugs the image at `scale` (+4px) but never exceeds the available
-  // height. Shared by syncViewportHeight and the up-front sizing in zoomAroundCenter.
+  // Measured off the viewport itself for the same reason availContentHeight() is: a fixed
+  // inset guess drifts from the real box. clientWidth already excludes a vertical
+  // scrollbar; fullscreen uses the whole window width.
+  availContentWidth() {
+    if (document.body.classList.contains('fullscreen-mode')) return window.innerWidth;
+    const vp = document.getElementById('canvas-viewport');
+    const w = vp ? vp.clientWidth : 0;
+    return w > 0 ? w : Math.max(300, window.innerWidth - 420);
+  }
+
+  // Vertical border + padding of the viewport. It is a border-box element with a 2px frame,
+  // so its max-height budget (availContentHeight) includes room the image cannot use — count
+  // it once here rather than as a magic constant in the two places that need it.
+  viewportChromeY() {
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp) return 0;
+    const cs = getComputedStyle(vp);
+    return ['borderTopWidth', 'borderBottomWidth', 'paddingTop', 'paddingBottom']
+      .reduce((n, k) => n + (parseFloat(cs[k]) || 0), 0);
+  }
+
+  // Viewport max-height that hugs the image at `scale` but never exceeds the available
+  // height. ceil + the frame, not round + 4: a scaled height is fractional, and rounding
+  // it down inside a border-box budget leaves the last pixel row behind a scrollbar.
   #viewportMaxHeightPx(scale) {
-    return Math.min(Math.round(this.app.canvas.height * scale) + 4, this.availContentHeight());
+    const hug = Math.ceil(this.app.canvas.height * scale) + this.viewportChromeY();
+    return Math.min(hug, this.availContentHeight());
   }
 
-  // Size the viewport to hug the on-screen image but GROW with zoom, up to the available
-  // height — so zooming in reveals more of the image instead of scrolling a thin strip
-  // frozen at the fitted height. No-op without an image or in fullscreen (sized elsewhere).
+  // Size the viewport to hug the on-screen image but GROW with zoom up to the available
+  // height, so zooming in reveals more instead of scrolling a thin fitted strip. No image
+  // → the inline caps come off and CSS fills the window. No-op in fullscreen.
   syncViewportHeight() {
     const vp = document.getElementById('canvas-viewport');
-    if (!vp || !this.app.image || document.body.classList.contains('fullscreen-mode')) return;
+    if (!vp || document.body.classList.contains('fullscreen-mode')) return;
+    if (!this.app.image) {
+      // Nothing to hug: drop the inline caps and let the CSS fill chain (layout.css, body →
+      // .canvas-viewport) give the empty editor the whole window. A measured pixel height
+      // here is what left the frame stranded above a page of dead space.
+      vp.style.minHeight = '';
+      vp.style.maxHeight = '';
+      return;
+    }
     vp.style.maxHeight = this.#viewportMaxHeightPx(this.app.scale) + 'px';
+  }
+
+  // Cap the coordinates panel to the room it actually has, so a long point list scrolls
+  // INSIDE it (#coord-body is overflow-y:auto) instead of stretching the page. Measured
+  // off the panel's own LIVE top — it starts below the toolbar, so a vh guess leaves a
+  // permanent scrollbar; sticky is fine (a fitted panel never scrolls, resize re-measures).
+  syncCoordPanelHeight() {
+    const panel = document.getElementById('coord-panel');
+    if (!panel || document.body.classList.contains('fullscreen-mode')) return;
+    const top = panel.getBoundingClientRect().top;
+    const avail = Math.floor(window.innerHeight - top - bottomInsetToPage(panel));
+    panel.style.maxHeight = Math.max(MIN_PANEL_H, avail) + 'px';
   }
 
   setZoom(newScale, persist = true) {
@@ -90,13 +199,14 @@ export class ZoomPan {
     this.app.canvas.style.height = (this.app.canvas.height * newScale) + 'px';
     this.syncViewportHeight();   // grow/shrink the viewport with the new zoom level
     this.setZoomInputValue(Math.round(newScale * 100));
-    // Persist zoom level (scroll is saved via the debounced scroll listener)
-    if (persist && this.app.image) this.app.storage.save();
+    // Persist zoom level — debounced (createTrailingSave): a wheel/hold burst writes
+    // once, at its end, instead of a full save + "Saved" toast per step. (Scroll is
+    // saved via the debounced scroll listener on the same principle.)
+    if (persist && this.app.image) this.persistZoom();
   }
 
   // Press-and-hold zoom for the +/− buttons. sign is +1 zoom-in, −1 zoom-out.
-  //   • Single press → small step (0.25); double-press → large step (1.0) within 280 ms;
-  //   • Hold → continuous zoom (after 380 ms, then 0.10 every 70 ms).
+  // Single press → small step; double-press → large step; hold → continuous zoom.
   setupHoldZoom(btn, sign) {
     // Smaller, gentler steps so a single click feels like one notch, not a leap.
     const SMALL = 0.10;
@@ -214,7 +324,7 @@ export class ZoomPan {
         this.setZoomInputValue(Math.round(newScale * 100));
         this.app.canvas.classList.remove('zoom-no-transition');
         this.app.zoomAnimRaf = null;
-        if (this.app.image) this.app.storage.save();
+        if (this.app.image) this.persistZoom();
       }
     };
     this.app.zoomAnimRaf = requestAnimationFrame(tick);
@@ -241,14 +351,17 @@ export class ZoomPan {
 
   fitToWindow() {
     if (!this.app.image) return;
-    const isFS = document.body.classList.contains('fullscreen-mode');
-    // In fullscreen the side panel and toolbar are hidden — use full window dimensions
-    const availW = isFS ? window.innerWidth : Math.max(300, window.innerWidth - 420);
-    const availH = isFS ? window.innerHeight : Math.max(200, window.innerHeight - 220);
+    // Fit against the box the image actually lands in — the SAME measurements
+    // #viewportMaxHeightPx() clamps the viewport to; fixed insets over-estimate the room
+    // and clip the fitted image. The height budget is border-box, so take the frame off.
+    const availW = this.availContentWidth();
+    const availH = Math.max(1, this.availContentHeight() - this.viewportChromeY());
     const scaleW = availW / this.app.image.width;
     const scaleH = availH / this.app.image.height;
     const fit = Math.min(scaleW, scaleH, 1); // never upscale beyond 100% on fit
-    this.setZoom(Math.round(fit * 100) / 100);
+    // Round DOWN to the same 1% the zoom input shows: rounding up re-introduces the
+    // overflow this fit exists to avoid (619px at 0.7754 → 0.78 → 3px clipped).
+    this.setZoom(Math.floor(fit * 100) / 100);
 
     // Viewport height: in normal mode setZoom() above already sized it adaptively via
     // syncViewportHeight() (hugs the fitted image, grows with later zoom). In fullscreen the

@@ -4,12 +4,13 @@
 // carries an inline MIRROR of these. These exported copies are the tested source of
 // truth; keep in sync. No DOM access here beyond what's passed in.
 
-// Extract the URL from a CSS background-image value, or '' when there is none / it's
-// an inline SVG data URL (not a real shareable image). Handles url("…")/url('…')/url(…).
+// Extract the URL from a CSS background-image value, or '' when there is none.
+// Inline-SVG data URIs COUNT (lib/rasterize.js turns them into PNG for attach /
+// hand-off), so a data-URI background is listed like any other image. Handles
+// url("…")/url('…')/url(…).
 export const bgImageUrl = (cssValue) => {
   const m = /url\((['"]?)(.*?)\1\)/i.exec(String(cssValue || ''));
   const url = m ? m[2].trim() : '';
-  if (!url || url.startsWith('data:image/svg')) return '';
   return url;
 };
 
@@ -28,7 +29,7 @@ export const cssImageUrls = (cssValue) => {
   let m;
   while ((m = re.exec(s))) {
     const u = (m[2] || '').trim();
-    if (!u || u.startsWith('#') || u.startsWith('data:image/svg')) continue;
+    if (!u || u.startsWith('#')) continue;
     out.push(u);
   }
   return out;

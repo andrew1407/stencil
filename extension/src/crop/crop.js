@@ -9,6 +9,9 @@ import {
 } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
+import { watchNumericInputs } from '../lib/numericInput.js';
+import { initTooltips } from '../lib/controlTooltip.js';
+import { enhanceSelect } from '../lib/customSelect.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
 // host overlay when we booted (so it keeps the modal) and when to close.
@@ -17,6 +20,12 @@ const FRAMED = window.parent && window.parent !== window;
 const postToHost = (type) => {
   if (FRAMED) window.parent.postMessage({ source: SRC.MODAL, type }, '*');
 };
+
+// Tell the host overlay we're alive AS SOON AS this script runs. Its watchdog asks
+// "did the frame load at all?" (a CSP / mixed-content block would stop it dead) — NOT
+// "did the image finish loading": answering only from imgEl.onload lets a slow image
+// trip the watchdog. The later ready (below) stays; the host handles it idempotently.
+postToHost('ready');
 
 const viewport = document.getElementById('viewport');
 const imgEl = document.getElementById('image');
@@ -62,7 +71,8 @@ const init = async () => {
   }
   syncPageControls();
   try {
-    state.dataUrl = await fetchAsDataUrl(state.srcUrl);
+    // state.resource (the page the image came from, via CROP_META) lends its host.
+    state.dataUrl = await fetchAsDataUrl(state.srcUrl, { pageUrl: state.resource });
   } catch (err) {
     statusEl.textContent = `Could not load the image (${err.message}).`;
     return;
@@ -174,11 +184,9 @@ viewport.addEventListener('wheel', (e) => {
   }
 }, { passive: false });
 
-// The viewport only reaches its real size a moment after the modal iframe (and the flex
-// layout) settle — the fit computed at image-load time can be against a not-yet-sized
-// stage. Re-fit whenever the viewport resizes, but only while the user is at the default
-// fit (zoom === 1), so a manual zoom is never clobbered. This is what makes a small image
-// scale up to fill the stage instead of being stuck tiny.
+// The viewport only reaches its real size a moment after the modal iframe settles, so
+// re-fit whenever it resizes — but only at the default fit (zoom === 1), so a manual
+// zoom is never clobbered. This is what lets a small image scale up to fill the stage.
 new ResizeObserver(() => { if (state.imgW && state.zoom === 1) { fitToWindow(); layoutOverlay(); } }).observe(viewport);
 
 // ── Overlay layout (image-space → display px) ──
@@ -328,10 +336,11 @@ document.getElementById('open').addEventListener('click', async (e) => {
     const page = state.page === 'custom' ? { size: 'custom', width: state.customW, height: state.customH } : { size: state.page };
     let payload;
     if (mode === 'apply') {
+      const c = state.crop;
       payload = {
         dataUrl: state.dataUrl,
         name: state.name,
-        crop: state.crop,
+        crop: { x: c.x, y: c.y, w: c.width, h: c.height },   // canonical wire spelling
         page,
         source: state.source,
         resource: state.resource,
@@ -347,7 +356,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
       payload = {
         dataUrl: canvas.toDataURL('image/png'),
         name: (dot > 0 ? state.name.slice(0, dot) : state.name) + '-crop.png',
-        crop: { x: 0, y: 0, width: c.width, height: c.height },
+        crop: { x: 0, y: 0, w: c.width, h: c.height },   // canonical wire spelling
         page,
         source: state.source,
         resource: state.resource,
@@ -383,5 +392,14 @@ document.getElementById('open').addEventListener('click', async (e) => {
     state.source = '';
     state.resource = '';
   }
+  // Custom page W/H take an expression — "45 + 9", "* 2".
+  watchNumericInputs();
   init();
 })();
+
+// Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
+// and never shows on a disabled control). lib/tipContent.js gives them their shape.
+initTooltips();
+
+// The page-format list is long — our own list gets the filter input and the theme.
+for (const el of document.querySelectorAll('select')) enhanceSelect(el, { search: true });

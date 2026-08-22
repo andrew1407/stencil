@@ -27,7 +27,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
       const re = /url\((['"]?)(.*?)\1\)/g;
       let m;
       while ((m = re.exec(bg))) {
-        if (m[2] && !m[2].toLowerCase().startsWith('data:image/svg')) return true;
+        if (m[2]) return true;
       }
     }
     return false;
@@ -96,7 +96,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
       if (!bg || bg === 'none') continue;
       const re = /url\((['"]?)(.*?)\1\)/g;
       let m;
-      while ((m = re.exec(bg))) if (m[2] && !m[2].toLowerCase().startsWith('data:image/svg')) return absUrl(m[2]);
+      while ((m = re.exec(bg))) if (m[2]) return absUrl(m[2]);
     }
     return '';
   };
@@ -107,11 +107,21 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     catch { /* no extension messaging in this context — reverse highlight just won't fire */ }
   };
 
-  // Cursor tracking: move the HOVER marker to the grabbable element under the mouse, and
+  // A page-sized background container is not a hover target — "whitespace" is
+  // usually body's background, and hovering it scrolled the panel list to that row.
+  const pageSizedBg = (el) => {
+    if (isImageEl(el)) return false;
+    if (el === document.documentElement || el === document.body) return true;
+    const r = el.getBoundingClientRect();
+    return r.width * r.height >= 0.8 * window.innerWidth * window.innerHeight;
+  };
+
+  // Cursor tracking: move the HOVER outline to the grabbable element under the mouse, and
   // tell the open panel which source is now under the cursor (so it outlines that row).
   let current = null;
   const onOver = (e) => {
-    const target = grabbableAt(e.target);
+    const found = grabbableAt(e.target);
+    const target = found && pageSizedBg(found) ? null : found;
     if (target === current) return;
     if (current) current.removeAttribute(HOVER);
     current = target;

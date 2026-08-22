@@ -12,16 +12,11 @@ const INLINE_WARN_CHARS = 200_000;
 const INLINE_MAX_CHARS = 1_000_000;
 
 // ── Component: open-in-another-app modal ────────────────────────
-// Opened from the toolbar's #open-in-btn (next to Share). Mirrors the CURRENT session
-// into another Stencil front-end:
-//   • Desktop app — a `stencil://` link the OS routes to the installed desktop app. A
-//     server-linked session sends only the server reference (the desktop connects like a
-//     fresh client — no token in the link); a local/incognito session embeds the image +
-//     full layout inline.
-//   • Telegram bot — a t.me deep link carrying (server, project id) in the 64-char
-//     `?start=` payload; server projects only (an unsaved session has no id to share, and
-//     image bytes can't ride a Telegram link). Overflowing payloads (very long hostnames)
-//     fall back to copyable /connect + /fetch commands.
+// Mirrors the CURRENT session into another Stencil front-end: the Desktop app via a
+// `stencil://` link (a server-linked session sends only the server reference — no
+// token; local/incognito embeds image + layout inline), or the Telegram bot via a
+// t.me link carrying (server, project id) in the 64-char `?start=` payload — server
+// projects only; overflow falls back to copyable /connect + /fetch commands.
 // "Incognito" means Stencil's own never-persisted mode on the receiving side.
 export class StencilOpenInModal extends StencilElement {
   static inner() {
@@ -95,10 +90,8 @@ export class StencilOpenInModal extends StencilElement {
           : (app.storage.incognito ? 'Incognito session (image + layout sent inline)'
             : 'Local project (image + layout sent inline)');
         // Unusable targets are HIDDEN, not greyed: Desktop needs a configured scheme;
-        // Telegram needs a bot username AND a server project (a 64-char start payload
-        // can't carry image bytes, so local/incognito sessions can't ride it). The
-        // toolbar's #open-in-btn is itself hidden when neither is available, so at
-        // least one of these is always shown by the time the modal opens.
+        // Telegram needs a bot username AND a server project (64 chars can't carry
+        // image bytes). The toolbar's #open-in-btn hides when neither is available.
         desktopBtn.style.display = cfg.desktopScheme ? '' : 'none';
         telegramBtn.style.display = (cfg.telegramBotUsername && remote) ? '' : 'none';
       },
@@ -129,9 +122,8 @@ export class StencilOpenInModal extends StencilElement {
         notify('Large image — the hand-off may fail; prefer saving to a server', 'info');
       }
       // Hand the custom-scheme URL to the OS. The anchor MUST be in the document —
-      // Chrome ignores navigation clicks on a detached anchor, so a hidden data-URL
-      // link would silently do nothing. Appended, clicked, then removed; the browser
-      // shows its own "Open Stencil?" prompt (no blank tab, unlike window.open).
+      // Chrome ignores navigation clicks on a detached anchor. Appended, clicked,
+      // removed; the browser shows its own "Open Stencil?" prompt (no blank tab).
       const a = document.createElement('a');
       a.href = url;
       a.style.display = 'none';

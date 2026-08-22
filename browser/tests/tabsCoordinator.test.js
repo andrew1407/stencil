@@ -4,18 +4,18 @@ import { MSG } from '../js/worker/messages.js';
 import { TabsCoordinator } from '../js/core/tabsCoordinator.js';
 
 // TabsCoordinator picks the SharedWorker transport when one exists. We stub a
-// fake worker + a minimal `window` so construction takes that path in Node, then
+// stub worker + a minimal `window` so construction takes that path in Node, then
 // drive incoming worker messages through the captured port to exercise the
 // subscribe / emit / unsubscribe registry without any real worker or channel.
-class FakePort {
+class MockPort {
   constructor() { this.sent = []; this.onmessage = null; }
   start() {}
   postMessage(msg) { this.sent.push(msg); }
   deliver(data) { if (this.onmessage) this.onmessage({ data }); }
 }
 
-class FakeSharedWorker {
-  constructor() { this.port = new FakePort(); FakeSharedWorker.last = this; }
+class MockSharedWorker {
+  constructor() { this.port = new MockPort(); MockSharedWorker.last = this; }
 }
 
 let savedSharedWorker;
@@ -24,7 +24,7 @@ let savedWindow;
 beforeEach(() => {
   savedSharedWorker = globalThis.SharedWorker;
   savedWindow = globalThis.window;
-  globalThis.SharedWorker = FakeSharedWorker;
+  globalThis.SharedWorker = MockSharedWorker;
   // #trySharedWorker wires a `beforeunload` listener and projectsChanged()
   // dispatches a DOM event — both best-effort, so a no-op window suffices.
   globalThis.window = { addEventListener() {}, dispatchEvent() {} };
@@ -37,7 +37,7 @@ afterEach(() => {
   else globalThis.window = savedWindow;
 });
 
-const port = () => FakeSharedWorker.last.port;
+const port = () => MockSharedWorker.last.port;
 
 test('uses the SharedWorker transport and says hello', () => {
   new TabsCoordinator();

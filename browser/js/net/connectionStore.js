@@ -15,6 +15,8 @@ export const loadSavedServers = () => {
   try {
     const raw = ls()?.getItem(SERVERS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
+    // `expired` rides along: a credential the server refused stays refused, so boot can
+    // show the row without spending a request on a token that cannot work.
     return Array.isArray(arr) ? arr.filter((s) => s && s.url) : [];
   } catch {
     return [];
@@ -23,7 +25,14 @@ export const loadSavedServers = () => {
 
 export const saveServers = (list) => {
   try {
-    const slim = (list || []).map((s) => ({ url: s.url, token: s.token || '' }));
+    const slim = (list || []).map((s) => {
+      const out = { url: s.url, token: s.token || '' };
+      // What the credential IS (an admin token mints; a session token is used as-is).
+      // Remembered so the next connect never probes an admin token as a session one.
+      if (s.kind === 'admin') out.kind = 'admin';
+      if (s.expired) out.expired = true;
+      return out;
+    });
     ls()?.setItem(SERVERS_KEY, JSON.stringify(slim));
   } catch {
     /* storage blocked — connections still work for this session, just won't persist */

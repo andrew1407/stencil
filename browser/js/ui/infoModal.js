@@ -1,4 +1,4 @@
-import { StencilElement, hostTag, define } from './base.js';
+import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import INFO from '../config/infoConfig.json' with { type: 'json' };
 import { icon } from './icons.js';
 // ── Component: controls & shortcuts info modal ──────────────────
@@ -45,13 +45,10 @@ export class StencilInfoModal extends StencilElement {
 
     search.addEventListener('input', () => render(search.value));
 
-    const open = ()  => { search.value = ''; render(''); overlay.classList.add('modal-open'); setTimeout(() => search.focus(), 30); };
-    const close = () => { overlay.classList.remove('modal-open'); };
-    openBtn.addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('modal-open')) close();
+    // The shared shell (open/close/outside-click/Escape + the icon's popover gestures) —
+    // this modal only adds its reset-search-and-focus on open.
+    wireModalShell(overlay, openBtn, closeBtn, {
+      onOpen: () => { search.value = ''; render(''); setTimeout(() => search.focus(), 30); },
     });
   }
 }

@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 import { setVal, setRadioGroup, notify } from '../utils.js';
 import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
+import { enhanceSelect } from './customSelect.js';
 import { icon } from './icons.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
@@ -20,10 +21,17 @@ export class StencilVisualsModal extends StencilElement {
                 <div class="vs-row"><label>Main theme</label>
                     <div id="vs-accent"></div>
                 </div>
+                <div class="vs-row"><label>Appearance</label>
+                    <select id="vs-appearance">
+                        <option value="system">System (follow the OS)</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>
                 <div class="vs-row"><label>Line color</label><input type="color" id="vs-line-color"></div>
                 <div class="vs-row"><label>Line thickness</label><input type="number" id="vs-thickness" min="1" max="20"></div>
-                <div class="vs-row"><label>Marker size</label><input type="number" id="vs-marker" min="1" max="30"></div>
+                <div class="vs-row"><label>Point size</label><input type="number" id="vs-point" min="1" max="30"></div>
                 <div class="vs-row"><label>Line style</label>
                     <select id="vs-style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
                 </div>
@@ -77,16 +85,22 @@ export class StencilVisualsModal extends StencilElement {
     attachSearchFilter(search, applyFilter);
 
     const VIS_DEFAULTS = {
-      color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
+      color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid',
       defaultFillColor: '#3399ff', selGlowColor: '#ffc800',
       hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
     };
 
     // Main theme — a custom colour-swatch dropdown (./accentPicker.js).
-    const accentPicker = buildAccentPicker(document.getElementById('vs-accent'), {
+    const accentMount = document.getElementById('vs-accent');
+    const accentPicker = buildAccentPicker(accentMount, {
       current: app.customAccent || app.accent,
       // A #hex value means a custom colour → setCustomAccent; a preset key → setAccent.
-      onSelect: (key) => (/^#/.test(key) ? app.setCustomAccent(key) : app.setAccent(key)),
+      // The picker is passed as the swap origin: this dialog sits over the toolbar, so the
+      // palette should flood out of the control under the cursor, not the icon behind it.
+      onSelect: (key) => {
+        const from = accentMount.querySelector('.accent-dd-trigger') || accentMount;
+        return /^#/.test(key) ? app.setCustomAccent(key, from) : app.setAccent(key, from);
+      },
     });
     // Another tab changed the accent — keep this picker's swatch in sync (the app
     // UI itself is already repainted by the cross-tab listener in drawingApp). Prefer the
@@ -94,10 +108,26 @@ export class StencilVisualsModal extends StencilElement {
     window.addEventListener('stencil:accent-changed',
       () => accentPicker.set(app.customAccent || app.accent));
 
+    // Appearance — light, dark, or SYSTEM (follow the OS; the toolbar moon/sun is the
+    // quick flip). Mirrors the extension's options page and the desktop's themeMode.
+    // The select is the swap origin, so the palette floods out of the touched control.
+    const appearance = document.getElementById('vs-appearance');
+    // Our own list, not the OS's — a native <select> popup is drawn by the platform and
+    // ignores the app's theme entirely (ui/customSelect.js).
+    enhanceSelect(appearance);
+    const syncAppearance = () => { appearance.value = app.accents.themeMode; };
+    syncAppearance();
+    appearance.addEventListener('change', () => {
+      const from = appearance.closest('.accent-dd')?.querySelector('.accent-dd-trigger') || appearance;
+      app.accents.setThemeMode(appearance.value, from);
+    });
+    // The toolbar toggle (or another tab) can move it while this dialog is open.
+    window.addEventListener('stencil:theme-changed', syncAppearance);
+
     const els = {
       lineColor: document.getElementById('vs-line-color'),
       thickness: document.getElementById('vs-thickness'),
-      marker: document.getElementById('vs-marker'),
+      point: document.getElementById('vs-point'),
       style: document.getElementById('vs-style'),
       fill: document.getElementById('vs-fill'),
       selGlow: document.getElementById('vs-sel-glow'),
@@ -110,7 +140,7 @@ export class StencilVisualsModal extends StencilElement {
       accentPicker.set(app.customAccent || app.accent);
       els.lineColor.value = app.color;
       els.thickness.value = app.thickness;
-      els.marker.value = app.markerSize;
+      els.point.value = app.pointSize;
       els.style.value = app.style;
       els.holdDelay.value = app.holdDrawDelay ?? VIS_DEFAULTS.holdDrawDelay;
       els.fill.value = app.defaultFillColor || VIS_DEFAULTS.defaultFillColor;
@@ -131,10 +161,10 @@ export class StencilVisualsModal extends StencilElement {
       setVal('line-thickness', app.thickness);
       app.storage.save();
     });
-    els.marker.addEventListener('change', e => {
-      app.markerSize = Math.max(1, Math.min(30, parseInt(e.target.value) || app.markerSize));
-      e.target.value = app.markerSize;
-      setVal('marker-size', app.markerSize);
+    els.point.addEventListener('change', e => {
+      app.pointSize = Math.max(1, Math.min(30, parseInt(e.target.value) || app.pointSize));
+      e.target.value = app.pointSize;
+      setVal('point-size', app.pointSize);
       app.renderer.redraw(); app.storage.save();
     });
     els.style.addEventListener('change', e => {
@@ -158,7 +188,7 @@ export class StencilVisualsModal extends StencilElement {
       app.setAccent(DEFAULT_ACCENT);
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
-      setVal('marker-size', app.markerSize);
+      setVal('point-size', app.pointSize);
       setVal('line-style', app.style);
       populate();
       app.renderer.redraw(); app.storage.save();

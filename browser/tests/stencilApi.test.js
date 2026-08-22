@@ -8,21 +8,21 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { installFetchStub } from './helpers/fetchStub.js';
+import { installDom } from './helpers/dom.js';
 
 // Inert DOM stubs so the few document/window-touching paths (closeModals, color canvas,
 // the links-modal refresh event) stay no-ops instead of throwing under node --test.
 globalThis.window = globalThis.window ?? {};
 globalThis.window.dispatchEvent = globalThis.window.dispatchEvent ?? (() => {});
-// A mutable fake viewport (stencil.move pans it) + a body whose fullscreen class is
+// A mutable stub viewport (stencil.move pans it) + a body whose fullscreen class is
 // driven by a flag the toggleFullscreen mock flips, so move/fullscreen are observable.
 const viewport = { scrollLeft: 0, scrollTop: 0 };
 let bodyFullscreen = false;
-globalThis.document = globalThis.document ?? {
-  querySelectorAll: () => [],
+installDom({
   getElementById: (id) => (id === 'canvas-viewport' ? viewport : null),
-  createElement: () => ({ getContext: () => null }),
   body: { classList: { contains: (c) => c === 'fullscreen-mode' && bodyFullscreen } },
-};
+});
 
 const { createStencil } = await import('../js/console/stencilApi.js');
 const { hotkeys } = await import('../js/core/hotkeys.js');
@@ -44,7 +44,7 @@ const makeApp = (over = {}) => {
     originalImage: null,
     scale: 1,
     // settings backing fields
-    color: '#ff0000', thickness: 2, markerSize: 5, style: 'solid',
+    color: '#ff0000', thickness: 2, pointSize: 5, style: 'solid',
     showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#000000',
     unit: 'cm', pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7,
     theme: 'dark', drawMode: 'line', holdDrawDelay: 500, allowFormulas: false, formulaX: '', formulaY: '',
@@ -98,7 +98,7 @@ const makeApp = (over = {}) => {
       app.lines.splice(idx, 1);
       app.saveHistory(); app.renderer.redraw();
     },
-    setColor: rec('setColor'), setThickness: rec('setThickness'), setMarkerSize: rec('setMarkerSize'),
+    setColor: rec('setColor'), setThickness: rec('setThickness'), setPointSize: rec('setPointSize'),
     setLineStyle: rec('setLineStyle'), setShowPoints: rec('setShowPoints'), setShowLines: rec('setShowLines'),
     setImageFilter: rec('setImageFilter'), setFilterColor: rec('setFilterColor'), setUnit: rec('setUnit'),
     setPageSize: rec('setPageSize'), setCustomPageWidth: rec('setCustomPageWidth'), setCustomPageHeight: rec('setCustomPageHeight'),
@@ -112,6 +112,7 @@ const makeApp = (over = {}) => {
     clearAllLines: rec('clearAllLines'), saveImage: rec('saveImage'),
     copyLayoutToClipboard: rec('copyLayoutToClipboard'), copyImageToClipboard: rec('copyImageToClipboard'),
     downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
+    installLayout: rec('installLayout'),
     newEditor: rec('newEditor'), updateIncognitoUI: rec('updateIncognitoUI'),
     renameProject: rec('renameProject'), renewProject: rec('renewProject'),
     setProjectExpiration(id, opts) {
@@ -146,11 +147,11 @@ const makeApp = (over = {}) => {
   // image-geometry / remote-sync / input calls through app.<collab>.<method>(). Delegate each to
   // the flat recorded (or per-test overridden) method so lastCall(app, name) assertions still hold.
   const delegate = (names) => Object.fromEntries(names.map((n) => [n, (...a) => app[n]?.(...a)]));
-  app.settings = delegate(['setColor', 'setThickness', 'setMarkerSize', 'setLineStyle', 'setShowPoints',
+  app.settings = delegate(['setColor', 'setThickness', 'setPointSize', 'setLineStyle', 'setShowPoints',
     'setShowLines', 'setImageFilter', 'setFilterColor', 'setPageSize', 'setCustomPageWidth',
     'setCustomPageHeight', 'setUnit', 'setAllowFormulas', 'setFormula', 'setTooltipOption', 'setVisualColor']);
   app.export = delegate(['saveImage', 'shareImage', 'downloadJSON', 'uploadJSON',
-    'copyImageToClipboard', 'copyLayoutToClipboard', 'applyPastedLayout']);
+    'copyImageToClipboard', 'copyLayoutToClipboard', 'applyPastedLayout', 'installLayout']);
   app.imageModel = delegate(['defaultCropRect', 'effectiveOriginalDims', 'effectiveOriginalDataUrl',
     'rebuildCroppedImage', 'rotateImage', 'applyCrop']);
   app.remoteSync = delegate(['scheduleRemoteSync', 'onServerProjectEvent', 'reloadRemoteActive', 'saveToServer']);
@@ -267,14 +268,14 @@ test('flipH/flipV/rotate90/rotateMinus90 route to the selected-line transforms (
 });
 
 test('line.apply batch-updates style props and normalizes color/fillColor', () => {
-  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, markerSize: 1, style: 'solid', fillColor: 'transparent', points: [] }] });
+  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, pointSize: 1, style: 'solid', fillColor: 'transparent', points: [] }] });
   const stencil = createStencil(app);
 
   stencil.lines[0].apply({ color: '#ABC', thickness: 3, pointSize: 7, style: 'dashed', fillColor: 'transparent' });
   const l = app.lines[0];
   assert.equal(l.color, '#aabbcc');
   assert.equal(l.thickness, 3);
-  assert.equal(l.markerSize, 7);   // pointSize alias → markerSize
+  assert.equal(l.pointSize, 7);   // pointSize alias → pointSize
   assert.equal(l.style, 'dashed');
   assert.equal(l.fillColor, 'transparent');
 });
@@ -368,7 +369,7 @@ test('stencil.projectColor reads the active meta colour and validates on set', (
   assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '#0EA5E9']);
   stencil.projectColor = '';
   assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '']);
-  assert.throws(() => { stencil.projectColor = 'not-a-colour'; }, /Invalid project colour/);
+  assert.throws(() => { stencil.projectColor = 'not-a-color'; }, /Invalid project color/);
 });
 
 test('stencil.projectColor throws with no active project', () => {
@@ -389,7 +390,7 @@ test('project.color get/set validates hex and routes to setProjectColor', () => 
   assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '#abc']);
   p.color = '';                           // clear is allowed
   assert.deepEqual(lastCall(app, 'setProjectColor'), ['setProjectColor', 1, '']);
-  assert.throws(() => { p.color = 'zzz'; }, /Invalid project colour/);
+  assert.throws(() => { p.color = 'zzz'; }, /Invalid project color/);
 });
 
 test('project.blank/blankColor: read-only blank flag, colour routes to setProjectBlankColor', () => {
@@ -405,7 +406,7 @@ test('project.blank/blankColor: read-only blank flag, colour routes to setProjec
   assert.equal(blankP.blankColor, '#00aaff');
   blankP.blankColor = '#ff0000';          // valid hex → routes to setProjectBlankColor
   assert.deepEqual(lastCall(app, 'setProjectBlankColor'), ['setProjectBlankColor', 1, '#ff0000']);
-  assert.throws(() => { blankP.blankColor = 'zzz'; }, /Invalid blank colour/);
+  assert.throws(() => { blankP.blankColor = 'zzz'; }, /Invalid blank color/);
 
   // A non-blank project: blank=false, blankColor=null, and setting throws (nothing to recolour).
   const imgP = stencil.getProjectByName('beta');
@@ -604,6 +605,82 @@ test('crop({ scale }) scales the rect about its centre via applyCrop; rejects no
   }
 });
 
+// ── crop({ aspect }) — port of core/tests/cropSpec.test.cpp's aspect cases ──────
+const makeAspectApp = (cropRect) => makeApp({
+  originalImage: {},
+  cropRect,
+  effectiveOriginalDims: () => ({ w: 4000, h: 4000 }),
+  getPageDimensions: () => ({ width: 21, height: 29.7 }),
+  canvas: { width: 200, height: 200 },
+  defaultCropRect: () => ({ x: 0, y: 0, width: 4000, height: 4000 }),
+  applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
+});
+const eq = (a, b) => Math.abs(a - b) < 1e-9;
+
+test('crop aspect shrinks the width about the centre', () => {
+  // Edge rect 200x100 is too wide for 1:1 → width shrinks to 100, centred at x=100.
+  const app = makeAspectApp({ x: 0, y: 0, width: 500, height: 500 });
+  createStencil(app).crop({ x1: '0px', x2: '200px', y1: '0px', y2: '100px', aspect: '1:1' });
+  const [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 50) && eq(r.y, 0) && eq(r.width, 100) && eq(r.height, 100), JSON.stringify(r));
+});
+
+test('crop aspect shrinks the height about the centre', () => {
+  // The same 200x100 rect is too tall for 4:1 → height shrinks to 50, centred at y=50.
+  const app = makeAspectApp({ x: 0, y: 0, width: 500, height: 500 });
+  createStencil(app).crop({ x1: '0px', x2: '200px', y1: '0px', y2: '100px', aspect: '4:1' });
+  const [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 0) && eq(r.y, 25) && eq(r.width, 200) && eq(r.height, 50), JSON.stringify(r));
+});
+
+test('crop aspect that already fits exactly is a no-op', () => {
+  const app = makeAspectApp({ x: 0, y: 0, width: 500, height: 500 });
+  createStencil(app).crop({ x1: '10px', x2: '210px', y1: '20px', y2: '120px', aspect: '2:1' });
+  const [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 10) && eq(r.y, 20) && eq(r.width, 200) && eq(r.height, 100), JSON.stringify(r));
+});
+
+test('crop with only aspect applies to the current full rect', () => {
+  // No edges → the rect stays the current crop (headless: the full image), then fits 1:1.
+  let app = makeAspectApp({ x: 0, y: 0, width: 640, height: 480 });
+  createStencil(app).crop({ aspect: '1:1' });
+  let [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 80) && eq(r.y, 0) && eq(r.width, 480) && eq(r.height, 480), JSON.stringify(r));
+
+  // Already at the ratio → untouched.
+  app = makeAspectApp({ x: 0, y: 0, width: 640, height: 480 });
+  createStencil(app).crop({ aspect: '4:3' });
+  [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 0) && eq(r.width, 640) && eq(r.height, 480), JSON.stringify(r));
+});
+
+test('crop aspect keeps fractional centres exactly (no early rounding)', () => {
+  // 101x100 rect, 1:1 → width 100, so x moves by half a pixel: 0.5.
+  const app = makeAspectApp({ x: 0, y: 0, width: 500, height: 500 });
+  createStencil(app).crop({ x1: '0px', x2: '101px', y1: '0px', y2: '100px', aspect: '1:1' });
+  const [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.x, 0.5) && eq(r.width, 100) && eq(r.height, 100), JSON.stringify(r));
+});
+
+test('crop aspect degenerate result clamps to 1px, centre kept', () => {
+  const app = makeAspectApp({ x: 0, y: 0, width: 500, height: 500 });
+  createStencil(app).crop({ x1: '0px', x2: '100px', y1: '0px', y2: '100px', aspect: '1000:1' });
+  const [, r] = lastCall(app, 'applyCrop');
+  assert.ok(eq(r.width, 100), JSON.stringify(r));    // never grows past the resolved rect
+  assert.ok(eq(r.height, 1), JSON.stringify(r));     // 0.1px floored to 1px
+  assert.ok(eq(r.y, 49.5) && eq(r.x, 0), JSON.stringify(r));  // centre preserved
+});
+
+test('crop aspect invalid strings throw before any applyCrop commit', () => {
+  for (const bad of ['0:3', '4:0', '-4:3', '4:-3', '4', '4:', ':3', '4:3:2',
+                     'a:b', '4.5:3', '1e2:3', '']) {
+    const app = makeAspectApp({ x: 0, y: 0, width: 640, height: 480 });
+    assert.throws(() => createStencil(app).crop({ aspect: bad }),
+                  /crop aspect must be "W:H" with positive integers/, JSON.stringify(bad));
+    assert.equal(called(app, 'applyCrop').length, 0);
+  }
+});
+
 // ── Incognito toggle guard ────────────────────────────────────────────────────────
 test('incognito setter only enables on a blank editor', () => {
   const app = makeApp();
@@ -654,8 +731,8 @@ test('every documented flattened setting routes to its app setter with the expec
     ['unit', 'setUnit', 'in', 'in'],
     ['lineColor', 'setColor', '#abcdef', '#abcdef'],
     ['thickness', 'setThickness', 3, 3],
-    ['pointSize', 'setMarkerSize', 9, 9],
-    ['markerSize', 'setMarkerSize', 9, 9],
+    ['pointSize', 'setPointSize', 9, 9],
+    ['pointSize', 'setPointSize', 9, 9],
     ['lineStyle', 'setLineStyle', 'dashed', 'dashed'],
     ['pointStyle', 'setShowPoints', true, true],
     ['showPoints', 'setShowPoints', true, true],
@@ -723,6 +800,29 @@ test('tooltip sections, imageSize, and layout get/set route to the app', () => {
 
   stencil.layout = { foo: 1 };
   assert.deepEqual(lastCall(app, 'applyPastedLayout'), ['applyPastedLayout', { foo: 1 }]);
+});
+
+test('setLines installs lines silently — no paste prompt, no toast, optional undo', () => {
+  // `stencil.layout = …` is the clipboard-paste path (it can raise "Replace layout?" and
+  // always toasts). setLines is the programmatic one: same install, none of the UI.
+  const app = makeApp({ image: { width: 800, height: 600 } });
+  const stencil = createStencil(app);
+  const lines = [{ points: [{ x: 1, y: 2 }], color: '#ff0000' }];
+
+  stencil.setLines(lines, { history: false });
+  // The current image dims ride along so validateLayout sees a matching size.
+  assert.deepEqual(lastCall(app, 'installLayout'),
+    ['installLayout', { imageWidth: 800, imageHeight: 600, lines }, { history: false }]);
+  // It never reaches the paste path, so nothing can prompt or toast.
+  assert.equal(app.calls.filter((c) => c[0] === 'applyPastedLayout').length, 0);
+
+  // Defaults keep the change undoable; a non-array is treated as "no lines".
+  stencil.setLines(lines);
+  assert.deepEqual(lastCall(app, 'installLayout')[2], {});
+  stencil.setLines(null);
+  assert.deepEqual(lastCall(app, 'installLayout')[1].lines, []);
+  // Chainable like the rest of the facade.
+  assert.equal(stencil.setLines([]), stencil);
 });
 
 test('px2Page / page2Px convert via the app mapping', () => {
@@ -795,13 +895,13 @@ test('active project: source/resource/imageName set live; size/isOpened/layout r
 
 // ── Line individual setters + point setters/remove ──────────────────────────────────
 test('individual line setters commit each change', () => {
-  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, markerSize: 1, style: 'solid', fillColor: 'transparent', points: [{ x: 0, y: 0 }] }] });
+  const app = makeApp({ lines: [{ color: '#000000', thickness: 1, pointSize: 1, style: 'solid', fillColor: 'transparent', points: [{ x: 0, y: 0 }] }] });
   const stencil = createStencil(app);
   const line = stencil.lines[0];
 
   line.color = '#ABC';      assert.equal(app.lines[0].color, '#aabbcc');
   line.thickness = 4;       assert.equal(app.lines[0].thickness, 4);
-  line.markerSize = 8;      assert.equal(app.lines[0].markerSize, 8);
+  line.pointSize = 8;      assert.equal(app.lines[0].pointSize, 8);
   line.style = 'dotted';    assert.equal(app.lines[0].style, 'dotted');
   line.fillColor = '#3399ff'; assert.equal(app.lines[0].fillColor, '#3399ff');
   line.fillColor = null;    assert.equal(app.lines[0].fillColor, 'transparent');   // null → transparent
@@ -878,4 +978,60 @@ test('layout setter routes to applyPastedLayout → validateLayout without pollu
   assert.deepEqual(app.lines[0].points, [{ x: 1, y: 2 }]);
   assert.equal(app.lines[0].color, '#ff0000');
   assert.ok(!Object.prototype.hasOwnProperty.call(app.lines[0], '__proto__'));
+});
+
+// ── load(url, { incognito }) — llm-contract.md §10 openUrl, adopt-in-place ──────────
+// The chat's incognito openUrl runs THROUGH this: the editor becomes a fresh incognito
+// session and the picture lands in the SAME tab, so the conversation driving it (and
+// every later action in the plan) still has the working image in front of it.
+const stubFetch = (blob) => installFetchStub(blob instanceof Error ? blob : { blob }).restore;
+
+test('load({ incognito }) adopts incognito in place and loads here — no new tab', async () => {
+  const app = makeApp();
+  app.adoptIncognitoHere = () => {
+    app.calls.push(['adoptIncognitoHere']);
+    app.storage.incognito = true;
+    app.image = null;
+  };
+  app.loadImageFromFile = (file, opts) => {
+    app.calls.push(['loadImageFromFile', file.name, opts]);
+    app.image = { width: 4, height: 3 };
+  };
+  const stencil = createStencil(app);
+  const restore = stubFetch(new Blob(['x'], { type: 'image/png' }));
+  try {
+    await stencil.load('https://pics.example/cat.png', { incognito: true });
+  } finally { restore(); }
+
+  const order = app.calls.map(([n]) => n).filter((n) => n === 'adoptIncognitoHere' || n === 'loadImageFromFile');
+  assert.deepEqual(order, ['adoptIncognitoHere', 'loadImageFromFile']);
+  assert.equal(app.storage.incognito, true);
+  assert.deepEqual(app.image, { width: 4, height: 3 });
+});
+
+test('load() without incognito never resets the editor', async () => {
+  const app = makeApp();
+  app.adoptIncognitoHere = () => { app.calls.push(['adoptIncognitoHere']); };
+  app.loadImageFromFile = () => { app.image = { width: 4, height: 3 }; };
+  const stencil = createStencil(app);
+  const restore = stubFetch(new Blob(['x'], { type: 'image/png' }));
+  try {
+    await stencil.load('https://pics.example/cat.png');
+  } finally { restore(); }
+  assert.equal(called(app, 'adoptIncognitoHere').length, 0);
+  assert.equal(app.storage.incognito, false);
+});
+
+test('a failed fetch leaves the editor alone — the adoption never runs', async () => {
+  const app = makeApp();
+  app.image = { width: 9, height: 9 };
+  app.adoptIncognitoHere = () => { app.calls.push(['adoptIncognitoHere']); };
+  const stencil = createStencil(app);
+  const restore = stubFetch(new Error('offline'));
+  try {
+    await assert.rejects(() => stencil.load('https://pics.example/cat.png', { incognito: true }), /offline/);
+  } finally { restore(); }
+  assert.equal(called(app, 'adoptIncognitoHere').length, 0);
+  assert.equal(app.storage.incognito, false);
+  assert.deepEqual(app.image, { width: 9, height: 9 });
 });

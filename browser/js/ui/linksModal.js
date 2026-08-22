@@ -5,8 +5,8 @@ import { icon } from './icons.js';
 // ── Component: source/resource links modal ──────────────────────
 // Opened from the toolbar 🔗 button: view/edit the CURRENT image's provenance — its
 // name, the source image/video URL, and the originating web page (resource). Edits are
-// live (each field commits on change). Adding a NEW image by URL now lives in the
-// unified Open dialog (openImageModal), so this modal only edits what's already loaded.
+// live (each field commits on change). Adding a NEW image by URL lives in the unified
+// Open dialog (openImageModal); this modal only edits what's already loaded.
 export class StencilLinksModal extends StencilElement {
   static inner() {
     return `

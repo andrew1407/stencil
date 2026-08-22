@@ -1,14 +1,19 @@
 // ── Page-API bridge (ISOLATED world) ────────────────────────────────────────
-// The page-global window.stencil lives in the MAIN world (content/pageApiMain.js) so
-// its entries can hold live DOM elements — but MAIN has no chrome.* APIs. This ISOLATED
-// script shares the page's `window` message bus with MAIN and relays the API's action
-// requests to the SW (owner of chrome.tabs / chrome.scripting). Fire-and-forget:
-// opening the editor / crop is one-way, no response plumbed back.
+// window.stencil lives in the MAIN world (content/pageApiMain.js) so entries can hold
+// live DOM elements — but MAIN has no chrome.*. This ISOLATED script shares the page's
+// `window` message bus and relays the API's action requests to the SW. Fire-and-forget:
+// no response is plumbed back.
 if (!window.__stencilPageBridge) {
   window.__stencilPageBridge = true;
   // mirror of lib/messages.js (classic content script — can't import)
   const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited', PAGE_HL_COLOR: 'stencil-page-hl-color' };
   const MSG = { PAGE_SET_FILTERS: 'stencil-page-set-filters', PAGE_REQUEST_SYNC: 'stencil-page-request-sync' };
+  // What this bridge forwards to the worker. It runs on EVERY page browsed, and
+  // `e.source === window` only proves same-document — unrestricted, any site could post the
+  // cross-tab types. These four are the page API's own surface, all scoped to this page.
+  const RELAYABLE = new Set([
+    'stencil-page-open', 'stencil-page-crop', 'stencil-page-pin', 'stencil-page-disable',
+  ]);
   const FILTERS_KEY = 'popupFilters';   // must match popup.js — the page API ↔ popup shared filter state
   const PINS_KEY = 'stencil-pinned';    // must match lib/pins.js
   const LEDGER_KEY = 'stencil-opened';  // must match lib/ledger.js
@@ -76,6 +81,7 @@ if (!window.__stencilPageBridge) {
       try { chrome.storage.local.set({ [FILTERS_KEY]: m.filters || {} }); } catch { /* storage gone */ }
       return;
     }
+    if (!RELAYABLE.has(m.type)) return;
     try {
       chrome.runtime.sendMessage(m).catch(() => { /* SW asleep / context gone */ });
     } catch { /* extension context invalidated */ }

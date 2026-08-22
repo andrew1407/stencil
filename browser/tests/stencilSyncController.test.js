@@ -1,19 +1,19 @@
-// Drives the REAL StencilSync controller loop against a fake FileSystemFileHandle + app:
+// Drives the REAL StencilSync controller loop against a stub FileSystemFileHandle + app:
 // auto-save writes the file, an external change applies in place, and a conflict prompts and
 // resolves. Exercises the actual write/read/classify/apply paths (no browser needed).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { StencilSync } from '../js/core/stencilSync.js';
 
-// Node has no localStorage; give the controller a tiny in-memory one so liveSync persists.
-globalThis.localStorage = {
-  _s: {}, getItem(k) { return this._s[k] ?? null; }, setItem(k, v) { this._s[k] = String(v); },
-};
+// Node has no localStorage; give the controller an in-memory one so liveSync persists.
+import { installMemoryStorage } from './helpers/memoryStorage.js';
+
+installMemoryStorage();
 
 const RED = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO4Y2T0HwAFbgJAIh+PxAAAAABJRU5ErkJggg==';
 
-// A fake handle backed by an in-memory string; _extWrite() simulates another app editing it.
-function fakeHandle(initial) {
+// a stub handle backed by an in-memory string; _extWrite() simulates another app editing it.
+function stubHandle(initial) {
   let content = initial, mtime = 1;
   return {
     name: 'demo.stencil',
@@ -27,7 +27,7 @@ function fakeHandle(initial) {
 }
 
 // A minimal app whose project is just a line count; serialization varies with it.
-function fakeApp(conflictChoice = 'theirs') {
+function stubApp(conflictChoice = 'theirs') {
   return {
     lineCount: 1,
     applied: [],
@@ -45,10 +45,10 @@ function fakeApp(conflictChoice = 'theirs') {
 }
 
 test('auto-save writes the linked file after an edit', async (t) => {
-  const app = fakeApp();
+  const app = stubApp();
   const s = new StencilSync(app);
   t.after(() => s.unlink());
-  const h = fakeHandle('{}');
+  const h = stubHandle('{}');
   s.liveSync = true;
   await s.link(h, 'demo.stencil');
   app.lineCount = 3;             // the user drew two more lines…
@@ -58,10 +58,10 @@ test('auto-save writes the linked file after an edit', async (t) => {
 });
 
 test('an external change (file edited elsewhere) is applied in place', async (t) => {
-  const app = fakeApp();
+  const app = stubApp();
   const s = new StencilSync(app);
   t.after(() => s.unlink());
-  const h = fakeHandle('{}');
+  const h = stubHandle('{}');
   s.liveSync = true;
   await s.link(h, 'demo.stencil');           // baseline = "{}" ... then seed a real doc as the file
   // Simulate another client writing a valid 2-line project.
@@ -76,10 +76,10 @@ test('an external change (file edited elsewhere) is applied in place', async (t)
 });
 
 test('a conflict (both changed) prompts and, on "theirs", reloads the file', async (t) => {
-  const app = fakeApp('theirs');
+  const app = stubApp('theirs');
   const s = new StencilSync(app);
   t.after(() => s.unlink());
-  const h = fakeHandle('{}');
+  const h = stubHandle('{}');
   s.liveSync = true;
   await s.link(h, 'demo.stencil');
   app.lineCount = 5;                           // un-synced local edits…
@@ -93,10 +93,10 @@ test('a conflict (both changed) prompts and, on "theirs", reloads the file', asy
 });
 
 test('merge choice unions lines and writes the merged result back', async (t) => {
-  const app = fakeApp('merge');
+  const app = stubApp('merge');
   const s = new StencilSync(app);
   t.after(() => s.unlink());
-  const h = fakeHandle('{}');
+  const h = stubHandle('{}');
   s.liveSync = true;
   await s.link(h, 'demo.stencil');
   app.lineCount = 4;

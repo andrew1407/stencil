@@ -2,8 +2,10 @@
 // The pure helpers (buildLaunchUrl, filenameFromUrl, guessMime) are unit-tested;
 // the rest wrap chrome.* and are service-worker-safe (no FileReader / DOM).
 import { mountStencilModal } from './overlay.js';
+import { loadShellTheme } from './shellTheme.js';
 import { recordOpened } from './ledger.js';
 import { sourceOf } from './imageModel.js';
+import { isAllowedImageUrl } from './urlGuard.js';
 import { MSG } from './messages.js';
 
 export const DEFAULT_EDITOR_URL = 'http://localhost:8080/';
@@ -14,7 +16,7 @@ export const DEFAULT_DESKTOP_SCHEME = 'stencil';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {
-  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, highlightColor: 'theme', exposeWindowStencil: false, desktopScheme: DEFAULT_DESKTOP_SCHEME, telegramBotUsername: '' });
+  const s = await chrome.storage.sync.get({ editorUrl: DEFAULT_EDITOR_URL, page: DEFAULT_PAGE, markOpened: true, openedFirst: true, showPinned: true, hoverHighlight: false, highlightColor: 'theme', exposeWindowStencil: false, editorPageApi: true, desktopScheme: DEFAULT_DESKTOP_SCHEME, telegramBotUsername: '' });
   return {
     editorUrl: (s.editorUrl || DEFAULT_EDITOR_URL).trim() || DEFAULT_EDITOR_URL,
     page: s.page || DEFAULT_PAGE,
@@ -40,7 +42,10 @@ export const getSettings = async () => {
     hoverHighlight: s.hoverHighlight === true,
     // Whether to inject a page-global `window.stencil` scripting API into every page
     // (default OFF — touches every page's main world, so strictly opt-in).
-    exposeWindowStencil: s.exposeWindowStencil === true
+    exposeWindowStencil: s.exposeWindowStencil === true,
+    // Whether the EDITOR page gets `stencil.extension`. Default ON: unlike exposeWindowStencil
+    // it touches exactly one origin — the configured editor, our own front-end.
+    editorPageApi: s.editorPageApi !== false
   };
 };
 
@@ -48,40 +53,44 @@ export const setSettings = async (patch) => {
   await chrome.storage.sync.set(patch);
 };
 
-/**
- * `${origin}/*` match pattern for the configured editor, or null when the editorUrl
- * isn't an http(s) origin we can scope tabs.query / a content script to. Shared by the
- * background bridge registration and resumeInOpenEditor.
- * @returns {Promise<string|null>}
- */
-export const editorOriginPattern = async () => {
+// `${origin}/*` match pattern for a URL, or null when it isn't an http(s) origin we
+// can scope tabs.query / a content script / a permission request to.
+export const originPattern = (url) => {
   try {
-    const { editorUrl } = await getSettings();
-    const origin = new URL(editorUrl).origin;
+    const origin = new URL(url).origin;
     return origin.startsWith('http') ? `${origin}/*` : null;
   } catch {
     return null;
   }
 };
 
-/**
- * Resume an already-opened image in the editor tab that's ALREADY open, rather than
- * spawning a new one: focus that tab/window and ask its (same-origin) editorBridge to
- * switch to the matching project — no navigation, so nothing in the tab is lost.
- * @param {object} args
- * @param {string} args.source - The image's own URL (matched against the editor's projects).
- * @param {string} [args.name] - The image name (fallback match when no source).
- * @returns {Promise<boolean>} true when an open editor tab handled it; false to fall back
- *   to opening a new tab (no editor open, or the bridge didn't answer).
- */
+// originPattern for the configured editor. Shared by the background bridge
+// registration and resumeInOpenEditor.
+export const editorOriginPattern = async () => {
+  try {
+    return originPattern((await getSettings()).editorUrl);
+  } catch {
+    return null;
+  }
+};
+
+// Bring a tab to the front: select it AND raise its window (two calls — selecting a tab
+// in a background window leaves it hidden). Shared so "focus that editor" means one thing.
+export const focusTab = async (tab) => {
+  await chrome.tabs.update(tab.id, { active: true });
+  if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+};
+
+// Resume an already-opened image in the editor tab that's ALREADY open: focus that tab
+// and ask its (same-origin) editorBridge to switch to the matching project — no
+// navigation, nothing lost. False = fall back to opening a new tab.
 export const resumeInOpenEditor = async ({ source, name }) => {
   const pattern = await editorOriginPattern();
   if (!pattern) return false;
   try {
     const [tab] = await chrome.tabs.query({ url: [pattern] });
     if (!tab || tab.id == null) return false;
-    await chrome.tabs.update(tab.id, { active: true });
-    if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    await focusTab(tab);
     // Throws if no editorBridge is listening (e.g. a very old tab we couldn't inject) →
     // caller falls back to a fresh tab.
     await chrome.tabs.sendMessage(tab.id, { type: MSG.EDITOR_SWITCH, source, name });
@@ -101,19 +110,26 @@ const arrayBufferToBase64 = (buf) => {
   return btoa(binary);
 };
 
-/**
- * Fetch any image URL (http(s)/blob:/data:) and return it as a data URL. The
- * extension's host_permissions bypass page CORS → no tainted canvas.
- * @param {string} url - The image URL (data: URLs pass through unchanged).
- * @returns {Promise<string>} A `data:<mime>;base64,<…>` URL.
- * @throws {Error} On a non-OK response or a video/audio source.
- */
-export const fetchAsDataUrl = async (url) => {
-  if (url.startsWith('data:')) return url;
+// Fetch any image URL (http(s)/blob:/data:) and return it as a data URL — see
+// fetchAsDataUrl below. The extension's host_permissions bypass page CORS → no tainted canvas.
+// A data: URL that declares an image — handlers taking a caller-supplied `dataUrl`
+// instead of fetching one must still check it. SVG is allowed (the editor renders it).
+export const isImageDataUrl = (s) => typeof s === 'string' && /^data:image\/[a-z0-9.+-]+[;,]/i.test(s);
+
+export const fetchAsDataUrl = async (url, { pageUrl = '' } = {}) => {
+  // Pass through without a fetch, but only when it declares an image.
+  if (url.startsWith('data:')) {
+    if (!isImageDataUrl(url)) throw new Error('data: URL is not an image');
+    return url;
+  }
   // Scheme allowlist: the extension's host_permissions let fetch() reach ANY URL and
   // bypass CORS, so a page-supplied `file:`, `ftp:`, `chrome:` etc. must be refused —
   // only http(s)/blob image URLs are fetched. Mirrors the browser app's deep-link allowlist.
   if (!/^(https?|blob):/i.test(url)) throw new Error('unsupported URL scheme');
+  // SSRF guard: these URLs are harvested from pages, so loopback/private/link-local/
+  // metadata literals are refused (urlGuard.js). `pageUrl` (TRUSTED — sender.tab.url or
+  // a scan-recorded resource, never page-supplied) lets the page's OWN host through.
+  if (!isAllowedImageUrl(url, { allowSameHostAs: pageUrl })) throw new Error('blocked private or internal address');
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const type = resp.headers.get('content-type') || guessMime(url);
@@ -131,12 +147,7 @@ export const guessMime = (url) => {
   return ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml', ico: 'image/x-icon', tif: 'image/tiff' })[ext] || `image/${ext}`;
 };
 
-/**
- * Derive a reasonable download / project filename from an image URL.
- * @param {string} url - The image URL (http(s) or data:).
- * @param {string} [fallback='image'] - Base name when none can be parsed.
- * @returns {string} A filename with an extension (e.g. "cat.png").
- */
+// Derive a reasonable download / project filename (with extension) from an image URL.
 export const filenameFromUrl = (url, fallback = 'image') => {
   try {
     if (url.startsWith('data:')) {
@@ -153,39 +164,18 @@ export const filenameFromUrl = (url, fallback = 'image') => {
   }
 };
 
-/**
- * Build the editor launch URL. The image + options ride in the URL fragment
- * (`#stencil=…`) so they never reach the server (read in applyExternalLaunch()).
- * @param {string} editorUrl - The editor page URL (any existing fragment is dropped).
- * @param {object} payload - The launch payload ({dataUrl, name?, crop?, …}).
- * @returns {string} The editor URL with the encoded payload fragment.
- */
+// Build the editor launch URL. The image + options ride in the URL fragment
+// (`#stencil=…`) so they never reach the server (read in applyExternalLaunch()).
 export const buildLaunchUrl = (editorUrl, payload) => {
   const base = editorUrl.split('#')[0];
   return `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
 };
 
-/**
- * Assemble the editor/crop hand-off payload — the single shape every surface sends to
- * `openEditorTab` / `launchEditorModal` (and whose `source`/`resource` `launchCrop`
- * reuses): `{ dataUrl, name, page:{size}, source, resource, incognito[, open] }`.
- *
- * Folds in the shared-provenance rule: a shared (server) row carries its OWN
- * source/resource; a plain page image derives its source (`sourceOf`, or an explicit
- * `image.source` for the background relays that pre-resolve it) and takes the caller's
- * page URL as the resource. `open` ('resume'|'copy') is omitted when undefined so a
- * plain open imports fresh.
- *
- * @param {object} image - A scanned/shared popup row ({name, shared?, source?, src?,
- *   videoUrl?, kind?}) or a resolved `{name, source}` descriptor (background relays).
- * @param {object} [opts]
- * @param {string} [opts.dataUrl] - The image bytes as a data URL.
- * @param {string} [opts.page]    - Page size key (e.g. 'A3'); wrapped as `page:{size}`.
- * @param {string} [opts.resource]- The page URL the image came from (non-shared resource).
- * @param {boolean}[opts.incognito]
- * @param {string} [opts.open]    - 'resume' | 'copy'; omitted when undefined.
- * @returns {object} The hand-off payload.
- */
+// Assemble the editor/crop hand-off payload — the single shape every surface sends to
+// openEditorTab / launchEditorModal: { dataUrl, name, page:{size}, source, resource,
+// incognito[, open] }. Shared (server) rows carry their OWN source/resource; page images
+// derive source and take the caller's page URL as resource. `open` ('resume'|'copy') is
+// omitted when undefined so a plain open imports fresh.
 export const buildHandoff = (image, { dataUrl, page, resource, incognito = false, open } = {}) => {
   const payload = {
     dataUrl,
@@ -205,12 +195,7 @@ export const buildHandoff = (image, { dataUrl, page, resource, incognito = false
 // Past it Chrome drops the navigation and the editor tab lands on about:blank.
 export const MAX_PAYLOAD = 1_800_000;
 
-/**
- * Encode a Blob as a data URL without FileReader (so it works in the service
- * worker too).
- * @param {Blob} blob - The blob to encode.
- * @returns {Promise<string>} A `data:<type>;base64,<…>` URL.
- */
+// Encode a Blob as a data URL without FileReader (so it works in the service worker too).
 export const blobToDataUrl = async (blob) =>
   `data:${blob.type || 'image/jpeg'};base64,${arrayBufferToBase64(await blob.arrayBuffer())}`;
 
@@ -244,10 +229,8 @@ const fitLaunchPayload = async (editorUrl, payload) => {
 };
 
 // Build the editor launch URL, shrinking the image if needed to stay under the length
-// limit. Shared by the tab and in-page-modal launchers.
-//   payload = { dataUrl, name?, crop?, page?, source?, resource?, open?, incognito? }
-// `source`/`resource` = image's own URL and the page it came from; `open` ('resume'|
-// 'copy') tells the editor to switch to a matching project or force a copy.
+// limit. Shared by the tab and in-page-modal launchers. `source`/`resource` = the
+// image's own URL + its page; `open` ('resume'|'copy') switches to a matching project.
 const buildEditorLaunchUrl = async (payload) => {
   const { editorUrl } = await getSettings();
   const fitted = await fitLaunchPayload(editorUrl, payload);
@@ -265,27 +248,17 @@ const noteOpened = async (payload) => {
   await recordOpened({ source: payload.source, resource: payload.resource, name: payload.name, editorUrl });
 };
 
-/**
- * Open the full editor in a NEW browser tab with the given image payload. The
- * editor's own multi-project / cross-tab UI surfaces any already-open editors.
- * @param {object} payload - Launch payload ({dataUrl, name?, crop?, source?,
- *   resource?, open?, incognito?}).
- * @returns {Promise<chrome.tabs.Tab>} The created tab.
- */
+// Open the full editor in a NEW browser tab with the given image payload. The editor's
+// own multi-project / cross-tab UI surfaces any already-open editors.
 export const openEditorTab = async (payload) => {
   const tab = await chrome.tabs.create({ url: await buildEditorLaunchUrl(payload) });
   await noteOpened(payload);
   return tab;
 };
 
-/**
- * Open the full editor as a small in-page modal on the given tab (mirrors
- * launchCrop). Falls back to a real tab when `tabId` is null, or when the modal
- * can't be injected (restricted page) / the editor frame is later CSP-blocked.
- * @param {object} args - Launch payload plus `tabId`:
- *   {dataUrl, name?, crop?, page?, source?, resource?, open?, incognito?, tabId}.
- * @returns {Promise<chrome.tabs.Tab|void>} The fallback tab when one is opened.
- */
+// Open the full editor as a small in-page modal on the given tab (mirrors launchCrop).
+// Falls back to a real tab when `tabId` is null, the modal can't be injected
+// (restricted page), or the editor frame is later CSP-blocked.
 export const launchEditorModal = async ({ tabId, ...payload }) => {
   const url = await buildEditorLaunchUrl(payload);
   if (tabId == null) {
@@ -296,7 +269,9 @@ export const launchEditorModal = async ({ tabId, ...payload }) => {
   const title = payload.incognito ? 'Stencil editor (incognito)' : 'Stencil editor';
   try {
     await chrome.scripting.executeScript({
-      target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, title, 8000]
+      // The shell can't read our CSS variables from inside someone else's page, so the
+      // user's Appearance + accent choice travels with it as data (lib/shellTheme.js).
+      target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, title, 8000, await loadShellTheme()]
     });
     await noteOpened(payload);
   } catch {
@@ -312,18 +287,9 @@ export const CROP_SRC_KEY = 'stencil-crop-src';
 // to the post-crop editor hand-off so a cropped image keeps where it came from.
 export const CROP_META_KEY = 'stencil-crop-meta';
 
-/**
- * Open the quick-crop tool as a small in-page modal on the given tab. Falls back
- * to a real tab when the modal can't be injected (restricted page) / the frame is
- * CSP-blocked. `source`/`resource` ride along (via session storage) so the cropped
- * result keeps its provenance.
- * @param {object} args
- * @param {string} args.src - The image data/URL to crop.
- * @param {string} [args.source] - The image's own URL (provenance).
- * @param {string} [args.resource] - The page URL the image came from (provenance).
- * @param {number} [args.tabId] - Tab to mount the modal on; null opens a tab.
- * @returns {Promise<chrome.tabs.Tab|void>} The fallback tab when one is opened.
- */
+// Open the quick-crop tool as a small in-page modal on the given tab (falls back to a
+// real tab when the modal can't be injected / the frame is CSP-blocked). `source`/
+// `resource` ride along via session storage so the cropped result keeps its provenance.
 export const launchCrop = async ({ src, source, resource, tabId }) => {
   try {
     await chrome.storage.session.set({ [CROP_SRC_KEY]: src, [CROP_META_KEY]: { source: source || '', resource: resource || '' } });
@@ -333,8 +299,11 @@ export const launchCrop = async ({ src, source, resource, tabId }) => {
   const url = chrome.runtime.getURL('src/crop/crop.html');
   if (tabId == null) return chrome.tabs.create({ url });
   try {
+    // Explicit ready timeout, matching the editor modal's: the watchdog only catches a
+    // frame the page's CSP blocked outright, so it must not race the crop page's own
+    // load (a short one would close a WORKING modal and re-open the crop page in a tab).
     await chrome.scripting.executeScript({
-      target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, 'Quick crop']
+      target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, 'Quick crop', 8000, await loadShellTheme()]
     });
   } catch {
     return chrome.tabs.create({ url });

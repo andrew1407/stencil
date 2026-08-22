@@ -26,12 +26,10 @@ export const readOpenProjectId = (search = '') => {
 export const buildOpenProjectUrl = (base, id) =>
   `${base}?${OPEN_PARAM}=${encodeURIComponent(id)}`;
 
-// Build a URL that hands a full image off to a fresh tab via the `#stencil=<JSON>`
-// fragment consumed by DrawingApp.applyExternalLaunch (shape
-// { dataUrl, name?, incognito?, ... }). The payload rides in the fragment (not the
-// query) so it stays off server logs and out of history after the receiver strips it.
-// This is the only vehicle that works for incognito launches, since those are never
-// persisted and so cannot be referenced by `?open=<id>`.
+// Build a URL that hands a full image to a fresh tab via the `#stencil=<JSON>` fragment
+// consumed by DrawingApp.applyExternalLaunch. The payload rides in the fragment (not the
+// query) so it stays off server logs and out of history; it is also the only vehicle for
+// incognito launches, which are never persisted and so cannot ride `?open=<id>`.
 export const buildExternalLaunchUrl = (base, payload) =>
   `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
 
@@ -79,7 +77,7 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   : Buffer.from(bin, 'binary').toString('base64'));
 
 // Encode (server origin, project id) into a t.me start payload:
-// "1" (version marker) + base64url("host[:port]|projectId"), padding stripped.
+// "1" (version prefix) + base64url("host[:port]|projectId"), padding stripped.
 // Returns null when the result would exceed Telegram's 64-char limit — callers must
 // then fall back to showing copyable `/connect <url>` + `/fetch <id>` commands.
 // The identical codec exists in desktop/src/app/deepLink.cpp and
@@ -101,6 +99,10 @@ export const buildTelegramLink = (botUsername, payload) =>
 // inside launch.html (served next to the app), which forwards to the scheme URL.
 export const buildDesktopBounceUrl = (browserBase, stencilUrl) =>
   `${String(browserBase || '').replace(/\/+$/, '')}/launch.html#stencil-desktop=${encodeURIComponent(stencilUrl)}`;
+
+// Largest inbound dataUrl accepted (chars ≈ bytes for base64): the server's 32 MiB
+// MaxBodyBytes — far above the extension's 1.8M-char fragment clamp, but a hard bound.
+export const LAUNCH_DATA_URL_MAX = 32 * 1024 * 1024;
 
 // Validate + classify an inbound `#stencil=` payload. Returns null for junk, else
 // { kind: 'server'|'dataUrl'|'src', ...normalized fields }. Precedence when several
@@ -146,6 +148,7 @@ export const normalizeLaunchPayload = (payload) => {
   // Only a real data: URL may ride the dataUrl slot (the receiver fetch()es it) — a remote
   // image belongs in `src`, scheme-checked below.
   const dataUrl = str(payload.dataUrl);
+  if (dataUrl && dataUrl.length > LAUNCH_DATA_URL_MAX) return null;
   if (dataUrl && /^data:/i.test(dataUrl)) return { kind: 'dataUrl', dataUrl, ...common };
   const src = str(payload.src);
   if (src && /^https?:/i.test(src)) return { kind: 'src', src, ...common };

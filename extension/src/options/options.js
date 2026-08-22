@@ -1,8 +1,14 @@
-import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl } from '../lib/stencil.js';
+import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl, originPattern } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins, setPinKeywords, pinMatchesSearch, pinKeywords } from '../lib/pins.js';
-import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer } from '../lib/connections.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer, normalizeUrl } from '../lib/connections.js';
+import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
+import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
+import { listModels } from '../llm/llmClient.js';
+import { serverTokenFor } from '../llm/llmSurface.js';
+import { initTooltips } from '../lib/controlTooltip.js';
+import { enhanceSelect } from '../lib/customSelect.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
 // up by lib/accent.js) so it applies flash-free across the extension's pages. It
@@ -46,7 +52,10 @@ if (accent) {
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const open = () => { menu.hidden = false; trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
   const close = () => { menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
-  const choose = (key) => { value = accent.set(key); sync(); close(); };
+  // The wipe starts at the dropdown TRIGGER, not at the option row: the menu is gone by
+  // the time the palette floods, and a row near the top of a scrolled menu would look
+  // like the colour came out of a corner.
+  const choose = (key) => { value = accent.set(key, trigger); sync(); close(); };
 
   trigger.addEventListener('click', () => { menu.hidden ? open() : close(); });
   sync();
@@ -58,7 +67,10 @@ const themePref = window.StencilTheme;
 const appearance = document.getElementById('appearance');
 if (themePref && appearance) {
   const syncAppearance = () => { appearance.value = themePref.get(); };
-  appearance.addEventListener('change', () => { themePref.set(appearance.value); syncAppearance(); });
+  // Anchor the wipe to the <select> itself. Choosing from a native dropdown fires no
+  // pointerdown in the page, so there is no press to read — and this page has no
+  // #theme-toggle to fall back to either.
+  appearance.addEventListener('change', () => { themePref.set(appearance.value, appearance); syncAppearance(); });
   themePref.onChange(syncAppearance);
   syncAppearance();
 }
@@ -81,12 +93,13 @@ hlColor.addEventListener('input', () => { hlColor.dataset.touched = '1'; });
 document.getElementById('page').innerHTML = pageSizeOptions();
 
 (async () => {
-  const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil, desktopScheme, telegramBotUsername } = await getSettings();
+  const { editorUrl, page, markOpened, openedFirst, highlightColor, exposeWindowStencil, editorPageApi, desktopScheme, telegramBotUsername } = await getSettings();
   document.getElementById('editorUrl').value = editorUrl;
   document.getElementById('page').value = page;
   document.getElementById('markOpened').checked = markOpened;
   document.getElementById('openedFirst').checked = openedFirst;
   document.getElementById('exposeWindowStencil').checked = exposeWindowStencil;
+  document.getElementById('editorPageApi').checked = editorPageApi;
   document.getElementById('desktopScheme').value = desktopScheme;
   document.getElementById('telegramBotUsername').value = telegramBotUsername;
   // A hex means custom; 'theme' (or anything else) means follow the accent.
@@ -101,18 +114,131 @@ document.getElementById('save').addEventListener('click', async () => {
   // Trim the "Open in…" operator config; a bare "@name" for the bot is tolerated.
   const desktopScheme = (document.getElementById('desktopScheme').value || '').trim();
   const telegramBotUsername = (document.getElementById('telegramBotUsername').value || '').trim().replace(/^@/, '');
-  await setSettings({ editorUrl, page: document.getElementById('page').value, markOpened: document.getElementById('markOpened').checked, openedFirst: document.getElementById('openedFirst').checked, highlightColor, exposeWindowStencil: document.getElementById('exposeWindowStencil').checked, desktopScheme, telegramBotUsername });
+  await setSettings({ editorUrl, page: document.getElementById('page').value, markOpened: document.getElementById('markOpened').checked, openedFirst: document.getElementById('openedFirst').checked, highlightColor, exposeWindowStencil: document.getElementById('exposeWindowStencil').checked, editorPageApi: document.getElementById('editorPageApi').checked, desktopScheme, telegramBotUsername });
   document.getElementById('telegramBotUsername').value = telegramBotUsername;
   document.getElementById('editorUrl').value = editorUrl;
   document.getElementById('status').innerHTML = icon('check', { size: 13 }) + ' Saved';
   setTimeout(() => { document.getElementById('status').textContent = ''; }, 1500);
 });
 
+// ── AI assistant (LLM) settings ──────────────────────────────────────────────
+// Persisted under the chrome.storage key `llmSettings` (llm-contract.md §5/§8). The
+// base/server URL is default-refilled per provider but stays editable;
+// ensureLlmHostPermission stays as a guard in case <all_urls> ever narrows.
+const llmProviderEl = document.getElementById('llm-provider');
+const llmBaseUrlEl = document.getElementById('llm-baseurl');
+const llmModelEl = document.getElementById('llm-model');
+const llmApiKeyEl = document.getElementById('llm-apikey');
+const llmServerUrlEl = document.getElementById('llm-serverurl');
+const llmServerTokenEl = document.getElementById('llm-servertoken');
+const llmShareTabsEl = document.getElementById('llm-sharetabs');
+const llmStatusEl = document.getElementById('llm-status');
+let llmStored = null;   // last-loaded settings, so switching providers restores saved URLs
+
+const syncLlmRows = () => {
+  const server = llmProviderEl.value === 'stencil-server';
+  const off = llmProviderEl.value === 'none';
+  document.getElementById('llm-base-rows').hidden = server || off;
+  document.getElementById('llm-server-rows').hidden = !server;
+  document.getElementById('llm-model-row').hidden = off;
+  document.getElementById('llm-tabs-row').hidden = off;   // nothing is sent when off
+};
+
+// Refill the base URL for the chosen provider: the saved value when the saved
+// provider matches, else the provider's default. Editable afterwards.
+const refillLlmBaseUrl = () => {
+  const p = llmProviderEl.value;
+  llmBaseUrlEl.value = (llmStored && llmStored.provider === p && llmStored.baseUrl)
+    ? llmStored.baseUrl
+    : (PROVIDER_BASE_URLS[p] || '');
+};
+
+// Model suggestions from the provider itself (browser/desktop parity): the datalist
+// refills from the CURRENTLY EDITED fields, best-effort — failures leave it empty.
+// A request counter drops stale async answers when the fields change mid-fetch.
+const llmModelListEl = document.getElementById('llm-model-list');
+let llmModelsReq = 0;
+const refreshLlmModels = async () => {
+  const req = ++llmModelsReq;
+  const settings = {
+    provider: llmProviderEl.value,
+    baseUrl: (llmBaseUrlEl.value || '').trim(),
+    apiKey: (llmApiKeyEl.value || '').trim(),
+    serverUrl: (llmServerUrlEl.value || '').trim(),
+    serverToken: (llmServerTokenEl.value || '').trim(),
+  };
+  const names = await listModels(settings, {
+    getToken: async (u) => serverTokenFor(u, { connections: await loadConnections(), settings }),
+  });
+  if (req !== llmModelsReq) return;   // fields changed while fetching
+  llmModelListEl.textContent = '';
+  for (const n of names) {
+    const opt = document.createElement('option');
+    opt.value = n;
+    llmModelListEl.appendChild(opt);
+  }
+};
+
+const loadLlmForm = async () => {
+  llmStored = await loadLlmSettings();
+  llmProviderEl.value = llmStored.provider;
+  llmModelEl.value = llmStored.model;
+  llmApiKeyEl.value = llmStored.apiKey;
+  llmServerUrlEl.value = llmStored.serverUrl;
+  llmServerTokenEl.value = llmStored.serverToken;
+  llmShareTabsEl.checked = llmStored.shareTabs === true;
+  refillLlmBaseUrl();
+  syncLlmRows();
+  refreshLlmModels();
+};
+
+llmProviderEl.addEventListener('change', () => { refillLlmBaseUrl(); syncLlmRows(); refreshLlmModels(); });
+llmBaseUrlEl.addEventListener('change', refreshLlmModels);
+llmApiKeyEl.addEventListener('change', refreshLlmModels);
+llmServerUrlEl.addEventListener('change', refreshLlmModels);
+llmServerTokenEl.addEventListener('change', refreshLlmModels);
+
+// Make sure the extension may fetch the configured origin: covered origins pass
+// silently; anything else is requested from the user (needs this click's gesture).
+const ensureLlmHostPermission = async (url) => {
+  const pattern = originPattern(url);
+  if (!pattern || !chrome.permissions) return true;
+  try {
+    if (await chrome.permissions.contains({ origins: [pattern] })) return true;
+    return await chrome.permissions.request({ origins: [pattern] });
+  } catch {
+    return true;   // permissions API unavailable — the fetch itself will surface any block
+  }
+};
+
+document.getElementById('llm-save').addEventListener('click', async () => {
+  const s = {
+    provider: llmProviderEl.value,
+    baseUrl: (llmBaseUrlEl.value || '').trim(),
+    model: (llmModelEl.value || '').trim(),
+    apiKey: (llmApiKeyEl.value || '').trim(),
+    serverUrl: (llmServerUrlEl.value || '').trim(),
+    serverToken: (llmServerTokenEl.value || '').trim(),
+    shareTabs: llmShareTabsEl.checked === true,
+  };
+  llmStored = await saveLlmSettings(s);
+  const active = s.provider === 'stencil-server' ? s.serverUrl : s.baseUrl;
+  const granted = active ? await ensureLlmHostPermission(active) : true;
+  llmStatusEl.innerHTML = icon('check', { size: 13 }) + ' Saved';
+  if (!granted) llmStatusEl.textContent = 'Saved — but access to that origin was not granted, so calls to it will fail.';
+  else setTimeout(() => { llmStatusEl.textContent = ''; }, 1500);
+});
+
+// Another surface (or window) changed the assistant settings — reload the form.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[LLM_SETTINGS_KEY]) loadLlmForm();
+});
+loadLlmForm();
+
 // ── Pinned-images viewer ─────────────────────────────────────────────────────
-// Browse every pin (chrome.storage.local, written by the popup / page API), grouped
-// by the site it was pinned on, with open-in-new-tab and unpin. Re-fetches each
-// thumbnail through the extension's host permissions when a bare <img> can't load it
-// (hotlink-protected) — same recovery the popup uses.
+// Browse every pin (chrome.storage.local), grouped by pinning site, with open and
+// unpin. Thumbnails a bare <img> can't load (hotlink-protected) are re-fetched
+// through the extension's host permissions — the popup's recovery.
 const siteSel = document.getElementById('pin-site');
 const pinListEl = document.getElementById('pin-list');
 const pinEmptyEl = document.getElementById('pin-empty');
@@ -124,11 +250,12 @@ const hostLabel = (origin) => { try { return new URL(origin).host; } catch { ret
 
 // Lazily recover a thumbnail a plain <img> couldn't load (hotlink-protected http(s));
 // videos and unfetchable sources keep the neutral placeholder.
-const recoverThumb = (img, source, kind) => {
+const recoverThumb = (img, source, kind, resource = '') => {
   img.addEventListener('error', async () => {
     if (img.dataset.recovered || kind === 'video' || !/^https?:/i.test(source)) { img.style.visibility = 'hidden'; return; }
     img.dataset.recovered = '1';
-    try { img.src = await fetchAsDataUrl(source); } catch { img.style.visibility = 'hidden'; }
+    // `resource` = the page the pin was made on (recorded at pin time) — same-host carve-out.
+    try { img.src = await fetchAsDataUrl(source, { pageUrl: resource }); } catch { img.style.visibility = 'hidden'; }
   });
 };
 
@@ -144,7 +271,7 @@ const renderPinRow = (pin, serverSources) => {
   thumb.loading = 'lazy';
   thumb.alt = '';
   thumb.src = pin.source;
-  recoverThumb(thumb, pin.source, pin.kind);
+  recoverThumb(thumb, pin.source, pin.kind, pin.resource || '');
 
   const info = document.createElement('div');
   info.className = 'pin-info';
@@ -361,12 +488,18 @@ const connStatus = document.getElementById('conn-status');
 const connListEl = document.getElementById('conn-list');
 const connEmptyEl = document.getElementById('conn-empty');
 
+// Wipe hold + refresh gate (browser connect modal's pattern, via createListHold): while
+// a row's leave/materialize plays, the storage.onChanged echo is deferred and the empty
+// state hidden — a rebuild mid-wipe would cut the animation and pop the placeholder in.
+const connHold = createListHold({ settle: () => { renderConnections(); connListEl.style.minHeight = ''; } });
+
 const renderConnections = async () => {
   const conns = await loadConnections();
   connListEl.innerHTML = '';
   for (const c of conns) {
     const li = document.createElement('li');
     li.className = 'pin-row';
+    li.dataset.url = c.url;   // the leave/materialize animations find the row by url
     const info = document.createElement('div');
     info.className = 'pin-info';
     const name = document.createElement('div');
@@ -400,14 +533,22 @@ const renderConnections = async () => {
     remove.title = 'Remove connection';
     remove.innerHTML = icon('x', { size: 15 });
     remove.addEventListener('click', async () => {
+      // The row scatters before the list is rebuilt without it (browser connect
+      // modal parity): the list's height is pinned and the re-render deferred until
+      // the dust has really settled, so the empty state can't land under it.
+      const held = connListEl.getBoundingClientRect().height;
+      if (held) connListEl.style.minHeight = `${held}px`;
+      const settle = connHold.begin();
+      await leaveThenRemove(li, () => {}, scatterGridFor(1));
       await removeServer(c.url);
-      renderConnections();
+      await settle();
     });
     actions.append(reconnect, remove);
     li.append(info, actions);
     connListEl.appendChild(li);
   }
-  connEmptyEl.hidden = conns.length > 0;
+  // Mid-wipe the empty state stays hidden — it waits for the hold's settle render.
+  connEmptyEl.hidden = !emptyStateVisible(conns.length, connHold.holding);
   const reconnectAll = document.getElementById('conn-reconnect-all');
   if (reconnectAll) reconnectAll.hidden = conns.length === 0;
 };
@@ -430,8 +571,14 @@ document.getElementById('conn-add').addEventListener('click', async () => {
     connUrl.value = '';
     connToken.value = '';
     connStatus.innerHTML = icon('check', { size: 13 }) + ' Connected';
-    renderConnections();
+    // The new row materializes — the removal played backwards (its box expands while
+    // a dust copy gathers into it). On the same hold as a removal, so the
+    // storage.onChanged echo can't rebuild the list mid-animation.
+    const settle = connHold.begin();
+    await renderConnections();
+    materialize(connListEl.querySelector(`li[data-url="${CSS.escape(normalizeUrl(url))}"]`), scatterGridFor(1));
     setTimeout(() => { connStatus.textContent = ''; }, 1500);
+    await settle();
   } catch (err) {
     connStatus.textContent = `Failed: ${err.message}`;
   }
@@ -443,9 +590,21 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[PINS_KEY]) renderPins();
   // A connection change can flip which pins are server-stored → refresh the cross-ref.
   if (area === 'local' && changes[CONNECTIONS_KEY]) {
-    renderConnections();
+    // Never mid-wipe: the rebuild would cut the leave/materialize short and pop the
+    // empty state in under the dust — the hold's settle render covers the change.
+    if (!connHold.holding) renderConnections();
     refreshServerPins().then(renderPins);
   }
 });
 refreshServerPins().then(renderPins);
 renderConnections();
+
+// Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
+// and never shows on a disabled control). lib/tipContent.js gives them their shape.
+initTooltips();
+
+// Every <select> on this page gets our own list: the native one is drawn by the OS, in
+// system type, ignoring this panel's theme (see lib/customSelect.js). The page-size list
+// is long enough to want its filter input.
+for (const el of document.querySelectorAll('select'))
+  enhanceSelect(el, { search: el.id === 'page' });

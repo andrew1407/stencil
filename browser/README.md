@@ -45,7 +45,7 @@ graph TD
   **Alt+Shift+Delete** (⌥⇧⌫)
 - Blank-image creator (white / black / any color, sized to the page by default) for
   starting from an empty canvas
-- Per-line color, thickness, marker size, and style (solid / dashed / dotted)
+- Per-line color, thickness, point size, and style (solid / dashed / dotted)
 - Editable points table with pixel ↔ page (cm) coordinate conversion and optional
   `f(x,y)` formula transforms; page formats cover the full ISO A/B/C series (A0–C10,
   searchable selector) plus a custom size
@@ -55,8 +55,22 @@ graph TD
 - Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
   (preset brand accents in the Visuals modal; **double-click the logo** for a one-off
   custom accent colour, applied to that page only — not saved or synced)
-- Session autosave to `localStorage` (image + layout), multi-project storage with a
-  one-week expiry sweep
+- Session autosave (image + layout), multi-project storage with a one-week expiry
+  sweep. The image-heavy per-project payloads live in **IndexedDB** (no ~5MB
+  localStorage ceiling; existing payloads migrate over on first load), while the
+  small project registry — names, thumbnails, expiry — stays in `localStorage`
+- **Opening a project from the list, by gesture**: a **single click** asks first
+  ("Open … here?") and switches this tab on confirm; a **double click** opens it
+  straight away; **⌘/Ctrl + click** asks and opens in a **new tab**; **⌘/Ctrl + double
+  click** opens a new tab immediately. The single click waits one double-click interval
+  (250 ms) before acting, so a double click never flashes the confirmation open and shut.
+  Rows are keyboard-activatable (**Enter/Space** = the confirmed single click, ⌘/Ctrl
+  held targets a new tab). On **touch** a **tap** asks and opens here; **"Open in new
+  tab" lives in the row's ⋯ menu** there, because press-and-hold is already how the list
+  picks a row up for **drag-to-reorder** (`touchDrag.js`, 280 ms) — that gesture is left
+  alone rather than overloaded. **Movement always wins**: as soon as a pointer travels
+  past ~10 px the gesture belongs to the drag or the scroll, any pending open is dropped,
+  and the click a drop may synthesize is swallowed — reordering never opens a project
 - Installable as a **PWA** (Progressive Web App): "Install app" button + browser
   install UI, runs in its own window, and works offline via a service-worker cache
 - **Open in… (desktop app / Telegram bot)**: the toolbar button next to Share mirrors
@@ -81,6 +95,59 @@ graph TD
 - **Project files (`.stencil`)**: save a whole project — original image, layout, and
   settings (plus, optionally, the current colour theme) — as one portable file, openable
   on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.
+- **Toolbar windows** (projects, servers, links, assistant, shortcuts `Alt+K`, visuals `Alt+V`, help `Alt+H`): a window's own shortcut **closes** it again, another window's shortcut swaps to that one, and every one of them works from inside a window's own search box.
+- **AI assistant chat**: the sparkle toolbar button (Alt+G) opens a chat panel dockable
+  left/right/top/bottom or free-floating (drag the header to move or to re-dock on an
+  edge zone, corner handle to resize; placement and size are session-only — every load
+  starts closed at the defaults, and only the LLM settings persist). On **phones**
+  (`max-width: 680px`) none of that fits, so the panel presents as an ordinary **centred
+  modal** over a dimmed backdrop, with the placement and resize affordances hidden and
+  the usual modal dismissals — a tap on the backdrop, or Escape. Attachments can also be pasted (Ctrl+V) or dropped straight onto the
+  open panel; hover the input row's gear for live provider status. Prompts run against your configured LLM — Ollama or any local
+  OpenAI-compatible server (LM Studio etc.) called directly, or Anthropic Claude proxied
+  by a connected collaboration server (the API key stays server-side). The model answers
+  with a validated *op-plan* executed through the same `window.stencil` facade as the
+  toolbar (crop, quarter rotates, filters/tint, layouts — including vision-based "extract
+  the lines from this image", formulas, page formats, blanks), and can return several
+  variant images per prompt. It can also adjust the editor itself (contract §10): theme,
+  accent, default line style, display units, points/lines visibility, and connect/
+  disconnect of collaboration servers — restricted to servers you have already saved
+  (exact URL or unique host; the stored connection's own token is used, plans never
+  carry tokens), and never inside variants. **Every turn carries a snapshot of the working
+  image** (contract §7), so "outline the rabbit's head" is answered against the pixels on
+  the canvas rather than from memory; a model that has no vision gets it dropped, with a
+  note in the chat, and the turn is retried once so text-only edits still work. On top of
+  that you can attach images ("use as working image" or "analyze") and
+  videos (frames are extracted in-browser; the video itself is never sent). Provider,
+  endpoint URL (editable, sensible localhost defaults), model, and key are configured in
+  the chat settings modal, alongside an opt-in **"Save chats with projects"** toggle
+  (off by default; contract §12): when on, the conversation is stored **per project** in
+  IndexedDB (text only, most recent 32 turns, never in incognito), restored when you
+  reopen the project, mirrored onto a linked server project's `chat` file, removed with
+  the project, and deleted — locally and server-side — by the panel's Clear button.
+  Contract: `llm-contract.md`. Note: calling local
+  providers directly requires their CORS allowance (Ollama `OLLAMA_ORIGINS`, LM Studio
+  "enable CORS"). Runnable setup — installing/serving a model, the CORS commands,
+  verification and troubleshooting — is in the
+  [root README](../README.md#ai-assistant--setting-up-a-model).
+  The canvas **right-click menu carries the same chat**: an **Assistant ▸** entry sits with
+  the other submenu parents (Style, Image Filter, …) and its **flyout is the chat** — ask,
+  send (Enter; Shift+Enter for a newline), watch the transcript, and press the same button
+  again to **stop** a turn, without ever opening the panel. Its composer carries the panel's
+  full action row — **send · attach · settings gear** (with the provider-status dot):
+  attaching images/videos queues them on the same shared controller (chips show in both
+  surfaces, and the queue rides whichever surface sends next), and the gear closes the menu
+  and opens the one assistant-settings modal. It is the **same conversation** as the panel
+  (one controller for the app, so history is continuous whichever surface you use) with the
+  same op-plan capabilities and the same result cards (download · open as the working image). The menu and its flyout **stay open** through the whole exchange —
+  typing, sending, and a plan executing on the canvas; the menu still closes on an outside
+  click, on Escape (including from the chat input), or when you choose any other menu item,
+  and hovering another submenu parent hands the flyout over as usual. On **phones and touch
+  devices** (`max-width: 680px` or a coarse pointer — a hover-opened flyout is unusable
+  there) the entry is a plain item instead: it closes the menu and opens the chat panel,
+  which is already a full-screen modal at those sizes, on the same conversation. The entry
+  appears only when a provider is configured: with the assistant off (provider *None*) the
+  context menu is exactly what it has always been.
 
 ## Project files (`.stencil`)
 
@@ -99,6 +166,12 @@ stays open in the editor, only its on-disk file is removed (Chromium only; enabl
 The same file opens in the CLI (`stencil -i project.stencil out.png`, or `/open` in `--console`),
 the desktop app, `pystencil` (`Editor.open_project`), and the Telegram bot.
 
+Three more project/image chords, all rebindable in the Shortcuts window: `Ctrl+Alt+R`
+**removes the current project** from the editor (the red trash in Data — the session, not
+the file), `Ctrl+Alt+N` **renames** it (opens the toolbar name field for inline editing,
+like the ✎ beside it), and `Ctrl+Alt+S` **shares the image** wherever the browser can hand
+files to the OS share sheet (mobile / PWA — the Share button is hidden elsewhere).
+
 ```jsonc
 {
   "format": "stencil-project",
@@ -107,7 +180,7 @@ the desktop app, `pystencil` (`Editor.open_project`), and the Telegram bot.
   "color": "#7c3aed",
   "image": { "dataUrl": "data:image/png;base64,iVBOR…", "ext": "png", "w": 1280, "h": 720 },
   "layout": { "imageWidth": 1280, "imageHeight": 720, "lines": [ /* … */ ],
-              "cropRect": { "x": 0, "y": 0, "width": 1280, "height": 720 },
+              "cropRect": { "x": 0, "y": 0, "w": 1280, "h": 720 },
               "rotationQuarters": 0, "imageFilter": "none" },
   "theme": { "mode": "dark", "accent": "violet" }
 }
@@ -183,6 +256,10 @@ js/
   config/             # constants, hotkey + help-text registries
   core/               # DrawingApp and its collaborators (renderer, storage,
                       #   history, zoom/pan, coord table, formulas, projects store)
+  llm/                # AI-assistant chat: provider client, op-plan parser/executor,
+                      #   chat controller, the app's one shared chat session
+                      #   (chatSession.js — panel + context menu), settings
+                      #   (see llm-contract.md)
   ui/                 # pure string-returning components composed by layout()
                       #   (incl. installButton.js — the PWA install affordance)
   worker/             # cross-tab projects sync worker + message constants
@@ -191,6 +268,41 @@ tests/                # node:test unit tests (run with `node --test`)
 
 Every module declares its dependencies with `import` and exposes its public API with
 `export`. The HTML loads only `js/index.js`; the module graph pulls in everything else.
+
+### Motion (`js/ui/motion.js` + `css/animations.css`)
+
+Three effects share one small module; all of them are decoration, so a browser without
+`IntersectionObserver`/`MutationObserver` — or a user with `prefers-reduced-motion: reduce`
+— just gets the static view, never a stuck one.
+
+- **Scroll reveal** — `observeReveal(root, selector)` fades and lifts rows in as they enter
+  a scroller and back out as they leave. Used by the assistant transcript (both the panel
+  and the context-menu flyout, bound inside `renderChatLog`) and the projects list. The
+  observer picks up new rows itself, so callers never re-scan after a render.
+- **Drop landing** — a dropped image's canvas scales up into place with one accent pulse
+  (`.canvas-container.drop-landing`), and the drop overlay leaves on an animation instead
+  of blinking out (`.drop-closing`, click-through while it plays).
+- **Disintegration** — a removed row doesn't fade, it comes apart: `disintegrate()` clones
+  it once per grid cell, clips each clone to its cell, and scatters the cells in a
+  left-to-right sweep while the row's own box collapses so the list closes the gap. The
+  particles live in a fixed layer over the page, because the row under them is collapsing
+  to zero height at the same moment. Clearing the image plays the same idea on the canvas
+  (`ghostOut()` copies the pixels first — `clearRect` is instant and leaves nothing to
+  animate).
+- **Theme / accent swap** — `themeSwap()` floods the new palette out of the CONTROL that
+  changed it (the moon button, the Visuals accent picker, the logo), as a growing circle,
+  via the native View Transitions API; without it every colour consumer just gets one beat
+  of transition (`html.theme-swapping`). With no such control on screen — a collapsed
+  toolbar, a change pushed from another tab — the circle blooms from the viewport centre;
+  it is never anchored to the last click, which is how it used to end up in a corner.
+- **Fullscreen stretch** — `flipFrom(el, rectBefore)` plays the canvas viewport's new box
+  out of the one it had, so entering fullscreen stretches out of the editor's canvas box
+  and leaving minimises back into it. `.flip-active` lifts the viewport above the page
+  chrome and suppresses its scrollbars for the flight.
+
+The desktop app mirrors all three (`desktop/src/app/scrollReveal.hpp`,
+`MainWindow::consumeDropReveal` / `beginFullscreenZoom`), and the extension mirrors the
+first two (`extension/src/lib/motion.js`).
 
 ## Console API (`window.stencil`)
 
@@ -211,11 +323,10 @@ clean `{}` (members are non-enumerable) — access and autocomplete still work.
 //    and mirrors a top-menu control — changes reflect in the toolbar live) ──
 stencil.lineColor        = 'red';      // current/last-used line color — any CSS color (named / rgb()/hsl() → normalized to hex)
 stencil.thickness        = 3;          // line thickness (px)
-stencil.pointSize        = 9;          // marker size (alias: markerSize)
-stencil.markerSize       = 9;          // same as .pointSize
+stencil.pointSize        = 9;          // point size (px)
 stencil.lineStyle        = 'dashed';   // 'solid' | 'dashed' | 'dotted'
 stencil.pointStyle       = true;       // points visible? (alias: showPoints)
-stencil.showPoints       = true;       // show point markers
+stencil.showPoints       = true;       // show points
 stencil.showLines        = true;       // show connecting lines
 stencil.filter           = 'sepia';    // image filter: 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom'
 stencil.filterColor      = '#7c3aed';  // tint color when filter === 'custom'
@@ -309,7 +420,7 @@ p.close({ fully: false });             // drop the editor (fully:true also close
 stencil.lines;                         // array of Line wrappers
 const line = stencil.lines[0];
 line.idx; line.points;                 // getters
-line.color = '#f00'; line.thickness = 4; line.markerSize = 8;   // get/set
+line.color = '#f00'; line.thickness = 4; line.pointSize = 8;   // get/set
 line.style = 'dotted'; line.fillColor = '#3399ff';              // get/set
 line.apply({ style: 'dashed', pointSize: 8 }).move({ x: 10 }).rotate(15, { x: 0, y: 0 });
 line.add({ x: 120, y: 40 }, { neighbour: 0, after: true });     // insert a point
@@ -324,7 +435,50 @@ pt.remove();                           // drop this point (empties the line → 
 // ── Shortcuts ──
 stencil.shortcuts;                     // { undo: 'Ctrl+Z', … }
 stencil.changeShortcut('Ctrl+Z', 'Ctrl+Alt+U');   // by current combo or action id
+
+// ── AI assistant (llm-contract.md; the scripting peer of the chat panel) ──
+stencil.llm;                           // current provider config (§5 shape); each key is get/set
+stencil.llm.provider = 'ollama';       // 'ollama' | 'openai-compat' | 'stencil-server' (validated)
+stencil.llm.baseUrl  = 'http://localhost:11434';   // http(s) only; switching provider refills its default
+stencil.llm.model    = 'llama3.2-vision';
+stencil.llm.apiKey   = 'sk-…';         // openai-compat only; reads back as-is (same trust stance as tokens)
+stencil.llm.serverUrl = 'https://srv:8090';        // stencil-server only (a configured connection)
+stencil.llm.setup({ provider: 'openai-compat', model: 'qwen-vl' });   // partial update in one call
+// One chat turn through the SAME pipeline as the panel and the context-menu chat
+// (one controller ⇒ one continuous history, whichever surface you use; the exchange
+// renders in the panel's transcript). Resolves { reply, warnings, results } where
+// results = [{ label, dataUrl }] (one per requested variant / extracted frame).
+await stencil.prompt('rotate left and give me a sepia variant');
+await stencil.prompt('extract the lines', { images: ['data:image/png;base64,…'] });
+// Panel control — the same code paths as the panel's own buttons.
+stencil.chat.open(); stencil.chat.close(); stencil.chat.isOpen;
+stencil.chat.dock('left');             // 'left' | 'right' | 'top' | 'bottom' | 'float'
+stencil.chat.history;                  // settled transcript: [{ role, text }] copies —
+                                       // no raw model JSON, no error cards, no in-flight row
+stencil.chat.abort();                  // stop the in-flight turn (the Stop button's path);
+                                       // true when a turn was actually running
+stencil.chat.clear();                  // fresh conversation — the trash button's exact path
+                                       // (history, queued attachments, transcript, and the
+                                       // persisted per-project copy); throws mid-turn
+stencil.chat.isSending;                // a turn is in flight right now
+
+// ── Browser extension (the Chrome extension's editor-page API, when it's there) ──
+stencil.extension;                     // null unless the extension is installed AND its
+                                       // editor-page API setting is on — always check first
+await stencil.extension.editors();     // every open editor tab: project, image size, preview
+await stencil.extension.focus(tabId);  // raise one of them
+await stencil.extension.tabs();        // the other open pages an image can be pulled from
+await stencil.extension.images(tabId); // scan one of those pages (the popup's own scanner)
+await stencil.extension.open(0);       // import a scanned image into THIS tab (no new tab)
+await stencil.extension.current;       // what the extension sees in this tab
 ```
+
+`stencil.extension` is installed by the extension, not by this app: the facade only
+re-exports what its content script put on the page, so the extension owns the method list —
+see `extension/README.md` ("Editor mode") for the full surface and the Options toggle that
+gates it. The editor side of that conversation is `js/core/extensionBridge.js`, which answers
+the extension's state/import/switch requests through the same core methods everything else
+uses (`loadImageFromFile` / `replaceProjectImage` / `switchToProject`).
 
 > An extension-side `window.stencil` (opt-in, for scanning/opening images on any
 > page) is planned as a separate, default-off feature — see `extension/`.

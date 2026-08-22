@@ -1,0 +1,151 @@
+import { leaveThenRemove } from './motion.js';
+// ── Assistant transcript widgets (pure, unit-testable) ──────────────────────
+// Two small DOM builders the embedded Assistant section (src/popup/assistant.js)
+// uses, kept out of that chrome/DOM-bound module so `node --test` can drive them
+// with a stub document:
+//   makeDismissible  — a × button on an error/notice entry, so failures don't pile
+//                      up in the transcript forever (with optional auto-dismiss)
+//   renderSuggestions— the empty-state prompt chips (browser parity:
+//                      browser/js/ui/chatPanel.js .chat-empty / .chat-suggest),
+//                      worded for the EXTENSION profile (contract §8: the working
+//                      set is the page's scanned images, and the ops are
+//                      focus/open/attach — never an image edit here).
+// The `doc` seam is always injected; nothing here touches globals.
+
+// Attach-failure cards clear themselves after this long; everything else waits
+// for the ×.
+export const AUTO_DISMISS_MS = 8000;
+
+/**
+ * Add a small × dismiss button to a transcript entry.
+ * @param {object} el - The entry element (gets the button appended).
+ * @param {object} opts
+ * @param {object} opts.doc - Document (injected; `document` in the app).
+ * @param {number} [opts.autoMs] - Auto-dismiss delay in ms (0/absent = manual only).
+ * @param {Function} [opts.timer] - setTimeout seam (tests pass a stub).
+ * @param {Function} [opts.onDismiss] - Called after the entry is removed.
+ * @returns {{dismiss: Function, button: object}}
+ */
+export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDismiss } = {}) => {
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.className = 'x-dismiss';
+  button.title = 'Dismiss';
+  button.textContent = '×';
+  if (button.setAttribute) button.setAttribute('aria-label', 'Dismiss');
+
+  let gone = false;
+  const dismiss = () => {
+    if (gone) return;
+    gone = true;
+    // Dissolve first, then remove (lib/motion.js). The `gone` latch already makes
+    // this idempotent, so a second click during the play-out is a no-op.
+    leaveThenRemove(el, () => {
+      el.remove();
+      if (onDismiss) onDismiss();
+    });
+  };
+  button.addEventListener('click', (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    dismiss();
+  });
+  el.appendChild(button);
+  // `isConnected === false` means the user already dismissed it (or the transcript
+  // was cleared) — don't fire onDismiss for an entry that's already gone.
+  if (autoMs > 0) timer(() => { if (el.isConnected !== false) dismiss(); }, autoMs);
+  return { dismiss, button };
+};
+
+// ── Hover preview for a small attachment thumbnail ──────────────────────────
+// The chips and the transcript strip show a picture at 28–56px, which is too small to
+// tell two screenshots apart; hovering shows it at a readable size. The preview is
+// appended to the BODY (the popup is 400px wide and its regions scroll, so an
+// in-place popup would be clipped exactly when it matters) and flips above/below to
+// stay in view. `doc` is injectable, like makeDismissible, so tests drive it with a
+// stub document. Mirror of the browser's chatView.js wireThumbPreview.
+export const THUMB_PREVIEW_MAX = 320;
+let openPreview = null;
+export const hideThumbPreview = () => { openPreview?.remove?.(); openPreview = null; };
+// Alt HELD doubles the glance (browser chatView parity) — pressed or released
+// mid-hover it resizes in place and re-places itself to stay in view. Guarded:
+// node's test globalThis has no addEventListener.
+const altPreview = (on) => {
+  if (!openPreview?.classList) return;
+  openPreview.classList.toggle('chat-thumb-preview-xl', on);
+  openPreview.__place?.();
+};
+globalThis.addEventListener?.('keydown', (e) => { if (e.key === 'Alt') altPreview(true); });
+globalThis.addEventListener?.('keyup', (e) => { if (e.key === 'Alt') altPreview(false); });
+export const wireThumbPreview = (img, { doc = globalThis.document, caption = '', src } = {}) => {
+  if (!img?.addEventListener || !doc?.createElement) return;
+  const show = (e) => {
+    hideThumbPreview();
+    const box = doc.createElement('div');
+    box.className = 'chat-thumb-preview';
+    if (e?.altKey && box.classList) box.classList.add('chat-thumb-preview-xl');   // Alt held on entry
+    const big = doc.createElement('img');
+    big.src = src || img.src;
+    big.alt = '';
+    box.appendChild(big);
+    if (caption) {
+      const cap = doc.createElement('span');
+      cap.className = 'chat-thumb-preview-cap';
+      cap.textContent = caption;   // a scanned filename — data, never markup
+      box.appendChild(cap);
+    }
+    doc.body.appendChild(box);
+    openPreview = box;
+    const place = () => {
+      if (!img.getBoundingClientRect || !box.getBoundingClientRect) return;
+      const r = img.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      const vw = globalThis.innerWidth || 0;
+      const vh = globalThis.innerHeight || 0;
+      const left = Math.max(8, Math.min(r.left, vw - b.width - 8));
+      const above = r.top - b.height - 10;
+      const top = above >= 8 ? above : Math.min(r.bottom + 10, vh - b.height - 8);
+      box.style.left = `${Math.round(left)}px`;
+      box.style.top = `${Math.round(Math.max(8, top))}px`;
+      box.classList.add('chat-thumb-preview-in');
+    };
+    box.__place = place;   // the Alt resize re-places the open box
+    if (big.complete) place(); else big.addEventListener('load', place, { once: true });
+  };
+  img.addEventListener('mouseenter', show);
+  img.addEventListener('mouseleave', hideThumbPreview);
+  img.addEventListener('click', hideThumbPreview);
+  return { show, hide: hideThumbPreview };
+};
+
+// Empty-state prompt chips. `prompt` is what lands in the input (never sent — the
+// user edits/sends it); `label` is the short chip text.
+export const SUGGESTIONS = [
+  { label: 'Which of these has a cat?', prompt: 'Which of these images has a cat in it?' },
+  { label: 'Find the largest image', prompt: 'Find the largest image on this page and tell me its size' },
+  { label: 'Open the first photo in the editor', prompt: 'Open the first photo on this page in the editor' },
+  { label: 'Describe the chart', prompt: 'Describe the chart or diagram on this page' },
+];
+
+/**
+ * Build the empty-state suggestion-chip block. Clicking a chip calls
+ * `onPick(prompt)` — it PREFILLS the input, it never sends.
+ * @param {object} doc - Document (injected).
+ * @param {Function} onPick - Receives the chip's full prompt text.
+ * @param {Array} [items] - Chip list (defaults to SUGGESTIONS).
+ * @returns {object} The container element (append it to the transcript).
+ */
+export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
+  const wrap = doc.createElement('div');
+  wrap.className = 'chat-empty';
+  for (const s of items) {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = 'chat-suggest';
+    b.textContent = s.label;
+    b.title = s.prompt;
+    if (b.dataset) b.dataset.prompt = s.prompt;
+    b.addEventListener('click', () => onPick(s.prompt));
+    wrap.appendChild(b);
+  }
+  return wrap;
+};

@@ -2,9 +2,12 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
 import { getAutoConnect, setAutoConnect, getSyncToServer, setSyncToServer } from '../net/connectionStore.js';
+import { isExpiredSession } from '../net/connectionManager.js';
 import { normalizeUrl, isInsecureRemote } from '../net/connectionManager.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
+import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible } from './motion.js';
+import { canRefreshList } from './projectsModal.js';
 
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
@@ -19,13 +22,13 @@ export class StencilConnectModal extends StencilElement {
             </div>
             <div class="settings-body">
                 <div class="vs-section">Connect a server</div>
-                <div class="vs-row vs-field"><label title="Server URL, e.g. http://host:8090">URL</label>
-                    <input type="text" id="connect-url" placeholder="http://host:8090">
+                <div class="vs-row vs-field"><label title="Server URL, e.g. http://localhost:8090">URL</label>
+                    <input type="text" id="connect-url" placeholder="http://localhost:8090">
                 </div>
                 <div class="vs-row vs-field"><label title="Optional access token (issued otherwise)">Token</label>
                     <input type="text" id="connect-token" placeholder="(optional)">
                 </div>
-                <div class="vs-row">
+                <div class="vs-row vs-actions">
                     <button id="connect-add" class="btn-icon-text" title="Connect to the server at the URL above">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
                     <button id="connect-reconnect" class="btn-icon-text" title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
                 </div>
@@ -86,20 +89,33 @@ export class StencilConnectModal extends StencilElement {
     };
 
     // ── Drag-reorder / drag-out-to-remove state ──
-    // draggingUrl: the row being dragged; didReorder: a valid in-list drop already reordered
-    // (so dragend doesn't also treat it as a drag-out remove); dragActive guards the live
-    // stencil:connections-changed re-render from destroying the row mid-drag.
+    // draggingUrl: the row being dragged; didReorder: an in-list drop already reordered
+    // (dragend must not also drag-out remove); dragActive guards live re-renders mid-drag.
     let draggingUrl = null;
     let didReorder = false;
     let dragActive = false;
 
-    // Yes/No confirm then disconnect — the single remove path shared by the ✕ button and
-    // the drag-out gesture (mirrors projectsModal's danger-confirm idiom exactly).
+    // Wipe hold + refresh gate — the projects modal's beginRemoval pattern via the
+    // shared createListHold: while a leave/materialize plays, the connections-changed
+    // render is deferred (canRefreshList) and the empty state held back
+    // (emptyStateVisible); a close mid-animation finalizes every hold (onClose).
+    const hold = createListHold({ settle: () => { render(); list.style.minHeight = ''; } });
+    // Call BEFORE a removal, await the result after: this list sizes the modal (so its
+    // height is pinned through the wipe) and the empty state must not land under the ash.
+    const beginRemoval = () => {
+      const held = list.getBoundingClientRect().height;
+      if (held) list.style.minHeight = `${held}px`;
+      return hold.begin();
+    };
+
     const confirmDisconnect = async (url) => {
-      if (!(await app.confirm(`Disconnect and forget ${url}?`, { title: 'Disconnect server', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) { render(); return; }
+      if (!(await app.confirm(`Disconnect and forget ${url}?`, { title: 'Disconnect server', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
+      // The row scatters before the list is rebuilt without it.
+      const settle = beginRemoval();
+      await leaveThenRemove(list.querySelector(`[data-url="${CSS.escape(url)}"]`), () => {}, scatterGridFor(1));
       mgr().disconnect(url);
       notify('Disconnected', 'ok');
-      render();
+      await settle();
     };
 
     // Build the new url order for dropping draggingUrl relative to targetUrl (before/after).
@@ -116,14 +132,23 @@ export class StencilConnectModal extends StencilElement {
     const render = () => {
       list.innerHTML = '';
       const cm = mgr();
-      const urls = cm ? cm.urls : [];
+      // Expired sessions keep their row: the server is up, the saved URL is still right,
+      // only a new token is missing. Dropping them left the boot 401 with nowhere to go.
+      const urls = cm ? cm.knownUrls : [];
+      // Nothing to re-establish → the button would only toast an error.
+      reconnectBtn.disabled = !cm?.reconnectable;
       // Drop any selected urls that are no longer connected (e.g. removed elsewhere).
       for (const u of [...selected]) if (!urls.includes(u)) selected.delete(u);
       if (!urls.length) {
-        const empty = document.createElement('div');
-        empty.className = 'info-empty';
-        empty.textContent = 'No servers connected.';
-        list.appendChild(empty);
+        // Mid-wipe the list stays visually empty (its height still pinned): the
+        // placeholder waits for the hold's settle render, or it would land beneath
+        // the still-falling dust and read as appearing before the removal finished.
+        if (emptyStateVisible(urls.length, hold.holding)) {
+          const empty = document.createElement('div');
+          empty.className = 'info-empty';
+          empty.textContent = 'No servers connected.';
+          list.appendChild(empty);
+        }
         updateBatchBar();
         return;
       }
@@ -215,7 +240,6 @@ export class StencilConnectModal extends StencilElement {
           onCancel: () => { draggingUrl = null; dragActive = false; row.classList.remove('connect-dragging'); clearDropCues(); render(); },
         });
         row.appendChild(grip);
-        // Multi-select checkbox for batch reconnect/disconnect.
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.className = 'connect-select';
@@ -230,21 +254,39 @@ export class StencilConnectModal extends StencilElement {
         const conn = cm.get(url);
         // Connection-status dot: green=connected, yellow=connecting/refreshing, red=error/dropped.
         const status = conn ? (conn.status || 'connected') : 'error';
-        const statusText = { connected: 'Connected', connecting: 'Connecting…', error: 'Disconnected — not reachable', disconnected: 'Disconnected' }[status] || status;
+        const statusText = { connected: 'Connected', connecting: 'Connecting…', error: 'Disconnected — not reachable',
+          disconnected: 'Disconnected', expired: 'Session expired — reconnect to sign in again' }[status] || status;
+        const expired = status === 'expired';
+        if (expired) row.classList.add('connect-expired');
         const label = document.createElement('span');
         label.className = 'connect-url';
         label.title = `${statusText} — ${url}`;
         label.innerHTML = `<span class="conn-status conn-status-${status}" title="${statusText}"></span>${icon('server', { size: 14 })}<span>${url}</span>`;
-        // Per-row reconnect — re-establish just this server (token re-validated).
+        // Per-row reconnect. On an EXPIRED session it is labelled — the fix, not a
+        // retry: first ask the server for a fresh session, and only if refused ask for
+        // a token, which may equally be the ADMIN token (desktop Connect parity).
         const recon = document.createElement('button');
-        recon.className = 'connect-reconnect-one btn-icon';
-        recon.title = 'Reconnect this server';
-        recon.innerHTML = icon('refresh', { size: 15 });
+        recon.className = expired ? 'connect-reconnect-one btn-icon-text' : 'connect-reconnect-one btn-icon';
+        recon.title = expired ? 'Sign in to this server again' : 'Reconnect this server';
+        recon.innerHTML = icon('refresh', { size: 15 }) + (expired ? '<span>Reconnect</span>' : '');
         recon.addEventListener('click', async () => {
           recon.disabled = true;
-          try { await mgr().reconnectOne(url); notify('Reconnected', 'ok'); }
-          catch (err) { notify(`Reconnect failed — ${err.message}`, 'fail'); }
-          finally { recon.disabled = false; }
+          try {
+            await mgr().reconnectOne(url, expired ? '' : undefined);
+            notify('Reconnected', 'ok');
+          } catch (err) {
+            if (!isExpiredSession(err)) notify(`Reconnect failed — ${err.message}`, 'fail');
+            else {
+              const token = await app.prompt(
+                `${url} refused the saved session. Paste an access token — or the server's `
+                + 'admin token, which mints a fresh session for you.',
+                { title: 'Session expired', confirmLabel: 'Reconnect', confirmIcon: 'link' });
+              if (token) {
+                try { await mgr().reconnectOne(url, String(token).trim()); notify('Reconnected', 'ok'); }
+                catch (e2) { notify(`Reconnect failed — ${e2.message}`, 'fail'); }
+              }
+            }
+          } finally { recon.disabled = false; }
           render();
         });
         const disc = document.createElement('button');
@@ -277,8 +319,14 @@ export class StencilConnectModal extends StencilElement {
     batchBtns.reconnect.addEventListener('click', () => runConnBatch(u => mgr().reconnectOne(u), 'Reconnected', 'Reconnect failed'));
     batchBtns.disconnect.addEventListener('click', async () => {
       if (!selected.size) return;
-      if (!(await app.confirm(`Disconnect and forget ${selected.size} selected server(s)?`, { title: 'Disconnect servers', danger: true, confirmLabel: 'Yes', cancelLabel: 'No' }))) return;
-      runConnBatch(async (u) => mgr().disconnect(u), 'Disconnected', 'Disconnect failed');
+      if (!(await app.confirm(`Disconnect and forget ${selected.size} selected server(s)?`, { title: 'Disconnect servers', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) return;
+      // Every selected row scatters at once, then the batch runs — budgeted like the
+      // projects batch (scatterGridFor).
+      const settle = beginRemoval();
+      await Promise.all([...selected].map((u, i) => leaveThenRemove(
+        list.querySelector(`[data-url="${CSS.escape(u)}"]`), () => {}, scatterGridFor(selected.size, i))));
+      await runConnBatch(async (u) => mgr().disconnect(u), 'Disconnected', 'Disconnect failed');
+      await settle();
     });
 
     const connect = async () => {
@@ -293,7 +341,13 @@ export class StencilConnectModal extends StencilElement {
         notify('Connected', 'ok');
         if (isInsecureRemote(normalizeUrl(url)))
           notify('Insecure connection: plaintext http — your access token and images are sent unencrypted. Use https on untrusted networks.', 'fail');
+        // The new row materializes — the removal played backwards (its box expands
+        // while a dust copy gathers into it). On the same hold as a removal, so the
+        // connections-changed echo can't rebuild the list mid-animation.
+        const settle = hold.begin();
         render();
+        materialize(list.querySelector(`[data-url="${CSS.escape(normalizeUrl(url))}"]`), scatterGridFor(1));
+        await settle();
       } catch (err) {
         notify(`Could not connect — ${err.message}`, 'fail');
       } finally {
@@ -310,7 +364,6 @@ export class StencilConnectModal extends StencilElement {
       render();
     });
 
-    // Auto-connect-on-open toggle: reflect the saved preference and persist changes.
     const autoEl = $('connect-autoconnect');
     autoEl.checked = getAutoConnect();
     autoEl.addEventListener('change', () => setAutoConnect(autoEl.checked));
@@ -318,13 +371,42 @@ export class StencilConnectModal extends StencilElement {
     syncEl.checked = getSyncToServer();
     syncEl.addEventListener('change', () => setSyncToServer(syncEl.checked));
 
-    wireModalShell(overlay, $('connect-btn'), $('connect-close'), { onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); render(); } });
+    wireModalShell(overlay, $('connect-btn'), $('connect-close'), {
+      onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); render(); },
+      // Closing mid-animation finalizes every pending wipe NOW (render + height
+      // release), so a half-removed row can't reappear when the modal next opens.
+      onClose: () => hold.finalizeAll(),
+    });
 
+    // A refused saved session must be visible WITHOUT opening this modal (the boot
+    // toast is transient): the Servers button carries an amber dot while any saved
+    // connection needs signing in again — the chat button's unread affordance,
+    // mirrored onto the fullscreen toolbar clone for the same reason.
+    const syncExpiredBadge = () => {
+      const on = (mgr()?.expiredUrls?.length || 0) > 0;
+      for (const el of [$('connect-btn'), ...document.querySelectorAll('#fs-controls-panel #connect-btn')]) {
+        el?.classList?.toggle('conn-needs-auth', on);
+        if (el) {
+          el.dataset.title = on
+            ? 'Servers — a saved session expired, reconnect to sign in again'
+            : 'Servers — connect to share & co-edit projects';
+          el.title = el.dataset.title;
+        }
+      }
+    };
+
+    syncExpiredBadge();
     // Keep the list live when connections change from the console facade or events.
     window.addEventListener('stencil:connections-changed', () => {
-      // Guard against a live status/reorder event re-rendering the list mid-drag, which
-      // would destroy the element the browser is dragging.
-      if (!dragActive && overlay.classList.contains('modal-open')) render();
+      syncExpiredBadge();
+      // Guard against a live event re-rendering the list mid-drag (destroying the
+      // dragged element) or mid-wipe (projectsModal's canRefreshList gate; the hold's
+      // settle render catches up).
+      if (canRefreshList({
+        open: overlay.classList.contains('modal-open'),
+        dragging: dragActive,
+        removing: hold.holding,
+      })) render();
     });
   }
 }

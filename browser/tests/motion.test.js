@@ -1,0 +1,739 @@
+// Scroll reveal + drop landing (js/ui/motion.js) and the CSS that drives them.
+// Node has no IntersectionObserver, so the observer's behaviour is pinned against a
+// minimal stub DOM + stub observers (the chat-markup.test.js convention); the CSS
+// contract is asserted by reading the stylesheet, like the other style tests.
+import test from 'node:test';
+import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+
+import {
+  observeReveal, flashLanding, flipTransform, revealDissolve, revealGrain,
+  FLIP_MS, FLIP_EASING, FLIP_ACTIVE_CLASS,
+  themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
+  originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
+  dustDelay, dustEase, ghostIn, hasPixels, tileNoise,
+} from '../js/ui/motion.js';
+
+const box = (left, top, width, height) => ({ left, top, width, height });
+
+// ── The reveal ramp ────────────────────────────────────────────────────────
+// Dissolve tracks ONLY the share of a row the scroller is already clipping. The
+// earlier design dissolved anything inside a "band" of the visible area, which made
+// fully-readable messages into an unreadable dot screen — the grain is finer than a
+// glyph's strokes. Decoration must never cost legibility.
+const H = 800;
+
+// A minimal element stand-in for the class-toggling helpers below.
+const el = (cls = '') => {
+  const classes = new Set(cls ? cls.split(' ') : []);
+  return {
+    offsetWidth: 0,
+    classList: {
+      add: (...c) => c.forEach((x) => classes.add(x)),
+      remove: (...c) => c.forEach((x) => classes.delete(x)),
+      contains: (c) => classes.has(c),
+      toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
+    },
+    has: (c) => classes.has(c),
+  };
+};
+
+test('a row you can see in FULL is never dissolved at all', () => {
+  assert.equal(revealDissolve(0, 60, H), 0, 'flush with the top edge');
+  assert.equal(revealDissolve(300, 400, H), 0, 'mid-scroller');
+  assert.equal(revealDissolve(H - 50, H, H), 0, 'flush with the bottom edge');
+  assert.equal(revealDissolve(0, H, H), 0, 'exactly filling the scroller');
+});
+
+test('dissolve equals the clipped share, at either edge', () => {
+  assert.equal(revealDissolve(-50, 50, H), 0.5, 'half cut off the top');
+  assert.equal(revealDissolve(H - 50, H + 50, H), 0.5, 'half cut off the bottom');
+  assert.ok(Math.abs(revealDissolve(-75, 25, H) - 0.75) < 1e-9, 'three quarters gone');
+});
+
+test('a row fully out of view is fully dissolved, both ways', () => {
+  assert.equal(revealDissolve(-200, -50, H), 1);
+  assert.equal(revealDissolve(H + 20, H + 120, H), 1);
+});
+
+test('a row taller than the scroller is only dissolved by what hangs off', () => {
+  // Half of a 1600px row is on screen, so half of it is dissolved.
+  assert.equal(revealDissolve(-800, 800, H), 0.5);
+});
+
+// The grain covers the whole element, so it cannot follow the clipped share: a message
+// taller than the scroller is clipped however you scroll it, and would sit there
+// speckled and unreadable. Legibility outranks the decoration.
+test('a row taller than the scroller gets no grain while it fills the view', () => {
+  assert.equal(revealGrain(-800, 800, H), 0, 'a 1600px row filling the scroller');
+  assert.equal(revealGrain(0, 1600, H), 0, 'its top edge in view, the rest below');
+  assert.ok(revealDissolve(-800, 800, H) > 0, 'the soft edge still tracks the clipping');
+});
+
+test('grain equals the clipped share for rows that fit', () => {
+  assert.equal(revealGrain(300, 400, H), 0);
+  assert.equal(revealGrain(-50, 50, H), 0.5);
+  assert.equal(revealGrain(H - 50, H + 50, H), 0.5);
+});
+
+test('a tall row grains only as it leaves the view', () => {
+  assert.equal(revealGrain(-1400, 200, H), 0.75, '200 of a possible 800px still showing');
+  assert.equal(revealGrain(-1700, -100, H), 1, 'gone');
+  assert.equal(revealGrain(0, 1600, 0), 0, 'a zero-height scroller is not a guess');
+});
+
+test('degenerate inputs never dissolve anything', () => {
+  assert.equal(revealDissolve(0, 50, 0), 0, 'a zero-height scroller is not a guess');
+  assert.equal(revealDissolve(50, 50, H), 0, 'an empty row');
+});
+
+test('observeReveal is inert without requestAnimationFrame', () => {
+  const prior = globalThis.requestAnimationFrame;
+  delete globalThis.requestAnimationFrame;
+  try {
+    const stop = observeReveal({ addEventListener() {} }, '.row');
+    assert.equal(typeof stop, 'function');
+    stop();
+  } finally { globalThis.requestAnimationFrame = prior; }
+});
+
+test('flashLanding is restart-safe and clears itself', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const node = el();
+  flashLanding(node, 'drop-landing', 700);
+  assert.ok(node.has('drop-landing'));
+  // A second drop before the first expires replays it rather than doing nothing.
+  flashLanding(node, 'drop-landing', 700);
+  assert.ok(node.has('drop-landing'));
+  t.mock.timers.tick(699);
+  assert.ok(node.has('drop-landing'), 'the first drop\'s timer was cancelled, not left to fire early');
+  t.mock.timers.tick(2);
+  assert.ok(!node.has('drop-landing'));
+});
+
+// The canvas viewport carries two of these at once — canvas-clearing while the old
+// image's dust falls, canvas-assembling while the new one's gathers. With one shared
+// timer the second call cancelled the first one's removal and left a class that hides
+// the canvas on it permanently.
+test('flashLanding tracks a timer per class, not per element', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const node = el();
+  flashLanding(node, 'canvas-clearing', 1100);
+  t.mock.timers.tick(200);
+  flashLanding(node, 'canvas-assembling', 1100);   // must NOT cancel the first removal
+  assert.ok(node.has('canvas-clearing') && node.has('canvas-assembling'));
+  t.mock.timers.tick(901);
+  assert.ok(!node.has('canvas-clearing'), 'the first class still expires on its own clock');
+  assert.ok(node.has('canvas-assembling'), 'while the second is still running');
+  t.mock.timers.tick(200);
+  assert.ok(!node.has('canvas-assembling'), 'and then it goes too');
+});
+
+test('flashLanding ignores a missing node', () => {
+  assert.doesNotThrow(() => { flashLanding(null); flashLanding(undefined); });
+});
+
+// ── FLIP (the fullscreen stretch / minimise) ────────────────────────────────
+test('flipTransform inverts the new box back onto the old one', () => {
+  // Entering fullscreen: an 800x400 viewport at (40, 120) becomes the whole window.
+  const t = flipTransform(box(40, 120, 800, 400), box(0, 0, 1600, 800));
+  assert.equal(t, 'translate(40px, 120px) scale(0.5, 0.5)',
+    'the fullscreen box starts drawn exactly where the old one was');
+});
+
+test('flipTransform runs the other way for the minimise back to the canvas', () => {
+  const t = flipTransform(box(0, 0, 1600, 800), box(40, 120, 800, 400));
+  assert.equal(t, 'translate(-40px, -120px) scale(2, 2)',
+    'the restored box starts drawn at full-window size and shrinks in');
+});
+
+test('flipTransform declines when there is nothing to play', () => {
+  assert.equal(flipTransform(box(0, 0, 100, 50), box(0, 0, 100, 50)), null, 'identical boxes');
+  assert.equal(flipTransform(box(0, 0, 100, 50), box(0.2, -0.3, 100.02, 50.01)), null,
+    'a sub-pixel difference is not an animation');
+  assert.equal(flipTransform(null, box(0, 0, 100, 50)), null, 'no starting box (never measured)');
+  assert.equal(flipTransform(box(0, 0, 0, 0), box(0, 0, 100, 50)), null, 'a collapsed starting box');
+  assert.equal(flipTransform(box(0, 0, 100, 50), box(0, 0, 100, 0)), null, 'a collapsed target box');
+});
+
+test('the flight is long and hard-eased-out, and CSS lifts the element for it', () => {
+  assert.ok(FLIP_MS >= 500, 'a full-window stretch needs room to read as deliberate');
+  // An ease-out whose first control point is low and second is pinned at 1: most of
+  // the distance early, coasting into the landing.
+  const [x1, y1, , y2] = FLIP_EASING.match(/[\d.]+/g).map(Number);
+  assert.ok(x1 < 0.3 && y1 > 0.9 && y2 === 1, `${FLIP_EASING} should ease hard out`);
+
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const flight = css.slice(css.indexOf(`.canvas-viewport.${FLIP_ACTIVE_CLASS} {`));
+  // Scrollbars belong to the settled state — appearing/disappearing mid-scale IS the flicker.
+  assert.ok(/overflow: hidden !important/.test(flight.slice(0, 300)), 'no scrollbars mid-flight');
+  // LEAVING starts scaled far beyond the in-flow box, so it must paint over the page
+  // it is shrinking away from — otherwise it slides under the toolbars.
+  const lifted = css.slice(css.indexOf(`body:not(.fullscreen-mode) .canvas-viewport.${FLIP_ACTIVE_CLASS} {`));
+  assert.ok(/position: relative/.test(lifted.slice(0, 300)) && /z-index: 100\d\d/.test(lifted.slice(0, 300)),
+    'the shrinking viewport is lifted above the restored page chrome');
+});
+
+// ── The CSS half of the contract ────────────────────────────────────────────
+test('animations.css: reveal rest state, drop landing, and reduced-motion opt-outs', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
+                         css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
+  const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
+  // The mask is mounted only on rows straddling an edge: four gradient layers on every
+  // row is what made a long transcript stutter while scrolling.
+  assert.ok(!/mask-image/.test(base), 'a settled row composites no mask at all');
+  // Scrolling is continuous, so the reveal CANNOT clone per particle the way a one-shot
+  // removal does — a 20-row viewport would churn thousands of nodes. It is a mask
+  // dissolve instead: one element, no extra DOM.
+  assert.ok(/--dissolve: 1/.test(base), 'out-of-view rows rest fully dissolved');
+  // The mask keeps the STILL-VISIBLE span solid, so only the clipped edge is sanded.
+  assert.ok(/var\(--vis-start/.test(rest) && /var\(--vis-end/.test(rest),
+    'the wipe is anchored to the visible span, not to the row');
+  assert.ok(/transform: none/.test(base), 'and a readable row is never displaced');
+  // --dissolve must be REGISTERED or it cannot be transitioned — it would jump.
+  assert.ok(/@property --dissolve \{ syntax: "<number>"/.test(css), '--dissolve is a registered property');
+  assert.ok(/transition: --dissolve/.test(base), 'the dissolve is a transition, not a jump');
+  // Union, not intersect: intersect would punch dot-holes through a settled row.
+  assert.ok(/mask-composite: add/.test(rest), 'the grain and the wipe are UNIONed');
+  assert.ok(/radial-gradient/.test(rest), 'a tiled dot grain');
+  assert.ok(/linear-gradient\(to bottom, transparent 0, transparent var\(--vis-start/.test(rest),
+    'plus a wipe spanning the still-visible run of the row');
+  assert.ok(/\.reveal-item\.reveal-in \{ --dissolve: 0; transform: none; \}/.test(css), 'revealed rows are whole');
+  // Transcript rows must NOT also carry an `animation: … both`: its filled end state
+  // would out-rank the reveal's transform and pin every row at rest.
+  assert.ok(!/\.chat-msg[^{]*\{[^}]*animation: chatMsgIn/.test(css), 'chat rows ride the reveal, not chatMsgIn');
+  assert.ok(/\.chat-attach-chip \{ animation: chatMsgIn/.test(css), 'attachment chips keep their own entrance');
+  // Drop landing: the overlay animates out (click-through while it does) and the canvas in.
+  assert.ok(/#global-drop-overlay\.drop-closing \{[\s\S]*?pointer-events: none/.test(css),
+    'the closing overlay cannot swallow the drop it is dismissing for');
+  assert.ok(/animation: dropOverlayOut/.test(css), 'overlay leaves on an animation');
+  assert.ok(/\.canvas-container\.drop-landing \{[\s\S]*?animation: canvasLand/.test(css), 'the canvas reveals on a drop');
+  // Every piece of this collapses under prefers-reduced-motion.
+  assert.ok(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]{0,300}?\.reveal-item \{ --dissolve: 0 !important;[\s\S]{0,160}?mask-image: none !important; \}/.test(css),
+    'reduced motion shows every row whole, mask and all');
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {',
+    css.indexOf('.canvas-container.drop-landing')));
+  const block = reduced.slice(0, reduced.indexOf('}\n'));
+  for (const sel of ['#global-drop-overlay.drop-closing', '.canvas-container.drop-landing',
+                     '.canvas-container.drop-arriving'])
+    assert.ok(block.includes(sel), `reduced motion drops ${sel}`);
+});
+
+// ── Arriving: dropped content plays in out of the drop point ────────────────
+// Removal already had motion (leaveThenRemove/disintegrate); an upload just appeared.
+test('arrivalBox is a small box centred on the drop point', () => {
+  const b = arrivalBox({ x: 400, y: 300 }, 96);
+  assert.equal(b.left + b.width / 2, 400, 'centred horizontally on the drop');
+  assert.equal(b.top + b.height / 2, 300 - 12, 'and near it vertically');
+  assert.ok(b.width > 0 && b.height > 0, 'non-degenerate, or flipTransform declines to play it');
+  // Small relative to a canvas, so the content visibly grows out of the cursor.
+  assert.ok(b.width <= 120 && b.height <= 120);
+});
+
+test('a drop with a point flies in; one without falls back to the plain landing', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const priorRaf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => 0;   // the FLIP schedules on frames; don't run them
+  const mk = () => ({
+    ...el(),
+    style: {},
+    getBoundingClientRect: () => box(100, 200, 800, 500),
+  });
+  try {
+    const dropped = mk();
+    arriveFrom(dropped, { x: 420, y: 640 });
+    assert.ok(dropped.has(ARRIVE_GLOW_CLASS), 'glows on arrival');
+    assert.ok(!dropped.has(LANDING_CLASS), 'but not the scale-up: the FLIP owns the transform');
+    assert.ok(dropped.has(ARRIVE_ACTIVE_CLASS), 'and is lifted for the flight');
+    assert.match(dropped.style.transform, /^translate\(-?[\d.]+px, -?[\d.]+px\) scale\(/,
+      'starts drawn at the drop point, then transitions to none');
+
+    const opened = mk();
+    arriveFrom(opened, null);
+    assert.ok(opened.has(LANDING_CLASS), 'no drop point (dialog / paste) → the plain landing');
+    assert.ok(!opened.has(ARRIVE_GLOW_CLASS));
+    assert.equal(opened.style.transform, undefined, 'and nothing flies');
+  } finally { globalThis.requestAnimationFrame = priorRaf; }
+});
+
+test('arriveFrom never throws on a missing element or a half-formed point', () => {
+  assert.doesNotThrow(() => {
+    arriveFrom(null, { x: 1, y: 2 });
+    arriveFrom(el(), { x: NaN, y: 2 });
+    arriveFrom(el(), {});
+  });
+});
+
+test('animations.css: the arriving canvas glows only — the flight is the inline FLIP', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const arriving = css.slice(css.indexOf('.canvas-container.drop-arriving {'));
+  const rule = arriving.slice(0, arriving.indexOf('}'));
+  assert.match(rule, /animation: canvasLandGlow/, 'the accent pulse still plays');
+  assert.ok(!/canvasLand /.test(rule),
+    'canvasLand animates transform too and would win over the FLIP, snapping the flight away');
+  const lift = css.slice(css.indexOf('.canvas-container.arrive-active {'));
+  assert.match(lift.slice(0, lift.indexOf('}')), /z-index/,
+    'the shrunken start must paint above the page it grows out of');
+});
+
+// ── The image assembles the way it comes apart ──────────────────────────────
+// ghostOut blows the canvas away as dust; ghostIn is that same fall rewound. The two
+// share the grid, the per-mote noise and the sweep — only the direction differs.
+test('the arrival sweep is the departure sweep, reversed', () => {
+  const rows = 9;
+  for (let cy = 0; cy < rows; cy++) {
+    const n = tileNoise(cy, 3);
+    // The row that leaves FIRST (delay 0 out) is the last one home, and vice versa.
+    assert.ok(Math.abs(dustDelay(cy, rows, n) + dustDelay(rows - 1 - cy, rows, n)
+      - (0.55 + 2 * n * 0.12)) < 1e-9, `row ${cy} mirrors its opposite`);
+    assert.equal(dustDelay(cy, rows, n, true), dustDelay(rows - 1 - cy, rows, n),
+      'reversing the sweep is the same as reading the rows backwards');
+  }
+  // A single row has nothing to sweep across, and must not divide by zero.
+  assert.equal(dustDelay(0, 1, 0), 0);
+});
+
+test('a mote covers most of its flight early and settles', () => {
+  assert.equal(dustEase(0), 0);
+  assert.equal(dustEase(1), 1);
+  assert.ok(dustEase(0.5) > 0.85, 'most of the distance by halfway');
+  for (let k = 0.1; k < 1; k += 0.1) assert.ok(dustEase(k) > dustEase(k - 0.1), 'monotonic');
+});
+
+test('ghostIn declines rather than hiding a canvas it cannot animate', () => {
+  // Every bail-out matters: the caller only hides the real canvas when this says yes,
+  // so a false negative is a blank editor.
+  assert.equal(ghostIn(null), false, 'no canvas');
+  assert.equal(ghostIn({ width: 0, height: 0 }), false, 'nothing painted yet');
+  const prior = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true });
+  try {
+    assert.equal(ghostIn({ width: 100, height: 80, parentElement: {} }), false, 'reduced motion');
+  } finally { globalThis.matchMedia = prior; }
+});
+
+test('hasPixels tells a painted canvas from an empty one', () => {
+  const ctx = (fill) => ({ getImageData: (_x, _y, w, h) => ({ data: fill(w * h * 4) }) });
+  const empty = ctx((n) => new Uint8ClampedArray(n));
+  assert.equal(hasPixels(empty, 400, 300), false, 'a blank canvas has nothing to make motes of');
+  const painted = ctx((n) => { const d = new Uint8ClampedArray(n); d.fill(255); return d; });
+  assert.equal(hasPixels(painted, 400, 300), true);
+  // One opaque pixel is still an image — but the stride must actually be able to see it,
+  // so the sample walks the buffer rather than peeking at the corner.
+  const sparse = ctx((n) => { const d = new Uint8ClampedArray(n); d[4 * 41 * 7 + 3] = 255; return d; });
+  assert.equal(hasPixels(sparse, 400, 300), true);
+  assert.equal(hasPixels(null, 10, 10), false, 'no context');
+  assert.equal(hasPixels(empty, 0, 0), false, 'no box');
+});
+
+test('animations.css: the canvas waits behind its own dust, both directions', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  assert.match(css, /\.canvas-viewport\.canvas-clearing #canvas \{ opacity: 0; \}/,
+    'hidden while the dust falls');
+  assert.match(css, /\.canvas-viewport\.canvas-assembling #canvas \{ opacity: 0; transition: none; \}/,
+    'and while the dust gathers — or the finished picture sits behind its own motes');
+  // …and it must go out INSTANTLY. The shared transition below is for the fade back UP;
+  // when it applied to the hide as well, a pasted image stood there at full strength for
+  // its whole 280ms while its own dust flew at it — the blink in the bug report.
+  assert.match(css, /\.canvas-viewport \.idle-create, \.canvas-viewport #canvas \{ transition: opacity/,
+    'the fade back up is still a transition');
+});
+
+// ── Theme / accent swap ─────────────────────────────────────────────────────
+// themeSwap runs `apply` exactly once and synchronously on EVERY path — the palette
+// write is the contract, the wipe is decoration layered on top of it.
+const withDoc = (doc, fn) => {
+  const prior = globalThis.document;
+  const priorMM = globalThis.matchMedia;
+  globalThis.document = doc;
+  globalThis.matchMedia = () => ({ matches: false });
+  try { return fn(); } finally { globalThis.document = prior; globalThis.matchMedia = priorMM; }
+};
+const rootStub = () => {
+  const classes = new Set();
+  const props = {};
+  let sawInstant = false;
+  rootStub.lastAnimate = undefined;
+  return {
+    classList: {
+      add: (c) => { classes.add(c); if (c === 'theme-instant') sawInstant = true; },
+      remove: (c) => classes.delete(c), contains: (c) => classes.has(c),
+    },
+    style: { setProperty: (k, v) => { props[k] = v; } },
+    get sawInstantDuringApply() { return sawInstant; },
+    animate: (...args) => { rootStub.lastAnimate = args; },
+    props,
+    has: (c) => classes.has(c),
+  };
+};
+
+test('swapRadius reaches the furthest viewport corner', () => {
+  // From a corner the whole diagonal is needed; from the centre, half of it.
+  assert.equal(swapRadius(0, 0, 300, 400), 500);
+  assert.equal(swapRadius(300, 400, 300, 400), 500);
+  assert.equal(swapRadius(150, 200, 300, 400), 250);
+  // Off-centre: the far side wins on each axis independently.
+  assert.equal(swapRadius(60, 400, 300, 400), Math.hypot(240, 400));
+});
+
+// The circle is handed over in PERCENTAGES of the viewport, because clip-path resolves
+// them against the pseudo-element's own box: an engine that measures that box in device
+// pixels paints a px origin at half its offset, which is the wipe blooming above and to
+// the left of the button instead of out of it.
+test('swapPercent expresses the circle as percentages of the viewport', () => {
+  assert.deepEqual(swapPercent(0, 0, 300, 400), { x: 0, y: 0, r: 141.421 });
+  assert.deepEqual(swapPercent(150, 200, 300, 400), { x: 50, y: 50, r: 70.711 });
+  // A percentage radius resolves against sqrt(w² + h²) / √2 — 500px of a 300x400 box is
+  // 141.421% of it, and covers the far corner exactly as the pixel radius did.
+  const { r } = swapPercent(60, 400, 300, 400);
+  assert.equal(Math.round((r / 100) * (Math.hypot(300, 400) / Math.SQRT2)),
+    Math.round(swapRadius(60, 400, 300, 400)));
+  // A viewport that cannot be measured (a stub) falls back to a centred, page-covering wipe.
+  assert.deepEqual(swapPercent(10, 10, 0, 0), { x: 50, y: 50, r: 150 });
+});
+
+test('themeSwap without View Transitions transitions the palette and still applies it', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const root = rootStub();
+  let applied = 0;
+  withDoc({ documentElement: root }, () => themeSwap(() => { applied++; }));
+  assert.equal(applied, 1, 'the palette write happens exactly once');
+  assert.ok(root.has(THEME_SWAP_CLASS), 'colour consumers get their one beat of transition');
+  t.mock.timers.tick(THEME_SWAP_MS + 1);
+  assert.ok(!root.has(THEME_SWAP_CLASS), 'and the class is cleaned up after');
+});
+
+test('themeSwap hands the circle to CSS as custom properties, not a scripted animation', async () => {
+  // A view transition ends as soon as its pseudo-elements have no animations left, so
+  // scripting one from ready.then() races the teardown and the wipe stops half way.
+  // The keyframes live in CSS; this only supplies the origin and radius.
+  const root = rootStub();
+  let applied = 0;
+  const doc = { documentElement: root,
+    startViewTransition: (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; } };
+  const priorWin = globalThis.window;
+  globalThis.window = { innerWidth: 300, innerHeight: 400 };
+  try {
+    withDoc(doc, () => themeSwap(() => { applied++; }, { x: 0, y: 0 }));
+  } finally { globalThis.window = priorWin; }
+  assert.equal(applied, 1, 'the palette write happens exactly once');
+  assert.equal(root.props['--swap-x'], '0%');
+  assert.equal(root.props['--swap-y'], '0%');
+  // 500px of a 300x400 viewport, as the percentage clip-path resolves against sqrt(w²+h²)/√2.
+  assert.equal(root.props['--swap-r'], '141.421%', 'the radius reaches the furthest corner');
+  assert.equal(root.props['--swap-ms'], `${THEME_SWAP_MS}ms`);
+  assert.equal(rootStub.lastAnimate, undefined, 'nothing is animated from script');
+  // Transitions are suppressed WHILE the snapshot is captured, or it records the old
+  // colours mid-ease and the wipe reveals a half-changed page.
+  assert.ok(root.sawInstantDuringApply, 'colour transitions are off while the new state is captured');
+});
+
+test('themeSwap still applies the palette when the document is a bare stub', () => {
+  let applied = 0;
+  withDoc({ documentElement: {} }, () => themeSwap(() => { applied++; }));
+  assert.equal(applied, 1, 'decoration is optional; the write never is');
+});
+
+test('originOf resolves a control to its centre, and declines an unrendered one', () => {
+  assert.deepEqual(originOf({ getBoundingClientRect: () => ({ left: 10, top: 20, width: 40, height: 10 }) }),
+    { x: 30, y: 25 });
+  assert.equal(originOf({ getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0 }) }), null);
+  assert.equal(originOf(null), null);
+});
+
+test('animations.css: the swap wipe is declarative, and the fallback transitions colours', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  // Both default cross-fades are off — motion.js drives the clip itself.
+  // Declarative, so the transition waits for it instead of tearing down mid-wipe.
+  assert.ok(/::view-transition-old\(root\) \{ z-index: 0; animation: none; \}/.test(css),
+    'the OLD snapshot keeps no default animation');
+  assert.ok(/animation: themeSwapReveal var\(--swap-ms/.test(css), 'the reveal is a CSS animation');
+  assert.ok(/@keyframes themeSwapReveal \{[\s\S]*?clip-path: circle\(var\(--swap-r/.test(css),
+    'growing to the radius motion.js supplies');
+  const fallback = css.slice(css.indexOf('html.theme-swapping'));
+  assert.ok(/background-color 0\.45s/.test(fallback) && /color 0\.45s/.test(fallback)
+    && /border-color 0\.45s/.test(fallback), 'every colour consumer eases, not just the body');
+});
+
+// ── The swap origin resolves to the element you can actually SEE ────────────
+// The fullscreen layer clones the whole toolbar, duplicate ids and all, and never
+// removes the clones on exit. getElementById returns document order, so a hidden copy
+// can win the lookup — and the theme wipe then blooms from a stale pointer position
+// instead of the button that was pressed.
+test('originOfId skips a hidden duplicate and takes the on-screen one', () => {
+  const mk = (w, h, left, top) => ({
+    getBoundingClientRect: () => ({ width: w, height: h, left, top }),
+  });
+  const prior = globalThis.document;
+  globalThis.document = {
+    querySelectorAll: () => [mk(0, 0, 0, 0), mk(38, 38, 356, 304)],
+  };
+  try {
+    assert.deepEqual(originOfId('theme-toggle'), { x: 375, y: 323 });
+  } finally { globalThis.document = prior; }
+});
+
+// A rect is not the same thing as being ON SCREEN: `visibility: hidden` / `opacity: 0`
+// leave one behind, and a parked clone keeps its size — bloom from either and the wipe
+// comes out of a corner instead of the button.
+test('originOf declines a control that is laid out but not visible', () => {
+  const rect = () => ({ left: 10, top: 20, width: 40, height: 10 });
+  assert.equal(originOf({ getBoundingClientRect: rect, checkVisibility: () => false }), null);
+  assert.deepEqual(originOf({ getBoundingClientRect: rect, checkVisibility: () => true }), { x: 30, y: 25 });
+});
+
+// …and a control that is CLIPPED away — inside a collapsed panel, or a parked clone of the
+// toolbar — is no more on screen than a hidden one. Its own style says `visible`; it is the
+// ancestor's overflow that hides it, which is what put the wipe in the top-left corner.
+test('originOf declines a control an ancestor clips away', () => {
+  const priorCS = globalThis.getComputedStyle;
+  const priorWin = globalThis.window;
+  globalThis.window = { innerWidth: 1000, innerHeight: 800 };
+  const panel = (h) => ({
+    parentElement: null,
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 400, bottom: h, width: 400, height: h }),
+    __overflow: 'hidden',
+  });
+  const btn = (parent) => ({
+    parentElement: parent,
+    getBoundingClientRect: () => ({ left: 20, top: 120, right: 60, bottom: 152, width: 40, height: 32 }),
+    checkVisibility: () => true,
+  });
+  globalThis.getComputedStyle = (n) => ({ overflow: n.__overflow || 'visible',
+                                          overflowX: n.__overflow || 'visible',
+                                          overflowY: n.__overflow || 'visible' });
+  try {
+    assert.equal(originOf(btn(panel(0))), null, 'collapsed to nothing — not on screen');
+    assert.deepEqual(originOf(btn(panel(300))), { x: 40, y: 136 }, 'open — the button is real');
+  } finally { globalThis.getComputedStyle = priorCS; globalThis.window = priorWin; }
+});
+
+test('originOf declines a control parked outside the viewport', () => {
+  const prior = globalThis.window;
+  globalThis.window = { innerWidth: 300, innerHeight: 400 };
+  try {
+    assert.equal(originOf({ getBoundingClientRect: () => ({ left: -80, top: 20, width: 40, height: 10 }) }), null);
+    assert.equal(originOf({ getBoundingClientRect: () => ({ left: 400, top: 20, width: 40, height: 10 }) }), null);
+    assert.deepEqual(originOf({ getBoundingClientRect: () => ({ left: 10, top: 20, width: 40, height: 10 }) }),
+      { x: 30, y: 25 });
+  } finally { globalThis.window = prior; }
+});
+
+// ── The origin is a control, or the centre — never the cursor ───────────────
+// desktop/src/app/mainWindow.cpp learned this first: driving the change from a menu
+// leaves the cursor near the screen corner, and the circle appears to come out of the
+// window corner. A stale click in the page is exactly the same trap.
+test('with no control to anchor to, themeSwap blooms from the viewport centre', () => {
+  const root = rootStub();
+  const doc = { documentElement: root,
+    startViewTransition: (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; } };
+  const priorWin = globalThis.window;
+  globalThis.window = { innerWidth: 300, innerHeight: 400 };
+  try {
+    withDoc(doc, () => themeSwap(() => {}));
+    assert.equal(root.props['--swap-x'], '50%');
+    assert.equal(root.props['--swap-y'], '50%');
+    // …and a control always outranks that (275/300, 12/400 of the viewport).
+    withDoc(doc, () => themeSwap(() => {}, { x: 275, y: 12 }));
+    assert.equal(root.props['--swap-x'], '91.667%');
+    assert.equal(root.props['--swap-y'], '3%');
+  } finally { globalThis.window = priorWin; }
+});
+
+// The wipe is one animation mirrored across the browser and the extension — the desktop
+// runs the same length and curve from its Qt overlay, so these two are held to EACH
+// OTHER. The curve matters as much as the duration: it must be a true ease-out (fast away
+// from the button, still decelerating as it reaches the far corner) and must never ease
+// IN, which is what made the circle appear to creep before it moved.
+test('the wipe: browser and extension share one duration and one ease-out curve', () => {
+  const decls = [['browser', new URL('../css/animations.css', import.meta.url)],
+                 ['extension', new URL('../../extension/src/lib/animations.css', import.meta.url)]]
+    .map(([name, url]) => {
+      const decl = /animation: themeSwapReveal var\(--swap-ms, (\d+)ms\) cubic-bezier\(([^)]*)\)/
+        .exec(readFileSync(url, 'utf8'));
+      assert.ok(decl, `${name}: the reveal declaration`);
+      return { name, ms: Number(decl[1]), curve: decl[2].split(',').map(Number) };
+    });
+  const [browser, extension] = decls;
+  assert.deepEqual(extension, { ...extension, ms: browser.ms, curve: browser.curve },
+    'the two stylesheets drifted apart');
+  // The JS timer that clears the classes has to outlast the CSS, or the fallback
+  // cross-fade is cut off mid-way.
+  assert.equal(THEME_SWAP_MS, browser.ms, 'motion.js THEME_SWAP_MS is the CSS fallback');
+  const ext = readFileSync(new URL('../../extension/src/lib/accent.js', import.meta.url), 'utf8');
+  assert.equal(Number(/var SWAP_MS = (\d+)/.exec(ext)[1]), browser.ms, 'accent.js SWAP_MS agrees');
+
+  // Judged on the AREA it sweeps, not on its control points. The wipe is a CIRCLE, so the
+  // recoloured area grows as r²: an ease-OUT radius floods the screen early and then spends
+  // its tail creeping over a sliver in the far corner, which is what "the animation stops
+  // in the middle and finishes later" actually is. So the radius has to ease IN slightly.
+  const [x1, y1, x2, y2] = browser.curve;
+  const at = (t) => {                    // solve x(u) = t, then take y(u)
+    let lo = 0, hi = 1, u = t;
+    for (let i = 0; i < 40; i++) {
+      u = (lo + hi) / 2;
+      const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3;
+      if (x < t) lo = u; else hi = u;
+    }
+    return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3;
+  };
+  assert.equal(y2, 1, `${browser.curve}: the sweep ends at the full radius`);
+  // Fraction of a viewport covered by a circle of radius `r*R` about (cx, cy), sampled.
+  const coveredAt = (t, cx, cy, w = 1440, h = 900) => {
+    const R = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy));
+    const r = at(t) * R;
+    let inside = 0, n = 90;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const x = (i + 0.5) * w / n, y = (j + 0.5) * h / n;
+      if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) inside++;
+    }
+    return inside / (n * n);
+  };
+  // Every origin the app actually uses: a toolbar icon near a corner, and the centre
+  // fallback for when no control is on screen.
+  for (const [name, cx, cy] of [['toolbar icon', 93, 436], ['viewport centre', 720, 450]]) {
+    // THE regression: nothing must be finished early, or the rest of the duration is dead
+    // time with a stalled-looking crescent left in the corner.
+    assert.ok(coveredAt(0.8, cx, cy) < 0.92, `${name}: still visibly moving at 80% of the time`);
+    assert.ok(coveredAt(0.9, cx, cy) < 0.99, `${name}: and at 90%`);
+    // …and the opposite trap: it must not creep at the start and then rush.
+    assert.ok(coveredAt(0.4, cx, cy) > 0.15, `${name}: away from the button without creeping`);
+    // Even growth: no decile may sweep more than a third of the screen on its own.
+    let prev = 0;
+    for (let t = 0.1; t <= 1.0001; t += 0.1) {
+      const c = coveredAt(Math.min(t, 1), cx, cy);
+      assert.ok(c >= prev, `${name}: the wipe never goes backwards`);
+      assert.ok(c - prev < 0.34, `${name}: no decile floods a third of the screen at once`);
+      prev = c;
+    }
+  }
+});
+
+// The toolbar fold and the coordinates-panel slide are a plain ease-out. They deliberately
+// do NOT take the wipe's curve: a fold grows along one axis, so its area is simply its
+// height and it wants the straightforward deceleration, while the wipe is a circle whose
+// area grows as r² and needs the correction for that (see the note above its declaration).
+test('the panel folds are an ease-out, and hold visibility for the whole fold', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const token = (name) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1].trim();
+  const [, y1, , y2] = /cubic-bezier\(([^)]*)\)/.exec(token('fold-ease'))[1].split(',').map(Number);
+  assert.ok(y1 > 0.5 && y2 === 1, `--fold-ease ${token('fold-ease')}: leaves at speed, settles at the end`);
+  const foldMs = Number(/(\d+)ms/.exec(token('fold-ms'))[1]);
+  assert.ok(foldMs >= 300, 'the fold is the slower, settling kind');
+  // visibility is what takes the collapsed toolbar out of the tab order; released EARLY
+  // it blinks out mid-fold, and the fold animates against nothing.
+  const hidden = css.slice(css.indexOf('#controls-body.hidden {'));
+  assert.match(hidden.slice(0, hidden.indexOf('}')), /visibility 0s linear var\(--fold-ms\)/,
+    'the visibility delay must be the fold duration itself, not a copied constant');
+  // Every collapsing part opts out under reduced motion.
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {\n    #controls-body'));
+  for (const sel of ['#controls-body', '.coordinates-panel', '#coord-body', '.coord-tabs'])
+    assert.ok(reduced.slice(0, reduced.indexOf('}')).includes(sel), `${sel} opts out`);
+});
+
+test('motion.js keeps no pointer state for the swap to fall back to', () => {
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  assert.ok(!/addEventListener\(\s*'pointerdown'/.test(src),
+    'a remembered press is what put the wipe in the corner — the control is the only origin');
+});
+
+test('originOfId is null when every copy is hidden, and never throws on a stub', () => {
+  const prior = globalThis.document;
+  globalThis.document = { querySelectorAll: () => [{ getBoundingClientRect: () => ({ width: 0, height: 0, left: 0, top: 0 }) }] };
+  try { assert.equal(originOfId('theme-toggle'), null); } finally { globalThis.document = prior; }
+  globalThis.document = {};
+  try { assert.equal(originOfId('theme-toggle'), null); } finally { globalThis.document = prior; }
+});
+
+test('animations.css: only the wipe drives the transition — no UA group/old default', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  assert.match(css, /::view-transition-group\(root\) \{ animation: none; \}/,
+    'the UA group animation would retime the pair under the wipe');
+  assert.match(css, /::view-transition-old\(root\) \{ z-index: 0; animation: none; \}/);
+});
+
+// ── Incognito frame draws on, and retracts in reverse ───────────────────────
+// The dashes have to appear in order (clockwise from the top-left) and leave in the
+// opposite order. An `outline` can only do both at once, so the frame is four edges
+// whose LENGTH animates — transform would stretch the dash pattern into stripes.
+test('the incognito frame is four edges that grow, not a stretched outline', () => {
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  assert.ok(!/body\.incognito-mode \.canvas-viewport \{[^}]*outline:/.test(css),
+    'the all-at-once outline is gone');
+  const edge = css.slice(css.indexOf('.ig-edge {'), css.indexOf('\n}', css.indexOf('.ig-edge {')));
+  assert.match(edge, /transition: width [^;]*, *\n? *height /, 'length is what animates');
+  assert.ok(!/transform:/.test(edge), 'transform would smear the dashes into stripes');
+  // Clockwise on the way in…
+  for (const [sel, ms] of [['t', 0], ['r', 110], ['b', 220], ['l', 330]])
+    assert.match(css, new RegExp(`body\\.incognito-mode \\.ig-${sel} \\{ --ig-delay: ${ms}ms; \\}`),
+      `edge ${sel} draws at ${ms}ms`);
+  // …and the rest state mirrors them, so the LAST edge drawn is the FIRST to retract.
+  assert.match(css, /\.ig-t \{ --ig-delay: 330ms; \}/);
+  assert.match(css, /\.ig-l \{ --ig-delay: 0ms; \}/);
+  // The floating "Incognito — not saved" pill over the picture is gone: that fact now
+  // rides the toolbar "?" bubble, and the frame alone marks the mode on the canvas.
+  assert.ok(!css.includes('.ig-badge'), 'the on-canvas incognito pill is back');
+});
+
+test('the incognito frame markup ships all four edges, inside the canvas viewport', async () => {
+  const src = readFileSync(new URL('../js/ui/mainContent.js', import.meta.url), 'utf8');
+  for (const e of ['ig-t', 'ig-r', 'ig-b', 'ig-l'])
+    assert.ok(src.includes(e), `mainContent renders .${e}`);
+  assert.ok(!src.includes('ig-badge'), 'the on-canvas incognito pill is back');
+  // Always in the DOM (the exit animation needs something to retract) and inside the
+  // VIEWPORT, so it traces the whole visible canvas region rather than the picture.
+  assert.ok(src.indexOf('canvas-viewport" id=') < src.indexOf('incognito-frame'),
+    'the frame escaped the canvas viewport');
+  assert.ok(src.indexOf('incognito-frame') < src.indexOf('canvas-container" id='),
+    'the frame must precede the canvas container, not sit inside it');
+});
+
+// ── Appearance: system is the default, and stays followed ──────────────────
+// The browser used to store only a RESOLVED light/dark, so one press of the toolbar
+// toggle pinned the palette for good and the app never followed the OS again. It now
+// keeps the same three-state mode the desktop (io/fileStore.hpp themeMode) and the
+// extension (lib/shellTheme.js THEME_MODES) have, with 'system' as the default.
+// Switching between two modes that resolve to the SAME palette repaints nothing — playing
+// the wipe for it animates an unchanged screen.
+test('theme mode: picking a mode that resolves to the painted palette does not animate', () => {
+  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('setThemeMode('), src.indexOf('get themeMode()'));
+  assert.match(body, /resolveThemeMode\(next\) === painted/, 'the resolved palette is compared');
+  // …and the setting is still stored + announced on that path, or the picker would snap back.
+  const noop = body.slice(body.indexOf('=== painted'), body.indexOf('themeSwap('));
+  assert.match(noop, /localStorage\.setItem\(THEME_STORAGE_KEY, next\)/, 'the mode is still stored');
+  assert.match(noop, /stencil:theme-changed/, 'and still announced');
+  const ext = readFileSync(new URL('../../extension/src/lib/accent.js', import.meta.url), 'utf8');
+  assert.match(ext, /var repaints = resolveTheme\(next\) !== resolveTheme\(readTheme\(\)\)/,
+    'the extension makes the same check');
+});
+
+test('theme mode: three states, system by default, resolved against the OS', async () => {
+  const { THEME_MODES, resolveThemeMode } = await import('../js/core/accentController.js');
+  assert.deepEqual(THEME_MODES, ['system', 'light', 'dark']);
+  // An explicit mode is taken as-is, whatever the OS says.
+  assert.equal(resolveThemeMode('dark', false), 'dark');
+  assert.equal(resolveThemeMode('light', true), 'light');
+  // 'system' — and anything unrecognised, including a missing setting — asks the OS.
+  for (const mode of ['system', undefined, null, '', 'nonsense']) {
+    assert.equal(resolveThemeMode(mode, true), 'dark', `${mode} follows a dark OS`);
+    assert.equal(resolveThemeMode(mode, false), 'light', `${mode} follows a light OS`);
+  }
+});
+
+test('theme mode: the pre-paint script and the app agree on what "system" means', () => {
+  const pre = readFileSync(new URL('../js/prePaintTheme.js', import.meta.url), 'utf8');
+  // Before first paint, only an explicit light/dark wins; everything else resolves against
+  // the media query — otherwise a stored 'system' would paint the literal string.
+  assert.match(pre, /savedTheme === 'dark' \|\| savedTheme === 'light'/,
+    'the pre-paint script treats a stored mode, not a stored palette');
+  assert.match(pre, /prefersDark \? 'dark' : 'light'/, 'and falls through to the OS');
+  const binder = readFileSync(new URL('../js/core/controlsBinder.js', import.meta.url), 'utf8');
+  // The OS listener has to test the MODE: keyed on "nothing stored", it stopped following
+  // the moment the toggle wrote a value.
+  assert.match(binder, /themeMode !== 'system'/, 'the OS is followed while the mode is system');
+  const visuals = readFileSync(new URL('../js/ui/visualsModal.js', import.meta.url), 'utf8');
+  assert.match(visuals, /id="vs-appearance"/, 'and there is a control to get back to system');
+  assert.match(visuals, /setThemeMode\(appearance\.value/, 'which writes the mode');
+});

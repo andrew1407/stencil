@@ -1,21 +1,11 @@
+import ACCENTS_DATA from '../config/accents.json' with { type: 'json' };
+
 // Accent (brand-colour) presets — theme-colour choices in the Visuals modal (🎨). First
 // (violet) is the default. Each preset is just one primary hex; --accent-2 (hover-active
 // shade) and the focus/selection glows derive from --accent via color-mix() in css/theme.css.
-// Mirrors the extension (extension/src/lib/accent.js) and desktop (theme.cpp accentPresets).
-export const ACCENTS = [
-  { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
-  { key: 'pink',    label: 'Pink',        hex: '#ec4899' },
-  { key: 'yellow',  label: 'Yellow',      hex: '#eab308' },
-  { key: 'orange',  label: 'Orange',      hex: '#ea580c' },
-  { key: 'crimson', label: 'Crimson',     hex: '#be123c' },
-  { key: 'aqua',    label: 'Aqua',        hex: '#0891b2' },
-  { key: 'sky',     label: 'Sky blue',    hex: '#0ea5e9' },
-  { key: 'blue',    label: 'Blue',        hex: '#2563eb' },
-  { key: 'grass',   label: 'Grass green', hex: '#16a34a' },
-  { key: 'green',   label: 'Green',       hex: '#047857' },
-  { key: 'brown',   label: 'Brown',       hex: '#a87c50' },
-  { key: 'grey',    label: 'Grey',        hex: '#64748b' },
-];
+// The rows live in config/accents.json — the canonical palette the extension
+// (extension/src/lib/accent.js) and desktop (theme.cpp accentPresets) mirror.
+export const ACCENTS = ACCENTS_DATA;
 
 // localStorage key for the chosen accent; same flavour as drawingApp_theme.
 export const ACCENT_STORAGE_KEY = 'drawingApp_accent';
@@ -32,9 +22,9 @@ export const faviconSvg = (hex) =>
   '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +
   `<rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="${hex}" stroke-width="1.5"/>` +
   '<rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>' +
-  '<polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
   '<g fill="#FFFF00" stroke="#000000" stroke-width="1.25">' +
-  '<circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/>' +
+  '<circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/>' +
   '</g></svg>';
 
 // Validate/normalize a hex colour: '#rgb' or '#rrggbb' (the leading '#' optional) →
@@ -47,11 +37,43 @@ export const normalizeHex = (value) => {
   return /^[0-9a-fA-F]{6}$/.test(h) ? '#' + h.toLowerCase() : null;
 };
 
-// Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' via a canvas probe, since
-// the editor's <input type=color> controls only take #rrggbb. 'transparent'/null pass through
-// (fills allow them); an unparseable value is returned unchanged (surfaces as an error, not
-// black). Sibling to normalizeHex above, but this resolves ANY CSS color (not just hex) and
-// needs a DOM canvas — so it no-op-passes-through when no canvas is available (node tests).
+// ── Accent contrast: does a white glyph need a shadow? ──────────────────────
+// Buttons paint white glyphs on --accent, so a light accent washes them out. Keep the
+// white mark and lay a dark shadow under it. Trigger: white-vs-accent contrast under
+// 3:1. Pure, so the extension (lib/accent.js) and desktop (theme.cpp) share the threshold.
+const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+// WCAG relative luminance of a hex colour, or null when it isn't one.
+export const relativeLuminance = (hex) => {
+  const h = normalizeHex(hex);
+  if (!h) return null;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+};
+
+// Contrast ratio of pure white against `hex` (1..21), or null when it isn't a hex.
+export const contrastWithWhite = (hex) => {
+  const l = relativeLuminance(hex);
+  return l == null ? null : 1.05 / (l + 0.05);
+};
+
+export const GLYPH_SHADOW_MIN_CONTRAST = 3;
+
+// True when white-on-`hex` falls below the threshold — the accent is light enough
+// that the glyph shadow should be turned on. A non-hex answers false (no shadow).
+export const needsGlyphShadow = (hex) => {
+  const c = contrastWithWhite(hex);
+  return c != null && c < GLYPH_SHADOW_MIN_CONTRAST;
+};
+
+// The preset keys that need it, DERIVED from the presets — adding a light preset
+// can never forget to update this list. Mirrored by prePaintTheme.js (which can't
+// import this module) and asserted equal in the tests.
+export const LIGHT_ACCENT_KEYS = ACCENTS.filter((a) => needsGlyphShadow(a.hex)).map((a) => a.key);
+
+// Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' via a canvas probe,
+// since <input type=color> only takes #rrggbb. 'transparent'/null pass through; an
+// unparseable value returns unchanged. Needs a DOM canvas — passes through in node tests.
 const colorCanvas = (() => {
   try { return document.createElement('canvas').getContext('2d'); } catch { return null; }
 })();

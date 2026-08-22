@@ -3,7 +3,14 @@
 // self-contained (no imports). The framed page posts {source:'stencil-modal',
 // type:'ready'|'close'}; if 'ready' never arrives (CSP/mixed-content blocked the frame),
 // drop the modal and open a tab.
-export const mountStencilModal = (url, title, readyTimeoutMs) => {
+//
+// THEME: the shell can't link lib/theme.css (it lives in someone else's page), so its
+// palette arrives as DATA — `theme` = {mode, accent, palettes, accents} from
+// lib/shellTheme.js. It used to be hardcoded light-with-a-prefers-color-scheme-override,
+// which put a WHITE frame around a dark crop page whenever the user's Appearance choice
+// disagreed with the OS. The values become CSS custom properties on the host element,
+// so a live theme/accent change (chrome.storage mirror) just re-sets them.
+export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
   if (existing) existing.remove();
@@ -13,8 +20,37 @@ export const mountStencilModal = (url, title, readyTimeoutMs) => {
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;';
   const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
 
+  // ── Palette (data in, CSS variables out) ──
+  const t = theme || {};
+  const prefersDark = () => {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+    catch (e) { return false; }
+  };
+  // Mirror of lib/shellTheme.js resolveShellMode — an injected fn can't import.
+  const resolveMode = (mode) => (mode === 'dark' || mode === 'light' ? mode : (prefersDark() ? 'dark' : 'light'));
+  const FALLBACK = {
+    dark: { bg: '#21242d', panel: '#2b2f3a', panel2: '#343948', line: '#3d4354', text: '#e8eaf0', muted: '#9aa0b0' },
+    light: { bg: '#f4f5f7', panel: '#ffffff', panel2: '#eceef3', line: '#d4d8e2', text: '#1d2230', muted: '#6b7180' },
+  };
+  const applyTheme = (mode, accent) => {
+    const resolved = resolveMode(mode);
+    const p = ((t.palettes || FALLBACK)[resolved]) || FALLBACK[resolved];
+    // Readable from outside the shadow root (tests, and anything asking what it drew).
+    host.setAttribute('data-stencil-theme', resolved);
+    for (const k in p) host.style.setProperty('--st-' + k, p[k]);
+    host.style.setProperty('--st-accent', accent || '#7c3aed');
+    host.style.colorScheme = resolved;   // native scrollbars/controls inside the shell
+  };
+  applyTheme(t.mode, t.accent);
+
   const style = document.createElement('style');
   style.textContent = `
+    /* Isolation: everything is scoped inside the shadow root, and the few INHERITED
+       properties that would otherwise cross the boundary (font, colour, spacing,
+       direction) are reset here — the host page must not be able to restyle the shell. */
+    :host{all:initial;}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      letter-spacing:normal;text-transform:none;direction:ltr;}
     /* Entrance: backdrop fades, panel pops up. Disabled under reduced-motion
        (block at the bottom) since this is injected and self-contained. */
     @keyframes stencilBackdropIn{from{opacity:0}to{opacity:1}}
@@ -22,36 +58,33 @@ export const mountStencilModal = (url, title, readyTimeoutMs) => {
       to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);
       animation:stencilBackdropIn .2s ease both;}
+    /* Colours come from the host's CSS variables (set from the user's Appearance +
+       accent choice), so the shell matches the framed page and re-themes live. */
     .panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
       width:min(1040px,94vw);height:min(760px,90vh);display:flex;flex-direction:column;
-      background:#21242d;border:1px solid #3d4354;border-radius:12px;overflow:hidden;
-      box-shadow:0 20px 60px rgba(0,0,0,.6);
+      background:var(--st-bg);border:1px solid var(--st-line);border-radius:12px;overflow:hidden;
+      box-shadow:0 20px 60px rgba(0,0,0,.45);
       animation:stencilPanelIn .26s cubic-bezier(.16,1,.3,1) both;}
-    .bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#2b2f3a;
-      border-bottom:1px solid #3d4354;color:#e8eaf0;font:600 13px system-ui,sans-serif;}
+    .bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--st-panel);
+      border-bottom:1px solid var(--st-line);color:var(--st-text);font:600 13px system-ui,sans-serif;}
     .bar .sp{flex:1}
-    .bar button{background:#343948;border:1px solid #3d4354;color:#e8eaf0;border-radius:6px;
-      width:30px;height:28px;cursor:pointer;font-size:14px;line-height:1;
-      transition:background .15s ease,border-color .15s ease,transform .12s ease;}
-    .bar button:hover{background:#7c3aed;border-color:#7c3aed;transform:translateY(-1px);}
+    /* Ghost buttons matching the extension's .icon-btn: panel-2 fill, hairline border,
+       accent on hover — legible on either palette. */
+    .bar button{background:var(--st-panel2);border:1px solid var(--st-line);color:var(--st-text);
+      border-radius:6px;width:30px;height:28px;cursor:pointer;font-size:14px;line-height:1;
+      display:inline-flex;align-items:center;justify-content:center;
+      transition:background .15s ease,border-color .15s ease,color .15s ease,transform .12s ease;}
+    .bar button:hover{background:var(--st-accent);border-color:var(--st-accent);color:#fff;transform:translateY(-1px);}
+    .bar button:focus-visible{outline:2px solid var(--st-accent);outline-offset:2px;}
     .bar button:active{transform:translateY(1px) scale(.96);}
+    .bar button svg{display:block;}
     @media (prefers-reduced-motion: reduce){
       .backdrop,.panel{animation-duration:.001ms;}
       .bar button{transition-duration:.001ms;}
     }
     .loading{position:absolute;left:0;right:0;bottom:0;top:45px;display:flex;
-      align-items:center;justify-content:center;color:#9aa0b0;font:13px system-ui,sans-serif;}
-    iframe{flex:1;width:100%;border:0;background:#21242d;position:relative;}
-    /* Light system preference: mirror lib/theme.css's light palette so the modal
-       chrome matches the (theme.css-driven) page framed inside it. Updates live. */
-    @media (prefers-color-scheme: light){
-      .panel{background:#f4f5f7;border-color:#d4d8e2;}
-      .bar{background:#ffffff;border-bottom-color:#d4d8e2;color:#1d2230;}
-      .bar button{background:#eceef3;border-color:#d4d8e2;color:#1d2230;}
-      .bar button:hover{background:#7c3aed;border-color:#7c3aed;color:#fff;}
-      .loading{color:#6b7180;}
-      iframe{background:#f4f5f7;}
-    }
+      align-items:center;justify-content:center;color:var(--st-muted);font:13px system-ui,sans-serif;}
+    iframe{flex:1;width:100%;border:0;background:var(--st-bg);position:relative;}
   `;
 
   const wrap = document.createElement('div');
@@ -74,9 +107,26 @@ export const mountStencilModal = (url, title, readyTimeoutMs) => {
     try { chrome.runtime.sendMessage({ type: 'stencil-open-tab', url }); }
     catch { window.open(url, '_blank'); }
   };
+  // Live re-theme: lib/accent.js mirrors the Appearance mode + accent KEY into
+  // chrome.storage.local on every change, so flipping the theme from the popup's
+  // moon button re-paints an OPEN modal instead of waiting for the next one.
+  // (Literal key strings — an injected fn can't import lib/shellTheme.js.)
+  const onStore = (changes, area) => {
+    if (area !== 'local') return;
+    if (!changes.stencil_theme && !changes.stencil_accent) return;
+    const mode = changes.stencil_theme ? changes.stencil_theme.newValue : t.mode;
+    const key = changes.stencil_accent ? changes.stencil_accent.newValue : '';
+    const accent = (key && (t.accents || {})[key]) || t.accent;
+    t.mode = mode;
+    t.accent = accent;
+    applyTheme(mode, accent);
+  };
+  try { chrome.storage.onChanged.addListener(onStore); } catch (e) { /* no chrome.storage here */ }
+
   const cleanup = () => {
     document.removeEventListener('keydown', onKey, true);
     window.removeEventListener('message', onMsg);
+    try { chrome.storage.onChanged.removeListener(onStore); } catch (e) { /* noop */ }
     clearTimeout(timer);
   };
   const close = () => {

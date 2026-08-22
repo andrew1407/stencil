@@ -15,11 +15,24 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js';
+import { pointColorOf } from '../core/renderer.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { requireConnection } from '../net/remoteSync.js';
 import { notify } from '../utils.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
+import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider } from '../llm/llmSettings.js';
+
+// A layout argument may be an OBJECT or a raw JSON string — parse the latter so callers
+// can hand over clipboard/file text directly. A non-object (or bad JSON) throws, since
+// silently applying nothing would look like the layout was accepted.
+const toLayoutObject = (data) => {
+  if (typeof data !== 'string') return data;
+  let parsed;
+  try { parsed = JSON.parse(data); } catch { throw new TypeError('stencil: layout JSON could not be parsed'); }
+  if (parsed == null || typeof parsed !== 'object') throw new TypeError('stencil: layout JSON must describe an object');
+  return parsed;
+};
 
 const str = (v) => (v == null ? '' : String(v));
 
@@ -57,10 +70,29 @@ export const createStencil = (app) => {
   // block the rest, and report the unreachable count in the corner toast.
   if (firstInit && getAutoConnect()) {
     const saved = loadSavedServers();
-    if (saved.length) {
-      Promise.allSettled(saved.map((s) => connMgr.connect(s))).then((results) => {
-        const failed = results.filter((r) => r.status === 'rejected').length;
-        if (failed) notify(`Couldn't reach ${failed} saved server${failed === 1 ? '' : 's'}`, 'info');
+    // A credential the server ALREADY refused is never retried — it cannot start working.
+    // The row is adopted straight into the expired set instead, so the Servers button
+    // still carries its dot and the row still offers Reconnect.
+    const dead = saved.filter((s) => s.expired);
+    const live = saved.filter((s) => !s.expired);
+    for (const s of dead) { try { connMgr.adoptExpired(s); } catch { /* bad url — skip */ } }
+    if (dead.length) {
+      console.warn(`stencil: ${dead.length} saved server session(s) need signing in again — Servers ▸ Reconnect`);
+    }
+    if (live.length) {
+      Promise.allSettled(live.map((s) => connMgr.connect(s))).then((results) => {
+        const rejected = results.filter((r) => r.status === 'rejected').map((r) => r.reason);
+        // A REFUSED credential is not an unreachable server: the server answered, this
+        // session is simply over — say it needs a new token and open the Connections
+        // modal on click, rather than sending the user hunting a server that is up.
+        const expired = rejected.filter((e) => e?.expired).length;
+        const unreachable = rejected.length - expired;
+        if (expired) {
+          console.warn(`stencil: ${expired} saved server session(s) expired — reconnect from Connections`);
+          notify(`Session expired on ${expired} saved server${expired === 1 ? '' : 's'} — reconnect`, 'fail',
+            { onClick: () => document.getElementById('connect-btn')?.click() });
+        }
+        if (unreachable) notify(`Couldn't reach ${unreachable} saved server${unreachable === 1 ? '' : 's'}`, 'info');
       });
     }
   }
@@ -96,9 +128,6 @@ export const createStencil = (app) => {
     catch { /* no DOM (node tests) */ }
   };
 
-  // CSS-color → '#rrggbb' normalizer (toHexColor) lives with its sibling normalizeHex in
-  // core/accents.js so the toolbar/UI paths can share it too; imported above.
-
   // ── Point: wraps one {x,y} in a line's points (crop-local px). lineIdx === -1 is
   // the in-progress currentLine (matches the coord table's target resolution). ──
   const makePoint = (lineIdx, ptIdx) => {
@@ -113,13 +142,13 @@ export const createStencil = (app) => {
       get y() { const p = raw(); return p ? p.y : undefined; },
       set x(v) { app.setPointCoord(lineIdx, ptIdx, 'x', v); },
       set y(v) { app.setPointCoord(lineIdx, ptIdx, 'y', v); },
-      // Absolute set of x/y (and optionally the parent line's marker size).
+      // Absolute set of x/y (and optionally the parent line's point size).
       apply({ x, y, size } = {}) {
         if (x != null) app.setPointCoord(lineIdx, ptIdx, 'x', x);
         if (y != null) app.setPointCoord(lineIdx, ptIdx, 'y', y);
         if (size != null) {
           const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
-          if (line) { line.markerSize = Number(size); app.saveHistory(); app.renderer.redraw(); }
+          if (line) { line.pointSize = Number(size); app.saveHistory(); app.renderer.redraw(); }
         }
         return point;
       },
@@ -151,19 +180,36 @@ export const createStencil = (app) => {
     let line = {
       get idx() { return idx; },
       get points() { const l = obj(); return l ? l.points.map((_, i) => makePoint(idx, i)) : []; },
-      get color() { return obj()?.color; }, set color(v) { setProp('color', toHexColor(str(v))); },
+      // Recolouring the stroke pins an inherit-fallback point colour first, so already-drawn
+      // points keep their rendered colour (same rule as applySelectionChange).
+      get color() { return obj()?.color; },
+      set color(v) {
+        const l = obj();
+        if (!l) return;
+        if (!l.pointColor) l.pointColor = l.color;
+        l.color = toHexColor(str(v));
+        commit();
+      },
+      // Point colour for THIS line. Reading reports the colour it actually draws in
+      // (falling back to the stroke); assigning null/'' clears it back to that fallback.
+      get pointColor() { const l = obj(); return l ? pointColorOf(l) : undefined; },
+      set pointColor(v) { setProp('pointColor', v == null || v === '' ? '' : toHexColor(str(v))); },
       get thickness() { return obj()?.thickness; }, set thickness(v) { setProp('thickness', Number(v)); },
-      get markerSize() { return obj()?.markerSize; }, set markerSize(v) { setProp('markerSize', Number(v)); },
+      get pointSize() { return obj()?.pointSize; }, set pointSize(v) { setProp('pointSize', Number(v)); },
       get style() { return obj()?.style; }, set style(v) { setProp('style', str(v)); },
       get fillColor() { return obj()?.fillColor; }, set fillColor(v) { setProp('fillColor', v == null ? 'transparent' : toHexColor(str(v))); },
-      // Batch style update. Accepts color/thickness/markerSize|pointSize/style/fillColor.
+      // Batch style update. Accepts color/pointColor/thickness/pointSize/style/fillColor.
       apply(opts = {}) {
         const l = obj();
         if (!l) return line;
-        if (opts.color != null) l.color = toHexColor(str(opts.color));
+        if (opts.color != null) {
+          if (!l.pointColor) l.pointColor = l.color;   // see the color setter
+          l.color = toHexColor(str(opts.color));
+        }
+        if (opts.pointColor != null) l.pointColor = opts.pointColor === '' ? '' : toHexColor(str(opts.pointColor));
         if (opts.thickness != null) l.thickness = Number(opts.thickness);
-        const ms = opts.markerSize ?? opts.pointSize;
-        if (ms != null) l.markerSize = Number(ms);
+        const ms = opts.pointSize;
+        if (ms != null) l.pointSize = Number(ms);
         if (opts.style != null) l.style = str(opts.style);
         if (opts.fillColor != null) l.fillColor = opts.fillColor === 'transparent' ? 'transparent' : toHexColor(str(opts.fillColor));
         commit();
@@ -261,10 +307,9 @@ export const createStencil = (app) => {
       store().upsert(proj.meta, proj.payload);
       app.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     };
-    // Normalize `v` (a Date, epoch ms, a parseable date string, or 0/null = keep
-    // forever) to an absolute expiry and apply it through the shared core setter,
-    // which propagates to the server for a server-linked project. Shared by the
-    // expiresAt / expirationDate setters and the free-form expire() command's 'off'.
+    // Normalize `v` (a Date, epoch ms, a parseable date string, or 0/null = keep forever)
+    // and apply it through the shared core setter, which propagates to the server for a
+    // server-linked project.
     const setExpiry = (v, what) => {
       if (incognito) throw new Error('Cannot set expiration on an incognito editor');
       if (v == null || v === 0) { app.setProjectExpiration(id, { expiresAt: 0 }); return; }
@@ -277,11 +322,9 @@ export const createStencil = (app) => {
       get id() { return id; },
       get incognito() { return incognito; },
       get isOpened() { return incognito ? true : openedIds().has(id); },
-      // Expiration. `expiresAt` is epoch ms (or null = kept forever); `expirationDate`
-      // is the same value as a Date. Both setters accept a number (ms), a Date, or a
-      // parseable date string; 0/null keeps it forever. Writes go through the same core
-      // path the expiration modal uses and propagate to the server for a server-linked
-      // project (so setting it on a fetched project updates the server too).
+      // Expiration. `expiresAt` is epoch ms (or null = kept forever); `expirationDate` is
+      // the same value as a Date. Both setters accept a number (ms), a Date, or a date
+      // string; 0/null keeps forever. Writes take the expiration modal's core path.
       get expiresAt() { const m = meta(); return m ? store().expiresAt(m) : null; },
       set expiresAt(v) { setExpiry(v, 'expiration'); },
       get expirationDate() { const m = meta(); const ms = m ? store().expiresAt(m) : null; return ms ? new Date(ms) : null; },
@@ -318,10 +361,10 @@ export const createStencil = (app) => {
       // Custom accent colour painting this project's name: "#rrggbb" or '' (theme accent).
       get color() { return incognito ? '' : (meta()?.color ?? ''); },
       set color(v) {
-        if (incognito) throw new Error('Cannot colour an incognito editor');
+        if (incognito) throw new Error('Cannot color an incognito editor');
         const s = str(v).trim();
-        if (s && !normalizeHex(s)) throw new Error(`Invalid project colour "${v}" — use a hex like #ff5623, or '' to clear`);
-        if (app.setProjectColor(id, s) == null) throw new Error(`Could not set colour on project ${id}`);
+        if (s && !normalizeHex(s)) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
+        if (app.setProjectColor(id, s) == null) throw new Error(`Could not set color on project ${id}`);
       },
       // Search keywords (string[]). Assign an array or a comma/space-separated string to
       // replace them; addKeywords / removeKeywords adjust the set. Mirrors the CLI /keywords.
@@ -334,18 +377,18 @@ export const createStencil = (app) => {
       // Whether this is a blank-image project (solid-colour background). Read-only.
       get blank() { return incognito ? false : !!meta()?.blank; },
       // True when this project was opened from a portable .stencil file (drives the bronze
-      // projects-list outline / badge). Read-only provenance marker.
+      // projects-list outline / badge). Read-only provenance flag.
       get fromFile() { return incognito ? false : !!meta()?.fromFile; },
       // Blank-fill colour ("#rrggbb"), or null for a non-blank project. Assigning recolours the
       // solid background in place (the drawn lines stay). Setting on a non-blank project is a no-op
       // (throws), per the "only blanks have a blank colour" rule.
       get blankColor() { const m = meta(); return (m && m.blank) ? (m.blankColor || '') : null; },
       set blankColor(v) {
-        if (incognito) throw new Error('Cannot recolour an incognito editor');
-        if (!meta()?.blank) throw new Error(`Project ${id} is not a blank image — nothing to recolour`);
+        if (incognito) throw new Error('Cannot recolor an incognito editor');
+        if (!meta()?.blank) throw new Error(`Project ${id} is not a blank image — nothing to recolor`);
         const s = str(v).trim();
-        if (!normalizeHex(s)) throw new Error(`Invalid blank colour "${v}" — use a hex like #ffffff`);
-        if (app.setProjectBlankColor(id, s) == null) throw new Error(`Could not set blank colour on project ${id}`);
+        if (!normalizeHex(s)) throw new Error(`Invalid blank color "${v}" — use a hex like #ffffff`);
+        if (app.setProjectBlankColor(id, s) == null) throw new Error(`Could not set blank color on project ${id}`);
       },
       addKeywords(...kw) {
         if (incognito) throw new Error('Cannot set keywords on an incognito editor');
@@ -378,10 +421,9 @@ export const createStencil = (app) => {
       get resource() { return isActive() ? (app.imageResource ?? null) : (meta()?.resource ?? null); },
       set resource(v) { setLink('resource', 'imageResource', v); },
       renew() { app.renewProject(id); return project; },
-      // Set expiry from a free-form duration ("days 23", "fortnight", "off"). No/blank
-      // arg returns the format help; 'off'/'never' keeps it forever; otherwise the project
-      // expires that far from now. Routes through setProjectExpiration so a server-linked
-      // project propagates the new expiry to the server (like the toolbar's expiration modal).
+      // Set expiry from a free-form duration ("days 23", "fortnight", "off"). No/blank arg
+      // returns the format help. Routes through setProjectExpiration so a server-linked
+      // project propagates the new expiry to the server.
       expire(spec) {
         if (incognito) throw new Error('Cannot set expiration on an incognito editor');
         const s = str(spec).trim();
@@ -436,9 +478,11 @@ export const createStencil = (app) => {
   // ── Settings namespace (fresh object per access; setters close over app) ──
   const settingsAccessors = () => ({
     get lineColor() { return app.color; }, set lineColor(v) { app.settings.setColor(toHexColor(v)); },
+    // Default point colour for NEW lines; '' (or null) means "follow lineColor".
+    get pointColor() { return app.pointColor; },
+    set pointColor(v) { app.settings.setPointColor(v == null || v === '' ? '' : toHexColor(v)); },
     get thickness() { return app.thickness; }, set thickness(v) { app.settings.setThickness(v); },
-    get pointSize() { return app.markerSize; }, set pointSize(v) { app.settings.setMarkerSize(v); },
-    get markerSize() { return app.markerSize; }, set markerSize(v) { app.settings.setMarkerSize(v); },
+    get pointSize() { return app.pointSize; }, set pointSize(v) { app.settings.setPointSize(v); },
     get lineStyle() { return app.style; }, set lineStyle(v) { app.settings.setLineStyle(v); },
     get pointStyle() { return app.showPoints; }, set pointStyle(v) { app.settings.setShowPoints(v); },   // points visible?
     get showPoints() { return app.showPoints; }, set showPoints(v) { app.settings.setShowPoints(v); },
@@ -453,9 +497,8 @@ export const createStencil = (app) => {
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.settings.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
     get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
     // Brand accent: a preset key (see stencil.mainThemes) persists + syncs across tabs; a
-    // hex like '#ff5623' applies a custom colour to THIS page only (not saved, not synced).
-    // Anything else throws rather than silently falling back. The getter returns the active
-    // custom hex if one is set, otherwise the preset key.
+    // hex like '#ff5623' applies to THIS page only (not saved, not synced). Anything else
+    // throws. The getter returns the active custom hex if set, otherwise the preset key.
     get mainTheme() { return app.customAccent || app.accent; },
     set mainTheme(v) {
       const s = str(v).trim();
@@ -475,9 +518,9 @@ export const createStencil = (app) => {
     },
     set projectColor(v) {
       const id = app.activeProjectId;
-      if (id == null) throw new Error('No active project to colour');
+      if (id == null) throw new Error('No active project to color');
       const s = str(v).trim();
-      if (s && !normalizeHex(s)) throw new Error(`Invalid project colour "${v}" — use a hex like #ff5623, or '' to clear`);
+      if (s && !normalizeHex(s)) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
       app.setProjectColor(id, s);
     },
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
@@ -493,12 +536,51 @@ export const createStencil = (app) => {
   });
   const settings = () => guard(settingsAccessors());
 
+  // Validate + persist a partial LLM-settings update through the SAME store the
+  // assistant's gear dialog uses (llmSettings.js), so UI and scripting stay in sync.
+  const applyLlmSetup = (opts = {}) => {
+    const cur = loadLlmSettings();
+    let next = { ...cur };
+    if (opts.provider != null) {
+      const p = str(opts.provider).trim();
+      if (!PROVIDERS.includes(p)) throw new Error(`Unknown LLM provider "${opts.provider}" — one of ${PROVIDERS.join(', ')}`);
+      // Switching providers refills the default base URL unless the user overrode it
+      // (withProvider — literally the settings modal's rule); an explicit baseUrl
+      // below still wins.
+      if (p !== cur.provider) next = withProvider(next, p);
+    }
+    for (const k of ['baseUrl', 'serverUrl']) {
+      if (opts[k] != null) {
+        const v = str(opts[k]).trim();
+        if (v && !/^https?:\/\//i.test(v)) throw new Error(`${k} must be an http(s) URL`);
+        next[k] = v;
+      }
+    }
+    if (opts.model != null) next.model = str(opts.model).trim();
+    if (opts.apiKey != null) next.apiKey = str(opts.apiKey);
+    saveLlmSettings(next);
+    // Same live-refresh signal the settings modal fires (panel re-probes status).
+    try { window.dispatchEvent(new Event('stencil:llm-settings-changed')); } catch { /* no DOM */ }
+    return next;
+  };
+
+  // The chat panel registers its scripting surface as app.chat when it wires.
+  const chatPanel = () => {
+    if (!app.chat) throw new Error('Chat panel not ready — the editor UI has not wired yet');
+    return app.chat;
+  };
+
   // loadImageFromFile decodes async with no promise; poll until the image is in place.
-  const waitForImage = (timeoutMs = 8000) => new Promise((resolve) => {
+  // `previous` = the image loaded BEFORE the call: replacing must wait for the swap, not
+  // for "some image exists", or ops chained after a load (a §2.1 `image` op's
+  // filter/layout) run against the OLD picture and are wiped by the late decode.
+  const waitForImage = (timeoutMs = 8000, previous = null) => new Promise((resolve) => {
     const start = Date.now();
+    const again = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame : (fn) => setTimeout(fn, 16);   // node --test has no rAF
     const tick = () => {
-      if (app.image || Date.now() - start > timeoutMs) resolve();
-      else requestAnimationFrame(tick);
+      if ((app.image && app.image !== previous) || Date.now() - start > timeoutMs) resolve();
+      else again(tick);
     };
     tick();
   });
@@ -540,10 +622,9 @@ export const createStencil = (app) => {
         .filter((p) => (p.keywords || []).some((kw) => terms.some((t) => str(kw).toLowerCase().includes(t))))
         .map((p) => makeProject(p.id));
     },
-    // Set when the ACTIVE project expires, from a free-form duration. With no argument
-    // it returns the accepted formats; with one it validates and applies the expiry
-    // (propagating to the server for a server-linked project). Delegates to the same
-    // Project.expire() used for chaining, e.g. stencil.current.expire('months 3').
+    // Set when the ACTIVE project expires, from a free-form duration; no argument returns
+    // the accepted formats. Delegates to the same Project.expire() used for chaining,
+    // e.g. stencil.current.expire('months 3').
     expire(spec) {
       const s = str(spec).trim();
       if (!s) return DURATION_HELP;
@@ -576,11 +657,72 @@ export const createStencil = (app) => {
     // Publish the current incognito session to a server (becomes a normal server project).
     publishIncognito(address) { return app.publishIncognitoToServer(address); },
 
+    // ── AI assistant (LLM) ──
+    // Settings mirror the chat panel's gear dialog (llm-contract.md §5) and
+    // persist to the same drawingApp_llmSettings store, so UI and scripting stay in
+    // sync. apiKey reads back as-is — the same trust stance as server tokens
+    // (connections snapshot); a DevTools user is inside the trust boundary.
+    //   stencil.llm.setup({ provider: 'ollama', model: 'llama3.2-vision' })
+    //   stencil.llm.provider = 'stencil-server'
+    get llm() {
+      return guard({
+        get provider() { return loadLlmSettings().provider; },
+        set provider(v) { applyLlmSetup({ provider: v }); },
+        get baseUrl() { return loadLlmSettings().baseUrl; },
+        set baseUrl(v) { applyLlmSetup({ baseUrl: v }); },
+        get model() { return loadLlmSettings().model; },
+        set model(v) { applyLlmSetup({ model: v }); },
+        get apiKey() { return loadLlmSettings().apiKey; },
+        set apiKey(v) { applyLlmSetup({ apiKey: v }); },
+        get serverUrl() { return loadLlmSettings().serverUrl; },
+        set serverUrl(v) { applyLlmSetup({ serverUrl: v }); },
+        // Partial update in one call; unknown providers / non-http(s) URLs throw.
+        setup(opts = {}) { applyLlmSetup(opts); return stencil; },
+      });
+    },
+    // Run one assistant turn through the SAME pipeline the chat panel uses — shared
+    // history, the exchange rendered in the panel's transcript. `images` attaches
+    // base64 data: URLs to this turn. Resolves { reply, warnings, results } with
+    // results = [{ label, dataUrl }]; typed LlmErrors (truncated/refusal/…) reject.
+    //   await stencil.prompt('rotate left and give me a sepia variant')
+    prompt(text, { images = [] } = {}) {
+      return chatPanel().prompt(str(text), Array.isArray(images) ? images : [images]);
+    },
+    // Chat panel control — the same code paths as the panel's own buttons.
+    get chat() {
+      return guard({
+        open() { chatPanel().open(); return stencil; },
+        close() { chatPanel().close(); return stencil; },
+        dock(mode) { chatPanel().dock(mode); return stencil; },
+        get isOpen() { return !!app.chat && app.chat.isOpen(); },
+        // The settled transcript (contract §12.1 display form): [{ role, text }]
+        // copies — no raw model JSON, no error cards, no in-flight row.
+        get history() { return chatPanel().history(); },
+        // Stop the in-flight turn (the Stop button's path). True when a turn
+        // was actually running.
+        abort() { return chatPanel().abort(); },
+        // Fresh conversation — the trash button's exact path (history, queued
+        // attachments, transcript, and the §12 persisted copy). Throws mid-turn.
+        clear() { chatPanel().clear(); return stencil; },
+        get isSending() { return !!app.chat && app.chat.isSending; },
+      });
+    },
+
+    // ── Browser extension ──
+    // The extension's editor-page API (open editor tabs, other tabs' images, import into THIS
+    // tab), installed on window.__stencilExt by its content script — the extension owns the
+    // shape (extension/README.md). null unless installed AND its editor-page setting is on.
+    get extension() { return (typeof window !== 'undefined' && window.__stencilExt) || null; },
+
     // ── Settings / modes ──
     get settings() { return settings(); },
     get fullscreen() { return typeof document !== 'undefined' && document.body.classList.contains('fullscreen-mode'); },
     set fullscreen(v) { if (!!v !== stencil.fullscreen && typeof app.toggleFullscreen === 'function') app.toggleFullscreen(); },
     get imageSize() { const img = app.image; return img ? { width: img.width, height: img.height } : undefined; },
+    // Current crop rect in rotated-original px — canonical {x,y,w,h} plus legacy
+    // width/height aliases. null before an image loads. The LLM plan executor reads it
+    // around crop() to re-map later plan coordinates (llm-contract.md §1); read-only copy.
+    get cropRect() { const r = app.cropRect; return r ? { x: r.x, y: r.y, w: r.width, h: r.height, width: r.width, height: r.height } : null; },
     get incognito() { return !!app.storage.incognito; },
     // Incognito can only be turned on for a blank editor (no image yet) — same rule as
     // the toolbar toggle; setting it otherwise throws.
@@ -588,9 +730,16 @@ export const createStencil = (app) => {
       if (!!app.storage.incognito === !!on) return;
       if (on && (app.image || app.lines.length || app.activeProjectId != null || !app.storage.temporary))
         throw new Error('Incognito can only be enabled on a blank editor (before an image is loaded)');
+      // Turning it OFF with work on screen keeps the work: leaving incognito is the user
+      // asking to save, so it promotes to a local project (see promoteIncognitoToLocal)
+      // instead of stranding the picture in a session that can never be saved.
+      if (!on && app.image) { app.promoteIncognitoToLocal(); return; }
       app.storage.incognito = !!on;
       app.updateIncognitoUI();
     },
+    // Leave incognito and keep the current picture + lines as a local project. Returns the
+    // project id (null when the editor is blank). The server twin is publishIncognito().
+    promoteIncognito() { return app.promoteIncognitoToLocal(); },
     // Tooltip sections as a live get/set object.
     get tooltip() {
       return guard({
@@ -657,7 +806,29 @@ export const createStencil = (app) => {
     openIn() { document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
     downloadLayout() { app.export.downloadJSON(); return stencil; },
     get layout() { return stencil.current?.layout; },
-    set layout(data) { app.export.applyPastedLayout(data); },
+    // Accepts a layout OBJECT or a raw JSON string. Routes through the clipboard-paste
+    // path, so an existing layout raises the Combine / Replace / Cancel prompt.
+    set layout(data) { app.export.applyPastedLayout(toLayoutObject(data)); },
+    // Apply a layout without any prompt or toast. `data` is an object or a JSON string;
+    // `mode:'combine'` keeps the current lines and adds these on top (default replaces),
+    // and `history:false` keeps it out of undo.
+    //   stencil.applyLayout('{"lines":[…]}', { mode: 'combine' })
+    applyLayout(data, opts = {}) {
+      app.export.installLayout(toLayoutObject(data), opts);
+      return stencil;
+    },
+    // Install lines directly. Unlike `stencil.layout = …` (the clipboard-paste path)
+    // this raises no "Replace layout?" prompt and shows no toast, so it suits code that
+    // is putting a known set of lines in place. `history:false` keeps it out of undo.
+    //   stencil.setLines([{ points: [{x:0,y:0},{x:10,y:10}], color: '#f00' }])
+    setLines(lines, opts = {}) {
+      const size = stencil.imageSize;
+      const list = Array.isArray(lines) ? lines : [];
+      app.export.installLayout(
+        size ? { imageWidth: size.width, imageHeight: size.height, lines: list } : { lines: list },
+        opts);
+      return stencil;
+    },
 
     // Save the whole project as a portable .stencil file (image + layout + metadata + optional
     // theme; `opts.includeTheme` default true embeds light/dark + accent). Resolves to the facade.
@@ -708,17 +879,16 @@ export const createStencil = (app) => {
       if (address) return app.createRemoteBlank(address).then(() => stencil);
       return stencil;
     },
-    // Create a solid-color blank image to draw on (mirrors the blank-image creator).
-    // `color` is any CSS color (default white); opts.size = { width, height } in px
-    // (defaults to the current page size). `opts.address` (a connected server URL)
-    // also creates+links the project on that server. Resolves to the facade once loaded.
+    // Create a solid-color blank image to draw on. `color` is any CSS color (default
+    // white); opts.size = { width, height } px (defaults to the current page size);
+    // `opts.address` also creates+links the project on that connected server.
     async blank(color = '#ffffff', opts = {}) {
       const size = opts.size || {};
       const address = opts.address || null;
       if (address) requireConnection(connMgr, address);   // validate before replacing
       const blankOpts = { color, width: size.width, height: size.height };
       if (address) blankOpts.address = address;
-      await app.createBlankImage(blankOpts);
+      await app.createBlankImage(blankOpts);   // awaited: the swap is already done
       await waitForImage();
       return stencil;
     },
@@ -739,6 +909,9 @@ export const createStencil = (app) => {
     // rather than kept; it keeps its current start edge. `album` (default false) picks the
     // orientation — false (portrait): height = width × (long/short side), width = height ÷ (…);
     // album true (landscape) is the inverse. Giving both axes (or neither) stays free-form.
+    // `aspect` ('W:H', positive integers) then fits the resolved rect to that ratio by
+    // SHRINKING one dimension symmetrically about its centre (never grows; degenerate
+    // results keep at least 1px) — alone it applies to the current full rect.
     // Alternatively, `{ scale }` grows (>1) / shrinks (<1) the current crop about its centre
     // (aspect + centre kept, clamped), matching the modal's wheel/pinch — mutually exclusive
     // with the edge tokens above.
@@ -746,9 +919,6 @@ export const createStencil = (app) => {
       if (!app.originalImage) throw new Error('No image loaded to crop');
       const dims = app.imageModel.effectiveOriginalDims();   // { w, h } in rotated-original pixels
       const r = app.cropRect || app.imageModel.defaultCropRect();
-      // Scale the crop about its centre (aspect + centre kept, clamped to the image), the
-      // scripting equivalent of the crop modal's wheel/pinch gesture. `scale` > 1 grows the
-      // rect, < 1 shrinks it; it's mutually exclusive with the x1/y1/x2/y2 edge spec below.
       if (spec.scale != null) {
         const factor = Number(spec.scale);
         if (!(factor > 0)) throw new Error('crop scale must be a positive number');
@@ -776,7 +946,24 @@ export const createStencil = (app) => {
           x1 = r.x; x2 = r.x + Math.abs(y2 - y1) * aspect;
         }
       }
-      app.imageModel.applyCrop({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) }, { recalc: true });
+      let rx = Math.min(x1, x2), ry = Math.min(y1, y2);
+      let rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+      // Optional aspect fit (mirrors core resolveCropRect): shrink ONE dimension
+      // symmetrically about the centre to hit W:H — never grow, never move the rect.
+      if (spec.aspect != null) {
+        const m = /^(\d+):(\d+)$/.exec(String(spec.aspect));
+        const ratio = m && Number(m[1]) > 0 && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : 0;
+        if (!(ratio > 0)) throw new Error('crop aspect must be "W:H" with positive integers');
+        let w = rw, h = rh;
+        if (h * ratio <= w) w = h * ratio;   // too wide → shrink the width
+        else h = w / ratio;                  // too tall → shrink the height
+        // Degenerate results keep at least 1px, but never grow past the resolved rect.
+        w = Math.min(rw, Math.max(w, 1));
+        h = Math.min(rh, Math.max(h, 1));
+        rx += (rw - w) / 2; ry += (rh - h) / 2;
+        rw = w; rh = h;
+      }
+      app.imageModel.applyCrop({ x: rx, y: ry, width: rw, height: rh }, { recalc: true });
       return stencil;
     },
 
@@ -794,7 +981,7 @@ export const createStencil = (app) => {
     apply(opts = {}) {
       const set = stencil.settings;
       for (const k of [
-        'unit', 'lineColor', 'pointSize', 'markerSize', 'thickness', 'lineStyle',
+        'unit', 'lineColor', 'pointColor', 'pointSize', 'thickness', 'lineStyle',
         'pointStyle', 'showPoints', 'showLines', 'filter', 'filterColor', 'pageSize', 'drawMode',
         'allowFormulas', 'formulaX', 'formulaY', 'fillColor', 'selectionGlow', 'hoverRing', 'focusRing',
       ]) {
@@ -814,9 +1001,10 @@ export const createStencil = (app) => {
       return stencil;
     },
 
-    // Load an image (or a video frame) by URL into the editor. Resolves to the facade so
-    // callers can `(await stencil.load(url)).crop(...)`. `source` defaults to the URL.
-    // For a video URL (or when `frame` is given), the frame at `frame` seconds is grabbed.
+    // Load an image (or, with `frame`/a video URL, the frame at `frame` seconds) by URL.
+    // Resolves to the facade so callers can `(await stencil.load(url)).crop(...)`.
+    // `incognito: true` adopts incognito IN PLACE first: the outgoing project is flushed
+    // and the URL lands in a fresh never-saved session — the tab stays put.
     async load(url, opts = {}) {
       const address = opts.address || null;
       if (address) requireConnection(connMgr, address);   // validate before fetching
@@ -841,8 +1029,12 @@ export const createStencil = (app) => {
       const loadOpts = { source: opts.source ?? url, resource: opts.resource ?? '' };
       if (opts.crop) loadOpts.crop = opts.crop;
       if (address) loadOpts.address = address;   // create+link on that server after load
+      const previous = app.image;
+      // Adopt only once the bytes are in hand: a failed fetch must leave the editor
+      // exactly as it was, never reset into an empty incognito session.
+      if (opts.incognito) app.adoptIncognitoHere();
       app.loadImageFromFile(file, loadOpts);
-      await waitForImage();
+      await waitForImage(8000, previous);
       return stencil;
     },
   };
@@ -859,11 +1051,9 @@ export const createStencil = (app) => {
     const d = Object.getOwnPropertyDescriptor(stencil, k);
     if (d.enumerable) Object.defineProperty(stencil, k, { ...d, enumerable: false });
   }
-  // Freeze + hard-guard via the same proxy as every nested object (writing a method/read-only
-  // getter THROWS, e.g. `stencil.load = 0`; setters fullscreen/incognito/layout still write).
-  // Tamper-resistance, not security — a DevTools user is inside the trust boundary regardless.
-  // Reassigning the closure ref makes every `return stencil` hand back this guarded proxy
-  // (chaining unaffected).
+  // Freeze + hard-guard via the same proxy as every nested object (writing a method or
+  // read-only getter THROWS; real setters still write). Tamper-resistance, not security.
+  // Reassigning the closure ref makes every `return stencil` hand back the guarded proxy.
   stencil = guard(stencil);
   return stencil;
 };

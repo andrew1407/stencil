@@ -7,6 +7,10 @@ import { normalizeHex, isAccent } from './accents.js';
 export const STENCIL_FILE_FORMAT = 'stencil-project';
 export const STENCIL_FILE_VERSION = 1;
 
+// Size cap (chars ≈ bytes: the format is ASCII-dominant JSON+base64) checked before
+// JSON.parse — matches the server's 32 MiB MaxBodyBytes, the most a project may be.
+export const MAX_PROJECT_FILE_CHARS = 32 * 1024 * 1024;
+
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 // Validate the embedded image block: { dataUrl (a `data:` URL), ext, w, h }. Returns
@@ -77,12 +81,15 @@ export const serializeProjectFile = (state) => JSON.stringify(buildProjectFile(s
 // Parse + validate a .stencil document (JSON text or parsed object) → { ok:true, project } or
 // { ok:false, error }; `project` is the normalized, hardened shape for DrawingApp.applyProjectFile.
 export const parseProjectFile = (input) => {
+  if (typeof input === 'string' && input.length > MAX_PROJECT_FILE_CHARS) {
+    return { ok: false, error: 'Project file is too large (over 32 MiB).' };
+  }
   let data;
   try { data = typeof input === 'string' ? JSON.parse(input) : input; }
   catch (e) { return { ok: false, error: 'Not valid JSON: ' + e.message }; }
   if (!isPlainObject(data)) return { ok: false, error: 'Not a Stencil project file.' };
   if (data.format !== STENCIL_FILE_FORMAT) {
-    return { ok: false, error: 'Not a Stencil project file (missing "stencil-project" marker).' };
+    return { ok: false, error: 'Not a Stencil project file (missing the "stencil-project" sentinel).' };
   }
   const version = Number(data.version);
   if (!Number.isFinite(version) || version < 1) {

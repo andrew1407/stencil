@@ -1,5 +1,6 @@
 import { icon } from './icons.js';
 import { rowMatches } from './base.js';
+import { showMenu, hideMenu } from './dropdownMenu.js';
 
 // Custom dropdown overlaying a native <select> (kept as the source of truth) — macOS
 // centers the native popup uncss-ably, so the compact toolbar selects look misplaced.
@@ -28,7 +29,19 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   trigger.className = 'accent-dd-trigger';
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-expanded', 'false');
+  // The trigger IS the control now, so it inherits the hover text the native select
+  // carried — the rich tooltip attributes included (data-title's bullet list, the
+  // disabled-reason line, the hotkey keycap), or an enhanced control would go silent.
   if (selectEl.title) trigger.title = selectEl.title;
+  for (const k of ['title', 'disabledReason', 'hkTitle'])
+    if (selectEl.dataset[k] != null) trigger.dataset[k] = selectEl.dataset[k];
+  // …and its enabled state: a disabled <select> is hidden here, so nothing would have
+  // shown that image-filter / compare are dead until an image is loaded.
+  const syncDisabled = () => {
+    trigger.disabled = selectEl.disabled;
+    trigger.classList.toggle('cs-disabled', selectEl.disabled);
+  };
+  syncDisabled();
   trigger.innerHTML =
     '<span class="accent-dd-name cs-cur"></span>' +
     `<span class="accent-dd-caret" aria-hidden="true">${icon('chevron-down', { size: 13 })}</span>`;
@@ -104,8 +117,10 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     },
   });
 
+  // The open menu lives on <body> (dropdownMenu.js), so it is NOT inside `wrap` — an
+  // outside press has to miss both, or picking an option would close before the click.
   const onDocDown = (e) => {
-    if (!wrap.contains(e.target)) close();
+    if (!wrap.contains(e.target) && !menu.contains(e.target)) close();
   };
   const onKey = (e) => {
     if (e.key === 'Escape') {
@@ -114,19 +129,44 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     }
   };
   const open = () => {
+    // Reopening mid-close: abort the exit, or its animationend would hide the fresh list.
+    clearTimeout(closeTimer);
+    if (closeDone) menu.removeEventListener('animationend', closeDone);
+    menu.classList.remove('dd-closing');
     buildOptions();
     sync();
-    menu.hidden = false;
+    // Placed against the trigger in viewport space: `.controls` clips its overflow and
+    // the toolbar sits low enough that a long list would run off the window.
+    showMenu(menu, trigger);
     if (searchInput) searchInput.focus();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
+  // Closing plays the entrance backwards — the list shrinks toward the corner it grew
+  // from — and only then is it hidden and put back (animationend, with a timer fallback so
+  // a neutralised or missing animation can never wedge it open). animationend BUBBLES, so
+  // an option row's own hover transition must not be mistaken for the menu's exit.
+  let closeTimer = null;
+  let closeDone = null;
+  const reducedMotion = () =>
+    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const close = () => {
-    menu.hidden = true;
+    if (menu.hidden || menu.classList.contains('dd-closing')) return;
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
+    closeDone = (e) => {
+      if (e && e.target !== menu) return;
+      clearTimeout(closeTimer);
+      menu.removeEventListener('animationend', closeDone);
+      menu.classList.remove('dd-closing');
+      hideMenu(menu);
+    };
+    if (reducedMotion()) { closeDone(); return; }
+    menu.classList.add('dd-closing');
+    closeTimer = setTimeout(closeDone, 250);
+    menu.addEventListener('animationend', closeDone);
   };
   const choose = (v) => {
     selectEl.value = v;   // routes through the wrapped setter → re-syncs the trigger
@@ -136,7 +176,23 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
 
   trigger.addEventListener('click', (e) => {
     e.preventDefault();
+    if (selectEl.disabled) return;
     menu.hidden ? open() : close();
   });
   sync();   // initial trigger label; the menu itself is (re)built on open()
+  // A select whose OPTIONS are filled in later (the server list, the open-in targets) has
+  // no value to set — its trigger would sit on the empty label it was born with. Watching
+  // the element covers both that and the disabled flag, which no event reports either.
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(() => { syncDisabled(); sync(); })
+      .observe(selectEl, { attributes: true, attributeFilter: ['disabled'], childList: true });
+  }
+}
+
+// Every <select> the app has, in one pass: they all wear the same dropdown, and a
+// second call is a no-op (enhanceSelect marks what it has taken over). `search` is for
+// the long lists — the ISO page formats — where scrolling alone is too slow.
+export function enhanceAllSelects(root = document, { search = ['page-size'] } = {}) {
+  for (const sel of root.querySelectorAll('select:not([data-cs-skip])'))
+    enhanceSelect(sel, { search: search.includes(sel.id) });
 }

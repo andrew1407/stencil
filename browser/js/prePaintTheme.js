@@ -14,12 +14,23 @@
     /* storage blocked (private mode) — fall back to the system colour scheme below */
   }
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  root.setAttribute('data-theme', savedTheme || (prefersDark ? 'dark' : 'light'));
+  // 'system' is a stored value like any other (accentController THEME_MODES) and resolves
+  // exactly as an unset one does — the OS decides, here and on every later change.
+  const explicit = savedTheme === 'dark' || savedTheme === 'light';
+  root.setAttribute('data-theme', explicit ? savedTheme : (prefersDark ? 'dark' : 'light'));
 
   // An unknown/missing accent leaves the :root default (violet); see css/theme.css.
+  // The light presets are inlined for the same reason the storage keys are — this
+  // runs as a classic script and can't import accents.js. Kept in sync with its
+  // derived LIGHT_ACCENT_KEYS (the accent tests assert the two lists match).
+  const LIGHT_ACCENT_KEYS = ['yellow', 'sky'];
   try {
     const accent = localStorage.getItem('drawingApp_accent');
-    if (accent) root.setAttribute('data-accent', accent);
+    if (accent) {
+      root.setAttribute('data-accent', accent);
+      // White glyphs on a light accent need their dark shadow from the first paint.
+      if (LIGHT_ACCENT_KEYS.includes(accent)) root.setAttribute('data-accent-light', '');
+    }
   } catch {
     /* storage blocked — keep the default accent */
   }

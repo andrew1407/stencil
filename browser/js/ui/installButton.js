@@ -3,20 +3,27 @@ import { notify, detectDesktopOS } from '../utils.js';
 import INSTALL from '../config/installConfig.json' with { type: 'json' };
 import { icon } from './icons.js';
 // ── Component: install/download affordance (floating, bottom-right) ──
-// Hover/focus menu with two ways to get Stencil:
-//   • Install web app (PWA) — shown only after `beforeinstallprompt` fires; click
-//     replays that deferred event. Hidden once installed/standalone.
-//   • Download desktop app — OS-specific release zip (installConfig.json), falling
-//     back to the releases page when the platform is unknown.
-// On a touch device ((hover:none) and (pointer:coarse)) the desktop download is
-// meaningless, so we collapse all of this to a single affordance: the button is the
-// PWA install (no menu, no desktop option — see the matching CSS that un-sticks it to
-// sit in the normal flow at the bottom of the page and hides the menu). It stays
-// hidden until the browser reports the app is installable (`beforeinstallprompt`), so
-// it never shows as a dead button, and a tap then triggers the install directly.
-export class StencilInstall extends StencilElement {
-  #deferred = null;
+// Hover/focus menu with two ways to get Stencil: Install web app (PWA — shown only
+// after `beforeinstallprompt`, hidden once installed) and Download desktop app
+// (OS-specific zip from installConfig.json). On touch the desktop download is
+// meaningless, so the button collapses to a direct PWA install (matching CSS) and
+// stays hidden until the browser reports installability.
+// ── Deferred install prompt, captured at MODULE-EVALUATION time ──────────────
+// Chrome fires `beforeinstallprompt` on its own schedule; a listener added at
+// `stencil:ready` can MISS it, and a missed BIP is gone for the page's lifetime.
+// Module evaluation is the earliest moment this file controls, so the stash lives here.
+let deferredPrompt = null;
+const promptWatchers = new Set();
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // No preventDefault(): Chrome logs a "Banner not shown" notice on every
+    // load when the prompt is deferred; stashing alone keeps our button working.
+    deferredPrompt = e;
+    for (const fn of promptWatchers) fn();
+  });
+}
 
+export class StencilInstall extends StencilElement {
   // Desktop download entry ({label, url}) for the current OS, or the fallback.
   static #desktop() {
     const d = INSTALL.desktop;
@@ -36,7 +43,7 @@ export class StencilInstall extends StencilElement {
         </a>
       </div>
       <button type="button" id="install-toggle" aria-haspopup="true"
-              title="Get Stencil — install or download">${icon('download')}</button>`;
+              aria-label="Get Stencil — install or download">${icon('download')}</button>`;
   }
   static template() { return hostTag('stencil-install', 'id="install-host"', StencilInstall.inner()); }
 
@@ -53,33 +60,33 @@ export class StencilInstall extends StencilElement {
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     if (standalone) return;
 
-    // The browser tells us the app is installable: stash the event and reveal the
-    // PWA option in the menu (desktop) / the whole button (mobile — it's the install).
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();          // suppress the default mini-infobar; we drive it
-      this.#deferred = e;
-      pwaBtn.hidden = false;
-      if (mobile) this.hidden = false;
-    });
+    // Reveal/hide the PWA option (desktop: the menu row; mobile: the whole
+    // button) from the module stash — including a BIP that fired BEFORE wire().
+    const sync = () => {
+      const installable = !!deferredPrompt;
+      pwaBtn.hidden = !installable;
+      if (mobile) this.hidden = !installable;
+    };
+    promptWatchers.add(sync);
+    sync();
 
     // Installed (via our button or the browser's own UI) → tidy up.
     window.addEventListener('appinstalled', () => {
-      this.#deferred = null;
-      pwaBtn.hidden = true;
-      if (mobile) this.hidden = true;
+      deferredPrompt = null;
+      sync();
       notify('Stencil installed', 'ok');
     });
 
     // Replay the deferred install prompt. Shared by the menu's PWA item (desktop)
     // and a direct tap on the button (mobile).
     const install = async () => {
-      if (!this.#deferred) return;
-      this.#deferred.prompt();
-      const { outcome } = await this.#deferred.userChoice;
+      if (!deferredPrompt) return;
+      const prompt = deferredPrompt;
       // A prompt can only be used once; drop it and hide regardless of choice.
-      this.#deferred = null;
-      pwaBtn.hidden = true;
-      if (mobile) this.hidden = true;
+      deferredPrompt = null;
+      sync();
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
       if (outcome !== 'accepted') notify('Install dismissed', 'info');
     };
     pwaBtn.addEventListener('click', install);

@@ -6,15 +6,16 @@ import { applyContourRGBA } from './contourFilter.js';
 const DASH_PATTERN = [10, 5];
 const DOT_PATTERN = [2, 5];
 
+// The colour a line's points draw in: its own pointColor when set, else its stroke
+// colour. JS twin of core's pointColorOr (core/models.hpp) — keep the two identical;
+// "unset" must include '' (how the field serialises when a line has no point colour).
+export const pointColorOf = (line) => (line.pointColor ? line.pointColor : line.color);
+
 export class Renderer {
-  // One-slot cache for the expensive pixel-transform filters ('contour' Sobel and
-  // the 'custom' duotone): an offscreen canvas holding the filtered image, keyed on
-  // the exact (image, filter, tint) identity that produced it. Object identity is a
-  // sufficient key because every pixel change (load/crop/rotate/replace) routes
-  // through rebuildCroppedImage(), which swaps app.image for a fresh canvas. redraw()
-  // fires on every hover/drag/zoom repaint, so without this the full getImageData →
-  // convolution/tint → putImageData pipeline would rerun per mousemove (mirrors the
-  // desktop's filteredImage_/filterDirty_ cache in canvasWidget.cpp).
+  // One-slot cache for the pixel-transform filters ('contour' Sobel, 'custom' duotone),
+  // keyed on (image, filter, tint) identity — valid because every pixel change swaps
+  // app.image via rebuildCroppedImage(). Without it the getImageData → convolution →
+  // putImageData pipeline reruns per mousemove (mirrors canvasWidget.cpp filteredImage_).
   #filtered = null;   // { image, filter, color, canvas }
   // Set per-frame in redraw(): true suppresses selection glow + hover/focus rings (the
   // read-only compare views draw a clean picture).
@@ -82,14 +83,13 @@ export class Renderer {
       if (this.app.currentLine && this.app.currentLine.points.length > 0)
         this.drawLine(this.app.currentLine, false, -1);
     } else if (this.app.showPoints) {
-      // Show points only (no connecting lines). Iterate committed lines, then
-      // the in-progress line separately — avoids cloning the lines array into
-      // a combined list every frame.
+      // Points-only view: iterate committed lines, then the in-progress line separately —
+      // avoids cloning the lines array into a combined list every frame.
       const drawPts = (line, li, sel) => {
-        const ms = line.markerSize ?? this.app.markerSize;
+        const ms = line.pointSize ?? this.app.pointSize;
         line.points.forEach((p, pi) => {
           const hs = this.#pointHighlightState(li, pi);
-          this.drawPoint(p, line.color, ms, sel, hs);
+          this.drawPoint(p, pointColorOf(line), ms, sel, hs);
         });
       };
       this.app.lines.forEach((line, i) => drawPts(line, i, ro ? false : this.app.isLineSelected(i)));
@@ -152,7 +152,7 @@ export class Renderer {
   }
 
   // Translucent dashed segment from the stroke's anchor point to the live cursor,
-  // plus a ghost marker at the cursor — shows where the next point would land
+  // plus a ghost point at the cursor — shows where the next point would land
   // during a hold-to-draw gesture. Purely transient; never committed.
   drawHoldPreview() {
     const app = this.app;
@@ -174,9 +174,9 @@ export class Renderer {
       ctx.setLineDash([]);
     }
     ctx.globalAlpha = 0.6;
-    ctx.fillStyle = app.color;
+    ctx.fillStyle = app.pointColor || app.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, app.markerSize, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, app.pointSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -185,7 +185,7 @@ export class Renderer {
     if (line.points.length < 2) {
       if (line.points.length === 1 && this.app.showPoints) {
         const hs = this.#pointHighlightState(lineIdx, 0);
-        this.drawPoint(line.points[0], line.color, line.markerSize ?? this.app.markerSize, isSelected, hs);
+        this.drawPoint(line.points[0], pointColorOf(line), line.pointSize ?? this.app.pointSize, isSelected, hs);
       }
       return;
     }
@@ -200,6 +200,25 @@ export class Renderer {
         this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
       this.app.ctx.closePath();
       this.app.ctx.fill();
+      this.app.ctx.restore();
+    }
+
+    // List-row hover glow: hovering a Lines-list row glows its line — thinner and fainter
+    // than the selection glow so the two states stay distinguishable.
+    if (!isSelected && !this.#suppressHighlight && lineIdx >= 0 &&
+        lineIdx === (this.app.listHoverLineIdx ?? -1) && line.points.length >= 2) {
+      this.app.ctx.save();
+      this.app.ctx.strokeStyle = hexToRgba(this.app.hoverRingColor, 0.35);
+      this.app.ctx.lineWidth = line.thickness + 6;
+      this.app.ctx.lineCap = 'round';
+      this.app.ctx.lineJoin = 'round';
+      this.app.ctx.setLineDash([]);
+      this.app.ctx.beginPath();
+      this.app.ctx.moveTo(line.points[0].x, line.points[0].y);
+      for (let i = 1; i < line.points.length; i++)
+        this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
+      if (line.locked) this.app.ctx.closePath();
+      this.app.ctx.stroke();
       this.app.ctx.restore();
     }
 
@@ -246,14 +265,14 @@ export class Renderer {
     if (this.app.showPoints) {
       line.points.forEach((point, pi) => {
         const hs = this.#pointHighlightState(lineIdx, pi);
-        this.drawPoint(point, line.color, line.markerSize ?? this.app.markerSize, isSelected, hs);
+        this.drawPoint(point, pointColorOf(line), line.pointSize ?? this.app.pointSize, isSelected, hs);
       });
     }
   }
 
   // highlightState: 0 = none, 1 = hover (subtle ring), 2 = focused (bold ring + shadow)
-  drawPoint(point, color, markerSize = 4, isSelected = false, highlightState = 0) {
-    const r = markerSize;
+  drawPoint(point, color, pointSize = 4, isSelected = false, highlightState = 0) {
+    const r = pointSize;
     if (isSelected) {
       this.app.ctx.fillStyle = hexToRgba(this.app.selGlowColor, 0.5);
       this.app.ctx.beginPath();
@@ -290,10 +309,9 @@ export class Renderer {
     this.app.ctx.stroke();
   }
 
-  // Return an image-sized offscreen canvas with `filter` ('contour' | 'custom')
-  // applied to the current image, rebuilding it only when the (image, filter, tint)
-  // key changed since the last call. `color` is the tint hex for 'custom', null for
-  // 'contour' (so a tint change invalidates but a contour redraw never does).
+  // Image-sized offscreen canvas with `filter` ('contour' | 'custom') applied, rebuilt
+  // only when the (image, filter, tint) key changed. `color` is the tint hex for
+  // 'custom', null for 'contour' (a tint change invalidates; a contour redraw never does).
   #filteredCanvas(filter, color) {
     const image = this.app.image;
     const c = this.#filtered;
@@ -372,6 +390,8 @@ export class Renderer {
     if (lineIdx === this.app.coordLineIdx && ptIdx === this.app.focusedPtIdx) return 2;
     if (this.app.hoverPt && this.app.hoverPt.lineIdx === lineIdx && this.app.hoverPt.ptIdx === ptIdx) return 1;
     if (lineIdx === this.app.coordLineIdx && ptIdx === this.app.hoveredPtIdx) return 1;
+    // Lines-list row hover rings the whole line's points (visible in points-only view too).
+    if (lineIdx >= 0 && lineIdx === (this.app.listHoverLineIdx ?? -1)) return 1;
     return 0;
   }
 }

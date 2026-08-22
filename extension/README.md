@@ -15,14 +15,18 @@ graph TD
       CROP["crop/ — quick page-aspect crop"]
       CONN["lib/connections.js — server REST mirror"]
       PAGEAPI["content/pageApiMain.js — window.stencil (opt-in)"]
+      EDITREL["content/editorBridge.js + editorApiMain.js — editor relay · stencil.extension"]
     end
     WEB["Browser editor"]
     SRV["Collaboration server"]
 
     SCAN --> SURF
     SURF -->|"hand-off · URL fragment (dataUrl)"| WEB
+    SURF -->|"editor mode · import into the OPEN editor tab"| EDITREL
     CROP -->|"Open in editor"| WEB
     PAGEAPI --> SURF
+    EDITREL -->|"state · import · switch project (postMessage)"| WEB
+    WEB -->|"stencil.extension calls"| EDITREL
     CONN -.->|"shared pins · REST + Bearer token"| SRV
 ```
 
@@ -38,8 +42,9 @@ graph TD
   `og:image`/`twitter:image` (and `itemprop=image`) `<meta>`, web-app-manifest icons, and
   **every CSS image reference** — `background-image`, `content` (`::before`/`::after`),
   `border-image-source`, `list-style-image`, `mask-image`, `cursor`, `shape-outside`, and
-  `image-set()`. Inline-SVG data URIs and `url(#id)` paint/clip/filter refs are skipped (not
-  shareable images). Each source maps onto the existing `img`/`bg` kinds, so the filters,
+  `image-set()`. Inline-SVG data URIs are included (`lib/rasterize.js` renders them to PNG
+  for attach / hand-off); only `url(#id)` paint/clip/filter refs are skipped — those name a
+  paint server, not an image. Each source maps onto the existing `img`/`bg` kinds, so the filters,
   badges and include-toggles are unchanged.
 - **Search** by file name or URL, a **format pill per type** (the common web formats:
   png/jpg/gif/webp/svg/avif/bmp/ico/tiff, the video containers, plus any others the page
@@ -122,6 +127,19 @@ is set). The Telegram bot target isn't offered here: it needs a saved server pro
 raw page image has nothing to reference — use the popup's *Open in…* on a shared (server)
 row for that.
 
+It also works on media the browser gives no image context for — a CSS
+`background-image` (inline-SVG data URIs included), a photo buried under a click-catcher
+overlay, or a link straight to an image file. Those actions live in a **second group with
+its own “Stencil” root**, revealed together by the `ctxTarget.js` probe. Two roots, not
+one, because Chrome decides a parent's visibility from its own `contexts` alone: a single
+`contexts:['all']` parent rendered everywhere and painted as **“Stencil ▸ (empty)”**
+wherever none of its children applied. Now the static root declares only
+`action`/`image`/`video`, so Chrome hides it itself, and the dynamic root is revealed
+*with* its children — so the failure mode is **no Stencil entry**, never an empty submenu.
+The probe resolves on **hover** (throttled, deduped by outcome) as well as on
+`mousedown`/`contextmenu`, so the reveal — and the worker wake-up it needs — happens long
+before the menu renders instead of racing it.
+
 **How things open**
 - **Open in editor** → the full editor in a **new browser tab** (so its own
   multi-project / cross-tab UI shows any editors you already have open).
@@ -154,6 +172,227 @@ zoom**). Page size is any **ISO A/B/C format (A0–A10, B0–B10, C0–C10) or C
 choose **Keep original** (full image + crop applied, lossless/movable) or **Cut
 cropped part** (bake the region into a new image). Both honour an **incognito**
 checkbox; the chosen page size is carried into the editor.
+
+The in-page modal **shell** (title bar, frame, pop-out / close buttons) is injected into
+someone else's page, so it can't link `lib/theme.css` — its palette is handed to it as
+data (`lib/shellTheme.js`: the same Appearance choice and accent every other surface
+follows, read from the `chrome.storage.local` mirrors that `lib/accent.js` writes). The
+mode travels unresolved so the target page answers `system` with its own OS preference,
+the values land as CSS variables on the shadow host, and a theme/accent change re-paints
+an already-open modal. The shell lives in a shadow root with inherited properties reset,
+so the host page's CSS can't restyle it.
+
+### Drag page media onto the logo
+
+The header's Stencil mark (and the title beside it) is **spring-loaded**: grab an image
+or video **on the web page**, hover the mark, and after ~300 ms a four-item menu opens
+right there, **mid-drag, with nothing dropped** — **Open in editor** (the in-page modal,
+the same default the row's Open ▸ uses), **Open in new tab**, **Open incognito**,
+**Crop**. Each item is itself a drop target: keep dragging onto the one you want and
+release there. Release anywhere else (or press Escape, or end the drag) and it closes
+having done nothing; leaving the mark keeps the menu up briefly so you can travel to it.
+The full row menu (download, pin, open in…) stays a click away on the row's ⋯ — this is
+the drag-only shortcut.
+
+The released payload is normalised into a scan-row entry (`lib/dropEntry.js`), preferring
+the **scanned row** when the URL is one already listed (so its real dimensions, opened
+badge and pin state come along); otherwise the entry is derived from the URL or file,
+and SVG sources rasterise on the way to the editor. Unknown dimensions cost nothing — the
+editor measures the bytes it fetches — but an action that can't apply (opening a frameless
+video in the editor) is omitted, leaving just "Open in new tab". Only the brand zone
+springs the menu, so it never steals a drag meant for the list (drag-to-pin) or the
+assistant, and the section spring ignores it. Usable on the surfaces that stay open while
+you drag the page: the **side panel** and the **DevTools panel**.
+
+While *any* compatible drag is live on the surface — not only over the mark — the logo
+**pulses** (a gentle scale plus a breathing accent ring, pure CSS keyframes toggled by
+one class) so you know it's a target before you get there; hovering it settles the pulse
+at its enlarged end and hands over to the stronger dashed cue, and the drag ending clears
+both. `prefers-reduced-motion: reduce` keeps the ring and drops the motion.
+
+A URL dropped onto the list becomes a **new pinned row**, and that row announces itself:
+it drops in from the drag and pulses the accent ring once (`.row.just-dropped`) so it is
+findable mid-list — distinct from the plainer flash a row that was merely pinned gets. The
+list itself and the assistant transcript ride a **scroll reveal** (`src/lib/motion.js`,
+the mirror of `browser/js/ui/motion.js`): rows fade and lift in as they scroll into view
+and dissolve again at the top edge. Both collapse under `prefers-reduced-motion: reduce`,
+and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
+being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
+mirror of the browser's) clones it per grid cell and scatters the cells. Changing the accent
+or the light/dark mode floods the new palette out of the CONTROL that changed it — the
+popup's moon button, the options page's Appearance / Main theme pickers — as a growing
+circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fallback).
+Nothing to anchor to (a change pushed from another extension page) blooms from the centre;
+the last click is never the origin, which is how the circle used to end up in a corner.
+
+## AI assistant (LLM chat)
+
+> Setting a provider up end to end (Ollama / LM Studio / the collaboration server's
+> Anthropic proxy) — with verification and troubleshooting steps — is documented once in
+> the [root README](../README.md#ai-assistant--setting-up-a-model).
+
+An **embedded "Assistant" section** sits at the bottom of the popup, side panel, and
+DevTools panel (all driven by `popup.js`). It is collapsed by default; expanding it —
+or clicking the **✦ (sparkle) header button**, which expands and focuses it — lazily
+boots the chat. The assistant chats over the surface's **live scan state** (the images
+currently scanned/listed), and its conversation lives with the surface only: the
+popup's chat dies when the popup closes, docked panels keep theirs while open —
+nothing is persisted. The assistant implements the **extension profile** of the shared
+LLM contract — [`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.md) (contract §8) is authoritative:
+
+- Every turn's system prompt carries a **numbered listing of the scanned images**
+  (index, kind, dims, format, name, alt; ≤ 100 entries); the model answers with a
+  strictly validated JSON op-plan over three ops: **`focus`** (scroll + highlight the
+  image on the page, via the existing injected marking), **`open`** (hand the image to
+  the browser editor via the existing `#stencil=` launch payload — optional core
+  `crop`/`rotate`/`filter`/`layout`/`page` sub-actions are translated onto launch
+  options), and **`attach`** (fetch the image bytes, downscale to ≤ 1568 px, attach for
+  vision analysis, then auto-continue the turn **once**).
+- **Switched off (`provider: 'none'`) means gone**: no Assistant section (not even a
+  collapsed header) and no ✦ header button — the same gate the browser and desktop menus
+  use. Picking a provider in Options brings both back live, no reload; while it's off a
+  drag simply never considers the section (it isn't a collapsed drop target).
+- Providers: **Ollama**, any **OpenAI-compatible** server, or a **Stencil collaboration
+  server** (Anthropic proxy — auth reuses the matching stored connection's token).
+  Configured in **Options → AI assistant**; persisted under the `chrome.storage` key
+  `llmSettings`. Providers are reached through the extension's host permissions
+  (no CORS setup needed) — the manifest's required `<all_urls>` already covers every
+  origin, so no optional-permission prompt is involved.
+- **Drag & drop / paste**: drop an image from any web page (or a popup/side-panel row),
+  or a local image/video file, onto the Assistant section — or just **paste** one from
+  the clipboard — and it queues as an attachment chip (thumbnail + analyze/remove) for
+  the next message. A dropped URL that matches the current scan registers as *that*
+  entry (so focus/open by index keep working); anything else attaches as a plain vision
+  image; video files/URLs are sampled into frames in-surface (`<video>`+canvas — videos
+  themselves never go to the LLM). URL parsing reuses `lib/dragUrl.js`, the same
+  extraction the drag-to-pin feature uses. While a drag hovers the section, the drop cue
+  is the editor's: a dashed accent outline over a faint accent tint.
+- **Collapsed sections are spring-loaded** (`lib/dragSections.js`): a folded body is
+  `display: none` and can never accept a drop, so while an image/video drag is live —
+  a list row of your own or something from another window — the section you *hover*
+  unfolds after a ~300 ms dwell, and only that one: hover the Assistant header to open
+  the chat, hover **Found resources** to open the drag-to-pin list. Nothing opens up
+  front, and a section the pointer never visits is never touched; sweeping across a
+  header on the way somewhere else doesn't pop it open. Expansion goes through the same
+  toggler a header click uses, so `aria-expanded`, the chevron and the
+  `search-collapsed` coupling stay in sync. A sprung section folds back when the drag
+  ends elsewhere — but stays open if you dropped into it, or if you toggled it yourself
+  mid-drag; a drag that merely leaves the window gets a short grace period so the layout
+  never flaps.
+- **Every attachment is rasterised** (`lib/rasterize.js`) before it is sent: the bytes
+  come through the extension's host permissions (so cross-origin / hotlink-protected
+  sources work exactly like the popup's thumbnails), then decode via
+  `createImageBitmap`, falling back to an `<img>` + canvas draw at an explicit size.
+  That fallback is what makes **SVG** work — Chrome's `createImageBitmap` refuses an
+  `image/svg+xml` blob outright, and contract §7 accepts only png/jpeg/webp/gif, so an
+  SVG (often with no intrinsic pixel size — 512 px on the long edge then) is always
+  rasterised to PNG, never sent as-is.
+- **Chat controls**: the send button becomes **Stop** mid-turn (aborts the request,
+  transcript says "Stopped."), 🗑 clears the conversation, empty-state **suggestion
+  chips** prefill the input (they never send), and error/notice entries carry a **×** —
+  attach failures also clear themselves after a few seconds.
+- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `chatController.js`)
+  + `src/popup/assistant.js` (the embedded section), `src/lib/chatDrop.js`,
+  `src/lib/chatUi.js`, `src/lib/rasterize.js`; unit tests in `tests/llm*.test.js`,
+  `tests/chatDrop.test.js`, `tests/chatUi.test.js`, `tests/rasterize.test.js`.
+
+## Editor mode
+
+When the active tab **is** the configured Stencil editor, the panel is useless as it stands:
+the editor page has no page images worth listing, and *Open in editor* would spawn a second
+editor next to the one you're already looking at. So on an editor tab the **popup** and the
+**side panel** switch surface — `body.editor-mode` reveals two extra sections (`#sec-editors`,
+`#sec-source-tab`) built from the same `.fsection` accordion markup as the filters, so
+collapsing, the drag spring and the styling all work as they do everywhere else. The
+**DevTools panel** stays the classic surface: it is pinned to the one tab it inspects, so its
+markup carries no editor sections and the controller (`popup/editorMode.js`) reports itself
+unavailable there rather than flipping into a mode that document can't render. "Is this the
+editor?" is an **origin** match against the Options editor URL (`lib/editorTabs.js`
+`isEditorTab`), the very rule that scopes the editor content script, so the panel and the
+injected bridge can never disagree.
+
+- **Open editors** — every open editor tab, in every window, with a **live canvas preview**
+  (the tab's `#canvas` downscaled to ≤ 256 px, so unsaved edits show), the project name, the
+  image name and size, and `this tab` / `incognito` badges. A **search box** narrows the list
+  by project name, tab title or URL — `lib/editorTabs.js` `matchEditors`, which delegates to
+  the very `matchesSearch` the image list uses, so plain text is a case-insensitive substring
+  and regex mode behaves identically here. Clicking a row **focuses** that tab and raises its
+  window; the row's `⋯` menu repeats that as **Focus this editor** and adds **Switch
+  project ▸** (that tab's own projects, the active one ticked, switched in place — no
+  navigation) and **Open in new tab**. Previews refresh when the surface enters editor
+  mode, on the section's own refresh button, and on a light poll while the panel is open
+  (`EDITOR_POLL_MS`, the same ~8 s poll-while-open the shared pins use, for the same reason:
+  an MV3 popup is too short-lived to be worth a background channel). A tab whose
+  bridge doesn't answer — an older editor build, a page still loading — is still listed, just
+  without a preview: hiding an editor the user is looking at would be worse than a blank row.
+- **Images from another page** — pick any other open tab from the picker, and the familiar
+  scan runs **on that tab** instead of the one you're standing on (blocked schemes and editor
+  tabs are never offered). The rows, filters, badges, preview, drag and `⋯` menu are the
+  ordinary ones; only where an image *goes* changes: clicking a row, dropping it, or choosing
+  *Open in editor* **imports it into the editor tab you're standing in** — no new tab, no
+  navigation, nothing in that tab lost. If that editor is blank the image lands straight away;
+  if it already holds one, a chooser asks first — **new project**, **replace image**, or
+  **replace, keeping annotations** (`lib/editorTabs.js` `importModeFor` decides which of the
+  two paths applies, and "new" is the fallback whenever the editor's state is unknown, because
+  it is the only mode that can't destroy work on screen). *Download*, *Open in new tab*,
+  *Crop…*, *Open in…* and the pin actions are untouched.
+- **Assistant** — the same embedded chat section, over the picked page's scan. Its `open` op
+  imports into the editor tab you're on instead of spawning a `#stencil=` tab; the op set is
+  unchanged (see [`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.md) §8).
+
+On any other tab the panel is exactly what it always was — the two sections stay hidden.
+
+### `stencil.extension` — the same capabilities from the editor's console
+
+The editor page's own facade gains a `stencil.extension` slot: the extension injects a
+MAIN-world script (`content/editorApiMain.js`) **only on the configured editor origin**, which
+defines `window.__stencilExt` — hard-guarded and non-enumerable, exactly like the page API's
+`window.stencil` — and the editor's `js/console/stencilApi.js` hands it through. The main world
+has no `chrome.*`, so every call is postMessage'd to the ISOLATED `content/editorBridge.js`,
+relayed to the service worker, and answered back on the same id — the same shape as
+`pageApiMain.js` → `pageApiBridge.js`, plus a reply.
+
+`stencil.extension` is **`null`** when the extension isn't installed, or when its editor-page
+API is switched off — **Options → Editor page scripting API** (`editorPageApi`, **default ON**). Unlike
+the all-pages *Page scripting API* (default OFF, injected everywhere), this one touches the
+configured editor origin and nothing else, which is why it can ship on by default.
+
+Every method that has an answer is **async** (it crosses to the service worker) and rejects
+with a real `Error` when the call can't be served, so `await` in the console reads properly.
+The two fire-and-forget hand-offs are the exception: `openInNewTab` and `crop` are one-way
+sends, exactly like the page API's own `open`/`crop`, and return the facade for chaining
+rather than a promise — there is no answer to wait for.
+
+```js
+await stencil.extension.editors();                  // every open editor tab
+await stencil.extension.current;                    // …this tab's state alone
+await stencil.extension.focus(tabId);               // raise that tab + its window
+await stencil.extension.switchProject('p3');        // this tab → another of its projects
+const tabs = await stencil.extension.tabs();        // other open pages worth scanning
+const imgs = await stencil.extension.images(tabs[0].tabId);   // scan one of them
+await stencil.extension.open(0, { mode: 'new' });   // import imgs[0] into THIS editor tab
+stencil.extension.openInNewTab(imgs[2]);            // the ordinary #stencil= hand-off
+stencil.extension.crop('https://example.com/pic.png');   // the quick-crop tool
+```
+
+| member | arguments | resolves to |
+|---|---|---|
+| `editors({ thumbnails = true } = {})` | `thumbnails: false` skips the canvas capture (a cheap refresh) | `[{ tabId, windowId, url, title, active, current, ready, projectId, projectName, hasImage, imageName, imageSize, incognito, thumbnail, projects }]` — one row per open editor tab, every field normalised (`imageSize` is `{w,h}` or `null`, `projects` is `[{id,name,active}]`); `current` marks the tab you're calling from, `ready:false` a tab whose bridge stayed silent |
+| `current` | — (a getter) | `{ projectId, projectName, hasImage, imageName, imageSize, incognito, thumbnail, projects }` for **this** tab — answered by the bridge from the page itself, without waking the worker or asking the other tabs |
+| `focus(tabId)` | `tabId: number` (any tab, not just an editor's) | `{ tabId, windowId }`; the tab is activated and its window raised |
+| `switchProject(projectId, { tabId } = {})` | project id; `tabId` defaults to this tab | `{ projectId, projectName }`; an id the target doesn't have rejects with `unknown project` (the editor is never cleared) |
+| `tabs({ currentWindowOnly = false } = {})` | — | `[{ tabId, title, url, host, label }]` — the open http(s) pages that can be scanned, editor tabs and blocked schemes dropped, in Chrome's tab order |
+| `images(tabId, { limit } = {})` | `tabId: number`; `limit` caps the scan (default 1000) | the scan entries for that tab — `{ kind, src, videoUrl, posterUrl, w, h, poster, meta }` as the panel lists them, plus `tabId` / `resource` (where they came from), a derived `name`, and their own `open()` / `crop()`; the result is remembered, so it is what `open()`'s index form indexes into |
+| `open(target, { tabId, mode, page, crop, incognito, resource } = {})` | `target` = a scan entry, an index into the last `images()` result, or a URL string | imports into an **open** editor tab (`tabId` defaults to this one) → `{ tabId, mode, projectId, projectName }`. `mode` is `'new'` (a fresh project), `'replace'`, `'replace-keep'` (replace the image, keep the annotations) or `'ask'` — the default, which imports straight away into a blank editor and otherwise rejects with `editor already holds an image` rather than overwriting anything (that rejection carries `err.needsChoice` + `err.state`, so a script can re-issue with an explicit mode without re-querying) |
+| `openInNewTab(target, { incognito, resource } = {})` | as `open` | nothing — one-way: the existing `#stencil=` hand-off in a **new** tab (`openEditorTab`), returning the facade |
+| `crop(target, { album } = {})` | as `open` | nothing — one-way: the existing quick-crop path (`launchCrop`), returning the facade |
+
+`target` is the same union the page API's `open`/`pin` accept: a scan entry object, an index
+into the most recent `images()` result, or a URL string (a string is always a URL, never a CSS
+selector). Nothing here reads or writes the editor's project registry — the editor app stays
+the sole source of truth for that; the bridge only asks it for state and relays imports through
+the very methods the toolbar uses (`loadImageFromFile`, `replaceProjectImage`,
+`switchToProject`), so console scripting, the panel and the UI can't drift apart.
 
 ## How the hand-off works
 
@@ -188,6 +427,7 @@ package.json             `npm test` → node --test
 src/
   background/background.js  service worker: image context menu + tab-fallback relay
   popup/    popup.html|css|js   image list, search/filters, floating actions, preview
+            editorMode.js       editor mode: open-editor list, source-tab picker, import here
   sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + popup.css)
   devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
   crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
@@ -198,6 +438,10 @@ src/
     cropGeometry.js  port of the editor's crop math (kept behaviour-identical)
     imageScan.js     the page scanner (injected via chrome.scripting)
     filters.js       format / search / size filtering (pure)
+    editorTabs.js    editor-tab detection, rows, search, source-tab choices, import mode (pure)
+    actionMenu.js    the rows' floating ⋯ menu: item/submenu builders, flyout placement, Escape
+    hoverPreview.js · filterUi.js · rowModel.js · collapsibleSections.js · logoDragMenu.js
+                     the popup controller's extracted pieces (each node-tested)
     pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
     connections.js   collaboration-server connections + SHARED pins (REST mirror of server/internal/protocol)
     messages.js      cross-context message `type`/`source` constants (no magic strings)
@@ -324,6 +568,11 @@ postMessage'd to an ISOLATED bridge (`content/pageApiBridge.js`) that relays the
 the service worker, which reuses the same `openEditorTab` / `launchEditorModal` /
 `launchCrop` hand-off as the popup. The pure scan helpers live in `lib/pageImages.js`
 (unit-tested); the MAIN-world file mirrors them (it can't import modules).
+
+This is **not** the editor-page API: `stencil.extension` (above) is a separate object, on a
+separate default-ON toggle, injected only on the configured editor origin, and it is about
+*editor tabs* rather than the images of the page you're on. Turning this one on doesn't affect
+that one, or the reverse.
 
 ## Tests
 

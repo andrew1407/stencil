@@ -1,6 +1,12 @@
 // Instant control tooltip: shows a `title`/`data-title` on hover with no delay (the native
 // one has a ~1s delay and never shows on disabled controls). While ours is up the element's
 // `title` is blanked so the native one can't double-show. (tooltip.js is the canvas readout.)
+//
+// The text is not printed flat: tipContent.js parses the composed title into the desktop
+// app's tooltip shape — a heading with keycaps for its shortcut, term/description rows,
+// bullets, and the muted disabled-reason note — and this only positions and shows it.
+
+import { renderTip } from './tipContent.js';
 
 const SHOW_DELAY_MS = 90;   // tiny delay so flicking the cursor across the bar doesn't flash tips
 
@@ -57,6 +63,8 @@ const hide = () => {
 const reveal = (el) => {
   const txt = textFor(el);
   if (!txt) return;
+  const html = renderTip(txt);
+  if (!html) return;
   // Suppress the native (delayed) tooltip while ours is visible.
   const native = el.getAttribute('title');
   if (native) {
@@ -64,7 +72,7 @@ const reveal = (el) => {
     el.setAttribute('title', '');
   }
   const t = ensureTip();
-  t.textContent = txt;        // pre-line CSS renders the "\n— reason" line as a second line
+  t.innerHTML = html;         // renderTip escapes every value it interpolates
   t.classList.add('visible');
   place(lastEvent);
 };
@@ -73,6 +81,11 @@ export const initTooltips = () => {
   if (typeof document === 'undefined') return;
   document.addEventListener('pointerover', (e) => {
     lastEvent = e;
+    // A control that owns its own hover popup (the toolbar's "?" badge and its
+    // .hints-popup) opts out: a floating copy of the same text on top of the bubble is
+    // just the tooltip said twice. Tested on the TARGET, so an ancestor's title can't
+    // stand in for it either.
+    if (e.target.closest && e.target.closest('[data-no-tooltip]')) { hide(); return; }
     // Still inside the active target (e.g. moved onto its child icon) -> keep showing.
     if (curEl && curEl.contains(e.target)) return;
     const el = e.target.closest ? e.target.closest('[title], [data-title]') : null;
