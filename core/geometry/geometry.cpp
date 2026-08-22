@@ -20,11 +20,11 @@ namespace stencil::core {
 
   // Port of browser/js/core/drawingApp.js #closeCurrentShape gate.
   bool shouldCloseShape(const std::vector<Point>& points, const Point& click,
-                        double markerSize) {
+                        double pointSize) {
     if (points.size() < 3) return false;
     const Point& first = points.front();
     const double d = std::hypot(click.x - first.x, click.y - first.y);
-    return d <= markerSize + 8.0;
+    return d <= pointSize + 8.0;
   }
 
   // Port of browser/js/core/drawingApp.js:1527-1542 `findLineAt`. Reverse

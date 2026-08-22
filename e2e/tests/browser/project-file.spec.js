@@ -27,12 +27,12 @@ test('opens a .stencil project through the facade (image + layout + theme)', asy
   const size = await page.evaluate(() => window.stencil.imageSize);
   expect(size).toEqual({ width: 4, height: 8 });
 
-  // The file opted into a theme (dark + violet), so opening it applies it.
-  const theme = await page.evaluate(() => ({
+  // The file opted into a theme (dark + violet), so opening it applies it. The accent
+  // attribute lands a beat after the mode (async accent application) — poll, don't race.
+  await expect.poll(() => page.evaluate(() => ({
     mode: document.documentElement.getAttribute('data-theme'),
     accent: document.documentElement.getAttribute('data-accent'),
-  }));
-  expect(theme).toEqual({ mode: 'dark', accent: 'violet' });
+  })), { timeout: 5000 }).toEqual({ mode: 'dark', accent: 'violet' });
 });
 
 test('save → re-open round-trips a project through the facade', async ({ page }) => {

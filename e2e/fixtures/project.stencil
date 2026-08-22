@@ -29,7 +29,7 @@
         ],
         "color": "#ff0000",
         "thickness": 2,
-        "markerSize": 4,
+        "pointSize": 4,
         "style": "solid",
         "locked": false,
         "fillColor": "transparent"

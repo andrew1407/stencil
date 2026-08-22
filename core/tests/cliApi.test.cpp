@@ -95,6 +95,30 @@ TEST_CASE("stencil_cli_rasterizeLine draws into the buffer") {
   std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
   const double pts[] = {2, 8, 14, 8};
   stencil_cli_rasterizeLine(buf.data(), w, h, pts, 2, "red", 3, 0, "solid", 0,
-                            "transparent");
+                            "transparent", "");
   CHECK(buf[(8 * w + 8) * 4 + 0] > 100);  // red along the stroke
+}
+
+// The point colour rides the LAST parameter; NULL and "" both mean "inherit `color`", so
+// a caller built before the field existed keeps its exact rendering.
+TEST_CASE("stencil_cli_rasterizeLine takes an independent point colour") {
+  const int w = 24, h = 24;
+  const double pts[] = {4, 12, 20, 12};
+  auto draw = [&](const char* pointColor) {
+    std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
+    stencil_cli_rasterizeLine(buf.data(), w, h, pts, 2, "red", 3, 3, "solid", 0,
+                              "transparent", pointColor);
+    return buf;
+  };
+  const auto blue = draw("blue");
+  CHECK(blue[(12 * w + 4) * 4 + 2] > 150);   // endpoint point is blue
+  CHECK(blue[(12 * w + 4) * 4 + 0] < 100);
+  CHECK(blue[(12 * w + 12) * 4 + 0] > 150);  // stroke mid-span still red
+
+  const auto inherited = draw("");
+  CHECK(inherited[(12 * w + 4) * 4 + 0] > 150);   // point inherits red
+  CHECK(inherited[(12 * w + 4) * 4 + 2] < 100);
+  const auto nulled = draw(nullptr);              // NULL is the same as ""
+  CHECK(nulled[(12 * w + 4) * 4 + 0] > 150);
+  CHECK(nulled[(12 * w + 4) * 4 + 2] < 100);
 }

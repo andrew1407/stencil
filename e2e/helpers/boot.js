@@ -22,6 +22,52 @@ export async function gotoApp(page, { hash = '' } = {}) {
   return page;
 }
 
+// Seed saved local projects via the facade (each blank auto-saves; newEditor starts a
+// fresh one) — two by default, `extra` more when a test needs the list long enough to
+// actually scroll — then open the Projects modal and wait for the rows. `settleMs`
+// waits out the modal's entry animation (the modalPop scale runs 0.3s — measuring
+// during it reports ~97% of the real geometry). Returns the rows plus the row of the
+// project that is NOT active, so every gesture has something real to switch to
+// (clicking the active row just closes the list — it is already open in this tab).
+export async function seedProjectsAndOpenList(page, { extra = 0, settleMs = 0 } = {}) {
+  await page.evaluate(async (n) => {
+    await window.stencil.blank('#ffffff', { size: { width: 200, height: 150 } });
+    window.stencil.newEditor();
+    await window.stencil.blank('#000000', { size: { width: 200, height: 150 } });
+    for (let i = 0; i < n; i++) {
+      window.stencil.newEditor();
+      await window.stencil.blank('#ff0000', { size: { width: 200, height: 150 } });
+    }
+  }, extra);
+  await page.locator('#projects-btn').click();
+  const rows = page.locator('.project-row[data-id]');
+  await expect(rows).toHaveCount(2 + extra, { timeout: 5000 });
+  // The dialog flies in from its toolbar icon (base.js modalFromIcon, ~0.5s): geometry
+  // read — or a tap aimed — mid-flight is scaled toward the icon, so wait it out.
+  await settleModalAnimations(page, 'projects-modal-overlay');
+  if (settleMs) await page.waitForTimeout(settleMs);
+  const idx = await rows.evaluateAll((els) => els.findIndex((e) => !e.classList.contains('project-active')));
+  expect(idx, 'an inactive project row exists').toBeGreaterThanOrEqual(0);
+  return { rows, target: rows.nth(idx) };
+}
+
+// Wait until every animation inside a modal overlay has finished — the open flight
+// (modalFromIcon) scales the dialog from its toolbar icon, so boxes measured while it
+// runs are mid-flight. Shared by any spec that measures or gestures right after open.
+export const settleModalAnimations = (page, overlayId) => page.waitForFunction((oid) => {
+  const overlay = document.getElementById(oid);
+  if (!overlay || !overlay.classList.contains('modal-open')) return false;
+  const box = overlay.querySelector('.app-modal') || overlay.firstElementChild;
+  if (!box) return false;
+  const anims = overlay.getAnimations({ subtree: true });
+  if (anims.length) return anims.every((a) => a.playState === 'finished');
+  // The flight may not have STARTED yet (the shell computes its icon delta first):
+  // with no animation live, accept only a box whose on-screen rect matches its
+  // untransformed layout size — mid-flight the transform scales it away from that.
+  const r = box.getBoundingClientRect();
+  return Math.abs(r.width - box.offsetWidth) < 1 && Math.abs(r.height - box.offsetHeight) < 1;
+}, overlayId, { timeout: 5000 });
+
 // Assert a modal overlay is open — the app adds `.modal-open` to `#<name>-modal-overlay`.
 export async function expectModalOpen(page, overlayId) {
   await expect(page.locator(`#${overlayId}`)).toHaveClass(/modal-open/, { timeout: 5000 });

@@ -4,7 +4,7 @@
 // Crop-window geometry, shared by the Qt desktop app and the WebAssembly browser
 // build (the math is the same in both front-ends, so it lives here once). A crop
 // is an axis-aligned rectangle in ORIGINAL-image pixel space; the main canvas
-// shows exactly that sub-rectangle, and line/marker points live in crop-local
+// shows exactly that sub-rectangle, and line and point coords live in crop-local
 // pixels (0..width, 0..height). The original image is never modified — only the
 // rectangle is stored — so the crop can be re-adjusted (moved, resized, or
 // flipped between album/portrait) losslessly.

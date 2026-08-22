@@ -67,7 +67,7 @@ stencil -i <path|url> [-c "x1=… x2=… y1=… y2=…"] [-r <±n quarter-turns>
 stencil --blank [w h] [color] [--layout …] [--filter …] <output>
 ```
 
-Pipeline order is fixed: **source → crop → rotate → layout → filter → encode**. Output
+Pipeline order is fixed: **source → crop → rotate → filter → layout → encode**. Output
 extension auto-fills from the input. A `*.json` output means "write the generated layout,
 don't render". For batches, loop one CLI call per input and report every absolute path.
 Don't overwrite a file the user didn't name without confirming.
@@ -138,7 +138,7 @@ ambiguous); `new_page` + `navigate_page` to open a fresh editor. Run all logic t
 
 ```js
 // settings (each get/set, mirrors a toolbar control):
-stencil.color, lineColor, thickness, pointSize/markerSize, lineStyle, filter,
+stencil.color, lineColor, thickness, pointSize, lineStyle, filter,
 filterColor, unit, pageSize, pageWidth, pageHeight, theme, drawMode, fillColor, …
 stencil.apply({ page:'a4', lineColor:'aqua', tooltip:{screen:true} })   // bulk + chain
 
@@ -178,7 +178,7 @@ stencil.downloadImage(); stencil.copyImage(); stencil.downloadLayout(); stencil.
 
 To **annotate programmatically**, set `stencil.layout = {...}` with the same JSON the CLI
 uses (coords in image pixels: `imageWidth/Height`, `lines[].points`, `color`, `thickness`,
-`markerSize`, `style`, `fillColor`) — translate plain requests ("box around the middle
+`pointSize`, `style`, `fillColor`) — translate plain requests ("box around the middle
 third", "red diagonal") into points yourself using `stencil.imageSize`.
 
 `evaluate_script` runs in the page; `await` async calls inside the evaluated function and
@@ -335,7 +335,7 @@ with `DATABASE_URL` set).
    project others may be editing — confirm before writing back, and prefer publishing a new
    project (`--remote`) when the user didn't ask to modify the original.
 5. **Verify**: report the saved file's absolute path, or the project name/id, or a
-   screenshot — confirm what was applied (source → crop → rotate → layout → filter).
+   screenshot — confirm what was applied (source → crop → rotate → filter → layout).
 6. **Stay in `core/`'s lane**: never suggest pulling Qt/codecs/DOM into the core; the
    surfaces already cover every platform-specific need.
 7. Read the relevant subproject README (`browser/`, `extension/`, `desktop/`, `cli/`,

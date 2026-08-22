@@ -1,19 +1,17 @@
 // Extension e2e: prove the page scanner finds EVERY way an image URL can appear in a
 // document, not just <img>/background. Loads the unpacked MV3 extension, opens a fixture
 // page that carries one of each reference type (each pointing at the harness pixel with a
-// distinct ?marker query so URLs stay distinct + countable), and reads the injected
+// distinct query string so URLs stay distinct + countable), and reads the injected
 // window.stencil page API. Extensions need a persistent context, so this suite manages its
 // own (same pattern as handoff.smoke.spec.js). Runs headed; CI wraps the job in xvfb.
 //
 // The synchronous window.stencil API does NOT fetch the web-app manifest (that needs an
 // async request), so manifest icons are covered by the pageImages.manifestIconUrls unit
 // test + the inline copy in lib/imageScan.js, not here.
-import { test, expect, chromium } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
+import { launchExtension } from '../../helpers/extension.js';
 
-const EXT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../extension');
 const FIXTURE_URL = APP_URL + '__e2e__/all-image-sources.html';
 const EDITOR_URL = APP_URL;
 
@@ -22,24 +20,15 @@ test.describe('extension image-source coverage', () => {
   let context;
 
   test.beforeAll(async () => {
-    context = await chromium.launchPersistentContext('', {
-      headless: false, // extensions load most reliably headed; CI runs under xvfb
-      channel: 'chromium',
-      args: [`--disable-extensions-except=${EXT_PATH}`, `--load-extension=${EXT_PATH}`],
-    });
-    const sw = await background();
+    const ext = await launchExtension();
+    context = ext.context;
+    const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) =>
       chrome.storage.sync.set({ exposeWindowStencil: true, editorUrl }, r)), EDITOR_URL);
     await new Promise((r) => setTimeout(r, 800));
   });
 
   test.afterAll(async () => { await context?.close(); });
-
-  async function background() {
-    let [sw] = context.serviceWorkers();
-    if (!sw) sw = await context.waitForEvent('serviceworker', { timeout: 15_000 });
-    return sw;
-  }
 
   async function openHost() {
     const host = await context.newPage();

@@ -77,7 +77,7 @@ stencil [options] <output>
 | (result file) | `<output>` | positional, last; unknown/missing extension auto-filled from input (`png`/`jpg`/`bmp`/`tga`) |
 
 Order doesn't matter to the CLI; the pipeline always runs
-**source → crop → rotate → layout → filter → encode**, then the result is saved locally
+**source → crop → rotate → filter → layout → encode**, then the result is saved locally
 **and** delivered to any server (`--remote-update` / `--remote`). `--server` and `--remote`
 may point at **different** servers, so one run can fetch a project from one and publish it to
 another. (For an interactive multi-server session — `/connect`, `/fetch`, `/sync`, live
@@ -171,7 +171,7 @@ browser's export (`browser/js/core/layout.js`); coordinates are **image pixels**
       "points": [{"x": 50, "y": 50}, {"x": 750, "y": 50}, {"x": 400, "y": 550}],
       "color": "#ff0000",
       "thickness": 3,
-      "markerSize": 0,
+      "pointSize": 0,
       "style": "solid",
       "locked": false,
       "fillColor": "transparent"
@@ -182,9 +182,9 @@ browser's export (`browser/js/core/layout.js`); coordinates are **image pixels**
 
 - A line is a polyline through its `points`; repeat the first point to close a shape,
   and set a non-`transparent` `fillColor` to fill it (rectangles/areas are just
-  closed polylines). `style` ∈ `solid`/`dashed`/`dotted`. `markerSize` 0 hides
-  point markers. Per-line defaults if omitted: color `#FFFF00`, thickness 2,
-  markerSize 4, style solid, fillColor transparent.
+  closed polylines). `style` ∈ `solid`/`dashed`/`dotted`. `pointSize` 0 hides
+  points. Per-line defaults if omitted: color `#FFFF00`, thickness 2,
+  pointSize 4, style solid, fillColor transparent.
 - Translate plain requests into points yourself (e.g. "box around the middle third",
   "a red diagonal line", "outline these corners"). When you need the image's pixel
   size first, decode it (`sips -g pixelWidth -g pixelHeight <file>` on macOS, or

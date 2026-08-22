@@ -1,0 +1,17 @@
+# Compose OVERRIDE for the e2e harness (applied by helpers/compose.js on top of the
+# repo-root docker-compose.yml): enable the collaboration server's LLM proxy and point
+# it at the harness's stub LLM server (helpers/llm-stub.js) on the HOST — never at the
+# real Anthropic API. Any non-empty ANTHROPIC_API_KEY enables the proxy; the spec
+# asserts the server forwards exactly this key as `x-api-key`.
+#
+# `host.docker.internal` resolves natively on Docker Desktop (macOS/Windows); the
+# host-gateway extra_host makes the same name work on plain Linux docker (CI). The
+# port must match helpers/llm-stub.js LLM_STUB_PORT (same env var, same default).
+services:
+  server:
+    environment:
+      ANTHROPIC_API_KEY: "e2e-test"
+      LLM_MODEL: "claude-e2e"
+      LLM_BASE_URL: "http://host.docker.internal:${E2E_LLM_STUB_PORT-8189}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

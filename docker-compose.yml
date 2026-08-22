@@ -73,10 +73,14 @@ services:
       # Drop REDIS_URL (set it empty) to fall back to the in-process bus.
       REDIS_URL: "${REDIS_URL-redis://redis:6379/0}"
       FILESTORE_ROOT: "/data/filestore"
-      # Dev defaults: open token issuance + permissive CORS. Lock these down for
-      # anything real, e.g. ADMIN_TOKEN=... CORS_ORIGINS=http://localhost:8080
+      # With ADMIN_TOKEN unset the server generates a per-boot admin token and
+      # prints it once (docker compose logs server). CORS defaults to loopback
+      # origins only; widen it explicitly, e.g. CORS_ORIGINS=http://localhost:8080
       ADMIN_TOKEN: "${ADMIN_TOKEN-}"
-      CORS_ORIGINS: "${CORS_ORIGINS-*}"
+      CORS_ORIGINS: "${CORS_ORIGINS-}"
+      # Abuse limiter passthrough — the e2e harness sets 0 (off): its specs all
+      # issue tokens from one IP and would trip the 10/min production default.
+      AUTH_RATE_PER_MINUTE: "${AUTH_RATE_PER_MINUTE-}"
     volumes:
       - filestore:/data/filestore
     ports:

@@ -13,8 +13,8 @@
 //   - allow: everything else — normal allow-list flow proceeds untouched.
 //
 // The decision logic lives in `decide(payload, ctx)`, exported for unit tests
-// (.claude/hooks/guard.test.mjs). Fail-open on malformed input so a bad payload
-// can never brick the whole harness.
+// (.claude/hooks/guard.test.mjs). Fail-CLOSED: a malformed payload or an internal
+// error surfaces as an `ask` (with the error in the prompt), never a silent allow.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -93,7 +93,11 @@ function isSecretPath(abs) {
 // ---------------------------------------------------------------------------
 
 const NETWORK_SINK = /\b(curl|wget|nc|ncat|netcat|scp|rsync|sftp|ftp|telnet|sendmail|Invoke-WebRequest|Invoke-RestMethod)\b/i;
-const SECRET_READERS = /\b(cat|bat|head|tail|less|more|strings|xxd|od|hexdump|base64|type|Get-Content|gc)\b/i;
+// Commands that can move a file's bytes into context or to another path. Pervasive
+// tools (grep/sed/cp/node/…) are ONLY consulted when the command ALSO touches a
+// secret path (reader ∧ commandTouchesSecret below) — plain `grep foo src/` stays
+// allowed. `(?<!\.)env` keeps the bare `env` command from matching the ".env" token.
+const SECRET_READERS = /\b(cat|bat|head|tail|less|more|strings|xxd|od|hexdump|base64|type|Get-Content|gc|grep|egrep|fgrep|rg|sed|awk|perl|python3?|node|jq|sort|cp|mv|printenv|(?<!\.)env)\b/i;
 
 // A secret path *token* referenced inside a raw command string.
 function commandTouchesSecret(cmd) {
@@ -105,7 +109,9 @@ function commandTouchesSecret(cmd) {
     /(^|[\s"'`/=])\.gnupg\//.test(cmd) || /\bgcloud\b/.test(cmd) ||
     /\bopenInConfig\.json\b/.test(cmd) ||
     /\.git\/config(["'\s]|$)/.test(cmd) ||
-    /\bcredentials\b/i.test(cmd)
+    // path-shaped credentials files only (~/.aws/credentials, credentials.json,
+    // .git-credentials) — NOT the bare word, so `grep -r credentials src/` stays allowed
+    /\bcredentials\.json\b/i.test(cmd) || /\.git-credentials\b/i.test(cmd) || /\/credentials(["'\s]|$)/i.test(cmd)
   );
 }
 
@@ -137,7 +143,7 @@ function bashDecision(cmd, ctx) {
   }
   // secret handling
   if (commandTouchesSecret(c)) {
-    if (SECRET_READERS.test(c)) return deny('reads a secret/credential file into context');
+    if (SECRET_READERS.test(c)) return deny('reads or copies a secret/credential file');
     if (NETWORK_SINK.test(c)) return deny('sends a secret/credential over the network');
   }
 
@@ -212,6 +218,58 @@ function uploadFileDecision(input, ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// web fetch/search + browser navigation — exfil-shaped URL inspection
+// ---------------------------------------------------------------------------
+
+// Secret-path tokens for URL/query text. Deliberately tighter than
+// commandTouchesSecret: no bare `credentials`/`gcloud` words, so ordinary doc
+// lookups ("AWS credentials rotation") don't trip it.
+const URL_SECRET_TOKEN = /\.env(?![.\w])|\bid_rsa\b|\bid_ed25519\b|\bid_dsa\b|\bid_ecdsa\b|\.ssh\//i;
+
+const BASE64ISH_BLOB = /[A-Za-z0-9+/=_-]{200,}/; // a long unbroken encodable run
+
+// Ask-level checks for a URL an outbound request/navigation will hit. Returns a
+// decision, or null when the URL looks like a normal doc/page load. Local and
+// user-allowlisted origins are always fine — the browser app legitimately takes
+// huge `#stencil=` fragments on localhost.
+function urlExfilDecision(rawUrl, ctx) {
+  const s = String(rawUrl || '');
+  let u;
+  try {
+    u = new URL(s);
+  } catch {
+    return null; // relative or non-URL — nothing to judge here
+  }
+  if (isLocalHost(u.hostname, ctx)) return allow();
+  if (URL_SECRET_TOKEN.test(s)) return deny('URL mentions a secret/credential path');
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname) || u.hostname.startsWith('[')) {
+    return ask('request to a raw IP address (not a named host)');
+  }
+  const tail = (u.search || '') + (u.hash || '');
+  if (tail.length > 512 || BASE64ISH_BLOB.test(tail)) {
+    return ask('exfil-shaped URL: very long or base64-looking query/fragment');
+  }
+  return null;
+}
+
+function webFetchDecision(input, ctx) {
+  return urlExfilDecision(input && input.url, ctx) || allow();
+}
+
+function webSearchDecision(input) {
+  const q = String((input && input.query) || '');
+  if (URL_SECRET_TOKEN.test(q)) return ask('search query mentions a secret/credential path');
+  if (BASE64ISH_BLOB.test(q) || q.length > 1000) {
+    return ask('exfil-shaped search query: very long or base64-looking blob');
+  }
+  return allow();
+}
+
+function navigationDecision(input, ctx) {
+  return urlExfilDecision(input && input.url, ctx) || allow();
+}
+
+// ---------------------------------------------------------------------------
 // dispatcher
 // ---------------------------------------------------------------------------
 
@@ -230,8 +288,15 @@ export function decide(payload, ctx = defaultCtx()) {
       return evaluateScriptDecision(input, ctx);
     case 'mcp__chrome-devtools__upload_file':
       return uploadFileDecision(input, ctx);
+    case 'mcp__chrome-devtools__navigate_page':
+    case 'mcp__chrome-devtools__new_page':
+      return navigationDecision(input, ctx);
+    case 'WebFetch':
+      return webFetchDecision(input, ctx);
+    case 'WebSearch':
+      return webSearchDecision(input);
     default:
-      return allow(); // navigate_page / new_page / anything else — unrestricted
+      return allow(); // anything else — unrestricted
   }
 }
 
@@ -249,19 +314,26 @@ function readStdin() {
   });
 }
 
+// Fail-closed wrapper: any exception inside decide() becomes an `ask` whose prompt
+// explains why, so an internal guard bug can never turn into a silent allow.
+export function safeDecide(payload, ctx) {
+  try {
+    return ctx === undefined ? decide(payload) : decide(payload, ctx);
+  } catch (err) {
+    return ask(`guard hook hit an internal error (failing closed): ${err && err.message ? err.message : err}`);
+  }
+}
+
 async function main() {
+  let result;
   let payload;
   try {
     payload = JSON.parse(await readStdin());
-  } catch {
-    process.exit(0); // fail-open: never brick the harness on a bad payload
+  } catch (err) {
+    // fail-closed: an unparseable payload surfaces as an ask, never a silent allow
+    result = ask(`guard hook could not parse the tool payload (failing closed): ${err && err.message ? err.message : err}`);
   }
-  let result;
-  try {
-    result = decide(payload);
-  } catch {
-    process.exit(0); // fail-open on internal error
-  }
+  if (!result) result = safeDecide(payload);
   if (result.decision === 'allow') process.exit(0);
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {

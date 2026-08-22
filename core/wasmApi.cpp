@@ -64,11 +64,11 @@ extern "C" {
 
   // ── drawing gate (drawingApp.js #closeCurrentShape) ──
   // Returns 1 if a click at (cx,cy) closes a shape built from a flat [x0,y0,...]
-  // array of `count` points with the given markerSize, else 0.
+  // array of `count` points with the given pointSize, else 0.
   int stencil_shouldCloseShape(const double* pts, int count, double cx,
-                               double cy, double markerSize) {
+                               double cy, double pointSize) {
     const std::vector<Point> v = toPoints(pts, count);
-    return shouldCloseShape(v, Point{cx, cy}, markerSize) ? 1 : 0;
+    return shouldCloseShape(v, Point{cx, cy}, pointSize) ? 1 : 0;
   }
 
   // ── page metrics (drawingApp.js getPageDimensions / pixelToPageCoords) ──

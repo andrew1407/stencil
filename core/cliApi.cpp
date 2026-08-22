@@ -114,10 +114,14 @@ extern "C" {
     applyContourRGBA(data, width, height);
   }
 
+  // `pointColor` is the point colour, appended LAST so the parameter order of every
+  // earlier argument is unchanged. NULL or "" means "inherit the stroke colour", which is
+  // what a caller that does not know about the field passes — see Line::pointColor.
   void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                  const double* pts, int nPts,
-                                 const char* color, double thickness, double markerSize,
-                                 const char* style, int locked, const char* fillColor) {
+                                 const char* color, double thickness, double pointSize,
+                                 const char* style, int locked, const char* fillColor,
+                                 const char* pointColor) {
     if (nPts <= 0 || pts == nullptr) return;
     Line line;
     line.points.reserve(static_cast<std::size_t>(nPts));
@@ -125,10 +129,11 @@ extern "C" {
       line.points.push_back(Point{pts[i * 2], pts[i * 2 + 1]});
     if (color) line.color = color;
     line.thickness = thickness;
-    line.markerSize = markerSize;
+    line.pointSize = pointSize;
     if (style) line.style = style;
     line.locked = locked != 0;
     if (fillColor) line.fillColor = fillColor;
+    if (pointColor) line.pointColor = pointColor;
     rasterizeLine(buf, w, h, line);
   }
 
