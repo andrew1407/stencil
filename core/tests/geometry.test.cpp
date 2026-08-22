@@ -41,12 +41,12 @@ TEST_CASE("projection beyond endpoint b (t clamped to 1)") {
 TEST_CASE("shouldCloseShape needs >=3 points and a click near point[0]") {
   std::vector<Point> two{{0, 0}, {10, 0}};
   std::vector<Point> tri{{0, 0}, {10, 0}, {10, 10}};
-  const double marker = 4.0;  // threshold = markerSize + 8 = 12 px
-  CHECK_FALSE(shouldCloseShape(two, {0, 0}, marker));   // < 3 points
-  CHECK(shouldCloseShape(tri, {5, 0}, marker));         // within 12 px
-  CHECK(shouldCloseShape(tri, {12, 0}, marker));        // exactly at threshold
-  CHECK_FALSE(shouldCloseShape(tri, {13, 0}, marker));  // beyond threshold
-  CHECK_FALSE(shouldCloseShape(tri, {30, 30}, marker));
+  const double pointSize = 4.0;  // threshold = pointSize + 8 = 12 px
+  CHECK_FALSE(shouldCloseShape(two, {0, 0}, pointSize));   // < 3 points
+  CHECK(shouldCloseShape(tri, {5, 0}, pointSize));         // within 12 px
+  CHECK(shouldCloseShape(tri, {12, 0}, pointSize));        // exactly at threshold
+  CHECK_FALSE(shouldCloseShape(tri, {13, 0}, pointSize));  // beyond threshold
+  CHECK_FALSE(shouldCloseShape(tri, {30, 30}, pointSize));
 }
 
 // S1: hit-testing ported from drawingApp.js:1527-1542 findLineAt.

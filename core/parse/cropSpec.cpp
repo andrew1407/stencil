@@ -35,6 +35,7 @@ namespace stencil::core {
       else if (k == "x2") out.x2 = val;
       else if (k == "y1") out.y1 = val;
       else if (k == "y2") out.y2 = val;
+      else if (k == "aspect") out.aspect = val;
       else return false;
       return true;
     };
@@ -49,6 +50,22 @@ namespace stencil::core {
       if (!assign(key, val)) { out.valid = false; break; }
     }
     return out;
+  }
+
+  // "W:H" with positive integers -> W/H; 0.0 for anything else (zero, sign, junk).
+  static double parseAspectRatio(const std::string& s) {
+    const std::size_t colon = s.find(':');
+    if (colon == 0 || colon == std::string::npos || colon + 1 >= s.size()) return 0.0;
+    const std::string parts[2] = {s.substr(0, colon), s.substr(colon + 1)};
+    double vals[2] = {0.0, 0.0};
+    for (int i = 0; i < 2; ++i) {
+      for (char c : parts[i]) {
+        if (c < '0' || c > '9') return 0.0;
+        vals[i] = vals[i] * 10.0 + (c - '0');
+      }
+      if (vals[i] <= 0.0) return 0.0;
+    }
+    return vals[0] / vals[1];
   }
 
   std::optional<CropRect> resolveCropRect(const CropSpec& spec,
@@ -89,6 +106,24 @@ namespace stencil::core {
     rect.y = std::min(y1, y2);
     rect.width = std::abs(x2 - x1);
     rect.height = std::abs(y2 - y1);
+
+    // Optional aspect fit: shrink ONE dimension symmetrically about the centre to hit
+    // the W:H ratio — never grow, so the rect stays wherever the edges put it.
+    if (spec.aspect) {
+      const double ratio = parseAspectRatio(*spec.aspect);  // width / height
+      if (ratio <= 0.0) return std::nullopt;
+      double w = rect.width;
+      double h = rect.height;
+      if (h * ratio <= w) w = h * ratio;   // too wide  -> shrink the width
+      else h = w / ratio;                  // too tall  -> shrink the height
+      // Degenerate results keep at least 1px, but never grow past the resolved rect.
+      w = std::min(rect.width, std::max(w, 1.0));
+      h = std::min(rect.height, std::max(h, 1.0));
+      rect.x += (rect.width - w) / 2.0;
+      rect.y += (rect.height - h) / 2.0;
+      rect.width = w;
+      rect.height = h;
+    }
     return rect;
   }
 

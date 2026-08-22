@@ -47,35 +47,55 @@ graph TD
 helpers/
   static-server.js   tiny Node static server for browser/ (+ fixtures) — no python dep
   compose.js         globalSetup: docker compose up db+redis+server (only when E2E_STACK=1)
+  compose.llm.yml    compose override applied by compose.js: server LLM env (stub key/model
+                     + LLM_BASE_URL at the host's llm-stub) for the fullstack llm-proxy spec
   boot.js            gotoApp(page): navigate, clear state, await window.stencil
   serverApi.js       REST helpers (token issuance, project CRUD) over Playwright's request
   wire.js            WS (ws lib) + raw-TCP (net) clients for the live-edit protocol
+  llm-stub.js        scriptable stub LLM server (openai-compat / ollama / Anthropic
+                     Messages wire shapes) — ALL model traffic in the suite ends here
 fixtures/            host pages (+ pixel.png / site.webmanifest) the extension scanner loads over http
                      (page-with-image.html · all-image-sources.html — one of every image reference)
 tests/
   browser/   app.smoke     — window.stencil: blank/draw/rotate/crop, deep link
              editor        — real pointer drawing, undo/redo, crop tokens + px↔page, apply(), save→reload
              project-file  — .stencil open (image+layout+theme) + save→re-open round-trip via the facade
+             chat          — AI assistant panel vs the stub LLM: §1 op-plan executes on the
+                             facade, variant cards render, dock/float placement persists
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
              scan-sources  — every HTML/CSS image reference (img/srcset/input/svg/icons/meta + CSS) is scanned
+             chat.smoke    — popup → AI chat page vs the stub LLM: `focus` highlights on the
+                             page, `open` hands off `#stencil=` with the translated filter
   fullstack/ collab.smoke  — two clients + real server: create → cross-client visibility
              liveedit      — A auto-reloads a peer's server-side edit (live co-edit path)
+             llm-proxy     — browser chat → server /llm/chat → stub Anthropic upstream
+                             (x-api-key / anthropic-version headers, /llm/info)
   server/    rest.smoke, ws.smoke — REST lifecycle + hello→subscribe→welcome→edit/save/TCP
              events        — global /events feed (created/updated/deleted), peer-join, cursor relay
              files         — file-endpoint error paths + result-kind round-trip
+             llm-rate-limit — /llm/chat spend controls: in-flight gate (held stub) +
+                             per-session burst bucket, both → 429 rateLimited
+             chat-file-lifecycle — contract-§12 `chat` file kind: PUT → GET round-trip →
+                             DELETE → 404 (filestore-only; original stays undeletable)
+             ws-peer-leave — WS keepalive reaps a half-open peer (~40s); peer-leave
+                             reaches the survivor (deliberately slow)
   cli/       pipeline      — Zig binary black-box: blank/rotate/crop/filter/layout/URL-input,
                              ext auto-fill, error contract; asserts the written PNG's IHDR dims.
                              Also opens the SAME fixtures/project.stencil the browser spec opens
                              (cross-surface parity) + bundles an image back into a .stencil
+             llm-prompt    — /prompt vs the stub LLM: piped --console session, a §1
+                             op-plan executes for real (saved PNG dims swap)
 ```
 
 ### Known gaps (deliberate)
 
-- **peer-leave isn't asserted.** The server has no WS keepalive/read-deadline, so a dropped
-  peer (graceful close OR abrupt TCP reset) isn't detected within a bounded window — see the
-  note in `tests/server/events.spec.js`. This is a real server characteristic, flagged rather
-  than papered over.
+- **peer-leave is detected, but only within ~40s.** The server now runs a WS keepalive
+  (30s ping + 10s pong timeout — `server/internal/transport/ws.go`), so a half-open peer
+  is reaped and `peer-leave` reaches the survivors within that window. Asserted end-to-end
+  by `tests/server/ws-peer-leave.spec.js` (deliberately slow: it waits out a real
+  ping/pong-timeout cycle). Departure is still not instant — presence can lag a dead peer
+  by up to ~40s.
 - CLI, MCP, and bot have no e2e here; no visual-regression baselines. (The CLI *is* driven
   end-to-end by the `cli` project above; MCP/bot are not.)
 - **Desktop (Qt) e2e lives elsewhere, on purpose.** The desktop app is a native Qt binary, not
@@ -136,9 +156,12 @@ E2E_STACK=1 E2E_SKIP_COMPOSE=1 npm test   # uses whatever is on SERVER_URL (defa
   behaviorally identical for these flows (the committed wasm artifact is used if present).
 - **State isolation.** `boot.js` clears `localStorage` per navigation and the config blocks
   the app service worker, so runs don't leak projects/servers between tests.
-- **Server auth.** The compose server ships dev defaults (`ADMIN_TOKEN` empty → open token
-  issuance, `CORS_ORIGINS=*`), which the harness relies on. Don't point these tests at a
-  locked-down server without adjusting `helpers/serverApi.js`.
+- **Server auth.** Token issuance is always admin-gated (an unset `ADMIN_TOKEN` makes the
+  server generate a per-boot token, printed once). The harness starts compose with
+  `ADMIN_TOKEN` (default `e2e-admin`; override via env) and `helpers/serverApi.js` sends it
+  as `X-Admin-Token`. With `E2E_SKIP_COMPOSE=1`, export `ADMIN_TOKEN` matching your server.
+  Side effect: with an admin token always set, the server's LLM proxy enables whenever the
+  stub provider is configured, so the fullstack llm-proxy spec runs instead of self-skipping.
 
 ## CI
 

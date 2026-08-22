@@ -134,6 +134,21 @@ jobs:
         working-directory: cli
         run: zig build test --summary all
 
+  # pystencil: stdlib-only Python package that recompiles the core over ctypes (like the CLI).
+  # Tests build the shared lib on demand via build.py, which only needs a C++17 compiler (`c++`).
+  pystencil:
+    name: pystencil (Python tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install toolchain (g++)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++
+      - name: Run Python tests
+        working-directory: pystencil
+        run: python3 -m unittest discover -s tests
+
   # MCP: Rust server shelling out to the CLI; build the CLI first + set STENCIL_CLI for the gated e2e tests.
   mcp:
     name: MCP (Rust build + tests)
@@ -159,7 +174,7 @@ jobs:
           STENCIL_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
 
   # Server: Go collaboration server (does NOT compile core/). Postgres + Redis run as service
-  # containers; the gated store/bus tests pick them up via DATABASE_URL/REDIS_URL. Hub tests run -race.
+  # containers; the gated store/bus tests pick them up via TEST_DATABASE_URL/REDIS_URL. Hub tests run -race.
   server:
     name: Server (Go build + tests)
     runs-on: ubuntu-latest
@@ -210,7 +225,7 @@ jobs:
         working-directory: server
         run: go test -race -mod=vendor ./...
         env:
-          DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
+          TEST_DATABASE_URL: postgres://stencil:stencil@localhost:5432/stencil?sslmode=disable
           REDIS_URL: redis://localhost:6379/0
 
   # E2E: Playwright smoke tests across every surface (does NOT compile core/). Drives the
@@ -282,6 +297,20 @@ jobs:
       - name: Test
         working-directory: bot
         run: dotnet test Stencil.TelegramBot.slnx --no-build --configuration Release --verbosity normal
+
+  # Guard hook: the PreToolUse AI-harness guard (.claude/hooks/guard.mjs) is security-relevant
+  # code — keep its node:test suite green like any other subproject.
+  guard-hook:
+    name: Guard hook (JS tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Run guard tests
+        run: node --test .claude/hooks/guard.test.mjs
 
   # Docker images: assert every shipped Dockerfile still builds (packaging guard, no push).
   # browser/cli/mcp/bot compile core/ so their build context is the REPO ROOT; server is ./server.

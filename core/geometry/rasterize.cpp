@@ -32,7 +32,7 @@ namespace stencil::core {
     // int cast or scan/step loop runs on them.
     bool lineWithinBounds(const Line& line) {
       if (!std::isfinite(line.thickness) || std::abs(line.thickness) > kMaxCoord) return false;
-      if (!std::isfinite(line.markerSize) || std::abs(line.markerSize) > kMaxCoord) return false;
+      if (!std::isfinite(line.pointSize) || std::abs(line.pointSize) > kMaxCoord) return false;
       for (const Point& p : line.points) {
         if (!std::isfinite(p.x) || !std::isfinite(p.y)) return false;
         if (std::abs(p.x) > kMaxCoord || std::abs(p.y) > kMaxCoord) return false;
@@ -207,7 +207,7 @@ namespace stencil::core {
 
   void rasterizeLine(std::uint8_t* buf, int w, int h, const Line& line) {
     if (line.points.empty()) return;
-    // Untrusted layout coords: a non-finite or absurd point/thickness/markerSize
+    // Untrusted layout coords: a non-finite or absurd point/thickness/pointSize
     // would make the int casts below UB and spin the step/scan loops near-forever.
     // Such a line is skipped as inert (nothing drawn), leaving the buffer intact.
     if (!lineWithinBounds(line)) return;
@@ -223,13 +223,18 @@ namespace stencil::core {
       strokePolyline(buf, w, h, line.points, line.locked, line.thickness, line.style,
                      *stroke);
 
-      // Point markers: a filled disc in the line colour with a thin dark outline
-      // (matching the editor's signature yellow-on-black handles).
-      if (line.markerSize > 0.0) {
+      // Points: a filled disc with a thin dark outline (matching the editor's
+      // signature yellow-on-black handles). The disc takes the line's OWN point colour,
+      // which pointColorOr() resolves to the stroke colour when unset — so a line that
+      // never set one looks exactly as it did before the field existed. An unparseable
+      // point colour falls back to the stroke rather than dropping the points.
+      if (line.pointSize > 0.0) {
+        const auto pointFill = parseColor(pointColorOr(line));
+        const Rgba fill = (pointFill && pointFill->a > 0) ? *pointFill : *stroke;
         const Rgba outline{0, 0, 0, 255};
         for (const Point& p : line.points) {
-          stampDisc(buf, w, h, p.x, p.y, line.markerSize, *stroke);
-          stampRing(buf, w, h, p.x, p.y, line.markerSize, 1.0, outline);
+          stampDisc(buf, w, h, p.x, p.y, line.pointSize, fill);
+          stampRing(buf, w, h, p.x, p.y, line.pointSize, 1.0, outline);
         }
       }
     }

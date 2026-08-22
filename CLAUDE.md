@@ -33,7 +33,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e tests self-skip without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
-| **server** | `cd server && go build ./...` (→ `go run ./cmd/stencil-server`) | `go test ./...` (store/redisbus e2e self-skip without `DATABASE_URL`/`REDIS_URL`; `go test -race ./internal/hub/...`) | needs Postgres (`DATABASE_URL`) + optional Redis (`REDIS_URL`); see `server/.env.example` |
+| **server** | `cd server && go build ./...` (→ `go run ./cmd/stencil-server`) | `go test ./...` (store/redisbus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL` — the store tests truncate, so they never read `DATABASE_URL`; `go test -race ./internal/hub/...`) | needs Postgres (`DATABASE_URL`) + optional Redis (`REDIS_URL`); see `server/.env.example` |
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token/server/CLI/Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` in `bot/.env` + the CLI) |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
@@ -49,7 +49,7 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 
 2. **The browser runs `core/` via wasm, with a JS fallback that must match it.** At boot `browser/js/index.js` calls `core.init()` (`js/core/stencilCore.js`); each pure-logic JS module delegates to wasm when loaded and keeps its JS body as the fallback used when wasm isn't built or fails. `browser/tests/wasm-parity.test.js` asserts the compiled core agrees with the JS reference op-for-op (CI builds wasm fresh and runs this — it fails if behavior diverges). Keep wasm and JS fallback behaviorally aligned.
 
-3. **One deliberate divergence: no `eval`.** `browser/js/core/formulaEngine.js` evaluates `f(x,y)` with `new Function(...)`; `core/parse/formulaParser` is a real recursive-descent parser (`+ - * / ** ( )`, single variable, `**` right-associative, empty = identity, div-by-zero/overflow = invalid). When wasm is loaded the browser uses the parser; keep the two contracts aligned (same operators, precedence, identity-on-error).
+3. **No `eval` anywhere.** `browser/js/core/formulaEngine.js` and `core/parse/formulaParser` are both real recursive-descent parsers (no `new Function`/`eval`): `+ - * / ** ( )`, single variable, `**` right-associative, empty = identity, div-by-zero/overflow = invalid, recursion capped at the same depth on both sides (`MAX_DEPTH` ↔ `kMaxDepth`). The JS parser is the wasm fallback and reference; keep the two aligned op-for-op (same operators, precedence, identity-on-error).
 
 4. **The CLI and the Python package recompile core sources, they do not link the CMake library.** The file list in `cli/build.zig` **and** the source list in `pystencil/build.py` **must stay in sync** with `STENCIL_CORE_SOURCES` in `core/CMakeLists.txt`. Adding/removing/renaming a core `.cpp` means editing all three.
 
@@ -62,6 +62,45 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 - The editor exposes a frozen, hard-guarded scripting facade on `window.stencil` (`js/console/stencilApi.js`); every mutation routes through the same core methods the toolbar uses, so console scripting and UI stay in sync. See `browser/README.md` for the full surface.
 - The extension hands off images via the URL **fragment** (`#stencil=<encodeURIComponent(JSON)>`), consumed by `DrawingApp.applyExternalLaunch()` — the fragment never reaches the server.
 
+## LLM / AI-assistant support
+
+Stencil has an LLM assistant across its surfaces, built **entirely in the adapters** —
+`core/` has no LLM code and the parity contract above is unaffected. The single source of
+truth is **`llm-contract/llm-contract.md`** (plus its split-out sections `llm-contract/llm-providers.md`,
+`llm-contract/llm-profiles.md`, `llm-contract/llm-chat.md` — section numbers §1–§13 are stable across the
+set): the *op-plan* JSON the model must answer with (ops map 1:1 onto existing operations —
+crop specs, quarter rotates, filters/tint, layout `Line`s, formulas, page formats, blanks,
+video frames; validated strictly before anything executes), the provider config (+ defaults:
+Ollama `http://localhost:11434`, OpenAI-compatible/LM Studio `http://localhost:1234/v1`, or
+Anthropic proxied by a collaboration server), the canonical system prompt, and the
+per-provider wire mappings. The exhaustive detail is machine-readable and test-guarded:
+`browser/js/config/llm/opRegistry.json` (ops/profiles/limits), `systemPrompt.json` (the
+prompt prose; ops bullets are registry-generated), `providers.json` (provider constants),
+and the conformance fixtures under `browser/js/config/llm/fixtures/` +
+`browser/js/config/fixtures/`, walked by every surface's tests. Every client implements the
+contract with its platform's built-in HTTP (no new deps) and mocks it in tests — change the
+contract and you change every implementation listed in its table, same rule as the core
+parity contract.
+
+Per surface: **browser** — dockable/floating chat panel (`js/llm/`, executed through the
+`window.stencil` facade); **desktop** — floatable chat `QDockWidget` (`src/llm/`,
+transport-injectable client); **extension** — chat over the page's scanned images with its
+own op profile (contract §8: `focus`/`open`/`attach`; editing happens after the `#stencil=`
+handoff); **cli** and **pystencil** consoles — `/prompt` (`/p`) + `/llm` config commands;
+**pystencil** API — `Editor.prompt()` / `Chat` in `pystencil/llm.py`; **bot** — `/prompt`
+(`/p`) with variants sent as media groups, plus `/chat` chat mode (plain messages route to the
+same prompt path); **mcp** — `stencil_prompt` tool (hand-rolled
+plain-http transport, per the no-dependencies rule). The **server** proxies any of the three
+providers at `POST /llm/chat` / `GET /llm/info` behind the normal bearer auth — `LLM_API_KEY`
+lives only in its env (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`, `LLM_MAX_TOKENS`,
+`LLM_TIMEOUT_SECONDS` alongside; `ANTHROPIC_API_KEY` is a legacy alias honoured only for
+`anthropic`), with `LLM_RATE_PER_MINUTE`/`LLM_MAX_IN_FLIGHT` bounding what one session can
+spend — and its per-project file kinds extend to `video` + `variant1..8` + `chat`
+(filestore-only in v1; `chat` holds the contract-§12 opt-in per-project chat transcript,
+deletable via `DELETE /projects/{id}/files/{kind}`). Config env keys elsewhere are the shared `STENCIL_LLM_*` family. LLM endpoints are
+always explicit user configuration (never discovered from content), and model output is
+data — plans are validated against the whitelisted op set, never trusted.
+
 ## Doctest / dependency notes
 
 - Doctest is a single header (pinned v2.4.11) fetched into `core/third_party/doctest.h` at configure time with SHA-256 verification — not committed, nothing to install.
@@ -70,7 +109,7 @@ The four front-ends **deliberately mirror each other**, and three of them run th
 
 ## CI
 
-`.github/workflows/ci.yml` runs eleven independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests, **including the `stencil_mainwindow_gui` QtTest e2e**), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), mcp (Rust, builds the CLI first for its gated e2e), **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests), **bot** (.NET build + the offline xUnit suite for the Telegram bot), **e2e** (Node/Playwright — brings up db+redis+server via docker compose and drives the real browser app + unpacked extension + server binary over their wire protocols; see `e2e/README.md`), and **docker-images** (a matrix that `docker build`s all five shipped Dockerfiles — browser/cli/mcp/bot from the repo root, server from `./server` — so a broken image never ships; behavior is covered elsewhere, this guards packaging). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
+`.github/workflows/ci.yml` runs thirteen independent jobs on push/PR to `main`: browser (JS), extension (JS), core (C++ + Doctest), desktop (Qt + headless tests, **including the `stencil_mainwindow_gui` QtTest e2e**), **wasm** (builds the core fresh with Emscripten and runs the parity test against it), cli (Zig), **pystencil** (Python stdlib tests; recompiles core via `build.py`), mcp (Rust, builds the CLI first for its gated e2e), **server** (Go build + `go test -race`, with Postgres + Redis service containers for the gated store/bus integration tests), **bot** (.NET build + the offline xUnit suite for the Telegram bot), **guard-hook** (the `.claude/hooks` PreToolUse guard's own `node --test` suite), **e2e** (Node/Playwright — brings up db+redis+server via docker compose and drives the real browser app + unpacked extension + server binary over their wire protocols; see `e2e/README.md`), and **docker-images** (a matrix that `docker build`s all five shipped Dockerfiles — browser/cli/mcp/bot from the repo root, server from `./server` — so a broken image never ships; behavior is covered elsewhere, this guards packaging). The wasm job is what catches core/JS-fallback divergence. `release.yml` builds desktop packages for macOS/Windows/Linux on `v*` tags.
 
 ## AI harness rules
 

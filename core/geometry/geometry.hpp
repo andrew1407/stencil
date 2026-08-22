@@ -10,9 +10,9 @@ namespace stencil::core {
 
   // Port of browser/js/core/drawingApp.js #closeCurrentShape gate (canvasClick):
   // a click closes the in-progress shape when it has >= 3 points and lands within
-  // (markerSize + 8) image px of the first point. Threshold is in image space.
+  // (pointSize + 8) image px of the first point. Threshold is in image space.
   bool shouldCloseShape(const std::vector<Point>& points, const Point& click,
-                        double markerSize);
+                        double pointSize);
 
   // Port of browser/js/core/drawingApp.js:1527-1542 `findLineAt`. Reverse-
   // iterates the lines (topmost / last-drawn wins) and returns the index of the

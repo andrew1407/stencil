@@ -75,11 +75,14 @@ void stencil_cli_applyContour(uint8_t* data, int width, int height);
 /* ── Rasterise a layout line ────────────────────────────────────────────────── */
 /* Burn one polyline into an RGBA8 buffer (w x h). `pts` holds nPts (x,y) pairs
  * (2*nPts doubles). `style` is "solid"|"dashed"|"dotted"; `locked` (0/1) closes the
- * shape and enables the `fillColor` fill. Colours are CSS strings (see parseColor). */
+ * shape and enables the `fillColor` fill. Colours are CSS strings (see parseColor).
+ * `pointColor` colours the points independently of the stroke; NULL or "" means
+ * inherit `color`, which is the pre-field behaviour. */
 void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                const double* pts, int nPts,
-                               const char* color, double thickness, double markerSize,
-                               const char* style, int locked, const char* fillColor);
+                               const char* color, double thickness, double pointSize,
+                               const char* style, int locked, const char* fillColor,
+                               const char* pointColor);
 
 /* ── Coordinate-transform formula (same FormulaParser the browser applies) ────── */
 /* `var` is the ASCII code of the single variable ('x' or 'y'). */

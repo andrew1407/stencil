@@ -157,7 +157,7 @@ TEST_SUITE("bench") {
         ln.points = {{bx, by}, {bx + 40, by + 15}, {bx + 10, by + 60}, {bx + 70, by + 70}};
         ln.color = "#3366ff";
         ln.thickness = 3;
-        ln.markerSize = 4;
+        ln.pointSize = 4;
         ln.style = "solid";
         lines.push_back(ln);
       }

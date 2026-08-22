@@ -56,10 +56,10 @@ test.describe('server events + session lifecycle', () => {
       a.close();
       b.close();
     }
-    // NOTE: peer-LEAVE is intentionally not asserted here. The server has no WS
-    // keepalive/read-deadline, so a dropped peer (graceful close frame OR abrupt TCP
-    // reset) is not detected promptly — peer-leave doesn't arrive within a bounded
-    // window, so it can't be asserted reliably in e2e. Flagged as a real server gap.
+    // NOTE: peer-LEAVE lives in ws-peer-leave.spec.js. The server's WS keepalive
+    // (30s ping + 10s pong timeout, server/internal/transport/ws.go) reaps a dropped
+    // peer within ~40s — bounded, but far too slow for this fast test, so the
+    // dedicated (deliberately slow) spec owns that assertion.
   });
 
   test('cursor is relayed to peers, stamped with the origin client', async ({ request }) => {

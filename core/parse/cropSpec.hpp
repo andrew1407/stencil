@@ -12,17 +12,20 @@ namespace stencil::core {
 
   // Edge tokens; any may be absent. `valid` is false when the string had an unknown
   // key or malformed structure (distinct from a present-but-unparseable token, which
-  // surfaces later in resolveCropRect).
+  // surfaces later in resolveCropRect). `aspect` is an optional "W:H" ratio (positive
+  // integers) applied AFTER the edges resolve — see resolveCropRect.
   struct CropSpec {
     std::optional<std::string> x1;
     std::optional<std::string> x2;
     std::optional<std::string> y1;
     std::optional<std::string> y2;
+    std::optional<std::string> aspect;
     bool valid = true;
   };
 
-  // Parse "x1 = .. x2 = .. y1 = .. y2 = ..". Separators between pairs may be spaces
-  // and/or commas; whitespace around '=' is optional. Unknown keys -> valid = false.
+  // Parse "x1 = .. x2 = .. y1 = .. y2 = .. aspect = W:H". Separators between pairs may
+  // be spaces and/or commas; whitespace around '=' is optional. Unknown keys ->
+  // valid = false.
   CropSpec parseCropSpec(const std::string& spec);
 
   struct CropResolveParams {
@@ -36,9 +39,13 @@ namespace stencil::core {
 
   // Resolve to a pixel CropRect, mirroring browser stencil.crop(): a missing edge
   // defaults to the full image; when exactly one axis is given, the other is derived
-  // from the page proportion (album = landscape). nullopt if any present token is
-  // unparseable. The returned rect is normalized (positive width/height) but NOT
-  // clamped — the caller clamps to the image as needed.
+  // from the page proportion (album = landscape). If `aspect` is present ("W:H",
+  // positive integers) the resolved rect is then fitted to that ratio by SHRINKING one
+  // dimension symmetrically about its centre (never grown; degenerate results keep at
+  // least 1px). A spec with only `aspect` therefore applies to the full image. nullopt
+  // if any present token — aspect included — is unparseable. The returned rect is
+  // normalized (positive width/height) but NOT clamped — the caller clamps to the
+  // image as needed.
   std::optional<CropRect> resolveCropRect(const CropSpec& spec,
                                           const CropResolveParams& params,
                                           bool album);

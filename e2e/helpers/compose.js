@@ -11,12 +11,30 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const COMPOSE_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../docker-compose.yml');
+const HELPERS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const COMPOSE_FILE = path.resolve(HELPERS_DIR, '../../docker-compose.yml');
+// LLM override: enables the server's Anthropic proxy against the harness's stub LLM
+// server (see compose.llm.yml + llm-stub.js) so the fullstack llm-proxy spec can run.
+// Applied on every harness-managed `up`; harmless for everything else. With
+// E2E_SKIP_COMPOSE=1 the override is NOT applied (the server is out-of-band) and the
+// llm-proxy spec self-skips off GET /llm/info.
+const LLM_OVERRIDE = path.resolve(HELPERS_DIR, 'compose.llm.yml');
 const HEALTH_URL = process.env.SERVER_URL ? `${process.env.SERVER_URL}/healthz` : 'http://localhost:8090/healthz';
 const SERVICES = ['db', 'redis', 'server'];
 
+// Issuance is always admin-gated now, so hand compose a known dev admin token
+// (the root compose interpolates ${ADMIN_TOKEN-}); serverApi.js sends the same one.
 const compose = (...args) =>
-  execFileSync('docker', ['compose', '-f', COMPOSE_FILE, ...args], { stdio: 'inherit' });
+  execFileSync('docker', ['compose', '-f', COMPOSE_FILE, '-f', LLM_OVERRIDE, ...args], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      ADMIN_TOKEN: process.env.ADMIN_TOKEN || 'e2e-admin',
+      // Every spec issues tokens from one IP; the 10/min production default 429s
+      // the suite on repeat runs. The limiter itself is covered by Go unit tests.
+      AUTH_RATE_PER_MINUTE: process.env.AUTH_RATE_PER_MINUTE || '0',
+    },
+  });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

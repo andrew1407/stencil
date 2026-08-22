@@ -7,7 +7,7 @@
 // CLI can emit a finished annotated picture (the GUI apps draw with Qt/canvas; this
 // is their codec-free, STL-only equivalent). Draws the models.hpp Line shapes:
 // optional closed-polygon fill, a thick/dashed/dotted polyline, and round point
-// markers, alpha-blended in place. Pure geometry — no text/glyph rendering. Colours
+// points, alpha-blended in place. Pure geometry — no text/glyph rendering. Colours
 // are resolved via colorNames.hpp; "transparent" or unparseable colours are skipped.
 namespace stencil::core {
 
