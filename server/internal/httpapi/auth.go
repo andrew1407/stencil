@@ -13,9 +13,10 @@ type issueTokenRequest struct {
 	Label string `json:"label,omitempty"`
 }
 
-// handleIssueToken mints a new bearer token + session. When an admin token is
-// configured, the caller must present it (Authorization: Bearer <admin> or
-// X-Admin-Token); otherwise issuance is open (development mode).
+// handleIssueToken mints a new bearer token + session. The caller must present
+// the admin token (Authorization: Bearer <admin> or X-Admin-Token); with no
+// admin token configured, issuance is closed outright — config.Load generates a
+// per-boot token precisely so this can never be open.
 func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
 	if !a.adminAuthorized(r) {
 		writeErr(w, http.StatusUnauthorized, protocol.CodeUnauthorized, "admin token required to issue tokens")
@@ -45,7 +46,7 @@ func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
 // adminAuthorized reports whether the request may issue tokens.
 func (a *API) adminAuthorized(r *http.Request) bool {
 	if a.deps.AdminToken == "" {
-		return true // open issuance when no admin token is configured
+		return false // fail closed: no admin token means nobody can issue
 	}
 	presented := r.Header.Get("X-Admin-Token")
 	if presented == "" {

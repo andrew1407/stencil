@@ -2,160 +2,35 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
-	"stencil/server/internal/store"
+	"stencil/server/internal/testutil"
 )
 
-// fakeStore is an in-memory ProjectStore + SessionStore for handler tests.
-type fakeStore struct {
-	mu       sync.Mutex
-	projects map[string]protocol.ProjectRecord
-	sessions map[string]auth.Session
-	seq      int
-	// sweptOnWrite[id]=true makes SetFile report the row gone (ErrNotFound) even
-	// though GetProject still sees it — simulating the expiry sweep deleting the
-	// project between the upload handler's existence check and its SetFile write.
-	sweptOnWrite map[string]bool
-}
+// testAdmin is the admin token every test API runs with: issuance is always
+// gated now (empty AdminToken = closed, not open), so the helpers default to it.
+const testAdmin = "test-admin-token"
 
-func newFakeStore() *fakeStore {
-	return &fakeStore{
-		projects:     map[string]protocol.ProjectRecord{},
-		sessions:     map[string]auth.Session{},
-		sweptOnWrite: map[string]bool{},
-	}
-}
-
-func (f *fakeStore) ResolveToken(_ context.Context, hash []byte) (auth.Session, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if s, ok := f.sessions[string(hash)]; ok {
-		return s, nil
-	}
-	return auth.Session{}, auth.ErrInvalidToken
-}
-
-func (f *fakeStore) CreateSession(_ context.Context, hash []byte, label string, createdAt, expiresAt int64) (auth.Session, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.seq++
-	s := auth.Session{ID: "s_" + strconv.Itoa(f.seq), Label: label, CreatedAt: createdAt, ExpiresAt: expiresAt}
-	f.sessions[string(hash)] = s
-	return s, nil
-}
-
-func (f *fakeStore) ListProjects(context.Context) ([]protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := []protocol.ProjectRecord{}
-	for _, p := range f.projects {
-		p.Layout = nil
-		out = append(out, p)
-	}
-	return out, nil
-}
-
-func (f *fakeStore) GetProject(_ context.Context, id string) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if p, ok := f.projects[id]; ok {
-		return p, nil
-	}
-	return protocol.ProjectRecord{}, store.ErrNotFound
-}
-
-func (f *fakeStore) CreateProject(_ context.Context, owner string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.seq++
-	id := "p_t" + strconv.FormatInt(int64(f.seq), 36) + "_a"
-	rec := protocol.ProjectRecord{
-		ID: id, Name: req.Name, CreatedAt: 100, UpdatedAt: 100 + int64(f.seq),
-		ExpiresAt: req.ExpiresAt,
-		Source:    req.Source, Resource: req.Resource, Color: req.Color, OriginalContent: req.OriginalContent,
-		Layout: req.Layout, OwnerSession: owner,
-	}
-	if rec.Name == "" {
-		rec.Name = "Untitled"
-	}
-	f.projects[id] = rec
-	return rec, nil
-}
-
-func (f *fakeStore) UpdateProject(_ context.Context, id string, patch store.ProjectPatch, expected int64) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.projects[id]
-	if !ok {
-		return protocol.ProjectRecord{}, store.ErrNotFound
-	}
-	if p.Version != expected {
-		return protocol.ProjectRecord{}, store.ErrConflict
-	}
-	if patch.Name != nil {
-		p.Name = *patch.Name
-	}
-	if patch.Color != nil {
-		p.Color = *patch.Color
-	}
-	if patch.ExpiresAt != nil {
-		p.ExpiresAt = *patch.ExpiresAt
-	}
-	if len(patch.Layout) > 0 {
-		p.Layout = patch.Layout
-	}
-	p.Version++
-	f.projects[id] = p
-	return p, nil
-}
-
-func (f *fakeStore) SetFile(_ context.Context, id, kind, rel string, w, h int) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.projects[id]
-	if !ok || f.sweptOnWrite[id] {
-		return protocol.ProjectRecord{}, store.ErrNotFound
-	}
-	if kind == protocol.KindOriginal {
-		p.OriginalPath = rel
-		p.HasImage = true
-		p.ImageW, p.ImageH = w, h
-	} else {
-		p.ResultPath = rel
-	}
-	p.Version++
-	f.projects[id] = p
-	return p, nil
-}
-
-func (f *fakeStore) DeleteProject(_ context.Context, id string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	delete(f.projects, id)
-	return nil
-}
-
-// testAPI wires the API with fakes plus a real filestore + in-proc bus.
-func testAPI(t *testing.T, adminToken string) (*API, *fakeStore) {
+// testAPI wires the API with shared fakes plus a real filestore + in-proc bus.
+// An empty adminToken means "the shared testAdmin", not open issuance.
+func testAPI(t *testing.T, adminToken string) (*API, *testutil.MemStore) {
 	t.Helper()
+	if adminToken == "" {
+		adminToken = testAdmin
+	}
 	fs, err := filestore.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	st := newFakeStore()
+	st := testutil.NewMemStore()
 	api := New(Deps{
 		Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
 		AdminToken: adminToken,
@@ -163,13 +38,15 @@ func testAPI(t *testing.T, adminToken string) (*API, *fakeStore) {
 	return api, st
 }
 
-// issueToken mints a token via the API and returns it.
+// issueToken mints a token via the API and returns it. An empty admin defaults
+// to the shared testAdmin.
 func issueToken(t *testing.T, api *API, admin string) string {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/auth/token", nil)
-	if admin != "" {
-		req.Header.Set("X-Admin-Token", admin)
+	if admin == "" {
+		admin = testAdmin
 	}
+	req := httptest.NewRequest(http.MethodPost, "/auth/token", nil)
+	req.Header.Set("X-Admin-Token", admin)
 	rec := httptest.NewRecorder()
 	api.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -279,8 +156,8 @@ func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st := newFakeStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc()})
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
 	tok := issueToken(t, api, "")
 
 	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
@@ -288,9 +165,7 @@ func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 	json.Unmarshal(rec.Body.Bytes(), &p)
 
 	// Simulate the sweep deleting the row right after the handler's GetProject check.
-	st.mu.Lock()
-	st.sweptOnWrite[p.ID] = true
-	st.mu.Unlock()
+	st.SweepOnWrite(p.ID)
 
 	up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/original?ext=png&w=2&h=2", tok, []byte{0x89, 0x50, 1, 2})
 	if up.Code != http.StatusNotFound {
@@ -299,6 +174,99 @@ func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 	// The bytes written before SetFile failed must have been cleaned up, not orphaned.
 	if _, err := fs.Get(p.ID, "original", "png"); err == nil {
 		t.Fatal("orphaned bytes: the file should have been removed on the swept-write path")
+	}
+}
+
+// TestVideoUploadOnSweptProjectCleansUpBytes is the filestore-only-kind twin of
+// the test above: video/variantN uploads never call SetFile, so the handler
+// re-checks project existence after writing and must drop the bytes when the
+// sweep deleted the row mid-upload.
+func TestVideoUploadOnSweptProjectCleansUpBytes(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+	tok := issueToken(t, api, "")
+
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	// Let the handler's pre-check pass, then report the row gone on the re-check.
+	st.GoneAfterGets(p.ID, 1)
+
+	up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/video?ext=mp4", tok, []byte("stub mp4"))
+	if up.Code != http.StatusNotFound {
+		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
+	}
+	if _, err := fs.Get(p.ID, "video", "mp4"); err == nil {
+		t.Fatal("orphaned bytes: the video should have been removed on the swept-write path")
+	}
+}
+
+// The mid-upload cleanup above must drop only the bytes that upload wrote — it used to
+// delete the whole project directory, taking every other kind with it.
+func TestFileUploadCleanupLeavesSiblingKindsAlone(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+	tok := issueToken(t, api, "")
+
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"busy","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	// Land an original and a chat transcript first; both must survive.
+	if up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/original?ext=png&w=2&h=2", tok, []byte{0x89, 0x50, 1, 2}); up.Code != http.StatusCreated {
+		t.Fatalf("seed original: %d %s", up.Code, up.Body.String())
+	}
+	if up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/chat?ext=json", tok, []byte(`{"version":1,"messages":[]}`)); up.Code != http.StatusCreated {
+		t.Fatalf("seed chat: %d %s", up.Code, up.Body.String())
+	}
+
+	// Now lose the race on a variant upload.
+	st.GoneAfterGets(p.ID, 1)
+	if up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/variant1?ext=png", tok, []byte{0x89, 0x50, 3, 4}); up.Code != http.StatusNotFound {
+		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
+	}
+
+	if _, err := fs.Get(p.ID, "variant1", "png"); err == nil {
+		t.Fatal("the variant that lost the race should have been removed")
+	}
+	if _, err := fs.Get(p.ID, "original", "png"); err != nil {
+		t.Fatalf("the original must survive a failed variant upload: %v", err)
+	}
+	if _, err := fs.Get(p.ID, "chat", "json"); err != nil {
+		t.Fatalf("the chat transcript must survive a failed variant upload: %v", err)
+	}
+}
+
+// Client-uploaded bytes on our own origin: the declared type must be pinned, not sniffed.
+func TestFileDownloadSetsNosniff(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tok := issueToken(t, api, "")
+
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"p","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+	if up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/chat?ext=json", tok, []byte(`{"version":1,"messages":[]}`)); up.Code != http.StatusCreated {
+		t.Fatalf("upload chat: %d %s", up.Code, up.Body.String())
+	}
+
+	got := do(t, api, http.MethodGet, "/projects/"+p.ID+"/files/chat", tok, nil)
+	if got.Code != http.StatusOK {
+		t.Fatalf("download: %d %s", got.Code, got.Body.String())
+	}
+	if h := got.Header().Get("X-Content-Type-Options"); h != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", h)
+	}
+	if ct := got.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
 	}
 }
 
@@ -336,8 +304,8 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st := newFakeStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), ProjectTTL: time.Hour})
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), ProjectTTL: time.Hour, AdminToken: testAdmin})
 	tok := issueToken(t, api, "")
 
 	// No expiry in the body → stamped now + 1h (a large positive value).
@@ -358,7 +326,7 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 }
 
 // TestProjectColorHTTP round-trips the per-project color over REST without a
-// database (the fakeStore mirrors the COALESCE semantics): create with a color,
+// database (the mockStore mirrors the COALESCE semantics): create with a color,
 // update it, and clear it with an explicit empty string.
 func TestProjectColorHTTP(t *testing.T) {
 	api, _ := testAPI(t, "")
@@ -407,7 +375,7 @@ func TestFileUploadDownload(t *testing.T) {
 	var p protocol.ProjectRecord
 	json.Unmarshal(rec.Body.Bytes(), &p)
 
-	png := []byte("\x89PNG\r\n fake")
+	png := []byte("\x89PNG\r\n stub")
 	rec = do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/original?ext=png&w=320&h=240", tok, png)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("put file: code %d body %s", rec.Code, rec.Body.String())
@@ -433,20 +401,120 @@ func TestFileUploadDownload(t *testing.T) {
 	}
 }
 
-// fakeCounter is a stand-in for the hub's live-connection count.
-type fakeCounter struct{ n int }
+// TestVideoAndVariantUploadSkipsProjectRecord pins the v1 semantics of the
+// LLM-era file kinds: video/variantN bytes round-trip through the filestore,
+// but SetFile is never called (no dimensions/path on the project record).
+func TestVideoAndVariantUploadSkipsProjectRecord(t *testing.T) {
+	api, st := testAPI(t, "")
+	tok := issueToken(t, api, "")
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Media","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
 
-func (f fakeCounter) ConnectionCount(string) int { return f.n }
+	for kind, payload := range map[string][]byte{
+		"video":    []byte("stub mp4 bytes"),
+		"variant1": []byte("\x89PNG variant one"),
+	} {
+		up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/"+kind+"?ext=bin", tok, payload)
+		if up.Code != http.StatusCreated {
+			t.Fatalf("put %s: code %d body %s", kind, up.Code, up.Body.String())
+		}
+		down := do(t, api, http.MethodGet, "/projects/"+p.ID+"/files/"+kind, tok, nil)
+		if down.Code != http.StatusOK || !bytes.Equal(down.Body.Bytes(), payload) {
+			t.Fatalf("get %s: code %d", kind, down.Code)
+		}
+	}
+
+	calls := st.SetFileCalls()
+	after, _ := st.Project(p.ID)
+	if calls != 0 {
+		t.Fatalf("video/variant uploads must not call SetFile, got %d calls", calls)
+	}
+	if after.OriginalPath != "" || after.ResultPath != "" || after.Version != 0 {
+		t.Fatalf("project record must be untouched: %+v", after)
+	}
+
+	// Out-of-range variant slots stay rejected.
+	if r := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/variant9?ext=png", tok, []byte("x")); r.Code != http.StatusBadRequest {
+		t.Fatalf("variant9 should 400, got %d", r.Code)
+	}
+	// A never-uploaded variant kind 404s on download.
+	if r := do(t, api, http.MethodGet, "/projects/"+p.ID+"/files/variant2", tok, nil); r.Code != http.StatusNotFound {
+		t.Fatalf("missing variant2 should 404, got %d", r.Code)
+	}
+}
+
+// TestChatFileLifecycle pins the persisted-chat kind (llm-contract.md §12):
+// the JSON document round-trips through the filestore-only branch (no SetFile,
+// application/json downloads), and the per-file DELETE route removes it
+// idempotently while refusing record-backed kinds.
+func TestChatFileLifecycle(t *testing.T) {
+	api, st := testAPI(t, "")
+	tok := issueToken(t, api, "")
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Chatty","hasImage":true}`))
+	var p protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &p)
+
+	doc := []byte(`{"version":1,"savedAt":1,"messages":[{"role":"user","text":"hi"}]}`)
+	if r := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/chat?ext=json", tok, doc); r.Code != http.StatusCreated {
+		t.Fatalf("put chat: code %d body %s", r.Code, r.Body.String())
+	}
+	down := do(t, api, http.MethodGet, "/projects/"+p.ID+"/files/chat", tok, nil)
+	if down.Code != http.StatusOK || !bytes.Equal(down.Body.Bytes(), doc) {
+		t.Fatalf("get chat: code %d", down.Code)
+	}
+	if ct := down.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("chat content type %q", ct)
+	}
+
+	calls := st.SetFileCalls()
+	after, _ := st.Project(p.ID)
+	if calls != 0 || after.Version != 0 {
+		t.Fatalf("chat upload must not touch the project record: calls=%d rec=%+v", calls, after)
+	}
+
+	// DELETE removes the bytes; a repeat delete stays 204 (idempotent).
+	if r := do(t, api, http.MethodDelete, "/projects/"+p.ID+"/files/chat", tok, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("delete chat: code %d body %s", r.Code, r.Body.String())
+	}
+	if r := do(t, api, http.MethodGet, "/projects/"+p.ID+"/files/chat", tok, nil); r.Code != http.StatusNotFound {
+		t.Fatalf("chat should be gone, got %d", r.Code)
+	}
+	if r := do(t, api, http.MethodDelete, "/projects/"+p.ID+"/files/chat", tok, nil); r.Code != http.StatusNoContent {
+		t.Fatalf("repeat delete should stay 204, got %d", r.Code)
+	}
+
+	// Record-backed kinds and unknown kinds are refused; auth still gates.
+	for _, kind := range []string{"original", "result"} {
+		if r := do(t, api, http.MethodDelete, "/projects/"+p.ID+"/files/"+kind, tok, nil); r.Code != http.StatusBadRequest {
+			t.Fatalf("delete %s should 400, got %d", kind, r.Code)
+		}
+	}
+	if r := do(t, api, http.MethodDelete, "/projects/"+p.ID+"/files/secret", tok, nil); r.Code != http.StatusBadRequest {
+		t.Fatalf("delete unknown kind should 400, got %d", r.Code)
+	}
+	if r := do(t, api, http.MethodDelete, "/projects/"+p.ID+"/files/chat", "", nil); r.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated delete should 401, got %d", r.Code)
+	}
+	if r := do(t, api, http.MethodDelete, "/projects/p_missing_zz/files/chat", tok, nil); r.Code != http.StatusNotFound {
+		t.Fatalf("delete on missing project should 404, got %d", r.Code)
+	}
+}
+
+// mockCounter is a stand-in for the hub's live-connection count.
+type mockCounter struct{ n int }
+
+func (f mockCounter) ConnectionCount(string) int { return f.n }
 
 // deleteGuardAPI wires the API with a fixed live-connection count for the delete guard.
-func deleteGuardAPI(t *testing.T, connections int) (*API, *fakeStore) {
+func deleteGuardAPI(t *testing.T, connections int) (*API, *testutil.MemStore) {
 	t.Helper()
 	fs, err := filestore.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	st := newFakeStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), LiveSessions: fakeCounter{connections}})
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), LiveSessions: mockCounter{connections}, AdminToken: testAdmin})
 	return api, st
 }
 
@@ -510,14 +578,19 @@ func TestAnyClientCanReadEditList(t *testing.T) {
 	}
 }
 
-// TestEmptyAdminTokenAllowsOpenIssuance pins the documented deployment foot-gun:
-// with no ADMIN_TOKEN configured, POST /auth/token is open (unauthenticated). This
-// makes that contract explicit so a future change can't silently flip it.
-func TestEmptyAdminTokenAllowsOpenIssuance(t *testing.T) {
-	api, _ := testAPI(t, "") // no admin token
+// TestEmptyAdminTokenClosesIssuance pins the fail-closed contract: an API wired
+// with NO admin token refuses issuance outright (config.Load generates a per-boot
+// token so a real server never runs in this state — but if it does, closed > open).
+func TestEmptyAdminTokenClosesIssuance(t *testing.T) {
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc()})
 	rec := do(t, api, http.MethodPost, "/auth/token", "", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("open issuance should 200 without any token, got %d", rec.Code)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("issuance with no admin token configured should 401, got %d", rec.Code)
 	}
 }
 

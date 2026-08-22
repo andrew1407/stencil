@@ -111,7 +111,8 @@ is created at boot via embedded idempotent migrations.
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
 `REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
 `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`,
-`TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel).
+`TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
+and the LLM proxy keys (`ANTHROPIC_API_KEY`, `LLM_*` — see [LLM proxy](#llm-proxy)).
 
 ### Project expiration
 
@@ -131,15 +132,88 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/auth/token` | issue a token+session (gated by `ADMIN_TOKEN` when set) |
+| POST | `/auth/token` | issue a token+session (always gated by the admin token — set or per-boot generated) |
 | GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first |
 | POST | `/projects` | create a project (optional `expiresAt`; else server default / none) |
 | GET | `/projects/{id}` | full project incl. layout + original content |
 | PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
 | DELETE | `/projects/{id}` | delete project + its files |
-| GET | `/projects/{id}/files/{kind}` | download `original`/`result` bytes |
+| GET | `/projects/{id}/files/{kind}` | download bytes; kind = `original` \| `result` \| `video` \| `variant1`..`variant8` \| `chat` |
 | POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in) |
+| DELETE | `/projects/{id}/files/{kind}` | delete one filestore-only kind (`video`/`variantN`/`chat`); idempotent 204 |
+| GET | `/llm/info` | LLM proxy status: `{enabled, model}` |
+| POST | `/llm/chat` | proxy one chat turn to Anthropic (503 `llmDisabled` without a key; 502 `llmUpstream` with the reason when the upstream fails) |
 | GET | `/healthz` | liveness |
+
+The `video`/`variantN`/`chat` file kinds are v1 filestore-only: the bytes upload
+and download through the same routes, but no path/dimensions are written to the
+project record; they are removed with the project (or individually via the
+per-file DELETE). `chat` holds the opt-in persisted-chat JSON document
+([`llm-contract/llm-chat.md`](../llm-contract/llm-chat.md) §12) and is served as `application/json`.
+
+## LLM proxy
+
+The server can proxy chat turns to Anthropic on behalf of clients so the API
+key never leaves the server (`internal/llm` + `internal/httpapi/llm.go`; the
+wire shapes are `LlmChatRequest`/`LlmChatResponse` in `internal/protocol`, per
+[`llm-contract/llm-providers.md`](../llm-contract/llm-providers.md) §6.3). It is opt-in via env (the
+client-side half — picking `stencil-server` in each front-end — is in the
+[root README](../README.md#ai-assistant--setting-up-a-model)):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `LLM_API_KEY` | *(empty)* | upstream credential, **any** provider. Empty (where one is required) = proxy disabled |
+| `ANTHROPIC_API_KEY` | *(empty)* | the older name, honoured **only** when `LLM_PROVIDER=anthropic`; ignored (with a log line) otherwise, so a provider switch can't send it elsewhere. `LLM_API_KEY` wins if both are set |
+| `LLM_MODEL` | `claude-opus-5` | default model when a request names none |
+| `LLM_BASE_URL` | *(per provider)* | upstream base; defaults Anthropic `https://api.anthropic.com`, Ollama `http://localhost:11434`, OpenAI-compatible `http://localhost:1234/v1` |
+| `LLM_MAX_TOKENS` | `32768` | cap; request `maxTokens` is clamped to it (a §2.1 multi-image plan is large) |
+| `LLM_TIMEOUT_SECONDS` | `120` | outbound request timeout |
+| `LLM_RATE_PER_MINUTE` | `30` | per-session `/llm/chat` turns per minute; 0 = unlimited |
+| `LLM_MAX_IN_FLIGHT` | `8` | concurrent upstream calls server-wide; 0 = unlimited |
+
+Both routes sit behind the usual bearer-token auth. Requests are validated
+before they leave the server (roles `user`/`assistant`, ≤ 32 messages, ≤ 10
+images, media type png/jpeg/webp/gif, base64-decodable image data, ≤ 256 KiB of
+text across `system` + all messages, a `[A-Za-z0-9._:-]{1,64}` model name, and
+the `MAX_BODY_BYTES` cap). When no key is configured, `GET /llm/info` answers
+`{"enabled":false,"model":""}` and `POST /llm/chat` answers
+`503 {"code":"llmDisabled"}`. The server never logs the key or image payloads.
+
+**Upstream failures say why** ([`llm-contract/llm-providers.md`](../llm-contract/llm-providers.md) §6.3). When the upstream rejects
+or never answers a call, `/llm/chat` returns
+`502 {"code":"llmUpstream","message":…}` whose message names the condition the
+user can act on — out of credits/billing, key invalid or revoked, model unknown
+or inaccessible, the *upstream's* rate limit (distinct from this server's
+`429 rateLimited`), upstream timeout, unreachable host — classified in
+`internal/llm/upstream.go` from the provider's status plus its own error
+`type`/`code`, for all three providers. A recognised condition is said **once**:
+the message is that short reason alone — no HTTP status, none of the upstream's
+own prose restating it. Anything unclassified falls back to the
+upstream's own short text with its status. That text is untrusted: it is stripped
+of control characters, has URLs and token-shaped runs redacted, is capped at 200
+characters, and is dropped entirely if any fragment of the API key shows up in
+it — the `code` always stays the server's. Full detail keeps going to the server
+log; a genuinely internal fault still answers the generic
+`502 {"code":"internal","message":"LLM request failed"}`.
+
+**Token issuance is always gated** (see [Security](#security)): `POST
+/auth/token` requires the admin token, whether operator-set or per-boot
+generated. Every session token therefore traces back to someone who held it,
+so the proxy enables whenever the provider is configured — no separate
+`ADMIN_TOKEN` precondition.
+
+**Spend controls.** A session token lives for `TOKEN_TTL_HOURS` (default a
+week) and every accepted turn spends the key above, so authenticated is not the
+same as unlimited. Two caps, both on by default, both `0` to opt out:
+`LLM_RATE_PER_MINUTE` (per session; a client may burst up to a minute's worth,
+then settles to that pace) and `LLM_MAX_IN_FLIGHT` (concurrent upstream calls
+server-wide — this also bounds memory, since each call in flight can hold an
+8 MiB response plus its images). Over either, `POST /llm/chat` answers
+`429 {"code":"rateLimited"}` with `Retry-After`; requests over the in-flight cap
+are refused immediately rather than queued, since queueing would hold the client
+for the whole upstream timeout and answer late anyway. `GET /llm/info` is not
+metered. The counters are **in-process**: a multi-instance deployment limits per
+instance, so put a shared limit at the proxy if you run several.
 
 ## Live-edit protocol
 
@@ -161,8 +235,9 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
 ## Security
 
 - Tokens are 256-bit random values; only their SHA-256 hash is stored, compared
-  in constant time, and checked for expiry. `POST /auth/token` can be gated by an
-  admin token.
+  in constant time, and checked for expiry. `POST /auth/token` is **always** gated
+  by the admin token: `ADMIN_TOKEN` when set, otherwise a random per-boot token
+  the server generates and prints once at startup. Issuance is never open.
 - WebSocket/TCP connections must authenticate with a `hello` token before joining
   any session; unauthenticated connections are closed.
 - **Authorization is coarse by design: a valid token grants access to _every_
@@ -170,11 +245,17 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
   per-project ownership check, so any client holding any valid token can
   read/write/delete any project (REST) and join/edit/save any session (WS/TCP).
   Treat a token as full access to the whole server, and issue tokens only to
-  clients you trust with all projects.
-- **Production hardening.** The dev defaults are deliberately permissive: when
-  `ADMIN_TOKEN` is empty, `POST /auth/token` issues tokens to anyone, and
-  `CORS_ORIGINS` defaults to `*`. For anything beyond localhost/dev, **set
-  `ADMIN_TOKEN`** to gate token issuance and **set `CORS_ORIGINS`** to an explicit
+  clients you trust with all projects. **This now covers conversations too**: the
+  `chat` file kind stores a project's assistant transcript
+  ([`llm-contract/llm-chat.md`](../llm-contract/llm-chat.md) §12), so any token holder can
+  read or delete anyone's. Chat persistence is opt-in and ships off in every
+  client; leave it off if that is not what you want. The workspace model is
+  **deliberately shared**: per-project ACLs are out of scope by design.
+- **Production hardening.** The defaults fail closed: issuance always requires
+  the (set or generated) admin token, and `CORS_ORIGINS` defaults to loopback
+  origins only — `*` reflects any origin but must be asked for explicitly. For
+  anything beyond localhost/dev, **set `ADMIN_TOKEN`** to a stable secret
+  (a generated one changes every boot) and **set `CORS_ORIGINS`** to an explicit
   allowlist of your front-end origins.
 - The file store never touches a client-supplied filename: paths are derived from
   a validated project-id allowlist plus a fixed `original`/`result` kind, run
@@ -193,12 +274,14 @@ go test ./...            # unit tests (filestore, auth, bus, httpapi, hub) run o
 go test -race ./internal/hub/...
 ```
 
-Integration tests in `store/` and `redisbus/` **self-skip** when `DATABASE_URL` /
-`REDIS_URL` are unset or unreachable (mirroring `mcp/`'s gated e2e tests). To run
-them locally:
+Integration tests in `store/` and `redisbus/` **self-skip** when `TEST_DATABASE_URL` /
+`REDIS_URL` are unset or unreachable (mirroring `mcp/`'s gated e2e tests). The store
+tests read `TEST_DATABASE_URL`, never `DATABASE_URL`: their setup **truncates** the
+named database, and `DATABASE_URL` points at the live server's. To run them locally,
+point them at a throwaway database:
 
 ```bash
-export DATABASE_URL='postgres://...?sslmode=disable'
+export TEST_DATABASE_URL='postgres://...stencil_test?sslmode=disable'
 export REDIS_URL='redis://localhost:6379/15'
 go test ./...
 ```

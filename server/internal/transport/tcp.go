@@ -29,7 +29,11 @@ var tcpIdleTimeout = 5 * time.Minute
 // NewTCP wraps an accepted/ dialed net.Conn as a Conn.
 func NewTCP(conn net.Conn) Conn {
 	sc := bufio.NewScanner(conn)
-	sc.Buffer(make([]byte, 0, 64*1024), MaxMessageBytes)
+	// +1 for the delimiter: the scanner must buffer the '\n' it searches for, so a
+	// cap of exactly MaxMessageBytes would reject a message OF that size. The WS
+	// adapter's SetReadLimit(MaxMessageBytes) accepts it, and MaxMessageBytes is
+	// documented as the cap "on either transport" — so the two must agree.
+	sc.Buffer(make([]byte, 0, 64*1024), MaxMessageBytes+1)
 	return &tcpConn{conn: conn, sc: sc}
 }
 
@@ -43,6 +47,12 @@ func DialTCP(addr string) (Conn, error) {
 }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
+	// An already-cancelled context wins before any bytes are consumed. Without
+	// this, a Read on a torn-down connection still delivers whatever the scanner
+	// had buffered, contradicting the precedence the failure path below applies.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// Set the effective deadline first, then arm ctx cancellation. bufio.Scanner
 	// has no context awareness and Scan() blocks in conn.Read, so cancellation is
 	// delivered by shoving the read deadline into the past, which makes the

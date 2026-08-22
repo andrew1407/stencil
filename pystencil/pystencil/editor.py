@@ -32,6 +32,7 @@ from typing import List, Optional, Tuple, Union
 from .core import Core, get_core
 from .image import Image
 from .layout import Layout, Line
+from .llm import MAX_HISTORY, chat_display_text
 
 
 # Cap the history depth like the CLI (`max_states`): the pristine state plus up to 63
@@ -47,7 +48,7 @@ _EXT_MIME = {
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
     "webp": "image/webp", "bmp": "image/bmp",
 }
-_BASE64_MARKER = "base64,"
+_BASE64_PREFIX = "base64,"
 
 
 @dataclass
@@ -103,6 +104,34 @@ def _sniff_image_ext(data: bytes) -> Optional[str]:
     return None
 
 
+def _valid_chat_doc(doc) -> Optional[dict]:
+    """Return a §12.1-clean copy of ``doc``, or None when it isn't such a document.
+
+    Shape (version 1 + a ``messages`` list) plus the §12.1 gate
+    (:func:`pystencil.llm.chat_display_text`): the document is shared across surfaces,
+    so §7's continuation note and raw op-plan assistant turns are refused on the way in
+    AND on the way out — a dirty block written by an older build never round-trips back
+    out of :meth:`Editor.save_project`. Never raises: an invalid block is treated as
+    "no saved chat", the contract's rule for malformed documents.
+    """
+    if not isinstance(doc, dict) or doc.get("version") != 1:
+        return None
+    messages = doc.get("messages")
+    if not isinstance(messages, list):
+        return None
+    kept: List[dict] = []
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        role, text = m.get("role"), m.get("text")
+        if role not in ("user", "assistant") or not isinstance(text, str):
+            continue
+        shown = chat_display_text(role, text)
+        if shown is not None:
+            kept.append({"role": role, "text": shown})
+    return dict(doc, messages=kept[-MAX_HISTORY:])
+
+
 # Source object types accepted by Editor.load().
 LoadSource = Union[str, bytes, bytearray, Image]
 # Layout-ish inputs accepted by draw()/apply_layout().
@@ -129,6 +158,8 @@ class Editor:
         self._source_ext: Optional[str] = None
         self._history: List[_Snapshot] = []
         self._cursor: int = 0
+        # Monotonic edit-state counter backing the public `revision` property.
+        self._revision: int = 0
         # Project name = image basename without extension; "layout" is the documented
         # fallback used by save_layout when nothing better is known.
         self._name: str = "layout"
@@ -145,6 +176,11 @@ class Editor:
         self._allow_formulas: bool = False
         self._formula_x: str = ""
         self._formula_y: str = ""
+        # §12 chat persistence (opt-in, default OFF everywhere): save_project writes the
+        # attached persisted-chat document under the top-level "chat" key only while
+        # save_chats is on; open_project restores a valid block into chat_doc.
+        self.save_chats: bool = False
+        self.chat_doc: Optional[dict] = None
         # Page format (project-level; rides the layout like the CLI session's page_size).
         # "" = unset (the layout omits pageSize); custom dims are cm, 0 = unset.
         self._page_size: str = ""
@@ -266,6 +302,7 @@ class Editor:
         self._keywords = []
         self._history = [_Snapshot()]
         self._cursor = 0
+        self._revision += 1
 
     # ── history plumbing ───────────────────────────────────────────────────────
     def _require_original(self) -> Image:
@@ -290,6 +327,7 @@ class Editor:
         while len(self._history) > _MAX_STATES:
             del self._history[1]
             self._cursor -= 1
+        self._revision += 1
 
     # ── edits (chainable; each snapshots history) ──────────────────────────────
     def rotate(self, quarters: int) -> "Editor":
@@ -339,14 +377,7 @@ class Editor:
         cur = self._current()
         if spec is None:
             spec = self._build_crop_spec(x1, y1, x2, y2)
-        # Resolve against the dimensions of the view this crop is applied to.
-        view_w, view_h = self._view_dims(cur)
-        page_w, page_h = self._page_for_image(view_w, view_h)
-        px_per_cm_x = view_w / page_w
-        px_per_cm_y = view_h / page_h
-        rect = core.resolve_crop(
-            spec, view_w, view_h, px_per_cm_x, px_per_cm_y, page_w, page_h, album
-        )
+        rect = self.resolve_crop_rect(spec, album=album)
         if rect is None:
             # Bad spec: leave the editor untouched, just like the Zig handler.
             return self
@@ -363,6 +394,26 @@ class Editor:
         nxt.crop = new_crop
         self._push(nxt)
         return self
+
+    def resolve_crop_rect(
+        self, spec: str, *, album: bool = False
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """Resolve a crop spec against the CURRENT view without applying it.
+
+        Exactly the resolution :meth:`crop` performs — the same core ``resolveCrop``
+        call against the same view dimensions and page metrics — returning the
+        ``(x, y, w, h)`` sub-rect of the current view the crop would keep, or ``None``
+        for an unparseable spec. The rect's origin is what the LLM executor's §1
+        coordinate re-mapping subtracts from later plan coordinates.
+        """
+        self._require_original()
+        core = self._get_core()
+        view_w, view_h = self._view_dims(self._current())
+        page_w, page_h = self._page_for_image(view_w, view_h)
+        return core.resolve_crop(
+            spec, view_w, view_h, view_w / page_w, view_h / page_h,
+            page_w, page_h, album,
+        )
 
     def set_filter(self, mode: str) -> "Editor":
         """Set the filter mode ("none"|"bw"|"sepia"|"custom"|"invert"|"contour"),
@@ -506,13 +557,20 @@ class Editor:
         """The custom page height in cm (0.0 when unset / a named format is picked)."""
         return self._custom_page_height
 
-    def draw(self, layout: LayoutLike) -> "Editor":
-        """APPEND the lines from a layout to the drawing (mirror ``session.addLines``)."""
+    def draw(self, layout: LayoutLike, combine: bool = True) -> "Editor":
+        """Draw a layout's lines (mirror ``session.addLines``).
+
+        ``combine`` (the default) APPENDS them after the lines already drawn — the same
+        choice the GUI editors offer when a layout lands on an existing one. Pass
+        ``combine=False`` to REPLACE the current lines instead, keeping the rest of the
+        state (use :meth:`apply_layout` to adopt a layout's rotation/crop/filter too).
+        ``layout`` may be a :class:`Layout`, dict, JSON string, path, URL or Line list.
+        """
         self._require_original()
         add = self._coerce_lines(layout)
         cur = self._current()
         nxt = cur.copy()
-        nxt.lines = list(cur.lines) + add
+        nxt.lines = (list(cur.lines) + add) if combine else add
         self._push(nxt)
         return self
 
@@ -528,11 +586,12 @@ class Editor:
         crop: Optional[Tuple[int, int, int, int]] = None
         if isinstance(L.crop_rect, dict):
             cr = L.crop_rect
+            # Canonical {w,h} wins; legacy {width,height} (pre-Phase-6) still reads.
             crop = (
                 int(cr.get("x", 0)),
                 int(cr.get("y", 0)),
-                int(cr.get("width", 0)),
-                int(cr.get("height", 0)),
+                int(cr.get("w", cr.get("width", 0))),
+                int(cr.get("h", cr.get("height", 0))),
             )
         snapshot = _Snapshot(
             rotation=core.normalize_quarters(L.rotation_quarters or 0),
@@ -555,6 +614,7 @@ class Editor:
         if self._cursor == 0:
             return False
         self._cursor -= 1
+        self._revision += 1
         return True
 
     def redo(self) -> bool:
@@ -562,20 +622,52 @@ class Editor:
         if self._cursor + 1 >= len(self._history):
             return False
         self._cursor += 1
+        self._revision += 1
         return True
 
     def reset(self) -> "Editor":
         """Revert to the pristine state, dropping every edit and the redo history."""
         self._cursor = 0
         self._history = self._history[:1]
+        self._revision += 1
+        return self
+
+    def clear(self) -> "Editor":
+        """Drop the working image and its lines IN PLACE, leaving the editor empty.
+
+        The §10 ``clear`` semantics (the editors' "Clear (remove) current project" /
+        the console's ``/drop``), kept in place so a plan executor holding this editor
+        keeps driving the same object. Everything image-scoped resets — source bytes,
+        history, name, metadata, formulas, page format, restored chat — back to the
+        constructed state; the injected core and the ``save_chats`` opt-in survive.
+        """
+        self._original = None
+        self._source_bytes = None
+        self._source_ext = None
+        self._history = []
+        self._cursor = 0
+        self._name = "layout"
+        self._source = None
+        self._resource = None
+        self._color = ""
+        self._keywords = []
+        self._allow_formulas = False
+        self._formula_x = ""
+        self._formula_y = ""
+        self.chat_doc = None
+        self._page_size = ""
+        self._custom_page_width = 0.0
+        self._custom_page_height = 0.0
+        self._revision += 1
         return self
 
     # ── render + save ──────────────────────────────────────────────────────────
-    def result(self) -> Image:
+    def result(self, with_lines: bool = True) -> Image:
         """Derive and return the current view: rotate → crop → filter → rasterize lines.
 
         Each call rebuilds from the untouched original, so the returned :class:`Image` is a
         fresh, independent buffer (mirrors ``session.rebuild`` producing ``working``).
+        ``with_lines=False`` skips the line rasterization (the picture alone).
         """
         orig = self._require_original()
         core = self._get_core()
@@ -603,7 +695,7 @@ class Editor:
                     tint = core.parse_color(arg) or (0, 0, 0, 255)
                     core.apply_filter(arg, img.data, img.pixel_count, (tint[0], tint[1], tint[2]))
         # 4. rasterize each drawn line in place
-        for line in snap.lines:
+        for line in snap.lines if with_lines else []:
             points = [(p.x, p.y) for p in line.points]
             core.rasterize_line(
                 img.data,
@@ -612,10 +704,11 @@ class Editor:
                 points,
                 line.color,
                 line.thickness,
-                line.marker_size,
+                line.point_size,
                 line.style,
                 line.locked,
                 line.fill_color,
+                line.point_color,
             )
         return img
 
@@ -629,8 +722,9 @@ class Editor:
         """Build the structured layout for the current state (mirror ``currentLayoutJson``).
 
         ``imageWidth``/``imageHeight`` are the RESULT dimensions; the optional
-        filter/crop/rotation fields are emitted only when meaningful (filter present and
-        not "none", a crop set, a non-zero rotation), exactly like ``server.buildLayout``.
+        filter/rotation fields are emitted only when meaningful (filter present and not
+        "none", a non-zero rotation), exactly like ``server.buildLayout``. ``cropRect`` is
+        always emitted — see below.
         """
         img = self.result()
         snap = self._current()
@@ -638,10 +732,18 @@ class Editor:
         if snap.filter_mode and snap.filter_mode.lower() != "none":
             image_filter = snap.filter_mode
         filter_color = snap.filter_color if snap.filter_color else None
-        crop_rect = None
         if snap.crop is not None:
             cx, cy, cw, ch = snap.crop
-            crop_rect = {"x": cx, "y": cy, "width": cw, "height": ch}
+        else:
+            # No explicit crop means the WHOLE rotated original — state that instead of
+            # omitting the field. The GUIs auto-crop a fresh image to the page aspect and
+            # only skip it when the layout names a cropRect, so an omitted one makes them
+            # shrink the image on open and strand lines drawn outside the page rect.
+            orig = self._require_original()
+            cx, cy = 0, 0
+            cw, ch = self._get_core().rotated_dims(orig.width, orig.height, snap.rotation)
+        # Canonical browser keys ({w,h}) since Phase 6.
+        crop_rect = {"x": cx, "y": cy, "w": cw, "h": ch}
         rotation_quarters = snap.rotation if snap.rotation != 0 else None
         return Layout(
             image_width=img.width,
@@ -710,6 +812,10 @@ class Editor:
             doc["source"] = self._source
         if self._resource:
             doc["resource"] = self._resource
+        # §12 chat persistence: the attached conversation rides along ONLY while the
+        # opt-in save_chats toggle is on (omit-when-empty, like keywords/color).
+        if self.save_chats and _valid_chat_doc(self.chat_doc) and self.chat_doc["messages"]:
+            doc["chat"] = self.chat_doc
         doc["image"] = {
             "dataUrl": "data:%s;base64,%s" % (mime, base64.b64encode(image_bytes).decode("ascii")),
             "ext": ext,
@@ -722,7 +828,7 @@ class Editor:
         return path
 
     def open_project(self, src) -> "Editor":
-        """Load a ``.stencil`` project (path, JSON ``bytes``/``str``, or ``dict``) — image + layout + metadata — into this editor; returns self. A ``theme`` block is ignored."""
+        """Load a ``.stencil`` project (path, JSON ``bytes``/``str``, or ``dict``) — image + layout + metadata — into this editor; returns self. A ``theme`` block is ignored; a saved ``chat`` block lands on :attr:`chat_doc`."""
         if isinstance(src, dict):
             doc = src
         else:
@@ -747,11 +853,11 @@ class Editor:
         if not isinstance(image, dict):
             raise ValueError("project file has no embedded image")
         data_url = image.get("dataUrl", "")
-        marker = data_url.find(_BASE64_MARKER)
-        if marker < 0:
+        idx = data_url.find(_BASE64_PREFIX)
+        if idx < 0:
             raise ValueError("project file has no embedded image")
         try:
-            image_bytes = base64.b64decode(data_url[marker + len(_BASE64_MARKER) :])
+            image_bytes = base64.b64decode(data_url[idx + len(_BASE64_PREFIX) :])
         except (binascii.Error, ValueError):
             # Match every other bad-input path here (and C#/Zig): a malformed payload is a ValueError.
             raise ValueError("project file has a malformed embedded image") from None
@@ -766,25 +872,126 @@ class Editor:
         self._source_ext = (image.get("ext") or self._source_ext or "png").lower()
         self._color = doc.get("color") or ""
         self._keywords = _clean_keywords(doc.get("keywords"))
+        # §12 chat persistence: keep a valid saved-chat block for restore/re-save
+        # (absent or malformed → None, silently — the format's unknown-key tolerance).
+        self.chat_doc = _valid_chat_doc(doc.get("chat"))
         layout = doc.get("layout")
         if isinstance(layout, dict):
             self.apply_layout(layout)
         return self
 
+    def attach_chat(self, chat_or_doc) -> "Editor":
+        """Attach a conversation for :meth:`save_project` to persist (contract §12).
+
+        Accepts a :class:`pystencil.llm.Chat` (serialized via its ``to_doc()``) or a
+        ready §12.1 dict; an invalid document attaches nothing. The key is only
+        written while the opt-in :attr:`save_chats` toggle is on. Returns self.
+        """
+        doc = chat_or_doc.to_doc() if hasattr(chat_or_doc, "to_doc") else chat_or_doc
+        self.chat_doc = _valid_chat_doc(doc)
+        return self
+
+    @staticmethod
+    def delete_reject(path) -> Optional[str]:
+        """Which guard (if any) blocks deleting ``path`` — the CLI console's
+        ``deleteReject`` ported verbatim: ``"empty"`` / ``"url"`` / ``"not_stencil"`` /
+        ``"traversal"``, or ``None`` when the path is deletable. Pure (no I/O), so the
+        REPL and the LLM ``delete`` op share one guard order with the API below."""
+        if not isinstance(path, str) or not path:
+            return "empty"
+        if Editor._is_url(path):
+            return "url"  # URLs aren't local files
+        if not path.lower().endswith(".stencil"):
+            return "not_stencil"  # scoped to project files, not a general rm
+        # No escaping the working directory (parity with the CLI's hasParentTraversal).
+        if ".." in path.replace("\\", "/").split("/"):
+            return "traversal"
+        return None
+
     @staticmethod
     def delete_project(path: str) -> str:
         """Delete a local ``.stencil`` file from disk; returns the deleted path.
 
-        Parity with the browser/desktop trash button and the CLI ``/delete``. Scoped to
-        ``.stencil`` paths and stateless (a loaded project stays loaded). Raises ``ValueError``
-        for a non-``.stencil`` path, ``FileNotFoundError`` when the file is missing.
+        Parity with the browser/desktop trash button and the CLI ``/delete``, including
+        its full guard set (``deleteReject``): ``.stencil`` paths only, never a URL, and
+        never a ``..`` component that could climb out of the working directory. Stateless
+        (a loaded project stays loaded). Raises ``ValueError`` for a rejected path,
+        ``FileNotFoundError`` when the file is missing.
         """
-        if not isinstance(path, str) or not path.lower().endswith(".stencil"):
+        reject = Editor.delete_reject(path)
+        if reject == "url":
+            raise ValueError("delete_project only removes local files, not URLs: %r" % (path,))
+        if reject == "traversal":
+            raise ValueError(
+                "refusing to delete a path that escapes the working directory: %r" % (path,)
+            )
+        if reject is not None:
             raise ValueError("delete_project only removes .stencil files: %r" % (path,))
         os.remove(path)
         return path
 
+    # ── LLM assistant (llm-contract.md) ────────────────────────────────────
+    def prompt(
+        self,
+        text: str,
+        images: Optional[list] = None,
+        llm=None,
+        execute: bool = True,
+    ) -> Tuple[str, list]:
+        """Ask the configured LLM to edit this image; returns ``(reply, outputs)``.
+
+        A thin single-turn delegate over :mod:`pystencil.llm`: the prompt (plus any
+        ``images`` as ``(media_type, bytes)`` tuples) is sent to the provider, the
+        reply is parsed into an op-plan, and — when ``execute`` — the plan runs against
+        THIS editor via :func:`pystencil.llm.execute_op_plan` (top-level actions mutate
+        the editor; each variant yields one extra :class:`Image`). ``llm`` is an
+        optional :class:`pystencil.llm.LlmClient`; when None one is built from the
+        ``STENCIL_LLM_*`` env keys. ``outputs`` is the list of result Images (empty for
+        chat-only turns or ``execute=False``). For a multi-turn conversation, use
+        :class:`pystencil.llm.Chat` and call ``execute_op_plan`` yourself.
+
+        ``images`` are also the turn's ATTACHMENTS for contract §2.1: an ``image`` op
+        switches the working image to the Nth of them (1-based) and a ``save`` op
+        writes ``<name>.stencil`` in the cwd, so one prompt can edit and keep several
+        pictures. Add a third tuple element — ``(media_type, bytes, "cat.jpg")`` — to
+        name the file an unnamed ``save`` derives its project name from.
+        """
+        # Imported lazily so constructing/using an Editor never pulls the LLM module.
+        from .llm import (
+            MAX_ATTACHMENTS,
+            LlmClient,
+            execute_op_plan,
+            parse_op_plan,
+            wire_images,
+        )
+
+        client = llm if llm is not None else LlmClient()
+        # This path talks to the client DIRECTLY (no Chat), so the §7 attachment cap has
+        # to be enforced here too — otherwise the single-turn API is a way around it.
+        imgs = list(images or [])
+        if len(imgs) > MAX_ATTACHMENTS:
+            raise ValueError(
+                "up to %d images per message (got %d)" % (MAX_ATTACHMENTS, len(imgs))
+            )
+        raw = client.chat(
+            [{"role": "user", "text": str(text), "images": wire_images(imgs)}]
+        )
+        plan = parse_op_plan(raw)
+        # The turn's attachments are what a §2.1 `image` op indexes (1-based), and an
+        # unnamed `save` names its .stencil after the active one.
+        outputs = execute_op_plan(plan, self, attachments=imgs) if execute else []
+        return plan.reply, outputs
+
     # ── introspection ──────────────────────────────────────────────────────────
+    @property
+    def revision(self) -> int:
+        """A monotonic counter bumped on every edit-state mutation: load()/blank()
+        (and everything routing through them), each edit, undo/redo (when they
+        move), and reset. An unchanged revision means :meth:`result` derives the
+        same view, so it is the public key for caches over the rendered image —
+        e.g. the console's encoded-PNG memo for /prompt attachments."""
+        return self._revision
+
     @property
     def image_size(self) -> Tuple[int, int]:
         """The current view's (width, height) — derived cheaply without rasterizing."""

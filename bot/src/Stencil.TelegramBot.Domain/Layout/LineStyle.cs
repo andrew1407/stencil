@@ -9,7 +9,7 @@ public sealed record LineStyle
 {
     public string Color { get; init; } = LayoutLine.DefaultColor;
     public double Thickness { get; init; } = LayoutLine.DefaultThickness;
-    public double MarkerSize { get; init; } = LayoutLine.DefaultMarkerSize;
+    public double PointSize { get; init; } = LayoutLine.DefaultPointSize;
     public string Style { get; init; } = LayoutLine.DefaultStyle;
 
     /// <summary>Fill for a closed shape, or <c>transparent</c>. Ignored by open polylines.</summary>

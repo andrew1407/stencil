@@ -53,6 +53,37 @@ struct CliOutput {
 
 /// Run one `stencil_edit`: validate, draw an inline layout if given, spawn, and parse.
 pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
+    let stderr = run_cli(params).await?;
+    match outcome::parse_wrote(&stderr) {
+        Some(w) => Ok(EditResult {
+            path: w.path,
+            width: w.width,
+            height: w.height,
+            remotes: outcome::parse_remotes(&stderr),
+        }),
+        None => Err(EditError::Runtime(format!(
+            "the stencil CLI reported success but printed no 'wrote' line:\n{}",
+            stderr.trim()
+        ))),
+    }
+}
+
+/// Run one contract §2.1 `save`: the same pipeline with a `.stencil` output, which the CLI
+/// bundles as a project (image + layout + metadata) and reports without dimensions.
+/// Returns the written project path.
+pub async fn run_project(params: &EditParams) -> Result<String, EditError> {
+    let stderr = run_cli(params).await?;
+    outcome::parse_wrote_project(&stderr).ok_or_else(|| {
+        EditError::Runtime(format!(
+            "the stencil CLI reported success but wrote no project:\n{}",
+            stderr.trim()
+        ))
+    })
+}
+
+/// One CLI invocation of the edit pipeline: clobber guard, inline-layout temp file, argv,
+/// spawn — returning the successful run's stderr for the caller to parse.
+async fn run_cli(params: &EditParams) -> Result<String, EditError> {
     // Clobber guard: refuse to replace an existing file the caller didn't opt into.
     if !params.overwrite && Path::new(&params.output).exists() {
         return Err(EditError::Runtime(format!(
@@ -85,18 +116,7 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
     if !output.success {
         return Err(outcome::extract_errors(&output.stderr).into());
     }
-    match outcome::parse_wrote(&output.stderr) {
-        Some(w) => Ok(EditResult {
-            path: w.path,
-            width: w.width,
-            height: w.height,
-            remotes: outcome::parse_remotes(&output.stderr),
-        }),
-        None => Err(EditError::Runtime(format!(
-            "the stencil CLI reported success but printed no 'wrote' line:\n{}",
-            output.stderr.trim()
-        ))),
-    }
+    Ok(output.stderr)
 }
 
 /// Run one `source_site` scrape: build the argv, spawn the CLI (which fetches the page,
@@ -145,6 +165,32 @@ pub async fn run_probe(input: &str) -> Result<(u32, u32), String> {
         Some(w) => Ok((w.width, w.height)),
         None => Err("could not determine the image dimensions from the CLI output".into()),
     }
+}
+
+/// Render `input` through the CLI's contour filter into a temp PNG and return its bytes —
+/// the §7 edge map. Best-effort by contract: a missing CLI, a failed render, or an
+/// unreadable temp file yields `None`; the caller never fails the prompt over it.
+pub async fn render_edge_map(input: &str) -> Option<Vec<u8>> {
+    let temp = tempfile::Builder::new()
+        .prefix("stencil-edgemap-")
+        .suffix(".png")
+        .tempfile()
+        .ok()?;
+    let out_path = temp.path().to_string_lossy().into_owned();
+
+    // `stencil -i <input> --filter contour <output>` — the same flags build_argv emits.
+    let argv = vec![
+        "-i".to_string(),
+        input.to_string(),
+        "--filter".to_string(),
+        "contour".to_string(),
+        out_path,
+    ];
+    let output = spawn(&argv).await.ok()?;
+    if !output.success {
+        return None;
+    }
+    std::fs::read(temp.path()).ok()
 }
 
 /// Locate the CLI and run it with the given argv, capturing stderr.

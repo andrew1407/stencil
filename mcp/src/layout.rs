@@ -4,7 +4,7 @@
 //! (`cli/src/layout.zig` ← `core/raster`). Coordinates are **image pixels**. A line is a
 //! polyline through its `points`; repeat the first point and set a non-`transparent`
 //! `fillColor` to close and fill a shape. Per-line defaults (applied by the CLI when a
-//! field is omitted): color `#FFFF00`, thickness `2`, markerSize `4`, style `solid`,
+//! field is omitted): color `#FFFF00`, thickness `2`, pointSize `4`, style `solid`,
 //! fillColor `transparent`.
 
 use std::io::Write;
@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A full layout: optional source dimensions/filter plus the lines to draw.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Layout {
     /// Source image width in pixels (advisory; the CLI draws against the live image).
     #[serde(rename = "imageWidth", skip_serializing_if = "Option::is_none")]
@@ -22,8 +22,9 @@ pub struct Layout {
     #[serde(rename = "imageHeight", skip_serializing_if = "Option::is_none")]
     pub image_height: Option<f64>,
     /// Filter baked into the layout (`bw`/`sepia`/`invert`/`contour`/a color). A top-level
-    /// `filter` argument to `stencil_edit` overrides this.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// `filter` argument to `stencil_edit` overrides this. Canonical wire key is
+    /// `imageFilter` (the browser's); the legacy `filter` spelling is still read.
+    #[serde(rename = "imageFilter", alias = "filter", skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
     /// The polylines to burn into the image.
     #[serde(default)]
@@ -31,7 +32,7 @@ pub struct Layout {
 }
 
 /// One polyline / closed shape.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Line {
     /// Vertices in image-pixel space. A line with no points is skipped by the CLI.
     pub points: Vec<Point>,
@@ -41,9 +42,9 @@ pub struct Line {
     /// Stroke width in pixels. Default `2`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thickness: Option<f64>,
-    /// Vertex marker radius; `0` hides markers. Default `4`.
-    #[serde(rename = "markerSize", skip_serializing_if = "Option::is_none")]
-    pub marker_size: Option<f64>,
+    /// Vertex point radius; `0` hides points. Default `4`.
+    #[serde(rename = "pointSize", skip_serializing_if = "Option::is_none")]
+    pub point_size: Option<f64>,
     /// `solid` | `dashed` | `dotted`. Default `solid`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
@@ -53,10 +54,15 @@ pub struct Line {
     /// Fill color for a closed shape, or `transparent`. Default `transparent`.
     #[serde(rename = "fillColor", skip_serializing_if = "Option::is_none")]
     pub fill_color: Option<String>,
+    /// Vertex point color, set independently of `color`. Omitted / empty means the
+    /// points inherit `color`, which is how every layout written before this field
+    /// existed behaves (core `Line::pointColor`).
+    #[serde(rename = "pointColor", skip_serializing_if = "Option::is_none")]
+    pub point_color: Option<String>,
 }
 
 /// A single point in image-pixel space.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Point {
     pub x: f64,
     pub y: f64,

@@ -56,8 +56,8 @@ public class DeepLinkCodecTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("1")]                       // marker only
-    [InlineData("2bG9jYWxob3N0")]           // unknown version marker
+    [InlineData("1")]                       // version prefix only
+    [InlineData("2bG9jYWxob3N0")]           // unknown version prefix
     [InlineData("1!!!!")]                   // non-base64url chars
     [InlineData("1cF8x")]                   // decodes to "p_1" — no pipe separator
     [InlineData("1fHBfMQ")]                 // decodes to "|p_1" — empty host
@@ -72,5 +72,14 @@ public class DeepLinkCodecTests
     {
         string tooLong = "1" + new string('A', DeepLinkCodec.TelegramStartLimit);
         Assert.False(DeepLinkCodec.TryDecode(tooLong, out _, out _));
+    }
+
+    [Fact]
+    public void Decode_RejectsHugePayloadsByLengthAlone()
+    {
+        // The 64-char bound fires before any charset scan or base64 decode, so even a
+        // multi-MB payload is rejected cheaply (mirrors the browser/desktop size caps).
+        string huge = "1" + new string('A', 4 * 1024 * 1024);
+        Assert.False(DeepLinkCodec.TryDecode(huge, out _, out _));
     }
 }

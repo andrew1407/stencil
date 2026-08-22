@@ -44,4 +44,11 @@ public interface IStencilServerClient
     /// pixel bytes go in the octet-stream body.
     /// </summary>
     Task<FileWriteResult> PutFileAsync(string id, string kind, byte[] data, string ext, int w, int h, CancellationToken ct = default);
+
+    /// <summary>
+    /// <c>DELETE /projects/{id}/files/{kind}</c> — remove a filestore-only kind's bytes
+    /// (contract §9: valid for <c>chat</c>/<c>video</c>/<c>variantN</c> only). Idempotent (an
+    /// absent file still answers 204) and never bumps the project version.
+    /// </summary>
+    Task DeleteFileAsync(string id, string kind, CancellationToken ct = default);
 }

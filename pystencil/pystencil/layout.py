@@ -20,7 +20,7 @@ from typing import Any, Optional
 # the dataclass field defaults and the tolerant from_dict parsing cannot drift.
 DEFAULT_COLOR = "#FFFF00"
 DEFAULT_THICKNESS = 2.0
-DEFAULT_MARKER_SIZE = 4.0
+DEFAULT_POINT_SIZE = 4.0
 DEFAULT_STYLE = "solid"
 DEFAULT_LOCKED = False
 DEFAULT_FILL_COLOR = "transparent"
@@ -54,26 +54,36 @@ class Line:
     points: list[Point] = field(default_factory=list)
     color: str = DEFAULT_COLOR
     thickness: float = DEFAULT_THICKNESS
-    marker_size: float = DEFAULT_MARKER_SIZE
+    point_size: float = DEFAULT_POINT_SIZE
     style: str = DEFAULT_STYLE
     locked: bool = DEFAULT_LOCKED
     fill_color: str = DEFAULT_FILL_COLOR
+    #: Point colour, independent of ``color``. Empty means the points inherit
+    #: ``color`` — the behaviour of every layout written before this field existed
+    #: (core ``Line::pointColor``).
+    point_color: str = ""
 
     def to_dict(self) -> dict:
         """Serialize to the camelCase JSON shape the front-ends share.
 
         All fields are always present (the browser export keeps a fixed field
-        order); only ``markerSize``/``fillColor`` are renamed to camelCase.
+        order); only ``pointSize``/``fillColor``/``pointColor`` are renamed to
+        camelCase. ``pointColor`` is the one exception to "always present": it is
+        emitted only when set, so an unset point colour round-trips as an absent key
+        and the bytes of a layout that predates the field are unchanged.
         """
-        return {
+        out = {
             "points": [p.to_dict() for p in self.points],
             "color": self.color,
             "thickness": self.thickness,
-            "markerSize": self.marker_size,
+            "pointSize": self.point_size,
             "style": self.style,
             "locked": self.locked,
             "fillColor": self.fill_color,
         }
+        if self.point_color:
+            out["pointColor"] = self.point_color
+        return out
 
     @classmethod
     def from_dict(cls, d: Any) -> "Line":
@@ -88,10 +98,11 @@ class Line:
             points=points,
             color=_as_str(d.get("color"), DEFAULT_COLOR),
             thickness=_as_float(d.get("thickness"), DEFAULT_THICKNESS),
-            marker_size=_as_float(d.get("markerSize"), DEFAULT_MARKER_SIZE),
+            point_size=_as_float(d.get("pointSize"), DEFAULT_POINT_SIZE),
             style=_as_str(d.get("style"), DEFAULT_STYLE),
             locked=bool(d.get("locked", DEFAULT_LOCKED)),
             fill_color=_as_str(d.get("fillColor"), DEFAULT_FILL_COLOR),
+            point_color=_as_str(d.get("pointColor"), ""),
         )
 
 
@@ -170,7 +181,8 @@ class Layout:
             image_width=_as_int(d.get("imageWidth"), 0),
             image_height=_as_int(d.get("imageHeight"), 0),
             lines=lines,
-            image_filter=_opt_str(d.get("imageFilter")),
+            # Canonical "imageFilter" wins; legacy "filter" (pre-Phase-6) still reads.
+            image_filter=_opt_str(d.get("imageFilter", d.get("filter"))),
             filter_color=_opt_str(d.get("filterColor")),
             crop_rect=d.get("cropRect") if isinstance(d.get("cropRect"), dict) else None,
             rotation_quarters=_opt_int(d.get("rotationQuarters")),

@@ -11,14 +11,15 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// requireStore connects to DATABASE_URL, migrates, and truncates, or skips the
-// test when no database is configured/reachable. Mirrors the self-skipping e2e
-// convention used by mcp/.
+// requireStore connects to TEST_DATABASE_URL, migrates, and truncates, or skips
+// the test when no database is configured/reachable. Mirrors the self-skipping
+// e2e convention used by mcp/. Deliberately NOT DATABASE_URL: the truncate below
+// wipes the named database, and that variable points at the LIVE server's.
 func requireStore(t *testing.T) *Store {
 	t.Helper()
-	url := os.Getenv("DATABASE_URL")
+	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
-		t.Skip("DATABASE_URL not set; skipping Postgres integration test")
+		t.Skip("TEST_DATABASE_URL not set; skipping Postgres integration test (never runs against DATABASE_URL — the setup truncates)")
 	}
 	ctx := context.Background()
 	s, err := New(ctx, url)

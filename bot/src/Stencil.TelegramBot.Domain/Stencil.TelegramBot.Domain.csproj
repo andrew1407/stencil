@@ -1,5 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <!-- Canonical provider constants (default base URLs, chat timeout), embedded so the bot needs no repo checkout at run time. -->
+    <EmbeddedResource Include="../../../browser/js/config/llm/providers.json" Link="Assets/providers.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

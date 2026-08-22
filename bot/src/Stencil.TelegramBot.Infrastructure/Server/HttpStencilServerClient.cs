@@ -50,7 +50,7 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         {
             using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, "/auth/token", EmptyBody(), ct)
                 .ConfigureAwait(false);
-            _token = ReadString(doc.RootElement, "token");
+            _token = JsonRead.ReadString(doc.RootElement, "token");
         }
         else
         {
@@ -152,10 +152,21 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, path, content, ct).ConfigureAwait(false);
         JsonElement root = doc.RootElement;
-        string storedPath = ReadString(root, "path");
-        int width = ReadInt(root, "w");
-        int height = ReadInt(root, "h");
+        string storedPath = JsonRead.ReadString(root, "path");
+        int width = JsonRead.ReadInt(root, "w");
+        int height = JsonRead.ReadInt(root, "h");
         return new FileWriteResult(storedPath, width, height);
+    }
+
+    /// <summary>
+    /// <c>DELETE /projects/{id}/files/{kind}</c> (204 No Content — idempotent, filestore-only
+    /// kinds per contract §9; never bumps the project version).
+    /// </summary>
+    public async Task DeleteFileAsync(string id, string kind, CancellationToken ct = default)
+    {
+        using HttpResponseMessage response = await SendAsync(HttpMethod.Delete, FilePath(id, kind), null, ct)
+            .ConfigureAwait(false);
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
     /// <summary>Send a request and parse its non-empty JSON body into a document.</summary>
@@ -201,8 +212,8 @@ public sealed class HttpStencilServerClient : IStencilServerClient
                 using JsonDocument doc = JsonDocument.Parse(body);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    code = ReadString(doc.RootElement, "code");
-                    string parsed = ReadString(doc.RootElement, "message");
+                    code = JsonRead.ReadString(doc.RootElement, "code");
+                    string parsed = JsonRead.ReadString(doc.RootElement, "message");
                     if (parsed.Length != 0)
                     {
                         message = parsed;
@@ -230,16 +241,4 @@ public sealed class HttpStencilServerClient : IStencilServerClient
     /// <summary>An <c>application/json</c> body from a pre-serialised string.</summary>
     private static StringContent JsonContent(string json) =>
         new(json, Encoding.UTF8, "application/json");
-
-    /// <summary>Read a string property, or "" when missing / not a string.</summary>
-    private static string ReadString(JsonElement element, string name) =>
-        element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? ""
-            : "";
-
-    /// <summary>Read an integer property, or 0 when missing / not a number.</summary>
-    private static int ReadInt(JsonElement element, string name) =>
-        element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
-            ? value.GetInt32()
-            : 0;
 }

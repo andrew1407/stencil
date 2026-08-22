@@ -165,8 +165,26 @@ public sealed class EditingService : IEditingService
         };
 
     /// <inheritdoc />
-    public Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { Layout = layout }, ct);
+    public Task<UserSession> ApplyLayoutAsync(
+        long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default) =>
+        ApplyEditAsync(userId, edits =>
+        {
+            // Combine keeps what is already drawn and puts the incoming lines on top —
+            // the same choice the GUI editors offer, and the CLI console's `apply … combine`.
+            if (!combine || edits.Layout is null) return edits with { Layout = layout };
+            List<LayoutLine> merged = [.. edits.Layout.Lines, .. layout.Lines];
+            return edits with { Layout = layout with { Lines = merged } };
+        }, ct);
+
+    /// <inheritdoc />
+    public Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default) =>
+        ApplyEditAsync(userId, edits =>
+        {
+            string? value = string.IsNullOrWhiteSpace(expr) ? null : expr;
+            return axis.Equals("y", StringComparison.OrdinalIgnoreCase)
+                ? edits with { FormulaY = value }
+                : edits with { FormulaX = value };
+        }, ct);
 
     /// <inheritdoc />
     public async Task<UserSession> UndoAsync(long userId, CancellationToken ct = default)
@@ -275,7 +293,7 @@ public sealed class EditingService : IEditingService
     }
 
     /// <inheritdoc />
-    public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? markerSize, string? style, string? fill, CancellationToken ct = default)
+    public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
         var pen = session.Edits.Pen;
@@ -283,7 +301,7 @@ public sealed class EditingService : IEditingService
         {
             Color = color ?? pen.Color,
             Thickness = thickness ?? pen.Thickness,
-            MarkerSize = markerSize ?? pen.MarkerSize,
+            PointSize = pointSize ?? pen.PointSize,
             Style = style ?? pen.Style,
             FillColor = NormalizeFill(fill) ?? pen.FillColor,
         };
@@ -312,7 +330,7 @@ public sealed class EditingService : IEditingService
                 Points = pts,
                 Color = pen.Color,
                 Thickness = pen.Thickness,
-                MarkerSize = pen.MarkerSize,
+                PointSize = pen.PointSize,
                 Style = pen.Style,
                 Locked = closed,
                 FillColor = closed ? pen.FillColor : LayoutLine.DefaultFillColor,
@@ -407,11 +425,33 @@ public sealed class EditingService : IEditingService
     public async Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
+        return await RenderWithAsync(userId, session, session.Edits, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default) =>
+        _cli.EditAsync(new EditRequest
+        {
+            Input = sourcePath,
+            Filter = "contour",
+            Output = _workspace.NewFilePath(userId, ".png"),
+            Overwrite = true,
+        }, ct);
+
+    /// <inheritdoc />
+    public async Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        return await RenderWithAsync(userId, session, edits, ct);
+    }
+
+    /// <summary>Replay the session's original through the CLI with the given edit state.</summary>
+    private async Task<RenderResult> RenderWithAsync(long userId, UserSession session, EditState edits, CancellationToken ct)
+    {
         if (session.OriginalImagePath is null)
         {
             throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
         }
-        var edits = session.Edits;
         string? layoutPath = null;
         if (edits.Layout is not null)
         {

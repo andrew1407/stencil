@@ -210,7 +210,7 @@ from pystencil import Layout, Line, Point
 lay = Layout(
     image_width=800, image_height=600,
     lines=[Line(points=[Point(50, 50), Point(750, 550)],
-                color="#FFFF00", thickness=2.0, marker_size=4.0,
+                color="#FFFF00", thickness=2.0, point_size=4.0,
                 style="solid", locked=False, fill_color="transparent")],
 )
 text = lay.to_json(indent=2)                # -> imageWidth/imageHeight/lines[...]
@@ -218,11 +218,13 @@ again = Layout.from_json(text)              # tolerant: missing fields → defau
 ```
 
 Line defaults match the rest of the project: `color="#FFFF00"`, `thickness=2.0`,
-`marker_size=4.0`, `style="solid"`, `locked=False`, `fill_color="transparent"`. The
+`point_size=4.0`, `style="solid"`, `locked=False`, `fill_color="transparent"`. The
 optional layout fields `imageFilter` / `filterColor` / `cropRect` / `rotationQuarters` /
 `pageSize` / `customPageWidth` / `customPageHeight` / the formula trio are emitted only
 when set, and `from_dict`/`from_json` parse them all back, so a layout round-trips its
-page format like every other client.
+page format like every other client. One exception: `Editor.layout()` always names a
+`cropRect` (the whole rotated original when nothing is cropped), because the GUIs
+auto-crop to the page aspect unless the layout names one.
 
 ### `Core` / `get_core()` — the ctypes binding
 
@@ -255,13 +257,16 @@ Mirrors the browser's `connectionManager.js` + `remoteSync.js` over `urllib` (RE
 from pystencil import ServerConnection, Editor
 
 conn = ServerConnection("http://host:8090").connect()    # mints a token
+# A server with ADMIN_TOKEN set won't issue one — pass the token you were given
+# (the console spells this `/connect http://host:8090 token=<tok>`):
+conn = ServerConnection("http://host:8090", "<token>").connect()
 proj = conn.create_remote_project("Shared", image=Editor().load("photo.png").result())
 listing = conn.list_projects()
 # fetch, edit, and write back into a project:
-got = conn.get_project(proj["project"]["id"])
-ed = Editor().load(conn.get_file(proj["project"]["id"], "original"))
+got = conn.get_project(proj["id"])
+ed = Editor().load(conn.get_file(proj["id"], "original"))
 ed.apply_filter("sepia")
-conn.save_remote_project(proj["project"]["id"],
+conn.save_remote_project(proj["id"],
                          version=got["project"]["version"],
                          layout=ed.layout().to_dict(), image=ed.result())
 ```
@@ -340,6 +345,100 @@ Python `Editor.save_layout` and the Zig [CLI](../cli/README.md):
 `project_name` is the editor's project name (the image's base name without extension,
 falling back to `layout`).
 
+The console also mirrors the Zig CLI's LLM commands (see the next section and
+[`llm-contract.md`](../llm-contract/llm-contract.md)): **`/prompt <text>`** (alias `/p`)
+sends one LLM turn — the session's current image rides along for vision when one is
+loaded and its encoded PNG is ≤ 8 MiB (bigger images are skipped with a printed note) —
+prints the reply, applies the plan's actions to the working image, and writes each plan
+variant as `variant-<sanitized-label>.png` in the current directory (colliding labels
+get a `-2`/`-3`… suffix, like the Zig CLI) with the usual
+`wrote {path} ({w}x{h})` line. **`/llm`** bare shows the session's provider config
+(API key masked); `/llm provider|url|model|key|server <value>` sets in-session
+overrides on top of the `STENCIL_LLM_*` env defaults — switching provider re-fills the
+provider's default base URL unless you pinned one with `/llm url` this session. With
+`provider stencil-server`, a `/connect`-ed server whose URL matches (or the first
+connected server, when no `server` is set) contributes its live bearer token
+automatically — and since the proxy is only enabled on a server that sets `ADMIN_TOKEN`
+(which then refuses to issue tokens), that connection needs
+`/connect <url> token=<tok>`. **`/chat`** (contract §12, session-scoped, default **off**) makes
+`/prompt` multi-turn: `/chat on|off` toggles, bare `/chat`/`/chat show` prints the
+mode + turn count, `/chat clear` empties the conversation (and drops a fetched
+server project's `chat` file). While it is on, `/save name.stencil` writes the
+conversation into the project file (text-only, ≤ 32 messages), `/upload name.stencil`
+and `/fetch` restore one.
+
+## LLM prompts
+
+> Getting a provider running first (install/serve Ollama or an OpenAI-compatible server,
+> or point at a collaboration server's Anthropic proxy):
+> [root README → AI assistant](../README.md#ai-assistant--setting-up-a-model).
+
+`pystencil.llm` implements the shared [Stencil LLM contract](../llm-contract/llm-contract.md):
+the model answers with an *op-plan* JSON object that is strictly validated and then
+executed through the same `Editor` methods listed above — it never touches pixels
+itself. Chat-only replies come back with zero actions; each plan *variant* yields one
+extra output image.
+
+```python
+from pystencil import Editor, Chat, LlmClient, LlmConfig, execute_op_plan
+
+# one-shot: ask the configured provider to edit this editor's image
+ed = Editor().load("photo.jpg")
+reply, outputs = ed.prompt("crop 10% off every edge and give me a sepia variant")
+for i, img in enumerate(outputs):
+    img.save("out-%d.png" % i)
+
+# multi-turn: bounded history (32 messages) + the contract's image replay rule
+chat = Chat(LlmClient(LlmConfig(provider="ollama", model="llama3.2-vision")))
+reply, plan = chat.send("what should I crop?", images=[("image/png", ed.result().encode("png"))])
+execute_op_plan(plan, ed)
+
+# opt-in chat persistence (contract §12): save the conversation with the project
+ed.save_chats = True                  # OFF by default, like every surface
+ed.attach_chat(chat)                  # or a ready §12.1 dict
+ed.save_project("proj.stencil")       # writes the text-only `chat` key
+chat2 = Chat.from_doc(Editor().open_project("proj.stencil").chat_doc)
+
+# several images in ONE turn (contract §2.1): the plan's `image` ops switch the working
+# image to the Nth attachment, `save` writes <name>.stencil beside the output
+shots = [("image/png", open(p, "rb").read(), p) for p in ("cat.jpg", "dog.png")]
+reply, _ = Editor().prompt("make each of them b&w and save them", images=shots)
+```
+
+`Chat.to_doc()` / `Chat.from_doc()` (and `clear()`) round-trip the §12.1 persisted-chat
+document — text-only (images are never persisted), assistant turns store the displayed
+reply, trimmed to the most recent 32 messages; a malformed document restores as an
+empty chat, never an error. `ServerConnection.delete_file(pid, "chat")` drops a
+server-side copy (the §9 per-file DELETE, filestore-only kinds).
+
+Configuration is `LlmConfig(...)` args with env fallback (`LlmConfig.from_env()`,
+used when `Editor.prompt` / `LlmClient()` get no explicit config):
+
+| Env key | Meaning | Default |
+|---|---|---|
+| `STENCIL_LLM_PROVIDER` | `ollama` \| `openai-compat` \| `stencil-server` | `ollama` |
+| `STENCIL_LLM_BASE_URL` | provider endpoint (`ollama`/`openai-compat`) | `http://localhost:11434` / `http://localhost:1234/v1` |
+| `STENCIL_LLM_MODEL` | model name (empty = provider/server default) | empty |
+| `STENCIL_LLM_API_KEY` | Bearer key, sent on `openai-compat` only | empty |
+| `STENCIL_LLM_SERVER_URL` | collaboration server proxying Anthropic (`stencil-server`) | empty |
+
+For `stencil-server` you can instead pass an existing connection:
+`LlmClient(LlmConfig(provider="stencil-server"), server=conn)` reuses the
+`ServerConnection`'s URL and bearer token. A `stopReason` of `max_tokens`/`refusal`
+raises a typed `LlmError` and is never parsed as a plan. A turn's `images` are also its
+§2.1 **attachments**: `{"op":"image","index":N}` adopts the Nth of them as the working
+image (1-based, resetting the §1 coordinate frame) and `{"op":"save","name":…}` writes
+`<name>.stencil` (defaulting to the active attachment's file name, then the image name,
+with a " 2"/" 3"… suffix on collision) into `save_dir`, listing them on `plan.saved`. An
+index the turn cannot satisfy — or a save with nothing loaded — is a per-action warning
+on `plan.warnings`, never a failed plan. A turn is ONE model round: the plan executes, the
+reply is shown, and nothing runs after it (contract §3.0). The `frame` op raises
+`LlmExecutionError` (pystencil has no video decoding — extract frames with the
+CLI/desktop and `load()` them). One deviation from the contract: attached images are
+**not** downscaled to 1568 px (the package has no resampling) — pass reasonably-sized
+images. Full schema, limits, system prompt and wire mappings:
+[`llm-contract.md`](../llm-contract/llm-contract.md).
+
 ## Testing
 
 ```bash
@@ -350,7 +449,8 @@ python3 -m unittest discover -s tests
 Tests use the stdlib `unittest` runner (no deps). They cover the codec round-trips
 (`encode_png` → `decode_png` returns identical pixels), the layout JSON shapes, the core
 ctypes binding, the editor's derived-view / history model, the server client (URL
-normalization, request building and error parsing — no network), and the CLI's argument +
-`/layout` path handling. The whole suite is hermetic: no running server is ever required.
+normalization, request building and error parsing — no network), the LLM module (per-provider
+request shapes, op-plan acceptance/rejection tables, plan execution, chat history — all
+offline via the same `_open` seam), and the CLI's argument + `/layout` path handling. The whole suite is hermetic: no running server is ever required.
 Tests that need the native library build it on demand via `build.py`, so a C++17 compiler
 must be on `PATH`.

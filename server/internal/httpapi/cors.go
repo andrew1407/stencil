@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 // corsHeaders the browser clients (browser/ app and the extension) need to call
 // the REST API cross-origin. Authentication is a bearer token (not cookies), so
-// credentialed CORS is not required and "*" is a safe default.
+// credentialed CORS is never needed; the default allows only loopback origins
+// (local dev), and anything wider — including "*" — must be configured.
 const (
 	corsAllowMethods = "GET, POST, PUT, DELETE, OPTIONS"
 	corsAllowHeaders = "Authorization, Content-Type, X-Admin-Token"
@@ -15,10 +17,11 @@ const (
 )
 
 // CORS wraps a handler with cross-origin support for the given allowed origins.
-// A list containing "*" (the default) reflects any Origin. Preflight OPTIONS
-// requests are answered here with 204 before they reach the method-pattern mux
-// (which would otherwise 405 them). Requests without an Origin header, and those
-// from a disallowed origin, pass through untouched.
+// An empty list (the default) allows loopback origins only; a list containing
+// "*" reflects any Origin. Preflight OPTIONS requests are answered here with 204
+// before they reach the method-pattern mux (which would otherwise 405 them).
+// Requests without an Origin header, and those from a disallowed origin, pass
+// through untouched.
 func CORS(origins []string) func(http.Handler) http.Handler {
 	allowAny := false
 	allowed := map[string]struct{}{}
@@ -58,6 +61,20 @@ func originAllowed(origin string, allowAny bool, allowed map[string]struct{}) bo
 	if ok {
 		return true
 	}
-	_, ok = allowed[origin]
-	return ok
+	if _, ok = allowed[origin]; ok {
+		return true
+	}
+	return len(allowed) == 0 && isLoopbackOrigin(origin)
+}
+
+// isLoopbackOrigin reports whether origin is an http(s) page served from the
+// local machine (localhost, 127.0.0.0/8, ::1) — the only origins the default,
+// allowlist-free configuration will answer cross-origin.
+func isLoopbackOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+	host := u.Hostname()
+	return host == "localhost" || host == "::1" || strings.HasPrefix(host, "127.")
 }

@@ -103,8 +103,9 @@ public static class ProjectLayoutMapper
     }
 
     /// <summary>
-    /// Read <c>cropRect</c> (in rotated-image space) and return a CLI crop spec in original-image
-    /// pixels, or null when there is no crop (the rect covers the whole original).
+    /// Read <c>cropRect</c> (in rotated-image space; canonical <c>{x,y,w,h}</c> or the legacy
+    /// <c>{width,height}</c> keys) and return a CLI crop spec in original-image pixels, or null
+    /// when there is no crop (the rect covers the whole original).
     /// </summary>
     private static string? ReadCrop(JsonElement layout, int rotate, int originalWidth, int originalHeight)
     {
@@ -118,8 +119,9 @@ public static class ProjectLayoutMapper
         }
         double rx = ReadDouble(rect, "x") ?? 0;
         double ry = ReadDouble(rect, "y") ?? 0;
-        double rw = ReadDouble(rect, "width") ?? 0;
-        double rh = ReadDouble(rect, "height") ?? 0;
+        // Canonical {w,h} wins; legacy {width,height} (pre-Phase-6 desktop) still reads.
+        double rw = ReadDouble(rect, "w") ?? ReadDouble(rect, "width") ?? 0;
+        double rh = ReadDouble(rect, "h") ?? ReadDouble(rect, "height") ?? 0;
         if (rw <= 0 || rh <= 0)
         {
             return null;

@@ -7,6 +7,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Canonical page-format table, embedded so the bot needs no repo checkout at run time. -->
+    <EmbeddedResource Include="../../../browser/js/config/constants.json" Link="Assets/constants.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.9" />

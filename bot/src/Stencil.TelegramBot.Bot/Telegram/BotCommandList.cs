@@ -13,6 +13,9 @@ public static class BotCommandList
     public static IReadOnlyList<TgCommand> All() =>
     [
         new("help", "Show the commands and menu"),
+        new("prompt", "Ask the AI assistant to edit the image"),
+        new("chat", "Chat mode on/off (clear forgets; save on|off stores it with the project)"),
+        new("chatapi", "Pick which chat API (model/provider) the assistant uses"),
         new("blank", "Start a blank canvas: [format] [w h] [color]"),
         new("format", "Page format: <name> | custom <w> <h> (bare lists)"),
         new("url", "Load an image from a link"),
@@ -25,7 +28,7 @@ public static class BotCommandList
         new("draw", "Draw line|rect|poly x1,y1 x2,y2 …"),
         new("color", "Set the pen colour"),
         new("thickness", "Set the pen stroke width"),
-        new("markers", "Set vertex marker size (0 hides)"),
+        new("points", "Set vertex point size (0 hides)"),
         new("style", "Line style: solid | dashed | dotted"),
         new("fill", "Closed-shape fill (or none)"),
         new("pen", "Show the current pen"),

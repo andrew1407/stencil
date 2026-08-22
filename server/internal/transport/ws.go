@@ -3,14 +3,27 @@ package transport
 import (
 	"context"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/coder/websocket"
+)
+
+// Keepalive cadence for accepted (server-side) connections: a peer that stops
+// answering pings within wsPongTimeout is torn down, so a dead peer is
+// detected within interval+timeout (~40s). Vars so tests can shorten them;
+// this mirrors tcp.go's idle reaping for the WS transport.
+var (
+	wsPingInterval = 30 * time.Second
+	wsPongTimeout  = 10 * time.Second
 )
 
 // wsConn adapts a coder/websocket connection to Conn.
 type wsConn struct {
 	c      *websocket.Conn
 	remote string
+	done   chan struct{} // stops the keepalive pinger; nil on dialled conns
+	once   sync.Once
 }
 
 // AcceptWS upgrades an HTTP request to a WebSocket Conn. Origin checking is
@@ -23,7 +36,9 @@ func AcceptWS(w http.ResponseWriter, r *http.Request) (Conn, error) {
 		return nil, err
 	}
 	c.SetReadLimit(MaxMessageBytes)
-	return &wsConn{c: c, remote: r.RemoteAddr}, nil
+	x := &wsConn{c: c, remote: r.RemoteAddr, done: make(chan struct{})}
+	go x.keepalive()
+	return x, nil
 }
 
 // DialWS connects to a WebSocket server (used by tests and Go-side clients).
@@ -36,6 +51,37 @@ func DialWS(ctx context.Context, url string) (Conn, error) {
 	return &wsConn{c: c, remote: url}, nil
 }
 
+// keepalive pings the peer on a timer; the pong is read by whatever Read the
+// hub has pending. A missed pong hard-closes the conn, which unblocks that
+// Read so the half-open peer is reaped instead of lingering forever.
+func (x *wsConn) keepalive() {
+	interval, timeout := wsPingInterval, wsPongTimeout // read once: test seams
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-x.done:
+			return
+		case <-t.C:
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			err := x.c.Ping(ctx)
+			cancel()
+			if err != nil {
+				x.stop()
+				_ = x.c.CloseNow() // dead peer: no close handshake to wait for
+				return
+			}
+		}
+	}
+}
+
+// stop ends the keepalive pinger (idempotent; no-op on dialled conns).
+func (x *wsConn) stop() {
+	if x.done != nil {
+		x.once.Do(func() { close(x.done) })
+	}
+}
+
 func (x *wsConn) Read(ctx context.Context) ([]byte, error) {
 	_, data, err := x.c.Read(ctx)
 	return data, err
@@ -46,6 +92,7 @@ func (x *wsConn) Write(ctx context.Context, data []byte) error {
 }
 
 func (x *wsConn) Close(code int, reason string) error {
+	x.stop()
 	return x.c.Close(websocket.StatusCode(code), reason)
 }
 

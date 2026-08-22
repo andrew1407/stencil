@@ -3,13 +3,13 @@ using System.Text;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Infrastructure.Server;
-using Stencil.TelegramBot.Tests.Fakes;
+using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// Wire-contract behaviour for <see cref="HttpStencilServerClient"/> driven by a captured-request
-/// fake handler (no network): the token handshake, bearer header, listing, octet-stream file
+/// mock handler (no network): the token handshake, bearer header, listing, octet-stream file
 /// upload, and structured <c>{code, message}</c> error mapping. Ports <c>pystencil</c>'s
 /// <c>ServerConnection</c> tests.
 /// </summary>
@@ -86,6 +86,20 @@ public sealed class HttpStencilServerClientTests
         Assert.Equal("/store/p1/original.png", result.Path);
         Assert.Equal(800, result.W);
         Assert.Equal(600, result.H);
+    }
+
+    [Fact]
+    public async Task DeleteFileSendsDeleteToTheFileRouteAndAcceptsNoContent()
+    {
+        CannedHttpMessageHandler handler = new((_, _) =>
+            CannedHttpMessageHandler.Empty(HttpStatusCode.NoContent));
+        HttpStencilServerClient client = Client(handler, token: "t");
+
+        await client.DeleteFileAsync("p1", ProjectFileKind.Chat);
+
+        Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
+        Assert.Equal("/projects/p1/files/chat", handler.LastRequest.RequestUri!.AbsolutePath);
+        Assert.Equal("Bearer", handler.LastRequest.Headers.Authorization!.Scheme);
     }
 
     [Fact]

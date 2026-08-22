@@ -42,6 +42,14 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     /// <summary>Normalise a raw URL to a stable origin (<c>scheme://host[:port]</c>).</summary>
     public string NormalizeUrl(string url) => UrlNormalizer.Normalize(url);
 
+    /// <summary>
+    /// A plain <see cref="HttpClient"/> over the shared pooled TLS-verifying handler, for
+    /// adapters (like the LLM client) that speak their own HTTP rather than the server REST
+    /// surface — so they reuse this factory's connection pool instead of growing their own.
+    /// </summary>
+    public HttpClient CreateHttpClient(TimeSpan timeout) =>
+        new(_verifying.Value, disposeHandler: false) { Timeout = timeout };
+
     private static SocketsHttpHandler CreateInsecureHandler() => new()
     {
         SslOptions = new SslClientAuthenticationOptions

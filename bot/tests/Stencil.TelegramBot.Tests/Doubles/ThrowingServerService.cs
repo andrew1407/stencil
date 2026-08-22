@@ -2,7 +2,7 @@ using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// An <see cref="IServerService"/> that throws on every call — for handler tests whose command
@@ -29,4 +29,7 @@ public sealed class ThrowingServerService : IServerService
     public Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default) => Fail<Task<string>>();
     public Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default) => Fail<Task<long?>>();
     public Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default) => Fail<Task<UserSession?>>();
+    public Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default) => Fail<Task>();
+    public Task<string?> LoadChatAsync(long userId, CancellationToken ct = default) => Fail<Task<string?>>();
+    public Task DeleteChatAsync(long userId, CancellationToken ct = default) => Fail<Task>();
 }

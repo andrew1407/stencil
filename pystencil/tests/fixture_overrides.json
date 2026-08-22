@@ -1,0 +1,126 @@
+{
+  "_comment": "Measured pystencil-vs-corpus divergences pinned by test_fixture_conformance.py. Each entry overrides the shared fixture's expectation for pystencil ONLY; the shared fixtures are never edited. Keys are fixture/case names.",
+  "opPlan": {},
+  "providerWire": {},
+  "sanitizer": {
+    "zero-width/format characters are stripped too": {
+      "expect": "invisible​space‌here",
+      "note": "browser strips \\p{Cf}; pystencil _CONTROLISH covers only [\\x00-\\x1f\\x7f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
+    }
+  },
+  "layout/sparse": {
+    "junk-points-dropped-numeric-strings-coerced": {
+      "expectFilled": [
+        {
+          "points": [
+            { "x": 3, "y": 4 },
+            { "x": 1, "y": 0 },
+            { "x": "NaN", "y": 2 },
+            { "x": 0, "y": 0 },
+            { "x": 0, "y": 0 },
+            { "x": 0, "y": 7 },
+            { "x": 8, "y": 9 }
+          ],
+          "color": "#FFFF00",
+          "thickness": 2,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": false,
+          "fillColor": "transparent",
+          "pointColor": ""
+        }
+      ],
+      "note": "browser drops junk points; pystencil Point.from_dict coerces every entry (non-dict -> origin, missing coord -> 0, 'NaN' -> float nan, kept as the string 'NaN' here)"
+    },
+    "field-type-coercion-and-drops": {
+      "expectFilled": [
+        {
+          "points": [{ "x": 1, "y": 2 }],
+          "color": "42",
+          "thickness": 3.5,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": true,
+          "fillColor": "False",
+          "pointColor": ""
+        }
+      ],
+      "note": "browser drops non-string color/fillColor to defaults; pystencil _as_str stringifies them (42 -> '42', false -> 'False')"
+    },
+    "non-object-line-entries-skipped": {
+      "expectFilled": [
+        {
+          "points": [],
+          "color": "#FFFF00",
+          "thickness": 2,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": false,
+          "fillColor": "transparent",
+          "pointColor": ""
+        },
+        {
+          "points": [],
+          "color": "#FFFF00",
+          "thickness": 2,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": false,
+          "fillColor": "transparent",
+          "pointColor": ""
+        },
+        {
+          "points": [],
+          "color": "#FFFF00",
+          "thickness": 2,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": false,
+          "fillColor": "transparent",
+          "pointColor": ""
+        },
+        {
+          "points": [{ "x": 0, "y": 0 }],
+          "color": "#FFFF00",
+          "thickness": 2,
+          "pointSize": 4,
+          "style": "solid",
+          "locked": false,
+          "fillColor": "transparent",
+          "pointColor": ""
+        }
+      ],
+      "note": "browser skips non-object line entries; pystencil Line.from_dict turns each into an all-defaults line"
+    }
+  },
+  "layout/payload": {
+    "empty-input-emits-only-forced-keys": {
+      "expectPayload": { "imageWidth": 0, "imageHeight": 0, "lines": [] },
+      "note": "browser emits undefined-valued forced keys that drop out on JSON round-trip; pystencil has no undefined — missing dims parse as 0 and export as 0"
+    },
+    "lines-pass-through-by-reference-unsanitized": {
+      "expectPayload": {
+        "imageWidth": 1,
+        "imageHeight": 1,
+        "lines": [
+          {
+            "points": [{ "x": 1, "y": 2 }],
+            "color": "#FFFF00",
+            "thickness": 9,
+            "pointSize": 4,
+            "style": "solid",
+            "locked": false,
+            "fillColor": "transparent"
+          }
+        ]
+      },
+      "note": "browser passes lines through by reference; pystencil always re-parses lines (unknown 'junk' key dropped, thickness '9' coerced to 9, defaults filled) — the same-reference assertion has no pystencil equivalent"
+    }
+  },
+  "stencilProject": {
+    "version-as-numeric-string-accepted": {
+      "verdict": "error",
+      "note": "browser coerces version '1'; pystencil open_project requires an int version and raises ValueError('unrecognized project-file version')"
+    }
+  }
+}

@@ -8,10 +8,18 @@ import (
 	"time"
 
 	"stencil/server/internal/bus"
-	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
-	"stencil/server/internal/store"
 )
+
+// Interface seams over *store.Store / *filestore.Store so the sweep is testable
+// without Postgres or a real filestore. Behavior is unchanged.
+type expiredProjectDeleter interface {
+	DeleteExpiredProjects(ctx context.Context, now int64) ([]string, error)
+}
+
+type projectFileRemover interface {
+	Remove(id string) error
+}
 
 // startExpirySweep runs one expired-project sweep immediately, then repeats every
 // interval until ctx is cancelled. Each pass removes every project whose expiry
@@ -19,7 +27,7 @@ import (
 // publishes a deleted event so connected clients refresh their lists. A zero (or
 // negative) interval disables the sweep entirely — expired projects then linger
 // in the store (there is no lazy per-request expiry check) until it is re-enabled.
-func startExpirySweep(ctx context.Context, wg *sync.WaitGroup, st *store.Store, fs *filestore.Store, b bus.Bus, interval time.Duration) {
+func startExpirySweep(ctx context.Context, wg *sync.WaitGroup, st expiredProjectDeleter, fs projectFileRemover, b bus.Bus, interval time.Duration) {
 	if interval <= 0 {
 		log.Printf("expiry sweep disabled (EXPIRY_SWEEP_MINUTES=0)")
 		return

@@ -16,8 +16,8 @@ const BINARY_NAME: &str = "stencil";
 /// The relative path of the built CLI inside a repo checkout.
 const REPO_BINARY: &str = "cli/zig-out/bin/stencil";
 
-/// A marker that identifies the repo root unambiguously.
-const REPO_MARKER: &str = "cli/build.zig";
+/// A sentinel path that identifies the repo root unambiguously.
+const REPO_SENTINEL: &str = "cli/build.zig";
 
 pub fn missing_message() -> String {
     format!(
@@ -93,7 +93,7 @@ fn find_in_repo() -> Option<PathBuf> {
 fn repo_root_from(start: &Path) -> Option<PathBuf> {
     let mut dir = Some(start);
     while let Some(d) = dir {
-        if d.join(REPO_MARKER).is_file() {
+        if d.join(REPO_SENTINEL).is_file() {
             return Some(d.to_path_buf());
         }
         dir = d.parent();

@@ -54,6 +54,36 @@ public sealed record UserSession
     /// </summary>
     public IReadOnlyList<EditState> EditRedo { get; init; } = [];
 
+    /// <summary>
+    /// The option labels of the last <c>ask</c> card the assistant sent (contract §11), and the
+    /// picks made on it so far for a multi-select card. Callback data is capped at 64 bytes, far
+    /// too small to carry labels, so the card's text lives here; a new card replaces it and
+    /// answering clears it. Empty = no question is outstanding.
+    /// </summary>
+    public IReadOnlyList<string> AskOptions { get; init; } = [];
+
+    /// <summary>True when the outstanding card takes several picks (a Send button submits).</summary>
+    public bool AskMulti { get; init; }
+
+    /// <summary>Indices of <see cref="AskOptions"/> currently ticked on a multi-select card.</summary>
+    public IReadOnlyList<int> AskPicked { get; init; } = [];
+
+    /// <summary>
+    /// The text of the last assistant turn that did not deliver — it failed, or the user stopped
+    /// it — kept so the Retry button on that message can re-run it (callback data is capped at 64
+    /// bytes and cannot carry the prompt). A turn that lands clears it, so Retry never re-sends
+    /// something already answered.
+    /// </summary>
+    public string? LastRetryablePrompt { get; init; }
+
+    /// <summary>
+    /// The chat API this user picked with <c>/chatapi</c> (a <c>LlmProfile.Name</c>), or null for
+    /// the bot's own <c>STENCIL_LLM_*</c> configuration. Per user, not per process: several
+    /// people share one bot, and one of them trying a local model must not move everyone else.
+    /// A name no longer configured falls back to the default rather than failing the turn.
+    /// </summary>
+    public string? LlmProfile { get; init; }
+
     /// <summary>Connected servers (insertion order), keyed externally by normalised URL.</summary>
     public IReadOnlyList<ServerConnectionInfo> Connections { get; init; } = [];
 
@@ -87,6 +117,29 @@ public sealed record UserSession
     /// the bot's take on the CLI's <c>/sync</c>.
     /// </summary>
     public bool SyncEnabled { get; init; }
+
+    /// <summary>
+    /// Chat mode (off by default). When on, a plain text message that no other flow claims is
+    /// handed to the AI assistant exactly as <c>/prompt &lt;text&gt;</c> would be — so the user can
+    /// keep talking without retyping the command. Slash commands and pending free-text prompts
+    /// (see <see cref="PendingInput"/>) always win, so nothing is ever swallowed.
+    /// </summary>
+    public bool ChatMode { get; init; }
+
+    /// <summary>
+    /// Chat persistence (contract §12 — off by default). When on, the assistant's conversation
+    /// is mirrored to the active <b>server</b> project's <c>chat</c> file kind after each prompt
+    /// turn and restored when a project is fetched. The bot has no local chat store (§12.3);
+    /// without an active server project the flag simply has nothing to write.
+    /// </summary>
+    public bool SaveChats { get; init; }
+
+    /// <summary>
+    /// True once the user has been warned that the §12 chat save-back is failing (persistence
+    /// is best-effort and must never fail the prompt reply — so the warning is surfaced once,
+    /// not on every turn). Cleared by the next successful save, re-arming the warning.
+    /// </summary>
+    public bool ChatSaveWarned { get; init; }
 
     /// <summary>
     /// A pending free-text prompt this user is expected to answer with their next plain message

@@ -1,8 +1,9 @@
-using System.Diagnostics;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Processes;
+using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
@@ -37,7 +38,8 @@ public sealed class ProcessStencilCli : IStencilCli
     {
         if (!request.Overwrite && File.Exists(request.Output))
         {
-            throw new StencilCliException(
+            throw StencilCliException.Deployment(
+                "Couldn't save the result — please try that again.",
                 $"output '{request.Output}' already exists; pass overwrite=true to replace it");
         }
 
@@ -51,7 +53,8 @@ public sealed class ProcessStencilCli : IStencilCli
         RenderResult? wrote = CliOutcomeParser.ParseWrote(output.Stderr);
         if (wrote is null)
         {
-            throw new StencilCliException(
+            throw StencilCliException.Deployment(
+                "The image engine didn't produce a result. Please try again.",
                 "the stencil CLI reported success but printed no 'wrote' line:\n" + output.Stderr.Trim());
         }
         return wrote;
@@ -82,7 +85,7 @@ public sealed class ProcessStencilCli : IStencilCli
         }
         finally
         {
-            TryDelete(outPath);
+            TempFiles.TryDelete(outPath);
         }
     }
 
@@ -112,59 +115,21 @@ public sealed class ProcessStencilCli : IStencilCli
     private async Task<CliOutput> SpawnAsync(IReadOnlyList<string> argv, CancellationToken ct)
     {
         await _spawnGate.WaitAsync(ct).ConfigureAwait(false);
-        // Link the caller's token with a per-invocation deadline: whichever fires first (caller
-        // cancel or timeout) trips the same token, and we kill the process below.
-        using var timeoutCts = new CancellationTokenSource(_options.CliTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-        CancellationToken runCt = linkedCts.Token;
         try
         {
             string bin = StencilCliLocator.FindCli(_options.CliPath);
-            ProcessStartInfo info = new()
+            ProcessOutcome outcome = await ProcessRunner
+                .RunAsync(bin, argv, _options.CliTimeout, ct, NoColor)
+                .ConfigureAwait(false);
+            return outcome switch
             {
-                FileName = bin,
-                UseShellExecute = false,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
+                ProcessCompleted completed => new CliOutput(completed.ExitCode == 0, completed.Stderr),
+                ProcessStartFailed failed => throw StencilCliException.Deployment(
+                    StencilCliLocator.UnavailableMessage,
+                    $"failed to run the stencil CLI ({bin}): {failed.Message}"),
+                _ => throw new StencilCliException(
+                    $"the stencil CLI timed out after {_options.CliTimeout.TotalSeconds:0}s and was terminated"),
             };
-            foreach (string arg in argv)
-            {
-                info.ArgumentList.Add(arg);
-            }
-            info.Environment["NO_COLOR"] = "1";
-
-            using Process process = new() { StartInfo = info };
-            try
-            {
-                process.Start();
-            }
-            catch (Exception e)
-            {
-                throw new StencilCliException($"failed to run the stencil CLI ({bin}): {e.Message}");
-            }
-
-            try
-            {
-                Task<string> stderrTask = process.StandardError.ReadToEndAsync(runCt);
-                Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(runCt);
-                await process.WaitForExitAsync(runCt).ConfigureAwait(false);
-                string stderr = await stderrTask.ConfigureAwait(false);
-                await stdoutTask.ConfigureAwait(false);
-
-                return new CliOutput(process.ExitCode == 0, stderr);
-            }
-            catch (OperationCanceledException)
-            {
-                // Cancel or timeout: kill the whole tree so the CLI (and any child it spawned,
-                // e.g. ffmpeg) doesn't linger and keep fetching/writing after we've given up.
-                KillTree(process);
-                if (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
-                {
-                    throw new StencilCliException(
-                        $"the stencil CLI timed out after {_options.CliTimeout.TotalSeconds:0}s and was terminated");
-                }
-                throw;
-            }
         }
         finally
         {
@@ -172,37 +137,9 @@ public sealed class ProcessStencilCli : IStencilCli
         }
     }
 
-    /// <summary>Terminate a process and its descendants, ignoring the races where it already exited.</summary>
-    private static void KillTree(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-        }
-        catch
-        {
-            // Already exited / not started / permission — nothing more we can do.
-        }
-    }
-
-    /// <summary>Best-effort cleanup of the throwaway probe file.</summary>
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Ignore — a leftover temp file is harmless.
-        }
-    }
+    /// <summary>The CLI prints ANSI-coloured errors unless told not to; parsing needs plain text.</summary>
+    private static readonly IReadOnlyDictionary<string, string> NoColor =
+        new Dictionary<string, string> { ["NO_COLOR"] = "1" };
 
     /// <summary>Raw capture from one CLI invocation.</summary>
     private readonly record struct CliOutput(bool Success, string Stderr);

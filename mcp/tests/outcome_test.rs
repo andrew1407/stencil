@@ -1,6 +1,8 @@
 //! Parsing the CLI's stderr into structured results (pure).
 
-use stencil_mcp::outcome::{extract_errors, parse_remotes, parse_scraped, parse_wrote, Remote};
+use stencil_mcp::outcome::{
+    extract_errors, parse_remotes, parse_scraped, parse_wrote, parse_wrote_project, Remote,
+};
 
 #[test]
 fn parses_success_line() {
@@ -30,6 +32,19 @@ fn parses_success_line_with_any_page_name_suffix() {
     let w = parse_wrote("wrote /tmp/page.png (665x945 px · B5 17.6×25cm)\n").unwrap();
     assert_eq!(w.path, "/tmp/page.png");
     assert_eq!((w.width, w.height), (665, 945));
+}
+
+/// §2.1 `save`: a `.stencil` bundle is a document, so the CLI reports it without dims —
+/// the pixel parser skips that line and the project parser takes it.
+#[test]
+fn parses_the_project_write_line() {
+    let stderr = "  ___ stencil banner ___\nwrote /tmp/portrait 1.stencil (project)\n";
+    assert_eq!(
+        parse_wrote_project(stderr).as_deref(),
+        Some("/tmp/portrait 1.stencil")
+    );
+    assert!(parse_wrote(stderr).is_none(), "no dimensions to report");
+    assert!(parse_wrote_project("wrote /tmp/out.png (800x600)\n").is_none());
 }
 
 #[test]

@@ -36,8 +36,9 @@ func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 }
 
 // BearerToken extracts the token from the Authorization header, tolerating a
-// "Bearer " prefix in any case. As a fallback (used by WebSocket clients that
-// cannot set headers before the upgrade) it also accepts a `token` query param.
+// "Bearer " prefix in any case. Only WebSocket upgrade requests may fall back
+// to a `token` query param (the browser WebSocket API cannot set headers);
+// on plain REST a URL token is ignored — it would leak via logs and referrers.
 func BearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if h != "" {
@@ -46,7 +47,23 @@ func BearerToken(r *http.Request) string {
 		}
 		return strings.TrimSpace(h)
 	}
-	return r.URL.Query().Get("token")
+	if isWebSocketUpgrade(r) {
+		return r.URL.Query().Get("token")
+	}
+	return ""
+}
+
+// isWebSocketUpgrade reports whether r is an RFC6455 upgrade handshake.
+func isWebSocketUpgrade(r *http.Request) bool {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return false
+	}
+	for _, tok := range strings.Split(r.Header.Get("Connection"), ",") {
+		if strings.EqualFold(strings.TrimSpace(tok), "upgrade") {
+			return true
+		}
+	}
+	return false
 }
 
 // SessionFromContext returns the authenticated session attached by Middleware.

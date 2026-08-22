@@ -1,7 +1,10 @@
+using System.Buffers;
+using System.Globalization;
 using System.Text;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
@@ -13,6 +16,47 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// </summary>
 public static class Replies
 {
+    /// <summary>
+    /// How a reply reads at a glance. Telegram has no icon assets, so the vocabulary is emoji —
+    /// the same one the buttons and the chat affordances already speak (💾 / 🧹 / 🗑).
+    /// </summary>
+    public enum Tone
+    {
+        /// <summary>The request did not happen: an error, a failure, or a refusal.</summary>
+        Error,
+
+        /// <summary>It happened, but partially or with a caveat worth reading.</summary>
+        Warning,
+
+        /// <summary>A confirmed action.</summary>
+        Success,
+
+        /// <summary>A plain notice — nothing failed, nothing changed.</summary>
+        Notice,
+    }
+
+    /// <summary>The glyph a tone wears — the one place the convention is defined.</summary>
+    public static string Glyph(Tone tone) => tone switch
+    {
+        Tone.Error => "🔴",
+        Tone.Warning => "🟡",
+        Tone.Success => "✅",
+        _ => "ℹ️",
+    };
+
+    /// <summary>
+    /// Prefix a reply with its tone glyph. A message that already opens with one of its own
+    /// (the 🗑 delete confirmation, the ↑ sync line) keeps it: one glyph per message, never two.
+    /// </summary>
+    public static string Tag(Tone tone, string message) =>
+        OpensWithGlyph(message) ? message : $"{Glyph(tone)} {message}";
+
+    /// <summary>True when the text already starts with a symbol rune (emoji, arrow, …).</summary>
+    private static bool OpensWithGlyph(string text) =>
+        Rune.DecodeFromUtf16(text, out Rune first, out _) == OperationStatus.Done
+        && Rune.GetUnicodeCategory(first) is UnicodeCategory.OtherSymbol or UnicodeCategory.MathSymbol
+            or UnicodeCategory.ModifierSymbol or UnicodeCategory.CurrencySymbol;
+
     /// <summary>The full slash-command reference, noting that the inline buttons mirror them.</summary>
     public static string HelpText()
     {
@@ -24,6 +68,9 @@ public static class Replies
         sb.AppendLine("Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.");
         sb.AppendLine();
         sb.AppendLine("Image commands:");
+        sb.AppendLine("/prompt <request> — ask the AI assistant to plan and apply edits (/p for short)");
+        sb.AppendLine("/chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)");
+        sb.AppendLine("/chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)");
         sb.AppendLine("/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink");
         sb.AppendLine("/format [name | custom w h] — page format for /blank and the saved layout (bare = list)");
         sb.AppendLine("/url <link> — load an http(s) image");
@@ -45,7 +92,7 @@ public static class Replies
         sb.AppendLine("/draw line x1,y1 x2,y2 … — a polyline");
         sb.AppendLine("/draw rect x1,y1 x2,y2 — a rectangle (two corners)");
         sb.AppendLine("/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon");
-        sb.AppendLine("/color <#hex|name>   /thickness <n>   /markers <n>");
+        sb.AppendLine("/color <#hex|name>   /thickness <n>   /points <n>");
         sb.AppendLine("/style <solid|dashed|dotted>   /fill <#hex|name|none>");
         sb.AppendLine("/pen — show the current pen   /undoline   /clearlines");
         sb.AppendLine();
@@ -118,9 +165,131 @@ public static class Replies
             sb.AppendLine("Video loaded — use /frame n to pick a frame.");
         }
         sb.AppendLine($"Pen: {PenSummary(session.Edits.Pen)}");
+        if (session.ChatMode)
+        {
+            sb.AppendLine("Chat mode: on — plain messages go to the assistant (/chat off to stop).");
+        }
+        if (session.SaveChats)
+        {
+            sb.AppendLine("Chat saving: on — the conversation is stored with the active server project (/chat save off to stop).");
+        }
         sb.Append($"Connections: {session.Connections.Count}");
         return sb.ToString();
     }
+
+    /// <summary>Confirmation shown when chat mode is switched on (rides the "Chat off" button).</summary>
+    public static string ChatModeOn() =>
+        "💬 Chat mode on — just send a message and the assistant answers (and edits the image). "
+        + "Slash commands still work as usual. /chat off to stop, /chat clear to forget the conversation.";
+
+    /// <summary>Confirmation shown when chat mode is switched off.</summary>
+    public static string ChatModeOff() =>
+        "Chat mode off. Use /prompt <request> for a one-off question, or /chat to start again.";
+
+    /// <summary>
+    /// Confirmation for <c>/chat clear</c> — the assistant's conversation is forgotten; chat mode
+    /// itself is untouched, which the reply spells out when it is on.
+    /// </summary>
+    public static string ChatHistoryCleared(bool chatModeOn) =>
+        chatModeOn
+            ? "🧹 Conversation cleared — the assistant has forgotten the previous turns. Chat mode is still on."
+            : "🧹 Conversation cleared — the assistant has forgotten the previous turns.";
+
+    /// <summary>
+    /// What the spinning <see cref="ProgressNotice"/> says while an assistant turn runs — the
+    /// model call, the edits it plans and every render it asks for.
+    /// </summary>
+    public static string PromptWorking() => "Working on your request… this can take a minute.";
+
+    /// <summary>
+    /// A turn ended by the ⏹ Stop button. The user asked for the stop and got it, so this is a
+    /// <see cref="Tone.Notice"/>, never an error. A stop during the model call leaves the image
+    /// untouched; one during a long plan stops between ops, so what already applied stays — and
+    /// /undo walks it back like any other edit. It rides a 🔄 Retry button: the request itself
+    /// went unanswered, and re-running it is the usual next step after calling one off — which
+    /// is also why the line says so rather than just "Stopped.": Telegram lays a bubble out at
+    /// its keyboard's width, and one bare word under a full-width button reads as a mistake.
+    /// </summary>
+    public static string PromptStopped() =>
+        Tag(Tone.Notice, "Stopped. That request went unanswered — tap Retry to run it again.");
+
+    /// <summary>Acknowledges the ⏹ tap; the turn's own "Stopped." lands when it unwinds.</summary>
+    public static string PromptStopping() => Tag(Tone.Notice, "Stopping…");
+
+    /// <summary>/chatapi on a bot whose operator configured no alternatives.</summary>
+    public static string ChatApiNoProfiles() => Tag(
+        Tone.Notice,
+        "This bot offers one chat API, set by its operator — there is nothing to switch between.");
+
+    /// <summary>The picker's text: every configured API, with the caller's current one marked.</summary>
+    public static string ChatApiList(IReadOnlyList<LlmProfile> profiles, LlmProfile? current)
+    {
+        StringBuilder sb = new();
+        sb.Append("Chat APIs on this bot:\n");
+        foreach (LlmProfile p in profiles)
+        {
+            sb.Append(p.Name == current?.Name ? "\n• " : "\n  ");
+            sb.Append(p.Label).Append(" — ").Append(p.Summary());
+        }
+        sb.Append("\n\nNow using: ").Append(current?.Label ?? "the bot's default");
+        return sb.ToString();
+    }
+
+    /// <summary>Confirmation after a pick.</summary>
+    public static string ChatApiSelected(LlmProfile picked) =>
+        Tag(Tone.Success, $"Chat API: {picked.Label} ({picked.Summary()}).");
+
+    /// <summary>A name that is not configured — with the ones that are.</summary>
+    public static string ChatApiUnknown(string wanted, IReadOnlyList<LlmProfile> profiles) => Tag(
+        Tone.Error,
+        $"No chat API called \"{wanted}\". Configured: {string.Join(", ", profiles.Select(p => p.Name))}.");
+
+    /// <summary>
+    /// The §10 <c>clearChat</c> in-app confirmation, sent at the END of the plan's turn — the
+    /// model can ask, but only the user's Yes button clears anything.
+    /// </summary>
+    public static string ClearChatConfirm() =>
+        "🧹 The assistant asked to clear this conversation. Clear it?";
+
+    /// <summary>The declined <c>clearChat</c> confirm — a note, never a failed plan (§10).</summary>
+    public static string ClearChatCanceled() =>
+        "Clear canceled — the conversation is kept.";
+
+    /// <summary>Usage hint for <c>/chat</c> with an unrecognised argument.</summary>
+    public static string ChatUsage() =>
+        "Use /chat to start chatting with the assistant, /chat off to stop, and /chat clear to make "
+        + "it forget the conversation so far. /chat save on|off stores the conversation with the "
+        + "active server project (off by default; bare /chat save shows the setting). For a single "
+        + "question without switching modes, use /prompt <request>.";
+
+    /// <summary>Confirmation for <c>/chat save on</c> (contract §12.3 — the server project is the store).</summary>
+    public static string ChatSaveOn() =>
+        "💾 Chat saving on — after each assistant turn the conversation (text only, never images) "
+        + "is stored with the active server project and restored when you /fetch it again. "
+        + "The bot's only store IS the server project, so anyone that project is shared with "
+        + "can read the conversation (§12.2). /chat save off to stop.";
+
+    /// <summary>Confirmation for <c>/chat save off</c> (§12.2: no retroactive delete).</summary>
+    public static string ChatSaveOff() =>
+        "Chat saving off. An already-saved chat stays with its project until /chat clear removes it.";
+
+    /// <summary>The current chat-saving setting, for a bare <c>/chat save</c>.</summary>
+    public static string ChatSaveStatus(bool on) =>
+        on
+            ? "Chat saving is on — the conversation is stored with the active server project, where "
+              + "anyone it is shared with can read it. /chat save off to stop."
+            : "Chat saving is off (the default). /chat save on stores the conversation with the active "
+              + "server project, where anyone it is shared with can read it.";
+
+    /// <summary>The fetch-reply line for a restored persisted chat (only shown when N &gt; 0).</summary>
+    public static string ChatRestored(int count) =>
+        $"💾 Restored {count} saved chat message{(count == 1 ? "" : "s")} — the assistant remembers this project's conversation.";
+
+    /// <summary>The once-per-streak warning when the best-effort chat save-back fails (§12).</summary>
+    public static string ChatSaveFailed() =>
+        Tag(Tone.Warning,
+            "Couldn't store the conversation with the server project this time — the chat itself "
+            + "continues; the next successful turn will save it again.");
 
     /// <summary>Usage hint for adding a working image from a link or web page (the Sources button).</summary>
     public static string SourcesHelp()
@@ -143,7 +312,7 @@ public static class Replies
         sb.AppendLine("/draw rect x1,y1 x2,y2     — a rectangle (two opposite corners)");
         sb.AppendLine("/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon (3+ points)");
         sb.AppendLine();
-        sb.Append("Style first with /color /thickness /markers /style /fill — see /pen.");
+        sb.Append("Style first with /color /thickness /points /style /fill — see /pen.");
         return sb.ToString();
     }
 
@@ -234,7 +403,7 @@ public static class Replies
         sb.AppendLine("Current pen (applied to new lines):");
         sb.AppendLine($"• colour: {pen.Color}");
         sb.AppendLine($"• thickness: {pen.Thickness}");
-        sb.AppendLine($"• markers: {pen.MarkerSize}");
+        sb.AppendLine($"• points: {pen.PointSize}");
         sb.AppendLine($"• style: {pen.Style}");
         sb.Append($"• fill (closed shapes): {pen.FillColor}");
         return sb.ToString();
@@ -242,7 +411,7 @@ public static class Replies
 
     /// <summary>A one-line pen summary for the status block.</summary>
     private static string PenSummary(LineStyle pen) =>
-        $"{pen.Color}, {pen.Thickness}px, {pen.Style}, markers {pen.MarkerSize}, fill {pen.FillColor}";
+        $"{pen.Color}, {pen.Thickness}px, {pen.Style}, points {pen.PointSize}, fill {pen.FillColor}";
 
     /// <summary>One-line human summary of the pending <see cref="EditState"/>.</summary>
     public static string DescribeEdits(EditState edits)

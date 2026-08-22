@@ -3,20 +3,20 @@ using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// An in-memory <see cref="IStencilServerClient"/>: keeps a dictionary of projects + layouts,
 /// mints a token on a tokenless connect, version-guards updates (stale ⇒ a
 /// <see cref="ServerException"/> conflict) and records the file uploads it received. No HTTP.
 /// </summary>
-public sealed class FakeStencilServerClient : IStencilServerClient
+public sealed class MockStencilServerClient : IStencilServerClient
 {
     private readonly Dictionary<string, ProjectRecord> _projects = new();
     private readonly Dictionary<string, JsonElement> _layouts = new();
     private int _nextId = 1;
 
-    public FakeStencilServerClient(string baseUrl)
+    public MockStencilServerClient(string baseUrl)
     {
         BaseUrl = baseUrl;
     }
@@ -36,8 +36,17 @@ public sealed class FakeStencilServerClient : IStencilServerClient
     /// <summary>Every <see cref="PutFileAsync"/> call, in order.</summary>
     public List<(string Id, string Kind, byte[] Data, string Ext, int W, int H)> Puts { get; } = new();
 
-    /// <summary>Bytes handed back by <see cref="GetFileAsync"/>.</summary>
+    /// <summary>Every <see cref="DeleteFileAsync"/> call, in order.</summary>
+    public List<(string Id, string Kind)> FileDeletes { get; } = new();
+
+    /// <summary>Bytes handed back by <see cref="GetFileAsync"/> for original/result kinds.</summary>
     public byte[] FileBytes { get; set; } = new byte[] { 1, 2, 3 };
+
+    /// <summary>Per-kind stored file bytes (seeded directly or via <see cref="PutFileAsync"/>).</summary>
+    public Dictionary<(string Id, string Kind), byte[]> Files { get; } = new();
+
+    /// <summary>When set, <see cref="PutFileAsync"/> for this kind throws (an unreachable file route).</summary>
+    public string? ThrowOnPutKind { get; set; }
 
     /// <summary>Seed a project (and optional layout) the way the real server would store it.</summary>
     public ProjectRecord Seed(ProjectRecord record, JsonElement? layout = null)
@@ -149,19 +158,45 @@ public sealed class FakeStencilServerClient : IStencilServerClient
     }
 
     /// <inheritdoc />
-    public Task<byte[]> GetFileAsync(string id, string kind, CancellationToken ct = default) =>
-        Task.FromResult(FileBytes);
+    public Task<byte[]> GetFileAsync(string id, string kind, CancellationToken ct = default)
+    {
+        if (Files.TryGetValue((id, kind), out byte[]? stored))
+        {
+            return Task.FromResult(stored);
+        }
+        if (kind is ProjectFileKind.Original or ProjectFileKind.Result)
+        {
+            return Task.FromResult(FileBytes);
+        }
+        // Filestore-only kinds (chat/video/variantN) 404 when nothing was stored, like the server.
+        throw new ServerException("notFound", "no such file", 404);
+    }
 
     /// <inheritdoc />
     public Task<FileWriteResult> PutFileAsync(string id, string kind, byte[] data, string ext, int w, int h, CancellationToken ct = default)
     {
+        if (kind == ThrowOnPutKind)
+        {
+            throw new ServerException("unreachable", "file store is down", 503);
+        }
         Puts.Add((id, kind, data, ext, w, h));
+        Files[(id, kind)] = data;
         // The real server's SetFile bumps version/updated_at (store.go) but the response carries
         // no version — model that so clients that don't re-read the version afterwards are caught.
-        if (_projects.TryGetValue(id, out ProjectRecord? existing))
+        // Filestore-only kinds (chat/video/variantN) never bump it (httpapi/files.go, contract §9).
+        if (kind is ProjectFileKind.Original or ProjectFileKind.Result
+            && _projects.TryGetValue(id, out ProjectRecord? existing))
         {
             _projects[id] = existing with { Version = existing.Version + 1 };
         }
         return Task.FromResult(new FileWriteResult($"/store/{id}/{kind}.{ext}", w, h));
+    }
+
+    /// <inheritdoc />
+    public Task DeleteFileAsync(string id, string kind, CancellationToken ct = default)
+    {
+        FileDeletes.Add((id, kind));
+        Files.Remove((id, kind));
+        return Task.CompletedTask; // idempotent 204, like the server (contract §9)
     }
 }

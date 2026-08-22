@@ -38,6 +38,7 @@ services.AddSingleton<SyncRegistry>();
 // the DNS-rebinding gap between vet and fetch.
 services.AddSingleton(new LayoutFetcher(options, isBlockedAddress: RemoteImageUrl.IsBlockedAddress));
 services.AddSingleton<UserGate>();
+services.AddSingleton<PromptCancellations>();
 services.AddSingleton<CommandHandlers>();
 services.AddSingleton<CallbackAction>();
 services.AddSingleton<UpdateRouter>();
@@ -56,8 +57,14 @@ Console.CancelKeyPress += (_, eventArgs) =>
     cts.Cancel();
 };
 
-bot.OnMessage += async (message, _) => await router.HandleMessageAsync(message, cts.Token);
-bot.OnUpdate += async update => await router.HandleUpdateAsync(update, cts.Token);
+// The update pump is SEQUENTIAL: Telegram.Bot awaits each handler before it delivers the next
+// update. An assistant turn runs for minutes, so awaiting one here froze every other update —
+// including the ⏹ Stop tap meant to end it, which then arrived long past the ~15 s window
+// Telegram allows for answering a callback query ("query is too old"). So each update is
+// detached onto its own task and the pump keeps moving; ordering within ONE user stays serial
+// because UserGate — not this loop — is what enforces it.
+bot.OnMessage += (message, _) => Detach(() => router.HandleMessageAsync(message, cts.Token));
+bot.OnUpdate += update => Detach(() => router.HandleUpdateAsync(update, cts.Token));
 bot.OnError += (exception, source) =>
 {
     logger.LogError(exception, "Telegram polling error ({Source})", source);
@@ -95,6 +102,29 @@ catch (OperationCanceledException)
 }
 
 return 0;
+
+// Hand one update to the router on its own task, so the caller (Telegram's update pump) is
+// free immediately. The router already wraps its work in an error guard; this only has to keep
+// a cancelled or faulted task from surfacing as an unobserved exception at shutdown.
+Task Detach(Func<Task> work)
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await work();
+        }
+        catch (OperationCanceledException)
+        {
+            // Shutdown — the router's guard lets these through on purpose.
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unhandled error handling an update");
+        }
+    }, CancellationToken.None);
+    return Task.CompletedTask;
+}
 
 // Best-effort .env discovery: the app base dir, the current working dir, and (when running
 // from inside the repo) the repo's bot/.env. Real environment variables always win.

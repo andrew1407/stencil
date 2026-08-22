@@ -6,66 +6,30 @@ import (
 	"net"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
-	"stencil/server/internal/store"
+	"stencil/server/internal/testutil"
 	"stencil/server/internal/transport"
 )
 
-// fakeHubStore is an in-memory hub.Store with last-writer-wins semantics.
-type fakeHubStore struct {
-	mu  sync.Mutex
-	rec protocol.ProjectRecord
-}
-
-func (f *fakeHubStore) GetProject(_ context.Context, id string) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if id != f.rec.ID {
-		return protocol.ProjectRecord{}, store.ErrNotFound
-	}
-	return f.rec, nil
-}
-
-func (f *fakeHubStore) UpdateProject(_ context.Context, id string, patch store.ProjectPatch, expected int64) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if id != f.rec.ID {
-		return protocol.ProjectRecord{}, store.ErrNotFound
-	}
-	if f.rec.Version != expected {
-		return protocol.ProjectRecord{}, store.ErrConflict
-	}
-	if len(patch.Layout) > 0 {
-		f.rec.Layout = patch.Layout
-	}
-	f.rec.Version++
-	return f.rec, nil
-}
-
-// fakeResolver accepts exactly one good token.
-type fakeResolver struct{ goodHash []byte }
-
-func (f fakeResolver) ResolveToken(_ context.Context, hash []byte) (auth.Session, error) {
-	if auth.ConstantTimeEqual(hash, f.goodHash) {
-		return auth.Session{ID: "s1", ExpiresAt: 0}, nil
-	}
-	return auth.Session{}, auth.ErrInvalidToken
-}
-
 const goodToken = "good-token"
 
+// newTestHub wires a hub onto the shared in-memory store, seeded with one
+// project and one session so goodToken resolves.
 func newTestHub(t *testing.T) *Hub {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	st := &fakeHubStore{rec: protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0}}
-	return New(ctx, st, bus.NewInProc(), fakeResolver{goodHash: auth.HashToken(goodToken)})
+	st := testutil.NewMemStore()
+	st.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
+	if _, err := st.CreateSession(ctx, auth.HashToken(goodToken), "test", 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	return New(ctx, st, bus.NewInProc(), st)
 }
 
 // startTCP runs a hub TCP listener and returns its address.
@@ -106,6 +70,26 @@ func readUntil(t *testing.T, c transport.Conn, want string) protocol.WSMessage {
 		if m.Type == want {
 			return m
 		}
+	}
+}
+
+// expectClosed asserts the peer hung up within the deadline. Frames already in
+// flight when the close began (a peer-join broadcast racing the welcome reply,
+// say) are drained rather than read as "still open" — only a read error that is
+// NOT our own deadline proves the server closed the connection.
+func expectClosed(t *testing.T, c transport.Conn, what string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	for {
+		raw, err := c.Read(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				t.Fatalf("%s: connection still open after 3s", what)
+			}
+			return // the peer hung up, which is what we wanted
+		}
+		t.Logf("%s: drained a frame that raced the close: %s", what, raw)
 	}
 }
 
@@ -291,7 +275,7 @@ func TestRoomIsolation(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
 	a := joinProject(t, addr, "p_t_a", "A")
-	// "p_other" is unknown to the fake store (unowned) so joining is allowed; it is a
+	// "p_other" is unknown to the mock store (unowned) so joining is allowed; it is a
 	// distinct room from "p_t_a".
 	other := joinProject(t, addr, "p_other", "B")
 
@@ -360,11 +344,7 @@ func TestCloseAllDrainsConnections(t *testing.T) {
 
 	// The server-side read (blocked in Scan) is cancelled and the conn closed, so
 	// the client's read returns an error well within the deadline.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if _, err := a.Read(ctx); err == nil {
-		t.Fatal("expected the connection to close after CloseAll")
-	}
+	expectClosed(t, a, "CloseAll")
 	// The handler unwound and released the session reference.
 	waitFor(t, func() bool { return h.ConnectionCount("p_t_a") == 0 })
 }

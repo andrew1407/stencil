@@ -9,7 +9,7 @@
 use serde::Serialize;
 
 // ── CLI output line prefixes ──
-// The exact stderr line markers the CLI (`cli/`) emits and this module parses. Centralized so
+// The exact stderr line prefixes the CLI (`cli/`) emits and this module parses. Centralized so
 // the output contract is single-sourced and greppable; the parsers below match on these
 // instead of bare literals.
 const PREFIX_WROTE: &str = "wrote ";
@@ -52,6 +52,20 @@ pub fn parse_wrote(stderr: &str) -> Option<Wrote> {
                 width,
                 height,
             });
+        }
+    }
+    None
+}
+
+/// Find the `wrote {path} (project)` line a `.stencil` bundle write prints (contract §2.1's
+/// `save`), returning its path. A project is a document, not pixels, so the CLI reports no
+/// dimensions here — which is exactly why `parse_wrote` skips this line.
+pub fn parse_wrote_project(stderr: &str) -> Option<String> {
+    for line in stderr.lines() {
+        if let Some(rest) = line.trim().strip_prefix(PREFIX_WROTE) {
+            if let Some(path) = rest.strip_suffix(" (project)") {
+                return Some(path.to_string());
+            }
         }
     }
     None

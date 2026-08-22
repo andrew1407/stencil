@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Servers;
 
 namespace Stencil.TelegramBot.Application.DependencyInjection;
@@ -19,6 +20,9 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<IEditingService, EditingService>();
         services.AddSingleton<IServerService, ServerService>();
+        // Singleton on purpose: it owns the per-user in-memory LLM chat history.
+        services.AddSingleton<PromptService>();
+        services.AddSingleton<LlmAttachmentLoader>();
         return services;
     }
 }

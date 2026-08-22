@@ -1,0 +1,60 @@
+{
+  "_comment": "Pinned bot-vs-corpus divergences, consulted by the fixture walkers. Each entry: fixture name -> the bot's measured behavior + a one-line note. This file records drift; it never edits the shared fixtures.",
+  "opPlan": {},
+  "providerWire": {
+    "reply extraction: stopReason max_tokens is a typed truncation error, never a reply": {
+      "message": "The AI response was cut off at the token limit — try a shorter or simpler request.",
+      "note": "Same truncated kind; the bot words the message itself (HttpLlmClient.Truncated) instead of the browser's text."
+    },
+    "reply extraction: stopReason refusal surfaces the reply text as a refusal error": {
+      "message": "The AI declined: I cannot help with that.",
+      "note": "Same refusal kind; the bot prefixes the provider text with \"The AI declined: \"."
+    },
+    "non-JSON error body falls back to \"HTTP <status>\"": {
+      "message": "The LLM endpoint answered HTTP 500.",
+      "note": "Same fallback seam; the bot's wording is \"The LLM endpoint answered HTTP {status}.\" instead of the browser's bare \"HTTP 500\"."
+    },
+    "error message that is ONLY a URL sanitizes to nothing and falls back to \"HTTP <status>\"": {
+      "message": "The LLM endpoint answered HTTP 400.",
+      "note": "Same fallback seam (empty sanitize -> status message); bot wording differs from the browser's bare \"HTTP 400\"."
+    }
+  },
+  "layoutSparse": {
+    "junk-points-dropped-numeric-strings-coerced": {
+      "verdict": "reject",
+      "note": "System.Text.Json binds points strictly: \"3\" (string) into double throws, so StencilLayoutParser.Parse returns null for the whole layout — no numeric-string coercion, no junk-point dropping."
+    },
+    "field-type-coercion-and-drops": {
+      "verdict": "reject",
+      "note": "thickness \"3.5\" (string) and locked 1 (number) are type mismatches for the typed LayoutLine record — the whole parse returns null instead of coercing/dropping fields."
+    },
+    "non-array-lines-become-empty": {
+      "verdict": "reject",
+      "note": "\"lines\": \"junk\" cannot bind to IReadOnlyList<LayoutLine> — Parse returns null instead of an empty lines list."
+    },
+    "non-object-line-entries-skipped": {
+      "verdict": "reject",
+      "note": "a number/string entry in lines cannot bind to LayoutLine — Parse returns null instead of skipping the entry."
+    }
+  },
+  "stencilProject": {
+    "full-featured": {
+      "verdict": "error",
+      "note": "image.h as the string \"600\" hits JsonElement.TryGetInt32 on a non-number, which throws InvalidOperationException (uncaught by Parse's JsonException/FormatException filter) — the bot rejects a file the browser normalizes."
+    },
+    "version-as-numeric-string-accepted": {
+      "verdict": "error",
+      "note": "version \"1\" (string) hits TryGetInt32 on a non-number -> InvalidOperationException — the bot rejects the numeric-string version the browser coerces."
+    }
+  },
+  "chatDocTolerance": {
+    "savedAt as a numeric string is coerced": {
+      "expectParsed": { "version": 1, "savedAt": 0, "messages": [] },
+      "note": "ChatDocument.TryParse only reads savedAt when ValueKind is Number — a numeric string reads as 0, not 123."
+    },
+    "messages that is not an array — null": {
+      "expectParsed": { "version": 1, "savedAt": 42, "messages": [] },
+      "note": "ChatDocument.TryParse tolerates a non-array messages value and returns a document with zero messages, where the reference treats the whole doc as missing (null)."
+    }
+  }
+}

@@ -1,8 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Cli;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Llm;
+using Stencil.TelegramBot.Infrastructure.Media;
 using Stencil.TelegramBot.Infrastructure.Server;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
@@ -24,9 +27,24 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddStencilInfrastructure(this IServiceCollection services, BotOptions options)
     {
         services.AddSingleton(options);
+        services.AddSingleton(options.Llm);
+        // The selectable chat APIs (/chatapi). Registered as the list PromptService asks for;
+        // empty when the operator configured none, which leaves every turn on options.Llm.
+        services.AddSingleton<IReadOnlyList<LlmProfile>>(options.LlmProfiles);
+        // The process-wide LLM in-flight cap (full ⇒ an immediate busy reply, never a queue).
+        services.AddSingleton(new LlmGate(options.MaxConcurrentLlm));
         services.AddSingleton<IUserWorkspace, UserWorkspace>();
         services.AddSingleton<IStencilCli, ProcessStencilCli>();
-        services.AddSingleton<IStencilServerClientFactory, StencilServerClientFactory>();
+        services.AddSingleton<StencilServerClientFactory>();
+        services.AddSingleton<IStencilServerClientFactory>(
+            static sp => sp.GetRequiredService<StencilServerClientFactory>());
+        // The LLM adapter: one HttpClient over the factory's pooled connection handler, with
+        // the contract's slow-call timeout. The provider endpoint comes only from explicit
+        // configuration (env / the user's own connected server), never from fetched content.
+        services.AddSingleton<ILlmClient>(sp => new HttpLlmClient(
+            sp.GetRequiredService<StencilServerClientFactory>().CreateHttpClient(HttpLlmClient.DefaultTimeout),
+            options.Llm));
+        services.AddSingleton<IImageDownscaler, FfmpegImageDownscaler>();
 
         if (string.IsNullOrWhiteSpace(options.RedisUrl))
         {
@@ -34,7 +52,10 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(options.RedisUrl));
+            // Through RedisConnectionString so the documented redis:// URL works, not just
+            // StackExchange's own host:port syntax.
+            services.AddSingleton<IConnectionMultiplexer>(
+                _ => ConnectionMultiplexer.Connect(RedisConnectionString.Parse(options.RedisUrl)));
             services.AddSingleton<ISessionStore, RedisSessionStore>();
         }
 

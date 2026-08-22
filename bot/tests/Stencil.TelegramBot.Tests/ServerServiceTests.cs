@@ -8,13 +8,13 @@ using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
-using Stencil.TelegramBot.Tests.Fakes;
+using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// <see cref="ServerService"/> over a <see cref="FakeServerClientFactory"/> (in-memory servers)
-/// and a real <see cref="EditingService"/>/<see cref="FakeStencilCli"/> sharing one session
+/// <see cref="ServerService"/> over a <see cref="MockServerClientFactory"/> (in-memory servers)
+/// and a real <see cref="EditingService"/>/<see cref="MockStencilCli"/> sharing one session
 /// store: connect, cross-server listing, fetch (with layout-filter seeding), create+upload, and
 /// version-guarded save (incl. the conflict surface).
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class ServerServiceTests : IDisposable
 
     private readonly string _root;
     private readonly InMemorySessionStore _store;
-    private readonly FakeServerClientFactory _factory;
+    private readonly MockServerClientFactory _factory;
     private readonly ServerService _service;
 
     public ServerServiceTests()
@@ -35,8 +35,8 @@ public sealed class ServerServiceTests : IDisposable
         BotOptions options = new() { DataDir = _root };
         UserWorkspace workspace = new(options);
         _store = new InMemorySessionStore();
-        EditingService editing = new(new FakeStencilCli(), workspace, _store);
-        _factory = new FakeServerClientFactory();
+        EditingService editing = new(new MockStencilCli(), workspace, _store);
+        _factory = new MockServerClientFactory();
         _service = new ServerService(_factory, _store, editing);
     }
 
@@ -252,7 +252,7 @@ public sealed class ServerServiceTests : IDisposable
         ProjectRecord record = await _service.CreateProjectAsync(UserId, "My Project", url: null);
 
         Assert.Equal("My Project", record.Name);
-        FakeStencilServerClient client = _factory.ClientFor(ServerA);
+        MockStencilServerClient client = _factory.ClientFor(ServerA);
         (string Id, string Kind, byte[] Data, string Ext, int W, int H) put = Assert.Single(client.Puts);
         Assert.Equal(record.Id, put.Id);
         Assert.Equal(ProjectFileKind.Original, put.Kind);
@@ -292,7 +292,7 @@ public sealed class ServerServiceTests : IDisposable
         Assert.True(saved.Version > created.Version);
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(saved.Version, session.ActiveProjectVersion);
-        FakeStencilServerClient client = _factory.ClientFor(ServerA);
+        MockStencilServerClient client = _factory.ClientFor(ServerA);
         Assert.Contains(client.Puts, p => p.Kind == ProjectFileKind.Result);
     }
 

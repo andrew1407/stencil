@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/httpapi"
 	"stencil/server/internal/hub"
+	"stencil/server/internal/llm"
 	"stencil/server/internal/redisbus"
 	"stencil/server/internal/store"
 )
@@ -53,7 +55,7 @@ func run() error {
 		return err
 	}
 
-	fs, err := filestore.New(cfg.FilestoreRoot)
+	fs, err := filestore.NewWithQuota(cfg.FilestoreRoot, cfg.StorageQuotaBytes)
 	if err != nil {
 		return err
 	}
@@ -75,17 +77,60 @@ func run() error {
 	// REST + WS + TCP. The hub is built first so the REST delete guard can consult it
 	// for a project's live connection count.
 	h := hub.New(rootCtx, st, b, st)
-	api := httpapi.New(httpapi.Deps{
-		Projects:     st,
-		Sessions:     st,
-		Files:        fs,
-		LiveSessions: h,
-		Bus:          b,
-		TokenTTL:     cfg.TokenTTL,
-		ProjectTTL:   cfg.ProjectTTL,
-		MaxBodyBytes: cfg.MaxBodyBytes,
-		AdminToken:   cfg.AdminToken,
-	})
+	deps := httpapi.Deps{
+		Projects:        st,
+		Sessions:        st,
+		Files:           fs,
+		LiveSessions:    h,
+		Bus:             b,
+		TokenTTL:        cfg.TokenTTL,
+		ProjectTTL:      cfg.ProjectTTL,
+		MaxBodyBytes:    cfg.MaxBodyBytes,
+		AdminToken:      cfg.AdminToken,
+		AuthRatePerMin:  cfg.AuthRatePerMin,
+		WriteRatePerMin: cfg.WriteRatePerMin,
+	}
+	if cfg.AdminTokenGenerated {
+		// Printed exactly once, at boot: issuance is closed by default now, so a
+		// dev without ADMIN_TOKEN needs this to mint session tokens.
+		log.Printf("auth: ADMIN_TOKEN not set — generated for this run: %s", cfg.AdminToken)
+	}
+	// The proxy is opt-in: unconfigured, /llm/* reports disabled
+	// (info: enabled=false; chat: 503 llmDisabled).
+	llmBase := cfg.LLMBaseURL
+	if llmBase == "" {
+		llmBase = llm.DefaultBaseURL(cfg.LLMProvider)
+	}
+	llmKey := llm.ResolveKey(cfg.LLMProvider, cfg.LLMAPIKey, cfg.AnthropicKey)
+	if llmKey != "" {
+		// Shape only — never key material: enough to spot a truncated paste, a
+		// stray quote/space, or an edit that landed in the wrong .env.
+		log.Printf("llm: key loaded (len %d, sk-ant prefix: %v, clean: %v)", len(llmKey),
+			strings.HasPrefix(llmKey, "sk-ant-"), llmKey == strings.TrimSpace(llmKey))
+	}
+	if llmKey == "" && cfg.AnthropicKey != "" {
+		log.Printf("llm: ANTHROPIC_API_KEY is set but LLM_PROVIDER is %q — it is NOT sent to a "+
+			"non-Anthropic upstream. Use LLM_API_KEY for that provider's own key.", cfg.LLMProvider)
+	}
+	_, reason := llm.Enablement(cfg.LLMProvider, cfg.LLMAPIKey, cfg.AnthropicKey)
+	switch reason {
+	case llm.DisabledUnknownProvider:
+		log.Printf("llm: unknown LLM_PROVIDER %q — the proxy stays DISABLED "+
+			"(known: anthropic, ollama, openai-compat)", cfg.LLMProvider)
+	case llm.DisabledMissingKey:
+		// Not an error — the proxy is opt-in — but say so, or "llm=false" on the
+		// listen line is the only clue and it reads like a failure.
+		log.Printf("llm: no LLM_API_KEY configured for provider %q — the proxy is OFF "+
+			"(GET /llm/info reports enabled=false).", cfg.LLMProvider)
+	default:
+		// Token issuance is always gated now (ADMIN_TOKEN set or boot-generated),
+		// so a configured provider can safely enable the proxy.
+		deps.LLM = llm.New(cfg.LLMProvider, llmBase, llmKey, cfg.LLMModel,
+			cfg.LLMMaxTokens, cfg.LLMTimeout)
+		deps.LLMRatePerMin = cfg.LLMRatePerMin
+		deps.LLMMaxInFlight = cfg.LLMMaxInFlight
+	}
+	api := httpapi.New(deps)
 
 	mux := http.NewServeMux()
 	api.Register(mux)
@@ -99,6 +144,12 @@ func run() error {
 		Addr:              cfg.ListenAddr,
 		Handler:           httpapi.CORS(cfg.CORSOrigins)(mux),
 		ReadHeaderTimeout: 10 * time.Second,
+		// 5m fits a 32 MiB upload on a slow link and an LLM proxy call
+		// (LLM_TIMEOUT_SECONDS, default 120s). WS conns are hijacked on upgrade
+		// (deadlines cleared), so live edit sessions are unaffected.
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
 	}
 
 	// One shared TLS config (loaded once) secures both the HTTP/WS port and the
@@ -136,7 +187,7 @@ func run() error {
 	// Serve HTTP/WS until a signal arrives.
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("HTTP/WS listening on %s (tls=%v, redis=%v, filestore=%s)", cfg.ListenAddr, tlsConf != nil, cfg.RedisURL != "", fs.Root())
+		log.Printf("HTTP/WS listening on %s (tls=%v, redis=%v, filestore=%s, llm=%v)", cfg.ListenAddr, tlsConf != nil, cfg.RedisURL != "", fs.Root(), deps.LLM != nil)
 		if tlsConf != nil {
 			// Cert/key already loaded into TLSConfig.Certificates.
 			errCh <- httpSrv.ListenAndServeTLS("", "")

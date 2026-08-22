@@ -49,6 +49,20 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
+    public void CropSpecWithAnAspectTokenRidesThroughVerbatim()
+    {
+        EditRequest req = new()
+        {
+            Input = "a.png",
+            CropSpec = "x1=10% aspect=4:3",
+            Output = "out.png",
+        };
+        IReadOnlyList<string> argv = CliArgvBuilder.BuildArgv(req);
+        int i = argv.ToList().IndexOf("-c");
+        Assert.Equal("x1=10% aspect=4:3", argv[i + 1]);
+    }
+
+    [Fact]
     public void NegativeRotateIsPassedThrough()
     {
         EditRequest req = new()

@@ -2,7 +2,7 @@
 
 Mirrors the browser editor's window.stencil facade and the Zig CLI's editing pipeline
 against the SAME core/ logic via ctypes (no third-party deps). This module file is the
-package marker; the public surface is re-exported here as the other modules land.
+package sentinel; the public surface is re-exported here as the other modules land.
 """
 
 from __future__ import annotations
@@ -19,6 +19,19 @@ from .layout import Point, Line, Layout
 from .editor import Editor
 from .server import ServerConnection, ConnectionManager, diff_projects
 from .sitesource import MediaItem, scan_page, download_media
+from .llm import (
+    LLM_SYSTEM_PROMPT,
+    Chat,
+    LlmClient,
+    LlmConfig,
+    LlmError,
+    LlmExecutionError,
+    LlmPlanError,
+    OpPlan,
+    Variant,
+    execute_op_plan,
+    parse_op_plan,
+)
 
 # `Stencil` is the friendly alias for the Editor facade (mirrors window.stencil).
 Stencil = Editor
@@ -38,6 +51,17 @@ __all__ = [
     "MediaItem",
     "scan_page",
     "download_media",
+    "LLM_SYSTEM_PROMPT",
+    "Chat",
+    "LlmClient",
+    "LlmConfig",
+    "LlmError",
+    "LlmExecutionError",
+    "LlmPlanError",
+    "OpPlan",
+    "Variant",
+    "execute_op_plan",
+    "parse_op_plan",
     "codecs",
     "__version__",
 ]

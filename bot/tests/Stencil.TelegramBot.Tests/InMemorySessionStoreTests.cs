@@ -33,6 +33,7 @@ public sealed class InMemorySessionStoreTests
             OriginalHeight = 200,
             ImageLabel = "photo",
             Edits = new EditState { Rotate = 2, Filter = "bw" },
+            SaveChats = true,
         };
         await store.SaveAsync(session);
         UserSession loaded = await store.GetAsync(7);
@@ -40,6 +41,7 @@ public sealed class InMemorySessionStoreTests
         Assert.Equal(100, loaded.OriginalWidth);
         Assert.Equal(2, loaded.Edits.Rotate);
         Assert.Equal("bw", loaded.Edits.Filter);
+        Assert.True(loaded.SaveChats);
     }
 
     [Fact]

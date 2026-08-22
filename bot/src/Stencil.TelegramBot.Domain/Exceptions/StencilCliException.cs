@@ -8,4 +8,14 @@ namespace Stencil.TelegramBot.Domain.Exceptions;
 public sealed class StencilCliException : Exception
 {
     public StencilCliException(string message) : base(message) { }
+
+    /// <summary>
+    /// Deployment detail (binary paths, env vars, raw stderr) for the operator's log only —
+    /// the chat reply is <see cref="Exception.Message"/>. Null when there is nothing to hide.
+    /// </summary>
+    public string? OperatorDetail { get; private init; }
+
+    /// <summary>A failure whose real cause is operator-only: plain message out, detail logged.</summary>
+    public static StencilCliException Deployment(string message, string operatorDetail) =>
+        new(message) { OperatorDetail = operatorDetail };
 }

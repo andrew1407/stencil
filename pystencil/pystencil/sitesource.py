@@ -32,6 +32,7 @@ from html.parser import HTMLParser
 from typing import Dict, List, Optional, TextIO, Tuple
 
 from . import codecs
+from ._severity import emit_error
 from .codecs import image_dimensions
 
 __all__ = [
@@ -449,7 +450,7 @@ def download_media(
             data = _fetch(item.url, strict=_sub_strict(item.url, host))
         except (OSError, ValueError) as e:
             if err is not None:
-                err.write("error: could not fetch %s (%s)\n" % (item.url, e))
+                emit_error(err, "could not fetch %s (%s)" % (item.url, e))
             continue
         dims = image_dimensions(data)
         fname = _safe_filename(item, idx, data, dims, used, custom=name, multiple=multiple)

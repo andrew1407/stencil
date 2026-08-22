@@ -41,7 +41,7 @@ class LineSerializationTests(unittest.TestCase):
                 "points": [{"x": 1.0, "y": 2.0}],
                 "color": "#FFFF00",
                 "thickness": 2.0,
-                "markerSize": 4.0,
+                "pointSize": 4.0,
                 "style": "solid",
                 "locked": False,
                 "fillColor": "transparent",
@@ -53,7 +53,7 @@ class LineSerializationTests(unittest.TestCase):
         line = Line.from_dict({"points": [{"x": 5, "y": 6}]})
         self.assertEqual(line.color, "#FFFF00")
         self.assertEqual(line.thickness, 2.0)
-        self.assertEqual(line.marker_size, 4.0)
+        self.assertEqual(line.point_size, 4.0)
         self.assertEqual(line.style, "solid")
         self.assertFalse(line.locked)
         self.assertEqual(line.fill_color, "transparent")
@@ -66,7 +66,7 @@ class LineSerializationTests(unittest.TestCase):
             points=[Point(0.0, 0.0), Point(10.0, 20.0)],
             color="#00FF00",
             thickness=3.5,
-            marker_size=0.0,
+            point_size=0.0,
             style="dashed",
             locked=True,
             fill_color="#112233",

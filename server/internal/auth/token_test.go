@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-// fakeResolver maps a token hash to a session for tests.
-type fakeResolver struct {
+// stubResolver maps a token hash to a session for tests.
+type stubResolver struct {
 	hash []byte
 	sess Session
 }
 
-func (f fakeResolver) ResolveToken(_ context.Context, hash []byte) (Session, error) {
+func (f stubResolver) ResolveToken(_ context.Context, hash []byte) (Session, error) {
 	if f.hash != nil && ConstantTimeEqual(hash, f.hash) {
 		return f.sess, nil
 	}
@@ -39,7 +39,7 @@ func TestGenerateTokenIsUniqueAndHashes(t *testing.T) {
 
 func TestVerifyExpiry(t *testing.T) {
 	token, hash, _ := GenerateToken()
-	r := fakeResolver{hash: hash, sess: Session{ID: "s1", ExpiresAt: 1000}}
+	r := stubResolver{hash: hash, sess: Session{ID: "s1", ExpiresAt: 1000}}
 
 	if _, err := Verify(context.Background(), r, token, 500); err != nil {
 		t.Fatalf("live token rejected: %v", err)
@@ -72,16 +72,49 @@ func TestBearerTokenExtraction(t *testing.T) {
 			t.Fatalf("header %q: got %q want %q", header, got, want)
 		}
 	}
-	// Query-param fallback.
+	// The query-param fallback is reserved for WebSocket upgrade requests; on a
+	// plain REST request a URL token is ignored (it would leak via logs).
 	r := httptest.NewRequest(http.MethodGet, "/?token=fromquery", nil)
+	if got := BearerToken(r); got != "" {
+		t.Fatalf("query token on a plain request: got %q, want empty", got)
+	}
+	r.Header.Set("Upgrade", "websocket")
+	r.Header.Set("Connection", "keep-alive, Upgrade")
 	if got := BearerToken(r); got != "fromquery" {
-		t.Fatalf("query fallback: got %q", got)
+		t.Fatalf("query fallback on upgrade: got %q", got)
+	}
+}
+
+// A REST route behind the middleware must reject a query-only token; a WS
+// upgrade handshake may still authenticate with one (browser WebSocket
+// clients cannot set an Authorization header).
+func TestMiddlewareQueryTokenOnlyOnWebSocketUpgrade(t *testing.T) {
+	token, hash, _ := GenerateToken()
+	res := stubResolver{hash: hash, sess: Session{ID: "s1"}} // ExpiresAt 0 = no expiry
+	protected := Middleware(res)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rest := httptest.NewRequest(http.MethodGet, "/projects?token="+token, nil)
+	rec := httptest.NewRecorder()
+	protected.ServeHTTP(rec, rest)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("query-token REST request: code %d, want 401", rec.Code)
+	}
+
+	ws := httptest.NewRequest(http.MethodGet, "/ws?token="+token, nil)
+	ws.Header.Set("Upgrade", "websocket")
+	ws.Header.Set("Connection", "Upgrade")
+	rec2 := httptest.NewRecorder()
+	protected.ServeHTTP(rec2, ws)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("query-token WS upgrade: code %d, want 200", rec2.Code)
 	}
 }
 
 func TestMiddlewareGate(t *testing.T) {
 	token, hash, _ := GenerateToken()
-	r := fakeResolver{hash: hash, sess: Session{ID: "s1", ExpiresAt: 0}} // 0 = no expiry
+	r := stubResolver{hash: hash, sess: Session{ID: "s1", ExpiresAt: 0}} // 0 = no expiry
 
 	var sawSession string
 	protected := Middleware(r)(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

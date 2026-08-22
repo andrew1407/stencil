@@ -1,27 +1,27 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Infrastructure.Server;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
-/// An <see cref="IStencilServerClientFactory"/> over in-memory <see cref="FakeStencilServerClient"/>s,
+/// An <see cref="IStencilServerClientFactory"/> over in-memory <see cref="MockStencilServerClient"/>s,
 /// keyed by normalised origin. Reuses the real <see cref="UrlNormalizer"/> so dedupe/keying
 /// matches production; records every <see cref="Create"/> for assertions.
 /// </summary>
-public sealed class FakeServerClientFactory : IStencilServerClientFactory
+public sealed class MockServerClientFactory : IStencilServerClientFactory
 {
-    private readonly Dictionary<string, FakeStencilServerClient> _clients = new();
+    private readonly Dictionary<string, MockStencilServerClient> _clients = new();
 
     /// <summary>Every <see cref="Create"/> call (normalised url, token, TLS choice), in order.</summary>
     public List<(string Url, string? Token, bool VerifyTls)> Created { get; } = new();
 
-    /// <summary>Get (or lazily make) the fake client for <paramref name="url"/>'s origin.</summary>
-    public FakeStencilServerClient ClientFor(string url)
+    /// <summary>Get (or lazily make) the mock client for <paramref name="url"/>'s origin.</summary>
+    public MockStencilServerClient ClientFor(string url)
     {
         string normalized = NormalizeUrl(url);
-        if (!_clients.TryGetValue(normalized, out FakeStencilServerClient? client))
+        if (!_clients.TryGetValue(normalized, out MockStencilServerClient? client))
         {
-            client = new FakeStencilServerClient(normalized);
+            client = new MockStencilServerClient(normalized);
             _clients[normalized] = client;
         }
         return client;

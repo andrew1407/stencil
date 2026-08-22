@@ -37,7 +37,10 @@ public sealed class ProjectLayoutWriterTests
         Assert.Equal("A4", el.GetProperty("pageSize").GetString());
         Assert.True(el.GetProperty("allowFormulas").GetBoolean());
         Assert.Equal("x*2", el.GetProperty("formulaX").GetString());
-        Assert.Equal(330, el.GetProperty("cropRect").GetProperty("width").GetInt32());
+        // A preserved legacy {width,height} cropRect is re-emitted with the canonical keys.
+        Assert.Equal(330, el.GetProperty("cropRect").GetProperty("w").GetInt32());
+        Assert.Equal(467, el.GetProperty("cropRect").GetProperty("h").GetInt32());
+        Assert.False(el.GetProperty("cropRect").TryGetProperty("width", out _));
         Assert.Equal("custom", el.GetProperty("imageFilter").GetString());
         Assert.Equal("#ff5623", el.GetProperty("filterColor").GetString());
         Assert.Equal(1, el.GetProperty("rotationQuarters").GetInt32());

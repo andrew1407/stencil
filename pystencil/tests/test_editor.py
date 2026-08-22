@@ -173,6 +173,27 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(lay.image_height, ed.image_size[1])
         self.assertEqual(lay.rotation_quarters, 1)
 
+    def test_layout_always_names_a_croprect(self):
+        # The GUIs auto-crop a freshly loaded image to the page aspect unless the layout
+        # names a cropRect, so omitting it (the old behaviour) made them shrink the image
+        # on open and strand lines drawn outside the page rect.
+        ed = self._blank()  # 32x48, nothing cropped
+        self.assertEqual(
+            ed.layout().to_dict()["cropRect"],
+            {"x": 0, "y": 0, "w": 32, "h": 48},  # canonical {w,h} keys (Phase 6)
+        )
+        # Still full-frame after a quarter turn, in the ROTATED original's space.
+        self.assertEqual(
+            ed.rotate_right().layout().to_dict()["cropRect"],
+            {"x": 0, "y": 0, "w": 48, "h": 32},
+        )
+        # An explicit crop still wins over the full-frame default.
+        cropped = Editor().blank(32, 48).crop("x1=0 y1=0 x2=-16 y2=-24")
+        self.assertEqual(
+            cropped.layout().to_dict()["cropRect"],
+            {"x": 0, "y": 0, "w": 16, "h": 24},
+        )
+
     def test_save_layout_path_semantics(self):
         ed = Editor().blank(16, 16)  # project name -> "blank"
         with tempfile.TemporaryDirectory() as tmp:
@@ -286,6 +307,17 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(ed.custom_page_width, 10.0)
         self.assertEqual(ed.custom_page_height, 15.0)
 
+    def test_apply_layout_croprect_reads_both_key_forms(self) -> None:
+        # Canonical {w,h} and legacy {width,height} both adopt; canonical wins.
+        for rect in (
+            {"x": 1, "y": 2, "w": 3, "h": 4},
+            {"x": 1, "y": 2, "width": 3, "height": 4},
+            {"x": 1, "y": 2, "w": 3, "h": 4, "width": 9, "height": 9},
+        ):
+            ed = Editor().blank(8, 8)
+            ed.apply_layout({"imageWidth": 8, "imageHeight": 8, "lines": [], "cropRect": rect})
+            self.assertEqual(ed._current().crop, (1, 2, 3, 4))
+
     def test_project_color_default_is_empty(self) -> None:
         ed = self._blank()
         self.assertEqual(ed.project_color, "")
@@ -321,3 +353,45 @@ class EditorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DrawCombineTests(unittest.TestCase):
+    """`draw(..., combine=)` — append the incoming lines or replace the current ones.
+
+    The parameter form of the same choice the GUI editors put in a Combine/Replace
+    prompt, and the CLI console's append-by-default `apply`.
+    """
+
+    def _editor(self):
+        ed = Editor().blank(20, 10, "white")
+        ed.draw({"lines": [{"points": [{"x": 1, "y": 1}, {"x": 2, "y": 2}]}]})
+        return ed
+
+    def test_combine_is_the_default_and_appends(self):
+        ed = self._editor()
+        ed.draw({"lines": [{"points": [{"x": 5, "y": 5}, {"x": 6, "y": 6}]}]})
+        lines = ed.layout().lines
+        self.assertEqual(len(lines), 2)
+        self.assertEqual((lines[0].points[0].x, lines[0].points[0].y), (1, 1))
+        self.assertEqual((lines[1].points[0].x, lines[1].points[0].y), (5, 5))
+
+    def test_combine_false_replaces_the_current_lines(self):
+        ed = self._editor()
+        ed.draw({"lines": [{"points": [{"x": 5, "y": 5}, {"x": 6, "y": 6}]}]}, combine=False)
+        lines = ed.layout().lines
+        self.assertEqual(len(lines), 1)
+        self.assertEqual((lines[0].points[0].x, lines[0].points[0].y), (5, 5))
+
+    def test_a_raw_json_string_is_accepted_either_way(self):
+        ed = self._editor()
+        ed.draw('{"lines": [{"points": [{"x": 9, "y": 9}, {"x": 8, "y": 8}]}]}')
+        self.assertEqual(len(ed.layout().lines), 2)
+        ed.draw('{"lines": [{"points": [{"x": 7, "y": 7}, {"x": 6, "y": 6}]}]}', combine=False)
+        self.assertEqual(len(ed.layout().lines), 1)
+
+    def test_undo_restores_the_previous_line_set(self):
+        ed = self._editor()
+        ed.draw({"lines": [{"points": [{"x": 5, "y": 5}]}]}, combine=False)
+        ed.undo()
+        self.assertEqual(len(ed.layout().lines), 1)
+        self.assertEqual((ed.layout().lines[0].points[0].x,), (1,))

@@ -3,6 +3,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
+using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
@@ -15,15 +16,27 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// </summary>
 public sealed class CallbackAction
 {
+    /// <summary>
+    /// The Stop button's payload. <see cref="UpdateRouter"/> matches on it to route the tap
+    /// AROUND the per-user gate — the turn being stopped is holding that gate.
+    /// </summary>
+    public const string StopToken = "stop:prompt";
+
     private readonly CommandHandlers _handlers;
     private readonly ITelegramBotClient _bot;
     private readonly ISessionStore _store;
+    private readonly PromptCancellations _cancellations;
 
-    public CallbackAction(CommandHandlers handlers, ITelegramBotClient bot, ISessionStore store)
+    public CallbackAction(
+        CommandHandlers handlers,
+        ITelegramBotClient bot,
+        ISessionStore store,
+        PromptCancellations? cancellations = null)
     {
         _handlers = handlers;
         _bot = bot;
         _store = store;
+        _cancellations = cancellations ?? new PromptCancellations();
     }
 
     /// <summary>
@@ -32,7 +45,17 @@ public sealed class CallbackAction
     /// </summary>
     public async Task HandleAsync(CallbackQuery query, CancellationToken ct)
     {
-        await _bot.AnswerCallbackQuery(query.Id, cancellationToken: ct);
+        // Best-effort: answering only dismisses the button's spinner. A query Telegram considers
+        // stale (its ~15 s window elapsed, e.g. a tap that waited behind a long turn) answers 400,
+        // and that must not become "something went wrong" — the tap itself is still worth running.
+        try
+        {
+            await _bot.AnswerCallbackQuery(query.Id, cancellationToken: ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Nothing to do: the work below is what the tap was for.
+        }
         if (query.Message is null)
         {
             return;
@@ -73,7 +96,10 @@ public sealed class CallbackAction
             UserSession session = await _store.GetAsync(userId, ct);
             if (!session.HasImage)
             {
-                await _bot.SendMessage(chatId, "No working image to name — upload a photo or use /blank first.", cancellationToken: ct);
+                await _bot.SendMessage(
+                    chatId,
+                    Replies.Tag(Replies.Tone.Error, "No working image to name — upload a photo or use /blank first."),
+                    cancellationToken: ct);
                 return;
             }
             await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectName }, ct);
@@ -88,7 +114,10 @@ public sealed class CallbackAction
             UserSession session = await _store.GetAsync(userId, ct);
             if (!session.HasImage)
             {
-                await _bot.SendMessage(chatId, "No working image to describe — upload a photo or use /blank first.", cancellationToken: ct);
+                await _bot.SendMessage(
+                    chatId,
+                    Replies.Tag(Replies.Tone.Error, "No working image to describe — upload a photo or use /blank first."),
+                    cancellationToken: ct);
                 return;
             }
             await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectDescription }, ct);
@@ -123,6 +152,51 @@ public sealed class CallbackAction
             await _bot.EditMessageReplyMarkup(chatId, query.Message.MessageId, markup, cancellationToken: ct);
             return;
         }
+        // Chat-API picker: the payload is a profile NAME the operator configured, looked up
+        // rather than trusted — an unknown one (a stale card after a config change) says so.
+        if (data.StartsWith("api:", StringComparison.Ordinal))
+        {
+            await _handlers.SelectChatApiOrExplainAsync(userId, chatId, data["api:".Length..], ct);
+            return;
+        }
+        // Stop the running assistant turn. Handled before anything touches the session: this tap
+        // arrives WHILE the turn runs (that is the point), so it stays a flag flip and nothing more.
+        if (data == StopToken)
+        {
+            await _bot.SendMessage(
+                chatId,
+                _cancellations.Cancel(userId)
+                    ? Replies.PromptStopping()
+                    : Replies.Tag(Replies.Tone.Notice, "Nothing is running — that turn already finished."),
+                cancellationToken: ct);
+            return;
+        }
+        // Retry on an assistant turn that failed or was stopped: re-run the stored prompt through
+        // the SAME handler the slash command uses. The button outlives its message, so a prompt
+        // that has since been answered (or lost to a restart) says so rather than re-sending a
+        // mystery turn.
+        if (data == "retry:prompt")
+        {
+            UserSession session = await _store.GetAsync(userId, ct);
+            if (session.LastRetryablePrompt is not { Length: > 0 } pending)
+            {
+                await _bot.SendMessage(
+                    chatId,
+                    "That turn is no longer pending — send the prompt again.",
+                    cancellationToken: ct);
+                return;
+            }
+            await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(pending), ct);
+            return;
+        }
+        // §11 choice card: a tap composes the answer, it never applies anything. Single-select
+        // sends straight away; multi-select toggles a tick and waits for Send. The labels come
+        // from the session (see UserSession.AskOptions for why).
+        if (data.StartsWith("ask:", StringComparison.Ordinal))
+        {
+            await HandleAskAsync(userId, chatId, query, data["ask:".Length..], ct);
+            return;
+        }
         // Cancel on the delete confirmation just retires the prompt (the confirmation is its own
         // message; the destructive del:confirm falls through to the /delete command below).
         if (data == "del:cancel")
@@ -130,7 +204,81 @@ public sealed class CallbackAction
             await _bot.EditMessageText(chatId, query.Message.MessageId, "Removal cancelled.", cancellationToken: ct);
             return;
         }
+        // §10 clearChat: a declined confirm is a "clear canceled" note, never a failed plan;
+        // the Yes button falls through to Map, riding the same /chat clear path as the 🧹 button.
+        if (data == "chatclear:cancel")
+        {
+            await _bot.EditMessageText(chatId, query.Message.MessageId, Replies.ClearChatCanceled(), cancellationToken: ct);
+            return;
+        }
         await _handlers.DispatchAsync(userId, chatId, Map(data), ct);
+    }
+
+    /// <summary>
+    /// Handle a tap on an <c>ask</c> card (contract §11.3). <c>ask:&lt;n&gt;</c> picks an option —
+    /// on a single-select card that submits at once; on a multi-select one it toggles the tick and
+    /// redraws the keyboard. <c>ask:send</c> submits the ticked labels, <c>ask:custom</c> just
+    /// invites typing. A card whose session state is gone (a restart, or an older card) says so
+    /// rather than sending a mystery answer.
+    /// </summary>
+    private async Task HandleAskAsync(long userId, long chatId, CallbackQuery query, string token, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.AskOptions.Count == 0)
+        {
+            await _bot.EditMessageText(chatId, query.Message!.MessageId,
+                "That question is no longer open — just type what you want.", cancellationToken: ct);
+            return;
+        }
+        if (token == "custom")
+        {
+            await _bot.SendMessage(chatId, "Go ahead — type your answer.", cancellationToken: ct);
+            return;
+        }
+
+        List<int> picked = session.AskPicked.ToList();
+        if (token != "send")
+        {
+            if (!int.TryParse(token, out int index) || index < 0 || index >= session.AskOptions.Count)
+            {
+                return;   // a button from a card that has since been replaced
+            }
+            if (!session.AskMulti)
+            {
+                await SubmitAskAsync(userId, chatId, session, [index], ct);
+                return;
+            }
+            if (!picked.Remove(index))
+            {
+                picked.Add(index);
+            }
+            await _store.SaveAsync(session with { AskPicked = picked }, ct);
+            await _bot.EditMessageReplyMarkup(chatId, query.Message!.MessageId,
+                Keyboards.AskCardKeyboard(session.AskOptions, true, picked, allowCustom: false), cancellationToken: ct);
+            return;
+        }
+        if (picked.Count == 0)
+        {
+            await _bot.SendMessage(
+                chatId, Replies.Tag(Replies.Tone.Error, "Pick at least one option first."), cancellationToken: ct);
+            return;
+        }
+        await SubmitAskAsync(userId, chatId, session, picked, ct);
+    }
+
+    /// <summary>
+    /// Send the chosen labels as the user's next turn — the same prompt path typing them would
+    /// take — and retire the card so it cannot be answered twice.
+    /// </summary>
+    private async Task SubmitAskAsync(long userId, long chatId, UserSession session, IReadOnlyList<int> picked, CancellationToken ct)
+    {
+        string answer = OpPlanParser.AskAnswerText(picked.Select(i => session.AskOptions[i]));
+        await _store.SaveAsync(session with { AskOptions = [], AskMulti = false, AskPicked = [] }, ct);
+        if (answer.Length == 0)
+        {
+            return;
+        }
+        await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(answer), ct);
     }
 
     /// <summary>Map a callback token to the equivalent slash command.</summary>
@@ -150,6 +298,16 @@ public sealed class CallbackAction
             "f:invert" => new BotCommand("filter", "invert", ["invert"]),
             "f:contour" => new BotCommand("filter", "contour", ["contour"]),
             "f:none" => new BotCommand("filter", "none", ["none"]),
+            // The Chat buttons ride the equivalent /chat on|off command, so a tap and the slash
+            // command share one handler (and one confirmation).
+            "chat:on" => new BotCommand("chat", "on", ["on"]),
+            "chat:off" => new BotCommand("chat", "off", ["off"]),
+            "chat:clear" => new BotCommand("chat", "clear", ["clear"]),
+            // The §10 clearChat Yes button — the same /chat clear the 🧹 button dispatches.
+            "chatclear:confirm" => new BotCommand("chat", "clear", ["clear"]),
+            // The 💾 Save-chats toggle rides the equivalent /chat save on|off command (§12.3).
+            "chat:save-on" => new BotCommand("chat", "save on", ["save", "on"]),
+            "chat:save-off" => new BotCommand("chat", "save off", ["save", "off"]),
             // The Expiration / Remove entry buttons dispatch the bare command, which replies with
             // the duration picker / delete confirmation as a fresh message (so the same button
             // works from both the status menu and the image edit menu).

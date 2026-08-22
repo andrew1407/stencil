@@ -76,6 +76,27 @@ pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     Ok(out)
 }
 
+/// The raw `STENCIL_LLM_*` settings (contract §5 — the same env names pystencil and the
+/// bot use, plus `STENCIL_LLM_SERVER_TOKEN` since mcp has no connection store). Read here
+/// with the same `.env` layering as everything else; validated and defaulted per call in
+/// `llm::LlmConfig::resolve`, because the `stencil_prompt` tool may override
+/// provider/base-url/model per call.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LlmEnv {
+    /// `STENCIL_LLM_PROVIDER` — `ollama` (default) | `openai-compat` | `stencil-server`.
+    pub provider: Option<String>,
+    /// `STENCIL_LLM_BASE_URL` — defaulted per provider when unset.
+    pub base_url: Option<String>,
+    /// `STENCIL_LLM_MODEL` — may stay empty (provider/server default).
+    pub model: Option<String>,
+    /// `STENCIL_LLM_API_KEY` — `openai-compat` bearer key; optional.
+    pub api_key: Option<String>,
+    /// `STENCIL_LLM_SERVER_URL` — the `stencil-server` provider's endpoint.
+    pub server_url: Option<String>,
+    /// `STENCIL_LLM_SERVER_TOKEN` — bearer token for that server.
+    pub server_token: Option<String>,
+}
+
 /// Resolved server configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -87,6 +108,8 @@ pub struct Config {
     pub browser_url: String,
     /// Auto-open the browser launch URL with the OS opener.
     pub auto_open: bool,
+    /// LLM provider settings for `stencil_prompt` (raw; resolved per call).
+    pub llm: LlmEnv,
 }
 
 const DEFAULT_BROWSER_URL: &str = "http://localhost:8080";
@@ -98,6 +121,7 @@ impl Default for Config {
             desktop_path: None,
             browser_url: DEFAULT_BROWSER_URL.to_string(),
             auto_open: false,
+            llm: LlmEnv::default(),
         }
     }
 }
@@ -144,8 +168,34 @@ impl Config {
             );
         }
 
+        // LLM settings (see `LlmEnv`); a bad provider token is worth a startup warning.
+        config.llm = LlmEnv {
+            provider: env_nonempty("STENCIL_LLM_PROVIDER"),
+            base_url: env_nonempty("STENCIL_LLM_BASE_URL"),
+            model: env_nonempty("STENCIL_LLM_MODEL"),
+            api_key: env_nonempty("STENCIL_LLM_API_KEY"),
+            server_url: env_nonempty("STENCIL_LLM_SERVER_URL"),
+            server_token: env_nonempty("STENCIL_LLM_SERVER_TOKEN"),
+        };
+        if let Some(provider) = &config.llm.provider {
+            if let Err(e) = crate::llm::Provider::parse(provider) {
+                warnings.push(format!(
+                    "STENCIL_LLM_PROVIDER: {e}; stencil_prompt calls will fail unless \
+                     they override the provider"
+                ));
+            }
+        }
+
         (config, warnings)
     }
+}
+
+/// Read an env var, treating unset and blank the same.
+fn env_nonempty(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
 }
 
 /// The default desktop binary location inside a repo checkout.

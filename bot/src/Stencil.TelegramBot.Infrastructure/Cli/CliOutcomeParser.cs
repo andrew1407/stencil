@@ -19,14 +19,14 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 public static class CliOutcomeParser
 {
     // ── CLI output line prefixes ──
-    // The exact stderr markers the CLI (cli/) emits and this module parses — the .NET peer of
+    // The exact stderr prefixes the CLI (cli/) emits and this module parses — the .NET peer of
     // mcp's PREFIX_* consts (mcp/src/outcome.rs).
     private const string PrefixWrote = "wrote ";
     private const string PrefixUpdated = "updated server result for project ";
     private const string PrefixCreated = "created server project ";
     private const string PrefixError = "error:";
     private const string PrefixScraped = "scraped ";
-    private const string IntoMarker = " into ";
+    private const string IntoToken = " into ";
 
     /// <summary>
     /// Find and parse the <c>wrote {path} ({w}x{h} …)</c> line, or null when absent. Uses a
@@ -204,10 +204,10 @@ public static class CliOutcomeParser
             {
                 // `scraped {n} file(s) from {host} into {dir}` — the dir is everything after
                 // the last " into " (a path could itself contain " into ").
-                int into = line.LastIndexOf(IntoMarker, StringComparison.Ordinal);
+                int into = line.LastIndexOf(IntoToken, StringComparison.Ordinal);
                 if (into >= 0)
                 {
-                    directory = line[(into + IntoMarker.Length)..].Trim();
+                    directory = line[(into + IntoToken.Length)..].Trim();
                 }
             }
         }

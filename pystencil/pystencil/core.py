@@ -202,6 +202,7 @@ class Core:
             _cstr,
             ctypes.c_int,
             _cstr,
+            _cstr,   # pointColor — "" inherits `color` (Line::pointColor)
         ]
 
         lib.stencil_cli_validateFormula.restype = ctypes.c_int
@@ -419,12 +420,17 @@ class Core:
         points: List[Tuple[float, float]],
         color: str = "#FFFF00",
         thickness: float = 2.0,
-        marker_size: float = 4.0,
+        point_size: float = 4.0,
         style: str = "solid",
         locked: bool = False,
         fill_color: str = "transparent",
+        point_color: str = "",
     ) -> None:
-        """Burn one polyline into buf (w x h) in place. `points` are (x,y) pairs."""
+        """Burn one polyline into buf (w x h) in place. `points` are (x,y) pairs.
+
+        `point_color` colours the points independently of the stroke; "" (the
+        default) inherits `color`, which is how the line drew before the field existed.
+        """
         _check_dims(buf, w, h, "rasterize_line")
         n = len(points)
         # Flatten to the 2*n contiguous doubles the ABI expects (x0,y0,x1,y1,...).
@@ -440,10 +446,11 @@ class Core:
             ctypes.c_int(n),
             _encode(color),
             ctypes.c_double(thickness),
-            ctypes.c_double(marker_size),
+            ctypes.c_double(point_size),
             _encode(style),
             ctypes.c_int(1 if locked else 0),
             _encode(fill_color),
+            _encode(point_color),
         )
 
     # ── formula (coordinate transform) ──────────────────────────────────────────

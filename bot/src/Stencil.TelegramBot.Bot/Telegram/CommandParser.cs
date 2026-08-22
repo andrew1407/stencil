@@ -39,8 +39,26 @@ public static class CommandParser
             verb = verb[..at];
         }
         verb = verb.ToLowerInvariant();
+        // Normalise the /p shortcut here, once: the router special-cases the prompt verb too
+        // (replied-photo adoption, caption edits), so every consumer matches "prompt" alone.
+        if (verb == "p")
+        {
+            verb = "prompt";
+        }
         string[] args = rest.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         return new BotCommand(verb, rest, args);
+    }
+
+    /// <summary>
+    /// Build the synthetic <c>/prompt</c> command the non-slash entry points dispatch (a
+    /// chat-mode plain message, an ask-card answer): the same trimmed argument text and
+    /// whitespace-token args that <see cref="Parse"/> would produce for "/prompt &lt;text&gt;",
+    /// so every synthesis site shares one canonical shape.
+    /// </summary>
+    public static BotCommand Prompt(string text)
+    {
+        string spec = (text ?? "").Trim();
+        return new BotCommand("prompt", spec, spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     /// <summary>Index of the first whitespace character, or -1 when none is present.</summary>

@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// camelCase wire-shape parity for the layout and project DTOs via <see cref="StencilJson"/> —
-/// the shared serializer every Stencil front-end keys off (<c>imageWidth</c>, <c>markerSize</c>,
+/// the shared serializer every Stencil front-end keys off (<c>imageWidth</c>, <c>pointSize</c>,
 /// <c>fillColor</c>, <c>imageW</c>, <c>createdAt</c>, <c>version</c>).
 /// </summary>
 public sealed class LayoutSerializationTests
@@ -33,8 +33,11 @@ public sealed class LayoutSerializationTests
         string json = StencilJson.Serialize(layout);
         Assert.Contains("\"imageWidth\"", json);
         Assert.Contains("\"imageHeight\"", json);
-        Assert.Contains("\"markerSize\"", json);
+        Assert.Contains("\"pointSize\"", json);
         Assert.Contains("\"fillColor\"", json);
+        // Canonical filter key only (Phase 6): imageFilter written, legacy "filter" never.
+        Assert.Contains("\"imageFilter\":\"sepia\"", json);
+        Assert.DoesNotContain("\"filter\"", json);
 
         StencilLayout? round = StencilJson.FromElement<StencilLayout>(StencilJson.ToElement(layout));
         Assert.NotNull(round);
@@ -43,12 +46,32 @@ public sealed class LayoutSerializationTests
         LayoutLine line = Assert.Single(round.Lines);
         // Per-line defaults survive the round trip.
         Assert.Equal(LayoutLine.DefaultThickness, line.Thickness);
-        Assert.Equal(LayoutLine.DefaultMarkerSize, line.MarkerSize);
+        Assert.Equal(LayoutLine.DefaultPointSize, line.PointSize);
         Assert.Equal(LayoutLine.DefaultStyle, line.Style);
         Assert.Equal(LayoutLine.DefaultFillColor, line.FillColor);
         Assert.Equal(LayoutLine.DefaultLocked, line.Locked);
         Assert.Equal(2, line.Points.Count);
         Assert.Equal(3, line.Points[1].X);
+    }
+
+    [Fact]
+    public void FilterReadsBothKeysCanonicalWins()
+    {
+        StencilLayout? canonical = JsonSerializer.Deserialize<StencilLayout>(
+            "{\"imageFilter\":\"bw\",\"lines\":[]}", StencilJson.Options);
+        Assert.Equal("bw", canonical!.Filter);
+
+        StencilLayout? legacy = JsonSerializer.Deserialize<StencilLayout>(
+            "{\"filter\":\"sepia\",\"lines\":[]}", StencilJson.Options);
+        Assert.Equal("sepia", legacy!.Filter);
+
+        // Both spellings, either order: the canonical imageFilter wins.
+        StencilLayout? both = JsonSerializer.Deserialize<StencilLayout>(
+            "{\"filter\":\"sepia\",\"imageFilter\":\"bw\",\"lines\":[]}", StencilJson.Options);
+        Assert.Equal("bw", both!.Filter);
+        StencilLayout? bothReversed = JsonSerializer.Deserialize<StencilLayout>(
+            "{\"imageFilter\":\"bw\",\"filter\":\"sepia\",\"lines\":[]}", StencilJson.Options);
+        Assert.Equal("bw", bothReversed!.Filter);
     }
 
     [Fact]

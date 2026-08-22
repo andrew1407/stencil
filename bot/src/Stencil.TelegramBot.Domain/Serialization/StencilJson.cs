@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Domain.Serialization;
 /// The one place the bot's JSON conventions live, shared by the server REST client, the
 /// layout import/export, and the session store. camelCase property names match the wire
 /// shapes every other Stencil front-end uses (protocol DTOs and the layout schema), so
-/// e.g. <c>ImageWidth → imageWidth</c>, <c>MarkerSize → markerSize</c>, <c>ImageW → imageW</c>.
+/// e.g. <c>ImageWidth → imageWidth</c>, <c>PointSize → pointSize</c>, <c>ImageW → imageW</c>.
 /// </summary>
 public static class StencilJson
 {
