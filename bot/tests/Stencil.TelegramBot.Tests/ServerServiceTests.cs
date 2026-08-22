@@ -81,6 +81,51 @@ public sealed class ServerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ConnectParsesInviteLinkFragmentToken()
+    {
+        ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA + "#token=inv-tok", token: null, verifyTls: true);
+
+        Assert.Equal("http://a:8090", info.Url);
+        Assert.Equal("inv-tok", info.Token);
+        Assert.Equal("inv-tok", info.Credential);
+    }
+
+    [Fact]
+    public async Task ConnectExplicitTokenWinsOverInviteFragment()
+    {
+        ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA + "#token=frag-tok", token: "explicit", verifyTls: true);
+
+        Assert.Equal("http://a:8090", info.Url);
+        Assert.Equal("explicit", info.Token);
+        Assert.Equal("explicit", info.Credential);
+    }
+
+    [Fact]
+    public async Task ConnectWithoutFragmentIsUnchanged()
+    {
+        _factory.ClientFor(ServerA).MintedToken = "minted-1";
+
+        ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
+
+        Assert.Equal("http://a:8090", info.Url);
+        Assert.Equal("minted-1", info.Token);
+        Assert.Equal("", info.Credential);
+    }
+
+    [Fact]
+    public async Task ConnectPersistsInviteFragmentTokenAsCredential()
+    {
+        await _service.ConnectAsync(UserId, ServerA + "#token=inv-adm", token: null, verifyTls: true);
+
+        // The fragment token rides the stored connection like a typed one…
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal("inv-adm", Assert.Single(session.Connections).Credential);
+        // …and every later client is built with it, so a stale session can re-mint.
+        await _service.ListProjectsAsync(UserId, url: null);
+        Assert.Equal("inv-adm", _factory.Created[^1].Credential);
+    }
+
+    [Fact]
     public async Task ListProjectsAggregatesAndSkipsAThrowingServer()
     {
         _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = "p_a", Name = "Alpha" });

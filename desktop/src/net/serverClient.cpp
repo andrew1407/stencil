@@ -48,14 +48,31 @@ namespace stencil::net {
     return origin;
   }
 
+  QString ServerClient::splitInviteToken(const QString& raw, QString& token) {
+    token.clear();
+    const int hash = raw.indexOf('#');
+    if (hash < 0) return raw;
+    const QString frag = raw.mid(hash + 1);
+    if (!frag.startsWith(QLatin1String("token="))) return raw;
+    // Decode a browser-encoded token; a plain one passes through unchanged.
+    token = QUrl::fromPercentEncoding(frag.mid(6).toUtf8());
+    return raw.left(hash);
+  }
+
+  QString ServerClient::inviteLink(const QString& base, const QString& token) {
+    return base + "#token=" + token;
+  }
+
   QNetworkRequest ServerClient::buildRequest(const QString& path,
-                                             const QString& contentType) const {
+                                             const QString& contentType,
+                                             const QString& bearer) const {
     QNetworkRequest req{QUrl(base_ + path)};
     // Bound every request so a hung/malicious server can't wedge a transfer forever; the
     // reply then finishes with a timeout error.
     req.setTransferTimeout(20000);
-    if (!token_.isEmpty())
-      req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
+    const QString& tok = bearer.isEmpty() ? token_ : bearer;
+    if (!tok.isEmpty())
+      req.setRawHeader("Authorization", "Bearer " + tok.toUtf8());
     if (!contentType.isEmpty())
       req.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
     return req;
@@ -480,6 +497,33 @@ namespace stencil::net {
                  });
   }
 
+  void ServerClient::mintInviteAsync(std::function<void(bool, QString)> done) {
+    if (credential_.isEmpty()) {
+      err_ = "no credential to mint an invite with";
+      done(false, QString());
+      return;
+    }
+    // The mint carries the CREDENTIAL as bearer (never the session token) so the
+    // invited session outlives this one; token_ stays untouched throughout.
+    QNetworkRequest req = buildRequest("/auth/token", "application/json", credential_);
+    QNetworkReply* reply =
+        nam_->sendCustomRequest(req, "POST", QByteArray("{\"label\":\"invite\"}"));
+    QObject::connect(reply, &QNetworkReply::finished, nam_,
+                     [this, reply, done = std::move(done)] {
+                       const int status =
+                           reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                       const QString tok = QJsonDocument::fromJson(reply->readAll())
+                                               .object().value("token").toString();
+                       reply->deleteLater();
+                       if (status < 200 || status >= 300 || tok.isEmpty()) {
+                         err_ = QString("invite mint failed (HTTP %1)").arg(status);
+                         done(false, QString());
+                         return;
+                       }
+                       done(true, inviteLink(base_, tok));
+                     });
+  }
+
   void ServerClient::deleteProjectAsync(const QString& id, std::function<void(bool)> done) {
     requestAsync("DELETE", QString("/projects/%1").arg(id), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
@@ -542,13 +586,18 @@ namespace stencil::net {
   ConnectionManager::~ConnectionManager() { qDeleteAll(clients_); }
 
   bool ConnectionManager::connectTo(const QString& url, const QString& token, QString& err) {
-    const QString base = ServerClient::normalizeBase(url);
+    // Invite link: a "#token=<tok>" fragment supplies the credential — split it off
+    // before normalization (which drops fragments). An explicitly-typed token wins.
+    QString linkToken;
+    const QString stripped = ServerClient::splitInviteToken(url, linkToken);
+    const QString cred = token.isEmpty() ? linkToken : token;
+    const QString base = ServerClient::normalizeBase(stripped);
     if (find(base)) {
       err = "already connected";
       return false;
     }
     auto* client = new ServerClient(base);
-    if (!client->connect(token)) {
+    if (!client->connect(cred)) {
       err = client->lastError();
       // A REFUSED CREDENTIAL keeps its place: the server is fine and the URL worth
       // keeping, so the row can offer a sign-in. An unreachable host is still

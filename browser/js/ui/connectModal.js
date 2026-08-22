@@ -298,6 +298,25 @@ export class StencilConnectModal extends StencilElement {
         // box), rather than letting the row's space-between fling them apart.
         const actions = document.createElement('div');
         actions.className = 'connect-actions';
+        // Invite: mint a fresh session token from this row's credential and copy
+        // `<url>#token=…` — paste it into any surface's Connect form to join.
+        if (conn && conn.connected && conn.credential) {
+          const invite = document.createElement('button');
+          invite.className = 'connect-invite btn-icon';
+          invite.title = 'Copy an invite link (mints a fresh session token)';
+          invite.innerHTML = icon('link', { size: 15 });
+          invite.addEventListener('click', async () => {
+            invite.disabled = true;
+            try {
+              const link = await conn.mintInvite();
+              await navigator.clipboard.writeText(link);
+              notify('Invite link copied', 'ok');
+            } catch (err) {
+              notify(`Invite failed — ${err.message}`, 'fail');
+            } finally { invite.disabled = false; }
+          });
+          actions.append(invite);
+        }
         actions.append(recon, disc);
         row.append(cb, label, actions);
         list.appendChild(row);

@@ -83,6 +83,12 @@ namespace stencil::net {
     bool needsReauth() const { return status_ == Status::Expired; }
 
     static QString normalizeBase(const QString& raw);
+    // Invite links, "<url>#token=<tok>": split one — returns the URL sans fragment
+    // and sets `token` to the fragment's value ("" when there is none). Call it
+    // BEFORE normalizeBase, which silently drops any fragment.
+    static QString splitInviteToken(const QString& raw, QString& token);
+    // Build one: "<base>#token=<tok>".
+    static QString inviteLink(const QString& base, const QString& token);
     // True for a loopback/localhost host (127.0.0.0/8, ::1, "localhost", "*.localhost"),
     // where plaintext http is safe because the bytes never hit the network.
     static bool isLoopbackHost(const QString& host);
@@ -144,6 +150,10 @@ namespace stencil::net {
     void deleteFileAsync(const QString& id, const QString& kind,
                          std::function<void(bool ok)> done);
     void deleteProjectAsync(const QString& id, std::function<void(bool ok)> done);
+    // Mint a FRESH session with the stored credential (bearer, label "invite") and
+    // deliver the link "<base>#token=<fresh>". The live session token is untouched;
+    // fails at once when no credential is held (anonymous sessions can't invite).
+    void mintInviteAsync(std::function<void(bool ok, QString link)> done);
 
     // Async version of runGuardedWrite. `attempt(version, cb)` performs one guarded PUT and
     // reports its GuardOutcome via `cb`; on a non-final Conflict, `resolve(version, cb)` re-reads
@@ -162,7 +172,9 @@ namespace stencil::net {
     QByteArray request(const QByteArray& method, const QString& path,
                        const QByteArray& body, const QString& contentType, int& status);
     // Build the authorized QNetworkRequest for `path` (shared by the sync + async paths).
-    QNetworkRequest buildRequest(const QString& path, const QString& contentType) const;
+    // `bearer` overrides the session token (used by the invite mint); empty = token_.
+    QNetworkRequest buildRequest(const QString& path, const QString& contentType,
+                                 const QString& bearer = QString()) const;
     // Non-blocking request: invokes `done(status, body)` on completion (see the async
     // methods above). Sets lastError() on a transport error, like request(). `retried`
     // marks the one credential re-mint retry, so a refusal never mints twice.

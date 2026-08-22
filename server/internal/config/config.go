@@ -30,6 +30,7 @@ type Config struct {
 	TLSKey              string        // optional TLS key path
 	AdminToken          string        // bootstrap token for issuing tokens; generated when unset
 	AdminTokenGenerated bool          // true when AdminToken was generated this boot (print it once)
+	AuthOpen            bool          // AUTH_OPEN: POST /auth/token needs no admin bearer (explicit opt-in)
 	CORSOrigins         []string      // browser origins allowed to call the REST API; empty = loopback only, "*" = any
 	AuthRatePerMin      int           // POST /auth/token attempts per minute, per client IP (0 = off)
 	WriteRatePerMin     int           // per-session project creations + file uploads per minute (0 = off)
@@ -164,7 +165,15 @@ func Load() (Config, error) {
 		}
 		cfg.StorageQuotaBytes = b
 	}
-	// Never run with open token issuance: an unset ADMIN_TOKEN gets a random
+	// Explicit opt-in to open token issuance (main.go warns loudly).
+	if v := get("AUTH_OPEN", ""); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("config: invalid AUTH_OPEN %q", v)
+		}
+		cfg.AuthOpen = b
+	}
+	// Never run with silently open token issuance: an unset ADMIN_TOKEN gets a random
 	// per-boot token instead (main.go prints it once so dev stays one-step).
 	if cfg.AdminToken == "" {
 		if cfg.AdminToken, err = generateAdminToken(); err != nil {

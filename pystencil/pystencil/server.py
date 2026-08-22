@@ -171,6 +171,20 @@ def normalize_url(raw: Optional[str]) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+def split_invite_token(url: Optional[str], token: str | None = None) -> tuple[str, str | None]:
+    """Split an invite link's '#token=<value>' fragment off a connect URL.
+
+    Returns (url, token): the fragment is stripped and its value becomes the
+    supplied token — unless an explicit token was passed, which wins.
+    """
+    s = str(url if url is not None else "")
+    i = s.find("#token=")
+    if i < 0:
+        return s, token
+    frag = s[i + len("#token="):].strip()
+    return s[:i], token or frag or None
+
+
 class ServerError(Exception):
     """A non-2xx REST response.
 
@@ -257,6 +271,8 @@ class ServerConnection:
     """A single connected Stencil server (validated token + REST surface)."""
 
     def __init__(self, url: str, token: str | None = None, *, verify: bool = True) -> None:
+        # Invite links carry the token as a '#token=' fragment; explicit wins.
+        url, token = split_invite_token(url, token)
         self.base = normalize_url(url)
         self.token = token or ""
         # What the user supplied — outlives a server restart (_request re-mints
@@ -687,6 +703,8 @@ class ConnectionManager:
     def connect(self, spec: ConnectSpec) -> "ConnectionManager":
         """Connect one or more servers; already-connected urls are no-ops."""
         for url, token in _iter_specs(spec):
+            # Split any invite-link fragment before normalizing (it drops fragments).
+            url, token = split_invite_token(url, token)
             norm = normalize_url(url)
             if norm in self._conns:
                 continue

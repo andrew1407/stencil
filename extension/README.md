@@ -65,7 +65,10 @@ graph TD
   **Options → Server connections** (URL + optional token). `addServer()` validates/issues a
   token via `POST /auth/token` and persists the connection in `chrome.storage.local`, so it
   survives popup reopen and is readable by the side panel / DevTools panel; `removeServer()`
-  drops it. Each connection is listed there with a remove button.
+  drops it. Each connection is listed there with a remove button. An **invite link**
+  (`<url>#token=<tok>`, minted by the editors' Servers window) can be pasted as the URL on
+  its own — `parseInviteUrl()` adopts the fragment as the credential, and an explicitly
+  entered token wins over it.
 - Each connected server's stored projects (those with an image) become **shared pins** in
   the popup list: `loadConnections() → collectSharedPins()` pulls them over REST and they
   render **after** the page's own images with a **golden outline + server badge** (the

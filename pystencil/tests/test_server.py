@@ -16,6 +16,7 @@ from pystencil.server import (
     diff_projects,
     is_loopback_host,
     normalize_url,
+    split_invite_token,
 )
 
 
@@ -46,6 +47,44 @@ class NormalizeUrlTest(unittest.TestCase):
             normalize_url("")
         with self.assertRaises(ValueError):
             normalize_url(None)
+
+
+class SplitInviteTokenTest(unittest.TestCase):
+    def test_fragment_parsed(self) -> None:
+        self.assertEqual(
+            split_invite_token("http://localhost:8090#token=abc123"),
+            ("http://localhost:8090", "abc123"),
+        )
+
+    def test_explicit_token_wins(self) -> None:
+        self.assertEqual(
+            split_invite_token("http://localhost:8090#token=abc123", "explicit"),
+            ("http://localhost:8090", "explicit"),
+        )
+
+    def test_fragmentless_url_unchanged(self) -> None:
+        self.assertEqual(
+            split_invite_token("https://host:8090", None),
+            ("https://host:8090", None),
+        )
+
+    def test_empty_fragment_value_supplies_no_token(self) -> None:
+        self.assertEqual(
+            split_invite_token("http://localhost:8090#token="),
+            ("http://localhost:8090", None),
+        )
+
+    def test_connection_populates_token_and_credential(self) -> None:
+        conn = ServerConnection("http://host:8090#token=abc123")
+        self.assertEqual(conn.base, "http://host:8090")
+        self.assertEqual(conn.token, "abc123")
+        self.assertEqual(conn.credential, "abc123")
+
+    def test_connection_explicit_token_wins(self) -> None:
+        conn = ServerConnection("http://host:8090#token=abc123", token="explicit")
+        self.assertEqual(conn.base, "http://host:8090")
+        self.assertEqual(conn.token, "explicit")
+        self.assertEqual(conn.credential, "explicit")
 
 
 class BuildRequestTest(unittest.TestCase):
@@ -363,10 +402,10 @@ class CredentialRetentionTest(unittest.TestCase):
     connections.js req()/connect(): the user-supplied value outlives the
     session token, so a server restart/DB wipe is recovered in place)."""
 
-    def _stubbed(self, token, handler):
+    def _stubbed(self, token, handler, url="http://host:8090"):
         # A connection whose _open is replaced by `handler(bearer, method, path)`;
         # returns (conn, calls) with each call recorded as (bearer, method, path).
-        conn = ServerConnection("http://host:8090", token=token)
+        conn = ServerConnection(url, token=token)
         calls = []
 
         def stub_open(req, raw=False):
@@ -389,6 +428,27 @@ class CredentialRetentionTest(unittest.TestCase):
             return {"projects": []}
 
         conn, calls = self._stubbed("admintok", handler)
+        conn.connect()
+        self.assertEqual(conn.status, "connected")
+        self.assertEqual(conn.token, "sess1")
+        self.assertEqual(conn.credential, "admintok")
+        self.assertEqual(calls, [
+            ("admintok", "GET", "/projects"),
+            ("admintok", "POST", "/auth/token"),
+            ("sess1", "GET", "/projects"),
+        ])
+
+    def test_invite_fragment_token_feeds_credential_mint(self) -> None:
+        # An invite link's fragment token is the ADMIN credential: probe 401s,
+        # the mint uses it, and it is retained as `credential` for re-mints.
+        def handler(bearer, method, path):
+            if path == "/auth/token":
+                return {"token": "sess1"}
+            if bearer != "sess1":
+                raise ServerError("unauthorized", "bad token", status=401)
+            return {"projects": []}
+
+        conn, calls = self._stubbed(None, handler, url="http://host:8090#token=admintok")
         conn.connect()
         self.assertEqual(conn.status, "connected")
         self.assertEqual(conn.token, "sess1")

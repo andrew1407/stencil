@@ -8,8 +8,10 @@
 #include "serverClient.hpp"
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QEvent>
 #include <QColor>
+#include <QGuiApplication>
 #include <QFont>
 #include <QFrame>
 #include <QGridLayout>
@@ -135,7 +137,8 @@ namespace stencil::gui {
     form->addWidget(new QLabel(tr("URL")), 0, 0);
     urlEdit_ = new QLineEdit;
     urlEdit_->setPlaceholderText("http://localhost:8090");
-    urlEdit_->setToolTip(tr("Collaboration server URL, e.g. http://localhost:8090"));
+    urlEdit_->setToolTip(tr("Collaboration server URL, e.g. http://localhost:8090 — "
+                            "an invite link (…#token=…) signs in with its token"));
     form->addWidget(urlEdit_, 0, 1);
     form->addWidget(new QLabel(tr("Token")), 1, 0);
     tokenEdit_ = new QLineEdit;
@@ -480,6 +483,42 @@ namespace stencil::gui {
         h->addWidget(signIn);
         QObject::connect(signIn, &QPushButton::clicked, this,
                          [this, url] { reauthenticate(url); });
+      }
+      // Invite: mint a fresh session with the row's credential and put the link
+      // "<url>#token=<tok>" on the clipboard. Only rows whose credential can mint
+      // offer it (an anonymous session has nothing to invite with).
+      if (cl && st == stencil::net::ServerClient::Status::Connected &&
+          !cl->credential().isEmpty()) {
+        auto* invite = mkIconBtn(themedIcon("share", rowTxt, 16),
+                                 tr("Copy an invite link (mints a fresh session token)"));
+        invite->setObjectName(QStringLiteral("inviteBtn"));
+        h->addWidget(invite);
+        QObject::connect(invite, &QPushButton::clicked, this, [this, url, invite, rowTxt] {
+          stencil::net::ServerClient* c = manager_ ? manager_->find(url) : nullptr;
+          if (!c) return;
+          QPointer<ConnectDialog> self(this);
+          QPointer<QPushButton> btn(invite);
+          // Safe to capture c: the reply dies with the client, so a disconnected
+          // row's mint callback simply never runs.
+          c->mintInviteAsync([this, self, btn, rowTxt, c](bool ok, QString link) {
+            if (!self) return;
+            if (!ok) {
+              QMessageBox::warning(this, tr("Servers"),
+                                   tr("Could not mint an invite link — %1").arg(c->lastError()));
+              return;
+            }
+            QGuiApplication::clipboard()->setText(link);
+            if (!btn) return;
+            // Brief in-place feedback: the button flips to a check, then back.
+            btn->setIcon(themedIcon("check", QColor("#28a745"), 16));
+            btn->setToolTip(tr("Invite link copied"));
+            QTimer::singleShot(1500, btn, [btn, rowTxt] {
+              if (!btn) return;
+              btn->setIcon(themedIcon("share", rowTxt, 16));
+              btn->setToolTip(tr("Copy an invite link (mints a fresh session token)"));
+            });
+          });
+        });
       }
       h->addWidget(recon);
       h->addWidget(disc);

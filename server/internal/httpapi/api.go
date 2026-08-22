@@ -75,6 +75,7 @@ type Deps struct {
 	ProjectTTL   time.Duration // default project lifetime; 0 = no expiry (off)
 	MaxBodyBytes int64
 	AdminToken   string // when set, gates POST /auth/token
+	AuthOpen     bool   // opt-in open issuance: POST /auth/token needs no admin bearer
 	// Spend controls for /llm/chat (llmlimit.go); 0 = unlimited.
 	LLMRatePerMin  int // per-session turns per minute
 	LLMMaxInFlight int // concurrent upstream calls, server-wide

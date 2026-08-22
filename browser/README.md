@@ -96,6 +96,12 @@ graph TD
   settings (plus, optionally, the current colour theme) — as one portable file, openable
   on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.
 - **Toolbar windows** (projects, servers, links, assistant, shortcuts `Alt+K`, visuals `Alt+V`, help `Alt+H`): a window's own shortcut **closes** it again, another window's shortcut swaps to that one, and every one of them works from inside a window's own search box.
+- **Server invite links**: in the Servers window, a connected row with a saved
+  credential offers an **Invite** action — it mints a fresh session token
+  (`POST /auth/token`, label `invite`) and copies `<server-url>#token=<token>` to the
+  clipboard. Pasting an invite link into the Connect **URL** field (Token left empty)
+  adopts the fragment token as the credential; an explicitly entered Token wins over
+  the fragment, and the fragment itself never goes over the wire.
 - **AI assistant chat**: the sparkle toolbar button (Alt+G) opens a chat panel dockable
   left/right/top/bottom or free-floating (drag the header to move or to re-dock on an
   edge zone, corner handle to resize; placement and size are session-only — every load

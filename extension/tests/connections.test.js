@@ -8,6 +8,7 @@ import {
   upsertConnection, dropConnection, connect, listProjects, collectSharedPins,
   addServer, removeServer, loadConnections, CONNECTIONS_KEY,
   pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
+  parseInviteUrl,
 } from '../src/lib/connections.js';
 
 import { installChromeStub } from './helpers/chromeStub.js';
@@ -101,6 +102,39 @@ test('connect issues a token when none supplied', async () => {
   const conn = await connect('srv:8090', '', mockFetch());
   assert.equal(conn.url, 'https://srv:8090');
   assert.equal(conn.token, 'tk');
+});
+
+// ── Invite links: `<url>#token=<value>` (browser connectionManager parity) ──
+test('parseInviteUrl splits the #token= fragment off the URL', () => {
+  assert.deepEqual(parseInviteUrl('http://localhost:8090#token=abc123'),
+    { url: 'http://localhost:8090', token: 'abc123' });
+  assert.deepEqual(parseInviteUrl('srv:8090#token=a%2Bb'), { url: 'srv:8090', token: 'a+b' });
+  // No fragment, a non-token fragment, or an empty token → pass through untouched.
+  assert.deepEqual(parseInviteUrl('http://h:1'), { url: 'http://h:1', token: '' });
+  assert.deepEqual(parseInviteUrl('http://h:1#other=x'), { url: 'http://h:1#other=x', token: '' });
+  assert.deepEqual(parseInviteUrl('http://h:1#token='), { url: 'http://h:1#token=', token: '' });
+});
+
+// A fetch that only accepts one session token — enough to prove which token connect used.
+const tokenGatedFetch = (good) => async (url, init = {}) => {
+  const auth = ((init.headers || {}).Authorization || '').replace('Bearer ', '');
+  const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+  if (new URL(url).pathname === '/auth/token') return json(401, { message: 'admin required' });
+  if (auth !== good) return json(401, { message: 'bad token' });
+  return json(200, { projects: [] });
+};
+
+test('connect with an invite link strips the fragment and adopts the token as credential', async () => {
+  const conn = await connect('http://a:1#token=sess-tok', '', tokenGatedFetch('sess-tok'));
+  assert.equal(conn.url, 'http://a:1', 'the fragment never reaches the url');
+  assert.equal(conn.token, 'sess-tok');
+  assert.equal(conn.credential, 'sess-tok', 'the fragment token feeds the credential flow');
+});
+
+test('an explicitly supplied token wins over the invite fragment', async () => {
+  const conn = await connect('http://a:1#token=bogus', 'real-tok', tokenGatedFetch('real-tok'));
+  assert.equal(conn.token, 'real-tok');
+  assert.equal(conn.credential, 'real-tok');
 });
 
 test('listProjects + collectSharedPins aggregate across servers', async () => {

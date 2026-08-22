@@ -260,6 +260,8 @@ conn = ServerConnection("http://host:8090").connect()    # mints a token
 # A server with ADMIN_TOKEN set won't issue one — pass the token you were given
 # (the console spells this `/connect http://host:8090 token=<tok>`):
 conn = ServerConnection("http://host:8090", "<token>").connect()
+# An invite link carries the token in its fragment — pass it as the URL alone:
+conn = ServerConnection("http://host:8090#token=<tok>").connect()
 proj = conn.create_remote_project("Shared", image=Editor().load("photo.png").result())
 listing = conn.list_projects()
 # fetch, edit, and write back into a project:

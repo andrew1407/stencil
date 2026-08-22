@@ -109,7 +109,7 @@ without it the server uses an in-process bus and is single-instance. The schema
 is created at boot via embedded idempotent migrations.
 
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
-`REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
+`REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
 `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
 and the LLM proxy keys (`ANTHROPIC_API_KEY`, `LLM_*` — see [LLM proxy](#llm-proxy)).
@@ -235,9 +235,17 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
 ## Security
 
 - Tokens are 256-bit random values; only their SHA-256 hash is stored, compared
-  in constant time, and checked for expiry. `POST /auth/token` is **always** gated
+  in constant time, and checked for expiry. `POST /auth/token` is gated
   by the admin token: `ADMIN_TOKEN` when set, otherwise a random per-boot token
-  the server generates and prints once at startup. Issuance is never open.
+  the server generates and prints once at startup. Issuance is never open by
+  default.
+- **Open issuance (`AUTH_OPEN=1`)** is an explicit opt-in for trusted networks:
+  `POST /auth/token` then mints a token with no bearer at all (the admin token
+  keeps working), and the server prints a loud boot warning. Because a token
+  grants the entire shared workspace (see below), anyone who can reach the
+  server gets full access — projects, chat transcripts, and the LLM proxy.
+  `AUTH_RATE_PER_MINUTE` still applies per client IP; everything other than
+  issuance stays token-gated exactly as before.
 - WebSocket/TCP connections must authenticate with a `hello` token before joining
   any session; unauthenticated connections are closed.
 - **Authorization is coarse by design: a valid token grants access to _every_

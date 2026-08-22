@@ -307,7 +307,7 @@ a time). An album with no caption at all adopts only its last photo, with a sing
 
 | Command | Effect |
 |---|---|
-| `/connect <url> [token]` · `/disconnect [url]` · `/connections` | Manage server connections |
+| `/connect <url> [token]` · `/disconnect [url]` · `/connections` | Manage server connections. The URL may be an **invite link** (`<url>#token=<tok>`) — its fragment supplies the token; a token argument still wins over it |
 | `/projects [url]` | List server projects as tappable buttons (tap to fetch) |
 | `/fetch <name\|id>` | Load a server project as the working image |
 | `/create [name]` | Publish the current result as a **new** server project |

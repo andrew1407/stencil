@@ -87,10 +87,14 @@ func run() error {
 		ProjectTTL:      cfg.ProjectTTL,
 		MaxBodyBytes:    cfg.MaxBodyBytes,
 		AdminToken:      cfg.AdminToken,
+		AuthOpen:        cfg.AuthOpen,
 		AuthRatePerMin:  cfg.AuthRatePerMin,
 		WriteRatePerMin: cfg.WriteRatePerMin,
 	}
-	if cfg.AdminTokenGenerated {
+	if cfg.AuthOpen {
+		log.Printf("WARNING: AUTH_OPEN=1 — token issuance is OPEN: anyone who can reach this server " +
+			"gets full workspace access (projects, chat transcripts, the LLM proxy). Use only on trusted networks.")
+	} else if cfg.AdminTokenGenerated {
 		// Printed exactly once, at boot: issuance is closed by default now, so a
 		// dev without ADMIN_TOKEN needs this to mint session tokens.
 		log.Printf("auth: ADMIN_TOKEN not set — generated for this run: %s", cfg.AdminToken)

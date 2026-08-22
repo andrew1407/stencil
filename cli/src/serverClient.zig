@@ -61,6 +61,18 @@ pub fn isInsecureRemote(base: []const u8) bool {
     return !isLoopbackHost(hostAndPort(base).host);
 }
 
+/// Split an invite link's `#token=<value>` fragment off a connect URL and pick the
+/// effective supplied token — an explicitly-passed token wins over the fragment.
+/// Both returned slices alias the inputs.
+pub fn splitInviteToken(url: []const u8, token_opt: ?[]const u8) struct { url: []const u8, token: ?[]const u8 } {
+    if (std.mem.indexOf(u8, url, "#token=")) |i| {
+        const frag = std.mem.trim(u8, url[i + "#token=".len ..], " \t\r\n");
+        const tok = token_opt orelse (if (frag.len != 0) frag else null);
+        return .{ .url = url[0..i], .token = tok };
+    }
+    return .{ .url = url, .token = token_opt };
+}
+
 pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
     var s = std.mem.trim(u8, url, " \t\r\n");
     var buf: []u8 = undefined;
@@ -628,16 +640,18 @@ pub const Client = struct {
 /// (a rejected one is retried as the ADMIN credential, minting a session with it —
 /// mirrors the desktop's Token field) or issue a fresh one (POST /auth/token).
 pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?[]const u8) !Client {
-    const base = try normalizeBase(gpa, url);
+    // Invite links carry the token as a `#token=` fragment; an explicit token wins.
+    const invite = splitInviteToken(url, token_opt);
+    const base = try normalizeBase(gpa, invite.url);
     errdefer gpa.free(base);
     if (isInsecureRemote(base))
         logo.note("connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
 
-    const token = try resolveToken(gpa, io, base, token_opt);
+    const token = try resolveToken(gpa, io, base, invite.token);
     errdefer gpa.free(token);
     const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{token});
     errdefer gpa.free(auth);
-    const credential = try gpa.dupe(u8, token_opt orelse "");
+    const credential = try gpa.dupe(u8, invite.token orelse "");
     errdefer gpa.free(credential);
     return Client{ .gpa = gpa, .io = io, .base = base, .token = token, .auth = auth, .credential = credential };
 }
@@ -1024,6 +1038,25 @@ test "normalizeBase is secure by default and strips path/slash" {
         defer a.free(got);
         try testing.expectEqualStrings(c.out, got);
     }
+}
+
+test "splitInviteToken: fragment parsed, explicit token wins, plain URL unchanged" {
+    // Invite link: fragment stripped, value becomes the supplied token.
+    const inv = splitInviteToken("http://localhost:8090#token=abc123", null);
+    try testing.expectEqualStrings("http://localhost:8090", inv.url);
+    try testing.expectEqualStrings("abc123", inv.token.?);
+    // An explicitly-passed token wins over the fragment (fragment still stripped).
+    const exp = splitInviteToken("http://localhost:8090#token=abc123", "explicit");
+    try testing.expectEqualStrings("http://localhost:8090", exp.url);
+    try testing.expectEqualStrings("explicit", exp.token.?);
+    // Fragment-less URL passes through untouched.
+    const plain = splitInviteToken("https://host:8090", null);
+    try testing.expectEqualStrings("https://host:8090", plain.url);
+    try testing.expect(plain.token == null);
+    // An empty fragment value is stripped but supplies no token.
+    const empty = splitInviteToken("http://localhost:8090#token=", null);
+    try testing.expectEqualStrings("http://localhost:8090", empty.url);
+    try testing.expect(empty.token == null);
 }
 
 test "isLoopbackHost and isInsecureRemote classify the connection" {
