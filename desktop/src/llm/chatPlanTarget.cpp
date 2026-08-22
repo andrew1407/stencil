@@ -197,10 +197,11 @@ namespace stencil::gui {
       return false;
     }
     QString token;
+    auto kind = stencil::net::ServerClient::CredentialKind::None;
     for (const auto& s : saved)
-      if (s.url == url) { token = s.token; break; }
+      if (s.url == url) { token = s.token; kind = stencil::net::ServerClient::kindFromTag(s.kind); break; }
     QString cerr;
-    if (!w_.ensureConnections()->connectTo(url, token, cerr)) {
+    if (!w_.ensureConnections()->connectTo(url, token, cerr, kind)) {
       if (err) *err = QStringLiteral("connect: %1").arg(cerr);
       return false;
     }

@@ -1,14 +1,21 @@
 #include "connectDialog.hpp"
+#include "../app/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
 #include "../support/disintegrateOverlay.hpp"  // disconnected rows come apart
+#include "../support/dissolveEffect.hpp"       // scroll-edge grain dissolve
+#include "../support/guiHelpers.hpp"           // confirmYesNo()
 #include "../support/modalReveal.hpp"          // motionReduced()
 
 #include "connectionStore.hpp"
 #include "iconSet.hpp"
 #include "reorderableListWidget.hpp"
+#include "searchCombo.hpp"
 #include "serverClient.hpp"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QClipboard>
+#include <QCursor>
+#include <QEnterEvent>
 #include <QEvent>
 #include <QColor>
 #include <QGuiApplication>
@@ -29,11 +36,14 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScrollBar>
 #include <QSize>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace stencil::gui {
 
@@ -41,6 +51,52 @@ namespace stencil::gui {
     // The collaboration gold used for server points throughout the app (mirrors the
     // browser's --remote-gold), so shared servers read the same on every front-end.
     const QColor kGold("#d4a017");
+    // The amber of "the credential, not the server, is the problem": the dot, the
+    // expired note, and that row's outline.
+    const QColor kAmber("#e0a800");
+    // Row height: the 28px action buttons plus the card's own vertical padding.
+    constexpr int kRowHeight = 40;
+
+    QString rgba(const QColor& c, double a) {
+      return QString("rgba(%1,%2,%3,%4)")
+          .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a, 0, 'f', 3);
+    }
+
+    // A row that hovers as ONE card: Qt sends Enter/Leave to the child under the
+    // pointer, so a bare :hover rule blinks off over a label.
+    class RowCard : public QWidget {
+     public:
+      RowCard() {
+        setAttribute(Qt::WA_StyledBackground, true);  // a bare QWidget won't paint one
+        setProperty("hovered", false);
+      }
+      // Call once the row's children exist.
+      void watchChildren() {
+        for (QWidget* w : findChildren<QWidget*>()) w->installEventFilter(this);
+      }
+
+     protected:
+      void enterEvent(QEnterEvent* e) override { QWidget::enterEvent(e); syncHover(); }
+      void leaveEvent(QEvent* e) override { QWidget::leaveEvent(e); syncHover(); }
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() == QEvent::Enter || e->type() == QEvent::Leave) syncHover();
+        return QWidget::eventFilter(o, e);
+      }
+
+     private:
+      void syncHover() {
+        // The cursor test covers the gap between two children (Leave lands before the
+        // next Enter); underMouse() is what a synthesized hover sets.
+        bool on = underMouse() || rect().contains(mapFromGlobal(QCursor::pos()));
+        if (!on)
+          for (const QWidget* w : findChildren<QWidget*>())
+            if (w->underMouse()) { on = true; break; }
+        if (on == property("hovered").toBool()) return;
+        setProperty("hovered", on);
+        style()->unpolish(this);
+        style()->polish(this);
+      }
+    };
 
     // A filled status dot: green=connected, amber=connecting, red=error — mirrors the
     // browser's connection-status dot.
@@ -50,8 +106,8 @@ namespace stencil::gui {
       // only the credential is missing (browser parity — an expired row is amber,
       // never the red of an unreachable host).
       QColor c = s == S::Connected  ? QColor("#28a745")
-               : s == S::Connecting ? QColor("#e0a800")
-               : s == S::Expired    ? QColor("#e0a800")
+               : s == S::Connecting ? kAmber
+               : s == S::Expired    ? kAmber
                                     : QColor("#dc3545");
       QPixmap pm(12, 12);
       pm.fill(Qt::transparent);
@@ -173,7 +229,26 @@ namespace stencil::gui {
 
     root->addWidget(hLine());
 
-    root->addWidget(sectionLabel(tr("Connections")));
+    // Section header + the credential-kind view filter (projects dialog's "Show:" idiom).
+    {
+      auto* head = new QHBoxLayout;
+      head->addWidget(sectionLabel(tr("Connections")));
+      head->addStretch(1);
+      head->addWidget(new QLabel(tr("Show:")));
+      auto* kind = new SearchComboBox(this, /*searchable=*/false);
+      kindFilter_ = kind;
+      kind->setObjectName(QStringLiteral("connKindFilter"));
+      kind->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+      kind->setToolTip(tr("Filter the rows: all connections, only those holding an admin "
+                          "credential, or only the rest"));
+      kind->addItem(tr("All"), QStringLiteral("all"));
+      kind->addItem(tr("Admin"), QStringLiteral("admin"));
+      kind->addItem(tr("Non-admin"), QStringLiteral("nonadmin"));
+      head->addWidget(kind);
+      root->addLayout(head);
+      QObject::connect(kind, &QComboBox::currentIndexChanged, this,
+                       [this](int) { applyKindFilter(); });
+    }
 
     // Batch-select toolbar — appears once one or more connections are checked.
     batchBar_ = new QWidget;
@@ -187,7 +262,8 @@ namespace stencil::gui {
       reSel->setIcon(themedIcon("refresh", txt, 15));
       reSel->setToolTip(tr("Reconnect the selected servers"));
       auto* discSel = new QPushButton(tr("Disconnect"));
-      discSel->setIcon(themedIcon("x", QColor("#dc3545"), 15));
+      // trash, not ✕: disconnecting FORGETS the server — the app's destructive glyph.
+      discSel->setIcon(themedIcon("trash", QColor("#dc3545"), 15));
       discSel->setToolTip(tr("Disconnect (and forget) the selected servers"));
       auto* clrSel = new QPushButton(tr("Clear"));
       clrSel->setToolTip(tr("Clear the current selection"));
@@ -204,10 +280,8 @@ namespace stencil::gui {
       });
       QObject::connect(discSel, &QPushButton::clicked, this, [this] {
         if (selected_.isEmpty()) return;
-        if (QMessageBox::question(
-                this, tr("Disconnect servers"),
-                tr("Disconnect and forget %1 selected server(s)?").arg(selected_.size()),
-                QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        if (!confirmYesNo(this, tr("Disconnect servers"),
+                          tr("Disconnect and forget %1 selected server(s)?").arg(selected_.size())))
           return;
         scatterRows(selected_.values());   // …and they come apart on the way out
         for (const QString& u : selected_) manager_->disconnectFrom(u);
@@ -224,7 +298,9 @@ namespace stencil::gui {
 
     auto* reList = new ReorderableListWidget;
     list_ = reList;
-    list_->setSpacing(4);
+    list_->setObjectName(QStringLiteral("connList"));
+    list_->setSpacing(6);  // vertical gaps so rows read as separate cards (projects parity)
+    list_->setStyleSheet(rowStyleSheet());   // cascades to every row widget below
     // Minimum on the LIST, not the dialog: execMaybePopover drops the dialog-level
     // minimumWidth(480) and shrinks to sizeHint, which would leave the URL label
     // ~70px. The list minimum survives that pass; long URLs still middle-elide.
@@ -232,6 +308,11 @@ namespace stencil::gui {
     // Rows are sized to the viewport (the URL elides), so nothing scrolls sideways.
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     list_->viewport()->installEventFilter(this);  // re-cap row widths on resize
+    // Rows fade at the list's edges instead of being cut mid-outline (projects parity).
+    QObject::connect(list_->verticalScrollBar(), &QScrollBar::valueChanged, this,
+                     [this] { applyRowReveal(); });
+    QObject::connect(list_->verticalScrollBar(), &QScrollBar::rangeChanged, this,
+                     [this](int, int) { applyRowReveal(); });
     root->addWidget(list_, 1);
     // Drag a row onto another to reorder the connection order (persisted via changed()→
     // saveServers). Drag a row OUT of the dialog to disconnect it (same Yes/No confirm as
@@ -250,7 +331,8 @@ namespace stencil::gui {
 
     auto* hint = new QLabel(
         tr("Connections are saved and (optionally) restored on open · "
-           "server projects show a golden outline."));
+           "server projects show a golden outline — so do connections whose "
+           "credential can mint invite tokens."));
     hint->setWordWrap(true);
     hint->setStyleSheet("color: palette(mid); font-size: 11px;");
     root->addWidget(hint);
@@ -325,23 +407,55 @@ namespace stencil::gui {
     QDialog::done(r);
   }
 
+  // The viewport minus the list's spacing, which QListView adds on BOTH sides of an
+  // item — a viewport-wide slot overhung the right edge and cut the outline off.
+  int ConnectDialog::rowWidth() const {
+    if (!list_) return 0;
+    return std::max(0, list_->viewport()->width() - 2 * list_->spacing());
+  }
+
+  // Fade rows at the list's top/bottom edges instead of cutting them mid-outline — the
+  // widget twin of ProjectRowDelegate's dissolve (app/scrollReveal.hpp).
+  void ConnectDialog::applyRowReveal() {
+    if (!list_) return;
+    QWidget* vp = list_->viewport();
+    const int viewH = vp->height();
+    QScrollBar* sb = list_->verticalScrollBar();
+    const bool scrollable = sb && sb->maximum() > 0;   // nothing to scroll → no edges
+    for (int i = 0; i < list_->count(); ++i) {
+      QWidget* w = list_->itemWidget(list_->item(i));
+      if (!w || w->isHidden()) continue;
+      const int top = w->mapTo(vp, QPoint(0, 0)).y();
+      const int h = w->height();
+      const double d = scrollable ? revealDissolve(top, top + h, viewH) : 0.0;
+      auto* fx = dynamic_cast<DissolveEffect*>(w->graphicsEffect());
+      if (!fx) {
+        if (d <= 0.0) continue;   // whole — don't allocate an effect to say so
+        fx = new DissolveEffect(w);
+        w->setGraphicsEffect(fx);
+      }
+      fx->setVisibleSpan(h > 0 ? std::clamp(double(-top) / h, 0.0, 1.0) : 0.0,
+                         h > 0 ? std::clamp(double(viewH - top) / h, 0.0, 1.0) : 1.0);
+      fx->setDissolve(d);
+    }
+  }
+
   bool ConnectDialog::eventFilter(QObject* watched, QEvent* event) {
     if (list_ && watched == list_->viewport() && event->type() == QEvent::Resize) {
       // Re-cap every row to the new viewport width (the URL label re-elides itself) —
       // same intent as the projects dialog's delegate sizeHint cap.
-      const int w = list_->viewport()->width();
+      const int w = rowWidth();
       for (int i = 0; i < list_->count(); ++i)
         if (list_->item(i)->sizeHint().isValid())
           list_->item(i)->setSizeHint(QSize(w, list_->item(i)->sizeHint().height()));
+      applyRowReveal();
     }
     return QDialog::eventFilter(watched, event);
   }
 
   void ConnectDialog::confirmDisconnect(const QString& url) {
     if (!manager_) return;
-    if (QMessageBox::question(this, tr("Disconnect server"),
-                              tr("Disconnect and forget %1?").arg(url),
-                              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+    if (!confirmYesNo(this, tr("Disconnect server"), tr("Disconnect and forget %1?").arg(url)))
       return;
     scatterRows({url});
     manager_->disconnectFrom(url);
@@ -384,6 +498,59 @@ namespace stencil::gui {
     });
   }
 
+  void ConnectDialog::applyKindFilter() {
+    if (!list_) return;
+    const QString mode =
+        kindFilter_ ? kindFilter_->currentData().toString() : QStringLiteral("all");
+    // Any previous "nothing matches" line goes first, so the list holds only real rows
+    // whenever something matches (their indices line up with manager_->urls()).
+    for (int i = list_->count() - 1; i >= 0; --i)
+      if (list_->item(i)->data(Qt::UserRole + 1).toBool()) delete list_->takeItem(i);
+    int rows = 0, shown = 0;
+    for (int i = 0; i < list_->count(); ++i) {
+      QListWidgetItem* it = list_->item(i);
+      if (it->data(Qt::UserRole).isNull()) continue;   // "No servers connected." line
+      ++rows;
+      const bool admin = it->data(Qt::UserRole).toBool();
+      const bool show = mode == QLatin1String("all") || (mode == QLatin1String("admin")) == admin;
+      it->setHidden(!show);
+      if (show) ++shown;
+    }
+    if (rows == 0 || shown > 0) return;
+    // Appended AFTER the rows, so the indices above stay valid while it is up.
+    auto* none = new QListWidgetItem(mode == QLatin1String("admin")
+                                         ? tr("No connection holds an admin credential.")
+                                         : tr("Every connection holds an admin credential."),
+                                     list_);
+    none->setData(Qt::UserRole + 1, true);
+    none->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
+    none->setFlags(Qt::NoItemFlags);
+  }
+
+  // The projects list's card look (theme.cpp QListWidget::item — 6px radius, accent-soft
+  // hover, ghost row buttons like QPushButton#pointDelBtn) plus the connection states:
+  // admin gold and expired amber (browser .connect-expired). Set once; it cascades.
+  QString ConnectDialog::rowStyleSheet() const {
+    const QColor accent = palette().color(QPalette::Highlight);
+    const bool dark = palette().color(QPalette::Window).lightness() < 128;
+    const QString soft = rgba(accent, dark ? 0.18 : 0.11);    // theme's %ACCENT_SOFT%
+    const QString soft2 = rgba(accent, dark ? 0.30 : 0.20);   // …and %ACCENT_SOFT2%
+    return QString(
+               "QWidget#connRow,QWidget#connRowAdmin,QWidget#connRowExpired{"
+               "border:1px solid transparent;border-radius:6px;background:transparent;}"
+               "QWidget#connRowAdmin{border:2px solid %1;background:%2;}"
+               "QWidget#connRowExpired{border:1px solid %3;background:%4;}"
+               "QWidget#connRow[hovered=\"true\"]{background:%5;}"
+               "QWidget#connRowAdmin[hovered=\"true\"]{background:%6;}"
+               "QWidget#connRowExpired[hovered=\"true\"]{background:%7;}"
+               "QPushButton[rowAction=\"true\"]{background:transparent;"
+               "border:1px solid transparent;border-radius:6px;}"
+               "QPushButton[rowAction=\"true\"]:hover{background:%5;border-color:%8;}"
+               "QPushButton[rowAction=\"true\"]:pressed{background:%9;}")
+        .arg(kGold.name(), rgba(kGold, 0.10), kAmber.name(), rgba(kAmber, 0.07), soft,
+             rgba(kGold, 0.18), rgba(kAmber, 0.14), rgba(accent, 0.45), soft2);
+  }
+
   void ConnectDialog::rebuildList() {
     if (!manager_ || !list_) return;
     // While removal dust is playing, the retired rows keep their blank slots and the
@@ -411,8 +578,8 @@ namespace stencil::gui {
       updateBatchBar();
       return;
     }
-    // A compact, bordered icon button (browser's per-row .connect-reconnect-one /
-    // .connect-disconnect) — subtle, fixed-size, grouped tight on the right.
+    // A quiet, fixed-size icon button (browser's .connect-reconnect-one /
+    // .connect-disconnect): transparent until hovered, like QPushButton#pointDelBtn.
     auto mkIconBtn = [](const QIcon& ic, const QString& tip) {
       auto* b = new QPushButton;
       b->setIcon(ic);
@@ -420,15 +587,32 @@ namespace stencil::gui {
       b->setFixedSize(30, 28);
       b->setToolTip(tip);
       b->setCursor(Qt::PointingHandCursor);
+      b->setProperty("rowAction", true);   // styled by rowStyleSheet()
       return b;
     };
     auto* reList = static_cast<ReorderableListWidget*>(list_);
     int rowIndex = 0;
     for (const QString& url : urls) {
       const int myIndex = rowIndex++;
-      auto* row = new QWidget;
+      stencil::net::ServerClient* client = manager_->find(url);
+      // An ADMIN row holds a credential PROVEN able to mint session tokens — the one
+      // kind that can hand out invites. Marked with the collaboration gold the projects
+      // list gives server rows (outline + a wash of the same colour + gold bold text).
+      const bool admin = client && client->isAdmin();
+      stencil::net::ServerClient* cl = client;
+      const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::Error;
+      const bool expired = st == stencil::net::ServerClient::Status::Expired;
+      const QString adminTip =
+          tr("Admin credential — this connection can mint session tokens (invite links)");
+      // One card per connection (rowStyleSheet): gold for an admin credential, amber
+      // for an expired session, plain otherwise.
+      auto* row = new RowCard;
+      row->setObjectName(admin      ? QStringLiteral("connRowAdmin")
+                         : expired  ? QStringLiteral("connRowExpired")
+                                    : QStringLiteral("connRow"));
+      if (admin) row->setToolTip(adminTip);
       auto* h = new QHBoxLayout(row);
-      h->setContentsMargins(8, 4, 8, 4);
+      h->setContentsMargins(10, 6, 10, 6);   // the card's padding; the outline sits in it
       h->setSpacing(8);
       // Drag grip: drag onto another row to reorder, or out of the dialog to disconnect.
       auto* grip = new DragGrip;
@@ -447,11 +631,8 @@ namespace stencil::gui {
         updateBatchBar();
       });
       h->addWidget(cb);
-      stencil::net::ServerClient* cl = manager_->find(url);
-      const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::Error;
       auto* dot = new QLabel;
       dot->setPixmap(statusDot(st));
-      const bool expired = st == stencil::net::ServerClient::Status::Expired;
       dot->setToolTip(st == stencil::net::ServerClient::Status::Connected ? tr("Connected")
                       : st == stencil::net::ServerClient::Status::Connecting ? tr("Connecting…")
                       : expired ? tr("Session expired — reconnect to sign in again")
@@ -459,36 +640,44 @@ namespace stencil::gui {
       h->addWidget(dot);
       auto* mark = new QLabel;
       mark->setPixmap(themedIcon("server", kGold, 16).pixmap(16, 16));
+      if (admin) mark->setToolTip(adminTip);
       h->addWidget(mark);
-      h->addWidget(new ElidedLabel(url), 1);  // elides so the buttons never clip
+      auto* urlLbl = new ElidedLabel(url);   // elides so the buttons never clip
+      if (admin) {
+        QFont uf = urlLbl->font();
+        uf.setBold(true);
+        urlLbl->setFont(uf);
+        urlLbl->setStyleSheet(QStringLiteral("color:%1;").arg(kGold.name()));
+        urlLbl->setToolTip(url + "\n" + adminTip);
+      }
+      h->addWidget(urlLbl, 1);
       const QColor rowTxt = palette().color(QPalette::WindowText);
+      // One reconnect control per row, icon-only like every other row action; on an
+      // EXPIRED row it runs reauthenticate() (fresh session first, token prompt only if
+      // refused). Not the browser's labelled button: the amber card already says why.
       auto* recon = mkIconBtn(themedIcon("refresh", rowTxt, 16),
-                              tr("Reconnect this server"));
-      auto* disc = mkIconBtn(themedIcon("x", QColor("#dc3545"), 16), tr("Disconnect"));
-      // An expired row says so IN the row and offers a LABELLED way back in — the
-      // icon-only refresh is easy to miss when it is the one thing to press (browser
-      // parity: "Session expired — reconnect to sign in again").
+                              expired ? tr("Reconnect — sign in to this server again")
+                                      : tr("Reconnect this server"));
+      recon->setObjectName(expired ? QStringLiteral("expiredReconnect")
+                                   : QStringLiteral("rowReconnect"));
+      // trash, not ✕: this FORGETS the server, the app's destructive action elsewhere.
+      auto* disc = mkIconBtn(themedIcon("trash", QColor("#dc3545"), 16), tr("Disconnect"));
+      disc->setObjectName(QStringLiteral("rowDisconnect"));
       if (expired) {
         // Short in the row (it competes with the URL for width), full sentence on
-        // the tooltip — and the labelled button says what to do about it.
+        // the tooltip — the row's amber outline and dot carry the same state.
         auto* note = new QLabel(tr("Session expired"));
         note->setObjectName(QStringLiteral("expiredNote"));
         note->setToolTip(tr("Session expired — reconnect to sign in again"));
-        note->setStyleSheet(QStringLiteral("color:#e0a800;font-size:11px;"));
+        note->setStyleSheet(QStringLiteral("color:%1;font-size:11px;").arg(kAmber.name()));
         note->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
         h->addWidget(note);
-        auto* signIn = new QPushButton(tr("Reconnect"));
-        signIn->setObjectName(QStringLiteral("expiredReconnect"));
-        signIn->setCursor(Qt::PointingHandCursor);
-        h->addWidget(signIn);
-        QObject::connect(signIn, &QPushButton::clicked, this,
-                         [this, url] { reauthenticate(url); });
       }
       // Invite: mint a fresh session with the row's credential and put the link
-      // "<url>#token=<tok>" on the clipboard. Only rows whose credential can mint
-      // offer it (an anonymous session has nothing to invite with).
-      if (cl && st == stencil::net::ServerClient::Status::Connected &&
-          !cl->credential().isEmpty()) {
+      // "<url>#token=<tok>" on the clipboard. ADMIN rows only — a session-token
+      // credential cannot mint (the server 401s it), and an anonymous session holds
+      // no credential at all.
+      if (cl && st == stencil::net::ServerClient::Status::Connected && admin) {
         auto* invite = mkIconBtn(themedIcon("share", rowTxt, 16),
                                  tr("Copy an invite link (mints a fresh session token)"));
         invite->setObjectName(QStringLiteral("inviteBtn"));
@@ -522,7 +711,11 @@ namespace stencil::gui {
       }
       h->addWidget(recon);
       h->addWidget(disc);
-      QObject::connect(recon, &QPushButton::clicked, this, [this, url] {
+      QObject::connect(recon, &QPushButton::clicked, this, [this, url, expired] {
+        if (expired) {   // plain reconnect first, then a token prompt if refused
+          reauthenticate(url);
+          return;
+        }
         QPointer<ConnectDialog> self(this);
         manager_->reconnectAsync(url, [this, self](bool ok, QString err) {
           if (!self) return;
@@ -533,13 +726,18 @@ namespace stencil::gui {
         });
       });
       QObject::connect(disc, &QPushButton::clicked, this, [this, url] { confirmDisconnect(url); });
+      row->watchChildren();   // hover follows the whole card, not the child under it
       auto* item = new QListWidgetItem(list_);
-      // Width capped to the viewport (eventFilter keeps it there on resize), so a long
-      // URL elides instead of forcing a horizontal scrollbar that clipped the buttons.
-      item->setSizeHint(QSize(list_->viewport()->width(), row->sizeHint().height()));
+      item->setData(Qt::UserRole, admin);   // the kind filter's key
       list_->setItemWidget(item, row);
+      // Sized AFTER parenting (the cascaded sheet is then in the hint, so the outline
+      // has room) and capped to the viewport, so a long URL elides instead of scrolling.
+      item->setSizeHint(QSize(rowWidth(), std::max(row->sizeHint().height(), kRowHeight)));
     }
+    applyKindFilter();
     updateBatchBar();
+    // Deferred a turn: the edge fade needs the rows' laid-out geometry.
+    QTimer::singleShot(0, this, [this] { applyRowReveal(); });
     // Newly-connected rows materialize as the removal played backwards: the slot opens
     // blank and the dust GATHERS into the row (Sweep::Gather — browser ghostIn parity).
     if (!fresh.isEmpty() && isVisible() && !support::motionReduced()) {

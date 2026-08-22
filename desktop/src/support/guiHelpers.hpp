@@ -9,6 +9,7 @@ class QAbstractButton;
 class QColor;
 class QComboBox;
 class QDialog;
+class QWidget;
 
 namespace stencil::gui {
 
@@ -17,6 +18,11 @@ namespace stencil::gui {
   // identical 3-line pattern in settings/shortcuts/info dialogs.
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons);
+
+  // Yes/No confirmation with NO platform icon — the compact "just the question and
+  // two buttons" shape the app's other modals use, instead of QMessageBox::question's
+  // oversized ? glyph. Defaults to No. True when the user confirmed.
+  bool confirmYesNo(QWidget* parent, const QString& title, const QString& text);
 
   // Stylesheet for the floating "re-open panel" chevron: a rounded square with a subtle fill +
   // border and a hover lift. Deliberately theme-INDEPENDENT — it overlays the CANVAS, not a

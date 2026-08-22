@@ -12,10 +12,13 @@
 namespace stencil::net {
 
   // One persisted connection: the server origin + the token last issued/accepted
-  // for it (empty when none). Mirrors connectionStore.js's { url, token } shape.
+  // for it (empty when none). Mirrors connectionStore.js's { url, token, kind }.
   struct SavedServer {
     QString url;
     QString token;
+    // ServerClient::kindTag of the credential: "admin" (proven able to mint session
+    // tokens), "session", or "" (unknown / none — what pre-kind rows restore as).
+    QString kind;
   };
 
   namespace connectionStore {

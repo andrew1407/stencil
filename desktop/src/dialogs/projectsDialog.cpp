@@ -1429,10 +1429,8 @@ namespace stencil::gui {
     // Confirm on the NEXT turn, over the still-open dialog: the drag-out Remove zone
     // lands here from a drag release, which dismisses a box shown in the same turn.
     QTimer::singleShot(0, this, [this, id, nm] {
-      if (QMessageBox::question(
-              this, "Remove project",
-              QString("Remove \"%1\"? This cannot be undone.").arg(nm),
-              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+      if (!confirmYesNo(this, "Remove project",
+                        QString("Remove \"%1\"? This cannot be undone.").arg(nm)))
         return;
       // Re-found by id — the confirm ran an event loop, so a re-list may have happened.
       QListWidgetItem* row = nullptr;

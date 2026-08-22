@@ -466,8 +466,10 @@ if(Qt6_FOUND)
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
+    src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc)
   target_include_directories(stencil_connectrow_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_connectrow_headless PRIVATE
@@ -484,8 +486,10 @@ if(Qt6_FOUND)
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
+    src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc)
   target_include_directories(stencil_serverauth_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_serverauth_headless PRIVATE

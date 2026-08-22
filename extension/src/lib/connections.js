@@ -99,15 +99,30 @@ const saveConnections = async (list) => {
   try { await storage().set({ [CONNECTIONS_KEY]: list }); } catch { /* storage unavailable */ }
 };
 
-// Pure: add/replace a connection record keyed by url (newest-first).
+// Pure: add/replace a connection record keyed by url (newest-first). credentialKind
+// rides along so the options list can tell an ADMIN connection from a session one.
 export const upsertConnection = (list, conn) => {
   const out = (Array.isArray(list) ? list : []).filter((c) => c.url !== conn.url);
-  out.unshift({ url: conn.url, token: conn.token || '' });
+  out.unshift({ url: conn.url, token: conn.token || '', credentialKind: conn.credentialKind === 'admin' ? 'admin' : '' });
   return out;
 };
 
 export const dropConnection = (list, url) =>
   (Array.isArray(list) ? list : []).filter((c) => c.url !== url);
+
+// True when the connection was established with an ADMIN credential — one that can mint
+// session tokens. Rows saved before the field existed simply aren't admin.
+export const isAdminConnection = (conn) => !!conn && conn.credentialKind === 'admin';
+
+// View-only three-way filter for the options list: 'all' | 'admin' | 'other'.
+export const CONNECTION_FILTERS = ['all', 'admin', 'other'];
+
+export const filterConnections = (list, mode = 'all') => {
+  const arr = (Array.isArray(list) ? list : []).filter(Boolean);
+  if (mode === 'admin') return arr.filter(isAdminConnection);
+  if (mode === 'other') return arr.filter((c) => !isAdminConnection(c));
+  return arr;
+};
 
 // ── REST ──
 
@@ -128,7 +143,11 @@ const req = async (conn, method, path, { body, raw, query, fetch: f = fetchImpl(
       const r = await req({ url: conn.url, token: conn.credential }, 'POST', '/auth/token',
         { body: {}, fetch: f, retried: true });
       conn.token = r.token;
-      return req(conn, method, path, { body, raw, query, fetch: f, retried: true });
+      const out = await req(conn, method, path, { body, raw, query, fetch: f, retried: true });
+      // It minted AND the fresh session works: the credential is an admin token
+      // (browser parity: connectionManager _req).
+      conn.credentialKind = 'admin';
+      return out;
     }
     let msg = `HTTP ${resp.status}`;
     try { const e = await resp.json(); if (e && e.message) msg = e.message; } catch { /* non-JSON */ }
@@ -148,6 +167,9 @@ export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
   const url = normalizeUrl(inv.url);
   const supplied = token || inv.token;
   let tok = supplied;
+  // '' until the mint round below proves the supplied value is an admin token; no
+  // credential (or one that lists projects directly) is an ordinary session.
+  let kind = '';
   if (!tok) {
     const r = await req({ url, token: '' }, 'POST', '/auth/token', { body: {}, fetch: f });
     tok = r.token;
@@ -161,11 +183,13 @@ export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
       const r = await req({ url, token: tok }, 'POST', '/auth/token', { body: {}, fetch: f });
       tok = r.token;
       await req({ url, token: tok }, 'GET', '/projects', { fetch: f });
+      // It minted AND the session works: the supplied value is an admin credential.
+      kind = 'admin';
     }
   }
   // credential = what the user supplied (explicit token or the invite fragment):
   // it outlives server restarts (req() re-mints with it when a session goes stale).
-  return { url, token: tok, credential: supplied || '' };
+  return { url, token: tok, credential: supplied || '', credentialKind: kind };
 };
 
 export const listProjects = async (conn, f = fetchImpl()) => {
@@ -236,6 +260,9 @@ export const reconnectServer = async (rawUrl, f = fetchImpl()) => {
   let conn;
   try {
     conn = await connect(url, existing ? existing.token : '', f);  // re-validate token
+    // Only the minted SESSION token is persisted, so re-validating it can never re-prove
+    // the admin credential behind it — carry the known kind over instead of losing it.
+    if (isAdminConnection(existing)) conn.credentialKind = 'admin';
   } catch {
     conn = await connect(url, '', f);  // token stale/rejected → request a fresh one
   }

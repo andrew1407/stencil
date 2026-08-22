@@ -5,6 +5,7 @@
 #include "canvasWidget.hpp"
 #include "chatDock.hpp"
 #include "displayName.hpp"
+#include "guiHelpers.hpp"   // confirmYesNo()
 #include "iconSet.hpp"
 #include "imageFilter.hpp"
 #include "mediaLoader.hpp"
@@ -812,10 +813,8 @@ namespace stencil::gui {
   void MainWindow::runDeferredChatClear() {
     // §10 clearChat: the trash button clears silently, but the MODEL-driven
     // clear always confirms — the in-app confirm keeps the user in the loop.
-    if (QMessageBox::question(this, "Clear conversation",
-                              "Clear this conversation? This cannot be undone.",
-                              QMessageBox::Yes | QMessageBox::No,
-                              QMessageBox::No) != QMessageBox::Yes) {
+    if (!confirmYesNo(this, "Clear conversation",
+                      "Clear this conversation? This cannot be undone.")) {
       chatLateNote(QStringLiteral("clear canceled"));   // in the last card, on both views
       return;
     }
@@ -1165,10 +1164,8 @@ namespace stencil::gui {
     auto* c = connections_->find(link.address);
     if (!c) return;
     const QString host = QUrl(link.address).host();
-    if (QMessageBox::question(
-            this, "Upload video",
-            QStringLiteral("Store this video with the shared project on %1?").arg(host))
-        != QMessageBox::Yes)
+    if (!confirmYesNo(this, "Upload video",
+                      QStringLiteral("Store this video with the shared project on %1?").arg(host)))
       return;
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {

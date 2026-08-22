@@ -6,15 +6,22 @@
 //     and issue no fresh auth of their own;
 //   - an admin token still works (the client mints a session with it);
 //   - a valid token still connects normally;
-//   - the dialog row for an expired connection renders the amber note and a
-//     labelled Reconnect, and signing in again turns it green.
+//   - the dialog row for an expired connection wears the amber card + note and an
+//     icon-only Reconnect, and signing in again turns it green.
+// …plus the credential KIND that rides along with it (browser credentialKind
+// parity): Admin when the credential PROVED it can mint a session, Session when
+// the supplied token passed the /projects probe, None when nothing was supplied —
+// persisted with the saved connections and shown as the row's golden band, its
+// Invite button, and the All / Admin / Non-admin filter.
 // A mock QTcpServer stands in for the collaboration server, so no Go server is
 // needed (same approach as connectRow.headless).
 #include "connectDialog.hpp"
+#include "connectionStore.hpp"
 #include "serverClient.hpp"
 
 #include <QApplication>
 #include <QClipboard>
+#include <QComboBox>
 #include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QEventLoop>
@@ -22,6 +29,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QSettings>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <cstdio>
@@ -93,6 +101,8 @@ int main(int argc, char** argv) {
 
   MockServer mock;
   check(mock.listen(), "mock server listens");
+  MockServer mock2;   // a SECOND origin, so one manager can hold two kinds of row
+  check(mock2.listen(), "second mock server listens");
 
   // ── a REFUSED credential is Expired, not Error ──
   std::printf("classification:\n");
@@ -184,6 +194,144 @@ int main(int argc, char** argv) {
           "…with no re-auth needed");
   }
 
+  // ── the credential KIND: admin / non-admin / none ──
+  std::printf("credential kind:\n");
+  {
+    // ADMIN: the token cannot list projects, but it MINTS a session.
+    mock.projectsStatus = 200;
+    mock.tokenStatus = 200;
+    mock.goodBearer = "sess-k";
+    mock.mintToken = "sess-k";
+    mock.mintBearer = "admin-token";   // only the credential may mint
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err),
+          "an admin credential connects");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Admin,
+          "a credential that MINTED the session is Admin");
+    check(cl && cl->isAdmin(), "…and reads as admin");
+    mock.mintBearer.clear();
+  }
+  {
+    // NON-ADMIN: the supplied token passed the /projects probe on its own.
+    mock.goodBearer = "good-token";
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("good-token"), err),
+          "a session token connects");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Session,
+          "a token that PASSED the probe is Session, never Admin");
+    check(cl && !cl->isAdmin(), "…so it claims no admin powers");
+    mock.goodBearer.clear();
+  }
+  {
+    // NONE: nothing was supplied — the session was minted anonymously.
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QString(), err), "an anonymous session connects");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::None,
+          "an anonymous session holds no credential kind at all");
+    check(cl && !cl->isAdmin(), "…and is not admin");
+  }
+  {
+    // A SESSION credential the server later forgets: the mid-session re-mint proves
+    // it can mint after all, so the kind is promoted (browser _req parity).
+    mock.goodBearer = "sess-p";
+    mock.mintToken = "sess-p";
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("sess-p"), err), "a session token connects");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Session,
+          "…classified Session at connect");
+    mock.goodBearer = "sess-q";   // the server restarts: it mints "sess-q" now
+    mock.mintToken = "sess-q";
+    bool called = false, ok = false;
+    cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
+    pumpUntil([&] { return called; });
+    check(ok, "the lapsed session is rescued by the credential");
+    check(cl->credentialKind() == ServerClient::CredentialKind::Admin,
+          "…and a credential that minted mid-session is now known Admin");
+    mock.goodBearer.clear();
+    mock.mintToken = "tok";
+  }
+  {
+    // A kind already PROVEN skips the doomed probe: one request, straight to the mint.
+    mock.goodBearer = "sess-h";
+    mock.mintToken = "sess-h";
+    mock.mintBearer = "admin-token";
+    ConnectionManager mgr;
+    QString err;
+    const int before = mock.requests;
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err,
+                        ServerClient::CredentialKind::Admin),
+          "a RESTORED admin credential connects");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->isAdmin() && cl->token() == QStringLiteral("sess-h"),
+          "…minting its session at once");
+    check(mock.requests == before + 1,
+          "…in ONE request: a known admin credential never probes /projects");
+    mock.mintBearer.clear();
+    mock.goodBearer.clear();
+    mock.mintToken = "tok";
+  }
+
+  // ── the kind PERSISTS with the saved connections (compatibly) ──
+  std::printf("kind persistence:\n");
+  {
+    mock.goodBearer = "sess-s";
+    mock.mintToken = "sess-s";
+    mock.mintBearer = "admin-token";
+    mock2.goodBearer = "plain-tok";
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err), "an admin row");
+    check(mgr.connectTo(mock2.url(), QStringLiteral("plain-tok"), err), "…and a non-admin one");
+    const auto snap = mgr.snapshot();
+    check(snap.size() == 2, "both connections are in the snapshot");
+    stencil::net::connectionStore::saveServers(snap);
+    const auto back = stencil::net::connectionStore::loadSavedServers();
+    check(back.size() == 2, "…and both come back");
+    if (back.size() == 2) {
+      check(back[0].token == QStringLiteral("admin-token") &&
+                back[0].kind == QStringLiteral("admin"),
+            "the admin credential round-trips with its kind");
+      check(back[1].token == QStringLiteral("plain-tok") &&
+                back[1].kind == QStringLiteral("session"),
+            "…and the session one with its own");
+      check(ServerClient::kindFromTag(back[0].kind) == ServerClient::CredentialKind::Admin &&
+                ServerClient::kindFromTag(back[1].kind) == ServerClient::CredentialKind::Session,
+            "…both parsing back into the kind they were saved from");
+    }
+    mock.mintBearer.clear();
+    mock.goodBearer.clear();
+    mock2.goodBearer.clear();
+    mock.mintToken = "tok";
+  }
+  {
+    // OLD rows (written before the kind existed) still load: "url\ttoken", kind unknown.
+    QSettings s;
+    s.setValue(QStringLiteral("connections/servers"),
+               QStringList{QStringLiteral("http://old.example:8090\told-tok")});
+    const auto legacy = stencil::net::connectionStore::loadSavedServers();
+    check(legacy.size() == 1 && legacy[0].url == QStringLiteral("http://old.example:8090") &&
+              legacy[0].token == QStringLiteral("old-tok") && legacy[0].kind.isEmpty(),
+          "a pre-kind row loads unchanged, with no kind");
+    check(!legacy.isEmpty() &&
+              ServerClient::kindFromTag(legacy[0].kind) == ServerClient::CredentialKind::None,
+          "…which reads as no kind (it probes, like it always did)");
+    // …and only a RECOGNISED trailing tag is a kind, so a token with a tab survives.
+    s.setValue(QStringLiteral("connections/servers"),
+               QStringList{QStringLiteral("http://old.example:8090\tto\tken")});
+    const auto tabbed = stencil::net::connectionStore::loadSavedServers();
+    check(tabbed.size() == 1 && tabbed[0].token == QStringLiteral("to\tken") &&
+              tabbed[0].kind.isEmpty(),
+          "…and a trailing field that is not a kind tag stays part of the token");
+  }
+
   // ── mid-session re-mint: the stored credential rescues a lapsed session ──
   std::printf("mid-session re-mint:\n");
   {
@@ -257,9 +405,21 @@ int main(int argc, char** argv) {
       check(note->text().contains("Session expired") &&
                 note->toolTip().contains("reconnect to sign in again"),
             "…saying the session expired, with the full sentence on its tooltip");
+    // …and the row itself wears the amber card (browser .connect-expired).
+    check(dlg.findChildren<QWidget*>(QStringLiteral("connRowExpired")).size() == 1,
+          "…and the row wears the expired amber state");
     auto* signIn = dlg.findChild<QPushButton*>(QStringLiteral("expiredReconnect"));
-    check(signIn != nullptr, "…and a LABELLED Reconnect action");
-    if (signIn) check(signIn->text().contains("Reconnect"), "…that says Reconnect");
+    check(signIn != nullptr, "…and a Reconnect action");
+    if (signIn) {
+      // Icon-only, like every other row action: the note says what is wrong, the
+      // tooltip what the button does.
+      check(signIn->text().isEmpty() && !signIn->icon().isNull(),
+            "…that is icon-only, like the row's other actions");
+      check(signIn->toolTip().contains("sign in to this server again"),
+            "…with what it does on its tooltip");
+      check(signIn->size() == dlg.findChild<QPushButton*>(QStringLiteral("rowDisconnect"))->size(),
+            "…and the same footprint as the row's disconnect button");
+    }
 
     // The server starts handing out sessions again: the row's own reconnect
     // (fresh-session path, no prompt) signs in and the row stops being expired.
@@ -411,6 +571,95 @@ int main(int argc, char** argv) {
     pumpFor(60);
     check(dlg2.findChild<QPushButton*>(QStringLiteral("inviteBtn")) == nullptr,
           "…whose row offers no Invite");
+    mock.mintToken = "tok";
+  }
+
+  // ── the ADMIN row: golden band + tooltip, Invite gated on the kind, kind filter ──
+  std::printf("admin row:\n");
+  {
+    mock.goodBearer = "sess-r";
+    mock.mintToken = "sess-r";
+    mock.mintBearer = "admin-token";
+    mock2.goodBearer = "plain-tok";
+    ConnectionManager mgr;
+    QString err;
+    check(mgr.connectTo(mock.url(), QStringLiteral("admin-token"), err),
+          "an admin connection for the row round");
+    check(mgr.connectTo(mock2.url(), QStringLiteral("plain-tok"), err),
+          "…and a non-admin one beside it");
+    ConnectDialog dlg(&mgr);
+    dlg.resize(560, 460);
+    dlg.show();
+    pumpFor(60);
+
+    const auto gold = dlg.findChildren<QWidget*>(QStringLiteral("connRowAdmin"));
+    check(gold.size() == 1, "exactly the ADMIN row wears the golden band");
+    auto* rowList = dlg.findChild<QListWidget*>(QStringLiteral("connList"));
+    if (!gold.isEmpty() && rowList) {
+      // The card styles live on the LIST (one cascading sheet); the row carries the
+      // objectName its rule selects.
+      check(rowList->styleSheet().contains(
+                QStringLiteral("QWidget#connRowAdmin{border:2px solid #d4a017")),
+            "…drawn in the app's collaboration gold");
+      check(gold[0]->toolTip().contains(QStringLiteral("mint session tokens")),
+            "…and saying on its tooltip what the credential can do");
+      // Projects-row parity: the plain rows are cards too — 6px radius, accent-soft hover.
+      check(rowList->styleSheet().contains(QStringLiteral("border-radius:6px")) &&
+                rowList->styleSheet().contains(QStringLiteral("QWidget#connRow[hovered=\"true\"]")),
+            "…and every row is a rounded card with a hover wash");
+    }
+    // The Invite button follows the KIND now, not merely "has a credential": a session
+    // token cannot mint (the server 401s it), so only the admin row offers one.
+    check(dlg.findChildren<QPushButton*>(QStringLiteral("inviteBtn")).size() == 1,
+          "only the admin row offers Invite");
+
+    auto* filter = dlg.findChild<QComboBox*>(QStringLiteral("connKindFilter"));
+    auto* lw = dlg.findChild<QListWidget*>(QStringLiteral("connList"));
+    check(filter != nullptr, "the list carries an All / Admin / Non-admin filter");
+    check(lw != nullptr, "…over the connections list");
+    const QStringList urls = mgr.urls();
+    const int adminRow = urls.indexOf(ServerClient::normalizeBase(mock.url()));
+    const int plainRow = urls.indexOf(ServerClient::normalizeBase(mock2.url()));
+    check(adminRow >= 0 && plainRow >= 0, "both rows are in the list");
+    if (filter && lw && adminRow >= 0 && plainRow >= 0) {
+      check(filter->count() == 3 && filter->currentData().toString() == QLatin1String("all"),
+            "…three ways, All by default");
+      check(!lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
+            "…which shows every row");
+      filter->setCurrentIndex(filter->findData(QStringLiteral("admin")));
+      check(!lw->item(adminRow)->isHidden() && lw->item(plainRow)->isHidden(),
+            "Admin hides the non-admin row");
+      filter->setCurrentIndex(filter->findData(QStringLiteral("nonadmin")));
+      check(lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
+            "Non-admin hides the admin row");
+      filter->setCurrentIndex(filter->findData(QStringLiteral("all")));
+      check(!lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
+            "…and All brings both back");
+    }
+
+    // Nothing matching says so, instead of leaving an empty list unexplained.
+    ConnectionManager lone;
+    check(lone.connectTo(mock2.url(), QStringLiteral("plain-tok"), err),
+          "a lone non-admin connection");
+    ConnectDialog dlg2(&lone);
+    dlg2.resize(560, 460);
+    dlg2.show();
+    pumpFor(60);
+    auto* f2 = dlg2.findChild<QComboBox*>(QStringLiteral("connKindFilter"));
+    auto* l2 = dlg2.findChild<QListWidget*>(QStringLiteral("connList"));
+    if (f2 && l2) {
+      f2->setCurrentIndex(f2->findData(QStringLiteral("admin")));
+      QListWidgetItem* last = l2->count() ? l2->item(l2->count() - 1) : nullptr;
+      check(l2->count() == 2 && last && !last->isHidden() &&
+                last->text().contains(QStringLiteral("admin credential")),
+            "a filter that matches nothing shows an explanatory line");
+      f2->setCurrentIndex(f2->findData(QStringLiteral("all")));
+      check(l2->count() == 1 && !l2->item(0)->isHidden(),
+            "…which leaves again once rows match");
+    }
+    mock.mintBearer.clear();
+    mock.goodBearer.clear();
+    mock2.goodBearer.clear();
     mock.mintToken = "tok";
   }
 

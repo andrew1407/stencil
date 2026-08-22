@@ -49,16 +49,21 @@ public sealed class ServerService : IServerService
         // (169.254.169.254, fe80::/10, …) hosts are an SSRF-only target and are rejected.
         await RemoteImageUrl.ValidateServerUrlAsync(url, ct);
         var session = await _store.GetAsync(userId, ct);
-        var client = _factory.Create(url, token, verifyTls);
-        var effectiveToken = await client.ConnectAsync(token, ct);
         var normalized = _factory.NormalizeUrl(url);
+        // Reuse what an earlier connect to this origin proved about the credential, so a known
+        // admin token skips the probe that can only 401 (browser handshake parity).
+        var known = session.FindConnection(normalized)?.CredentialKind ?? CredentialKind.None;
+        var client = _factory.Create(url, token, verifyTls, credential: null, known);
+        var handshake = await client.ConnectAsync(token, ct);
         // credential = what the user supplied (may be the ADMIN token): kept beside the live
-        // session token so a later stale-session re-mint survives the round-tripped record.
+        // session token so a later stale-session re-mint survives the round-tripped record, with
+        // the kind the handshake proved it to be.
         var info = new ServerConnectionInfo
         {
             Url = normalized,
-            Token = effectiveToken,
+            Token = handshake.Token,
             Credential = token ?? "",
+            CredentialKind = handshake.CredentialKind,
             VerifyTls = verifyTls,
         };
         var connections = session.Connections
@@ -515,9 +520,10 @@ public sealed class ServerService : IServerService
     }
 
     /// <summary>Build a client for a remembered connection, reusing its stored token +
-    /// credential + TLS choice (the credential re-mints a stale session token in place).</summary>
+    /// credential (+ kind) + TLS choice (the credential re-mints a stale session token in place).</summary>
     private IStencilServerClient ClientFor(ServerConnectionInfo connection) =>
-        _factory.Create(connection.Url, connection.Token, connection.VerifyTls, connection.Credential);
+        _factory.Create(connection.Url, connection.Token, connection.VerifyTls, connection.Credential,
+            connection.CredentialKind);
 
     /// <summary>
     /// A client for the active project's server: its remembered connection (with token/TLS), or a

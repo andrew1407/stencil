@@ -9,6 +9,14 @@ import { makeTouchDraggable } from './touchDrag.js';
 import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible } from './motion.js';
 import { canRefreshList } from './projectsModal.js';
 
+// Three-way credential filter over the connections list: all | admin | non-admin.
+// An ADMIN connection is one whose stored credential can mint session tokens.
+export const matchesConnFilter = (conn, mode) => {
+  if (mode === 'admin') return conn?.credentialKind === 'admin';
+  if (mode === 'non-admin') return conn?.credentialKind !== 'admin';
+  return true;
+};
+
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
 // projects then appear in the Projects modal. Backed by app.connections (see connectionManager).
@@ -41,13 +49,22 @@ export class StencilConnectModal extends StencilElement {
                     </label>
                 </div>
 
-                <div class="vs-section">Connections</div>
+                <!-- Heading + credential filter share one row; the filter is view state
+                     only, never persisted. -->
+                <div class="connect-section-row">
+                    <div class="vs-section">Connections</div>
+                    <select id="connect-filter" class="modal-filter" title="Filter connections by credential">
+                        <option value="all">All</option>
+                        <option value="admin">Admin</option>
+                        <option value="non-admin">Non-admin</option>
+                    </select>
+                </div>
                 <!-- Batch-select toolbar: appears once one or more connections are checked. -->
                 <div class="connect-batch-bar" id="connect-batch-bar" style="display:none">
                     <span class="connect-batch-count" id="connect-batch-count">0 selected</span>
                     <span class="connect-batch-actions">
                         <button id="connect-batch-reconnect" class="btn-icon-text" title="Reconnect the selected servers">${icon('refresh', { size: 13 })}<span>Reconnect</span></button>
-                        <button id="connect-batch-disconnect" class="danger btn-icon-text" title="Disconnect (and forget) the selected servers">${icon('x', { size: 13 })}<span>Disconnect</span></button>
+                        <button id="connect-batch-disconnect" class="danger btn-icon-text" title="Disconnect (and forget) the selected servers">${icon('trash', { size: 13 })}<span>Disconnect</span></button>
                         <button id="connect-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
                     </span>
                 </div>
@@ -87,6 +104,11 @@ export class StencilConnectModal extends StencilElement {
       batchBar.style.display = selected.size ? '' : 'none';
       batchCount.textContent = `${selected.size} selected`;
     };
+
+    // ── Credential filter (view state only — deliberately NOT persisted) ──
+    const filterEl = $('connect-filter');
+    let filterMode = 'all';
+    let shownUrls = new Set();   // urls the last render actually listed
 
     // ── Drag-reorder / drag-out-to-remove state ──
     // draggingUrl: the row being dragged; didReorder: an in-list drop already reordered
@@ -134,11 +156,15 @@ export class StencilConnectModal extends StencilElement {
       const cm = mgr();
       // Expired sessions keep their row: the server is up, the saved URL is still right,
       // only a new token is missing. Dropping them left the boot 401 with nowhere to go.
-      const urls = cm ? cm.knownUrls : [];
+      const known = cm ? cm.knownUrls : [];
       // Nothing to re-establish → the button would only toast an error.
       reconnectBtn.disabled = !cm?.reconnectable;
       // Drop any selected urls that are no longer connected (e.g. removed elsewhere).
-      for (const u of [...selected]) if (!urls.includes(u)) selected.delete(u);
+      // Against the KNOWN set, not the filtered one — filtering a row out of view
+      // must not silently drop it from a pending batch action.
+      for (const u of [...selected]) if (!known.includes(u)) selected.delete(u);
+      const urls = known.filter((u) => matchesConnFilter(cm?.get(u), filterMode));
+      shownUrls = new Set(urls);
       if (!urls.length) {
         // Mid-wipe the list stays visually empty (its height still pinned): the
         // placeholder waits for the hold's settle render, or it would land beneath
@@ -146,7 +172,7 @@ export class StencilConnectModal extends StencilElement {
         if (emptyStateVisible(urls.length, hold.holding)) {
           const empty = document.createElement('div');
           empty.className = 'info-empty';
-          empty.textContent = 'No servers connected.';
+          empty.textContent = known.length ? 'No connections match this filter.' : 'No servers connected.';
           list.appendChild(empty);
         }
         updateBatchBar();
@@ -157,7 +183,7 @@ export class StencilConnectModal extends StencilElement {
         row.className = 'connect-row';
         row.dataset.url = url;
         // Drag grip: the row is draggable to REORDER (drop on another row) or to REMOVE
-        // (drop outside the modal, with the same confirm as the ✕). Drags starting on an
+        // (drop outside the modal, with the same confirm as the trash button). Drags starting on an
         // input/button are suppressed so checkbox/action clicks aren't hijacked.
         const grip = document.createElement('span');
         grip.className = 'connect-grip';
@@ -258,10 +284,22 @@ export class StencilConnectModal extends StencilElement {
           disconnected: 'Disconnected', expired: 'Session expired — reconnect to sign in again' }[status] || status;
         const expired = status === 'expired';
         if (expired) row.classList.add('connect-expired');
+        // An ADMIN credential gets the golden outline + badge server projects wear.
+        const isAdmin = conn?.credentialKind === 'admin';
+        if (isAdmin) row.classList.add('connect-admin');
         const label = document.createElement('span');
         label.className = 'connect-url';
         label.title = `${statusText} — ${url}`;
         label.innerHTML = `<span class="conn-status conn-status-${status}" title="${statusText}"></span>${icon('server', { size: 14 })}<span>${url}</span>`;
+        // Its own row child, not inside .connect-url — that box ellipsises a long URL
+        // and would clip the badge away with it.
+        let badge = null;
+        if (isAdmin) {
+          badge = document.createElement('span');
+          badge.className = 'connect-admin-badge';
+          badge.title = 'Admin credential — this connection can mint session tokens (invite links)';
+          badge.innerHTML = `${icon('lock', { size: 12 })}<span>Admin</span>`;
+        }
         // Per-row reconnect. On an EXPIRED session it is labelled — the fix, not a
         // retry: first ask the server for a fresh session, and only if refused ask for
         // a token, which may equally be the ADMIN token (desktop Connect parity).
@@ -291,8 +329,9 @@ export class StencilConnectModal extends StencilElement {
         });
         const disc = document.createElement('button');
         disc.className = 'connect-disconnect danger btn-icon';
-        disc.title = 'Disconnect';
-        disc.innerHTML = icon('x', { size: 15 });
+        // Trash, not ✕ — the projects modal's remove glyph; this forgets the server.
+        disc.title = 'Disconnect (and forget) this server';
+        disc.innerHTML = icon('trash', { size: 15 });
         disc.addEventListener('click', () => confirmDisconnect(url));
         // Keep reconnect + disconnect grouped tight on the right (their own flex
         // box), rather than letting the row's space-between fling them apart.
@@ -300,7 +339,8 @@ export class StencilConnectModal extends StencilElement {
         actions.className = 'connect-actions';
         // Invite: mint a fresh session token from this row's credential and copy
         // `<url>#token=…` — paste it into any surface's Connect form to join.
-        if (conn && conn.connected && conn.credential) {
+        // Only an ADMIN credential can mint: a session-token credential would 401.
+        if (conn && conn.connected && conn.credentialKind === 'admin') {
           const invite = document.createElement('button');
           invite.className = 'connect-invite btn-icon';
           invite.title = 'Copy an invite link (mints a fresh session token)';
@@ -318,7 +358,7 @@ export class StencilConnectModal extends StencilElement {
           actions.append(invite);
         }
         actions.append(recon, disc);
-        row.append(cb, label, actions);
+        row.append(cb, label, ...(badge ? [badge] : []), actions);
         list.appendChild(row);
       }
       updateBatchBar();
@@ -381,6 +421,18 @@ export class StencilConnectModal extends StencilElement {
       try { await mgr().reconnect(); notify('Reconnected', 'ok'); }
       catch (err) { notify(`Reconnect failed — ${err.message}`, 'fail'); }
       render();
+    });
+
+    // Switching the filter re-lists in place: rows the new filter REVEALS materialize
+    // like a freshly connected one; the leave/wipe stays the disconnect's (a filtered-out
+    // row was not removed, so it must not play a removal).
+    filterEl.addEventListener('change', () => {
+      filterMode = filterEl.value;
+      const before = shownUrls;
+      render();
+      const fresh = [...shownUrls].filter((u) => !before.has(u));
+      fresh.forEach((u, i) => materialize(
+        list.querySelector(`[data-url="${CSS.escape(u)}"]`), scatterGridFor(fresh.length, i)));
     });
 
     const autoEl = $('connect-autoconnect');

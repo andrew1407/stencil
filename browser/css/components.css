@@ -1823,10 +1823,41 @@ stencil-fullscreen-layer { display: contents; }
 }
 
 /* ── Server connections modal ───────────────────────────────────── */
+/* A connection row is a .project-row sibling: same padding/gap/radius/border,
+   same resting fill and hover lift. Only the connection-specific bits differ. */
 .connect-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 6px 10px; border: 1px solid var(--border-main); border-radius: 8px;
-    margin-bottom: 6px; background: var(--input-bg);
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 8px; background: var(--input-bg);
+}
+.connect-row:hover { background: var(--bg-info); }
+/* Admin credential: the golden outline + badge server projects wear (--remote-gold) —
+   this connection can mint session tokens. Transient row states (selected, expired)
+   are declared after it, so they still win the border. */
+.connect-row.connect-admin {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
+}
+.connect-admin-badge {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+    color: var(--remote-gold); font-weight: 600; font-size: 12px;
+}
+.connect-admin-badge .ic { color: var(--remote-gold); }
+/* Heading row: the filter sits inline at the right rather than on its own line.
+   It wraps below the heading before it can crowd it on a narrow modal. */
+.connect-section-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 14px 0 6px; }
+/* The heading's own margins move to the row, so the filter centres against it. */
+.connect-section-row .vs-section { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* Sized to the heading, not to a form field — the native select AND the trigger
+   customSelect.js swaps in for it (which is what actually shows). */
+.connect-section-row .modal-filter,
+.connect-section-row .cs-dd .accent-dd-trigger {
+    flex: 0 0 auto; max-width: 100%; padding: 3px 8px; font-size: 12px; border-radius: 6px;
+}
+.connect-section-row .cs-dd { flex: 0 0 auto; max-width: 100%; }
+/* Touch keeps the app's ≥40px tap target; the row wraps to make room. */
+@media (hover: none) and (pointer: coarse) {
+    .connect-section-row .cs-dd .accent-dd-trigger { min-height: 40px; padding: 6px 10px; }
 }
 .connect-row.connect-selected { border-color: var(--accent); background: var(--bg-info); }
 .connect-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
@@ -1855,32 +1886,24 @@ stencil-fullscreen-layer { display: contents; }
    token it no longer knows. Its own state so the row can say what actually helps. */
 .conn-status-expired { background: #e0a800; color: #e0a800; }
 .connect-row.connect-expired { border-color: #e0a800; background: color-mix(in srgb, #e0a800 8%, var(--input-bg)); }
-/* The row's action is a labelled button here, since it is the fix rather than a retry. */
-.connect-row.connect-expired .connect-reconnect-one { color: #e0a800; border-color: #e0a800; white-space: nowrap; }
+/* The row's action is a labelled button here, since it is the fix rather than a retry —
+   amber-filled to match the row, not the accent every other row button wears. */
+.connect-row.connect-expired .connect-reconnect-one { white-space: nowrap; }
+.connect-row.connect-expired .connect-reconnect-one:not(:disabled) { background: #e0a800; color: #1f1f1f; }
+.connect-row.connect-expired .connect-reconnect-one:hover:not(:disabled) { background: #c99400; }
 @keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 .connect-row .connect-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .connect-row .connect-url .ic { color: var(--remote-gold); flex: 0 0 auto; }
-/* Per-row icon buttons (reconnect / disconnect): compact, subtle, bordered — match
-   the links modal's .links-open/.links-clear rather than the chunky filled default;
-   accent/danger only tints on hover. */
+/* Per-row icon buttons (invite / reconnect / disconnect): the projects modal's row
+   actions — the app's filled button chrome (.danger for disconnect), just compact.
+   The bordered subtle variant read as already-disabled at rest; now hover is an
+   enhancement and only a real :disabled looks dead (button:disabled, layout.css). */
 .connect-row .connect-reconnect-one,
+.connect-row .connect-invite,
 .connect-row .connect-disconnect {
     flex: 0 0 auto;
     padding: 5px 8px;
-    border: 1px solid var(--border-main) !important;
     border-radius: 4px;
-    background: var(--bg-info);
-    color: var(--text-main);
-    cursor: pointer;
-}
-.connect-row .connect-reconnect-one:hover { background: var(--bg-info); border-color: var(--accent) !important; color: var(--accent); }
-.connect-row .connect-disconnect:hover { background: var(--bg-info); border-color: var(--danger) !important; color: var(--danger); }
-.connect-row .connect-reconnect-one:disabled,
-.connect-row .connect-disconnect:disabled {
-    background: var(--disabled-bg);
-    color: var(--disabled-text);
-    border-color: var(--border-main) !important;
-    cursor: not-allowed;
 }
 /* Inline rename input shown in place of .project-name */
 .project-name-edit {

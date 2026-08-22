@@ -60,7 +60,13 @@ from .llm import (
     resolve_server,
     variant_slugs,
 )
-from .server import ConnectionManager, ServerError, normalize_url
+from .server import (
+    ConnectionManager,
+    ServerError,
+    credential_filter_matches,
+    normalize_url,
+    parse_credential_filter,
+)
 from .sitesource import download_media, scan_page, _fetch
 
 
@@ -364,6 +370,9 @@ _HELP = """commands:
                          connect to collaboration server(s); token= is required by a
                          server that has ADMIN_TOKEN set (it won't issue one)
   /disconnect [url]      close one connection (or the most recent when omitted)
+  /connections [admin|session]
+                         list the connected servers (alias: servers); admin-token
+                         credentials are tagged [admin], and the word filters the list
   /projects [url]        list a server's projects (alias: ls)
   /fetch <name> [url]    load a server project's image (alias: pull)
   /prompt <text>         ask the LLM to edit the image (alias: p); plan actions apply to
@@ -515,7 +524,7 @@ class _Repl:
         elif w in ("delete", "del", "remove", "rm"):
             self._cmd_delete(arg)
         elif w in ("connections", "servers"):
-            self._cmd_connections()
+            self._cmd_connections(arg)
         elif w in ("projects", "ls"):
             self._cmd_projects(arg)
         elif w in ("fetch", "pull"):
@@ -1247,13 +1256,28 @@ class _Repl:
             return
         self._say("deleted %s" % arg)
 
-    def _cmd_connections(self) -> None:
+    def _cmd_connections(self, arg: str = "") -> None:
+        """`/connections [admin|session]` — list the live servers, tagging the ones
+        whose credential is a proven admin token. The argument filters the listing;
+        an unknown word prints a usage note. Token values are never printed."""
+        flt = parse_credential_filter(arg)
+        if flt is None:
+            self._err("usage: /connections [admin|session]")
+            return
         conns = self._manager.connections
         if not conns:
             self._say("no server connections — use '/connect <url>'")
             return
+        shown = 0
         for url in conns:
-            self._say(url)
+            conn = self._manager.get(url)
+            kind = getattr(conn, "credential_kind", "")
+            if not credential_filter_matches(flt, kind):
+                continue
+            shown += 1
+            self._say(url + ("  [admin]" if kind == "admin" else ""))
+        if shown == 0:
+            self._say("no %s connections (of %d)" % (flt, len(conns)))
 
     def _cmd_projects(self, arg: str) -> None:
         url = arg.strip()

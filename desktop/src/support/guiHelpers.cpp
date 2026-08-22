@@ -9,6 +9,7 @@
 #include <QDialog>
 #include <QEasingCurve>
 #include <QIcon>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
@@ -51,6 +52,16 @@ namespace stencil::gui {
         "QToolButton{background:rgba(70,76,94,230);border:1px solid rgba(255,255,255,42);"
         "border-radius:7px;padding:0;outline:none;}"
         "QToolButton:hover{background:rgba(94,102,124,245);}");
+  }
+
+  bool confirmYesNo(QWidget* parent, const QString& title, const QString& text) {
+    QMessageBox box(parent);
+    box.setWindowTitle(title);
+    box.setText(text);
+    box.setIcon(QMessageBox::NoIcon);   // the app's modals carry no platform glyph
+    box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    box.setDefaultButton(QMessageBox::No);
+    return box.exec() == QMessageBox::Yes;
   }
 
   QDialogButtonBox* makeButtonBox(QDialog* parent,

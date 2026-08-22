@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Domain.Projects;
+using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Domain.Abstractions;
 
@@ -17,9 +18,10 @@ public interface IStencilServerClient
     /// Acquire or validate a token (handshake): with no token, mint one via
     /// <c>POST /auth/token</c>; with a token, validate it by listing projects — and when that
     /// probe is refused as unauthorised, the value may be the server's ADMIN token: mint a
-    /// session token with it as bearer and adopt that instead. Returns the effective token.
+    /// session token with it as bearer and adopt that instead. Returns the effective token
+    /// plus the <see cref="CredentialKind"/> the handshake proved.
     /// </summary>
-    Task<string> ConnectAsync(string? token, CancellationToken ct = default);
+    Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default);
 
     /// <summary><c>GET /projects</c> → the project records, newest-updated first.</summary>
     Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default);

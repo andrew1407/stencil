@@ -2,6 +2,7 @@ using System.Text.Json;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
+using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
@@ -32,6 +33,10 @@ public sealed class MockStencilServerClient : IStencilServerClient
 
     /// <summary>The token the last <see cref="ConnectAsync"/> resolved to.</summary>
     public string? LastConnectToken { get; private set; }
+
+    /// <summary>The credential kind <see cref="ConnectAsync"/> reports for a supplied token
+    /// (a tokenless connect always reports <see cref="CredentialKind.None"/>).</summary>
+    public CredentialKind HandshakeKind { get; set; } = CredentialKind.Session;
 
     /// <summary>Every <see cref="PutFileAsync"/> call, in order.</summary>
     public List<(string Id, string Kind, byte[] Data, string Ext, int W, int H)> Puts { get; } = new();
@@ -67,10 +72,12 @@ public sealed class MockStencilServerClient : IStencilServerClient
     }
 
     /// <inheritdoc />
-    public Task<string> ConnectAsync(string? token, CancellationToken ct = default)
+    public Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default)
     {
-        LastConnectToken = string.IsNullOrEmpty(token) ? MintedToken : token;
-        return Task.FromResult(LastConnectToken);
+        bool anonymous = string.IsNullOrEmpty(token);
+        LastConnectToken = anonymous ? MintedToken : token;
+        return Task.FromResult(new ServerHandshake(
+            LastConnectToken!, anonymous ? CredentialKind.None : HandshakeKind));
     }
 
     /// <inheritdoc />

@@ -336,7 +336,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .connect => try handlers.doConnect(session, io, cmd.arg),
         .disconnect => try handlers.doDisconnect(session, cmd.arg),
         .reconnect => try handlers.doReconnect(session, io, cmd.arg),
-        .connections => handlers.doConnections(session),
+        .connections => handlers.doConnections(session, cmd.arg),
         .projects => try handlers.doProjects(session, io, cmd.arg),
         .project_color => try handlers.doProjectColor(session, cmd.arg),
         .blank_color => try handlers.doProjectBlankColor(session, cmd.arg),

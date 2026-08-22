@@ -81,7 +81,7 @@ public sealed partial class CommandHandlers
             "chatapi" => ChatApiAsync(userId, chatId, cmd, ct),
             "connect" => ConnectAsync(userId, chatId, cmd, ct),
             "disconnect" => DisconnectAsync(userId, chatId, cmd, ct),
-            "connections" => ConnectionsAsync(userId, chatId, ct),
+            "connections" => ConnectionsAsync(userId, chatId, cmd, ct),
             "projects" => ProjectsAsync(userId, chatId, cmd, ct),
             "fetch" => FetchAsync(userId, chatId, cmd, ct),
             "create" => CreateAsync(userId, chatId, cmd, ct),

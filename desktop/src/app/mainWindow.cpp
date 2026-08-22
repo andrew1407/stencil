@@ -3079,7 +3079,11 @@ namespace stencil::gui {
     int failed = 0;
     for (const auto& srv : saved) {
       QString err;
-      if (!mgr->connectTo(srv.url, srv.token, err)) ++failed;  // a dead server stays absent
+      // The saved kind rides along: a proven admin credential mints straight away
+      // instead of spending a doomed /projects probe on it first.
+      if (!mgr->connectTo(srv.url, srv.token, err,
+                          stencil::net::ServerClient::kindFromTag(srv.kind)))
+        ++failed;  // a dead server stays absent
     }
     if (failed > 0)
       notify_->info(QString("Couldn't reach %1 saved server%2")
@@ -4053,10 +4057,12 @@ namespace stencil::gui {
       // Reuse the saved token for this origin (the browser's saved-servers parity);
       // else connect tokenless and the server mints one (POST /auth/token).
       QString token;
+      auto kind = stencil::net::ServerClient::CredentialKind::None;
       bool known = false;
       for (const auto& s : stencil::net::connectionStore::loadSavedServers()) {
         if (stencil::net::ServerClient::normalizeBase(s.url) == url) {
           token = s.token;
+          kind = stencil::net::ServerClient::kindFromTag(s.kind);
           known = true;
           break;
         }
@@ -4072,7 +4078,7 @@ namespace stencil::gui {
         return;
       }
       QString err;
-      if (!mgr->connectTo(url, token, err)) {
+      if (!mgr->connectTo(url, token, err, kind)) {
         // The normal connect path: surface the failure and open the Servers dialog
         // so the user can supply a token / fix the URL.
         notify_->error(QString("Could not connect to %1 — %2").arg(url, err));
