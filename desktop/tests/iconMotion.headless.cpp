@@ -223,10 +223,14 @@ int main(int argc, char** argv) {
     // the only ink in either band is the lid's own overhang.
     const int dLeft = topIn(b, 0.10, 0.19) - topIn(a, 0.10, 0.19);
     const int dRight = topIn(b, 0.86, 0.99) - topIn(a, 0.86, 0.99);
-    check(dLeft < 0 && dRight > 0,
-          "the trash lid TILTS — its two ends move opposite ways, so it is hinged, not slid");
+    // y grows DOWNWARD, so the lid's far end rising off the can is dRight < 0. The
+    // design also lifts the whole lid 0.4u, which very nearly cancels the dip the
+    // rotation gives the short stub past the hinge — so the hinge end holds station
+    // rather than swinging the other way. Hinged, not slid, is therefore "the far end
+    // travels, the hinge end does not".
+    check(dRight < 0, "the trash lid OPENS — its far end rises off the can");
     check(std::abs(dRight) > 2 * std::abs(dLeft),
-          "…and the hinge is at the lid's LEFT end: the far end swings much further");
+          "…hinged at the lid's LEFT end: that end barely moves while the far end swings");
     // The can body: the bottom third of the glyph is identical in both frames.
     bool bodyStill = true;
     for (int y = a.height() * 2 / 3; y < a.height() && bodyStill; ++y)
