@@ -210,6 +210,34 @@ int main(int argc, char** argv) {
         "…while a pick after it still animates and converges");
   check(combo->currentText() == QLatin1String("A4"), "…onto the right value");
 
+  // An EDITABLE combo is a text field, not a chooser: blanking what the user is typing
+  // would be sabotage, so it is left alone however its text changes.
+  {
+    auto* typed = new QComboBox(&host);
+    typed->setEditable(true);
+    typed->addItems({"100%", "150%"});
+    lay->addWidget(typed);
+    pumpFor(60);
+    typed->setCurrentIndex(1);
+    typed->setEditText("175%");
+    check(!ValueSwapOverlay::running(typed) && typed->styleSheet().isEmpty(),
+          "an editable combo never has its text blanked out from under the caret");
+    delete typed;
+  }
+
+  // The f(x,y) pill hides its tick and carries its state in the whole chip's fill, so
+  // there is no check to disperse — it must skip, not scatter an invisible box.
+  {
+    auto* pill = new QCheckBox("f(x,y)", &host);
+    pill->setObjectName("formulaPill");
+    lay->addWidget(pill);
+    pumpFor(60);
+    pill->setChecked(true);
+    check(liveCheckOverlays(&host) == 0 && pill->isChecked(),
+          "a checkbox with no visible indicator toggles without scattering nothing");
+    delete pill;
+  }
+
   // ── opting out ──────────────────────────────────────────────────────────────
   box->setProperty(kNoControlSwapProperty, true);
   box->setChecked(true);
