@@ -15,8 +15,9 @@ public interface IStencilServerClient
 
     /// <summary>
     /// Acquire or validate a token (handshake): with no token, mint one via
-    /// <c>POST /auth/token</c>; with a token, validate it by listing projects. Returns the
-    /// effective token.
+    /// <c>POST /auth/token</c>; with a token, validate it by listing projects — and when that
+    /// probe is refused as unauthorised, the value may be the server's ADMIN token: mint a
+    /// session token with it as bearer and adopt that instead. Returns the effective token.
     /// </summary>
     Task<string> ConnectAsync(string? token, CancellationToken ct = default);
 

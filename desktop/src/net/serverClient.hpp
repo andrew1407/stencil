@@ -164,10 +164,12 @@ namespace stencil::net {
     // Build the authorized QNetworkRequest for `path` (shared by the sync + async paths).
     QNetworkRequest buildRequest(const QString& path, const QString& contentType) const;
     // Non-blocking request: invokes `done(status, body)` on completion (see the async
-    // methods above). Sets lastError() on a transport error, like request().
+    // methods above). Sets lastError() on a transport error, like request(). `retried`
+    // marks the one credential re-mint retry, so a refusal never mints twice.
     void requestAsync(const QByteArray& method, const QString& path, const QByteArray& body,
                       const QString& contentType,
-                      std::function<void(int status, QByteArray body)> done);
+                      std::function<void(int status, QByteArray body)> done,
+                      bool retried = false);
     // Shared body for the three guarded PUT variants (layout / colour / name). `obj` is the
     // request body sans version; `verb` names the op for the error string ("update"/"rename").
     // Reports 409 as the third `done` arg (conflict) so the caller can prompt a reload.

@@ -83,29 +83,54 @@ namespace stencil::net {
 
   void ServerClient::requestAsync(const QByteArray& method, const QString& path,
                                   const QByteArray& body, const QString& contentType,
-                                  std::function<void(int status, QByteArray body)> done) {
+                                  std::function<void(int status, QByteArray body)> done,
+                                  bool retried) {
     QNetworkRequest req = buildRequest(path, contentType);
     QNetworkReply* reply = nam_->sendCustomRequest(req, method, body);
     // Context object is nam_ (a QObject owned by this client): if the client is destroyed
     // nam_ dies with it, the connection is severed and this slot never runs on a dangling
     // `this`. deleteLater keeps the reply alive until the slot returns.
     QObject::connect(reply, &QNetworkReply::finished, nam_,
-                     [this, reply, done = std::move(done)]() {
+                     [this, reply, method, path, body, contentType, retried,
+                      done = std::move(done)]() mutable {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                        const QByteArray data = reply->readAll();
                        if (reply->error() != QNetworkReply::NoError && status == 0)
                          err_ = reply->errorString();
-                       // A live session refused mid-flight is EXPIRED, not a dead
-                       // server: the row offers a reconnect instead of pretending
-                       // the host is down. One warning, and only on the way in.
-                       if ((status == 401 || status == 403) && status_ == Status::Connected) {
+                       reply->deleteLater();
+                       const bool refused = status == 401 || status == 403;
+                       // A minted session dies with a server restart — while the user's
+                       // credential is at hand, re-mint with it once and retry the
+                       // request in place (browser/extension parity).
+                       if (refused && status_ == Status::Connected && !retried &&
+                           !credential_.isEmpty() && path != QLatin1String("/auth/token")) {
+                         token_ = credential_;  // the mint carries the credential as bearer
+                         requestAsync("POST", "/auth/token", "{}", "application/json",
+                                      [this, method, path, body, contentType,
+                                       done = std::move(done)](int mint, QByteArray mb) mutable {
+                                        const QString tok = QJsonDocument::fromJson(mb)
+                                                                .object().value("token").toString();
+                                        if (mint < 200 || mint >= 300 || tok.isEmpty()) {
+                                          done(mint, {});  // expired was marked by the mint's 401
+                                          return;
+                                        }
+                                        token_ = tok;
+                                        requestAsync(method, path, body, contentType,
+                                                     std::move(done), /*retried=*/true);
+                                      },
+                                      /*retried=*/true);
+                         return;
+                       }
+                       // A live session refused mid-flight (and past rescue) is EXPIRED,
+                       // not a dead server: the row offers a reconnect instead of
+                       // pretending the host is down. One warning, on the way in.
+                       if (refused && status_ == Status::Connected) {
                          status_ = Status::Expired;
                          err_ = QStringLiteral("session expired (HTTP %1)").arg(status);
                          qWarning("stencil: session on %s expired — reconnect to sign in again",
                                   qPrintable(base_));
                        }
-                       reply->deleteLater();
                        done(status, data);
                      });
   }
@@ -240,6 +265,13 @@ namespace stencil::net {
   }
 
   void ServerClient::reconnectAsync(std::function<void(bool)> done) {
+    // The CREDENTIAL is what outlives a server restart — reconnect with it when one
+    // exists (connectAsync probes it, then mint-falls-back). Reconnecting with the
+    // minted session token instead would also overwrite credential_ with it.
+    if (!credential_.isEmpty()) {
+      connectAsync(credential_, std::move(done));
+      return;
+    }
     // Re-validate the token we hold; if it's been rejected/cleared, issue a fresh one.
     if (token_.isEmpty()) {
       connectAsync(QString(), std::move(done));

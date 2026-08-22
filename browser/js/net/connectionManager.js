@@ -83,11 +83,13 @@ export class ServerConnection {
   }
 
   // ── REST ──
-  async _req(method, path, { body, raw, query } = {}) {
+  // `token` overrides the bearer for one request; `retried` marks the single
+  // re-mint retry (and handshake's own probes), so a refusal never mints twice.
+  async _req(method, path, { body, raw, query, token, retried = false } = {}) {
     if (!this._fetch) throw new Error('no fetch implementation available');
     let url = this.url + path;
     if (query) url += '?' + new URLSearchParams(query).toString();
-    const headers = { Authorization: 'Bearer ' + this.token };
+    const headers = { Authorization: 'Bearer ' + (token ?? this.token) };
     let payload = body;
     if (body != null && !raw) {
       headers['Content-Type'] = 'application/json';
@@ -95,6 +97,25 @@ export class ServerConnection {
     }
     const resp = await this._fetch(url, { method, headers, body: payload });
     if (!resp.ok) {
+      // A minted session token dies with a server restart — while the user's
+      // credential is at hand, re-mint with it once and retry the request in
+      // place (extension parity: connections.js req()).
+      if (!retried && isAuthStatus(resp.status) && this.credential && path !== '/auth/token') {
+        let r;
+        try {
+          r = await this._req('POST', '/auth/token', { body: {}, token: this.credential, retried: true });
+        } catch (err) {
+          // The credential no longer mints either: this session is truly over.
+          if (isAuthStatus(err.status)) { err.expired = true; this.connected = false; this._setStatus('expired'); }
+          throw err;
+        }
+        this.token = r.token;
+        const out = await this._req(method, path, { body, raw, query, retried: true });
+        // It minted AND the session works: the same conclusion (and probe-skip)
+        // handshake() records on its own rescue round.
+        this.credentialKind = 'admin';
+        return out;
+      }
       let msg = `HTTP ${resp.status}`;
       try { const e = await resp.json(); if (e && e.message) msg = e.message; } catch { /* non-JSON */ }
       const err = new Error(`${method} ${path}: ${msg}`);
@@ -121,11 +142,13 @@ export class ServerConnection {
         const r = await this._req('POST', '/auth/token', { body: {} });
         authFailed = true;                 // …until /projects proves the session works
         this.token = r.token;
-        await this._req('GET', '/projects');
+        await this._req('GET', '/projects', { retried: true });
         authFailed = false;
       } else {
         try {
-          await this._req('GET', '/projects'); // validate
+          // retried: connect-time refusals are handled right here (with the
+          // credentialKind bookkeeping), not by _req's mid-session re-mint.
+          await this._req('GET', '/projects', { retried: true }); // validate
         } catch (err) {
           // Desktop parity: the pasted value may be the server's ADMIN token —
           // it can't list projects, but it can MINT a session token. The same
@@ -138,7 +161,7 @@ export class ServerConnection {
           // The credential is NOT replaced: it may be the admin token, which mints anew
           // every time. Only when this mint ALSO fails is the session truly over —
           // which is what the expired state below is for.
-          await this._req('GET', '/projects');
+          await this._req('GET', '/projects', { retried: true });
           authFailed = false;
           // It minted AND the session works: this credential is an admin token. Recorded
           // (and persisted by snapshot) so the next connect skips the probe entirely.

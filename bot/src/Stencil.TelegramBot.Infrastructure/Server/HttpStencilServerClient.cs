@@ -24,21 +24,26 @@ public sealed class HttpStencilServerClient : IStencilServerClient
 {
     private readonly HttpClient _http;
     private string _token;
+    private string _credential;
 
-    public HttpStencilServerClient(HttpClient http, string baseUrl, string? token)
+    public HttpStencilServerClient(HttpClient http, string baseUrl, string? token, string? credential = null)
     {
         _http = http;
         BaseUrl = UrlNormalizer.Normalize(baseUrl);
         _token = token ?? "";
+        _credential = credential ?? "";
     }
 
     /// <summary>The normalised origin this client talks to (<c>scheme://host[:port]</c>).</summary>
     public string BaseUrl { get; }
 
     /// <summary>
-    /// Acquire or validate a token (handshake, mirroring <c>pystencil</c> <c>connect</c>): with
-    /// no token, mint one via <c>POST /auth/token</c>; with a token, validate it by listing
-    /// projects. The effective token is stored on this client and returned.
+    /// Acquire or validate a token (handshake, mirroring <c>pystencil</c> <c>connect</c> + the
+    /// extension's <c>connect</c>): with no token, mint one via <c>POST /auth/token</c>; with a
+    /// token, validate it by listing projects. When that probe 401/403s the value may be the
+    /// server's ADMIN token — <see cref="SendAsync"/> re-mints with it as bearer and retries, so
+    /// the minted session token is adopted; a failed mint surfaces the probe's own rejection.
+    /// The effective token is stored on this client and returned.
     /// </summary>
     public async Task<string> ConnectAsync(string? token, CancellationToken ct = default)
     {
@@ -54,6 +59,9 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         }
         else
         {
+            // The credential is what the user supplied — it outlives server restarts
+            // (SendAsync re-mints with it when a stored session token goes stale).
+            _credential = _token;
             await ListProjectsAsync(ct).ConfigureAwait(false);
         }
         return _token;
@@ -182,16 +190,61 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         return JsonDocument.Parse(body);
     }
 
-    /// <summary>Issue one request with the bearer header attached.</summary>
-    private Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
+    /// <summary>
+    /// Issue one request with the bearer header attached. A stored session token dies with a
+    /// server DB wipe — on a 401/403, when this client carries its original credential, re-mint
+    /// once with it and retry in place (extension <c>connections.js</c> <c>req</c> parity). A
+    /// failed mint keeps the original rejection, and <c>/auth/token</c> itself never retries.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
+    {
+        HttpResponseMessage response = await SendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
+        int status = (int)response.StatusCode;
+        if ((status == 401 || status == 403) && _credential.Length != 0 && path != "/auth/token")
+        {
+            string? minted = await TryMintAsync(ct).ConfigureAwait(false);
+            if (minted is not null)
+            {
+                response.Dispose();
+                _token = minted;
+                response = await SendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
+            }
+        }
+        return response;
+    }
+
+    /// <summary>One request on the wire with the given bearer — no retry logic.</summary>
+    private Task<HttpResponseMessage> SendOnceAsync(HttpMethod method, string path, HttpContent? content, string bearer, CancellationToken ct)
     {
         HttpRequestMessage request = new(method, BaseUrl + path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
         if (content is not null)
         {
             request.Content = content;
         }
         return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    /// <summary><c>POST /auth/token</c> with the credential as bearer; null on any refusal.</summary>
+    private async Task<string?> TryMintAsync(CancellationToken ct)
+    {
+        using HttpResponseMessage response = await SendOnceAsync(HttpMethod.Post, "/auth/token", EmptyBody(), _credential, ct)
+            .ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+        try
+        {
+            byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            using JsonDocument doc = JsonDocument.Parse(body);
+            string token = JsonRead.ReadString(doc.RootElement, "token");
+            return token.Length == 0 ? null : token;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Translate a non-2xx response into a <see cref="ServerException"/>.</summary>
