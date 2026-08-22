@@ -2,6 +2,7 @@
 //! interprets it. The grammar is intentionally small and order-independent.
 const std = @import("std");
 const core = @import("core.zig");
+const logo = @import("logo.zig");
 
 pub const Blank = struct {
     page: ?[]const u8 = null, // named page format ("A4".."C10", canonical); null = default
@@ -9,6 +10,12 @@ pub const Blank = struct {
     height: ?u32 = null,
     color: []const u8 = "white",
 };
+
+/// Which frame --layout coordinates are in (llm-contract.md §1): `current` (default) is
+/// the already cropped/rotated image — plain CLI behavior; `source` is the SOURCE image,
+/// so the pipeline re-maps the layout's points through its resolved crop/rotation and
+/// clamps them into the output bounds before drawing.
+pub const LayoutFrame = enum { current, source };
 
 pub const Options = struct {
     help: bool = false,
@@ -21,16 +28,20 @@ pub const Options = struct {
     album: bool = false,
     rotate: i32 = 0,
     layout: ?[]const u8 = null,
+    layout_frame: LayoutFrame = .current,
     filter: ?[]const u8 = null,
     output: ?[]const u8 = null,
     // ── Server (collaboration server) options ──
     // --server <url>: -i names a server project, fetched + edited. --remote-update writes
     // the result back into it. --remote <url> + --remote-name <name>: upload the result as
     // a NEW project (default name = input image name; a web source URL recorded as source).
+    // --token <tok>: access token for --server/--remote (session or admin; needed when the
+    // server gates token minting with ADMIN_TOKEN).
     server: ?[]const u8 = null,
     remote: ?[]const u8 = null,
     remote_name: ?[]const u8 = null,
     remote_update: bool = false,
+    token: ?[]const u8 = null,
     // ── Source-site scraping ──
     // --source-site <url> activates scrape mode (mutually exclusive with -i/--blank/--server):
     // fetch the page, extract + filter media, and download the matches into <output> (a dir).
@@ -49,6 +60,7 @@ pub const Options = struct {
 pub const Error = error{
     MissingValue,
     BadNumber,
+    BadValue,
     UnknownFlag,
     DuplicateSource,
 };
@@ -67,7 +79,7 @@ const ParseState = struct {
 
 fn value(st: *ParseState, flag: []const u8) Error![:0]const u8 {
     return st.next() orelse {
-        std.debug.print("error: {s} expects a value\n", .{flag});
+        logo.err("{s} expects a value\n", .{flag});
         return Error.MissingValue;
     };
 }
@@ -109,6 +121,16 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
             opts.rotate = try parseI32(try value(&st, "--rotate"));
         } else if (eq(arg, "-l") or eq(arg, "--layout")) {
             opts.layout = try value(&st, "--layout");
+        } else if (eq(arg, "--layout-frame")) {
+            const v = try value(&st, "--layout-frame");
+            if (eq(v, "source")) {
+                opts.layout_frame = .source;
+            } else if (eq(v, "current")) {
+                opts.layout_frame = .current;
+            } else {
+                logo.err("--layout-frame expects 'source' or 'current', got '{s}'\n", .{v});
+                return Error.BadValue;
+            }
         } else if (eq(arg, "--filter")) {
             opts.filter = try value(&st, "--filter");
         } else if (eq(arg, "--server")) {
@@ -141,8 +163,10 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
             opts.remote_name = try value(&st, "--remote-name");
         } else if (eq(arg, "--remote-update")) {
             opts.remote_update = true;
+        } else if (eq(arg, "--token")) {
+            opts.token = try value(&st, "--token");
         } else if (arg.len > 1 and arg[0] == '-' and !looksNegativeNumber(arg)) {
-            std.debug.print("error: unknown flag '{s}'\n", .{arg});
+            logo.err("unknown flag '{s}'\n", .{arg});
             return Error.UnknownFlag;
         } else {
             // A positional argument is the output path (last one wins).
@@ -168,7 +192,7 @@ fn parseBlank(allocator: std.mem.Allocator, st: *ParseState) Error!Blank {
     if (peekU32(st)) |w| {
         // A format token names the size, so it excludes explicit dims.
         if (b.page != null) {
-            std.debug.print("error: --blank takes a page format OR explicit dims, not both\n", .{});
+            logo.err("--blank takes a page format OR explicit dims, not both\n", .{});
             return Error.BadNumber;
         }
         b.width = w;
@@ -253,6 +277,19 @@ test "parse: blank optional page-format token" {
     try testing.expectError(Error.BadNumber, parse(a, &a3));
 }
 
+test "parse: --layout-frame source/current; junk rejected" {
+    const a = testing.allocator;
+    const s = [_][:0]const u8{ "-i", "in.png", "-l", "lay.json", "--layout-frame", "source", "out.png" };
+    try testing.expectEqual(LayoutFrame.source, (try parse(a, &s)).layout_frame);
+    const c = [_][:0]const u8{ "-i", "in.png", "--layout-frame", "current", "out.png" };
+    try testing.expectEqual(LayoutFrame.current, (try parse(a, &c)).layout_frame);
+    // Default stays `current` (plain CLI behavior unchanged).
+    const d = [_][:0]const u8{ "-i", "in.png", "out.png" };
+    try testing.expectEqual(LayoutFrame.current, (try parse(a, &d)).layout_frame);
+    const bad = [_][:0]const u8{ "-i", "in.png", "--layout-frame", "snapshot" };
+    try testing.expectError(Error.BadValue, parse(a, &bad));
+}
+
 test "parse: --console / --repl activate console mode" {
     const a = testing.allocator;
     const c1 = [_][:0]const u8{"--console"};
@@ -291,6 +328,22 @@ test "parse: server options" {
     const o2 = try parse(a, &a2);
     try testing.expectEqualStrings("http://h:8090", o2.remote.?);
     try testing.expectEqualStrings("Shared", o2.remote_name.?);
+    try testing.expect(o2.token == null); // no --token → self-issued session
+}
+
+test "parse: --token rides with --server / --remote" {
+    const a = testing.allocator;
+    const a1 = [_][:0]const u8{ "--server", "http://h:8090", "--token", "tok123", "-i", "proj", "out.png" };
+    const o1 = try parse(a, &a1);
+    try testing.expectEqualStrings("tok123", o1.token.?);
+    try testing.expectEqualStrings("http://h:8090", o1.server.?);
+
+    const a2 = [_][:0]const u8{ "-i", "in.png", "--remote", "http://h:8090", "--token", "s3cret", "out.png" };
+    const o2 = try parse(a, &a2);
+    try testing.expectEqualStrings("s3cret", o2.token.?);
+
+    const missing = [_][:0]const u8{ "--server", "http://h:8090", "--token" };
+    try testing.expectError(Error.MissingValue, parse(a, &missing));
 }
 
 test "parse: source-site scrape flags" {

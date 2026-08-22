@@ -61,8 +61,13 @@ namespace stencil::net {
   class ServerClient {
    public:
     // Connection status for the UI dot: Connecting (yellow) | Connected (green) |
-    // Error (red).
-    enum class Status { Connecting, Connected, Error };
+    // Expired (amber) | Error (red).
+    //
+    // Expired is deliberately NOT Error: the credential was refused (401/403), the
+    // server itself is fine, and the saved connection (URL + label) is kept so the
+    // user can sign in again from the row. Retrying it in a loop would only burn
+    // requests against a token the server has already rejected.
+    enum class Status { Connecting, Connected, Expired, Error };
 
     // Outcome of one guarded PUT (and of the guarded-write loop as a whole): the write
     // committed, hit a stale-version 409 (Conflict), or hard-failed for another reason.
@@ -74,6 +79,9 @@ namespace stencil::net {
     // Normalize 'host:8090' / 'http://host:8090/' to a clean origin. Secure by default:
     // a bare host (no scheme) gets https, EXCEPT loopback hosts, which keep http (dev
     // servers run plaintext on localhost and the traffic never leaves the machine).
+    // The saved credential was refused — re-authenticate, never retry blindly.
+    bool needsReauth() const { return status_ == Status::Expired; }
+
     static QString normalizeBase(const QString& raw);
     // True for a loopback/localhost host (127.0.0.0/8, ::1, "localhost", "*.localhost"),
     // where plaintext http is safe because the bytes never hit the network.
@@ -90,6 +98,9 @@ namespace stencil::net {
 
     const QString& base() const { return base_; }
     const QString& token() const { return token_; }
+    // What the user supplied at connect: outlives server restarts (a minted
+    // session token dies with them), so it is what snapshot() persists.
+    const QString& credential() const { return credential_; }
     const QString& lastError() const { return err_; }
     Status status() const { return status_; }
 
@@ -128,6 +139,10 @@ namespace stencil::net {
                          const QString& ext, int w, int h, std::function<void(bool ok)> done);
     void downloadFileAsync(const QString& id, const QString& kind,
                            std::function<void(bool ok, QByteArray data)> done);
+    // Per-file delete for filestore-only kinds (video/variantN/chat) — the
+    // server's idempotent DELETE route (llm-contract.md §9).
+    void deleteFileAsync(const QString& id, const QString& kind,
+                         std::function<void(bool ok)> done);
     void deleteProjectAsync(const QString& id, std::function<void(bool ok)> done);
 
     // Async version of runGuardedWrite. `attempt(version, cb)` performs one guarded PUT and
@@ -162,6 +177,7 @@ namespace stencil::net {
     QNetworkAccessManager* nam_;
     QString base_;
     QString token_;
+    QString credential_;
     QString err_;
     Status status_ = Status::Connecting;
   };

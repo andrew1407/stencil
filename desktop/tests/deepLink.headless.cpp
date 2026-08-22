@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     const QString url =
         deepLink::buildBrowserLaunchUrl("http://localhost:8080/", payload);
     check(url.startsWith("http://localhost:8080#stencil="),
-          "base trimmed + fragment marker present");
+          "base trimmed + fragment prefix present");
     // The receiver does JSON.parse(decodeURIComponent(fragment)) — emulate it.
     const QString enc = url.mid(url.indexOf("#stencil=") + int(qstrlen("#stencil=")));
     const QByteArray json = QByteArray::fromPercentEncoding(enc.toLatin1());
@@ -113,6 +113,14 @@ int main(int argc, char** argv) {
     check(back.value("incognito").toBool(), "fragment JSON round-trips (incognito)");
     check(back.value("server").toObject().value("id").toString() == "p_1",
           "fragment JSON round-trips (server.id)");
+  }
+  {
+    // Over the shared 32 MiB payload cap → empty string, never a fragment URL.
+    QJsonObject payload;
+    payload["dataUrl"] = QStringLiteral("data:image/png;base64,") +
+                         QString(deepLink::kBrowserLaunchPayloadMax, QLatin1Char('A'));
+    check(deepLink::buildBrowserLaunchUrl("http://localhost:8080/", payload).isEmpty(),
+          "over-limit launch payload yields empty url");
   }
 
   std::printf("%s (%d failure%s)\n", failures ? "FAILED" : "OK", failures,

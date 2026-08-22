@@ -1,11 +1,15 @@
 //! End-to-end pipeline: acquire a source image (decode a file/URL, grab a video frame,
-//! or synthesise a blank), then crop → rotate → draw the layout → filter, and encode the
+//! or synthesise a blank), then crop → rotate → filter → draw the layout, and encode the
 //! result. The C++ core does every pixel/geometry transform; Zig owns I/O and codecs.
 //!
+//! The filter runs BEFORE the layout: it belongs to the picture, while the drawn lines are
+//! an overlay that keeps its own colours — the same layering the console session, the
+//! `project` mode, pystencil and both GUIs render.
+//!
 //! The individual steps are exposed as small `pub` building blocks (acquireInput,
-//! acquireBlank, applyCropSpec, applyRotateBy, applyLayoutSrc, applyFilterMode,
-//! writeOutputLabeled) so the interactive console mode (console.zig) can drive the same
-//! transforms one command at a time. `run` is just the one-shot composition of them.
+//! acquireBlank, applyCropSpec, applyRotateBy, loadLayoutDoc, drawLayoutDoc,
+//! applyFilterMode, writeOutputLabeled) so the interactive console mode (console.zig) can
+//! drive the same transforms one command at a time. `run` is just the one-shot composition.
 const std = @import("std");
 const core = @import("core.zig");
 const image = @import("image.zig");
@@ -38,25 +42,25 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
 
     if (opts.server) |url| {
         const name = opts.input orelse {
-            logo.print("error: --server needs -i <server project name>\n", .{});
+            logo.err("--server needs -i <server project name>\n", .{});
             return error.NoSource;
         };
-        fetch_client = server.connect(gpa, io, url, null) catch |e| {
-            logo.print("error: could not connect to {s} ({s})\n", .{ url, @errorName(e) });
+        fetch_client = server.connect(gpa, io, url, opts.token) catch |e| {
+            server.printConnectError(url, e);
             return e;
         };
         const id = (fetch_client.?.findProjectIdByName(name) catch |e| {
-            logo.print("error: server lookup failed ({s})\n", .{@errorName(e)});
+            logo.err("server lookup failed ({s})\n", .{@errorName(e)});
             return e;
         }) orelse {
-            logo.print("error: no server project named \"{s}\"\n", .{name});
+            logo.err("no server project named \"{s}\"\n", .{name});
             return error.NoSource;
         };
         fetched_id = id;
         const orig = try fetch_client.?.downloadFile(id, "original");
         defer gpa.free(orig);
         img = image.decode(gpa, orig) catch |e| {
-            logo.print("error: could not decode server image ({s})\n", .{@errorName(e)});
+            logo.err("could not decode server image ({s})\n", .{@errorName(e)});
             return e;
         };
     } else if (opts.blank) |blank| {
@@ -67,7 +71,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         default_fmt = src.default_fmt;
         gpa.free(src.bytes);   // one-shot raster path doesn't bundle a project — source bytes unneeded
     } else {
-        logo.print("error: no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
+        logo.err("no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
         return error.NoSource;
     }
     defer img.deinit(gpa);
@@ -79,31 +83,60 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     const orig_h: usize = img.height;
     if (opts.remote != null) original_bytes = try image.encode(gpa, img, default_fmt);
 
-    // 2) Crop, then rotate by N quarter-turns.
-    if (opts.crop) |spec| try applyCropSpec(gpa, &img, spec, opts.album);
-    try applyRotateBy(gpa, &img, opts.rotate);
+    // 2) Crop, then rotate by N quarter-turns. --layout-frame source records both as
+    //    frame-mapping steps so step 3 can re-map the layout's SOURCE-frame points
+    //    (llm-contract.md §1); the default `current` leaves plain CLI behavior unchanged.
+    var steps_buf: [2]layout_mod.FrameStep = undefined;
+    var n_steps: usize = 0;
+    if (opts.crop) |spec| {
+        const rect = resolveCropSpec(gpa, img.width, img.height, spec, opts.album) orelse return error.BadCrop;
+        try cropInPlace(gpa, &img, rect);
+        steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
+        n_steps += 1;
+    }
+    if (@mod(opts.rotate, 4) != 0) {
+        // Record the PRE-rotate (post-crop) dims the point mapping turns within.
+        steps_buf[n_steps] = .{ .rotate = .{ .quarters = opts.rotate, .w = @floatFromInt(img.width), .h = @floatFromInt(img.height) } };
+        n_steps += 1;
+        try applyRotateBy(gpa, &img, opts.rotate);
+    }
 
-    // 3) Layout: draw the lines and capture the optional filter + page pick it carries.
-    var applied = AppliedLayout{};
-    defer applied.deinit(gpa);
-    if (opts.layout) |src| applied = try applyLayoutSrc(gpa, io, &img, src);
+    // 3) Layout: load + parse it now, still undrawn, so the optional filter + page pick it
+    //    carries are known before step 4 touches a pixel.
+    var doc: ?layout_mod.Layout = null;
+    defer if (doc) |*d| d.deinit();
+    if (opts.layout) |src| doc = try loadLayoutDoc(gpa, io, src);
 
-    // 4) Filter — explicit --filter overrides the layout's filter.
-    if (opts.filter orelse applied.filter) |f| applyFilterMode(gpa, &img, f);
+    // 4) Filter — explicit --filter overrides the layout's filter. It runs on the picture
+    //    alone; step 5 then draws the lines over it in their own colours.
+    if (opts.filter orelse (if (doc) |*d| d.filter else null)) |f| applyFilterMode(gpa, &img, f);
 
-    // 5) Encode + write locally.
+    // 5) Draw the layout's lines on top of the filtered picture.
+    if (doc) |*d| {
+        const steps: ?[]const layout_mod.FrameStep = if (opts.layout_frame == .source) steps_buf[0..n_steps] else null;
+        try drawLayoutDoc(gpa, &img, d, steps);
+    }
+
+    // 6) Encode + write locally.
     const out = opts.output orelse {
-        logo.print("error: no output path given\n", .{});
+        logo.err("no output path given\n", .{});
         return error.NoOutput;
     };
     // The page reported in the `wrote` line follows the effective page state: an applied
     // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
-    const page_name = effectivePageName(applied.page_size, if (opts.blank) |b| b.page else null);
-    const page_label = try pageLabelAlloc(gpa, page_name, applied.custom_page_w, applied.custom_page_h, img.width, img.height);
+    const page_name = effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);
+    const page_label = try pageLabelAlloc(
+        gpa,
+        page_name,
+        if (doc) |*d| d.custom_page_w else 0,
+        if (doc) |*d| d.custom_page_h else 0,
+        img.width,
+        img.height,
+    );
     defer gpa.free(page_label);
     try writeOutputLabeled(gpa, io, img, out, default_fmt, page_label);
 
-    // 6) Server result delivery.
+    // 7) Server result delivery.
     try deliverToServer(gpa, io, opts, img, default_fmt, fetch_client, fetched_id, original_bytes, orig_w, orig_h);
 }
 
@@ -124,7 +157,7 @@ fn deliverToServer(
     // Mode A: write the result back into the fetched server project.
     if (opts.remote_update) {
         if (fetch_client == null or fetched_id == null) {
-            logo.print("error: --remote-update needs --server <url> -i <project>\n", .{});
+            logo.err("--remote-update needs --server <url> -i <project>\n", .{});
             return error.NoRemote;
         }
         var c = fetch_client.?;
@@ -136,8 +169,8 @@ fn deliverToServer(
 
     // Mode B: create a NEW project on --remote and upload original + result.
     if (opts.remote) |rurl| {
-        var c = server.connect(gpa, io, rurl, null) catch |e| {
-            logo.print("error: could not connect to {s} ({s})\n", .{ rurl, @errorName(e) });
+        var c = server.connect(gpa, io, rurl, opts.token) catch |e| {
+            server.printConnectError(rurl, e);
             return e;
         };
         defer c.deinit();
@@ -169,7 +202,7 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
     errdefer gpa.free(bytes);
     var default_fmt: image.Format = .png;
     const img = image.decode(gpa, bytes) catch |e| {
-        logo.print("error: could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
+        logo.err("could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
         return e;
     };
     if (extOf(input)) |e| {
@@ -194,7 +227,7 @@ pub fn resolveCropSpec(gpa: std.mem.Allocator, w: usize, h: usize, spec: []const
     const px_per_cm_x = @as(f64, @floatFromInt(w)) / page.w;
     const px_per_cm_y = @as(f64, @floatFromInt(h)) / page.h;
     return core.resolveCrop(gpa, spec, @floatFromInt(w), @floatFromInt(h), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
-        logo.print("error: could not parse crop spec \"{s}\"\n", .{spec});
+        logo.err("could not parse crop spec \"{s}\"\n", .{spec});
         return null;
     };
 }
@@ -218,38 +251,36 @@ pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !vo
     try rotateInPlace(gpa, img, rotate);
 }
 
-/// What an applied layout carried besides its lines: the optional filter (overridable by
-/// --filter) and the optional page pick (pageSize + custom cm dims) the wrote line reports.
-/// The slices are owned by the caller.
-pub const AppliedLayout = struct {
-    filter: ?[]u8 = null,
-    page_size: ?[]u8 = null, // a named format ("A0".."C10") or "custom"
-    custom_page_w: f64 = 0, // cm; only meaningful with page_size "custom"
-    custom_page_h: f64 = 0,
-
-    pub fn deinit(self: *AppliedLayout, gpa: std.mem.Allocator) void {
-        if (self.filter) |f| gpa.free(f);
-        if (self.page_size) |p| gpa.free(p);
-        self.* = .{};
-    }
-};
-
-/// Draw a layout (file path or URL) onto the image; returns its optional filter name and
-/// page pick (owned by the caller) so callers can apply/override the filter and report the
-/// page the layout targets.
-pub fn applyLayoutSrc(gpa: std.mem.Allocator, io: std.Io, img: *image.Rgba8, src: []const u8) !AppliedLayout {
+/// Load and parse a layout (file path or URL) WITHOUT drawing it, so a caller can read the
+/// optional filter + page pick it carries — and apply that filter to the bare picture —
+/// before the lines go on. The returned doc owns its own arena; the caller deinits it.
+pub fn loadLayoutDoc(gpa: std.mem.Allocator, io: std.Io, src: []const u8) !layout_mod.Layout {
     const bytes = try loadText(gpa, io, src);
     defer gpa.free(bytes);
-    var parsed = try layout_mod.parse(gpa, bytes);
-    defer parsed.deinit();
-    for (parsed.lines) |line| {
+    return layout_mod.parse(gpa, bytes);
+}
+
+/// Rasterize a parsed layout's lines onto the image. `source_steps` non-null = the doc's
+/// points are in the SOURCE frame (--layout-frame source): each line is re-mapped through
+/// the steps and clamped into the image bounds before rasterizing.
+pub fn drawLayoutDoc(
+    gpa: std.mem.Allocator,
+    img: *image.Rgba8,
+    doc: *const layout_mod.Layout,
+    source_steps: ?[]const layout_mod.FrameStep,
+) !void {
+    for (doc.lines) |line| {
+        if (source_steps) |steps| {
+            const pts = try gpa.dupe(f64, line.points);
+            defer gpa.free(pts);
+            layout_mod.remapPoints(pts, steps, img.width, img.height);
+            var mapped = line;
+            mapped.points = pts;
+            core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), mapped);
+            continue;
+        }
         core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), line);
     }
-    var applied = AppliedLayout{ .custom_page_w = parsed.custom_page_w, .custom_page_h = parsed.custom_page_h };
-    errdefer applied.deinit(gpa);
-    if (parsed.filter) |f| applied.filter = try gpa.dupe(u8, f);
-    if (parsed.page_size) |p| applied.page_size = try gpa.dupe(u8, p);
-    return applied;
 }
 
 /// Apply an image filter in place. "" / "none" is a no-op; "invert" and "contour" are named
@@ -291,7 +322,7 @@ fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32)
     // `.mp4`-looking `ftp://`/`file://`/`rtmp://` string can never be handed to ffmpeg, whose
     // protocol surface is far wider than our in-process fetcher.
     if (net.hasForeignScheme(input)) {
-        logo.print("error: unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
+        logo.err("unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
         return error.UnsupportedScheme;
     }
     if (video.looksLikeVideo(input)) {
@@ -314,16 +345,36 @@ pub fn loadLayoutBytes(gpa: std.mem.Allocator, io: std.Io, src: []const u8) ![]u
 }
 
 fn readLocal(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
+    const home = try expandHome(gpa, path);
+    defer gpa.free(home);
     const dir = std.Io.Dir.cwd();
-    return dir.readFileAlloc(io, path, gpa, .limited(MAX_FILE)) catch |e| {
-        logo.print("error: cannot read '{s}': {s}\n", .{ path, @errorName(e) });
+    return dir.readFileAlloc(io, home, gpa, .limited(MAX_FILE)) catch |e| {
+        logo.err("cannot read '{s}': {s}\n", .{ home, @errorName(e) });
         return e;
     };
 }
 
+/// Expand a leading `~` (bare, or `~/…`) to $HOME. The shell does this for a one-shot argv,
+/// but a path typed INSIDE the console (or quoted on the command line) reaches us literally,
+/// and `~/Downloads/x.png` then means a directory actually named "~". Everything else — and a
+/// `~` with no $HOME to expand — is returned unchanged. Owned by the caller either way.
+pub fn expandHome(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
+    if (!(std.mem.eql(u8, path, "~") or std.mem.startsWith(u8, path, "~/"))) {
+        return gpa.dupe(u8, path);
+    }
+    // libc getenv (like the writes in line_edit): std.posix has none, and the console's
+    // environ map does not reach this layer.
+    const raw_home = std.c.getenv("HOME") orelse return gpa.dupe(u8, path);
+    const home = std.mem.span(raw_home);
+    if (home.len == 0) return gpa.dupe(u8, path);
+    const rest = path[1..]; // "" for a bare "~", else "/…"
+    const base = if (home.len > 1 and home[home.len - 1] == '/') home[0 .. home.len - 1] else home;
+    return std.fmt.allocPrint(gpa, "{s}{s}", .{ base, rest });
+}
+
 fn mapMediaError(e: anyerror) anyerror {
     switch (e) {
-        video.Error.FfmpegMissing => logo.print("error: ffmpeg not found on PATH — needed only for video input\n", .{}),
+        video.Error.FfmpegMissing => logo.err("ffmpeg not found on PATH — needed only for video input\n", .{}),
         else => {},
     }
     return e;
@@ -422,17 +473,21 @@ const Resolved = struct { path: []u8, fmt: image.Format };
 
 // A recognised extension selects the format; otherwise fall back to `fallback` and
 // append its extension (so `out` becomes `out.png`, `result` -> `result.jpg`, etc.).
-fn resolveOutput(gpa: std.mem.Allocator, out: []const u8, fallback: image.Format) !Resolved {
+fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Format) !Resolved {
+    // A typed "~/Downloads/x.png" means the home directory, not one named "~".
+    const out = try expandHome(gpa, out_raw);
+    errdefer gpa.free(out);
     // Refuse an output path that climbs above the working directory. Direct users
     // still write anywhere they name (absolute paths, subdirs); this only blocks the
     // ".." traversal that a caller/adapter forwarding an untrusted name shouldn't do.
     if (hasParentTraversal(out)) {
-        logo.print("error: refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
-        return error.UnsafeOutputPath;
+        logo.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
+        return error.UnsafeOutputPath; // the errdefer above frees `out`
     }
     if (extOf(out)) |e| {
-        if (image.formatFromExt(e)) |f| return .{ .path = try gpa.dupe(u8, out), .fmt = f };
+        if (image.formatFromExt(e)) |f| return .{ .path = out, .fmt = f };
     }
+    defer gpa.free(out);
     const path = try std.fmt.allocPrint(gpa, "{s}.{s}", .{ out, fallback.ext() });
     return .{ .path = path, .fmt = fallback };
 }
@@ -465,6 +520,29 @@ test "resolveOutput rejects parent-directory traversal" {
     const ok = try resolveOutput(gpa, "out.png", image.Format.png);
     defer gpa.free(ok.path);
     try testing.expectEqualStrings("out.png", ok.path);
+}
+
+test "expandHome: a leading ~ becomes $HOME, everything else is untouched" {
+    const a = testing.allocator;
+    const home = std.mem.span(std.c.getenv("HOME") orelse return error.SkipZigTest);
+
+    const bare = try expandHome(a, "~");
+    defer a.free(bare);
+    try testing.expectEqualStrings(home, bare);
+
+    const under = try expandHome(a, "~/Downloads/out.png");
+    defer a.free(under);
+    const want = try std.fmt.allocPrint(a, "{s}/Downloads/out.png", .{home});
+    defer a.free(want);
+    try testing.expectEqualStrings(want, under);
+
+    // Not a home reference: a relative path, an absolute one, and a NAME that merely starts
+    // with a tilde all pass through as typed.
+    for ([_][]const u8{ "out.png", "/tmp/out.png", "~tilde/out.png", "sub/~/out.png" }) |path| {
+        const same = try expandHome(a, path);
+        defer a.free(same);
+        try testing.expectEqualStrings(path, same);
+    }
 }
 
 test "loadSource rejects foreign URL schemes before any IO" {

@@ -13,11 +13,7 @@
 using namespace stencil::gui;
 using stencil::core::CropRect;
 
-static int failures = 0;
-static void check(bool ok, const char* msg) {
-  std::printf("  [%s] %s\n", ok ? "PASS" : "FAIL", msg);
-  if (!ok) ++failures;
-}
+#include "support/check.hpp"
 static bool near(double a, double b, double eps = 0.5) { return std::fabs(a - b) <= eps; }
 
 int main(int argc, char** argv) {

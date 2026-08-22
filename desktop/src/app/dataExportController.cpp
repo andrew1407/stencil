@@ -1,6 +1,7 @@
 #include "dataExportController.hpp"
 #include "canvasWidget.hpp"
 #include "notifications.hpp"
+#include "../support/iconSet.hpp"
 #include <QByteArray>
 #include <QClipboard>
 #include <QFile>
@@ -9,6 +10,7 @@
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QMessageBox>
+#include <QPushButton>
 
 namespace stencil::gui {
 
@@ -120,10 +122,28 @@ namespace stencil::gui {
       notify_->error("Load an image first");
       return;
     }
+    // Existing lines: offer to KEEP them and add the incoming ones on top instead of
+    // forcing an all-or-nothing replace. Mirrors the browser's Combine/Replace/Cancel
+    // prompt (exportService.js #applyValidatedLayout).
+    bool combine = false;
     if (!canvas_->allLines().empty()) {
-      if (QMessageBox::question(parent_, "Replace layout",
-                                "Replace current layout with the imported JSON?")
-          != QMessageBox::Yes) {
+      QMessageBox box(parent_);
+      box.setWindowTitle("Existing layout");
+      box.setText("Add the imported JSON on top of the current layout, or replace it?");
+      QPushButton* combineBtn = box.addButton("Combine", QMessageBox::AcceptRole);
+      QPushButton* replaceBtn = box.addButton("Replace", QMessageBox::DestructiveRole);
+      QAbstractButton* cancelBtn = box.addButton(QMessageBox::Cancel);
+      // Same glyphs as the browser's dialog: stack the incoming lines on the existing
+      // ones, or swap one layout for the other (browser exportService.js altIcon /
+      // confirmIcon). Each button says what it does twice — in word and in picture.
+      const QColor txt = box.palette().color(QPalette::WindowText);
+      combineBtn->setIcon(themedIcon("layers", txt, 15));
+      replaceBtn->setIcon(themedIcon("swap", txt, 15));
+      if (cancelBtn) cancelBtn->setIcon(themedIcon("x", txt, 15));
+      box.setDefaultButton(combineBtn);
+      box.exec();
+      if (box.clickedButton() == combineBtn) combine = true;
+      else if (box.clickedButton() != replaceBtn) {
         notify_->info("Import canceled");  // drawingApp.js:2107 "Upload canceled"
         return;
       }
@@ -138,8 +158,13 @@ namespace stencil::gui {
         return;
       }
     }
+    if (combine) {
+      core::Lines merged = canvas_->allLines();          // existing first…
+      merged.insert(merged.end(), lines.begin(), lines.end());   // …new on top
+      lines = std::move(merged);
+    }
     canvas_->setLines(lines);  // emits changed() -> refresh panel + buttons
-    notify_->success("Layout loaded");
+    notify_->success(combine ? "Layout loaded (combined)" : "Layout loaded");
   }
 
   // Render the canvas (image + filter + overlay) to a file. Extension drives the
@@ -172,15 +197,16 @@ namespace stencil::gui {
     }
   }
 
-  // Copy the filtered image (no overlay) to the clipboard. Mirrors the browser
-  // copyImageToClipboard, which draws image+filter only (drawingApp.js
-  // :2133-2152, drawImageWithFilter — no lines/points).
+  // Copy the RENDERED image — filter plus the visible lines/points — to the
+  // clipboard. Mirrors the browser's copyImageToClipboard, which routes through
+  // renderExportCanvas so every image action ships the same annotated result
+  // (the old no-overlay copy predated that and dropped the user's edits).
   void DataExportController::copyImageToClipboard() {
     if (!canvas_->hasImage()) {
       notify_->error("No image to copy");  // drawingApp.js:2134
       return;
     }
-    QGuiApplication::clipboard()->setImage(canvas_->renderToImage(false));
+    QGuiApplication::clipboard()->setImage(canvas_->renderToImage(true));
     notify_->success("Image copied to clipboard");
   }
 

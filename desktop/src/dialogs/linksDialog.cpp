@@ -1,3 +1,4 @@
+#include "../support/searchCombo.hpp"
 #include "linksDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
@@ -115,11 +116,9 @@ namespace stencil::gui {
     previewLabel_->setFrameShape(QFrame::StyledPanel);
     addForm->addRow(previewLabel_);
 
-    // "Video frame" controls live in their own row widget, placed UNDER the preview
-    // (like a video player's scrubber). Hidden until a preview resolves the URL as a
-    // video. The slider scrubs; the spin box shows/edits the exact frame number; both
-    // stay mirrored and seek the persistent scrub player. A checkbox can switch to the
-    // embedded preview image instead.
+    // "Video frame" controls, UNDER the preview like a player's scrubber; hidden
+    // until a preview resolves the URL as a video. Slider scrubs, spin box edits the
+    // exact frame; both stay mirrored and seek the persistent scrub player.
     frameRow_ = new QWidget(this);
     auto* frameV = new QVBoxLayout(frameRow_);
     frameV->setContentsMargins(0, 0, 0, 0);
@@ -163,7 +162,7 @@ namespace stencil::gui {
       cropPage_->setToolTip("Crop the image to the page aspect on load");
       cropAlbum_ = new QCheckBox("Album", quickcropRow_);
       cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
-      cropPageSize_ = new QComboBox(quickcropRow_);
+      cropPageSize_ = new SearchComboBox(quickcropRow_);
       // Every named ISO format (labels with sizes, data = the canonical name).
       // No "custom" here — the quick crop needs a fixed page aspect.
       fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units);
@@ -335,10 +334,9 @@ namespace stencil::gui {
     loadBtn_->setEnabled(false);
   }
 
-  // Mirror a chosen frame to BOTH the slider and the spin box, validated against the
-  // range, then schedule a debounced seek. QSignalBlocker prevents the set from
-  // echoing back (each control's change is connected here), so both always end up on
-  // the same, final value — no missed updates.
+  // Mirror a chosen frame to BOTH the slider and the spin box, validated against
+  // the range, then schedule a debounced seek (QSignalBlocker keeps the set from
+  // echoing back, so both land on the same final value).
   void LinksDialog::setFrame(int n) {
     n = std::clamp(n, frame_->minimum(), frame_->maximum());
     {

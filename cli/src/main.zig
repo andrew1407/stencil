@@ -7,10 +7,16 @@ const console = @import("console.zig");
 const scrape = @import("scrape.zig");
 const project = @import("project.zig");
 const project_cli = @import("project_cli.zig");
+const llm = @import("llm.zig");
 const logo = @import("logo.zig");
 
 pub fn main(init: std.process.Init) !void {
-    logo.init(init.environ_map.getPtr("NO_COLOR") != null);
+    // Colour off when NO_COLOR is set; the severity prefixes also need stderr (the human
+    // channel) to be a terminal, so a redirected/piped run stays plain text.
+    logo.init(
+        init.environ_map.getPtr("NO_COLOR") != null,
+        std.Io.File.stderr().isTty(init.io) catch false,
+    );
     const gpa = init.gpa;
     const io = init.io;
     const arena = init.arena.allocator();
@@ -31,7 +37,9 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (opts.console) {
-        console.run(gpa, io, opts.console_full_screen) catch {
+        // The console's /prompt + /llm commands seed their provider config from the
+        // STENCIL_LLM_* environment (llm-contract.md §5).
+        console.run(gpa, io, opts.console_full_screen, llm.Env.fromMap(init.environ_map)) catch {
             std.process.exit(1);
         };
         return;
@@ -66,12 +74,14 @@ pub fn main(init: std.process.Init) !void {
 
 test {
     // Pull every module into the test build so their `test` blocks run.
+    _ = @import("logo.zig");
     _ = @import("args.zig");
     _ = @import("core.zig");
     _ = @import("image.zig");
     _ = @import("layout.zig");
     _ = @import("video.zig");
     _ = @import("net.zig");
+    _ = @import("llm.zig");
     _ = @import("scrape.zig");
     _ = @import("serverClient.zig");
     _ = @import("pipeline.zig");

@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QStandardPaths>
 
 namespace stencil::gui {
@@ -13,9 +14,8 @@ namespace stencil::gui {
   namespace {
 
     // Seed the default display unit from the system locale: US customary →
-    // inches, everything else (incl. metric and the UK) → cm. Maps QLocale's
-    // measurement system onto the STL-only core policy. Only used as a default;
-    // a saved "units" preference always overrides it (see loadSettings).
+    // inches, everything else (incl. the UK) → cm. Only a default — a saved
+    // "units" preference always overrides it (see loadSettings).
     QString localeDefaultUnit() {
       using MS = core::localeUnit::MeasurementSystem;
       const auto qsys = QLocale::system().measurementSystem();
@@ -26,18 +26,28 @@ namespace stencil::gui {
     }
 
     // Baked at build time to <repo>/desktop/.stencil (see CMakeLists). Falls back
-    // to the per-user config dir if the define is somehow absent.
+    // to the per-user config dir if the define is somehow absent. The env var wins
+    // over both: ctest points it at an isolated dir so tests never touch dev state.
 #ifdef STENCIL_STATE_DIR
-    QString baseDir() { return QString(STENCIL_STATE_DIR); }
+    QString baseDir() {
+      const QString env = qEnvironmentVariable("STENCIL_STATE_DIR");
+      return env.isEmpty() ? QString(STENCIL_STATE_DIR) : env;
+    }
 #else
     QString baseDir() {
-      return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+      const QString env = qEnvironmentVariable("STENCIL_STATE_DIR");
+      return env.isEmpty()
+                 ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
+                 : env;
     }
 #endif
 
-    bool writeJson(const QString& path, const QJsonDocument& doc) {
+    // `ownerOnly` narrows the file to 0600 (settings holds llmApiKey in the clear).
+    // Re-applied on every write, so a file from an older build is tightened on save.
+    bool writeJson(const QString& path, const QJsonDocument& doc, bool ownerOnly = false) {
       QFile f(path);
       if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+      if (ownerOnly) f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
       f.write(doc.toJson(QJsonDocument::Indented));
       return true;
     }
@@ -64,10 +74,14 @@ namespace stencil::gui {
     o["points"] = pts;
     o["color"] = QString::fromStdString(line.color);
     o["thickness"] = line.thickness;
-    o["markerSize"] = line.markerSize;
+    o["pointSize"] = line.pointSize;
     o["style"] = QString::fromStdString(line.style);
     o["locked"] = line.locked;
     o["fillColor"] = QString::fromStdString(line.fillColor);
+    // Point colour. Written ONLY when set: an absent key is how "inherit the line
+    // colour" round-trips, and emitting "" for every line would bloat every project file
+    // and change the bytes of files that predate the field.
+    if (!line.pointColor.empty()) o["pointColor"] = QString::fromStdString(line.pointColor);
     return o;
   }
 
@@ -79,10 +93,12 @@ namespace stencil::gui {
     }
     line.color = o.value("color").toString("#FFFF00").toStdString();
     line.thickness = o.value("thickness").toDouble(2.0);
-    line.markerSize = o.value("markerSize").toDouble(4.0);
+    line.pointSize = o.value("pointSize").toDouble(4.0);
     line.style = o.value("style").toString("solid").toStdString();
     line.locked = o.value("locked").toBool(false);
     line.fillColor = o.value("fillColor").toString("transparent").toStdString();
+    // Absent (every pre-field project) → empty → points follow the line colour.
+    line.pointColor = o.value("pointColor").toString("").toStdString();
     return line;
   }
 
@@ -98,26 +114,27 @@ namespace stencil::gui {
     return lines;
   }
 
-  // Crop rectangle <-> JSON (original-image pixels). File-local: only the session
-  // / project (de)serializers need it.
+  // Crop rectangle <-> JSON (original-image pixels). Written with the browser's
+  // canonical {x,y,w,h} keys; the reader still accepts the legacy {width,height}
+  // spelling (old sessions/projects, co-edit peers), canonical wins.
   static QJsonObject cropRectToJson(const core::CropRect& r) {
     QJsonObject o;
     o["x"] = r.x;
     o["y"] = r.y;
-    o["width"] = r.width;
-    o["height"] = r.height;
+    o["w"] = r.width;
+    o["h"] = r.height;
     return o;
   }
 
   static core::CropRect cropRectFromJson(const QJsonObject& o) {
-    return {o.value("x").toDouble(), o.value("y").toDouble(),
-            o.value("width").toDouble(), o.value("height").toDouble()};
+    const double w = o.contains("w") ? o.value("w").toDouble() : o.value("width").toDouble();
+    const double h = o.contains("h") ? o.value("h").toDouble() : o.value("height").toDouble();
+    return {o.value("x").toDouble(), o.value("y").toDouble(), w, h};
   }
 
   // Build the layout export envelope (browser drawingApp.js:2078-2079). The
   // image filter + custom tint ride along (browser storage.js #buildLayout) so a
-  // reopened project restores the same b&w/sepia/invert/contour/tint result,
-  // not just the lines.
+  // reopened project restores the same filter result, not just the lines.
   QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines,
                                          const QString& imageFilter,
                                          const QString& filterColor,
@@ -208,6 +225,9 @@ namespace stencil::gui {
       if (!pf.themeAccent.isEmpty()) theme["accent"] = pf.themeAccent;
       if (!theme.isEmpty()) root["theme"] = theme;
     }
+    // Persisted chat rides along only when the save-chats opt-in produced one
+    // (llm-contract.md §12.3); omitted otherwise so plain files are unchanged.
+    if (!pf.chat.isEmpty()) root["chat"] = pf.chat;
     return QJsonDocument(root).toJson(QJsonDocument::Indented);
   }
 
@@ -234,12 +254,12 @@ namespace stencil::gui {
     }
     const QJsonObject img = o.value("image").toObject();
     const QString dataUrl = img.value("dataUrl").toString();
-    const int marker = dataUrl.indexOf("base64,");
-    if (marker < 0) {
+    const int b64 = dataUrl.indexOf("base64,");
+    if (b64 < 0) {
       if (err) *err = QStringLiteral("Project file has no embedded image.");
       return false;
     }
-    out.imageBytes = QByteArray::fromBase64(dataUrl.mid(marker + 7).toLatin1());
+    out.imageBytes = QByteArray::fromBase64(dataUrl.mid(b64 + 7).toLatin1());
     if (out.imageBytes.isEmpty()) {
       if (err) *err = QStringLiteral("Project image could not be decoded.");
       return false;
@@ -264,7 +284,62 @@ namespace stencil::gui {
       out.themeMode = theme.value("mode").toString();
       out.themeAccent = theme.value("accent").toString();
     }
+    out.chat = o.value("chat").toObject();
     return true;
+  }
+
+  namespace {
+    // §12.1 machinery filter (browser chatStore.js isInternalChatText parity):
+    // the §7 continuation note (exact or bracketed variant, any role) and
+    // assistant turns that are raw op-/ask-plans never enter the transcript.
+    bool isInternalChatText(const QString& role, const QString& text) {
+      const QString t = text.trimmed();
+      if (t.isEmpty()) return false;
+      static const QRegularExpression note(
+          QStringLiteral(R"(^\[The working image is now\b[\s\S]*\]$)"));
+      if (note.match(t).hasMatch()) return true;
+      if (role != QLatin1String("assistant")) return false;
+      static const QRegularExpression versionKey(QStringLiteral("\"version\"\\s*:"));
+      static const QRegularExpression planKey(
+          QStringLiteral("\"(actions|reply|variants|ask)\"\\s*:"));
+      return (t.startsWith(QLatin1Char('{')) || t.startsWith(QLatin1Char('['))) &&
+             t.contains(versionKey) && t.contains(planKey);
+    }
+
+    // Shared §12.1 whitelist for chat documents: rebuild each message so only a
+    // valid role + string text survives (no images, no machinery text), then
+    // bound the count. Saving (buildChatDoc) additionally drops empty texts.
+    QJsonArray sanitizeChatMessages(const QJsonArray& messages, bool dropEmpty) {
+      QJsonArray clean;
+      for (const auto& v : messages) {
+        const QJsonObject m = v.toObject();
+        const QString role = m.value("role").toString();
+        const QJsonValue textVal = m.value("text");
+        if ((role != "user" && role != "assistant") || !textVal.isString()) continue;
+        const QString text = textVal.toString();
+        if (dropEmpty && text.isEmpty()) continue;
+        if (isInternalChatText(role, text)) continue;
+        QJsonObject out;
+        out["role"] = role;
+        out["text"] = text;
+        clean.append(out);
+      }
+      while (clean.size() > fileStore::kChatDocMessageLimit) clean.removeFirst();
+      return clean;
+    }
+  }  // namespace
+
+  QJsonObject fileStore::buildChatDoc(const QJsonArray& messages, qint64 savedAt) {
+    QJsonObject doc;
+    doc["version"] = kChatDocVersion;
+    doc["savedAt"] = savedAt;
+    doc["messages"] = sanitizeChatMessages(messages, /*dropEmpty=*/true);
+    return doc;
+  }
+
+  QJsonArray fileStore::parseChatDoc(const QJsonObject& doc) {
+    if (doc.value("version").toInt(0) != kChatDocVersion) return {};
+    return sanitizeChatMessages(doc.value("messages").toArray(), /*dropEmpty=*/false);
   }
 
   QString fileStore::stateDir() {
@@ -284,6 +359,11 @@ namespace stencil::gui {
     s.units = localeDefaultUnit();
     const QJsonObject o = readJson(settingsPath()).object();
     if (o.isEmpty()) return s;
+    return settingsFromJson(o, s);
+  }
+
+  Settings fileStore::settingsFromJson(const QJsonObject& o, const Settings& base) {
+    Settings s = base;
     // themeMode is the new key; migrate the legacy `theme` ("dark"->dark,
     // "light"->light, anything else / missing -> system).
     if (o.contains("themeMode")) {
@@ -298,8 +378,9 @@ namespace stencil::gui {
     s.showPoints = o.value("showPoints").toBool(s.showPoints);
     s.showLines = o.value("showLines").toBool(s.showLines);
     s.defaultColor = o.value("defaultColor").toString(s.defaultColor);
+    s.defaultPointColor = o.value("defaultPointColor").toString(s.defaultPointColor);
     s.defaultThickness = o.value("defaultThickness").toDouble(s.defaultThickness);
-    s.defaultMarkerSize = o.value("defaultMarkerSize").toDouble(s.defaultMarkerSize);
+    s.defaultPointSize = o.value("defaultPointSize").toDouble(s.defaultPointSize);
     s.defaultStyle = o.value("defaultStyle").toString(s.defaultStyle);
     s.pageSize = o.value("pageSize").toString(s.pageSize);
     s.customPageWidth = o.value("customPageWidth").toDouble(s.customPageWidth);
@@ -318,10 +399,24 @@ namespace stencil::gui {
     s.holdDrawDelay = o.value("holdDrawDelay").toInt(s.holdDrawDelay);
     s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
     s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
+    // AI assistant (llm-contract.md §5 persistence keys) + the saved dock state.
+    s.llmProvider = o.value("llmProvider").toString(s.llmProvider);
+    s.llmBaseUrl = o.value("llmBaseUrl").toString(s.llmBaseUrl);
+    s.llmModel = o.value("llmModel").toString(s.llmModel);
+    s.llmApiKey = o.value("llmApiKey").toString(s.llmApiKey);
+    s.llmServerUrl = o.value("llmServerUrl").toString(s.llmServerUrl);
+    s.saveChatsWithProject = o.value("saveChatsWithProject").toBool(s.saveChatsWithProject);
+    s.nativeMenuBar = o.value("nativeMenuBar").toBool(s.nativeMenuBar);
+    s.windowState = o.value("windowState").toString(s.windowState);
     return s;
   }
 
   void fileStore::saveSettings(const Settings& s) {
+    // Owner-only: this file holds llmApiKey in plaintext (contract §5).
+    writeJson(settingsPath(), QJsonDocument(settingsToJson(s)), /*ownerOnly=*/true);
+  }
+
+  QJsonObject fileStore::settingsToJson(const Settings& s) {
     QJsonObject o;
     o["themeMode"] = s.themeMode;
     o["accentColor"] = s.accentColor;
@@ -330,8 +425,9 @@ namespace stencil::gui {
     o["showPoints"] = s.showPoints;
     o["showLines"] = s.showLines;
     o["defaultColor"] = s.defaultColor;
+    o["defaultPointColor"] = s.defaultPointColor;
     o["defaultThickness"] = s.defaultThickness;
-    o["defaultMarkerSize"] = s.defaultMarkerSize;
+    o["defaultPointSize"] = s.defaultPointSize;
     o["defaultStyle"] = s.defaultStyle;
     o["pageSize"] = s.pageSize;
     o["customPageWidth"] = s.customPageWidth;
@@ -349,7 +445,15 @@ namespace stencil::gui {
     o["holdDrawDelay"] = s.holdDrawDelay;
     o["browserBaseUrl"] = s.browserBaseUrl;
     o["telegramBotUsername"] = s.telegramBotUsername;
-    writeJson(settingsPath(), QJsonDocument(o));
+    o["llmProvider"] = s.llmProvider;
+    o["llmBaseUrl"] = s.llmBaseUrl;
+    o["llmModel"] = s.llmModel;
+    o["llmApiKey"] = s.llmApiKey;
+    o["llmServerUrl"] = s.llmServerUrl;
+    o["saveChatsWithProject"] = s.saveChatsWithProject;
+    o["nativeMenuBar"] = s.nativeMenuBar;
+    o["windowState"] = s.windowState;
+    return o;
   }
 
   std::optional<Session> fileStore::loadSession() {
@@ -370,6 +474,7 @@ namespace stencil::gui {
     s.lines = linesFromJson(o.value("lines").toArray());
     s.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     s.rotationQuarters = o.value("rotationQuarters").toInt(0);
+    s.activeProjectId = o.value("activeProjectId").toString();
     return s;
   }
 
@@ -386,6 +491,7 @@ namespace stencil::gui {
     o["lines"] = linesToJson(s.lines);
     if (s.cropRect.width > 0) o["cropRect"] = cropRectToJson(s.cropRect);
     if (s.rotationQuarters) o["rotationQuarters"] = s.rotationQuarters;
+    if (!s.activeProjectId.isEmpty()) o["activeProjectId"] = s.activeProjectId;
     writeJson(sessionPath(), QJsonDocument(o));
   }
 
@@ -435,6 +541,8 @@ namespace stencil::gui {
     pr.lines = linesFromJson(o.value("lines").toArray());
     pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
+    // Persisted chat (llm-contract.md §12); absent for most projects.
+    pr.chat = o.value("chat").toObject();
     return pr;
   }
 
@@ -499,6 +607,8 @@ namespace stencil::gui {
     o["lines"] = linesToJson(pr.lines);
     if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
     if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
+    // Persisted chat: omit when empty so a plain project's bytes stay unchanged.
+    if (!pr.chat.isEmpty()) o["chat"] = pr.chat;
     return o;
   }
 

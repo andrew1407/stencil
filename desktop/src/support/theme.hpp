@@ -28,6 +28,7 @@ namespace stencil::gui {
     QColor inputBg;      // --input-bg
     QColor inputText;    // --input-text
     QColor accent;       // --bg-coord-th      (primary / table header — brand violet)
+    QColor danger;       // --danger           (errors; lifted on dark, like the CSS)
     QColor selGlow;      // DEFAULT_VISUALS.selGlowColor
     QColor hoverRing;    // DEFAULT_VISUALS.hoverRingColor
   };
@@ -47,6 +48,10 @@ namespace stencil::gui {
   // Primary colour for an accent key (defaults to violet for unknown keys). The
   // darker/lighter --accent-2 shade is derived inside themePalette().
   QColor accentPrimary(const QString& accentKey);
+
+  // True when white-on-`accent` falls below 3:1 — the caller then asks iconSet for the
+  // shadowed glyph. Mirrors browser accents.js needsGlyphShadow / extension accent.js.
+  bool accentNeedsGlyphShadow(const QColor& accent);
 
   // Palette for the given mode + accent. `dark == false` is the browser default
   // (light); `accentKey` defaults to violet (the brand colour). Returned by value

@@ -1,5 +1,6 @@
 #include "launchOptions.hpp"
 #include "mainWindow.hpp"
+#include "tipContent.hpp"
 #include <QApplication>
 #include <QFileOpenEvent>
 #include <QIcon>
@@ -30,6 +31,37 @@ namespace {
     }
 
    protected:
+    // Cmd+Q must work while a modal dialog's exec() runs too (macOS disables
+    // the app menu then): catch the Quit chord app-wide and shut down cleanly.
+    bool notify(QObject* receiver, QEvent* e) override {
+      // Every control in the app sets its tooltip as one plain string; Qt would print that
+      // flat. Catching the change here re-renders it as the rich tooltip the browser shows
+      // (heading + keycaps + rows/bullets), so no call site has to know about it. The
+      // re-set fires this event again, but the rendered text is already rich, and
+      // enrichedToolTip leaves that alone — so it settles after one pass.
+      if (e->type() == QEvent::ToolTipChange) {
+        if (auto* w = qobject_cast<QWidget*>(receiver)) {
+          const QString plain = w->toolTip();
+          const QString rich = stencil::gui::enrichedToolTip(plain);
+          if (!rich.isEmpty()) {
+            // Remember what it was written as: the rendering bakes in palette colours, so
+            // a theme change rebuilds every tooltip from this (tipContent setTooltipPalette).
+            w->setProperty(stencil::gui::kPlainTipProperty, plain);
+            w->setToolTip(rich);
+          }
+        }
+      }
+      if (e->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(e);
+        if (ke->matches(QKeySequence::Quit)) {
+          closeAllWindows();
+          quit();
+          return true;
+        }
+      }
+      return QApplication::notify(receiver, e);
+    }
+
     bool event(QEvent* e) override {
       if (e->type() == QEvent::FileOpen) {
         const auto* fo = static_cast<QFileOpenEvent*>(e);

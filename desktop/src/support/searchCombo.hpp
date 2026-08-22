@@ -19,9 +19,13 @@ class QSortFilterProxyModel;
 
 namespace stencil::gui {
 
+  // `searchable` false drops the search row (and the keyboard routing that goes with it)
+  // but keeps everything else — the themed popup, the hover rows, the checkmark. That is
+  // what every SHORT list in the app uses: the OS popup is drawn by macOS, uncss-able, and
+  // looked nothing like the rest of the window. Only the long ISO page lists keep the box.
   class SearchComboBox : public QComboBox {
   public:
-    explicit SearchComboBox(QWidget* parent = nullptr);
+    explicit SearchComboBox(QWidget* parent = nullptr, bool searchable = true);
 
     void showPopup() override;
     void hidePopup() override;
@@ -36,6 +40,7 @@ namespace stencil::gui {
     void applyFilter(const QString& query);
     void positionPopup();
 
+    bool searchable_ = true;        // false → no search row (short lists)
     QWidget* popup_ = nullptr;      // Qt::Popup container (translucent corners)
     QLineEdit* search_ = nullptr;
     QListView* list_ = nullptr;

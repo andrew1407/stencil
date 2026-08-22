@@ -46,7 +46,10 @@ namespace stencil::gui {
 
   }  // namespace
 
-  SearchComboBox::SearchComboBox(QWidget* parent) : QComboBox(parent) {}
+  SearchComboBox::SearchComboBox(QWidget* parent, bool searchable)
+      : QComboBox(parent), searchable_(searchable) {
+    setCursor(Qt::PointingHandCursor);   // browser parity: every selector is a pointer
+  }
 
   // Built lazily so the model is already filled and themed when first opened.
   void SearchComboBox::ensurePopup() {
@@ -72,20 +75,23 @@ namespace stencil::gui {
     layout->setSpacing(kPopupPadding);
 
     // Search row pinned on top, with the hairline divider the browser draws
-    // under .accent-dd-search-row.
-    auto* searchRow = new QWidget(frame);
-    searchRow->setObjectName("searchComboSearchRow");
-    searchRow->setAttribute(Qt::WA_StyledBackground);
-    auto* searchLayout = new QVBoxLayout(searchRow);
-    searchLayout->setContentsMargins(kPopupPadding, kPopupPadding,
-                                     kPopupPadding, kPopupPadding * 2);
-    search_ = new QLineEdit(searchRow);
-    search_->setObjectName("searchComboSearch");
-    search_->setPlaceholderText(tr("Search…"));
-    search_->setClearButtonEnabled(true);
-    search_->installEventFilter(this);
-    searchLayout->addWidget(search_);
-    layout->addWidget(searchRow);
+    // under .accent-dd-search-row. A short list has none: three rows need no filter,
+    // and a box over them would only be one more thing to dismiss.
+    if (searchable_) {
+      auto* searchRow = new QWidget(frame);
+      searchRow->setObjectName("searchComboSearchRow");
+      searchRow->setAttribute(Qt::WA_StyledBackground);
+      auto* searchLayout = new QVBoxLayout(searchRow);
+      searchLayout->setContentsMargins(kPopupPadding, kPopupPadding,
+                                       kPopupPadding, kPopupPadding * 2);
+      search_ = new QLineEdit(searchRow);
+      search_->setObjectName("searchComboSearch");
+      search_->setPlaceholderText(tr("Search…"));
+      search_->setClearButtonEnabled(true);
+      search_->installEventFilter(this);
+      searchLayout->addWidget(search_);
+      layout->addWidget(searchRow);
+    }
 
     proxy_ = new LabelValueFilterProxy(this);
     proxy_->setSourceModel(model());
@@ -99,7 +105,8 @@ namespace stencil::gui {
     list_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     // Hover-highlight rows like .accent-dd-opt:hover (QSS ::item:hover needs it).
     list_->setMouseTracking(true);
-    list_->setFocusPolicy(Qt::NoFocus);  // keyboard stays on the search field
+    list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
+    if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
     layout->addWidget(list_, 1);
 
     noMatch_ = new QLabel(tr("No matching format."), frame);
@@ -107,8 +114,9 @@ namespace stencil::gui {
     noMatch_->hide();
     layout->addWidget(noMatch_);
 
-    connect(search_, &QLineEdit::textChanged, this,
-            [this](const QString& text) { applyFilter(text); });
+    if (search_)
+      connect(search_, &QLineEdit::textChanged, this,
+              [this](const QString& text) { applyFilter(text); });
     connect(list_, &QListView::clicked, this,
             [this](const QModelIndex& idx) { choose(idx.row()); });
   }
@@ -146,8 +154,8 @@ namespace stencil::gui {
   void SearchComboBox::positionPopup() {
     const int rows = proxy_->rowCount();
     const int rowH = rows > 0 ? list_->sizeHintForRow(0) : 0;
-    const int chromeH = kPopupPadding * 2 + search_->parentWidget()->sizeHint().height() +
-                        kPopupPadding;
+    const int chromeH = kPopupPadding * 2 +
+                        (search_ ? search_->parentWidget()->sizeHint().height() + kPopupPadding : 0);
     const int bodyH = rows > 0 ? rowH * rows + 2 * list_->frameWidth()
                                : noMatch_->sizeHint().height();
     const int h = qMin(kMaxPopupHeight, chromeH + bodyH);
@@ -174,7 +182,7 @@ namespace stencil::gui {
     // would reopen it here — treat that press as "toggle closed" instead.
     if (lastHide_.isValid() && lastHide_.elapsed() < 150) return;
     ensurePopup();
-    {
+    if (search_) {
       const QSignalBlocker block(search_);
       search_->clear();
     }
@@ -187,7 +195,8 @@ namespace stencil::gui {
     positionPopup();
     popup_->show();
     if (cur.isValid()) list_->scrollTo(cur, QAbstractItemView::PositionAtCenter);
-    search_->setFocus(Qt::PopupFocusReason);
+    (search_ ? static_cast<QWidget*>(search_) : static_cast<QWidget*>(list_))
+        ->setFocus(Qt::PopupFocusReason);
   }
 
   void SearchComboBox::hidePopup() {
@@ -197,7 +206,8 @@ namespace stencil::gui {
 
   bool SearchComboBox::eventFilter(QObject* watched, QEvent* event) {
     if (watched == popup_ && event->type() == QEvent::Hide) lastHide_.start();
-    if (watched == search_ && event->type() == QEvent::KeyPress) {
+    if ((watched == search_ || (!searchable_ && watched == list_)) &&
+        event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
       switch (ke->key()) {
         case Qt::Key_Down:

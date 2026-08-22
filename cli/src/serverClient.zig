@@ -5,6 +5,7 @@
 //! server's raw-TCP NDJSON edit channel — the CLI uses TCP rather than a WebSocket
 //! library — to learn when a project it is editing was changed by another client.
 const std = @import("std");
+const logo = @import("logo.zig");
 
 pub const Error = error{
     HttpFailed,
@@ -321,13 +322,15 @@ pub const Client = struct {
     gpa: std.mem.Allocator,
     io: std.Io,
     base: []u8, // owned, normalized origin
-    token: []u8, // owned
+    token: []u8, // owned session token
     auth: []u8, // owned "Bearer <token>"
+    credential: []u8, // owned user-supplied token ("" = self-issued); reconnects reuse it
 
     pub fn deinit(self: *Client) void {
         self.gpa.free(self.base);
         self.gpa.free(self.token);
         self.gpa.free(self.auth);
+        self.gpa.free(self.credential);
     }
 
     /// GET/POST/etc. with the bearer header; returns owned response body bytes.
@@ -558,37 +561,137 @@ pub const Client = struct {
         const body = try self.request(.POST, path, bytes, "application/octet-stream");
         self.gpa.free(body);
     }
+
+    /// DELETE a project's stored file kind (valid for the filestore-only kinds —
+    /// video/variantN/chat). Idempotent on the server: a kind with no stored bytes still
+    /// answers 204, so a repeat delete is not an error.
+    pub fn deleteFile(self: *Client, id: []const u8, kind: []const u8) !void {
+        const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}/files/{s}", .{ id, kind });
+        defer self.gpa.free(path);
+        const body = try self.request(.DELETE, path, null, null);
+        self.gpa.free(body);
+    }
 };
 
 /// Connect to a server: normalize the URL, then either validate the supplied token
-/// (GET /projects) or issue a fresh one (POST /auth/token).
+/// (a rejected one is retried as the ADMIN credential, minting a session with it —
+/// mirrors the desktop's Token field) or issue a fresh one (POST /auth/token).
 pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?[]const u8) !Client {
     const base = try normalizeBase(gpa, url);
     errdefer gpa.free(base);
     if (isInsecureRemote(base))
-        std.debug.print("warning: connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
+        logo.note("connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
 
-    var token: []u8 = undefined;
-    if (token_opt) |t| {
-        token = try gpa.dupe(u8, t);
-    } else {
-        const issue_url = try std.fmt.allocPrint(gpa, "{s}/auth/token", .{base});
-        defer gpa.free(issue_url);
-        const body = rawRequest(gpa, io, issue_url, .POST, "{}", &.{.{ .name = "content-type", .value = "application/json" }}) catch return Error.HttpFailed;
-        defer gpa.free(body);
-        token = try parseToken(gpa, body);
-    }
+    const token = try resolveToken(gpa, io, base, token_opt);
     errdefer gpa.free(token);
     const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{token});
     errdefer gpa.free(auth);
+    const credential = try gpa.dupe(u8, token_opt orelse "");
+    errdefer gpa.free(credential);
+    return Client{ .gpa = gpa, .io = io, .base = base, .token = token, .auth = auth, .credential = credential };
+}
 
-    var client = Client{ .gpa = gpa, .io = io, .base = base, .token = token, .auth = auth };
-    if (token_opt != null) {
-        // Validate the supplied token.
-        const body = try client.listProjects();
-        gpa.free(body);
+/// The session token a connection runs on: a supplied token is validated with a GET
+/// /projects probe — one the server rejects is retried as an ADMIN credential (mint a
+/// session with it as bearer) — and no token issues a fresh session unauthenticated.
+fn resolveToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, token_opt: ?[]const u8) ![]u8 {
+    if (token_opt) |t| {
+        const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{t});
+        defer gpa.free(auth);
+        const probe_url = try std.fmt.allocPrint(gpa, "{s}/projects", .{base});
+        defer gpa.free(probe_url);
+        if (rawRequest(gpa, io, probe_url, .GET, null, &.{.{ .name = "authorization", .value = auth }})) |body| {
+            gpa.free(body);
+            return gpa.dupe(u8, t);
+        } else |e| {
+            if (e != Error.Unauthorized) return e;
+            // Not a session token — but it may be the server's ADMIN token: try minting
+            // a session with it. If that fails too, report the probe's rejection (the
+            // mint's "admin token required" would misname a plain wrong token).
+            const probe_reject = saveReject();
+            const body = issueToken(gpa, io, base, auth) catch |e2| {
+                if (e2 == Error.Unauthorized) restoreReject(probe_reject);
+                return e2;
+            };
+            defer gpa.free(body);
+            return parseToken(gpa, body);
+        }
     }
-    return client;
+    const body = try issueToken(gpa, io, base, null);
+    defer gpa.free(body);
+    return parseToken(gpa, body);
+}
+
+/// POST /auth/token, optionally with an admin bearer, returning the response body.
+fn issueToken(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth_opt: ?[]const u8) ![]u8 {
+    const url = try std.fmt.allocPrint(gpa, "{s}/auth/token", .{base});
+    defer gpa.free(url);
+    var headers: [2]std.http.Header = undefined;
+    var n: usize = 0;
+    headers[n] = .{ .name = "content-type", .value = "application/json" };
+    n += 1;
+    if (auth_opt) |a| {
+        headers[n] = .{ .name = "authorization", .value = a };
+        n += 1;
+    }
+    return rawRequest(gpa, io, url, .POST, "{}", headers[0..n]);
+}
+
+// ── last-rejection detail ────────────────────────────────────────────────────
+// Zig errors carry no payload, so the most recent non-2xx response's status and
+// server-sent message are kept here for connect()'s callers to report.
+
+var reject_status: u32 = 0;
+var reject_buf: [256]u8 = undefined;
+var reject_len: usize = 0;
+
+pub const Reject = struct { status: u32, message: []const u8 };
+
+/// The last non-2xx response's status + message, or null when the last request
+/// succeeded or never reached the server.
+pub fn lastReject() ?Reject {
+    if (reject_status == 0) return null;
+    return .{ .status = reject_status, .message = reject_buf[0..reject_len] };
+}
+
+const RejectCopy = struct { status: u32, buf: [256]u8, len: usize };
+
+fn saveReject() RejectCopy {
+    return .{ .status = reject_status, .buf = reject_buf, .len = reject_len };
+}
+
+fn restoreReject(r: RejectCopy) void {
+    reject_status = r.status;
+    reject_buf = r.buf;
+    reject_len = r.len;
+}
+
+fn recordReject(gpa: std.mem.Allocator, status: u32, body: []const u8) void {
+    reject_status = status;
+    const msg = parseErrorMessage(gpa, body);
+    defer if (msg) |m| gpa.free(m);
+    const src = std.mem.trim(u8, msg orelse body, " \t\r\n");
+    reject_len = @min(src.len, reject_buf.len);
+    @memcpy(reject_buf[0..reject_len], src[0..reject_len]);
+}
+
+/// Parse the server's { "code", "message" } error body for its message; null when the
+/// body isn't that shape (callers then show the raw body). Caller owns the slice.
+pub fn parseErrorMessage(gpa: std.mem.Allocator, body: []const u8) ?[]u8 {
+    const T = struct { message: []const u8 };
+    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return null;
+    defer p.deinit();
+    return gpa.dupe(u8, p.value.message) catch null;
+}
+
+/// Print why a connect failed: the server's own rejection (status + message) when the
+/// last response carried one, else the bare transport error name.
+pub fn printConnectError(url: []const u8, e: anyerror) void {
+    if (lastReject()) |r| {
+        logo.err("server rejected connection ({d}): {s}\n", .{ r.status, r.message });
+    } else {
+        logo.err("could not connect to {s} ({s})\n", .{ url, @errorName(e) });
+    }
 }
 
 /// One-shot HTTP request with explicit headers; returns owned response body bytes.
@@ -605,6 +708,7 @@ fn rawRequest(
     var body: std.Io.Writer.Allocating = .init(gpa);
     defer body.deinit();
 
+    reject_status = 0; // a transport failure below leaves no stale rejection behind
     const result = client.fetch(.{
         .location = .{ .url = url },
         .method = method,
@@ -614,6 +718,7 @@ fn rawRequest(
     }) catch return Error.HttpFailed;
 
     const code = @intFromEnum(result.status);
+    if (code < 200 or code >= 300) recordReject(gpa, code, body.written());
     if (code == 401) return Error.Unauthorized;
     if (code == 404) return Error.NotFound;
     if (code == 409) return Error.Conflict;
@@ -940,6 +1045,39 @@ test "jsonEscape escapes quotes, backslashes, and control chars" {
     var p = try std.json.parseFromSlice(T, a, body, .{});
     defer p.deinit();
     try testing.expectEqualStrings(tricky, p.value.v);
+}
+
+test "parseErrorMessage reads the server's error body, null for other shapes" {
+    const a = testing.allocator;
+    const msg = parseErrorMessage(a, "{\"code\":\"unauthorized\",\"message\":\"admin token required to issue tokens\"}").?;
+    defer a.free(msg);
+    try testing.expectEqualStrings("admin token required to issue tokens", msg);
+
+    try testing.expect(parseErrorMessage(a, "not json") == null);
+    try testing.expect(parseErrorMessage(a, "{\"code\":\"x\"}") == null); // no message field
+}
+
+test "recordReject keeps status + message; falls back to the raw body; save/restore round-trips" {
+    const a = testing.allocator;
+    recordReject(a, 401, "{\"code\":\"unauthorized\",\"message\":\"missing or invalid token\"}");
+    var r = lastReject().?;
+    try testing.expectEqual(@as(u32, 401), r.status);
+    try testing.expectEqualStrings("missing or invalid token", r.message);
+
+    // A non-JSON body is reported raw (trimmed).
+    const saved = saveReject();
+    recordReject(a, 503, "  service melting\n");
+    r = lastReject().?;
+    try testing.expectEqual(@as(u32, 503), r.status);
+    try testing.expectEqualStrings("service melting", r.message);
+
+    // restoreReject brings the earlier rejection back (used by the admin-mint retry).
+    restoreReject(saved);
+    r = lastReject().?;
+    try testing.expectEqual(@as(u32, 401), r.status);
+    try testing.expectEqualStrings("missing or invalid token", r.message);
+
+    reject_status = 0; // leave no cross-test state
 }
 
 test "editPort pairs with the REST port (+1)" {

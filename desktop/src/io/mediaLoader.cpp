@@ -24,14 +24,21 @@ namespace stencil::gui {
 
     // Video by container extension (the launch arg's suffix, or the URL path's).
     bool looksLikeVideo(const QString& src, const QUrl& url) {
-      static const QStringList kVideoExt = {
-          "mp4", "m4v", "mov", "webm", "mkv", "avi", "wmv",
-          "flv", "mpg", "mpeg", "ogv", "3gp", "ts"};
-      const QString a = QFileInfo(src).suffix().toLower();
-      const QString b = QFileInfo(url.path()).suffix().toLower();
-      return kVideoExt.contains(a) || kVideoExt.contains(b);
+      return isVideoFileName(src) || isVideoFileName(url.path());
     }
   }  // namespace
+
+  bool isVideoFileName(const QString& path) {
+    static const QStringList kVideoExt = {
+        "mp4", "m4v", "mov", "webm", "mkv", "avi", "wmv",
+        "flv", "mpg", "mpeg", "ogv", "3gp", "ts"};
+    return kVideoExt.contains(QFileInfo(path).suffix().toLower());
+  }
+
+  bool isImageFileName(const QString& path) {
+    static const QStringList kImageExt = {"png", "jpg", "jpeg", "webp", "gif", "bmp"};
+    return kImageExt.contains(QFileInfo(path).suffix().toLower());
+  }
 
   namespace net {
     void fetch(QObject* owner, const QUrl& url,
@@ -82,6 +89,46 @@ namespace stencil::gui {
       url_ = QUrl::fromUserInput(src);
     }
     resolve();
+  }
+
+  void MediaLoader::extractFrames(const QString& src, const QList<int>& indices,
+                                  std::function<void(QList<QImage>, QString)> done) {
+    if (indices.isEmpty()) {
+      done({}, QString());
+      return;
+    }
+    // Sequential driver over load(): one loaded()/failed() per call, so chain
+    // the next seek from the completion. Connections are severed on finish so a
+    // later plain load() doesn't re-enter this collector.
+    struct St {
+      QString src;
+      QList<int> indices;
+      int i = 0;
+      QList<QImage> frames;
+      QMetaObject::Connection ok, fail;
+      std::function<void(QList<QImage>, QString)> done;
+    };
+    auto st = std::make_shared<St>();
+    st->src = src;
+    st->indices = indices;
+    st->done = std::move(done);
+    const auto finish = [st](const QString& error) {
+      QObject::disconnect(st->ok);
+      QObject::disconnect(st->fail);
+      st->done(st->frames, error);
+    };
+    st->ok = connect(this, &MediaLoader::loaded, this,
+                     [this, st, finish](const QImage& img, const QString&) {
+                       st->frames.append(img);
+                       if (++st->i >= st->indices.size()) {
+                         finish(QString());
+                         return;
+                       }
+                       load(st->src, st->indices.at(st->i));
+                     });
+    st->fail = connect(this, &MediaLoader::failed, this,
+                       [finish](const QString& message) { finish(message); });
+    load(src, st->indices.first());
   }
 
   void MediaLoader::resolve() {

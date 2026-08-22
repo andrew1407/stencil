@@ -103,7 +103,15 @@ namespace stencil::gui {
   // timer so it lands off this slot and coalesces a burst.
   void RemoteSyncController::onRemoteProjectEvent(const QString& id, qint64 version, bool deleted) {
     if (session_->address().isEmpty() || session_->id().isEmpty()) return;
-    if (id != session_->id() || deleted) return;
+    if (id != session_->id()) return;
+    // The linked project was deleted (by a peer, or this app's own projects dialog): the
+    // link is dead — detach fully, or the golden server frame outlives the project.
+    // Independent of the sync toggle: there is nothing left to sync with.
+    if (deleted) {
+      stopRemotePoll();
+      if (h_.serverProjectDeleted) h_.serverProjectDeleted();
+      return;
+    }
     if (!h_.syncToServer()) return;
     if (version <= session_->version()) return;  // our own save echo, or stale
     // Queue a reload and (re)arm the coalescing timer. Setting reloadPending_ here (rather than

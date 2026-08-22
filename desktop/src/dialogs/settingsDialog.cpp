@@ -1,14 +1,17 @@
+#include "../support/searchCombo.hpp"
 #include "settingsDialog.hpp"
 #include "guiHelpers.hpp"
+#include "../support/modalReveal.hpp"
+#include "llmSettingsForm.hpp"
 #include "theme.hpp"
 #include <QCheckBox>
-#include <QColorDialog>
 #include <QComboBox>
 #include <QListView>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
 #include <QPixmap>
@@ -25,7 +28,7 @@ namespace stencil::gui {
 
     auto* form = new QFormLayout;
 
-    theme_ = new QComboBox(this);
+    theme_ = new SearchComboBox(this, /*searchable=*/false);
     theme_->setToolTip("Light/dark appearance — System follows the OS scheme");
     // Tri-state theme to match the browser: System (auto) follows the OS scheme.
     theme_->addItem("System (auto)", "system");
@@ -37,8 +40,8 @@ namespace stencil::gui {
     }
     form->addRow("Theme", theme_);
 
-    accent_ = new QComboBox(this);
-    accent_->setToolTip("Accent colour used for highlights across the app");
+    accent_ = new SearchComboBox(this, /*searchable=*/false);
+    accent_->setToolTip("Accent color used for highlights across the app");
     // Brand-accent presets (theme.hpp) — violet first/default. Same choices as
     // the browser/extension main-theme dropdowns. Each item carries a rounded
     // colour swatch icon so the actual colour shows next to the name.
@@ -74,6 +77,21 @@ namespace stencil::gui {
     }
     form->addRow("Main theme", accent_);
 
+    nativeMenuBar_ = new QCheckBox(this);
+    nativeMenuBar_->setChecked(current.nativeMenuBar);
+    nativeMenuBar_->setToolTip(
+#ifdef Q_OS_WIN
+        "Windows has no global menu bar, so this has no effect here.");
+    nativeMenuBar_->setEnabled(false);
+#else
+        "On: the menu bar goes where your desktop puts it (the macOS menu bar, or a "
+        "GNOME/Unity app menu). Off: it stays inside the window — use this if the "
+        "in-window bar comes up empty on your desktop.\n\nTakes effect on restart. "
+        "This dialog is always reachable with Ctrl+, so you can undo it even with "
+        "no menus showing.");
+#endif
+    form->addRow("Use the system menu bar", nativeMenuBar_);
+
     autosave_ = new QCheckBox(this);
     autosave_->setChecked(current.autosave);
     autosave_->setToolTip("Automatically save the session as you edit");
@@ -91,7 +109,7 @@ namespace stencil::gui {
 
     showPoints_ = new QCheckBox(this);
     showPoints_->setChecked(current.showPoints);
-    showPoints_->setToolTip("Show point markers on lines by default");
+    showPoints_->setToolTip("Show points on lines by default");
     form->addRow("Show points", showPoints_);
 
     showLines_ = new QCheckBox(this);
@@ -101,7 +119,7 @@ namespace stencil::gui {
 
     color_ = new QPushButton(colorHex_, this);
     color_->setStyleSheet(QString("background:%1").arg(colorHex_));
-    color_->setToolTip("Default colour for newly drawn lines — click to change");
+    color_->setToolTip("Default color for newly drawn lines — click to change");
     connect(color_, &QPushButton::clicked, this, &SettingsDialog::pickColor);
     form->addRow("Default color", color_);
 
@@ -111,19 +129,19 @@ namespace stencil::gui {
     thickness_->setToolTip("Default stroke thickness for new lines (px)");
     form->addRow("Default thickness", thickness_);
 
-    markerSize_ = new QDoubleSpinBox(this);
-    markerSize_->setRange(1, 30);  // LIMITS.markerMin/markerMax
-    markerSize_->setValue(current.defaultMarkerSize);
-    markerSize_->setToolTip("Default point marker size for new lines (px)");
-    form->addRow("Default marker size", markerSize_);
+    pointSize_ = new QDoubleSpinBox(this);
+    pointSize_->setRange(1, 30);  // LIMITS.pointMin/pointMax
+    pointSize_->setValue(current.defaultPointSize);
+    pointSize_->setToolTip("Default point size for new lines (px)");
+    form->addRow("Default point size", pointSize_);
 
-    style_ = new QComboBox(this);
+    style_ = new SearchComboBox(this, /*searchable=*/false);
     style_->addItems({"solid", "dashed", "dotted"});
     style_->setCurrentText(current.defaultStyle);
     style_->setToolTip("Default stroke style for new lines");
     form->addRow("Default style", style_);
 
-    page_ = new QComboBox(this);
+    page_ = new SearchComboBox(this);
     // S10 — same options as the toolbar combo: Custom… + the full ISO A/B/C
     // series, labels with physical sizes in the user's display unit, item data
     // = the canonical name (read back via currentData in result()).
@@ -174,6 +192,16 @@ namespace stencil::gui {
         "leave empty to hide that option");
     form->addRow("Telegram bot", botUsername_);
 
+    // ── AI assistant (llm-contract.md §5): the shared provider/config
+    // rows (llmSettingsForm); irrelevant rows are greyed out, not hidden, so
+    // this sheet's row grid stays stable.
+    {
+      auto* header = new QLabel("<b>AI assistant</b>", this);
+      form->addRow(header);
+    }
+    llmForm_ = new LlmSettingsForm(current, LlmSettingsForm::RowMode::DisableRows, this);
+    form->addRow(llmForm_);
+
     auto* buttons =
         makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
 
@@ -183,8 +211,9 @@ namespace stencil::gui {
   }
 
   void SettingsDialog::pickColor() {
-    const QColor c = QColorDialog::getColor(QColor(colorHex_), this, "Default line color",
-                                            QColorDialog::DontUseNativeDialog);
+    // Anchored on the swatch button that was clicked.
+    const QColor c =
+        support::pickColorAnimated(QColor(colorHex_), this, "Default line color", color_);
     if (!c.isValid()) return;
     colorHex_ = c.name().toUpper();
     color_->setText(colorHex_);
@@ -195,13 +224,14 @@ namespace stencil::gui {
     Settings s = base_;  // keep fields not exposed here (formulas, tooltip…)
     s.themeMode = theme_->currentData().toString();
     s.accentColor = accent_->currentData().toString();
+    s.nativeMenuBar = nativeMenuBar_->isChecked();
     s.autosave = autosave_->isChecked();
     s.syncToServer = syncToServer_->isChecked();
     s.showPoints = showPoints_->isChecked();
     s.showLines = showLines_->isChecked();
     s.defaultColor = colorHex_;
     s.defaultThickness = thickness_->value();
-    s.defaultMarkerSize = markerSize_->value();
+    s.defaultPointSize = pointSize_->value();
     s.defaultStyle = style_->currentText();
     s.pageSize = page_->currentData().toString();
     s.customPageWidth = customW_->value();
@@ -209,6 +239,7 @@ namespace stencil::gui {
     s.holdDrawDelay = holdDelay_->value();
     s.browserBaseUrl = browserUrl_->text().trimmed();
     s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));
+    llmForm_->applyTo(s);
     return s;
   }
 

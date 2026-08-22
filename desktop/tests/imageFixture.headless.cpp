@@ -5,10 +5,14 @@
 // returns non-zero on any failed expectation. Built only when Qt is present.
 #include "canvasWidget.hpp"
 #include "imageFilter.hpp"
+#include "iconSet.hpp"
+#include "numericInput.hpp"
 #include "incognitoOverlay.hpp"
 #include "theme.hpp"
 
 #include <QApplication>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QImage>
 #include <QPixmap>
 #include <QWidget>
@@ -33,11 +37,7 @@ static long countNear(const QImage& im, const QColor& target, int tol) {
 using namespace stencil::gui;
 using stencil::core::CropRect;
 
-static int failures = 0;
-static void check(bool ok, const char* msg) {
-  std::printf("  [%s] %s\n", ok ? "PASS" : "FAIL", msg);
-  if (!ok) ++failures;
-}
+#include "support/check.hpp"
 
 int main(int argc, char** argv) {
   QApplication app(argc, argv);  // offscreen via QT_QPA_PLATFORM
@@ -105,10 +105,12 @@ int main(int argc, char** argv) {
         "core applyContourRGBA agrees (uniform → white)");
   canvas.setImageFilter("none", QColor("#7c3aed"));  // reset for later sections
 
-  // 4) IncognitoOverlay: the viewport-pinned dashed accent frame + badge (port of
-  //    the browser's body.incognito-mode outline/badge). It must paint the accent
-  //    frame/badge AND be transparent everywhere else, so the canvas shows through —
-  //    just like the browser, where the indicator never becomes image content.
+  // 4) IncognitoOverlay: the viewport-pinned dashed accent frame (port of the
+  //    browser's body.incognito-mode outline; the "not saved" wording lives on the
+  //    toolbar "?" hint, never over the picture). It must paint the accent frame
+  //    FLUSH with the viewport edge AND be transparent everywhere else, so the
+  //    canvas shows through — just like the browser, where the indicator never
+  //    becomes image content.
   std::printf("incognito overlay:\n");
   const QColor accent = stencil::gui::themePalette(false, "violet").accent;
   const QColor host_bg(0x22, 0x22, 0x22);  // stands in for the dark canvas backdrop
@@ -125,19 +127,134 @@ int main(int argc, char** argv) {
   check(offAccent == 0, "overlay paints nothing while inactive");
 
   overlay->setActive(true);
+  // The frame DRAWS ON clockwise over kDrawMs rather than blinking into place, so the
+  // first frame is legitimately empty — pump the loop until it has closed before
+  // measuring. (That it starts empty is itself the point of the animation.)
+  check(countNear(host.grab().toImage(), accent, 24) == 0,
+        "the frame starts empty and draws on, rather than appearing all at once");
+  {
+    QElapsedTimer t; t.start();
+    while (overlay->progress() < 1.0 && t.elapsed() < IncognitoOverlay::kDrawMs * 4)
+      QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+  }
+  check(overlay->progress() >= 1.0, "the frame reaches its closed state");
   const QImage shot = host.grab().toImage();  // composites overlay over the host
   const long onAccent = countNear(shot, accent, 24);
   const long bgShown = countNear(shot, host_bg, 16);
   std::printf("  host px: accent off=%ld on=%ld | backdrop-through=%ld\n",
               offAccent, onAccent, bgShown);
-  // The solid 3px dashed frame contributes the clean-accent pixels (the badge pill
-  // is 90%-alpha-blended, outside the tight tolerance); jumping clear of zero proves
-  // the frame paints. Font-independent.
-  check(onAccent > 40, "active overlay paints the dashed accent frame + badge");
+  // The solid 3px dashed frame contributes the clean-accent pixels; jumping clear
+  // of zero proves the frame paints. Font-independent.
+  check(onAccent > 40, "active overlay paints the dashed accent frame");
+  // Flush, not inset: the 3px stroke sits ON the edge, so the OUTERMOST row and
+  // column carry dashes. An inset frame leaves bare canvas outside them — the
+  // gap the user saw.
+  {
+    const auto rowHasAccent = [&](int y) {
+      for (int x = 0; x < shot.width(); ++x)
+        if (countNear(shot.copy(x, y, 1, 1), accent, 24)) return true;
+      return false;
+    };
+    const auto colHasAccent = [&](int x) {
+      for (int y = 0; y < shot.height(); ++y)
+        if (countNear(shot.copy(x, y, 1, 1), accent, 24)) return true;
+      return false;
+    };
+    check(rowHasAccent(0) && rowHasAccent(shot.height() - 1),
+          "the frame reaches the top and bottom edges (no inset gap)");
+    check(colHasAccent(0) && colHasAccent(shot.width() - 1),
+          "…and the left and right edges");
+    check(IncognitoOverlay::frameBox(QRectF(0, 0, 200, 100)) ==
+              QRectF(1.5, 1.5, 197, 97),
+          "the stroke box is inset only by the pen's half-width");
+    // Nothing is painted INSIDE the frame: the old "Incognito — not saved" pill
+    // covered the picture, and that fact now lives on the toolbar "?" instead.
+    const int in = IncognitoOverlay::kPenPx + 2;
+    const QImage inner = shot.copy(in, in, shot.width() - 2 * in, shot.height() - 2 * in);
+    check(countNear(inner, accent, 24) == 0,
+          "no badge over the picture — only the frame paints");
+  }
+  // Every toggle animates, not just the first — the frame must draw on and retract
+  // each time, never snap into place because some cached state short-circuits it.
+  {
+    const auto pump = [](int ms) {
+      QElapsedTimer t; t.start();
+      while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    };
+    // Sample a quarter of the way in: mid-flight, so a snap shows up as 0 or 1.
+    const auto cycle = [&](bool on) {
+      overlay->setActive(on);
+      pump(IncognitoOverlay::kDrawMs / 4);
+      const double mid = overlay->progress();
+      pump(IncognitoOverlay::kDrawMs * 2);
+      return mid;
+    };
+    for (int round = 1; round <= 3; ++round) {
+      const double off = cycle(false), on = cycle(true);
+      std::printf("  toggle round %d: off-mid=%.2f on-mid=%.2f\n", round, off, on);
+      check(off > 0.0 && off < 1.0, "the frame RETRACTS gradually on this toggle");
+      check(on > 0.0 && on < 1.0, "the frame DRAWS ON gradually on this toggle");
+    }
+    overlay->setActive(true);
+    pump(IncognitoOverlay::kDrawMs * 2);
+  }
+
   // Most of the host area must still read as backdrop — proving the overlay is
   // transparent (the canvas underneath would otherwise be hidden).
   check(bgShown > 320 * 200 / 2,
-        "overlay is transparent — the canvas shows through everywhere but the frame/badge");
+        "overlay is transparent — the canvas shows through everywhere but the frame");
+
+  // 5) Accent glyph shadow: accent-backed buttons carry WHITE line-art, so a LIGHT
+  //    accent needs the dark halo (iconSet themedIcon's `shadow`). The threshold is
+  //    the same WCAG 3:1 the browser (accents.js needsGlyphShadow) and the extension
+  //    (lib/accent.js) use, so the three surfaces flip on identical accents.
+  std::printf("accent glyph shadow:\n");
+  using stencil::gui::accentNeedsGlyphShadow;
+  check(!accentNeedsGlyphShadow(QColor("#7c3aed")), "violet default needs no halo (5.70:1)");
+  check(accentNeedsGlyphShadow(QColor("#eab308")), "yellow preset needs the halo (1.92:1)");
+  check(accentNeedsGlyphShadow(QColor("#0ea5e9")), "sky preset needs the halo (2.77:1)");
+  check(accentNeedsGlyphShadow(QColor("#00ffff")), "a light custom accent needs the halo");
+  check(!accentNeedsGlyphShadow(QColor("#000000")), "black needs no halo (21:1)");
+  check(!accentNeedsGlyphShadow(QColor()), "an invalid colour asks for no halo");
+  // Exactly the two presets the other surfaces flag — the parity assertion.
+  int flagged = 0;
+  for (const auto& a : stencil::gui::accentPresets())
+    if (accentNeedsGlyphShadow(QColor(a.hex))) ++flagged;
+  check(flagged == 2, "exactly two presets (yellow, sky) need the halo");
+
+  // The shadowed glyph must actually differ from the plain one (and stay cached
+  // per-flag, so the two never collide in the icon cache).
+  const QPixmap plain = stencil::gui::themedIcon("gear", QColor(Qt::white), 18, false).pixmap(18, 18);
+  const QPixmap haloed = stencil::gui::themedIcon("gear", QColor(Qt::white), 18, true).pixmap(18, 18);
+  check(!plain.isNull() && !haloed.isNull(), "both glyph variants rasterize");
+  check(plain.toImage() != haloed.toImage(), "the halo variant is a different raster");
+
+  // 6) Numeric fields take an arithmetic expression (support/numericInput.cpp). The
+  //    cases mirror browser/tests/numericInput.test.js and extension/tests/ —
+  //    same operator set as core/parse/formulaParser, so all three agree.
+  std::printf("numeric input expressions:\n");
+  auto ev = [](const char* text, double current, double* out) {
+    bool ok = false;
+    const double v = stencil::gui::evalNumericExpression(QString::fromUtf8(text), current, &ok);
+    if (out) *out = v;
+    return ok;
+  };
+  double v = 0;
+  check(ev("54", 0, &v) && v == 54, "a plain number passes through");
+  check(ev("45 + 9", 0, &v) && v == 54, "\"45 + 9\" evaluates to 54");
+  check(ev("45+9", 0, &v) && v == 54, "…with or without spaces");
+  check(ev("* 9", 3, &v) && v == 27, "a leading * continues from the current value");
+  check(ev("/2", 10, &v) && v == 5, "…and so does a leading /");
+  check(ev("-5", 10, &v) && v == -5, "a leading - stays a SIGN, not a subtraction");
+  check(ev("2 + 3 * 4", 0, &v) && v == 14, "* binds tighter than +");
+  check(ev("(2 + 3) * 4", 0, &v) && v == 20, "parentheses group");
+  check(ev("2 ** 3 ** 2", 0, &v) && v == 512, "** is right-associative");
+  check(ev("-2 ** 2", 0, &v) && v == -4, "unary sign applies outside ** (core parity)");
+  check(!ev("", 0, nullptr), "empty text is not a value");
+  check(!ev("abc", 0, nullptr), "letters are not a value");
+  check(!ev("45 +", 0, nullptr), "a dangling operator is not a value");
+  check(!ev("1/0", 0, nullptr), "division by zero is rejected, not infinite");
+  check(!ev("1 2", 0, nullptr), "trailing junk is rejected");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

@@ -9,6 +9,8 @@ namespace stencil::gui::deepLink {
     QString base = browserBase.trimmed();
     while (base.endsWith(QLatin1Char('/'))) base.chop(1);
     const QByteArray json = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    // Over-limit payload → empty string (the encodeTelegramStartPayload overflow style).
+    if (json.size() > kBrowserLaunchPayloadMax) return QString();
     // toPercentEncoding leaves only unreserved chars (A-Za-z0-9-._~) bare — a strict
     // subset of what encodeURIComponent leaves, so decodeURIComponent reads it back.
     return base + QStringLiteral("#stencil=") +

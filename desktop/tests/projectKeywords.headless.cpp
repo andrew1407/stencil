@@ -12,11 +12,7 @@
 
 using namespace stencil::gui;
 
-static int failures = 0;
-static void check(bool ok, const char* msg) {
-  std::printf("  [%s] %s\n", ok ? "PASS" : "FAIL", msg);
-  if (!ok) ++failures;
-}
+#include "support/check.hpp"
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);

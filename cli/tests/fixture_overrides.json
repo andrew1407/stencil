@@ -1,0 +1,163 @@
+{
+  "opPlan": {},
+  "providerWire": {
+    "image attachments become a content-parts array with data: URLs": {
+      "mediaTypeAlwaysPng": true,
+      "note": "cli hardcodes data:image/png for every attachment part (its attachments are always PNG-encoded snapshots); the fixture's image/jpeg mediaType is not representable"
+    },
+    "image attachments pass through as {mediaType,data} objects; text-only turns omit \"images\"": {
+      "dropHistoryImages": true,
+      "note": "cli history turns are text-only (llm.Turn has no images, per §7/§12) — an image on a REPLAYED turn is dropped from the wire; only the current turn carries attachments"
+    }
+  },
+  "sanitizer": {
+    "zero-width/format characters are stripped too": {
+      "cliExpect": "invisible​space‌here",
+      "note": "cli separates on BYTES <= 0x20 only; U+200B/U+200C are multi-byte and pass through untouched (browser strips \\p{Cf})"
+    },
+    "201 characters truncate to 199 + ellipsis": {
+      "cliExpect": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor…",
+      "note": "cli cuts on a WORD boundary (drops the word that does not fit, 197 chars + ellipsis); browser cuts mid-word at exactly 199 chars"
+    }
+  },
+  "chatDoc": {},
+  "layout": {
+    "empty-line-object-gets-all-defaults": {
+      "cliLines": [],
+      "note": "cli SKIPS a line whose points read as empty (layout.zig: pts.items.len == 0 -> continue); the browser keeps the empty-points line"
+    },
+    "point-cardinality-empty-one-many": {
+      "cliLines": [
+        {
+          "points": [
+            {
+              "x": 5,
+              "y": 6
+            }
+          ]
+        },
+        {
+          "points": [
+            {
+              "x": 0.5,
+              "y": 0.5
+            },
+            {
+              "x": 10,
+              "y": 0
+            },
+            {
+              "x": 10,
+              "y": 10
+            },
+            {
+              "x": 0,
+              "y": 10
+            },
+            {
+              "x": 0.5,
+              "y": 0.5
+            }
+          ]
+        }
+      ],
+      "note": "the first (empty-points) line is skipped by the cli; the other two match the corpus"
+    },
+    "junk-points-dropped-numeric-strings-coerced": {
+      "cliLines": [
+        {
+          "points": [
+            {
+              "x": 0,
+              "y": 4
+            },
+            {
+              "x": 1,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 7
+            },
+            {
+              "x": 8,
+              "y": 0
+            }
+          ]
+        }
+      ],
+      "note": "cli keeps EVERY point OBJECT and defaults each missing/mis-typed coordinate to 0 (numeric strings \"3\"/\"9\"/\"NaN\" -> 0, missing x/y -> 0); only non-object entries (5, null) are dropped. Browser instead drops junk points and coerces numeric strings, keeping [(3,4),(8,9)]"
+    },
+    "field-type-coercion-and-drops": {
+      "cliLines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            }
+          ]
+        }
+      ],
+      "note": "cli typed JSON reader falls back to defaults on wrong-typed fields: thickness \"3.5\" (numeric string) -> 2 where browser coerces 3.5; locked 1 -> false where browser truthiness gives true; the other drops (pointSize \"abc\", color 42, fillColor false, style null) agree with the browser"
+    },
+    "lines-pass-through-by-reference-unsanitized": {
+      "cliLines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            }
+          ]
+        }
+      ],
+      "note": "payload family: thickness \"9\" (numeric string) -> cli default 2; the unknown \"junk\" key is ignored on read (the corpus pins that the browser payload keeps it verbatim)"
+    }
+  },
+  "stencilProject": {
+    "version-as-numeric-string-accepted": {
+      "verdict": "error",
+      "note": "cli jsonInt() reads a STRING version as 0, so version \"1\" fails the 1..VERSION gate with UnsupportedVersion; the browser coerces \"1\" to 1 and accepts"
+    },
+    "version-fractional-above-current": {
+      "verdict": "ok",
+      "note": "cli jsonInt() truncates version 1.5 via @intFromFloat to 1, PASSING the version gate; the browser rejects fractional-above-current as a newer format"
+    },
+    "full-featured": {
+      "cli": {
+        "name": "  Floor plan  ",
+        "color": "FF8800",
+        "ext": "JPG",
+        "w": 800,
+        "h": 0
+      },
+      "note": "cli keeps metadata verbatim: name untrimmed, color not #-normalized/lowercased, ext not lowercased; w 800.7 truncates to 800 (browser rounds 801); h \"600\" is a string -> 0 (no numeric-string coercion). keywords[] and theme{} have no cli representation at all — dropped on read"
+    },
+    "blank-project-truthy-blank-short-hex": {
+      "cli": {
+        "blank": false,
+        "blankColor": "0f0"
+      },
+      "note": "cli reads blank only when it is a JSON bool — the truthy string \"yes\" leaves blank false (browser coerces true); blankColor \"0f0\" stays verbatim (browser expands to #00ff00)"
+    },
+    "invalid-theme-and-nonpositive-dims-dropped": {
+      "cli": {
+        "ext": "...",
+        "w": -5,
+        "h": 0
+      },
+      "note": "cli keeps ext \"...\" verbatim (browser falls back to png) and does not validate dims (w -5 / h 0 kept as-is); the invalid theme is dropped either way (no cli theme field)"
+    },
+    "data-url-leading-whitespace-accepted-preserved": {
+      "note": "note-only, verdicts agree: cli locates \"base64,\" anywhere in the dataUrl, so the leading whitespace is harmless; it stores the DECODED bytes rather than preserving the raw dataUrl string"
+    },
+    "layout-lines-hardened-session-keys-dropped": {
+      "note": "note-only, verdicts agree: cli re-stringifies the embedded layout RAW at parse (zoom/color/junk keys and string coords survive in layout_json); hardening happens later in layout.zig — see the layout family for that drift"
+    }
+  }
+}

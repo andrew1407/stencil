@@ -7,6 +7,7 @@ const logo = @import("../logo.zig");
 const theme = @import("../theme.zig");
 const core = @import("../core.zig");
 const screen = @import("screen.zig");
+const commands = @import("commands.zig");
 const Session = @import("session.zig").Session;
 
 var interactive: bool = false; // true when driving a TTY (enables screen clears + colour)
@@ -16,14 +17,13 @@ var current_accent: []const u8 = theme.default_key;
 // Command words offered by Tab-completion in the interactive editor (canonical names +
 // transform shorthands), roughly in the order they appear in `help`.
 pub const completions = [_][]const u8{
-    "upload",      "source-upload", "scrape", "paste",    "blank",       "apply",    "crop",   "rotate",
-    "filter",      "bw",       "sepia",       "invert",   "contour", "tint",
-    "none",        "exec",     "undo",        "redo",     "reset",  "save",   "delete",
-    "layout",      "formula",  "format",
-    "connect",     "connections", "disconnect", "reconnect", "projects", "project-color", "blank-color", "rename",
-    "keywords",    "keywords-search", "keywords-add", "keywords-del",
-    "expire",      "fetch",    "sync",        "copy",     "status",  "theme",   "mouse",  "clear",   "drop",
-    "help",        "exit",
+    "upload",        "source-upload", "scrape",              "paste",       "unpaste",         "images",       "blank",        "apply",
+    "crop",          "rotate",        "filter",              "bw",          "sepia",           "invert",       "contour",      "tint",
+    "none",          "exec",          "undo",                "redo",        "reset",           "save",         "delete",       "layout",
+    "formula",       "format",        "connect",             "connections", "disconnect",      "reconnect",    "projects",     "rename",
+    "project-color", "blank-color",   "project-description", "keywords",    "keywords-search", "keywords-add", "keywords-del", "expire",
+    "fetch",         "sync",          "copy",                "status",      "theme",           "mouse",        "reveal-speed", "clear",
+    "drop",          "prompt",        "llm",                 "chat",        "help",            "exit",
 };
 
 pub fn setInteractive(v: bool) void {
@@ -45,11 +45,12 @@ pub fn currentAccentKey() []const u8 {
 }
 
 pub fn promptStr(session: *Session) []const u8 {
-    // Full-screen mode has a pinned logo header already, so the prompt is just a terse '>'
-    // ('*' still marks a loaded image). Plain/piped mode keeps the explicit 'stencil>' name.
-    if (screen.current() != null)
-        return if (session.hasImage()) "*> " else "> ";
-    return if (session.hasImage()) "stencil*> " else "stencil> ";
+    // The prompt is the caret, nothing else: a bare '>' in full-screen mode (the pinned header
+    // already names the app), 'stencil>' in the plain one. It renders in the accent — that IS
+    // the theme showing where input goes — and carries no '*' image marker, which duplicated
+    // what the image header line says one row up.
+    _ = session;
+    return if (screen.current() != null) "> " else "stencil> ";
 }
 
 // The header line under the logo: the working image's identity + current size + edit
@@ -117,13 +118,13 @@ pub fn redraw(session: *Session) void {
 }
 
 pub fn noImage() void {
-    logo.print("error: no image loaded — use '/upload <path|url>', '/paste', or '/blank ...' first\n", .{});
+    logo.err("no image loaded — use '/upload <path|url>', '/paste', or '/blank ...' first\n", .{});
 }
 
 pub fn listThemes() void {
     logo.print("Themes (current: {s}) — '/theme <name | #hex | default>' to switch:\n", .{current_accent});
     const on = logo.colorEnabled();
-    for (theme.accents) |a| {
+    for (theme.accents()) |a| {
         const mark: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, current_accent)) "*" else " ";
         const tag: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, theme.default_key)) " (default)" else "";
         if (on) {
@@ -165,18 +166,28 @@ pub fn listFormats(session: *Session) void {
 }
 
 pub fn intro() void {
-    if (screen.current() != null) {
+    if (screen.current()) |s| {
         logo.print(
             \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
-            \\recall history. '/help' lists commands, '/exit' leaves.
+            \\recall history; Ctrl-V pastes the clipboard (an image attaches to the line, text is typed),
+            \\Ctrl-C copies the selection. '/help' lists commands, '/exit' leaves.
             \\
         , .{});
+        // Which selection is live, and how to reach the other one. Under mouse tracking the
+        // terminal still selects with a modifier held, which is easy to not know about.
+        if (s.mouseOn()) {
+            logo.note("drag to select (Ctrl-S copies) — for the TERMINAL's own selection hold Shift while dragging (macOS VS Code: Option, with terminal.integrated.macOptionClickForcesSelection on), or '/mouse off'\n", .{});
+        } else {
+            logo.note("the terminal owns the mouse — its own selection and copy work; '/mouse on' switches to the in-app accent one (Ctrl-S copies)\n", .{});
+        }
         return;
     }
     logo.print(
         \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
-        \\recall history; Ctrl-Alt-V pastes / Ctrl-Alt-C copies an image. '/help' lists
-        \\commands, '/theme' changes colour, '/exit' (or Ctrl-C twice) leaves.
+        \\recall history; Ctrl-V pastes the clipboard — an image attaches to the line you are typing
+        \\(Backspace over its marker takes it back), text is simply typed. '/help' lists
+        \\commands, '/theme' changes colour, '/mouse' switches between the terminal's own text
+        \\selection and the in-app one, '/exit' (or Ctrl-C twice) leaves.
         \\
     , .{});
 }
@@ -201,9 +212,11 @@ pub fn help() void {
     logo.print("Commands  (a leading '/' is optional)\n", .{});
 
     helpSection(a, r, "Image");
-    helpRow(a, r, "/upload <path|url>", "load an image or video frame as the working image");
+    helpRow(a, r, "/upload <path|url>", "load an image or video frame (bare: the clipboard's picture)");
     helpRow(a, r, "/source-upload <url> [i] [fmt] [name=]", "scrape a page and load its i-th image (alias /scrape)");
-    helpRow(a, r, "/paste", "load an image from the clipboard (macOS)");
+    helpRow(a, r, "/paste", "load an image from the clipboard (Ctrl-V pastes onto the line instead)");
+    helpRow(a, r, "/unpaste [n]", "take back an image added this turn (bare = the last; Ctrl-Z)");
+    helpRow(a, r, "/images", "list the images this turn will send to the assistant");
     helpRow(a, r, "/blank [fmt] [w h] [color]", "create a blank page (default: the picked format or A4, white)");
     helpRow(a, r, "/format [name|custom w h]", "list the page formats or pick one (drives /blank + the layout)");
 
@@ -221,10 +234,10 @@ pub fn help() void {
     helpRow(a, r, "/delete <file.stencil>", "delete a local .stencil project file from disk");
     helpRow(a, r, "/layout [path]", "save the layout JSON (bare = <project>.json; a dir saves <project>.json there)");
     helpRow(a, r, "/formula [x|y <expr>|on|off|clear]", "set the x/y coord-transform formulas (saved in the layout)");
-    helpRow(a, r, "/copy", "copy the current image to the clipboard (macOS)");
+    helpRow(a, r, "/copy", "copy the current image to the clipboard");
 
     helpSection(a, r, "Connections");
-    helpRow(a, r, "/connect <url[ url2]>", "connect to one or more collaboration servers");
+    helpRow(a, r, "/connect <url [token]>", "connect to collaboration servers (token: session or admin, for gated servers)");
     helpRow(a, r, "/connections", "list connected servers + reachability status");
     helpRow(a, r, "/disconnect [url]", "close a connection (or the most recent)");
     helpRow(a, r, "/reconnect [url]", "re-establish one connection (or all) and the live feed");
@@ -240,13 +253,57 @@ pub fn help() void {
     helpRow(a, r, "/fetch <name> [url]", "load a server project's image to keep editing");
     helpRow(a, r, "/sync [on|off]", "live mode (bare /sync toggles): push edits + pull peers' changes");
 
+    helpSection(a, r, "Assistant");
+    helpRow(a, r, "/prompt <text>", "ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)");
+    helpRow(a, r, "/llm [key <value>]", "show or set the LLM provider config (provider | url | model | key | server; env STENCIL_LLM_*)");
+    helpRow(a, r, "/chat [on|off|clear]", "opt-in: save the /prompt conversation with the project + replay it (bare /chat shows; default off)");
+
     helpSection(a, r, "System");
     helpRow(a, r, "/status", "show the working image (path, size, edit position)");
     helpRow(a, r, "/theme [name]", "list or switch the accent colour (default violet)");
     helpRow(a, r, "/mouse [on|off]", "full-screen: toggle mouse (off frees text selection)");
+    helpRow(a, r, "/reveal-speed [0.01-1]", "full-screen: how fast output is revealed (1 = instantly, 0.5 default)");
     helpRow(a, r, "/clear", "clear the screen, redraw the logo + image header");
     helpRow(a, r, "/drop", "forget the working image entirely");
     helpRow(a, r, "/help   /exit", "show this list / leave (Ctrl-D, or Ctrl-C twice)");
 
-    logo.print("\nShortcuts  Ctrl-Alt-V paste · Ctrl-Alt-C copy an image · Ctrl-C twice to exit\n", .{});
+    logo.print("\nShortcuts  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,\n", .{});
+    logo.print("           1 on an /upload; Backspace removes it), text is typed straight in\n", .{});
+    logo.print("           Ctrl-C copy the selection (nothing selected: press twice to exit) · Ctrl-S also copies\n", .{});
+    logo.print("           Ctrl-Z un-attach/un-paste · Ctrl-Alt-C copy the image to the clipboard\n", .{});
+    logo.print("           Ctrl/Alt-Backspace delete the word back · Alt-d or Ctrl/Alt-Delete the word ahead\n", .{});
+}
+
+const testing = std.testing;
+
+test "completions: every console command is offered by Tab-complete" {
+    // Everything offered must really BE a command — a session verb or an image transform —
+    // so a typo in the list can't quietly complete to nothing.
+    for (completions) |w| {
+        if (commands.verbOf(w) != null) continue;
+        if (commands.actionOf(w, "") != null) continue;
+        std.debug.print("completion '{s}' is not a command\n", .{w});
+        return error.UnknownCompletion;
+    }
+    // …and every verb must be reachable from the list, which is what keeps a newly added
+    // command from shipping without Tab-completion knowing about it (this is how /reveal,
+    // /chat and /project-description were found missing).
+    var missing = false;
+    inline for (@typeInfo(commands.Verb).@"enum".fields) |f| {
+        const want: commands.Verb = @enumFromInt(f.value);
+        var found = false;
+        for (completions) |w| {
+            if (commands.verbOf(w)) |v| {
+                if (v == want) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found) {
+            std.debug.print("no completion offers the '{s}' command\n", .{f.name});
+            missing = true;
+        }
+    }
+    if (missing) return error.MissingCompletion;
 }

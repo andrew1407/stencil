@@ -10,6 +10,8 @@
 #include <QColor>
 #include <QEvent>
 #include <QFont>
+#include <QIcon>
+#include <QPixmap>
 #include <QList>
 #include <QPaintEvent>
 #include <QPainter>
@@ -20,6 +22,8 @@
 #include <QWidget>
 
 #include <cmath>
+
+#include "../support/iconSet.hpp"   // the same glyph set the browser draws
 
 namespace stencil::gui {
 
@@ -38,13 +42,29 @@ namespace stencil::gui {
         if (phase_ > 6.2831853) phase_ -= 6.2831853;
         update();
       });
+      // Fade-out ticker: same ~60fps cadence as the pulse, ~200ms to transparent.
+      fade_.setInterval(16);
+      QObject::connect(&fade_, &QTimer::timeout, [this] {
+        opacity_ -= 16.0 / kFadeOutMs;
+        if (opacity_ <= 0.0) { opacity_ = 1.0; fade_.stop(); hide(); return; }
+        update();
+      });
       if (viewport) { viewport->installEventFilter(this); fitToParent(); }
     }
 
     void setAccent(const QColor& c) { accent_ = c; update(); }
     void setActiveLeft(bool left) { if (activeLeft_ != left) { activeLeft_ = left; update(); } }
-    void showZones() { fitToParent(); raise(); show(); pulse_.start(); }
-    void hideZones() { pulse_.stop(); hide(); }
+    void showZones() { fade_.stop(); opacity_ = 1.0; fitToParent(); raise(); show(); pulse_.start(); }
+    // The zones LEAVE on a fade rather than blinking out, so a drop reads as the
+    // overlay handing the canvas over (browser parity: #global-drop-overlay.drop-closing).
+    void hideZones() {
+      if (isHidden()) return;
+      pulse_.stop();
+      fade_.start();
+    }
+    // Skip the fade — used when the overlay must be gone immediately (teardown).
+    void hideZonesNow() { pulse_.stop(); fade_.stop(); opacity_ = 1.0; hide(); }
+    double overlayOpacity() const { return opacity_; }
 
    protected:
     bool eventFilter(QObject* w, QEvent* e) override {
@@ -54,18 +74,34 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
+      p.setOpacity(opacity_);
       const int w = width(), h = height();
-      const QRect left(10, 10, w / 2 - 15, h - 20);
-      const QRect right(w / 2 + 5, 10, w / 2 - 15, h - 20);
-      drawZone(p, left, accent_, QStringLiteral("↑"), QStringLiteral("Upload & save"),
+      // The footer line is its own strip BELOW the zones (browser .drop-foot is a
+      // separate flex row) — the zones stop above it instead of painting under it.
+      const int zoneH = h - 20 - kFootH - kFootGap;
+      const QRect left(10, 10, w / 2 - 15, zoneH);
+      const QRect right(w / 2 + 5, 10, w / 2 - 15, zoneH);
+      // The SAME two glyphs the browser paints in #global-drop-overlay (ui/dropOverlay.js):
+      // upload for the saving half, incognito for the other. They used to be the text
+      // characters "↑" and "◐", which render as whatever the system font has — a stray
+      // arrow and a half-moon that mean nothing.
+      drawZone(p, left, accent_, QStringLiteral("upload"), QStringLiteral("Upload & save"),
                QStringLiteral("Load the image and keep it in your projects"), activeLeft_);
-      drawZone(p, right, muted_, QStringLiteral("◐"), QStringLiteral("Upload incognito"),
+      drawZone(p, right, muted_, QStringLiteral("incognito"), QStringLiteral("Upload incognito"),
                QStringLiteral("Load the image without saving it"), !activeLeft_);
+      // Browser parity: the layout/project files ignore the split (dropOverlay.js .drop-foot).
+      QFont ff = p.font();
+      ff.setPointSizeF(p.font().pointSizeF() - 1);
+      p.setFont(ff);
+      p.setPen(QColor("#9aa3b2"));
+      p.drawText(QRect(20, h - 10 - kFootH, w - 40, kFootH), Qt::AlignHCenter | Qt::AlignVCenter,
+                 QStringLiteral("…or drop a .json layout / .stencil project file "
+                                "(either side — the split above is for images)"));
     }
 
    private:
     void fitToParent() { if (parentWidget()) setGeometry(parentWidget()->rect()); }
-    void drawZone(QPainter& p, const QRect& r, const QColor& col, const QString& glyph,
+    void drawZone(QPainter& p, const QRect& r, const QColor& col, const QString& iconName,
                   const QString& title, const QString& sub, bool active) {
       const QFont base = p.font();
       // Mostly-opaque fill with a slight see-through, blended toward a dark panel so the zones
@@ -85,16 +121,20 @@ namespace stencil::gui {
       p.setPen(pen);
       p.setBrush(Qt::NoBrush);
       p.drawRoundedRect(r, 14, 14);
-      // Pulsing glyph (small → large → small) to catch the eye on drag. Float point size → the
-      // pulse is already sub-pixel smooth; the ~60fps timer keeps the motion even.
+      // Pulsing glyph (small → large → small) to catch the eye on drag. Rasterized ONCE at
+      // kGlyphPx and scaled by the painter: re-rendering the SVG every frame would push a
+      // new entry into themedIcon's (name,color,size) cache ~60 times a second.
       const double scale = 1.0 + 0.18 * std::sin(phase_);
-      p.setPen(col);
-      QFont gf = base;
-      gf.setPointSizeF(34.0 * scale);
-      gf.setBold(true);
-      p.setFont(gf);
-      p.drawText(QRect(r.left(), r.top() + r.height() / 6, r.width(), r.height() / 3),
-                 Qt::AlignHCenter | Qt::AlignVCenter, glyph);
+      const QPixmap px = themedIcon(iconName, col, kGlyphPx).pixmap(kGlyphPx, kGlyphPx);
+      if (!px.isNull()) {
+        const QRect band(r.left(), r.top() + r.height() / 6, r.width(), r.height() / 3);
+        p.save();
+        p.translate(band.center());
+        const double k = (kGlyphDrawPx * scale) / kGlyphPx;
+        p.scale(k, k);
+        p.drawPixmap(QRect(-kGlyphPx / 2, -kGlyphPx / 2, kGlyphPx, kGlyphPx), px);
+        p.restore();
+      }
       // Title.
       QFont f = base;
       f.setPointSizeF(base.pointSizeF() + 5);
@@ -111,11 +151,22 @@ namespace stencil::gui {
                  Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, sub);
     }
 
+    static constexpr double kFadeOutMs = 200.0;
+    // Footer strip below the zones (browser .drop-foot row): text height + gap to the zones.
+    static constexpr int kFootH = 24;
+    static constexpr int kFootGap = 6;
+    // Rasterized once at this size and painted down to kGlyphDrawPx (the browser's 46px
+    // drop-zone icon), so the pulse never rounds to a blurry upscale.
+    static constexpr int kGlyphPx = 96;
+    static constexpr double kGlyphDrawPx = 46.0;
+
     QColor accent_{"#7c3aed"};
     QColor muted_{"#80868f"};
     bool activeLeft_ = true;
     QTimer pulse_;
+    QTimer fade_;
     double phase_ = 0.0;
+    double opacity_ = 1.0;
   };
 
 }  // namespace stencil::gui

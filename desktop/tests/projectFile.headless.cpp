@@ -1,17 +1,15 @@
 // Headless round-trip check for the .stencil format (fileStore::buildProjectFile <-> parseProjectFile), QtCore-only — mirrors the browser projectFile.js round-trip test.
 #include "fileStore.hpp"
 #include <QCoreApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <cstdio>
 
 using namespace stencil;
 using namespace stencil::gui;
 
-static int failures = 0;
-static void check(bool ok, const char* msg) {
-  std::printf("  [%s] %s\n", ok ? "PASS" : "FAIL", msg);
-  if (!ok) ++failures;
-}
+#include "support/check.hpp"
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
@@ -38,7 +36,7 @@ int main(int argc, char** argv) {
     pf.themeAccent = "violet";
 
     const QByteArray bytes = fileStore::buildProjectFile(pf);
-    check(bytes.contains("stencil-project"), "format marker present");
+    check(bytes.contains("stencil-project"), "format sentinel present");
 
     fileStore::ProjectFileData out;
     QString err;
@@ -86,6 +84,56 @@ int main(int argc, char** argv) {
     check(!bytes.contains("\"color\""), "empty color omitted");
     check(!bytes.contains("\"theme\""), "no theme when hasTheme=false");
     check(!bytes.contains("\"blank\""), "non-blank omits blank flag");
+    check(!bytes.contains("\"chat\""), "no chat block when none was attached (§12.3)");
+  }
+
+  // Opt-in chat block (contract §12.3): rides the file when present, round-trips,
+  // and stays out of a plain project's bytes.
+  {
+    fileStore::ProjectFileData pf;
+    pf.name = "Chatty";
+    pf.imageBytes = QByteArray("\x01\x02", 2);
+    pf.imageWidth = 1;
+    pf.imageHeight = 1;
+    pf.layout = fileStore::buildLayoutJson(1, 1, {}, "none", "#7c3aed", {}, 0, {});
+    QJsonArray msgs;
+    QJsonObject u;
+    u["role"] = "user";
+    u["text"] = "make it sepia";
+    QJsonObject a;
+    a["role"] = "assistant";
+    a["text"] = "Sepia applied.";
+    msgs.append(u);
+    msgs.append(a);
+    pf.chat = fileStore::buildChatDoc(msgs, 77);
+    const QByteArray bytes = fileStore::buildProjectFile(pf);
+    check(bytes.contains("\"chat\""), "chat block written when attached");
+
+    fileStore::ProjectFileData out;
+    QString err;
+    check(fileStore::parseProjectFile(bytes, out, &err), "chat-bearing file parses");
+    const QJsonArray back = fileStore::parseChatDoc(out.chat);
+    check(back.size() == 2 && back.at(1).toObject().value("text") == "Sepia applied.",
+          "chat messages round-trip through the .stencil file");
+  }
+
+  // The projects.json record (projectToJson/projectFromJson) carries the chat
+  // the same way: omitted when empty, round-tripped when present.
+  {
+    Project pr;
+    pr.meta.id = "p_1";
+    pr.meta.name = "Chatty";
+    check(!QJsonDocument(fileStore::projectToJson(pr)).toJson().contains("\"chat\""),
+          "plain project record has no chat key");
+    QJsonArray msgs;
+    QJsonObject u;
+    u["role"] = "user";
+    u["text"] = "hello";
+    msgs.append(u);
+    pr.chat = fileStore::buildChatDoc(msgs, 5);
+    const Project back = fileStore::projectFromJson(fileStore::projectToJson(pr));
+    check(fileStore::parseChatDoc(back.chat).size() == 1,
+          "project-record chat round-trips through projects.json");
   }
 
   std::printf("%s: %d failure(s)\n", failures ? "FAIL" : "OK", failures);

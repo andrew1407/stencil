@@ -1,4 +1,5 @@
 #pragma once
+#include "../llm/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
 #include "projectsStore.hpp"
@@ -37,8 +38,11 @@ namespace stencil::gui {
     bool showPoints = true;
     bool showLines = true;
     QString defaultColor = "#FFFF00";
+    // Default POINT colour for new lines. Empty = follow defaultColor, matching
+    // core::Line::pointColor — so an existing settings file keeps its old behaviour.
+    QString defaultPointColor = "";
     double defaultThickness = 2.0;
-    double defaultMarkerSize = 4.0;
+    double defaultPointSize = 4.0;
     QString defaultStyle = "solid";   // solid | dashed | dotted
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     // Custom page dimensions in cm (browser DEFAULT_PAGE 21 x 29.7).
@@ -71,6 +75,30 @@ namespace stencil::gui {
     // keeps its equivalents in js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;
+    // ── AI assistant (llm-contract.md §5; the desktop persistence row of
+    // the provider-config table: llmProvider/llmBaseUrl/llmModel/llmApiKey/
+    // llmServerUrl). Defaults pre-fill the first run: ollama at its canon URL
+    // (the settings dialog re-fills the openai-compat default on a switch). An
+    // empty llmServerUrl resolves at use time to the first saved connection
+    // (net/connectionStore).
+    QString llmProvider = "ollama";     // "ollama" | "openai-compat" | "stencil-server"
+    QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("ollama"));
+    QString llmModel;
+    QString llmApiKey;                  // openai-compat only (Bearer)
+    QString llmServerUrl;               // stencil-server only ("" = first saved connection)
+    // Chat persistence opt-in (llm-contract.md §12): save the assistant
+    // conversation with the active project and restore it on reopen. OFF by
+    // default everywhere — an explicit user opt-in; incognito never persists.
+    bool saveChatsWithProject = false;
+    // Put the menu bar where the PLATFORM does (macOS/Unity global bar) instead of
+    // inside the window. Default true. It is off-by-default only in effect on the
+    // desktops where Qt's native export leaves an empty in-window bar — the reason
+    // this was hardcoded before it became a choice. Windows has no global bar, so
+    // the value is inert there.
+    bool nativeMenuBar = true;
+    // QMainWindow::saveState() bytes, base64 — restores the chat/selection dock
+    // areas + floating geometry on boot ("" = never saved).
+    QString windowState;
   };
 
   // The autosaved in-progress drawing ("last edited points"), restored on launch.
@@ -93,6 +121,10 @@ namespace stencil::gui {
     core::CropRect cropRect;
     // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
     int rotationQuarters = 0;
+    // The saved project the session was editing (empty = unsaved). Without it a
+    // relaunch restored the pixels but forgot WHOSE they were, so deleting that
+    // project later left its image sitting in the editor (browser storage parity).
+    QString activeProjectId;
   };
 
   // One saved project: registry metadata (handled by core::ProjectsStore) plus
@@ -105,6 +137,9 @@ namespace stencil::gui {
     core::CropRect cropRect;
     // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
     int rotationQuarters = 0;
+    // Persisted-chat document (llm-contract.md §12.1); empty = no saved
+    // chat. Written only when Settings.saveChatsWithProject is on.
+    QJsonObject chat;
   };
 
   namespace fileStore {
@@ -116,6 +151,13 @@ namespace stencil::gui {
 
     Settings loadSettings();
     void saveSettings(const Settings& s);
+
+    // Settings <-> JSON (the settings.json object). Promoted from the .cpp — like
+    // projectToJson — so the round-trip (incl. the llm* keys) is unit-testable
+    // without touching disk. `base` supplies the defaults for absent keys
+    // (loadSettings passes a locale-seeded one).
+    QJsonObject settingsToJson(const Settings& s);
+    Settings settingsFromJson(const QJsonObject& o, const Settings& base = Settings());
 
     std::optional<Session> loadSession();
     void saveSession(const Session& s);
@@ -184,12 +226,25 @@ namespace stencil::gui {
       bool hasTheme = false;
       QString themeMode;          // "light" | "dark"
       QString themeAccent;        // accent preset key or "#rrggbb"
+      // Optional persisted chat (llm-contract.md §12.3): written only when
+      // the save-chats toggle is on; ignored gracefully by older readers.
+      QJsonObject chat;
     };
     // Serialize a project to pretty-printed .stencil JSON bytes.
     QByteArray buildProjectFile(const ProjectFileData& pf);
     // Parse + validate. Returns false (and sets *err when given) on a bad/foreign/too-new file;
     // on success `out.imageBytes` holds the DECODED image and `out.layout` the layout object.
     bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
+
+    // ── Persisted-chat document (llm-contract.md §12.1) ──
+    // {version:1, savedAt:<ms>, messages:[{role:"user"|"assistant", text}]} —
+    // text-only (images never persisted), most recent 32 turns. Both helpers
+    // sanitize: unknown roles/fields and non-string texts are dropped, and an
+    // unknown version reads as "no saved chat" (never an error).
+    inline constexpr int kChatDocVersion = 1;
+    inline constexpr int kChatDocMessageLimit = 32;
+    QJsonObject buildChatDoc(const QJsonArray& messages, qint64 savedAt);
+    QJsonArray parseChatDoc(const QJsonObject& doc);
 
     QString hotkeysPath();
     // Shortcut overrides (id -> key sequence), layered over hotkeysConfig.json

@@ -31,6 +31,8 @@ namespace stencil::gui {
       std::function<bool()> incognito;
       std::function<void()> saveToServer;
       std::function<void(const QString& addr, const QString& id, bool silent)> openServerProject;
+      // The linked project was deleted on the server — detach the session entirely.
+      std::function<void()> serverProjectDeleted;
     };
 
     RemoteSyncController(QObject* parent, RemoteSession* session, const bool* remoteReloading,

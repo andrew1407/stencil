@@ -763,7 +763,7 @@ fn subStrict(media_url: []const u8, page_host: []const u8) bool {
 
 /// Injectable I/O seam so `runImpl`'s orchestration (fetch → filter → window → write → the
 /// §3 stderr lines) is unit-testable with no network and no disk. `run` wires the real
-/// net.fetch / logo.print / cwd filesystem; the test wires in-memory fakes. Everything the
+/// net.fetch / logo.print / cwd filesystem; the test wires in-memory mocks. Everything the
 /// scrape loop touches outside the pure helpers goes through here.
 pub const Deps = struct {
     ctx: *anyopaque,
@@ -781,6 +781,12 @@ pub const Deps = struct {
     fn emit(self: Deps, arena: std.mem.Allocator, comptime fmt: []const u8, a: anytype) void {
         const s = std.fmt.allocPrint(arena, fmt, a) catch return;
         self.emitFn(self.ctx, s);
+    }
+    /// The same as one `error: ` line (logo.err's shape, over this sink).
+    fn err(self: Deps, arena: std.mem.Allocator, comptime fmt: []const u8, a: anytype) void {
+        const msg = std.fmt.allocPrint(arena, fmt, a) catch return;
+        const line = std.fmt.allocPrint(arena, "{s}{s}", .{ logo.errPrefix(), msg }) catch return;
+        self.emitFn(self.ctx, line);
     }
     fn mkdir(self: Deps, io: std.Io, path: []const u8) !void {
         return self.mkdirFn(self.ctx, io, path);
@@ -825,12 +831,12 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
 
     const site = opts.source_site.?;
     const host_raw = net.hostOf(site) orelse {
-        deps.emit(arena, "error: could not parse a host from URL '{s}'\n", .{site});
+        deps.err(arena, "could not parse a host from URL '{s}'\n", .{site});
         return error.BadSourceUrl;
     };
     const dir = opts.output orelse ".";
     if (pipeline.hasParentTraversal(dir)) {
-        deps.emit(arena, "error: refusing to write to a path that escapes the working directory: '{s}'\n", .{dir});
+        deps.err(arena, "refusing to write to a path that escapes the working directory: '{s}'\n", .{dir});
         return error.UnsafeOutputPath;
     }
 
@@ -840,7 +846,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
 
     // Compile the optional --source-name regex before any I/O so a bad pattern fails fast.
     var name_matcher = NameMatcher.init(opts.source_name, arena) catch {
-        deps.emit(arena, "error: invalid --source-name regex '{s}'\n", .{opts.source_name.?});
+        deps.err(arena, "invalid --source-name regex '{s}'\n", .{opts.source_name.?});
         return error.BadNamePattern;
     };
     defer name_matcher.deinit();
@@ -853,7 +859,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
 
     const html = try deps.fetch(arena, io, site, false); // net prints its own error on failure
     if (html.len > MAX_HTML) {
-        deps.emit(arena, "error: scraped page too large ({d} bytes)\n", .{html.len});
+        deps.err(arena, "scraped page too large ({d} bytes)\n", .{html.len});
         return error.PageTooLarge;
     }
 
@@ -908,7 +914,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
         const win = window(Media, candidates.items, opts.group, effectiveCount(opts.source_count));
         for (win) |m| {
             const bytes = deps.fetch(arena, io, m.url, subStrict(m.url, host)) catch |e| {
-                deps.emit(arena, "error: could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
+                deps.err(arena, "could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 continue;
             };
             try ready.append(arena, .{ .media = m, .bytes = bytes, .dims = sniff(bytes) });
@@ -917,7 +923,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
 
     if (ready.items.len != 0 and !std.mem.eql(u8, dir, ".")) {
         deps.mkdir(io, dir) catch |e| {
-            deps.emit(arena, "error: could not create output directory '{s}' ({s})\n", .{ dir, @errorName(e) });
+            deps.err(arena, "could not create output directory '{s}' ({s})\n", .{ dir, @errorName(e) });
             return e;
         };
     }
@@ -931,7 +937,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
         var dims = it.dims;
         const bytes = it.bytes orelse blk: {
             const b = deps.fetch(arena, io, it.media.url, subStrict(it.media.url, host)) catch |e| {
-                deps.emit(arena, "error: could not fetch {s} ({s})\n", .{ it.media.url, @errorName(e) });
+                deps.err(arena, "could not fetch {s} ({s})\n", .{ it.media.url, @errorName(e) });
                 continue;
             };
             dims = sniff(b);
@@ -945,7 +951,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
         if (pipeline.hasParentTraversal(name)) continue; // sanitized names never do; belt-and-braces
         const path = try joinPath(arena, dir, name);
         deps.write(io, path, bytes) catch |e| {
-            deps.emit(arena, "error: could not write {s} ({s})\n", .{ path, @errorName(e) });
+            deps.err(arena, "could not write {s} ({s})\n", .{ path, @errorName(e) });
             continue;
         };
         if (dims) |d| {
@@ -957,7 +963,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
     }
 
     if (written == 0) {
-        deps.emit(arena, "error: no media matched at {s}\n", .{site});
+        deps.err(arena, "no media matched at {s}\n", .{site});
         return error.NoMediaMatched;
     }
     deps.emit(arena, "scraped {d} file(s) from {s} into {s}\n", .{ written, host, dir });
@@ -1038,7 +1044,7 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
         var cached: ?[]const u8 = null; // measurement bytes, reused for the pick (no double fetch)
         if (dim_active) {
             const bytes = net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
-                logo.print("error: could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
+                logo.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 continue;
             };
             cached = bytes;
@@ -1048,12 +1054,12 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
 
         if (matches == o.index) {
             const bytes = cached orelse (net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
-                logo.print("error: could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
+                logo.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 return e;
             });
             if (dims == null) dims = sniff(bytes);
             const img = image.decode(gpa, bytes) catch |e| {
-                logo.print("error: could not decode an image from '{s}' ({s})\n", .{ m.url, @errorName(e) });
+                logo.err("could not decode an image from '{s}' ({s})\n", .{ m.url, @errorName(e) });
                 return e;
             };
             var fbuf: [16]u8 = undefined;
@@ -1063,7 +1069,7 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
         }
         matches += 1;
     }
-    logo.print("error: no scrape match at index {d} for {s}\n", .{ o.index, o.url });
+    logo.err("no scrape match at index {d} for {s}\n", .{ o.index, o.url });
     return error.NoMediaMatched;
 }
 
@@ -1294,7 +1300,7 @@ test "window: all vs group/count slicing" {
 // These lock the glue the pure helpers don't cover: filter → window → create dir → write
 // files → emit the §3 stderr grammar (`wrote … (WxH px · source host)` / `(source host)` /
 // `scraped N file(s) …` / `no media matched`). A `Deps` seam swaps net.fetch/logo.print/cwd
-// for in-memory fakes, so this needs no server and touches no files.
+// for in-memory mocks, so this needs no server and touches no files.
 
 /// A 24-byte PNG header (signature + IHDR) carrying `w`×`h` (both < 256) so `sniff` measures it.
 fn mkPng(a: std.mem.Allocator, w: u8, h: u8) []const u8 {
@@ -1307,45 +1313,45 @@ fn mkPng(a: std.mem.Allocator, w: u8, h: u8) []const u8 {
     return b;
 }
 
-const FakeIo = struct {
+const MockIo = struct {
     a: std.mem.Allocator,
     fetches: std.StringHashMap([]const u8),
     files: std.StringHashMap([]const u8),
     lines: std.ArrayListUnmanaged([]const u8) = .empty,
     dirs: std.ArrayListUnmanaged([]const u8) = .empty,
 
-    fn init(a: std.mem.Allocator) FakeIo {
+    fn init(a: std.mem.Allocator) MockIo {
         return .{
             .a = a,
             .fetches = std.StringHashMap([]const u8).init(a),
             .files = std.StringHashMap([]const u8).init(a),
         };
     }
-    fn serve(self: *FakeIo, url: []const u8, bytes: []const u8) !void {
+    fn serve(self: *MockIo, url: []const u8, bytes: []const u8) !void {
         try self.fetches.put(url, bytes);
     }
-    fn deps(self: *FakeIo) Deps {
+    fn deps(self: *MockIo) Deps {
         return .{ .ctx = @ptrCast(self), .fetchFn = fetchFn, .emitFn = emitFn, .mkdirFn = mkdirFn, .writeFn = writeFn };
     }
-    fn line(self: *FakeIo, i: usize) []const u8 {
+    fn line(self: *MockIo, i: usize) []const u8 {
         return self.lines.items[i];
     }
     fn fetchFn(ptr: *anyopaque, a: std.mem.Allocator, _: std.Io, url: []const u8, _: bool) anyerror![]u8 {
-        const self: *FakeIo = @ptrCast(@alignCast(ptr));
+        const self: *MockIo = @ptrCast(@alignCast(ptr));
         const v = self.fetches.get(url) orelse return error.HttpFailed;
         return a.dupe(u8, v);
     }
     fn emitFn(ptr: *anyopaque, s: []const u8) void {
-        const self: *FakeIo = @ptrCast(@alignCast(ptr));
+        const self: *MockIo = @ptrCast(@alignCast(ptr));
         const dup = self.a.dupe(u8, s) catch return;
         self.lines.append(self.a, dup) catch {};
     }
     fn mkdirFn(ptr: *anyopaque, _: std.Io, path: []const u8) anyerror!void {
-        const self: *FakeIo = @ptrCast(@alignCast(ptr));
+        const self: *MockIo = @ptrCast(@alignCast(ptr));
         try self.dirs.append(self.a, try self.a.dupe(u8, path));
     }
     fn writeFn(ptr: *anyopaque, _: std.Io, path: []const u8, data: []const u8) anyerror!void {
-        const self: *FakeIo = @ptrCast(@alignCast(ptr));
+        const self: *MockIo = @ptrCast(@alignCast(ptr));
         try self.files.put(try self.a.dupe(u8, path), try self.a.dupe(u8, data));
     }
 };
@@ -1358,31 +1364,31 @@ test "run: category+format filter, wrote grammar, dir, summary" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
+    var mock = MockIo.init(a);
     // Mixed-case host to exercise the output-line lowercasing; c.jpg is an img but not png.
     const html = "<img src=\"a.png\"><img src=\"b.png\"><img src=\"c.jpg\">" ++
         "<video src=\"http://cdn.test/clip.mp4\" poster=\"p.png\"></video>";
-    try fake.serve("http://Example.com/", html);
-    try fake.serve("http://Example.com/a.png", mkPng(a, 10, 20));
-    try fake.serve("http://Example.com/b.png", mkPng(a, 30, 40));
+    try mock.serve("http://Example.com/", html);
+    try mock.serve("http://Example.com/a.png", mkPng(a, 10, 20));
+    try mock.serve("http://Example.com/b.png", mkPng(a, 30, 40));
 
     var opts = args.Options{};
     opts.source_site = "http://Example.com/";
     opts.output = "out";
     opts.source_filter = "img";
     opts.source_format = "png";
-    try runImpl(testing.allocator, io, opts, fake.deps());
+    try runImpl(testing.allocator, io, opts, mock.deps());
 
-    try testing.expectEqual(@as(usize, 2), fake.files.count());
-    try testing.expectEqualSlices(u8, mkPng(a, 10, 20), fake.files.get("out/a.png").?);
-    try testing.expectEqualSlices(u8, mkPng(a, 30, 40), fake.files.get("out/b.png").?);
-    try testing.expectEqual(@as(usize, 1), fake.dirs.items.len);
-    try testing.expectEqualStrings("out", fake.dirs.items[0]);
-    try testing.expectEqual(@as(usize, 4), fake.lines.items.len);
-    try testing.expectEqualStrings("scraping http://Example.com/…\n", fake.line(0));
-    try testing.expectEqualStrings("wrote out/a.png (10x20 px · source example.com)\n", fake.line(1));
-    try testing.expectEqualStrings("wrote out/b.png (30x40 px · source example.com)\n", fake.line(2));
-    try testing.expectEqualStrings("scraped 2 file(s) from example.com into out\n", fake.line(3));
+    try testing.expectEqual(@as(usize, 2), mock.files.count());
+    try testing.expectEqualSlices(u8, mkPng(a, 10, 20), mock.files.get("out/a.png").?);
+    try testing.expectEqualSlices(u8, mkPng(a, 30, 40), mock.files.get("out/b.png").?);
+    try testing.expectEqual(@as(usize, 1), mock.dirs.items.len);
+    try testing.expectEqualStrings("out", mock.dirs.items[0]);
+    try testing.expectEqual(@as(usize, 4), mock.lines.items.len);
+    try testing.expectEqualStrings("scraping http://Example.com/…\n", mock.line(0));
+    try testing.expectEqualStrings("wrote out/a.png (10x20 px · source example.com)\n", mock.line(1));
+    try testing.expectEqualStrings("wrote out/b.png (30x40 px · source example.com)\n", mock.line(2));
+    try testing.expectEqualStrings("scraped 2 file(s) from example.com into out\n", mock.line(3));
 }
 
 test "run: all categories, count 0 = all, unmeasured video line" {
@@ -1393,27 +1399,27 @@ test "run: all categories, count 0 = all, unmeasured video line" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
+    var mock = MockIo.init(a);
     const html = "<img src=\"a.png\"><video src=\"http://cdn.test/clip.mp4\" poster=\"p.png\"></video>";
-    try fake.serve("http://example.com/", html);
-    try fake.serve("http://example.com/a.png", mkPng(a, 10, 20));
-    try fake.serve("http://cdn.test/clip.mp4", "not-an-image mp4 bytes");
-    try fake.serve("http://example.com/p.png", mkPng(a, 5, 5));
+    try mock.serve("http://example.com/", html);
+    try mock.serve("http://example.com/a.png", mkPng(a, 10, 20));
+    try mock.serve("http://cdn.test/clip.mp4", "not-an-image mp4 bytes");
+    try mock.serve("http://example.com/p.png", mkPng(a, 5, 5));
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "media";
     opts.source_count = 0; // 0 = all
-    try runImpl(testing.allocator, io, opts, fake.deps());
+    try runImpl(testing.allocator, io, opts, mock.deps());
 
     // img, then video-before-poster; the video is unmeasured → the no-dims `(source …)` line.
-    try testing.expectEqual(@as(usize, 3), fake.files.count());
-    try testing.expectEqual(@as(usize, 5), fake.lines.items.len);
-    try testing.expectEqualStrings("scraping http://example.com/…\n", fake.line(0));
-    try testing.expectEqualStrings("wrote media/a.png (10x20 px · source example.com)\n", fake.line(1));
-    try testing.expectEqualStrings("wrote media/clip.mp4 (source example.com)\n", fake.line(2));
-    try testing.expectEqualStrings("wrote media/p.png (5x5 px · source example.com)\n", fake.line(3));
-    try testing.expectEqualStrings("scraped 3 file(s) from example.com into media\n", fake.line(4));
+    try testing.expectEqual(@as(usize, 3), mock.files.count());
+    try testing.expectEqual(@as(usize, 5), mock.lines.items.len);
+    try testing.expectEqualStrings("scraping http://example.com/…\n", mock.line(0));
+    try testing.expectEqualStrings("wrote media/a.png (10x20 px · source example.com)\n", mock.line(1));
+    try testing.expectEqualStrings("wrote media/clip.mp4 (source example.com)\n", mock.line(2));
+    try testing.expectEqualStrings("wrote media/p.png (5x5 px · source example.com)\n", mock.line(3));
+    try testing.expectEqualStrings("scraped 3 file(s) from example.com into media\n", mock.line(4));
 }
 
 test "run: group/count windows the filtered list, fetching only the window" {
@@ -1424,25 +1430,25 @@ test "run: group/count windows the filtered list, fetching only the window" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
-    try fake.serve("http://example.com/", "<img src=\"a.png\"><img src=\"b.png\"><img src=\"c.png\">");
-    try fake.serve("http://example.com/a.png", mkPng(a, 1, 1));
-    try fake.serve("http://example.com/b.png", mkPng(a, 2, 2));
-    try fake.serve("http://example.com/c.png", mkPng(a, 3, 3));
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"a.png\"><img src=\"b.png\"><img src=\"c.png\">");
+    try mock.serve("http://example.com/a.png", mkPng(a, 1, 1));
+    try mock.serve("http://example.com/b.png", mkPng(a, 2, 2));
+    try mock.serve("http://example.com/c.png", mkPng(a, 3, 3));
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "out";
     opts.source_count = 1;
     opts.group = 1; // window = filtered[1..2] = [b]
-    try runImpl(testing.allocator, io, opts, fake.deps());
+    try runImpl(testing.allocator, io, opts, mock.deps());
 
-    try testing.expectEqual(@as(usize, 1), fake.files.count());
-    try testing.expect(fake.files.get("out/b.png") != null);
-    try testing.expect(fake.files.get("out/a.png") == null); // outside the window → never fetched
-    try testing.expectEqualStrings("scraping http://example.com/…\n", fake.line(0));
-    try testing.expectEqualStrings("wrote out/b.png (2x2 px · source example.com)\n", fake.line(1));
-    try testing.expectEqualStrings("scraped 1 file(s) from example.com into out\n", fake.line(2));
+    try testing.expectEqual(@as(usize, 1), mock.files.count());
+    try testing.expect(mock.files.get("out/b.png") != null);
+    try testing.expect(mock.files.get("out/a.png") == null); // outside the window → never fetched
+    try testing.expectEqualStrings("scraping http://example.com/…\n", mock.line(0));
+    try testing.expectEqualStrings("wrote out/b.png (2x2 px · source example.com)\n", mock.line(1));
+    try testing.expectEqualStrings("scraped 1 file(s) from example.com into out\n", mock.line(2));
 }
 
 test "run: no matching media is a hard error" {
@@ -1453,20 +1459,20 @@ test "run: no matching media is a hard error" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
-    try fake.serve("http://example.com/", "<img src=\"a.png\">");
-    try fake.serve("http://example.com/a.png", mkPng(a, 10, 20));
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"a.png\">");
+    try mock.serve("http://example.com/a.png", mkPng(a, 10, 20));
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "out";
     opts.source_filter = "video"; // page has no video → nothing matches
-    try testing.expectError(error.NoMediaMatched, runImpl(testing.allocator, io, opts, fake.deps()));
+    try testing.expectError(error.NoMediaMatched, runImpl(testing.allocator, io, opts, mock.deps()));
 
-    try testing.expectEqual(@as(usize, 0), fake.files.count());
-    try testing.expectEqual(@as(usize, 2), fake.lines.items.len);
-    try testing.expectEqualStrings("scraping http://example.com/…\n", fake.line(0));
-    try testing.expectEqualStrings("error: no media matched at http://example.com/\n", fake.line(1));
+    try testing.expectEqual(@as(usize, 0), mock.files.count());
+    try testing.expectEqual(@as(usize, 2), mock.lines.items.len);
+    try testing.expectEqualStrings("scraping http://example.com/…\n", mock.line(0));
+    try testing.expectEqualStrings("error: no media matched at http://example.com/\n", mock.line(1));
 }
 
 test "run: --source-name filters candidates by URL (regex or substring)" {
@@ -1477,23 +1483,23 @@ test "run: --source-name filters candidates by URL (regex or substring)" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
-    try fake.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\"><img src=\"cat2.png\">");
-    try fake.serve("http://example.com/cat.png", mkPng(a, 1, 1));
-    try fake.serve("http://example.com/cat2.png", mkPng(a, 2, 2));
-    try fake.serve("http://example.com/dog.jpg", mkPng(a, 3, 3));
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\"><img src=\"cat2.png\">");
+    try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
+    try mock.serve("http://example.com/cat2.png", mkPng(a, 2, 2));
+    try mock.serve("http://example.com/dog.jpg", mkPng(a, 3, 3));
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "out";
     opts.source_count = 0; // all
     opts.source_name = "cat"; // both a valid regex and substring → keeps cat.png + cat2.png
-    try runImpl(testing.allocator, io, opts, fake.deps());
+    try runImpl(testing.allocator, io, opts, mock.deps());
 
-    try testing.expectEqual(@as(usize, 2), fake.files.count());
-    try testing.expect(fake.files.get("out/cat.png") != null);
-    try testing.expect(fake.files.get("out/cat2.png") != null);
-    try testing.expect(fake.files.get("out/dog.jpg") == null); // filtered out by name
+    try testing.expectEqual(@as(usize, 2), mock.files.count());
+    try testing.expect(mock.files.get("out/cat.png") != null);
+    try testing.expect(mock.files.get("out/cat2.png") != null);
+    try testing.expect(mock.files.get("out/dog.jpg") == null); // filtered out by name
 }
 
 test "run: --source-name honours regex metacharacters (POSIX)" {
@@ -1505,21 +1511,21 @@ test "run: --source-name honours regex metacharacters (POSIX)" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
-    try fake.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\">");
-    try fake.serve("http://example.com/cat.png", mkPng(a, 1, 1));
-    try fake.serve("http://example.com/dog.jpg", mkPng(a, 3, 3));
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"cat.png\"><img src=\"dog.jpg\">");
+    try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
+    try mock.serve("http://example.com/dog.jpg", mkPng(a, 3, 3));
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "out";
     opts.source_count = 0;
     opts.source_name = "\\.jpg$"; // anchored regex → only the .jpg
-    try runImpl(testing.allocator, io, opts, fake.deps());
+    try runImpl(testing.allocator, io, opts, mock.deps());
 
-    try testing.expectEqual(@as(usize, 1), fake.files.count());
-    try testing.expect(fake.files.get("out/dog.jpg") != null);
-    try testing.expect(fake.files.get("out/cat.png") == null);
+    try testing.expectEqual(@as(usize, 1), mock.files.count());
+    try testing.expect(mock.files.get("out/dog.jpg") != null);
+    try testing.expect(mock.files.get("out/cat.png") == null);
 }
 
 test "run: --source-name invalid regex is a hard error (POSIX)" {
@@ -1531,13 +1537,13 @@ test "run: --source-name invalid regex is a hard error (POSIX)" {
     defer threaded.deinit();
     const io = threaded.io();
 
-    var fake = FakeIo.init(a);
-    try fake.serve("http://example.com/", "<img src=\"cat.png\">");
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"cat.png\">");
 
     var opts = args.Options{};
     opts.source_site = "http://example.com/";
     opts.output = "out";
     opts.source_name = "cat("; // unbalanced paren → regcomp fails
-    try testing.expectError(error.BadNamePattern, runImpl(testing.allocator, io, opts, fake.deps()));
-    try testing.expectEqual(@as(usize, 0), fake.files.count());
+    try testing.expectError(error.BadNamePattern, runImpl(testing.allocator, io, opts, mock.deps()));
+    try testing.expectEqual(@as(usize, 0), mock.files.count());
 }

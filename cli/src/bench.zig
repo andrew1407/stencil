@@ -2,8 +2,8 @@
 //! core/tests/bench.test.cpp. The core benches time the shared C++ transforms in
 //! isolation; this one times them AS the CLI drives them (through the core.zig ABI
 //! wrappers), plus the codec encode step the core never sees, on a large synthetic
-//! image. It mirrors the stage order of pipeline.run: crop -> rotate -> draw layout ->
-//! filter/contour -> encode.
+//! image. It times the stages pipeline.run composes: crop -> rotate -> filter/contour ->
+//! draw layout -> encode.
 //!
 //! Opt-in and hermetic (no files, no network) — it is NOT part of `zig build test`, so
 //! CI never gates on a timing number. Run it explicitly:
@@ -114,7 +114,7 @@ pub fn main(init: std.process.Init) !void {
                     .points = &pts,
                     .color = "#3366ff",
                     .thickness = 3,
-                    .marker_size = 4,
+                    .point_size = 4,
                     .style = "solid",
                     .locked = false,
                     .fill_color = "transparent",
