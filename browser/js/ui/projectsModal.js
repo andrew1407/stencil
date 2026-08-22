@@ -4,7 +4,10 @@ import { icon } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
-import { observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator } from './motion.js';
+import {
+  observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator,
+  surfaceIn, surfaceOut,
+} from './motion.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 
@@ -447,8 +450,12 @@ export class StencilProjectsModal extends StencilElement {
     // rename, renew, move-to-server/local, remove) live behind one "⋯" button
     // instead of crowding the row. Closes on click-away, Escape, or re-render.
     let openMenu = null;
+    let menuPoint = null;   // the "⋯" (or the right-click) the menu grew out of
     const closeMenu = () => {
       if (!openMenu) return;
+      // Back into that same point as dust (js/ui/motion.js) — its own layer, so the
+      // menu node still goes away NOW and nothing can be left half-removed.
+      surfaceOut(openMenu, menuPoint);
       openMenu.remove();
       openMenu = null;
       document.removeEventListener('mousedown', onMenuDocDown, true);
@@ -490,6 +497,11 @@ export class StencilProjectsModal extends StencilElement {
       menu.style.left = `${Math.max(8, x)}px`;
       menu.style.top = `${Math.max(8, y)}px`;
       openMenu = menu;
+      // Grow out of the control that opened it: the cursor for a right-click, the "⋯"
+      // button's centre otherwise.
+      const ar = anchor?.getBoundingClientRect?.();
+      menuPoint = point || (ar ? { x: ar.left + ar.width / 2, y: ar.top + ar.height / 2 } : null);
+      surfaceIn(menu, menuPoint);
       setTimeout(() => {
         document.addEventListener('mousedown', onMenuDocDown, true);
         document.addEventListener('keydown', onMenuKey, true);

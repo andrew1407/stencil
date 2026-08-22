@@ -12,6 +12,7 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
+import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced } from './motion.js';
 import {
   renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, trackPointer, wireChatSuggestions,
   chatSuggestionsHtml, chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu,
@@ -556,6 +557,9 @@ export class StencilChatPanel extends StencilElement {
       host.removeAttribute('style');   // clear any float inline rect
       if (mode === 'float') applyFloatRect();
       for (const b of dockBtns) b.classList.toggle('chat-dock-btn-active', b.dataset.dock === mode);
+      // The dock swap used to restart the matching slide; it re-forms out of the NEW
+      // edge instead. Only while on screen — a closed panel has nothing to measure.
+      if (host.classList.contains('chat-open') && !host.classList.contains('chat-closing')) playDust(true);
       announceLayout();
     };
     // A compact float opened by the popover gestures is TRANSIENT: once it closes, the
@@ -628,6 +632,23 @@ export class StencilChatPanel extends StencilElement {
       host.style.setProperty('--modal-sx', String(onScreen ? Math.max(a.width / floatRect.w, 0.05) : 0.4));
       host.style.setProperty('--modal-sy', String(onScreen ? Math.max(a.height / floatRect.h, 0.05) : 0.4));
     };
+    // ── Dust (js/ui/motion.js): the panel forms from motes and comes apart into them,
+    // out of exactly where it used to come from — a FLOAT out of the toolbar icon, a
+    // docked panel from far past the edge it is docked to, so the stream still runs
+    // along the slide's own direction. Measured live; nothing is guessed.
+    const dustPoint = () => {
+      if (host.classList.contains('chat-dock-float')) {
+        const a = anchorBtn()?.getBoundingClientRect?.();
+        if (a && (a.width || a.height)) return { x: a.left + a.width / 2, y: a.top + a.height / 2 };
+      }
+      const r = host.getBoundingClientRect();
+      // No icon and no dock edge to lean on: from above, the modal shell's own fallback.
+      return dockAwayPoint(r, dock) || { x: r.left + r.width / 2, y: -Math.max(48, r.height * 0.3) };
+    };
+    const playDust = (enter) => {
+      if (motionReduced()) { settleSurface(host); return; }
+      (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 420 : closeMs() });
+    };
     let closeTimer = null;
     // A sequel queued to run once the CLOSE animation has finished (the float → compact
     // shape swap). Any later setOpen supersedes it, so a close that gets interrupted
@@ -643,6 +664,7 @@ export class StencilChatPanel extends StencilElement {
       if (!on) gestures?.notifyClosed();
       if (!on && host.classList.contains('chat-open')) {
         setFloatOriginVars();   // shrink back into the icon it came from
+        playDust(false);        // …measured while it is still on screen
         host.classList.add('chat-closing');
         openBtn?.classList.remove('active');
         syncFsCloneActive(false);
@@ -658,6 +680,9 @@ export class StencilChatPanel extends StencilElement {
       }
       if (on) setFloatOriginVars();
       host.classList.toggle('chat-open', on);
+      // After the class, or the panel is display:none and there is nothing to measure.
+      if (on) playDust(true);
+      else settleSurface(host);
       announceLayout();
       // Declares "drops over my rect are mine" to the global drag/drop wiring
       // (controlsBinder's overDropOwner), in lockstep with .chat-open — the canvas

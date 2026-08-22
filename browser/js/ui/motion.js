@@ -765,11 +765,11 @@ export const canvasCellForTile = (canvas, cell) => {
 // gives slivers, over a small card gives real dust. Aim for MOTE_PX; the quoted grid's
 // cell COUNT is the frame-budget ceiling. Pure — unit-tested. (Desktop: kDustCellPx.)
 export const MOTE_PX = 7;
-export const reshapeGrid = (cols, rows, w, h) => {
+export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   const budget = Math.max(1, cols * rows);
   // At least three bands each way: two reads as a thing splitting in half, not crumbling.
-  let c = Math.max(3, Math.round((w || 1) / MOTE_PX));
-  let r = Math.max(3, Math.round((h || 1) / MOTE_PX));
+  let c = Math.max(3, Math.round((w || 1) / px));
+  let r = Math.max(3, Math.round((h || 1) / px));
   if (c * r > budget) {
     const k = Math.sqrt(budget / (c * r));
     c = Math.max(3, Math.round(c * k));
@@ -778,22 +778,43 @@ export const reshapeGrid = (cols, rows, w, h) => {
   return { cols: c, rows: r };
 };
 
+// Drop the dust layer an element still owns, if any. A superseding open/close calls
+// this, so a double-clicked menu never strands a cloud over the page.
+export function cancelDust(el) {
+  if (!el) return;
+  if (typeof clearTimeout === 'function') clearTimeout(el.__dustTimer);
+  el.__dustTimer = null;
+  el.__dustHost?.remove?.();
+  el.__dustHost = null;
+}
+
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
-                                   makeCopy = cloneForTile, perCell = false, gather = false } = {}) {
+                                   makeCopy = cloneForTile, perCell = false, gather = false,
+                                   toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
+                                   toBody = false, hostClass = '' } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
+    cancelDust(el);   // one cloud per element: the newest gesture owns it
     const r = el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
-    ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height));
+    ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
     const host = document.createElement('div');
-    host.className = 'disintegrate-host';
+    host.className = hostClass ? `disintegrate-host ${hostClass}` : 'disintegrate-host';
+    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults.
+    if (ms) {
+      host.style.setProperty('--dust-ms', `${ms}ms`);
+      host.style.setProperty('--gather-ms', `${ms}ms`);
+    }
     host.style.left = `${r.left}px`;
     host.style.top = `${r.top}px`;
     host.style.width = `${r.width}px`;
     host.style.height = `${r.height}px`;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
-        const m = tileMotion(cx, cy, cols, rows, gather);
+        // A row FALLS (tileMotion); a surface flies at the control that owns it.
+        const m = toward
+          ? surfaceMotion(cx, cy, cols, rows, r, toward, { span: ms || DISINTEGRATE_MS, spread })
+          : tileMotion(cx, cy, cols, rows, gather);
         const tile = document.createElement('div');
         // The gather class overrides the scatter's animation with tileGather (the same
         // flight, played home) while inheriting the tile's box/clip rules.
@@ -835,7 +856,10 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // Appended to the element's own PARENT, not <body>: most row styling is
     // parent-scoped and a body-level clone matches none of it (unstyled, invisible
     // tiles). Still position:fixed, so viewport-anchored, clear of scroller clipping.
-    (el.parentElement || document.body).appendChild(host);
+    // A SURFACE goes on <body> outright: its own parent (a modal overlay) is about to
+    // go display:none under it, and body is last in tree order, so a clone carrying
+    // duplicate ids can never shadow the real thing in getElementById.
+    (toBody ? document.body : (el.parentElement || document.body)).appendChild(host);
     // …but only if the parent can actually host it: an ancestor with a transform,
     // filter or backdrop-filter becomes the containing block for position:fixed and can
     // re-anchor or clip the layer. Detected by measuring, not by guessing which
@@ -844,7 +868,11 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
       document.body.appendChild(host);
     }
-    setTimeout(() => host.remove(), DISINTEGRATE_MS + 400);
+    el.__dustHost = host;
+    el.__dustTimer = setTimeout(() => {
+      host.remove();
+      if (el.__dustHost === host) { el.__dustHost = null; el.__dustTimer = null; }
+    }, (ms || DISINTEGRATE_MS) + 400);
     return true;
   } catch {
     return false;   // decoration only — the removal carries on regardless
@@ -856,6 +884,162 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 // have flung it and flies HOME (tileGather in animations.css), with the sweep reversed
 // so the first mote out is the last one in. Used by materialize below.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });
+
+// ── Surfaces: a window, a panel and a mini popup are dust too ───────────────
+// A modal, the chat panel and the ⋯/context popups play the SAME scatter a deleted
+// row does — only every mote flies INTO (or out of) the point that owns the surface:
+// the icon that opened it, the click a context menu grew from, the edge a docked
+// panel slides off. Origin and direction are exactly what the old scale had; what
+// changed is that the flight is rendered as particles instead of a moving rectangle.
+export const SURFACE_IN_MS = 420;    // was modalFromIcon's 0.42s
+export const SURFACE_OUT_MS = 340;   // …and modalToIcon's 0.34s (ui/base.js CLOSE_MS)
+// Coarser than a row's 7px grain: a window is tens of times the area, and the mote
+// COUNT — not the mote size — is what a frame has to pay for.
+export const SURFACE_MOTE_PX = 8;
+export const SURFACE_COLS = 40;
+export const SURFACE_ROWS = 30;      // 1200 motes — the wipe's own ceiling (SCATTER_TILE_BUDGET)
+export const SURFACE_SPREAD = 34;    // how far a mote may fan off its line to the point
+export const SURFACE_FORMING_CLASS = 'surface-forming';
+export const SURFACE_LEAVING_CLASS = 'surface-leaving';
+// Permanent once a surface has been dusted: its old CSS pop/slide must stay off for
+// good, or removing the forming class at the end of the flight would replay it.
+export const SURFACE_DRIVEN_CLASS = 'dust-driven';
+
+// One mote's flight when a whole surface gathers into — or bursts out of — a single
+// POINT. The path is the cell's own offset to that point, so every mote converges
+// there instead of falling; the two decorrelated noises only fan the arrival. The
+// delay rides the DISTANCE, so the edge nearest the point goes first and the far one
+// last — a window draining into its icon, and pouring back out of it. Pure.
+export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD } = {}) => {
+  const n = tileNoise(cx, cy);
+  const m = tileNoise(cx + 41, cy + 17);
+  const w = (box?.width || 0) / Math.max(1, cols);
+  const h = (box?.height || 0) / Math.max(1, rows);
+  const mx = (box?.left || 0) + (cx + 0.5) * w;
+  const my = (box?.top || 0) + (cy + 0.5) * h;
+  const toX = (point?.x || 0) - mx;
+  const toY = (point?.y || 0) - my;
+  // Normalised against the longest trip any cell in this box makes, so the sweep fills
+  // the whole flight whatever the point's distance is.
+  const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
+  const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
+  return {
+    delay: Math.round(progress * span * 0.45 + n * span * 0.12),
+    dx: Math.round(toX + (m - 0.5) * spread),
+    dy: Math.round(toY + (n - 0.5) * spread),
+    rot: +((m - 0.5) * 60).toFixed(2),
+    scale: +(0.12 + n * 0.25).toFixed(2),
+  };
+};
+
+// Where a DOCKED panel's dust comes from, and goes back to: far out past the edge it
+// is docked to, so the motes stream along the panel's own slide direction — the same
+// "where it comes from" the slide had. A float has an icon instead, so: null. Pure.
+export const dockAwayPoint = (rect, dock, reach = 2.2) => {
+  if (!rect) return null;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  if (dock === 'left') return { x: cx - rect.width * reach, y: cy };
+  if (dock === 'right') return { x: cx + rect.width * reach, y: cy };
+  if (dock === 'top') return { x: cx, y: cy - rect.height * reach };
+  if (dock === 'bottom') return { x: cx, y: cy + rect.height * reach };
+  return null;
+};
+
+// May this surface afford a REAL clone per cell — what makes a chat message come apart
+// into pieces of itself? A small menu can; a settings window is hundreds of nodes over
+// hundreds of cells and the PRODUCT is what would stall the frame. Past the budget the
+// motes are flat specks in the surface's own colours, which at mote size is nearly all
+// a clone would show anyway. Pure — unit-tested.
+export const SURFACE_CLONE_NODE_BUDGET = 12000;
+export const surfaceClones = (nodes, tiles) =>
+  Math.max(1, nodes || 0) * Math.max(0, tiles || 0) <= SURFACE_CLONE_NODE_BUDGET;
+
+// Flat speck in the surface's own colours; the rim cells take its border instead, so
+// the cloud keeps the window's outline for the first frames.
+const speckMaker = (el) => {
+  const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+  const blank = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
+  const fill = blank(cs?.backgroundColor) ? 'var(--bg-container)' : cs.backgroundColor;
+  const edge = blank(cs?.borderTopColor) ? fill : cs.borderTopColor;
+  return (_el, { cx, cy, cols, rows }) => {
+    const d = document.createElement('div');
+    d.className = 'dust-mote';
+    const n = tileNoise(cx, cy);
+    d.style.background = (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1) ? edge : fill;
+    d.style.opacity = (0.62 + n * 0.38).toFixed(2);
+    // Grains of ONE size read as a mosaic; the spread is what makes it sand. On the
+    // copy, not the tile — the tile's own transform is the flight.
+    d.style.transform = `scale(${(0.72 + n * 0.5).toFixed(2)})`;
+    return d;
+  };
+};
+
+// A menu is position:fixed. Inside a tile it must lay out from the tile's own corner
+// instead of re-anchoring to the viewport — or, once the tile is moving, to the tile.
+const surfaceClone = (el) => {
+  const c = cloneForTile(el);
+  if (c.style) { c.style.position = 'static'; c.style.left = ''; c.style.top = ''; }
+  return c;
+};
+
+const surfaceDust = (el, point, { ms, gather }) => {
+  if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
+  if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
+  const r = el.getBoundingClientRect();
+  if (!(r.width >= 8 && r.height >= 8)) return false;
+  const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, SURFACE_MOTE_PX);
+  const nodes = el.getElementsByTagName ? el.getElementsByTagName('*').length : 0;
+  const clone = surfaceClones(nodes, grid.cols * grid.rows);
+  return disintegrate(el, {
+    ...grid, gather, toward: point, ms, px: SURFACE_MOTE_PX, toBody: true,
+    hostClass: gather ? 'dust-forming' : 'dust-leaving',
+    perCell: !clone, makeCopy: clone ? surfaceClone : speckMaker(el),
+  });
+};
+
+// Drop whatever a surface has in flight — the cloud AND the classes driving its own
+// opacity — leaving the end state untouched. Every open/close begins here, so a
+// double-clicked menu or a swept-past modal always converges on the true state.
+export function settleSurface(el) {
+  if (!el?.classList) return;
+  if (typeof clearTimeout === 'function') clearTimeout(el.__surfaceTimer);
+  el.__surfaceTimer = null;
+  el.classList.remove(SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS);
+  el.style?.removeProperty?.('--dust-ms');
+  cancelDust(el);
+}
+
+const playSurface = (el, point, { ms, gather }) => {
+  if (!el?.classList) return false;
+  settleSurface(el);
+  if (motionReduced()) return false;
+  // The marker goes on BEFORE the measure: the element's own entrance (modalFromIcon,
+  // chatSlide*, menuPop) FILLS an icon-sized from-state, so a box read under it is the
+  // icon's box — the same trap `modal-measuring` dodges in ui/base.js. Off again if the
+  // dust declines, so a surface that never plays it keeps its old CSS entrance.
+  el.classList.add(SURFACE_DRIVEN_CLASS);
+  if (!surfaceDust(el, point, { ms, gather })) {
+    el.classList.remove(SURFACE_DRIVEN_CLASS);
+    return false;
+  }
+  el.style?.setProperty?.('--dust-ms', `${ms}ms`);
+  el.classList.add(gather ? SURFACE_FORMING_CLASS : SURFACE_LEAVING_CLASS);
+  el.__surfaceTimer = setTimeout(() => {
+    el.__surfaceTimer = null;
+    el.classList.remove(SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS);
+    el.style?.removeProperty?.('--dust-ms');
+  }, ms + 60);
+  return true;
+};
+
+// The surface waits behind its own dust and fades up as the last motes land.
+export const surfaceIn = (el, point, { ms = SURFACE_IN_MS } = {}) =>
+  playSurface(el, point, { ms, gather: true });
+// …and hands over to it at once on the way out. The caller still owns the real
+// hide/remove: like leaveThenRemove, the end state never depends on the animation.
+export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS } = {}) =>
+  playSurface(el, point, { ms, gather: false });
 
 // ── Materialize: leaveThenRemove reversed, for a freshly-ADDED row ──────────
 // Call on the new row right after the render that inserted it: its box expands on the

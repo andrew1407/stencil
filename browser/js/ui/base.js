@@ -1,4 +1,5 @@
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
+import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 // ── Web Component base: light-DOM custom elements ───────────────
 // Each UI region owns its markup (static inner()) and behavior (wire(app)). Light
@@ -66,11 +67,14 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // (settingsModal) falls back to the overlay's first element child.
   const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
 
-  // ── Grow-from-the-icon motion (css/animations.css `modalFromIcon`/`modalToIcon`) ──
-  // We hand CSS the icon-centre → box-centre delta plus their size ratio. The keyframes'
-  // defaults are the old plain pop, so no icon in reach (or reduced motion) looks as before.
-  const CLOSE_MS = 340;   // matches modalToIcon in css/animations.css
+  // ── Grow-from-the-icon motion (js/ui/motion.js surfaceIn/surfaceOut) ──
+  // The window forms from motes streaming out of the icon that opened it, and comes
+  // apart into motes pouring back into it — same origin and direction the old scale
+  // had. The `--modal-*` vars stay: they are the flight modalFromIcon/modalToIcon still
+  // plays wherever the dust declines (an unmeasurable box, a stub, reduced motion).
+  const CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (css/animations.css)
   let closeTimer = null;
+  let originPoint = null;   // the icon centre, in client coordinates
   const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   // Which control the flight belongs to. Defaults to the shell's own opener, but a
   // caller can pass another (the idle canvas's "＋ Blank image" card opens the SAME
@@ -91,6 +95,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     const onScreen = !!a && a.width > 0 && a.height > 0 && a.bottom > 0 && a.top < window.innerHeight;
     const cx = onScreen ? a.left + a.width / 2 : b.left + b.width / 2;
     const cy = onScreen ? a.top + a.height / 2 : -Math.max(48, b.height * 0.3);
+    originPoint = { x: cx, y: cy };   // the dust streams out of / pours into this point
     box.style.setProperty('--modal-dx', `${Math.round(cx - (b.left + b.width / 2))}px`);
     box.style.setProperty('--modal-dy', `${Math.round(cy - (b.top + b.height / 2))}px`);
     // Floor the ratio so a big window doesn't animate from a sub-pixel speck.
@@ -111,6 +116,14 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     if (box) { box.style.left = ''; box.style.top = ''; }
     clearOriginVars();
   };
+  // Both flights start here, so a superseding open/close always drops the one in the
+  // air (settleSurface) instead of leaving a cloud or a veiled box behind.
+  const playDust = (enter) => {
+    const box = boxOf();
+    if (!box) return;
+    if (reducedMotion()) { settleSurface(box); return; }
+    (enter ? surfaceIn : surfaceOut)(box, originPoint);
+  };
 
   // `from` is the control the flight belongs to. An explicit `null` means there ISN'T
   // one: the window falls from above rather than claiming a gesture that never
@@ -123,7 +136,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     onOpen?.();
     overlay.classList.add('modal-open');
     // Measured after the class applies — the box has no size while display:none.
-    if (!reducedMotion()) setOriginVars();
+    if (!reducedMotion() && setOriginVars()) playDust(true);
   };
   let gestures = null;   // set below when there is an opener button
   const close = () => {
@@ -134,9 +147,11 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     overlay.classList.remove('modal-open');
     if (animate) {
       overlay.classList.add('modal-closing');
+      playDust(false);   // measured above, while it was still open
       if (closeTimer) clearTimeout(closeTimer);
       closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, CLOSE_MS);
     } else {
+      settleSurface(boxOf());   // nothing plays: drop anything an open left in the air
       finishClose();
     }
     // However it closed (X button, Escape, outside click), the gesture machine
@@ -162,7 +177,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       box.style.top = `${p.top}px`;
     }
     // After pinning, so the popover grows from the icon toward where it actually lands.
-    if (!reducedMotion()) setOriginVars();
+    if (!reducedMotion() && setOriginVars()) playDust(true);
   };
   // Opening from the icon (or its shortcut) TOGGLES: pressing the same shortcut again, or
   // clicking the icon behind a popover, closes the window instead of re-opening it.

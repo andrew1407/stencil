@@ -552,10 +552,23 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The keycaps a tooltip is showing SHAKE when their shortcut is pressed — a brief,
-  // non-repeating "yes, that one" — instead of the tooltip simply being dismissed by the
-  // key. It settles back exactly where it was placed.
-  void pressingAShortcutShakesTheKeycapsOnScreen() {
+  // A shown, enabled toolbar button whose rendered tooltip does (`want`) or does not carry
+  // keycaps — the shake fires on the content, not on the control.
+  QToolButton* capCarrier(MainWindow& win, bool want) {
+    for (QToolButton* b : win.findChildren<QToolButton*>()) {
+      if (!b->isVisible() || !b->isEnabled() || b->toolTip().isEmpty()) continue;
+      const QString rich = b->toolTip().trimmed().startsWith('<')
+                               ? b->toolTip()
+                               : stencil::gui::enrichedToolTip(b->toolTip());
+      if (stencil::gui::hasKeycaps(rich) == want) return b;
+    }
+    return nullptr;
+  }
+
+  // The keycaps SHAKE as their tooltip appears — a brief, non-repeating flick that says
+  // "and here is the shortcut" while you read the tip. No key press is involved: showing
+  // the tooltip is the trigger, and only a tooltip that actually draws caps reacts.
+  void showingATooltipShakesItsKeycaps() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -563,32 +576,18 @@ class MainWindowGuiTest : public QObject {
     win.raise();
     win.activateWindow();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // A live, shortcut-carrying control whose tooltip therefore has keycaps to shake. A
-    // CHECKABLE one: sending the chord below really does fire the shortcut, and a toggle
-    // just flips (a dialog-opening action would park this test in a modal loop).
-    QToolButton* btn = nullptr;
-    for (QToolButton* b : win.findChildren<QToolButton*>()) {
-      if (!b->isVisible() || !b->isEnabled() || b->toolTip().isEmpty()) continue;
-      QAction* a = b->defaultAction();
-      if (a && a->isEnabled() && a->isCheckable() && !a->shortcut().isEmpty()) { btn = b; break; }
-    }
-    QVERIFY2(btn, "no enabled checkable shortcut-carrying toolbar button");
-    const QKeySequence seq = btn->defaultAction()->shortcut();
+    QToolButton* btn = capCarrier(win, true);
+    QVERIFY2(btn, "no shown toolbar button whose tooltip carries keycaps");
     stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
     QVERIFY(tip);
 
     // Park the pointer ON the control so the anti-stranding heartbeat leaves it up.
     QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
     sendToolTipTo(btn);
-    QTRY_COMPARE_WITH_TIMEOUT(tip->windowOpacity(), 1.0, 1500);
+    QVERIFY2(tip->isVisible(), "the tooltip did not appear");
+    QVERIFY2(tip->shaking(), "the keycaps did not shake as the tooltip came up");
     const QPoint home = tip->pos();
     QCOMPARE(tip->shakeOffset(), 0);
-
-    const QKeyCombination kc = seq[0];
-    QKeyEvent press(QEvent::KeyPress, kc.key(), kc.keyboardModifiers());
-    QApplication::sendEvent(win.canvas_, &press);
-    QVERIFY2(tip->shaking(), "the keycaps did not react to their own shortcut");
-    QVERIFY2(tip->isVisible(), "…and the key must not simply dismiss the tooltip");
     // It really MOVES, and it is one pass — it settles back on its placement, not off it.
     bool moved = false;
     for (int i = 0; i < 30 && !moved; ++i) {
@@ -599,20 +598,57 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::kShakeMs + 2000);
     QCOMPARE(tip->pos(), home);
     QCOMPARE(tip->shakeOffset(), 0);
+    QVERIFY2(tip->isVisible(), "the shake must not retire the tooltip");
+    // A re-sent ToolTip for the SAME control is not a new appearance (Qt keeps re-arming
+    // its wake-up while the pointer wanders inside one control): no second shake.
+    sendToolTipTo(btn);
+    QVERIFY2(!tip->shaking(), "the same tooltip shook again under a wandering pointer");
 
-    // …and ANY other key still dismisses — Escape included. The shake acknowledges a
-    // shortcut; it is not a way to pin the tooltip open.
+    // ANY key retires it — Escape included. The shake announces the shortcut; it is not a
+    // way to pin the tooltip open.
     QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
     QApplication::sendEvent(win.canvas_, &esc);
     QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 1500);
 
-    // Reduced motion: no shake at all, and the tooltip has not budged.
+    // A tooltip with NO shortcut draws no caps, so it has nothing to announce.
+    QToolButton* plain = capCarrier(win, false);
+    if (!plain) {  // every live control happens to carry a chord — give one a bare tooltip
+      for (QToolButton* b : win.findChildren<QToolButton*>())
+        if (b->isVisible() && b->isEnabled() && b != btn) { plain = b; break; }
+      QVERIFY(plain);
+      plain->setToolTip(QStringLiteral("Bare hover text, nothing bound"));
+    }
+    QCursor::setPos(plain->mapToGlobal(plain->rect().center()));
+    sendToolTipTo(plain);
+    QVERIFY(tip->isVisible());
+    QLabel* body = tip->findChild<QLabel*>();
+    QVERIFY2(body && !stencil::gui::hasKeycaps(body->text()), "the control drew keycaps after all");
+    QVERIFY2(!tip->shaking(), "a tooltip with no keycaps still shook");
+    QCOMPARE(tip->shakeOffset(), 0);
+
+    // A fast sweep re-points the tooltip mid-shake, over and over: the shakes must not
+    // stack, and the panel must end up exactly on its last placement.
+    for (int i = 0; i < 8; ++i) {
+      sendToolTipTo(i % 2 ? plain : btn);
+      QTest::qWait(20);
+    }
+    sendToolTipTo(btn);
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::kShakeMs + 2000);
+    QCOMPARE(tip->shakeOffset(), 0);
+    // …and nothing is stranded: the pointer is on neither control any more.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 3000);
+    QCOMPARE(tip->shakeOffset(), 0);
+
+    // Reduced motion: shown, correct, and not a pixel of shake.
     qputenv("STENCIL_NO_ANIM", "1");
+    QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
     sendToolTipTo(btn);
     QVERIFY(tip->isVisible());
+    QVERIFY(body && stencil::gui::hasKeycaps(body->text()));
     const QPoint restingPos = tip->pos();
-    QApplication::sendEvent(win.canvas_, &press);
     QVERIFY2(!tip->shaking(), "reduced motion still shook the keycaps");
+    QTest::qWait(120);
     QCOMPARE(tip->pos(), restingPos);
     qunsetenv("STENCIL_NO_ANIM");
     beat();

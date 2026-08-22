@@ -6,7 +6,8 @@
 // hook to animate the label Qt shows. So QEvent::ToolTip is swallowed app-wide and this
 // frameless panel is shown in its place. Qt still owns the TIMING — a ToolTip event only
 // arrives after SH_ToolTip_WakeUpDelay (main.cpp pins it at 120 ms) — and the content is
-// still tipContent's rendering, so nothing but the fade changes.
+// still tipContent's rendering, so nothing but the motion changes: the fade, plus one
+// brief shake as a tip carrying keycaps appears, to point at the shortcut.
 //
 // Only a widget with its OWN non-empty toolTip() is taken over. Item views resolve
 // per-index tooltips inside viewportEvent and have no widget tooltip of their own, so
@@ -22,9 +23,7 @@
 #include <QLabel>
 #include <QPointer>
 #include <QScreen>
-#include <QShortcutEvent>
 #include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
 #include <QtGlobal>
@@ -32,14 +31,16 @@
 #include <cmath>
 
 #include "modalReveal.hpp"   // support::motionReduced()
-#include "tipContent.hpp"    // enrichedToolTip()
+#include "tipContent.hpp"    // enrichedToolTip(), hasKeycaps()
 
 namespace stencil::gui {
 
   class AppTooltip : public QFrame {
    public:
     static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition
-    static constexpr int kShakeMs = 260;    // one brief attention shake, never repeated
+    static constexpr int kShakeMs = 260;    // one brief attention shake per appearance
+    // Keycaps are painted PNGs inline in the body's rich text (tipContent), not widgets, so
+    // there is nothing smaller than the panel to move — the panel swings for them.
     static constexpr int kShakePx = 4;
     static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* kObjectName = "stencilAppTooltip";
@@ -85,25 +86,32 @@ namespace stencil::gui {
     void showFor(QWidget* owner, const QString& text, const QPoint& globalPos) {
       const QString rich = text.trimmed().startsWith('<') ? text : enrichedToolTip(text);
       if (rich.isEmpty()) { hideTip(); return; }
+      // An APPEARANCE: a first show, one re-pointed at another control, or new content.
+      // Qt keeps re-sending ToolTip while the pointer wanders inside one control (its own
+      // label never appears, so its wake-up timer re-arms), and those must not re-shake.
+      const bool appearing = !isVisible() || closing_ || owner != owner_ || rich != body_->text();
+      settleShake();                   // never animate away from a stale placement
       owner_ = owner;
       body_->setText(rich);
       adjustSize();
       place(globalPos);
       closing_ = false;
       fade_->stop();
-      if (support::motionReduced()) {   // no fade; the end state, at once
+      if (support::motionReduced()) {  // no fade; the end state, at once
         setWindowOpacity(1.0);
         show();
         raise();
-        return;
+      } else {
+        const qreal from = isVisible() ? windowOpacity() : 0.0;
+        setWindowOpacity(from);
+        show();
+        raise();
+        fade_->setStartValue(from);
+        fade_->setEndValue(1.0);
+        fade_->start();
       }
-      const qreal from = isVisible() ? windowOpacity() : 0.0;
-      setWindowOpacity(from);
-      show();
-      raise();
-      fade_->setStartValue(from);
-      fade_->setEndValue(1.0);
-      fade_->start();
+      // The point of the whole thing: caps on screen announce themselves as they arrive.
+      if (appearing && hasKeycaps(rich)) shakeKeys();
     }
 
     // Fade out and then hide. Idempotent, and a showFor() mid-fade takes it straight back
@@ -111,6 +119,7 @@ namespace stencil::gui {
     void hideTip() {
       if (!isVisible()) { owner_.clear(); return; }
       owner_.clear();
+      settleShake();   // it fades out on its placement, not mid-swing
       fade_->stop();
       if (support::motionReduced()) { closing_ = false; QFrame::hide(); return; }
       closing_ = true;
@@ -119,11 +128,12 @@ namespace stencil::gui {
       fade_->start();
     }
 
-    // A brief attention shake — "yes, that is the shortcut you just pressed". One damped
-    // left-right pass, never a loop, and it settles exactly where it was placed.
+    // A brief attention shake as the tooltip appears — "and here is its shortcut". One
+    // damped left-right pass, never a loop, settling exactly where it was placed.
+    // The caps are inline <img> data URIs inside the one rich-text label, so the panel
+    // carrying them is what moves (see the note on kShakePx).
     void shakeKeys() {
       if (!isVisible() || support::motionReduced()) return;
-      if (shake_ && shake_->state() == QAbstractAnimation::Running) return;   // no restacking
       if (!shake_) {
         shake_ = new QVariantAnimation(this);
         shake_->setDuration(kShakeMs);
@@ -134,6 +144,7 @@ namespace stencil::gui {
         QObject::connect(shake_, &QVariantAnimation::finished, this,
                          [this] { applyShake(1.0); });
       }
+      shake_->stop();    // a pointer sweep restarts it from the new placement, never stacks
       shake_->start();
     }
 
@@ -154,6 +165,12 @@ namespace stencil::gui {
       left = qBound(avail.left() + 10, left, qMax(avail.left() + 10, avail.right() - width()));
       top = qBound(avail.top() + 10, top, qMax(avail.top() + 10, avail.bottom() - height()));
       home_ = QPoint(left, top);
+      move(home_);
+    }
+    // Stop any shake and put the panel back exactly on its placement.
+    void settleShake() {
+      if (!shake_ || shake_->state() == QAbstractAnimation::Stopped) return;
+      shake_->stop();
       move(home_);
     }
     // Three half-cycles, amplitude decaying to nothing, so it settles exactly at home.
@@ -181,23 +198,6 @@ namespace stencil::gui {
       return tip_;
     }
 
-    // The action a control fires, for the keycap shake: a tool button's default action,
-    // else the widget's first action. Null when the control has none.
-    static QAction* actionOf(const QWidget* w) {
-      if (!w) return nullptr;
-      if (const auto* tb = qobject_cast<const QToolButton*>(w))
-        if (QAction* a = tb->defaultAction()) return a;
-      const QList<QAction*> acts = w->actions();
-      return acts.isEmpty() ? nullptr : acts.first();
-    }
-
-    static bool actionAnswersTo(const QAction* a, const QKeySequence& seq) {
-      if (!a || seq.isEmpty()) return false;
-      for (const QKeySequence& s : a->shortcuts())
-        if (!s.isEmpty() && s.matches(seq) == QKeySequence::ExactMatch) return true;
-      return false;
-    }
-
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
       auto* w = qobject_cast<QWidget*>(o);
@@ -209,22 +209,16 @@ namespace stencil::gui {
           tip()->showFor(w, w->toolTip(), static_cast<QHelpEvent*>(e)->globalPos());
           return true;   // Qt's own label must not also appear
         }
-        case QEvent::Shortcut: {
+        case QEvent::Shortcut:
           // A LIVE shortcut never arrives as a key press — Qt consumes the key and sends
-          // this instead — so the shake has to be driven from here.
-          if (!tip_ || !tip_->isVisible()) break;
-          if (actionAnswersTo(actionOf(tip_->owner()), static_cast<QShortcutEvent*>(e)->key()))
-            tip_->shakeKeys();     // "yes, that one" — and the tooltip stays up
-          else
-            tip_->hideTip();       // someone else's chord: the tooltip has been overtaken
+          // this instead — so it has to be dismissed from here.
+          if (tip_) tip_->hideTip();
           break;
-        }
         case QEvent::KeyPress: {
           const auto* ke = static_cast<QKeyEvent*>(e);
           if (ke->isAutoRepeat()) break;
-          // Whatever reaches here is NOT a bound shortcut (Qt would have eaten it), so it
-          // dismisses — Escape included. The shake acknowledges a shortcut; it is not a
-          // way to pin the tooltip open.
+          // Every key retires the tooltip, Escape included — the shake announces the
+          // shortcut while you read the tip, it is not a way to pin the tooltip open.
           if (tip_ && tip_->isVisible()) tip_->hideTip();
           break;
         }

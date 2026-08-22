@@ -10,7 +10,7 @@ import {
   observeReveal, leaveThenRemove, LEAVING_CLASS, wipeDurationMs,
   CHAT_LEAVE_MS, CHIP_LEAVE_MS, scatterGridFor, menuPopOrigin,
   REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
-  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS,
+  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, surfaceIn, surfaceOut,
 } from './motion.js';
 
 // Every chat entry leaves on the same dissolve. `count` is how many are going at once
@@ -794,6 +794,9 @@ const openChatRowMenu = (row, x, y, hooks) => {
     if (rowMenuEl !== menu) return;
     rowMenuEl = null;
     rowMenuClose = null;
+    // Back into the point it grew out of (js/ui/motion.js). Its own layer, so the node
+    // still goes NOW — the menu is never left half-removed for the sake of an effect.
+    surfaceOut(menu, { x, y });
     menu.remove();
     announcePopup();   // …and the chrome that stood down comes back
     document.removeEventListener('pointerdown', onDown, true);
@@ -829,8 +832,10 @@ const openChatRowMenu = (row, x, y, hooks) => {
   const top = Math.max(8, y + mh > window.innerHeight - 8 ? y - mh : y);
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
-  // The entry pop (animations.css menuPop) grows out of the open point.
+  // The entry pop (animations.css menuPop) grows out of the open point — as dust when
+  // motion.js can play it, and the plain pop is the fallback it leaves behind.
   menu.style.transformOrigin = menuPopOrigin(x, y, { left, top, width: mw, height: mh });
+  surfaceIn(menu, { x, y });
   rowMenuEl = menu;
   rowMenuClose = close;
   announcePopup();

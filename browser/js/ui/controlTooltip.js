@@ -152,6 +152,17 @@ const reveal = (el) => {
   curCombos = parseTip(txt).keys;
   t.classList.add('visible');
   place(lastEvent);
+  shakeKeys(t);
+};
+
+// Every keycap the tooltip drew nudges once as the tip lands, so the eye goes straight
+// to the shortcut — the answer to "is there a key for this?" arrives with the text. A
+// tip with no shortcut has no caps and so does nothing. flashClass is restart-safe, so
+// a sweep that re-points the one shared tooltip shakes the NEW control's caps from the
+// top instead of stacking; the caps themselves are fresh nodes on every show anyway.
+// The CSS neutralises the movement under reduced motion and keeps only the recolour.
+const shakeKeys = (t) => {
+  t.querySelectorAll('.tip-key').forEach(cap => flashClass(cap, SHAKE_CLASS, SHAKE_MS));
 };
 
 // A shortcut pressed while its own control's tooltip is up: shake the cap that spells
