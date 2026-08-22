@@ -197,7 +197,7 @@ button:not(:disabled):active {
 .ic-trash .ic-lid {
     --ic-ms: 0.24s;
     transform-origin: 5px 6px;
-    transform: rotate(calc(var(--ic-on) * 11deg)) translateY(calc(var(--ic-on) * -0.4px));
+    transform: rotate(calc(var(--ic-on) * -11deg)) translateY(calc(var(--ic-on) * -0.4px));
 }
 /* One arrow, two directions — the whole difference between the pair. */
 .ic-download .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }

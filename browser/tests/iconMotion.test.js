@@ -216,7 +216,10 @@ test('the trash lid opens on a hinge, and the folder tips open', () => {
   const lid = MOTION.icons.trash.parts[0];
   assert.equal(lid.hook, 'ic-lid');
   assert.deepEqual(lid.origin, [5, 6], 'hinged at the left end of the rim');
-  assert.ok(lid.to.rotate > 0, 'and it lifts');
+  // SVG's y axis points down, so a NEGATIVE angle turns the rim counter-clockwise —
+  // the far end (x=21) rises off the can while the hinged stub stays put. A positive
+  // angle would swing that end down INTO the can.
+  assert.ok(lid.to.rotate < 0, 'and it lifts');
   assert.match(SECTION, /\.ic-trash \.ic-lid \{[^}]*transform-origin: 5px 6px;/);
   // The lid leaving the 24-unit box for a moment is why the glyphs stop clipping.
   assert.match(SECTION, /overflow: visible;/);

@@ -345,10 +345,10 @@ namespace stencil::gui {
     if (!drawModeBtn_) return;
     FaceSpec face;
     // SIBLINGS, not two families: an outlined rectangle beside a line-with-endpoint-dots,
-    // both 2px strokes on the same grid (browser DRAW_MODE_ICON). The old pair was a
-    // stroked PENCIL — an edit verb, and the rename affordance's own glyph — beside a
-    // solid slab, so the toggle read as two unrelated pictures.
-    face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line-dots");
+    // both 2px strokes on the same grid, both anchoring the SAME two drag handles. Both
+    // now live in the shared canon (browser/js/config/icons.json), so they carry the
+    // motion hooks too and draw themselves on hover (iconMotion.json).
+    face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line");
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
     face.glyphColor = iconColor_;

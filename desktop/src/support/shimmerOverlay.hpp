@@ -9,6 +9,8 @@
 // (chatDock.cpp + the context menu's assistant panel), so every icon button in
 // the app shimmers identically. Header-only and Q_OBJECT-free (no signals or
 // slots of its own), so it needs no MOC.
+#include "modalReveal.hpp"   // support::motionReduced()
+
 #include <QAbstractAnimation>
 #include <QAbstractItemView>
 #include <QEasingCurve>
@@ -122,7 +124,14 @@ namespace stencil::gui {
     }
 
   private:
-    void startSweep(const QRect& band) { band_ = band; anim_->stop(); anim_->start(); }
+    // Reduced motion: no sweep at all. The sweep is pure feedback with no end state to
+    // reach, so skipping it loses nothing (faceSwap / filterFade rule).
+    void startSweep(const QRect& band) {
+      if (support::motionReduced()) return;
+      band_ = band;
+      anim_->stop();
+      anim_->start();
+    }
     void cancelSweep() {
       hoveredRow_ = -1;
       anim_->stop();

@@ -191,7 +191,7 @@
       "action": "delete project / file / line",
       "mode": "hold",
       "note": "the lid lifts off the can, hinged at its left end",
-      "parts": [{ "hook": "ic-lid", "origin": [5, 6], "durationMs": 240, "to": { "rotate": 11, "translate": [0, -0.4] } }]
+      "parts": [{ "hook": "ic-lid", "origin": [5, 6], "durationMs": 240, "to": { "rotate": -11, "translate": [0, -0.4] } }]
     },
     "download": {
       "action": "download / save to disk",

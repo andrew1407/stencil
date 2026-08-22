@@ -41,14 +41,6 @@ namespace stencil::gui {
                  R"(<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>)");
         m.insert("more-vertical",
                  R"(<circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/>)");
-        // The draw-mode toggle's LINE face — the port of DRAW_MODE_ICON.line in
-        // browser/js/core/drawingApp.js (a diagonal segment with filled endpoint dots,
-        // i.e. what the app actually draws), its 16-grid geometry scaled x1.5 onto the
-        // 24-grid every other glyph uses. It is a desktop extra only because the browser
-        // keeps this pair inline instead of in the shared canon; move it to
-        // browser/js/config/icons.json the day that changes, and drop it from here.
-        m.insert("line-dots",
-                 R"(<line x1="4.5" y1="19.5" x2="19.5" y2="4.5"/><circle cx="4.5" cy="19.5" r="3" fill="currentColor" stroke="none"/><circle cx="19.5" cy="4.5" r="3" fill="currentColor" stroke="none"/>)");
         return m;
       }();
       return t;
@@ -65,25 +57,33 @@ namespace stencil::gui {
                  R"(stroke-linejoin="round">%2</svg>)")
           .arg(hex, resolved);
     }
+    // cacheKey → what themedIcon was asked for. See iconRequestForKey().
+    QHash<qint64, IconRequest>& requestIndex() {
+      static QHash<qint64, IconRequest> m;
+      return m;
+    }
   }  // namespace
 
   bool hasIcon(const QString& name) { return iconTable().contains(name); }
 
-  QIcon themedIcon(const QString& name, const QColor& color, int size, bool shadow,
-                   qreal dprIn) {
-    const QString inner = iconTable().value(name);
-    if (inner.isEmpty()) return QIcon();
+  QString iconMarkup(const QString& name) { return iconTable().value(name); }
 
+  QString iconSvgDocument(const QString& inner, const QColor& color) {
+    return svgDoc(inner, color.name());
+  }
+
+  bool iconRequestForKey(qint64 cacheKey, IconRequest* out) {
+    const auto it = requestIndex().constFind(cacheKey);
+    if (it == requestIndex().constEnd()) return false;
+    if (out) *out = it.value();
+    return true;
+  }
+
+  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
+                       qreal dprIn) {
+    if (inner.isEmpty() || size <= 0) return QIcon();
     const QString hex = color.name();
-    // Cache by (name, color, size, shadow): the same glyph is requested for many
-    // actions on every theme change, so rasterizing once per key keeps it cheap.
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
-    static QHash<QString, QIcon> cache;
-    const QString key = name + '|' + hex + '|' + QString::number(size) + (shadow ? "|s" : "")
-                        + '@' + QString::number(dpr);
-    const auto it = cache.constFind(key);
-    if (it != cache.constEnd()) return it.value();
-
     QSvgRenderer renderer(svgDoc(inner, hex).toUtf8());
     // Rendered at the device pixel ratio so the line-art stays crisp on Retina /
     // fractional-scale displays, then tagged with that ratio.
@@ -127,7 +127,28 @@ namespace stencil::gui {
     }
     faded.setDevicePixelRatio(dpr);
     icon.addPixmap(faded, QIcon::Disabled);
+    return icon;
+  }
+
+  QIcon themedIcon(const QString& name, const QColor& color, int size, bool shadow,
+                   qreal dprIn) {
+    const QString inner = iconTable().value(name);
+    if (inner.isEmpty()) return QIcon();
+
+    // Cache by (name, color, size, shadow): the same glyph is requested for many
+    // actions on every theme change, so rasterizing once per key keeps it cheap.
+    const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
+    static QHash<QString, QIcon> cache;
+    const QString key = name + '|' + color.name() + '|' + QString::number(size)
+                        + (shadow ? "|s" : "") + '@' + QString::number(dpr);
+    const auto it = cache.constFind(key);
+    if (it != cache.constEnd()) return it.value();
+
+    const QIcon icon = iconFromMarkup(inner, color, size, shadow, dpr);
     cache.insert(key, icon);
+    // …and the way back: a QIcon copy keeps its cacheKey, so a button's icon can be
+    // traced to the glyph it was made from (iconMotion.hpp's hover lookup).
+    requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, shadow, dpr});
     return icon;
   }
 

@@ -80,6 +80,7 @@
 #include "../support/themeSwapOverlay.hpp"  // palette-swap wipe
 #include "../support/appTooltip.hpp"           // the fading control tooltip
 #include "../support/disintegrateOverlay.hpp"  // the canvas scatters when cleared
+#include "../support/iconMotion.hpp"          // the per-icon hover motion
 #include "../support/shimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -213,6 +214,8 @@ namespace stencil::gui {
     scroll_->viewport()->installEventFilter(this);
     // App-wide filter so Escape can leave fullscreen from any focus (see eventFilter).
     qApp->installEventFilter(this);
+    // …and the one that gives every icon button its own hover motion (iconMotion.hpp).
+    installIconMotion();
 
     selPanel_ = new SelectionPanel(this);
     // Named so QMainWindow::saveState() can persist/restore the dock layout
@@ -2223,6 +2226,8 @@ namespace stencil::gui {
     panelReopenBtn_->setIconSize(QSize(kPanelToggleGlyph, kPanelToggleGlyph));
     panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
     panelReopenBtn_->setStyleSheet(panelToggleQss());
+    // Its angle is STATE, like the panel-header chevron's — no icon-motion on hover.
+    panelReopenBtn_->setProperty(kNoIconMotionProperty, true);
     connect(panelReopenBtn_, &QToolButton::clicked, this,
             [this] { if (actPanel_) actPanel_->setChecked(true); });
     panelReopenBtn_->hide();

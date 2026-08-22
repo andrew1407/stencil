@@ -12,6 +12,7 @@
 #include "scrollReveal.hpp"  // transcript cards fade at the viewport edges
 #include "../support/disintegrateOverlay.hpp"  // cards scatter on Clear
 #include "../support/menuReveal.hpp"           // card menu grows from the click
+#include "../support/iconMotion.hpp"           // the per-icon hover motion
 #include "../support/shimmerOverlay.hpp"       // the shared hover sweep
 
 #include <QApplication>
@@ -826,6 +827,9 @@ namespace stencil::gui {
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
       b->setIcon(themedIcon(glyph, active ? accentCache_ : textCache_, kHeaderIcon));
       b->setStyleSheet(active ? activeQss : QString());
+      // The float button's `maximize` glyph has a second motion for the ALREADY-floating
+      // state: its corners retract instead of extending (iconMotion.json variants.active).
+      b->setProperty(kIconStateProperty, active ? "active" : "");
       // Left ENABLED: docking where you already are is a no-op anyway, and disabling it
       // handed the button to QToolButton:disabled — a bordered grey chip with a dimmed
       // glyph, which is what made the row look dark and unclear.

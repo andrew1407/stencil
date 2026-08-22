@@ -26,6 +26,7 @@
 #include "popover.hpp"
 #include "iconSet.hpp"
 #include "faceSwap.hpp"
+#include "iconMotion.hpp"
 #include "guiHelpers.hpp"
 #include "theme.hpp"
 #include "modalReveal.hpp"
@@ -780,6 +781,7 @@ class MainWindowGuiTest : public QObject {
   // back. The overlay is larger than the button — glow + rays paint in a margin
   // around it, never by resizing the toolbar row.
   void logoHoverFxPulsesWhileHoveredOnly() {
+    const auto motion = withMotion();   // the loop honours motionReduced(), which is on here
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
     win.show();
@@ -2406,14 +2408,14 @@ class MainWindowGuiTest : public QObject {
     QToolButton* mode = win.drawModeBtn_;
     QVERIFY(mode);
     const char* kGlyph = stencil::gui::kFaceGlyphProperty;
-    QCOMPARE(mode->property(kGlyph).toString(), QString("line-dots"));
+    QCOMPARE(mode->property(kGlyph).toString(), QString("line"));
     // The glyph is RECORDED when the swap settles, so let it land before reading it.
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Rect"));
     QTRY_COMPARE(mode->property(kGlyph).toString(), QString("rect"));
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Line"));
-    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("line-dots"));
+    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("line"));
 
     // …and they really are the same KIND of picture. An OUTLINE is hollow where a filled
     // slab is solid, and the two faces carry a comparable amount of ink — which is what
@@ -2433,7 +2435,7 @@ class MainWindowGuiTest : public QObject {
     const auto solidInside = [](const QImage& im) {
       return qAlpha(im.pixel(im.width() * 3 / 10, im.height() * 3 / 10)) > 60;
     };
-    const QImage line = glyph("line-dots"), rect = glyph("rect"), slab = glyph("rect-filled");
+    const QImage line = glyph("line"), rect = glyph("rect"), slab = glyph("rect-filled");
     QVERIFY2(solidInside(slab), "rect-filled is the SLAB this pair must not be");
     QVERIFY2(!solidInside(rect), "the rect face is an outline");
     QVERIFY2(!solidInside(line), "…and so is the line face");
@@ -7738,6 +7740,7 @@ class MainWindowGuiTest : public QObject {
   // shimmered text-entry control (toolbar spinbox) when visible, else any
   // shimmered toolbutton.
   void hoverShimmerAnimates() {
+    const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
     win.show();
@@ -7786,6 +7789,66 @@ class MainWindowGuiTest : public QObject {
                                       .arg(p2)));
     // The sweep completes and CLEARS — no lingering band on the control.
     QTRY_COMPARE(overlay->property("sweepProgress").toReal(), -1.0);
+    beat();
+  }
+
+  // Every icon button mimes its OWN action on hover (support/iconMotion.hpp, the port of
+  // browser/js/config/iconMotion.json): the trash lid lifts, plus grows, minus shrinks.
+  // Driven here on a REAL toolbar button, for the three things the app-wide contract is
+  // made of — reduced motion wins, the glyph really is repainted, and NOTHING reflows
+  // (only the icon's own pixels change, so a hovered control cannot shove the row).
+  void iconMotionRunsOnToolbarButtonsWithoutReflow() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    // A shown, enabled toolbar button carrying a SETTLE design — it comes back to rest on
+    // its own, so convergence can be asserted without a leave.
+    QToolButton* btn = nullptr;
+    for (QToolButton* b : win.findChildren<QToolButton*>()) {
+      if (!b->isVisible() || !b->isEnabled()
+          || b->property(stencil::gui::kNoIconMotionProperty).toBool())
+        continue;
+      stencil::gui::IconRequest r;
+      if (!stencil::gui::iconRequestForKey(b->icon().cacheKey(), &r)) continue;
+      const stencil::gui::IconMotionSpec* spec = stencil::gui::iconMotionFor(r.name);
+      if (!spec || spec->hold) continue;
+      btn = b;
+      break;
+    }
+    QVERIFY2(btn, "no shown toolbar button with a settle icon motion");
+
+    const auto enter = [](QWidget* w) {
+      QEnterEvent e(QPointF(3, 3), QPointF(3, 3), w->mapToGlobal(QPoint(3, 3)));
+      QApplication::sendEvent(w, &e);
+    };
+    const auto leave = [](QWidget* w) {
+      QEvent e(QEvent::Leave);
+      QApplication::sendEvent(w, &e);
+    };
+    // Every sibling's box, so a reflow anywhere in the row is caught, not just the
+    // hovered button's own.
+    QWidget* row = btn->parentWidget();
+    QList<QRect> before;
+    for (QWidget* w : row->findChildren<QWidget*>()) before << w->geometry();
+
+    // Reduced motion is this suite's default, and the preference wins outright.
+    const qint64 rest = btn->icon().cacheKey();
+    enter(btn);
+    QTest::qWait(80);
+    QCOMPARE(btn->icon().cacheKey(), rest);
+    leave(btn);
+
+    // …and with motion allowed, the hover repaints the glyph and the play lands back on it.
+    const auto motion = withMotion();
+    enter(btn);
+    QTRY_VERIFY2(btn->icon().cacheKey() != rest, "a hover did not move the glyph");
+    QList<QRect> during;
+    for (QWidget* w : row->findChildren<QWidget*>()) during << w->geometry();
+    QCOMPARE(during, before);   // no layout shift, anywhere in the row
+    QTRY_COMPARE(btn->icon().cacheKey(), rest);
+    leave(btn);
     beat();
   }
 
@@ -8505,6 +8568,7 @@ class MainWindowGuiTest : public QObject {
   // Checked on the dock's composer + title bar, the per-message "…", and the
   // context-menu panel's composer.
   void chatIconButtonsShimmerOnHover() {
+    const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
     win.show();

@@ -68,11 +68,11 @@ int main(int argc, char** argv) {
         std::printf("       missing glyph: %s\n", qPrintable(it.key()));
       }
     check(all, "every canon glyph is in the desktop icon table");
-    for (const char* extra : {"power", "search", "more-vertical", "line-dots"})
+    for (const char* extra : {"power", "search", "more-vertical"})
       check(hasIcon(extra), "desktop-only extra glyph present");
     // The draw-mode pair must read as SIBLINGS. Both are stroked outlines on the same
     // grid — neither carries the solid-fill attributes that made rect-filled a slab next
-    // to a pencil. (line-dots' endpoint DOTS are filled; its segment is not.)
+    // to a pencil. (Their endpoint HANDLES are filled dots; the segment and the box are not.)
     check(hasIcon("line") && hasIcon("rect"), "the draw-mode pair is present");
     // The canon now carries the pair itself (`line` + `rect`, the browser's inline
     // DRAW_MODE_ICON scaled onto the 24-grid), so the check is on the BOX element: its

@@ -70,7 +70,7 @@ namespace stencil::gui {
 
   // One side of a toggle: what the button says and shows once it settles there.
   struct FaceSpec {
-    QString glyph;        // iconSet name ("play" / "stop" / "line-dots" / "rect")
+    QString glyph;        // iconSet name ("play" / "stop" / "line" / "rect")
     QString label;        // the word beside it; null = leave the text alone
     QColor glyphColor;    // the glyph's tint at rest
     QColor textColor;     // the label's colour at rest; invalid = don't touch the colour
