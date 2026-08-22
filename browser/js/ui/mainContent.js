@@ -10,25 +10,41 @@ export class StencilMainContent extends StencilElement {
     return `
             <div class="canvas-section">
                 <div class="canvas-viewport" id="canvas-viewport">
+                    <!-- Incognito frame. Four separate edges rather than one CSS outline,
+                         because the dashes have to DRAW ON clockwise from the top-left and
+                         retract the same way out — an outline can only appear all at once.
+                         Always in the DOM at zero length; body.incognito-mode gives the
+                         edges their length. It traces the VIEWPORT — the whole visible
+                         canvas region, picture and the empty ground beside it alike — so it
+                         reads as "this editor is incognito", not as a box around the image.
+                         Sticky, so it holds that edge at any zoom AND scroll offset, and
+                         its height is cancelled again by the negative margin: the frame
+                         must not push the canvas down by a viewport's worth of space. -->
+                    <div class="incognito-frame" aria-hidden="true">
+                        <i class="ig-edge ig-t"></i><i class="ig-edge ig-r"></i>
+                        <i class="ig-edge ig-b"></i><i class="ig-edge ig-l"></i>
+                    </div>
                     <div class="canvas-container" id="canvas-container">
-                        <canvas id="canvas"></canvas>
+                        <!-- tabindex makes the canvas focusable so a click can pull focus off the
+                             chat textarea (controlsBinder pointerdown); -1 keeps it off Tab. -->
+                        <canvas id="canvas" tabindex="-1"></canvas>
                         <div id="zoom-rect-overlay" style="display:none;position:absolute;border:2px dashed #7c3aed;background:rgba(124,58,237,0.08);pointer-events:none;box-sizing:border-box;"></div>
                         ${StencilTooltip.template()}
                     </div>
                     <div class="idle-create" id="idle-create-wrap">
-                        <button id="create-blank-btn" class="idle-create-btn" title="Create a blank image (white, black, or any color) to draw on">
+                        <button id="create-blank-btn" class="idle-create-btn">
                             <span class="idle-create-icon">${icon('image', { size: 32 })}</span>
                             <span>＋ Blank image</span>
                         </button>
                     </div>
                 </div>
-                <div class="coord-status" id="coord-status">Open an image to begin</div>
+                <div class="coord-status" id="coord-status"></div>
                 <div class="drop-hint">${icon('lightbulb', { size: 14 })} Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
             </div>
 
             <!-- Drag handle to resize the coordinates panel (browser parity with the desktop
                  canvas↔panel splitter). Hidden while the panel is collapsed. -->
-            <div class="panel-resizer" id="panel-resizer" title="Drag to resize the panel"></div>
+            <div class="panel-resizer" id="panel-resizer"></div>
 
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
@@ -64,16 +80,36 @@ export class StencilMainContent extends StencilElement {
   static template() { return hostTag('stencil-main-content', 'class="main-content"', StencilMainContent.inner()); }
 
   wire(app) {
+    // The incognito frame is sticky INSIDE the scrolling viewport, so it needs the
+    // viewport's visible size in px — a percentage resolves against the scrollable
+    // content, exactly the box the frame must NOT trace. Resize only: sticky handles
+    // scrolling itself, so nothing runs per scroll frame.
+    const vp = document.getElementById('canvas-viewport');
+    if (vp) {
+      const syncFrameBox = () => {
+        vp.style.setProperty('--vp-w', `${vp.clientWidth}px`);
+        vp.style.setProperty('--vp-h', `${vp.clientHeight}px`);
+      };
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncFrameBox).observe(vp);
+      syncFrameBox();
+    }
     const btn = document.getElementById('toggle-coord-panel');
     const panel = document.getElementById('coord-panel');
     let hidden = false;
+    let foldTimer = 0;
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
       panel.classList.toggle('coord-collapsed', hidden);
-      // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide (collapse →)
-      // and LEFT to show (← expand) — not down, which wrongly implied a downward/bottom collapse.
-      btn.innerHTML = hidden ? icon('chevron-left') : icon('chevron-right');
+      // Hold the tabs/table out of the layout while the panel slides (.coord-folding,
+      // animations.css). Half of --fold-ms: the out-quart ease is ~94% done by then.
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const foldMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-ms')) || 400;
+      panel.classList.add('coord-folding');
+      clearTimeout(foldTimer);
+      foldTimer = setTimeout(() => panel.classList.remove('coord-folding'), reduced ? 0 : foldMs / 2);
+      // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide and
+      // LEFT to show. Not swapped: animations.css spins the one glyph 180° with the slide.
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });

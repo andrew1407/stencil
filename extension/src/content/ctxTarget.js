@@ -20,10 +20,9 @@
   }
 
   // ── Poster snapshot ──────────────────────────────────────────────────────
-  // Some players strip <video poster> once playback starts, so a lazy read finds it
-  // gone. Stamp every video's poster early onto the element (non-empty wins, so a later
-  // empty never clobbers it) where both this probe and the popup scan — same isolated
-  // world — can recover it.
+  // Some players strip <video poster> once playback starts. Stamp every video's poster
+  // early onto the element (non-empty wins) where both this probe and the popup scan —
+  // same isolated world — can recover it.
   const STAMP = '__stencilPoster';
   const rememberPoster = (v) => {
     if (v && v.tagName === 'VIDEO' && v.poster) {
@@ -69,7 +68,7 @@
     let m;
     while ((m = re.exec(bg))) {
       const u = m[2];
-      if (u && !u.toLowerCase().startsWith('data:image/svg')) return u;
+      if (u) return u;
     }
     return null;
   };
@@ -214,9 +213,10 @@
     return { x, y, width: r.width, height: r.height };
   };
 
-  // What can Stencil grab from the element under the cursor? Returns the data the
-  // SW should remember, or null.
-  const resolveTarget = (start, x, y) => {
+  // What can Stencil grab from the element under the cursor? Returns the data the SW
+  // should remember, or null. `light` skips the video FRAME capture: hover priming only
+  // needs WHICH menu group applies, and the click handler re-captures in-page anyway.
+  const resolveTarget = (start, x, y, light) => {
     if (!start) return null;
     // A real <img>/<svg><image>: the native 'image' context already builds the menu, so
     // report ONLY the image URL (as `imgUrl`, never `url`) — enough for the SW to label the
@@ -244,7 +244,7 @@
           poster = rawPoster;
         }
       }
-      const frame = captureVideoFrame(video);
+      const frame = light ? null : captureVideoFrame(video);
       // The video's media URL (http(s) only) — the openable source a pin keys on, so the
       // SW can label the Pin item (Pin ↔ Unpin) for this video.
       const rawMedia = video.currentSrc || video.src || '';
@@ -268,6 +268,48 @@
     return link ? { url: link } : null;
   };
 
+  // The SW may be asleep / the page navigating — a failed send is fine.
+  const send = (data, x, y) => {
+    try {
+      chrome.runtime.sendMessage({ type: MSG.CTX, data, point: { x, y } });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // ── Priming ───────────────────────────────────────────────────────────────
+  // The background/link group is revealed by UPDATING the menu, and an update sent from
+  // `contextmenu` races Chrome's menu render (and loses outright when the MV3 worker
+  // must wake first). So resolve on HOVER too, hundreds of ms early — by right-click
+  // time the worker is warm and the right group is already revealed.
+  const PRIME_MS = 150;
+  let primeAt = 0;
+  let primedEl = null;
+  let primedKey = '';
+  // What the SW would DO with this find — the dedupe key, so hovering ten tiles of the
+  // same background sends one message.
+  const keyOf = (d) => (!d ? '' : `${d.video ? 'v' : 'i'}|${d.url || ''}|${d.imgUrl || ''}|${d.poster || ''}`);
+  const prime = (e) => {
+    const now = Date.now();
+    if (e.target === primedEl && now - primeAt < 1000) return;   // same element, nothing moved
+    if (now - primeAt < PRIME_MS) return;                        // throttle a fast sweep
+    primeAt = now;
+    primedEl = e.target;
+    let data = null;
+    try { data = resolveTarget(e.target, e.clientX, e.clientY, true); } catch { data = null; }
+    const key = keyOf(data);
+    if (key === primedKey) return;                               // nothing changed for the menu
+    primedKey = key;
+    send(data, e.clientX, e.clientY);
+  };
+  document.addEventListener('pointerover', prime, true);
+  document.addEventListener('pointermove', prime, true);
+  // A right-BUTTON press beats `contextmenu` to the punch on every platform — one last
+  // chance to prime before the menu is built.
+  document.addEventListener('mousedown', (e) => { if (e.button === 2) prime(e); }, true);
+
+  // The authoritative resolve: full (frame capture included) and with the exact point,
+  // which the SW uses to re-capture a video frame at click time.
   document.addEventListener('contextmenu', (e) => {
     let data = null;
     try {
@@ -275,14 +317,9 @@
     } catch {
       data = null;
     }
-    // Send the cursor point too: the SW recaptures a video frame in-page at click time
-    // (robust against worker restart / stale frame) and uses it to pick the right video.
-    // The SW may be asleep / page navigating — a failed send is fine.
-    const point = { x: e.clientX, y: e.clientY };
-    try {
-      chrome.runtime.sendMessage({ type: MSG.CTX, data, point });
-    } catch {
-      /* ignore */
-    }
+    primedKey = keyOf(data);
+    primedEl = e.target;
+    primeAt = Date.now();
+    send(data, e.clientX, e.clientY);
   }, true);
 })();

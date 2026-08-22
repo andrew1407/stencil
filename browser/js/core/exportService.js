@@ -1,12 +1,11 @@
-import { notify } from '../utils.js';
+import { notify, shortName } from '../utils.js';
+import { arriveFrom } from '../ui/motion.js';
 import { validateLayout } from './layout.js';
 import { serializeProjectFile, parseProjectFile } from './projectFile.js';
 
 // ── ExportService: image/layout export, clipboard, and file IO ──────
-// Extracted from drawingApp.js (the export/clipboard/upload cluster). Holds no state
-// of its own: it reads the app's editor state and routes every mutation back through
-// the app's shared methods (saveHistory / renderer / coordTable / saveToServer), matching
-// the Renderer/Storage/CoordTable/ZoomPan back-reference collaborator pattern.
+// Holds no state of its own: reads the app's editor state and routes every mutation back
+// through the app's shared methods, matching the back-reference collaborator pattern.
 export class ExportService {
   constructor(app) {
     this.app = app;
@@ -23,10 +22,9 @@ export class ExportService {
     URL.revokeObjectURL(url);
   }
 
-  // Render the image (with its current filter) plus all visible lines/points onto a
-  // fresh full-resolution offscreen canvas. Shared by saveImage / copyImageToClipboard
-  // / shareImage so every image action produces the same annotated result. The renderer's
-  // draw helpers write to app.ctx; point that at the offscreen ctx for the export, then restore.
+  // Render the image (current filter) plus visible lines/points onto a full-resolution
+  // offscreen canvas — shared by saveImage / copyImageToClipboard / shareImage. The
+  // renderer's helpers write to app.ctx; point that at the offscreen ctx, then restore.
   renderExportCanvas() {
     const app = this.app;
     const offscreen = document.createElement('canvas');
@@ -40,7 +38,7 @@ export class ExportService {
       app.lines.forEach(line => app.renderer.drawLine(line, false));
     } else if (app.showPoints) {
       app.lines.forEach(line => {
-        line.points.forEach(p => app.renderer.drawPoint(p, line.color, line.markerSize ?? app.markerSize, false));
+        line.points.forEach(p => app.renderer.drawPoint(p, line.color, line.pointSize ?? app.pointSize, false));
       });
     }
     app.ctx = savedCtx;
@@ -126,40 +124,53 @@ export class ExportService {
   }
 
   // ── Clipboard: copy current image (with active filter) ──
-  // The write() MUST run synchronously inside the Cmd/Ctrl+C user gesture, so the clipboard
-  // gets a Promise-valued ClipboardItem and resolves the PNG blob behind it. Deferring write()
-  // into the async toBlob callback loses the user-activation → NotAllowedError on macOS WebKit
-  // (and intermittently Chrome), so nothing copies. See FEATURE 3 in the change contract.
+  // The write() MUST run synchronously inside the Cmd/Ctrl+C gesture with a Promise-valued
+  // ClipboardItem — deferring into the async toBlob callback loses the user-activation
+  // (NotAllowedError on macOS WebKit). Returns a promise resolving on a successful write
+  // and REJECTING on failure, so a plan-driven copy (§10 `copy` op) can report the outcome.
   copyImageToClipboard() {
-    const app = this.app;
-    if (!app.image) { notify('No image to copy', 'fail'); return; }
-    try {
-      const off = this.renderExportCanvas();
-      const blobP = new Promise((res, rej) =>
-        off.toBlob(b => b ? res(b) : rej(new Error('Image encode failed')), 'image/png'));
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
-        .then(() => notify('Image copied to clipboard', 'ok'))
-        .catch(err => notify('Copy failed: ' + (err.message || err), 'fail'));
-    } catch (e) {
-      notify('Copy failed: ' + e.message, 'fail');
-    }
+    // Rejections are PRE-CAUGHT on a side branch so a fire-and-forget caller (the
+    // toolbar button, the chainable facade) never trips unhandledrejection, while an
+    // awaiting caller (the §10 copy op) still observes the real outcome.
+    const outcome = (() => {
+      const app = this.app;
+      if (!app.image) { notify('No image to copy', 'fail'); return Promise.reject(new Error('No image to copy')); }
+      try {
+        const off = this.renderExportCanvas();
+        const blobP = new Promise((res, rej) =>
+          off.toBlob(b => b ? res(b) : rej(new Error('Image encode failed')), 'image/png'));
+        return navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
+          .then(() => notify('Image copied to clipboard', 'ok'))
+          .catch(err => { notify('Copy failed: ' + (err.message || err), 'fail'); throw err; });
+      } catch (e) {
+        notify('Copy failed: ' + e.message, 'fail');
+        return Promise.reject(e);
+      }
+    })();
+    outcome.catch(() => { /* observed above; awaiting callers re-observe */ });
+    return outcome;
   }
 
   // ── Clipboard: copy layout JSON text ──
   // Copies the FULL layout — lines plus every applied edit (filter/tint, crop, rotation, page
   // format, formulas) via currentLayoutPayload, so a paste reproduces the whole editor state.
   copyLayoutToClipboard() {
-    const app = this.app;
-    if (!app.lines || app.lines.length === 0) {
-      notify('No layout to copy', 'fail');
-      return;
-    }
-    const data = app.currentLayoutPayload();
-    const txt = JSON.stringify(data, null, 2);
-    navigator.clipboard.writeText(txt).then(
-      () => notify('Layout JSON copied', 'ok'),
-      err => notify('Copy failed: ' + (err.message || err), 'fail')
-    );
+    // Same outcome-promise shape as copyImageToClipboard: rejections are pre-caught
+    // on a side branch so fire-and-forget callers (toolbar, chainable facade) never
+    // trip unhandledrejection, while the §10 copy op still observes the real outcome.
+    const outcome = (() => {
+      const app = this.app;
+      if (!app.lines || app.lines.length === 0) {
+        notify('No layout to copy', 'fail');
+        return Promise.reject(new Error('No layout to copy'));
+      }
+      const txt = JSON.stringify(app.currentLayoutPayload(), null, 2);
+      return navigator.clipboard.writeText(txt)
+        .then(() => notify('Layout JSON copied', 'ok'))
+        .catch(err => { notify('Copy failed: ' + (err.message || err), 'fail'); throw err; });
+    })();
+    outcome.catch(() => { /* observed above; awaiting callers re-observe */ });
+    return outcome;
   }
 
   // ── .stencil project file: whole-project save/open (image + layout + metadata + optional theme) ──
@@ -194,7 +205,7 @@ export class ExportService {
 
   // Open a .stencil project from a File (file input / drag-drop) or raw JSON text. Validates,
   // then hands off to DrawingApp.applyProjectFile (which loads it as a fresh local project).
-  async openProjectFile(input) {
+  async openProjectFile(input, { from = null } = {}) {
     const app = this.app;
     let text;
     try { text = typeof input === 'string' ? input : await input.text(); }
@@ -203,7 +214,10 @@ export class ExportService {
     if (!res.ok) { notify('Invalid .stencil file: ' + res.error, 'fail'); return; }
     try {
       const name = await app.applyProjectFile(res.project);
-      notify(`Opened project “${name}”`, 'ok');
+      // Dropped in: the canvas flies out of the drop point (a project opened from the
+      // picker has no point and gets the plain landing).
+      arriveFrom(document.getElementById('canvas-container'), from);
+      notify(`Opened project “${shortName(name)}”`, 'ok');
     } catch (err) {
       notify('Could not open project: ' + (err.message || err), 'fail');
     }
@@ -249,14 +263,14 @@ export class ExportService {
     const name = sync.name || 'this project file';
     if (!(await app.confirm(
       `Delete “${name}” from disk? This can’t be undone. The project stays open here.`,
-      { title: 'Delete project file', confirmLabel: 'Delete file', cancelLabel: 'Cancel' }))) {
+      { title: 'Delete project file', confirmLabel: 'Delete file', confirmIcon: 'trash', cancelLabel: 'Cancel' }))) {
       notify('Delete canceled', 'fail');
       return;
     }
     try {
       await handle.remove();
       sync.unlink();               // stop auto-save/watch — there's no file to sync to anymore
-      notify(`Deleted “${name}”`, 'ok');
+      notify(`Deleted “${shortName(name)}”`, 'ok');
     } catch (err) {
       if (err && err.name === 'AbortError') return;   // some impls surface a cancelled perm prompt as AbortError
       notify('Could not delete file: ' + (err.message || err), 'fail');
@@ -264,11 +278,14 @@ export class ExportService {
   }
 
   // ── Apply a layout object pasted from the clipboard ──
-  async applyPastedLayout(data) {
+  // `from` is the drop point when the layout arrived by drag-and-drop; the canvas plays
+  // in out of it once the lines are installed.
+  async applyPastedLayout(data, from = null) {
     await this.#applyValidatedLayout(data, {
       source: 'pasted JSON',
       cancelMsg: 'Layout paste canceled',
-      successMsg: 'Layout pasted from clipboard'
+      successMsg: 'Layout pasted from clipboard',
+      from,
     });
   }
 
@@ -281,7 +298,7 @@ export class ExportService {
    *   `successMsg` are the toasts shown on cancel and success.
    * @returns {Promise<void>}
    */
-  async #applyValidatedLayout(data, { source, cancelMsg, successMsg }) {
+  async #applyValidatedLayout(data, { source, cancelMsg, successMsg, from = null }) {
     const app = this.app;
     const verdict = validateLayout(data, {
       hasImage: !!app.image,
@@ -293,19 +310,66 @@ export class ExportService {
       notify('Load an image first', 'fail');
       return;
     }
-    if (verdict.needsReplaceConfirm && !(await app.confirm(`Replace current layout with ${source}?`, { title: 'Replace layout' }))) {
-      notify(cancelMsg, 'fail');
-      return;
+    // Existing lines: offer to KEEP them and add the incoming ones on top, rather than
+    // forcing an all-or-nothing replace. Cancel still backs out entirely.
+    let mode = 'replace';
+    if (verdict.needsReplaceConfirm) {
+      const choice = await app.askAlt(
+        `Add ${source} on top of the current layout, or replace it?`,
+        {
+          title: 'Existing layout',
+          // Glyphs for the two real answers: swap one layout for the other, or stack
+          // the incoming lines on the existing ones.
+          confirmLabel: 'Replace', confirmIcon: 'swap',
+          altLabel: 'Combine', altIcon: 'layers',
+        });
+      if (!choice) { notify(cancelMsg, 'fail'); return; }
+      mode = choice === 'alt' ? 'combine' : 'replace';
     }
     if (verdict.needsDimMismatchConfirm && !(await app.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
       notify(cancelMsg, 'fail');
       return;
     }
-    app.lines = verdict.lines;
-    app.saveHistory();
+    this.#installLines(mode === 'combine' ? [...(app.lines || []), ...verdict.lines] : verdict.lines);
+    // Dropped layouts fly in out of the drop point; a paste (no point) just lands.
+    if (from) arriveFrom(document.getElementById('canvas-container'), from);
+    notify(mode === 'combine' ? `${successMsg} (combined)` : successMsg, 'ok');
+  }
+
+  /**
+   * Install a validated line list and refresh everything that reflects it.
+   * @param {Array} lines - Validated lines to become `app.lines`.
+   * @param {{history?: boolean}} [opts] - `history:false` keeps the change out of undo.
+   */
+  #installLines(lines, { history = true } = {}) {
+    const app = this.app;
+    app.lines = lines;
+    if (history) app.saveHistory();
     app.renderer.redraw();
     app.updateButtons();
     if (app.lines.length > 0) app.coordTable.update(app.lines[app.lines.length - 1].points);
-    notify(successMsg, 'ok');
+  }
+
+  /**
+   * Install a layout with NO prompt and NO toast — the programmatic path behind
+   * `stencil.setLines()`. The replace/dimension confirmations exist to protect a user
+   * from a surprise paste; a caller passing lines in code already knows what it is
+   * installing. Returns true when the layout was applied.
+   * @param {object} data - Layout payload (expects a `lines` array).
+   * @param {{history?: boolean}} [opts] - `history:false` keeps it out of undo.
+   * @returns {boolean}
+   */
+  installLayout(data, opts = {}) {
+    const app = this.app;
+    const verdict = validateLayout(data, {
+      hasImage: !!app.image,
+      imgW: app.canvas.width,
+      imgH: app.canvas.height,
+      hasExistingLines: !!(app.lines && app.lines.length > 0),
+    });
+    if (!verdict.ok) return false;
+    const lines = opts.mode === 'combine' ? [...(app.lines || []), ...verdict.lines] : verdict.lines;
+    this.#installLines(lines, opts);
+    return true;
   }
 }

@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { wirePanelResizer } from '../utils.js';
+import { flipFrom } from './motion.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
 // controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
@@ -29,7 +30,7 @@ export class StencilFullscreenLayer extends StencilElement {
     </div>
     <!-- Drag handle to resize the fullscreen points panel (sibling of the panel so the panel's
          innerHTML re-clone doesn't wipe it). Positioned at the panel's left edge via the width var. -->
-    <div id="fs-panel-resizer" title="Drag to resize the panel"></div>
+    <div id="fs-panel-resizer"></div>
     `;
   }
   static template() { return hostTag('stencil-fullscreen-layer', '', StencilFullscreenLayer.inner()); }
@@ -46,23 +47,19 @@ export class StencilFullscreenLayer extends StencilElement {
     let controlsHideTimer = null;
     let pointsHideTimer = null;
 
-    // Populate the fullscreen controls panel by cloning the main controls
     const populateFsControls = () => {
-      // Clone the controls div into the fs panel (after the exit button)
       const existing = fsControlsPanel.querySelector('.controls');
       if (existing) existing.remove();
       const src = document.querySelector('#controls-body .controls');
       if (src) {
         const clone = src.cloneNode(true);
         fsControlsPanel.appendChild(clone);
-        // Note: cloned inputs/buttons are decorative display; interactions remain on originals
-        // Make cloned buttons trigger the originals
         bindClonedControls(fsControlsPanel, src);
       }
     };
 
+    // The clone is display only — every interaction relays to the original controls.
     const bindClonedControls = (cloneRoot, srcRoot) => {
-      // Wire up all interactive elements in the clone to fire events on originals
       srcRoot.querySelectorAll('[id]').forEach(srcEl => {
         const cloneEl = cloneRoot.querySelector('#' + srcEl.id);
         if (!cloneEl) return;
@@ -93,7 +90,6 @@ export class StencilFullscreenLayer extends StencilElement {
       });
     };
 
-    // Populate the fullscreen points panel by mirroring coordPanel
     const populateFsPoints = () => {
       fsPointsPanel.innerHTML = '';
       const src = document.getElementById('coord-panel');
@@ -104,7 +100,7 @@ export class StencilFullscreenLayer extends StencilElement {
         clone.querySelectorAll('[id]').forEach(el => {
           el.id = 'fs-clone-' + el.id;
         });
-        clone.classList.remove('coord-collapsed');
+        clone.classList.remove('coord-collapsed', 'coord-folding');
         clone.style.minWidth = '0';
         clone.style.maxWidth = '100%';
         clone.style.marginTop = '0';
@@ -207,10 +203,9 @@ export class StencilFullscreenLayer extends StencilElement {
 
     // ── Enter / Exit fullscreen ──
     const toggleFullscreen = () => {
-      // Entering fullscreen needs an image to view; block it otherwise (the
-      // Alt+F hotkey and context menu route through here too). Exiting is
-      // always allowed.
-      if (!isFullscreen && !(app && app.image)) return;
+      // Fullscreen is available with or without an image: the empty canvas carries
+      // the "＋ Blank image" invitation and the whole toolbar, so entering it on an
+      // imageless editor is a perfectly good way to start work with more room.
       // ── Save zoom & pan BEFORE switching modes ──
       // We record the image-space point at the viewport centre so we can
       // re-centre on the same spot after the viewport geometry changes.
@@ -224,8 +219,19 @@ export class StencilFullscreenLayer extends StencilElement {
         savedImgCy = (vp.scrollTop  + vp.clientHeight / 2) / savedScale;
       }
 
+      // The box the viewport occupies RIGHT NOW — replayed as the start of the
+      // stretch (entering) or the end of the minimise (leaving) once the mode has
+      // switched and the new box is laid out.
+      const flipFromRect = vp ? vp.getBoundingClientRect() : null;
+
       isFullscreen = !isFullscreen;
       document.body.classList.toggle('fullscreen-mode', isFullscreen);
+      // Components that pin themselves to a toolbar icon need to know: the
+      // toolbar they measured is about to be hidden and re-cloned elsewhere
+      // (the chat panel's popover, chatPanel.js).
+      try {
+        window.dispatchEvent(new CustomEvent('stencil:fullscreen-changed', { detail: { on: isFullscreen } }));
+      } catch { /* no DOM (tests) */ }
       fsBtn.innerHTML = icon('maximize');
       fsBtn.dataset.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode';
       fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
@@ -252,7 +258,6 @@ export class StencilFullscreenLayer extends StencilElement {
         // vp.clientWidth/Height reflect the full-window size.
         requestAnimationFrame(() => {
           restoreView();
-          // Re-show selection panel if a line is selected
           if (app && app.selectedLineIdx >= 0) app.syncFsSelectionPanel(app.lines[app.selectedLineIdx]);
         });
       } else {
@@ -270,6 +275,9 @@ export class StencilFullscreenLayer extends StencilElement {
         if (trigger) trigger.style.height = '8px';
         restoreView();
       }
+      // Measured last, after both branches have settled the viewport's box (the exit
+      // path writes maxHeight, which moves it). Transform-only — nothing above re-runs.
+      flipFrom(vp, flipFromRect);
     };
     // Expose on the shared app instance so the hotkey dispatcher and context
     // menu can reach it without a window global.

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines } from '../js/core/layout.js';
+import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
 
 // ── mergeLines (concurrent co-edit conflict resolution) ──
 test('mergeLines: unions distinct lines from both editors', () => {
@@ -17,8 +17,8 @@ test('mergeLines: identical sets dedupe to one copy', () => {
 });
 test('mergeLines: dedupes the same line regardless of property key order', () => {
   // A locally-authored line vs its server round-tripped twin (re-serialized key order).
-  const local = { points: [{ x: 1, y: 2 }], color: '#f00', thickness: 2, markerSize: 4, style: 'solid', locked: false, fillColor: 'transparent' };
-  const server = { color: '#f00', style: 'solid', thickness: 2, markerSize: 4, locked: false, fillColor: 'transparent', points: [{ x: 1, y: 2 }] };
+  const local = { points: [{ x: 1, y: 2 }], color: '#f00', thickness: 2, pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent' };
+  const server = { color: '#f00', style: 'solid', thickness: 2, pointSize: 4, locked: false, fillColor: 'transparent', points: [{ x: 1, y: 2 }] };
   assert.equal(mergeLines([server], [local]).length, 1);   // must NOT duplicate
 });
 test('mergeLines: handles empty / non-array inputs', () => {
@@ -69,7 +69,8 @@ test('buildLayoutPayload includes crop/rotation/filter only when provided', () =
         imageFilter: 'bw', filterColor: '#7c3aed',
         cropRect: { x: 1, y: 2, width: 3, height: 4 }, rotationQuarters: 3,
     });
-    assert.deepStrictEqual(full.cropRect, { x: 1, y: 2, width: 3, height: 4 });
+    // The internal {width,height} rect leaves in the canonical {w,h} wire spelling.
+    assert.deepStrictEqual(full.cropRect, { x: 1, y: 2, w: 3, h: 4 });
     assert.strictEqual(full.rotationQuarters, 3);
     assert.strictEqual(full.imageFilter, 'bw');
     assert.strictEqual(full.filterColor, '#7c3aed');
@@ -83,6 +84,19 @@ test('buildLayoutPayload includes crop/rotation/filter only when provided', () =
     // rotationQuarters 0 is a meaningful value → kept (not dropped as falsy).
     const zeroRot = buildLayoutPayload({ imageWidth: 1, imageHeight: 1, lines: [], rotationQuarters: 0 });
     assert.strictEqual(zeroRot.rotationQuarters, 0);
+});
+
+test('buildLayoutPayload emits cropRect canonically ({w,h} only, both input spellings)', () => {
+    // Live path: currentLayoutPayload passes the app's internal {width,height} rect.
+    const legacy = buildLayoutPayload({ imageWidth: 10, imageHeight: 20, lines: [], cropRect: { x: 1, y: 2, width: 3, height: 4 } });
+    assert.deepStrictEqual(legacy.cropRect, { x: 1, y: 2, w: 3, h: 4 });
+    assert.ok(!('width' in legacy.cropRect) && !('height' in legacy.cropRect));
+    // Canonical input passes through unchanged (what the corpus fixtures pin).
+    const canon = buildLayoutPayload({ imageWidth: 10, imageHeight: 20, lines: [], cropRect: { x: 1, y: 2, w: 3, h: 4 } });
+    assert.deepStrictEqual(canon.cropRect, { x: 1, y: 2, w: 3, h: 4 });
+    // Both spellings present → canonical wins.
+    const both = buildLayoutPayload({ imageWidth: 1, imageHeight: 1, lines: [], cropRect: { x: 0, y: 0, w: 5, h: 6, width: 9, height: 9 } });
+    assert.deepStrictEqual(both.cropRect, { x: 0, y: 0, w: 5, h: 6 });
 });
 
 test('buildLayoutPayload includes page format + formulas only when provided', () => {
@@ -123,7 +137,7 @@ const sampleState = () => ({
   cropRect: { x: 1, y: 2, width: 3, height: 4 }, rotationQuarters: 0,
   lines: [{ points: [{ x: 1, y: 2 }] }],
   pageSize: 'A3', customPageWidth: 21, customPageHeight: 29.7, unit: 'cm',
-  color: '#FFFF00', thickness: 2, markerSize: 4, style: 'solid',
+  color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid',
   showPoints: true, showLines: true, imageFilter: 'none', filterColor: '#7c3aed',
   zoom: 1, scrollLeft: 0, scrollTop: 0,
   imageBaseName: 'pic', imageExt: 'png', imageSource: null, imageResource: null,
@@ -181,7 +195,7 @@ test('serializeSession serializes byte-identically to the old #buildLayout liter
   "unit": "cm",
   "color": "#FFFF00",
   "thickness": 2,
-  "markerSize": 4,
+  "pointSize": 4,
   "style": "solid",
   "showPoints": true,
   "showLines": true,
@@ -340,4 +354,24 @@ test('defaultBlankSizePx honors a custom dpi', () => {
 
 test('defaultBlankSizePx never collapses below 1px', () => {
     assert.deepStrictEqual(defaultBlankSizePx({ width: 0, height: 0.001 }), { width: 1, height: 1 });
+});
+
+// ── The marker→point rename is a HARD rename ──────────────────────────────────
+// `markerSize` was this field's name before the rename. It is not an accepted alias:
+// readers only know `pointSize`, and writers only ever emit `pointSize`.
+test('sanitizeLines ignores the old markerSize spelling', () => {
+  const [line] = sanitizeLines([{ points: [{ x: 1, y: 2 }], markerSize: 9 }]);
+  assert.ok(!('pointSize' in line), 'markerSize is not read as pointSize');
+  assert.ok(!('markerSize' in line), 'and it is not carried through either');
+});
+
+test('sanitizeLines reads pointSize', () => {
+  const [line] = sanitizeLines([{ points: [{ x: 1, y: 2 }], pointSize: 9 }]);
+  assert.strictEqual(line.pointSize, 9);
+});
+
+test('serializeSession emits pointSize and never markerSize', () => {
+  const payload = serializeSession(sampleState());
+  assert.ok('pointSize' in payload, 'pointSize is written');
+  assert.ok(!('markerSize' in payload), 'the old name is never written');
 });

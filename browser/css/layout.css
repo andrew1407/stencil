@@ -5,6 +5,7 @@
 /* Firefox — only auto/thin/none are available, so we stay 'thin' */
 .canvas-viewport,
 .settings-body,
+#coord-body,
 #fs-points-panel {
     scrollbar-width: thin;
     scrollbar-color: var(--sb-thumb) transparent;
@@ -12,21 +13,25 @@
 /* WebKit / Blink */
 .canvas-viewport::-webkit-scrollbar,
 .settings-body::-webkit-scrollbar,
+#coord-body::-webkit-scrollbar,
 #fs-points-panel::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
 .canvas-viewport::-webkit-scrollbar-track,
 .settings-body::-webkit-scrollbar-track,
+#coord-body::-webkit-scrollbar-track,
 #fs-points-panel::-webkit-scrollbar-track,
 .canvas-viewport::-webkit-scrollbar-corner,
 .settings-body::-webkit-scrollbar-corner,
+#coord-body::-webkit-scrollbar-corner,
 #fs-points-panel::-webkit-scrollbar-corner {
     background: transparent;
 }
 /* Default: visible thumb ~8 px (12 px slot − 2×2 px transparent border) */
 .canvas-viewport::-webkit-scrollbar-thumb,
 .settings-body::-webkit-scrollbar-thumb,
+#coord-body::-webkit-scrollbar-thumb,
 #fs-points-panel::-webkit-scrollbar-thumb {
     background-color: var(--sb-thumb);
     background-clip: padding-box;
@@ -37,6 +42,7 @@
 /* Container hover: thumb fills the slot and darkens slightly */
 .canvas-viewport:hover::-webkit-scrollbar-thumb,
 .settings-body:hover::-webkit-scrollbar-thumb,
+#coord-body:hover::-webkit-scrollbar-thumb,
 #fs-points-panel:hover::-webkit-scrollbar-thumb {
     border-width: 0;
     background-color: var(--sb-thumb-hover);
@@ -44,8 +50,20 @@
 /* Direct thumb hover (about to drag): boldest */
 .canvas-viewport::-webkit-scrollbar-thumb:hover,
 .settings-body::-webkit-scrollbar-thumb:hover,
+#coord-body::-webkit-scrollbar-thumb:hover,
 #fs-points-panel::-webkit-scrollbar-thumb:hover {
     background-color: var(--sb-thumb-active);
+}
+/* The points list ends in delete buttons the scrollbar must not cover. padding-right is what
+   fixes it: macOS overlay scrollbars take no layout space, so scrollbar-gutter has no gutter
+   to stabilise — that only reserves the slot for classic bars, preventing a sideways jump.
+   #fs-points-panel needs no padding here; its 12 px all round (components.css) already clears. */
+#coord-body {
+    padding-right: 10px;
+}
+#coord-body,
+#fs-points-panel {
+    scrollbar-gutter: stable;
 }
 
 * {
@@ -59,10 +77,44 @@ body {
     background: var(--bg-page);
     color: var(--text-main);
     transition: background 0.3s, color 0.3s;
+    /* The editor OWNS the window: a column that is at least as tall as the viewport, so the
+       canvas can take every pixel the toolbar and status rows leave over instead of the page
+       ending halfway down. dvh (with a vh fallback) so a mobile URL bar can't add a scrollbar.
+       The chain continues through #root → .container → .main-content → .canvas-section →
+       .canvas-viewport, each a flex item that grows; break any link and the fill stops. */
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+/* The mount point the whole app renders into — part of the fill chain above. */
+#root {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+    /* Full-bleed: the editor's canvas is the point of the page, so it takes the whole window
+       (minus the body's 20px frame) rather than sitting in a centred 1400px column. */
+    max-width: none;
+    /* NOT `margin: 0 auto`: an auto cross-axis margin switches a flex item off `stretch`,
+       so this box sized itself to its CONTENT and grew past the window whenever the
+       coordinates panel was restored wider than the space left (the toolbar's right-hand
+       sections then ran off the edge and the page took a horizontal scrollbar). Full-bleed
+       means filling the parent, which is what stretch does. */
+    margin: 0;
+    /* …and the whole height, per the fill chain on body. */
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* …and never WIDER than the window. A flex item defaults to min-width:auto, i.e. it
+       refuses to shrink below its content — so a coordinates panel restored at a width the
+       window can no longer fit pushed this box past the viewport and the whole page grew a
+       horizontal scrollbar (the toolbar's right-hand sections ran off the edge). The panel
+       is clamped in utils.js too; this is the backstop that keeps any wide content inside. */
+    min-width: 0;
     background: var(--bg-container);
     padding: 20px;
     border-radius: 8px;
@@ -114,6 +166,23 @@ button {
     border: none;
     transition: background 0.3s;
 }
+/* White-on-accent readability: on a light accent these resolve to a dark shadow
+   (theme.css --glyph-shadow), everywhere else to `none`. Disabled buttons sit on
+   --disabled-bg, not the accent, so they keep the flat look. */
+button:not(:disabled),
+.pill-toggle.on,
+.zoom-menu-item:hover, .zoom-menu-item.active,
+.project-menu-item:hover,
+.notify-toast.notify-info {
+    text-shadow: var(--glyph-text-shadow);
+}
+button:not(:disabled) .ic,
+.pill-toggle.on .ic,
+.zoom-menu-item:hover .ic, .zoom-menu-item.active .ic,
+.project-menu-item:hover .ic,
+.notify-toast.notify-info .ic {
+    filter: var(--glyph-shadow);
+}
 button:hover {
     background: var(--accent-2);
 }
@@ -151,6 +220,15 @@ button.danger:hover {
     gap: 6px;
 }
 .btn-icon-text .ic { vertical-align: 0; }
+/* The two Draw-group toggles swap their own label in place — Start↔Stop, Line↔Rect — and
+   each pairing has a different text width, so an auto-width button resizes under the
+   cursor and shoves the rest of the row sideways mid-click. Pin one width wide enough for
+   the longest label of either pair and centre the content inside it, so toggling changes
+   what the button says and nothing about where anything sits. */
+.btn-draw-fixed {
+    width: 5.5rem;
+    justify-content: center;
+}
 /* Icon-only buttons: square-ish, glyph centered; disabled keeps a clear look. */
 .btn-icon {
     display: inline-flex;
@@ -199,14 +277,18 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
    hover shimmer is an animated background band layered over the field's own background-colour
    (a mostly-transparent white gradient, so the field colour shows through). Selects keep their
    custom carets, so they use the ::after path via the `button` rules only where applicable. */
-input[type="text"], input[type="number"], input[type="search"] {
+input[type="text"], input[type="number"], input[type="search"], input[type="url"],
+input[type="password"], select {
     background-repeat: no-repeat;
     background-size: 250% 100%;
     background-position: 185% 0;
 }
 input[type="text"]:hover:not(:disabled):not(:focus),
 input[type="number"]:hover:not(:disabled):not(:focus),
-input[type="search"]:hover:not(:disabled):not(:focus) {
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled) {
     background-image: linear-gradient(115deg, transparent 42%,
         color-mix(in srgb, #ffffff 26%, transparent) 50%, transparent 58%);
     animation: ui-shimmer-bg 0.75s ease;
@@ -216,7 +298,8 @@ input[type="search"]:hover:not(:disabled):not(:focus) {
     to   { background-position: -85% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-    input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover { animation: none; background-image: none; }
+    input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover,
+    input[type="password"]:hover, select:hover { animation: none; background-image: none; }
 }
 /* Points table rows shimmer on hover too (a background band — table rows can't host an ::after).
    Skips focused/highlighted rows so their own pulse animation isn't overridden. */
@@ -239,7 +322,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     border: 1px solid var(--border-main) !important;
     color: var(--text-main);
     font-size: 18px;
-    padding: 4px 10px;
+    padding: 7px 11px;
     line-height: 1;
     border-radius: 4px;
     cursor: pointer;
@@ -252,19 +335,34 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     display: flex;
     gap: 20px;
     align-items: flex-start;
+    /* Takes the height the toolbar/info rows leave over (fill chain on body). */
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;   /* shrink with the window rather than pushing the page wide */
 }
 .canvas-section {
     flex: 1;
     min-width: 0;
+    /* Full height of the row (the panel beside it keeps hugging its content), and a column
+       so the viewport can grow into the space above the status + drop-hint lines. */
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 .canvas-viewport {
     overflow: auto;
     margin-top: 20px;
     border: 2px solid var(--border-canvas);
     max-width: 100%;
-    /* height set dynamically by JS */
+    /* The end of the fill chain: with no image it takes every remaining pixel; with one,
+       ZoomPan.syncViewportHeight caps it with an inline max-height so the frame hugs the
+       picture and grows with zoom. */
+    flex: 1 1 auto;
+    min-height: 0;
     background: var(--bg-page);
-    cursor: crosshair;
+    /* Cursor: see the canvas-cursor block below — the aim is state-driven, not a constant. */
+    cursor: default;
     /* anchor for the idle blank-image overlay (.idle-create) */
     position: relative;
     /* Touch input: we implement pan/pinch ourselves in #wireTouch, so stop the
@@ -279,6 +377,10 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 .canvas-container {
     position: relative;
     display: inline-block;
+    /* Baseline-aligned inline-blocks reserve descender space under the box, so the
+       viewport scrolled ~4px past a canvas fitted exactly to it. Top-align instead —
+       inline-block still shrink-wraps the canvas. */
+    vertical-align: top;
     /* No border here — border is on viewport */
 }
 /* Golden frame while editing a project stored on a server (mirrors the projects
@@ -359,7 +461,8 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     text-align: center;
     font-weight: bold;
     font-size: 13px;
-    background: var(--input-bg);
+    /* background-COLOR — the id-specificity shorthand would kill the hover sweep below. */
+    background-color: var(--input-bg);
     color: var(--input-text);
     border: 1px solid var(--border-main);
     border-radius: 4px;
@@ -405,13 +508,49 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 canvas {
     display: block;
-    cursor: crosshair;
+    cursor: default;
     transition: width 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94),
                 height 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+/* ── Canvas cursor: the aim only where clicking actually draws ──
+   The crosshair says "click to place a point". An EMPTY editor has nothing to draw on
+   (its canvas is the drop hint + the "＋ Blank image" card), and a COMPARE view is
+   read-only — both used to show the aim anyway. Both classes come from
+   DrawingApp.updateButtons, off state it already had (`!this.image`, compareReadOnly()),
+   so every transition — load, clear, incognito, compare on/off, draw start/stop — moves
+   the cursor with the controls it already greys out. The per-modifier refinements
+   (copy / zoom-in / grab / pointer-over-a-line) stay inline in canvasMouseMove. */
+body:not(.canvas-empty):not(.canvas-readonly) .canvas-viewport,
+body:not(.canvas-empty):not(.canvas-readonly) canvas { cursor: crosshair; }
+/* The canvas is focusable only so a click can pull focus off the chat textarea; never a Tab
+   stop, so a ring would appear on mouse-down only — noise around the whole image. */
+canvas:focus,
+canvas:focus-visible {
+    outline: none;
 }
 canvas.zoom-no-transition {
     transition: none !important;
 }
+/* The image-facts line. The incognito tag appended to it is passive DECOR: toggling
+   the mode must not move a single pixel of the app. The desktop's equivalent label grew
+   when the tag appeared and pushed the canvas and the points panel down (user report),
+   so this row's geometry is PINNED rather than left to the content:
+     · an explicit line-height the tag cannot exceed (an inline-flex child with a 13px
+       glyph would otherwise stretch the line box by a pixel or two on its own);
+     · a min-height of that same line box, so an empty editor and a tagged one match;
+     · no wrapping — at a narrow width the extra words would fold onto a second line
+       and grow the row, which is the same shift by another route.
+   Both incognito states therefore occupy the identical box. */
+/* Folded toolbar: the size line goes with it — the "?" beside the project name carries the
+   same two facts in its bubble (toolbar.js), and leaving the line behind put a full-width
+   band plus 27px of margin between the collapsed header and the canvas.
+   The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 20 (the
+   viewport's own gap under the info line) stacked to 40px of nothing under a header that is
+   itself only 33px tall. Collapsed, the canvas sits right under it. */
+body.controls-collapsed .info { display: none; }
+body.controls-collapsed .controls-topbar { margin-bottom: 0; }
+body.controls-collapsed .controls-wrapper { margin-bottom: 8px; }
+body.controls-collapsed .canvas-viewport { margin-top: 0; }
 .info {
     margin-top: 15px;
     padding: 10px;
@@ -419,15 +558,33 @@ canvas.zoom-no-transition {
     border-radius: 4px;
     font-size: 14px;
     color: var(--text-info);
+    /* A FLEX row, not a line box: an inline tag with vertical-align:middle still
+       stretched the line by ~1.4px however tightly its own height was pinned (measured),
+       and that pushed the canvas and the points panel down. As flex items the text and
+       the tag are laid out against the row's height instead of deciding it. */
+    display: flex;
+    align-items: center;
+    line-height: 20px;
+    min-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 input[type="number"] {
     width: 80px;
 }
+/* Color pickers share the dark input chrome (the UA default is a white chip that
+   clashes with the sibling fields); the swatch fills the chip inside a thin frame. */
 input[type="color"] {
-    width: 60px;
-    height: 38px;
+    /* Sized to the neighbouring fields (thickness/point inputs ≈ 34px tall) —
+       a fixed 60×38 read as a huge colour slab next to them. */
+    width: 46px;
+    height: 34px;
     cursor: pointer;
+    padding: 4px;
+    background: var(--input-bg);
 }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main); border-radius: 3px; }
 .empty-message {
     text-align: center;
     padding: 20px;
@@ -477,8 +634,13 @@ input[type="color"] {
 .controls-wrapper { margin-bottom: 12px; }
 .controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 /* App logo — its panel outline tracks the chosen accent (the rest of the mark is
-   fixed brand art). A gentle hover lift to match the toolbar's other affordances. */
-.app-logo { flex: 0 0 auto; display: block; transition: transform 0.2s ease; }
+   fixed brand art). A gentle hover lift to match the toolbar's other affordances;
+   animations.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
+   for the absolutely-positioned ray layer (and the parked colour-picker input) —
+   z-index:0 makes it a stacking context so the rays' z-index:-1 stays INSIDE it
+   (behind the mark, above the toolbar) instead of dropping behind the page. */
+.app-logo-wrap { flex: 0 0 auto; position: relative; z-index: 0; display: block; }
+.app-logo { display: block; transition: transform 0.2s ease, filter 0.2s ease; }
 .app-logo:hover { transform: scale(1.08); }
 .app-logo-frame { stroke: var(--accent); transition: stroke 0.2s ease; }
 /* Project-name field in the topbar: a read-only title by default. Renaming is
@@ -521,7 +683,8 @@ input[type="color"] {
 }
 #toggle-controls:hover { background: var(--bg-info); }
 .controls { margin-bottom: 0; }
-#controls-body.hidden { display: none; }
+/* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations.css,
+   so the toolbar animates away instead of vanishing between two frames. */
 
 /* hints popup on ? icon */
 .hints-popup {
@@ -541,6 +704,46 @@ input[type="color"] {
     pointer-events: none;
 }
 #hints-btn:hover .hints-popup { display: block; }
+/* Second (and only other) fact in the bubble: this session is never saved. Same accent the
+   canvas frame uses, on its own line under the size. */
+.hints-incognito {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    color: var(--accent);
+    font-weight: 600;
+}
+/* The same fact on the info line itself (drawingApp.updateInfo), so the mode reads
+   beside the image facts — including in an empty editor, where there are none.
+   inline-flex + gap aligns the glyph with the words; the glyph strokes in
+   currentColor, so it is accent-coloured by this rule alone. */
+.info-incognito {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    vertical-align: middle;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+    /* Locked to the row's height: the tag can never be what decides it. */
+    line-height: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+/* display:block drops the glyph's inline baseline contribution — an inline svg sits on
+   the text baseline and adds descender space under it, which is exactly the pixel or
+   two that moved the canvas. 13px inside a 20px line box has room to spare. */
+.info-incognito .ic { display: block; flex: 0 0 auto; }
+/* The divider between the image facts and the mode tag — muted, never selectable,
+   and only ever present when the tag is (drawingApp.updateInfo builds the pair). */
+.info-divider {
+    margin: 0 8px;
+    color: var(--text-muted);
+    flex: 0 0 auto;
+    -webkit-user-select: none;
+    user-select: none;
+}
 
 /* ── Coordinates panel ── */
 .coordinates-panel {
@@ -555,6 +758,27 @@ input[type="color"] {
     border-radius: 5px;
     margin-top: 20px;
     transition: padding 0.2s;
+    /* A long point list must scroll INSIDE the panel, not stretch the page under the
+       canvas. Sticky keeps it in view while the rest of the page scrolls. */
+    position: sticky;
+    top: 20px;
+    /* max-height is set by JS (ZoomPan.syncCoordPanelHeight), NOT here: the panel starts
+       below the toolbar, so a `calc(100vh - …)` cap over-reports its room by however far
+       down it sits and let a ~40-row outline run past the window bottom. This is the
+       boot-time fallback for the frame before the first measurement lands. */
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+#coord-body {
+    overflow-y: auto;
+    min-height: 0;   /* a flex child defaults to min-content — without this it never shrinks */
+}
+/* Column headers stay put while the rows scroll under them. */
+.coordinates-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 /* Vertical drag handle between the canvas and the coordinates panel — the browser counterpart of
    the desktop canvas↔panel splitter. Sits in the .main-content flex row (see mainContent.js). */
@@ -586,10 +810,14 @@ input[type="color"] {
 /* No resizing while the panel is collapsed to its 36px rail. */
 .main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
 .coordinates-panel.coord-collapsed {
-    min-width: unset;
+    /* 0, not `unset`: `min-width: auto` cannot be interpolated, and with `unset` the
+       240px floor snapped back the instant the class came off — the panel jumped most of
+       the way open before the width transition (animations.css) had anything left to do. */
+    min-width: 0;
     max-width: unset;
     width: 36px;
-    padding: 6px 0;
+    /* Symmetric, so the right-aligned button lands dead centre: 36 - 4 - 28 - 4. */
+    padding: 6px 4px;
     overflow: hidden;
 }
 .coord-panel-header {
@@ -600,32 +828,33 @@ input[type="color"] {
     gap: 6px;
     white-space: nowrap;
 }
+/* One 28px rounded square in BOTH states — open and collapsed to the rail. It used to be
+   a 30x22 pill here (a 16px glyph in a 14.3px line box: 7px of side padding against 3px
+   above and below) that turned into a square on collapse, so the same control changed
+   shape and sat cramped whenever the panel was open. */
 #toggle-coord-panel {
     background: transparent;
     border: 1px solid var(--border-main) !important;
     color: var(--text-muted);
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    line-height: 1;
+    border-radius: 8px;
     cursor: pointer;
-    line-height: 1.3;
     flex-shrink: 0;
+    /* Keeps it pinned right once the tabs are gone and it is the header's only child. */
+    margin-left: auto;
 }
 #toggle-coord-panel:hover { background: var(--bg-info); }
-.coordinates-panel.coord-collapsed #toggle-coord-panel {
-    border: none !important;
-    font-size: 16px;
-    padding: 2px 4px;
-    margin: 0 auto;
-    display: block;
-}
+/* On the rail it keeps that box and just drops the outline. */
+.coordinates-panel.coord-collapsed #toggle-coord-panel { border: none !important; }
 .coordinates-panel.coord-collapsed #coord-body { display: none; }
 .coordinates-panel.coord-collapsed .coord-tabs { display: none; }
-.coordinates-panel.coord-collapsed .coord-panel-header {
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 0;
-}
+.coordinates-panel.coord-collapsed .coord-panel-header { margin-bottom: 0; }
 
 /* ── Points | Lines tab strip ── */
 .coord-tabs { display: inline-flex; gap: 2px; }
@@ -661,6 +890,10 @@ input[type="color"] {
     font-size: 12px;
 }
 .lines-row:hover { background: var(--bg-coord-hover); }
+/* Canvas-driven counterpart of :hover — the row whose line is under the canvas cursor. */
+.lines-row-hover:not(.lines-row-selected) {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .lines-row-selected {
     border-color: var(--accent);
     box-shadow: inset 0 0 0 1px var(--accent);

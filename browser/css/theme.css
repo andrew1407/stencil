@@ -6,6 +6,13 @@
        (see below + js/core/accents.js); default violet. */
     --accent:         #7c3aed;
     --accent-2:       color-mix(in srgb, var(--accent) 86%, black);
+    /* Accent-backed controls paint WHITE icons/labels. On a light accent (cyan,
+       yellow, sky) that white washes out, so <html data-accent-light> — set from the
+       accent's WCAG contrast by js/core/accents.js + prePaintTheme.js — switches these
+       from `none` to a dark shadow that keeps the glyph readable without abandoning
+       the white mark. Same trick as --project-name-shadow below. */
+    --glyph-shadow:      none;
+    --glyph-text-shadow: none;
     --bg-page:        #f0f0f0;
     --bg-container:   #ffffff;
     --bg-controls:    #f8f9fa;
@@ -80,6 +87,16 @@
 :root[data-accent="green"]   { --accent: #047857; }
 :root[data-accent="brown"]   { --accent: #a87c50; }
 :root[data-accent="grey"]    { --accent: #64748b; }
+
+/* A light accent (white-on-accent below 3:1) turns the glyph shadow on. The flag is
+   set from the RESOLVED accent hex, so custom colours get it too — not just presets. */
+:root[data-accent-light] {
+    /* A tight dark halo (readable outline for thin stroked line-art) plus a small
+       offset drop for depth. Two shadows, because a single offset one leaves the
+       stroke's upper edge bleeding into a bright fill. */
+    --glyph-shadow:      drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+    --glyph-text-shadow: 0 0 2px rgba(0, 0, 0, 0.75), 0 1px 1px rgba(0, 0, 0, 0.5);
+}
 
 [data-theme="dark"] {
     /* Same accent (from :root / data-accent); only the shade flips lighter. */

@@ -8,20 +8,19 @@
 // and it handles a couple of types LOCALLY (never relaying them): PAGE_REQUEST_SYNC re-pushes
 // state, PAGE_SET_FILTERS writes shared storage. Everything else is relayed verbatim.
 //
-// No exports — we install a fake window/chrome on globalThis and import for the side effect,
+// No exports — we install a stub window/chrome on globalThis and import for the side effect,
 // busting the ESM cache with a unique ?case= per scenario (same pattern as editorBridge.test.js
 // and pageApiMain.test.js). A fresh window per case also resets the __stencilPageBridge guard.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { installChromeStub } from './helpers/chromeStub.js';
 
 const SRC_PAGE_API = 'stencil-page-api';
 const MSG = { PAGE_REQUEST_SYNC: 'stencil-page-request-sync', PAGE_SET_FILTERS: 'stencil-page-set-filters', PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_PIN: 'stencil-page-pin' };
 const FILTERS_KEY = 'popupFilters';
 
 const setupEnv = () => {
-  const sent = [];           // chrome.runtime.sendMessage payloads (i.e. relayed messages)
-  const storageSets = [];    // chrome.storage.local.set payloads
   const messageListeners = [];
   const win = {
     addEventListener(type, fn) { if (type === 'message') messageListeners.push(fn); },
@@ -31,15 +30,9 @@ const setupEnv = () => {
   const dispatch = (data, source = win) => { for (const fn of messageListeners) fn({ source, data }); };
   globalThis.window = win;
   globalThis.location = { href: 'https://site.example/page' };
-  globalThis.chrome = {
-    runtime: { sendMessage: (m) => { sent.push(m); return Promise.resolve(); } },
-    storage: {
-      local: { get: async () => ({}), set: (v) => { storageSets.push(v); } },
-      sync: { get: async () => ({}) },
-      onChanged: { addListener() {} },
-    },
-  };
-  return { sent, storageSets, win, dispatch };
+  const stub = installChromeStub();
+  // sent = runtime.sendMessage payloads (relayed messages); storageSets = local.set payloads.
+  return { sent: stub.sent, storageSets: stub.sets, win, dispatch };
 };
 
 let caseId = 0;
@@ -107,4 +100,20 @@ test('other message types (PAGE_PIN, PAGE_CROP) are relayed verbatim', async () 
   dispatch({ source: SRC_PAGE_API, message: pin });
   dispatch({ source: SRC_PAGE_API, message: crop });
   assert.deepEqual(sent, [pin, crop]);
+});
+
+// Runs on every page browsed when the page API is on, and `e.source === window` only proves
+// same-document — unrestricted, any site could post the cross-tab types.
+test('the relay is a whitelist: cross-tab types from a page never reach the SW', async () => {
+  const { sent, dispatch } = setupEnv();
+  await loadBridge();
+  sent.length = 0;
+
+  for (const type of ['stencil-scan-tab', 'stencil-source-tabs', 'stencil-editor-list', 'stencil-editor-focus-tab', 'stencil-editor-import'])
+    dispatch({ source: SRC_PAGE_API, message: { type, tabId: 7 } });
+  assert.deepEqual(sent, []);
+
+  // The page API's own surface still relays.
+  dispatch({ source: SRC_PAGE_API, message: { type: MSG.PAGE_CROP, url: 'https://cdn/a.png' } });
+  assert.equal(sent.length, 1);
 });

@@ -162,7 +162,7 @@ wtest('pageDimensions: every named format matches PAGE_SIZES (portrait + landsca
 wtest('shouldCloseShape: wasm matches the JS close gate (flat point array)', () => {
   const fn = core.op('shouldCloseShape');
   const sq = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
-  assert.strictEqual(fn(sq, { x: 2, y: 2 }, 4), true);   // ≥3 pts, within markerSize+8
+  assert.strictEqual(fn(sq, { x: 2, y: 2 }, 4), true);   // ≥3 pts, within pointSize+8
   assert.strictEqual(fn(sq, { x: 50, y: 50 }, 4), false); // too far
   assert.strictEqual(fn(sq.slice(0, 2), { x: 0, y: 0 }, 4), false); // <3 pts
 });

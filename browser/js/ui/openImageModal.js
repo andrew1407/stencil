@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
+import { wireModalOpenGestures } from './popover.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
@@ -8,18 +9,10 @@ import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, isAlbu
 const { PAGE_SIZES } = constants;
 
 // ── Component: unified "Open Image" dialog ──────────────────────
-// The SINGLE way to get an image into the editor, presented as three tabs:
-//   • Local file — pick an image/video file
-//   • URL link   — load an image/video straight from the web
-//   • Blank      — create a solid-color canvas
-// It replaces the old split of {toolbar file picker, "open another image", the Links
-// modal's add-by-URL section, and the separate Blank Image modal}. Opened from the
-// toolbar's top-left Open button; the blank shortcuts (idle canvas + projects footer)
-// open it on the Blank tab.
-//
+// The SINGLE way to get an image into the editor: Local file / URL link / Blank tabs.
+// The blank shortcuts (idle canvas + projects footer) open it on the Blank tab.
 // The modal DOM is built once and reused for the app's lifetime, so onOpen MUST reset
-// every field (active tab, file, url, blank color/size) — otherwise the previous
-// open's input leaks into the next.
+// every field — otherwise the previous open's input leaks into the next.
 export class StencilOpenImageModal extends StencilElement {
   static inner() {
     return `
@@ -217,6 +210,10 @@ export class StencilOpenImageModal extends StencilElement {
     // A URL source previews only after the user presses Preview (validated) — never on
     // keystroke. This tracks whether that preview is currently live for the typed URL.
     let urlPreviewLoaded = false;
+    // …and this, whether a URL preview is on screen AT ALL: fetched once, it stays up
+    // while the URL is corrected. Stale only means it no longer speaks for the typed
+    // URL — crop/scrubber go, and opening re-resolves the typed text.
+    let urlPreviewShown = false;
 
     const revokePreviewUrl = () => { if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; } };
 
@@ -263,7 +260,6 @@ export class StencilOpenImageModal extends StencilElement {
       else renderCropBox();
     });
 
-    // Whether the crop editor should be visible: crop enabled on a live preview.
     const cropEnabled = () => cropToggle.checked && previewReady();
 
     // Capture the current video frame to the preview <img> (the crop stage), reusing the
@@ -279,7 +275,6 @@ export class StencilOpenImageModal extends StencilElement {
         });
     };
 
-    // Hide the whole crop overlay (box + dimming backdrop + dims readout) in one call.
     const hideCropOverlay = () => {
       cropBox.style.display = 'none';
       cropShade.style.display = 'none';
@@ -289,7 +284,9 @@ export class StencilOpenImageModal extends StencilElement {
     // Reflect the current source + crop state into the preview area (visibility + sources).
     const syncPreview = () => {
       const show = previewReady();
-      previewWrap.style.display = show ? '' : 'none';
+      // The picture may outlive its liveness (see urlPreviewShown) — everything that ACTS
+      // on the source still goes with `show`.
+      previewWrap.style.display = (show || urlPreviewShown) ? '' : 'none';
       cropRow.style.display = show ? '' : 'none';
       orientBtn.style.display = show && cropToggle.checked ? '' : 'none';
       if (!show) { hideCropOverlay(); return; }
@@ -344,10 +341,9 @@ export class StencilOpenImageModal extends StencilElement {
       frameRow.style.display = (isVideoSource() && previewReady()) ? '' : 'none';
     };
 
-    // The options passed to the open action. Crop on + measured → the chosen rect; otherwise
-    // `noCrop` so the WHOLE frame imports (unchecked ⇒ no crop at all, not the default
-    // page-aspect auto-crop). A URL source also carries its own URL as provenance, so a
-    // dialog-opened URL image matches later (e.g. the extension's resume-by-source).
+    // Crop on + measured → the chosen rect; otherwise `noCrop` so the WHOLE frame
+    // imports (not the default page-aspect auto-crop). A URL source carries its own URL
+    // as provenance, so it matches later (e.g. the extension's resume-by-source).
     const openOpts = () => {
       const o = (cropEnabled() && cropRect.width >= 1 && cropRect.height >= 1)
         ? { crop: { ...cropRect } } : { noCrop: true };
@@ -370,19 +366,19 @@ export class StencilOpenImageModal extends StencilElement {
       replaceRow.style.display = showReplace ? '' : 'none';
       replaceBtn.style.display = showReplace ? '' : 'none';
       // A URL never auto-previews (Preview button only); other tabs rebuild to match the source.
-      urlPreviewLoaded = false;
+      urlPreviewLoaded = urlPreviewShown = false;
       refresh();
       if (activeTab === 'url') syncPreview(); else loadPreviewMedia();
     };
 
     // The toolbar's Open button (empty state) is this modal's primary trigger.
-    const { open, close } = wireModalShell(overlay, $('load-image-btn'), closeBtn, {
+    const { open, close, openPopover } = wireModalShell(overlay, $('load-image-btn'), closeBtn, {
       onOpen: () => {
         fileEl.value = '';
         urlEl.value = '';
         if (frameEl) frameEl.value = '0';   // reset the video frame-time (full-reset contract)
         // Full-reset the preview + inline crop so a prior open's image never leaks in.
-        urlPreviewLoaded = false;
+        urlPreviewLoaded = urlPreviewShown = false;
         revokePreviewUrl();
         cropToggle.checked = false;
         cropIw = cropIh = 0;
@@ -413,16 +409,22 @@ export class StencilOpenImageModal extends StencilElement {
       }
     });
     // Open straight on the Blank tab (idle-canvas + projects-footer shortcuts).
-    const openBlank = () => { open(); setTab('blank'); };
+    // `from` = the control that asked, so the dialog grows out of THAT (the idle
+    // canvas card, the projects footer button) rather than the toolbar icon.
+    const openBlank = (from) => { open(from); setTab('blank'); };
 
     // Every trigger opens THIS one dialog. Cancel is another close path.
     cancelBtn.addEventListener('click', close);
-    $('open-image-btn')?.addEventListener('click', open);   // shown once an image exists
-    $('create-blank-btn')?.addEventListener('click', openBlank);
+    // The open-ANOTHER icon (shown once an image exists) answers the same popover
+    // gestures as the primary trigger: dblclick / right-click / long press pin the
+    // compact shape to THIS icon instead of centring the full dialog.
+    const anotherBtn = $('open-image-btn');
+    if (anotherBtn) wireModalOpenGestures(anotherBtn, { openFull: open, openPopover: () => openPopover(anotherBtn) });
+    $('create-blank-btn')?.addEventListener('click', () => openBlank($('create-blank-btn')));
     // Projects footer: close that modal (via its own close, so its handlers run) first.
     $('projects-blank-image')?.addEventListener('click', () => {
       $('projects-close')?.click();
-      openBlank();
+      openBlank($('projects-blank-image'));
     });
 
     tabs.forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
@@ -433,13 +435,14 @@ export class StencilOpenImageModal extends StencilElement {
     });
 
     fileEl.addEventListener('change', () => { refresh(); loadPreviewMedia(); });
-    // Editing the URL invalidates any showing preview (it's now for a different URL) — hide it
-    // until the user presses Preview again. Never auto-fetches on keystroke.
+    // Editing the URL retires the preview without taking it off the screen: no longer
+    // this URL's preview (no crop/scrubber; open re-resolves the typed text), but the
+    // picture stays up until another is asked for. Never auto-fetches on keystroke.
     urlEl.addEventListener('input', () => { urlPreviewLoaded = false; refresh(); syncPreview(); });
     // Explicit URL preview: validate, then load the media. Enter in the field does the same.
     const doUrlPreview = () => {
       if (!isPreviewableUrl(urlVal())) { notify('Enter a valid image or video URL (http/https or data:).', 'fail'); return; }
-      urlPreviewLoaded = true;
+      urlPreviewLoaded = urlPreviewShown = true;
       refresh();
       loadPreviewMedia();
     };
@@ -564,7 +567,7 @@ export class StencilOpenImageModal extends StencilElement {
         notify('Width and height must be 1–8192 px', 'fail');
         return;
       }
-      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image' }))) return;
+      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image', confirmIcon: 'swap' }))) return;
       const address = (targetEl && targetEl.value) || undefined;
       app.createBlankImage({ color: colorEl.value, width: w, height: h, address })
         .then(() => { close(); notify(`Blank ${w}×${h} image created`, 'ok'); })

@@ -46,12 +46,12 @@
   </main>
   <script>
     (() => {
-      const marker = '#stencil-desktop=';
+      const prefix = '#stencil-desktop=';
       const hash = location.hash || '';
       const errEl = document.getElementById('error');
-      if (!hash.startsWith(marker)) { errEl.hidden = false; return; }
+      if (!hash.startsWith(prefix)) { errEl.hidden = false; return; }
       let url = '';
-      try { url = decodeURIComponent(hash.slice(marker.length)); } catch { /* fall through */ }
+      try { url = decodeURIComponent(hash.slice(prefix.length)); } catch { /* fall through */ }
       // Only ever forward to the stencil: scheme — anything else (javascript:, http:, …)
       // would turn this page into an open redirector.
       let ok = false;

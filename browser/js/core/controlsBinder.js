@@ -1,18 +1,46 @@
-import { setVal, notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles } from '../utils.js';
+import { notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect } from '../utils.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
 import { COMPARE_MODES } from './settingsController.js';
 import { icon } from '../ui/icons.js';
 import { applyAccentFavicon, normalizeHex } from './accents.js';
-import { extractDraggedImageUrl } from './dragImageUrl.js';
+import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from './dragImageUrl.js';
+import { showDropOverlay, hideDropOverlay } from '../ui/dropOverlay.js';
+
+// Chords that must work even while a text box has focus. These windows autofocus an
+// input, so a blanket typing guard would make their toggles one-way — able to open the
+// panel but never close it from inside the box, exactly when the shortcut is wanted.
+export const HOTKEYS_WHILE_TYPING = [
+  'toggleChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
+];
+
+// Which of those a keydown matches while typing, or null for "let the text box have it".
+export const typingHotkeyId = (e, hotkeys, ids = HOTKEYS_WHILE_TYPING) => {
+  for (const id of ids) {
+    const combo = hotkeys.get(id);
+    if (combo && matchHotkey(e, combo)) return id;
+  }
+  return null;
+};
+
+// The native colour picker anchors to the INPUT's box, and the 1px hidden inputs sit at
+// their positioned ancestor's origin — far from the swatch the user clicked. Pin the
+// input just under the invoking button first.
+export const anchorPickerInput = (input, btn) => {
+  const r = btn?.getBoundingClientRect?.();
+  if (!r) return;
+  input.style.position = 'fixed';
+  input.style.left = `${Math.round(r.left)}px`;
+  input.style.top = `${Math.round(r.bottom)}px`;
+};
+
+
 
 // ── ControlsBinder: DOM event wiring for the toolbars, keyboard, and canvas ─────
-// Extracted from drawingApp.js: the #wire* family that binds every control group to the app's
-// public methods (setColor/setPageSize/undo/…). Pure glue — it holds only the three gesture-loop
-// bits internal to the wiring (arrow-pan key set + rAF, smooth-zoom animation state); all editor
-// state + behavior lives on the back-referenced app. initEventListeners() calls these in a fixed
-// source order (document-level listener dispatch order depends on it) via this.controls.wire*().
+// Pure glue: binds each control group to the app's public methods; only the gesture-loop
+// bits (arrow-pan keys + rAF, smooth-zoom state) live here. initEventListeners() calls
+// these in fixed source order — document-level listener dispatch order depends on it.
 export class ControlsBinder {
   // Arrow-key panning: held keys + the rAF handle driving the pan loop.
   #arrowsHeld = new Set();
@@ -40,11 +68,12 @@ export class ControlsBinder {
     document.getElementById('rotate-left').addEventListener('click', () => app.imageModel.rotateImage(-1));
     document.getElementById('rotate-right').addEventListener('click', () => app.imageModel.rotateImage(1));
     document.getElementById('line-color').addEventListener('change', e => app.settings.setColor(e.target.value));
+    document.getElementById('point-color').addEventListener('change', e => app.settings.setPointColor(e.target.value));
     // Live drag (input) previews without persisting; the trailing change commits.
     document.getElementById('line-thickness').addEventListener('input', e => app.settings.setThickness(e.target.value, { persist: false }));
     document.getElementById('line-thickness').addEventListener('change', e => app.settings.setThickness(e.target.value));
-    document.getElementById('marker-size').addEventListener('input', e => app.settings.setMarkerSize(e.target.value, { persist: false }));
-    document.getElementById('marker-size').addEventListener('change', e => app.settings.setMarkerSize(e.target.value));
+    document.getElementById('point-size').addEventListener('input', e => app.settings.setPointSize(e.target.value, { persist: false }));
+    document.getElementById('point-size').addEventListener('change', e => app.settings.setPointSize(e.target.value));
     document.getElementById('line-style').addEventListener('change', e => app.settings.setLineStyle(e.target.value));
     document.getElementById('image-filter').addEventListener('change', e => app.settings.setImageFilter(e.target.value));
     let filterColorTimer = null;
@@ -61,8 +90,9 @@ export class ControlsBinder {
   wireSelectionPanelControls() {
     const app = this.app;
     document.getElementById('sel-color').addEventListener('input', e => app.applySelectionChange('color', e.target.value));
+    document.getElementById('sel-point-color').addEventListener('input', e => app.applySelectionChange('pointColor', e.target.value));
     document.getElementById('sel-thickness').addEventListener('change', e => app.applySelectionChange('thickness', parseInt(e.target.value)));
-    document.getElementById('sel-marker-size').addEventListener('change', e => app.applySelectionChange('marker-size', parseInt(e.target.value)));
+    document.getElementById('sel-point-size').addEventListener('change', e => app.applySelectionChange('point-size', parseInt(e.target.value)));
     document.getElementById('sel-style').addEventListener('change', e => app.applySelectionChange('style', e.target.value));
     document.getElementById('sel-fill-enabled').addEventListener('change', () => app.applyFill());
     document.getElementById('sel-fill').addEventListener('input', () => {
@@ -91,52 +121,36 @@ export class ControlsBinder {
     });
     const unitSel = document.getElementById('unit-select');
     if (unitSel) unitSel.addEventListener('change', e => app.settings.setUnit(e.target.value));
-    // Swap the native popups (whose position macOS controls) for custom dropdowns
-    // anchored below the control. The native <select>s stay as the state source, so
-    // the change listeners above and every setVal('page-size'|'unit-select') keep working.
-    // Page size gets a search bar (33 ISO formats — scrolling alone is too slow).
+    // Swap the native popups (whose position and palette macOS controls) for the app's own
+    // dropdown; the native <select>s stay the state source, so the change listeners and
+    // setVal(...) keep working. Page size gets a search bar (33 ISO formats).
     enhanceSelect(document.getElementById('page-size'), { search: true });
     enhanceSelect(unitSel);
     document.getElementById('show-points').addEventListener('change', e => app.settings.setShowPoints(e.target.checked));
     document.getElementById('show-lines').addEventListener('change', e => app.settings.setShowLines(e.target.checked));
     const compareSel = document.getElementById('compare-mode');
-    // Left as a native <select> (like #image-filter / #line-style) so it honors the
-    // no-image disabled state and shows its multi-line mode-list title on hover.
     if (compareSel) compareSel.addEventListener('change', e => app.settings.setCompareMode(e.target.value));
   }
 
   wireFormulaControls() {
     const app = this.app;
-    const validateAndApplyFormulas = () => {
-      const fxVal = document.getElementById('formula-x').value.trim();
-      const fyVal = document.getElementById('formula-y').value.trim();
-      const okX = app.formula.validate(fxVal, 'x');
-      const okY = app.formula.validate(fyVal, 'y');
-      app.settings.showFormulaError(!okX || !okY);
-      if (okX && okY) {
-        app.formulaX = fxVal;
-        app.formulaY = fyVal;
-        setVal('ctx-formula-x', fxVal);
-        setVal('ctx-formula-y', fyVal);
-        app.settings.refreshFormulaCoords();
-        app.storage.save();
-        app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
-      }
-    };
     document.getElementById('allow-formulas').addEventListener('change', e => {
       e.target.closest('.pill-toggle')?.classList.toggle('on', e.target.checked);
       app.settings.setAllowFormulas(e.target.checked);
     });
-    document.getElementById('formula-x').addEventListener('input', validateAndApplyFormulas);
-    document.getElementById('formula-y').addEventListener('input', validateAndApplyFormulas);
+    // Typing settles → the formula applies (mirrored into the context-menu twins). The
+    // debounce and the "don't judge a half-written expression" rule live in the shared
+    // wiring; the context menu's pair goes through the same call — see settingsController.
+    app.settings.wireFormulaInputs({
+      x: 'formula-x', y: 'formula-y', mirrorX: 'ctx-formula-x', mirrorY: 'ctx-formula-y',
+    });
   }
 
   wireToolbarButtons() {
     const app = this.app;
-    // Topbar project-name field: read-only title, renames inline on demand. Double-click
-    // (or hover ✎) to edit; ✓/✗ show ONLY while editing. ✓ enabled for a changed, valid
-    // (non-empty, unique) name; ✓/Enter commit, ✗/Escape/click-away revert. Incognito / no
-    // project never expose ✎ or ✓/✗.
+    // Topbar project-name field: double-click (or hover ✎) edits inline; ✓/✗ show ONLY
+    // while editing — ✓ enabled for a changed, valid (non-empty, unique) name; ✓/Enter
+    // commit, ✗/Escape/click-away revert. Incognito / no project never expose ✎ or ✓/✗.
     const nameInput = document.getElementById('project-name-input');
     const nameEdit = document.getElementById('project-name-edit');
     const nameAccept = document.getElementById('project-name-accept');
@@ -196,6 +210,7 @@ export class ControlsBinder {
         // No custom colour → open at the neutral grey the name is actually painted in (the unset
         // default), not the theme accent, so the picker reflects the real current state.
         colorInput.value = normalizeHex(cur) || '#80868f';
+        anchorPickerInput(colorInput, colorBtn);
         try {
           if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
           else colorInput.click();
@@ -221,9 +236,9 @@ export class ControlsBinder {
           b.addEventListener('click', ev => { ev.stopPropagation(); menu.remove(); onClick(); });
           menu.appendChild(b);
         };
-        item('palette', 'Choose colour…', openPicker);
+        item('palette', 'Choose color…', openPicker);
         if (app.storage.store.getMeta(app.activeProjectId)?.color)
-          item('x', 'Default (no colour)', () => app.setProjectColor(app.activeProjectId, ''));
+          item('x', 'Default (no color)', () => app.setProjectColor(app.activeProjectId, ''));
         document.body.appendChild(menu);
         const r = colorBtn.getBoundingClientRect();
         const mw = menu.offsetWidth;
@@ -252,6 +267,7 @@ export class ControlsBinder {
         if (!app.activeIsBlank()) return;
         e.stopPropagation();
         blankInput.value = normalizeHex(app.blankColor) || '#ffffff';
+        anchorPickerInput(blankInput, blankBtn);
         try {
           if (typeof blankInput.showPicker === 'function') blankInput.showPicker();
           else blankInput.click();
@@ -261,8 +277,11 @@ export class ControlsBinder {
       });
     }
 
-    document.getElementById('start-drawing').addEventListener('click', () => app.startDrawingMode());
-    document.getElementById('stop-drawing').addEventListener('click', () => app.stopDrawingMode());
+    // One button, both directions — the same branch the context menu's draw toggle uses.
+    document.getElementById('draw-toggle').addEventListener('click', () => {
+      if (app.isDrawing) app.stopDrawingMode();
+      else app.startDrawingMode();
+    });
     document.getElementById('draw-mode-toggle').addEventListener('click', () => {
       app.setDrawMode(app.drawMode === 'rect' ? 'line' : 'rect');
       app.storage.save();
@@ -283,10 +302,12 @@ export class ControlsBinder {
     document.getElementById('clear-storage').addEventListener('click', async () => {
       if (app.storage.temporary || app.activeProjectId == null) {
         // Temporary editor → just clear the editor back to blank.
-        if (await app.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true })) {
+        if (await app.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true, confirmIcon: 'trash' })) {
           app.storage.newTemporary();
           app.tabs.reportActive(null);
-          app.showSaveStatus('Cleared', 'var(--danger)', 'trash');
+          // The clear worked, so it reads as a success — a red ✕ said the opposite.
+          // Wording matches the desktop's two branches (mainWindow.cpp clearProject).
+          app.showSaveStatus('Editor cleared', 'var(--success)', 'check');
         }
         return;
       }
@@ -296,15 +317,13 @@ export class ControlsBinder {
       const msg = server
         ? `Remove the local copy of this project? It is stored on the server ${server} and will stay there.`
         : 'Clear this project (image + lines) from storage?';
-      if (await app.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true })) {
-        const id = app.activeProjectId;
-        app.storage.store.remove(id);
-        app.storage.newTemporary();
+      if (await app.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true, confirmIcon: 'trash' })) {
         app.remoteLink = null;   // dropped the local session → no server link to save back to
-        app.tabs.reportActive(null);
-        app.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
+        // ONE removal path (drawingApp.removeProject): storage, the stored chat (§12.2),
+        // the drop to a blank editor and the cross-tab notify all happen there.
+        app.removeProject(app.activeProjectId);
         if (server) notify(`Local copy removed — still on the server ${server}`, 'info');
-        app.showSaveStatus('Cleared', 'var(--danger)', 'trash');
+        app.showSaveStatus('Project cleared', 'var(--success)', 'check');
       }
     });
     const incognitoBtn = document.getElementById('incognito-toggle');
@@ -400,15 +419,18 @@ export class ControlsBinder {
     app.accents.updateThemeIcon();
     // Tint the tab favicon + status bar to the saved accent on load.
     applyAccentFavicon(app.accent);
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-      app.setTheme(app.theme === 'dark' ? 'light' : 'dark');
+    document.getElementById('theme-toggle').addEventListener('click', (e) => {
+      // Hand the wipe the button that was actually pressed — the fullscreen layer clones
+      // this toolbar with duplicate ids, so looking it up by id can find a hidden copy.
+      app.setTheme(app.theme === 'dark' ? 'light' : 'dark', e.currentTarget);
     });
-    // Follow system changes only if user hasn't manually overridden
+    // Follow the OS while the appearance mode is 'system' — the default, and what the app
+    // stays on until someone picks Light or Dark explicitly (toolbar toggle or the
+    // Appearance row in Default Visuals).
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-      if (!localStorage.getItem('drawingApp_theme')) {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        app.accents.updateThemeIcon();
-      }
+      if (app.accents.themeMode !== 'system') return;
+      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      app.accents.updateThemeIcon();
     });
   }
 
@@ -417,7 +439,12 @@ export class ControlsBinder {
     // Click a control by id only when it exists and isn't disabled (mirrors a real UI click).
     const clickIfActive = id => {
       const el = document.getElementById(id);
-      if (el && !el.disabled) el.click();
+      if (!el || el.disabled) return;
+      // Alt+<letter> presses Alt first, and Alt over an icon opens its window as a hover-peek
+      // (ui/popover.js). Without this the letter would arrive to find the window already open
+      // and toggle it straight back shut. Claiming the peek keeps what the user asked for.
+      if (el.__stencilGestures?.hotkey?.()) return;
+      el.click();
     };
     // Keyboard shortcuts — dispatched via the hotkeys registry
     const HK_HANDLERS = {
@@ -440,8 +467,7 @@ export class ControlsBinder {
       cycleFilter: () => {
         const opts = ['none', 'bw', 'sepia', 'invert', 'contour', 'custom'];
         const cur = opts.indexOf(app.imageFilter);
-        // Route through setImageFilter so the cycle marks the filter dirty + syncs to
-        // the server (it used to set the value inline and never push).
+        // Route through setImageFilter so the cycle marks the filter dirty + syncs to the server.
         app.settings.setImageFilter(opts[(cur + 1) % opts.length]);
       },
       cycleCompare: () => {
@@ -473,19 +499,35 @@ export class ControlsBinder {
       // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
       paste: () => { /* handled by paste event */ },
       clearAllLines: () => app.clearAllLines(),
-      // Delete the selected line; on Mac the default reads as ⌥⌫ (Delete→Backspace).
-      deleteLine: () => { if (!app.isDrawing && app.selectedLineIdx >= 0) app.removeLine(app.selectedLineIdx); },
+      // Deletes the WHOLE selection (selectedIndices() falls back to [selectedLineIdx]);
+      // on Mac the default reads as ⌥⌫. With a POINT focused, the chord narrows to that
+      // point — same route-a-shared-chord-by-selection pattern as Alt+Shift+Arrow.
+      deleteLine: () => {
+        if (app.isDrawing) return;
+        if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) {
+          app.removePoint(app.coordLineIdx, app.focusedPtIdx);
+          return;
+        }
+        app.removeSelectedLines();
+      },
       // Delete the focused point of the selected line (the point, not the whole line).
       deletePoint: () => {
         if (app.isDrawing) return;
         if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) app.removePoint(app.coordLineIdx, app.focusedPtIdx);
       },
+      // Esc clears the selection — the desktop's "Deselect" action bound to the same key.
+      // An open modal owns Escape first: it closes on this very keypress, so also dropping
+      // the canvas selection behind it would be an invisible side effect of closing a dialog.
+      deselect: () => { if (!document.querySelector('.modal-open')) app.deselectLine(); },
       // Toolbar/menu openers — each just drives the matching button so the shortcut and the
       // click path stay identical (clickIfActive skips a disabled control, like the UI does).
       loadImage: () => clickIfActive(app.image ? 'open-image-btn' : 'load-image-btn'),
       openAnotherImage: () => clickIfActive(app.image ? 'open-image-btn' : 'load-image-btn'),
       openIn: () => clickIfActive('open-in-btn'),
       saveImage: () => clickIfActive('save-image'),
+      // Only rendered where the Web Share API takes files (mobile/PWA); exportService
+      // guards the unsupported case with a toast, so the chord is safe everywhere.
+      shareImage: () => clickIfActive('share-image'),
       cropImage: () => clickIfActive('crop-image'),
       downloadJson: () => clickIfActive('download-json'),
       uploadJson: () => clickIfActive('upload-json-btn'),
@@ -493,12 +535,21 @@ export class ControlsBinder {
       openProject: () => clickIfActive('open-project-btn'),
       toggleLiveSync: () => clickIfActive('live-sync-btn'),
       deleteProject: () => clickIfActive('delete-project-btn'),
+      // Remove the CURRENT project from the editor (the trash in Data) — distinct from
+      // deleteProject above, which deletes the .stencil file on disk.
+      clearProject: () => clickIfActive('clear-storage'),
+      // The ✎ next to the project name: enters inline rename (focus + select). A no-op
+      // with no saved project, exactly as clicking the pencil is.
+      renameProject: () => clickIfActive('project-name-edit'),
       openProjects: () => clickIfActive('projects-btn'),
       openServers: () => clickIfActive('connect-btn'),
       openLinks: () => clickIfActive('links-btn'),
       toggleTheme: () => clickIfActive('theme-toggle'),
       toggleIncognito: () => clickIfActive('incognito-toggle'),
-      openHelp: () => clickIfActive('info-btn')
+      toggleChat: () => clickIfActive('chat-btn'),
+      openHelp: () => clickIfActive('info-btn'),
+      openHotkeys: () => clickIfActive('settings-btn'),
+      openVisuals: () => clickIfActive('visuals-btn')
     };
     // Editing hotkeys are inert while a compare view is active (it's read-only).
     const EDIT_HOTKEYS = new Set([
@@ -509,15 +560,31 @@ export class ControlsBinder {
     // ↑/↓ share their combo with big-zoom, so the loop routes the shared chord by selection below.
     const LINE_TRANSFORM_HOTKEYS = new Set(['flipLineHorizontal', 'flipLineVertical', 'rotateLineCW90', 'rotateLineCCW90']);
     document.addEventListener('keydown', e => {
-      if (isTypingTarget(e.target)) return;
+      if (isTypingTarget(e.target)) {
+        const id = typingHotkeyId(e, hotkeys);
+        if (id) {
+          e.preventDefault();
+          HK_HANDLERS[id]?.();
+        }
+        return;
+      }
+      // Bare Delete / Backspace removes the selected line(s) — what every editor does, and
+      // what the coord-table rows already do (coordTable.js). Modifier-free only, so
+      // Alt+Delete keeps its own binding and Ctrl/Cmd+Shift+Backspace still deletes the project file.
+      if ((e.key === 'Delete' || e.key === 'Backspace') &&
+          !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
+          !app.isDrawing && !app.compareReadOnly() && app.selectedIndices().length) {
+        e.preventDefault();
+        app.removeSelectedLines();
+        return;
+      }
       for (const def of HOTKEY_DEFS) {
         const combo = hotkeys.get(def.id);
         if (!combo) continue;
         if (!matchHotkey(e, combo)) continue;
-        // Alt+Shift+↑/↓ big-zooms with nothing selected but flips the SELECTED line otherwise; ↔
-        // rotates it ±90. Route the shared chord by selection: yield big-zoom to the flip binding
-        // (it comes later in the registry) when a line is selected, and let the transforms fall
-        // through when none is — ↑/↓ then reach big-zoom above, ↔ simply no-op.
+        // Alt+Shift+↑/↓ big-zooms with nothing selected but flips the SELECTED line otherwise;
+        // ↔ rotates it ±90. Route the shared chord by selection: yield big-zoom to the flip
+        // binding (later in the registry) when a line is selected, fall through when none is.
         if ((def.id === 'zoomInBig' || def.id === 'zoomOutBig') && app.selectedIndices().length >= 1 && !app.compareReadOnly()) continue;
         if (LINE_TRANSFORM_HOTKEYS.has(def.id) && app.selectedIndices().length === 0) continue;
         // Skip 'paste' here — let the browser fire its native paste event
@@ -570,10 +637,9 @@ export class ControlsBinder {
     document.addEventListener('keydown', onModifierChange);
     document.addEventListener('keyup', onModifierChange);
 
-    // Alt+Shift+O — momentary "peek at the original": show the untouched original while
-    // held, restore the selected compare mode on release. Physical KeyO (e.code) so it's
-    // layout-independent (Mac Option+key produces special e.key chars). Not registry-driven
-    // because it needs key-up, like the ergonomic Alt+wheel/Alt+= shortcuts above.
+    // Alt+Shift+O — momentary "peek at the original" while held. Physical KeyO (e.code) so
+    // it's layout-independent (Mac Option+key produces special e.key chars); not
+    // registry-driven because it needs key-up.
     const setHoldOriginal = on => {
       if (app.compareHoldOriginal === on) return;
       app.compareHoldOriginal = on;
@@ -674,51 +740,58 @@ export class ControlsBinder {
 
     // An image dragged from ANOTHER web page arrives as a URL, not a File (see dragImageUrl.js).
     const draggedImageUrl = (dt) => extractDraggedImageUrl((t) => dt.getData(t));
-    // Fetch a dragged image URL into a File so it flows through the same load path as a dropped
-    // file. CORS-limited (like the URL tab) — the catch surfaces a friendly hint on failure.
-    const fetchUrlToFile = async (url) => {
-      const resp = await fetch(url, { mode: 'cors' });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const blob = await resp.blob();
-      if (!blob.type.startsWith('image/')) throw new Error('not an image');
-      const name = ((url.split('/').pop() || 'image').split('?')[0]) || 'image';
-      return new File([blob], name, { type: blob.type });
-    };
+    // Fetch a dragged image URL into a File so it flows through the same load path as a
+    // dropped file (shared with the chat's drop-to-attach — dragImageUrl.js).
+    const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);
 
-    // Load a dropped image via the LEFT (save) or RIGHT (incognito) zone. When an image is
-    // already open, first ask whether to open it in the current page or a new one (all four
-    // save/incognito × here/newtab combinations are reachable).
-    const handleImageDrop = async (file, incognito) => {
+    // Load a dropped image via the LEFT (save) or RIGHT (incognito) zone; with an image
+    // open, first ask current page vs new one. `from` = the drop point in client coords —
+    // the canvas plays in out of it (ui/motion.js arriveFrom); dialog/paste paths have none.
+    const handleImageDrop = async (file, incognito, from = null) => {
       if (app.image) {
-        const where = await app.choose('An image is already open. Where should the dropped image open?', {
-          title: 'Open dropped image', confirmLabel: 'Open',
-          options: [
-            { value: 'here', label: 'Open in the current page' },
-            { value: 'newtab', label: 'Open in a new page' },
-          ],
+        // Three BUTTONS, not a picker: two answers and a way out, each one click. Desktop
+        // parity — mainWindow.cpp asks the same question with This window / New window / Cancel.
+        const where = await app.askAlt('An image is already open. Where should the dropped image open?', {
+          title: 'Open dropped image',
+          confirmLabel: 'Open in the current page', confirmIcon: 'image',
+          altLabel: 'Open in a new page', altIcon: 'external',
         });
-        if (!where) return;
-        if (where === 'newtab') { app.openImageNewTab(file, incognito); return; }
+        if (!where) return;                                                    // Cancel / Escape
+        if (where === 'alt') { app.openImageNewTab(file, incognito); return; }
       }
-      app.openImageHere(file, incognito);
+      // `landing` = play the canvas reveal — this image arrived by drop, not by dialog.
+      app.openImageHere(file, incognito, null, { landing: true, from });
     };
 
-    // Internal row-reorder drags (Servers / Projects modals) carry this marker; the image-drop
+    // Internal row-reorder drags (Servers / Projects modals) carry this flag; the image-drop
     // overlay must ignore them (a connection row's URL would otherwise pop the overlay + try to
     // fetch it as an image on drop).
     const isReorderDrag = (e) => { try { return e.dataTransfer.types.includes('application/x-stencil-reorder'); } catch { return false; } };
 
+    // Drops on an element that wires its OWN drop handlers belong to it — the overlay
+    // would cover it and swallow its events, so it stands down over its rect. Owners
+    // declare themselves with [data-drop-owner] while visible (today: the open chat panel).
+    const overDropOwner = (x, y) => {
+      for (const el of document.querySelectorAll('[data-drop-owner]')) {
+        if (pointInRect(x, y, el.getBoundingClientRect())) return true;
+      }
+      return false;
+    };
+
     document.addEventListener('dragenter', e => {
       e.preventDefault();
       if (isReorderDrag(e)) return;   // internal row reorder — not an image drop
+      if (overDropOwner(e.clientX, e.clientY)) { hideDropOverlay(dropZone); clearZoneCue(); return; }
       // Show the overlay for a dragged File OR an image dragged from another page (uri-list /
       // html — a URL, not a File). Plain text alone isn't treated as a drop (too noisy).
       const t = e.dataTransfer.types;
-      if (t.includes('Files') || t.includes('text/uri-list') || t.includes('text/html')) dropZone.style.display = 'flex';
+      if (t.includes('Files') || t.includes('text/uri-list') || t.includes('text/html')) showDropOverlay(dropZone);
     });
     document.addEventListener('dragover', e => {
       e.preventDefault();
       if (isReorderDrag(e)) return;   // internal row reorder — leave it to the modal's own handlers
+      // Over a drop owner (the open chat panel): hide the overlay so it gets the drop.
+      if (overDropOwner(e.clientX, e.clientY)) { hideDropOverlay(dropZone); clearZoneCue(); return; }
       e.dataTransfer.dropEffect = 'copy';
       // Highlight the half the cursor is over so the save/incognito choice is legible.
       if (dropZone.style.display !== 'none' && dropZone.style.display !== '') {
@@ -731,30 +804,43 @@ export class ControlsBinder {
     });
     document.addEventListener('dragleave', e => {
       // Only hide when leaving the entire window
-      if (e.relatedTarget === null) { dropZone.style.display = 'none'; clearZoneCue(); }
+      if (e.relatedTarget === null) { hideDropOverlay(dropZone); clearZoneCue(); }
     });
+    // A drag that ends without a drop landing here (cancelled, or claimed by an
+    // overlay that swallowed the events) must never strand the zones on screen.
+    document.addEventListener('dragend', () => { hideDropOverlay(dropZone); clearZoneCue(); });
     document.addEventListener('drop', e => {
       e.preventDefault();
-      dropZone.style.display = 'none';
+      hideDropOverlay(dropZone);
       clearZoneCue();
       if (isReorderDrag(e)) return;   // internal row reorder — don't try to load an image
+      if (overDropOwner(e.clientX, e.clientY)) return;   // the owner's (chat panel's) drop handler owns it
       const incognito = !dropLeftHalf(e);   // RIGHT half = incognito, LEFT half = upload + save
+      const from = { x: e.clientX, y: e.clientY };
       const file = e.dataTransfer.files[0];
       if (!file) {
         // No File → maybe an image dragged from another page (a URL). Fetch it into a File.
         const url = draggedImageUrl(e.dataTransfer);
-        if (!url) return;
+        if (!url) {
+          // A relative <img src> carries no origin, so there is nothing to fetch —
+          // say so instead of silently doing nothing (dragImageUrl.js absolutize).
+          notify('Could not read an image URL from that drag — try dragging the image from its own page, or copy the image address and use Open image → URL', 'fail');
+          return;
+        }
+        // Surface the real failure (bad URL, 404, non-image response) instead of
+        // blaming CORS unconditionally.
         fetchUrlToFile(url)
-          .then((f) => handleImageDrop(f, incognito))
-          .catch(() => notify('Could not load the dragged image — the site may block cross-origin downloads. Try the extension or desktop app.', 'fail'));
+          .then((f) => handleImageDrop(f, incognito, from))
+          .catch((err) => notify(`Could not load the dragged image — ${err.message}. `
+            + 'If the site blocks cross-origin downloads, try the extension or desktop app.', 'fail'));
         return;
       }
       if (file.name.endsWith('.stencil')) {
-        app.export.openProjectFile(file);   // a whole .stencil project ignores the save/incognito split
+        app.export.openProjectFile(file, { from });   // a whole .stencil project ignores the save/incognito split
       } else if (file.type.startsWith('image/')) {
-        handleImageDrop(file, incognito);
+        handleImageDrop(file, incognito, from);
       } else if (file.name.endsWith('.json') || file.type === 'application/json') {
-        app.loadJSONFromFile(file);   // a .json layout ignores the save/incognito split
+        app.loadJSONFromFile(file, { from });   // a .json layout ignores the save/incognito split
       } else {
         notify('Please drop an image, a .json layout, or a .stencil project', 'fail');
       }
@@ -766,24 +852,24 @@ export class ControlsBinder {
       const cd = e.clipboardData;
       if (!cd) return;
 
-      // 1) Image takes priority
-      for (const item of cd.items) {
-        if (item.type && item.type.startsWith('image/')) {
-          e.preventDefault();
-          // Read the file synchronously — clipboardData is invalid after an await.
-          const file = item.getAsFile();
-          if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image' }))) {
-            notify('Image paste canceled', 'fail');
-            return;
-          }
-          if (file) {
-            app.loadImageFromFile(file);
-            notify('Image pasted from clipboard', 'ok');
-          } else {
-            notify('Could not read pasted image', 'fail');
-          }
+      // 1) Image takes priority. mediaFilesFromData reads the items SYNCHRONOUSLY
+      // (clipboardData is invalid after an await); the chat panel shares it for its
+      // own attach-on-paste, which stops propagation before this handler runs.
+      const hasImageItem = [...cd.items].some((item) => item.type && item.type.startsWith('image/'));
+      if (hasImageItem) {
+        e.preventDefault();
+        const file = mediaFilesFromData(cd).find((f) => f.type.startsWith('image/'));
+        if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image', confirmIcon: 'paste' }))) {
+          notify('Image paste canceled', 'fail');
           return;
         }
+        if (file) {
+          app.loadImageFromFile(file);
+          notify('Image pasted from clipboard', 'ok');
+        } else {
+          notify('Could not read pasted image', 'fail');
+        }
+        return;
       }
 
       // 2) Text — try to parse as layout JSON
@@ -806,6 +892,22 @@ export class ControlsBinder {
   wireCanvasPointer() {
     const app = this.app;
     app.canvas.addEventListener('click', e => app.canvasClick(e));
+    // The <canvas> covers only the image; clicking the letterbox padding around it is
+    // still "clicking empty space" and must clear the selection. Fires only when the click
+    // landed on the container itself, so canvas clicks keep flowing through canvasClick().
+    const emptyArea = document.getElementById('canvas-viewport');
+    if (emptyArea) {
+      emptyArea.addEventListener('click', (e) => {
+        if (e.target !== e.currentTarget && e.target.id !== 'canvas-container') return;
+        app.deselectEmptyArea(e);
+      });
+      // Hand focus to the canvas, else it stays on the chat textarea (focused when the panel
+      // opens) and a bare Delete edits chat text instead of the selected line. On the viewport
+      // so the letterbox counts, on pointerdown for pen/touch too, preventScroll to not jump.
+      emptyArea.addEventListener('pointerdown', () => {
+        if (document.activeElement !== app.canvas) app.canvas.focus({ preventScroll: true });
+      });
+    }
     app.canvas.addEventListener('dblclick', e => app.canvasDblClick(e));
     app.canvas.addEventListener('mousemove', e => app.canvasMouseMove(e));
     app.canvas.addEventListener('mouseleave', () => {
@@ -813,6 +915,7 @@ export class ControlsBinder {
       app.tooltipMgr.hide();
       app.updateCoordStatus();
       if (app.hoverPt) { app.hoverPt = null; app.renderer.redraw(); }
+      if (app.hoverLineIdx !== -1) { app.hoverLineIdx = -1; app.applyLinesListHover(); }
     });
   }
 
@@ -821,7 +924,7 @@ export class ControlsBinder {
     // ── Smooth zoom via rAF ──
     // Rapid wheel events accumulate into one rAF loop. IMPORTANT: add `zoom-no-transition`
     // while the rAF runs so the CSS width/height transition doesn't fight it (causes flicker).
-    this.#smoothZoom = { target: null, focal: null, rafId: null };
+    this.#smoothZoom = { target: null, focal: null, rafId: null, avail: null };
 
     const viewport = document.getElementById('canvas-viewport');
 
@@ -843,6 +946,7 @@ export class ControlsBinder {
         sz.rafId = null;
         sz.focal = null;
         sz.target = null;
+        sz.avail = null;
         return;
       }
 
@@ -852,6 +956,12 @@ export class ControlsBinder {
       app.scale = next;
       app.canvas.style.width = (app.canvas.width  * next) + 'px';
       app.canvas.style.height = (app.canvas.height * next) + 'px';
+      // Grow/shrink the viewport WITH the canvas every frame, or the height cap only
+      // catches up in the final setZoom() and zoom-in visibly jumps. `avail` is captured
+      // once per gesture — the zoom moves nothing it depends on; re-measuring is thrash.
+      if (sz.avail != null && viewport) {
+        viewport.style.maxHeight = Math.min(Math.round(app.canvas.height * next) + 4, sz.avail) + 'px';
+      }
       app.zoomPan.setZoomInputValue(Math.round(next * 100));
 
       // Maintain focal point: keep the image pixel under the cursor fixed.
@@ -894,11 +1004,9 @@ export class ControlsBinder {
 
       e.preventDefault();
 
-      // Per-event zoom increment scaled by the wheel delta (not a fixed step):
-      // a mouse "notch" sends a large delta and steps a sensible amount, while a
-      // touchpad pinch sends many tiny deltas that now sum gently instead of each
-      // leaping a full step (the "too rapid" touchpad zoom). deltaMode normalizes
-      // line/page units to pixels; the cap keeps a big mouse notch from overshooting.
+      // Zoom increment scaled by the wheel delta (not a fixed step): a mouse notch steps a
+      // sensible amount while touchpad-pinch micro-deltas sum gently. deltaMode normalizes
+      // line/page units to pixels; the cap keeps a big notch from overshooting.
       const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
       const factor = e.shiftKey ? 0.0095 : 0.004;
       const cap = e.shiftKey ? 0.65 : 0.32;
@@ -925,6 +1033,10 @@ export class ControlsBinder {
       // Start animation loop; disable CSS transition first to prevent conflict
       if (!sz.rafId) {
         app.canvas.classList.add('zoom-no-transition');
+        // Measure the height budget once for this gesture (see runSmoothZoom). In
+        // fullscreen the layer owns the viewport's height, so leave it alone.
+        sz.avail = document.body.classList.contains('fullscreen-mode')
+          ? null : app.zoomPan.availContentHeight();
         sz.rafId = requestAnimationFrame(runSmoothZoom);
       }
     }, { passive: false });

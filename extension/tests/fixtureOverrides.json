@@ -1,0 +1,6 @@
+{
+  "_comment": "Measured extension-vs-corpus divergences, consumed by fixtureWalkers.test.js. opPlan maps fixture name -> verdict override (empty: the 69 applicable fixtures run clean with knownDivergence.extension honoured). providerWire is empty: the client matches the browser reference vector-for-vector (err.status/answered included).",
+  "opPlan": {},
+  "providerWire": {},
+  "sanitizer": {}
+}

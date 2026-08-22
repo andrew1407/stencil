@@ -14,22 +14,44 @@
 </head>
 <body>
   <header>
+    <!-- .logo-wrap carries the hover ray ring (lib/animations.css) — SVGs can't host ::before. -->
+    <span class="logo-wrap">
     <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Stencil">
       <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
       <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
       <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
-      <polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FF0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <g fill="#FF0" stroke="#000" stroke-width="1.25"><circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/></g>
+      <polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FF0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#FF0" stroke="#000" stroke-width="1.25"><circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/></g>
     </svg>
-    <h1>Images on this page</h1>
+    </span>
+    <h1>Images</h1>
     <span id="count" class="count"></span>
+    <button id="open-chat" class="icon-btn" title="AI assistant — chat about the images on this page"></button>
     <button id="theme-toggle" class="icon-btn" title="Toggle dark / light theme"></button>
     <button id="rescan" class="icon-btn" title="Rescan page"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
     <button id="open-options" class="icon-btn" title="Settings"><svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </header>
 
   <div class="filters">
-    <div class="frow">
+    <!-- Editor mode (mirrors popup.html) — inspecting a live editor flips the panel
+         into editor mode instead of listing the editor's own favicons. -->
+    <div class="fsection" id="sec-editors">
+      <div class="section-head" role="button" tabindex="0" aria-expanded="true">
+        <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="dlbl">Open editors</span>
+        <button id="ed-refresh" class="mini" type="button" title="Re-read every open editor tab (and its live canvas preview)">Refresh</button>
+      </div>
+      <div class="section-body">
+        <div class="srow">
+          <input id="ed-search" class="search" type="search" placeholder="Search by project, title or URL…" autocomplete="off">
+          <label class="chk regex-chk" title="Treat the search text as a regular expression"><input type="checkbox" id="ed-regex"><code>.*</code> Regex</label>
+        </div>
+        <ul id="ed-list" class="ed-list"></ul>
+      </div>
+    </div>
+    <!-- Both toggles act on the SCANNED page, so they are meaningless on the editor
+         (popup.css hides this row via body.editor-mode / body.on-editor-page). -->
+    <div class="frow" id="row-highlight">
       <label class="chk hl" title="Outline every &lt;img&gt; and background-image element on the page so you can see what Stencil can grab"><input type="checkbox" id="f-highlight"> highlight on page</label>
       <label class="chk hl" title="Hover a list item to outline its element on the page (and scroll it into view). With ‘highlight on page’ on, hovering a page element also outlines its item here."><input type="checkbox" id="f-hover-hl"> highlight on hover</label>
     </div>
@@ -49,7 +71,7 @@
         <div class="frow">
           <label class="chk" title="Flag images already opened in an editor (yellow ⚑) and offer to resume them"><input type="checkbox" id="f-mark-opened"> mark opened</label>
           <label class="chk" title="Sort images already opened in an editor to the top of the list"><input type="checkbox" id="f-opened-first"> opened first</label>
-          <label class="chk" title="Outline pinned images (gray) and float them to the top — pin any image with the 📌 button"><input type="checkbox" id="f-show-pinned"> show pinned</label>
+          <label class="chk" title="Outline pinned images (gray) and float them to the top"><input type="checkbox" id="f-show-pinned"> show pinned</label>
           <label class="chk" title="Show images stored on a connected server (golden outline)" id="f-server-pins-wrap" hidden><input type="checkbox" id="f-server-pins" checked> server pins</label>
           <select id="f-server-store" title="Filter by the server a pin is stored on" hidden></select>
         </div>
@@ -81,20 +103,74 @@
         </div>
       </div>
     </div>
-    <!-- Search sits at the BOTTOM of the filters, directly above the list. -->
-    <div class="fsection">
+    <!-- Editor mode: WHICH pages feed the list below (mirrors popup.html). -->
+    <div class="fsection" id="sec-source-tab">
       <div class="section-head" role="button" tabindex="0" aria-expanded="true">
         <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-        <span class="dlbl">Search</span>
+        <span class="dlbl">Images from another page</span>
+        <button id="src-rescan" class="mini" type="button" title="Re-read the open pages, then rescan the picked one">Rescan</button>
       </div>
       <div class="section-body">
-        <input id="f-search" class="search" type="search" placeholder="Search by name or URL…" autocomplete="off">
+        <div class="srow">
+          <input id="src-filter" class="search" type="search" placeholder="Filter pages by URL…" autocomplete="off">
+          <label class="chk regex-chk" title="Treat the filter text as a regular expression"><input type="checkbox" id="src-regex"><code>.*</code> Regex</label>
+        </div>
+        <div class="src-tools">
+          <button id="src-all" class="mini" type="button" title="Tick every page the filter shows">Select all</button>
+          <button id="src-none" class="mini" type="button" title="Untick every page">Deselect all</button>
+        </div>
+        <ul id="src-list" class="src-list"></ul>
+        <div id="src-note" class="src-note"></div>
+      </div>
+    </div>
+    <!-- Search sits at the BOTTOM of the filters, directly above the list. -->
+    <div class="fsection" id="sec-search">
+      <div class="section-head" role="button" tabindex="0" aria-expanded="true">
+        <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="dlbl">Found resources</span>
+      </div>
+      <div class="section-body">
+        <!-- Regex rides ON the search row as a compact pill (see popup.html). -->
+        <div class="srow">
+          <input id="f-search" class="search" type="search" placeholder="Search by name or URL…" autocomplete="off">
+          <label class="chk regex-chk" title="Treat the search text as a regular expression"><input type="checkbox" id="f-regex"><code>.*</code> Regex</label>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="status" class="status"></div>
   <ul id="list" class="list"></ul>
+
+  <!-- AI assistant (llm-contract.md §8) — an embedded chat over the CURRENT
+       scan. Collapsed by default; expanding it (or the ✦ header button) boots the
+       chat lazily (popup.js → assistant.js). Conversation state lives with this
+       surface only — nothing is persisted. -->
+  <div class="fsection collapsed" id="sec-assistant">
+    <div class="section-head" role="button" tabindex="0" aria-expanded="false">
+      <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="dlbl">Assistant</span>
+    </div>
+    <div class="section-body">
+      <div id="chat-transcript" class="chat-transcript" aria-live="polite"></div>
+      <!-- Pending dropped attachments (thumbnail + analyze badge + remove); ride the next send. -->
+      <div id="chat-tray" class="chat-tray" hidden></div>
+      <div class="chat-composer">
+        <textarea id="chat-input" rows="2" placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"></textarea>
+        <button id="chat-send" class="chat-send" title="Send"></button>
+        <!-- Only Send stays inline; attach / clear / settings live behind the … -->
+        <span class="chat-more-wrap">
+          <button id="chat-more-btn" class="chat-clear" aria-haspopup="true" aria-expanded="false" title="More — attach, clear, settings"><span id="chat-status-dot" class="chat-status-dot"></span></button>
+          <span class="chat-more-menu" id="chat-more-menu" hidden>
+            <button id="chat-attach-btn" class="chat-more-item" title="Attach an image">Add image</button>
+            <button id="chat-clear" class="chat-more-item" title="Clear the conversation">Clear history</button>
+            <button id="chat-open-options" class="chat-more-item" title="Assistant settings">Settings</button>
+          </span>
+        </span>
+        <input type="file" id="chat-attach-input" accept="image/*,video/*" multiple hidden>
+      </div>
+    </div>
+  </div>
 
   <!-- Floating hover preview -->
   <div id="preview" class="preview" hidden><img alt="preview"></div>

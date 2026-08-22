@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import {
   normalizeUrl, wsUrl, ServerConnection, ConnectionManager, REMOTE_FLAG,
   isLoopbackHost, isInsecureRemote,
@@ -7,10 +8,12 @@ import {
 import {
   requireConnection, createRemoteProject, saveRemoteProject, shouldReloadFromEvent, CONFLICT_MESSAGE,
 } from '../js/net/remoteSync.js';
+import { installMemoryStorage } from './helpers/memoryStorage.js';
+import { installFetchStub } from './helpers/fetchStub.js';
 
-// ── A fake fetch backed by an in-memory server model ──
+// ── A mock fetch backed by an in-memory server model ──
 // Routes the subset of the REST surface the client uses.
-const makeFakeServer = (opts = {}) => {
+const makeMockServer = (opts = {}) => {
   const state = {
     projects: new Map(opts.projects ? opts.projects.map((p) => [p.id, p]) : []),
     seq: 0,
@@ -30,6 +33,8 @@ const makeFakeServer = (opts = {}) => {
     const token = auth.replace(/^Bearer\s+/, '');
 
     if (u.pathname === '/auth/token' && method === 'POST') {
+      // opts.adminToken simulates a server whose mint endpoint is admin-gated.
+      if (opts.adminToken && token !== opts.adminToken) return json(401, { code: 'unauthorized', message: 'bad admin token' });
       return json(200, { token: 'issued-token', expiresAt: 0 });
     }
     // Everything else needs a token.
@@ -95,8 +100,8 @@ const makeFakeServer = (opts = {}) => {
 };
 
 // A no-op WebSocket so events-feed setup doesn't touch the network.
-class FakeWS {
-  constructor(url) { this.url = url; this._l = {}; FakeWS.last = this; }
+class StubWS {
+  constructor(url) { this.url = url; this._l = {}; StubWS.last = this; }
   addEventListener(t, cb) { (this._l[t] ||= []).push(cb); }
   send() {}
   close() { (this._l.close || []).forEach((cb) => cb()); }
@@ -132,8 +137,8 @@ test('wsUrl maps http(s) origin to ws(s)/ws', () => {
 });
 
 test('handshake issues a token when none is supplied', async () => {
-  const { state, fetchImpl } = makeFakeServer();
-  const c = new ServerConnection('host:8090', { fetchImpl, WebSocketImpl: FakeWS });
+  const { state, fetchImpl } = makeMockServer();
+  const c = new ServerConnection('host:8090', { fetchImpl, WebSocketImpl: StubWS });
   await c.handshake();
   assert.equal(c.token, 'issued-token');
   assert.ok(c.connected);
@@ -141,18 +146,29 @@ test('handshake issues a token when none is supplied', async () => {
 });
 
 test('handshake validates a supplied token via GET /projects', async () => {
-  const { state, fetchImpl } = makeFakeServer({ requireToken: 'tkn' });
-  const ok = new ServerConnection('host:8090', { token: 'tkn', fetchImpl, WebSocketImpl: FakeWS });
+  const { state, fetchImpl } = makeMockServer({ requireToken: 'tkn' });
+  const ok = new ServerConnection('host:8090', { token: 'tkn', fetchImpl, WebSocketImpl: StubWS });
   await ok.handshake();
   assert.ok(state.calls.includes('GET /projects'));
 
-  const bad = new ServerConnection('host:8090', { token: 'wrong', fetchImpl, WebSocketImpl: FakeWS });
+  const bad = new ServerConnection('host:8090', { token: 'wrong', fetchImpl, WebSocketImpl: StubWS });
   await assert.rejects(() => bad.handshake(), /HTTP 401|bad token/);
 });
 
+test('handshake mint-falls-back when the supplied token is the ADMIN token', async () => {
+  // Desktop parity: pasting the server's admin token can't list projects, but it
+  // CAN mint a session token — the handshake swaps to the minted one.
+  const { state, fetchImpl } = makeMockServer({ requireToken: 'issued-token', adminToken: 'adm' });
+  const c = new ServerConnection('host:8090', { token: 'adm', fetchImpl, WebSocketImpl: StubWS });
+  await c.handshake();
+  assert.equal(c.token, 'issued-token');
+  assert.ok(c.connected);
+  assert.ok(state.calls.includes('POST /auth/token'));
+});
+
 test('listProjects tags every record remote with its serverUrl', async () => {
-  const { fetchImpl } = makeFakeServer({ projects: [{ id: 'p_a_b', name: 'X', version: 1 }] });
-  const c = new ServerConnection('http://srv:9', { token: 't', fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer({ projects: [{ id: 'p_a_b', name: 'X', version: 1 }] });
+  const c = new ServerConnection('http://srv:9', { token: 't', fetchImpl, WebSocketImpl: StubWS });
   await c.handshake();
   const list = await c.listProjects();
   assert.equal(list.length, 1);
@@ -161,11 +177,11 @@ test('listProjects tags every record remote with its serverUrl', async () => {
 });
 
 test('ConnectionManager connects multiple servers and dedupes', async () => {
-  const a = makeFakeServer(), b = makeFakeServer();
+  const a = makeMockServer(), b = makeMockServer();
   // Route per-host by choosing fetch on url.
   const fetchImpl = (url, init) => (new URL(url).host === 'a:1' ? a.fetchImpl : b.fetchImpl)(url, init);
   let changes = 0;
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS, onChange: () => { changes++; } });
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS, onChange: () => { changes++; } });
 
   await mgr.connect(['http://a:1', 'http://b:2']);
   assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
@@ -175,8 +191,8 @@ test('ConnectionManager connects multiple servers and dedupes', async () => {
 });
 
 test('disconnect with no arg drops the most recent connection', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
   mgr.disconnect();
   assert.deepEqual(mgr.urls, ['http://a:1']);
@@ -185,28 +201,30 @@ test('disconnect with no arg drops the most recent connection', async () => {
 });
 
 test('reconnect re-establishes the last set', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
   await mgr.reconnect();
   assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
 });
 
 test('snapshot exposes the live set as {url, token} for persistence', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect({ url: 'http://a:1', token: 'tkn-a' });
-  await mgr.connect('http://b:2'); // token issued by handshake → 'issued-token'
+  await mgr.connect('http://b:2'); // handshake mints a session token, but…
+  // …the ORIGINAL credential persists, never the minted session token — a
+  // session dies with the server; the credential re-mints on reconnect.
   assert.deepEqual(mgr.snapshot(), [
     { url: 'http://a:1', token: 'tkn-a' },
-    { url: 'http://b:2', token: 'issued-token' },
+    { url: 'http://b:2', token: '' },
   ]);
 });
 
 test('reorder permutes the connection order, firing onChange, and persists via snapshot', async () => {
-  const { fetchImpl } = makeFakeServer();
+  const { fetchImpl } = makeMockServer();
   let changes = 0;
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS, onChange: () => { changes++; } });
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS, onChange: () => { changes++; } });
   await mgr.connect(['http://a:1', 'http://b:2', 'http://c:3']);
   const before = changes;
   // Move the last (c) to the front.
@@ -218,8 +236,8 @@ test('reorder permutes the connection order, firing onChange, and persists via s
 });
 
 test('reorder is defensive: unknown urls are skipped, omitted current urls kept at the end', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2', 'http://c:3']);
   // Name only b (+ a bogus url); a and c must survive, appended in their original order.
   mgr.reorder(['http://b:2', 'http://zzz:9']);
@@ -227,8 +245,8 @@ test('reorder is defensive: unknown urls are skipped, omitted current urls kept 
 });
 
 test('reconnect preserves the reordered set (reorder updates _lastSet)', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
   mgr.reorder(['http://b:2', 'http://a:1']);
   await mgr.reconnect();
@@ -236,8 +254,8 @@ test('reconnect preserves the reordered set (reorder updates _lastSet)', async (
 });
 
 test('reconnectOne re-establishes a single connection, keeping the rest', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
   await mgr.reconnectOne('http://a:1');
   assert.deepEqual(mgr.urls.sort(), ['http://a:1', 'http://b:2']);
@@ -247,14 +265,14 @@ test('reconnectOne re-establishes a single connection, keeping the rest', async 
 });
 
 test('remoteProjects aggregates across connections and survives an unreachable one', async () => {
-  const a = makeFakeServer({ projects: [{ id: 'p_a_a', name: 'A', version: 0 }] });
-  const b = makeFakeServer({ projects: [{ id: 'p_b_b', name: 'B', version: 0 }] });
+  const a = makeMockServer({ projects: [{ id: 'p_a_a', name: 'A', version: 0 }] });
+  const b = makeMockServer({ projects: [{ id: 'p_b_b', name: 'B', version: 0 }] });
   const fetchImpl = (url, init) => {
     const host = new URL(url).host;
     if (host === 'down:0') throw new Error('connection refused');
     return (host === 'a:1' ? a.fetchImpl : b.fetchImpl)(url, init);
   };
-  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS });
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
   // Force one connection to fail on list by swapping its fetch.
   mgr.get('http://a:1')._fetch = () => { throw new Error('boom'); };
@@ -264,13 +282,13 @@ test('remoteProjects aggregates across connections and survives an unreachable o
 });
 
 test('events feed emits project-event messages to listeners', async () => {
-  const { fetchImpl } = makeFakeServer();
-  const c = new ServerConnection('http://h:1', { token: 't', fetchImpl, WebSocketImpl: FakeWS });
+  const { fetchImpl } = makeMockServer();
+  const c = new ServerConnection('http://h:1', { token: 't', fetchImpl, WebSocketImpl: StubWS });
   await c.handshake();
   let got = null;
   c.onEvent((msg) => { got = msg; });
-  FakeWS.last.fire('open');
-  FakeWS.last.fire('message', { data: JSON.stringify({ type: 'project-event', event: 'created', project: { id: 'p_x_y' } }) });
+  StubWS.last.fire('open');
+  StubWS.last.fire('message', { data: JSON.stringify({ type: 'project-event', event: 'created', project: { id: 'p_x_y' } }) });
   assert.equal(got.event, 'created');
   assert.equal(got.project.id, 'p_x_y');
 });
@@ -278,10 +296,10 @@ test('events feed emits project-event messages to listeners', async () => {
 // ── Facade integration: connect/disconnect/reconnect/connections ──
 test('stencil facade exposes the connection surface and chains', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');
-  const { fetchImpl } = makeFakeServer();
+  const { fetchImpl } = makeMockServer();
   // Minimal app stub: only what createStencil touches at construction + connect.
   const app = {
-    connections: new ConnectionManager({ fetchImpl, WebSocketImpl: FakeWS }),
+    connections: new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS }),
     lines: [], storage: { store: { list: () => [] }, incognito: false },
     tabs: { onPeers() {} },
     activeProjectId: null,
@@ -302,14 +320,14 @@ test('stencil facade exposes the connection surface and chains', async () => {
 
 // ── remoteSync: create-on-server + save-back helpers ──
 const connectOne = async (server, url = 'http://srv:9') => {
-  const c = new ServerConnection(url, { token: 't', fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS });
+  const c = new ServerConnection(url, { token: 't', fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
   await c.handshake();
   return c;
 };
 
 test('requireConnection validates a live connection or throws clearly', async () => {
-  const server = makeFakeServer();
-  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS });
+  const server = makeMockServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect('http://srv:8090');
   assert.equal(requireConnection(mgr, 'http://srv:8090').url, 'http://srv:8090');
   assert.throws(() => requireConnection(mgr, 'http://nope:1'), /Not connected/);
@@ -317,7 +335,7 @@ test('requireConnection validates a live connection or throws clearly', async ()
 });
 
 test('createRemoteProject routes to createProject + putFile(original) and tracks version', async () => {
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const conn = await connectOne(server);
   const link = await createRemoteProject(conn, {
     name: 'Shot', source: 'http://x/a.png', bytes: new Uint8Array([1, 2, 3]), ext: 'png', w: 4, h: 3,
@@ -334,7 +352,7 @@ test('createRemoteProject routes to createProject + putFile(original) and tracks
 });
 
 test('createRemoteProject with no bytes creates a blank project (no upload)', async () => {
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const conn = await connectOne(server);
   const link = await createRemoteProject(conn, { name: 'Empty' });
   assert.equal(link.version, 0);
@@ -343,7 +361,7 @@ test('createRemoteProject with no bytes creates a blank project (no upload)', as
 });
 
 test('saveRemoteProject routes to updateProject + putFile(result) and tracks version', async () => {
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const conn = await connectOne(server);
   const link = await createRemoteProject(conn, { name: 'P', bytes: new Uint8Array([9]), w: 2, h: 2 });
   const next = await saveRemoteProject(conn, link, {
@@ -358,7 +376,7 @@ test('saveRemoteProject routes to updateProject + putFile(result) and tracks ver
 });
 
 test('saveRemoteProject surfaces a 409 as a flagged conflict error', async () => {
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const conn = await connectOne(server);
   const link = await createRemoteProject(conn, { name: 'P', bytes: new Uint8Array([1]) });
   const stale = { ...link, version: 0 };   // server is at v1; v0 guard is stale
@@ -373,7 +391,7 @@ test('move-to-server contract: adopt saveRemoteProject\'s refreshed version so a
   // the annotated layout. The layout save advances the server version again, so the link
   // to persist on the editor is the one saveRemoteProject returns — not the create link.
   // Discarding it left remoteLink.version stale, 409-ing the next colour/rename/expiry push.
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const conn = await connectOne(server);
   const createLink = await createRemoteProject(conn, { name: 'P', bytes: new Uint8Array([1, 2]), w: 2, h: 2 });
   const savedLink = await saveRemoteProject(conn, createLink, { name: 'P', layout: { lines: [] } });
@@ -390,7 +408,7 @@ test('move-to-server contract: adopt saveRemoteProject\'s refreshed version so a
 });
 
 test('deleteProject removes a project on the server', async () => {
-  const server = makeFakeServer({ projects: [{ id: 'p_a_b', name: 'X', version: 0 }] });
+  const server = makeMockServer({ projects: [{ id: 'p_a_b', name: 'X', version: 0 }] });
   const conn = await connectOne(server);
   await conn.deleteProject('p_a_b');
   assert.ok(!server.state.projects.has('p_a_b'));
@@ -400,7 +418,7 @@ test('deleteProject removes a project on the server', async () => {
 // ── Facade: address flag threads/validates through the same create path ──
 const facadeApp = (server, extra = {}) => {
   const app = {
-    connections: new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: FakeWS }),
+    connections: new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS }),
     lines: [],
     storage: { store: { list: () => [] }, incognito: false, save() {} },
     tabs: { onPeers() {} },
@@ -422,7 +440,7 @@ const facadeApp = (server, extra = {}) => {
 
 test('facade blank({ address }) validates the target and threads it to createBlankImage', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');
-  const server = makeFakeServer();
+  const server = makeMockServer();
   const app = facadeApp(server, {
     createBlankImage(opts) { app._blankOpts = opts; return Promise.resolve({ width: 2, height: 2 }); },
   });
@@ -445,7 +463,7 @@ test('facade blank({ address }) validates the target and threads it to createBla
 
 test('facade newEditor({ address }) arms the server as the create target for the next image', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');
-  const server = makeFakeServer();
+  const server = makeMockServer();
   // The server forbids image-less projects, so newEditor({ address }) does NOT create one:
   // it arms the address; the next image load creates it with real bytes.
   const app = facadeApp(server, {
@@ -466,7 +484,7 @@ test('facade newEditor({ address }) arms the server as the create target for the
 
 test('facade save() writes back when the session is server-linked, else flushes locally', async () => {
   const { createStencil } = await import('../js/console/stencilApi.js');
-  const server = makeFakeServer();
+  const server = makeMockServer();
   let saved = 0;
   let pushed = 0;
   const app = facadeApp(server, {
@@ -500,13 +518,9 @@ test('connect modal + toolbar button are composed into the layout exactly once',
 });
 
 test('connectionStore persists the server set and the auto-connect preference', async () => {
-  // Provide a minimal localStorage so the otherwise-inert store reads/writes.
-  const mem = new Map();
-  globalThis.localStorage = {
-    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
-    setItem: (k, v) => mem.set(k, String(v)),
-    removeItem: (k) => mem.delete(k),
-  };
+  // Provide a localStorage so the otherwise-inert store reads/writes. Scoped to this
+  // test: the rest of the file asserts the store is inert without one.
+  const storage = installMemoryStorage();
   try {
     const store = await import('../js/net/connectionStore.js');
     // default: nothing saved, auto-connect on
@@ -521,7 +535,7 @@ test('connectionStore persists the server set and the auto-connect preference', 
     store.setAutoConnect(true);
     assert.equal(store.getAutoConnect(), true);
   } finally {
-    delete globalThis.localStorage;
+    storage.restore();
   }
 });
 // ── Live co-edit: shouldReloadFromEvent (the reload decision) ──
@@ -558,4 +572,277 @@ test('shouldReloadFromEvent: suppresses our own save echo, reloads after the sho
 });
 test('shouldReloadFromEvent: ignores events from a different server', () => {
   assert.equal(shouldReloadFromEvent(evt(), LINK, { ...OPTS, connUrl: 'http://other:8090' }), false);
+});
+
+// Regression: loading over an EXISTING image must wait for the swap. waitForImage used
+// to resolve on "some image exists", so on a non-empty editor stencil.load() returned
+// before the decode landed — ops chained after it (a §2.1 `image` op's filter/layout)
+// hit the OLD picture and were then wiped when the new one arrived.
+test('facade load waits for the NEW image, not merely for one to exist', async () => {
+  const { createStencil } = await import('../js/console/stencilApi.js');
+  const server = makeMockServer();
+  const firstImage = { width: 2, height: 2 };
+  const app = facadeApp(server, { image: firstImage });
+  let applied = false;
+  app.loadImageFromFile = () => {
+    // decode lands LATER, exactly like the real loadImageFromFile (no promise returned)
+    setTimeout(() => { app.image = { width: 4, height: 4 }; applied = true; }, 30);
+  };
+  const stencil = createStencil(app);
+  const fetchStub = installFetchStub({ ok: true, blob: { type: 'image/png' } });
+  try {
+    await stencil.load('http://x/y.png');
+    assert.ok(applied, 'load resolved before the new image was applied');
+    assert.notStrictEqual(app.image, firstImage);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+test('reconnect() replays CREDENTIALS — reconnect-all survives a server restart', async () => {
+  // Pre-fix _lastSet held bare urls: reconnect-all handshook tokenless, 401d on
+  // an admin-gated server, and dropped every connection.
+  const { fetchImpl } = makeMockServer({ requireToken: 'issued-token', adminToken: 'adm' });
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'adm' });
+  await mgr.reconnect();
+  assert.deepEqual(mgr.urls, ['http://a:1']);
+  assert.equal(mgr.get('http://a:1').token, 'issued-token');   // fresh session
+  assert.equal(mgr.get('http://a:1').credential, 'adm');       // credential kept
+});
+
+// ── A saved session the server no longer knows ──────────────────────────────
+// Reported: opening the app with a stale saved token produced one red 401 in the
+// console and NOTHING else — no row, no message, no way to sign in again.
+// requireToken is what the mock MINTS, so an admin-token round genuinely revives it.
+const deadSessionServer = () => makeMockServer({ requireToken: 'issued-token', adminToken: 'admin-token' });
+
+test('a refused token lands in the expired state, not the unreachable one', async () => {
+  const { fetchImpl } = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
+  const err = await mgr.connect({ url: 'http://a:1', token: 'stale' }).then(() => null, (e) => e);
+  assert.ok(err, 'the connect still rejects — the caller decides what to say');
+  assert.strictEqual(err.expired, true, 'and it is tagged as a dead SESSION');
+  // Not live…
+  assert.deepStrictEqual(mgr.urls, [], 'nothing may use a refused token');
+  assert.strictEqual(mgr.has('http://a:1'), false);
+  // …but remembered, with its URL, so the UI has a row to show and act on.
+  assert.deepStrictEqual(mgr.expiredUrls, ['http://a:1']);
+  assert.deepStrictEqual(mgr.knownUrls, ['http://a:1']);
+  assert.strictEqual(mgr.isExpired('http://a:1'), true);
+  assert.strictEqual(mgr.get('http://a:1').status, 'expired', 'its own dot state');
+  assert.deepStrictEqual(mgr.snapshot(), [{ url: 'http://a:1', token: 'stale', expired: true }],
+    'the saved URL survives — re-authenticating must not mean retyping the address');
+});
+
+test('an expired session is never retried on its own, and a new token revives it', async () => {
+  const server = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'stale' }).catch(() => {});
+  const after = server.state.calls.length;
+  // Nothing in the manager touches it again by itself.
+  assert.deepStrictEqual(await mgr.remoteProjects(), []);
+  assert.strictEqual(server.state.calls.length, after, 'not one extra request');
+  // The row's own Reconnect: a fresh mint first (all an open server needs)…
+  await assert.rejects(() => mgr.reconnectOne('http://a:1', ''), /bad admin token/,
+    'this server mints only for an admin token');
+  assert.strictEqual(mgr.isExpired('http://a:1'), true, 'still expired, still shown');
+  // …then the token the user pastes — the admin one mints a session, desktop parity.
+  await mgr.reconnectOne('http://a:1', 'admin-token');
+  assert.deepStrictEqual(mgr.urls, ['http://a:1']);
+  assert.deepStrictEqual(mgr.expiredUrls, [], 'the expired row is gone once it is live');
+  assert.strictEqual(mgr.get('http://a:1').status, 'connected');
+  assert.strictEqual(mgr.get('http://a:1').token, 'issued-token');
+});
+
+test('a valid saved token still connects normally, and an UNREACHABLE server is not "expired"', async () => {
+  const { fetchImpl } = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'issued-token' });
+  assert.deepStrictEqual(mgr.urls, ['http://a:1']);
+  assert.deepStrictEqual(mgr.expiredUrls, []);
+  assert.strictEqual(mgr.get('http://a:1').status, 'connected');
+  // A server that is simply down keeps the old behaviour — it may come back.
+  const down = new ConnectionManager({
+    fetchImpl: async () => { throw new TypeError('Failed to fetch'); }, WebSocketImpl: StubWS,
+  });
+  const err = await down.connect({ url: 'http://b:2', token: 't' }).then(() => null, (e) => e);
+  assert.ok(err && !err.expired, 'not a credential problem');
+  assert.deepStrictEqual(down.expiredUrls, [], 'and no expired row for it');
+});
+
+test('removing an expired row forgets it, exactly like disconnecting a live one', async () => {
+  const { fetchImpl } = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'stale' }).catch(() => {});
+  assert.strictEqual(mgr.reconnectable, true, 'reconnect-all can act on it');
+  mgr.disconnect('http://a:1');
+  assert.deepStrictEqual(mgr.knownUrls, [], 'the row is gone from the modal…');
+  assert.deepStrictEqual(mgr.snapshot(), [], '…and from what gets saved');
+  // disconnectAll clears them too.
+  await mgr.connect({ url: 'http://a:1', token: 'stale' }).catch(() => {});
+  mgr.disconnectAll();
+  assert.deepStrictEqual(mgr.knownUrls, []);
+});
+
+test('boot reports an expired session as such — one warning, one clickable toast', () => {
+  const src = readFileSync(new URL('../js/console/stencilApi.js', import.meta.url), 'utf8');
+  const boot = src.slice(src.indexOf('if (firstInit && getAutoConnect())'), src.indexOf('let peers = []'));
+  // Settled, so a dead token can never surface as an unhandled rejection…
+  assert.ok(boot.includes('Promise.allSettled('), 'boot never leaves a rejection loose');
+  // …counted apart from unreachable servers, because the cures differ.
+  assert.ok(boot.includes('.filter((e) => e?.expired)'));
+  assert.match(boot, /Session expired on \$\{expired\} saved server/);
+  assert.match(boot, /Couldn't reach \$\{unreachable\} saved server/);
+  // One diagnostic line PER CASE (a known-dead session adopted at boot, or one that
+  // turns out dead now) — and both are warnings, never errors, never a raw rejection.
+  assert.strictEqual(boot.split('console.').length - 1, 2, 'one line per case, no more');
+  assert.strictEqual(boot.split('console.warn(').length - 1, 2);
+  assert.ok(!/console\.(error|log)\(/.test(boot));
+  // The toast is the way in: it opens Connections, where the row offers Reconnect.
+  assert.ok(boot.includes("onClick: () => document.getElementById('connect-btn')?.click()"));
+});
+
+test('the connections modal shows expired rows with a labelled Reconnect', () => {
+  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('const urls = cm ? cm.knownUrls : []'), 'expired rows are listed too');
+  assert.match(src, /expired: 'Session expired — reconnect to sign in again'/);
+  assert.ok(src.includes("row.classList.add('connect-expired')"));
+  // Mint first, then ask for a token — and the token may be the ADMIN one.
+  assert.ok(src.includes("mgr().reconnectOne(url, expired ? '' : undefined)"));
+  assert.ok(src.includes('isExpiredSession(err)'));
+  assert.match(src, /admin token, which mints a fresh session/);
+  assert.ok(src.includes("mgr().reconnectOne(url, String(token).trim())"));
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  assert.match(css, /\.conn-status-expired \{ background: #e0a800/, 'amber, not the red of a dead server');
+});
+
+// ── The dead credential must not cost a request on every boot ───────────────
+// Reported after the first fix: the row and the toast were right, but the app still
+// spent a doomed /projects call — and Chrome's own red 401 — on every single load.
+test('a refused credential is remembered as refused, and adopted without a request', async () => {
+  const server = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'stale' }).catch(() => {});
+  // What gets persisted now carries the refusal…
+  assert.deepStrictEqual(mgr.snapshot(), [{ url: 'http://a:1', token: 'stale', expired: true }]);
+  // …and the next boot adopts it with ZERO requests, keeping the row and its action.
+  const next = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  const before = server.state.calls.length;
+  next.adoptExpired({ url: 'http://a:1', token: 'stale' });
+  assert.strictEqual(server.state.calls.length, before, 'not one request');
+  assert.deepStrictEqual(next.expiredUrls, ['http://a:1']);
+  assert.strictEqual(next.get('http://a:1').status, 'expired');
+  assert.strictEqual(next.reconnectable, true, 'and it is still actionable');
+  // Adopting twice, or over a live connection, is a no-op.
+  next.adoptExpired({ url: 'http://a:1', token: 'stale' });
+  assert.deepStrictEqual(next.expiredUrls, ['http://a:1']);
+  // Signing in again clears the flag, so it stops being persisted as dead — and the
+  // credential's KIND is now known, so the next connect skips the doomed probe.
+  await next.reconnectOne('http://a:1', 'admin-token');
+  assert.deepStrictEqual(next.snapshot(), [{ url: 'http://a:1', token: 'admin-token', kind: 'admin' }]);
+});
+
+test('a live connection to the same url repairs the expired record', async () => {
+  const { fetchImpl } = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'stale' }).catch(() => {});
+  assert.deepStrictEqual(mgr.expiredUrls, ['http://a:1']);
+  // The user connects that SAME server with a working credential (the connect form):
+  // the dead record must not linger beside it — one url, one row.
+  await mgr.connect({ url: 'http://a:1', token: 'issued-token' });
+  assert.deepStrictEqual(mgr.expiredUrls, [], 'the expired record is repaired away');
+  assert.deepStrictEqual(mgr.knownUrls, ['http://a:1'], 'and the modal shows ONE row');
+  assert.deepStrictEqual(mgr.snapshot(), [{ url: 'http://a:1', token: 'issued-token' }]);
+});
+
+test('boot adopts known-dead sessions instead of re-requesting them', () => {
+  const src = readFileSync(new URL('../js/console/stencilApi.js', import.meta.url), 'utf8');
+  const boot = src.slice(src.indexOf('if (firstInit && getAutoConnect())'), src.indexOf('let peers = []'));
+  assert.ok(boot.includes('const dead = saved.filter((s) => s.expired)'));
+  assert.ok(boot.includes('connMgr.adoptExpired(s)'), 'no request for a credential already refused');
+  assert.ok(boot.includes('Promise.allSettled(live.map((s) => connMgr.connect(s)))'), 'the rest still connect');
+  // The saved shape keeps the flag, or the next boot would forget and retry.
+  const store = readFileSync(new URL('../js/net/connectionStore.js', import.meta.url), 'utf8');
+  assert.match(store, /if \(s\.expired\) out\.expired = true;/);
+  assert.match(store, /if \(s\.kind === 'admin'\) out\.kind = 'admin';/, 'the credential kind rides along too');
+});
+
+test('the Servers button carries the needs-re-auth dot without opening the modal', () => {
+  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('const syncExpiredBadge = ()'));
+  assert.ok(src.includes("el?.classList?.toggle('conn-needs-auth', on)"));
+  assert.match(src, /a saved session expired, reconnect to sign in again/, 'the tooltip says what to do');
+  // Runs at wire time AND on every connections change, and covers the fullscreen clone.
+  assert.ok(src.includes("document.querySelectorAll('#fs-controls-panel #connect-btn')"));
+  const at = src.indexOf('syncExpiredBadge();');
+  assert.ok(at > -1 && at < src.indexOf("window.addEventListener('stencil:connections-changed'"),
+    'the badge is correct before any event fires');
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const dot = css.slice(css.indexOf('#connect-btn.conn-needs-auth::before'), css.indexOf('/* #zoom-fit gets'));
+  assert.match(dot, /position: absolute/);
+  assert.match(dot, /background: #e0a800/, 'amber, like the row — the server is up');
+  assert.ok(!/margin|padding/.test(dot), 'nothing that could shift the toolbar');
+});
+
+// ── The admin credential's doomed first request ─────────────────────────────
+// Reported: every load showed `GET /projects 401 → POST /auth/token 200 → GET /projects
+// 200`. The saved credential is an ADMIN token: it cannot list projects, so probing it
+// as a session token is guaranteed to fail before the mint rescues it. Remember what the
+// credential IS and the 401 stops happening at all.
+test('a proven admin credential mints straight away on the next connect', async () => {
+  const server = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  // First connect with an admin token: probe (401) → mint → verify. Three calls, once.
+  await mgr.connect({ url: 'http://a:1', token: 'admin-token' });
+  assert.deepStrictEqual(server.state.calls, ['GET /projects', 'POST /auth/token', 'GET /projects']);
+  assert.strictEqual(mgr.get('http://a:1').credentialKind, 'admin', 'the kind is learned');
+  // …and it is what gets saved, beside the URL — no token semantics changed.
+  assert.deepStrictEqual(mgr.snapshot(), [{ url: 'http://a:1', token: 'admin-token', kind: 'admin' }]);
+  // The NEXT session restores that: mint first, no doomed probe, no 401 anywhere.
+  server.state.calls.length = 0;
+  const next = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  await next.connect({ url: 'http://a:1', token: 'admin-token', kind: 'admin' });
+  assert.deepStrictEqual(server.state.calls, ['POST /auth/token', 'GET /projects'],
+    'straight to minting — the refused probe is gone');
+  assert.strictEqual(next.get('http://a:1').status, 'connected');
+});
+
+test('a plain session token still probes first, and an admin one that dies expires', async () => {
+  const server = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  // A working session token is used as-is: one request, no mint.
+  await mgr.connect({ url: 'http://a:1', token: 'issued-token' });
+  assert.deepStrictEqual(server.state.calls, ['GET /projects']);
+  assert.strictEqual(mgr.get('http://a:1').credentialKind, '', 'nothing to remember');
+  assert.deepStrictEqual(mgr.snapshot(), [{ url: 'http://a:1', token: 'issued-token' }]);
+  // An admin credential the server has STOPPED accepting lands in the expired state,
+  // exactly like any other refusal — the shortcut never hides a dead credential.
+  const dead = makeMockServer({ requireToken: 'issued-token', adminToken: 'other-admin' });
+  const m2 = new ConnectionManager({ fetchImpl: dead.fetchImpl, WebSocketImpl: StubWS });
+  const err = await m2.connect({ url: 'http://b:2', token: 'admin-token', kind: 'admin' })
+    .then(() => null, (e) => e);
+  assert.ok(err?.expired, 'a refused mint is still an expired session');
+  assert.deepStrictEqual(dead.state.calls, ['POST /auth/token'], 'and it cost ONE request');
+  assert.deepStrictEqual(m2.expiredUrls, ['http://b:2']);
+  assert.strictEqual(m2.get('http://b:2').status, 'expired');
+});
+
+test('the kind survives reconnect-one and adoption, but a pasted token starts unknown', async () => {
+  const server = deadSessionServer();
+  const mgr = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  await mgr.connect({ url: 'http://a:1', token: 'admin-token' });
+  server.state.calls.length = 0;
+  // Reusing the stored credential keeps what we learned…
+  await mgr.reconnectOne('http://a:1');
+  assert.deepStrictEqual(server.state.calls, ['POST /auth/token', 'GET /projects']);
+  // …while a token the user PASTES is of unknown kind and probes first.
+  server.state.calls.length = 0;
+  await mgr.reconnectOne('http://a:1', 'issued-token');
+  assert.deepStrictEqual(server.state.calls, ['GET /projects']);
+  assert.strictEqual(mgr.get('http://a:1').credentialKind, '');
+  // Adoption carries it too, so a dead-but-known admin row keeps its shortcut.
+  const m2 = new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS });
+  m2.adoptExpired({ url: 'http://a:1', token: 'admin-token', kind: 'admin' });
+  assert.strictEqual(m2.get('http://a:1').credentialKind, 'admin');
 });

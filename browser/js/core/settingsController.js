@@ -1,5 +1,6 @@
 import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
 import { icon } from '../ui/icons.js';
+import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
 import { normalizePageSize } from './units.js';
 
 // Shared `parse` guards for the settings registry below: the numeric ones return
@@ -49,14 +50,22 @@ const SETTINGS = {
     mirror: [{ id: 'line-color', kind: 'value' }],
     save: true,
   },
+  // Default point colour for new lines, independent of the line colour above.
+  // Redraws, because existing lines that never set their own point colour fall back to
+  // the line colour — but the in-progress point preview follows this default live.
+  pointColor: {
+    field: 'pointColor', parse: toStr,
+    mirror: [{ id: 'point-color', kind: 'value' }],
+    redraw: true, save: true,
+  },
   thickness: {
     field: 'thickness', parse: toInt,
     mirror: [{ id: 'line-thickness', kind: 'value' }, { id: 'ctx-thickness', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },
-  markerSize: {
-    field: 'markerSize', parse: toInt,
-    mirror: [{ id: 'marker-size', kind: 'value' }, { id: 'ctx-marker-size', kind: 'valueSkipFocus' }],
+  pointSize: {
+    field: 'pointSize', parse: toInt,
+    mirror: [{ id: 'point-size', kind: 'value' }, { id: 'ctx-point-size', kind: 'valueSkipFocus' }],
     redraw: true, save: true,
   },
   filterColor: {
@@ -167,12 +176,10 @@ const SETTINGS = {
 };
 
 // ── SettingsController: the shared editor setters ───────────────────
-// Extracted from drawingApp.js. Single source of truth for top-menu settings: toolbar
-// handlers AND the console API (window.stencil) both reach these through DrawingApp's thin
-// delegators, staying in sync. Each updates the model field on the app, mirrors the UI,
-// redraws/persists as needed. Holds no state — back-references the app like the other
-// collaborators (Renderer/Storage/CoordTable). `persist:false` is used by live-drag (input)
-// events that commit on the trailing change (no write per slider tick).
+// Single source of truth for top-menu settings: toolbar handlers AND the console API
+// (window.stencil) reach these through DrawingApp's thin delegators. Holds no state —
+// back-references the app. `persist:false` is used by live-drag (input) events that
+// commit on the trailing change (no write per slider tick).
 export class SettingsController {
   constructor(app) {
     this.app = app;
@@ -199,10 +206,11 @@ export class SettingsController {
   }
 
   setColor(v, opts) { this.set('color', v, opts); }
+  setPointColor(v, opts) { this.set('pointColor', v, opts); }
 
   setThickness(n, opts) { this.set('thickness', n, opts); }
 
-  setMarkerSize(n, opts) { this.set('markerSize', n, opts); }
+  setPointSize(n, opts) { this.set('pointSize', n, opts); }
 
   setLineStyle(s) { this.set('style', s); }
 
@@ -271,6 +279,53 @@ export class SettingsController {
 
   setAllowFormulas(b) { this.set('allowFormulas', b); }
 
+  // Wire one pair of f(x,y) fields (toolbar or context-menu pair) so a formula applies
+  // when typing SETTLES, never per keystroke — half-written states like "(x" must not
+  // recompute/persist/sync or reset the transform to identity. Same delay as the numeric
+  // fields (js/ui/numericInput.js); Enter/blur apply at once. `mirrorX`/`mirrorY` are the
+  // twin pair a committed value reflects into; the pair being typed is never written back,
+  // so the caret stays put. Returns the commit fn (for tests / programmatic flushes).
+  wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
+    const app = this.app;
+    const read = (id) => (document.getElementById(id)?.value || '').trim();
+    const bothValid = () => app.formula.validate(read(x), 'x') && app.formula.validate(read(y), 'y');
+    let timer = null;
+
+    const commit = () => {
+      clearTimeout(timer);
+      timer = null;
+      const fx = read(x);
+      const fy = read(y);
+      // Settled and still unparseable → now it's worth flagging. The last good transform
+      // stays in force, so the coordinates on screen never follow a half-written formula.
+      if (!bothValid()) { this.showFormulaError(true); return; }
+      this.showFormulaError(false);
+      if (fx === app.formulaX && fy === app.formulaY) return;   // nothing actually changed
+      app.formulaX = fx;
+      app.formulaY = fy;
+      setVal(mirrorX, fx);
+      setVal(mirrorY, fy);
+      this.refreshFormulaCoords();
+      app.storage.save();
+      app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
+    };
+
+    for (const id of [x, y]) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener('input', () => {
+        clearTimeout(timer);
+        // Typing your way back to something valid clears a stale error immediately; a wrong
+        // one is only flagged once you stop, so "(x" mid-expression doesn't flash red.
+        if (bothValid()) this.showFormulaError(false);
+        timer = setTimeout(commit, COMMIT_DEBOUNCE_MS);
+      });
+      el.addEventListener('blur', () => commit());
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+    }
+    return commit;
+  }
+
   // Set the x or y coordinate transform. Throws on an invalid expression so the
   // console surfaces it; the UI handler catches and shows the inline error instead.
   setFormula(axis, expr) {
@@ -308,7 +363,7 @@ export class SettingsController {
     const propMap = { fill: 'defaultFillColor', selGlow: 'selGlowColor', hoverRing: 'hoverRingColor', focusRing: 'focusRingColor' };
     const idMap = { fill: 'vs-fill', selGlow: 'vs-sel-glow', hoverRing: 'vs-hover-ring', focusRing: 'vs-focus-ring' };
     const prop = propMap[key];
-    if (!prop) throw new Error(`Unknown visual colour: ${key}`);
+    if (!prop) throw new Error(`Unknown visual color: ${key}`);
     app[prop] = String(value);
     setVal(idMap[key], app[prop]);
     app.renderer.redraw();

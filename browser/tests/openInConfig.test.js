@@ -8,14 +8,15 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { installFetchStub } from './helpers/fetchStub.js';
 
 // Import OPEN_IN_DEFAULTS once (a stable constant) for comparison.
 const { OPEN_IN_DEFAULTS } = await import('../js/config/openInConfig.js');
 
 let caseId = 0;
-// Install a fake global fetch, then load a fresh copy of the module (its `cached` promise resets).
+// Install a stub global fetch, then load a fresh copy of the module (its `cached` promise resets).
 const loadWith = async (fetchImpl) => {
-  globalThis.fetch = fetchImpl;
+  installFetchStub(fetchImpl);
   const mod = await import(`../js/config/openInConfig.js?case=${++caseId}`);
   return mod.loadOpenInConfig();
 };
@@ -56,11 +57,10 @@ test('a valid desktopScheme with a non-string telegramBotUsername keeps the sche
 });
 
 test('the result is cached — fetch runs at most once across callers', async () => {
-  let calls = 0;
-  globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ desktopScheme: 'once', telegramBotUsername: '' }) }; };
+  const stub = installFetchStub({ ok: true, json: { desktopScheme: 'once', telegramBotUsername: '' } });
   const mod = await import(`../js/config/openInConfig.js?case=${++caseId}`);
   const [a, b] = await Promise.all([mod.loadOpenInConfig(), mod.loadOpenInConfig()]);
   await mod.loadOpenInConfig();
-  assert.equal(calls, 1, 'fetch invoked exactly once');
+  assert.equal(stub.calls.length, 1, 'fetch invoked exactly once');
   assert.equal(a, b, 'same cached promise result shared by callers');
 });

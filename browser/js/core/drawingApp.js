@@ -1,10 +1,15 @@
-import { setVal, notify, distToSegment, cmToUnit, unitLabel, defaultUnitFromLocale, composeControlTitle } from '../utils.js';
+import { setVal, notify, cmToUnit, unitLabel, defaultUnitFromLocale, composeControlTitle, shortName, compareEditedShows } from '../utils.js';
+import * as hitTest from './hitTest.js';
+import * as dragGestures from './dragGestures.js';
+import * as selectionPanel from '../ui/selectionPanel.js';
+import { updateButtons as updateControlState } from '../ui/controlState.js';
 import constants from '../config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 import { HistoryStack } from './historyStack.js';
 import { FormulaEngine } from './formulaEngine.js';
 import { Renderer } from './renderer.js';
 import { Storage } from './storage.js';
+import { getProjectsBackend } from './projectsBackend.js';
 import { TabsCoordinator } from './tabsCoordinator.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { defaultBlankSizePx } from './layout.js';
@@ -15,6 +20,7 @@ import { SettingsController } from './settingsController.js';
 import { AccentController } from './accentController.js';
 import { ImageModel } from './imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
+import { ProjectTransferController } from './projectTransferController.js';
 import { InputController } from './inputController.js';
 import { PointerController } from './pointerController.js';
 import { ControlsBinder } from './controlsBinder.js';
@@ -22,11 +28,13 @@ import { core } from './stencilCore.js';
 import { hotkeys } from './hotkeys.js';
 import { DEFAULT_ACCENT, isAccent, applyAccentFavicon, normalizeHex, accentHex } from './accents.js';
 import { buildLayoutPayload, validateLayout, resolveInsertIdx, fillState, mergeLines } from './layout.js';
-import { readOpenProjectId, buildOpenProjectUrl, buildExternalLaunchUrl, normalizeLaunchPayload } from './deepLink.js';
+import { readOpenProjectId, buildExternalLaunchUrl, normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
 import { StencilSync } from './stencilSync.js';
+import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
-import { enhanceSelect } from '../ui/customSelect.js';
+import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
+import { arriveFrom, flashLanding, ghostIn, GHOST_MS, leaveThenRemove } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
@@ -41,6 +49,45 @@ export const DRAW_MODE_ICON = {
     '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
   rect: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
     '<rect x="2.5" y="3.5" width="11" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+};
+
+// Base name without its file extension (for project naming / source matching).
+const stripExt = (name) => {
+  const s = String(name || '');
+  const dot = s.lastIndexOf('.');
+  return dot > 0 ? s.slice(0, dot) : s;
+};
+
+// ── The external-import tail, shared by every surface handing an image to THIS tab ──
+// `mode`: 'new' = its own project (the only mode the naming options apply to); 'replace' /
+// 'replace-keep' = swap the active project's image, dropping or keeping its lines. Rejects on
+// a failed fetch. A free function (not a method) so tests can drive plain stand-in apps.
+const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
+  const name = launch.name || 'image.png';
+  // Auto-number the name against existing same-source projects ("name (1)", …);
+  // skipped for incognito, which never persists.
+  const opts = launch.crop ? { crop: launch.crop } : {};
+  if (!launch.crop && launch.noCrop) opts.noCrop = true;   // Open-Image dialog "Crop off" → full frame
+  opts.source = launch.source;
+  opts.resource = launch.resource;
+  if (!app.storage.incognito && launch.source) opts.name = app.storage.store.copyName(stripExt(name), launch.source);
+  // An inline layout (desktop/bot hand-off) restores annotations + filter + crop + page.
+  if (launch.layout) {
+    opts.layout = launch.layout;
+    opts.adoptLayout = true;
+  }
+
+  // `src` launches carry an http(s) image URL instead of inline bytes (kept short for
+  // links sent through chat). The fetch is best-effort: the host must allow CORS.
+  const imageUrl = launch.kind === 'src' ? launch.src : launch.dataUrl;
+  if (launch.kind === 'src' && !opts.source) opts.source = launch.src;
+  return fetch(imageUrl, launch.kind === 'src' ? { mode: 'cors' } : undefined)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+    .then(blob => {
+      const file = new File([blob], name, { type: blob.type || 'image/png' });
+      if (mode === 'new') app.loadImageFromFile(file, opts);
+      else app.replaceProjectImage(file, { keepAnnotations: mode === 'replace-keep', crop: opts.crop });
+    });
 };
 
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
@@ -66,7 +113,6 @@ export class DrawingApp {
   nameEditing = false;
   // Debounce timers
   #thicknessSaveTimer = null;
-  #saveStatusTimer = null;
   #rotateSaveTimer = null;
   // Live co-edit push/pull (debounce timers, echo-suppression timestamp, reload guards) lives
   // in RemoteSyncController (remoteSyncController.js), constructed as this.remoteSync.
@@ -84,7 +130,7 @@ export class DrawingApp {
     this.image = null;
     // Crop support: `originalImage` = untouched full-res bitmap; working `image` =
     // canvas holding only the cropped (page-shaped) region; `cropRect` records it in
-    // original-image pixels. Line/marker points are crop-local. See applyCrop / #buildCroppedImage.
+    // original-image pixels. Line and point coords are crop-local. See applyCrop / #buildCroppedImage.
     this.originalImage = null;
     this.cropRect = null;
     // Non-destructive 90° rotation: quarter-turn count (0..3, clockwise) applied to
@@ -135,18 +181,19 @@ export class DrawingApp {
     this.focusedPtIdx = -1;   // clicked/focused row in table
 
     this.color = '#FFFF00';
+    // Default point colour for new lines. '' = follow this.color, matching
+    // core's Line::pointColor / pointColorOr fallback.
+    this.pointColor = '';
     this.thickness = 2;
-    this.markerSize = 4;
+    this.pointSize = 4;
     this.style = 'solid';
     this.showPoints = true;
     this.showLines = true;
     this.imageFilter = 'none'; // 'none' | 'bw' | 'sepia' | 'custom'
     this.filterColor = '#7c3aed'; // custom tint color
-    // Compare view: hold the edited result against the untouched original (crop + rotation
-    // only — no filter, lines, points or layout). 'none' = normal editing; 'original' =
-    // show the original alone; 'vertical'/'horizontal' = split the canvas with a movable
-    // divider (original on the left/top, current edit on the right/bottom). Transient view
-    // state — never persisted or synced.
+    // Compare view: the edited result against the untouched original (crop + rotation only).
+    // 'original' shows the original alone; 'vertical'/'horizontal' split with a movable
+    // divider. Transient view state — never persisted or synced.
     this.compareMode = 'none'; // 'none' | 'original' | 'vertical' | 'horizontal'
     this.compareSplit = 0.5;   // divider position (0..1) for the split compare modes
     this.compareHoldOriginal = false; // Alt+Shift+O momentary "show original" override
@@ -154,10 +201,9 @@ export class DrawingApp {
     this.customPageWidth = 21;
     this.customPageHeight = 29.7;
     this.selectedLineIdx = -1;
-    // Multi-line selection set (Ctrl/⌘+Shift+click to add/toggle). Empty in ordinary
-    // single-select mode — selectedIndices() then falls back to [selectedLineIdx], so every
-    // existing single-line path is untouched. Populated only in multi-select mode; when it holds
-    // 2+ lines, selectedLineIdx is -1 (the single-line editor hides) and move/rotate act on all.
+    // Multi-line selection set (Ctrl/⌘+Shift+click). Empty in single-select mode —
+    // selectedIndices() then falls back to [selectedLineIdx]. With 2+ lines held,
+    // selectedLineIdx is -1 (the single-line editor hides) and move/rotate act on all.
     this.selectedLines = [];
     // Tooltip visibility (persisted)
     this.tooltipEnabled = true;
@@ -193,6 +239,8 @@ export class DrawingApp {
 
     // ── Hover tracking (for hover ring on any point, Ctrl/Shift tooltip refresh) ──
     this.hoverPt = null;          // { lineIdx, ptIdx } currently hovered on canvas
+    this.hoverLineIdx = -1;       // line under the canvas cursor → tints its Lines-list row
+    this.listHoverLineIdx = -1;   // hovered Lines-list row → hover glow on the canvas
     this.mouseOverCanvas = false;
     this.lastMouseClientX = 0;
     this.lastMouseClientY = 0;
@@ -244,6 +292,30 @@ export class DrawingApp {
     this.imageModel = new ImageModel(this);
     // Live co-edit push/pull + server writes (see remoteSyncController.js).
     this.remoteSync = new RemoteSyncController(this);
+    // Project lifecycle + local↔server move/copy (see projectTransferController.js). Takes
+    // explicit deps — the `host` facade is the narrow slice of app state/callbacks it needs
+    // (`getConnections` is a getter because stencilApi creates the manager lazily).
+    const app = this;
+    this.projectTransfer = new ProjectTransferController({
+      storage: this.storage,
+      tabs: this.tabs,
+      remoteSync: this.remoteSync,
+      getConnections: () => app.connections,
+      host: {
+        get activeProjectId() { return app.activeProjectId; },
+        set activeProjectId(id) { app.activeProjectId = id; },
+        get remoteLink() { return app.remoteLink; },
+        set remoteLink(link) { app.remoteLink = link; },
+        set blankColor(color) { app.blankColor = color; },
+        set imageBaseName(name) { app.imageBaseName = name; },
+        get chatPersistence() { return app.chatPersistence; },
+        updateProjectTitle: (force) => app.updateProjectTitle(force),
+        updateIncognitoUI: () => app.updateIncognitoUI(),
+        newEditor: (opts) => app.newEditor(opts),
+        loadImageFromFile: (file, opts) => app.loadImageFromFile(file, opts),
+        setBlankColor: (color) => app.setBlankColor(color),
+      },
+    });
     // Live two-way sync between a file-linked project and its .stencil on disk (opt-in;
     // File System Access / Chromium only — no-ops elsewhere). See stencilSync.js.
     this.stencilSync = new StencilSync(this);
@@ -261,18 +333,31 @@ export class DrawingApp {
     this.controls = new ControlsBinder(this);
 
     this.initEventListeners();
-    // Size the canvas viewport to the available height, and keep it adaptive: re-run on
-    // window resize so the viewport (and, with an image, its zoom-aware height) tracks the
-    // window instead of freezing at the boot-time value. syncViewportHeight hugs+grows with
-    // zoom once an image is loaded; before that we just fill the available height.
+    // Keep the canvas viewport (and the coordinates panel, the other column that can
+    // outgrow the window) sized to the available height on every geometry change.
     const syncViewport = () => {
       const vp = document.getElementById('canvas-viewport');
       if (!vp || document.body.classList.contains('fullscreen-mode')) return;
-      if (this.image) this.zoomPan.syncViewportHeight();
-      else vp.style.maxHeight = this.zoomPan.availContentHeight() + 'px';
+      this.zoomPan.syncViewportHeight(); // hugs a loaded image, fills the height without one
+      this.zoomPan.syncCoordPanelHeight();
     };
     syncViewport();
+    // …and again after the first paint: the first call runs before the shell's layout is
+    // real, which leaves the empty editor slightly too tall (permanent scrollbar).
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
     window.addEventListener('resize', syncViewport);
+    // Docking/undocking the chat moves body's padding (editor height), so re-measure too;
+    // deferred a frame so the emitter's class change is in the layout.
+    const syncViewportSoon = () => {
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
+      else syncViewport();
+    };
+    window.addEventListener('stencil:chat-layout-changed', syncViewportSoon);
+    // …and once body's padding finishes ANIMATING (components.css slides it over ~340ms):
+    // the events above fire at the start of the slide and measure the old geometry.
+    document.body.addEventListener('transitionend', (e) => {
+      if (e.target === document.body && e.propertyName.startsWith('padding')) syncViewport();
+    });
     // Boot synchronously into a blank temporary editor (migrate + sweep only); the
     // projects component decides whether to offer a chooser after readiness.
     this.restoreFromLocalStorage();
@@ -319,10 +404,18 @@ export class DrawingApp {
     this.controls.wireDropPaste();
     this.controls.wireCanvasPointer();
     this.controls.wireSmoothZoom();
+    // Last, so every select the layout rendered (toolbar, panel and each modal, which are
+    // all in the DOM from boot) wears the app's own dropdown rather than the OS one — the
+    // toolbar pair enhanced in wirePageAndDisplayControls above included, since a second
+    // pass over an enhanced select is a no-op.
+    enhanceAllSelects();
     this.pointer.wirePanDrag();
     this.input.wireHoldDraw();
     this.input.wireTouch();
     this.#wireExternalResume();
+    // The extension's "editor mode" asks this tab about itself (project/image/preview) and
+    // imports into it without opening a new tab — see js/core/extensionBridge.js.
+    wireExtensionBridge(this);
   }
 
   // The extension's editorBridge dispatches `stencil:switch-to-source` when the user picks
@@ -352,9 +445,9 @@ export class DrawingApp {
   // Theme + accent writes live in AccentController (accentController.js); these thin
   // delegators keep the public method names the toolbar + window.stencil facade call. The
   // theme/accent/customAccent GETTERS stay here because they just read the document element.
-  setTheme(theme) { this.accents.setTheme(theme); }
-  setAccent(key) { this.accents.setAccent(key); }
-  setCustomAccent(hex) { return this.accents.setCustomAccent(hex); }
+  setTheme(theme, originEl = null) { this.accents.setTheme(theme, originEl); }
+  setAccent(key, originEl = null) { this.accents.setAccent(key, originEl); }
+  setCustomAccent(hex, originEl = null) { return this.accents.setCustomAccent(hex, originEl); }
 
   // Active accent preset key (see js/core/accents.js); falls back to violet.
   get accent() {
@@ -391,6 +484,16 @@ export class DrawingApp {
     return this.renderer.effectiveCompareMode() !== 'none';
   }
 
+  // …but the coordinate tooltip is DISPLAY, not editing, so it stays live in a
+  // comparison — for the points you can actually see. A point behind the original half
+  // gets nothing, because labelling something the user is not looking at is a lie
+  // (desktop parity). Gate on the POINT's own coordinates, never the cursor's: a point
+  // just across the divider from the pointer must not be labelled from the visible side.
+  compareShowsPoint(x, y) {
+    return compareEditedShows(this.renderer.effectiveCompareMode(), this.compareSplit,
+      x, y, this.canvas.width, this.canvas.height);
+  }
+
   // Is a viewport client point within the grab band (8 CSS px) of the split-compare
   // divider? Shared by PointerController (drag start) and updateHover (resize cursor) so
   // the geometry lives once. False unless a split mode ('vertical'/'horizontal') is active.
@@ -408,7 +511,11 @@ export class DrawingApp {
     const rect = this.canvas.getBoundingClientRect();
     const cssX = clientX - rect.left;
     const cssY = clientY - rect.top;
-    return { cssX, cssY, x: cssX / this.scale, y: cssY / this.scale };
+    // Map through the LIVE on-screen size, not this.scale: mid zoom-transition (the canvas
+    // animates width/height) the two disagree and hit-tests land on the wrong point.
+    const sx = (rect.width > 0 && this.canvas.width > 0) ? rect.width / this.canvas.width : this.scale;
+    const sy = (rect.height > 0 && this.canvas.height > 0) ? rect.height / this.canvas.height : this.scale;
+    return { cssX, cssY, x: cssX / sx, y: cssY / sy };
   }
 
   // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels, overriding
@@ -576,14 +683,26 @@ export class DrawingApp {
         this.updateInfo();
         this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
         this.renderer.redraw();
+        // Every fresh image gets the dust-assembly arrival (ghostIn — the clear's ghostOut
+        // reversed), falling back to the drop-point flight when it can't play. Only an
+        // in-place replace is exempt; callers can opt out with `landing: false`.
+        if (!replaceInPlace && opts.landing !== false) {
+          // Synchronously, in this same tick — a frame's delay would flash the finished
+          // image before hiding it. redraw() above already filled the backing store.
+          const vp = document.querySelector('.canvas-viewport');
+          if (ghostIn(this.canvas)) {
+            if (vp) flashLanding(vp, 'canvas-assembling', GHOST_MS);
+          } else {
+            arriveFrom(document.getElementById('canvas-container'), opts.from);
+          }
+        }
         this.updateButtons();
         this.updateCoordStatus();
         this.storage.save();
 
         // Adopt a reopened server project's accent colour into the local meta (local-only —
-        // the server already holds it), then repaint the name. The field is applied even when
-        // empty so a peer CLEARING the colour propagates here too (was gated on truthy, which
-        // silently dropped clears); empty restores the neutral-grey fallback.
+        // the server already holds it), then repaint the name. Applied even when empty so a
+        // peer CLEARING the colour propagates too (empty restores the neutral-grey fallback).
         if ((opts.remoteId || opts.adoptLayout) && opts.color != null && this.activeProjectId != null) {
           this.storage.store.setColor(this.activeProjectId, normalizeHex(opts.color) || '');
           this.updateProjectTitle();
@@ -622,26 +741,27 @@ export class DrawingApp {
     reader.readAsDataURL(file);
   }
 
-  // ── External launch (browser extension / other front-ends) ───────
-  // Extension, desktop app and Telegram bot hand a session off via URL fragment
-  // `#stencil=<encodeURIComponent(JSON)>`, shape { dataUrl? | src? | server?, name?, crop?,
-  // page?, source?, resource?, open?, incognito?, layout? } (see normalizeLaunchPayload for
-  // the schema/precedence). Fragment (not query) keeps the payload off server/logs; consumed
-  // once, stripped, routed through the normal upload. `server:{url,id}` opens a server project
-  // (connecting like a fresh client — no token rides the link); `layout` restores annotations/
-  // filter/crop/page for inline hand-offs. `open:'resume'` switches to an existing same-source
-  // project (cross-origin, so the extension can't dedup itself); else import a new project,
-  // auto-numbered "name (N)".
+  // ── External launch (extension / desktop / bot): `#stencil=<encodeURIComponent(JSON)>` ──
+  // Schema/precedence live in normalizeLaunchPayload. Fragment (not query) keeps the payload
+  // off servers/logs; consumed once, stripped, routed through the normal upload.
+  // `open:'resume'` switches to an existing same-source project; else import a new one.
   applyExternalLaunch() {
     const hash = location.hash || '';
-    const marker = '#stencil=';
-    if (!hash.startsWith(marker)) return;
+    const prefix = '#stencil=';
+    if (!hash.startsWith(prefix)) return;
     // Strip the fragment immediately so a reload doesn't re-import the image.
     history.replaceState(null, '', location.pathname + location.search);
 
     let payload;
+    // Chrome caps fragments around 2M chars, but lax environments don't: bound
+    // the raw hash before decode/parse (same cap normalizeLaunchPayload applies
+    // to the decoded dataUrl).
+    if (hash.length > LAUNCH_DATA_URL_MAX) {
+      notify('Stencil: could not read the shared image', 'fail');
+      return;
+    }
     try {
-      payload = JSON.parse(decodeURIComponent(hash.slice(marker.length)));
+      payload = JSON.parse(decodeURIComponent(hash.slice(prefix.length)));
     } catch {
       notify('Stencil: could not read the shared image', 'fail');
       return;
@@ -665,9 +785,7 @@ export class DrawingApp {
     }
 
     const name = launch.name || 'image.png';
-    const crop = launch.crop;
     const source = launch.source;
-    const resource = launch.resource;
 
     // Resume: if we hold project(s) for this source, switch instead of re-importing.
     // Several matches → open the projects list to pick. No match (stale ledger / expired
@@ -677,28 +795,24 @@ export class DrawingApp {
       return;
     }
 
-    // Fresh import. Auto-number the name against existing same-source projects so repeats
-    // become "name (1)", "name (2)", … (skipped for incognito, which never persists).
-    // `open:'copy'` takes the same path.
-    const opts = crop ? { crop } : {};
-    if (!crop && launch.noCrop) opts.noCrop = true;   // Open-Image dialog "Crop off" → full frame
-    opts.source = source;
-    opts.resource = resource;
-    if (!this.storage.incognito && source) opts.name = this.storage.store.copyName(this.#stripExt(name), source);
-    // An inline layout (desktop/bot hand-off) restores annotations + filter + crop + page.
-    if (launch.layout) {
-      opts.layout = launch.layout;
-      opts.adoptLayout = true;
-    }
-
-    // `src` launches carry an http(s) image URL instead of inline bytes (kept short for
-    // links sent through chat). The fetch is best-effort: the host must allow CORS.
-    const imageUrl = launch.kind === 'src' ? launch.src : launch.dataUrl;
-    if (launch.kind === 'src' && !opts.source) opts.source = launch.src;
-    fetch(imageUrl, launch.kind === 'src' ? { mode: 'cors' } : undefined)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
-      .then(blob => this.loadImageFromFile(new File([blob], name, { type: blob.type || 'image/png' }), opts))
+    // Fresh import (`open:'copy'` takes the same path).
+    importInlineImage(this, launch)
       .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
+  }
+
+  // The extension bridge's entry point: import a hand-off into THIS tab instead of a fresh one.
+  // For 'new', do explicitly what the fragment path gets free from a fresh page: flush + reset
+  // to a blank editor (loadImageFromFile only promotes a TEMPORARY one), and apply the page
+  // size BEFORE the load so the crop aspect matches the sender's. A replace keeps identity.
+  importExternalImage(launch, { mode = 'new' } = {}) {
+    if (mode === 'new') {
+      const incognito = this.storage.incognito;
+      if (!incognito) this.storage.save();
+      this.newEditor();
+      if (incognito) { this.storage.incognito = true; this.updateIncognitoUI(); }
+      if (launch.page) this.#setExternalPage(launch.page);
+    }
+    return importInlineImage(this, launch, { mode });
   }
 
   // Switch to an existing project matching this image, without importing. Returns true when
@@ -706,11 +820,11 @@ export class DrawingApp {
   // extension's "resume in the open editor tab" nudge (stencil:switch-to-source), which lets
   // the extension re-focus this tab instead of spawning a new one.
   #resumeBySource(source, name) {
-    const baseName = this.#stripExt(name || '');
+    const baseName = stripExt(name || '');
     const matches = this.storage.store.findByImage(source, baseName);
     if (matches.length && this.switchToProject(matches[0].id)) {
       if (matches.length > 1) {
-        notify(`Resumed "${matches[0].name}" — ${matches.length} projects share this image`, 'ok');
+        notify(`Resumed "${shortName(matches[0].name)}" — ${matches.length} projects share this image`, 'ok');
         document.getElementById('projects-btn')?.click();
       }
       return true;
@@ -734,7 +848,7 @@ export class DrawingApp {
       // origins (live or saved) skip the prompt.
       if (!saved && !(await this.confirm(
         `This link opens a shared project on ${url}. Connect to that server?`,
-        { title: 'Open shared project', confirmLabel: 'Connect' }))) {
+        { title: 'Open shared project', confirmLabel: 'Connect', confirmIcon: 'link' }))) {
         return;
       }
       try {
@@ -754,40 +868,7 @@ export class DrawingApp {
     }
   }
 
-  // Fetch a remote project's image + layout and load it into the editor, linking the
-  // session for live co-edit. If a local project is already linked to this server
-  // project, just switch to it — never create a duplicate local copy or re-download.
-  // `meta` needs { serverUrl, id }; name/source enrich the fallback filename.
-  async openRemoteProject(meta) {
-    const linked = this.storage.store.list().find(m => m.remoteId === meta.id && m.address === meta.serverUrl);
-    if (linked) { this.switchToProject(linked.id); return; }
-    const conn = requireConnection(this.connections, meta.serverUrl);
-    const full = await conn.getProject(meta.id);
-    // Prefer the server's stored original bytes; if it holds none, fetch the `source`
-    // URL directly (cross-origin, so it needs CORS — which typical image hosts send).
-    const src = full.project?.source || meta.source || '';
-    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
-    if (!blob) throw new Error('no image bytes on the server');
-    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-    const name = full.project?.name || meta.name || 'image';
-    const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
-    this.loadImageFromFile(file, {
-      source: src,
-      resource: full.project?.resource || '',
-      color: full.project?.color || '',
-      address: meta.serverUrl,
-      remoteId: meta.id,
-      version: full.project?.version || 0,
-      layout: full.layout,
-    });
-  }
-
-  // Base name without its file extension (for project naming / source matching).
-  #stripExt(name) {
-    const s = String(name || '');
-    const dot = s.lastIndexOf('.');
-    return dot > 0 ? s.slice(0, dot) : s;
-  }
+  openRemoteProject(meta) { return this.projectTransfer.openRemoteProject(meta); }
 
   // Apply a page size handed in by the external launch and reflect it in the UI.
   // page.width/height are in cm (only used for the 'custom' size).
@@ -812,16 +893,12 @@ export class DrawingApp {
   // crop modal, and the window.stencil facade (defaultCropRect / effectiveOriginalDims /
   // effectiveOriginalDataUrl / rebuildCroppedImage / rotateImage / applyCrop).
 
-  // Hide the selection panel and its fullscreen mirror. Public — used by ImageModel's
-  // after-geometry-change refresh as well as the drawing/selection paths here.
-  hideSelectionPanels() {
-    const selPanel = document.getElementById('selection-panel');
-    if (selPanel) selPanel.style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) fsPanel.style.display = 'none';
-  }
+  // Selection-panel DOM sync lives in ui/selectionPanel.js; thin delegators (public — used
+  // by ImageModel's after-geometry-change refresh, controlsBinder, and fullscreenLayer too).
+  hideSelectionPanels() { selectionPanel.hideSelectionPanels(); }
 
-  loadJSONFromFile(file) {
+  // `opts.from` is the drop point, when this came from a drag-and-drop (controlsBinder).
+  loadJSONFromFile(file, opts = {}) {
     const reader = new FileReader();
     reader.onload = event => {
       try {
@@ -830,7 +907,7 @@ export class DrawingApp {
           notify('File is not a valid layout', 'fail');
           return;
         }
-        this.export.applyPastedLayout(data);
+        this.export.applyPastedLayout(data, opts.from);
       } catch (err) {
         notify('Error loading JSON: ' + err.message, 'fail');
       }
@@ -858,8 +935,6 @@ export class DrawingApp {
       });
       this.currentLine = null;
       this.undonePoints = [];
-      document.getElementById('start-drawing').classList.add('active');
-      document.getElementById('stop-drawing').disabled = false;
       this.coordLineIdx = this.continueLineIdx;
       this.coordTable.update(line.points, this.continueLineIdx);
       this.updateButtons();
@@ -873,8 +948,11 @@ export class DrawingApp {
     this.currentLine = {
       points: [],
       color: this.color,
+      // Resolved AT DRAW TIME (empty setting → the current line colour) so a later
+      // line-colour change never recolours already-drawn points.
+      pointColor: this.pointColor || this.color,
       thickness: this.thickness,
-      markerSize: this.markerSize,
+      pointSize: this.pointSize,
       style: this.style
     };
     if (!opts.keepSelection) {
@@ -882,13 +960,24 @@ export class DrawingApp {
       this.hideSelectionPanels();
     }
     this.undonePoints = []; // stack for redo while drawing
-    document.getElementById('start-drawing').classList.add('active');
-    document.getElementById('stop-drawing').disabled = false;
     this.updateButtons();
     this.renderer.redraw();
   }
 
-  // Switch between polyline ('line') and rectangle ('rect') drawing.
+  // The Draw group's single Start/Stop control. Driven from updateButtons(), which every
+  // isDrawing transition already ends with — one place knows what the button should say.
+  syncDrawToggleUI() {
+    const btn = document.getElementById('draw-toggle');
+    if (!btn) return;
+    const on = !!this.isDrawing;
+    btn.innerHTML = icon(on ? 'stop' : 'play', { size: 13 }) + `<span>${on ? 'Stop' : 'Start'}</span>`;
+    btn.classList.toggle('active', on);
+    // The tooltip's hotkey follows the state too: Alt+A starts, Alt+S stops.
+    btn.dataset.hkTitle = on ? 'stopDraw' : 'startDraw';
+    btn.dataset.title = on ? 'Stop Drawing' : 'Start Drawing';
+    btn.title = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
+  }
+
   setDrawMode(mode) {
     this.drawMode = (mode === 'rect') ? 'rect' : 'line';
     this.syncDrawModeUI();
@@ -917,8 +1006,6 @@ export class DrawingApp {
       this.continueInsertIdx = -1;
       this.currentLine = null;
       this.isDrawing = false;
-      document.getElementById('start-drawing').classList.remove('active');
-      document.getElementById('stop-drawing').disabled = true;
       if (this.lines[li]) this.coordTable.update(this.lines[li].points, li);
       this.saveHistory();
       this.renderer.redraw();
@@ -939,8 +1026,6 @@ export class DrawingApp {
     }
     this.currentLine = null;
     this.isDrawing = false;
-    document.getElementById('start-drawing').classList.remove('active');
-    document.getElementById('stop-drawing').disabled = true;
     this.renderer.redraw();
     this.updateButtons();
   }
@@ -1016,8 +1101,27 @@ export class DrawingApp {
     return this;
   }
 
+  // Tint the Lines-list row matching the line under the canvas cursor. Class toggle only —
+  // the list is never scrolled by a canvas hover.
+  applyLinesListHover() {
+    const el = document.getElementById('lines-list');
+    if (!el) return;
+    el.querySelectorAll('.lines-row').forEach(r => {
+      r.classList.toggle('lines-row-hover', parseInt(r.dataset.idx) === this.hoverLineIdx);
+    });
+  }
+
+  // Hovering a Lines-list row glows that line on the canvas (the reverse direction of
+  // applyLinesListHover). -1 / out-of-range clears the glow.
+  setListHoverLine(idx) {
+    const i = (typeof idx === 'number' && idx >= 0 && idx < this.lines.length) ? idx : -1;
+    if (i === this.listHoverLineIdx) return;
+    this.listHoverLineIdx = i;
+    this.renderer.redraw();
+  }
+
   // Rebuild the "Lines" tab list — one row per committed line (color chip, index, point/segment
-  // count, area marker), reflecting the current selection. Rows single-select on click (⌘/Ctrl+Shift
+  // count, area badge), reflecting the current selection. Rows single-select on click (⌘/Ctrl+Shift
   // toggles multi-select) and carry a 🗑 to remove the line. No-ops unless the Lines tab is showing,
   // so the redraw/updateButtons hooks that call it stay cheap while the Points tab is active.
   renderLinesList() {
@@ -1034,7 +1138,11 @@ export class DrawingApp {
     this.lines.forEach((line, i) => {
       const row = document.createElement('div');
       row.className = 'lines-row' + (this.isLineSelected(i) ? ' lines-row-selected' : '');
+      if (i === this.hoverLineIdx) row.classList.add('lines-row-hover');
       row.dataset.idx = String(i);
+      // Hovering the row glows its line on the canvas (and clears on leave).
+      row.addEventListener('mouseenter', () => this.setListHoverLine(i));
+      row.addEventListener('mouseleave', () => this.setListHoverLine(-1));
 
       const swatch = document.createElement('span');
       swatch.className = 'lines-swatch';
@@ -1058,11 +1166,25 @@ export class DrawingApp {
       rm.addEventListener('click', (e) => {
         e.stopPropagation();
         if (this.compareReadOnly()) return; // read-only compare view
-        this.removeLine(i);
+        // Collapse the row away first — renderLinesList() then rebuilds without it.
+        leaveThenRemove(row, () => this.removeLine(i));
       });
 
       row.addEventListener('click', (e) => {
         this.selectLineFromList(i, (e.ctrlKey || e.metaKey) && e.shiftKey);
+      });
+      // Focusable so Delete/Backspace can be scoped to this list, matching the points
+      // table's rows. Bare key, same core path as the row's 🗑; the global Alt+Delete
+      // (which works from anywhere, on the canvas selection) is untouched.
+      row.tabIndex = 0;
+      row.addEventListener('keydown', (e) => {
+        if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+        if (this.compareReadOnly()) return; // read-only compare view
+        e.preventDefault();
+        e.stopPropagation();
+        this.removeLine(i);
+        const rows = el.querySelectorAll('.lines-row');
+        if (rows.length) rows[Math.min(i, rows.length - 1)].focus();
       });
       row.append(swatch, label, rm);
       el.appendChild(row);
@@ -1112,7 +1234,7 @@ export class DrawingApp {
       if (this.continueLineIdx >= 0 && this.lines[this.continueLineIdx]) {
         const line = this.lines[this.continueLineIdx];
         // Click near the first point closes it into a locked area
-        if (this.#shouldCloseShape(line.points, x, y, line.markerSize ?? this.markerSize)) {
+        if (this.#shouldCloseShape(line.points, x, y, line.pointSize ?? this.pointSize)) {
           this.#closeContinuedShape();
           return;
         }
@@ -1127,7 +1249,7 @@ export class DrawingApp {
 
       const pts = this.currentLine.points;
       // Click on the first point closes the shape into a locked area
-      if (this.#shouldCloseShape(pts, x, y, this.currentLine.markerSize ?? this.markerSize)) {
+      if (this.#shouldCloseShape(pts, x, y, this.currentLine.pointSize ?? this.pointSize)) {
         this.#closeCurrentShape();
         return;
       }
@@ -1216,8 +1338,6 @@ export class DrawingApp {
     }
     this.currentLine = null;
     this.isDrawing = false;
-    document.getElementById('start-drawing').classList.remove('active');
-    document.getElementById('stop-drawing').disabled = true;
     // Select the new area so its fill control appears
     this.selectedLineIdx = areaIdx;
     this.coordLineIdx = areaIdx;
@@ -1230,7 +1350,6 @@ export class DrawingApp {
     notify('Shape closed — locked area created', 'ok');
   }
 
-  // Insert a new point into an existing line between two connecting points.
   insertPointOnSegment(lineIdx, insertIdx, x, y) {
     const line = this.lines[lineIdx];
     if (!line) return;
@@ -1269,8 +1388,9 @@ export class DrawingApp {
     const newLine = {
       points: [{ x, y }],
       color: this.color,
+      pointColor: this.pointColor || this.color,   // resolved at draw time (see startDrawingMode)
       thickness: this.thickness,
-      markerSize: this.markerSize,
+      pointSize: this.pointSize,
       style: this.style
     };
     this.lines.push(newLine);
@@ -1331,8 +1451,9 @@ export class DrawingApp {
     const rect = {
       points: corners,
       color: this.color,
+      pointColor: this.pointColor || this.color,   // resolved at draw time (see startDrawingMode)
       thickness: this.thickness,
-      markerSize: this.markerSize,
+      pointSize: this.pointSize,
       style: this.style,
       locked: true,
       fillColor: 'transparent'
@@ -1365,6 +1486,13 @@ export class DrawingApp {
     // While panning or dragging point, don't update tooltip or cursor here
     if (this.isPanning || this.isDraggingPoint) return;
 
+    const { x, y } = this.canvasCoords(e.clientX, e.clientY);
+
+    // Persistent cursor-coordinate readout (mirrors the desktop status bar). A passive
+    // readout of where the cursor IS, so it must come BEFORE the compare returns below —
+    // otherwise the strip freezes for the whole compare session.
+    this.updateCoordStatus(x, y);
+
     // Split compare: show a resize cursor over the movable divider (skip the normal hover
     // cursor + tooltip so the affordance reads clearly). Dragging is handled in PointerController.
     if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && !this.compareHoldOriginal &&
@@ -1374,18 +1502,14 @@ export class DrawingApp {
       return;
     }
 
-    // Compare view is read-only: no hover tooltip, no hover ring, no edit cursor.
+    // Compare view is read-only for EDITING — no hover ring, no edit cursor, no drag.
+    // The coordinate tooltip is display, so it still answers here, for a point or line
+    // visible in the edited half (tooltipMgr.applyHover applies that gate).
     if (this.compareReadOnly()) {
       this.canvas.style.cursor = 'default';
-      this.tooltipMgr.hide();
+      this.tooltipMgr.applyHover(e.clientX, e.clientY, x, y, e);
       return;
     }
-
-    const { x, y } = this.canvasCoords(e.clientX, e.clientY);
-
-    // Persistent cursor-coordinate readout (mirrors the desktop status bar and
-    // the Ctrl-held tooltip content), independent of which tooltip is showing.
-    this.updateCoordStatus(x, y);
 
     // Track hovered point on ANY line (drives the hover ring), and keep the
     // coord-table row highlight in sync when the point belongs to the shown line.
@@ -1402,12 +1526,21 @@ export class DrawingApp {
     if (rowChanged) { this.hoveredPtIdx = newHover; this.coordTable.applyRowHighlight(); }
     if (hoverChanged || rowChanged) this.renderer.redraw();
 
+    // Track the LINE under the cursor too (a point hit names its line; else a stroke hit):
+    // it tints the matching Lines-list row — the reverse of the list-row hover glow. Never
+    // scrolls the list.
+    const overLineIdx = (nearPtIdx && nearPtIdx.lineIdx !== -1)
+      ? nearPtIdx.lineIdx : this.findLineAt(x, y);
+    if (overLineIdx !== this.hoverLineIdx) {
+      this.hoverLineIdx = overLineIdx;
+      this.applyLinesListHover();
+    }
+
     // Alt key held → drag-ready cursors, no tooltip
     if (e.altKey) {
       if (e.shiftKey) {
         // Alt+Shift: whole-line drag mode
-        const overLine = this.findLineAt(x, y) !== -1;
-        this.canvas.style.cursor = overLine ? 'move' : 'grab';
+        this.canvas.style.cursor = overLineIdx !== -1 ? 'move' : 'grab';
       } else {
         // Alt: point drag > segment drag > pan
         const nearSeg = nearPtIdx ? null : this.findNearestSegmentWithIdx(x, y);
@@ -1425,8 +1558,7 @@ export class DrawingApp {
     } else if (this.isDrawing && this.drawMode === 'rect') {
       this.canvas.style.cursor = 'crosshair';
     } else if (!this.isDrawing) {
-      const overLine = this.findLineAt(x, y) !== -1;
-      this.canvas.style.cursor = overLine ? 'pointer' : 'crosshair';
+      this.canvas.style.cursor = overLineIdx !== -1 ? 'pointer' : 'crosshair';
     } else {
       this.canvas.style.cursor = 'crosshair';
     }
@@ -1444,6 +1576,9 @@ export class DrawingApp {
     const idx = this.findLineAt(x, y);
     if (idx !== -1) {
       this.lines.splice(idx, 1);
+      this.hoverPt = null;        // indices shifted (see removeLine)
+      this.hoverLineIdx = -1;
+      this.listHoverLineIdx = -1;
       if (this.selectedLineIdx === idx) this.deselectLine(false);
       else if (this.selectedLineIdx > idx) this.selectedLineIdx--;
       this.saveHistory();
@@ -1453,136 +1588,33 @@ export class DrawingApp {
     }
   }
 
-  findLineAt(x, y, threshold = 8) {
-    // Check proximity to any point or segment in each line
-    for (let i = this.lines.length - 1; i >= 0; i--) {
-      const line = this.lines[i];
-      const pts = line.points;
-
-      for (const p of pts)
-        if (Math.hypot(p.x - x, p.y - y) <= threshold + 4) return i;
-
-      for (let j = 0; j < pts.length - 1; j++)
-        if (distToSegment(x, y, pts[j], pts[j + 1]) <= threshold) return i;
-    }
-    return -1;
+  // Hit-testing lives in hitTest.js (pure functions); these delegators supply the model and
+  // the zoom-aware default thresholds (screen-px radius divided by the zoom, so hits stay
+  // constant on screen).
+  findLineAt(x, y, threshold = 8 / (this.scale || 1)) {
+    return hitTest.findLineAt(this.lines, x, y, threshold);
   }
 
-  showSelectionPanel(line) {
-    document.getElementById('sel-color').value = line.color;
-    document.getElementById('sel-thickness').value = line.thickness;
-    document.getElementById('sel-marker-size').value = line.markerSize ?? this.markerSize;
-    document.getElementById('sel-style').value = line.style;
-    // Fill control appears only for locked areas
-    const fillGroup = document.getElementById('sel-fill-group');
-    if (fillGroup) {
-      if (line.locked) {
-        fillGroup.style.display = 'flex';
-        const fs = fillState(line, this.defaultFillColor);
-        document.getElementById('sel-fill-enabled').checked = fs.enabled;
-        document.getElementById('sel-fill').value = fs.value;
-      } else {
-        fillGroup.style.display = 'none';
-      }
-    }
-    document.getElementById('selection-panel').style.display = 'block';
-    // Sync fullscreen overlay panel
-    this.syncFsSelectionPanel(line);
-    this.renderLinesList();
-  }
+  showSelectionPanel(line) { selectionPanel.showSelectionPanel(this, line); }
 
-  // Apply the locked-area fill from the selection panel controls.
-  applyFill() {
-    if (this.compareReadOnly()) return; // read-only compare view
-    if (this.selectedLineIdx === -1) return;
-    const line = this.lines[this.selectedLineIdx];
-    if (!line) return;
-    const enabled = document.getElementById('sel-fill-enabled').checked;
-    const color = document.getElementById('sel-fill').value;
-    line.fillColor = enabled ? color : 'transparent';
-    this.saveHistory();
-    this.renderer.redraw();
-    this.storage.save();
-  }
+  applyFill() { selectionPanel.applyFill(this); }
 
-  syncFsSelectionPanel(line) {
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (!fsPanel) return;
-    const isFS = document.body.classList.contains('fullscreen-mode');
-    if (!isFS || !line) { fsPanel.style.display = 'none'; return; }
-    // Always start at top:0; updateFsSelectionTop (called from show/hideControlsPanel) handles offset
-    const fsCtrls = document.getElementById('fs-controls-panel');
-    const ctrlsVisible = fsCtrls && fsCtrls.classList.contains('fs-panel-visible');
-    fsPanel.style.transition = 'none'; // no transition on initial placement
-    fsPanel.style.top = ctrlsVisible ? fsCtrls.getBoundingClientRect().height + 'px' : '0px';
-    fsPanel.style.display = 'block';
-    // Re-enable transition after placement
-    requestAnimationFrame(() => { fsPanel.style.transition = ''; });
-    // Expand top trigger to cover the selection panel
-    requestAnimationFrame(() => {
-      const trigger = document.getElementById('fs-top-trigger');
-      if (trigger) trigger.style.height = Math.max(8, fsPanel.getBoundingClientRect().bottom) + 'px';
-    });
-    const fs = fillState(line, this.defaultFillColor);
-    fsPanel.innerHTML = `<div class="selection-panel-inner">
-            <span class="selection-label">${icon('pencil', { size: 14 })} Selected Line:</span>
-            <div class="control-group"><label>Color:</label>
-                <input type="color" id="fs-sel-color" value="${line.color}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;"></div>
-            <div class="control-group"><label>Thickness:</label>
-                <input type="number" id="fs-sel-thickness" value="${line.thickness}" min="1" max="20" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
-            <div class="control-group"><label>Marker Size:</label>
-                <input type="number" id="fs-sel-marker-size" value="${line.markerSize ?? this.markerSize}" min="1" max="30" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
-            <div class="control-group"><label>Style:</label>
-                <select id="fs-sel-style" style="background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;">
-                    <option value="solid"${line.style==='solid'?' selected':''}>Solid</option>
-                    <option value="dashed"${line.style==='dashed'?' selected':''}>Dashed</option>
-                    <option value="dotted"${line.style==='dotted'?' selected':''}>Dotted</option>
-                </select></div>
-            ${line.locked ? `<div class="control-group"><label>Fill:</label>
-                <input type="checkbox" id="fs-sel-fill-enabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
-                <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
-                <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
-            <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
-        </div>`;
-    fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {
-      this.applySelectionChange('color', e.target.value);
-      document.getElementById('sel-color').value = e.target.value;
-    });
-    fsPanel.querySelector('#fs-sel-thickness').addEventListener('change', e => {
-      this.applySelectionChange('thickness', parseInt(e.target.value));
-      document.getElementById('sel-thickness').value = e.target.value;
-    });
-    fsPanel.querySelector('#fs-sel-marker-size').addEventListener('change', e => {
-      this.applySelectionChange('marker-size', parseInt(e.target.value));
-      document.getElementById('sel-marker-size').value = e.target.value;
-    });
-    fsPanel.querySelector('#fs-sel-style').addEventListener('change', e => {
-      this.applySelectionChange('style', e.target.value);
-      document.getElementById('sel-style').value = e.target.value;
-    });
-    const fsFillEnabled = fsPanel.querySelector('#fs-sel-fill-enabled');
-    const fsFill = fsPanel.querySelector('#fs-sel-fill');
-    if (fsFillEnabled && fsFill) {
-      const applyFsFill = () => {
-        if (this.selectedLineIdx === -1) return;
-        const ln = this.lines[this.selectedLineIdx];
-        if (!ln) return;
-        ln.fillColor = fsFillEnabled.checked ? fsFill.value : 'transparent';
-        const mainEnabled = document.getElementById('sel-fill-enabled');
-        const mainFill = document.getElementById('sel-fill');
-        if (mainEnabled) mainEnabled.checked = fsFillEnabled.checked;
-        if (mainFill) mainFill.value = fsFill.value;
-        this.saveHistory(); this.renderer.redraw(); this.storage.save();
-      };
-      fsFillEnabled.addEventListener('change', applyFsFill);
-      fsFill.addEventListener('input', () => { fsFillEnabled.checked = true; applyFsFill(); });
-      const fsFillClear = fsPanel.querySelector('#fs-sel-fill-clear');
-      if (fsFillClear) fsFillClear.addEventListener('click', () => {
-        fsFillEnabled.checked = false; applyFsFill();
-        notify('Fill cleared (transparent)', 'ok');
-      });
-    }
-    fsPanel.querySelector('#fs-sel-deselect').addEventListener('click', () => this.deselectLine());
+  syncFsSelectionPanel(line) { selectionPanel.syncFsSelectionPanel(this, line); }
+
+  // A click on the empty canvas area OUTSIDE the image (the letterbox inside
+  // #canvas-viewport). Same intent as clicking blank space inside the image — drop the
+  // selection — but it can't go through canvasClick(), which is bound to the <canvas>
+  // and needs image coordinates. Guards mirror canvasClick's: no-op while drawing, in a
+  // read-only compare view, right after a drag, or with a modifier held (those are
+  // multi-select / pan / zoom-rect gestures, not a plain click).
+  deselectEmptyArea(e) {
+    if (!this.image) return;
+    if (this.isDrawing) return;
+    if (this.compareReadOnly()) return;
+    if (this.dragJustEnded) return;
+    if (e && (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey)) return;
+    if (this.selectedLineIdx === -1 && !this.selectedLines.length && this.focusedPtIdx === -1) return;
+    this.deselectLine();
   }
 
   deselectLine(redraw = true) {
@@ -1601,137 +1633,40 @@ export class DrawingApp {
   applySelectionChange(prop, value) {
     if (this.compareReadOnly()) return; // read-only compare view
     if (this.selectedLineIdx === -1) return;
-    this.lines[this.selectedLineIdx][prop] = value;
+    const line = this.lines[this.selectedLineIdx];
+    // Recolouring the stroke must never recolour the points: a line still on the inherit
+    // fallback ('' pointColor — pre-pointColor layouts) pins its rendered colour first.
+    if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
+    line[prop] = value;
     this.saveHistory();
     this.renderer.redraw();
   }
 
-  findNearestPoint(x, y, threshold = 10) {
-    const allPoints = [];
-
-    this.lines.forEach(line => {
-      line.points.forEach(p => allPoints.push(p));
-    });
-
-    if (this.currentLine) this.currentLine.points.forEach(p => allPoints.push(p));
-
-    for (let point of allPoints) {
-      const dist = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
-      if (dist < threshold) return point;
-    }
-    return null;
+  findNearestPoint(x, y, threshold = 10 / (this.scale || 1)) {
+    return hitTest.findNearestPoint(this.lines, this.currentLine, x, y, threshold);
   }
 
-  // Begin dragging a segment (shared by the mouse Alt-drag and the touch grab). Snapshots
-  // the two endpoints + the whole line so a mid-drag Shift can translate the shape.
-  // (x, y) are the grab point in canvas coords.
-  beginSegmentDrag(nearSeg, x, y) {
-    const line = this.lines[nearSeg.lineIdx];
-    this.isDraggingSegment = true;
-    this.draggingSegment = {
-      lineIdx: nearSeg.lineIdx, ptIdx1: nearSeg.ptIdx1, ptIdx2: nearSeg.ptIdx2,
-      startX: x, startY: y,
-      origPt1: { x: line.points[nearSeg.ptIdx1].x, y: line.points[nearSeg.ptIdx1].y },
-      origPt2: { x: line.points[nearSeg.ptIdx2].x, y: line.points[nearSeg.ptIdx2].y },
-      origPoints: line.points.map(p => ({ x: p.x, y: p.y })),
-    };
-  }
+  // The Alt-drag gesture engine (point/segment/whole-line) lives in dragGestures.js; these
+  // delegators keep the shared entry points the mouse + touch controllers call.
+  beginSegmentDrag(nearSeg, x, y) { dragGestures.beginSegmentDrag(this, nearSeg, x, y); }
 
-  // Move the currently-dragged point (dp = draggingPoint) to canvas coords (x, y) and
-  // refresh its coordinate row. Shared by the mouse and touch point-drag paths.
-  movePointTo(dp, x, y) {
-    const line = dp.lineIdx === -1 ? this.currentLine : this.lines[dp.lineIdx];
-    if (!line) return;
-    line.points[dp.ptIdx].x = x;
-    line.points[dp.ptIdx].y = y;
-    this.renderer.redraw();
-    this.coordTable.refreshCoordRow(dp.ptIdx);
-  }
+  movePointTo(dp, x, y) { dragGestures.movePointTo(this, dp, x, y); }
 
-  // Finish a point drag: clear state, save history (only for a placed line), commit.
-  endPointDrag(dp, altKey) {
-    this.isDraggingPoint = false;
-    this.draggingPoint = null;
-    if (dp && dp.lineIdx !== -1) this.saveHistory();
-    this.finishDragGesture(altKey);
-  }
+  endPointDrag(dp, altKey) { dragGestures.endPointDrag(this, dp, altKey); }
 
-  // Finish a segment drag: clear state, save history, commit.
-  endSegmentDrag(altKey) {
-    this.isDraggingSegment = false;
-    this.draggingSegment = null;
-    this.saveHistory();
-    this.finishDragGesture(altKey);
-  }
+  endSegmentDrag(altKey) { dragGestures.endSegmentDrag(this, altKey); }
 
-  // Apply the active segment/whole-line drag at the cursor. `shiftKey` decides the mode
-  // live: held → translate the entire line shape; released → move only the grabbed segment's
-  // two endpoints. Both derive from the original snapshot, so toggling Shift never accumulates.
-  dragMove(clientX, clientY, shiftKey) {
-    const { x, y } = this.canvasCoords(clientX, clientY);
-
-    if (this.isDraggingSegment && this.draggingSegment) {
-      const ds = this.draggingSegment;
-      const line = this.lines[ds.lineIdx];
-      if (!line) return;
-      const dx = x - ds.startX;
-      const dy = y - ds.startY;
-      if (shiftKey) {
-        line.points.forEach((p, i) => { p.x = ds.origPoints[i].x + dx; p.y = ds.origPoints[i].y + dy; });
-        if (this.coordLineIdx === ds.lineIdx) this.coordTable.update(line.points, ds.lineIdx);
-      } else {
-        line.points.forEach((p, i) => { p.x = ds.origPoints[i].x; p.y = ds.origPoints[i].y; });
-        line.points[ds.ptIdx1].x = ds.origPt1.x + dx;
-        line.points[ds.ptIdx1].y = ds.origPt1.y + dy;
-        line.points[ds.ptIdx2].x = ds.origPt2.x + dx;
-        line.points[ds.ptIdx2].y = ds.origPt2.y + dy;
-        this.coordTable.refreshCoordRow(ds.ptIdx1);
-        this.coordTable.refreshCoordRow(ds.ptIdx2);
-      }
-      this.renderer.redraw();
-      return;
-    }
-
-    if (this.isDraggingLine && this.draggingLine) {
-      const dl = this.draggingLine;
-      const line = this.lines[dl.lineIdx];
-      if (!line) return;
-      const dx = x - dl.startX;
-      const dy = y - dl.startY;
-      // Multi-select drag: translate EVERY selected line together (whole-line move).
-      if (dl.multiOrig) {
-        for (const { li, pts } of dl.multiOrig) {
-          const l = this.lines[li];
-          if (l) l.points.forEach((p, i) => { p.x = pts[i].x + dx; p.y = pts[i].y + dy; });
-        }
-        this.renderer.redraw();
-        return;
-      }
-      // Whole line while Shift held (or if we never resolved a segment to fall back to).
-      if (shiftKey || dl.ptIdx1 == null) {
-        line.points.forEach((p, i) => { p.x = dl.origPoints[i].x + dx; p.y = dl.origPoints[i].y + dy; });
-      } else {
-        line.points.forEach((p, i) => { p.x = dl.origPoints[i].x; p.y = dl.origPoints[i].y; });
-        [dl.ptIdx1, dl.ptIdx2].forEach(pi => {
-          line.points[pi].x = dl.origPoints[pi].x + dx;
-          line.points[pi].y = dl.origPoints[pi].y + dy;
-        });
-      }
-      this.renderer.redraw();
-      if (this.coordLineIdx === dl.lineIdx) this.coordTable.update(line.points, dl.lineIdx);
-      return;
-    }
-  }
+  dragMove(clientX, clientY, shiftKey) { dragGestures.dragMove(this, clientX, clientY, shiftKey); }
 
   // Does a click at (x,y) close the in-progress shape? (>= 3 points and within
-  // markerSize + 8 image px of the first point.) Shared C++ core (wasm) when
+  // pointSize + 8 image px of the first point.) Shared C++ core (wasm) when
   // loaded; the JS below is the reference + fallback.
-  #shouldCloseShape(points, x, y, markerSize) {
+  #shouldCloseShape(points, x, y, pointSize) {
     const fn = core.op('shouldCloseShape');
-    if (fn) return fn(points, { x, y }, markerSize);
+    if (fn) return fn(points, { x, y }, pointSize);
     if (points.length < 3) return false;
     const p0 = points[0];
-    return Math.hypot(p0.x - x, p0.y - y) <= markerSize + 8;
+    return Math.hypot(p0.x - x, p0.y - y) <= pointSize + 8;
   }
 
   getPageDimensions() {
@@ -1770,9 +1705,9 @@ export class DrawingApp {
     const el = this.coordStatus ??= document.getElementById('coord-status');
     if (!el) return;
     if (!this.image || x === undefined) {
-      // Cursor off the canvas: show nothing when an image is loaded (no "Ready" filler),
-      // only the idle hint while there's no image at all.
-      el.textContent = this.image ? '' : 'Open an image to begin';
+      // Empty either way: this bar reads out the cursor, and off-canvas / imageless there is
+      // nothing to read (desktop parity — support/mainWindow.cpp updateStatusIdle).
+      el.textContent = '';
       return;
     }
     const page = this.pixelToPageCoords(x, y);
@@ -1814,47 +1749,14 @@ export class DrawingApp {
     if (ths[4]) ths[4].textContent = `Y ${lbl}`;
   }
 
-  // Reset drag flags & cursor after any Alt-drag gesture (point/segment/line)
-  finishDragGesture(altKey) {
-    this.dragJustEnded = true;
-    setTimeout(() => { this.dragJustEnded = false; }, 50);
-    this.canvas.style.cursor = altKey ? 'grab' : 'crosshair';
+  finishDragGesture(altKey) { dragGestures.finishDragGesture(this, altKey); }
+
+  findNearestPointWithIdx(x, y, threshold = 12 / (this.scale || 1)) {
+    return hitTest.findNearestPointWithIdx(this.lines, this.currentLine, x, y, threshold);
   }
 
-  // Find nearest point and return { lineIdx, ptIdx, point }
-  findNearestPointWithIdx(x, y, threshold = 12) {
-    // Check currentLine first
-    if (this.currentLine) {
-      for (let i = 0; i < this.currentLine.points.length; i++) {
-        const p = this.currentLine.points[i];
-        if (Math.hypot(p.x - x, p.y - y) < threshold) return { lineIdx: -1, ptIdx: i, point: p };
-      }
-    }
-    for (let li = this.lines.length - 1; li >= 0; li--) {
-      for (let pi = 0; pi < this.lines[li].points.length; pi++) {
-        const p = this.lines[li].points[pi];
-        if (Math.hypot(p.x - x, p.y - y) < threshold) return { lineIdx: li, ptIdx: pi, point: p };
-      }
-    }
-    return null;
-  }
-
-  // Find the nearest line segment to (x,y) among completed lines.
-  // Returns { lineIdx, ptIdx1, ptIdx2 } or null.
-  findNearestSegmentWithIdx(x, y, threshold = 12) {
-    let bestDist = Infinity;
-    let best = null;
-    for (let li = this.lines.length - 1; li >= 0; li--) {
-      const pts = this.lines[li].points;
-      for (let pi = 0; pi < pts.length - 1; pi++) {
-        const d = distToSegment(x, y, pts[pi], pts[pi + 1]);
-        if (d < threshold && d < bestDist) {
-          bestDist = d;
-          best = { lineIdx: li, ptIdx1: pi, ptIdx2: pi + 1 };
-        }
-      }
-    }
-    return best;
+  findNearestSegmentWithIdx(x, y, threshold = 12 / (this.scale || 1)) {
+    return hitTest.findNearestSegmentWithIdx(this.lines, x, y, threshold);
   }
 
   // Alt+wheel: bump the thickness of the line under the cursor by ±1 (clamped 1–20).
@@ -2032,6 +1934,9 @@ export class DrawingApp {
     const result = this.history.undo();
     if (result !== null) {
       this.lines = result;
+      this.hoverPt = null;        // the restored snapshot may not contain the hovered indices
+      this.hoverLineIdx = -1;
+      this.listHoverLineIdx = -1;
       this.renderer.redraw();
       this.updateButtons();
       this.coordTable.update();
@@ -2051,105 +1956,18 @@ export class DrawingApp {
     const result = this.history.redo();
     if (result !== null) {
       this.lines = result;
+      this.hoverPt = null;        // see undo(): indices may be stale against the snapshot
+      this.hoverLineIdx = -1;
+      this.listHoverLineIdx = -1;
       this.renderer.redraw();
       this.updateButtons();
       if (this.lines.length > 0) this.coordTable.update(this.lines[this.lines.length - 1].points);
     }
   }
 
-  updateButtons() {
-    // No image → nothing to draw on, so undo/redo are meaningless (and there's
-    // no history to act on anyway). Keep them disabled until an image exists.
-    if (!this.image) {
-      document.getElementById('undo').disabled = true;
-      document.getElementById('redo').disabled = true;
-    } else if (this.isDrawing && this.currentLine) {
-      document.getElementById('undo').disabled = this.currentLine.points.length === 0;
-      document.getElementById('redo').disabled = !this.undonePoints || this.undonePoints.length === 0;
-    } else {
-      document.getElementById('undo').disabled = !this.history.canUndo();
-      document.getElementById('redo').disabled = !this.history.canRedo();
-    }
-    // A compare view is read-only — undo/redo are disabled regardless of history.
-    if (this.compareReadOnly()) {
-      document.getElementById('undo').disabled = true;
-      document.getElementById('redo').disabled = true;
-    }
-    // Fullscreen only makes sense with an image to view. Never disable while
-    // already in fullscreen (so the user can always get back out).
-    const fsBtn = document.getElementById('fullscreen-toggle');
-    if (fsBtn && !document.body.classList.contains('fullscreen-mode'))
-      fsBtn.disabled = !this.image;
-    // Zoom controls are meaningless on an empty void — disable until an image
-    // is loaded (the wheel/hotkey zoom paths are guarded in zoomPan + wheel).
-    const noImage = !this.image;
-    for (const id of ['zoom-in', 'zoom-out', 'zoom-fit', 'zoom-input']) {
-      const el = document.getElementById(id);
-      if (el) el.disabled = noImage;
-    }
-    // The blank-image creator icon lives on the empty canvas — only the idle
-    // (imageless) state shows it; with an image loaded it would cover content.
-    const idleCreate = document.getElementById('idle-create-wrap');
-    if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
-
-    // ── Gate every image/lines-dependent action ──────────────────
-    // No image → nothing to draw/transform/export, so these are disabled; their
-    // data-disabled-reason (in the markup) feeds the tooltip via composeControlTitle to
-    // explain why. Layout export/clear also need at least one line.
-    const hasImage = !!this.image;
-    const hasLines = this.lines && this.lines.length > 0;
-    // A compare view is read-only — every annotation-editing control is also disabled.
-    const ro = this.compareReadOnly();
-    const setDisabled = (id, off) => { const el = document.getElementById(id); if (el) el.disabled = off; };
-    setDisabled('start-drawing', !hasImage || this.isDrawing || ro);
-    setDisabled('stop-drawing', !this.isDrawing || ro);
-    setDisabled('draw-mode-toggle', !hasImage || ro);
-    setDisabled('crop-image', !hasImage);
-    setDisabled('rotate-left', !hasImage);
-    setDisabled('rotate-right', !hasImage);
-    setDisabled('image-filter', !hasImage);
-    setDisabled('compare-mode', !hasImage);
-    setDisabled('save-image', !hasImage);
-    // Saving a .stencil bundles the current image — needs one; opening a .stencil is always allowed.
-    setDisabled('save-project-btn', !hasImage);
-    this.updateStencilSyncUI();   // live-sync toggle reflects link/support/on state
-    // Image Links edit the CURRENT image's provenance — nothing to edit without one.
-    setDisabled('links-btn', !hasImage);
-    setDisabled('download-json', !hasLines);
-    setDisabled('copy-json-btn', !hasLines);
-    // Importing a layout draws it onto the CURRENT image — needs one loaded (the handler also
-    // guards with a toast, but disable the button to match the desktop + the other image actions).
-    setDisabled('upload-json-btn', !hasImage);
-    setDisabled('clear-all-lines', !hasLines || ro);
-    // State-aware Image section: the compact "Load Image" button shows only when
-    // empty; the image-actions group (download/copy/share/open) shows only with an
-    // image. (The file input itself stays hidden — it's just the picker target.)
-    const loadBtn = document.getElementById('load-image-btn');
-    if (loadBtn) loadBtn.style.display = hasImage ? 'none' : '';
-    const imgActions = document.getElementById('image-actions');
-    if (imgActions) imgActions.style.display = hasImage ? 'inline-flex' : 'none';
-    // "Open in…" hides entirely when neither target is available (nothing to open into),
-    // so it never shows a dead/greyed control. Availability tracks the loaded config +
-    // whether this is a server project (see openInAvailable).
-    const openInBtn = document.getElementById('open-in-btn');
-    if (openInBtn) openInBtn.style.display = (hasImage && this.openInAvailable()) ? '' : 'none';
-    // Clear/remove-current-project is hidden for SERVER projects: a server project is removed
-    // only from the projects list (its Remove action), so the toolbar never offers a local-only
-    // clear that reads ambiguously ("did it delete on the server too?"). Local / temporary
-    // editors keep it (clear a local project, or reset a blank editor).
-    const clearBtn = document.getElementById('clear-storage');
-    if (clearBtn) clearBtn.style.display = this.remoteLink ? 'none' : '';
-    // Recompose tooltips so the reason line appears/clears with the disabled state
-    // (and hotkey buttons keep their combo). Covers every control carrying either
-    // a hotkey id or a disabled-reason.
-    document.querySelectorAll('[data-disabled-reason], [data-hk-title]').forEach(el => {
-      el.title = composeControlTitle(el, hotkeys.isMac, id => hotkeys.get(id));
-    });
-
-    this.updateIncognitoUI();
-    this.updateProjectTitle();
-    this.renderLinesList();
-  }
+  // The app-wide control gating sweep lives in ui/controlState.js; this delegator stays the
+  // single entry point every state change calls.
+  updateButtons() { updateControlState(this); }
 
   // Reflect the active project's name in the tab title AND topbar field. Field editable only
   // with a saved active project; shows the image-derived name for a fresh one (see projectsStore
@@ -2171,6 +1989,10 @@ export class DrawingApp {
     const editBtn = document.getElementById('project-name-edit');
     if (input && (force || document.activeElement !== input)) {
       input.value = name;
+      // Shrink-wrap the field to the name so what follows it (the rename controls and the
+      // "?" bubble) sits beside the text, not at the end of a fixed slot. Editing keeps a
+      // roomier box so a longer name can be typed without the field jumping per keystroke.
+      input.size = Math.max(8, Math.min(30, (this.nameEditing ? 24 : name.length) || 10));
       // `editable` (a saved, non-incognito project) only gates the rename affordance;
       // the field itself stays a read-only title until the user enters edit mode.
       input.disabled = !editable;
@@ -2179,19 +2001,14 @@ export class DrawingApp {
       if (editBtn && !this.nameEditing) editBtn.style.display = editable ? '' : 'none';
       this.nameEditor?.refresh();                      // set ✓ enabled/disabled state
     }
-    // Paint the name field in the project's custom colour; with no custom colour it falls back to
-    // ONE fixed neutral grey in BOTH themes, with a theme-flipped shadow (dark on light, light on
-    // dark) for legibility. The grey + shadow are set explicitly here (not via a CSS var) so a
-    // stale-cached theme.css can never leave the name colourless/shadowless. Show the colour swatch
-    // only for a saved (non-incognito) project.
+    // Paint the name field in the project's custom colour; unset falls back to the CSS
+    // neutral grey. Show the colour swatch only for a saved (non-incognito) project.
     if (input) {
       const projColor = (editable && this.activeProjectId != null)
         ? (this.storage.store.getMeta(this.activeProjectId)?.color || '')
         : '';
-      // Custom colour overrides the CSS default grey (--project-name-fg); clearing the inline
-      // colour when unset lets CSS supply the grey. The legibility shadow is left ENTIRELY to CSS
-      // (--project-name-shadow, a theme-flipped contrasting outline) so it re-flips live when the
-      // theme is toggled — setting it inline here would freeze it to the paint-time theme.
+      // The legibility shadow is left ENTIRELY to CSS (--project-name-shadow) so it re-flips
+      // live on theme toggle — setting it inline would freeze it to the paint-time theme.
       input.style.color = projColor || '';
       input.style.textShadow = '';
       const colorBtn = document.getElementById('project-color-btn');
@@ -2233,74 +2050,55 @@ export class DrawingApp {
     } else {
       info.textContent = 'No image loaded. Upload an image to start.';
     }
+    // Announce incognito here, beside the image facts — the "?" bubble is about the IMAGE,
+    // so an empty incognito editor had nowhere else to say it. data-size keeps that bubble
+    // reading the size line alone.
+    info.dataset.size = info.textContent;
+    if (this.storage.incognito) {
+      // A muted divider, and it exists only when the tag it separates does — so the
+      // line reads "Image Size: … px | (glyph) Incognito — not saved" in incognito and has
+      // no dangling bar otherwise. Decoration, so it is hidden from assistive tech.
+      const sep = document.createElement('span');
+      sep.className = 'info-divider';
+      sep.setAttribute('aria-hidden', 'true');
+      sep.textContent = '|';
+      const tag = document.createElement('span');
+      tag.className = 'info-incognito';
+      // The app's OWN incognito glyph — the one the toolbar toggle wears — not an
+      // emoji: it renders identically on every platform and, drawn with
+      // stroke="currentColor", takes the tag's accent colour for free.
+      tag.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
+      info.append(sep, tag);
+    }
     // Blank-fill recolour swatch: sits beside the size pill, shown only for a blank project.
     if (blankBtn) blankBtn.style.display = (this.image && isBlank) ? 'inline-flex' : 'none';
     if (blankSwatch && isBlank) blankSwatch.style.background = this.blankColor || '#ffffff';
   }
 
-  // Transient status line next to the toolbar. `iconName` (optional) prepends a
-  // themed SVG glyph; `color` accepts a CSS color or a var() string so callers
-  // use the shared status tokens (var(--success) etc.) instead of hex literals.
-  showSaveStatus(msg, color, iconName = null) {
-    const el = document.getElementById('save-status');
-    if (!el) return;
-    el.innerHTML = (iconName ? icon(iconName, { size: 13 }) : '') + `<span>${msg}</span>`;
-    el.style.color = color;
-    el.style.display = 'inline-flex';
-    el.style.alignItems = 'center';
-    el.style.gap = '4px';
-    clearTimeout(this.#saveStatusTimer);
-    this.#saveStatusTimer = setTimeout(() => { el.innerHTML = ''; }, 3000);
+  // Persistence chatter (saved / not saved / restored / cleared), shown in the toast stack.
+  // `color` stays in the signature — every call site picks a status token, and it selects
+  // the toast kind.
+  showSaveStatus(msg, color, _iconName = null) {
+    const kind = String(color).includes('danger') ? 'fail'
+               : String(color).includes('success') ? 'ok' : 'info';
+    // One running status, not a stream: `key` makes the newer message replace the older
+    // toast (a single blank-image create saves twice).
+    notify(msg, kind, { key: 'save-status' });
   }
 
   restoreFromLocalStorage() {
     this.storage.restore();
   }
 
-  // ── Multi-project navigation (called by the projects modal) ──────
-  // Switch the editor to a saved project, persisting the current one first.
-  switchToProject(id) {
-    if (id === this.activeProjectId) return false;
-    if (!this.storage.temporary && this.activeProjectId != null) this.storage.save();
-    if (this.storage.loadProject(id)) {
-      this.activeProjectId = id;
-      // Restore the remote link from meta so a reopened server-backed project keeps its
-      // identity (outline + write-back); purely-local projects clear it.
-      const meta = this.storage.store.getMeta(id);
-      this.remoteLink = (meta && meta.remoteId && meta.address)
-        ? { address: meta.address, remoteId: meta.remoteId, version: meta.remoteVersion || 0 }
-        : null;
-      // Restore the blank-fill colour so the blank-colour control reappears for a reopened blank.
-      this.blankColor = (meta && meta.blank && meta.blankColor) ? meta.blankColor : '';
-      this.tabs.reportActive(id);
-      this.updateProjectTitle();   // reflect (or clear) the remote badge + outline now
-      // Server-linked: pull the latest so a reopen shows peers' newest state, not stale cache.
-      if (this.remoteLink && getSyncToServer()) this.remoteSync.reloadRemoteActive();
-      return true;
-    }
-    return false;
-  }
+  // ── Multi-project navigation + lifecycle ──────
+  // The implementations live in ProjectTransferController (projectTransferController.js);
+  // these delegators keep every call site (stencilApi, controlsBinder, projects modal glue)
+  // untouched.
+  switchToProject(id) { return this.projectTransfer.switchToProject(id); }
 
-  // Open a saved project in a NEW browser tab, leaving this tab untouched. The
-  // new tab boots with a "?open=<id>" deep link that applyProjectDeepLink()
-  // consumes. Default open-in-current-tab behavior stays on switchToProject().
-  openProjectInNewTab(id, win = null) {
-    if (id == null) { if (win) win.close(); return; }
-    const base = location.origin + location.pathname;
-    const url = buildOpenProjectUrl(base, id);
-    // `win` is a tab the caller pre-opened synchronously (inside the user gesture) so a strict
-    // popup blocker can't swallow it after an async confirm; navigate it instead of opening anew.
-    if (win) win.location = url; else window.open(url, '_blank');
-  }
+  openProjectInNewTab(id, win = null) { this.projectTransfer.openProjectInNewTab(id, win); }
 
-  // Open a SERVER project in a new tab via the server-launch fragment (consumed by
-  // applyExternalLaunch on the new tab). Mirrors openProjectInNewTab for local ids.
-  openRemoteProjectInNewTab(meta, win = null) {
-    if (!meta || !meta.serverUrl || meta.id == null) { if (win) win.close(); return; }
-    const base = location.origin + location.pathname;
-    const url = buildExternalLaunchUrl(base, { server: { url: meta.serverUrl, id: meta.id, version: meta.version || 0 } });
-    if (win) win.location = url; else window.open(url, '_blank');
-  }
+  openRemoteProjectInNewTab(meta, win = null) { this.projectTransfer.openRemoteProjectInNewTab(meta, win); }
 
   // Consume a "?open=<id>" deep link captured at boot: strip it from the URL (so
   // a reload doesn't re-trigger) and switch to the project if it still exists.
@@ -2343,6 +2141,15 @@ export class DrawingApp {
     return Promise.resolve(first ? first.value : null);
   }
 
+  // Promise-based three-way ask (shares the confirm modal): Cancel | alt | confirm.
+  // Resolves 'confirm', 'alt', or null. opts: { title, confirmLabel, altLabel }.
+  // Used for "combine or replace?" when a layout lands on top of existing lines.
+  askAlt(message, opts = {}) {
+    const el = document.getElementById('confirm-modal-overlay');
+    if (el && typeof el.askAlt === 'function') return el.askAlt(message, opts);
+    return Promise.resolve(null);   // no modal (tests / pre-wire) → treat as cancelled
+  }
+
   // Promise-based text prompt (shares the confirm modal). Resolves the trimmed string, or
   // null on cancel. opts: { title, confirmLabel, defaultValue }. Used for copy-with-name.
   prompt(message, opts = {}) {
@@ -2351,17 +2158,30 @@ export class DrawingApp {
     return Promise.resolve(opts.defaultValue ?? null);
   }
 
-  // Start a fresh blank (unsaved) editor.
-  newEditor() {
+  // Start a fresh blank (unsaved) editor. `keepChat` forwards to newTemporary (the
+  // assistant's in-place incognito adoption resets the editor without losing its turn).
+  newEditor({ keepChat = false } = {}) {
     this.remoteLink = null;
     this.pendingRemoteAddress = null;   // drop any un-consumed newEditor({ address }) arming
     this.blankColor = '';               // fresh editor is not a blank project until one is created
     this.fromFile = false;              // …nor a file-origin project until a .stencil is opened
     this.stencilSync?.unlink();         // drop any .stencil live-sync link so a new/empty project
                                         // can't auto-save over the previous project's linked file
-    this.storage.newTemporary();
+    this.storage.newTemporary({ keepChat });
     this.tabs.reportActive(null);
     this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
+  }
+
+  // Turn THIS editor into a fresh incognito session, the way openImageHere's incognito
+  // branch does (and desktop's openSourceHere): flush the outgoing project so nothing is
+  // lost, reset to a blank editor, then switch incognito on. Used by the assistant's §10
+  // `openUrl` with incognito, so the conversation is deliberately kept (`keepChat`);
+  // the caller loads the picture straight after.
+  adoptIncognitoHere() {
+    if (!this.storage.incognito) this.storage.save();
+    this.newEditor({ keepChat: true });
+    this.storage.incognito = true;
+    this.updateIncognitoUI();
   }
 
   // Open-image dialog action: replace the current editor with `file`. A non-incognito
@@ -2391,6 +2211,8 @@ export class DrawingApp {
     else if (opts.noCrop) target.noCrop = true;
     if (opts.source) target.source = opts.source;
     if (opts.resource) target.resource = opts.resource;
+    if (opts.landing) target.landing = true;
+    if (opts.from) target.from = opts.from;
     return target;
   }
 
@@ -2413,20 +2235,15 @@ export class DrawingApp {
 
   // Open-image dialog action: replace the CURRENT project's image in place (same project id /
   // server link) instead of creating a new project. `rename` adopts the new file's name
-  // (default off); `keepAnnotations` keeps the existing lines over the new image (default on).
+  // (default off); `keepAnnotations` keeps the existing lines over the new image (default on);
+  // `crop` is an explicit rect {x,y,width,height} in the NEW image's pixels, overriding the
+  // default page-aspect auto-crop (the extension import's `crop` — the dialog passes none).
   // Any image change unpins the now-stale extension pin (handled in loadImageFromFile).
-  replaceProjectImage(file, { rename = false, keepAnnotations = true } = {}) {
+  replaceProjectImage(file, { rename = false, keepAnnotations = true, crop = null } = {}) {
     if (!file) return;
-    this.loadImageFromFile(file, { replaceInPlace: true, rename, keepAnnotations });
+    this.loadImageFromFile(file, { replaceInPlace: true, rename, keepAnnotations, ...(crop ? { crop } : {}) });
   }
 
-  // Create a solid-color blank image and load it (blank-image creator's core, shared with the
-  // console API). width/height in px (clamped 1–8192); omitted → current page size, like the
-  // modal. Returns a Promise resolving { width, height } once handed to the loader, rejecting
-  // if the canvas can't be encoded — so both callers can report accurately.
-  // `address` (a connected server URL) also creates+links the project on that server
-  // (mirrors loadImageFromFile's create-on-server path); validated up front so a bad
-  // target rejects before the local image is replaced.
   // Generate a solid-colour PNG blob of size w×h — the raster backing a blank project. Shared by
   // createBlankImage (new blank) and setBlankColor (recolour an existing blank in place).
   #blankFillBlob(w, h, color) {
@@ -2440,6 +2257,9 @@ export class DrawingApp {
     });
   }
 
+  // Create a solid-color blank image and load it (shared with the console API). width/height
+  // in px (clamped 1–8192); omitted → current page size. `address` also creates+links the
+  // project on that server, validated up front. Resolves { width, height } once handed off.
   createBlankImage({ color = '#ffffff', width, height, address } = {}) {
     if (this.storage.incognito) address = undefined;   // incognito never creates on a server
     if (address) requireConnection(this.connections, address);
@@ -2451,6 +2271,9 @@ export class DrawingApp {
     const w = Math.max(1, Math.min(8192, Math.round(dims.width)));
     const h = Math.max(1, Math.min(8192, Math.round(dims.height)));
     const fill = normalizeHex(color) || '#ffffff';
+    // A blank's colour IS the page: a filter left over from the previous image
+    // would repaint the fill (bw of a red page is flat gray), so start clean.
+    if (this.imageFilter !== 'none') this.settings.setImageFilter('none');
     // blankColor marks this as a (recolourable) blank project; it's persisted into project meta.
     return this.#blankFillBlob(w, h, fill).then(blob => {
       this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
@@ -2478,10 +2301,10 @@ export class DrawingApp {
       if (this.activeProjectId != null) {
         this.storage.store.setBlankColor(this.activeProjectId, next);
         this.tabs.projectsChanged({ id: this.activeProjectId, action: PROJECT_ACTION.UPDATED });
-        this.#pushProjectFieldToServer(this.activeProjectId, { blankColor: next }, 'Could not set blank colour on the server');
+        this.projectTransfer.pushProjectFieldToServer(this.activeProjectId, { blankColor: next }, 'Could not set blank color on the server');
       }
       this.updateButtons();
-    }).catch(() => notify('Could not recolour the blank image', 'fail'));
+    }).catch(() => notify('Could not recolor the blank image', 'fail'));
     return this;
   }
 
@@ -2653,12 +2476,12 @@ export class DrawingApp {
   async chooseFileConflict(name = '.stencil') {
     if (await this.confirm(
       `“${name}” was changed outside the app and conflicts with your unsaved edits. Reload the file’s version (discard yours)?`,
-      { title: 'File changed', confirmLabel: 'Take file’s version', cancelLabel: 'Keep / merge…' })) {
+      { title: 'File changed', confirmLabel: 'Take file’s version', confirmIcon: 'download', cancelLabel: 'Keep / merge…' })) {
       return 'theirs';
     }
     return (await this.confirm(
       'Merge instead — combine your lines with the file’s?',
-      { title: 'Merge changes', confirmLabel: 'Merge both', cancelLabel: 'Keep mine (overwrite file)' }))
+      { title: 'Merge changes', confirmLabel: 'Merge both', confirmIcon: 'layers', cancelLabel: 'Keep mine (overwrite file)' }))
       ? 'merge' : 'mine';
   }
 
@@ -2746,16 +2569,25 @@ export class DrawingApp {
     return this.remoteLink;
   }
 
-  // Permanently delete every saved project, then drop to a blank editor.
-  clearAllProjects() {
-    this.storage.store.clearAll();
-    this.storage.newTemporary();
-    this.tabs.reportActive(null);
-    this.tabs.projectsChanged({ action: PROJECT_ACTION.CLEARED });
+  // Leave incognito and keep what is on screen as a LOCAL project — the local twin of
+  // publishIncognitoToServer, and the desktop's promoteIncognitoToLocal. Incognito's promise
+  // is that the app writes nothing BY ITSELF; an explicit "save this" from the user is not the
+  // app deciding, so it is honoured rather than refused. Returns the project id, or null when
+  // there is nothing on screen to keep.
+  promoteIncognitoToLocal() {
+    if (!this.image) return null;
+    this.storage.incognito = false;
+    this.storage.promoteTemporaryToProject();
+    this.storage.save();
+    this.tabs.reportActive(this.activeProjectId);
+    this.updateIncognitoUI();
+    this.updateProjectTitle();
+    notify('Left incognito — saved as a local project', 'ok');
+    return this.activeProjectId;
   }
 
-  // Prolong a project: reset its 7-day expiry window to start from now. Notifies
-  // peers so their open project lists re-render with the new expiry.
+  clearAllProjects() { this.projectTransfer.clearAllProjects(); }
+
   // ── Shared editor setters ─────────────────────────────────────
   // Single source of truth for top-menu settings lives in SettingsController (settingsController.js):
   // toolbar handlers AND the console API (window.stencil) both call app.settings.<setter>() directly,
@@ -2785,6 +2617,11 @@ export class DrawingApp {
     const line = lineIdx === -1 ? this.currentLine : this.lines[lineIdx];
     if (!line || !line.points[ptIdx]) return this;
     line.points.splice(ptIdx, 1);
+    // Indices shifted: the cached canvas hover would ring a DIFFERENT point until the
+    // next mousemove refreshes it.
+    this.hoverPt = null;
+    this.hoverLineIdx = -1;
+    this.listHoverLineIdx = -1;
     if (line.points.length === 0 && lineIdx !== -1) {
       this.lines.splice(lineIdx, 1);
       if (this.selectedLineIdx === lineIdx) this.deselectLine(false);
@@ -2801,10 +2638,13 @@ export class DrawingApp {
     return this;
   }
 
-  // Remove an entire committed line by index.
   removeLine(idx) {
     if (idx < 0 || idx >= this.lines.length) return this;
     this.lines.splice(idx, 1);
+    // Line indices shifted: drop every cached hover (canvas ring + list glow/tint).
+    this.hoverPt = null;
+    this.hoverLineIdx = -1;
+    this.listHoverLineIdx = -1;
     // Keep the selection + coord-table target consistent with the now-shifted indices:
     // drop them if they pointed at the removed line, else shift down past it.
     if (this.selectedLineIdx === idx) this.deselectLine(false);
@@ -2819,382 +2659,70 @@ export class DrawingApp {
     return this;
   }
 
-  renewProject(id) {
-    const meta = this.storage.store.renew(id);
-    if (meta) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    return meta;
-  }
-
-  // Set a project's expiration fields exactly (from the expiration modal / facade).
-  // opts: { expiresAt (0 = keep forever), refreshPeriod, autoRefresh }. Broadcasts so
-  // the projects list + any open expiration dialog in other tabs re-render.
-  setProjectExpiration(id, opts = {}) {
-    const meta = this.storage.store.setExpiration(id, opts);
-    if (meta) {
-      this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-      // An explicit expiry change (not a refreshPeriod/autoRefresh-only tweak, which are
-      // local-only concepts) propagates to the collaboration server for a server-linked
-      // project — best-effort, like setProjectColor. Server projects otherwise have no
-      // expiry unless one is set here explicitly.
-      if (Object.prototype.hasOwnProperty.call(opts, 'expiresAt')) {
-        this.#pushProjectFieldToServer(id, { expiresAt: meta.expiresAt || 0 }, 'Could not set expiration on the server');
-      }
+  // Remove EVERY selected line at once — the multi-select counterpart of removeLine.
+  // Splices from the highest index down so the lower indices stay valid while removing,
+  // then clears the selection wholesale (each removed line was, by definition, selected).
+  // One history entry for the whole batch, so a single undo brings them all back.
+  removeSelectedLines() {
+    const sel = this.selectedIndices()
+      .filter(i => i >= 0 && i < this.lines.length)
+      .sort((a, b) => b - a);
+    if (!sel.length) return this;
+    for (const idx of sel) {
+      this.lines.splice(idx, 1);
+      // The coord table can point at a line that is NOT part of the selection; keep its
+      // index valid the same way removeLine does.
+      if (this.coordLineIdx === idx) { this.coordLineIdx = -1; this.focusedPtIdx = -1; }
+      else if (this.coordLineIdx > idx) this.coordLineIdx -= 1;
     }
-    return meta;
-  }
-
-  // Close a project's editor (without deleting the saved project). Active in THIS tab →
-  // blank editor; open in ANOTHER tab → ask it to via a CLOSE broadcast. `fully` also closes
-  // this tab/window (best-effort — only script-opened windows can self-close).
-  closeProject(id, { fully = false } = {}) {
-    if (id != null && id === this.activeProjectId) this.newEditor();
-    else if (id != null) this.tabs.projectsChanged({ id, action: PROJECT_ACTION.CLOSE });
-    if (fully) { try { window.close(); } catch { /* not closeable */ } }
+    // Clear the selection inline rather than via deselectLine(), which resets coordLineIdx
+    // unconditionally — that would throw away the shift just computed and blank the coord
+    // table even when it targets a surviving, unselected line (removeLine keeps it too).
+    this.selectedLineIdx = -1;
+    this.selectedLines = [];
+    this.hoveredPtIdx = -1;
+    this.hoverPt = null;          // indices shifted — stale hover would ring the wrong point
+    this.hoverLineIdx = -1;
+    this.listHoverLineIdx = -1;
+    this.hideSelectionPanels();
+    this.updateMultiSelectStatus();
+    this.saveHistory();
+    this.renderer.redraw();
+    this.updateButtons();
+    const target = this.coordLineIdx >= 0 ? this.lines[this.coordLineIdx] : null;
+    this.coordTable.update(target ? target.points : null, this.coordLineIdx);
     return this;
   }
 
-  // Rename a project. Registry meta is the source of truth for the projects list, and
-  // save()'s name fallback prefers it over imageBaseName, so an active-project rename
-  // survives saves. Notifies peers to re-render. Returns updated meta (null for unknown id).
-  renameProject(id, name) {
-    const clean = String(name || '').trim();
-    if (!clean) return null;
-    // Names must be unique across projects. The UI surfaces null as "kept old name";
-    // the console's Project.name setter checks store.nameExists() first to throw.
-    if (this.storage.store.nameExists(clean, id)) {
-      notify(`A project named “${clean}” already exists`, 'fail');
-      return null;
-    }
-    const meta = this.storage.store.rename(id, clean);
-    if (meta) {
-      // The project name is THE name: keep the working/download name (imageBaseName)
-      // in lockstep for the active project, no matter which surface renamed it
-      // (topbar, projects list, links modal, console). No separate image name to track.
-      if (id === this.activeProjectId) {
-        this.imageBaseName = clean;
-        this.updateProjectTitle();   // refresh tab title + topbar field
-      }
-      this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-      // Push the rename to the server immediately (like setProjectColor), so peers see it live
-      // — previously a rename only reached the server on the next layout save.
-      this.#pushProjectFieldToServer(id, { name: clean }, 'Could not rename the project on the server');
-    }
-    return meta;
+  renewProject(id) { return this.projectTransfer.renewProject(id); }
+
+  setProjectExpiration(id, opts = {}) { return this.projectTransfer.setProjectExpiration(id, opts); }
+
+  closeProject(id, opts = {}) {
+    this.projectTransfer.closeProject(id, opts);
+    return this;
   }
 
-  // Push a single field change (rename / colour) to the collaboration server for a
-  // server-linked project. The active project uses its live remoteLink (and adopts the bumped
-  // version); a non-active linked project uses its stored meta. Version-guarded + best-effort
-  // (no-op when not linked / sync off) — a failure only notifies with `failMsg`.
-  async #pushProjectFieldToServer(id, fields, failMsg) {
-    if (!getSyncToServer()) return;
-    const active = id === this.activeProjectId && !!this.remoteLink;
-    const meta = this.storage.store.getMeta(id) || {};
-    const address = active ? this.remoteLink.address : meta.address;
-    const remoteId = active ? this.remoteLink.remoteId : meta.remoteId;
-    if (!address || !remoteId) return;
-    let conn;
-    try {
-      conn = requireConnection(this.connections, address);
-    } catch (err) {
-      notify(err.message, 'fail');
-      return;
-    }
-    // Version-guarded write with a bounded conflict retry (mirrors the CLI's
-    // putProjectField). A stale cached version — a concurrent field push / layout
-    // save from THIS client racing on remoteLink.version, or a peer's edit — 409s;
-    // re-read the server's current version and retry so the change isn't silently
-    // lost. Single-field sets are idempotent, so last-writer-wins is correct here.
-    let version = active ? this.remoteLink.version : (meta.remoteVersion || 0);
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const rec = await conn.updateProject(remoteId, { ...fields, version });
-        // Adopt the bumped version only if remoteLink still points at this same
-        // project (the user may have switched projects during the await).
-        if (rec && rec.version != null && this.activeProjectId === id
-            && this.remoteLink && this.remoteLink.remoteId === remoteId) {
-          this.remoteLink = { ...this.remoteLink, version: rec.version };
-        }
-        return;
-      } catch (err) {
-        if (err && err.status === 409 && attempt < 3) {
-          version = await this.#currentRemoteVersion(conn, remoteId, version);
-          continue;
-        }
-        notify(`${failMsg} — ${err.message}`, 'fail');
-        return;
-      }
-    }
-  }
+  renameProject(id, name) { return this.projectTransfer.renameProject(id, name); }
 
-  // Re-read a linked project's current server version (after a 409 or a file write
-  // that bumps it without returning it), falling back to `fallback` on any error.
-  async #currentRemoteVersion(conn, remoteId, fallback) {
-    try {
-      const full = await conn.getProject(remoteId);
-      const v = full && full.project ? full.project.version : undefined;
-      return v == null ? fallback : v;
-    } catch {
-      return fallback;
-    }
-  }
+  setProjectColor(id, color) { return this.projectTransfer.setProjectColor(id, color); }
 
-  // Set (or clear) a project's accent colour — the custom colour its NAME is painted in
-  // wherever it appears. An empty/whitespace `color` clears it (back to the theme accent);
-  // a valid hex is normalised to "#rrggbb". Invalid hex is rejected (keeps the old colour).
-  // Persists to the registry, repaints the active-project UI, notifies peers, and pushes the
-  // colour to the server for a server-linked project. Returns updated meta (null for unknown id).
-  setProjectColor(id, color) {
-    const raw = String(color == null ? '' : color).trim();
-    let next = '';   // empty → explicit clear (theme fallback)
-    if (raw) {
-      next = normalizeHex(raw);
-      if (!next) {
-        notify(`“${color}” is not a valid hex colour`, 'fail');
-        return null;
-      }
-    }
-    const meta = this.storage.store.setColor(id, next);
-    if (!meta) return null;
-    if (id === this.activeProjectId) this.updateProjectTitle();
-    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    // Best-effort server push for a server-linked project (no-op when not linked).
-    this.#pushProjectFieldToServer(id, { color: next }, 'Could not set project colour on the server');
-    return meta;
-  }
+  setProjectKeywords(id, keywords) { return this.projectTransfer.setProjectKeywords(id, keywords); }
 
-  // Set a project's search keywords (normalized by the store). Mirrors setProjectColor:
-  // writes local meta, broadcasts to peer tabs, and best-effort pushes to the server for a
-  // server-linked project. Returns the stored meta, or null on unknown id.
-  setProjectKeywords(id, keywords) {
-    const meta = this.storage.store.setKeywords(id, keywords);
-    if (!meta) return null;
-    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    this.#pushProjectFieldToServer(id, { keywords: meta.keywords }, 'Could not set project keywords on the server');
-    return meta;
-  }
+  setProjectBlankColor(id, color) { return this.projectTransfer.setProjectBlankColor(id, color); }
 
-  // Set a project's blank-fill colour by id. No-op (null) for a non-blank project (only blanks have
-  // a blank colour). When `id` is the ACTIVE project, recolours the visible background in place
-  // (setBlankColor); otherwise updates the stored meta + peers + server. `color` is any normalizeHex
-  // form. Returns the stored meta, or null.
-  setProjectBlankColor(id, color) {
-    const cur = this.storage.store.getMeta(id);
-    if (!cur || !cur.blank) return null;
-    const next = normalizeHex(color);
-    if (!next) return null;
-    if (id === this.activeProjectId) { this.setBlankColor(next); return this.storage.store.getMeta(id); }
-    const meta = this.storage.store.setBlankColor(id, next);
-    if (!meta) return null;
-    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    this.#pushProjectFieldToServer(id, { blankColor: meta.blankColor }, 'Could not set blank colour on the server');
-    return meta;
-  }
-
-  // Remove one project; if it's the active one, drop to a blank editor.
-  removeProject(id) {
-    if (id === this.activeProjectId) {
-      this.storage.store.remove(id);
-      this.storage.newTemporary();
-      this.tabs.reportActive(null);
-    } else {
-      this.storage.store.remove(id);
-    }
-    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.REMOVED });
-  }
+  removeProject(id) { this.projectTransfer.removeProject(id); }
 
   // ── Move / copy a project between local storage and a server ──────
-  // Create a NEW server project from a local project's content (original bytes + annotated
-  // layout) under `name`. Shared by move (then links the local) and copy (leaves local as-is).
-  // Returns { link, proj, meta }. Flushes the active project first so the server gets latest.
-  async #createServerFromLocal(id, address, name = null) {
-    const conn = requireConnection(this.connections, address);
-    if (id === this.activeProjectId && !this.storage.temporary) this.storage.save();   // flush latest
-    const proj = this.storage.store.get(id);
-    if (!proj) throw new Error('Project not found');
-    const meta = this.storage.store.getMeta(id) || {};
-    const payload = proj.payload || {};
-    const layout = payload.layout || {};
-    // Decode the stored original (a data URL) to raw bytes for the codec-free server.
-    let bytes = null;
-    let ext = meta.imageExt || layout.imageExt || 'png';
-    const w = layout.imageWidth || meta.imageW || 0;
-    const h = layout.imageHeight || meta.imageH || 0;
-    if (payload.image) {
-      const blob = await (await fetch(payload.image)).blob();
-      bytes = new Uint8Array(await blob.arrayBuffer());
-      if (blob.type && blob.type.includes('/')) ext = blob.type.split('/')[1];
-    }
-    const projName = (name && name.trim()) || meta.name || layout.imageBaseName || 'Untitled';
-    const link = await createRemoteProject(conn, {
-      name: projName,
-      source: meta.source || layout.imageSource || '',
-      resource: meta.resource || layout.imageResource || '',
-      color: meta.color || '',
-      bytes, ext, w, h,
-    });
-    // Push the annotated layout (lines + filter) so the server holds the full project.
-    // The layout save bumps the server version again, so adopt the refreshed link it
-    // returns — otherwise `link.version` stays at the create-time value and the next
-    // version-guarded field push (colour / rename / expiry) 409s against the server.
-    const savedLink = await saveRemoteProject(conn, link, {
-      name: projName,
-      layout: buildLayoutPayload({
-        imageWidth: w, imageHeight: h,
-        lines: layout.lines || [],
-        imageFilter: layout.imageFilter,
-        filterColor: layout.filterColor,
-        cropRect: layout.cropRect,
-        rotationQuarters: layout.rotationQuarters,
-        pageSize: layout.pageSize,
-        customPageWidth: layout.customPageWidth,
-        customPageHeight: layout.customPageHeight,
-        allowFormulas: layout.allowFormulas,
-        formulaX: layout.formulaX,
-        formulaY: layout.formulaY,
-      }),
-    });
-    return { link: savedLink, proj, meta };
-  }
+  moveProjectToServer(id, address) { return this.projectTransfer.moveProjectToServer(id, address); }
 
-  // Local → server: create the project on `address`, then LINK the local copy to it (keeping
-  // the editor open + the row in place). Returns the new remote id.
-  async moveProjectToServer(id, address) {
-    const { link, proj, meta } = await this.#createServerFromLocal(id, address);
-    const linkedMeta = { ...meta, id, address: link.address, remoteId: link.remoteId, remoteVersion: link.version };
-    this.storage.store.upsert(linkedMeta, proj.payload || {});
-    if (id === this.activeProjectId) {
-      this.remoteLink = { address: link.address, remoteId: link.remoteId, version: link.version };
-      this.updateProjectTitle();   // reflect the golden remote outline now
-    }
-    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    return link.remoteId;
-  }
+  copyProjectToServer(id, address, opts = {}) { return this.projectTransfer.copyProjectToServer(id, address, opts); }
 
-  // Local → server COPY: create a new server project from the local one (default name
-  // "<name>-copy") and LEAVE the local project untouched. Returns the new remote id.
-  async copyProjectToServer(id, address, { name } = {}) {
-    const base = this.storage.store.getMeta(id)?.name || 'Untitled';
-    const copyName = (name && name.trim()) || `${base}-copy`;
-    const { link } = await this.#createServerFromLocal(id, address, copyName);
-    this.tabs.projectsChanged({ action: PROJECT_ACTION.UPDATED });   // refresh the remote rows
-    return link.remoteId;
-  }
+  moveProjectToLocal(meta) { return this.projectTransfer.moveProjectToLocal(meta); }
 
-  // Server → local: fetch the server project's image + layout, save it as a new
-  // local project, then delete it from the server. `meta` is a remote-project meta
-  // ({ id, serverUrl, name, source }). Returns the new local project id.
-  async moveProjectToLocal(meta) {
-    // If the moved server project is the open session (or its local cache), follow it to the
-    // new local id so the editor stays open + focused instead of pointing at a deleted server id.
-    const openCacheId = (this.remoteLink && this.remoteLink.remoteId === meta.id
-      && this.remoteLink.address === meta.serverUrl) ? this.activeProjectId : null;
-    const newId = await this.#importServerProjectToLocal(meta, { removeFromServer: true });
-    if (openCacheId != null) {
-      if (openCacheId !== newId) this.storage.store.remove(openCacheId);   // drop the now-stale cache
-      this.switchToProject(newId);
-    }
-    return newId;
-  }
+  copyServerProjectToLocal(meta, opts = {}) { return this.projectTransfer.copyServerProjectToLocal(meta, opts); }
 
-  // Make a detached LOCAL copy of a server project, leaving the server copy in place. Default
-  // name "<name>-copy" (override via `name`). Returns the new local project id; caller opens it.
-  async copyServerProjectToLocal(meta, { name } = {}) {
-    return this.#importServerProjectToLocal(meta, { removeFromServer: false, copy: true, name });
-  }
-
-  // Copy a server project into an INCOGNITO session (no local record, no server link). Current
-  // tab: replace the editor with the image + annotations as incognito. New tab: hand off the
-  // image via the external-launch URL (image only — the launch payload carries no annotations).
-  async copyServerProjectToIncognito(meta, { newTab = false } = {}) {
-    const conn = requireConnection(this.connections, meta.serverUrl);
-    const full = await conn.getProject(meta.id);
-    const src = full.project?.source || meta.source || '';
-    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
-    if (!blob) throw new Error('no image bytes on the server');
-    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-    const name = full.project?.name || meta.name || 'Untitled';
-    if (newTab) {
-      const dataUrl = await this.#blobToDataUrl(blob);
-      const url = buildExternalLaunchUrl(location.origin + location.pathname, { dataUrl, name, incognito: true });
-      window.open(url, '_blank');
-      return;
-    }
-    const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
-    if (!this.storage.incognito) this.storage.save();   // flush any current project first
-    this.newEditor();
-    this.storage.incognito = true;
-    this.updateIncognitoUI();
-    // adoptLayout applies the lines/filter/crop/page/formulas without linking (no remoteId).
-    this.loadImageFromFile(file, { source: src, resource: full.project?.resource || '', layout: full.layout, adoptLayout: true });
-  }
-
-  // Read a Blob into a data URL (used by the new-tab incognito hand-off).
-  #blobToDataUrl(blob) {
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = () => rej(new Error('could not read image bytes'));
-      r.readAsDataURL(blob);
-    });
-  }
-
-  // Shared body of move/copy server→local: fetch image + layout, persist a fresh detached
-  // local project (crop/rotation included), optionally delete the server copy. `copy` defaults
-  // the name to "<base>-copy"; an explicit `name` overrides.
-  async #importServerProjectToLocal(meta, { removeFromServer = false, copy = false, name = null } = {}) {
-    const conn = requireConnection(this.connections, meta.serverUrl);
-    const full = await conn.getProject(meta.id);
-    const src = full.project?.source || meta.source || '';
-    const blob = await this.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
-    const dataUrl = blob ? await this.#blobToDataUrl(blob) : null;
-    const sl = full.layout || {};
-    const newId = this.storage.store.createId();
-    const base = full.project?.name || meta.name || 'Untitled';
-    const projName = (name && name.trim()) || (copy ? `${base}-copy` : base);
-    const localMeta = {
-      id: newId,
-      name: projName,
-      color: full.project?.color || '',
-      thumbnail: dataUrl,
-      createdAt: Date.now(),
-      hasImage: !!dataUrl,
-      imageW: sl.imageWidth || 0,
-      imageH: sl.imageHeight || 0,
-      source: src || null,
-      resource: full.project?.resource || null,
-      address: null,
-      remoteId: null,
-      remoteVersion: 0,
-    };
-    this.storage.store.upsert(localMeta, {
-      image: dataUrl,
-      layout: {
-        imageWidth: sl.imageWidth || 0,
-        imageHeight: sl.imageHeight || 0,
-        lines: Array.isArray(sl.lines) ? sl.lines : [],
-        imageFilter: sl.imageFilter || 'none',
-        filterColor: sl.filterColor || '#7c3aed',
-        cropRect: sl.cropRect || null,
-        rotationQuarters: sl.rotationQuarters || 0,
-        // Carry page format + formulas so the detached local copy keeps them.
-        pageSize: sl.pageSize || 'A3',
-        customPageWidth: sl.customPageWidth || 21,
-        customPageHeight: sl.customPageHeight || 29.7,
-        allowFormulas: !!sl.allowFormulas,
-        formulaX: sl.formulaX || '',
-        formulaY: sl.formulaY || '',
-        imageBaseName: projName,
-        imageExt: (blob && blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : 'png',
-        imageSource: src || null,
-        imageResource: full.project?.resource || null,
-      },
-    });
-    // Remove from the server only for a move (the live feed re-renders its golden row out).
-    if (removeFromServer) await conn.deleteProject(meta.id);
-    this.tabs.projectsChanged({ id: newId, action: PROJECT_ACTION.UPDATED });
-    return newId;
-  }
+  copyServerProjectToIncognito(meta, opts = {}) { return this.projectTransfer.copyServerProjectToIncognito(meta, opts); }
 
   // ── Cross-tab reactions + incognito mode ─────────────────────────
   // True only while the editor is blank (no project, no image, no lines) — the
@@ -3220,6 +2748,7 @@ export class DrawingApp {
       btn.classList.toggle('active', this.storage.incognito);
     }
     document.body.classList.toggle('incognito-mode', this.storage.incognito);
+    this.updateInfo();                // the info line carries the mode tag
     this.#reportIncognitoSession();   // keep other tabs' "incognito tabs" list current
   }
 
@@ -3235,32 +2764,39 @@ export class DrawingApp {
   // Another tab changed the project set. If it touched OUR active project, sync.
   #onRemoteProjectsChange(detail) {
     const { id, action } = detail;
+    // The registry is re-read fresh from localStorage, but project payloads live in a
+    // per-tab IndexedDB mirror (projectsBackend.js) — pull the changed project's payload
+    // in now, so the active-sync below (and any later open of a project another tab
+    // just created) reads the peer's bytes instead of this tab's stale copy.
+    const refreshed = Promise.resolve(id != null ? getProjectsBackend()?.refresh?.(id) : null);
+    // Full teardown, not just storage.newTemporary(): the removed project may be
+    // server-linked, and a bare storage reset leaves remoteLink (and the golden
+    // server cues driven by it) pointing at a project that no longer exists.
     if (action === PROJECT_ACTION.REMOVED && id === this.activeProjectId) {
-      this.storage.newTemporary();
-      this.tabs.reportActive(null);
+      this.newEditor();
       this.updateButtons();
       notify('This project was removed in another tab', 'info');
       return;
     }
     if (action === PROJECT_ACTION.CLEARED && this.activeProjectId != null) {
-      this.storage.newTemporary();
-      this.tabs.reportActive(null);
+      this.newEditor();
       this.updateButtons();
       notify('All projects were cleared in another tab', 'info');
       return;
     }
     if (action === PROJECT_ACTION.CLOSE && id === this.activeProjectId) {
-      this.storage.newTemporary();
-      this.tabs.reportActive(null);
+      this.newEditor();
       this.updateButtons();
       notify('This project was closed from another tab', 'info');
       return;
     }
     if (action === PROJECT_ACTION.UPDATED && id === this.activeProjectId) {
-      if (this.#isIdle()) this.storage.syncActiveFromStorage();
-      // A colour change lives in the registry meta (not the payload syncActiveFromStorage
-      // reloads), so always repaint the name from the freshly-read meta.
-      this.updateProjectTitle();
+      refreshed.then(() => {
+        if (this.#isIdle()) this.storage.syncActiveFromStorage();
+        // A colour change lives in the registry meta (not the payload syncActiveFromStorage
+        // reloads), so always repaint the name from the freshly-read meta.
+        this.updateProjectTitle();
+      });
     }
   }
 
@@ -3282,16 +2818,21 @@ export class DrawingApp {
       notify('No lines to clear', 'info');
       return;
     }
-    if (!(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true }))) {
+    if (!(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true, confirmIcon: 'eraser' }))) {
       notify('Clear canceled', 'fail');
       return;
     }
+    // Every row in the lines list scatters before the list is rebuilt empty.
+    for (const row of document.querySelectorAll('#lines-list .lines-row')) leaveThenRemove(row);
     this.lines = [];
     if (this.currentLine) this.currentLine.points = [];
     this.selectedLineIdx = -1;
     this.coordLineIdx = -1;
     this.focusedPtIdx = -1;
     this.hoveredPtIdx = -1;
+    this.hoverPt = null;
+    this.hoverLineIdx = -1;
+    this.listHoverLineIdx = -1;
     this.hideSelectionPanels();
     this.saveHistory();
     this.coordTable.update();

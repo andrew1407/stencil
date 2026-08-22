@@ -1,11 +1,9 @@
 // ── Page-global window.stencil (MAIN world) ─────────────────────────────────
 // Injected into every page's MAIN world ONLY when opted in (options → "Page scripting
-// API"). Console-friendly API to scan the page's images/videos and send them to the
-// Stencil editor (mirrors popup/context menu). MAIN world so entries carry LIVE DOM
-// elements; lacking chrome.* APIs there, action requests are postMessage'd to the
-// ISOLATED bridge (content/pageApiBridge.js), which relays them to the SW.
-// The pure helpers below MIRROR lib/pageImages.js (unit-tested source of truth) —
-// keep the two in sync.
+// API"): console API to scan the page's images/videos and send them to the editor.
+// MAIN world so entries carry LIVE DOM elements; lacking chrome.* there, action
+// requests are postMessage'd to the ISOLATED bridge (content/pageApiBridge.js).
+// The pure helpers below MIRROR lib/pageImages.js (tested source of truth) — keep in sync.
 (() => {
   // Don't double-inject, and never clobber the editor's OWN window.stencil (that API
   // has no __stencil tag; the editor page wins on its own origin).
@@ -18,10 +16,9 @@
   const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_PIN: 'stencil-page-pin', PAGE_REQUEST_SYNC: 'stencil-page-request-sync', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
   const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited', PAGE_HL_COLOR: 'stencil-page-hl-color' };
 
-  // Source URLs the bridge tells us are pinned (on this site) / opened-in-an-editor.
-  // entry.pinned / entry.isEdited read these synchronously; the bridge keeps them live
-  // (chrome.storage → SRC.PAGE_PINS / SRC.PAGE_EDITED). A pin write optimistically
-  // updates pinnedSources so the getter flips before the round-trip lands.
+  // Source URLs the bridge tells us are pinned (this site) / opened-in-an-editor;
+  // entry.pinned / entry.isEdited read these synchronously, the bridge keeps them live.
+  // A pin write optimistically updates pinnedSources so the getter flips at once.
   const pinnedSources = new Set();
   const editedSources = new Set();
   // The highlight outline colour (accent or custom), pushed by the bridge; default violet.
@@ -32,7 +29,7 @@
   const bgImageUrl = (cssValue) => {
     const m = /url\((['"]?)(.*?)\1\)/i.exec(String(cssValue || ''));
     const url = m ? m[2].trim() : '';
-    return (!url || url.startsWith('data:image/svg')) ? '' : url;
+    return url || '';
   };
   // Inline mirror of lib/pageImages.js cssImageUrls (see pageApiMainMirror.test.js). Every
   // image url() in a CSS value, minus inline-SVG data URIs and #fragment paint/filter refs.
@@ -44,7 +41,7 @@
     let m;
     while ((m = re.exec(s))) {
       const u = (m[2] || '').trim();
-      if (!u || u.startsWith('#') || u.startsWith('data:image/svg')) continue;
+      if (!u || u.startsWith('#')) continue;
       urls.push(u);
     }
     return urls;
@@ -122,10 +119,9 @@
     return { kind: null, url: '' };
   };
 
-  // Intrinsic pixel size where the DOM exposes it synchronously: <video> from decoded
-  // dimensions, <img>/<svg image> from naturalWidth. A CSS background has no intrinsic
-  // size without loading it (popup measures lazily), so fall back to the rendered box —
-  // 0 when nothing is known.
+  // Intrinsic pixel size where the DOM exposes it synchronously (<video> decoded dims,
+  // <img> naturalWidth). A CSS background has no intrinsic size without loading it, so
+  // fall back to the rendered box — 0 when nothing is known.
   const entryDims = (el, kind) => {
     if (kind === 'video') return { w: el.videoWidth || 0, h: el.videoHeight || 0 };
     if (el && el.naturalWidth) return { w: el.naturalWidth, h: el.naturalHeight || 0 };
@@ -134,8 +130,7 @@
 
   // Hard-guard an API object: a property with a real setter writes through, but writing
   // a method / read-only getter / data field (or adding/deleting one) THROWS instead of
-  // silently no-opping. Applied to the facade and every scanned entry, so `entry.open = 0`,
-  // `entry.url = 'x'`, or `stencil.search = 1` is rejected.
+  // silently no-opping. Applied to the facade and every scanned entry.
   const guard = (obj) => new Proxy(Object.freeze(obj), {
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
@@ -224,10 +219,9 @@
   };
 
   // ── Live filter state (mirrors — and SYNCS with — the popup's filter controls) ──
-  // List getters (items/images/videos/backgrounds/posters) honor it; one-off queries
-  // search()/format()/size() stay unfiltered. Two-way bound to the popup via
-  // chrome.storage.local.popupFilters (the bridge proxies storage for this MAIN-world
-  // script — see content/pageApiBridge.js).
+  // List getters honor it; one-off queries search()/format()/size() stay unfiltered.
+  // Two-way bound to the popup via chrome.storage.local.popupFilters (the bridge
+  // proxies storage for this MAIN-world script — see content/pageApiBridge.js).
   const filters = {
     searchText: '',
     regex: false,                   // treat searchText as a case-insensitive RegExp (stencil.regex)
@@ -264,10 +258,9 @@
     return out;
   };
 
-  // ── Highlight: share the popup's <style id=stencil-hl-style> + data-stencil-hl attr,
-  //    so toggling it here is detected by the popup (and vice versa). The element under
-  //    the cursor gets a thicker, brightened hover ring + glow — same behaviour as the
-  //    popup's lib/highlight.js (kept in sync). ──
+  // ── Highlight: shares the popup's <style id=stencil-hl-style> + data-stencil-hl attr,
+  //    so toggling here is detected by the popup (and vice versa) — same behaviour as
+  //    the popup's lib/highlight.js (kept in sync). ──
   const HL_STYLE_ID = 'stencil-hl-style';
   const HL_ATTR = 'data-stencil-hl';
   const HL_HOVER = 'data-stencil-hl-hover';
@@ -419,10 +412,9 @@
     return { url, name: nameFromUrl(url), source: url };
   };
 
-  // Resolve a pin/unpin target → array of pin-target objects ({ url, name, kind }) that
-  // setPinnedState understands. Accepts a scanned entry, an index into stencil.items, a
-  // DOM element, an image/video URL, or an array of any of those. More lenient than
-  // resolveTarget (no video-frame capture — a pin keys on the source URL, not a frame).
+  // Resolve a pin/unpin target → array of pin-target objects setPinnedState understands.
+  // Accepts an entry, an index into stencil.items, an element, a URL, or an array of
+  // those. No video-frame capture — a pin keys on the source URL, not a frame.
   const resolvePinTargets = (target) => {
     if (Array.isArray(target)) return target.flatMap(resolvePinTargets);
     if (typeof target === 'number') { const e = scanFiltered()[target]; return e ? [e] : []; }
@@ -439,11 +431,9 @@
   // to label detect()'s `kind` for a raw URL; element/entry targets carry their own kind.
   const VIDEO_FMTS = new Set(['mp4', 'webm', 'mov', 'm4v', 'mkv', 'avi', 'ogv', 'ogg']);
 
-  // Inspect a target WITHOUT acting on it. Accepts a scanned entry, a stencil.items index,
-  // a DOM element (e.g. a document.querySelector result), or an image/video URL — the same
-  // union open()/pin() take, minus arrays. Returns a plain descriptor of what Stencil sees,
-  // or null when the target carries nothing grabbable (a <div> with no background, a <video>
-  // with no src/poster/frame, an out-of-range index, a non-target value). Never throws.
+  // Inspect a target WITHOUT acting on it — the same union open()/pin() take, minus
+  // arrays. Returns a plain descriptor of what Stencil sees, or null when the target
+  // carries nothing grabbable. Never throws.
   const describeTarget = (target) => {
     let el = null, kind = null, url = '';
     let listing = null;                                   // scanFiltered() result, computed at most once
@@ -537,10 +527,9 @@
         return true;
       });
     },
-    // Open a target. opts: { incognito, newTab, desktop, poster, frame }. Default opens the
-    // in-page editor modal; newTab opens the editor in a new browser tab; desktop hands the
-    // bytes to the installed desktop app via its stencil:// scheme (like the popup's
-    // "Open in… Desktop app") — needs a configured desktop scheme.
+    // Open a target. opts: { incognito, newTab, desktop, poster, frame }. Default is the
+    // in-page editor modal; newTab opens a new browser tab; desktop hands the bytes to
+    // the desktop app via its stencil:// scheme (needs a configured desktop scheme).
     open(target, opts = {}) {
       const r = resolveTarget(target, opts);
       send({ type: MSG.PAGE_OPEN, url: r.url, dataUrl: r.dataUrl, name: r.name, source: r.source, resource: location.href, incognito: !!opts.incognito, newTab: !!opts.newTab, desktop: !!opts.desktop });
@@ -561,26 +550,22 @@
     // hasPoster, pinned, isEdited, listed } or null. Accepts a scanned entry, a stencil.items
     // index, a DOM element (e.g. document.querySelector('img')), or an image/video URL.
     detect(target) { return describeTarget(target); },
-    // True when Stencil can grab `target` (it has an image/video/background source, or a
-    // capturable video frame) — i.e. it's a valid open()/crop()/pin() target. Never throws,
-    // so it's the safe pre-check before pinning a querySelector result. Same accepted types
-    // as detect(); for an array, test each item (`arr.every(stencil.grabbable)`).
+    // True when Stencil can grab `target` (an image/video/background source, or a
+    // capturable video frame) — the safe, never-throwing pre-check before open()/pin().
+    // Same accepted types as detect(); for an array, test each item.
     grabbable(target) { return !!describeTarget(target); },
   };
 
-  // Hide every member from enumeration so the console shows a clean `stencil` (no
-  // __stencil tag / method dump on console.log/Object.keys); access and DevTools
-  // autocomplete still work (non-enumerable ≠ inaccessible). Must run before the freeze
-  // below (freeze locks descriptors). __stencil stays a property (back-off guard reads
-  // it) but no longer leaks into enumeration.
+  // Hide every member from enumeration so the console shows a clean `stencil`; access
+  // and DevTools autocomplete still work. Must run before the freeze below (freeze
+  // locks descriptors); __stencil stays a property (the back-off guard reads it).
   for (const k of Reflect.ownKeys(api)) {
     const d = Object.getOwnPropertyDescriptor(api, k);
     if (d.enumerable) Object.defineProperty(api, k, { ...d, enumerable: false });
   }
-  // Hard-guard with the same proxy as entries: writing a method, read-only getter, or the
-  // internal __stencil tag THROWS (`stencil.open = 0` / `stencil.__stencil = 'x'`). Only
-  // legit setter is `enabled`, which the trap delegates to. Methods `return this` (the
-  // proxy when called on it), so chaining holds. guard() also does the Object.freeze.
+  // Hard-guard with the same proxy as entries: writing a method, read-only getter, or
+  // the __stencil tag THROWS. The only legit setter is `enabled`; methods `return this`
+  // so chaining holds. guard() also does the Object.freeze.
   const guarded = guard(api);
 
   // Lock the binding against plain reassignment (writable:false). configurable:true kept
@@ -591,8 +576,7 @@
   } catch { /* a non-configurable window.stencil already exists (the editor) — leave it */ }
 
   // Ask the bridge to (re)push pins / edited / filters / highlight colour now that our
-  // message listener is installed. The bridge pushes once at document_start — before this
-  // MAIN-world script runs at document_idle — so without this request that state is missed
-  // and getters fall back to defaults (e.g. the highlight stays the default colour).
+  // listener is installed: the bridge pushes once at document_start, before this
+  // MAIN-world script runs at document_idle — without this that state would be missed.
   try { send({ type: MSG.PAGE_REQUEST_SYNC }); } catch { /* bridge not present */ }
 })();

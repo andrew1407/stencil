@@ -5,12 +5,9 @@ import { getSyncToServer } from '../net/connectionStore.js';
 import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
 
 // ── RemoteSyncController: live co-edit push/pull + server writes ─────
-// Extracted from drawingApp.js. Owns the debounced save-back, the peer-event reload, the
-// conflict-merge retry loop, and the server layout-adoption helpers. Holds the sync timing
-// state itself (the timers/flags that only this engine touches); everything else (the session
-// link `remoteLink`, connections, the editor model) lives on the back-referenced app. The
-// project transfer/create helpers that are entangled with loadImageFromFile stay on DrawingApp
-// and call the now-public helpers here (adoptServer*/fetchRemoteOriginal/renderResultBytes).
+// Owns the debounced save-back, the peer-event reload, the conflict-merge retry loop, and
+// the server layout-adoption helpers. Holds only the sync timing state; the session link
+// `remoteLink`, connections, and the editor model live on the back-referenced app.
 export class RemoteSyncController {
   // Debounce timer + burst start (max-wait cap) for the trailing save-back.
   #syncTimer = null;
@@ -53,6 +50,18 @@ export class RemoteSyncController {
   // event feed (stencilApi onChange).
   onServerProjectEvent(msg, conn) {
     const app = this.app;
+    // The project we're linked to was deleted (by a peer, or this tab's own projects
+    // modal): the link is dead — detach fully, or the golden server cues (canvas outline,
+    // name badge) outlive the project. Independent of the sync toggle: there is nothing
+    // left to sync with.
+    if (msg?.type === 'project-event' && msg.event === 'deleted' && app.remoteLink
+        && msg.project?.id === app.remoteLink.remoteId
+        && (!conn || conn.url === app.remoteLink.address)) {
+      app.newEditor();
+      app.updateButtons?.();
+      notify('This server project was deleted', 'info');
+      return;
+    }
     if (!getSyncToServer()) return; // sync off — don't auto-pull peer changes
     if (!shouldReloadFromEvent(msg, app.remoteLink, {
       lastLocalSaveAt: this.#lastRemoteSaveAt,

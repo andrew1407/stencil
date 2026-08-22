@@ -1,82 +1,56 @@
+import LAYOUT_FIELDS_DATA from '../config/layoutFields.json' with { type: 'json' };
+
 // ── Pure layout helpers: serialization, validation, geometry-edit indices ──
-// Extracted from DrawingApp so decision logic is unit-testable in Node WITHOUT a DOM.
-// Never touch DOM/app state/globals — callers pass plain data in, act on returned descriptors.
+// Never touch DOM/app state/globals — callers pass plain data in and act on returned
+// descriptors, so everything here is unit-testable in Node without a DOM.
 
 // ── The single persisted-field descriptor table ─────────────────────────────
-// One source of truth for the two serializers below. Adding a persisted field is a
-// ONE-line edit here: it flows into the full session layout (#buildLayout via
-// serializeSession) automatically, and into the export/server subset when you tag it
-// `export`. The array order IS the byte order of the full session payload; the `export`
-// index (when set) IS the byte order of the export/server subset — the two paths emit
-// different key orders on purpose, so both stay byte-identical to their old literals.
+// One source of truth for the two serializers below; adding a persisted field is a
+// one-line edit here. The array order IS the byte order of the full session payload; the
+// `export` index IS the byte order of the export/server subset.
 //   • export      — the 0-based position in the export/server subset (absent → session-only).
-//   • exportForce — export the field unconditionally (undefined value included, matching the
-//                   old `{ imageWidth, imageHeight, lines }` head); otherwise it's emitted
-//                   only when `!= null`, matching the old `if (x != null)` guards.
-export const LAYOUT_FIELDS = [
-  { key: 'imageWidth', export: 0, exportForce: true },
-  { key: 'imageHeight', export: 1, exportForce: true },
-  { key: 'cropRect', export: 5 },
-  { key: 'rotationQuarters', export: 6 },
-  { key: 'lines', export: 2, exportForce: true },
-  { key: 'pageSize', export: 7 },
-  { key: 'customPageWidth', export: 8 },
-  { key: 'customPageHeight', export: 9 },
-  { key: 'unit' },
-  { key: 'color' },
-  { key: 'thickness' },
-  { key: 'markerSize' },
-  { key: 'style' },
-  { key: 'showPoints' },
-  { key: 'showLines' },
-  { key: 'imageFilter', export: 3 },
-  { key: 'filterColor', export: 4 },
-  { key: 'zoom' },
-  { key: 'scrollLeft' },
-  { key: 'scrollTop' },
-  { key: 'imageBaseName' },
-  { key: 'imageExt' },
-  { key: 'imageSource' },
-  { key: 'imageResource' },
-  { key: 'tooltipEnabled' },
-  { key: 'tooltipShowPage' },
-  { key: 'tooltipShowScreen' },
-  { key: 'tooltipShowCoords' },
-  { key: 'allowFormulas', export: 10 },
-  { key: 'formulaX', export: 11 },
-  { key: 'formulaY', export: 12 },
-  { key: 'drawMode' },
-  { key: 'holdDrawDelay' },
-  { key: 'selGlowColor' },
-  { key: 'hoverRingColor' },
-  { key: 'focusRingColor' },
-  { key: 'defaultFillColor' },
-];
+//   • exportForce — emit even when undefined; otherwise emitted only when `!= null`.
+// The table lives in config/layoutFields.json (canonical; other surfaces read the same
+// file). `pointColor` is the default point colour for NEW lines — empty = same as `color`.
+export const LAYOUT_FIELDS = LAYOUT_FIELDS_DATA;
 
 // Export-subset fields in their emitted (byte) order — derived once from the table.
 const EXPORT_FIELDS = LAYOUT_FIELDS
   .filter(f => f.export != null)
   .sort((a, b) => a.export - b.export);
 
-// Serialize the FULL session layout from a plain state object (no DOM, no DrawingApp —
-// the caller resolves DOM-derived values like zoom/scroll first). Projects every table
-// field in table order, so the produced payload is byte-identical to the old inline
-// literal in Storage.#buildLayout. Pure: unit-testable with a plain object.
+// Serialize the FULL session layout from a plain state object (the caller resolves
+// DOM-derived values like zoom/scroll first). Projects every table field in table order.
 export const serializeSession = (state) => {
   const out = {};
   for (const f of LAYOUT_FIELDS) out[f.key] = state[f.key];
   return out;
 };
 
-// Build the layout export payload. `lines` passed by reference (no copy) so JSON.stringify
-// output stays byte-identical to the old inline literals in downloadJSON/copyLayoutToClipboard.
-// Optional fields are omitted when absent (file-export bytes unchanged); saveToServer passes
-// filter/geometry + page format + formulas so they round-trip to peers and on reopen.
-// Projects the `export`-tagged subset of LAYOUT_FIELDS in its own key order.
+// ── cropRect wire spellings ─────────────────────────────────────────────────
+// The canonical wire spelling is {x,y,w,h} (Phase 6, all surfaces); legacy payloads
+// spell it {x,y,width,height}. Readers accept both, canonical wins when both appear.
+
+// → canonical {x,y,w,h} for emission. Non-objects pass through untouched.
+export const canonicalCropRect = (r) => {
+  if (!r || typeof r !== 'object') return r;
+  return { x: r.x, y: r.y, w: r.w ?? r.width, h: r.h ?? r.height };
+};
+
+// → the app's internal {x,y,width,height} for ingestion. null for non-objects.
+export const normalizeCropRect = (r) => {
+  if (!r || typeof r !== 'object') return null;
+  return { x: r.x, y: r.y, width: r.w ?? r.width, height: r.h ?? r.height };
+};
+
+// Build the layout export payload: the `export`-tagged subset of LAYOUT_FIELDS in its
+// own key order. `lines` passed by reference (no copy) and optional fields omitted when
+// absent, so the JSON.stringify output bytes stay stable.
 export const buildLayoutPayload = (src) => {
   const out = {};
   for (const f of EXPORT_FIELDS) {
-    const v = src[f.key];
+    // cropRect always leaves in the canonical {x,y,w,h} spelling.
+    const v = f.key === 'cropRect' ? canonicalCropRect(src[f.key]) : src[f.key];
     if (f.exportForce || v != null) out[f.key] = v;
   }
   return out;
@@ -87,7 +61,7 @@ export const buildLayoutPayload = (src) => {
 const lineDedupeKey = (l) => {
   if (!l || typeof l !== 'object') return JSON.stringify(l);
   const pts = Array.isArray(l.points) ? l.points.map((p) => `${p && p.x},${p && p.y}`).join(';') : '';
-  return [l.color, l.thickness, l.markerSize, l.style, l.locked ? 1 : 0, l.fillColor, pts].join('|');
+  return [l.color, l.pointColor ?? '', l.thickness, l.pointSize, l.style, l.locked ? 1 : 0, l.fillColor, pts].join('|');
 };
 
 // Union-merge for co-edit conflicts: server lines first, then any local line not already
@@ -127,12 +101,13 @@ const sanitizeLine = (l) => {
   if (!l || typeof l !== 'object') return null;
   const line = { points: sanitizePoints(l.points) };
   if (typeof l.color === 'string') line.color = l.color;
+  if (typeof l.pointColor === 'string') line.pointColor = l.pointColor;
   if (typeof l.fillColor === 'string') line.fillColor = l.fillColor;
   if (typeof l.style === 'string') line.style = l.style;
   const thickness = Number(l.thickness);
   if (Number.isFinite(thickness)) line.thickness = thickness;
-  const markerSize = Number(l.markerSize);
-  if (Number.isFinite(markerSize)) line.markerSize = markerSize;
+  const pointSize = Number(l.pointSize);
+  if (Number.isFinite(pointSize)) line.pointSize = pointSize;
   line.locked = !!l.locked;
   return line;
 };

@@ -2,13 +2,18 @@
 // Owns the right-click context menu (Stencil actions → editor). Covers real <img>
 // (native 'image' context) and CSS background-image elements (detected by the
 // content-script probe, ctxTarget.js).
-import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl, buildHandoff, editorOriginPattern } from '../lib/stencil.js';
-import { MENU, MENU_ITEMS, resolveContextAction, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle } from '../lib/contextMenu.js';
+import { fetchAsDataUrl, isImageDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, blobToDataUrl, buildHandoff, editorOriginPattern, focusTab } from '../lib/stencil.js';
+import { isEditorTab, editorRow, sourceTabChoices, importModeFor } from '../lib/editorTabs.js';
+import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../lib/imageScan.js';
+import { sourceOf, editableSrc } from '../lib/imageModel.js';
+import { MENU, MENU_ITEMS, resolveContextAction, menuVisibilityFor, DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle } from '../lib/contextMenu.js';
 import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../lib/openIn.js';
-import { pruneLedger } from '../lib/ledger.js';
-import { mountDropZones, unmountDropZones } from '../lib/dropZones.js';
+import { pruneLedger, recordOpened } from '../lib/ledger.js';
+import { mountDropZones, unmountDropZones, mountDropChoice } from '../lib/dropZones.js';
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../lib/highlightColor.js';
+import { THEME_STORAGE_KEY, THEME_MODES } from '../lib/shellTheme.js';
 import { setPinned, loadPins, isPinnedIn, siteOf, PINS_KEY } from '../lib/pins.js';
+import { isAllowedImageUrl } from '../lib/urlGuard.js';
 import { MSG } from '../lib/messages.js';
 import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/actionIcon.js';
 
@@ -39,117 +44,160 @@ const syncDesktopMenuVisibility = async () => {
 };
 
 // Build immediately on worker startup (covers reloads where onInstalled/onStartup
-// don't fire). Idempotent: removeAll precedes every create. buildMenus() also syncs the
-// desktop-item visibility once the items exist.
+// don't fire); idempotent thanks to the removeAll above.
 buildMenus();
 
-// Declared content scripts only inject into pages loaded AFTER install/update.
-// Inject the probe into already-open http(s) tabs too, so the menu works without
-// reloading every tab. The probe guards against binding twice (see ctxTarget.js).
-const injectProbeIntoOpenTabs = async () => {
+// Declared/registered content scripts only inject into pages loaded AFTER
+// install/update/registration — this covers the tabs already open. `scripts` is
+// [{ file, world? }], injected in order into every tab matching `urlPatterns`.
+const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = {}) => {
   try {
-    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    const tabs = await chrome.tabs.query({ url: urlPatterns });
     for (const tab of tabs) {
       if (tab.id == null) continue;
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true }, files: ['src/content/ctxTarget.js']
-      }).catch(() => { /* restricted page / no access — ignore */ });
+      for (const s of scripts) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id, ...(allFrames ? { allFrames: true } : {}) },
+          ...(s.world ? { world: s.world } : {}),
+          files: [s.file],
+        }).catch(() => { /* restricted page / no access — ignore */ });
+      }
     }
   } catch {
     /* ignore */
   }
 };
 
+// Inject the probe into already-open http(s) tabs, so the menu works without
+// reloading every tab. The probe guards against binding twice (see ctxTarget.js).
+const injectProbeIntoOpenTabs = () =>
+  injectIntoOpenTabs(['http://*/*', 'https://*/*'], [{ file: 'src/content/ctxTarget.js' }], { allFrames: true });
+
 // ── Editor bridge ───────────────────────────────────────────────────────────
-// Editor is cross-origin: its project registry lives in its own localStorage,
-// unreadable here. A content script injected ONLY into the configured editor origin
-// reads that registry (same-origin) and reports it back to prune opened-ledger
-// entries for deleted projects. Registration follows the editorUrl setting (refreshed
-// on change); already-open editor tabs are injected on startup (no reload needed).
+// The editor is cross-origin, so its project registry is unreadable here. A content
+// script injected only into the configured editor origin reads it (same-origin) and
+// reports back to prune opened-ledger entries; registration follows editorUrl.
 const BRIDGE_ID = 'stencil-editor-bridge';
 const BRIDGE_FILE = 'src/content/editorBridge.js';
 
-// `${origin}/*` match pattern for the configured editor comes from lib/stencil.js
-// (shared with resumeInOpenEditor), imported above.
+// Registration is unregister-then-register and several triggers fire it concurrently;
+// interleaved, the second register throws `Duplicate script ID` and is lost, leaving a
+// stale editorUrl registered. Serialised, passes run one at a time and the last wins.
+let registrationQueue = Promise.resolve();
+const serializeRegistration = (fn) => {
+  const next = registrationQueue.then(fn, fn);   // run even if the previous pass rejected
+  registrationQueue = next.catch(() => { /* keep the chain alive */ });
+  return next;
+};
 
-const registerEditorBridge = async () => {
-  // Clear any prior registration first so an editorUrl change doesn't leave the old
-  // origin registered (and a re-register doesn't throw "duplicate id").
-  try { await chrome.scripting.unregisterContentScripts({ ids: [BRIDGE_ID] }); } catch { /* not registered */ }
-  const pattern = await editorOriginPattern();
-  if (!pattern) return;
+// Register one content script, replacing any prior registration of the same id. A stray
+// duplicate (left by an earlier worker generation) is cleared and retried once.
+const replaceContentScript = async (id, script, label) => {
+  try { await chrome.scripting.unregisterContentScripts({ ids: [id] }); } catch { /* not registered */ }
   try {
-    await chrome.scripting.registerContentScripts([{
-      id: BRIDGE_ID, js: [BRIDGE_FILE], matches: [pattern], runAt: 'document_start', allFrames: false
-    }]);
+    await chrome.scripting.registerContentScripts([script]);
   } catch (e) {
-    console.warn('[stencil] could not register editor bridge:', e?.message);
+    try {
+      await chrome.scripting.unregisterContentScripts({ ids: [id] });
+      await chrome.scripting.registerContentScripts([script]);
+    } catch (again) {
+      console.warn(`[stencil] could not register ${label}:`, again?.message || e?.message);
+    }
   }
 };
 
-// Declared/registered scripts only inject on future loads; cover editor tabs open now.
+const registerEditorBridge = () => serializeRegistration(async () => {
+  // Read the setting INSIDE the critical section: a pass queued before an editorUrl change
+  // must still register the pattern that is current when it actually runs.
+  const pattern = await editorOriginPattern();
+  if (!pattern) {
+    try { await chrome.scripting.unregisterContentScripts({ ids: [BRIDGE_ID] }); } catch { /* not registered */ }
+    return;
+  }
+  await replaceContentScript(BRIDGE_ID, {
+    id: BRIDGE_ID, js: [BRIDGE_FILE], matches: [pattern], runAt: 'document_start', allFrames: false
+  }, 'editor bridge');
+});
+
+// Cover editor tabs open now.
 const injectBridgeIntoOpenEditors = async () => {
   const pattern = await editorOriginPattern();
   if (!pattern) return;
-  try {
-    const tabs = await chrome.tabs.query({ url: [pattern] });
-    for (const tab of tabs) {
-      if (tab.id == null) continue;
-      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [BRIDGE_FILE] })
-        .catch(() => { /* restricted page / no access — ignore */ });
-    }
-  } catch {
-    /* ignore */
-  }
+  await injectIntoOpenTabs([pattern], [{ file: BRIDGE_FILE }]);
 };
 
 const setUpEditorBridge = () => { registerEditorBridge(); injectBridgeIntoOpenEditors(); };
 
 // ── Page scripting API (opt-in window.stencil) ──────────────────────────────
-// When enabled, inject two scripts into every page: a MAIN-world script defining
-// window.stencil (entries hold live DOM elements) and an ISOLATED bridge relaying
-// the API's action requests to this worker. Off by default; (un)registered as the
-// setting flips.
+// When enabled, inject a MAIN-world script defining window.stencil and an ISOLATED
+// bridge relaying its action requests to this worker. Off by default; (un)registered
+// as the setting flips.
 const PAGE_API = [
   { id: 'stencil-page-bridge', file: 'src/content/pageApiBridge.js', world: 'ISOLATED', runAt: 'document_start' },
   { id: 'stencil-page-main', file: 'src/content/pageApiMain.js', world: 'MAIN', runAt: 'document_idle' },
 ];
 
-const registerPageApi = async () => {
-  try { await chrome.scripting.unregisterContentScripts({ ids: PAGE_API.map((s) => s.id) }); } catch { /* not registered */ }
+const registerPageApi = () => serializeRegistration(async () => {
   const { exposeWindowStencil } = await getSettings();
-  if (!exposeWindowStencil) return;
-  try {
-    await chrome.scripting.registerContentScripts(PAGE_API.map((s) => ({
-      id: s.id, js: [s.file], matches: ['<all_urls>'], runAt: s.runAt, allFrames: false, world: s.world,
-    })));
-  } catch (e) {
-    console.warn('[stencil] could not register page API:', e?.message);
+  if (!exposeWindowStencil) {
+    try { await chrome.scripting.unregisterContentScripts({ ids: PAGE_API.map((s) => s.id) }); } catch { /* not registered */ }
+    return;
   }
-};
+  for (const s of PAGE_API) {
+    await replaceContentScript(s.id, {
+      id: s.id, js: [s.file], matches: ['<all_urls>'], runAt: s.runAt, allFrames: false, world: s.world,
+    }, 'page API');
+  }
+});
 
 // Cover already-open http(s) tabs so enabling the API works without a reload.
 const injectPageApiIntoOpenTabs = async () => {
   const { exposeWindowStencil } = await getSettings();
   if (!exposeWindowStencil) return;
-  try {
-    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
-    for (const tab of tabs) {
-      if (tab.id == null) continue;
-      for (const s of PAGE_API)
-        chrome.scripting.executeScript({ target: { tabId: tab.id }, world: s.world, files: [s.file] })
-          .catch(() => { /* restricted page — ignore */ });
-    }
-  } catch { /* ignore */ }
+  await injectIntoOpenTabs(['http://*/*', 'https://*/*'], PAGE_API);
 };
 
 const setUpPageApi = () => { registerPageApi(); injectPageApiIntoOpenTabs(); };
 
-// React to settings changes: re-scope the editor bridge (editorUrl) and toggle the
-// page API (exposeWindowStencil).
+// ── Editor page API (stencil.extension on the editor page) ──────────────────
+// MAIN-world script defining window.__stencilExt. Like the page API above, but scoped
+// to the configured editor origin only (why it defaults ON), and riding on both
+// editorUrl and editorPageApi, so a change to either re-runs it.
+const EDITOR_API_ID = 'stencil-editor-api-main';
+const EDITOR_API_FILE = 'src/content/editorApiMain.js';
+
+const registerEditorApi = () => serializeRegistration(async () => {
+  // Settings read inside the critical section (see serializeRegistration): the toggle or the
+  // editor URL may have changed while this pass was queued behind another.
+  const { editorPageApi } = await getSettings();
+  const pattern = editorPageApi ? await editorOriginPattern() : null;
+  if (!pattern) {
+    try { await chrome.scripting.unregisterContentScripts({ ids: [EDITOR_API_ID] }); } catch { /* not registered */ }
+    return;
+  }
+  await replaceContentScript(EDITOR_API_ID, {
+    id: EDITOR_API_ID, js: [EDITOR_API_FILE], matches: [pattern], runAt: 'document_idle', allFrames: false, world: 'MAIN'
+  }, 'editor page API');
+});
+
+// Cover editor tabs that are already open, so enabling the API (or fixing the editor URL)
+// works without reloading them.
+const injectEditorApiIntoOpenEditors = async () => {
+  const { editorPageApi } = await getSettings();
+  if (!editorPageApi) return;
+  const pattern = await editorOriginPattern();
+  if (!pattern) return;
+  await injectIntoOpenTabs([pattern], [{ file: EDITOR_API_FILE, world: 'MAIN' }]);
+};
+
+const setUpEditorApi = () => { registerEditorApi(); injectEditorApiIntoOpenEditors(); };
+
+// React to settings changes: re-scope the editor bridge + editor page API (editorUrl),
+// and toggle the page API (exposeWindowStencil) / the editor page API (editorPageApi).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
   if (changes.editorUrl) setUpEditorBridge();
+  if (changes.editorUrl || changes.editorPageApi) setUpEditorApi();
   if (changes.exposeWindowStencil) setUpPageApi();
   if (changes.desktopScheme) syncDesktopMenuVisibility();   // reveal/hide the desktop-app items
 });
@@ -159,6 +207,7 @@ chrome.runtime.onInstalled.addListener(() => {
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
   setUpPageApi();
+  setUpEditorApi();
   applyAccentActionIcon();
 });
 chrome.runtime.onStartup.addListener(() => {
@@ -166,12 +215,14 @@ chrome.runtime.onStartup.addListener(() => {
   injectProbeIntoOpenTabs();
   setUpEditorBridge();
   setUpPageApi();
+  setUpEditorApi();
   applyAccentActionIcon();
 });
 
 // Also set up on every worker start (onInstalled/onStartup don't fire on every wake).
 setUpEditorBridge();
 registerPageApi();   // re-asserts registration (injection into open tabs only on explicit toggle/startup)
+registerEditorApi(); // …likewise for the editor page's stencil.extension
 applyAccentActionIcon();   // tint the toolbar icon's outline to the saved accent
 watchAccentActionIcon();   // …and re-tint it whenever the accent changes
 
@@ -200,15 +251,110 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   lastPosterByTab.delete(tabId);
 });
 
+// ── Editor mode: request/response plumbing ──────────────────────────────────
+// What only chrome.* can answer for the panel and for `stencil.extension`: which editor tabs
+// are open and what each holds, which other tabs are scannable, one tab's images, and an import
+// INTO an open editor. Unlike every relay above these ANSWER — see `answers()`.
+
+// How long a leg waiting on the editor PAGE gets before it's declared silent (an older editor
+// build never replies). The fan-out is parallel, so listing N editors costs one deadline.
+const PAGE_ANSWER_MS = 1500;
+const NO_PAGE_ANSWER = 'the editor page did not answer';
+
+// The import modes a caller may ask for. 'ask' is resolved HERE (query the target's
+// state, then import or bounce back with needsChoice) and never reaches the editor page.
+const IMPORT_MODES = ['new', 'replace', 'replace-keep', 'ask'];
+
+// Wrap an async handler into a request/response one: returns true (holds the response
+// port open) and answers EXACTLY once, turning a throw into the `{ ok:false, error }`
+// object callers branch on — the panel awaits one reply and can't ask twice.
+const answers = (fn) => (msg, sender, sendResponse) => {
+  Promise.resolve()
+    .then(() => fn(msg, sender))
+    .catch((err) => ({ ok: false, error: err?.message || String(err) }))
+    .then((res) => { try { sendResponse(res); } catch { /* port closed — the panel went away */ } });
+  return true;
+};
+
+// chrome.tabs.get for a tab that may have closed (or an id that came in as data): null
+// instead of a throw.
+const getTab = async (tabId) => {
+  try { return await chrome.tabs.get(tabId); } catch { return null; }
+};
+
+// ── Who may ask for the privileged, cross-tab handlers ──────────────────────
+// These reach past the caller's own page (another tab's images, every open tab's URL).
+// Our own pages are identified by ORIGIN, not by a missing `sender.tab` (popup.html can
+// open as an ordinary tab); any other sender must be the editor origin with the API on.
+const senderMayRelayPrivileged = async (sender) => {
+  if (!sender) return false;
+  const from = sender.url || '';
+  if (from.startsWith(chrome.runtime.getURL(''))) return true;   // popup / side panel / options
+  const { editorUrl, editorPageApi } = await getSettings();
+  if (!editorPageApi) return false;
+  return isEditorTab(from || sender.tab?.url || '', editorUrl);
+};
+
+// Composed inside answers(): answers(privileged(fn)).
+const privileged = (fn) => async (msg, sender) => {
+  if (!(await senderMayRelayPrivileged(sender))) {
+    return { ok: false, error: 'this request is not allowed from a page' };
+  }
+  return fn(msg, sender);
+};
+
+// Ask ONE editor tab's bridge something, always returning a reply object: no receiver and a
+// silent page both become the same structured error, never a hang.
+const askEditorTab = async (tabId, message) => {
+  try {
+    const reply = await Promise.race([
+      chrome.tabs.sendMessage(tabId, message),
+      new Promise((resolve) => setTimeout(resolve, PAGE_ANSWER_MS)),
+    ]);
+    return reply && typeof reply === 'object' ? reply : { ok: false, error: NO_PAGE_ANSWER };
+  } catch {
+    return { ok: false, error: NO_PAGE_ANSWER };
+  }
+};
+
+// One parallel EDITOR_STATE fan-out over candidate tabs: each tab's bridge is asked for
+// its state (a null id yields null). The canvas capture is the expensive part of a state
+// reply, so `thumbnail` defaults off; callers that want previews say so.
+const probeEditorTabs = (tabs, { thumbnail = false } = {}) =>
+  Promise.all(tabs.map((tab) => (tab.id == null
+    ? null
+    : askEditorTab(tab.id, { type: MSG.EDITOR_STATE, thumbnail }))));
+
+// Which tab a message means: an explicit tabId (the panel picked one), else the sender's —
+// for the editor page's own API, "no tabId" means "the tab I'm standing in".
+const targetTabId = (msg, sender) => (typeof msg.tabId === 'number' ? msg.tabId : sender?.tab?.id);
+
+// The destination editor tab: it must still exist AND still be on the editor origin (a tab
+// listed a moment ago may have navigated away). Returns `{tab}` or `{error}`.
+const editorTabFor = async (msg, sender) => {
+  const tabId = targetTabId(msg, sender);
+  if (typeof tabId !== 'number') return { error: 'no tab' };
+  const tab = await getTab(tabId);
+  if (!tab) return { error: 'no such tab' };
+  const { editorUrl } = await getSettings();
+  if (!isEditorTab(tab.url || '', editorUrl)) return { error: 'tab is not a Stencil editor' };
+  return { tab };
+};
+
 // ── Runtime-message dispatch ────────────────────────────────────────────────
-// One handler per message `type` (keyed by MSG.*), replacing a long if/else chain.
-// Each is fire-and-forget: none returns true, so — exactly as before — the listener
-// leaves the response port closed (no handler here sends an async sendResponse).
+// One handler per message `type` (keyed by MSG.*). Two kinds: fire-and-forget handlers
+// return undefined (port closes), request/response ones (the editor-mode group) are
+// wrapped in `answers()` and return true. The listener just propagates that.
 const messageHandlers = {
   // The in-page editor overlay asks us to open a real tab when its iframe is
   // blocked (CSP / mixed content). Doing it here avoids popup blockers.
   [MSG.OPEN_TAB]: (msg) => {
     if (msg.url) chrome.tabs.create({ url: msg.url });
+  },
+  // The DevTools panel's Settings gear: its context lacks
+  // chrome.runtime.openOptionsPage, so the panel asks us to open it.
+  [MSG.OPEN_OPTIONS]: () => {
+    chrome.runtime.openOptionsPage();
   },
   // The editor-origin bridge reports the editor's live project registry. Prune
   // opened-ledger entries for projects that no longer exist there — scoped to the
@@ -223,7 +369,11 @@ const messageHandlers = {
   [MSG.PAGE_OPEN]: (msg, sender) => {
     (async () => {
       try {
-        const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url);
+        // A caller-supplied dataUrl skips fetchAsDataUrl's allowlist — check it here.
+        if (msg.dataUrl && !isImageDataUrl(msg.dataUrl)) throw new Error('dataUrl is not an image');
+        // Guard context is sender.tab.url (browser-set) — never msg.resource, which the
+        // page could forge to smuggle a private host through the same-host carve-out.
+        const dataUrl = msg.dataUrl || await fetchAsDataUrl(msg.url, { pageUrl: sender.tab?.url || '' });
         const { page, desktopScheme } = await getSettings();
         // Desktop hand-off: build the stencil:// scheme URL and let the OS open the app
         // (parity with the context-menu "Open in… Desktop app"), instead of the editor tab.
@@ -247,7 +397,9 @@ const messageHandlers = {
   // options page can list "pins on this site"; the bridge mirrors the write back to the
   // page API (entry.pinned) and any open popup/side panel.
   [MSG.PAGE_PIN]: (msg, sender) => {
-    const resource = msg.resource || sender.tab?.url || '';
+    // sender.tab.url first: the recorded resource later serves as same-host guard
+    // context (options pin thumbnails), so it must not be page-forgeable.
+    const resource = sender.tab?.url || msg.resource || '';
     setPinned({
       source: msg.source || msg.url || '', site: siteOf(resource), resource,
       name: msg.name || filenameFromUrl(msg.url || 'image'), kind: msg.kind || 'image', pinned: !!msg.pin,
@@ -255,8 +407,11 @@ const messageHandlers = {
   },
   // Open a page image/video in the quick-crop tool.
   [MSG.PAGE_CROP]: (msg, sender) => {
+    // Same rule as PAGE_OPEN; a `url` is left to the crop page's own allowlist.
+    if (msg.dataUrl && !isImageDataUrl(msg.dataUrl)) return;
     const src = msg.dataUrl || msg.url;
-    if (src) launchCrop({ src, source: msg.source || msg.url || '', resource: msg.resource || sender.tab?.url || '', tabId: sender.tab?.id });
+    // sender.tab.url first: the crop page uses this resource as same-host guard context.
+    if (src) launchCrop({ src, source: msg.source || msg.url || '', resource: sender.tab?.url || msg.resource || '', tabId: sender.tab?.id });
   },
   // The API's `stencil.enabled = false` — turn the feature off (unregisters the scripts).
   [MSG.PAGE_DISABLE]: () => {
@@ -269,8 +424,17 @@ const messageHandlers = {
     if (msg.tabId == null) return;
     (async () => {
       let accent = DEFAULT_HL;
-      try { const l = await chrome.storage.local.get(ACCENT_STORAGE_KEY); accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL; } catch { /* default */ }
-      chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: mountDropZones, args: [accent] })
+      // The Appearance choice rides along UNRESOLVED: 'system' can only be answered by
+      // the page the zones land on (lib/shellTheme.js makes the same hand-off).
+      let mode = 'system';
+      try {
+        const l = await chrome.storage.local.get([ACCENT_STORAGE_KEY, THEME_STORAGE_KEY]);
+        accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL;
+        if (THEME_MODES.includes(l[THEME_STORAGE_KEY])) mode = l[THEME_STORAGE_KEY];
+      } catch { /* defaults */ }
+      // A live-editor tab gets editor-aware labels (here/incognito/crop act on IT).
+      const probe = await askEditorTab(msg.tabId, { type: MSG.EDITOR_STATE, thumbnail: false });
+      chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: mountDropZones, args: [accent, !!probe.ok, mode] })
         .catch(() => { /* restricted page — no overlay */ });
     })();
   },
@@ -292,14 +456,48 @@ const messageHandlers = {
         const tabId = sender.tab?.id;
         const resource = sender.tab?.url || '';
         const name = filenameFromUrl(url);
-        const { page } = await getSettings();
+        const { page, editorUrl } = await getSettings();
+        // ── Editor-aware: a drop landing ON a live editor acts on THAT editor ──
+        // here/incognito import into it (straight in when it's empty; an occupied
+        // editor raises the injected replace/new-tab/cancel chooser), and crop
+        // imports then opens the editor's OWN crop dialog — never the crop page.
+        const probe = tabId != null ? await askEditorTab(tabId, { type: MSG.EDITOR_STATE, thumbnail: false }) : { ok: false };
+        if (probe.ok) {
+          let mode = 'new';
+          // Incognito is never persisted and the saved project stays put, so it
+          // needs no replace chooser — it just opens incognito in this editor.
+          if (action !== 'incognito' && probe.state?.hasImage) {
+            let accent = DEFAULT_HL;
+            try { const l = await chrome.storage.local.get(ACCENT_STORAGE_KEY); accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL; } catch { /* default */ }
+            const [res] = await chrome.scripting.executeScript({
+              target: { tabId }, world: 'ISOLATED', func: mountDropChoice, args: [accent],
+            }).catch(() => [null]);
+            const choice = res?.result || 'cancel';
+            if (choice === 'cancel') return;
+            if (choice === 'newtab') {
+              const dataUrl = await fetchAsDataUrl(url, { pageUrl: resource });
+              await openEditorTab(buildHandoff({ name, source: url }, { dataUrl, page, resource, incognito: action === 'incognito' }));
+              return;   // crop-in-a-new-tab has no editor to host the dialog — plain open
+            }
+            mode = 'replace';
+          }
+          const dataUrl = await fetchAsDataUrl(url, { pageUrl: resource });
+          const payload = buildHandoff({ name, source: url }, { dataUrl, page, resource, incognito: action === 'incognito' });
+          const reply = await askEditorTab(tabId, { type: MSG.EDITOR_IMPORT, payload, mode });
+          if (!reply.ok) return;
+          if (!payload.incognito) {
+            await recordOpened({ source: url, resource, name, editorUrl }).catch(() => { /* badges just won't show */ });
+          }
+          if (action === 'crop') await askEditorTab(tabId, { type: MSG.EDITOR_CROP });
+          return;
+        }
         if (action === 'crop') {
-          const src = await fetchAsDataUrl(url).catch(() => url);   // video/non-image → let the crop page report it
+          const src = await fetchAsDataUrl(url, { pageUrl: resource }).catch(() => url);   // video/non-image → let the crop page report it
           await launchCrop({ src, source: url, resource, tabId });
           return;
         }
         // here / incognito → open the editor with the image bytes.
-        const dataUrl = await fetchAsDataUrl(url);
+        const dataUrl = await fetchAsDataUrl(url, { pageUrl: resource });
         const payload = buildHandoff({ name, source: url }, { dataUrl, page, resource, incognito: action === 'incognito' });
         if (action === 'incognito') await openEditorTab(payload);   // incognito = a fresh incognito editor tab
         else await launchEditorModal({ ...payload, tabId });        // here = in-page editor modal
@@ -323,23 +521,21 @@ const messageHandlers = {
     // The poster (preview image) the probe saw, if any — drives the Preview submenu.
     lastPosterByTab.set(tabId, (data && data.poster) ? data.poster : '');
     // Reveal dynamic background/link items only when the probe found a plain image URL
-    // (not a <video>); hidden otherwise. <img>/<video> use native-context items,
-    // untouched by this toggle.
-    const showBg = !!(data && data.url && !data.video);
+    // (<img>/<video> use native-context items). The group includes its own root, so the
+    // "Stencil" entry appears only with items under it — never as an empty submenu.
+    const { bg: showBg, preview: showPreview } = menuVisibilityFor(data);
     for (const id of DYNAMIC_ITEMS)
       chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
     // The background "Open in desktop app" item needs BOTH a background under the cursor AND a
     // configured scheme (unlike the rest of the bg group, which only needs the background).
     chrome.contextMenus.update(MENU.bgDesktop, { visible: showBg && desktopSchemeSet }, () => void chrome.runtime.lastError);
-    // Reveal the video Preview submenu only when the probed <video> has a poster, so a
-    // posterless video no longer shows a submenu whose actions would be a silent no-op.
-    const showPreview = !!(data && data.video && data.poster);
+    // Reveal the video Preview submenu only when the probed <video> has a poster —
+    // otherwise its actions would be silent no-ops.
     for (const id of PREVIEW_ITEMS)
       chrome.contextMenus.update(id, { visible: showPreview }, () => void chrome.runtime.lastError);
-    // Relabel the pin item to reflect whether the source under the cursor is already pinned
-    // on this site (Pin ↔ Unpin). SYNCHRONOUS off the in-memory pins cache — an awaited
-    // storage read would lose the race against the native menu appearing and show the prior
-    // label. Still best-effort: a first right-click just after the worker wakes may be stale.
+    // Relabel the pin item (Pin ↔ Unpin) SYNCHRONOUSLY off the in-memory pins cache — an
+    // awaited storage read loses the race against the native menu appearing. Best-effort:
+    // a first right-click just after the worker wakes may be stale.
     const site = siteOf(sender.tab?.url || '');
     const relabel = (id, source, kind) => {
       if (!source) return;
@@ -350,11 +546,151 @@ const messageHandlers = {
     relabel(MENU.bgPin, data && !data.video && data.url, 'image');
     relabel(MENU.framePin, data && data.video && (data.videoUrl || data.poster), 'video');
   },
+  // ── Editor mode (request/response — every one of these answers) ──
+  // Every open editor tab, each joined with the live state its bridge reports. A tab whose
+  // bridge stays silent (old editor build, still loading, no extensionBridge.js) is listed
+  // ANYWAY with ready:false — dropping it would hide an editor tab the user is looking at.
+  [MSG.EDITOR_LIST]: answers(privileged(async (msg, sender) => {
+    const pattern = await editorOriginPattern();
+    if (!pattern) return { ok: false, error: 'no editor URL configured' };
+    const tabs = await chrome.tabs.query({ url: [pattern] });
+    const currentTabId = targetTabId(msg, sender);
+    // A poll refresh asks for rows without thumbnails (thumbnails:false) and keeps the
+    // previews it already has.
+    const states = await probeEditorTabs(tabs, { thumbnail: msg.thumbnails !== false });
+    const rows = tabs.map((tab, i) => editorRow(tab, states[i] && states[i].ok ? states[i].state : null, { currentTabId }));
+    return {
+      ok: true,
+      // Origin matching can't tell the editor from an ordinary page served beside it —
+      // those answer nothing and belong in SOURCE_TABS, so drop them. A tab still LOADING
+      // has simply not answered yet, so it stays: the panel's poll fills it in a moment.
+      editors: rows.filter((row, i) => row.ready || (tabs[i] && tabs[i].status === 'loading')),
+    };
+  })),
+  // The other open pages an image can be pulled from (editor tabs and un-scannable
+  // schemes filtered out by the shared helper, so the panel and the console agree).
+  [MSG.SOURCE_TABS]: answers(privileged(async (msg) => {
+    const { editorUrl } = await getSettings();
+    const tabs = await chrome.tabs.query(msg.currentWindowOnly ? { currentWindow: true } : {});
+    // Ask the editor-origin tabs which are REALLY editors, so an ordinary page on that
+    // origin is still offered as a source (see sourceTabChoices). Only same-origin tabs
+    // are asked, without thumbnails — a couple of cheap round-trips, not a full fan-out.
+    const pattern = await editorOriginPattern();
+    const sameOrigin = pattern ? tabs.filter((t) => t.id != null && isEditorTab(t.url || '', editorUrl)) : [];
+    const answered = await probeEditorTabs(sameOrigin);
+    const editorTabIds = sameOrigin.filter((_, i) => answered[i] && answered[i].ok).map((t) => t.id);
+    return { ok: true, tabs: sourceTabChoices(tabs, { editorUrl, editorTabIds }) };
+  })),
+  // Scan a tab the caller is NOT standing on, with the popup's own scanner (same
+  // all-frames executeScript + mergeScanFrames), so both surfaces see the same images.
+  // Items come back raw: naming and filtering stay in the panel, as in popup.js scan().
+  [MSG.SCAN_TAB]: answers(privileged(async (msg) => {
+    if (typeof msg.tabId !== 'number') return { ok: false, error: 'no tab' };
+    const tab = await getTab(msg.tabId);
+    if (!tab) return { ok: false, error: 'no such tab' };
+    const url = tab.url || '';
+    if (!url || BLOCKED_SCHEMES.some((s) => url.startsWith(s))) return { ok: false, error: 'this page can’t be scanned' };
+    // A caller-supplied limit is data: clamped to the scanner's own ceiling.
+    const limit = Number(msg.limit) > 0 ? Math.min(Math.trunc(Number(msg.limit)), MAX_IMAGES) : MAX_IMAGES;
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: msg.tabId, allFrames: true }, func: scanPageForImages, args: [limit]
+      });
+      // The scanned tab's URL rides back with the images: it's the `resource` (provenance)
+      // a later EDITOR_IMPORT needs, and the caller isn't on that tab to look it up.
+      return { ok: true, tabId: msg.tabId, url, images: mergeScanFrames(results, limit) };
+    } catch (err) {
+      return { ok: false, error: `could not read this page (${err?.message || err})` };
+    }
+  })),
+  // Import an image INTO an already-open editor tab — no new tab, no navigation. Bytes are
+  // resolved here (host permissions bypass page CORS) and handed to the tab's bridge as the
+  // same buildHandoff payload the #stencil= launch path carries.
+  [MSG.EDITOR_IMPORT]: answers(async (msg, sender) => {
+    const { tab, error } = await editorTabFor(msg, sender);
+    if (error) return { ok: false, error };
+    // Mode is caller data: whitelist it before anything is fetched or replaced. A missing
+    // mode means 'ask' — the one value that can never overwrite work on screen unasked.
+    let mode = msg.mode || 'ask';
+    if (!IMPORT_MODES.includes(mode)) return { ok: false, error: 'unknown import mode' };
+    if (mode === 'ask') {
+      // Only one boolean of the state matters here (hasImage), so skip the canvas capture:
+      // a full state reply carries a 256px JPEG data URL across three hops, and this pre-check
+      // runs on EVERY import — including the second one, after the chooser answers.
+      const reply = await askEditorTab(tab.id, { type: MSG.EDITOR_STATE, thumbnail: false });
+      const state = reply.ok ? reply.state : null;
+      // Occupied editor → don't import; hand the state back so the panel can raise the
+      // chooser (new project / replace / replace keeping annotations) and the console API
+      // can say why nothing happened. A silent bridge reads as blank → 'new'.
+      if (importModeFor(state) === 'ask')
+        return { ok: false, error: 'editor already holds an image', needsChoice: true, state };
+      mode = 'new';
+    }
+    const image = (msg.image && typeof msg.image === 'object') ? msg.image : {};
+    // Bytes from the openable source (a video row's captured still, an image's src),
+    // provenance from sourceOf via buildHandoff — the split popup.js already makes.
+    // fetchAsDataUrl enforces the http(s)/blob/data allowlist on this page-supplied URL.
+    const src = editableSrc(image) || sourceOf(image);
+    // Guard context: a content-script sender lends its own (browser-set) tab URL; an
+    // extension surface (no sender.tab) is trusted to name the scanned page itself.
+    const dataUrl = await fetchAsDataUrl(src || '', { pageUrl: sender.tab?.url || msg.resource || '' });   // '' / a bad scheme → 'unsupported URL scheme'
+    const { page, editorUrl } = await getSettings();
+    const payload = buildHandoff(
+      { ...image, name: image.name || filenameFromUrl(src) },
+      { dataUrl, page: msg.page || page, resource: msg.resource || '', incognito: !!msg.incognito }
+    );
+    // Crop rect (original-image pixels) is forwarded untouched; the editor applies it the
+    // same way it does for a cropped launch payload.
+    if (msg.crop) payload.crop = msg.crop;
+    const reply = await askEditorTab(tab.id, { type: MSG.EDITOR_IMPORT, payload, mode });
+    if (!reply.ok) return reply;
+    // Write the same opened-ledger entry every other hand-off does — without it the panel
+    // wouldn't badge the row and a second click would import a duplicate. Skipped for
+    // incognito and best-effort: a ledger write must not fail an import that LANDED.
+    if (!payload.incognito) {
+      await recordOpened({ source: payload.source, resource: payload.resource, name: payload.name, editorUrl })
+        .catch(() => { /* storage unavailable — badges just won't show */ });
+    }
+    return { ok: true, tabId: tab.id, mode, projectId: reply.projectId || '', projectName: reply.projectName || '' };
+  }),
+  // Switch an editor tab to one of ITS OWN projects (by id — the fire-and-forget
+  // EDITOR_SWITCH above matches by source URL instead). The page refuses an unknown id
+  // rather than clearing itself, and its reply is passed straight through.
+  [MSG.EDITOR_SWITCH_PROJECT]: answers(async (msg, sender) => {
+    const { tab, error } = await editorTabFor(msg, sender);
+    if (error) return { ok: false, error };
+    return askEditorTab(tab.id, { type: MSG.EDITOR_SWITCH_PROJECT, projectId: String(msg.projectId || '') });
+  }),
+  // ONE tab's editor state. The panel asks this before flipping into editor mode: an origin
+  // match alone also matches ordinary pages served beside the editor, and only the tab's own
+  // bridge answering proves it IS one (popup.js resolveScanTab → editorMode.isLiveEditor).
+  [MSG.EDITOR_STATE]: answers(async (msg, sender) => {
+    const { tab, error } = await editorTabFor(msg, sender);
+    if (error) return { ok: false, error };
+    return askEditorTab(tab.id, { type: MSG.EDITOR_STATE, thumbnail: msg.thumbnail !== false, thumbMax: msg.thumbMax });
+  }),
+  // Bring a tab to the front (select it AND raise its window — focusTab, the same pair
+  // resumeInOpenEditor uses). Not restricted to editor tabs: the source-tab picker offers
+  // "go look at that page" too.
+  [MSG.EDITOR_FOCUS_TAB]: answers(privileged(async (msg) => {
+    if (typeof msg.tabId !== 'number') return { ok: false, error: 'no tab' };
+    const tab = await getTab(msg.tabId);
+    if (!tab) return { ok: false, error: 'no such tab' };
+    try {
+      await focusTab(tab);
+    } catch {
+      return { ok: false, error: 'no such tab' };   // closed between the get and the update
+    }
+    return { ok: true, tabId: tab.id, windowId: tab.windowId != null ? tab.windowId : null };
+  })),
 };
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const handler = msg && messageHandlers[msg.type];
-  if (handler) return handler(msg, sender);
+  // Propagating the return value is what keeps the request/response handlers working: an
+  // `answers()`-wrapped one returns true and replies later, a fire-and-forget one returns
+  // undefined and the port closes as before.
+  if (handler) return handler(msg, sender, sendResponse);
 });
 
 // Cap the captured frame's longest side: it rides in the editor launch URL as a
@@ -472,9 +808,13 @@ const captureVideoFrameInTab = async (tabId, frameId, point) => {
 // host permissions (bypasses page CORS), ship them into the page as a blob URL, draw
 // the frame at the recorded time. Skips huge media (caller falls back to a screenshot
 // crop). Returns a JPEG data URL or null.
-const captureVideoFrameViaFetch = async (tabId, frameId, src, t) => {
+const captureVideoFrameViaFetch = async (tabId, frameId, src, t, pageUrl = '') => {
   if (tabId == null || !src) return null;
   try {
+    // `src` is page-derived — refuse private/internal targets (urlGuard.js), like
+    // any other unfetchable source: the caller falls back to a screenshot crop.
+    // The tab's own host (pageUrl = tab.url) is allowed through.
+    if (!isAllowedImageUrl(src, { allowSameHostAs: pageUrl })) return null;
     const resp = await fetch(src);
     if (!resp.ok) return null;
     const clen = Number(resp.headers.get('content-length') || 0);
@@ -533,10 +873,9 @@ const resolveSrc = (info, rec) => {
 };
 
 // ── Context-menu click handlers ─────────────────────────────────────────────
-// One async handler per click group (following the ACTIONS-table style): the toolbar
-// action items, the video-preview submenu, the pin items, and the default image / video
-// frame path. `resolveClickHandler` routes an incoming click to exactly one of them —
-// the same order the previous if/else chain matched in.
+// One async handler per click group: the toolbar action items, the video-preview
+// submenu, the pin items, and the default image / video-frame path.
+// `resolveClickHandler` routes an incoming click to exactly one of them, in order.
 
 // ── Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito variant
 // opens it in an incognito window, so the editor's own project storage is throwaway. ──
@@ -567,7 +906,7 @@ const actOnPreview = async (info, tab, tabId) => {
       return;
     }
     const { page } = await getSettings();
-    const dataUrl = await fetchAsDataUrl(act.src);
+    const dataUrl = await fetchAsDataUrl(act.src, { pageUrl: resource });
     const payload = buildHandoff({ name: filenameFromUrl(act.src), source: act.src }, { dataUrl, page, resource, incognito: act.incognito });
     if (act.action === 'open-modal') await launchEditorModal({ ...payload, tabId });
     else await openEditorTab(payload);
@@ -602,16 +941,14 @@ const togglePinFromMenu = async (info, tab, tabId) => {
   }
 };
 
-// ── "Open in desktop app" (context menu) → hand the image to the desktop app via its
-// stencil:// URL scheme, with the bytes embedded inline (a page image has no server project,
-// unlike the popup's shared rows). Opened with chrome.tabs.create so the OS external-protocol
-// prompt fires from the SW (no popup/user-gesture document to rely on). Oversized inline
-// payloads are refused (the OS launch machinery can't carry them). ──
-const openInDesktopFromMenu = async (src) => {
+// ── "Open in desktop app" (context menu) → hand the image over via the stencil:// URL
+// scheme with the bytes inline. chrome.tabs.create fires the OS external-protocol prompt
+// from the SW; oversized inline payloads are refused (the OS launch can't carry them). ──
+const openInDesktopFromMenu = async (src, pageUrl = '') => {
   const { desktopScheme } = await getSettings();
   if (!desktopScheme || !src) return;
   try {
-    const dataUrl = await fetchAsDataUrl(src);
+    const dataUrl = await fetchAsDataUrl(src, { pageUrl });
     const url = buildStencilSchemeUrl({ scheme: desktopScheme, src: dataUrl });
     if (url.length > INLINE_MAX_CHARS) { console.warn('[stencil] image too large for an inline desktop hand-off'); return; }
     chrome.tabs.create({ url });
@@ -626,11 +963,9 @@ const openImageOrFrame = async (info, tab, tabId) => {
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   let src = resolveSrc(info, rec);
 
-  // Video path (Chrome says so, probe saw one, or frame in hand). Unless the frame is
-  // already in hand: capture in-page at click time → re-fetch bytes → screenshot-crop.
-  // A media URL is NEVER used as the image (.mp4 won't decode). sourceUrl captured here
-  // for provenance BEFORE the block below overwrites `src` with a frame data URL; for a
-  // video it's the media URL. recordOpened ignores non-http.
+  // Video path: capture in-page at click time → re-fetch bytes → screenshot-crop. A media
+  // URL is NEVER used as the image (.mp4 won't decode); sourceUrl is captured for
+  // provenance before `src` is overwritten below with a frame data URL.
   const sourceUrl = src || '';
   const resource = tab?.url || '';
 
@@ -641,7 +976,7 @@ const openImageOrFrame = async (info, tab, tabId) => {
     const frameId = vinfo ? vinfo.frameId : info.frameId;
     const probe = await captureVideoFrameInTab(tabId, frameId, vinfo && vinfo.point);
     let frame = probe && probe.frame ? probe.frame : null;
-    if (!frame && probe && probe.src) frame = await captureVideoFrameViaFetch(tabId, frameId, probe.src, probe.t);
+    if (!frame && probe && probe.src) frame = await captureVideoFrameViaFetch(tabId, frameId, probe.src, probe.t, resource);
     if (frame) {
       src = frame;
     } else if (poster && (!vinfo || vinfo.posterShown)) {
@@ -659,15 +994,21 @@ const openImageOrFrame = async (info, tab, tabId) => {
   // Feed the resolved src as srcUrl so the raw info.srcUrl (a <video>'s media file)
   // can't slip back in over the frame src picked above.
   const act = resolveContextAction({ ...info, srcUrl: src }, src);
-  if (!act) return;
+  // Nothing resolvable under the cursor. The menu entry shouldn't have been reachable at
+  // all (the dynamic group is revealed only on a probe hit, and the static group needs a
+  // native image/video context), so this is the "the page changed under us" case.
+  if (!act) {
+    console.warn('[stencil] context-menu click found nothing to act on (the target moved or the frame could not be read)');
+    return;
+  }
   try {
     if (act.action === 'crop') {
       await launchCrop({ src: act.src, source: sourceUrl, resource, tabId: tab?.id });   // small in-page modal
       return;
     }
-    if (act.action === 'desktop') { await openInDesktopFromMenu(act.src); return; }
+    if (act.action === 'desktop') { await openInDesktopFromMenu(act.src, resource); return; }
     const { page } = await getSettings();
-    const dataUrl = await fetchAsDataUrl(act.src);
+    const dataUrl = await fetchAsDataUrl(act.src, { pageUrl: resource });
     // `act.open` ('resume') only set by the Resume item; undefined drops out of the
     // JSON payload so a plain open imports fresh, as before.
     const payload = buildHandoff({ name: filenameFromUrl(act.src), source: sourceUrl }, { dataUrl, page, resource, incognito: act.incognito, open: act.open });
@@ -678,9 +1019,8 @@ const openImageOrFrame = async (info, tab, tabId) => {
   }
 };
 
-// Route a click to its handler, matching in the same order the old if/else chain did:
-// the two toolbar action items, then the preview-* submenu, then the pin items, then
-// the default image / video-frame path.
+// Route a click to its handler: the two toolbar action items, then the preview-*
+// submenu, then the pin items, then the default image / video-frame path.
 const resolveClickHandler = (info) => {
   if (info.menuItemId === MENU.actionOpen || info.menuItemId === MENU.actionOpenIncognito) return openFreshEditor;
   if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) return actOnPreview;

@@ -3,6 +3,9 @@ import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
+import { fillAccentMenu, markSelected } from './accentPicker.js';
+import { createModalOpenGesture } from './popover.js';
+import { isTypingTarget } from '../utils.js';
 import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
@@ -11,29 +14,44 @@ export class StencilToolbar extends StencilElement {
   static inner() {
     return `
             <div class="controls-topbar">
+                <!-- The wrap exists for the hover ray layer (animations.css): SVG elements
+                     can't host ::before/::after, so the rays live on this span. Clicks and
+                     the colour picker stay wired to the .app-logo svg itself. -->
+                <span class="app-logo-wrap">
                 <svg class="app-logo" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Stencil" focusable="false">
                     <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
                     <rect class="app-logo-frame" x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke-width="2.5"/>
                     <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
-                    <polyline points="16,46 27,24 38,38 50,18" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <g fill="#FFFF00" stroke="#000000" stroke-width="1.25">
-                        <circle cx="16" cy="46" r="3.4"/><circle cx="27" cy="24" r="3.4"/><circle cx="38" cy="38" r="3.4"/><circle cx="50" cy="18" r="3.4"/>
+                        <circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/>
                     </g>
                 </svg>
+                <!-- Right-click / Alt+click accent menu: the same preset listbox the Visuals
+                     dialog uses (accentPicker.js fills it lazily on first open). -->
+                <ul class="accent-dd-menu logo-accent-menu" role="listbox" aria-label="Color theme" hidden></ul>
+                </span>
                 <button id="toggle-controls" class="btn-icon-text" data-hk-title="toggleControls" data-title="Hide controls" title="Hide controls">${icon('chevron-up')}<span>Controls</span></button>
-                <span class="project-name-field" style="flex:0 1 240px;min-width:90px;display:inline-flex;align-items:center;gap:4px;">
+                <!-- The field shrink-wraps its content (the input carries a size attribute
+                     matching the name — see updateProjectTitle), so everything after the name
+                     sits beside it instead of at the end of a fixed 240px slot. -->
+                <span class="project-name-field" style="flex:0 1 auto;max-width:280px;min-width:0;display:inline-flex;align-items:center;gap:4px;">
                     <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
-                    <input id="project-name-input" type="text" placeholder="No project" readonly disabled
-                        style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
-                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
+                    <input id="project-name-input" type="text" size="10" placeholder="No project" readonly disabled
+                        style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
+                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" data-hk-title="renameProject" data-title="Rename project" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
                     <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
                     <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" title="Cancel" style="display:none;">${icon('x', { size: 14 })}</button>
-                    <button id="project-color-btn" class="name-edit-btn" type="button" title="Project colour — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
+                    <button id="project-color-btn" class="name-edit-btn" type="button" title="Project color — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
                     <input id="project-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
-                </span>
-                <span id="hints-btn" style="display:none;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
-                    ?
-                    <span class="hints-popup" id="hints-popup"></span>
+                    <!-- Sits INSIDE the name field, right after the name (which sizes to its
+                         text), so the "?" reads as belonging to this project rather than
+                         floating off in the toolbar. Owns its own hover bubble
+                         (.hints-popup), so it opts OUT of the shared floating tooltip. -->
+                    <span id="hints-btn" data-no-tooltip style="display:none;flex:0 0 auto;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
+                        ?
+                        <span class="hints-popup" id="hints-popup"></span>
+                    </span>
                 </span>
             </div>
             <div id="controls-body">
@@ -49,15 +67,10 @@ export class StencilToolbar extends StencilElement {
                     <span id="image-actions" style="display:none;align-items:center;gap:4px;">
                         <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
                         <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
-                        <button id="share-image" class="btn-icon" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
+                        <button id="share-image" class="btn-icon" data-hk-title="shareImage" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
                         <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
                     </span>
-                    <!-- Blank-image fill colour: a swatch next to the image actions, shown only for blank projects. Click to recolour the background (lines are kept). -->
-                    <button id="blank-color-btn" type="button" title="Blank background colour — recolour this blank image (keeps your lines)" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:3px 8px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
-                        <span id="blank-color-swatch" style="width:13px;height:13px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
-                    </button>
-                    <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                 </div>
             </div>
 
@@ -77,12 +90,13 @@ export class StencilToolbar extends StencilElement {
 
             <div class="ctrl-sep"></div>
 
-            <!-- ── Section: Share (server connect + source/resource links) ── -->
+            <!-- ── Section: Connections & links (servers, links, AI assistant) ── -->
             <div class="ctrl-section">
-                <div class="ctrl-section-label">Share</div>
+                <div class="ctrl-section-label">Connections &amp; links</div>
                 <div class="ctrl-section-row">
                     <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
                     <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Open an image first to edit its links" title="Source &amp; resource links for the current image">${icon('link')}</button>
+                    <button id="chat-btn" class="btn-icon" data-hk-title="toggleChat" data-title="AI assistant — chat to edit the image" title="AI assistant — chat to edit the image">${icon('sparkle')}</button>
                 </div>
             </div>
 
@@ -106,18 +120,32 @@ export class StencilToolbar extends StencilElement {
                     <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate" title="Rotate image right">${icon('rotate-cw')}</button>
                     <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo" title="Undo">${icon('undo')}</button>
                     <button id="redo" disabled class="btn-icon" data-hk-title="redo" data-title="Redo" data-disabled-reason="Nothing to redo" title="Redo">${icon('redo')}</button>
+                    <!-- Blank-image fill colour (EDIT action: recolours the current blank, keeps lines).
+                         Shown only for blank projects; the swatch is a proper colour rect matching the
+                         line-colour picker's proportions. -->
+                    <button id="blank-color-btn" type="button" title="Blank background color — recolor this blank image (keeps your lines)" style="display:none;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:5px 9px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
+                        <span id="blank-color-swatch" style="width:30px;height:22px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
+                    </button>
+                    <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                 </div>
             </div>
 
             <div class="ctrl-sep"></div>
 
-            <!-- ── Section: Drawing style ── -->
+            <!-- ── Section: Line style ──
+                 Line and point styling are two independent things the user reaches for at
+                 different moments, so they get their own captioned sections rather than one
+                 mixed row where the two same-yellow swatches and two bare numbers blur
+                 together. Within a section the captions can stay short (Color / Thickness ·
+                 Color / Size) because the section label carries the noun. Mirrored by the
+                 desktop style toolbar (mainWindow.cpp buildStyleToolbar). -->
             <div class="ctrl-section">
-                <div class="ctrl-section-label">Line Style</div>
+                <div class="ctrl-section-label">Line</div>
                 <div class="ctrl-section-row">
+                    <label for="line-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
                     <input type="color" id="line-color" value="#FFFF00" title="Line color">
+                    <label for="line-thickness" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Thickness</label>
                     <input type="number" id="line-thickness" value="2" min="1" max="20" title="Line thickness" style="width:54px">
-                    <input type="number" id="marker-size" value="4" min="1" max="30" title="Marker size" style="width:54px">
                     <select id="line-style" title="Line style">
                         <option value="solid">Solid</option>
                         <option value="dashed">Dashed</option>
@@ -128,13 +156,25 @@ export class StencilToolbar extends StencilElement {
 
             <div class="ctrl-sep"></div>
 
+            <!-- ── Section: Point style ── -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Point</div>
+                <div class="ctrl-section-row">
+                    <label for="point-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
+                    <input type="color" id="point-color" value="#FFFF00" title="Point color — new lines">
+                    <label for="point-size" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Size</label>
+                    <input type="number" id="point-size" value="4" min="1" max="30" title="Point size" style="width:54px">
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
             <!-- ── Section: Drawing actions ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Draw</div>
                 <div class="ctrl-section-row">
-                    <button id="start-drawing" class="btn-icon-text" data-hk-title="startDraw" data-title="Start Drawing" data-disabled-reason="Load an image to start drawing" title="Start Drawing">${icon('play', { size: 13 })}<span>Start</span></button>
-                    <button id="stop-drawing" disabled class="btn-icon-text" data-hk-title="stopDraw" data-title="Stop Drawing" data-disabled-reason="Start drawing first" title="Stop Drawing">${icon('stop', { size: 13 })}<span>Stop</span></button>
-                    <button id="draw-mode-toggle" class="btn-icon-text" data-title="Drawing mode: Line" data-disabled-reason="Load an image to switch line / rectangle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line}<span>Line</span></button>
+                    <button id="draw-toggle" class="btn-icon-text btn-draw-fixed" data-hk-title="startDraw" data-title="Start Drawing" data-disabled-reason="Load an image to start drawing" title="Start Drawing">${icon('play', { size: 13 })}<span>Start</span></button>
+                    <button id="draw-mode-toggle" class="btn-icon-text btn-draw-fixed" data-title="Drawing mode: Line (click to switch to Rectangle)" data-disabled-reason="Load an image to switch line / rectangle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line}<span>Line</span></button>
                 </div>
             </div>
 
@@ -150,14 +190,17 @@ export class StencilToolbar extends StencilElement {
                     <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Lines (Alt+L)">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
-                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
-                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;None — normal editing&#10;Original — original image only (crop + rotation; no filter, lines or points)&#10;Vertical split — left: original · right: current edit&#10;Horizontal split — top: original · bottom: current edit&#10;(Alt+O cycles · hold Alt+Shift+O to peek at the original)" data-disabled-reason="Load an image to compare" title="Compare with original&#10;None — normal editing&#10;Original — original image only (crop + rotation; no filter, lines or points)&#10;Vertical split — left: original · right: current edit&#10;Horizontal split — top: original · bottom: current edit&#10;(Alt+O cycles · hold Alt+Shift+O to peek at the original)">
+                    <!-- Extra left margin, none on the right: the row's flat 8px gap left "Lines"
+                         and "Compare" reading as one run of text. The label belongs to the select,
+                         so the air goes on the side that separates it from the toggles. -->
+                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);margin-left:12px;">Compare</label>
+                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare" title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)">
                         <option value="none">None</option>
-                        <option value="original">Original only</option>
-                        <option value="vertical">Split ↔ (vertical)</option>
-                        <option value="horizontal">Split ↕ (horizontal)</option>
+                        <option value="original">Original</option>
+                        <option value="vertical">Split ↔</option>
+                        <option value="horizontal">Split ↕</option>
                     </select>
-                    <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('trash')}</button>
+                    <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('eraser')}</button>
                 </div>
             </div>
 
@@ -228,8 +271,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy" title="Copy full Layout JSON (lines + all applied edits)">${icon('copy')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
                     <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first" title="Upload Layout JSON">${icon('upload')}</button>
-                    <button id="clear-storage" class="danger btn-icon" data-title="Clear (remove) current project" title="Clear (remove) current project">${icon('trash')}</button>
-                    <span id="save-status" style="font-size:12px;color:#555;min-width:70px;"></span>
+                    <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove" data-disabled-reason="Open an image first — nothing to remove" title="Remove">${icon('trash')}</button>
                 </div>
             </div>
 
@@ -240,10 +282,10 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Settings</div>
                 <div class="ctrl-section-row">
                     <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
-                    <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" data-disabled-reason="Load an image to view fullscreen" title="Fullscreen">${icon('maximize')}</button>
+                    <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" title="Fullscreen">${icon('maximize')}</button>
                     <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
-                    <button id="settings-btn" class="btn-icon" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
-                    <button id="visuals-btn" class="btn-icon" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>
+                    <button id="settings-btn" class="btn-icon" data-hk-title="openHotkeys" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
+                    <button id="visuals-btn" class="btn-icon" data-hk-title="openVisuals" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>
                     <button id="info-btn" class="btn-icon" data-hk-title="openHelp" data-title="Controls &amp; shortcuts help" title="Controls &amp; shortcuts help">${icon('help')}</button>
                 </div>
             </div>
@@ -261,58 +303,225 @@ export class StencilToolbar extends StencilElement {
     const popup = document.getElementById('hints-popup');
     let hidden = false;
 
-    // The image-size bar (#image-info) shows ONLY the size; the shortcut hints live here, in the "?"
-    // popup that appears when Controls is collapsed (so the toolbar's shortcuts stay discoverable).
-    const SHORTCUTS_HINT =
-      'Zoom: Ctrl+Scroll · Alt+± · +/− btn  (+Shift = larger)  |  Alt+Scroll: thickness  |  ' +
-      'Ctrl+Shift+Scroll: rotate selected  |  Ctrl+Click: add point  |  ℹ for full help';
-    const infoText = () => {
+    // Two facts, nothing else: the image size, and — only in incognito — that this
+    // session is never saved. Shortcut hints live in the ℹ info modal (infoConfig.json);
+    // the incognito line here replaces the floating canvas pill.
+    const refresh = () => {
       const el = document.getElementById('image-info');
-      const size = el ? el.textContent : 'Image Size: —';
-      return `${size}  |  ${SHORTCUTS_HINT}`;
+      // data-size is the info line's OWN text — its incognito tag is a child element,
+      // and this bubble states that fact on its own line below.
+      const size = el ? (el.dataset.size ?? el.textContent) : '';
+      const incognito = document.body.classList.contains('incognito-mode');
+      const hasImage = /^Image Size:/.test(size);
+      // Shown once an image is open — or, image or not, while incognito is on — and only
+      // while the toolbar is COLLAPSED: with the tool rows up the info line already says
+      // this; folded away (layout.css hides it too), this bubble is the one place left.
+      const collapsed = document.body.classList.contains('controls-collapsed');
+      const live = (hasImage || incognito) && collapsed;
+      hintsBtn.style.display = live ? 'inline-flex' : 'none';
+      if (!live) { popup.textContent = ''; return; }
+      popup.textContent = hasImage ? size : 'No image loaded';
+      popup.classList.toggle('has-incognito', incognito);
+      if (incognito) {
+        const line = document.createElement('span');
+        line.className = 'hints-incognito';
+        // Same glyph as the info line and the toolbar toggle — one incognito mark.
+        line.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
+        popup.appendChild(line);
+      }
     };
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
       body.classList.toggle('hidden', hidden);
-      btn.innerHTML = (hidden ? icon('chevron-down') : icon('chevron-up')) + '<span>Controls</span>';
+      // The fold is a body-level state: the info line hides with the rows (CSS), and the
+      // "?" badge appears in its place (refresh, via the class observer below).
+      document.body.classList.toggle('controls-collapsed', hidden);
+      // The glyph is NOT swapped — animations.css spins the one chevron 180° (up ⇄ down)
+      // off `#controls-body.hidden`, so the arrow turns with the fold instead of blinking.
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';
       btn.title = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
-      hintsBtn.style.display = hidden ? 'inline-block' : 'none';
-      hintsBtn.title = SHORTCUTS_HINT;
-      if (hidden) popup.textContent = infoText();
     });
 
-    // Keep popup live when image is loaded
-    new MutationObserver(() => {
-      if (hidden) popup.textContent = infoText();
-    }).observe(document.getElementById('image-info'), { childList: true, characterData: true, subtree: true });
+    // The size line drives the bubble; the incognito class rides on <body>, which the
+    // toggle, the chat `incognito` op and an incognito launch/adoption all set.
+    new MutationObserver(refresh).observe(document.getElementById('image-info'),
+      { childList: true, characterData: true, subtree: true });
+    new MutationObserver(refresh).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    refresh();
 
     wireLogoColorPicker(this.querySelector('.app-logo'), _app);
   }
 }
 
-// Double-click (or double-tap) the logo to open a native colour picker that tints THIS
-// page's accent only — not saved, not synced to other windows, gone on reload. Picking a
-// preset in the Visuals modal later clears it (see DrawingApp#applyAccent).
-function wireLogoColorPicker(logo, app) {
+// Double-click (or double-tap) the logo opens a native colour picker that tints THIS
+// page's accent only — not saved, not synced, gone on reload; a Visuals preset clears
+// it (DrawingApp#applyAccent). Exported for tests/logoAccentMenu.test.js.
+export function wireLogoColorPicker(logo, app) {
   if (!logo || !app) return;
   logo.style.cursor = 'pointer';
-  logo.setAttribute('title', 'Click to cycle the theme colour · double-click for a custom colour');
+  const wrap = logo.closest?.('.app-logo-wrap') || logo;
 
-  // Single-click cycles the MAIN theme accent to the next preset in the ACCENTS order (wrapping).
-  // When a CUSTOM (non-preset) colour is currently active — set via the double-click picker — a
-  // click instead resets to the default preset (violet). Persisted via app.setAccent, so it's the
-  // real theme change. The action is deferred briefly so a double-click cancels it (opens the
-  // picker) instead.
+  // ── Hover latch (.logo-hover) ── the pulse/ray loop (animations.css) keys on this
+  // class, NOT :hover: the browser force-drops page hover for the whole accent/theme
+  // view transition. themeSwap raises `theme-instant` on <html> for exactly that
+  // window — hold the latch through it, then trust real :hover once the swap ends.
+  const setHover = (on) => wrap.classList?.toggle('logo-hover', on);
+  wrap.addEventListener('pointerenter', () => setHover(true));
+  wrap.addEventListener('pointerleave', () => {
+    const root = document.documentElement;
+    // The latch is ANIMATION state only — the menu's peek lifetime is the gesture
+    // machine's business (glide/altRelease/linger below, same as every toolbar icon).
+    if (!root.classList?.contains('theme-instant')) { setHover(false); return; }
+    const settle = () => {
+      if (root.classList.contains('theme-instant')) { setTimeout(settle, 60); return; }
+      // one beat for the browser to re-establish real hover, then trust it
+      setTimeout(() => { if (!wrap.matches(':hover')) setHover(false); }, 90);
+    };
+    settle();
+  });
+
+  // ── Right-click (or Alt+click) → accent preset menu ── the same listbox the Visuals
+  // dialog uses (accentPicker.js; custom colours stay on the double-click picker).
+  // Non-modal — it only borrows the shared popup motion. Selecting applies through the
+  // same setAccent path as the click-cycle, with the logo as the swap origin.
+  const menu = wrap.querySelector?.('.logo-accent-menu');
+  let menuCloseTimer = null;
+  let menuCloseDone = null;
+  // How the menu is open right now: 'peek' (Alt-opened) or 'sticky' (right-click).
+  // Only the Alt+click no-op below needs the distinction; the LIFETIME rules live in
+  // the shared gesture machine.
+  let menuKind = null;
+  let pendingKind = null;   // set around a machine call so openMenu knows who opened it
+  const menuShowing = () => !!menu && !menu.hidden && !menu.classList.contains('dd-closing');
+  // Mid accent/theme swap the browser force-drops page :hover (`theme-instant` marks
+  // the window — see the hover latch). Pointer-driven dismissal must tell those
+  // synthetic leaves from a real one: every swap happens with the menu under the pointer.
+  const swapping = () => !!document.documentElement?.classList?.contains('theme-instant');
+  const reducedMotion = () =>
+    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
+  const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
+  const openMenu = () => {
+    if (!menu) return;
+    if (pendingKind) menuKind = pendingKind;
+    if (!menu.childElementCount) {
+      // A pick APPLIES and leaves the menu up so colours can be tried in a row; rows
+      // are built once, keeping scroll + DOM across the swap. themeSwap writes on a
+      // LATER beat — app.accent is still the old preset, so mark the key we picked.
+      fillAccentMenu(menu, (key) => { app.setAccent(key, logo); markSelected(menu, key); });
+    }
+    markSelected(menu, app.customAccent ? null : app.accent);
+    // Size to CONTENT by default (components.css lifts the shared 280px cap for this
+    // copy); cap at the viewport space under the logo so only a genuinely too-short
+    // window makes the list scroll (overflow-y:auto shows a scrollbar only then).
+    const r = wrap.getBoundingClientRect?.();
+    if (r && typeof window !== 'undefined' && typeof window.innerHeight === 'number') {
+      menu.style.maxHeight = `${Math.max(90, window.innerHeight - r.bottom - 18)}px`;
+    }
+    // Reopening mid-close: abort the exit (its animationend must not hide the fresh menu).
+    clearTimeout(menuCloseTimer);
+    if (menuCloseDone) menu.removeEventListener('animationend', menuCloseDone);
+    menu.classList.remove('dd-closing');
+    menu.hidden = false;
+    // Idempotent (same refs), so a reopen can't double-register.
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('keydown', onMenuKey);
+  };
+  const closeMenu = () => {
+    if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
+    menuKind = null;
+    // However it closes, the machine must not keep believing a popover shows — a
+    // leaked mode would let a later Alt glide "close" a menu that is already gone.
+    g.notifyClosed();
+    document.removeEventListener('pointerdown', onDocDown, true);
+    document.removeEventListener('keydown', onMenuKey);
+    menuCloseDone = (e) => {
+      // animationend BUBBLES: every row runs the hover shimmer on its ::after and the
+      // pointer is always over a row at close — an unfiltered listener ended the exit
+      // on the first shimmer. Only the menu's OWN animation (or the fallback timer /
+      // reduced motion, which pass no event) counts.
+      if (e && e.target !== menu) return;
+      clearTimeout(menuCloseTimer);
+      menu.removeEventListener('animationend', menuCloseDone);
+      menu.hidden = true;
+      menu.classList.remove('dd-closing');
+    };
+    // Reduced motion: animations.css neutralises both the rise and the pop-out, so
+    // there is no exit to wait for — hide outright rather than sit through the fallback.
+    if (reducedMotion()) { menuCloseDone(); return; }
+    // Leaves on the shared pop-out; hidden only once the exit has played — with a timer
+    // fallback so a missing/neutralised animation can never wedge the menu open.
+    menu.classList.add('dd-closing');
+    menuCloseTimer = setTimeout(menuCloseDone, 250);
+    menu.addEventListener('animationend', menuCloseDone);
+  };
+  // ── The shared toolbar peek system (ui/popover.js) ── the accent menu is a MACHINE
+  // IN THE GLIDE REGISTRY, exactly like every modal icon's mini window: Alt+hover
+  // peeks it (first closing other minis), Alt released over it lingers, elsewhere
+  // closes; a right-click open is 'sticky' but a glide still closes it. Modal gating
+  // rides the system's own live :hover checks, untouched.
+  const g = createModalOpenGesture({
+    openFull: () => {},          // the logo opens no full modal — click cycles the accent
+    openPopover: () => openMenu(),
+    closePopover: () => closeMenu(),
+    isPopoverOpen: menuShowing,
+    // Engaged at release time = the pointer rests inside the menu (peek → linger).
+    isPeekEngaged: () => !!menu?.matches?.(':hover'),
+  });
+  const altPeek = () => { pendingKind = 'peek'; g.altHover(); pendingKind = null; };
+  wrap.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    pendingKind = 'sticky'; g.contextmenu(); pendingKind = null;
+  });
+  // Alt + hover, both orders (mirrors popover.js wireModalOpenGestures): gliding on
+  // with Alt held, and pressing Alt while resting on it. Only the KEY route defers to
+  // a focused text control; preventDefault keeps bare Alt off the browser's menu bar.
+  wrap.addEventListener('mouseenter', (e) => { if (e.altKey) altPeek(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Alt' || !wrap.matches?.(':hover')) return;
+    if (isTypingTarget(document.activeElement)) return;
+    e.preventDefault?.();
+    altPeek();
+  });
+  document.addEventListener('keyup', (e) => { if (e.key === 'Alt') g.altRelease(); });
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('blur', () => g.altRelease());
+  }
+  // The pointer crossing the menu edge drives the linger close — but a swap's synthetic
+  // leave lands on a LINGERING menu every time a colour is picked. Hold the decision
+  // until the swap ends and then trust real :hover, exactly like the hover latch.
+  menu?.addEventListener('mouseenter', () => { if (!swapping()) g.boxEnter(); });
+  menu?.addEventListener('mouseleave', () => {
+    if (!swapping()) { g.boxLeave(); return; }
+    const settle = () => {
+      if (swapping()) { setTimeout(settle, 60); return; }
+      setTimeout(() => { if (!menu.matches?.(':hover')) g.boxLeave(); }, 90);
+    };
+    settle();
+  });
+
+  // Single-click cycles the accent to the next preset (a CUSTOM colour resets to the
+  // default), deferred briefly so a double-click cancels it. The logo is handed over as
+  // the swap origin — the palette floods out of the badge you clicked (desktop parity:
+  // mainWindow.cpp anchors its accent cycle to the logo too).
   const cycleAccent = () => {
-    if (app.customAccent) { app.setAccent(DEFAULT_ACCENT); return; }
+    if (app.customAccent) { app.setAccent(DEFAULT_ACCENT, logo); return; }
     const keys = ACCENTS.map((a) => a.key);
     const i = keys.indexOf(app.accent);
-    app.setAccent(keys[(i + 1) % keys.length]);
+    app.setAccent(keys[(i + 1) % keys.length], logo);
   };
   let clickTimer = null;
-  logo.addEventListener('click', () => {
+  logo.addEventListener('click', (e) => {
+    // Alt+click opens the menu as a PEEK instead of cycling (never schedules the
+    // deferred cycle). Menu already open: an Alt-opened one treats the click as part
+    // of the hold gesture (no-op — Alt's release governs); a sticky one toggles closed.
+    if (e.altKey) {
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+      if (menuShowing()) { if (menuKind !== 'peek') closeMenu(); return; }
+      altPeek();
+      return;
+    }
     if (clickTimer) return;   // second click of a dbl — let dblclick handle it
     clickTimer = setTimeout(() => { clickTimer = null; cycleAccent(); }, 220);
   });
@@ -326,7 +535,9 @@ function wireLogoColorPicker(logo, app) {
   picker.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;';
   logo.insertAdjacentElement('afterend', picker);
 
-  const apply = () => app.setCustomAccent(picker.value); // native colour input yields #rrggbb
+  // Same origin as the cycle: the native picker is an OS window, so there is no press in
+  // the page to read while the user drags around it.
+  const apply = () => app.setCustomAccent(picker.value, logo); // native colour input yields #rrggbb
   picker.addEventListener('input', apply);   // live while dragging
   picker.addEventListener('change', apply);  // final commit
 

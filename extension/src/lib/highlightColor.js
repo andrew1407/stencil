@@ -1,4 +1,6 @@
 // ── Highlight colour resolution ──────────────────────────────────────────────
+import { getSettings } from './stencil.js';
+
 // The on-page highlight outline can follow the main accent ('theme') or use a custom
 // hex. The accent KEY lives in localStorage (lib/accent.js) and is mirrored to
 // chrome.storage.local so non-page contexts (service worker, the page-API bridge) can
@@ -17,3 +19,14 @@ export const ACCENT_STORAGE_KEY = 'stencil_accent';
 // setting === 'theme' (or empty) → the accent's hex; otherwise the setting IS the hex.
 export const resolveHighlightColor = (setting, accentKey) =>
   (!setting || setting === 'theme') ? (ACCENT_HEX[accentKey] || DEFAULT_HL) : setting;
+
+// The effective highlight hex RIGHT NOW: the stored highlightColor setting resolved
+// against this page's accent (window.StencilAccent; default outside a page). Shared
+// by the popup and the chat page. Pass an already-loaded `settings` object to skip
+// the chrome.storage read.
+export const highlightColorValue = async (settings) => {
+  const { highlightColor } = settings || await getSettings();
+  let accentKey = 'violet';
+  try { accentKey = window.StencilAccent.get(); } catch { /* default */ }
+  return resolveHighlightColor(highlightColor, accentKey);
+};

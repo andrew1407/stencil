@@ -1,8 +1,16 @@
 import { ProjectsStore, shouldPersist, addPeriod, DEFAULT_PERIOD } from './projectsStore.js';
+import { getProjectsBackend } from './projectsBackend.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { normalizePageSize, layoutLineLengthCm } from './units.js';
-import { serializeSession } from './layout.js';
+import { serializeSession, normalizeCropRect } from './layout.js';
+import { ghostOut, flashLanding, GHOST_MS } from '../ui/motion.js';
+
+// Projects-list thumbnail. It is ALSO the hover-zoom source (projectsModal magnifies it
+// ~1.67x), so it is sized for that, not for the 56px row — and it lives in the
+// localStorage registry, so it stays a JPEG and stays modest.
+const THUMB_MAX_PX = 480;
+const THUMB_QUALITY = 0.85;
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
 // app state, compresses the image, regenerates a thumbnail, reads payloads back into the
@@ -10,7 +18,17 @@ import { serializeSession } from './layout.js';
 export class Storage {
   constructor(app) {
     this.app = app;
-    this.store = new ProjectsStore(localStorage);
+    // Backend: payload keys ride an IndexedDB mirror, the registry stays in
+    // localStorage (see projectsBackend.js). Hydrated at boot by index.js.
+    const backend = getProjectsBackend();
+    this.store = new ProjectsStore(backend);
+    // Payload writes land in the sync mirror and persist to IndexedDB async —
+    // surface a failed persist on the save-status line (the mirror still holds
+    // the bytes, so the next save retries naturally).
+    if (backend && 'onWriteError' in backend) {
+      backend.onWriteError = () =>
+        this.app.showSaveStatus('Save failed (browser storage error)', 'var(--danger)', 'x');
+    }
     this.activeId = null;
     this.temporary = false;
     // Incognito: a deliberately unsaved editor. Unlike a plain temporary editor (which
@@ -22,9 +40,8 @@ export class Storage {
   #tempStatusTimer = null;
   #syncTimer = null;
 
-  // Build the EXACT full session layout from current app state. Reads the live app +
-  // viewport into a plain state object (this is the DOM/DrawingApp coupling), then hands
-  // it to the pure serializeSession() which projects the descriptor table in byte order.
+  // Reads the live app + viewport into a plain state object (the DOM/DrawingApp
+  // coupling), then hands it to the pure serializeSession().
   #buildLayout() {
     const viewport = document.getElementById('canvas-viewport');
     const app = this.app;
@@ -43,8 +60,9 @@ export class Storage {
       customPageHeight: app.customPageHeight,
       unit: app.unit,
       color: app.color,
+      pointColor: app.pointColor,
       thickness: app.thickness,
-      markerSize: app.markerSize,
+      pointSize: app.pointSize,
       style: app.style,
       showPoints: app.showPoints,
       showLines: app.showLines,
@@ -107,7 +125,7 @@ export class Storage {
       // Free-text description: preserved across saves like colour (set only via setDescription).
       // "" => no description.
       description: this.store.getMeta(this.activeId)?.description || '',
-      // Blank-image marker + fill colour, sourced from the active session (set at blank creation
+      // Blank-image flag + fill colour, sourced from the active session (set at blank creation
       // and by setBlankColor, restored on open). Non-empty colour ⇔ blank project; "" / false for
       // ordinary image projects.
       blank: !!this.app.blankColor,
@@ -172,10 +190,10 @@ export class Storage {
     if (!proj) return; // gone — removal is handled by the REMOVED action
     const payload = proj.payload || {};
     const sameImage = (payload.image || null) === (this.app.imageDataUrl || null);
-    // A crop change keeps the same original image but resizes the working canvas,
-    // so the light path (lines only) can't represent it — fall back to a full
-    // reload when the stored crop differs from the live one.
-    const sameCrop = JSON.stringify((payload.layout || {}).cropRect || null) === JSON.stringify(this.app.cropRect || null);
+    // A crop change keeps the same image but resizes the working canvas, so the light
+    // path (lines only) can't represent it — full reload when the stored crop differs.
+    // Normalize both sides so a canonical {w,h} stored rect compares equal to the live one.
+    const sameCrop = JSON.stringify(normalizeCropRect((payload.layout || {}).cropRect)) === JSON.stringify(normalizeCropRect(this.app.cropRect));
     if (!sameImage || !sameCrop || !this.app.image) {
       this.loadPayloadIntoApp(payload);
       this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
@@ -280,24 +298,45 @@ export class Storage {
     return true;
   }
 
-  // Offscreen-canvas downscale of the current image to max 160px longest side.
   #makeThumbnail() {
     if (!this.app.image) return null;
     try {
       // Render the EDITED result (filter + lines), not the raw original, so the
       // projects list previews match what the user actually drew/filtered.
       const src = this.app.renderResultCanvas();
-      const max = 160;
+      // Sized for the LARGEST consumer, not the row: the projects list magnifies this
+      // same bitmap on hover (projectsModal PREVIEW_ZOOM).
+      const max = THUMB_MAX_PX;
       const iw = src.width;
       const ih = src.height;
       const scale = Math.min(1, max / Math.max(iw, ih));
       const w = Math.max(1, Math.round(iw * scale));
       const h = Math.max(1, Math.round(ih * scale));
+      // A single drawImage from (say) 2657px down to 480 is an ~5x reduction, which the
+      // bilinear filter can't sample properly — it aliases. Halving repeatedly until
+      // within 2x of the target keeps every source pixel contributing.
+      let cur = src;
+      while (cur.width > w * 2 && cur.height > h * 2) {
+        const half = document.createElement('canvas');
+        half.width = Math.max(w, Math.round(cur.width / 2));
+        half.height = Math.max(h, Math.round(cur.height / 2));
+        const hc = half.getContext('2d');
+        hc.imageSmoothingEnabled = true;
+        hc.imageSmoothingQuality = 'high';
+        hc.drawImage(cur, 0, 0, half.width, half.height);
+        cur = half;
+      }
       const offscreen = document.createElement('canvas');
       offscreen.width = w;
       offscreen.height = h;
-      offscreen.getContext('2d').drawImage(src, 0, 0, w, h);
-      return offscreen.toDataURL('image/jpeg', 0.6);
+      const ctx = offscreen.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(cur, 0, 0, w, h);
+      // 0.6 put visible JPEG blocking on faces at this size; 0.85 is where that stops
+      // being obvious without the payload growing unreasonably (thumbs live in the
+      // localStorage registry, so they are still deliberately modest).
+      return offscreen.toDataURL('image/jpeg', THUMB_QUALITY);
     } catch {
       return null;
     }
@@ -353,8 +392,8 @@ export class Storage {
     this.#scheduleSyncBroadcast();
   }
 
-  // Apply a payload {image, layout} into app state + DOM. Factored out of the
-  // legacy restore() so both loadProject() and migration paths share it.
+  // Apply a payload {image, layout} into app state + DOM; shared by loadProject()
+  // and the migration paths.
   loadPayloadIntoApp(payload) {
     try {
       const layout = (payload && payload.layout) || {};
@@ -381,13 +420,20 @@ export class Storage {
         this.app.color = layout.color;
         document.getElementById('line-color').value = layout.color;
       }
+      // '' is a MEANINGFUL value here ("points follow the line colour"), so this restores
+      // on a typeof check rather than truthiness the way the others do.
+      if (typeof layout.pointColor === 'string') {
+        this.app.pointColor = layout.pointColor;
+        const el = document.getElementById('point-color');
+        if (el && layout.pointColor) el.value = layout.pointColor;
+      }
       if (layout.thickness) {
         this.app.thickness = layout.thickness;
         document.getElementById('line-thickness').value = layout.thickness;
       }
-      if (layout.markerSize) {
-        this.app.markerSize = layout.markerSize;
-        document.getElementById('marker-size').value = layout.markerSize;
+      if (layout.pointSize) {
+        this.app.pointSize = layout.pointSize;
+        document.getElementById('point-size').value = layout.pointSize;
       }
       if (layout.style) {
         this.app.style = layout.style;
@@ -471,11 +517,11 @@ export class Storage {
           // saved before cropping existed) and build the working canvas from it.
           // Rotation must be set first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
-          this.app.cropRect = layout.cropRect || this.app.imageModel.defaultCropRect();
+          this.app.cropRect = normalizeCropRect(layout.cropRect) || this.app.imageModel.defaultCropRect();
           this.app.imageModel.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
           // Empty lines → step -1 (no phantom undo on a brand-new/blank project); only seed
-          // a current snapshot when there are real lines to undo back to (matches line ~156).
+          // a current snapshot when there are real lines to undo back to.
           this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
 
           if (layout.zoom) {
@@ -538,11 +584,21 @@ export class Storage {
   }
 
   // Switch the editor to a fresh, blank, unsaved state. No storage writes.
-  newTemporary() {
+  // `keepChat` leaves the live conversation alone — the assistant resets the editor
+  // MID-TURN (openUrl incognito adoption), and swapping the chat scope under it would
+  // wipe the very exchange that asked for the reset.
+  newTemporary({ keepChat = false } = {}) {
     this.activeId = null;
     this.temporary = true;
     this.incognito = false;
     this.app.activeProjectId = null;
+    // Chat persistence (§12): a temporary editor has no project to file a chat
+    // under — with saving on, the conversation resets to a fresh scope.
+    if (!keepChat) this.app.chatPersistence?.projectOpened(null);
+
+    // Was there anything on screen to clear? Boot calls this to start blank, and the
+    // dust/hold below would then flash the empty-state card off and back on for no reason.
+    const hadImage = !!this.app.image;
 
     this.app.image = null;
     this.app.originalImage = null;
@@ -562,6 +618,14 @@ export class Storage {
     this.app.history.reset([], -1);
 
     const ctx = this.app.ctx;
+    // Copy the pixels into a throwaway overlay FIRST — clearRect is instant and would
+    // leave nothing to animate. The empty state is ALSO held back for the animation,
+    // or the blank editor pops in underneath while the dust is still falling.
+    if (ctx && hadImage) {
+      ghostOut(this.app.canvas);
+      const vp = document.getElementById('canvas-viewport');
+      if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
+    }
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
     const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';

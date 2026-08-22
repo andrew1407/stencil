@@ -4,12 +4,10 @@ import { core } from './core/stencilCore.js';
 // singleton); the pure parse/match helpers below stay here.
 
 // ── Small DOM helpers ───────────────────────────────────────────
-// Guarded value-set: assign to an element's .value only if it exists.
 export const setVal = (id, value) => {
   const el = document.getElementById(id);
   if (el) el.value = value;
 };
-// Check the radio in a named group whose value matches.
 export const setRadioGroup = (name, value) => {
   document.querySelectorAll(`input[name="${name}"]`).forEach(r => { r.checked = r.value === value; });
 };
@@ -23,21 +21,25 @@ export const mountHTML = (parent, html) => {
 // The model always stores lengths in centimetres; `unit` ('cm' | 'in') only
 // controls how they are shown/entered. 1 inch = 2.54 cm.
 export const CM_PER_INCH = 2.54;
-// cm → displayed unit value.
 export const cmToUnit = (cm, unit) => (unit === 'in' ? cm / CM_PER_INCH : cm);
-// displayed unit value → cm (for inputs the user types in the active unit).
 export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val);
-// Short label for the active unit.
 export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
 
+// ── Comparison view: is an image point in the EDITED half? ───────────────────
+// Same geometry as the desktop's hover gate (mainWindow) — the two surfaces must agree
+// point for point. `mode` is the EFFECTIVE mode (renderer.effectiveCompareMode), so the
+// Alt+Shift+O peek is already folded in; callers pass the POINT's coords, not the cursor's.
+export const compareEditedShows = (mode, split, x, y, imageW, imageH) => {
+  if (mode === 'original') return false;
+  if (mode !== 'vertical' && mode !== 'horizontal') return true;
+  const f = Math.min(1, Math.max(0, Number.isFinite(split) ? split : 0.5));
+  return mode === 'vertical' ? x >= imageW * f : y >= imageH * f;
+};
+
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
-/**
- * Seed the initial display unit from locale (a saved/typed preference overrides).
- * No "measurement system" web API exists, so the region is derived via Intl.Locale
- * (maximize() resolves bare "en" → US); only US/Liberia/Myanmar get inches. Never throws.
- * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
- * @returns {'cm'|'in'} The locale-appropriate display unit.
- */
+// Seed the initial display unit from locale (a saved/typed preference overrides).
+// No "measurement system" web API exists, so the region is derived via Intl.Locale
+// (maximize() resolves bare "en" → US); only US/Liberia/Myanmar get inches. Never throws.
 export const defaultUnitFromLocale = (
   nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined),
 ) => {
@@ -55,24 +57,11 @@ export const defaultUnitFromLocale = (
 };
 
 // ── Inline name editor (shared: topbar + projects list) ─────────
-/**
- * Wire a live-validated inline rename editor. Enables ✓ only when the trimmed
- * value has changed AND is valid (the rejection reason shows on ✓'s tooltip when
- * disabled). Enter commits (when ✓ is enabled), Escape cancels. A mousedown
- * preventDefault keeps the input focused so the click fires before any blur
- * handler (callers wire blur→cancel for click-away discard).
- * @param {HTMLInputElement} input - The editable name field.
- * @param {HTMLElement} acceptBtn - The ✓ commit button.
- * @param {HTMLElement} cancelBtn - The ✗ cancel button.
- * @param {object} opts
- * @param {() => string} opts.current - Returns the current (saved) name.
- * @param {(v: string) => {ok: boolean, reason?: string}} opts.validate - Validates a candidate name.
- * @param {(v: string) => void} opts.commit - Commits an accepted name.
- * @param {() => void} opts.cancel - Cancels editing.
- * @param {boolean} [opts.alwaysShow=false] - Keep ✓/✗ visible always (projects
- *   list); otherwise they appear only once the value differs (topbar).
- * @returns {{refresh: () => void}} Handle exposing a `refresh` to re-run validation.
- */
+// Wire a live-validated inline rename editor. ✓ enables only when the trimmed value
+// changed AND validates (rejection reason shows on ✓'s tooltip); Enter commits, Escape
+// cancels. mousedown preventDefault keeps focus so the click fires before any blur
+// handler (callers wire blur→cancel). `alwaysShow` keeps ✓/✗ visible (projects list);
+// otherwise they appear once the value differs (topbar). Returns { refresh }.
 export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate, commit, cancel, alwaysShow = false }) => {
   const refresh = () => {
     const v = input.value.trim();
@@ -103,20 +92,32 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
 };
 
 // ── Coordinates-panel drag resizer ──────────────────────────────
-// Wire a drag handle that resizes the right-hand coordinates panel by writing the shared
-// `--coord-panel-width` CSS var (clamped, persisted to localStorage). Used by both the normal
-// (mainContent) and fullscreen (fullscreenLayer) panels. Dragging the handle LEFT widens the
-// panel. `panel` is measured for the live/persisted width; `maxFactor` caps width at that
-// fraction of the window. `onStart`/`onEnd` hook a drag (fullscreen pauses its auto-hide);
-// `restore` re-applies the persisted width on wire. Returns { isDragging } for hover logic.
+// Resizes the coordinates panel by writing the shared `--coord-panel-width` CSS var
+// (clamped, persisted); used by both the normal and fullscreen panels. Dragging LEFT
+// widens. `onStart`/`onEnd` hook a drag (fullscreen pauses its auto-hide).
 const COORD_PANEL_WIDTH_KEY = 'drawingApp_coordPanelWidth';
+// Never squeeze the canvas below this; under it the layout overflows rather than shrinks.
+export const MIN_CANVAS_WIDTH = 320;
+
+// Widest the panel may be in a window of `winW`: never past `maxFactor` of it, never past
+// the 640 ceiling, never leaving less than MIN_CANVAS_WIDTH for the canvas. Pure → testable.
+export const clampPanelWidth = (w, winW, maxFactor = 0.7) =>
+  Math.max(240, Math.min(640, Math.round(winW * maxFactor), Math.max(0, winW - MIN_CANVAS_WIDTH), w));
+
 export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onEnd, restore = false } = {}) => {
-  const clamp = (w) => Math.max(240, Math.min(640, Math.round(window.innerWidth * maxFactor), w));
+  const clamp = (w) => clampPanelWidth(w, window.innerWidth, maxFactor);
   const setWidth = (w) => document.documentElement.style.setProperty('--coord-panel-width', clamp(w) + 'px');
-  if (restore) {
+  // The width is PERSISTED, so a panel dragged wide in a big window comes back into a small
+  // one — and a window can be narrowed after the fact. Re-clamp on both, against the live
+  // window, keeping the user's stored preference for when there is room for it again.
+  const applyStored = () => {
     let saved = NaN;
     try { saved = parseInt(localStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }
-    if (Number.isFinite(saved)) setWidth(saved);
+    setWidth(Number.isFinite(saved) ? saved : panel.getBoundingClientRect().width);
+  };
+  if (restore) {
+    applyStored();
+    window.addEventListener('resize', applyStored);
   }
   let startX = 0, startW = 0, dragging = false;
   const onMove = (e) => { if (dragging) setWidth(startW + (startX - e.clientX)); };
@@ -147,16 +148,33 @@ export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onE
 // ── Notification balloon ────────────────────────────────────────
 // Delegates to the <stencil-notifications> custom element, which owns the
 // show/auto-hide logic. Kept as a free function so existing import sites work.
-export const notify = (msg, type = 'ok') => {
+export const notify = (msg, type = 'ok', opts = undefined) => {
   const el = document.getElementById('notify-balloon');
-  if (el && typeof el.notify === 'function') el.notify(msg, type);
+  if (el && typeof el.notify === 'function') el.notify(msg, type, opts);
 };
 
-/**
- * Whether the browser can share FILES via the Web Share API (most desktop
- * browsers cannot, even if navigator.share exists for text/URLs). Used to decide
- * whether to render the Share-image action at all.
- */
+// Touch-like surface: phone-width viewport OR no-hover + coarse pointer. THE app-wide
+// rule — never sniff the user agent. `mm` injectable for tests; no matchMedia (Node) = desktop.
+export const PHONE_MEDIA = '(max-width: 680px)';
+export const TOUCH_MEDIA = `${PHONE_MEDIA}, (hover: none) and (pointer: coarse)`;
+export const isTouchLike = (mm = (typeof matchMedia !== 'undefined' ? matchMedia : null)) => {
+  try { return !!mm && !!mm(TOUCH_MEDIA).matches; } catch { return false; }
+};
+
+// Scale any CanvasImageSource to ≤ maxEdge px on the long edge, encode as a data URL.
+// Never upscales. THE shared frame for attachment downscaling, extension thumbnails,
+// and video frame grabs — browser-only.
+export const scaledDataUrl = (source, width, height, maxEdge, type, quality) => {
+  const k = Math.min(1, maxEdge / Math.max(width, height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(width * k));
+  c.height = Math.max(1, Math.round(height * k));
+  c.getContext('2d').drawImage(source, 0, 0, c.width, c.height);
+  return c.toDataURL(type, quality);
+};
+
+// Whether the browser can share FILES via the Web Share API (most desktop browsers
+// cannot, even if navigator.share exists for text/URLs); gates the Share-image action.
 export const supportsShareFiles = () => {
   try {
     return !!(navigator.canShare &&
@@ -167,10 +185,8 @@ export const supportsShareFiles = () => {
 };
 
 // ── Geometry helpers (pure) ─────────────────────────────────────
-/**
- * Distance from point (px,py) to the segment a→b. Delegates to the shared C++
- * core (wasm) when loaded; the JS body is the reference + fallback.
- */
+// Distance from point (px,py) to the segment a→b. Delegates to the shared C++
+// core (wasm) when loaded; the JS body is the reference + fallback.
 export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -180,14 +196,12 @@ export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
 });
 
+// Edges inclusive; takes anything with left/right/top/bottom (a DOMRect in practice).
+export const pointInRect = (x, y, rect) =>
+  x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+
 // ── Color helpers (pure) ────────────────────────────────────────
-/**
- * Convert "#rrggbb" + alpha → "rgba(...)". Values that are already rgba/named
- * pass through unchanged.
- * @param {string} hex - A "#rrggbb" color (or any non-hex string to pass through).
- * @param {number} alpha - Alpha channel in [0, 1].
- * @returns {string} An "rgba(r,g,b,alpha)" string, or `hex` unchanged.
- */
+// "#rrggbb" + alpha → "rgba(...)"; already-rgba/named values pass through unchanged.
 export const hexToRgba = (hex, alpha) => {
   if (typeof hex !== 'string' || hex[0] !== '#' || hex.length < 7) return hex;
   const r = parseInt(hex.slice(1, 3), 16);
@@ -196,12 +210,8 @@ export const hexToRgba = (hex, alpha) => {
   return `rgba(${r},${g},${b},${alpha})`;
 };
 
-/**
- * Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when
- * loaded and the string is a valid 7-char hex; the JS body is reference + fallback.
- * @param {string} hex - A "#rrggbb" color string.
- * @returns {{r: number, g: number, b: number}} The 0–255 channel values.
- */
+// Parse "#rrggbb" → { r, g, b }. Delegates to the shared C++ core (wasm) when loaded
+// and the string is a valid 7-char hex; the JS body is reference + fallback.
 export const parseHex = hex => {
   const fn = core.op('parseHex');
   if (fn) {
@@ -216,24 +226,14 @@ export const parseHex = hex => {
 };
 
 // ── Hotkey parsing / matching (pure) ────────────────────────────
-/**
- * Normalize a KeyboardEvent code/key into a bare key token.
- * @param {string} code - KeyboardEvent.code (e.g. "KeyA", "Digit0", "ArrowUp").
- * @param {string} key - KeyboardEvent.key, used as a fallback when `code` is empty.
- * @returns {string} The normalized key (e.g. "A", "0", "ArrowUp").
- */
+// KeyboardEvent code/key → bare key token; `key` is the fallback when `code` is empty.
 export const normalizeKey = (code, key) => {
   if (!code) return key || '';
   if (code.startsWith('Key')) return code.slice(3);     // KeyA  -> A
   if (code.startsWith('Digit')) return code.slice(5);   // Digit0 -> 0
   return code;                                          // ArrowUp / Numpad0 / F2 …
 };
-/**
- * Parse a "Ctrl+Shift+Z" combo string into a structured descriptor.
- * @param {string} str - The combo string; the last "+"-segment is the key.
- * @returns {{ctrl: boolean, shift: boolean, alt: boolean, meta: boolean, key: string}|null}
- *   The parsed combo, or null when `str` is empty/invalid.
- */
+// "Ctrl+Shift+Z" → {ctrl,shift,alt,meta,key}; last "+"-segment is the key; null when empty.
 export const parseHotkey = str => {
   if (!str) return null;
   const parts = str.split('+').map(p => p.trim()).filter(Boolean);
@@ -245,12 +245,6 @@ export const parseHotkey = str => {
     alt: mods.includes('alt'), meta: mods.includes('meta'), key,
   };
 };
-/**
- * Test whether a KeyboardEvent matches a combo string (modifiers + key).
- * @param {KeyboardEvent} e - The keyboard event.
- * @param {string} hkStr - A combo string such as "Ctrl+Shift+Z".
- * @returns {boolean} True when the event exactly matches the combo.
- */
 export const matchHotkey = (e, hkStr) => {
   const h = parseHotkey(hkStr);
   if (!h) return false;
@@ -261,11 +255,7 @@ export const matchHotkey = (e, hkStr) => {
   const norm = normalizeKey(e.code, e.key);
   return norm.toLowerCase() === h.key.toLowerCase();
 };
-/**
- * Build a canonical combo string from a KeyboardEvent (for capturing rebinds).
- * @param {KeyboardEvent} e - The keyboard event.
- * @returns {string|null} A combo like "Ctrl+Shift+A", or null for a bare modifier press.
- */
+// Canonical combo from a KeyboardEvent (for capturing rebinds); null for a bare modifier press.
 export const comboFromEvent = e => {
   if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return null;
   const parts = [];
@@ -277,32 +267,21 @@ export const comboFromEvent = e => {
   return parts.join('+');
 };
 // ── Platform detection / Mac-relative hotkeys (pure) ────────────
-/**
- * Whether the platform is macOS. Prefers the modern userAgentData.platform hint,
- * falls back to navigator.platform / userAgent matching /Mac/i. Safe when `nav`
- * is undefined (returns false) so it can be called in Node without throwing.
- * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
- * @returns {boolean} True on macOS.
- */
+// Prefers userAgentData.platform, falls back to navigator.platform / userAgent /Mac/i.
+// Safe (false) when `nav` is undefined so Node can call it.
 export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return false;
   const uaPlat = nav.userAgentData && nav.userAgentData.platform;
-  // Only trust userAgentData.platform when it is NON-EMPTY: some Chromium builds
-  // (and reduced User-Agent-Client-Hints contexts) report platform === '' even on
-  // macOS. An empty string is still a string, so testing it would short-circuit to
-  // a false negative — fall through to navigator.platform / userAgent instead.
+  // Only trust userAgentData.platform when NON-EMPTY: some Chromium/reduced-UACH
+  // contexts report '' even on macOS, which would short-circuit to a false negative.
   if (typeof uaPlat === 'string' && uaPlat) return /mac/i.test(uaPlat);
   if (typeof nav.platform === 'string' && /mac/i.test(nav.platform)) return true;
   if (typeof nav.userAgent === 'string' && /Mac/i.test(nav.userAgent)) return true;
   return false;
 };
 
-/**
- * Best-effort desktop OS for choosing a download link. Android matches "Linux"
- * in its UA, so it is excluded explicitly.
- * @param {Navigator} [nav] - Navigator-like object; defaults to globalThis.navigator.
- * @returns {'mac'|'windows'|'linux'|null} The OS, or null when unknown (mobile, Node).
- */
+// Best-effort desktop OS for choosing a download link; null when unknown (mobile, Node).
+// Android matches "Linux" in its UA, so it is excluded explicitly.
 export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
   if (!nav) return null;
   const uaPlat = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || '';
@@ -314,15 +293,9 @@ export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globa
   return null;
 };
 
-/**
- * Rewrite a canonical combo for the platform. On Mac, Ctrl-based editing shortcuts
- * (undo/redo/copy/paste, etc.) map to ⌘, so the Ctrl token → Meta; and the primary
- * delete key emits Backspace (⌫), so a Delete key token → Backspace. Token-aware,
- * case-insensitive, idempotent.
- * @param {string} combo - The canonical combo string.
- * @param {boolean} isMac - Whether to apply the Mac remapping.
- * @returns {string} The platformized combo (unchanged when `!isMac`).
- */
+// Rewrite a canonical combo for the platform: on Mac, Ctrl → Meta (editing shortcuts live
+// on ⌘) and Delete → Backspace (the primary delete key emits ⌫). Token-aware,
+// case-insensitive, idempotent; unchanged when `!isMac`.
 export const platformizeCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   return combo.split('+')
@@ -335,14 +308,8 @@ export const platformizeCombo = (combo, isMac) => {
     .join('+');
 };
 
-/**
- * Render a combo for DISPLAY only (storage stays canonical). On Mac, tokens map to
- * Apple symbols in ⌃⌥⇧⌘ order then the key, joined with no separator
- * ("Meta+Shift+Z" → "⇧⌘Z", "Alt+ArrowUp" → "⌥↑").
- * @param {string} combo - The canonical combo string.
- * @param {boolean} isMac - Whether to render Apple glyphs.
- * @returns {string} The display string (the canonical form unchanged when `!isMac`).
- */
+// Render a combo for DISPLAY only (storage stays canonical). On Mac, tokens map to Apple
+// symbols in ⌃⌥⇧⌘ order then the key, no separator ("Meta+Shift+Z" → "⇧⌘Z").
 export const formatCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;
   const parts = combo.split('+').map(p => p.trim()).filter(Boolean);
@@ -366,21 +333,10 @@ export const formatCombo = (combo, isMac) => {
 };
 
 // ── Unified control tooltip ─────────────────────────────────────
-/**
- * Compose an element's `title` from 3 optional parts so toolbar/menu tooltips
- * stay consistent and live:
- *   • base: data-title wins; else the current title with a trailing "(…)" hotkey
- *     and prior "— reason" line stripped (cached into data-title for stability).
- *   • hotkey: data-hk-title names a hotkey id; its combo is appended as " (…)",
- *     platform-formatted via the injected getCombo (avoids importing hotkeys here,
- *     since that module imports this one).
- *   • reason: data-disabled-reason, shown as a "— reason" line only while the
- *     element is disabled or has the `ctx-disabled` class.
- * @param {HTMLElement} el - The control whose tooltip is composed.
- * @param {boolean} isMac - Whether to render Mac hotkey glyphs.
- * @param {(hkId: string) => string} [getCombo] - Resolves a hotkey id to a combo string.
- * @returns {string} The composed tooltip text.
- */
+// Compose an element's `title` from 3 optional parts: base (data-title, else the current
+// title with trailing "(…)"/"— reason" stripped and cached), hotkey (data-hk-title id →
+// " (…)" via the injected getCombo — hotkeys imports this module, so no direct import),
+// and reason (data-disabled-reason, shown only while disabled / `ctx-disabled`).
 export const composeControlTitle = (el, isMac, getCombo) => {
   let base = el.dataset.title;
   if (base == null) {
@@ -400,12 +356,8 @@ export const composeControlTitle = (el, isMac, getCombo) => {
   return out;
 };
 
-/**
- * Whether an event target is a text-entry control (so global hotkeys should be
- * suppressed). Checkbox/radio/file/color/button inputs are NOT typing targets.
- * @param {EventTarget|null} t - The element to test.
- * @returns {boolean} True for textareas, text-like inputs, selects, and contentEditable.
- */
+// Text-entry target (global hotkeys suppressed): textareas, text-like inputs, selects,
+// contentEditable. Checkbox/radio/file/color/button inputs are NOT typing targets.
 export const isTypingTarget = t => {
   if (!t) return false;
   const tag = (t.tagName || '').toLowerCase();
@@ -418,12 +370,27 @@ export const isTypingTarget = t => {
   return t.isContentEditable === true;
 };
 
-// True when the user currently has a non-empty text selection on the page (e.g. they
-// selected a server URL or other label text). Copy shortcuts (Ctrl+C = copy image,
-// Ctrl+Alt+C = copy layout) defer to the browser's native text copy in that case, so
-// selecting text and pressing Ctrl+C copies the TEXT rather than hijacking the image.
+// Copy shortcuts (Ctrl+C = image, Ctrl+Alt+C = layout) defer to the browser's native
+// text copy while a non-empty selection exists, so Ctrl+C copies the TEXT, not the image.
 export const hasTextSelection = () => {
   if (typeof window === 'undefined' || !window.getSelection) return false;
   const sel = window.getSelection();
   return !!sel && !sel.isCollapsed && sel.toString().trim().length > 0;
+};
+
+// ── Display-shortening for project / image names ─────────────────────────────
+// For names interpolated into dialog sentences/toasts, where CSS text-overflow can't help.
+// Middle ellipsis because both ends carry meaning: the head is what the user recognises,
+// the tail holds the extension / "-copy" suffix that says WHICH item this is.
+// Ported to extension/src/lib/displayName.js and desktop/src/support/displayName.hpp
+// — keep the three behaviourally identical (same limit, same head/tail split).
+export const NAME_DISPLAY_CHARS = 28;
+export const shortName = (name, limit = NAME_DISPLAY_CHARS) => {
+  const s = String(name ?? '');
+  if (s.length <= limit) return s;
+  // Reserve one char for the ellipsis; give the extra char to the head on odd splits.
+  const keep = limit - 1;
+  const head = Math.ceil(keep / 2);
+  const tail = keep - head;
+  return `${s.slice(0, head)}…${tail > 0 ? s.slice(-tail) : ''}`;
 };

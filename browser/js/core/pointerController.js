@@ -1,10 +1,8 @@
 // ── PointerController: mouse pan / rect-draw / zoom-rect / drag ──────
-// Extracted from drawingApp.js (#wirePanDrag). Owns the desktop mouse interaction wiring:
-// Alt/middle pan, Shift+drag zoom-rect, rect-draw sweep, and point/segment/whole-line drag.
-// Holds only the pan cursor delta; every drag helper + drag-state field lives on the
-// back-referenced app (findNearestPointWithIdx / beginSegmentDrag / movePointTo / dragMove /
-// end*Drag / finishDragGesture; draggingPoint/Segment/Line etc.), shared with the touch path
-// in inputController.js.
+// Owns the desktop mouse interaction wiring: Alt/middle pan, Shift+drag zoom-rect,
+// rect-draw sweep, and point/segment/whole-line drag. Holds only the pan cursor delta;
+// every drag helper + drag-state field lives on the back-referenced app, shared with the
+// touch path in inputController.js.
 export class PointerController {
   // Last pointer position during an Alt/middle pan (delta-based scroll).
   #panLastX = 0;
@@ -79,9 +77,6 @@ export class PointerController {
           e.preventDefault();
           e.stopPropagation();
           const line = app.lines[lineIdx];
-          // Record the grabbed segment too, so releasing Shift mid-drag can
-          // drop down to moving just that segment (live modifier switching).
-          const seg = app.findNearestSegmentWithIdx(x, y);
           // When the grabbed line is part of a multi-selection, snapshot EVERY selected line so
           // the drag translates them all together (whole-line move; ignores segment/point sub-modes).
           const sel = app.selectedIndices();
@@ -91,8 +86,6 @@ export class PointerController {
           app.isDraggingLine = true;
           app.draggingLine = {
             lineIdx,
-            ptIdx1: seg && seg.lineIdx === lineIdx ? seg.ptIdx1 : null,
-            ptIdx2: seg && seg.lineIdx === lineIdx ? seg.ptIdx2 : null,
             startX: x,
             startY: y,
             origPoints: line.points.map(p => ({ x: p.x, y: p.y })),

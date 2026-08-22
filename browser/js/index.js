@@ -6,6 +6,9 @@ import { hotkeys } from './core/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
 import { initTooltips } from './ui/controlTooltip.js';
+import { wireChatPersistence } from './llm/chatPersistence.js';
+import { initProjectsBackend } from './core/projectsBackend.js';
+import { watchNumericInputs } from './ui/numericInput.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
@@ -23,9 +26,16 @@ window.onload = async () => {
   }
   await core.init();
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
+  // Hydrate the projects backend (IndexedDB payload mirror + the one-time
+  // localStorage payload migration) BEFORE the app constructs — Storage reads it
+  // synchronously (see core/projectsBackend.js).
+  await initProjectsBackend();
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
+  // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and
+  // the observer catches the inputs that modals/panels render later.
+  watchNumericInputs();
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
@@ -43,6 +53,10 @@ window.onload = async () => {
   Object.defineProperty(window, 'stencil', {
     value: createStencil(app), writable: false, configurable: false, enumerable: true
   });
+  // Opt-in per-project chat persistence (llm-contract.md §12) — wired after
+  // the facade exists (restores force the shared chat controller, which captures
+  // window.stencil on first use) and before the launch/deep-link project loads.
+  wireChatPersistence(app);
   // Platform-format every button tooltip carrying a hotkey hint (⌥R on macOS,
   // Alt+R elsewhere) now that the components have rendered their markup.
   hotkeys.updateHotkeyTitles();

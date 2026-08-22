@@ -1,8 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { cmToUnit, unitLabel } from '../utils.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
-// Custom element that owns both its (dynamically filled) DOM and the
-// show/hide/position logic that used to live in core/tooltip.js.
+// Owns its dynamically-filled DOM and the show/hide/position logic.
 export class StencilTooltip extends StencilElement {
   app = null;
 
@@ -24,18 +23,29 @@ export class StencilTooltip extends StencilElement {
       this.hide();
       return;
     }
+    // In a comparison view only what the EDITED half actually shows may be labelled —
+    // and each branch is judged by the coordinates it is about to display, not by where
+    // the cursor happens to be (drawingApp.compareShowsPoint). Outside a comparison the
+    // gate is always open, so this costs nothing in the normal case.
+    const visible = (px, py) => this.app.compareShowsPoint(px, py);
     // Ctrl held → show the live cursor-position coordinates
     if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) {
-      this.show(clientX, clientY, x, y);
+      if (visible(x, y)) this.show(clientX, clientY, x, y);
+      else this.hide();
       return;
     }
     const point = this.app.findNearestPoint(x, y);
     if (point) {
-      this.show(clientX, clientY, point.x, point.y);
+      // The POINT's own coordinates decide: one just across the divider from the
+      // pointer is not visible, however close the cursor is to it.
+      if (visible(point.x, point.y)) this.show(clientX, clientY, point.x, point.y);
+      else this.hide();
       return;
     }
     const lineIdx = this.app.findLineAt(x, y);
-    if (lineIdx !== -1) this.showLine(clientX, clientY, this.app.lines[lineIdx], mods.shiftKey);
+    // A line is hit-tested AT the cursor, so the cursor is the part of it being pointed
+    // at — a line straddling the divider answers for its visible half only.
+    if (lineIdx !== -1 && visible(x, y)) this.showLine(clientX, clientY, this.app.lines[lineIdx], mods.shiftKey);
     else this.hide();
   }
 
@@ -148,7 +158,6 @@ export class StencilTooltip extends StencilElement {
     this.position(clientX, clientY);
   }
 
-  // Shared tooltip positioning helper used by both point + line tooltips
   position(clientX, clientY) {
     const tooltipRect = this.getBoundingClientRect();
     const viewportWidth = window.innerWidth;

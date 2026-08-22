@@ -104,10 +104,9 @@ export class ProjectsStore {
 
   #payloadKey(id) { return PROJECT_PREFIX + id; }
 
-  // Default-fill the expiration fields for projects saved before this schema.
-  // Only fills ABSENT fields, so an explicit expiresAt of 0 (keep forever) is
-  // preserved. Legacy projects get expiresAt = updatedAt + one week, matching
-  // the old derived rule so behaviour doesn't jump on upgrade.
+  // Default-fill fields for projects saved before this schema. Only fills ABSENT fields,
+  // so an explicit expiresAt of 0 (keep forever) is preserved; legacy projects get
+  // expiresAt = updatedAt + one week, matching the old derived rule.
   #normalizeMeta(m) {
     if (!m || typeof m !== 'object') return m;
     if (m.expiresAt == null) m.expiresAt = (m.updatedAt || 0) + EXPIRY_MS;
@@ -188,8 +187,8 @@ export class ProjectsStore {
     return { ok: true, reason: '' };
   }
 
-  // Rename a project: update its registry meta.name in place. No-op (returns null)
-  // when the id is unknown. Does not touch the payload or bump updatedAt.
+  // rename and the set* methods below: no-op (return null) on an unknown id, and leave
+  // the payload + updatedAt untouched.
   rename(id, name) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
@@ -199,10 +198,7 @@ export class ProjectsStore {
     return arr[i];
   }
 
-  // Set a project's accent colour in its registry meta in place. `color` is "" (no
-  // custom colour → theme fallback) or a normalised "#rrggbb"; the DrawingApp setter
-  // validates before calling. No-op (returns null) when the id is unknown. Like
-  // rename(), leaves the payload + updatedAt untouched.
+  // `color` is "" (theme fallback) or a normalised "#rrggbb"; DrawingApp validates first.
   setColor(id, color) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
@@ -212,10 +208,6 @@ export class ProjectsStore {
     return arr[i];
   }
 
-  // Set a project's search keywords in its registry meta in place. `keywords` is any
-  // iterable of strings; it's normalized (trim, drop blanks, dedupe case-insensitively,
-  // first-seen order) to match the server's storage. No-op (null) on unknown id. Like
-  // setColor(), leaves the payload + updatedAt untouched.
   setKeywords(id, keywords) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
@@ -225,10 +217,6 @@ export class ProjectsStore {
     return arr[i];
   }
 
-  // Set a project's free-text description in its registry meta in place. `description` is
-  // "" (no description) or any string; it's trimmed and stored, clearing when empty. No-op
-  // (returns null) when the id is unknown. Like setColor(), leaves the payload + updatedAt
-  // untouched.
   setDescription(id, description) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
@@ -238,9 +226,7 @@ export class ProjectsStore {
     return arr[i];
   }
 
-  // Set a blank project's fill colour ("#rrggbb") in its registry meta in place. Only meaningful
-  // for `blank` projects (the caller gates this); leaves payload + updatedAt untouched like
-  // setColor(). No-op (null) on unknown id.
+  // Only meaningful for `blank` projects (the caller gates this).
   setBlankColor(id, color) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);

@@ -2,12 +2,20 @@
 // Only the video Preview group is a real submenu. Two item groups, at most one matching:
 //   1. NATIVE (image/video contexts) — static, works even when the MV3 worker sleeps.
 //   2. DYNAMIC (ALL_CONTEXTS) — backgrounds/overlay-buried/linked images have no native
-//      context, so start hidden; the worker reveals them via the probe. Cost: an update
-//      race can land one click late right after the worker wakes.
+//      context, so start hidden; the worker reveals them via the probe (which primes on
+//      hover, well before the menu renders — see content/ctxTarget.js).
+//
+// TWO ROOTS, and that split is load-bearing: Chrome decides a PARENT's visibility from
+// its own `contexts`, never from whether any child is visible — a single 'all' parent
+// would paint as "Stencil ▸ (empty)" on plain elements. So the static root declares
+// exactly the contexts it serves (action/image/video) and the dynamic group hangs off
+// its OWN root, revealed together with its children — never an empty submenu.
 export const MENU = {
   // Explicit "Stencil" parent so the submenu is labelled "Stencil" (not the extension
   // name Chrome auto-groups under). With a single top-level item Chrome shows it directly.
   root: 'stencil-root',
+  // The dynamic (background / overlay-buried / linked image) group's own root.
+  bgRoot: 'stencil-bg-root',
   // Action (toolbar-icon) items — a quick "open a fresh editor" not tied to any image.
   actionOpen: 'stencil-action-open',
   actionOpenIncognito: 'stencil-action-open-incognito',
@@ -93,6 +101,9 @@ const ACTION_CONTEXTS = ['action'];
 // 'page'/'all', so these never show on plain elements.
 const IMAGE_CONTEXTS = ['image'];
 const VIDEO_CONTEXTS = ['video'];
+// The static root's own contexts: the union of what its children can serve, so Chrome
+// renders that root only where at least one of them applies.
+const STATIC_CONTEXTS = [...ACTION_CONTEXTS, ...IMAGE_CONTEXTS, ...VIDEO_CONTEXTS];
 // Background/link elements have no native context: group is on 'all', each item carries
 // its own visible:false (no parent to inherit); the worker flips them together on a probe hit.
 const ALL_CONTEXTS = ['all'];
@@ -101,9 +112,10 @@ const ALL_CONTEXTS = ['all'];
 // off one explicit "Stencil" parent (created first), so the submenu reads "Stencil"
 // rather than the auto-grouped extension name; the video Preview group nests one deeper.
 export const MENU_ITEMS = [
-  // The single top-level parent — Chrome shows it directly (and hides it when none of
-  // its children match the current context, exactly like its auto-group would).
-  { id: MENU.root, title: 'Stencil', contexts: ALL_CONTEXTS },
+  // The static top-level parent. Its contexts are exactly the ones its children serve —
+  // NOT 'all' — so Chrome hides the whole entry on a page/text/background right-click
+  // instead of drawing an empty submenu.
+  { id: MENU.root, title: 'Stencil', contexts: STATIC_CONTEXTS },
   // Toolbar-icon menu: open a fresh Stencil editor (no image). The incognito one opens it
   // in an incognito window so the editor's project storage is throwaway. 'action' context
   // → shown on the extension icon's right-click menu, never on a page element.
@@ -141,31 +153,32 @@ export const MENU_ITEMS = [
   { id: MENU.previewModal, parentId: MENU.previewParent, title: '▣ Open preview in editor here', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewModalIncognito, parentId: MENU.previewParent, title: '▣ Preview here (incognito)', contexts: VIDEO_CONTEXTS, visible: false },
   { id: MENU.previewCrop, parentId: MENU.previewParent, title: '✂ Crop preview…', contexts: VIDEO_CONTEXTS, visible: false },
-  // Background-image / image-link group: 'all'-context items, default-hidden.
-  // The worker reveals this group (only) for background/linked images under the cursor.
-  { id: MENU.bgOpenParent, parentId: MENU.root, title: '✎ Open in editor', contexts: ALL_CONTEXTS, visible: false },
+  // Background-image / image-link group: 'all'-context items under their OWN root, all
+  // default-hidden and revealed TOGETHER (root included) when the probe finds media the
+  // native contexts can't see — so Chrome's "(empty)" submenu state cannot occur.
+  { id: MENU.bgRoot, title: 'Stencil', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgOpenParent, parentId: MENU.bgRoot, title: '✎ Open in editor', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpen, parentId: MENU.bgOpenParent, title: '↗ New tab', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenResume, parentId: MENU.bgOpenParent, title: '↩ Resume existing editor', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenIncognito, parentId: MENU.bgOpenParent, title: '🕶 New tab (incognito)', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModal, parentId: MENU.bgOpenParent, title: '▣ Here', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgOpenModalIncognito, parentId: MENU.bgOpenParent, title: '▣ Here (incognito)', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgCrop, parentId: MENU.root, title: '✂ Crop image…', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgDesktop, parentId: MENU.root, title: '🖥 Open in desktop app', contexts: ALL_CONTEXTS, visible: false },
-  { id: MENU.bgPin, parentId: MENU.root, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false }
+  { id: MENU.bgCrop, parentId: MENU.bgRoot, title: '✂ Crop image…', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgDesktop, parentId: MENU.bgRoot, title: '🖥 Open in desktop app', contexts: ALL_CONTEXTS, visible: false },
+  { id: MENU.bgPin, parentId: MENU.bgRoot, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false }
 ];
 
-// The background/link items the worker reveals/hides together. Exported so the SW
-// and tests share one source.
+// The background/link items the worker reveals/hides together — the group's ROOT first,
+// so it never renders without children. Exported so the SW and tests share one source.
 export const DYNAMIC_ITEMS = [
-  MENU.bgOpenParent,
+  MENU.bgRoot, MENU.bgOpenParent,
   MENU.bgOpen, MENU.bgOpenResume, MENU.bgOpenIncognito,
   MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop, MENU.bgPin
 ];
 
-// The desktop-app hand-off items. They're shown only when a desktop URL scheme is
-// configured (syncDesktopMenuVisibility in the SW). The STATIC ones (image / video-frame)
-// toggle on the scheme alone; MENU.bgDesktop ALSO needs the probe's background reveal, so
-// the SW gates it in the CTX handler (scheme AND a background under the cursor).
+// The desktop-app hand-off items, shown only when a desktop URL scheme is configured
+// (syncDesktopMenuVisibility). The STATIC ones toggle on the scheme alone; MENU.bgDesktop
+// ALSO needs the probe's background reveal, so the SW gates it in the CTX handler.
 export const STATIC_DESKTOP_ITEMS = [MENU.desktop, MENU.frameDesktop];
 
 // The pin items (one per context group). Handled directly in the SW (no editor launch,
@@ -185,6 +198,32 @@ export const PREVIEW_ITEMS = [
   MENU.previewParent, MENU.previewTab, MENU.previewOpen, MENU.previewOpenIncognito,
   MENU.previewModal, MENU.previewModalIncognito, MENU.previewCrop
 ];
+
+// ── What the probe's find implies for the menu (pure; the SW just applies it) ──
+// `bg` — a plain image URL the native contexts can't see (background, overlay-buried,
+// image link); a <video> is excluded (it has its own native group). `preview` — the
+// probed <video> carries a poster, so the Preview submenu has content.
+export const menuVisibilityFor = (data) => ({
+  bg: !!(data && data.url && !data.video),
+  preview: !!(data && data.video && data.poster),
+});
+
+// Which menu items Chrome would actually draw. Pure model of the two rules that matter:
+// an item shows when its own `contexts` match AND it is visible, and a child only shows
+// if its whole parent chain does; `revealed` = ids the worker flipped on. The tests use
+// it to assert the invariant this file exists for: NO visible parent without visible children.
+export const visibleMenu = (context, revealed = []) => {
+  const on = new Set(revealed);
+  const byId = new Map(MENU_ITEMS.map((i) => [i.id, i]));
+  const matches = (i) => i.contexts.includes(context) || i.contexts.includes('all');
+  const shown = (i) => (i.visible === false ? on.has(i.id) : !on.has(`!${i.id}`));
+  const visible = (i) => {
+    if (!matches(i) || !shown(i)) return false;
+    const parent = i.parentId ? byId.get(i.parentId) : null;
+    return parent ? visible(parent) : true;
+  };
+  return MENU_ITEMS.filter(visible).map((i) => i.id);
+};
 
 // Decide what a context-menu click should do. info.srcUrl wins over `recordedUrl`
 // (the caller-passed poster URL for preview items). Returns null when the id isn't

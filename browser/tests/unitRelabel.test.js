@@ -7,15 +7,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Minimal DOM stubs so drawingApp.js (and its import graph) loads under node --test.
-// Installed BEFORE the dynamic import; getElementById reads from a per-test map.
-const elements = new Map();
-globalThis.window = globalThis.window ?? {};
-globalThis.window.dispatchEvent = globalThis.window.dispatchEvent ?? (() => {});
-globalThis.window.addEventListener = globalThis.window.addEventListener ?? (() => {});
-globalThis.document = globalThis.document ?? {};
-globalThis.document.getElementById = (id) => elements.get(id) ?? null;
-globalThis.document.querySelectorAll = globalThis.document.querySelectorAll ?? (() => []);
-globalThis.document.createElement = globalThis.document.createElement ?? (() => ({ getContext: () => null }));
+// Installed BEFORE the dynamic import; getElementById reads from the per-test `els` map.
+import { installDom } from './helpers/dom.js';
+
+const elements = installDom({}, {
+  window: { dispatchEvent: () => {}, addEventListener: () => {} },
+}).els;
 
 const { DrawingApp } = await import('../js/core/drawingApp.js');
 const { pageFormatLabel } = await import('../js/core/units.js');
@@ -31,8 +28,8 @@ test('pageFormatLabel renders the requested unit, ≤2 decimals, zeros trimmed',
   assert.equal(pageFormatLabel('custom', 'in'), 'custom');             // unknown names echo back
 });
 
-// A fake <select> with the same options the static template renders (cm labels).
-const fakeSelect = (values, unit = 'cm') => ({
+// A stub <select> with the same options the static template renders (cm labels).
+const stubSelect = (values, unit = 'cm') => ({
   value: values[0],
   options: values.map((v) => ({
     value: v,
@@ -48,7 +45,7 @@ const runApplyUnitToUI = (unit) =>
 
 test('applyUnitToUI relabels the toolbar page-size selector in the active unit', () => {
   const names = Object.keys(PAGE_SIZES);
-  const psSel = fakeSelect(['custom', ...names]);       // toolbar: Custom… first
+  const psSel = stubSelect(['custom', ...names]);       // toolbar: Custom… first
   elements.clear();
   elements.set('page-size', psSel);
 

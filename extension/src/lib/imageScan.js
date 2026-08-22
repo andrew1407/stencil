@@ -1,9 +1,27 @@
 // ── Page image scanner ──────────────────────────────────────────────────────
-// Injected via chrome.scripting, so fully self-contained (helpers below are inline copies
-// of lib/pageImages.js — keep in sync). Collects every image reference in the document
-// (see the per-block comments): <img>/srcset/<picture>, <svg><image>/<feImage>, <input
-// type=image>, <video> frames+posters, favicons/meta/preloads, manifest icons, and every
-// CSS image. Absolute, deduped, capped. Async: the manifest is fetched (chrome.scripting awaits).
+// Injected via chrome.scripting, so fully self-contained (helpers below are inline
+// copies of lib/pageImages.js — keep in sync). Collects every HTML/CSS image reference
+// in the document (see the per-block comments) — absolute, deduped, capped. Async: the
+// manifest is fetched (chrome.scripting awaits).
+// Shared scan bounds (popup + chat page): the hard cap on what we pull from a page,
+// and the URL schemes chrome.scripting can never inject into.
+export const MAX_IMAGES = 1000;
+export const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:'];
+
+// Flatten chrome.scripting.executeScript all-frames results into one list,
+// deduped by src across frames (first occurrence wins) and capped at `limit`.
+export const mergeScanFrames = (results, limit = MAX_IMAGES) => {
+  const out = [];
+  const seen = new Set();
+  for (const r of results || []) {
+    for (const it of (r?.result || [])) {
+      if (out.length >= limit) break;
+      if (!seen.has(it.src)) { seen.add(it.src); out.push(it); }
+    }
+  }
+  return out;
+};
+
 export const scanPageForImages = async (limit) => {
   const out = [];
   const seen = new Set();
@@ -16,7 +34,8 @@ export const scanPageForImages = async (limit) => {
     }
   };
   // Inline mirror of lib/pageImages.js cssImageUrls — every image url() in a CSS value,
-  // minus inline-SVG data URIs and bare #fragment refs (paint-server/filter/clip targets).
+  // minus bare #fragment refs (paint-server/filter/clip targets). Inline-SVG data
+  // URIs are kept — rasterize.js renders them, so they attach/open like any image.
   const cssImageUrls = (cssValue) => {
     const s = String(cssValue || '');
     if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
@@ -25,7 +44,7 @@ export const scanPageForImages = async (limit) => {
     let m;
     while ((m = re.exec(s))) {
       const u = (m[2] || '').trim();
-      if (!u || u.startsWith('#') || u.startsWith('data:image/svg')) continue;
+      if (!u || u.startsWith('#')) continue;
       urls.push(u);
     }
     return urls;
@@ -93,10 +112,9 @@ export const scanPageForImages = async (limit) => {
   document.querySelectorAll('video').forEach(v => {
     const w = v.videoWidth, h = v.videoHeight;
     let frame = null;
-    // Capture a frame only when the video is actually showing one: it must have
-    // decoded data AND have been played. A video paused at time 0 displays its
-    // POSTER, while drawImage() would grab frame 0 (commonly black) — so skip it
-    // and let the poster stand in (below).
+    // Capture a frame only when the video is actually showing one: decoded data AND
+    // played. A video paused at time 0 displays its POSTER while drawImage() would grab
+    // frame 0 (commonly black) — skip it and let the poster stand in (below).
     if (w && h && v.readyState >= 2 && !(v.paused && !v.currentTime)) {
       try {
         // Cap the longest side so the frame's data URL doesn't overflow the editor
@@ -115,10 +133,9 @@ export const scanPageForImages = async (limit) => {
     // blob: URL isn't, so leave it out.
     const raw = v.currentSrc || v.src || '';
     const videoUrl = (raw.startsWith('http:') || raw.startsWith('https:')) ? abs(raw) : '';
-    // The poster is a page-level preview, often unrelated to any frame. List it as its
-    // OWN image item (openable/croppable independently) and tag the video item with it.
-    // Fall back to the probe's persisted snapshot (`__stencilPoster`, same extension
-    // isolated world) since some players strip the live poster attribute on playback.
+    // The poster is a page-level preview, often unrelated to any frame — listed as its
+    // OWN image item, and tagged onto the video item. Falls back to the probe's persisted
+    // snapshot (`__stencilPoster`) since some players strip the live attribute on playback.
     const rawPoster = v.poster || v.__stencilPoster || '';
     const poster = rawPoster ? abs(rawPoster) : '';
     if (poster) {

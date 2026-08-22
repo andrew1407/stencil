@@ -5,27 +5,11 @@ import {
   REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
   periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD, normalizeKeywords,
 } from '../js/core/projectsStore.js';
+import { createMemoryStorage } from './helpers/memoryStorage.js';
 
-// Map-backed localStorage shim. Exposes keys() for the store's enumeration,
-// and can be configured to throw a QuotaExceededError on setItem.
-const makeShim = (opts = {}) => {
-  const m = new Map();
-  return {
-    _map: m,
-    throwOnSet: opts.throwOnSet || false,
-    getItem(k) { return m.has(k) ? m.get(k) : null; },
-    setItem(k, v) {
-      if (this.throwOnSet) {
-        const e = new Error('quota');
-        e.name = 'QuotaExceededError';
-        throw e;
-      }
-      m.set(k, String(v));
-    },
-    removeItem(k) { m.delete(k); },
-    keys() { return Array.from(m.keys()); },
-  };
-};
+// Map-backed localStorage shim (shared helper): exposes keys() for the store's
+// enumeration, and `throwOnSet` for the QuotaExceededError path.
+const makeShim = (opts = {}) => createMemoryStorage({}, opts);
 
 const meta = (id, over = {}) => ({
   id, name: over.name ?? id, thumbnail: null,

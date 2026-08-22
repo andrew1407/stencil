@@ -184,7 +184,7 @@ export class StencilCropModal extends StencilElement {
       // Warn before discarding lines on an orientation flip.
       const change = app.cropRect ? cropChange(app.cropRect, rect) : { orientationChanged: false };
       if (change.orientationChanged && app.lines.length > 0 &&
-          !(await app.confirm('Changing the crop orientation will remove all placed lines and markers. Continue?', { title: 'Change orientation', danger: true }))) {
+          !(await app.confirm('Changing the crop orientation will remove all placed lines and points. Continue?', { title: 'Change orientation', danger: true, confirmIcon: 'crop' }))) {
         return;
       }
       const hadLines = app.lines.length;

@@ -1,9 +1,9 @@
 // Tests for the page-global window.stencil scripting API (src/content/pageApiMain.js).
 // That file is a MAIN-world IIFE that scans the page's images/videos and posts action
-// requests to the ISOLATED bridge — it has no exports, so we install a fake DOM/window
+// requests to the ISOLATED bridge — it has no exports, so we install a stub DOM/window
 // on globalThis and import the module for its side effect (it defines window.stencil).
 // Each scenario re-imports with a unique ?case= query so node re-evaluates the IIFE
-// against a fresh fake page (ESM caches by specifier; the query busts that cache).
+// against a fresh stub page (ESM caches by specifier; the query busts that cache).
 //
 // Mirrors the documented surface in extension/README.md ("Page scripting API"). The
 // video-frame capture path of open()/crop() needs a real <canvas>/decoder, so it's
@@ -12,19 +12,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-// A fake <img>: scan() reads currentSrc / getAttribute('src'); entryDims reads naturalWidth.
+// A stub <img>: scan() reads currentSrc / getAttribute('src'); entryDims reads naturalWidth.
 const img = (url, { naturalWidth = 100, naturalHeight = 80 } = {}) => ({
   nodeType: 1, tagName: 'IMG', currentSrc: url, naturalWidth, naturalHeight,
   offsetWidth: naturalWidth, offsetHeight: naturalHeight,
   getAttribute: (a) => (a === 'src' ? url : null),
   setAttribute() {}, removeAttribute() {},
 });
-// A fake element carrying a CSS background-image (resolved via getComputedStyle below).
+// A stub element carrying a CSS background-image (resolved via getComputedStyle below).
 const bg = (url, { offsetWidth = 300, offsetHeight = 150 } = {}) => ({
   nodeType: 1, tagName: 'DIV', _bg: url, offsetWidth, offsetHeight,
   getAttribute: () => null, setAttribute() {}, removeAttribute() {},
 });
-// A fake <video>: poster declared, no decodable frame (videoWidth 0) → poster is used.
+// A stub <video>: poster declared, no decodable frame (videoWidth 0) → poster is used.
 const video = (src, poster, { videoWidth = 0, videoHeight = 0 } = {}) => ({
   nodeType: 1, tagName: 'VIDEO', currentSrc: src, src, videoWidth, videoHeight,
   readyState: 0, paused: true, currentTime: 0,
@@ -32,7 +32,7 @@ const video = (src, poster, { videoWidth = 0, videoHeight = 0 } = {}) => ({
   setAttribute() {}, removeAttribute() {},
 });
 
-// Install a fake page on globalThis. Returns the captured postMessage payloads and a
+// Install a stub page on globalThis. Returns the captured postMessage payloads and a
 // `dispatch` that delivers a window 'message' to the API (as the ISOLATED bridge would).
 const setupEnv = ({ imgs = [], bgs = [], videos = [], stencilPreset } = {}) => {
   const posted = [];
@@ -60,7 +60,7 @@ const setupEnv = ({ imgs = [], bgs = [], videos = [], stencilPreset } = {}) => {
 };
 
 let caseId = 0;
-// Fresh fake page + a fresh module evaluation; returns { stencil, posted, win, dispatch }.
+// Fresh stub page + a fresh module evaluation; returns { stencil, posted, win, dispatch }.
 const loadApi = async (opts) => {
   const env = setupEnv(opts);
   await import(`../src/content/pageApiMain.js?case=${++caseId}`);

@@ -47,8 +47,7 @@ class Hotkeys {
     return this.#isMac;
   }
 
-  // Set/override a binding (does not persist — callers save() explicitly, as the
-  // old window.HOTKEYS[...] = ...; saveHotkeys() sequence did).
+  // Set/override a binding (does not persist — callers save() explicitly).
   set(id, combo) {
     this.#current[id] = combo;
   }
@@ -58,7 +57,7 @@ class Hotkeys {
     this.#current[id] = this.#defaults[id];
   }
 
-  // Reset every binding to defaults (matches Object.assign(HOTKEYS, DEFAULTS)).
+  // Reset every binding to defaults.
   resetAll() {
     Object.assign(this.#current, this.#defaults);
   }
@@ -68,7 +67,6 @@ class Hotkeys {
     return Object.entries(this.#current);
   }
 
-  // Persist the current bindings under the same key/shape as before.
   save() {
     if (typeof localStorage === 'undefined') return;
     try {

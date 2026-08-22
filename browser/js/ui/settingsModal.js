@@ -151,7 +151,7 @@ export class StencilSettingsModal extends StencilElement {
       escapeClose: false
     });
     resetAll.addEventListener('click', async () => {
-      if (!(await app.confirm('Reset ALL keyboard shortcuts to their defaults?', { title: 'Reset shortcuts', danger: true }))) return;
+      if (!(await app.confirm('Reset ALL keyboard shortcuts to their defaults?', { title: 'Reset shortcuts', danger: true, confirmIcon: 'refresh' }))) return;
       hotkeys.resetAll();
       hotkeys.save();
       hotkeys.updateCtxHints();

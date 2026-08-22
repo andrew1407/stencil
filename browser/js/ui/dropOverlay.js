@@ -16,9 +16,32 @@ export class StencilDropOverlay extends StencilElement {
                 <span>Load the image without saving it</span>
             </div>
         </div>
-        <div class="drop-foot">…or drop a .json file to apply drawing data</div>
+        <div class="drop-foot">…or drop a .json layout / .stencil project file (either side — the split above is for images)</div>
     `;
   }
   static template() { return hostTag('stencil-drop-overlay', 'id="global-drop-overlay"', StencilDropOverlay.inner()); }
 }
 define('stencil-drop-overlay', StencilDropOverlay);
+
+// The overlay appears instantly but LEAVES on an animation (.drop-closing, which is
+// pointer-events:none so it can't eat the drop it is dismissing for). Both helpers
+// are idempotent: dragover fires them continuously while the pointer sits over a
+// drop owner, and that must not restart the fade every frame.
+export const DROP_CLOSE_MS = 220;   // matches .drop-closing in animations.css
+
+export const showDropOverlay = (el) => {
+  if (!el) return;
+  clearTimeout(el._dropCloseTimer);
+  el.classList.remove('drop-closing');
+  el.style.display = 'flex';
+};
+
+export const hideDropOverlay = (el) => {
+  if (!el || el.style.display === 'none' || el.style.display === '') return;
+  if (el.classList.contains('drop-closing')) return;
+  el.classList.add('drop-closing');
+  el._dropCloseTimer = setTimeout(() => {
+    el.classList.remove('drop-closing');
+    el.style.display = 'none';
+  }, DROP_CLOSE_MS);
+};

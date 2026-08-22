@@ -2,16 +2,32 @@
 // Outlines the single page element whose image/video source matches `source` and
 // scrolls it into view — driven by hovering a row in the popup / side panel /
 // DevTools panel list, so you can see where an image lives on the page. Independent
-// of the "highlight on page" toggle (lib/highlight.js): it owns its own marker + style
-// so it always works, even with the toggle off. `source` falsy = clear the marker.
+// of the "highlight on page" toggle (lib/highlight.js): it owns its own outline attribute + style
+// so it always works, even with the toggle off. `source` falsy = clear the outline.
 // Injected via chrome.scripting.executeScript, so self-contained (no imports).
 // `color` is the outline hex (defaults to the brand violet), resolved by the caller from
 // the accent so it matches the toggle highlight.
+
+// Inject the outline into every frame of `tabId` (the one call sites share). True when
+// some frame found and marked the element; false on a restricted page. A falsy
+// `source` clears the outline everywhere.
+export const highlightSourceOnTab = async (tabId, source, color) => {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true }, func: highlightPageElementForSource,
+      args: [source || '', color || '#7c3aed'],
+    });
+    return results.some((r) => r && r.result);
+  } catch {
+    return false;
+  }
+};
+
 export const highlightPageElementForSource = (source, color = '#7c3aed') => {
   const STYLE_ID = 'stencil-listhover-style';
   const ATTR = 'data-stencil-listhover';
 
-  // Always clear the previous marker first (moving between rows re-marks in one call).
+  // Always clear the previous outline first (moving between rows re-marks in one call).
   document.querySelectorAll('[' + ATTR + ']').forEach((el) => el.removeAttribute(ATTR));
   if (!source) {
     const s = document.getElementById(STYLE_ID);

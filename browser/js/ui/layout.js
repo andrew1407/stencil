@@ -15,6 +15,8 @@ import { StencilConnectModal } from './connectModal.js';
 import { StencilCropModal } from './cropModal.js';
 import { StencilConfirmModal } from './confirmModal.js';
 import { StencilInstall } from './installButton.js';
+import { StencilChatPanel } from './chatPanel.js';
+import { StencilLlmSettingsModal } from './llmSettingsModal.js';
 // ── Top-level body composer (custom-element hosts, exact original body order) ──
 // Importing the modules above registers every customElements.define. Each template()
 // emits the host tag with markup inline, so layout() still produces the full static
@@ -39,5 +41,8 @@ const REGIONS = [
   StencilCropModal,
   StencilConfirmModal,
   StencilInstall,
+  // New regions append at the END only (the order above is load-bearing).
+  StencilChatPanel,
+  StencilLlmSettingsModal,
 ];
 export const layout = () => REGIONS.map((r) => r.template()).join('');

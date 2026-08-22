@@ -12,7 +12,7 @@ const SIZES = [16, 32, 48];
 const PANEL = '#2b2f3a';
 const FRAME = '#3a3f4b';
 const YELLOW = '#FFFF00';
-const MARKERS = [[16, 46], [27, 24], [38, 38], [50, 18]]; // polyline vertices = dot centres
+const POINTS = [[16, 46], [27, 24], [38, 38], [50, 18]]; // polyline vertices = dot centres
 
 // Draw the badge into `ctx` sized `size` (viewBox is 64), tinting the panel border to
 // `accent`. Corners outside the rounded panel stay transparent.
@@ -37,13 +37,13 @@ const drawBadge = (ctx, size, accent) => {
   ctx.fillStyle = FRAME;
   ctx.fill();
   ctx.beginPath();
-  MARKERS.forEach(([cx, cy], i) => (i ? ctx.lineTo(u(cx), u(cy)) : ctx.moveTo(u(cx), u(cy))));
+  POINTS.forEach(([cx, cy], i) => (i ? ctx.lineTo(u(cx), u(cy)) : ctx.moveTo(u(cx), u(cy))));
   ctx.strokeStyle = YELLOW;
   ctx.lineWidth = u(3.5);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.stroke();
-  for (const [cx, cy] of MARKERS) {
+  for (const [cx, cy] of POINTS) {
     ctx.beginPath();
     ctx.arc(u(cx), u(cy), u(3.4), 0, Math.PI * 2);
     ctx.fillStyle = YELLOW;

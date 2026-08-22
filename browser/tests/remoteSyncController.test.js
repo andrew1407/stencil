@@ -7,11 +7,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-// DOM is only touched for UI mirroring; return null / empty so the guards short-circuit.
-globalThis.document = {
-  getElementById: () => null,
-  querySelectorAll: () => [],
-};
+// DOM is only touched for UI mirroring; the stub document returns null / empty for
+// everything, so the guards short-circuit.
+import { installDom } from './helpers/dom.js';
+
+installDom();
 
 const { RemoteSyncController } = await import('../js/core/remoteSyncController.js');
 

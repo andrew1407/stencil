@@ -10,21 +10,15 @@ import {
   pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
 } from '../src/lib/connections.js';
 
+import { installChromeStub } from './helpers/chromeStub.js';
+
 const installStorageMock = () => {
-  let store = {};
-  globalThis.chrome = {
-    storage: {
-      local: {
-        get: async (key) => (key in store ? { [key]: store[key] } : {}),
-        set: async (obj) => { await Promise.resolve(); Object.assign(store, obj); },
-      },
-    },
-  };
-  return { peek: () => store, reset: () => { store = {}; } };
+  const stub = installChromeStub();
+  return { peek: stub.peek, reset: stub.reset };
 };
 
-// A fake server: routes the REST subset the extension uses.
-const fakeFetch = (opts = {}) => {
+// A mock server: routes the REST subset the extension uses.
+const mockFetch = (opts = {}) => {
   const projects = opts.projects || [];
   const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
   return async (url, init = {}) => {
@@ -104,7 +98,7 @@ test('upsertConnection / dropConnection key on url', () => {
 });
 
 test('connect issues a token when none supplied', async () => {
-  const conn = await connect('srv:8090', '', fakeFetch());
+  const conn = await connect('srv:8090', '', mockFetch());
   assert.equal(conn.url, 'https://srv:8090');
   assert.equal(conn.token, 'tk');
 });
@@ -113,8 +107,8 @@ test('listProjects + collectSharedPins aggregate across servers', async () => {
   const f = (url, init) => {
     const host = new URL(url).host;
     const map = {
-      'a:1': fakeFetch({ projects: [{ id: 'pa', name: 'A', hasImage: true }] }),
-      'b:2': fakeFetch({ projects: [{ id: 'pb', name: 'B', hasImage: true }] }),
+      'a:1': mockFetch({ projects: [{ id: 'pa', name: 'A', hasImage: true }] }),
+      'b:2': mockFetch({ projects: [{ id: 'pb', name: 'B', hasImage: true }] }),
     };
     return map[host](url, init);
   };
@@ -128,7 +122,7 @@ test('listProjects + collectSharedPins aggregate across servers', async () => {
 test('collectSharedPins survives an unreachable server', async () => {
   const f = (url, init) => {
     if (new URL(url).host === 'down:0') throw new Error('refused');
-    return fakeFetch({ projects: [{ id: 'pb', name: 'B', hasImage: true }] })(url, init);
+    return mockFetch({ projects: [{ id: 'pb', name: 'B', hasImage: true }] })(url, init);
   };
   const shared = await collectSharedPins([{ url: 'http://down:0', token: 't' }, { url: 'http://b:2', token: 't' }], f);
   assert.equal(shared.length, 1);
@@ -137,7 +131,7 @@ test('collectSharedPins survives an unreachable server', async () => {
 
 test('addServer / removeServer persist to chrome.storage', async () => {
   const mock = installStorageMock();
-  const f = fakeFetch();
+  const f = mockFetch();
   await addServer('srv:8090', '', f);
   let stored = (await loadConnections());
   assert.equal(stored.length, 1);
@@ -155,10 +149,10 @@ test('createProject posts and returns the new record', async () => {
   assert.equal(rec.name, 'Pinned');
 });
 
-// helper kept here to exercise createProject through the fake server
+// helper kept here to exercise createProject through the mock server
 import { createProject } from '../src/lib/connections.js';
 async function createProjectShim() {
-  return createProject({ url: 'http://s', token: 't' }, { name: 'Pinned', source: 'http://img' }, fakeFetch());
+  return createProject({ url: 'http://s', token: 't' }, { name: 'Pinned', source: 'http://img' }, mockFetch());
 }
 
 // ── pin-target selection (pure) ──
@@ -222,4 +216,28 @@ test('fetchProjectImage can request the edited result variant', async () => {
   const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'result', f);
   assert.equal(blob, 'RESULT_BYTES');
   assert.equal(seen, 'http://srv:1/projects/p_a/files/result');
+});
+
+test('a stale session token self-heals: re-mint with the stored credential, retry once', async () => {
+  // Server restarted: 'dead' is rejected; the credential 'adm' can mint 'fresh'.
+  const calls = [];
+  const f = async (url, init) => {
+    const auth = (init.headers.Authorization || '').replace('Bearer ', '');
+    calls.push(`${init.method} ${new URL(url).pathname} [${auth}]`);
+    if (url.endsWith('/auth/token')) {
+      if (auth !== 'adm') return { ok: false, status: 401, json: async () => ({ message: 'admin required' }) };
+      return { ok: true, status: 200, json: async () => ({ token: 'fresh' }) };
+    }
+    if (auth === 'fresh') return { ok: true, status: 200, json: async () => ({ projects: [] }) };
+    return { ok: false, status: 401, json: async () => ({ message: 'bad token' }) };
+  };
+  const conn = { url: 'http://srv:1', token: 'dead', credential: 'adm' };
+  const out = await listProjects(conn, f);
+  assert.deepEqual(out, []);
+  assert.equal(conn.token, 'fresh');   // healed in place
+  assert.deepEqual(calls, [
+    'GET /projects [dead]',
+    'POST /auth/token [adm]',
+    'GET /projects [fresh]',
+  ]);
 });
