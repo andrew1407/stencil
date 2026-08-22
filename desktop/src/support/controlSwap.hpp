@@ -141,6 +141,9 @@ namespace stencil::gui {
     if (r.width() < 6 || r.height() < 6) return;
     const QPixmap on = ctl::indicatorPixmap(box, r, true);
     const QPixmap off = ctl::indicatorPixmap(box, r, false);
+    // A control that says nothing with its indicator has nothing to scatter — the f(x,y)
+    // pill hides its tick and carries the state in the whole chip's fill.
+    if (on.toImage() == off.toImage()) return;
     const QRect at(box->mapTo(host, r.topLeft()), r.size());
     DisintegrateOverlay* fx = DisintegrateOverlay::overPixmaps(
         on, off, at, host,
@@ -319,6 +322,10 @@ namespace stencil::gui {
       const QString from = prev.toString();
       rememberComboValue(cb);   // the cache is the TRUE current value from here on
       if (cb->property(kNoControlSwapProperty).toBool()) return;
+      // An EDITABLE combo (the zoom box, the LLM model box) has no chosen option to
+      // exchange: its value is a QLineEdit the user is typing into, and blanking that
+      // text for 240ms per keystroke would be sabotage, not motion.
+      if (cb->isEditable()) return;
       if (support::motionReduced() || !cb->isVisible()) {
         ValueSwapOverlay::cancel(cb);
         return;

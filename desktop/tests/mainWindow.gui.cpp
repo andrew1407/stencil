@@ -10402,10 +10402,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(box->isChecked(), !was);
     QCOMPARE(box->geometry(), boxGeom);
     // Rapid toggling: the last state is the one that survives, with nothing stranded.
-    for (int i = 0; i < 6; ++i) { box->setChecked(i % 2 == 0); QTest::qWait(20); }
+    bool last = false;
+    for (int i = 0; i < 6; ++i) { last = i % 2 == 0; box->setChecked(last); QTest::qWait(20); }
     QTRY_VERIFY(win.findChildren<QWidget*>(
                        QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
-    QVERIFY(box->isChecked());
+    QCOMPARE(box->isChecked(), last);
     QCOMPARE(box->geometry(), boxGeom);
 
     if (combo->count() > 1) {
