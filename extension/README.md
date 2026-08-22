@@ -228,6 +228,21 @@ circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fa
 Nothing to anchor to (a change pushed from another extension page) blooms from the centre;
 the last click is never the origin, which is how the circle used to end up in a corner.
 
+Hovering a control also moves its **glyph**, and each one mimes its own action rather than
+sharing one generic tilt — a minus that swelled would read as "increase". The design table
+is canonical (`browser/js/config/iconMotion.json`) and the numbers here are the app's, so
+the two surfaces genuinely match: the trash lid lifts off its hinge, the download arrow
+travels down into the tray while `external`'s leaves the box, the crop brackets close in on
+the region, the sun rises with its rays opening behind it, the assistant's dots type. Two
+modes ride a `--ic-on` 0/1 latch in `src/lib/animations.css` — a *hold* eases out and back
+while the pointer rests, a *settle* plays once and returns to the rest pose. Only
+`transform` / `stroke-dashoffset` move, so nothing can reflow, and the fold chevrons
+(`.chev`) opt out because their rotation is open/closed **state**, not feedback. The
+injected overlay shell can't link the sheet, so it carries the same two designs inline.
+`prefers-reduced-motion: reduce` drops all of it and leaves every glyph at rest —
+which is also where each motion ends. `tests/iconMotion.test.js` pins the values, the
+hooks and both contracts against the browser's sheet.
+
 **Tooltips** are the app's own, never the browser's. Controls carry their description in
 `data-title` — set in markup, or through `setTip()` (`src/lib/tip.js`) when it is composed
 at runtime — and `src/lib/controlTooltip.js` (a port of `browser/js/ui/controlTooltip.js`)

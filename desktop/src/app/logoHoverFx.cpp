@@ -1,4 +1,5 @@
 #include "logoHoverFx.hpp"
+#include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QEvent>
 #include <QPainter>
@@ -129,7 +130,9 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::start() {
-    if (active()) return;
+    // Reduced motion: no loop at all — it is pure hover feedback with no end state to
+    // reach, and the button keeps painting the plain mark (faceSwap / filterFade rule).
+    if (active() || support::motionReduced()) return;
     beat_ = 0.0;   // every hover begins at the loop's rest pose
     pm_ = makePixmap_();
     blankButtonIcon();

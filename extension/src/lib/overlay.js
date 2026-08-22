@@ -77,10 +77,23 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     .bar button:hover{background:var(--st-accent);border-color:var(--st-accent);color:#fff;transform:translateY(-1px);}
     .bar button:focus-visible{outline:2px solid var(--st-accent);outline-offset:2px;}
     .bar button:active{transform:translateY(1px) scale(.96);}
-    .bar button svg{display:block;}
+    .bar button svg{display:block;--ic-on:0;overflow:visible;}
+    /* Per-icon hover motion for the two glyphs this shell carries, on the canonical
+       values (browser js/config/iconMotion.json, ported in lib/animations.css — this
+       surface is injected and can't link it): the arrow LEAVES the box, and the cross
+       snaps shut, because close/clear/disconnect all mean "make this go away".
+       Transform only, so the bar can't reflow. */
+    @keyframes stencilSnapShut{0%,100%{transform:scale(1)}42%{transform:scale(.7)}}
+    .bar button svg,.bar button svg *{transition:transform .2s cubic-bezier(.16,1,.3,1);}
+    .bar button svg *{transform-box:view-box;}
+    .bar button.tab:hover svg{--ic-on:1;}
+    .bar button.tab svg .ic-arrow{transform:translate(calc(var(--ic-on)*1.4px),calc(var(--ic-on)*-1.4px));}
+    .bar button.close:hover svg{animation:stencilSnapShut .3s cubic-bezier(.34,1.2,.64,1) both;}
     @media (prefers-reduced-motion: reduce){
       .backdrop,.panel{animation-duration:.001ms;}
       .bar button{transition-duration:.001ms;}
+      /* The glyph stays in its rest pose — which is also each motion's end state. */
+      .bar button svg,.bar button svg *{--ic-on:0 !important;animation:none !important;transition:none !important;}
     }
     .loading{position:absolute;left:0;right:0;bottom:0;top:45px;display:flex;
       align-items:center;justify-content:center;color:var(--st-muted);font:13px system-ui,sans-serif;}
@@ -95,7 +108,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     '<div class="backdrop"></div>' +
     '<div class="panel">' +
       '<div class="bar"><span class="title"></span><span class="sp"></span>' +
-        '<button class="tab" title="Open in a full tab instead"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>' +
+        '<button class="tab" title="Open in a full tab instead"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><g class="ic-arrow"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></g></svg></button>' +
         '<button class="close" title="Close (Esc)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
       '<div class="loading">Loading…</div>' +
       '<iframe allow="clipboard-read; clipboard-write"></iframe>' +

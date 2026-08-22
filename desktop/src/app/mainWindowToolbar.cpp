@@ -7,6 +7,7 @@
 #include "numericInput.hpp"
 #include "searchCombo.hpp"
 #include "theme.hpp"
+#include "../support/iconMotion.hpp"
 #include "../support/shimmerOverlay.hpp"
 
 #include <QAbstractSpinBox>
@@ -278,6 +279,9 @@ namespace stencil::gui {
     // View-menu entry + Alt+C hotkey stay in sync). Icon (chevron) themed in styleActionIcons.
     controlsPill_ = new QToolButton(this);
     controlsPill_->setObjectName("controlsPill");   // outlined pill, styled in theme.cpp
+    // Its chevron's angle is STATE (toolbars shown/hidden), not hover feedback — the
+    // browser's `[id^="toggle-"]` icon-motion opt-out.
+    controlsPill_->setProperty(kNoIconMotionProperty, true);
     controlsPill_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     controlsPill_->setIconSize(QSize(kPillChevron, kPillChevron));   // scaled to the label, not the toolbar
     controlsPill_->setText("Controls");

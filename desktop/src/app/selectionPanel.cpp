@@ -4,6 +4,7 @@
 #include "iconSet.hpp"
 #include "numericInput.hpp"
 #include "../support/disintegrateOverlay.hpp"
+#include "../support/iconMotion.hpp"
 #include "../support/modalReveal.hpp"
 #include <QCheckBox>
 #include <QComboBox>
@@ -92,6 +93,9 @@ namespace stencil::gui {
     // (transparent, themed hairline border) rather than the floating chevron's dark slab —
     // that one overlays the canvas, this one would be a dark hole in a light panel.
     collapseBtn_->setObjectName("panelCollapseBtn");   // styled in theme.cpp
+    // A fold chevron's angle is STATE (open/closed), not hover feedback — the browser's
+    // `[id^="toggle-"]` icon-motion opt-out (iconMotion.json trigger.excluded).
+    collapseBtn_->setProperty(kNoIconMotionProperty, true);
     collapseBtn_->setFocusPolicy(Qt::NoFocus);   // no macOS focus halo around the chevron
     collapseBtn_->setFixedSize(kToggleBox, kToggleBox);
     collapseBtn_->setIconSize(QSize(kToggleGlyph, kToggleGlyph));

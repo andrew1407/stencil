@@ -1,5 +1,6 @@
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "modalReveal.hpp"   // support::motionReduced()
 #include "pageMetrics.hpp"
 #include <QAbstractButton>
 #include <QBuffer>
@@ -95,7 +96,9 @@ namespace stencil::gui {
     auto paint = [btn, name, color, size](qreal deg) {
       btn->setIcon(rotatedIcon(name, color, size, deg));
     };
-    if (ms <= 0) { paint(toDeg); return; }
+    // Reduced motion lands on the end state at once — the angle IS the panel's state,
+    // so only the turn is dropped (faceSwap / filterFade rule).
+    if (ms <= 0 || support::motionReduced()) { paint(toDeg); return; }
     auto* anim = new QVariantAnimation(btn);
     anim->setObjectName(kIconSpin);
     anim->setDuration(ms);

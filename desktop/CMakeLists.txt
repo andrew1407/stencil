@@ -317,6 +317,22 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_faceswap_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Per-icon hover motion (support/iconMotion.hpp) — the table against the glyph canon,
+  # the semantic pins (plus grows / minus shrinks / the fullscreen corners invert / the
+  # trash hinges at its lid), and the driver on a live button. Needs iconSet for the
+  # glyphs it poses and modalReveal for motionReduced().
+  add_executable(stencil_iconmotion_headless
+    tests/iconMotion.headless.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_iconmotion_headless PRIVATE
+    ${STENCIL_GUI_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_link_libraries(stencil_iconmotion_headless PRIVATE Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_iconmotion_headless COMMAND stencil_iconmotion_headless)
+  set_tests_properties(stencil_iconmotion_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # GUI end-to-end (Qt Test framework): drives the REAL MainWindow — load via the OS-open
   # path, trigger the actual Rotate/Undo/Start-Drawing QActions, and send real mouse clicks
   # to the live canvas. Links the whole GUI (STENCIL_GUI_SOURCES) + Qt6::Test. Offscreen.

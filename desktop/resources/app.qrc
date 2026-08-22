@@ -9,6 +9,7 @@
     <file alias="constants.json">../../browser/js/config/constants.json</file>
     <file alias="accents.json">../../browser/js/config/accents.json</file>
     <file alias="icons.json">../../browser/js/config/icons.json</file>
+    <file alias="iconMotion.json">../../browser/js/config/iconMotion.json</file>
     <file alias="layoutFields.json">../../browser/js/config/layoutFields.json</file>
     <file alias="llm/systemPrompt.json">../../browser/js/config/llm/systemPrompt.json</file>
     <file alias="llm/providers.json">../../browser/js/config/llm/providers.json</file>

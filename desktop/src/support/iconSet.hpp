@@ -1,7 +1,7 @@
 #pragma once
+#include <QColor>
 #include <QString>
 
-class QColor;
 class QIcon;
 
 // Shared inline-SVG icon set, ported from browser/js/ui/icons.js (and mirrored in
@@ -36,5 +36,35 @@ namespace stencil::gui {
 
   // True if `name` is a known glyph — lets callers skip assigning an empty icon.
   bool hasIcon(const QString& name);
+
+  // ── Seams for support/iconMotion.hpp ────────────────────────────────────────
+  // The hover motions pose a NAMED SUB-PART of a glyph per frame (the trash lid, the
+  // download arrow), which QSvgRenderer cannot do on its own. So the motion rewrites the
+  // markup — injecting a `transform` on the hooked element — and rasterizes that. These
+  // three expose the halves themedIcon() is built from, so the posed frame goes down the
+  // exact same path as the rest pose.
+
+  // The canon's inner markup for `name` (a 0 0 24 24 body), empty for an unknown glyph.
+  QString iconMarkup(const QString& name);
+
+  // Wrap inner markup in the document themedIcon rasterizes, with `color` baked in.
+  QString iconSvgDocument(const QString& inner, const QColor& color);
+
+  // Rasterize (already posed) inner markup — themedIcon's back half, minus the cache.
+  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
+                       qreal dpr);
+
+  // What themedIcon() was asked for, recovered from the QIcon it returned. A button
+  // carries no glyph name, only a QIcon; QIcon::cacheKey() survives the copy Qt makes
+  // for the button, so a hover handler can ask "which glyph is this, in what colour?"
+  // without touching the 120-odd call sites that assign icons.
+  struct IconRequest {
+    QString name;
+    QColor color;
+    int size = 18;
+    bool shadow = false;
+    qreal dpr = 1;
+  };
+  bool iconRequestForKey(qint64 cacheKey, IconRequest* out);
 
 }

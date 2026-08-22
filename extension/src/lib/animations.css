@@ -30,6 +30,138 @@ select:focus,
     transition: box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
+/* ── Icon hover: every glyph mimes its own action ────────────────────────────
+   browser css/animations.css icon-motion twin, cut to the glyphs lib/icons.js
+   actually carries (a deliberate SUBSET, pinned by tests/dataParity.test.js). The
+   canonical design table is browser/js/config/iconMotion.json: ONE motion per glyph,
+   matched to what that glyph's action DOES. One generic move for all of them is worse
+   than none — a minus that swells reads as "increase" — so the trash lid lifts, the
+   download arrow travels down, the crop brackets close in on the region, the sun
+   rises, the assistant's dots type. Every number below is the canonical one, so the
+   extension and the app genuinely match; tests/iconMotion.test.js pins them together.
+
+   Two modes, one trigger. `--ic-on` is a 0/1 latch the hovered control flips: a HOLD
+   motion multiplies its pose by it, so it eases out AND back on the same curve. A
+   SETTLE motion (a bounce, a draw-on, a rise) has to come back to rest at the end of
+   its own play, so it names a keyframe set in `--ic-play` and the same rule switches
+   that on. Everything rides transform / stroke-dashoffset on the <svg> or a part of
+   it, so no box changes and no control can reflow — the .icon-btn:hover lift and the
+   glyph-shadow filter (popup.css) own different properties and are untouched.
+   Opted out: the fold chevrons, whose rotation is their open/closed STATE rather than
+   hover feedback. Here they are `.chev`, outside .ic entirely; the guard below keeps
+   it that way. */
+.ic {
+    --ic-on: 0;
+    /* A lifting lid or a rising sun leaves the 24-unit box for a moment. At rest every
+       glyph is inside it, so nothing that isn't moving renders differently. */
+    overflow: visible;
+}
+.ic, .ic * {
+    transition: transform var(--ic-ms, 0.2s) var(--ic-ease, cubic-bezier(0.16, 1, 0.3, 1));
+    animation-duration: var(--ic-ms, 0.32s);
+    animation-timing-function: var(--ic-ease, cubic-bezier(0.34, 1.2, 0.64, 1));
+    animation-delay: var(--ic-delay, 0s);
+    animation-fill-mode: both;
+}
+/* A part moves in the glyph's own 24-unit space, so 1px here is 1/24 of the icon at any
+   size. The root <svg> is an HTML box instead, so its whole-glyph moves are written as
+   percentages of that box (1 unit = 4.1667%) to stay size-independent. */
+.ic * { transform-box: view-box; }
+/* Every control that holds a glyph on these surfaces is a <button>: the header
+   icon-btns, the row "…" menu items and submenu heads, the logo drag-menu items, the
+   crop toolbar, the accent dropdown trigger and the chat composer. */
+button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
+    --ic-on: 1;
+    animation-name: var(--ic-play, none);
+}
+/* The fold chevrons never animate on hover — see the opt-out above. */
+.chev, .chev * { --ic-on: 0 !important; animation-name: none !important; }
+
+/* ── HOLD: the pose is held while the pointer rests, and eases back on the way out ── */
+/* Direction is the meaning: a chevron goes the way it points. */
+.ic-chevron-down  { transform: translateY(calc(var(--ic-on) * 8.33%)); }
+.ic-chevron-right { transform: translateX(calc(var(--ic-on) * 8.33%)); }
+.ic-send          { transform: translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%)); }
+/* A quarter-turn button turns; the gear turns exactly one tooth and the refresh wheel
+   exactly half a revolution, so both come to rest looking untouched. */
+.ic-rotate-ccw    { transform: rotate(calc(var(--ic-on) * -30deg)); }
+.ic-rotate-cw     { transform: rotate(calc(var(--ic-on) * 30deg)); }
+.ic-gear          { --ic-ms: 0.3s; transform: rotate(calc(var(--ic-on) * 45deg)); }
+.ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
+.ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
+/* The lid lifts off the can, hinged at its left end. */
+.ic-trash .ic-lid {
+    --ic-ms: 0.24s;
+    transform-origin: 5px 6px;
+    transform: rotate(calc(var(--ic-on) * -11deg)) translateY(calc(var(--ic-on) * -0.4px));
+}
+/* The arrow travels DOWN into the tray; the same arrow LEAVES the box on `external`. */
+.ic-download .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
+.ic-external .ic-arrow { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+/* The two brackets close in on the region they'd keep. */
+.ic-crop .ic-crop-bl { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * -1px)); }
+.ic-crop .ic-crop-tr { transform: translate(calc(var(--ic-on) * -1px), calc(var(--ic-on) * 1px)); }
+/* The two sheets separate, so you can see there are two of them. */
+.ic-copy .ic-front { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * 1px)); }
+.ic-copy .ic-back  { transform: translate(calc(var(--ic-on) * -0.8px), calc(var(--ic-on) * -0.8px)); }
+/* The receiving nodes move outward, away from the source. */
+.ic-share .ic-node-tr { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * -0.9px)); }
+.ic-share .ic-node-br { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * 0.9px)); }
+.ic-monitor .ic-screen  { transform: translateY(calc(var(--ic-on) * -1.2px)); }
+.ic-incognito .ic-brim  { transform: translateY(calc(var(--ic-on) * 1.4px)); }  /* brim pulled down */
+
+/* ── SETTLE: plays once on hover, then rests where it started ── */
+@keyframes icmTick        { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
+@keyframes icmInkLine     { from { stroke-dashoffset: 8; }  to { stroke-dashoffset: 0; } }
+@keyframes icmSnapShut    { 0%, 100% { transform: scale(1); }  42% { transform: scale(0.7); } }
+@keyframes icmLedBlink    { 0%, 100% { transform: scale(1); }  40% { transform: scale(2.1); } }
+@keyframes icmPencilStroke{ 0%, 100% { transform: none; }      45% { transform: translate(-4.17%, 4.17%) rotate(-8deg); } }
+@keyframes icmPressDown   { 0%, 100% { transform: none; }      45% { transform: translateY(6.67%); } }
+@keyframes icmDotBounce   { 0%, 100% { transform: none; }      45% { transform: translateY(-2px); } }
+@keyframes icmBob         { 0%, 100% { transform: none; }      45% { transform: translateY(-1.6px); } }
+@keyframes icmWave        { 0%, 100% { transform: skewX(0); }  30% { transform: skewX(7deg); } 65% { transform: skewX(-5deg); } }
+@keyframes icmMoonRise    { 0% { transform: translateY(18.75%) rotate(-14deg); } 65% { transform: translateY(-2.5%) rotate(2deg); } 100% { transform: none; } }
+@keyframes icmSunRise     { 0% { transform: translateY(4.5px) scale(0.8); } 65% { transform: translateY(-0.5px) scale(1.03); } 100% { transform: none; } }
+@keyframes icmRayBloom    { 0% { transform: scale(0.45) rotate(-40deg); } 100% { transform: none; } }
+@keyframes icmPhotoDrop   { 0% { transform: translateY(3.5px); } 68% { transform: translateY(-0.4px); } 100% { transform: none; } }
+
+/* Close / clear / disconnect all mean "make this go away": the cross snaps shut. */
+.ic-x                 { --ic-ms: 0.3s; --ic-play: icmSnapShut; }
+/* Marks that draw themselves, the way you'd make them. */
+.ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
+.ic-file-text .ic-textline { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 8; --ic-play: icmInkLine; }
+.ic-file-text .ic-textline:nth-of-type(2) { --ic-delay: 0.09s; }
+.ic-pencil            { --ic-ms: 0.3s; --ic-play: icmPencilStroke; }   /* one short stroke */
+.ic-pin               { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pushed in */
+.ic-calendar .ic-rings { --ic-ms: 0.3s; --ic-play: icmBob; }
+.ic-image .ic-photo   { --ic-ms: 0.38s; --ic-play: icmPhotoDrop; }     /* drops into the frame */
+.ic-flag .ic-cloth    { --ic-ms: 0.42s; transform-origin: 4px 3px; --ic-play: icmWave; }
+/* The assistant's bubble types; the same bounce is the "work pending" dots. */
+.ic-sparkle .ic-dot, .ic-dots .ic-dot { --ic-ms: 0.3s; --ic-play: icmDotBounce; }
+.ic-sparkle .ic-dot:nth-of-type(2), .ic-dots .ic-dot:nth-of-type(2) { --ic-delay: 0.07s; }
+.ic-sparkle .ic-dot:nth-of-type(3), .ic-dots .ic-dot:nth-of-type(3) { --ic-delay: 0.14s; }
+/* The status LEDs blink, top unit then bottom. */
+.ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
+.ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
+.ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
+/* Theme: the moon rises, and so does the sun — its rays opening out behind it. */
+.ic-moon              { --ic-ms: 0.38s; --ic-play: icmMoonRise; }
+.ic-sun .ic-orb       { --ic-ms: 0.38s; --ic-play: icmSunRise; }
+.ic-sun .ic-rays      { --ic-ms: 0.38s; --ic-delay: 0.09s; --ic-play: icmRayBloom; }
+
+@media (prefers-reduced-motion: reduce) {
+    /* The hover MOVE only, killed at the latch and the keyframe switch, so every glyph
+       stays in the rest pose that is also each motion's end state (a settle ends where
+       it started; a hold is pure feedback). Nothing here resets a `transform` outright,
+       so no glyph at rest is touched — and the global block further down, which only
+       shortens durations, would otherwise leave a HOLD pose snapping on instantly. */
+    .ic, .ic * {
+        --ic-on: 0 !important;
+        animation-name: none !important;
+        transition: none !important;
+    }
+}
+
 /* ── Header logo hover: pulse + levitate + accent shine + orbiting rays ──
    browser css/animations.css logoPulse twin. Every host page (popup, side panel,
    DevTools panel, quick-crop, options) wraps its .logo in a .logo-wrap span:
