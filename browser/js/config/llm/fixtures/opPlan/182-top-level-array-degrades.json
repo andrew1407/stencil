@@ -1,0 +1,9 @@
+{
+  "name": "top-level-array-degrades",
+  "profiles": [
+    "all"
+  ],
+  "input": "[{\"op\":\"rotate\",\"dir\":\"left\"},{\"op\":\"filter\",\"mode\":\"bw\"}]",
+  "expect": "valid",
+  "reason": "SUSPICIOUS: a top-level ARRAY plan is not rejected — the browser extracts the first balanced {…} (the first ACTION object), sees no \"actions\" key, and yields an empty plan"
+}

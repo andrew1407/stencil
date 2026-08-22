@@ -1,0 +1,20 @@
+{
+  "name": "save-name",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "save",
+        "name": "portrait 1"
+      }
+    ]
+  },
+  "expect": "valid"
+}

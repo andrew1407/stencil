@@ -1,0 +1,17 @@
+{
+  "name": "reply-missing-with-actions-ok",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "missing reply is tolerated — \"Done.\" substituted with a warning (§1)"
+}

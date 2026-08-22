@@ -1,0 +1,23 @@
+{
+  "name": "formula-enabled-plus-axis-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "formula",
+        "enabled": true,
+        "axis": "x",
+        "expr": "x"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "\"enabled\" rides alone"
+}

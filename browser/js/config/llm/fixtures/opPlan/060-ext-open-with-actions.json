@@ -1,0 +1,31 @@
+{
+  "name": "ext-open-with-actions",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "open",
+        "image": 0,
+        "mode": "copy",
+        "actions": [
+          {
+            "op": "crop",
+            "spec": {
+              "x1": "10%"
+            }
+          },
+          {
+            "op": "filter",
+            "mode": "sepia"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "core ops are legal only NESTED under open.actions in the extension profile"
+}

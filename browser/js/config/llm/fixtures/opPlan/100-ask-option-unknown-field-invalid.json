@@ -1,0 +1,28 @@
+{
+  "name": "ask-option-unknown-field-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "a",
+          "hint": "x"
+        },
+        {
+          "label": "b"
+        }
+      ]
+    }
+  },
+  "expect": "invalid",
+  "reason": "unknown field on an option fails the plan (§11.1)"
+}

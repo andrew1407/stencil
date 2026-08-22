@@ -1,0 +1,9 @@
+{
+  "name": "duplicate-key-last-wins",
+  "profiles": [
+    "all"
+  ],
+  "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"dir\":\"right\"}]}",
+  "expect": "valid",
+  "reason": "PARSER-DEPENDENT: JS JSON.parse keeps the LAST duplicate key (dir right). Surfaces whose JSON parser rejects duplicates would fail this plan — worth measuring"
+}

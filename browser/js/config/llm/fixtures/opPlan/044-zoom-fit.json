@@ -1,0 +1,17 @@
+{
+  "name": "zoom-fit",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "zoom",
+        "fit": true
+      }
+    ]
+  },
+  "expect": "valid"
+}

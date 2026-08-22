@@ -1,0 +1,22 @@
+{
+  "name": "ext-filter-panel",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "filter",
+        "search": "cat",
+        "kinds": [
+          "images"
+        ],
+        "minWidth": 200
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "the extension \"filter\" op is the panel list filter — same name as the core pixel filter, different grammar"
+}

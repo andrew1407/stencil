@@ -1,0 +1,19 @@
+{
+  "name": "linestyle-pointcolor-empty",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "lineStyle",
+        "pointColor": ""
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "\"\" = follow the stroke colour"
+}

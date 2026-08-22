@@ -1,0 +1,17 @@
+{
+  "name": "units-cm",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "units",
+        "value": "cm"
+      }
+    ]
+  },
+  "expect": "valid"
+}

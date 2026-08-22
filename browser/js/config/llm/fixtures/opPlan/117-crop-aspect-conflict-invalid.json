@@ -1,0 +1,24 @@
+{
+  "name": "crop-aspect-conflict-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "aspect": "3:4"
+        },
+        "aspect": "1:1"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "aspect both beside and inside spec with different values"
+}

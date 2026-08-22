@@ -1,0 +1,28 @@
+{
+  "name": "ask-image-scanindex-in-editor",
+  "profiles": [
+    "editor",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "a",
+          "image": {
+            "scanIndex": 2
+          }
+        },
+        {
+          "label": "b"
+        }
+      ]
+    }
+  },
+  "expect": "valid",
+  "reason": "SUSPECTED SPEC MISMATCH: contract §11.1 marks scanIndex \"extension profile only\", but the browser validator accepts it anywhere (it just never resolves)"
+}

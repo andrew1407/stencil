@@ -1,0 +1,18 @@
+{
+  "name": "theme-mode-system-in-editor",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "theme",
+        "mode": "system"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "editor theme mode is strictly light|dark; only the extension adds \"system\""
+}

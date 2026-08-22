@@ -1,0 +1,24 @@
+{
+  "name": "crop-aspect-beside-spec-folded",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "x1": "5%"
+        },
+        "aspect": "1:1"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "§3.2 tolerance: \"aspect\" beside \"spec\" is folded in when the spec lacks one"
+}

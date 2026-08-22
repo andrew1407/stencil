@@ -1,0 +1,19 @@
+{
+  "name": "connect-server",
+  "profiles": [
+    "editor",
+    "console",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "connect",
+        "server": "https://stencil.example.com"
+      }
+    ]
+  },
+  "expect": "valid"
+}

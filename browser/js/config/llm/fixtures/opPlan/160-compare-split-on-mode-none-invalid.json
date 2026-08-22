@@ -1,0 +1,22 @@
+{
+  "name": "compare-split-on-mode-none-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "compare",
+        "mode": "none",
+        "split": 0.5
+      }
+    ]
+  },
+  "expect": "invalid",
+  "knownDivergence": {
+    "desktop": "valid"
+  },
+  "reason": "split only applies to the split modes. MEASURED DIVERGENCE: desktop parseCompare deliberately ignores split on non-split modes (opPlan.cpp: an ignored field, never a failed plan) — valid there"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "removeproject-current",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "removeProject",
+        "current": true
+      }
+    ]
+  },
+  "expect": "valid"
+}

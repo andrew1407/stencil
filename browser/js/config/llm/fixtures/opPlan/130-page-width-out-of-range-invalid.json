@@ -1,0 +1,22 @@
+{
+  "name": "page-width-out-of-range-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "page",
+        "width": 500.1,
+        "height": 30
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "cm dims above 500"
+}

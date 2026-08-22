@@ -1,0 +1,19 @@
+{
+  "name": "renameproject-name-80-ok",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "renameProject",
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "renameProject caps at 80 — a DIFFERENT cap than save's 120"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "prose-only-chat-only",
+  "profiles": [
+    "all"
+  ],
+  "input": "Just chatting, no JSON here.",
+  "expect": "valid",
+  "reason": "no JSON object at all = chat-only turn, raw text becomes the reply (§1) — not an error"
+}

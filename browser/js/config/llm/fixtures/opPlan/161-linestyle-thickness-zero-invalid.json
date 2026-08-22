@@ -1,0 +1,19 @@
+{
+  "name": "linestyle-thickness-zero-invalid",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "lineStyle",
+        "thickness": 0
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "thickness is 1..20"
+}

@@ -1,0 +1,504 @@
+[
+  {
+    "name": "dataurl-minimal",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "dataurl-with-every-common-field",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": "cat.png",
+      "crop": {
+        "x": 1,
+        "y": 2,
+        "w": 3,
+        "h": 4
+      },
+      "noCrop": true,
+      "page": {
+        "size": "A4"
+      },
+      "source": "https://example.com/cat.png",
+      "resource": "album/9",
+      "open": "resume",
+      "incognito": true,
+      "layout": {
+        "imageWidth": 10,
+        "imageHeight": 20,
+        "lines": []
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": "cat.png",
+      "crop": {
+        "x": 1,
+        "y": 2,
+        "w": 3,
+        "h": 4
+      },
+      "noCrop": true,
+      "page": {
+        "size": "A4"
+      },
+      "source": "https://example.com/cat.png",
+      "resource": "album/9",
+      "open": "resume",
+      "incognito": true,
+      "layout": {
+        "imageWidth": 10,
+        "imageHeight": 20,
+        "lines": []
+      }
+    }
+  },
+  {
+    "name": "dataurl-scheme-case-insensitive",
+    "payload": {
+      "dataUrl": "DATA:image/png;base64,AAAA"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "DATA:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "dataurl-remote-url-rejected",
+    "payload": {
+      "dataUrl": "https://example.com/cat.png"
+    },
+    "expect": "rejected"
+  },
+  {
+    "name": "dataurl-empty-string-rejected",
+    "payload": {
+      "dataUrl": ""
+    },
+    "expect": "rejected"
+  },
+  {
+    "name": "src-https",
+    "payload": {
+      "src": "https://example.com/cat.png"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "src",
+      "src": "https://example.com/cat.png",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "src-plain-http-accepted",
+    "payload": {
+      "src": "http://example.com/cat.png"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "src",
+      "src": "http://example.com/cat.png",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "src-scheme-case-insensitive",
+    "payload": {
+      "src": "HTTPS://EXAMPLE.COM/CAT.PNG"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "src",
+      "src": "HTTPS://EXAMPLE.COM/CAT.PNG",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "src-javascript-rejected",
+    "payload": {
+      "src": "javascript:alert(1)"
+    },
+    "expect": "rejected"
+  },
+  {
+    "name": "src-file-rejected",
+    "payload": {
+      "src": "file:///etc/passwd"
+    },
+    "expect": "rejected"
+  },
+  {
+    "name": "server-minimal-version-defaults-zero",
+    "payload": {
+      "server": {
+        "url": "https://stencil.example.com",
+        "id": "p_9"
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "server",
+      "server": {
+        "url": "https://stencil.example.com",
+        "id": "p_9",
+        "version": 0
+      },
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "server-version-numeric-string-coerced",
+    "payload": {
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1",
+        "version": "7"
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "server",
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1",
+        "version": 7
+      },
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "server-version-junk-falls-to-zero",
+    "payload": {
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1",
+        "version": "x"
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "server",
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1",
+        "version": 0
+      },
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "server-wins-over-dataurl-and-src",
+    "payload": {
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1"
+      },
+      "dataUrl": "data:image/png;base64,AAAA",
+      "src": "https://example.com/x.png"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "server",
+      "server": {
+        "url": "https://s.example",
+        "id": "p_1",
+        "version": 0
+      },
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "dataurl-wins-over-src",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "src": "https://example.com/x.png"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "server-without-id-falls-through-to-src",
+    "payload": {
+      "server": {
+        "url": "https://s.example"
+      },
+      "src": "https://example.com/x.png"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "src",
+      "src": "https://example.com/x.png",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "prototype-pollution-keys-dropped-from-sub-objects",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "crop": {
+        "x": 3,
+        "__proto__": {
+          "polluted": true
+        }
+      },
+      "layout": {
+        "imageWidth": 5,
+        "constructor": "c",
+        "prototype": "p"
+      },
+      "page": {
+        "size": "A5",
+        "__proto__": {
+          "p2": 1
+        }
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": {
+        "x": 3
+      },
+      "noCrop": false,
+      "page": {
+        "size": "A5"
+      },
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": {
+        "imageWidth": 5
+      }
+    }
+  },
+  {
+    "name": "boolean-fields-truthy-coerced",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "incognito": "yes",
+      "noCrop": 0
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": true,
+      "layout": null
+    }
+  },
+  {
+    "name": "non-string-and-empty-string-fields-null",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": 42,
+      "source": "",
+      "open": 7
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "null-payload-rejected",
+    "payload": null,
+    "expect": "rejected"
+  },
+  {
+    "name": "string-payload-rejected",
+    "payload": "data:image/png;base64,AAAA",
+    "expect": "rejected"
+  },
+  {
+    "name": "unknown-top-level-keys-ignored",
+    "payload": {
+      "dataUrl": "data:image/png;base64,AAAA",
+      "foo": 1,
+      "bar": {
+        "a": 1
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": "data:image/png;base64,AAAA",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "dataurl-exactly-at-cap-accepted",
+    "payload": {
+      "dataUrl": {
+        "$repeat": {
+          "prefix": "data:image/png;base64,",
+          "char": "A",
+          "length": 33554432
+        }
+      }
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "dataUrl",
+      "dataUrl": {
+        "$repeat": {
+          "prefix": "data:image/png;base64,",
+          "char": "A",
+          "length": 33554432
+        }
+      },
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
+    "name": "dataurl-over-cap-rejected",
+    "payload": {
+      "dataUrl": {
+        "$repeat": {
+          "prefix": "data:image/png;base64,",
+          "char": "A",
+          "length": 33554433
+        }
+      }
+    },
+    "expect": "rejected"
+  }
+]

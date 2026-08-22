@@ -1,0 +1,22 @@
+{
+  "name": "rotate-times-zero-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left",
+        "times": 0
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "times is 1..3"
+}

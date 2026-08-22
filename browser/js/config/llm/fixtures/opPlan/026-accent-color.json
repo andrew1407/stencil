@@ -1,0 +1,20 @@
+{
+  "name": "accent-color",
+  "profiles": [
+    "editor",
+    "console",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "accent",
+        "color": "#7c3aed"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "pystencil does not register accent (no theme) — unknown-op skip there, same verdict"
+}

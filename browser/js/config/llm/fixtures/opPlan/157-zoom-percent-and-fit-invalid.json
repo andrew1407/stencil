@@ -1,0 +1,19 @@
+{
+  "name": "zoom-percent-and-fit-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "zoom",
+        "percent": 100,
+        "fit": true
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "exactly one of percent / fit"
+}

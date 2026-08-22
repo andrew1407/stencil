@@ -1,0 +1,22 @@
+{
+  "name": "filter-custom-tint",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "filter",
+        "mode": "custom",
+        "tint": "#AbCdEf"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "mixed-case hex is accepted"
+}

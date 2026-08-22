@@ -1,0 +1,20 @@
+{
+  "name": "image-switch",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "image",
+        "index": 1
+      }
+    ]
+  },
+  "expect": "valid"
+}

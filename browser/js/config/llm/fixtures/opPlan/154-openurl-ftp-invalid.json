@@ -1,0 +1,21 @@
+{
+  "name": "openurl-ftp-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "openUrl",
+        "url": "ftp://example.com/cat.jpg"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "only http(s) URLs"
+}

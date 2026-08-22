@@ -1,0 +1,29 @@
+{
+  "name": "ask-customlabel-81-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "choice 1"
+        },
+        {
+          "label": "choice 2"
+        }
+      ],
+      "allowCustom": true,
+      "customLabel": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  },
+  "expect": "invalid",
+  "reason": "customLabel longer than 80 chars"
+}

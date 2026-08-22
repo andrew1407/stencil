@@ -1,0 +1,77 @@
+[
+  {
+    "name": "malformed-json",
+    "file": "{ not json",
+    "expect": "error",
+    "errorIncludes": "Not valid JSON"
+  },
+  {
+    "name": "array-root",
+    "file": "[1,2]",
+    "expect": "error",
+    "errorIncludes": "Not a Stencil project file"
+  },
+  {
+    "name": "string-root",
+    "file": "\"hi\"",
+    "expect": "error",
+    "errorIncludes": "Not a Stencil project file"
+  },
+  {
+    "name": "missing-format",
+    "file": "{\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "stencil-project"
+  },
+  {
+    "name": "wrong-format",
+    "file": "{\"format\":\"stencil\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "stencil-project"
+  },
+  {
+    "name": "version-zero",
+    "file": "{\"format\":\"stencil-project\",\"version\":0,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "Unrecognized project-file version"
+  },
+  {
+    "name": "version-junk",
+    "file": "{\"format\":\"stencil-project\",\"version\":\"two\",\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "Unrecognized project-file version"
+  },
+  {
+    "name": "version-too-new",
+    "file": "{\"format\":\"stencil-project\",\"version\":2,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "newer Stencil"
+  },
+  {
+    "name": "version-fractional-above-current",
+    "divergences": {
+      "cli": "ACCEPTS: jsonInt() truncates version 1.5 via @intFromFloat to 1, PASSING the version gate; the browser rejects fractional-above-current as a newer format"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1.5,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "error",
+    "errorIncludes": "newer Stencil"
+  },
+  {
+    "name": "missing-image",
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"name\":\"x\"}",
+    "expect": "error",
+    "errorIncludes": "no embedded image"
+  },
+  {
+    "name": "image-not-a-data-url",
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"https://example.com/x.png\"}}",
+    "expect": "error",
+    "errorIncludes": "no embedded image"
+  },
+  {
+    "name": "image-data-url-non-string",
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":5}}",
+    "expect": "error",
+    "errorIncludes": "no embedded image"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "name": "clearprojects",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "clearProjects"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "bot forbids clearProjects at its executor gate"
+}

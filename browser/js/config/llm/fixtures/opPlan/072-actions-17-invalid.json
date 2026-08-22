@@ -1,0 +1,82 @@
+{
+  "name": "actions-17-invalid",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "more than 16 actions — the length check fires before per-op validation on every surface"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "undo-default-step",
+  "profiles": [
+    "editor",
+    "console",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "undo"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "not registered in mcp (no edit history) — unknown-op skip there"
+}

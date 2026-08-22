@@ -1,0 +1,21 @@
+{
+  "name": "page-format-uppercase-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "page",
+        "format": "A4"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "lowercase ISO names only"
+}

@@ -1,0 +1,54 @@
+{
+  "name": "variants-9-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+      {
+        "label": "v0",
+        "actions": []
+      },
+      {
+        "label": "v1",
+        "actions": []
+      },
+      {
+        "label": "v2",
+        "actions": []
+      },
+      {
+        "label": "v3",
+        "actions": []
+      },
+      {
+        "label": "v4",
+        "actions": []
+      },
+      {
+        "label": "v5",
+        "actions": []
+      },
+      {
+        "label": "v6",
+        "actions": []
+      },
+      {
+        "label": "v7",
+        "actions": []
+      },
+      {
+        "label": "v8",
+        "actions": []
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "more than 8 variants"
+}

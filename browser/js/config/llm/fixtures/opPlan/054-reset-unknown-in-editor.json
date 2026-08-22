@@ -1,0 +1,17 @@
+{
+  "name": "reset-unknown-in-editor",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "reset"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "editors have no single reset control — unknown-op skip with a warning per contract §2"
+}

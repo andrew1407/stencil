@@ -1,0 +1,668 @@
+[
+  {
+    "name": "empty-line-object-gets-all-defaults",
+    "divergences": {
+      "cli": "SKIPS a line whose points read as empty (layout.zig: pts.items.len == 0 -> continue); the browser keeps the empty-points line",
+      "mcp": "Line.points is required with no serde default — a bare {} line is rejected, not defaulted"
+    },
+    "sparse": [
+      {}
+    ],
+    "expectSanitized": [
+      {
+        "points": [],
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "explicit-defaults-survive-verbatim",
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent"
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "fillColor": "transparent",
+        "style": "solid",
+        "thickness": 2,
+        "pointSize": 4,
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "every-field-non-default",
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 3.5,
+            "y": 4.25
+          }
+        ],
+        "color": "#ff0000",
+        "pointColor": "#00ff00",
+        "fillColor": "#0000ff",
+        "style": "dashed",
+        "thickness": 7.5,
+        "pointSize": 12,
+        "locked": true
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 3.5,
+            "y": 4.25
+          }
+        ],
+        "color": "#ff0000",
+        "pointColor": "#00ff00",
+        "fillColor": "#0000ff",
+        "style": "dashed",
+        "thickness": 7.5,
+        "pointSize": 12,
+        "locked": true
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 3.5,
+            "y": 4.25
+          }
+        ],
+        "color": "#ff0000",
+        "thickness": 7.5,
+        "pointSize": 12,
+        "style": "dashed",
+        "locked": true,
+        "fillColor": "#0000ff",
+        "pointColor": "#00ff00"
+      }
+    ]
+  },
+  {
+    "name": "style-variants-pass-through",
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "solid"
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "dashed"
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "dotted"
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "zigzag"
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "solid",
+        "locked": false
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "dashed",
+        "locked": false
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "dotted",
+        "locked": false
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "style": "zigzag",
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "dashed",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "dotted",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      },
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "zigzag",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "point-cardinality-empty-one-many",
+    "divergences": {
+      "cli": "the first (empty-points) line is skipped; the other two match the corpus"
+    },
+    "sparse": [
+      {
+        "points": []
+      },
+      {
+        "points": [
+          {
+            "x": 5,
+            "y": 6
+          }
+        ]
+      },
+      {
+        "points": [
+          {
+            "x": 0.5,
+            "y": 0.5
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 0.5,
+            "y": 0.5
+          }
+        ]
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [],
+        "locked": false
+      },
+      {
+        "points": [
+          {
+            "x": 5,
+            "y": 6
+          }
+        ],
+        "locked": false
+      },
+      {
+        "points": [
+          {
+            "x": 0.5,
+            "y": 0.5
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 0.5,
+            "y": 0.5
+          }
+        ],
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      },
+      {
+        "points": [
+          {
+            "x": 5,
+            "y": 6
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      },
+      {
+        "points": [
+          {
+            "x": 0.5,
+            "y": 0.5
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 0.5,
+            "y": 0.5
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "junk-points-dropped-numeric-strings-coerced",
+    "divergences": {
+      "desktop": "lineFromJson keeps EVERY points[] entry and zero-fills: no numeric-string coercion (QJsonValue::toDouble never coerces \"3\") and no junk-point drop",
+      "cli": "keeps every point OBJECT and defaults each missing/mis-typed coordinate to 0 (\"3\"/\"9\"/\"NaN\" -> 0); only non-object entries (5, null) are dropped",
+      "mcp": "serde Point requires numeric x AND y — string coords, bare numbers, null and partial points are type errors, not skipped/coerced",
+      "bot": "System.Text.Json binds points strictly: \"3\" (string) into double throws, so the whole layout parse returns null",
+      "pystencil": "Point.from_dict coerces every entry (non-dict -> origin, missing coord -> 0, 'NaN' -> float nan)"
+    },
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": "3",
+            "y": 4
+          },
+          {
+            "x": 1
+          },
+          {
+            "x": "NaN",
+            "y": 2
+          },
+          5,
+          null,
+          {
+            "y": 7
+          },
+          {
+            "x": 8,
+            "y": "9"
+          }
+        ]
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 8,
+            "y": 9
+          }
+        ],
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 8,
+            "y": 9
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "field-type-coercion-and-drops",
+    "divergences": {
+      "desktop": "no type coercion: thickness \"3.5\" (string) -> default 2 and locked 1 (number) -> default false (QJsonValue toDouble/toBool never coerce)",
+      "cli": "typed JSON reader falls back to defaults on wrong-typed fields: thickness \"3.5\" -> 2 where browser coerces 3.5; locked 1 -> false where browser truthiness gives true",
+      "mcp": "no type coercion — thickness \"3.5\" (string), locked 1, color 42 are serde type errors that reject the whole line list",
+      "bot": "thickness \"3.5\" (string) and locked 1 (number) are type mismatches for the typed LayoutLine record — the whole parse returns null",
+      "pystencil": "_as_str stringifies non-string color/fillColor (42 -> '42', false -> 'False') where the browser drops them to defaults"
+    },
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "thickness": "3.5",
+        "pointSize": "abc",
+        "color": 42,
+        "locked": 1,
+        "fillColor": false,
+        "style": null
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "thickness": 3.5,
+        "locked": true
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 3.5,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": true,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "unknown-and-prototype-keys-dropped",
+    "sparse": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "foo": "bar",
+        "locked": true,
+        "__proto__": {
+          "polluted": true
+        },
+        "constructor": "x"
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "locked": true
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": true,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  },
+  {
+    "name": "non-array-lines-become-empty",
+    "divergences": {
+      "mcp": "a non-array `lines` value is a serde type error, not an empty list",
+      "bot": "\"lines\": \"junk\" cannot bind to IReadOnlyList<LayoutLine> — Parse returns null instead of an empty lines list"
+    },
+    "sparse": "junk",
+    "expectSanitized": [],
+    "expectFilled": []
+  },
+  {
+    "name": "non-object-line-entries-skipped",
+    "divergences": {
+      "desktop": "linesFromJson turns non-object entries (5, null, \"line\") into empty default lines instead of skipping them (toObject() on a non-object yields {})",
+      "mcp": "non-object line entries (5, null, \"line\") are serde type errors, not skipped",
+      "bot": "a number/string entry in lines cannot bind to LayoutLine — Parse returns null instead of skipping the entry",
+      "pystencil": "Line.from_dict turns each non-object entry into an all-defaults line instead of skipping it"
+    },
+    "sparse": [
+      5,
+      null,
+      "line",
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ]
+      }
+    ],
+    "expectSanitized": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "locked": false
+      }
+    ],
+    "expectFilled": [
+      {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "solid",
+        "locked": false,
+        "fillColor": "transparent",
+        "pointColor": ""
+      }
+    ]
+  }
+]

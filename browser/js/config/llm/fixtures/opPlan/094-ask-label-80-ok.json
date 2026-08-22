@@ -1,0 +1,26 @@
+{
+  "name": "ask-label-80-ok",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"
+        },
+        {
+          "label": "b"
+        }
+      ]
+    }
+  },
+  "expect": "valid"
+}

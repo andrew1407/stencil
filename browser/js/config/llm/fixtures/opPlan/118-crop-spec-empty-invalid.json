@@ -1,0 +1,21 @@
+{
+  "name": "crop-spec-empty-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {}
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "spec needs at least one key"
+}

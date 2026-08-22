@@ -1,0 +1,18 @@
+{
+  "name": "renameproject",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "renameProject",
+        "name": "new name"
+      }
+    ]
+  },
+  "expect": "valid"
+}

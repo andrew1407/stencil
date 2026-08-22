@@ -1,0 +1,27 @@
+{
+  "name": "variant-label-number-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+      {
+        "label": 7,
+        "actions": []
+      }
+    ]
+  },
+  "expect": "invalid",
+  "knownDivergence": {
+    "desktop": "valid",
+    "pystencil": "valid",
+    "bot": "valid"
+  },
+  "reason": "variant label must be a string. MEASURED DIVERGENCE: pystencil, desktop (opPlan.cpp label toString(), non-string/absent -> empty) and the bot (OpPlanParser.ParsePlan) all silently coerce a non-string label to \"\" (then auto-name the variant) instead of failing"
+}

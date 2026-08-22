@@ -1,0 +1,13 @@
+{
+  "name": "null-variants-ok",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": null
+  },
+  "expect": "valid"
+}

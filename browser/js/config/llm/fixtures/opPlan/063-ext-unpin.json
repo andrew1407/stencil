@@ -1,0 +1,17 @@
+{
+  "name": "ext-unpin",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "unpin",
+        "image": 1
+      }
+    ]
+  },
+  "expect": "valid"
+}

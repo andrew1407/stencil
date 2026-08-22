@@ -1,0 +1,18 @@
+{
+  "name": "reconnect-server",
+  "profiles": [
+    "console"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "reconnect",
+        "server": "stencil.example.com"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "cli-only console op; pystencil skips it as unknown"
+}

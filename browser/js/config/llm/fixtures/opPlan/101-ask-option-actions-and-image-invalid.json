@@ -1,0 +1,36 @@
+{
+  "name": "ask-option-actions-and-image-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "a",
+          "actions": [
+            {
+              "op": "filter",
+              "mode": "bw"
+            }
+          ],
+          "image": {
+            "url": "https://x.example/a.jpg"
+          }
+        },
+        {
+          "label": "b"
+        }
+      ]
+    }
+  },
+  "expect": "invalid",
+  "reason": "an option previews a render OR names an image, never both"
+}

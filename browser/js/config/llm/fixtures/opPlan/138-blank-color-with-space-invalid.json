@@ -1,0 +1,21 @@
+{
+  "name": "blank-color-with-space-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "blank",
+        "color": "light blue"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "not hex and not a single alphabetic word"
+}

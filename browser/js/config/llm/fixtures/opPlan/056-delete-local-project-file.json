@@ -1,0 +1,18 @@
+{
+  "name": "delete-local-project-file",
+  "profiles": [
+    "console"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "delete",
+        "path": "old.stencil"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "cli + pystencil console op; NOTE the bot lists \"delete\" among its FORBIDDEN ops — never widen this profile to bot"
+}

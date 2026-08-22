@@ -1,0 +1,23 @@
+{
+  "name": "crop-aspect-decimal-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "aspect": "3.5:4"
+        }
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "aspect terms are integers"
+}

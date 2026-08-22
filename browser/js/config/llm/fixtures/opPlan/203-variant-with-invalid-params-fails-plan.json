@@ -1,0 +1,27 @@
+{
+  "name": "variant-with-invalid-params-fails-plan",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+      {
+        "label": "bad",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "up"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "the drop-leniency covers MISPLACED ops only; a known op with invalid params inside a variant still fails the whole plan"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "export-layout",
+  "profiles": [
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "export",
+        "what": "layout"
+      }
+    ]
+  },
+  "expect": "valid"
+}

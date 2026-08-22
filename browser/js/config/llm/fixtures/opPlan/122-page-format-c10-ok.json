@@ -1,0 +1,20 @@
+{
+  "name": "page-format-c10-ok",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "page",
+        "format": "c10"
+      }
+    ]
+  },
+  "expect": "valid"
+}

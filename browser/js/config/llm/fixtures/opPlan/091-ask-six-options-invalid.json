@@ -1,0 +1,39 @@
+{
+  "name": "ask-six-options-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "choice 1"
+        },
+        {
+          "label": "choice 2"
+        },
+        {
+          "label": "choice 3"
+        },
+        {
+          "label": "choice 4"
+        },
+        {
+          "label": "choice 5"
+        },
+        {
+          "label": "choice 6"
+        }
+      ]
+    }
+  },
+  "expect": "invalid",
+  "reason": "more than 5 options"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "filter-hex-nonhex-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "filter",
+        "mode": "custom",
+        "tint": "#GGGGGG"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "non-hex digits"
+}

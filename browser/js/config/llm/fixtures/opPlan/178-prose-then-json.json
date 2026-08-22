@@ -1,0 +1,9 @@
+{
+  "name": "prose-then-json",
+  "profiles": [
+    "all"
+  ],
+  "input": "Sure! Here is the plan:\n{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}",
+  "expect": "valid",
+  "reason": "first balanced JSON object wins"
+}

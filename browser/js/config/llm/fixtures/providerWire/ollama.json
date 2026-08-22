@@ -1,0 +1,275 @@
+[
+  {
+    "name": "plain single turn, explicit model",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llama3.2-vision"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llama3.2-vision",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "crop 10% off the left"
+        }
+      ]
+    },
+    "response": {
+      "model": "llama3.2-vision",
+      "message": {
+        "role": "assistant",
+        "content": "{\"version\":1,\"actions\":[]}"
+      },
+      "done": true
+    },
+    "expectReply": "{\"version\":1,\"actions\":[]}"
+  },
+  {
+    "name": "multi-turn history is replayed in order after the system turn",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llama3.2-vision"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "rotate it"
+        },
+        {
+          "role": "assistant",
+          "text": "Done — anything else?"
+        },
+        {
+          "role": "user",
+          "text": "now make it black and white"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llama3.2-vision",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "rotate it"
+        },
+        {
+          "role": "assistant",
+          "content": "Done — anything else?"
+        },
+        {
+          "role": "user",
+          "content": "now make it black and white"
+        }
+      ]
+    },
+    "response": {
+      "message": {
+        "role": "assistant",
+        "content": "ok"
+      }
+    },
+    "expectReply": "ok"
+  },
+  {
+    "name": "image attachments become bare base64 strings in \"images\"",
+    "comment": "ollama takes raw base64 with NO mediaType — the mediaType from the canonical message is dropped",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llama3.2-vision"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "what is in these?",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGVsbG8tcGl4ZWxz"
+            },
+            {
+              "mediaType": "image/jpeg",
+              "data": "d29ybGQtcGl4ZWxz"
+            }
+          ]
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llama3.2-vision",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "what is in these?",
+          "images": [
+            "aGVsbG8tcGl4ZWxz",
+            "d29ybGQtcGl4ZWxz"
+          ]
+        }
+      ]
+    },
+    "response": {
+      "message": {
+        "role": "assistant",
+        "content": "two test images"
+      }
+    },
+    "expectReply": "two test images"
+  },
+  {
+    "name": "ollama: empty model setting is sent as an empty string, not omitted",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "message": {
+        "role": "assistant",
+        "content": "hello"
+      }
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "maxTokens is never sent — no client puts it on the ollama wire",
+    "comment": "contract §6.1 has no maxTokens field; expectBody pins its absence via exact match",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llava"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "describe"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llava",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "describe"
+        }
+      ]
+    },
+    "response": {
+      "message": {
+        "role": "assistant",
+        "content": "a picture"
+      }
+    },
+    "expectReply": "a picture"
+  },
+  {
+    "name": "reply extraction: 200 body without message.content is a typed badReply error",
+    "divergences": {
+      "cli": "same typed bad_reply kind; its detail is the clipped raw body, not the browser's message",
+      "mcp": "same BadReply kind; its own phrasing ('unexpected LLM response: no message.content string …')",
+      "pystencil": "same typed error; its own phrasing ('malformed ollama response: no reply text')"
+    },
+    "comment": "an error-shaped {\"error\":…} body on HTTP 200 is a typed badReply, never an empty reply",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llava"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llava",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "error": "model failed to load"
+    },
+    "expectError": {
+      "kind": "badReply",
+      "message": "malformed ollama response (no message.content)"
+    }
+  }
+]

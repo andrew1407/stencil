@@ -1,0 +1,22 @@
+{
+  "name": "forbidden-op-llm",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "llm",
+        "model": "x"
+      }
+    ]
+  },
+  "expect": "valid",
+  "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+  },
+  "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+}

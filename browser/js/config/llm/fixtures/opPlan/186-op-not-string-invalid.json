@@ -1,0 +1,17 @@
+{
+  "name": "op-not-string-invalid",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": 5
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "op must be a string"
+}
