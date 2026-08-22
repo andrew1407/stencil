@@ -1,11 +1,13 @@
+#include "../support/searchCombo.hpp"
 #include "openImageDialog.hpp"
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
+#include "../support/modalReveal.hpp"
 #include "mediaLoader.hpp"
 #include <algorithm>
 #include <QAudioOutput>
 #include <QButtonGroup>
 #include <QCheckBox>
-#include <QColorDialog>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -62,12 +64,17 @@ namespace stencil::gui {
     auto* layout = new QVBoxLayout(this);
 
     // ── Source tabs: Local file / URL link / Blank. ──
+    const QColor txt = palette().color(QPalette::WindowText);
     tabs_ = new QTabWidget(this);
+    // Hug the tab page. QTabWidget expands by default, so the pane stretched into a tall
+    // empty box under a two-field form (the browser's tab panel is content-height).
+    tabs_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     // Tab: Local file. A read-only field showing the chosen path + a Browse button
     // (images AND videos, mirroring the browser modal).
     auto* fileTab = new QWidget(this);
     auto* fileForm = new QFormLayout(fileTab);
+    fileForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     auto* fileRow = new QHBoxLayout;
     path_ = new QLineEdit(this);
     path_->setReadOnly(true);
@@ -79,17 +86,18 @@ namespace stencil::gui {
     fileRow->addWidget(path_, 1);
     fileRow->addWidget(browse);
     fileForm->addRow("Image / video:", fileRow);
-    tabs_->addTab(fileTab, "Local file");
+    tabs_->addTab(fileTab, themedIcon("file-text", txt, 15), "Local file");   // browser tab glyphs
 
     // Tab: URL link. Load an image or video straight from the web (resolved via
     // MediaLoader, which handles CORS-free fetch + video-frame grab).
     auto* urlTab = new QWidget(this);
     auto* urlForm = new QFormLayout(urlTab);
+    urlForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);   // full-width, as in the browser
     url_ = new QLineEdit(this);
     url_->setPlaceholderText("https://… (image or video)");
     url_->setToolTip("Load an image or video directly from a web URL");
     urlForm->addRow("URL:", url_);
-    tabs_->addTab(urlTab, "URL link");
+    tabs_->addTab(urlTab, themedIcon("link", txt, 15), "URL link");   // browser tab glyphs
 
     // Tab: Blank. Solid-color canvas (folded in from the retired blank-image dialog).
     auto* blankTab = new QWidget(this);
@@ -128,7 +136,7 @@ namespace stencil::gui {
     blankHeight_->setToolTip("Blank image height in pixels (1–8192)");
     blankForm->addRow("Width:", blankWidth_);
     blankForm->addRow("Height:", blankHeight_);
-    tabs_->addTab(blankTab, "Blank");
+    tabs_->addTab(blankTab, themedIcon("plus-circle", txt, 15), "Blank");   // browser tab glyphs
     layout->addWidget(tabs_);
 
     // Preview button: fetch/decode the chosen source and show it before committing
@@ -136,6 +144,7 @@ namespace stencil::gui {
     auto* previewRow = new QHBoxLayout;
     previewRow->addStretch(1);
     previewBtn_ = new QPushButton("Preview", this);
+    previewBtn_->setIcon(themedIcon("image", txt, 15));   // the browser's Preview button
     previewBtn_->setToolTip("Show the image / first video frame before opening");
     connect(previewBtn_, &QPushButton::clicked, this, &OpenImageDialog::doPreview);
     previewRow->addWidget(previewBtn_);
@@ -144,9 +153,10 @@ namespace stencil::gui {
     // Rendered preview image / frame.
     previewLabel_ = new QLabel(this);
     previewLabel_->setAlignment(Qt::AlignCenter);
-    previewLabel_->setMinimumHeight(120);
     previewLabel_->setMaximumSize(kPreviewMaxW, kPreviewMaxH);
     previewLabel_->setFrameShape(QFrame::StyledPanel);
+    // Hidden until a preview lands (the browser shows no preview area until there is one).
+    previewLabel_->setVisible(false);
     auto* previewCenter = new QHBoxLayout;
     previewCenter->addStretch(1);
     previewCenter->addWidget(previewLabel_);
@@ -185,6 +195,7 @@ namespace stencil::gui {
     previewHint_ = new QLabel(this);
     previewHint_->setStyleSheet(mutedCss);
     previewHint_->setWordWrap(true);
+    previewHint_->setVisible(false);   // an empty hint keeps no line of its own
     layout->addWidget(previewHint_);
 
     // ── Quick pre-load crop (mirrors LinksDialog quick-crop): open the editor already
@@ -199,7 +210,7 @@ namespace stencil::gui {
       cropPage_->setToolTip("Crop the image to the page aspect on open");
       cropAlbum_ = new QCheckBox("Album", quickcropRow_);
       cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
-      cropPageSize_ = new QComboBox(quickcropRow_);
+      cropPageSize_ = new SearchComboBox(quickcropRow_);
       // Every named ISO format (labels with sizes, data = the canonical name). No
       // "custom" here — the crop needs a fixed page aspect.
       fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units_);
@@ -211,6 +222,9 @@ namespace stencil::gui {
     }
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
+    // Slack goes here, not into the controls: without it a taller-than-needed dialog fed
+    // its spare height to the tab pane and the source row floated in an empty box.
+    layout->addStretch(1);
     // Album / page only matter when cropping to page; grey them out otherwise.
     connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
 
@@ -255,17 +269,26 @@ namespace stencil::gui {
     auto* btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
     auto* cancel = new QPushButton("Cancel", this);
+    cancel->setIcon(themedIcon("x", txt, 15));
     cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+    // The affirmative action wears the accent fill (#primaryButton) with a white glyph, as
+    // the browser modal's "Open here" does; the rest take the plain treatment.
     here_ = new QPushButton("Open here", this);
+    here_->setObjectName("primaryButton");
+    here_->setIcon(themedIcon("image", QColor("#ffffff"), 15));
     connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Here; accept(); });
     newWindow_ = new QPushButton("Open in new window", this);
+    newWindow_->setIcon(themedIcon("external", txt, 15));
     connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NewWindow; accept(); });
     createBlank_ = new QPushButton("Create blank", this);
+    createBlank_->setObjectName("primaryButton");
+    createBlank_->setIcon(themedIcon("plus-circle", QColor("#ffffff"), 15));
     connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Blank; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
       replace_ = new QPushButton("Replace image", this);
+      replace_->setIcon(themedIcon("refresh", txt, 15));
       connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Replace; accept(); });
       btnRow->addWidget(replace_);
     }
@@ -310,11 +333,11 @@ namespace stencil::gui {
       frameImage_ = QImage();
       thumbImage_ = QImage();
       previewIsVideo_ = false;
-      previewLabel_->clear();
+      clearPreviewImage();
       frameRow_->setVisible(false);
       quickcropRow_->setVisible(false);
       usePreview_->setEnabled(false);
-      previewHint_->setText("Could not load that source — " + msg);
+      setHint("Could not load that source — " + msg);
     });
 
     // Debounce seeks lightly so a fast drag coalesces into the latest position.
@@ -337,9 +360,13 @@ namespace stencil::gui {
       if (previewIsVideo_) updateVideoPreview();
     });
 
-    // A URL edit invalidates the current preview (and any video frame state); Enter
-    // previews it. Typing a URL blanks the (mutually exclusive) file selection.
-    connect(url_, &QLineEdit::textEdited, this, [this] { resetPreviewState(); refreshButtons(); });
+    // A URL edit keeps the picture on screen while the text is corrected — it only
+    // stops counting as THIS url's preview (the frame/crop controls it sized go with
+    // it), and opening re-resolves the typed url. Enter previews it again.
+    connect(url_, &QLineEdit::textEdited, this, [this] {
+      if (source() != previewedSource_) stalePreview();
+      refreshButtons();
+    });
     url_->installEventFilter(this);
     connect(tabs_, &QTabWidget::currentChanged, this, [this] { applyMode(); });
     tabs_->setCurrentIndex(startBlank ? TabBlank : TabFile);
@@ -370,18 +397,31 @@ namespace stencil::gui {
   }
 
   void OpenImageDialog::pickCustomColor() {
-    const QColor c = QColorDialog::getColor(customColor_, this, "Fill color",
-                                            QColorDialog::DontUseNativeDialog);
+    // Anchored on the custom-fill swatch that was clicked.
+    const QColor c =
+        support::pickColorAnimated(customColor_, this, "Fill color", customSwatch_);
     if (!c.isValid()) return;
     customColor_ = c;
     customColorRadio_->setChecked(true);
     setColorSwatch(customSwatch_, customColor_);
   }
 
-  // Swap the footer actions to match the active tab. Replace only ever applies to a
-  // local-file source over a replaceable project. Preview + crop are file/URL only.
+  // A QTabWidget's pane is as tall as its TALLEST page, so the one-row File/URL
+  // tabs would carry the Blank tab's empty rows under them — give only the page on
+  // show its height (the browser's tab panel is content-height too).
+  void OpenImageDialog::fitTabsToCurrentPage() {
+    QWidget* page = tabs_->currentWidget();
+    if (!page) return;
+    int tallest = 0;   // QTabWidget::sizeHint() asks every page, not just the one on show
+    for (int i = 0; i < tabs_->count(); i++)
+      tallest = std::max(tallest, tabs_->widget(i)->sizeHint().height());
+    const int chrome = tabs_->sizeHint().height() - tallest;   // tab bar + pane frame
+    tabs_->setFixedHeight(chrome + page->sizeHint().height());
+  }
+
   void OpenImageDialog::applyMode() {
     const bool blank = tabs_->currentIndex() == TabBlank;
+    fitTabsToCurrentPage();
     commonForm_->setRowVisible(incognito_, !blank);  // incognito has no effect on a blank
     here_->setVisible(!blank);
     newWindow_->setVisible(!blank);
@@ -389,7 +429,7 @@ namespace stencil::gui {
     replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
     createBlank_->setVisible(blank);
     previewBtn_->setVisible(!blank);
-    previewLabel_->setVisible(!blank);
+    if (blank) clearPreviewImage();   // the blank tab has no source to preview
     // Switching source tabs invalidates any preview built for the other tab.
     resetPreviewState();
     if (!blank) refreshButtons();
@@ -432,22 +472,40 @@ namespace stencil::gui {
   void OpenImageDialog::doPreview() {
     const QString src = source();
     if (src.isEmpty()) {
-      previewHint_->setText("Choose a file or paste a URL first.");
+      setHint("Choose a file or paste a URL first.");
       return;
     }
-    previewHint_->setText("Loading…");
+    setHint("Loading…");
+    previewedSource_ = src;
     preview_->load(src, frame_->value());
   }
 
-  void OpenImageDialog::resetPreviewState() {
+  // The typed source has moved on from the one that was previewed: keep the picture up (it
+  // is still what the user asked to see) but drop everything derived from it, so nothing
+  // downstream mistakes it for a preview of the CURRENT source.
+  void OpenImageDialog::stalePreview() {
     if (fetchTimer_) fetchTimer_->stop();
     teardownScrubPlayer();
     previewImage_ = QImage();
     frameImage_ = QImage();
     thumbImage_ = QImage();
     previewIsVideo_ = false;
-    previewLabel_->clear();
-    previewHint_->clear();
+    frameRow_->setVisible(false);
+    quickcropRow_->setVisible(false);
+    usePreview_->setEnabled(false);
+    if (previewLabel_->isVisible()) setHint("Preview of the previous URL — press Preview to load this one.");
+  }
+
+  void OpenImageDialog::resetPreviewState() {
+    previewedSource_.clear();
+    if (fetchTimer_) fetchTimer_->stop();
+    teardownScrubPlayer();
+    previewImage_ = QImage();
+    frameImage_ = QImage();
+    thumbImage_ = QImage();
+    previewIsVideo_ = false;
+    clearPreviewImage();
+    setHint({});
     frameRow_->setVisible(false);
     quickcropRow_->setVisible(false);
     usePreview_->setEnabled(false);
@@ -551,16 +609,29 @@ namespace stencil::gui {
     if (previewIsVideo_ && !usePreview_->isChecked()) updateVideoPreview();
   }
 
-  // Render `img` into the preview area + set the status hint (adopted on open).
+  // The muted status line under the preview: shown only when it has something to
+  // say, so an untouched dialog keeps no blank line for it.
+  void OpenImageDialog::setHint(const QString& text) {
+    previewHint_->setText(text);
+    previewHint_->setVisible(!text.isEmpty());
+  }
+
+  // Drop the rendered preview AND its box — an empty bordered panel is not a preview.
+  void OpenImageDialog::clearPreviewImage() {
+    previewLabel_->clear();
+    previewLabel_->setVisible(false);
+  }
+
   void OpenImageDialog::showPreview(const QImage& img, const QString& hint) {
     previewImage_ = img;
     if (img.isNull()) {
-      previewLabel_->clear();
+      clearPreviewImage();
       return;
     }
     previewLabel_->setPixmap(QPixmap::fromImage(img).scaled(
         kPreviewMaxW, kPreviewMaxH, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    previewHint_->setText(hint);
+    previewLabel_->setVisible(true);
+    setHint(hint);
   }
 
   // For a video, show either the embedded preview image (when chosen + available) or

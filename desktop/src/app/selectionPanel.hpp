@@ -18,7 +18,7 @@ class QListWidget;
 
 // Side panel listing the selected line's points and its measurements (point
 // count, segment count, total length) AND an inline editor for the selected
-// line's style (color, thickness, marker size, dash style, locked-area fill).
+// line's style (color, thickness, point size, dash style, locked-area fill).
 // Port of browser/js/ui/selectionPanel.js (markup) +
 // browser/js/core/drawingApp.js showSelectionPanel/applySelectionChange wiring.
 namespace stencil::gui {
@@ -50,15 +50,27 @@ namespace stencil::gui {
     // Show/hide the "N lines selected" multi-select note (n >= 2 shows it).
     void setMultiSelectCount(int n);
     // Rebuild the "Lines" tab list — one row per committed line (color chip, index, point
-    // count, area marker), highlighting rows whose index is in `selected`. Mirrors browser
+    // count, area badge), highlighting rows whose index is in `selected`. Mirrors browser
     // drawingApp.js renderLinesList; MainWindow calls it from onSelectionChanged.
     void setLines(const core::Lines& lines, const std::vector<int>& selected);
+    // Canvas-driven hover cross-highlight: tint the points-table row `pointRow` (a point
+    // of the shown line under the canvas cursor) and the Lines-tab row `lineRow` (the
+    // committed line under it). -1 clears. Never scrolls either list.
+    void setCanvasHover(int pointRow, int lineRow);
     // Add the panel-toggle keyboard shortcut to the header chevron's tooltip (e.g. "Hide panel (Alt+X)").
     void setToggleHint(const QString& hint);
+    // Turn the header chevron over `ms` (ms <= 0 = jump). MainWindow drives it from
+    // setPanelShown, so every route into the collapse — chevron, Alt+X, View menu — turns it.
+    void spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms);
 
    signals:
     void pointActivated(int index);        // user clicked / double-clicked a row
     void pointDeleteRequested(int index);  // user pressed Delete or clicked the row's 🗑
+    // Hover cross-highlight, list → canvas: the cursor entered a points-table row /
+    // Lines-tab row (-1 = it left the list). MainWindow forwards to the canvas's
+    // setListHoverPoint / setListHoverLine (browser coordTable row mouseenter parity).
+    void pointRowHovered(int index);
+    void lineRowHovered(int index);
     // Lines tab: a row was clicked (multi = Ctrl/⌘+Shift held → toggle multi-select) or its 🗑 hit.
     void lineListActivated(int index, bool multi);
     void lineListRemoveRequested(int index);
@@ -69,8 +81,10 @@ namespace stencil::gui {
     // Inline-editor signals — MainWindow forwards these to the canvas's
     // setSelectedLine* mutators (browser/js/core/drawingApp.js:181-195).
     void lineColorChanged(const QString& color);
+    // Point colour of the selected line, set independently of lineColorChanged.
+    void linePointColorChanged(const QString& pointColor);
     void lineThicknessChanged(int thickness);
-    void lineMarkerSizeChanged(int markerSize);
+    void linePointSizeChanged(int pointSize);
     void lineStyleChanged(const QString& style);
     void lineFillChanged(const QString& fillColor);  // "transparent" = no fill
     void lineDeleteRequested();
@@ -80,11 +94,16 @@ namespace stencil::gui {
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
+    // Re-seeds the header chevron at 0° (›): the last collapse left it turned to ‹, which is
+    // the floating re-open button's glyph, not this one's.
+    void showEvent(QShowEvent* event) override;
 
    private:
     // Re-paint a flat color chip onto a swatch button's icon (mirrors the
     // toolbar's MainWindow::updateColorSwatch; browser uses <input type=color>).
     void setSwatchColor(QPushButton* btn, const QColor& color);
+    // Apply row `i`'s Lines-tab style: selected outline > canvas-hover tint > plain.
+    void styleLineRow(int i);
 
     QToolButton* collapseBtn_ = nullptr;  // header chevron: hide the panel (browser panel header)
     QTabWidget* tabs_ = nullptr;     // Points | Lines
@@ -94,12 +113,13 @@ namespace stencil::gui {
     QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
 
     // Inline line editor (above the points list). Browser selectionPanel.js
-    // ids: selColor / selThickness / selMarkerSize / selStyle / selFillGroup /
+    // ids: selColor / selThickness / selPointSize / selStyle / selFillGroup /
     // selFillEnabled / selFill / selFillClear / selDeselect.
     QWidget* editor_ = nullptr;
     QPushButton* colorSwatch_ = nullptr;   // selColor
+    QPushButton* pointColorSwatch_ = nullptr;   // selPointColor
     QSpinBox* thickness_ = nullptr;        // selThickness   (1..20)
-    QSpinBox* markerSize_ = nullptr;       // selMarkerSize  (1..30)
+    QSpinBox* pointSize_ = nullptr;       // selPointSize  (1..30)
     QComboBox* style_ = nullptr;           // selStyle
     QWidget* fillGroup_ = nullptr;         // selFillGroup (locked areas only)
     QCheckBox* fillEnabled_ = nullptr;     // selFillEnabled
@@ -109,8 +129,16 @@ namespace stencil::gui {
     QPushButton* deselectBtn_ = nullptr;   // selDeselect
 
     QColor currentColor_{"#FFFF00"};       // backing for colorSwatch_
+
+    QColor currentPointColor_{"#FFFF00"};
     QColor currentFill_{"#3399ff"};        // backing for fillSwatch_
     bool updating_ = false;                // suppress signals during showLine
+
+    // Canvas-driven hover rows (setCanvasHover) + the Lines-tab selection snapshot
+    // styleLineRow needs to restyle a single row without a full rebuild.
+    int canvasHoverPointRow_ = -1;
+    int canvasHoverLineRow_ = -1;
+    std::vector<int> linesSelected_;
   };
 
 }

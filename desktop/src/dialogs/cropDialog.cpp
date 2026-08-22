@@ -1,4 +1,5 @@
 #include "cropDialog.hpp"
+#include "iconSet.hpp"
 #include "guiHelpers.hpp"
 #include <QHBoxLayout>
 #include <QLabel>
@@ -197,6 +198,8 @@ namespace stencil::gui {
 
     auto* controls = new QHBoxLayout;
     orientationBtn_ = new QPushButton(this);
+    // Browser parity: #crop-orientation carries the swap glyph beside Album/Portrait.
+    orientationBtn_->setIcon(themedIcon("swap", palette().color(QPalette::WindowText), 15));
     orientationBtn_->setToolTip(
         "Swap album / portrait — flips the crop orientation");
     controls->addWidget(orientationBtn_);

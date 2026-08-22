@@ -1,9 +1,13 @@
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include "pageMetrics.hpp"
 #include <QAbstractButton>
+#include <QBuffer>
+#include <QGuiApplication>
 #include <QColor>
 #include <QComboBox>
 #include <QDialog>
+#include <QEasingCurve>
 #include <QIcon>
 #include <QPainter>
 #include <QPen>
@@ -11,15 +15,41 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QStringList>
+#include <QVariantAnimation>
 #include <QtMath>
 #include <cmath>
 
 namespace stencil::gui {
 
+  // Object name that marks (and lets us cancel) an in-flight spinIcon animation.
+  static const QString kIconSpin = QStringLiteral("stencilIconSpin");
+
+  QString inlineIconHtml(const QString& name, const QColor& color, int px,
+                         const QString& style, qreal dpr) {
+    if (px <= 0 || !hasIcon(name)) return QString();
+    const qreal ratio = dpr > 0 ? dpr : (qApp ? qApp->devicePixelRatio() : qreal(1));
+    QByteArray png;
+    QBuffer buf(&png);
+    buf.open(QIODevice::WriteOnly);
+    // The dpr-AWARE pixmap overload: pixmap(w, h) asks for device pixels and would
+    // hand back the raster scaled DOWN to px, throwing the Retina detail away. The
+    // width/height attributes below scale the px·dpr raster back to px on screen.
+    themedIcon(name, color, px, /*shadow=*/false, ratio)
+        .pixmap(QSize(px, px), ratio)
+        .toImage()
+        .save(&buf, "PNG");
+    return QStringLiteral("<img src=\"data:image/png;base64,%1\" width=\"%2\" height=\"%3\"%4>")
+        .arg(QString::fromLatin1(png.toBase64()))
+        .arg(px)
+        .arg(px)
+        .arg(style.isEmpty() ? QString()
+                             : QStringLiteral(" style=\"%1\"").arg(style));
+  }
+
   QString panelToggleQss() {
     return QStringLiteral(
         "QToolButton{background:rgba(70,76,94,230);border:1px solid rgba(255,255,255,42);"
-        "border-radius:7px;padding:0;}"
+        "border-radius:7px;padding:0;outline:none;}"
         "QToolButton:hover{background:rgba(94,102,124,245);}");
   }
 
@@ -42,6 +72,28 @@ namespace stencil::gui {
       }
     }
     return box;
+  }
+
+  void spinIcon(QAbstractButton* btn, const QString& name, const QColor& color, int size,
+                qreal fromDeg, qreal toDeg, int ms) {
+    if (!btn) return;
+    for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(kIconSpin)) {
+      old->stop();
+      old->deleteLater();
+    }
+    auto paint = [btn, name, color, size](qreal deg) {
+      btn->setIcon(rotatedIcon(name, color, size, deg));
+    };
+    if (ms <= 0) { paint(toDeg); return; }
+    auto* anim = new QVariantAnimation(btn);
+    anim->setObjectName(kIconSpin);
+    anim->setDuration(ms);
+    anim->setEasingCurve(QEasingCurve::OutCubic);   // the extent slides' curve
+    anim->setStartValue(fromDeg);
+    anim->setEndValue(toDeg);
+    QObject::connect(anim, &QVariantAnimation::valueChanged, btn,
+                     [paint](const QVariant& v) { paint(v.toReal()); });
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   void setColorSwatch(QAbstractButton* btn, const QColor& color) {

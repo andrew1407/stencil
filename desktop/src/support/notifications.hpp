@@ -1,12 +1,16 @@
 #pragma once
+#include <QColor>
+#include <QLabel>
+#include <QList>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 
 class QWidget;
 
 // Transient toast notifications. Port of browser/js/ui/notifications.js: a small
 // message that appears, then auto-dismisses after a few seconds. Toasts stack
-// downward from the top-center of the host widget.
+// upward from the bottom-left of the host widget.
 namespace stencil::gui {
 
   class Notifications : public QObject {
@@ -14,7 +18,26 @@ namespace stencil::gui {
    public:
     enum class Level { Info, Success, Error };
 
+    // The stack never grows past this: the browser shows ONE balloon at a time, and the
+    // desktop's stacking meant a repeated action (flipping the theme a few times) walled
+    // off the bottom-left corner of the canvas with a column of identical toasts. A
+    // fourth arrival retires the oldest early instead of piling on.
+    static constexpr int kMaxVisible = 3;
+
     explicit Notifications(QWidget* host);
+
+    // Re-colour the toasts to the active theme. TWO colours, not one per level: red means
+    // something went wrong, everything else carries the theme accent (browser parity — see
+    // .notify-ok/.notify-info in css/components.css). Without this the levels were three
+    // fixed hexes that matched neither theme, including a green that sat outside the palette.
+    void setColors(const QColor& normal, const QColor& error);
+
+    // Extra clearance above the host's bottom edge — MainWindow hands it the status bar's
+    // height, so the stack sits ON the canvas rather than across the coord readout.
+    void setBottomInset(int px);
+    // Extra clearance off the left edge — a left-docked chat panel would otherwise
+    // sit under the stack (MainWindow::syncToastInset).
+    void setLeftInset(int px);
 
     void info(const QString& text) { show(text, Level::Info); }
     void success(const QString& text) { show(text, Level::Success); }
@@ -31,8 +54,22 @@ namespace stencil::gui {
 
    private:
     void reflow();
+    // Play a toast out and delete it. Idempotent: a toast retired early by the cap above
+    // still has its own auto-dismiss timer pending, and that must not restage the exit.
+    void dismiss(QLabel* toast);
+    // Toasts on screen, oldest first — the ones already leaving don't count.
+    QList<QLabel*> liveToasts() const;
 
     QWidget* host_ = nullptr;
+    QColor normalBg_{"#7c3aed"}, errorBg_{"#d6293e"};   // light-theme defaults
+    int bottomInset_ = 0;
+    int leftInset_ = 0;
+    // Insertion order, which is the ONLY reliable source of "oldest". The obvious
+    // host_->findChildren<QLabel*>("toast") is not: reflow() raise()s each toast, and
+    // raise() moves a widget to the end of its parent's child list — so that order flips
+    // on every reflow, and the cap below happily retired the NEWEST toasts.
+    // QPointer, so a toast deleted by any other route drops out on its own.
+    QList<QPointer<QLabel>> stack_;
   };
 
 }

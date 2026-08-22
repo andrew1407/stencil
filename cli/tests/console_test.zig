@@ -5,12 +5,41 @@
 const std = @import("std");
 const console = @import("../src/console.zig");
 const image = @import("../src/image.zig");
+const logo = @import("../src/logo.zig");
 const testing = std.testing;
 const sample = @embedFile("fixtures/sample.png");
 
 fn cur(session: *console.Session) image.Rgba8 {
     return session.current().*;
 }
+
+/// Collects the console's human output (`logo.print`) so a test can assert on what the
+/// user is actually told, using the same sink seam the full-screen console installs.
+const Capture = struct {
+    gpa: std.mem.Allocator,
+    buf: std.ArrayList(u8) = .empty,
+
+    fn init(gpa: std.mem.Allocator) Capture {
+        return .{ .gpa = gpa };
+    }
+
+    fn deinit(self: *Capture) void {
+        self.buf.deinit(self.gpa);
+    }
+
+    fn install(self: *Capture) void {
+        logo.setSink(trampoline, self);
+    }
+
+    fn trampoline(ctx: *anyopaque, chunk: []const u8) void {
+        const self: *Capture = @ptrCast(@alignCast(ctx));
+        self.buf.appendSlice(self.gpa, chunk) catch {};
+    }
+
+    fn text(self: *const Capture) []const u8 {
+        return self.buf.items;
+    }
+};
 
 test "console: upload -> crop -> rotate, with undo / redo / reset / save" {
     const a = testing.allocator;
@@ -434,4 +463,174 @@ test "console: blank creates a temporary in-memory source" {
     try testing.expectEqual(@as(usize, 64), cur(&session).width);
     try testing.expectEqual(@as(usize, 48), cur(&session).height);
     try testing.expectEqualStrings("blank", session.label.?);
+}
+
+test "console: /chat toggles, shows, and clears the opt-in chat persistence" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    // Default OFF (contract §12.2); a bare /chat and '/chat show' only print the state.
+    try testing.expect(!session.chat_on);
+    try testing.expect(!try console.handle(&session, io, "/chat"));
+    try testing.expect(!session.chat_on);
+    try testing.expect(!try console.handle(&session, io, "/chat show"));
+    try testing.expect(!session.chat_on);
+
+    // on / off / true / false set the toggle explicitly (the /sync grammar).
+    _ = try console.handle(&session, io, "/chat on");
+    try testing.expect(session.chat_on);
+    _ = try console.handle(&session, io, "/chat off");
+    try testing.expect(!session.chat_on);
+    _ = try console.handle(&session, io, "/chat true");
+    try testing.expect(session.chat_on);
+    _ = try console.handle(&session, io, "/chat false");
+    try testing.expect(!session.chat_on);
+
+    // /chat clear drops the saved turns (no server project active → purely local, no
+    // network) and keeps the toggle as it is.
+    _ = try console.handle(&session, io, "/chat on");
+    try session.appendChatTurn(.user, "crop it");
+    try session.appendChatTurn(.assistant, "done");
+    try testing.expectEqual(@as(usize, 2), session.chat_history.items.len);
+    _ = try console.handle(&session, io, "/chat clear");
+    try testing.expectEqual(@as(usize, 0), session.chat_history.items.len);
+    try testing.expect(session.chat_on);
+
+    // An unknown argument only errors — nothing changes.
+    _ = try console.handle(&session, io, "/chat frobnicate");
+    try testing.expect(session.chat_on);
+    try testing.expectEqual(@as(usize, 0), session.chat_history.items.len);
+}
+
+test "console: /chat on says who can read a saved chat" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    var cap = Capture.init(a);
+    defer cap.deinit();
+    cap.install();
+    defer logo.clearSink();
+
+    // §12.2: a transcript records what the user asked for in their own words, and on a
+    // server project the chat file carries the PROJECT's access — which is not what
+    // "save chats with the project" sounds like it promises. The console has to say so
+    // at the toggle, on the turn that switches saving ON, before anything is written.
+    _ = try console.handle(&session, io, "/chat on");
+    try testing.expect(std.mem.indexOf(u8, cap.text(), "shared with") != null);
+    try testing.expect(std.mem.indexOf(u8, cap.text(), "readable by everyone") != null);
+    // Both destinations named: the local .stencil file and the server project.
+    try testing.expect(std.mem.indexOf(u8, cap.text(), ".stencil project") != null);
+    try testing.expect(std.mem.indexOf(u8, cap.text(), "server project") != null);
+}
+
+test "console: /llm shows and overrides the session's provider config" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    // Seed the env the way main.zig does (STENCIL_LLM_* → console.run → session.llm_env).
+    var session = console.Session{ .gpa = a, .llm_env = .{ .base_url = "http://box:7777" } };
+    defer session.deinit();
+
+    // Bare /llm resolves the config lazily (env url wins over the ollama default).
+    _ = try console.handle(&session, io, "/llm");
+    try testing.expect(session.llm_cfg.?.provider == .ollama);
+    try testing.expectEqualStrings("http://box:7777", session.llm_cfg.?.base_url);
+
+    // Changing the provider re-fills its default url (the env value was not a session
+    // override) …
+    _ = try console.handle(&session, io, "/llm provider openai-compat");
+    try testing.expect(session.llm_cfg.?.provider == .openai_compat);
+    try testing.expectEqualStrings("http://localhost:1234/v1", session.llm_cfg.?.base_url);
+
+    // … while a '/llm url' override survives later provider changes.
+    _ = try console.handle(&session, io, "/llm url http://mine:9/v1/");
+    _ = try console.handle(&session, io, "/llm provider ollama");
+    try testing.expectEqualStrings("http://mine:9/v1", session.llm_cfg.?.base_url);
+
+    _ = try console.handle(&session, io, "/llm model llava");
+    _ = try console.handle(&session, io, "/llm key sk-secret");
+    _ = try console.handle(&session, io, "/llm server https://s:8090/");
+    try testing.expectEqualStrings("llava", session.llm_cfg.?.model);
+    try testing.expectEqualStrings("sk-secret", session.llm_cfg.?.api_key);
+    try testing.expectEqualStrings("https://s:8090", session.llm_cfg.?.server_url);
+
+    // Unknown provider / sub-command and a bare /prompt only print — nothing changes.
+    _ = try console.handle(&session, io, "/llm provider gpt5");
+    try testing.expect(session.llm_cfg.?.provider == .ollama);
+    _ = try console.handle(&session, io, "/llm frobnicate x");
+    _ = try console.handle(&session, io, "/prompt");
+    try testing.expectEqual(@as(usize, 0), session.stateCount());
+}
+
+// An uncropped image must still name its cropRect in the layout. The GUIs auto-crop a
+// freshly loaded image to the page aspect unless the layout names one, so omitting it
+// (the old behaviour) made them shrink the image and strand lines outside the page rect.
+test "console: layout always carries a cropRect, full-frame when nothing is cropped" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const in = "stencil_croprect_in.png";
+    try dir.writeFile(io, .{ .sub_path = in, .data = sample });
+    defer dir.deleteFile(io, in) catch {};
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+    _ = try console.handle(&session, io, "/upload " ++ in);
+
+    // No crop applied → the whole 16x12 frame, stated explicitly.
+    const bare = try session.currentLayoutJson();
+    defer a.free(bare);
+    try testing.expect(std.mem.indexOf(u8, bare, "\"cropRect\":{\"x\":0,\"y\":0,\"width\":16,\"height\":12}") != null);
+
+    // Still full-frame after a quarter turn, in the ROTATED original's space (12x16).
+    _ = try console.handle(&session, io, "/rotate 1");
+    const turned = try session.currentLayoutJson();
+    defer a.free(turned);
+    try testing.expect(std.mem.indexOf(u8, turned, "\"cropRect\":{\"x\":0,\"y\":0,\"width\":12,\"height\":16}") != null);
+
+    // An explicit crop still wins over the full-frame default.
+    _ = try console.handle(&session, io, "/rotate 3"); // back to the upright original
+    _ = try console.handle(&session, io, "/crop x1=0% x2=50% y1=0% y2=100%");
+    const cropped = try session.currentLayoutJson();
+    defer a.free(cropped);
+    try testing.expect(std.mem.indexOf(u8, cropped, "\"cropRect\":{\"x\":0,\"y\":0,\"width\":8,\"height\":12}") != null);
+}
+
+test "console: 'there are none' is an answer for a listing, a refusal for an action" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    var cap = Capture.init(a);
+    defer cap.deinit();
+    cap.install();
+    defer logo.clearSink();
+
+    // A listing command truthfully answering "there are none" carries no severity…
+    _ = try console.handle(&session, io, "/connections");
+    try testing.expectEqualStrings("no server connections — use '/connect <url>'\n", cap.text());
+
+    // …while a command that tried to act and could not is an error, same wording.
+    cap.buf.clearRetainingCapacity();
+    _ = try console.handle(&session, io, "/disconnect");
+    try testing.expectEqualStrings("error: no server connections — use '/connect <url>'\n", cap.text());
 }

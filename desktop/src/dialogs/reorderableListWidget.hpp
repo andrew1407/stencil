@@ -77,9 +77,9 @@ namespace stencil::gui {
       setSelectionMode(QAbstractItemView::SingleSelection);
       // A bright insertion line showing WHERE a dragged row will land (Qt's built-in indicator
       // doesn't show for our manually-handled drag). A thin click-through child of the viewport.
-      dropMarker_ = new QWidget(viewport());
-      dropMarker_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-      dropMarker_->hide();
+      dropIndicator_ = new QWidget(viewport());
+      dropIndicator_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+      dropIndicator_->hide();
     }
     // In-list reorder: move the row at `from` to `to` (QList::move semantics on the model).
     std::function<void(int from, int to)> onReorder;
@@ -122,7 +122,7 @@ namespace stencil::gui {
       pendingTo_ = from;
       if (onDragStart) onDragStart();
       drag->exec(Qt::MoveAction);
-      hideDropMarker();
+      hideDropIndicator();
       if (onDragEnd) onDragEnd();
       if (droppedInList_) {
         if (pendingFrom_ != pendingTo_ && onReorder) onReorder(pendingFrom_, pendingTo_);
@@ -133,17 +133,17 @@ namespace stencil::gui {
 
    protected:
     // Position the insertion line at viewport-y `y` (the top or bottom edge of the target row).
-    void positionDropMarker(int y) {
-      if (!dropMarker_) return;
-      dropMarker_->setStyleSheet(
+    void positionDropIndicator(int y) {
+      if (!dropIndicator_) return;
+      dropIndicator_->setStyleSheet(
           QStringLiteral("background:%1; border-radius:2px;").arg(palette().color(QPalette::Highlight).name()));
-      dropMarker_->setGeometry(3, y - 2, viewport()->width() - 6, 4);
-      dropMarker_->raise();
-      dropMarker_->show();
+      dropIndicator_->setGeometry(3, y - 2, viewport()->width() - 6, 4);
+      dropIndicator_->raise();
+      dropIndicator_->show();
     }
-    void hideDropMarker() { if (dropMarker_) dropMarker_->hide(); }
+    void hideDropIndicator() { if (dropIndicator_) dropIndicator_->hide(); }
     // The viewport-y where the insertion line should sit for a drop at `pos`.
-    int dropMarkerY(const QPoint& pos) const {
+    int dropIndicatorY(const QPoint& pos) const {
       QListWidgetItem* tgt = const_cast<ReorderableListWidget*>(this)->itemAt(pos);
       if (tgt) {
         const QRect r = visualItemRect(tgt);
@@ -165,17 +165,17 @@ namespace stencil::gui {
       if (e->mimeData()->hasFormat(reorderRowMime())) {
         e->setDropAction(Qt::MoveAction);
         e->accept();
-        positionDropMarker(dropMarkerY(e->position().toPoint()));  // show the insertion line
+        positionDropIndicator(dropIndicatorY(e->position().toPoint()));  // show the insertion line
       } else {
         QListWidget::dragMoveEvent(e);
       }
     }
     void dragLeaveEvent(QDragLeaveEvent* e) override {
-      hideDropMarker();
+      hideDropIndicator();
       QListWidget::dragLeaveEvent(e);
     }
     void dropEvent(QDropEvent* e) override {
-      hideDropMarker();
+      hideDropIndicator();
       if (!e->mimeData()->hasFormat(reorderRowMime())) { QListWidget::dropEvent(e); return; }
       // Defer the actual model mutation to beginRowDrag (after the drag loop unwinds) so we
       // don't rebuild the list from inside its own drop event.
@@ -205,7 +205,7 @@ namespace stencil::gui {
     bool droppedInList_ = false;
     int pendingFrom_ = -1;
     int pendingTo_ = -1;
-    QWidget* dropMarker_ = nullptr;
+    QWidget* dropIndicator_ = nullptr;
   };
 
 }  // namespace stencil::gui

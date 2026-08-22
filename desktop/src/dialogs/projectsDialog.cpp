@@ -1,9 +1,15 @@
+#include "../support/searchCombo.hpp"
 #include "projectsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "projectDragZones.hpp"
 #include "projectsStore.hpp"
 #include "reorderableListWidget.hpp"
+#include "../app/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
+#include "../support/disintegrateOverlay.hpp"  // deleted rows come apart
+#include "../support/displayName.hpp"          // shortName for the remove confirm
+#include "../support/dissolveEffect.hpp"      // scroll-edge grain dissolve
+#include "../support/modalReveal.hpp"         // animated colour picker
 #include "serverClient.hpp"
 #include <QAbstractItemView>
 #include <QAction>
@@ -13,8 +19,8 @@
 #include <QLocale>
 #include <QComboBox>
 #include <QMenu>
+#include <QMessageBox>
 #include <QColor>
-#include <QColorDialog>
 #include <QFont>
 #include <QDialogButtonBox>
 #include <QEvent>
@@ -53,11 +59,23 @@
 namespace stencil::gui {
 
   namespace {
-    // Per-session (process-lifetime) project sort mode + manual drag order — shared across
-    // dialog re-opens but reset on app restart, the desktop analogue of the browser modal's
-    // sessionStorage. Deliberately NOT persisted to disk (order is a local, per-session view).
-    // Modes mirror the browser: name (by-name-mixed, default), local, server, date-desc,
-    // date-asc, manual.
+    // Ctrl on Windows/Linux; Qt maps macOS ⌘ to ControlModifier, and Meta is
+    // accepted too so a remapped keyboard still works. Used by the row-open
+    // gestures to pick "new window" over "current window".
+    bool isNewWindowMod(Qt::KeyboardModifiers m) {
+      return m.testFlag(Qt::ControlModifier) || m.testFlag(Qt::MetaModifier);
+    }
+
+    // Longest edge of the floating hover-magnify preview. Matches the browser modal's
+    // PREVIEW_ZOOM (1.67) applied to its 160px stored thumbnails, so the popped preview
+    // is the same size on both surfaces.
+    constexpr int kHoverPreviewPx = 267;
+  }  // namespace
+
+  namespace {
+    // Per-session project sort mode + manual drag order — shared across dialog
+    // re-opens, reset on app restart (the desktop analogue of the browser modal's
+    // sessionStorage; deliberately NOT persisted). Modes mirror the browser.
     QString g_projectsSortMode = QStringLiteral("name");
     QStringList g_projectsManualOrder;   // (serverUrl|id) keys in manual order
 
@@ -92,10 +110,9 @@ namespace stencil::gui {
       return QString("Expires %1").arg(QLocale().toString(d, QLocale::ShortFormat));
     }
 
-    // Modal name prompt with live validation (mirrors the browser's validated inline
-    // rename): the ✓ (OK) button is enabled only when the trimmed name is non-empty,
-    // ≤80 chars, and unique (excluding `exceptId`); its tooltip shows the reason when
-    // disabled. Returns the accepted name, or nullopt on cancel.
+    // Modal name prompt with live validation (mirrors the browser's inline rename):
+    // OK enabled only when the trimmed name is non-empty, ≤80 chars, and unique
+    // (excluding `exceptId`); its tooltip shows the reason. nullopt on cancel.
     std::optional<QString> promptValidatedName(QWidget* parent, const QString& title,
                                                const QString& initial,
                                                const QString& exceptId,
@@ -139,6 +156,27 @@ namespace stencil::gui {
       return QRect(rowRect.right() - w, rowRect.top(), w, rowRect.height());
     }
 
+    constexpr int kBadgeGap = 8;   // between the origin badge and the kebab strip
+
+    // UserRole+7: "doomed" — this row's removal scatter is playing. The delegate
+    // paints NOTHING for it (the overlay animates a snapshot; the row must not keep
+    // painting underneath); the slot stays until retireRow drops the item.
+    constexpr int kDoomedRole = Qt::UserRole + 7;
+
+    // The origin badge's footprint, so the row text can stop before it (paintRow reserves
+    // this, the badge paint below lays it out). Zero for placeholder rows, which have none.
+    int originBadgeWidth(const QStyleOptionViewItem& o, const QModelIndex& idx) {
+      if (idx.data(Qt::UserRole).isNull()) return 0;
+      const QString server = idx.data(Qt::UserRole + 1).toString();
+      const QString text = !server.isEmpty()
+                               ? server
+                               : (idx.data(Qt::UserRole + 6).toBool() ? QStringLiteral(".stencil")
+                                                                      : QStringLiteral("this computer"));
+      QFont bf(o.font);
+      bf.setPointSizeF(std::max(8.0, o.font.pointSizeF() - 1.5));
+      return 13 + 4 + QFontMetrics(bf).horizontalAdvance(text) + kBadgeGap;
+    }
+
     // Paints a rounded golden outline around server (shared) rows — the desktop analogue
     // of the browser's `.project-remote` border — plus a vertical "⋯" kebab on every
     // real row (the browser modal's per-row "more actions" button).
@@ -153,8 +191,45 @@ namespace stencil::gui {
           s.setWidth(av->viewport()->width());
         return s;
       }
+      // Rows dissolve toward the list's top/bottom edges as it scrolls (browser parity:
+      // .reveal-item in css/animations.css). The whole row — background, text, badges —
+      // rides one painter opacity, so nothing can fade out of step.
       void paint(QPainter* p, const QStyleOptionViewItem& opt,
                  const QModelIndex& idx) const override {
+        if (idx.data(kDoomedRole).toBool()) return;   // scatter plays over the held-open slot
+        const auto* av = qobject_cast<const QAbstractItemView*>(opt.widget);
+        const double dissolve = revealDissolveForItem(av ? av->viewport() : nullptr, opt.rect);
+        if (dissolve <= 0.001) { paintRow(p, opt, idx); return; }
+        if (dissolve >= 0.999) return;   // fully out — nothing to draw
+        // A painted row has no widget to hang a QGraphicsEffect on, so it is rendered
+        // into a scratch pixmap and masked by hand — the same grain + bottom-to-top
+        // wipe DissolveEffect applies to the transcript's cards.
+        const qreal dpr = p->device()->devicePixelRatioF();
+        QPixmap buf(opt.rect.size() * dpr);
+        buf.setDevicePixelRatio(dpr);
+        buf.fill(Qt::transparent);
+        {
+          QPainter bp(&buf);
+          QStyleOptionViewItem shifted(opt);
+          shifted.rect.moveTo(0, 0);   // the scratch buffer's own origin
+          paintRow(&bp, shifted, idx);
+          bp.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+          const int h = opt.rect.height();
+          const int viewH = av && av->viewport() ? av->viewport()->height() : 0;
+          const double visStart = h > 0 ? std::clamp(double(-opt.rect.top()) / h, 0.0, 1.0) : 0.0;
+          const double visEnd = h > 0 ? std::clamp(double(viewH - opt.rect.top()) / h, 0.0, 1.0) : 1.0;
+          bp.drawImage(0, 0, DissolveEffect::maskFor(opt.rect.size(), dissolve, dpr, visStart, visEnd));
+        }
+        p->drawPixmap(opt.rect.topLeft(), buf);
+      }
+
+     private:
+      // Breathing room between a row's thumbnail and its name: at this icon size the style's
+      // own gap leaves the text sitting against the picture.
+      static constexpr int kThumbTextGap = 12;
+
+      void paintRow(QPainter* p, const QStyleOptionViewItem& opt,
+                    const QModelIndex& idx) const {
         // Real rows: let the base paint the background/selection/icon but NOT the text, so we can
         // colour just the project NAME (status/custom colour) while the trailing "— <url>" /
         // metadata keeps the default text colour. Placeholder rows draw normally.
@@ -175,8 +250,9 @@ namespace stencil::gui {
         }
         if (realRow && !full.isEmpty()) {
           // The exact text rect the base would use (after the icon), minus the kebab strip.
+          // Room for the 30px kebab strip AND the origin badge painted below it.
           const QRect tr = st->subElementRect(QStyle::SE_ItemViewItemText, &o, o.widget)
-                               .adjusted(0, 0, -34, 0);  // leave room for the 30px kebab strip
+                               .adjusted(kThumbTextGap, 0, -34 - originBadgeWidth(o, idx), 0);
           const QString name = idx.data(Qt::UserRole + 3).toString();
           const QString rest = (!name.isEmpty() && full.startsWith(name)) ? full.mid(name.size())
                                                                           : QString();
@@ -212,23 +288,34 @@ namespace stencil::gui {
           p->drawRoundedRect(QRectF(opt.rect).adjusted(1, 1, -1, -1), 6, 6);
           p->restore();
         }
-        // Origin glyph badge over the thumbnail's bottom-right corner: `server` (gold, shared),
-        // `file-text` (bronze, .stencil), or `monitor` (grey, this-computer local storage) — the
-        // desktop counterpart of the browser badges (server icon uses this computer, not a browser).
+        // Origin badge: glyph + WORD, on the row's right — `server` (gold) with the
+        // address, `file-text` (bronze) with ".stencil", or `monitor` (grey) with
+        // "this computer". Port of the browser's inline origin badges (projectsModal.js).
         if (realRow) {
           const QString gname = remote ? QStringLiteral("server")
                                        : (fileOrigin ? QStringLiteral("file-text") : QStringLiteral("monitor"));
           const QColor gcol = remote ? QColor("#d4a017") : (fileOrigin ? QColor("#c1783c") : QColor("#9aa4b2"));
-          const QRect dec = st->subElementRect(QStyle::SE_ItemViewItemDecoration, &o, o.widget);
-          if (dec.isValid() && hasIcon(gname)) {
-            const int gs = 16;
-            const QRect gr(dec.right() - gs + 1, dec.bottom() - gs + 1, gs, gs);
+          // "browser" on the web; here the local store IS this computer, so it says so.
+          const QString gtext = remote ? idx.data(Qt::UserRole + 1).toString()
+                                       : (fileOrigin ? QStringLiteral(".stencil")
+                                                     : QStringLiteral("this computer"));
+          if (hasIcon(gname)) {
+            const int gs = 13;
+            QFont bf(o.font);
+            bf.setPointSizeF(std::max(8.0, o.font.pointSizeF() - 1.5));
+            const QFontMetrics bfm(bf);
+            const QRect zone = kebabZone(opt.rect);
+            const int textW = bfm.horizontalAdvance(gtext);
+            const int badgeW = gs + 4 + textW;
+            const int bx = zone.left() - kBadgeGap - badgeW;
+            const int by = opt.rect.center().y();
             p->save();
             p->setRenderHint(QPainter::Antialiasing, true);
-            p->setPen(Qt::NoPen);
-            p->setBrush(QColor(0, 0, 0, 160));   // dark disc so the glyph reads over any thumbnail
-            p->drawEllipse(QRectF(gr).adjusted(-2, -2, 2, 2));
-            themedIcon(gname, gcol, gs).paint(p, gr);
+            themedIcon(gname, gcol, gs).paint(p, QRect(bx, by - gs / 2, gs, gs));
+            p->setFont(bf);
+            p->setPen(gcol);
+            p->drawText(QRect(bx + gs + 4, opt.rect.top(), textW, opt.rect.height()),
+                        Qt::AlignVCenter | Qt::TextSingleLine, gtext);
             p->restore();
           }
         }
@@ -271,7 +358,7 @@ namespace stencil::gui {
       : QDialog(parent), projects_(projects), now_(now), unit_(unit),
         connections_(connections), thumbs_(thumbs) {
     setWindowTitle("Projects");
-    // Twice the previous width so the "<name> — <url>" labels fit without eliding early.
+    // Wide enough that the "<name> — <url>" labels fit without eliding early.
     setMinimumSize(760, 320);
     resize(900, 560);
 
@@ -289,7 +376,7 @@ namespace stencil::gui {
     {
       auto* frow = new QHBoxLayout;
       frow->addWidget(new QLabel("Show:", this));
-      filter_ = new QComboBox(this);
+      filter_ = new SearchComboBox(this, /*searchable=*/false);
       filter_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
       filter_->setMaximumWidth(260);
       filter_->setToolTip("Filter the list: all, local only, or a specific server");
@@ -298,7 +385,7 @@ namespace stencil::gui {
       frow->addSpacing(8);
       // Sort mode (mirrors the browser modal): the data role carries the mode key.
       frow->addWidget(new QLabel("Sort:", this));
-      sortCombo_ = new QComboBox(this);
+      sortCombo_ = new SearchComboBox(this, /*searchable=*/false);
       sortCombo_->setToolTip("Sort projects (drag a row to set a manual order)");
       sortCombo_->addItem(tr("Name"), QStringLiteral("name"));
       sortCombo_->addItem(tr("Local first"), QStringLiteral("local"));
@@ -313,7 +400,7 @@ namespace stencil::gui {
       frow->addWidget(sortCombo_);
       frow->addSpacing(8);
       // Search-mode (what the search box matches): name+keywords (default), names, keywords.
-      searchModeCombo_ = new QComboBox(this);
+      searchModeCombo_ = new SearchComboBox(this, /*searchable=*/false);
       searchModeCombo_->setToolTip("What the search box matches");
       searchModeCombo_->addItem(tr("Name + keywords"), QStringLiteral("common"));
       searchModeCombo_->addItem(tr("Names only"), QStringLiteral("names"));
@@ -325,6 +412,12 @@ namespace stencil::gui {
       search_->setClearButtonEnabled(true);
       search_->setToolTip("Filter projects by name (case-insensitive)");
       frow->addWidget(search_, 1);                    // the search field takes the remaining width
+      // Select/deselect every row in the CURRENT filtered view (browser: `selectables`).
+      selectAllBtn_ = new QPushButton(tr("Select all"), this);
+      selectAllBtn_->setObjectName("projectsSelectAll");
+      selectAllBtn_->setToolTip("Select every project in the current filtered view");
+      frow->addWidget(selectAllBtn_);
+      connect(selectAllBtn_, &QPushButton::clicked, this, &ProjectsDialog::toggleSelectAll);
       layout->addLayout(frow);
       connect(filter_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
       connect(sortCombo_, &QComboBox::currentIndexChanged, this, [this](int) {
@@ -335,32 +428,34 @@ namespace stencil::gui {
       connect(search_, &QLineEdit::textChanged, this, [this](const QString&) { applyFilter(); });
     }
 
-    // Batch-select toolbar — appears once one or more rows are checked. Buttons enable by
-    // selection homogeneity (all-local → To/Server-copy; all-server → To/Local-copy).
+    // Batch-select toolbar — appears once one or more rows are checked. Direction buttons
+    // show by selection homogeneity (all-local → To/Server-copy; all-server → To/Local-copy).
     {
-      const bool haveServers = connections_ && !connections_->urls().isEmpty();
       batchBar_ = new QWidget(this);
       auto* bh = new QHBoxLayout(batchBar_);
       bh->setContentsMargins(0, 0, 0, 0);
       batchCount_ = new QLabel("0 selected", this);
       bh->addWidget(batchCount_);
       bh->addStretch(1);
+      // Browser batch-bar parity: accent-filled actions, danger-filled Remove.
       batchToServer_ = new QPushButton(QString::fromUtf8("⇧ To server"), this);
       batchToServer_->setToolTip("Move the checked local projects to a server");
+      batchToServer_->setObjectName("primaryButton");
       batchCopyServer_ = new QPushButton(QString::fromUtf8("⧉ Server copy"), this);
       batchCopyServer_->setToolTip("Copy the checked local projects to a server");
+      batchCopyServer_->setObjectName("primaryButton");
       batchToLocal_ = new QPushButton(QString::fromUtf8("⇩ To local"), this);
       batchToLocal_->setToolTip("Move the checked server projects to local storage");
+      batchToLocal_->setObjectName("primaryButton");
       batchCopyLocal_ = new QPushButton(QString::fromUtf8("⧉ Local copy"), this);
       batchCopyLocal_->setToolTip("Copy the checked server projects to local storage");
-      auto* batchRemove = new QPushButton("Remove", this);
+      batchCopyLocal_->setObjectName("primaryButton");
+      auto* batchRemove = new QPushButton("Remove selected", this);
       batchRemove->setToolTip("Remove the checked projects");
+      batchRemove->setObjectName("dangerButton");
       auto* batchClear = new QPushButton("Clear", this);
       batchClear->setToolTip("Clear the current checkbox selection");
-      batchToServer_->setVisible(haveServers);
-      batchCopyServer_->setVisible(haveServers);
-      batchToLocal_->setVisible(haveServers);
-      batchCopyLocal_->setVisible(haveServers);
+      batchClear->setObjectName("primaryButton");
       bh->addWidget(batchToServer_);
       bh->addWidget(batchCopyServer_);
       bh->addWidget(batchToLocal_);
@@ -401,11 +496,18 @@ namespace stencil::gui {
     };
     // Show/hide the main-window drag-out zones (Open here / Open in a new window / Remove) for the
     // duration of a row drag. The dialog covers the centre; zones are reachable in its margins.
-    reList->onDragStart = [this] { if (dragZones_) dragZones_->begin(frameGeometry()); };
-    reList->onDragEnd = [this] { if (dragZones_) dragZones_->end(); };
+    reList->onDragStart = [this] {
+      rowDragging_ = true;
+      if (clickTimer_) clickTimer_->stop();  // a drag is not a click
+      if (dragZones_) dragZones_->begin(frameGeometry());
+    };
+    reList->onDragEnd = [this] {
+      rowDragging_ = false;
+      if (dragZones_) dragZones_->end();
+    };
     // Drag a row OUT of the dialog and release in a zone → run that action. Open uses
     // openSelected() (local Open / remote OpenRemote); new-window + Remove are LOCAL-only (mirrors
-    // the ⋯ menu; Remove routes through deleteSelected → the main window's Yes/No confirm).
+    // the ⋯ menu; Remove routes through deleteSelected → its in-dialog Yes/No confirm).
     reList->onDragOut = [this](int rowIdx) {
       const auto zone = dragZones_ ? dragZones_->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::None;
       if (zone == ProjectDragZones::Zone::None) return;  // released over the dialog / nowhere → keep
@@ -414,8 +516,9 @@ namespace stencil::gui {
       list_->setCurrentItem(it);
       const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
       using Zone = ProjectDragZones::Zone;
-      // These just set action_ + accept() (close the dialog); the open/delete CONFIRM is shown by
-      // MainWindow AFTER the dialog closes — never inside the drag release, which dismissed it.
+      // Open sets action_ + accept(); its confirm is shown by MainWindow AFTER the dialog
+      // closes — never inside the drag release, which dismissed it. Remove confirms
+      // in-dialog instead, deferred a turn (deleteSelected) for the same reason.
       if (zone == Zone::Here) {
         openSelected();  // local Open / remote OpenRemote
       } else if (zone == Zone::NewWindow) {
@@ -451,7 +554,19 @@ namespace stencil::gui {
     layout->addWidget(list_, 1);
     refresh();
 
-    connect(list_, &QListWidget::itemDoubleClicked, this, &ProjectsDialog::openSelected);
+    // Row-open gestures (see confirmRequested() in the header for the mapping).
+    connect(list_, &QListWidget::itemClicked, this, &ProjectsDialog::scheduleRowOpen);
+    connect(list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* it) {
+      // THE crux: kill the pending single-click open before it can raise the
+      // confirmation, so the dialog never flashes on the way to a double click.
+      if (clickTimer_) clickTimer_->stop();
+      if (pressOnCheck_) return;   // double-tapping the checkbox never opens
+      openRow(it, isNewWindowMod(pressMods_), /*confirm=*/false);
+    });
+    // Return/Enter on the focused row opens it like a single click (confirms).
+    // Consumed so it can't also trigger the dialog's default button.
+    list_->installEventFilter(this);
+    installEventFilter(this);   // own deactivation → hide the hover preview
     connect(list_, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
 
     // Bottom row: only the create actions + Close. Per-row actions (Open / Rename / Renew /
@@ -481,8 +596,20 @@ namespace stencil::gui {
     connect(newBtn, &QPushButton::clicked, this, &ProjectsDialog::createNew);
     connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
     connect(clearAllBtn, &QPushButton::clicked, this, [this] {
-      action_ = Action::ClearAll;  // the main window confirms + clears local projects
-      accept();
+      // Confirm HERE, parented to this dialog: the question then sits ON TOP of the still
+      // open Projects window. Closing first and asking afterwards left the user answering
+      // about a list they could no longer see.
+      const int n = static_cast<int>(projects_.size());
+      if (n == 0) return;
+      if (QMessageBox::question(
+              this, "Clear all projects",
+              QString("Are you sure? This removes all %1 local project(s) and cannot be undone. "
+                      "Server projects are not affected.")
+                  .arg(n),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+      scatterRows();              // the whole list comes apart before it empties
+      emit clearAllRequested();   // the owner removes them, then calls setProjects()
     });
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::reject);
 
@@ -496,6 +623,9 @@ namespace stencil::gui {
       syncClearAllLabel();
       connect(connections_, &stencil::net::ConnectionManager::changed, this, syncClearAllLabel);
     }
+    // Nothing local to clear ⇒ nothing to offer (browser parity: projectsModal disables it
+    // when only the synthetic "temporary (unsaved)" row is on screen).
+    clearAllBtn->setEnabled(!projects_.empty());
 
     // Server (shared) projects: list them now and keep them live with a periodic
     // re-list while the dialog is open. The desktop talks REST only, so this
@@ -538,10 +668,9 @@ namespace stencil::gui {
     return {};
   }
 
-  // Download a server project's preview without blocking: try the rendered `result`, then the
-  // `original`, then the `source` web URL. Each download binds to the connection's network manager
-  // (which outlives this dialog), so a QPointer guards every callback against a dialog closed
-  // mid-fetch.
+  // Download a server project's preview without blocking: rendered `result` →
+  // `original` → the `source` web URL. Downloads bind to the connection's network
+  // manager (which outlives this dialog), so a QPointer guards every callback.
   void ProjectsDialog::fetchServerThumbAsync(const QString& key,
                                              const stencil::net::ServerProject& sp) {
     if (thumbInFlight_.contains(key)) return;  // already downloading this version
@@ -630,9 +759,8 @@ namespace stencil::gui {
   QPixmap ProjectsDialog::placeholderIcon(bool remote) const {
     QPixmap pm(56, 56);
     pm.fill(Qt::transparent);
-    // A clean custom glyph for the 56×56 icon cell (so empty rows match thumbnail height),
-    // hand-drawn to avoid QStyle's jarring blue SP_DriveNetIcon globe on macOS: server rows
-    // get the gold "rack" glyph (matching the Servers dialog), local rows a muted picture glyph.
+    // Hand-drawn 56×56 glyphs (QStyle's SP_DriveNetIcon globe jars on macOS): gold
+    // "rack" for server rows (matching the Servers dialog), muted picture for local.
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
     if (remote) {
@@ -666,16 +794,56 @@ namespace stencil::gui {
   }
 
   bool ProjectsDialog::eventFilter(QObject* obj, QEvent* ev) {
+    // The hover preview is a ToolTip window: switching window or app delivers the
+    // list no Leave, and the popup would float on over whatever came to the front.
+    if (hoverPreview_ && obj == this &&
+        (ev->type() == QEvent::WindowDeactivate || ev->type() == QEvent::ApplicationDeactivate)) {
+      hoverPreview_->hide();
+    }
+    // Alt pressed/released while the preview is up: re-scale it in place from the
+    // source pixmap it carries (held = 2x, released = back to the glance size).
+    if (hoverPreview_ && hoverPreview_->isVisible() &&
+        (ev->type() == QEvent::KeyPress || ev->type() == QEvent::KeyRelease) &&
+        static_cast<QKeyEvent*>(ev)->key() == Qt::Key_Alt) {
+      const QPixmap src = hoverPreview_->property("srcPixmap").value<QPixmap>();
+      if (!src.isNull()) {
+        const int edge = (ev->type() == QEvent::KeyPress) ? kHoverPreviewPx * 2 : kHoverPreviewPx;
+        hoverPreview_->setPixmap(
+            src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        hoverPreview_->adjustSize();
+      }
+    }
+    // Return/Enter on the focused row = a plain open (with confirmation), and
+    // consumed so the dialog's default button can't also fire.
+    if (list_ && obj == list_ && ev->type() == QEvent::KeyPress) {
+      auto* ke = static_cast<QKeyEvent*>(ev);
+      if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
+        if (clickTimer_) clickTimer_->stop();
+        openRow(list_->currentItem(), isNewWindowMod(ke->modifiers()), /*confirm=*/true);
+        return true;
+      }
+    }
     if (list_ && obj == list_->viewport()) {
       // On a width change, recompute item sizeHints so rows re-clamp + re-elide to the new
       // viewport width (the delegate caps width to the viewport).
       if (ev->type() == QEvent::Resize) list_->doItemsLayout();
       // Left-click on the "⋯" kebab strip pops the row's menu (consume it so it
       // doesn't also start a drag/selection); it's the right-click menu's twin.
+      // The magnified preview IS the tooltip — never stack the text one on it.
+      if (ev->type() == QEvent::ToolTip && hoverPreview_ && hoverPreview_->isVisible())
+        return true;
       if (ev->type() == QEvent::MouseButtonPress) {
         auto* me = static_cast<QMouseEvent*>(ev);
+        // itemClicked/itemDoubleClicked carry no modifiers — remember the ones
+        // that were down for the press that produces them.
+        pressMods_ = me->modifiers();
         const QPoint vpos = me->position().toPoint();
         QListWidgetItem* it = list_->itemAt(vpos);
+        // A press on the checkbox strip is a SELECTION gesture: it must toggle
+        // the box and nothing else (no row-open, no confirm, dialog stays).
+        const QRect vr = it ? list_->visualItemRect(it) : QRect();
+        pressOnCheck_ = me->button() == Qt::LeftButton && it &&
+                        QRect(vr.left(), vr.top(), 34, vr.height()).contains(vpos);
         if (me->button() == Qt::LeftButton && it &&
             !it->data(Qt::UserRole).isNull() &&
             kebabZone(list_->visualItemRect(it)).contains(vpos)) {
@@ -704,8 +872,15 @@ namespace stencil::gui {
                 "QLabel{background:#1e1e1e;border:2px solid #d4a017;"
                 "border-radius:8px;padding:4px;}");
           }
+          // Alt HELD doubles the glance (chat HoverPreview / browser parity). The
+          // SOURCE rides along so the Alt toggle below can re-scale without a move.
+          const int edge =
+              (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)
+                  ? kHoverPreviewPx * 2
+                  : kHoverPreviewPx;
+          hoverPreview_->setProperty("srcPixmap", src);
           hoverPreview_->setPixmap(
-              src.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+              src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));
           hoverPreview_->adjustSize();
           // Down-right of the cursor, flipped/clamped to stay on-screen.
           const QPoint cur = static_cast<QMouseEvent*>(ev)->globalPosition().toPoint();
@@ -728,6 +903,14 @@ namespace stencil::gui {
     return QDialog::eventFilter(obj, ev);
   }
 
+  // Replace the listed projects and repaint (see the header): lets the owner act on a
+  // request without the dialog having to close and be reopened.
+  void ProjectsDialog::setProjects(const std::vector<Project>& projects) {
+    projects_ = projects;
+    if (clearAllBtn_) clearAllBtn_->setEnabled(!projects_.empty());   // nothing left to clear
+    refresh();
+  }
+
   void ProjectsDialog::refresh() {
     // Preserve the selected row across a live remote re-list so the polling timer
     // doesn't yank the user's selection out from under them.
@@ -739,10 +922,9 @@ namespace stencil::gui {
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
 
-    // Multi-line row tooltip (Qt honours the \n's), in order: image size + orientation, the
-    // total drawn-line length in the active unit (local rows only — cached as lineLengthCm at
-    // save time), the description when set, and the origin note. `lineLenCm` is 0 to omit the
-    // Line row (server rows don't carry a line length).
+    // Multi-line row tooltip, in order: image size + orientation, total drawn-line
+    // length in the active unit (local rows only; `lineLenCm` 0 omits the row),
+    // the description when set, and the origin note.
     auto rowTooltip = [&](int w, int h, double lineLenCm, const QString& description,
                           const QString& origin) {
       QStringList lines;
@@ -773,9 +955,8 @@ namespace stencil::gui {
       it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
       it->setCheckState(checked_.contains("|" + QString::fromStdString(pr.meta.id))
                             ? Qt::Checked : Qt::Unchecked);
-      // Edited-result preview (filtered image + drawn lines), pre-rendered by the
-      // caller through the same canvas/export path. Absent for pathless (in-memory)
-      // sources, whose pixels aren't reloadable from disk — those fall back to a
+      // Edited-result preview, pre-rendered by the caller through the canvas/export
+      // path. Absent for pathless (in-memory) sources — those fall back to a
       // uniform placeholder tile so every row keeps the same height.
       const auto thumb = thumbs_.constFind(QString::fromStdString(pr.meta.id));
       if (thumb != thumbs_.constEnd() && !thumb->isNull()) {
@@ -784,10 +965,9 @@ namespace stencil::gui {
       } else {
         it->setIcon(QIcon(placeholderIcon(false)));
       }
-      // The NAME colour (UserRole+4) — the delegate paints ONLY the name in it, leaving the
-      // "— N line(s)…" metadata in the default text colour. Red once expired, amber within a day
-      // of expiry (mirrors the browser CSS; warnings win over the swatch), else the per-project
-      // colour, else the shared neutral grey (matching --project-name-fg + the CLI default).
+      // NAME colour (UserRole+4) — the delegate paints ONLY the name in it. Red once
+      // expired, amber within a day of expiry (warnings win over the swatch), else
+      // the per-project colour, else the shared neutral grey (browser/CLI default).
       const QString pcol = QString::fromStdString(pr.meta.color);
       const QColor custom(pcol);
       QColor nameCol;
@@ -800,7 +980,7 @@ namespace stencil::gui {
       QStringList kw;
       for (const auto& k : pr.meta.keywords) kw << QString::fromStdString(k);
       it->setData(Qt::UserRole + 5, kw.join(' '));
-      // UserRole+6: file-origin marker (opened from a .stencil) → the delegate's bronze outline
+      // UserRole+6: file-origin flag (opened from a .stencil) → the delegate's bronze outline
       // + file glyph. The tooltip names where the project lives (local disk vs a .stencil file).
       it->setData(Qt::UserRole + 6, pr.meta.fromFile);
       it->setToolTip(rowTooltip(pr.meta.imageW, pr.meta.imageH, pr.meta.lineLengthCm,
@@ -835,10 +1015,9 @@ namespace stencil::gui {
       it->setData(Qt::UserRole + 5, sp.keywords.join(' '));  // keyword search key
       it->setToolTip(rowTooltip(sp.imageW, sp.imageH, 0.0, sp.description,
                                 QString("Server project on %1").arg(sp.serverUrl)));
-      // Edited preview: the project's rendered `result` (falling back to the
-      // `original` if it was never saved), mirroring the browser modal's
-      // makeRemoteRow result-with-original-fallback. Cached by id+version so the
-      // periodic re-list doesn't re-download an unchanged project.
+      // Edited preview: the rendered `result`, falling back to `original` (browser
+      // makeRemoteRow parity). Cached by id+version so the periodic re-list
+      // doesn't re-download an unchanged project.
       const QPixmap pm = remoteThumb(sp);
       if (pm.isNull()) {
         it->setIcon(QIcon(placeholderIcon(true)));
@@ -922,8 +1101,17 @@ namespace stencil::gui {
     updateBatchBar();
   }
 
-  // Show/hide the batch toolbar + enable buttons by selection homogeneity (all-local rows
-  // can go to a server; all-server rows can come to local).
+  // The pure homogeneity rule behind the batch bar (headless-testable without a server).
+  BatchDirections batchDirectionsFor(int locals, int remotes, bool haveServers) {
+    BatchDirections d;
+    d.toServer = locals > 0 && remotes == 0 && haveServers;
+    d.toLocal = remotes > 0 && locals == 0;
+    return d;
+  }
+
+  // Show/hide the batch toolbar. Inapplicable directions are HIDDEN, not greyed: a
+  // local-only selection never moves "to local", so a disabled button is just noise
+  // (browser parity: updateBatchBar in projectsModal.js).
   void ProjectsDialog::updateBatchBar() {
     if (!batchBar_) return;
     int locals = 0, remotes = 0;
@@ -934,28 +1122,57 @@ namespace stencil::gui {
     batchBar_->setVisible(n > 0);
     if (batchCount_) batchCount_->setText(tr("%1 selected").arg(n));
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
-    const bool allLocal = n > 0 && remotes == 0;
-    const bool allRemote = n > 0 && locals == 0;
-    if (batchToServer_) batchToServer_->setEnabled(allLocal && haveServers);
-    if (batchCopyServer_) batchCopyServer_->setEnabled(allLocal && haveServers);
-    if (batchToLocal_) batchToLocal_->setEnabled(allRemote);
-    if (batchCopyLocal_) batchCopyLocal_->setEnabled(allRemote);
-    // Explain why the homogeneity-gated buttons are disabled (mirrors the
-    // project-name accept-button reason pattern). Enabled buttons keep their
-    // descriptive tooltip set at construction.
-    const QString toServerReason =
-        !haveServers ? QStringLiteral("Connect to a server first")
-                     : QStringLiteral("Check only local projects to move/copy them to a server");
-    const QString toLocalReason =
-        QStringLiteral("Check only server projects to move/copy them to local storage");
-    if (batchToServer_ && !batchToServer_->isEnabled())
-      batchToServer_->setToolTip(toServerReason);
-    if (batchCopyServer_ && !batchCopyServer_->isEnabled())
-      batchCopyServer_->setToolTip(toServerReason);
-    if (batchToLocal_ && !batchToLocal_->isEnabled())
-      batchToLocal_->setToolTip(toLocalReason);
-    if (batchCopyLocal_ && !batchCopyLocal_->isEnabled())
-      batchCopyLocal_->setToolTip(toLocalReason);
+    const auto dir = batchDirectionsFor(locals, remotes, haveServers);
+    if (batchToServer_) batchToServer_->setVisible(dir.toServer);
+    if (batchCopyServer_) batchCopyServer_->setVisible(dir.toServer);
+    if (batchToLocal_) batchToLocal_->setVisible(dir.toLocal);
+    if (batchCopyLocal_) batchCopyLocal_->setVisible(dir.toLocal);
+    updateSelectAll();
+  }
+
+  // True when the filtered view has selectable rows and every one of them is checked.
+  bool ProjectsDialog::allFilteredChecked() const {
+    bool any = false;
+    for (int i = 0; i < list_->count(); ++i) {
+      const QListWidgetItem* it = list_->item(i);
+      if (it->isHidden() || it->data(Qt::UserRole).isNull() ||
+          !(it->flags() & Qt::ItemIsUserCheckable))
+        continue;   // placeholders, filtered-out and doomed rows are not selectable
+      if (!checked_.contains(rowKeyAt(i))) return false;
+      any = true;
+    }
+    return any;
+  }
+
+  // Shown whenever the filtered view has selectable rows; the label flips to
+  // "Deselect all" once everything visible is checked (browser: updateSelectAll).
+  void ProjectsDialog::updateSelectAll() {
+    if (!selectAllBtn_) return;
+    bool any = false;
+    for (int i = 0; i < list_->count() && !any; ++i) {
+      const QListWidgetItem* it = list_->item(i);
+      any = !it->isHidden() && !it->data(Qt::UserRole).isNull() &&
+            (it->flags() & Qt::ItemIsUserCheckable);
+    }
+    selectAllBtn_->setVisible(any);
+    selectAllBtn_->setText(allFilteredChecked() ? tr("Deselect all") : tr("Select all"));
+  }
+
+  // Select-all toggles over the CURRENT filtered view, so a filtered "select all" never
+  // sweeps up projects the user cannot see; deselect clears the WHOLE selection.
+  void ProjectsDialog::toggleSelectAll() {
+    if (allFilteredChecked()) {
+      checked_.clear();
+      refresh();   // re-sync every row's checkbox (also off-filter ones)
+      return;      // refresh() already ran updateBatchBar
+    }
+    for (int i = 0; i < list_->count(); ++i) {
+      QListWidgetItem* it = list_->item(i);
+      if (!it->isHidden() && !it->data(Qt::UserRole).isNull() &&
+          (it->flags() & Qt::ItemIsUserCheckable))
+        it->setCheckState(Qt::Checked);   // onItemChanged maintains checked_
+    }
+    updateBatchBar();
   }
 
   // Resolve the checked rows into (id, serverUrl) pairs, pick a target server for the
@@ -979,6 +1196,20 @@ namespace stencil::gui {
         if (!ok || target.isEmpty()) return;
       }
       selectedServerUrl_ = target;
+    }
+    if (act == Action::BatchRemove) {
+      // Confirm HERE (like Clear All): the question sits over the still-open list, the
+      // owner removes on removeRequested and repaints via setProjects() — no close.
+      if (QMessageBox::question(
+              this, "Remove projects",
+              QString("Remove %1 selected project(s)? Server projects are deleted from "
+                      "the server.")
+                  .arg(batchItems_.size()),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+      scatterRows(checked_);   // they come apart on the way out
+      emit removeRequested(batchItems_);
+      return;
     }
     action_ = act;
     accept();
@@ -1026,6 +1257,7 @@ namespace stencil::gui {
       }
       it->setHidden(!show);
     }
+    updateSelectAll();   // the filtered view IS the select-all pool
   }
 
   void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
@@ -1098,9 +1330,9 @@ namespace stencil::gui {
       menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
                      &ProjectsDialog::moveToLocalSelected);
       menu.addSeparator();
-      menu.addAction(themedIcon("image", ico, 16), "Set colour…", this,
+      menu.addAction(themedIcon("image", ico, 16), "Set color…", this,
                      &ProjectsDialog::setColorSelected);
-      menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
+      menu.addAction(themedIcon("x", ico, 16), "Clear color", this,
                      &ProjectsDialog::clearColorSelected);
       menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
     } else {
@@ -1119,9 +1351,9 @@ namespace stencil::gui {
                        &ProjectsDialog::copyToServerSelected);
       }
       menu.addSeparator();
-      menu.addAction(themedIcon("image", ico, 16), "Set colour…", this,
+      menu.addAction(themedIcon("image", ico, 16), "Set color…", this,
                      &ProjectsDialog::setColorSelected);
-      menu.addAction(themedIcon("x", ico, 16), "Clear colour", this,
+      menu.addAction(themedIcon("x", ico, 16), "Clear color", this,
                      &ProjectsDialog::clearColorSelected);
       menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
       menu.addSeparator();
@@ -1130,6 +1362,37 @@ namespace stencil::gui {
                      &ProjectsDialog::deleteSelected);
     }
     menu.exec(globalPos);
+  }
+
+  void ProjectsDialog::scheduleRowOpen(QListWidgetItem* it) {
+    if (rowDragging_ || pressOnCheck_ || !it || it->data(Qt::UserRole).isNull()) return;
+    pendingRow_ = list_->row(it);
+    pendingNewWindow_ = isNewWindowMod(pressMods_);
+    if (!clickTimer_) {
+      clickTimer_ = new QTimer(this);
+      clickTimer_->setSingleShot(true);
+      connect(clickTimer_, &QTimer::timeout, this, &ProjectsDialog::fireRowOpen);
+    }
+    // Wait out the platform's double-click window before acting.
+    clickTimer_->start(QApplication::doubleClickInterval());
+  }
+
+  void ProjectsDialog::fireRowOpen() {
+    // The double click that cancelled us may already have accepted the dialog
+    // (the second release re-emits itemClicked, re-arming this timer).
+    if (!isVisible()) return;
+    openRow(list_->item(pendingRow_), pendingNewWindow_, /*confirm=*/true);
+  }
+
+  void ProjectsDialog::openRow(QListWidgetItem* it, bool newWindow, bool confirm) {
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    list_->setCurrentItem(it);
+    confirmOpen_ = confirm;
+    // Remote rows have no new-window path (same rule as the drag-out zones and
+    // the ⋯ menu) — open them here instead of doing nothing.
+    const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
+    if (newWindow && !remote) openSelectedInNewWindow();
+    else openSelected();
   }
 
   void ProjectsDialog::openSelected() {
@@ -1161,9 +1424,36 @@ namespace stencil::gui {
     auto* it = list_->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
-    selectedId_ = it->data(Qt::UserRole).toString();
-    action_ = Action::Delete;
-    accept();
+    const QString id = it->data(Qt::UserRole).toString();
+    const QString nm = support::shortName(it->data(Qt::UserRole + 3).toString());
+    // Confirm on the NEXT turn, over the still-open dialog: the drag-out Remove zone
+    // lands here from a drag release, which dismisses a box shown in the same turn.
+    QTimer::singleShot(0, this, [this, id, nm] {
+      if (QMessageBox::question(
+              this, "Remove project",
+              QString("Remove \"%1\"? This cannot be undone.").arg(nm),
+              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+        return;
+      // Re-found by id — the confirm ran an event loop, so a re-list may have happened.
+      QListWidgetItem* row = nullptr;
+      for (int i = 0; i < list_->count() && !row; ++i) {
+        QListWidgetItem* c = list_->item(i);
+        if (c->data(Qt::UserRole).toString() == id &&
+            c->data(Qt::UserRole + 1).toString().isEmpty())
+          row = c;
+      }
+      if (row) {
+        // The row scatters in place — a painted row has no widget of its own, so its
+        // RECT is what comes apart (support/disintegrateOverlay.hpp). Clipped to the
+        // viewport so a part-scrolled row can't overlay the dialog chrome.
+        DisintegrateOverlay::overRect(
+            list_->viewport(),
+            list_->visualItemRect(row).intersected(list_->viewport()->rect()),
+            this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true);
+        retireRow(row);  // blank the real row at once — the snapshot is what flies
+      }
+      emit removeRequested({{id, QString()}});  // the owner removes, then setProjects()
+    });
   }
 
   void ProjectsDialog::moveToServerSelected() {
@@ -1278,6 +1568,68 @@ namespace stencil::gui {
     accept();
   }
 
+  void ProjectsDialog::scatterRows(const QSet<QString>& keys) {
+    if (!list_) return;
+    QList<QListWidgetItem*> doomed;
+    QList<QRect> rects;   // the on-screen slice of each doomed row (scrolled-out rows: none)
+    // Clip each row's rect to the viewport: a checked row scrolled out of view must not
+    // drop its overlay onto the dialog chrome, nor spend the shared mote budget on
+    // pixels nobody can see — only the visible slices animate.
+    const QRect view = list_->viewport()->rect();
+    for (int i = 0; i < list_->count(); ++i) {
+      const QString key = rowKeyAt(i);
+      if (key.isEmpty() || (!keys.isEmpty() && !keys.contains(key))) continue;
+      QListWidgetItem* it = list_->item(i);
+      if (!it || it->isHidden()) continue;
+      doomed.append(it);
+      const QRect r = list_->visualItemRect(it).intersected(view);
+      if (r.width() >= 8 && r.height() >= 8) rects.append(r);
+    }
+    if (doomed.isEmpty()) return;
+    // Every row scatters at once and all repaint each frame, so the mote budget is
+    // SHARED — one row keeps the fine grain, a mass removal coarsens each (browser:
+    // scatterGridFor). Only rows that actually animate share it.
+    const int budget =
+        std::max<int>(1, DisintegrateOverlay::kDustMaxCells / std::max(1, int(rects.size())));
+    // Overlays FIRST (they snapshot the still-painted rows), then retire the lot.
+    for (const QRect& r : rects)
+      DisintegrateOverlay::overRect(list_->viewport(), r, this,
+                                    DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget);
+    for (QListWidgetItem* it : doomed)
+      retireRow(it);   // blank the real row at once; its slot outlives the dust
+  }
+
+  // Closing mid-scatter: the close flight re-photographs the dialog as it hides
+  // (modalReveal), so doomed rows leave NOW and their overlays stop — otherwise the
+  // motes redraw the removed rows in the shrinking ghost.
+  void ProjectsDialog::done(int result) {
+    for (int i = list_->count() - 1; i >= 0; --i)
+      if (list_->item(i)->data(kDoomedRole).toBool()) delete list_->takeItem(i);
+    for (QWidget* fx : findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::kObjectName))) {
+      fx->hide();   // excluded from the ghost's render immediately; deleted safely after
+      fx->deleteLater();
+    }
+    QDialog::done(result);
+  }
+
+  // The scatter animates a SNAPSHOT — blank the real row the moment it starts,
+  // hold the empty slot while the dust falls, then let the item go (browser
+  // parity: leaveThenRemove + beginRemoval in projectsModal.js).
+  void ProjectsDialog::retireRow(QListWidgetItem* it) {
+    if (!it || it->data(Qt::UserRole).isNull()) return;
+    const QString key = rowKeyAt(list_->row(it));
+    it->setData(kDoomedRole, true);   // the delegate paints nothing for it
+    it->setFlags(Qt::NoItemFlags);    // no select/check mid-flight
+    QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, key] {
+      // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
+      for (int i = 0; i < list_->count(); ++i)
+        if (rowKeyAt(i) == key && list_->item(i)->data(kDoomedRole).toBool()) {
+          delete list_->takeItem(i);
+          break;
+        }
+    });
+  }
+
   QString ProjectsDialog::rowKeyAt(int i) const {
     QListWidgetItem* it = list_->item(i);
     if (!it || it->data(Qt::UserRole).isNull()) return {};  // placeholder / non-data row
@@ -1315,8 +1667,12 @@ namespace stencil::gui {
     const QString cur = currentRowColor();
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid()) ? QColor(cur)
                                                                   : QColor("#7c3aed");
-    const QColor picked = QColorDialog::getColor(seed, this, "Project name colour",
-                                                 QColorDialog::DontUseNativeDialog);
+    // Rows are delegate-painted (no swatch widget), so the origin is the row's rect —
+    // the strip whose ⋯ menu / right-click opened this — passed as the GLOBAL fallback.
+    const QRect rowRect(list_->viewport()->mapToGlobal(list_->visualItemRect(it).topLeft()),
+                        list_->visualItemRect(it).size());
+    const QColor picked =
+        support::pickColorAnimated(seed, this, "Project name color", nullptr, rowRect);
     if (!picked.isValid()) return;   // cancelled
     emitSetColor(it, picked.name());
   }

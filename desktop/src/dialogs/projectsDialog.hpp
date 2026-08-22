@@ -28,13 +28,22 @@ namespace stencil::net {
 
 // Saved-projects browser. Mirrors browser/js/ui/projectsModal.js: list projects,
 // open / delete one, or create a new one. exec() then read action()/selectedId()/
-// newName() to apply the choice. When a ConnectionManager is supplied, server
+// newName() to apply the choice; removals (Delete / batch Remove / Clear All) are
+// instead confirmed in-dialog and signalled, so the window stays open (see signals).
+// When a ConnectionManager is supplied, server
 // (shared) projects are listed alongside the local ones with a golden outline and
-// a server marker, refreshed live on a short timer (the desktop analogue of the
+// a server badge, refreshed live on a short timer (the desktop analogue of the
 // browser modal's WebSocket project-event feed → periodic listProjects refresh).
 namespace stencil::gui {
 
   class ProjectDragZones;
+
+  // Which batch-transfer directions apply to a selection of `locals` local + `remotes`
+  // server rows. Inapplicable directions are HIDDEN, not greyed (browser parity:
+  // projectsModal.js updateBatchBar). toServer covers move+copy to server; toLocal
+  // covers move+copy to local.
+  struct BatchDirections { bool toServer = false; bool toLocal = false; };
+  BatchDirections batchDirectionsFor(int locals, int remotes, bool haveServers);
 
   class ProjectsDialog : public QDialog {
     Q_OBJECT
@@ -57,12 +66,13 @@ namespace stencil::gui {
     // CopyToServer: copy a LOCAL project to a server, leaving the local one in place
     //   (read selectedId() + selectedServerUrl() + newName()).
     // MakeLocalCopy now carries newName() (the copy's name, default "<name>-copy").
-    // Batch* act on the checked rows (read batchItems()): BatchRemove (any), BatchMoveToServer
+    // Batch* act on the checked rows (read batchItems()): BatchMoveToServer
     //   / BatchCopyToServer (local-only checked + selectedServerUrl()), BatchMoveToLocal /
-    //   BatchCopyToLocal (server-only checked).
+    //   BatchCopyToLocal (server-only checked). BatchRemove never reaches action() —
+    //   it confirms in-dialog and emits removeRequested (kept as runBatch's dispatch tag).
     // SetColor: set (or clear) a project's accent colour — read selectedId() +
     //   selectedServerUrl() (empty = local) + selectedColor() ("" = theme default).
-    enum class Action { None, Open, OpenInNewWindow, Delete, New, Rename, Expiration, NewBlank,
+    enum class Action { None, Open, OpenInNewWindow, New, Rename, Expiration, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
                         SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
@@ -84,6 +94,10 @@ namespace stencil::gui {
 
     Action action() const { return action_; }
     QString selectedId() const { return selectedId_; }
+    // False when the user's gesture already expressed intent unambiguously (a
+    // double click): MainWindow then skips its "Open this project?" prompt.
+    // True for a single click, Return, and the drag-out zones.
+    bool confirmRequested() const { return confirmOpen_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
     // For SetColor: the chosen colour ("#rrggbb"), or "" to clear to the theme default.
@@ -91,10 +105,29 @@ namespace stencil::gui {
     // For Batch* actions: the checked rows as (id, serverUrl) pairs (serverUrl empty = local).
     const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
 
+    // Replace the listed projects and repaint — the owner calls this after acting on a
+    // request signalled below, so the dialog STAYS OPEN and simply shows the new state.
+    void setProjects(const std::vector<Project>& projects);
+
+   signals:
+    // "Clear All (Local)": already confirmed INSIDE the dialog, so the confirmation sits
+    // over the still-open window rather than replacing it. The owner does the removal and
+    // calls setProjects().
+    void clearAllRequested();
+    // Remove (single ⋯/right-click Delete, drag-out Remove zone, batch Remove): same
+    // stay-open pattern — already confirmed in-dialog, the doomed rows are scattering.
+    // Items are (id, serverUrl) pairs (serverUrl empty = local); the owner removes them
+    // and calls setProjects().
+    void removeRequested(const QVector<QPair<QString, QString>>& items);
+
    protected:
     // Hover-magnify: watch the list viewport so hovering a row's thumbnail pops a
     // larger floating preview that follows the cursor.
     bool eventFilter(QObject* obj, QEvent* ev) override;
+    // Finalize pending row retirements (and stop their scatters) BEFORE the close
+    // flight photographs the dialog — a removed row must never resurface in the
+    // shrinking ghost, however early the dialog is closed.
+    void done(int result) override;
 
    private:
     void refresh();
@@ -125,6 +158,22 @@ namespace stencil::gui {
     void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
     void openSelected();
     void openSelectedInNewWindow();
+    // ── row-open gestures (browser parity) ──
+    //   single click            → confirm, then open in the CURRENT window
+    //   double click            → open immediately, no confirmation
+    //   Ctrl/⌘ + single click   → confirm, then open in a NEW window
+    //   Ctrl/⌘ + double click   → new window immediately, no confirmation
+    //   Return on a focused row → treated as a plain single click (confirms)
+    // The dialog only records the choice; MainWindow shows the confirmation
+    // AFTER exec() returns (a QMessageBox raised from inside the click would be
+    // dismissed by the same release), gated on the public confirmRequested().
+    //
+    // Arm the deferred single-click open. Deferring by doubleClickInterval() is
+    // the crux: a double click must cancel it, or the confirmation flashes up
+    // before the second click lands.
+    void scheduleRowOpen(QListWidgetItem* it);
+    void fireRowOpen();       // the timer expired → a genuine single click
+    void openRow(QListWidgetItem* it, bool newWindow, bool confirm);
     void deleteSelected();
     // Move the selected LOCAL project to a server (pick one if several connected).
     void moveToServerSelected();
@@ -143,6 +192,11 @@ namespace stencil::gui {
     // Multi-select: collect the checked rows + show/enable the batch toolbar; run a batch action.
     void onItemChanged(QListWidgetItem* it);
     void updateBatchBar();
+    // Select-all toggle over the CURRENT filtered view (browser: the per-render
+    // `selectables` pool + updateSelectAll).
+    void updateSelectAll();
+    bool allFilteredChecked() const;
+    void toggleSelectAll();
     void runBatch(Action act);
     void renameSelected();
     void expirationSelected();
@@ -156,6 +210,13 @@ namespace stencil::gui {
     QString currentRowColor() const;
     // The (serverUrl|id) key for list row `i` (matches checked_ keys); "" for placeholder rows.
     QString rowKeyAt(int i) const;
+    // Scatter the given rows (empty = every data row) before they leave, the way the single
+    // Remove already does — a painted list row has no widget, so its RECT comes apart.
+    void scatterRows(const QSet<QString>& keys = {});
+    // Blank `it` the instant its scatter starts (the slot stays open), then drop the
+    // item once the animation has played — the overlay flies a snapshot, so leaving
+    // the real row painted underneath hid the removal entirely.
+    void retireRow(QListWidgetItem* it);
     void createNew();
     void createBlank();
 
@@ -191,6 +252,7 @@ namespace stencil::gui {
     QComboBox* sortCombo_ = nullptr;  // Name / Local first / Server first / Newest / Oldest / Manual
     QComboBox* searchModeCombo_ = nullptr;  // Name + keywords / Names only / Keywords only
     QLineEdit* search_ = nullptr;   // name search box (mirrors the browser modal)
+    QPushButton* selectAllBtn_ = nullptr;  // Select all / Deselect all over the filtered view
     QStringList knownServerUrls_;   // last server set the filter combo was built from
     // Multi-select: checked row keys ("serverUrl|id"; serverUrl empty = local), the batch
     // toolbar + its buttons, and the resolved (id, serverUrl) pairs for the chosen batch action.
@@ -202,6 +264,14 @@ namespace stencil::gui {
     QPushButton* batchToLocal_ = nullptr;
     QPushButton* batchCopyLocal_ = nullptr;
     bool building_ = false;   // suppress itemChanged while refresh() sets check states
+    // Row-open gesture state (see confirmRequested()).
+    QTimer* clickTimer_ = nullptr;      // pending single-click open
+    int pendingRow_ = -1;               // row it applies to
+    bool pendingNewWindow_ = false;     // Ctrl/⌘ was down for that click
+    Qt::KeyboardModifiers pressMods_;   // modifiers of the last press on the list
+    bool pressOnCheck_ = false;         // last press landed on a row's checkbox
+    bool confirmOpen_ = true;           // single click / drag-out ask; double click doesn't
+    bool rowDragging_ = false;          // a drag must not open anything on release
     QVector<QPair<QString, QString>> batchItems_;
     Action action_ = Action::None;
     QString selectedId_;

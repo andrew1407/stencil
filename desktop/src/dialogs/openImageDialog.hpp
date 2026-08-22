@@ -99,6 +99,10 @@ namespace stencil::gui {
     void doPreview();             // fetch/decode the current source into the preview
     void resetPreviewState();     // clear preview + disable the open buttons (source changed)
     void updateVideoPreview();    // choose embedded preview vs seeked frame for a video
+    void fitTabsToCurrentPage();        // the pane hugs the page on show
+    void stalePreview();                // keep the picture, drop what was derived from it
+    void setHint(const QString& text);   // muted status line, hidden when empty
+    void clearPreviewImage();           // drop the preview pixmap and its box
     void showPreview(const QImage& img, const QString& hint);  // render the preview
     void setFrame(int n);         // sync slider + spin box to a frame, then debounce a seek
     void applyFrameBounds();      // bound slider/spin box to the video's frame count
@@ -166,7 +170,8 @@ namespace stencil::gui {
     qint64 scrubDurationMs_ = 0;
     qint64 scrubTargetMs_ = 0;
     bool scrubPending_ = false;         // awaiting a rendered frame at the seek target
-    QImage previewImage_;               // pixels the open will adopt (frame or preview)
+    QImage previewImage_;       // pixels the open will adopt (frame or preview)
+    QString previewedSource_;   // the source the shown preview was fetched for
     QImage frameImage_;                 // last grabbed video frame
     QImage thumbImage_;                 // video's embedded preview image, if any
     bool previewIsVideo_ = false;       // last preview resolved as a video

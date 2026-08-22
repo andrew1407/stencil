@@ -25,11 +25,7 @@
 
 using namespace stencil::net;
 
-static int failures = 0;
-static void check(bool ok, const char* msg) {
-  std::printf("  [%s] %s\n", ok ? "PASS" : "FAIL", msg);
-  if (!ok) ++failures;
-}
+#include "support/check.hpp"
 
 // Pump the event loop until pred() holds or a watchdog elapses (keeps the test from hanging).
 static void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {

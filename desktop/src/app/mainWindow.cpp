@@ -1,7 +1,22 @@
 #include "mainWindow.hpp"
+#include "chatDock.hpp"
+#include "stayOpenMenu.hpp"
+#include "mainWindowHelpers.hpp"
+#include "chatPlanTarget.hpp"
+#include "logoHoverFx.hpp"
+#include "dockZonesOverlay.hpp"
+#include "pillSplitter.hpp"
+#include "colorNames.hpp"
+#include "chatMenuPanel.hpp"
+#include "opPlan.hpp"
+#include "planExecutor.hpp"
+#include "popover.hpp"
+#include "qtLlmTransport.hpp"
 #include "expirationDialog.hpp"
 #include "deepLink.hpp"
+#include "displayName.hpp"
 #include "openImageDialog.hpp"
+#include "../support/localPath.hpp"
 #include "openInDialog.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
@@ -10,13 +25,17 @@
 #include "projectDragZones.hpp"
 #include "cropGeometry.hpp"
 #include "geometry.hpp"
+#include "imageFilter.hpp"
 #include "pageMetrics.hpp"
 #include "cropDialog.hpp"
 #include "tooltipRows.hpp"
 #include "zoomPan.hpp"
 #include "guiHelpers.hpp"
+#include "menuReveal.hpp"
+#include "modalReveal.hpp"
 #include "searchCombo.hpp"
 #include "iconSet.hpp"
+#include "numericInput.hpp"
 #include "infoDialog.hpp"
 #include "launchOptions.hpp"
 #include "linksDialog.hpp"
@@ -32,6 +51,7 @@
 #include "liveFeed.hpp"
 #include "serverClient.hpp"
 #include "selectionPanel.hpp"
+#include "assistantSettingsDialog.hpp"
 #include "settingsDialog.hpp"
 #include "shortcutsDialog.hpp"
 #include "theme.hpp"
@@ -41,11 +61,12 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QClipboard>
-#include <QColorDialog>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDesktopServices>
+#include <QElapsedTimer>
 #include <QDoubleSpinBox>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
@@ -54,6 +75,11 @@
 #include <QGuiApplication>
 #include <QEasingCurve>
 #include <QEventLoop>
+#include <QGraphicsOpacityEffect>
+
+#include "../support/themeSwapOverlay.hpp"  // palette-swap wipe
+#include "../support/disintegrateOverlay.hpp"  // the canvas scatters when cleared
+#include "../support/shimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QParallelAnimationGroup>
@@ -65,7 +91,12 @@
 #include <QImage>
 #include <QVariant>
 #include <QImageReader>
+#include <QAbstractSpinBox>
 #include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QTextEdit>
+#include <QSplitter>
+#include <QSplitterHandle>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -109,12 +140,18 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolBar>
 #include <QStyle>
 #include <QToolButton>
+#include <QFontDatabase>
+#include <QLabel>
+#include <QToolTip>
 #include <QWidgetAction>
 #include <algorithm>
+#include <cmath>
+#include <functional>
 
 namespace stencil::gui {
 
@@ -123,205 +160,30 @@ namespace stencil::gui {
     // ProjectTransferController fetchUrlBytes hook + openServerProject can name it.
     void fetchUrlBytesAsync(QObject* ctx, const QString& url, std::function<void(QByteArray)> done);
 
-    long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
+    // saveState/restoreState version — bumped when the toolbar rows change, so a state
+    // saved against the old set is discarded instead of restoring the old row breaks.
+    // 4: f(x,y) moved onto the Draw · View row and the SETTINGS cluster closes
+    // Zoom · Page · Data. WITHOUT this bump a layout saved by an older build is
+    // accepted verbatim, and it pins the old row extents — which left the new
+    // SETTINGS section past the end of a restored row, invisible behind the
+    // toolbar's "»" (a separator at the right edge and nothing after it).
+    constexpr int kToolbarLayoutVersion = 4;
 
-    // A QMenu whose hosted checkbox/radio rows toggle WITHOUT closing the menu (browser parity:
-    // the inline controls stay live). QMenu's own mouseReleaseEvent closes the popup on release
-    // over a QWidgetAction, so we intercept clicks that land on a hosted button: drive the button
-    // and swallow the event, never calling the base handler. Normal action rows fall through.
-    class StayOpenMenu : public QMenu {
-     public:
-      using QMenu::QMenu;
-
-     protected:
-      QAbstractButton* toggleAt(const QPoint& p) {
-        for (QWidget* c = childAt(p); c && c != this; c = c->parentWidget()) {
-          if (auto* b = qobject_cast<QAbstractButton*>(c)) return b;
-          if (auto* b = c->findChild<QAbstractButton*>()) return b;
-        }
-        return nullptr;
-      }
-      // A checkable, enabled plain action under the cursor (e.g. Show Points / Show Lines, or the
-      // Style line-style radios) that should toggle in place instead of dismissing the menu.
-      QAction* checkableAt(const QPoint& p) {
-        QAction* a = actionAt(p);
-        return (a && a->isCheckable() && a->isEnabled()) ? a : nullptr;
-      }
-      void mousePressEvent(QMouseEvent* e) override {
-        if (e->button() == Qt::LeftButton && (toggleAt(e->pos()) || checkableAt(e->pos()))) {
-          e->accept();
-          return;
-        }
-        QMenu::mousePressEvent(e);
-      }
-      void mouseReleaseEvent(QMouseEvent* e) override {
-        if (e->button() == Qt::LeftButton) {
-          if (QAbstractButton* b = toggleAt(e->pos())) {
-            if (b->isEnabled()) b->click();   // checkbox toggles; radio checks (exclusive group)
-            e->accept();
-            return;                           // do NOT call base → the menu stays open
-          }
-          if (QAction* a = checkableAt(e->pos())) {
-            // Exclusive group → select (never uncheck); independent toggle → flip. Fires toggled.
-            if (QActionGroup* g = a->actionGroup(); g && g->isExclusive())
-              a->setChecked(true);
-            else
-              a->toggle();
-            e->accept();
-            return;                           // keep the menu open
-          }
-        }
-        QMenu::mouseReleaseEvent(e);
-      }
-    };
-
-    // ── Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
-    // the browser/extension CSS shimmer. Qt style sheets can't animate a sweep, so this is a
-    // transparent, mouse-through child overlay that paints an animated diagonal highlight.
-    // installHoverShimmer(w) attaches one to any button; it lives/dies with its target.
-    class ShimmerOverlay : public QWidget {
-    public:
-      // Whole-widget mode: sweeps the whole target on hover-enter. View mode (view != null): sweeps
-      // the hovered ROW of an item view (points/lines panel), tracked via the viewport's mouse-move.
-      explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr)
-          : QWidget(view ? view->viewport() : target),
-            target_(view ? view->viewport() : target), view_(view) {
-        // A child overlay that alpha-blends over the target. NO WA_TranslucentBackground (that's a
-        // top-level-window attribute and stops a child from rendering); WA_NoSystemBackground so
-        // Qt doesn't erase our area and the target shows through the un-painted (transparent) parts.
-        setAttribute(Qt::WA_TransparentForMouseEvents);
-        setAttribute(Qt::WA_NoSystemBackground);
-        anim_ = new QVariantAnimation(this);
-        anim_->setStartValue(0.0);
-        anim_->setEndValue(1.0);
-        anim_->setDuration(650);
-        anim_->setEasingCurve(QEasingCurve::InOutSine);
-        QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
-                         [this](const QVariant& v) { progress_ = v.toReal(); update(); });
-        QObject::connect(anim_, &QVariantAnimation::finished, this, [this] { progress_ = -1.0; update(); });
-        target_->installEventFilter(this);
-        if (view_) target_->setMouseTracking(true);   // so we get MouseMove without a button held
-        setGeometry(target_->rect());
-        raise();
-        show();   // stays present (transparent); paints only while the sweep animates
-      }
-
-    protected:
-      bool eventFilter(QObject* o, QEvent* e) override {
-        if (o == target_) {
-          switch (e->type()) {
-            case QEvent::Resize:
-            case QEvent::Move:
-            case QEvent::Show:
-              setGeometry(target_->rect());
-              raise();
-              break;
-            case QEvent::Enter:
-              if (!view_ && target_->isEnabled()) startSweep(rect());
-              break;
-            case QEvent::Leave:
-              // Cancel the sweep the instant the cursor leaves, so a fast pass over many items
-              // doesn't leave a trail of animations still playing out on already-unhovered widgets.
-              hoveredRow_ = -1;
-              anim_->stop();
-              progress_ = -1.0;
-              update();
-              break;
-            case QEvent::MouseMove:
-              if (view_) {
-                const QModelIndex idx = view_->indexAt(static_cast<QMouseEvent*>(e)->pos());
-                const int row = idx.isValid() ? idx.row() : -1;
-                if (row != hoveredRow_) {
-                  hoveredRow_ = row;
-                  if (row >= 0) {
-                    QRect r = view_->visualRect(idx);
-                    r.setLeft(0);
-                    r.setRight(target_->width());
-                    startSweep(r);
-                  }
-                }
-              }
-              break;
-            default:
-              break;
-          }
-        }
-        return QWidget::eventFilter(o, e);
-      }
-      void paintEvent(QPaintEvent*) override {
-        if (progress_ < 0.0) return;
-        const QRect b = band_.isEmpty() ? rect() : band_;
-        if (b.width() <= 0 || b.height() <= 0) return;
-        const qreal bw = b.width() * 0.5;
-        const qreal cx = b.left() - bw + progress_ * (b.width() + 2 * bw);   // off-left → off-right
-        QLinearGradient g(cx - bw, b.top(), cx + bw, b.bottom());            // diagonal light band
-        g.setColorAt(0.0, QColor(255, 255, 255, 0));
-        g.setColorAt(0.5, QColor(255, 255, 255, 95));
-        g.setColorAt(1.0, QColor(255, 255, 255, 0));
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        p.fillRect(b, g);
-      }
-
-    private:
-      void startSweep(const QRect& band) { band_ = band; anim_->stop(); anim_->start(); }
-      QWidget* target_;
-      QAbstractItemView* view_;
-      QVariantAnimation* anim_ = nullptr;
-      qreal progress_ = -1.0;
-      QRect band_;
-      int hoveredRow_ = -1;
-    };
-
-    void installHoverShimmer(QWidget* target) {
-      if (target && !target->property("_shimmer").toBool()) {
-        target->setProperty("_shimmer", true);   // guard against double-install
-        new ShimmerOverlay(target);               // parented to target
-      }
-    }
-    void installRowShimmer(QAbstractItemView* view) {
-      if (view && !view->property("_shimmer").toBool()) {
-        view->setProperty("_shimmer", true);
-        new ShimmerOverlay(nullptr, view);   // parented to the view's viewport
-      }
-    }
-
-    // On macOS the primary delete key emits Backspace (⌫), so the shared
-    // "Alt+Delete" defaults must bind to Backspace to fire on the key Mac users
-    // actually press (mirrors the browser's platformizeCombo Delete→Backspace).
-    // No-op for other combos and off macOS.
-    QString platformizeSeq(QString seq) {
-#ifdef Q_OS_MACOS
-      seq.replace(QStringLiteral("Delete"), QStringLiteral("Backspace"),
-                  Qt::CaseInsensitive);
-#endif
-      return seq;
-    }
-
-    std::string makeSalt() {
-      return QString::number(QRandomGenerator::global()->bounded(1 << 24), 36)
-          .toStdString();
-    }
-
-    // Natural page dimensions (cm) as selected — NOT orientation-swapped (only
-    // the proportions matter for the crop aspect). Mirrors the browser
-    // cropModal.pageDims helper.
-    core::PageSize naturalPageCm(const QString& pageSize, double customW,
-                                 double customH) {
-      if (pageSize == "custom") return {customW, customH};
-      const core::PageSize ps = core::namedPageSize(pageSize.toStdString());
-      return ps.width > 0 ? ps : core::namedPageSize("A4");
-    }
-
-    // Encode a QImage as PNG bytes for upload (the server is codec-free, so the
-    // desktop hands it already-encoded image bytes + the dimensions separately).
-    QByteArray pngBytes(const QImage& img) {
-      QByteArray out;
-      QBuffer buf(&out);
-      buf.open(QIODevice::WriteOnly);
-      img.save(&buf, "PNG");
-      return out;
-    }
+    // How long the chat takes to LEAVE: the dock's edge slide (setChatShown) and
+    // a floating window's flight into the icon (modalReveal kCloseMs). The
+    // compact popover waits this out so the two never overlap.
+    constexpr int kChatSlideOutMs = 260;
+    constexpr int kWindowDismissMs = 240;
+    // The panel's two toggle chevrons read as one button, so they share a box (selectionPanel
+    // kToggleBox/kToggleGlyph).
+    constexpr int kPanelToggleBox = 24;
+    constexpr int kPanelToggleGlyph = 15;
+    constexpr int kPanelToggleInset = 3;   // gap between the floating chevron and the window edge
+    constexpr int kPanelToggleTop = 5;     // and its drop below the toolbar edge
+    constexpr int kFoldMs = 280;    // the toolbar/panel extent slides' duration
+    // Idle pause after which the f(x,y) fields commit themselves. Mirrors the browser's
+    // COMMIT_DEBOUNCE_MS (browser/js/ui/numericInput.js), which its formula pair shares.
+    constexpr int kFormulaCommitMs = 1200;
   }  // namespace
 
   // App-lifetime macOS Dock menu, shared by all windows (see header note).
@@ -352,14 +214,229 @@ namespace stencil::gui {
     qApp->installEventFilter(this);
 
     selPanel_ = new SelectionPanel(this);
+    // Named so QMainWindow::saveState() can persist/restore the dock layout
+    // (unnamed docks are skipped with a warning).
+    selPanel_->setObjectName("selectionPanelDock");
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);
+    // The selection panel owns the right area with a pinned width (setPanelShown drives
+    // it via setFixedWidth during the slide animation). Without nesting, Qt offers no
+    // drop slot in an area whose sole occupant can't resize — which made it impossible
+    // to drag the chat dock onto the right side. Nesting restores those drop slots
+    // (the chat dock stacks above/below the panel).
+    setDockNestingEnabled(true);
+
+    // AI-assistant chat dock: dockable on ALL four sides + free-floating
+    // (deliberately unlike the pinned selection panel), hidden until the
+    // toolbar/View toggle opens it. Docked LEFT by default (browser parity);
+    // session-transient by design — every launch starts hidden at this default
+    // placement (the windowState restore below resets it explicitly).
+    chatDock_ = new ChatDock(this);
+    addDockWidget(Qt::LeftDockWidgetArea, chatDock_);
+    chatDock_->hide();
+    // The dock's own minimum, captured BEFORE the show/hide slide ever pins
+    // min==max on it — setChatShown restores exactly this instead of releasing
+    // to 0 (which would drop the dock's 260 px floor).
+    chatNaturalMin_ = QSize(chatDock_->minimumWidth(), chatDock_->minimumHeight());
+    // Toasts dodge the docked chat (syncToastInset); resize rides eventFilter.
+    connect(chatDock_, &QDockWidget::dockLocationChanged, this,
+            [this] { syncToastInset(); });
+    connect(chatDock_, &QDockWidget::topLevelChanged, this, [this] { syncToastInset(); });
+    connect(chatDock_, &QDockWidget::visibilityChanged, this, [this] { syncToastInset(); });
+    chatDock_->installEventFilter(this);
+    connect(chatDock_, &ChatDock::sendRequested, this, &MainWindow::onChatSend);
+    // Retry from a failed turn's card: the same send path, ignored mid-turn.
+    connect(chatDock_, &ChatDock::retryRequested, this, &MainWindow::chatRetryTurn);
+    connect(chatDock_, &ChatDock::stopRequested, this, &MainWindow::onChatStop);
+    // The expired card's CTA opens Connections, where the row offers the sign-in.
+    connect(chatDock_, &ChatDock::reconnectRequested, this,
+            [this](const QString&) { openConnections(); });
+    // The title-bar X (and every other close on the dock) leaves the way the
+    // toolbar toggle does: a docked chat slides into the edge it is docked to —
+    // left/right shrink their width, top/bottom their height — and a float flies
+    // back into the icon. It used to call QWidget::close() and simply blink out.
+    connect(chatDock_, &ChatDock::closeRequested, this, [this] {
+      if (!chatDock_ || tearingDown_ || !chatDock_->isVisible()) return;
+      popoverAnchor_.clear();   // a plain close is never a popover gesture
+      if (actChat_ && actChat_->isChecked()) {
+        actChat_->setChecked(false);   // its handler runs setChatShown(false, animate)
+        return;
+      }
+      setChatShown(false, /*animate=*/true);
+    });
+    // Title-bar trash: the dock wiped its transcript/attachments, we drop the
+    // model-side conversation state that goes with it.
+    connect(chatDock_, &ChatDock::clearRequested, this, &MainWindow::onChatClear);
+    // Every note the dock DISPLAYS is mirrored onto the menu panel — including
+    // the ones it posts on its own (the attachment cap), which used to leave the
+    // panel a row short of the dock.
+    connect(chatDock_, &ChatDock::notePosted, this, [this](const QString& text) {
+      chatMirror(QStringLiteral("Note"), text, true);
+    });
+    connect(chatDock_, &ChatDock::lateNotePosted, this, &MainWindow::chatMirrorLateNote);
+    // Drag dock zones: edge drop bands over the CENTRAL dockable area (never
+    // the toolbar/status chrome) for the WHOLE floating title-bar drag; the
+    // release position decides (browser parity).
+    // Pin the chat to a side. The selection panel already owns the right area,
+    // so docking there must SPLIT side-by-side — plain addDockWidget stacks the
+    // two vertically, giving each a squashed half-height column.
+    const auto dockChatTo = [this](Qt::DockWidgetArea area) {
+      const auto place = [this, area] {
+        const bool shares = selPanel_ && !selPanel_->isHidden() &&
+                            dockWidgetArea(selPanel_) == area &&
+                            (area == Qt::LeftDockWidgetArea || area == Qt::RightDockWidgetArea);
+        // Remember the panel's width BEFORE the split so it can be handed back
+        // when the chat leaves again (otherwise it keeps the freed space).
+        if (shares && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
+        addDockWidget(area, chatDock_);
+        chatDock_->setFloating(false);
+        if (shares) splitDockWidget(selPanel_, chatDock_, Qt::Horizontal);
+      };
+      // Moving between sides slides out of the old edge and back in at the new one —
+      // the same extent slide the icon's open/close uses, so a placement change reads
+      // as travel rather than a jump. Skipped when there is nothing on screen to move.
+      const bool wasFloating = chatDock_->isFloating();
+      if (tearingDown_ || !chatDock_->isVisible() || support::motionReduced()
+          || (!wasFloating && dockWidgetArea(chatDock_) == area)) {
+        place();
+        return;
+      }
+      stopChatAnim();
+      const bool horizNew = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
+      const auto growIn = [this, horizNew] {
+        const auto pin = [this, horizNew](int v) {
+          if (horizNew) chatDock_->setFixedWidth(v); else chatDock_->setFixedHeight(v);
+        };
+        const int full = chatRestoreExtent_ > 80 ? chatRestoreExtent_ : (horizNew ? 345 : 320);
+        pin(0);
+        chatAnim_ = startExtentSlide(this, 0, full, 300, pin, [this] { stopChatAnim(); });
+      };
+      // Coming back from a FLOAT there is no edge to leave — it just slides in at the
+      // side you picked (the browser plays its dock-in slide here too).
+      if (wasFloating) {
+        place();
+        growIn();
+        return;
+      }
+      const Qt::DockWidgetArea from = dockWidgetArea(chatDock_);
+      const bool horizFrom = from != Qt::TopDockWidgetArea && from != Qt::BottomDockWidgetArea;
+      const int extent = horizFrom ? chatDock_->width() : chatDock_->height();
+      if (extent > 80) chatRestoreExtent_ = extent;   // come back at the size it had
+      const auto pinFrom = [this, horizFrom](int v) {
+        if (horizFrom) chatDock_->setFixedWidth(v); else chatDock_->setFixedHeight(v);
+      };
+      chatAnim_ = startExtentSlide(this, extent, 0, 200, pinFrom, [this, place, growIn] {
+        stopChatAnim();          // release the pinned extent before re-docking
+        place();
+        growIn();
+      });
+    };
+    // When the chat stops sharing the panel's side (floated, closed, moved), the
+    // panel would otherwise absorb the whole freed column — put it back to the
+    // width it had before.
+    // QPointer-guarded: these signals also fire while the window is being torn
+    // down, when the docks may already be gone.
+    const QPointer<QDockWidget> panelGuard(selPanel_);
+    const QPointer<QDockWidget> chatGuard(chatDock_);
+    const auto restorePanelWidth = [this, panelGuard, chatGuard] {
+      if (tearingDown_ || !panelGuard || !chatGuard || panelGuard->isHidden()) return;
+      if (!chatGuard->isHidden() && !chatGuard->isFloating() &&
+          dockWidgetArea(chatGuard) == dockWidgetArea(panelGuard))
+        return;   // still side by side — leave the split alone
+      const int w = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : 320;
+      QTimer::singleShot(0, this, [this, panelGuard, w] {
+        if (panelGuard && !panelGuard->isHidden())
+          resizeDocks({panelGuard.data()}, {w}, Qt::Horizontal);
+      });
+    };
+    connect(chatDock_, &QDockWidget::topLevelChanged, this,
+            [this, restorePanelWidth](bool) {
+              // A tear-off mid-slide would otherwise carry the pinned min==max
+              // extent into the floating window (and clamp its resize).
+              stopChatAnim();
+              restorePanelWidth();
+            });
+    connect(chatDock_, &QDockWidget::visibilityChanged, this,
+            [restorePanelWidth](bool) { restorePanelWidth(); });
+    connect(chatDock_, &QDockWidget::dockLocationChanged, this,
+            [restorePanelWidth](Qt::DockWidgetArea) { restorePanelWidth(); });
+    // Deliberate layout choices adopt the current shape — the transient
+    // icon-popover flag stops applying (browser chatPanel adoptLayout parity).
+    connect(chatDock_, &ChatDock::dockRequested, this,
+            [this] { chatCompactPopover_ = false; });
+    connect(chatDock_, &QDockWidget::dockLocationChanged, this,
+            [this](Qt::DockWidgetArea) { chatCompactPopover_ = false; });
+    connect(chatDock_, &ChatDock::titleDragStarted, this,
+            [this] { chatCompactPopover_ = false; });
+    // Title-bar placement buttons (browser parity): pin the dock to a side.
+    connect(chatDock_, &ChatDock::dockRequested, this, dockChatTo);
+    connect(chatDock_, &ChatDock::titleDragStarted, this, [this] {
+      if (!dockZones_) dockZones_ = new DockZonesOverlay(this);
+      // The bands span the whole DOCK REGION (window minus the top toolbars and
+      // the status bar) — the browser's viewport equivalent. The central widget
+      // is the wrong basis: it shrinks/offsets by whatever is currently docked
+      // (the chat's own slot, the points panel), so bands based on it would not
+      // sit on the real window edges.
+      QRect target = rect();
+      int top = 0;
+      if (menuBar() && menuBar()->isVisible())
+        top = qMax(top, menuBar()->geometry().bottom() + 1);
+      for (QToolBar* tb : findChildren<QToolBar*>())
+        if (tb->isVisible() && !tb->isFloating() && toolBarArea(tb) == Qt::TopToolBarArea)
+          top = qMax(top, tb->geometry().bottom() + 1);
+      int bottom = height() - 1;
+      if (statusBar() && statusBar()->isVisible())
+        bottom = qMin(bottom, statusBar()->geometry().top() - 1);
+      if (bottom > top) {
+        target.setTop(top);
+        target.setBottom(bottom);
+      }
+      static_cast<DockZonesOverlay*>(dockZones_)->beginDrag(
+          themePalette(resolveDark(settings_.themeMode), settings_.accentColor).accent,
+          target, [this] { return chatDock_ && chatDock_->dragActive(); });
+    });
+    connect(chatDock_, &ChatDock::titleDragMoved, this, [this](const QPoint& g) {
+      if (dockZones_ && dockZones_->isVisible())
+        static_cast<DockZonesOverlay*>(dockZones_)->dragTo(g);
+    });
+    connect(chatDock_, &ChatDock::titleDragFinished, this,
+            [this, dockChatTo](const QPoint& g) {
+      if (!dockZones_ || !dockZones_->isVisible()) return;
+      auto* zones = static_cast<DockZonesOverlay*>(dockZones_);
+      const int z = zones->zoneAt(g);
+      dockZones_->hide();
+      if (z < 0) return;  // released outside every band → stay floating
+      dockChatTo(DockZonesOverlay::area(z));
+    });
+    connect(chatDock_, &ChatDock::titleDragCanceled, this, [this] {
+      if (dockZones_) dockZones_->hide();
+    });
+    connect(chatDock_, &ChatDock::videoAttached, this, &MainWindow::onChatVideoAttached);
+    // The video chip's × drops the video input (frame ops stop being valid).
+    connect(chatDock_, &ChatDock::videoDetached, this, [this] {
+      chatVideoPath_.clear();
+      chatVideoFrames_ = 0;
+    });
+    connect(chatDock_, &ChatDock::openVariantRequested, this,
+            [](const QString& id) { openProjectWindowById(id); });
+    // The dock's single gear opens the dedicated, assistant-ONLY dialog
+    // (browser llmSettingsModal parity) — not the full Settings sheet with the
+    // LLM fields buried under theme/autosave/page size.
+    connect(chatDock_, &ChatDock::settingsRequested, this,
+            &MainWindow::openAssistantSettings);
+    // The same hover shimmer the selection panel's buttons get.
+    for (QAbstractButton* b : chatDock_->findChildren<QAbstractButton*>())
+      installHoverShimmer(b);
     // Shared hover shimmer for the right Points/Lines panel: per-button on its buttons, and
     // per-ROW on its points table + lines list (item-view rows aren't widgets, so the overlay
     // tracks the hovered row) — matching the browser's coord-panel shimmer.
     for (QAbstractButton* b : selPanel_->findChildren<QAbstractButton*>()) installHoverShimmer(b);
     for (QAbstractItemView* v : selPanel_->findChildren<QAbstractItemView*>()) installRowShimmer(v);
 
-    notify_ = new Notifications(scroll_->viewport());
+    // Parented to the WINDOW, not the canvas viewport: the clear/paste effects
+    // (DisintegrateOverlay) raise() themselves over that viewport, and a toast parented
+    // there ended up painted UNDER the scattering motes. It also matches the browser,
+    // whose #notify-balloon is position:fixed to the window rather than to the canvas.
+    notify_ = new Notifications(this);
     // Server-project session domain (remoteSession.hpp): owns the remote-link state + the
     // ConnectionManager handle + the version-guarded write helpers. Created before the sync
     // controller (which composes it). Its ConnectionManager is set in ensureConnections().
@@ -376,7 +453,8 @@ namespace stencil::gui {
     incognitoOverlay_ = new IncognitoOverlay(scroll_->viewport());
     // Split image-drop overlay (LEFT save / RIGHT incognito), shown while dragging a file.
     dropZones_ = new DropZonesOverlay(scroll_->viewport());
-    dropZones_->setAccent(palette().color(QPalette::Highlight));
+    // Accent lands in the theme apply below (QPalette::Highlight here was the OS
+    // selection blue, not the app accent).
     // 3-zone overlay shown behind the Projects dialog while a project row is dragged out of it.
     projectZones_ = new ProjectDragZones(scroll_->viewport());
     tooltip_ = new CanvasTooltip(this);  // floating hover tooltip (S12)
@@ -384,7 +462,7 @@ namespace stencil::gui {
     // Live cursor coord readout (Pixel/Page/To edge) at the bottom of the window — the desktop
     // equivalent of the browser's #coord-status bar below the canvas. It's empty while the cursor
     // is off the canvas (no "Ready" filler, matching the browser) and hidden during fullscreen.
-    status_ = new QLabel("Open an image — or create a blank one — to begin", this);
+    status_ = new QLabel(QString(), this);   // cursor readout only — blank until one hovers the canvas
     status_->setStyleSheet("font-family: monospace; padding: 0 6px;");
     statusBar()->addWidget(status_);
 
@@ -397,11 +475,18 @@ namespace stencil::gui {
     // a plain, non-editable combo.
     pageSize_ = new SearchComboBox(this);
     fillPageSizeCombo(pageSize_, /*includeCustom=*/true);
-    pageSize_->setToolTip(
-        "Page format used for cm/inch measurements (ISO A/B/C series, or custom)");
+    pageSize_->setToolTip("Page size");
+    // The CLOSED combo is sized by the longest entry ("B0 (100 × 141.4 cm)"), which
+    // made this the widest control on the row and pushed the SETTINGS cluster past
+    // the window edge on an ordinary laptop screen. The dimensions are a reminder,
+    // not the label — the popup (and the tooltip) still show them in full.
+    pageSize_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    pageSize_->setMinimumContentsLength(11);
+    pageSize_->setMaximumWidth(150);
     zoom_ = new QComboBox(this);
     zoom_->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
-    zoom_->setToolTip("Zoom level — pick a preset or type an exact percent");
+    zoom_->setToolTip("Zoom %");
+    zoom_->setMaximumWidth(88);   // "3200%" plus the arrow; the rest was slack
     // Editable so the user can type an exact percent, but NoInsert so reflecting
     // a programmatic zoom (Ctrl+wheel) never appends list items — mirrors browser
     // zoomPan.js setZoom (a clamped numeric percent, never an accumulating list).
@@ -430,6 +515,11 @@ namespace stencil::gui {
             [this] { return incognito_; },
             [this] { saveToServer(); },
             [this](const QString& a, const QString& i, bool s) { openServerProject(a, i, s); },
+            [this] {
+              resetToBlankEditor();
+              updateProjectTitle();
+              notify_->info(QStringLiteral("This server project was deleted"));
+            },
         });
     // Local↔server project transfer service (projectTransferController.hpp): operates on the
     // project list + store, reaching the session/UI it can't own through these hooks.
@@ -461,6 +551,7 @@ namespace stencil::gui {
     buildMenus();
     buildToolbar();
     buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)
+    bindRevealAnchors();    // every action records where its dialog should fly from
 
     // ── wiring ── (after buildToolbar so the referenced widgets/actions exist)
     wireSignals();
@@ -470,6 +561,33 @@ namespace stencil::gui {
     settings_ = fileStore::loadSettings();
     applySettings(settings_, false);
     if (restoreLast) restoreSession();  // skipped for a blank incognito editor
+    // Restore the dock layout saved by closeEvent. Toolbars are forced visible
+    // afterwards — their collapse is session-transient (the Controls pill), not
+    // persisted — and the panel toggle is re-synced to the restored visibility.
+    // NOTE: isHidden(), not isVisible() — the window isn't shown yet, so
+    // isVisible() is false for every child and would desync the toggle (the
+    // "Hide panel" chevron then no-ops because the action is already unchecked).
+    if (!settings_.windowState.isEmpty()) {
+      // Versioned: a state saved against a DIFFERENT set of toolbars restores their old
+      // row breaks and re-splits the rows. Bump on every toolbar restructure.
+      restoreState(QByteArray::fromBase64(settings_.windowState.toLatin1()), kToolbarLayoutVersion);
+      for (QToolBar* tb : findChildren<QToolBar*>()) tb->setVisible(true);
+      if (actPanel_) {
+        QSignalBlocker b(actPanel_);
+        actPanel_->setChecked(!selPanel_->isHidden());
+      }
+      updatePanelReopenButton();
+      // The chat dock is deliberately session-transient (browser parity: full
+      // reset on reload): whatever an older saved layout says, it boots hidden
+      // at its default left placement.
+      if (chatDock_->isFloating()) chatDock_->setFloating(false);
+      addDockWidget(Qt::LeftDockWidgetArea, chatDock_);
+      chatDock_->hide();
+      if (actChat_) {
+        QSignalBlocker b(actChat_);
+        actChat_->setChecked(false);
+      }
+    }
     // Auto-connect saved servers (if the preference is on) only for the primary restored
     // window; deferred so the window paints before the synchronous REST handshakes run.
     if (restoreLast)
@@ -493,7 +611,13 @@ namespace stencil::gui {
 
   // Defined here (not =default in the header) so unique_ptr members of forward-declared
   // types are destroyed where their complete type is visible (dataExportController.hpp above).
-  MainWindow::~MainWindow() = default;
+  // QWidget deletes its children BEFORE QObject drops their connections, so a
+  // dock's teardown signals can still reach a half-destroyed MainWindow; this
+  // flag lets those slots bail out.
+  MainWindow::~MainWindow() {
+    tearingDown_ = true;
+    setBlockedCursor(false);   // never leave the app-wide override pushed behind us
+  }
 
   // ── hotkeys map (ported from browser/js/config/hotkeysConfig.json) ──
   // Defaults + labels from the embedded config, then user overrides layered on
@@ -536,15 +660,34 @@ namespace stencil::gui {
   // handlers call onSelectionChanged) and is preserved verbatim here. Must run
   // after the widgets/actions are built and before the persisted-state load.
   void MainWindow::wireSignals() {
+    // Keep the AI-Assistant toggle in lockstep with the dock (the dock's own ✕
+    // close button, restoreState, tabbing — any visibility change re-syncs it),
+    // and probe provider reachability whenever the dock opens.
+    connect(chatDock_, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+      // Shown again ⇒ definitively not leaving (whatever interrupted the slide).
+      if (visible) { chatClosing_ = false; chatDock_->setClosing(false); }
+      if (actChat_ && actChat_->isChecked() != visible) {
+        QSignalBlocker b(actChat_);
+        actChat_->setChecked(visible);
+      }
+      if (visible) refreshLlmStatus();
+    });
     connect(canvas_, &CanvasWidget::hovered, this, &MainWindow::onHovered);
     connect(canvas_, &CanvasWidget::changed, this, &MainWindow::onCanvasChanged);
     connect(canvas_, &CanvasWidget::selectionChanged, this,
             &MainWindow::onSelectionChanged);
     connect(canvas_, &CanvasWidget::contextRequested, this,
             &MainWindow::showContextMenu);
-    // Idle-canvas click (no image yet) opens the blank-image creator.
-    connect(canvas_, &CanvasWidget::blankImageRequested, this,
-            &MainWindow::newBlankImage);
+    // Idle-canvas click (no image yet) opens the blank-image creator — growing out of
+    // the CARD that was clicked, not the toolbar icon the action normally flies from.
+    connect(canvas_, &CanvasWidget::blankImageRequested, this, [this] {
+      const QRect card = canvas_ ? canvas_->idleCardGlobalRect() : QRect();
+      if (card.isValid()) {
+        dialogAnchor_.clear();       // the rect below is the origin, not any icon
+        dialogAnchorRect_ = card;
+      }
+      openImageDialog(/*startBlank=*/true);
+    });
     connect(canvas_, &CanvasWidget::zoomStep, this, &MainWindow::zoomStep);
     // Reflect drawing mode in the Start/Stop actions (S5).
     connect(canvas_, &CanvasWidget::drawingModeChanged, this,
@@ -625,7 +768,7 @@ namespace stencil::gui {
     // sync here), so the feature stays reachable when the toolbar overflows.
     connect(allowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
       settings_.allowFormulas = on;
-      if (formulaGroupAct_) formulaGroupAct_->setVisible(on);
+      if (formulaGroup_) formulaGroup_->setVisible(on);
       if (actAllowFormulas_ && actAllowFormulas_->isChecked() != on) {
         QSignalBlocker ba(actAllowFormulas_);
         actAllowFormulas_->setChecked(on);
@@ -640,10 +783,26 @@ namespace stencil::gui {
     });
     connect(actAllowFormulas_, &QAction::toggled, this,
             [this](bool on) { allowFormulas_->setChecked(on); });
-    connect(formulaX_, &QLineEdit::textChanged, this,
-            [this](const QString&) { validateAndApplyFormulas(); });
-    connect(formulaY_, &QLineEdit::textChanged, this,
-            [this](const QString&) { validateAndApplyFormulas(); });
+    // The f(x,y) pair commits on an idle pause, not per keystroke (see the timer's
+    // declaration): applying every intermediate expression re-rendered the readouts,
+    // wrote settings and pushed a peer sync per character, and flashed the invalid
+    // indicator mid-word. Enter / focus-out still apply at once.
+    formulaCommitTimer_ = new QTimer(this);
+    formulaCommitTimer_->setSingleShot(true);
+    formulaCommitTimer_->setInterval(kFormulaCommitMs);
+    connect(formulaCommitTimer_, &QTimer::timeout, this, [this] { validateAndApplyFormulas(); });
+    const auto onFormulaEdited = [this](const QString&) {
+      // Typing your way back to something valid clears a stale error at once; a wrong one
+      // is only flagged once you stop, so "(x" mid-expression doesn't flash red.
+      const bool okX = core::FormulaParser::validate(formulaX_->text().trimmed().toStdString(), 'x');
+      const bool okY = core::FormulaParser::validate(formulaY_->text().trimmed().toStdString(), 'y');
+      if (okX && okY) formulaError_->setVisible(false);
+      formulaCommitTimer_->start();
+    };
+    connect(formulaX_, &QLineEdit::textChanged, this, onFormulaEdited);
+    connect(formulaY_, &QLineEdit::textChanged, this, onFormulaEdited);
+    connect(formulaX_, &QLineEdit::editingFinished, this, [this] { validateAndApplyFormulas(); });
+    connect(formulaY_, &QLineEdit::editingFinished, this, [this] { validateAndApplyFormulas(); });
     connect(selPanel_, &SelectionPanel::pointActivated, this,
             [this](int i) { canvas_->selectPoint(i); });
     connect(selPanel_, &SelectionPanel::pointDeleteRequested, this,
@@ -651,16 +810,31 @@ namespace stencil::gui {
     connect(selPanel_, &SelectionPanel::pointCoordChanged, this,
             [this](int i, int axis, double v) { canvas_->setPointCoord(i, axis, v); });
 
+    // ── Hover cross-highlight (browser parity, both directions). List rows → canvas
+    // ring/glow; canvas cursor → list row tints (never scrolls a list).
+    connect(selPanel_, &SelectionPanel::pointRowHovered, this,
+            [this](int i) { canvas_->setListHoverPoint(i); });
+    connect(selPanel_, &SelectionPanel::lineRowHovered, this,
+            [this](int i) { canvas_->setListHoverLine(i); });
+    connect(canvas_, &CanvasWidget::canvasHoverChanged, this,
+            [this](int lineIdx, int ptIdx, int overLineIdx) {
+              // The points table shows panelLine(); only its own points tint a row.
+              const bool onPanelLine = ptIdx >= 0 && lineIdx == canvas_->panelLineIdx();
+              selPanel_->setCanvasHover(onPanelLine ? ptIdx : -1, overLineIdx);
+            });
+
     // ── selection-panel inline line editor → canvas mutators (Step 10).
     // Mirrors browser/js/core/drawingApp.js:181-195 applySelectionChange /
     // applyFill / deselectLine wiring; the SelectionPanel owns inline line
     // editing (PARITY_PLAN3 conflict-resolution: toolbar sets defaults only).
     connect(selPanel_, &SelectionPanel::lineColorChanged, this,
             [this](const QString& c) { canvas_->setSelectedLineColor(c); });
+    connect(selPanel_, &SelectionPanel::linePointColorChanged, this,
+            [this](const QString& c) { canvas_->setSelectedLinePointColor(c); });
     connect(selPanel_, &SelectionPanel::lineThicknessChanged, this,
             [this](int t) { canvas_->setSelectedLineThickness(t); });
-    connect(selPanel_, &SelectionPanel::lineMarkerSizeChanged, this,
-            [this](int m) { canvas_->setSelectedLineMarker(m); });
+    connect(selPanel_, &SelectionPanel::linePointSizeChanged, this,
+            [this](int m) { canvas_->setSelectedLinePointSize(m); });
     connect(selPanel_, &SelectionPanel::lineStyleChanged, this,
             [this](const QString& s) { canvas_->setSelectedLineStyle(s); });
     connect(selPanel_, &SelectionPanel::lineFillChanged, this,
@@ -690,1197 +864,18 @@ namespace stencil::gui {
     return hotkeys_.value(id, fallback);
   }
 
-  void MainWindow::buildActions() {
-    auto mk = [this](const QString& text, const QString& seq) {
-      auto* a = new QAction(text, this);
-      if (!seq.isEmpty()) a->setShortcut(QKeySequence(seq));
-      // WindowShortcut (default): fires when the main window is active, but not
-      // over modal dialogs — so Backspace/Esc stay usable inside dialogs.
-      // Show the shortcut natively (⌘C on macOS, Ctrl+C elsewhere); storage and
-      // matching keep the portable form via QKeySequence above.
-      const QString shown =
-          QKeySequence(seq).toString(QKeySequence::NativeText);
-      a->setToolTip(seq.isEmpty() ? text : QString("%1 (%2)").arg(text, shown));
-      addAction(a);  // register the shortcut on the window
-      return a;
-    };
-
-    // Richer tooltip than mk()'s default while KEEPING the hotkey suffix (browser
-    // composeControlTitle). Matters on the icon-only toolbar, where the tooltip is
-    // the only place the hotkey shows.
-    auto tip = [](QAction* a, const QString& desc) {
-      const QString sc = a->shortcut().toString(QKeySequence::NativeText);
-      a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
-    };
-
-    // The single Open entry: the unified Open dialog (local file, URL, or a new blank
-    // canvas). It replaces the former split of Open Image / Open Another Image / New
-    // Blank Image, mirroring the browser's one "Open Image" button.
-    actOpen_ = mk("Open Image…", hotkey("loadImage", "Ctrl+O"));
-    tip(actOpen_,
-        "Open an image — a local file, a web URL, or a new blank canvas");
-    // Emoji prefixes were removed from these labels now that every action carries
-    // a themed line-art icon (styleActionIcons): the menu shows icon + clean text,
-    // the icon-only toolbar shows the glyph with the label on its tooltip.
-    // New Line has no entry in the shared hotkeysConfig.json registry, so its
-    // (browser-coordinated) default is set literally rather than through hotkey().
-    actCrop_ = mk("Crop Image…", hotkey("cropImage", "Ctrl+Shift+X"));
-    tip(actCrop_,
-        "Crop the image — pick the page-shaped region to show on the canvas");
-    // Non-destructive 90° rotation (browser hotkeys rotateImageLeft=Alt+R,
-    // rotateImageRight=Alt+Shift+R). The crop window and lines follow the picture.
-    actRotateLeft_ = mk("Rotate Left", hotkey("rotateImageLeft", "Alt+R"));
-    tip(actRotateLeft_, "Rotate the image left (counter-clockwise)");
-    actRotateRight_ = mk("Rotate Right", hotkey("rotateImageRight", "Alt+Shift+R"));
-    tip(actRotateRight_, "Rotate the image right (clockwise)");
-    actCycleFilter_ = mk("Cycle Image Filter", hotkey("cycleFilter", "Alt+B"));
-    tip(actCycleFilter_,
-        "Cycle the image filter (none → B&W → sepia → invert → contour → tint)");
-    // Compare view: cycle none → original → vertical split → horizontal split. The
-    // toolbar combo + View submenu offer direct picks; hold Alt+Shift+O to peek.
-    actCycleCompare_ = mk("Cycle Compare View", hotkey("cycleCompare", "Alt+O"));
-    tip(actCycleCompare_,
-        "Cycle the compare view (none → original → vertical split → horizontal split); "
-        "hold Alt+Shift+O to peek at the original");
-    // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
-    // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
-    // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
-    actStartDraw_ = mk("Start Drawing", hotkey("startDraw", "Alt+A"));
-    actStopDraw_ = mk("Stop Drawing", hotkey("stopDraw", "Alt+S"));
-    actNewLine_ = mk("New Line", "Alt+N");
-    actUndo_ = mk("Undo", hotkey("undo", "Ctrl+Z"));
-    actRedo_ = mk("Redo", hotkey("redo", "Ctrl+Shift+Z"));
-    actDeleteLast_ = mk("Delete Last Point", "Backspace");
-    // Selection deletes (shared hotkeysConfig deleteLine=Alt+Delete,
-    // deletePoint=Alt+Shift+Delete). On macOS Delete→Backspace so ⌥⌫ / ⌥⇧⌫ work.
-    actDeleteLine_ =
-        mk("Delete Selected Line", platformizeSeq(hotkey("deleteLine", "Alt+Delete")));
-    actDeletePoint_ = mk("Delete Selected Point",
-                         platformizeSeq(hotkey("deletePoint", "Alt+Shift+Delete")));
-    actClearAll_ = mk("Clear All Lines", hotkey("clearAllLines", "Alt+W"));
-    actDeselect_ = mk("Deselect", "Esc");
-    actZoomIn_ = mk("Zoom In", hotkey("zoomIn", "Alt+Up"));
-    actZoomOut_ = mk("Zoom Out", hotkey("zoomOut", "Alt+Down"));
-    actFit_ = mk("Fit to Window", hotkey("resetZoom", "Alt+0"));
-    actShowPoints_ = mk("Show Points", hotkey("togglePoints", "Alt+P"));
-    actShowLines_ = mk("Show Lines", hotkey("toggleLines", "Alt+L"));
-    actTheme_ = mk("Dark Theme", hotkey("toggleTheme", "Ctrl+D"));
-    actPanel_ = mk("Selection Panel", hotkey("togglePointsList", "Alt+X"));
-    actToolbars_ = mk("Toolbars", hotkey("toggleControls", "Alt+C"));  // show/hide the top toolbars
-    actFullscreen_ = mk("Fullscreen", hotkey("fullscreen", "Alt+F"));
-    actSettings_ = mk("Settings…", "Ctrl+,");
-    actProjects_ = mk("Projects…", hotkey("openProjects", "Ctrl+Shift+P"));
-    actConnect_ = mk("Servers…", hotkey("openServers", "Ctrl+Shift+K"));
-    tip(actConnect_,
-        "Connect to collaboration servers — shared projects appear with a golden outline");
-    actLinks_ = mk("Image Links…", hotkey("openLinks", "Ctrl+Shift+L"));
-    actOpenIn_ = mk("Open In…", hotkey("openIn", "Ctrl+Shift+E"));
-    tip(actOpenIn_,
-        "Open the current project in the browser app or the Telegram bot");
-    // New Project has no shared hotkeysConfig.json entry; literal default here.
-    actNewProject_ = mk("New Project", "Ctrl+Shift+N");
-    actSaveProject_ = mk("Save to Project", "Ctrl+Shift+S");
-    // Trash: clear (remove) the current project/editor (mirrors the browser's
-    // #clear-storage danger button). Hidden for server projects (refreshActions).
-    actClearProject_ = mk("Clear Project", QString());
-    tip(actClearProject_, "Clear (remove) current project");
-    actSaveSession_ = mk("Save Session", "Ctrl+S");
-    actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
-    actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
-    actTooltip_ = mk("Show Tooltips", QString());   // browser label parity (was "Hover Tooltip")
-    actTooltip_->setCheckable(true);
-    // Allow-formulas toggle (S11), also reachable from the View menu so the
-    // f(x,y) inputs aren't lost when the toolbar overflows. Two-way synced with
-    // the toolbar allowFormulas_ checkbox below.
-    actAllowFormulas_ = mk("Allow Formulas", QString());
-    actAllowFormulas_->setCheckable(true);
-    actQuit_ = mk("Quit", "Ctrl+Q");
-
-    // Data actions (S9). The clipboard hotkeys come from hotkeysConfig.json
-    // (copyImage=Ctrl+C, copyLayout=Alt+J, paste=Ctrl+V) so a rebind re-applies
-    // live; the JSON file export/import are menu-only (no browser hotkey).
-    actDownloadJson_ = mk("Export Layout JSON…", hotkey("downloadJson", "Ctrl+Shift+J"));
-    actUploadJson_ = mk("Import Layout JSON…", hotkey("uploadJson", "Ctrl+Shift+U"));
-    // Whole-project files (.stencil): image + layout + settings + theme in one portable file.
-    actSaveProjectFile_ = mk("Save Project As… (.stencil)", hotkey("saveProject", "Ctrl+Shift+S"));
-    actOpenProjectFile_ = mk("Open Project… (.stencil)", hotkey("openProject", "Ctrl+Shift+F"));
-    actStencilLiveSync_ = mk("Live Sync with File", QString());
-    actStencilLiveSync_->setCheckable(true);
-    actStencilLiveSync_->setEnabled(false);   // enabled once the project is linked to a .stencil file
-    actStencilLiveSync_->setToolTip("Auto-save edits to the linked .stencil file and reload it when another app changes it");
-    actDeleteProjectFile_ = mk("Delete Project File (.stencil)", QString());
-    actDeleteProjectFile_->setEnabled(false);   // enabled once the project is linked to a .stencil file
-    actDeleteProjectFile_->setToolTip("Delete the linked .stencil file from disk (the project stays open here)");
-    actCopyLayout_ = mk("Copy Layout JSON", hotkey("copyLayout", "Ctrl+Alt+C"));
-    actPasteLayout_ = mk("Paste Layout JSON", QString());
-    actSaveImage_ = mk("Save Image…", hotkey("saveImage", "Ctrl+Shift+D"));
-    actCopyImage_ = mk("Copy Image to Clipboard", hotkey("copyImage", "Ctrl+C"));
-    // Single Ctrl+V entrypoint (paste hotkey): image takes priority over a layout
-    // JSON text payload, mirroring the browser paste listener (drawingApp.js
-    // :563-591). pasteImage() does that dispatch.
-    actPasteImage_ = mk("Paste (Image or Layout)", hotkey("paste", "Ctrl+V"));
-
-    // Layout/image export + clipboard actions route to DataExportController (dataExport_).
-    connect(actDownloadJson_, &QAction::triggered, this, [this] { dataExport_->downloadLayout(); });
-    connect(actUploadJson_, &QAction::triggered, this, [this] { dataExport_->uploadLayout(); });
-    connect(actSaveProjectFile_, &QAction::triggered, this, [this] { saveProjectFileAs(); });
-    connect(actStencilLiveSync_, &QAction::toggled, this, [this](bool on) { toggleStencilLiveSync(on); });
-    connect(actDeleteProjectFile_, &QAction::triggered, this, [this] { deleteProjectFile(); });
-    connect(actOpenProjectFile_, &QAction::triggered, this, [this] {
-      const QString path = QFileDialog::getOpenFileName(
-          this, "Open project", QString(), "Stencil project (*.stencil)");
-      if (!path.isEmpty()) openProjectFile(path);
-    });
-    connect(actCopyLayout_, &QAction::triggered, this, [this] { dataExport_->copyLayout(); });
-    connect(actPasteLayout_, &QAction::triggered, this, [this] { dataExport_->pasteLayout(); });
-    connect(actSaveImage_, &QAction::triggered, this, [this] { dataExport_->saveImageFile(); });
-    connect(actCopyImage_, &QAction::triggered, this, [this] { dataExport_->copyImageToClipboard(); });
-    connect(actPasteImage_, &QAction::triggered, this, &MainWindow::pasteImage);
-
-    // Incognito (S6): edit without saving. Togglable only before an image is
-    // loaded (browser behavior), so it gets disabled once content exists.
-    actIncognito_->setCheckable(true);
-    actIncognito_->setToolTip(
-        "Incognito — edit without saving (choose before adding an image)");
-
-    // Fullscreen is a toggle: its toolbar button shows the accent "active" fill
-    // (QToolButton:checked) while fullscreen is on, mirroring the browser.
-    actFullscreen_->setCheckable(true);
-    actShowPoints_->setCheckable(true);
-    actShowLines_->setCheckable(true);
-    actPanel_->setCheckable(true);
-    actPanel_->setChecked(true);
-    actToolbars_->setCheckable(true);
-    actToolbars_->setChecked(true);
-
-    connect(actOpen_, &QAction::triggered, this, &MainWindow::openImage);
-    connect(actCrop_, &QAction::triggered, this, &MainWindow::openCropDialog);
-    auto rotate = [this](bool clockwise) {
-      if (!canvas_->hasImage()) {
-        notify_->error("Open an image first");
-        return;
-      }
-      canvas_->rotateImage(clockwise);
-      fitToWindow();
-      refreshActions();
-    };
-    // Alt+R is a global shortcut, so it fires (and consumes the key) before keyPressEvent —
-    // with a line selected we arm the line-rotate chord here instead of rotating the image, so
-    // the following ←/→ rotates the selection (keyPressEvent). Deselect to rotate the image.
-    connect(actRotateLeft_, &QAction::triggered, this, [this, rotate] {
-      if (canvas_ && canvas_->selectionCount() >= 1) { rKeyHeld_ = true; return; }
-      rotate(false);
-    });
-    connect(actRotateRight_, &QAction::triggered, this, [rotate] { rotate(true); });
-    // Cycle the image filter (Alt+B) — mirrors the browser's cycleFilter hotkey:
-    // none → bw → sepia → invert → contour → custom(tint). applyImageFilter
-    // marks it dirty + syncs.
-    connect(actCycleFilter_, &QAction::triggered, this, [this] {
-      if (!canvas_->hasImage()) return;
-      static const QStringList order{"none",   "bw",      "sepia",
-                                     "invert", "contour", "custom"};
-      const int cur = order.indexOf(settings_.imageFilter);
-      applyImageFilter(order[(cur + 1) % order.size()]);
-    });
-    // Cycle the compare view (Alt+O): none → original → vertical → horizontal.
-    connect(actCycleCompare_, &QAction::triggered, this, [this] {
-      if (!canvas_->hasImage()) return;
-      static const QStringList order{"none", "original", "vertical", "horizontal"};
-      const int cur = order.indexOf(canvas_->compareMode());
-      setCompareModeUi(order[(cur + 1) % order.size()]);
-    });
-    connect(actStartDraw_, &QAction::triggered, canvas_,
-            &CanvasWidget::startDrawingMode);
-    connect(actStopDraw_, &QAction::triggered, canvas_,
-            &CanvasWidget::stopDrawingMode);
-    connect(actNewLine_, &QAction::triggered, canvas_, &CanvasWidget::startNewLine);
-    connect(actUndo_, &QAction::triggered, canvas_, &CanvasWidget::undo);
-    connect(actRedo_, &QAction::triggered, canvas_, &CanvasWidget::redo);
-    connect(actDeleteLast_, &QAction::triggered, canvas_,
-            &CanvasWidget::deleteLastPoint);
-    connect(actDeleteLine_, &QAction::triggered, canvas_,
-            &CanvasWidget::deleteSelectedLine);
-    connect(actDeletePoint_, &QAction::triggered, this,
-            [this] { canvas_->deletePoint(canvas_->selectedPoint()); });
-    connect(actClearAll_, &QAction::triggered, canvas_, &CanvasWidget::clearAll);
-    connect(actDeselect_, &QAction::triggered, canvas_, &CanvasWidget::deselect);
-    connect(actZoomIn_, &QAction::triggered, this, &MainWindow::zoomIn);
-    connect(actZoomOut_, &QAction::triggered, this, &MainWindow::zoomOut);
-    connect(actFit_, &QAction::triggered, this, &MainWindow::fitToWindow);
-    connect(actShowPoints_, &QAction::toggled, this, [this](bool on) {
-      canvas_->setShowPoints(on);
-      settings_.showPoints = on;
-      fileStore::saveSettings(settings_);
-    });
-    connect(actShowLines_, &QAction::toggled, this, [this](bool on) {
-      canvas_->setShowLines(on);
-      settings_.showLines = on;
-      fileStore::saveSettings(settings_);
-    });
-    connect(actTheme_, &QAction::triggered, this, &MainWindow::toggleTheme);
-    // Points panel + top-menu (toolbars) show/hide, animated (slide). The floating arrow overlays
-    // and the View-menu/hotkey both route through these actions.
-    connect(actPanel_, &QAction::toggled, this, [this](bool on) { setPanelShown(on, true); });
-    connect(actToolbars_, &QAction::toggled, this, [this](bool on) { setToolbarsShown(on, true); });
-    connect(actFullscreen_, &QAction::triggered, this,
-            &MainWindow::toggleFullscreen);
-    // Escape-leaves-fullscreen is handled in the app-wide eventFilter (reliable across focus).
-    fsHoverTimer_ = new QTimer(this);   // drives the fullscreen edge-hover reveal
-    connect(fsHoverTimer_, &QTimer::timeout, this, &MainWindow::fsHoverTick);
-    connect(actSettings_, &QAction::triggered, this, &MainWindow::openSettings);
-    connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
-    connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);
-    connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
-    connect(actOpenIn_, &QAction::triggered, this, &MainWindow::openInAnotherApp);
-    connect(actNewProject_, &QAction::triggered, this,
-            &MainWindow::newProjectFromCanvas);
-    connect(actSaveProject_, &QAction::triggered, this,
-            &MainWindow::saveToActiveProject);
-    connect(actClearProject_, &QAction::triggered, this,
-            &MainWindow::clearCurrentProject);
-    connect(actSaveSession_, &QAction::triggered, this, [this] {
-      saveSessionNow();
-      notify_->success("Session saved");
-    });
-    actShortcuts_ = mk("Customize Shortcuts…", QString());
-    connect(actShortcuts_, &QAction::triggered, this,
-            &MainWindow::openShortcuts);
-
-    // Map hotkey ids -> their actions so a rebind can re-apply live (S13). Only
-    // ids present in hotkeysConfig.json are rebindable.
-    hotkeyActions_["rotateImageLeft"] = actRotateLeft_;
-    hotkeyActions_["rotateImageRight"] = actRotateRight_;
-    hotkeyActions_["startDraw"] = actStartDraw_;
-    hotkeyActions_["stopDraw"] = actStopDraw_;
-    hotkeyActions_["clearAllLines"] = actClearAll_;
-    hotkeyActions_["deleteLine"] = actDeleteLine_;
-    hotkeyActions_["deletePoint"] = actDeletePoint_;
-    hotkeyActions_["togglePoints"] = actShowPoints_;
-    hotkeyActions_["toggleLines"] = actShowLines_;
-    hotkeyActions_["togglePointsList"] = actPanel_;
-    hotkeyActions_["toggleControls"] = actToolbars_;
-    hotkeyActions_["fullscreen"] = actFullscreen_;
-    hotkeyActions_["resetZoom"] = actFit_;
-    hotkeyActions_["zoomIn"] = actZoomIn_;
-    hotkeyActions_["zoomOut"] = actZoomOut_;
-    hotkeyActions_["undo"] = actUndo_;
-    hotkeyActions_["redo"] = actRedo_;
-    // Data clipboard hotkeys (S9; hotkeysConfig.json copyImage/copyLayout/paste).
-    hotkeyActions_["copyImage"] = actCopyImage_;
-    hotkeyActions_["copyLayout"] = actCopyLayout_;
-    hotkeyActions_["paste"] = actPasteImage_;
-    // File / project hotkeys whose defaults live in the shared hotkeysConfig.json
-    // (coordinated with the browser), wired so a rebind re-applies live and they
-    // appear in the Customize Shortcuts dialog.
-    hotkeyActions_["cropImage"] = actCrop_;
-    hotkeyActions_["saveImage"] = actSaveImage_;
-    hotkeyActions_["downloadJson"] = actDownloadJson_;
-    hotkeyActions_["uploadJson"] = actUploadJson_;
-    hotkeyActions_["saveProject"] = actSaveProjectFile_;
-    hotkeyActions_["openProject"] = actOpenProjectFile_;
-    hotkeyActions_["openServers"] = actConnect_;
-    hotkeyActions_["openLinks"] = actLinks_;
-    hotkeyActions_["toggleIncognito"] = actIncognito_;
-    hotkeyActions_["loadImage"] = actOpen_;
-    hotkeyActions_["openProjects"] = actProjects_;
-    hotkeyActions_["toggleTheme"] = actTheme_;
-    hotkeyActions_["openHelp"] = actInfo_;
-
-    connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);
-    connect(actIncognito_, &QAction::toggled, this, [this](bool on) {
-      incognito_ = on;
-      incognitoOverlay_->setActive(on);
-      notify_->info(on ? "Incognito mode — this editor won't be saved"
-                       : "Incognito off");
-      updateProjectTitle();
-    });
-    connect(actTooltip_, &QAction::toggled, this, [this](bool on) {
-      settings_.tooltipEnabled = on;
-      if (!on) tooltip_->hide();
-      persistSettings();
-    });
-    connect(actQuit_, &QAction::triggered, this, &QWidget::close);
-  }
-
-  // Persistent context-menu submenu actions (S11). Port of the wiring done once
-  // in browser/js/ui/contextMenu.js wire() (~112-605): the draw-mode bridge, the
-  // instant-rectangle item, and the Style / Image-Filter / Tooltip submenus.
-  // Built once and reused on every right-click; showContextMenu() only re-syncs
-  // their checked/enabled/visible state before exec (mirroring syncState ~239).
-  void MainWindow::buildContextActions() {
-    // ── Draw-mode bridge (contextMenu.js:416-421). Flip line<->rect on the
-    // canvas, persist, and notify. The label is re-synced in showContextMenu.
-    actDrawModeToggle_ = new QAction("Switch to Rectangle Drawing", this);
-    connect(actDrawModeToggle_, &QAction::triggered, this, [this] {
-      const bool toRect = canvas_->drawMode() == CanvasWidget::DrawMode::Line;
-      canvas_->setDrawMode(toRect ? CanvasWidget::DrawMode::Rect
-                                  : CanvasWidget::DrawMode::Line);
-      persistSettings();
-      notify_->info(QString("Drawing mode: %1")
-                        .arg(toRect ? "Rectangle" : "Line"));
-    });
-
-    // ── Instant rectangle (contextMenu.js:425-431): rect mode + begin drawing.
-    actDrawRectNow_ = new QAction("Draw Rectangle (instant)", this);
-    connect(actDrawRectNow_, &QAction::triggered, this, [this] {
-      if (!canvas_->hasImage()) {
-        notify_->error("Load an image first");
-        return;
-      }
-      canvas_->setDrawMode(CanvasWidget::DrawMode::Rect);
-      canvas_->startDrawingMode();  // continues the selected line if one is set
-      notify_->info("Drag to draw a rectangle");
-    });
-
-    // ── Style submenu (contextMenu.js:39-57). Marker/thickness spinboxes hosted
-    // in QWidgetActions, and an exclusive line-style radio group. All three push
-    // canvas DEFAULTS (the context menu, like the toolbar, edits defaults only —
-    // selection edits live in the SelectionPanel per the plan's resolution).
-    // Shared QWidgetAction row scaffold: a QWidget + HBox with the standard menu-row margins,
-    // wrapped in a QWidgetAction (so clicking the hosted control doesn't dismiss the menu).
-    // Returns the layout to fill; its parentWidget() is the host QWidget. Sets `act`.
-    auto makeMenuRow = [this](QWidgetAction*& act, int topM = 4, int botM = 4) {
-      auto* w = new QWidget(this);
-      auto* lay = new QHBoxLayout(w);
-      lay->setContentsMargins(14, topM, 14, botM);
-      act = new QWidgetAction(this);
-      act->setDefaultWidget(w);
-      return lay;
-    };
-    auto styleRow = [this, &makeMenuRow](const QString& label, QSpinBox*& spin, int lo, int hi,
-                                         QWidgetAction*& act) {
-      auto* lay = makeMenuRow(act);
-      auto* w = lay->parentWidget();
-      lay->addWidget(new QLabel(label, w));
-      spin = new QSpinBox(w);
-      spin->setRange(lo, hi);
-      lay->addStretch(1);
-      lay->addWidget(spin);
-    };
-    styleRow("Marker Size", markerSpin_, 1, 30, markerSizeAction_);
-    styleRow("Line Thickness", thickSpin_, 1, 20, thicknessAction_);
-    // Marker / thickness commit on change (contextMenu.js:467-491): defaults +
-    // persist + canvas redraw via setDefaults.
-    connect(markerSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              settings_.defaultMarkerSize = v;
-              if (markerSize_) {
-                QSignalBlocker b(markerSize_);
-                markerSize_->setValue(v);  // keep toolbar control in sync
-              }
-              onLineStyleControlChanged();
-            });
-    connect(thickSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              settings_.defaultThickness = v;
-              if (lineThickness_) {
-                QSignalBlocker b(lineThickness_);
-                lineThickness_->setValue(v);
-              }
-              onLineStyleControlChanged();
-            });
-
-    // Line-style radio group (contextMenu.js:51-55, 494-501).
-    lineStyleGroup_ = new QActionGroup(this);
-    lineStyleGroup_->setExclusive(true);
-    auto mkStyle = [this](const QString& text, const QString& value) {
-      auto* a = new QAction(text, this);
-      a->setCheckable(true);
-      a->setData(value);
-      lineStyleGroup_->addAction(a);
-      connect(a, &QAction::triggered, this,
-              [this, value] { applyLineStyle(value); });
-      return a;
-    };
-    actStyleSolid_ = mkStyle("Solid", "solid");
-    actStyleDashed_ = mkStyle("Dashed", "dashed");
-    actStyleDotted_ = mkStyle("Dotted", "dotted");
-
-    // ── Image Filter submenu (contextMenu.js:59-74, 504-526). Exclusive radio
-    // group + a custom-tint picker action shown only when "custom" is active.
-    filterButtons_ = new QButtonGroup(this);
-    filterButtons_->setExclusive(true);
-    auto mkFilter = [this, &makeMenuRow](const QString& text, const QString& value) {
-      QWidgetAction* act;
-      auto* lay = makeMenuRow(act);
-      auto* rb = new QRadioButton(text, lay->parentWidget());
-      rb->setProperty("filterValue", value);
-      filterButtons_->addButton(rb);
-      // Expand across the row so the whole strip is the radio's hit area (label + trailing space),
-      // and the radio itself consumes the click so the menu stays open.
-      rb->setSizePolicy(QSizePolicy::Expanding, rb->sizePolicy().verticalPolicy());
-      lay->addWidget(rb);
-      // toggled(true) fires for the newly-selected radio; applyImageFilter is a no-op-safe re-set.
-      connect(rb, &QRadioButton::toggled, this,
-              [this, value](bool on) { if (on) applyImageFilter(value); });
-      return act;
-    };
-    actFilterNone_ = mkFilter("None", "none");
-    actFilterBW_ = mkFilter("Black && White", "bw");
-    actFilterSepia_ = mkFilter("Sepia", "sepia");
-    actFilterInvert_ = mkFilter("Invert", "invert");
-    actFilterContour_ = mkFilter("Contour", "contour");
-    actFilterCustom_ = mkFilter("Custom Tint", "custom");
-    // Tint color picker (contextMenu.js:518-526): pick the duotone tint, persist,
-    // re-apply when the active filter is custom.
-    tintColorAction_ = new QAction("Tint Color…", this);
-    connect(tintColorAction_, &QAction::triggered, this, [this] {
-      const QColor c =
-          QColorDialog::getColor(filterColorValue_, this, "Tint color",
-                                 QColorDialog::DontUseNativeDialog);
-      if (c.isValid()) applyTintColor(c);
-    });
-
-    // ── Tooltip toggles (contextMenu.js:96-107, 546-557). Hosted as real QCheckBoxes
-    // in QWidgetActions (like the marker/thickness spinbox rows) so a click flips them
-    // WITHOUT dismissing the menu — the browser's context menu likewise keeps its inline
-    // checkboxes/sliders live — and so they render as checkboxes, not the action's icon.
-    // Per-row visibility is backed by the MainWindow booleans (consumed in onHoverDetail).
-    auto mkCheckRow = [this, &makeMenuRow](const QString& text, bool checked, QCheckBox*& box,
-                                           QWidgetAction*& act) {
-      auto* lay = makeMenuRow(act);
-      box = new QCheckBox(text, lay->parentWidget());
-      box->setChecked(checked);
-      // Expand the button across the row so its own hit area (which toggles AND consumes the
-      // click, keeping the menu open) covers the whole strip — label and trailing space included,
-      // not just the tiny indicator. QMenu widens the QWidgetAction widget to the menu width.
-      box->setSizePolicy(QSizePolicy::Expanding, box->sizePolicy().verticalPolicy());
-      lay->addWidget(box);
-    };
-    // Enable toggle: drives settings_.tooltipEnabled and mirrors the View-menu actTooltip_.
-    mkCheckRow("Show Tooltips", settings_.tooltipEnabled, tooltipEnableCheck_, actTooltipEnable_);
-    connect(tooltipEnableCheck_, &QCheckBox::toggled, this, [this](bool on) {
-      settings_.tooltipEnabled = on;
-      {
-        QSignalBlocker b(actTooltip_);
-        actTooltip_->setChecked(on);  // keep the View-menu item in lock-step
-      }
-      persistSettings();
-      if (!on)
-        tooltip_->hide();
-      else if (!QApplication::activePopupWidget())
-        onHovered(lastHoverX_, lastHoverY_);  // re-show at the current hover (not while the menu's up)
-    });
-    // The three per-row toggles write straight into settings_ (the source of truth), persist,
-    // and refresh the live tooltip. Binding `backing` to the settings_ field keeps them in sync.
-    auto mkRowToggle = [this, &mkCheckRow](const QString& text, bool& backing,
-                                           QCheckBox*& box, QWidgetAction*& act) {
-      mkCheckRow(text, backing, box, act);
-      connect(box, &QCheckBox::toggled, this, [this, &backing](bool on) {
-        backing = on;
-        persistSettings();
-        // Don't refresh the live tooltip while the context menu is up — showing that top-level
-        // tooltip window would steal the popup's grab and dismiss the menu.
-        if (!QApplication::activePopupWidget()) onHovered(lastHoverX_, lastHoverY_);
-      });
-    };
-    mkRowToggle("Page (cm)", settings_.tooltipShowPage, ttPageCheck_, actTtPage_);
-    mkRowToggle("Screen (px)", settings_.tooltipShowScreen, ttScreenCheck_, actTtScreen_);
-    mkRowToggle("To Edge (cm)", settings_.tooltipShowCoords, ttCoordsCheck_, actTtCoords_);
-
-    // ── Transformation submenu formula controls (contextMenu.js:84-100): an "Allow Formulas"
-    // checkbox and x(x)/y(y) inputs, hosted so the submenu stays open. They are twins of the
-    // toolbar formula widgets — edits here drive those (setChecked/setText), so the existing
-    // validate/apply/persist/co-edit-push pipeline runs unchanged. Seeded in syncContextActions.
-    mkCheckRow("Allow Formulas", settings_.allowFormulas, ctxAllowFormulas_, ctxAllowFormulasAct_);
-    connect(ctxAllowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
-      allowFormulas_->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
-      if (ctxFormulaXAct_) ctxFormulaXAct_->setVisible(on);
-      if (ctxFormulaYAct_) ctxFormulaYAct_->setVisible(on);
-    });
-    auto mkFormulaRow = [this, &makeMenuRow](const QString& label, const QString& placeholder,
-                                             QLineEdit*& edit, QWidgetAction*& act) {
-      auto* lay = makeMenuRow(act, 2, 4);
-      auto* w = lay->parentWidget();
-      lay->addWidget(new QLabel(label, w));
-      edit = new QLineEdit(w);
-      edit->setPlaceholderText(placeholder);
-      edit->setFixedWidth(150);
-      lay->addStretch(1);
-      lay->addWidget(edit);
-    };
-    mkFormulaRow("x(x)=", "e.g. x + 9", ctxFormulaX_, ctxFormulaXAct_);
-    mkFormulaRow("y(y)=", "e.g. (y-7)*4", ctxFormulaY_, ctxFormulaYAct_);
-    // Mirror context edits into the canonical toolbar inputs (guarded to avoid a feedback loop),
-    // which fires validateAndApplyFormulas() with its inline error + persistence.
-    connect(ctxFormulaX_, &QLineEdit::textChanged, this, [this](const QString& t) {
-      if (formulaX_->text() != t) formulaX_->setText(t);
-    });
-    connect(ctxFormulaY_, &QLineEdit::textChanged, this, [this](const QString& t) {
-      if (formulaY_->text() != t) formulaY_->setText(t);
-    });
-
-    // ── Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
-    // Switching re-renders every length readout (status bar, tooltip, selection
-    // panel) and the custom page spinboxes, which stay backed by cm internally.
-    auto* unitGroup = new QActionGroup(this);
-    unitGroup->setExclusive(true);
-    auto mkUnit = [this, unitGroup](const QString& text, const QString& code) {
-      auto* a = new QAction(text, this);
-      a->setCheckable(true);
-      a->setChecked(settings_.units == code);
-      unitGroup->addAction(a);
-      connect(a, &QAction::toggled, this, [this, code](bool on) {
-        if (on) applyUnits(code);
-      });
-      return a;
-    };
-    actUnitCm_ = mkUnit("Centimeters (cm)", "cm");
-    actUnitIn_ = mkUnit("Inches (in)", "in");
-  }
-
-  void MainWindow::buildMenus() {
-    // Keep the menu bar inside the window rather than exported to a native /
-    // global app menu (some GNOME setups otherwise render an empty in-window
-    // bar), so the multilevel File/Edit/View/Project/Help menus stay visible.
-    // On macOS, however, the native global menu bar at the top of the screen is
-    // the expected placement, so leave Qt's default (native) there.
-#ifndef Q_OS_MACOS
-    menuBar()->setNativeMenuBar(false);
-#endif
-    // Mnemonics avoid the Alt+letter combos bound to hotkeys (Alt+F fullscreen,
-    // Alt+P points, Alt+L lines, etc.).
-    auto* file = menuBar()->addMenu("F&ile");
-    file->addAction(actOpen_);
-    file->addAction(actCrop_);
-    file->addAction(actRotateLeft_);
-    file->addAction(actRotateRight_);
-    file->addAction(actSaveSession_);
-    file->addSeparator();
-    file->addAction(actQuit_);
-
-    auto* edit = menuBar()->addMenu("&Edit");
-    edit->addAction(actStartDraw_);
-    edit->addAction(actStopDraw_);
-    edit->addSeparator();
-    edit->addAction(actUndo_);
-    edit->addAction(actRedo_);
-    edit->addSeparator();
-    edit->addAction(actNewLine_);
-    edit->addAction(actDeleteLast_);
-    edit->addAction(actDeleteLine_);
-    edit->addAction(actDeletePoint_);
-    edit->addAction(actClearAll_);
-    edit->addAction(actDeselect_);
-
-    // Data menu (S9): layout JSON file + clipboard, and image save/copy/paste.
-    // Mirrors the browser toolbar's Image/Layout button cluster (toolbar.js).
-    auto* data = menuBar()->addMenu("&Data");
-    data->addAction(actDownloadJson_);
-    data->addAction(actUploadJson_);
-    data->addSeparator();
-    data->addAction(actOpenProjectFile_);
-    data->addAction(actSaveProjectFile_);
-    data->addAction(actStencilLiveSync_);
-    data->addAction(actDeleteProjectFile_);
-    data->addSeparator();
-    data->addAction(actCopyLayout_);
-    data->addAction(actPasteLayout_);
-    data->addSeparator();
-    data->addAction(actSaveImage_);
-    data->addAction(actCopyImage_);
-    data->addAction(actPasteImage_);
-
-    auto* view = menuBar()->addMenu("&View");
-    view->addAction(actZoomIn_);
-    view->addAction(actZoomOut_);
-    view->addAction(actFit_);
-    view->addSeparator();
-    view->addAction(actShowPoints_);
-    view->addAction(actShowLines_);
-    // Compare-with-original submenu: radio set kept in sync with the toolbar combo.
-    auto* compareMenu = view->addMenu("&Compare");
-    compareGroup_ = new QActionGroup(this);
-    auto mkCompare = [&](const QString& text, const QString& value) {
-      auto* a = compareMenu->addAction(text);
-      a->setCheckable(true);
-      a->setData(value);
-      a->setChecked(value == "none");
-      compareGroup_->addAction(a);
-      connect(a, &QAction::triggered, this, [this, value] { setCompareModeUi(value); });
-    };
-    mkCompare("None", "none");
-    mkCompare("Original only", "original");
-    mkCompare("Vertical split (original | edit)", "vertical");
-    mkCompare("Horizontal split (original / edit)", "horizontal");
-    compareMenu->addSeparator();
-    compareMenu->addAction(actCycleCompare_);
-    view->addAction(actPanel_);
-    view->addAction(actToolbars_);
-    view->addAction(actTooltip_);
-    view->addAction(actAllowFormulas_);
-    auto* units = view->addMenu("&Units");
-    units->addAction(actUnitCm_);
-    units->addAction(actUnitIn_);
-    view->addSeparator();
-    view->addAction(actTheme_);
-    view->addAction(actFullscreen_);
-    view->addSeparator();
-    view->addAction(actIncognito_);
-    view->addAction(actSettings_);
-
-    auto* project = menuBar()->addMenu("P&roject");
-    project->addAction(actProjects_);
-    project->addAction(actConnect_);
-    project->addAction(actNewProject_);
-    project->addAction(actSaveProject_);
-    project->addAction(actClearProject_);
-    project->addSeparator();
-    // Per-project name colour lives here (not as a toolbar swatch): pick a custom colour or
-    // revert to the theme default. Enabled only with an active project (see updateProjectTitle).
-    actProjectColor_ = project->addAction("Project &colour…", this, [this] { chooseProjectColor(); });
-    actProjectColorClear_ =
-        project->addAction("Use theme &default colour", this, [this] { setActiveProjectColor(QString()); });
-    actProjectColor_->setEnabled(false);
-    actProjectColorClear_->setEnabled(false);
-    project->addSeparator();
-    project->addAction(actLinks_);
-    project->addAction(actOpenIn_);
-
-    auto* help = menuBar()->addMenu("&Help");
-    help->addAction(actInfo_);
-    help->addAction(actShortcuts_);
-  }
-
-  // The toolbar is three rows. addToolBar/addToolBarBreak sequencing fixes the
-  // visual row order, so the sub-builders MUST run in this order. Each row's
-  // widget-creation + wiring stays grouped in one method (the Style row's
-  // connects reference widgets it creates).
-  void MainWindow::buildToolbar() {
-    buildMainToolbar();
-    buildPageFormulaToolbar();
-    buildStyleToolbar();
-    buildImageInfoBar();
-    // Shared hover shimmer on every interactive control across the toolbar rows (buttons, combos,
-    // spinboxes, the f(x,y) checkbox, text fields) so the whole toolbar has one consistent hover
-    // treatment — not just the makeToolSection icons.
-    for (QToolBar* tb : findChildren<QToolBar*>()) {
-      for (QToolButton* b : tb->findChildren<QToolButton*>())
-        if (b != logoBtn_) installHoverShimmer(b);   // skip the logo (its own art/affordance)
-      for (QComboBox* c : tb->findChildren<QComboBox*>()) installHoverShimmer(c);
-      for (QAbstractSpinBox* s : tb->findChildren<QAbstractSpinBox*>()) installHoverShimmer(s);
-      for (QCheckBox* c : tb->findChildren<QCheckBox*>()) installHoverShimmer(c);   // f(x,y) pill
-      for (QLineEdit* le : tb->findChildren<QLineEdit*>())
-        if (le != projectName_) installHoverShimmer(le);   // skip the rename field
-    }
-  }
-
-  // Build a toolbar "section": a small uppercase label ABOVE a horizontal strip of the given
-  // actions' buttons (+ optional trailing widgets like the zoom combo). The desktop counterpart
-  // of the browser's stacked .ctrl-section (label on top of the button row), so the toolbar groups
-  // are NAMED with the header above the icons — not a bare inline label beside them.
-  QWidget* MainWindow::makeToolSection(const QString& title, const QList<QAction*>& actions,
-                                       const QList<QWidget*>& extras) {
-    auto* section = new QWidget(this);
-    auto* col = new QVBoxLayout(section);
-    col->setContentsMargins(6, 1, 6, 1);
-    col->setSpacing(3);
-    auto* label = new QLabel(title.toUpper(), section);
-    label->setObjectName("sectionLabel");
-    label->setStyleSheet("color:#7a828c;font-size:9px;font-weight:700;letter-spacing:0.6px;");
-    label->setAlignment(Qt::AlignLeft);   // left-aligned header, matching the browser sections
-    col->addWidget(label);
-    auto* rowWidget = new QWidget(section);
-    auto* row = new QHBoxLayout(rowWidget);
-    row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(2);
-    for (QAction* a : actions) {
-      auto* btn = new QToolButton(rowWidget);
-      btn->setDefaultAction(a);   // reflects the action's icon / tooltip / enabled / checked state
-      btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-      btn->setAutoRaise(true);
-      btn->setIconSize(QSize(18, 18));
-      // A standalone QToolButton does NOT auto-hide when its action is hidden (unlike a toolbar
-      // action-widget), so mirror visibility explicitly for the gated ones (Open-in, Clear-project).
-      btn->setVisible(a->isVisible());
-      connect(a, &QAction::changed, btn, [a, btn] { btn->setVisible(a->isVisible()); });
-      if (a == actStartDraw_) startDrawBtn_ = btn;   // styled accent while a draw session is active
-      row->addWidget(btn);
-    }
-    for (QWidget* ex : extras) { ex->setParent(rowWidget); row->addWidget(ex); }
-    col->addWidget(rowWidget);
-    return section;
-  }
-
-  void MainWindow::buildMainToolbar() {
-    // ── Header row (always visible): the "Controls" collapse pill + the project-name group.
-    // This row stays put while the tool rows below (Main / Page&Formula / Style) slide open/closed,
-    // exactly like the browser's header that keeps the "⌃ Controls" pill + title when the body hides.
-    headerToolbar_ = addToolBar("Header");
-    headerToolbar_->setMovable(false);
-    // App logo (mini line-chart, mirrors the browser's top-left logo). Clicking it cycles the theme
-    // accent to the next preset — the same affordance as the browser's clickable logo.
-    logoBtn_ = new QToolButton(this);
-    logoBtn_->setCursor(Qt::PointingHandCursor);
-    logoBtn_->setIconSize(QSize(24, 24));
-    logoBtn_->setIcon(QIcon(makeLogoPixmap(24)));
-    logoBtn_->setToolTip(QString());   // no tooltip on the logo
-    // No hover highlight — flat, transparent, borderless (just the logo art).
-    logoBtn_->setStyleSheet("QToolButton{border:none;background:transparent;padding:3px;}");
-    // Single click cycles the accent, but DEFER it briefly so a double-click can pre-empt it and open
-    // the custom-colour picker instead (mirrors the browser logo's click-vs-dblclick behaviour).
-    logoClickTimer_ = new QTimer(this);
-    logoClickTimer_->setSingleShot(true);
-    connect(logoClickTimer_, &QTimer::timeout, this, [this] {
-      const auto& presets = accentPresets();
-      if (presets.empty()) return;
-      int idx = -1;
-      for (size_t i = 0; i < presets.size(); ++i)
-        if (presets[i].key == settings_.accentColor) { idx = static_cast<int>(i); break; }
-      auto next = settings_;
-      // Browser parity: a CUSTOM colour (not a preset — idx < 0) resets to the default (violet);
-      // otherwise advance to the next preset, wrapping.
-      next.accentColor = idx < 0 ? presets.front().key : presets[(idx + 1) % presets.size()].key;
-      applySettings(next, true);   // apply + persist (re-themes everything, incl. the logo frame)
-    });
-    connect(logoBtn_, &QToolButton::clicked, this, [this] { logoClickTimer_->start(250); });
-    logoBtn_->installEventFilter(this);   // catch double-click → custom colour picker (see eventFilter)
-    headerToolbar_->addWidget(logoBtn_);
-    // "Controls" chevron pill — collapses/expands the tool rows (routes through actToolbars_ so the
-    // View-menu entry + Alt+C hotkey stay in sync). Icon (chevron) themed in styleActionIcons.
-    controlsPill_ = new QToolButton(this);
-    controlsPill_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    controlsPill_->setText("Controls");
-    controlsPill_->setAutoRaise(true);
-    controlsPill_->setCursor(Qt::PointingHandCursor);
-    controlsPill_->setToolTip(QString("Show / hide the toolbars (%1)").arg(hotkey("toggleControls", "Alt+C")));
-    connect(controlsPill_, &QToolButton::clicked, this, [this] { if (actToolbars_) actToolbars_->toggle(); });
-    headerToolbar_->addWidget(controlsPill_);
-    headerToolbar_->addSeparator();
-    buildProjectNameGroup(headerToolbar_);
-    // "Image Size: W × H px" readout. Created here but placed in its own full-width bar
-    // BELOW the toolbars (see buildImageInfoBar) — browser parity with the #image-info bar,
-    // left-aligned above the canvas rather than tucked in the top-right corner.
-    imageSizeInfo_ = new QLabel(this);
-    imageSizeInfo_->setStyleSheet("color:#9aa0a8;padding:2px 10px;");
-    addToolBarBreak();
-
-    // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
-    // hid the formula inputs / custom-page inputs at normal window widths). Row 1:
-    // file + drawing + history + zoom. Row 2: page size (+custom) + formulas.
-    auto* tb = addToolBar("Main");
-    tb->setMovable(false);
-    // Icon-only with the shared line-art glyphs (styleActionIcons assigns them) +
-    // the rich tooltips from mk(): compact, browser-faithful chrome that stays
-    // narrow enough to avoid the "»" overflow even with the full action set.
-    tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    tb->setIconSize(QSize(18, 18));
-
-    // Named, stacked groups (label ABOVE the icon row via makeToolSection) mirror the browser
-    // topbar order: Image · Projects · Share · Edit · Draw · Zoom · Settings.
-    // Blank-background swatch (browser parity): a colour button shown only for blank projects,
-    // recolouring the fill (lines kept). Lives in the IMAGE group; gated in updateProjectTitle.
-    blankColorBtn_ = new QToolButton(this);
-    blankColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    blankColorBtn_->setAutoRaise(true);
-    blankColorBtn_->setIconSize(QSize(18, 18));
-    blankColorBtn_->setToolTip("Blank background colour — recolour this blank image (keeps your lines)");
-    blankColorBtn_->setVisible(false);
-    connect(blankColorBtn_, &QToolButton::clicked, this, [this] { setActiveBlankColor(); });
-
-    // Image = open + the per-image actions (download/copy/open-in), matching the browser's
-    // IMAGE cluster, plus the blank-fill swatch. (actOpenIn_ moved here from Projects.)
-    tb->addWidget(makeToolSection("Image", {actOpen_, actSaveImage_, actCopyImage_, actOpenIn_}, {blankColorBtn_}));
-    tb->addSeparator();
-    // Projects = open editor list + save/open .stencil + live-sync, matching the browser's
-    // PROJECTS cluster (layers / save / folder / refresh). Clear-project stays in the menu bar.
-    tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_, actDeleteProjectFile_}));
-    tb->addSeparator();
-    // Share = the browser's merged Servers + Links (connect to share/co-edit + image source links).
-    tb->addWidget(makeToolSection("Share", {actConnect_, actLinks_}));
-    tb->addSeparator();
-    // Edit = adjust the current image + undo/redo (the browser's new Edit section).
-    tb->addWidget(makeToolSection("Edit", {actCrop_, actRotateLeft_, actRotateRight_, actUndo_, actRedo_}));
-    tb->addSeparator();
-    // Draw = Start + Stop, mirroring the browser toolbar's Draw section (no New Line button there;
-    // New Line stays on the Edit menu / Alt+N). The Line/Rect mode toggle sits in the Style row.
-    tb->addWidget(makeToolSection("Draw", {actStartDraw_, actStopDraw_}));
-    tb->addSeparator();
-    // Zoom = the editable percent combo + a Fit-to-window button (browser parity — the browser's
-    // zoom section ends with the fit icon). The combo replaces the browser's +/- steppers (type or
-    // pick a preset). Fit button built here so it sits AFTER the combo, like the browser.
-    auto* zoomFitBtn = new QToolButton(this);
-    zoomFitBtn->setDefaultAction(actFit_);
-    zoomFitBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    zoomFitBtn->setAutoRaise(true);
-    zoomFitBtn->setIconSize(QSize(18, 18));
-    tb->addWidget(makeToolSection("Zoom", {}, {zoom_, zoomFitBtn}));
-    tb->addSeparator();
-    // Settings = incognito + fullscreen (theme/shortcuts/help live in the menu bar).
-    tb->addWidget(makeToolSection("Settings", {actIncognito_, actFullscreen_}));
-  }
-
-  // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
-  // active project's name and renames it inline, validated live: ✓ is enabled only for a changed,
-  // valid (non-empty, ≤80, unique) name, with the reason on its tooltip when disabled. Enter = ✓,
-  // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill. ──
-  void MainWindow::buildProjectNameGroup(QToolBar* tbName) {
-    tbName->addWidget(new QLabel("Project: ", this));
-    projectName_ = new QLineEdit(this);
-    projectName_->setPlaceholderText("No project");
-    projectName_->setToolTip(QString());   // no tooltip on the name field (the ✎ button has its own)
-    projectName_->setMinimumWidth(150);
-    projectName_->setMaximumWidth(300);
-    // A QLineEdit is horizontally Expanding by default — in a toolbar that stretches it across the
-    // whole row and shoves the ✎/🎨 far to the right. Make it content-sized so the name + icons
-    // pack together on the left (a trailing spacer below absorbs the rest of the row).
-    projectName_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    projectName_->setEnabled(false);
-    projectName_->setReadOnly(true);  // browser-like: read-only until edit mode (✎ / double-click)
-    tbName->addWidget(projectName_);
-    // Browser-style affordances beside the name: a ✎ rename pencil (focuses + selects the field)
-    // and a 🎨 colour icon (flat — NOT a filled swatch — opening choose / theme-default). Both
-    // are themed line-art glyphs (styleActionIcons) and enable only with an active project.
-    projectNameEdit_ = new QToolButton(this);
-    projectNameEdit_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    projectNameEdit_->setAutoRaise(true);
-    projectNameEdit_->setToolTip("Rename project");
-    projectNameEdit_->setEnabled(false);
-    projectNameEditAction_ = tbName->addWidget(projectNameEdit_);
-    connect(projectNameEdit_, &QToolButton::clicked, this, [this] { enterNameEdit(); });
-    projectColorBtn_ = new QToolButton(this);
-    projectColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    projectColorBtn_->setAutoRaise(true);
-    projectColorBtn_->setToolTip("Project name colour — right-click to reset to default");
-    projectColorBtn_->setEnabled(false);
-    projectColorBtnAction_ = tbName->addWidget(projectColorBtn_);
-    // Click opens a small menu (browser parity): "Choose colour…" + "Use theme default colour".
-    // The menu runs its own loop and fully closes before we open the picker (deferred), so no stray
-    // grab dismisses the dialog. Right-click still resets straight to the theme default.
-    connect(projectColorBtn_, &QToolButton::clicked, this, [this] { showProjectColorMenu(); });
-    projectColorBtn_->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(projectColorBtn_, &QToolButton::customContextMenuRequested, this,
-            [this](const QPoint&) { setActiveProjectColor(QString()); });
-    // Inline-rename confirm/cancel: line-art check / x glyphs (themed in
-    // styleActionIcons) instead of the bare ✓/✗ text, matching the browser's
-    // icon buttons. Icon-only with a tooltip.
-    projectNameAccept_ = new QToolButton(this);
-    projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    projectNameAccept_->setToolTip("Rename (Enter)");
-    projectNameAccept_->setVisible(false);
-    projectNameAcceptAction_ = tbName->addWidget(projectNameAccept_);
-    projectNameAcceptAction_->setVisible(false);
-    projectNameCancel_ = new QToolButton(this);
-    projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    projectNameCancel_->setToolTip("Cancel (Esc)");
-    projectNameCancel_->setVisible(false);
-    projectNameCancelAction_ = tbName->addWidget(projectNameCancel_);
-    projectNameCancelAction_->setVisible(false);
-    // Trailing expanding spacer: absorbs the rest of the row so the label + name + ✎/🎨 stay packed
-    // together on the LEFT (no huge gap), instead of the name field stretching across the whole row.
-    { auto* sp = new QWidget(this); sp->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); tbName->addWidget(sp); }
-    // The per-project name colour control is NOT a toolbar swatch — it lives in the Project
-    // menubar menu (actProjectColor_ / actProjectColorClear_). projectColorBtn_ stays null; the
-    // active project's colour is still visible because the name field itself is painted in it.
-    // textEdited fires only on USER edits (not programmatic setText), so updating the
-    // field from updateProjectTitle() never re-triggers validation.
-    connect(projectName_, &QLineEdit::textEdited, this,
-            [this](const QString&) { refreshProjectNameButtons(); });
-    connect(projectName_, &QLineEdit::returnPressed, this, [this] {
-      if (nameEditing_) commitProjectName();  // commit (no-op if unchanged) + leave edit mode
-    });
-    connect(projectNameAccept_, &QToolButton::clicked, this, [this] { commitProjectName(); });
-    connect(projectNameCancel_, &QToolButton::clicked, this, [this] { cancelProjectName(); });
-    // Escape cancels the edit; clicking away (focus-out) reverts any uncommitted text — both via
-    // the event filter below, so the user can always leave the field (Enter still commits).
-    projectName_->installEventFilter(this);
-    // Hover-reveal the ✎/🎨 group: watch Enter/Leave on the field AND both buttons so moving between
-    // them counts as one hover region (handled in eventFilter → updateNameHover).
-    projectNameEdit_->installEventFilter(this);
-    projectColorBtn_->installEventFilter(this);
-  }
-
-  void MainWindow::buildPageFormulaToolbar() {
-    // ── second row ──
-    addToolBarBreak();
-    auto* tb2 = addToolBar("Page & Formula");
-    tb2->setMovable(false);
-    tb2->setToolButtonStyle(Qt::ToolButtonTextOnly);
-
-    tb2->addWidget(new QLabel(" Page: ", this));
-    tb2->addWidget(pageSize_);
-
-    // Units switch on the toolbar (mirrors View ▸ Units, kept in sync). data
-    // carries the canonical code; both surfaces route through applyUnits().
-    tb2->addWidget(new QLabel(" Units: ", this));
-    unitCombo_ = new QComboBox(this);
-    unitCombo_->addItem("cm", "cm");
-    unitCombo_->addItem("in", "in");
-    unitCombo_->setToolTip("Display units (cm / inches)");
-    connect(unitCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [this](int) { applyUnits(unitCombo_->currentData().toString()); });
-    tb2->addWidget(unitCombo_);
-
-    // Inline custom W x H inputs (S10), shown only for the "custom" page size.
-    customGroup_ = new QWidget(this);
-    {
-      auto* cl = new QHBoxLayout(customGroup_);
-      cl->setContentsMargins(4, 0, 0, 0);
-      cl->setSpacing(2);
-      customW_ = new QDoubleSpinBox(customGroup_);
-      customW_->setRange(0.1, 500.0);  // browser LIMITS custom page bounds
-      customW_->setSingleStep(0.1);
-      customW_->setDecimals(1);
-      customW_->setValue(21.0);
-      customW_->setToolTip("Custom page width in the selected units");
-      // Width-tightening (S8 req 7): keep the custom-page spinboxes compact
-      // (browser style width:96px, toolbar.js:110/112).
-      customW_->setMaximumWidth(96);
-      customW_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-      customH_ = new QDoubleSpinBox(customGroup_);
-      customH_->setRange(0.1, 500.0);
-      customH_->setSingleStep(0.1);
-      customH_->setDecimals(1);
-      customH_->setValue(29.7);
-      customH_->setToolTip("Custom page height in the selected units");
-      customH_->setMaximumWidth(96);
-      customH_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-      cl->addWidget(customW_);
-      cl->addWidget(new QLabel("×", customGroup_));
-      cl->addWidget(customH_);
-      customUnitLabel_ = new QLabel("cm", customGroup_);
-      cl->addWidget(customUnitLabel_);
-    }
-    // Toggle the QWidgetAction (not the widget) so the toolbar re-lays-out and
-    // actually makes room for the inputs — setVisible() on the widget alone
-    // leaves a zero-width slot, so the spinboxes never appeared.
-    customGroupAct_ = tb2->addWidget(customGroup_);
-    customGroupAct_->setVisible(false);
-    tb2->addSeparator();
-
-    // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
-    allowFormulas_ = new QCheckBox("𝑓(x,y)", this);
-    // Styled as an accent PILL toggle (theme.cpp QCheckBox#formulaPill): accent outline + text
-    // when off, accent-filled with contrasting text when on — matching the browser toolbar.
-    allowFormulas_->setObjectName("formulaPill");
-    allowFormulas_->setToolTip(
-        "Enable x/y coordinate transform formulas applied to the points table");
-    tb2->addWidget(allowFormulas_);
-    formulaGroup_ = new QWidget(this);
-    {
-      auto* fl = new QHBoxLayout(formulaGroup_);
-      fl->setContentsMargins(4, 0, 0, 0);
-      fl->setSpacing(2);
-      formulaX_ = new QLineEdit(formulaGroup_);
-      formulaX_->setPlaceholderText("x(x)=");
-      formulaX_->setToolTip("Transform formula for x — e.g. x*2 + 1 (empty = identity)");
-      // Width-tightening (S8 req 7): compact f(x,y) inputs (browser width:90px,
-      // toolbar.js:119/120) with a Fixed policy so they don't stretch.
-      formulaX_->setMaximumWidth(90);
-      formulaX_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-      formulaY_ = new QLineEdit(formulaGroup_);
-      formulaY_->setPlaceholderText("y(y)=");
-      formulaY_->setToolTip("Transform formula for y — e.g. y/2 (empty = identity)");
-      formulaY_->setMaximumWidth(90);
-      formulaY_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-      formulaError_ = new QLabel("⚠ invalid", formulaGroup_);
-      formulaError_->setStyleSheet("color:#d9534f;");
-      formulaError_->setVisible(false);
-      fl->addWidget(new QLabel("x=", formulaGroup_));
-      fl->addWidget(formulaX_);
-      fl->addWidget(new QLabel("y=", formulaGroup_));
-      fl->addWidget(formulaY_);
-      fl->addWidget(formulaError_);
-    }
-    // Toggle the QWidgetAction (not the widget) so the toolbar re-lays-out and
-    // makes room for the inputs — same fix as the custom-page group.
-    formulaGroupAct_ = tb2->addWidget(formulaGroup_);
-    formulaGroupAct_->setVisible(false);
-    // Theme / Incognito / Settings / Projects / Info live in the menu bar only —
-    // keeping them off the toolbar prevents overflow from hiding the inline
-    // formula inputs (and mirrors the browser's leaner top bar).
-  }
-
-  // Full-width "Image Size: W × H px" bar below the tool rows (browser parity with the
-  // #image-info strip above the canvas), replacing the old top-right header placement.
-  void MainWindow::buildImageInfoBar() {
-    addToolBarBreak();
-    auto* bar = addToolBar("Image Size");
-    bar->setMovable(false);
-    bar->setObjectName("imageInfoBar");
-    bar->addWidget(imageSizeInfo_);   // left-aligned label; the bar spans the window width
-  }
-
-  void MainWindow::buildStyleToolbar() {
-    // ── third row: Style (filter + line defaults + draw-mode) ──
-    // Mirrors the browser toolbar's Image (filter) + Line Style + Draw sections
-    // (toolbar.js ~24-63). The toolbar drives canvas DEFAULTS + the image filter;
-    // selected-line editing lives in the SelectionPanel (Step 10).
-    addToolBarBreak();
-    auto* tb3 = addToolBar("Style");
-    tb3->setMovable(false);
-    tb3->setToolButtonStyle(Qt::ToolButtonTextOnly);
-
-    // Image filter combo (toolbar.js:24-29). data carries the canonical value.
-    tb3->addWidget(new QLabel(" Filter: ", this));
-    imageFilter_ = new QComboBox(this);
-    imageFilter_->addItem("No Filter", "none");
-    imageFilter_->addItem("B&W", "bw");
-    imageFilter_->addItem("Sepia", "sepia");
-    imageFilter_->addItem("Invert", "invert");
-    imageFilter_->addItem("Contour", "contour");
-    imageFilter_->addItem("Tint", "custom");
-    imageFilter_->setToolTip(
-        "Image filter: none, black & white, sepia, invert, contour, or tint");
-    tb3->addWidget(imageFilter_);
-
-    // Tint swatch (toolbar.js:30 #filterColor), hidden unless the "custom" filter
-    // is selected. The QWidgetAction handle is toggled so the toolbar re-lays-out.
-    filterColorBtn_ = new QToolButton(this);
-    filterColorBtn_->setToolTip("Tint color");
-    updateColorSwatch(filterColorBtn_, filterColorValue_);
-    filterColorAct_ = tb3->addWidget(filterColorBtn_);
-    filterColorAct_->setVisible(false);
-    tb3->addSeparator();
-
-    // Compare view combo (browser toolbar View section): hold the edit against the
-    // untouched original. Kept in sync with the View → Compare submenu radio set.
-    tb3->addWidget(new QLabel(" Compare: ", this));
-    compareCombo_ = new QComboBox(this);
-    compareCombo_->addItem("None", "none");
-    compareCombo_->addItem("Original only", "original");
-    compareCombo_->addItem(QString::fromUtf8("Split ↔ (vertical)"), "vertical");
-    compareCombo_->addItem(QString::fromUtf8("Split ↕ (horizontal)"), "horizontal");
-    compareCombo_->setToolTip(
-        "Compare with the original (Alt+O cycles · hold Alt+Shift+O to peek)\n"
-        "None — normal editing\n"
-        "Original — original image only (crop + rotation; no filter, lines or points)\n"
-        "Vertical split — left: original · right: current edit\n"
-        "Horizontal split — top: original · bottom: current edit");
-    tb3->addWidget(compareCombo_);
-    tb3->addSeparator();
-
-    // Default line color swatch (toolbar.js:40 #lineColor).
-    tb3->addWidget(new QLabel(" Line: ", this));
-    lineColorBtn_ = new QToolButton(this);
-    lineColorBtn_->setToolTip("Line color");
-    updateColorSwatch(lineColorBtn_, lineColorValue_);
-    tb3->addWidget(lineColorBtn_);
-
-    // Thickness / marker spinboxes (toolbar.js:41-42, min/max mirrored). Fixed
-    // narrow width so they don't sprawl (req: setMaximumWidth(56) + Fixed policy).
-    // Each gets a visible caption so the bare numbers aren't cryptic.
-    tb3->addWidget(new QLabel(" Thickness: ", this));
-    lineThickness_ = new QSpinBox(this);
-    lineThickness_->setRange(1, 20);
-    lineThickness_->setValue(2);
-    lineThickness_->setToolTip("Line thickness");
-    lineThickness_->setMaximumWidth(56);
-    lineThickness_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    tb3->addWidget(lineThickness_);
-    tb3->addWidget(new QLabel(" Marker: ", this));
-    markerSize_ = new QSpinBox(this);
-    markerSize_->setRange(1, 30);
-    markerSize_->setValue(4);
-    markerSize_->setToolTip("Marker size");
-    markerSize_->setMaximumWidth(56);
-    markerSize_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    tb3->addWidget(markerSize_);
-
-    // Line-style combo (toolbar.js:43-47). data carries the canonical value.
-    tb3->addWidget(new QLabel(" Style: ", this));
-    lineStyle_ = new QComboBox(this);
-    lineStyle_->addItem("Solid", "solid");
-    lineStyle_->addItem("Dashed", "dashed");
-    lineStyle_->addItem("Dotted", "dotted");
-    lineStyle_->setToolTip("Line style");
-    tb3->addWidget(lineStyle_);
-    tb3->addSeparator();
-
-    // Draw-mode toggle (toolbar.js:59 #drawModeToggle). Flips line<->rect.
-    drawModeBtn_ = new QToolButton(this);
-    // Icon + label (the glyph is themed in styleActionIcons / the handler below);
-    // the box-drawing prefix is replaced by the shared pencil / filled-rect icon.
-    drawModeBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    drawModeBtn_->setText("Line");
-    drawModeBtn_->setToolTip(
-        "Drawing mode: Line (click to switch to Rectangle)");
-    tb3->addWidget(drawModeBtn_);
-
-    // ── wiring ──
-    // Draw-mode toggle (drawingApp.js:298-301): flip the canvas mode. The
-    // drawModeChanged signal handler below keeps the button text/title in sync,
-    // so this need only toggle the canvas (which echoes back).
-    connect(drawModeBtn_, &QToolButton::clicked, this, [this] {
-      const auto next = canvas_->drawMode() == CanvasWidget::DrawMode::Rect
-                            ? CanvasWidget::DrawMode::Line
-                            : CanvasWidget::DrawMode::Rect;
-      canvas_->setDrawMode(next);
-      persistSettings();
-    });
-    // Echo the canvas draw mode onto the toggle button (drawingApp.js
-    // syncDrawModeUI ~1125): label + tooltip per mode.
-    connect(canvas_, &CanvasWidget::drawModeChanged, this,
-            [this](CanvasWidget::DrawMode mode) {
-              const bool rect = mode == CanvasWidget::DrawMode::Rect;
-              drawModeBtn_->setText(rect ? "Rect" : "Line");
-              drawModeBtn_->setIcon(
-                  themedIcon(rect ? "rect-filled" : "pencil", iconColor_, 16));
-              drawModeBtn_->setToolTip(
-                  rect ? "Drawing mode: Rectangle (click to switch to Line)"
-                       : "Drawing mode: Line (click to switch to Rectangle)");
-            });
-
-    // Default line color (drawingApp.js:155): pick a color, store as the default
-    // and push to the canvas.
-    connect(lineColorBtn_, &QToolButton::clicked, this, [this] {
-      const QColor c = QColorDialog::getColor(lineColorValue_, this, "Line color",
-                                              QColorDialog::DontUseNativeDialog);
-      if (!c.isValid()) return;
-      lineColorValue_ = c;
-      updateColorSwatch(lineColorBtn_, c);
-      settings_.defaultColor = c.name(QColor::HexRgb);
-      onLineStyleControlChanged();
-    });
-    // Thickness / marker / style → defaults (drawingApp.js:156-178).
-    connect(lineThickness_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              settings_.defaultThickness = v;
-              if (thickSpin_) {  // keep the context-menu spinbox in sync (two-way)
-                QSignalBlocker b(thickSpin_);
-                thickSpin_->setValue(v);
-              }
-              onLineStyleControlChanged();
-            });
-    connect(markerSize_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              settings_.defaultMarkerSize = v;
-              if (markerSpin_) {  // keep the context-menu spinbox in sync (two-way)
-                QSignalBlocker b(markerSpin_);
-                markerSpin_->setValue(v);
-              }
-              onLineStyleControlChanged();
-            });
-    connect(lineStyle_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) {
-              applyLineStyle(lineStyle_->currentData().toString());
-            });
-
-    // Image filter combo (drawingApp.js:228-238): set mode, toggle tint swatch
-    // visibility, apply to the canvas + persist (shared with the context menu).
-    connect(imageFilter_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) {
-              applyImageFilter(imageFilter_->currentData().toString());
-            });
-    // Compare view combo → route through the shared setter (syncs canvas + View submenu).
-    connect(compareCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) {
-              setCompareModeUi(compareCombo_->currentData().toString());
-            });
-    // Tint color (drawingApp.js:240-249): pick the custom duotone tint.
-    connect(filterColorBtn_, &QToolButton::clicked, this, [this] {
-      const QColor c = QColorDialog::getColor(filterColorValue_, this, "Tint color",
-                                              QColorDialog::DontUseNativeDialog);
-      if (c.isValid()) applyTintColor(c);
-    });
-  }
-
   // Push the current default visuals to the canvas and persist (S8). Mirrors the
-  // browser change handlers that update this.color/thickness/markerSize/style then
+  // browser change handlers that update this.color/thickness/pointSize/style then
   // storage.save() (drawingApp.js:155-178). Defaults ONLY — never the selection.
+  QColor MainWindow::effectiveDefaultPointColor() const {
+    const QColor c(settings_.defaultPointColor);
+    return (!settings_.defaultPointColor.isEmpty() && c.isValid()) ? c : lineColorValue_;
+  }
+
   void MainWindow::onLineStyleControlChanged() {
     canvas_->setDefaults(settings_.defaultColor, settings_.defaultThickness,
-                         settings_.defaultMarkerSize, settings_.defaultStyle);
+                         settings_.defaultPointSize, settings_.defaultStyle,
+                         settings_.defaultPointColor);
     persistSettings();
   }
 
@@ -1924,7 +919,7 @@ namespace stencil::gui {
           break;
         }
     }
-    if (filterColorAct_) filterColorAct_->setVisible(mode == "custom");
+    if (filterColorBtn_) filterColorBtn_->setVisible(mode == "custom");
     canvas_->setImageFilter(mode, filterColorValue_);
     persistSettings();
     if (!remoteReloading_) filterDirty_ = true;   // user changed the filter
@@ -1960,7 +955,40 @@ namespace stencil::gui {
   // Paint a flat color chip as the toolbutton's icon so swatches read as their
   // current color (S8; the browser uses <input type=color>).
   void MainWindow::updateColorSwatch(QToolButton* btn, const QColor& color) {
-    setColorSwatch(btn, color);  // QToolButton derives from QAbstractButton
+    // Input-style chip for the Style-row colour pickers: the SAME shared input
+    // palette (background + border) as the spinboxes/combo beside it, with the
+    // colour swatch drawn INSIDE — not a colour-on-white chip that clashes with
+    // the dark inputs. Re-run from applyTheme, so it tracks light/dark.
+    const Palette pal =
+        themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    // A labelled chip (the "Blank" swatch) keeps its caption beside the colour;
+    // bare chips stay the fixed 46×26 input shape.
+    const bool labelled = !btn->text().isEmpty();
+    btn->setFixedHeight(26);
+    if (labelled) btn->setMinimumWidth(46);
+    else btn->setFixedWidth(46);
+    btn->setCursor(Qt::PointingHandCursor);
+    btn->setStyleSheet(
+        QStringLiteral(
+            "QToolButton{background:%1;border:1px solid %2;border-radius:7px;"
+            "color:%4;padding:0 %5px;}"
+            "QToolButton:hover{border-color:%3;}")
+            .arg(pal.inputBg.name(), pal.borderMain.name(), pal.accent.name(),
+                 pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0")));
+    // The swatch: a rounded colour rect with a soft luminance-tuned outline so
+    // a colour close to the input background stays visible in either theme.
+    QPixmap pm(32, 16);
+    pm.fill(Qt::transparent);
+    {
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      const bool lightFill = color.lightnessF() > 0.7;
+      p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
+      p.setBrush(color);
+      p.drawRoundedRect(QRectF(0.5, 0.5, 31.0, 15.0), 4, 4);
+    }
+    btn->setIcon(QIcon(pm));
+    btn->setIconSize(pm.size());
   }
 
   // Load a local file as a fresh image, page-sized to the current page setting, clearing
@@ -1979,7 +1007,6 @@ namespace stencil::gui {
     currentResource_.clear();
     blankColor_.clear();     // a loaded image is not a blank project
     refreshActions();
-    notify_->success("Image loaded");
     return true;
   }
 
@@ -1994,7 +1021,7 @@ namespace stencil::gui {
     const auto px = core::defaultBlankSizePx(currentPageDimensions());
     OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank,
                         settings_.pageSize, settings_.units);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (execMaybePopover(dlg) != QDialog::Accepted) return;
     if (dlg.outcome() == OpenImageDialog::Outcome::Blank) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
       return;
@@ -2189,6 +1216,28 @@ namespace stencil::gui {
                        });
   }
 
+  // Leave incognito and keep what is on screen as a LOCAL project (the local twin of
+  // publishIncognitoToServer). Incognito's promise is that the app writes nothing on its own —
+  // an explicit "save this" from the user is not the app deciding, so it is honoured here
+  // instead of being refused.
+  QString MainWindow::promoteIncognitoToLocal(const QString& name) {
+    if (!canvas_->hasImage()) return QString();
+    if (incognito_) {
+      incognito_ = false;
+      incognitoOverlay_->setActive(false);
+      actIncognito_->blockSignals(true);
+      actIncognito_->setChecked(false);
+      actIncognito_->blockSignals(false);
+      updateProjectTitle();
+    }
+    QString seed = name.trimmed();
+    if (seed.isEmpty()) seed = canvas_->imageBaseName();
+    if (seed.isEmpty()) seed = QStringLiteral("Untitled");
+    const QString unique = uniqueLocalProjectName(seed);
+    createLocalProject(unique, /*announce=*/false);
+    return unique;
+  }
+
   // Publish the current incognito session to a server: create the project there, upload the
   // original, link the session, leave incognito, then push the annotated layout + result.
   // Mirrors the browser's publishIncognitoToServer (a server-backed project is not incognito).
@@ -2245,7 +1294,7 @@ namespace stencil::gui {
       actIncognito_->blockSignals(false);
       updateProjectTitle();
     }
-    if (loadLocalImageReset(path)) adoptCanvasAsLocalProject();
+    if (loadLocalImageReset(path)) { playImageArrival(); adoptCanvasAsLocalProject(); }
   }
 
   // Launch `path` in a fresh, self-owned window, leaving this editor untouched
@@ -2282,9 +1331,17 @@ namespace stencil::gui {
         QMessageBox::question(this, "Replace image",
                               "Replace the current image with a new blank image?")
             != QMessageBox::Yes) {
-      notify_->info("Blank image canceled");
       return;
     }
+    createBlankImage(color, w, h);
+  }
+
+  // The blank itself, with no confirmation: an op-plan already said what to do, and a
+  // modal is something a plan cannot answer — it would stall the turn half-applied.
+  void MainWindow::createBlankImage(const QColor& color, int w, int h) {
+    // A blank's colour IS the page: a filter left over from the previous image
+    // would repaint the fill (bw of a red page is flat gray), so start clean.
+    if (settings_.imageFilter != QLatin1String("none")) applyImageFilter("none");
     QImage img(w, h, QImage::Format_RGB32);
     img.fill(color);
     {
@@ -2299,7 +1356,9 @@ namespace stencil::gui {
     currentSource_.clear();  // a generated blank image has no provenance
     currentResource_.clear();
     blankColor_ = color.name();  // mark this session as a (recolourable) blank of this fill
+    canvas_->setBlankPage(true); // compare views keep a blank's fill + tint
     refreshActions();
+    playImageArrival();   // a blank is an image appearing, so it assembles like any other
     notify_->success(QString("Blank %1×%2 image created").arg(w).arg(h));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
@@ -2329,8 +1388,7 @@ namespace stencil::gui {
         QMessageBox::question(
             this, "Change orientation",
             "Changing the crop orientation will remove all placed lines and "
-            "markers. Continue?") != QMessageBox::Yes) {
-      notify_->info("Crop canceled");
+            "points. Continue?") != QMessageBox::Yes) {
       return;
     }
     const bool hadLines = !canvas_->lines().empty();
@@ -2468,7 +1526,10 @@ namespace stencil::gui {
   // so the page readout matches between the two front-ends. Status mirrors the
   // browser status bar: Pixel / Page / To edge, in brackets, in the active unit.
   void MainWindow::onHovered(double imageX, double imageY) {
-    if (!canvas_->hasImage()) return;
+    if (!canvas_->hasImage()) {
+      updateStatusIdle();   // nothing under the cursor to measure — clear, don't keep stale numbers
+      return;
+    }
     lastHoverX_ = imageX;
     lastHoverY_ = imageY;
     const auto page = pageCoords(imageX, imageY);
@@ -2489,7 +1550,7 @@ namespace stencil::gui {
   // Show/hide the custom inputs and recompute when the page size changes (S10).
   void MainWindow::onPageSizeChanged() {
     const bool custom = pageSizeValue() == "custom";
-    if (customGroupAct_) customGroupAct_->setVisible(custom);
+    if (customGroup_) customGroup_->setVisible(custom);
     settings_.pageSize = pageSizeValue();
     // Keep the canvas's default-crop aspect in sync with the selected page.
     {
@@ -2504,10 +1565,17 @@ namespace stencil::gui {
     remoteSync_->scheduleRemotePush();  // page format rides the layout — push to peers
   }
 
-  // Validate fx/fy at input time and apply them (S11; drawingApp.js
-  // validateAndApplyFormulas ~270). Invalid expressions show an inline error and
-  // are not applied; valid ones persist and refresh the readout.
+  // Validate fx/fy and apply them (S11; the browser's settingsController
+  // wireFormulaInputs commit). Reached when typing settles, on Enter / focus-out, or from
+  // a programmatic set — never per keystroke, so a half-written expression is neither
+  // applied nor flagged. Invalid expressions show the inline error and leave the last
+  // good transform in force; valid ones persist and refresh the readout.
   void MainWindow::validateAndApplyFormulas() {
+    // A focus-out commit also arrives while the window is being destroyed — Qt emits
+    // editingFinished as the field loses focus, by which point the controllers this touches
+    // are already gone. Same late-child-signal guard the chat dock uses.
+    if (tearingDown_) return;
+    if (formulaCommitTimer_) formulaCommitTimer_->stop();   // a direct call pre-empts the pause
     const QString fx = formulaX_->text().trimmed();
     const QString fy = formulaY_->text().trimmed();
     const bool okX = core::FormulaParser::validate(fx.toStdString(), 'x');
@@ -2535,6 +1603,29 @@ namespace stencil::gui {
     const bool drawing = canvas_->isDrawing();
     actStartDraw_->setEnabled(canvas_->hasImage() && !drawing && !ro);
     actStopDraw_->setEnabled(drawing && !ro);
+    // The toolbar shows ONE Draw button for both. Handing it the other action carries the
+    // icon, tooltip, enabled state and click target across in one move — so it reads Stop
+    // exactly while a session is live, and the two actions keep their own menu entries and
+    // shortcuts (browser: DrawingApp.syncDrawToggleUI).
+    if (startDrawBtn_) {
+      // Pin the width to the wider of the two labels, once — otherwise "Start" → "Stop"
+      // resizes the button and shifts the whole row (browser parity: .btn-draw-fixed).
+      // Deferred to here because the themed icon and the stylesheet padding only exist
+      // after the toolbar has been built and shown; measuring earlier comes out short.
+      if (startDrawBtn_->maximumWidth() == QWIDGETSIZE_MAX && startDrawBtn_->isVisible() &&
+          !startDrawBtn_->icon().isNull()) {
+        QAction* keep = startDrawBtn_->defaultAction();
+        int widest = 0;
+        for (QAction* state : {actStartDraw_, actStopDraw_}) {
+          startDrawBtn_->setDefaultAction(state);
+          widest = std::max(widest, startDrawBtn_->sizeHint().width());
+        }
+        startDrawBtn_->setDefaultAction(keep);
+        startDrawBtn_->setFixedWidth(widest);
+      }
+      QAction* want = drawing ? actStopDraw_ : actStartDraw_;
+      if (startDrawBtn_->defaultAction() != want) startDrawBtn_->setDefaultAction(want);
+    }
     // Accent-fill the Start button while a draw session is live (browser parity: start-drawing
     // gains the .active class). A dynamic property + repolish, so we don't make the action itself
     // checkable (which would add a stray check-mark to the Edit/context menus).
@@ -2543,11 +1634,30 @@ namespace stencil::gui {
       startDrawBtn_->style()->unpolish(startDrawBtn_);
       startDrawBtn_->style()->polish(startDrawBtn_);
     }
+    // Its Draw-section neighbour, the Line/Rect toggle: same gate as the browser's
+    // #draw-mode-toggle (drawingApp.js:2217 — needs an image, not while read-only), and the
+    // same one-shot width pin as Start, so relabelling Line <-> Rect doesn't shift the row.
+    if (drawModeBtn_) {
+      drawModeBtn_->setEnabled(canvas_->hasImage() && !ro);
+      if (drawModeBtn_->maximumWidth() == QWIDGETSIZE_MAX && drawModeBtn_->isVisible() &&
+          !drawModeBtn_->icon().isNull()) {
+        const QString keep = drawModeBtn_->text();
+        int widest = 0;
+        for (const char* t : {"Line", "Rect"}) {
+          drawModeBtn_->setText(t);
+          widest = std::max(widest, drawModeBtn_->sizeHint().width());
+        }
+        drawModeBtn_->setText(keep);
+        drawModeBtn_->setFixedWidth(widest);
+      }
+    }
     // These are otherwise always enabled (they no-op internally when nothing applies);
     // the only gate is the read-only compare view.
     actNewLine_->setEnabled(!ro);
     actDeleteLast_->setEnabled(!ro);
-    actClearAll_->setEnabled(!ro);
+    // …except Clear All Lines, which the browser greys with nothing to clear
+    // (setDisabled('clear-all-lines', !hasLines || ro)) — and it is a loud red button.
+    actClearAll_->setEnabled(!ro && !canvas_->allLines().empty());
     actDeleteLine_->setEnabled(!ro);
     actDeletePoint_->setEnabled(!ro);
     // Incognito can only be toggled before an image exists (S6).
@@ -2564,6 +1674,18 @@ namespace stencil::gui {
     actCrop_->setEnabled(hasImg);
     actRotateLeft_->setEnabled(hasImg);
     actRotateRight_->setEnabled(hasImg);
+    // Nothing to zoom without an image, so the whole ZOOM cluster goes dead — the two
+    // step actions, the % field and Fit (browser: setDisabled over zoom-in / zoom-out /
+    // zoom-fit / zoom-input). Alt+0 and the zoom shortcuts fall silent with them.
+    actZoomIn_->setEnabled(hasImg);
+    actZoomOut_->setEnabled(hasImg);
+    actFit_->setEnabled(hasImg);
+    if (zoom_) zoom_->setEnabled(hasImg);
+    // The filter recolours the loaded image — nothing to apply it to without one
+    // (browser: setDisabled('image-filter', !hasImage)). The tint swatch rides along.
+    if (imageFilter_) imageFilter_->setEnabled(hasImg);
+    if (filterColorBtn_) filterColorBtn_->setEnabled(hasImg);
+    if (actCycleFilter_) actCycleFilter_->setEnabled(hasImg);
     // Save Session persists the whole blob (image, page, lines, filter, crop…), not
     // just the image — but restoreSession() ignores a session with no image AND no
     // lines, so saving in that state is a true no-op. Gate it on the same condition.
@@ -2575,6 +1697,16 @@ namespace stencil::gui {
     actPasteLayout_->setEnabled(hasImg);
     actSaveImage_->setEnabled(hasImg);
     actCopyImage_->setEnabled(hasImg);
+    // IMAGE cluster empty state (browser #load-image-btn ↔ #image-actions): one labelled
+    // Open button with no image, the per-image icon row once there is one. The BUTTONS are
+    // toggled, never the actions — those also back menu entries, which must stay listed.
+    if (openImageBtn_) openImageBtn_->setVisible(!hasImg);
+    if (imageSection_) {
+      for (QToolButton* b : imageSection_->findChildren<QToolButton*>()) {
+        if (b == openImageBtn_) continue;
+        b->setVisible(sectionButtonVisible(b->defaultAction(), b));
+      }
+    }
     // Compare view needs an image to compare against (parity with the browser gating).
     if (compareCombo_) compareCombo_->setEnabled(hasImg);
     if (actCycleCompare_) actCycleCompare_->setEnabled(hasImg);
@@ -2597,9 +1729,17 @@ namespace stencil::gui {
     // (clearBtn.style.display = remoteLink ? 'none' : ''): hidden whenever the current
     // session is server-linked (those are removed only from the projects dialog),
     // shown for local/temporary editors.
-    if (actClearProject_)
+    if (actClearProject_) {
       actClearProject_->setVisible(remoteSession_->link().address.isEmpty());
+      // No image ⇒ nothing to clear (browser: setDisabled('clear-storage', !hasImage)).
+      // It used to stay enabled on an empty editor, where it only asked a question and
+      // then "cleared" a canvas that was already empty.
+      actClearProject_->setEnabled(canvas_->hasImage());
+    }
     updateProjectTitle();   // keep the window title + toolbar name field in sync
+    // Rename follows the name field itself: only a project that CAN be renamed offers it
+    // (the field is disabled for no project / incognito), so the menu entry and the ✎ agree.
+    if (actRenameProject_) actRenameProject_->setEnabled(projectName_ && projectName_->isEnabled());
   }
 
   void MainWindow::onCanvasChanged() {
@@ -2665,11 +1805,15 @@ namespace stencil::gui {
     // The menu is rebuilt per right-click, so the icons are (re)applied here in the current theme's
     // icon colour.
     const int subIcon = 18;
-    auto subMenu = [&](const char* icon, const QString& title) {
+    auto subMenu = [&](const char* icon, const QString& title) -> StayOpenMenu* {
       auto* m = new StayOpenMenu(title, &menu);
       menu.addMenu(m)->setIcon(themedIcon(QString::fromLatin1(icon), iconColor_, subIcon));
       return m;
     };
+
+    // Browser order: Fit FIRST (its most-reached-for entry), then Image/Layout,
+    // then Fullscreen.
+    menu.addAction(actFit_);
 
     // Image / Layout submenu (contextMenu.js:7-22).
     QMenu* layout = subMenu("folder", "Image / Layout");
@@ -2682,10 +1826,22 @@ namespace stencil::gui {
     layout->addAction(actDownloadJson_);  // "Download Layout"
     layout->addAction(actUploadJson_);    // "Upload Layout"
 
-    // Flat Fullscreen + Fit (contextMenu.js:23-26).
     menu.addAction(actFullscreen_);
-    menu.addAction(actFit_);
     menu.addSeparator();
+
+    // Assistant submenu: a compact chat hosted in its own child menu, shown only
+    // when a provider is configured (adds NO separator, so nothing dangles).
+    // Live-input handling is scoped to THIS child menu — the root stays stock QMenu.
+    if (settings_.llmProvider != QLatin1String("none")) {
+      ensureChatMenuPanel();
+      refreshLlmStatus();  // fresh provider dot/tooltip on the panel's gear
+      StayOpenMenu* assistant = subMenu("sparkle", "Assistant");
+      assistant->addAction(chatMenuAction_);
+      assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
+      // No separator BELOW it: the entry sits directly against the drawing
+      // group (the separator above, after Fit, already opens the section). The
+      // disabled case therefore leaves exactly the original separators.
+    }
 
     // Drawing (contextMenu.js:28-31).
     menu.addAction(canvas_->isDrawing() ? actStopDraw_ : actStartDraw_);
@@ -2701,7 +1857,7 @@ namespace stencil::gui {
 
     // Style submenu (contextMenu.js:39-57).
     QMenu* style = subMenu("palette", "Style");
-    style->addAction(markerSizeAction_);
+    style->addAction(pointSizeAction_);
     style->addAction(thicknessAction_);
     style->addSeparator();
     style->addAction(actStyleSolid_);
@@ -2709,7 +1865,8 @@ namespace stencil::gui {
     style->addAction(actStyleDotted_);
 
     // Image Filter submenu (contextMenu.js:59-74).
-    QMenu* filter = subMenu("image", "Image Filter");
+    // The \t column mirrors the browser's Alt+B badge on this parent row.
+    QMenu* filter = subMenu("image", QStringLiteral("Image Filter\tAlt+B"));
     filter->addAction(actFilterNone_);
     filter->addAction(actFilterBW_);
     filter->addAction(actFilterSepia_);
@@ -2736,9 +1893,9 @@ namespace stencil::gui {
     tt->addAction(actTtScreen_);
     tt->addAction(actTtCoords_);
 
-    menu.addSeparator();
-    menu.addAction(actDeselect_);
+    // No Deselect row — the browser menu ends at Tooltip (Esc still deselects).
 
+    support::revealMenu(menu, globalPos);  // grow-from-the-cursor pop
     menu.exec(globalPos);
   }
 
@@ -2747,6 +1904,12 @@ namespace stencil::gui {
   void MainWindow::syncContextActions() {
     const bool hasImg = canvas_->hasImage();
     const bool hasLines = !canvas_->allLines().empty();
+    // Browser ctx-fs-label parity: the row names the direction it will take.
+    actFullscreen_->setText(isFullScreen() ? QStringLiteral("Exit Fullscreen")
+                                           : QStringLiteral("Enter Fullscreen"));
+    // …and so does the tooltip: fullscreenLayer.js retitles the browser's button the same
+    // way on every toggle, so a stale "Enter Fullscreen" is not what the hover should say.
+    setActionTip(actFullscreen_, isFullScreen() ? "Exit fullscreen" : "Fullscreen mode");
 
     // Image / Layout enable-state (contextMenu.js:254-264).
     actCopyImage_->setEnabled(hasImg);
@@ -2766,8 +1929,8 @@ namespace stencil::gui {
     // Style submenu values (contextMenu.js:274-276). Block so seeding the
     // spinboxes/radios doesn't re-fire change handlers.
     {
-      QSignalBlocker bm(markerSpin_), bt(thickSpin_);
-      markerSpin_->setValue(settings_.defaultMarkerSize);
+      QSignalBlocker bm(pointSpin_), bt(thickSpin_);
+      pointSpin_->setValue(settings_.defaultPointSize);
       thickSpin_->setValue(settings_.defaultThickness);
     }
     for (QAction* a : lineStyleGroup_->actions())
@@ -2818,6 +1981,15 @@ namespace stencil::gui {
       tooltip_->hide();
       return;
     }
+    // Compare view: the layout is drawn only over the EDITED region, so nothing the
+    // "before" half covers can be labelled — the user cannot see it there.
+    const auto shown = [this](double x, double y) {
+      return !canvas_->compareReadOnly() || canvas_->compareShowsEdited(x, y);
+    };
+    if (!shown(imageX, imageY)) {
+      tooltip_->hide();
+      return;
+    }
     const double scale = canvas_->scale();
     const auto dims = currentPageDimensions();
 
@@ -2847,11 +2019,11 @@ namespace stencil::gui {
 
     const core::Lines all = canvas_->allLines();
 
-    // Nearest point within (markerSize + 6)/scale image px.
+    // Nearest point within (pointSize + 6)/scale image px.
     const core::Point* nearest = nullptr;
     double bestD = 1e18;
     for (const auto& line : all) {
-      const double thresh = (line.markerSize + 6.0) / scale;
+      const double thresh = (line.pointSize + 6.0) / scale;
       for (const auto& p : line.points) {
         const double d = std::hypot(imageX - p.x, imageY - p.y);
         if (d <= thresh && d < bestD) {
@@ -2861,6 +2033,12 @@ namespace stencil::gui {
       }
     }
     if (nearest) {
+      // A point straddling the divider is hit from the edited side but sits on the
+      // original one — label it only where it is actually drawn.
+      if (!shown(nearest->x, nearest->y)) {
+        tooltip_->hide();
+        return;
+      }
       tooltip_->setRows(rowsForPoint(nearest->x, nearest->y));
       tooltip_->showAt(globalPos);
       return;
@@ -2933,6 +2111,7 @@ namespace stencil::gui {
       }
       activeProjectId_.clear();  // pasted image is a fresh editor (a new project)
       canvas_->loadFromImage(img);
+      playImageArrival();
       setSourceBytes({}, {});  // clipboard pixels have no encoded source → re-encode on bundle
       currentSource_.clear();
       currentResource_.clear();
@@ -2965,6 +2144,61 @@ namespace stencil::gui {
     }
   }
 
+  // ── Fullscreen enter/exit motion ────────────────────────────────────────────
+  // The window itself can't be animated between normal and fullscreen, but the
+  // thing the user is actually looking at can: the canvas starts at the size it
+  // APPEARED to be against the old viewport and rides to its true size, so entering
+  // reads as the canvas stretching out and leaving as it minimising back. It always
+  // LANDS on the scale the user picked — the zoom is preserved, matching the browser.
+  void MainWindow::beginFullscreenZoom() {
+    if (fsZoomAnim_) { fsZoomAnim_->stop(); fsZoomAnim_->deleteLater(); fsZoomAnim_ = nullptr; }
+    if (!canvas_ || !canvas_->hasImage() || !scroll_ || !scroll_->viewport()) {
+      fsZoomFromViewport_ = QSize();
+      return;
+    }
+    fsZoomFromViewport_ = scroll_->viewport()->size();
+    fsZoomWaits_ = 0;
+    QTimer::singleShot(0, this, [this] { startFullscreenZoom(); });
+  }
+
+  void MainWindow::startFullscreenZoom() {
+    if (!fsZoomFromViewport_.isValid() || fsZoomFromViewport_.isEmpty()) return;
+    if (!canvas_ || !canvas_->hasImage() || !scroll_ || !scroll_->viewport()) return;
+    const QSize now = scroll_->viewport()->size();
+    if (now.isEmpty()) return;
+    // showFullScreen()/showNormal() resize asynchronously on some platforms — wait for
+    // the new geometry rather than animating against the old one. Bounded, so a window
+    // manager that never resizes (an offscreen test) simply skips the animation.
+    if (now == fsZoomFromViewport_) {
+      if (++fsZoomWaits_ > 12) return;
+      QTimer::singleShot(16, this, [this] { startFullscreenZoom(); });
+      return;
+    }
+    const double ratio = std::min(double(fsZoomFromViewport_.width()) / now.width(),
+                                  double(fsZoomFromViewport_.height()) / now.height());
+    fsZoomFromViewport_ = QSize();   // consumed
+    if (ratio < 0.05 || ratio > 20.0 || std::abs(ratio - 1.0) < 0.01) return;
+    const double target = canvas_->scale();
+    const double start = core::clampScale(target * ratio);
+    if (std::abs(start - target) < 1e-4) return;
+
+    auto* anim = new QVariantAnimation(this);
+    fsZoomAnim_ = anim;
+    // Long and hard-eased-out, matching FLIP_MS / FLIP_EASING in browser/js/ui/motion.js:
+    // most of the distance early, coasting into the landing.
+    anim->setDuration(560);
+    anim->setEasingCurve(QEasingCurve::OutQuint);
+    anim->setStartValue(start);
+    anim->setEndValue(target);
+    connect(anim, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant& v) { if (canvas_) canvas_->setScale(v.toDouble()); });
+    connect(anim, &QVariantAnimation::finished, this, [this, target] {
+      fsZoomAnim_ = nullptr;
+      setZoom(target);   // land exactly on the user's zoom and resync the combo
+    });
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
   void MainWindow::fitToWindow() {
     if (!canvas_->hasImage()) return;
     const QSize vp = scroll_->viewport()->size();
@@ -2985,34 +2219,76 @@ namespace stencil::gui {
   void MainWindow::buildOverlayArrows() {
     panelReopenBtn_ = new QToolButton(this);
     panelReopenBtn_->setCursor(Qt::PointingHandCursor);
-    panelReopenBtn_->setFixedSize(28, 28);   // same rounded square as the panel-header collapse chevron
-    panelReopenBtn_->setIconSize(QSize(18, 18));
+    panelReopenBtn_->setFocusPolicy(Qt::NoFocus);   // ditto: no focus halo over the canvas
+    panelReopenBtn_->setFixedSize(kPanelToggleBox, kPanelToggleBox);   // same rounded square as the panel-header chevron
+    panelReopenBtn_->setIconSize(QSize(kPanelToggleGlyph, kPanelToggleGlyph));
     panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
     panelReopenBtn_->setStyleSheet(panelToggleQss());
     connect(panelReopenBtn_, &QToolButton::clicked, this,
             [this] { if (actPanel_) actPanel_->setChecked(true); });
     panelReopenBtn_->hide();
-    positionOverlayArrows();
+    spinControlsPill(false);   // seed the pill's angle from the current toolbar state
     updatePanelReopenButton();
   }
 
+  // The toast stack hangs off the WINDOW's bottom-left, which puts the status bar's coord
+  // readout under it — so it is told to clear whatever that bar currently occupies (nothing
+  // in fullscreen, where the bar is hidden). Refreshed from positionOverlayArrows, which
+  // already runs on every resize, theme change and toolbar fold.
+  void MainWindow::syncToastInset() {
+    // Late dock signals during ~MainWindow land after the layout (and statusBar) died.
+    if (tearingDown_ || !notify_) return;
+    const QWidget* bar = statusBar();
+    int bottom = bar && bar->isVisible() ? bar->height() : 0;
+    int left = 0;
+    // A docked chat panel owns its corner: the stack moves beside (left dock) or
+    // above (bottom dock) it instead of overlapping the composer.
+    if (chatDock_ && chatDock_->isVisible() && !chatDock_->isFloating()) {
+      const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+      if (area == Qt::LeftDockWidgetArea) left = chatDock_->width() + 8;
+      else if (area == Qt::BottomDockWidgetArea) bottom += chatDock_->height() + 8;
+    }
+    notify_->setLeftInset(left);
+    notify_->setBottomInset(bottom);
+  }
+
   void MainWindow::positionOverlayArrows() {
+    syncToastInset();
     if (controlsPill_) {
+      // ONE glyph, turned: 0° is ↑ (rows shown), 180° is ↓. spinControlsPill drives the
+      // angle, this only paints whatever it currently is (it also runs on theme flips).
       const QColor ic = palette().color(QPalette::WindowText);
-      const bool tbShown = actToolbars_ ? actToolbars_->isChecked() : true;   // ↑ shown, ↓ collapsed
-      controlsPill_->setIcon(themedIcon(tbShown ? "chevron-up" : "chevron-down", ic, 14));
+      controlsPill_->setIcon(rotatedIcon("chevron-up", ic, kPillChevron, pillChevronDeg_));
     }
     updatePanelReopenButton();
   }
 
+  // Browser parity: `#toggle-controls .ic` spins half a turn on the fold's curve rather
+  // than blinking to the opposite chevron.
+  void MainWindow::spinControlsPill(bool animate) {
+    const qreal to = (actToolbars_ && !actToolbars_->isChecked()) ? 180.0 : 0.0;
+    if (pillSpinAnim_) { pillSpinAnim_->stop(); pillSpinAnim_->deleteLater(); pillSpinAnim_ = nullptr; }
+    if (!animate || qFuzzyCompare(pillChevronDeg_ + 1.0, to + 1.0)) {
+      pillChevronDeg_ = to;
+      positionOverlayArrows();
+      return;
+    }
+    pillSpinAnim_ = startExtentSlide(
+        this, qRound(pillChevronDeg_), qRound(to), kFoldMs,
+        [this](int v) { pillChevronDeg_ = v; positionOverlayArrows(); },
+        [this] { pillSpinAnim_ = nullptr; });
+  }
+
   void MainWindow::positionPanelReopenButton() {
     if (!panelReopenBtn_ || !scroll_) return;
-    // Top-RIGHT of the canvas, flush inside the viewport's right edge so it sits to the LEFT of any
+    // Top-RIGHT of the canvas, inset from the viewport's right edge so it sits to the LEFT of any
     // vertical scrollbar (viewport()->width() already excludes the scrollbar) — not centred, not
-    // overlapping the scrollbar. A small top margin keeps it clear of the toolbar edge.
+    // overlapping the scrollbar. A small top margin keeps it clear of the toolbar edge, and the
+    // side inset stops it from sitting flush against the window edge.
     QWidget* vp = scroll_->viewport();
     const QPoint tr = vp->mapTo(this, QPoint(vp->width(), 0));
-    panelReopenBtn_->move(tr.x() - panelReopenBtn_->width(), tr.y() + 10);
+    panelReopenBtn_->move(tr.x() - panelReopenBtn_->width() - kPanelToggleInset,
+                          tr.y() + kPanelToggleTop);
   }
 
   void MainWindow::updatePanelReopenButton() {
@@ -3021,7 +2297,9 @@ namespace stencil::gui {
     const bool showBtn = selPanel_ && !selPanel_->isVisible() && !fsActive_;
     panelReopenBtn_->setVisible(showBtn);
     if (showBtn) {
-      panelReopenBtn_->setIcon(themedIcon("chevron-left", palette().color(QPalette::WindowText), 18));
+      // Back to 0° — any spin from the last click ended with the panel open, i.e. hidden.
+      spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
+               kPanelToggleGlyph, 0, 0, 0);
       positionPanelReopenButton();
       panelReopenBtn_->raise();
     }
@@ -3037,6 +2315,14 @@ namespace stencil::gui {
     const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : 320;
     if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
       panelRestoreWidth_ = selPanel_->width();
+    // The two chevrons are different buttons in different places, but they read as one
+    // toggle: whichever is on screen turns half a revolution with the slide and lands on
+    // the glyph the other one takes over with. Driven here, so Alt+X and the View menu
+    // turn it too — not just a click on the chevron itself.
+    const int spinMs = animate ? kFoldMs : 0;
+    if (show) spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
+                       kPanelToggleGlyph, 0, 180, spinMs);
+    else selPanel_->spinCollapseChevron(0, 180, spinMs);
     auto finish = [this, show] {
       selPanel_->setMinimumWidth(0);
       selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
@@ -3048,24 +2334,209 @@ namespace stencil::gui {
     if (show) { selPanel_->show(); selPanel_->setFixedWidth(0); from = 0; to = full; }
     else { from = selPanel_->width() > 0 ? selPanel_->width() : full; to = 0; }
     if (!animate) { selPanel_->setFixedWidth(to); finish(); return; }
-    panelAnim_ = new QVariantAnimation(this);
-    panelAnim_->setDuration(280);
-    panelAnim_->setEasingCurve(QEasingCurve::OutCubic);   // fast start, soft landing — smoother than InOut
-    panelAnim_->setStartValue(from);
-    panelAnim_->setEndValue(to);
-    connect(panelAnim_, &QVariantAnimation::valueChanged, this,
-            [this](const QVariant& v) { selPanel_->setFixedWidth(v.toInt()); });
-    connect(panelAnim_, &QVariantAnimation::finished, this, finish);
-    panelAnim_->start(QAbstractAnimation::DeleteWhenStopped);
+    panelAnim_ = startExtentSlide(
+        this, from, to, 280, [this](int v) { selPanel_->setFixedWidth(v); }, finish);
+  }
+
+  // ── chat dock slide (browser chat-panel parity) ──
+  // The browser panel slides in from its dock edge on open (~0.34 s) and back
+  // out on close (~0.26 s), ease-out. Same technique as setPanelShown: pin
+  // min==max (setFixedWidth/Height) on every frame so QMainWindow's own layout
+  // passes can't override the extent, then release the constraint at the end so
+  // the dock stays user-resizable. The axis follows the dock area — width for
+  // left/right, height for top/bottom.
+  void MainWindow::stopChatAnim() {
+    // An INTERRUPTED slide never runs its completion, so the "leaving" state has
+    // to be released here too — left set, it silently refused every row menu.
+    chatClosing_ = false;
+    if (chatDock_) chatDock_->setClosing(false);
+    if (!chatAnim_) return;
+    chatAnim_->stop();
+    chatAnim_->deleteLater();
+    chatAnim_ = nullptr;
+    if (!chatDock_) return;
+    // Never leave the dock pinned: a stopped slide must hand back the natural
+    // constraints, or the dock stays stuck at its mid-animation extent.
+    chatDock_->setMinimumWidth(chatNaturalMin_.width());
+    chatDock_->setMaximumWidth(QWIDGETSIZE_MAX);
+    chatDock_->setMinimumHeight(chatNaturalMin_.height());
+    chatDock_->setMaximumHeight(QWIDGETSIZE_MAX);
+  }
+
+  void MainWindow::setChatShown(bool show, bool animate) {
+    if (!chatDock_) return;
+    const bool wasVisible = chatDock_->isVisible();
+    stopChatAnim();  // re-entrancy: a second toggle mid-slide wins outright
+    // Opening clears both the "closing" state and the unread mark — the user is
+    // looking at the conversation now.
+    if (show) {
+      chatClosing_ = false;
+      chatDock_->setClosing(false);
+      setChatUnread(false);
+    }
+    // A full open supersedes the icon-popover shape: re-dock to the area the
+    // popover displaced instead of reopening the tiny float at its old spot
+    // (browser chatPanel restoreFromCompact parity).
+    if (show && chatDock_->isFloating() && chatCompactPopover_) {
+      chatCompactPopover_ = false;
+      addDockWidget(chatCompactPrevArea_, chatDock_);
+      chatDock_->setFloating(false);
+    }
+    // Floating = its own window: there is no dock edge to slide from, and clamping it
+    // would fight the tear-off geometry. It flies out of (and back into) the toolbar
+    // icon instead — the same motion every dialog uses.
+    if (!tearingDown_ && animate && chatDock_->isFloating() && show != wasVisible) {
+      QWidget* icon = buttonForAction(actChat_);
+      if (show) {
+        chatDock_->show();
+        support::revealWindow(*chatDock_, icon);
+      } else {
+        chatClosing_ = true;
+        chatDock_->setClosing(true);
+        support::dismissWindow(*chatDock_, icon);   // hides at once; the ghost flies
+        chatClosing_ = false;
+        chatDock_->setClosing(false);
+      }
+      return;
+    }
+    if (tearingDown_ || chatDock_->isFloating() || !animate) {
+      chatDock_->setVisible(show);
+      return;
+    }
+    const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+    const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
+    const auto extent = [this, horiz] {
+      return horiz ? chatDock_->width() : chatDock_->height();
+    };
+    const auto pin = [this, horiz](int v) {
+      if (horiz) chatDock_->setFixedWidth(v);
+      else chatDock_->setFixedHeight(v);
+    };
+    // Reopen at the extent the dock had when it was last dismissed.
+    if (!show && wasVisible && extent() > 80) chatRestoreExtent_ = extent();
+    const int full = chatRestoreExtent_ > 80 ? chatRestoreExtent_ : (horiz ? 345 : 320);
+    // Interrupting a hide part-way: grow from where it actually is, so a fast
+    // double-toggle never snaps back to 0 first.
+    const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
+    const int to = show ? full : 0;
+    if (show) {
+      chatDock_->show();
+      pin(from);
+    }
+    // A dock mid-slide is already "away" as far as results go: it stays
+    // isVisible() for the whole 260ms, and a turn landing in that window used to
+    // find a surface that could not actually show it, so it said nothing at all.
+    if (!show) { chatClosing_ = true; chatDock_->setClosing(true); }
+    chatAnim_ = startExtentSlide(this, from, to,
+                                 show ? 340 : 260,  // browser: 0.34s in, 0.26s out
+                                 pin, [this, show] {
+                                   stopChatAnim();  // releases the pinned constraints
+                                   if (!show) chatDock_->hide();
+                                   chatClosing_ = false;
+                                   chatDock_->setClosing(false);
+                                   // Opening the assistant puts the caret where you are about
+                                   // to type (browser parity) — after the slide, so the focus
+                                   // is not stolen back by the animation's layout work.
+                                   if (show) chatDock_->focusInput();
+                                 });
+  }
+
+  // The chat icon's popover shape (browser chatPanel.js openCompact parity): the
+  // SAME dock — same conversation, same attachments — floated at its compact
+  // tear-off size and pinned next to the icon by the shared popover placement.
+  // Idempotent while already floating there; a docked/hidden chat is torn off.
+  void MainWindow::openChatCompact(QWidget* anchor) {
+    if (!chatDock_ || tearingDown_ || !anchor) return;
+    stopChatAnim();  // a popover open mid-slide wins outright (setChatShown rule)
+    // Swapping shapes is a popover swap like any other: a chat already on screen
+    // in its FULL shape (docked, or a float the user tore off) LEAVES through the
+    // animated path — sliding back into its edge, or flying into the icon — and
+    // the compact one opens once that has played, one window at a time. Without
+    // this the outgoing window simply vanished under setFloating() below.
+    // Already pinned exactly where this gesture wants it: raise and focus, and
+    // never re-play a flight for a window that does not move.
+    if (chatCompactShowing() && chatDock_->geometry() == compactChatRect(anchor)) {
+      chatDock_->raise();
+      chatDock_->activateWindow();
+      chatDock_->focusInput();
+      return;
+    }
+    // Anything else on screen LEAVES first — including a compact float that has to
+    // move (the user dragged it, or another icon anchors it now). Teleporting that
+    // window read as "the chat vanished", which is the bug this branch exists for.
+    if (chatDock_->isVisible()) {
+      const int outMs = chatDock_->isFloating() ? kWindowDismissMs : kChatSlideOutMs;
+      chatCompactPopover_ = false;   // it is leaving; the next open re-establishes it
+      setChatShown(false, /*animate=*/true);
+      QPointer<QWidget> pin(anchor);
+      QTimer::singleShot(support::motionReduced() ? 0 : outMs, this, [this, pin] {
+        if (pin) openChatCompactNow(pin);
+      });
+      return;
+    }
+    openChatCompactNow(anchor);
+  }
+
+  // Where the compact popover sits for `anchor` (global): the shared popover
+  // placement at the dock's own tear-off size. Shared by the open and the
+  // already-there check above, so the two can never disagree.
+  QRect MainWindow::compactChatRect(QWidget* anchor) const {
+    if (!chatDock_ || !anchor) return {};
+    const QRect anchorRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
+    const QRect screen = anchor->screen()->availableGeometry();
+    return support::popoverRect(anchorRect, chatDock_->floatingDefaultSize(), screen);
+  }
+
+  void MainWindow::openChatCompactNow(QWidget* anchor) {
+    if (!chatDock_ || tearingDown_ || !anchor) return;
+    stopChatAnim();   // with motion reduced the slide-out may still be pinned
+    // Remember the docked layout this popover displaces, so a later full open
+    // (toolbar single click / hotkey) restores it instead of the popover rect.
+    if (!chatDock_->isFloating()) {
+      const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+      if (area != Qt::NoDockWidgetArea) chatCompactPrevArea_ = area;
+    }
+    chatDock_->setFloating(true);
+    chatDock_->setGeometry(compactChatRect(anchor));
+    chatDock_->show();
+    setChatUnread(false);   // opening any surface marks the news as seen
+    // …and the incoming one flies OUT of the icon, the same motion every other
+    // popover opens with (the caller above already returned for a window that is
+    // staying put, so reaching here always means a real open).
+    support::revealWindow(*chatDock_, buttonForAction(actChat_));
+    chatDock_->raise();
+    chatDock_->activateWindow();
+    chatDock_->focusInput();
+    chatCompactPopover_ = true;  // after setFloating: adoption hooks fired above
+  }
+
+  bool MainWindow::chatCompactShowing() const {
+    return chatCompactPopover_ && chatDock_ && chatDock_->isFloating() &&
+           chatDock_->isVisible();
+  }
+
+  // The "?" is the COLLAPSED state's readout: while the tool rows are up they already show
+  // the image size, so it would just repeat them. Shown only with the rows hidden AND
+  // something worth reading — an image open, or incognito on.
+  void MainWindow::refreshStatusHintVisibility() {
+    // The size line belongs to the tool rows: it goes with them, and the "?" takes over as
+    // the place those facts can still be read. Two readouts of the same thing, one at a time.
+    if (imageSizeInfo_) imageSizeInfo_->setVisible(toolbarsShown_);
+    if (!statusHintAction_) return;
+    const bool live = (canvas_ && canvas_->hasImage()) || incognito_;
+    statusHintAction_->setVisible(live && !toolbarsShown_);
   }
 
   void MainWindow::setToolbarsShown(bool show, bool animate) {
+    toolbarsShown_ = show;
+    refreshStatusHintVisibility();
     // The header row (Controls pill + project name) always stays — collapse only the tool rows,
     // mirroring the browser where the header keeps the pill/title while the body hides.
     QList<QToolBar*> bars;
     for (QToolBar* b : findChildren<QToolBar*>())
       if (b != headerToolbar_) bars.append(b);
     if (bars.isEmpty()) return;
+    spinControlsPill(animate);   // the pill's chevron turns with the rows
     if (!animate) {
       if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); b->setVisible(show); }
@@ -3091,22 +2562,18 @@ namespace stencil::gui {
     const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
     const int to = show ? full : 0;
     if (show) for (QToolBar* b : bars) { b->setFixedHeight(0); b->show(); }
-    barsAnim_ = new QVariantAnimation(this);
-    barsAnim_->setDuration(280);
-    barsAnim_->setEasingCurve(QEasingCurve::OutCubic);   // fast start, soft landing — smoother than InOut
-    barsAnim_->setStartValue(from);
-    barsAnim_->setEndValue(to);
-    connect(barsAnim_, &QVariantAnimation::valueChanged, this, [bars, this](const QVariant& v) {
-      for (QToolBar* b : bars) b->setFixedHeight(v.toInt());   // pin min==max on every row
-      positionOverlayArrows();
-    });
-    connect(barsAnim_, &QVariantAnimation::finished, this, [this, bars, show, release] {
-      release();
-      if (!show) for (QToolBar* b : bars) b->hide();
-      barsAnim_ = nullptr;
-      positionOverlayArrows();
-    });
-    barsAnim_->start(QAbstractAnimation::DeleteWhenStopped);
+    barsAnim_ = startExtentSlide(
+        this, from, to, 280,
+        [bars, this](int v) {
+          for (QToolBar* b : bars) b->setFixedHeight(v);  // pin min==max on every row
+          positionOverlayArrows();
+        },
+        [this, bars, show, release] {
+          release();
+          if (!show) for (QToolBar* b : bars) b->hide();
+          barsAnim_ = nullptr;
+          positionOverlayArrows();
+        });
   }
 
   void MainWindow::toggleFullscreen() {
@@ -3120,6 +2587,7 @@ namespace stencil::gui {
       for (QToolBar* b : findChildren<QToolBar*>()) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
       fsBarsShown_ = false;
       fsPanelShown_ = false;
+      beginFullscreenZoom();
       showNormal();
       if (menuBar()) menuBar()->setVisible(true);
       statusBar()->setVisible(true);   // restore the bottom coord readout
@@ -3152,6 +2620,7 @@ namespace stencil::gui {
       fsBarsShown_ = false;
       fsPanelShown_ = false;
       fsActive_ = true;
+      beginFullscreenZoom();
       showFullScreen();
       setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
       if (fsHoverTimer_) fsHoverTimer_->start(16);   // ~60Hz poll: reveal reacts immediately on hover
@@ -3321,172 +2790,48 @@ namespace stencil::gui {
     QMainWindow::keyReleaseEvent(event);
   }
 
-  // ── theme + settings ──
-  void MainWindow::applyTheme() {
-    // Tri-state resolution (S14): system follows the OS scheme.
-    const bool dark = resolveDark(settings_.themeMode);
-    // Apply at the application level so menus, popups and native chrome (which
-    // aren't children of this window) are themed too. With the Fusion style set
-    // in main(), a matching palette + stylesheet themes the whole app — on
-    // Fedora a widget-level setStyleSheet left the menubar/toolbar unthemed.
-    qApp->setPalette(buildQPalette(dark, settings_.accentColor));
-    qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
-    canvas_->setDark(dark);
-    canvas_->setAccent(settings_.accentColor);
-    incognitoOverlay_->setTheme(dark, settings_.accentColor);
-    actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
-
-    // Re-tint the shared line-art icons to the active text color (light/dark/accent).
-    const QColor iconCol = themePalette(dark, settings_.accentColor).textMain;
-    styleActionIcons(dark, iconCol);
-    if (selPanel_) selPanel_->restyleIcons(iconCol);
-    if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(24)));   // frame tracks the accent colour
-    positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab
-
-    QPalette vp;
-    vp.setColor(QPalette::Window, themePalette(dark).bgPage);
-    scroll_->viewport()->setAutoFillBackground(true);
-    scroll_->viewport()->setPalette(vp);
+  // Should this section button be on screen? Its action's own visibility, except in the
+  // IMAGE cluster, which is empty-state aware: with no image only the labelled Open button
+  // shows (browser #load-image-btn ↔ #image-actions). Both the per-action mirror and
+  // refreshActions go through here, so whichever runs last agrees.
+  bool MainWindow::sectionButtonVisible(QAction* act, QToolButton* btn) const {
+    if (act && !act->isVisible()) return false;
+    if (imageSection_ && btn && btn != openImageBtn_ && imageSection_->isAncestorOf(btn))
+      return canvas_ && canvas_->hasImage();
+    return true;
   }
 
-  // Map every action + icon toolbutton to a shared-icon glyph rasterized in
-  // `iconColor` (names mirror browser/js/ui/toolbar.js). Null-guarded.
-  void MainWindow::styleActionIcons(bool dark, const QColor& iconColor) {
-    iconColor_ = iconColor;
-    const int s = 18;
-    auto set = [&](QAction* a, const char* name) {
-      if (a) a->setIcon(themedIcon(QString::fromLatin1(name), iconColor, s));
-    };
-    // File / image
-    set(actOpen_, "image");
-    set(actLinks_, "link");
-    set(actConnect_, "server");
-    set(actOpenIn_, "monitor");
-    set(actCrop_, "crop");
-    set(actRotateLeft_, "rotate-ccw");
-    set(actRotateRight_, "rotate-cw");
-    set(actCycleFilter_, "image");
-    // Drawing / history
-    set(actStartDraw_, "play");
-    set(actStopDraw_, "stop");
-    set(actNewLine_, "plus");
-    set(actUndo_, "undo");
-    set(actRedo_, "redo");
-    set(actDeleteLast_, "minus");
-    set(actDeleteLine_, "trash");
-    set(actDeletePoint_, "x");
-    set(actClearAll_, "trash");
-    set(actDeselect_, "x");
-    // View / zoom
-    set(actZoomIn_, "plus");
-    set(actZoomOut_, "minus");
-    set(actFit_, "fit");
-    // Show Points / Show Lines are checkable toggles: leave them icon-less so the menu renders
-    // its native check-mark for the on state (browser contextMenu.js parity — a check when shown,
-    // nothing when hidden). An icon here would take the check column and mask the on/off state.
-    if (actShowPoints_) actShowPoints_->setIcon(QIcon());
-    if (actShowLines_) actShowLines_->setIcon(QIcon());
-    // Arrow toggles (browser parity): a chevron to collapse the points panel (→, it's on the right)
-    // and the toolbars (↑). The panel chevron flips ←/→ with its shown state in refreshActions.
-    set(actPanel_, actPanel_ && actPanel_->isChecked() ? "chevron-right" : "chevron-left");
-    set(actToolbars_, "chevron-up");   // top-menu (toolbars) show/hide, View menu only
-    set(actFullscreen_, "maximize");
-    set(actTooltip_, "message");
-    set(actAllowFormulas_, "function");
-    set(actUnitCm_, "ruler");
-    set(actUnitIn_, "ruler");
-    // Incognito: always the mask glyph (browser parity — the browser keeps the same icon and
-    // just dims it when disabled). Qt auto-greys the icon for the disabled/locked state, so we
-    // don't swap in a separate lock glyph.
-    if (actIncognito_) actIncognito_->setIcon(themedIcon("incognito", iconColor, s));
-    set(actSettings_, "gear");
-    // Project / data
-    set(actProjects_, "layers");          // browser projects-btn glyph (layers, not folder)
-    set(actNewProject_, "file-text");
-    set(actSaveProject_, "save");
-    set(actSaveProjectFile_, "save");     // Projects toolbar: Save Project (.stencil)
-    set(actOpenProjectFile_, "folder");   // Projects toolbar: Open Project (.stencil)
-    set(actStencilLiveSync_, "refresh");  // Projects toolbar: live sync to file
-    set(actDeleteProjectFile_, "trash");  // Projects toolbar: delete the linked .stencil file
-    set(actClearProject_, "trash");
-    set(actSaveSession_, "clipboard");
-    set(actDownloadJson_, "download");
-    set(actUploadJson_, "upload");
-    set(actCopyLayout_, "copy");
-    set(actPasteLayout_, "paste");
-    set(actSaveImage_, "download");        // browser save-image glyph (download)
-    set(actCopyImage_, "copy");
-    set(actPasteImage_, "paste");
-    // Help
-    set(actInfo_, "info");
-    set(actShortcuts_, "help");
-    set(actQuit_, "power");
-    // Context-menu extras
-    set(actDrawModeToggle_, "rect");   // browser contextMenu.js parity (rect outline, not a pencil)
-    set(actDrawRectNow_, "rect-filled");
-    // The theme toggle shows the destination scheme (sun when dark, moon when light),
-    // matching the browser's toggle glyph.
-    if (actTheme_) actTheme_->setIcon(themedIcon(dark ? "sun" : "moon", iconColor, s));
-
-    // Toolbuttons that aren't backed by a QAction. The rename confirm/cancel mirror the browser's
-    // green ✓ / red ✗ inline-edit buttons.
-    if (projectNameAccept_)
-      projectNameAccept_->setIcon(themedIcon("check", QColor("#2e9e4f"), 16));
-    if (projectNameCancel_)
-      projectNameCancel_->setIcon(themedIcon("x", QColor("#d6293e"), 16));
-    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon (flat line-art glyphs
-    // following the theme text colour — not a filled swatch).
-    if (projectNameEdit_) projectNameEdit_->setIcon(themedIcon("pencil", iconColor, 15));
-    if (projectColorBtn_) projectColorBtn_->setIcon(themedIcon("palette", iconColor, 15));
-    // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
-    if (drawModeBtn_) {
-      const bool rect =
-          canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
-      drawModeBtn_->setIcon(
-          themedIcon(rect ? "rect-filled" : "pencil", iconColor, 16));
-    }
-    restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
+  // Where the next dialog should grow from. Every action records its own origin when it
+  // fires: its visible toolbar icon, else the menu row that was clicked, else nothing.
+  // Only a handful of actions used to do this, so a dialog opened from the menu bar or a
+  // shortcut flew out of whichever icon had been used last — or from a box above the
+  // dialog when none had. Clearing the anchor for a button-less action is the point.
+  void MainWindow::bindRevealAnchors() {
+    for (QAction* a : findChildren<QAction*>()) bindRevealAnchor(a);
   }
 
-  // Recolour the context-menu hosted checkboxes/radios so their indicators use the theme TEXT
-  // colour, matching the surrounding menu text rather than the app-wide accent (which the global
-  // QSS applies to every other QCheckBox/QRadioButton). The check/dot glyphs are rasterised in
-  // the text colour and cached on disk keyed by hex, so a theme switch regenerates them without
-  // Qt serving a stale QSS-image cache. Applied per-widget so only these menu controls change.
-  void MainWindow::restyleContextToggles(const QColor& textColor) {
-    const QString hex = textColor.name().mid(1);  // "rrggbb"
-    const QString checkPath = QDir::tempPath() + "/stencil-ctx-check-" + hex + ".png";
-    const QString dotPath = QDir::tempPath() + "/stencil-ctx-dot-" + hex + ".png";
-    if (!QFileInfo::exists(checkPath))
-      themedIcon("check", textColor, 12).pixmap(12, 12).save(checkPath, "PNG");
-    if (!QFileInfo::exists(dotPath)) {
-      QPixmap dot(12, 12);
-      dot.fill(Qt::transparent);
-      {
-        QPainter p(&dot);
-        p.setRenderHint(QPainter::Antialiasing);
-        p.setPen(Qt::NoPen);
-        p.setBrush(textColor);
-        p.drawEllipse(3, 3, 6, 6);
-      }  // painter destroyed before save
-      dot.save(dotPath, "PNG");
-    }
-    const QString css =
-        QStringLiteral(
-            "QCheckBox::indicator,QRadioButton::indicator{width:15px;height:15px;"
-            "border:1px solid %1;background:transparent;}"
-            "QCheckBox::indicator{border-radius:4px;}"
-            "QRadioButton::indicator{border-radius:8px;}"
-            "QCheckBox::indicator:checked{image:url(\"%2\");}"
-            "QRadioButton::indicator:checked{image:url(\"%3\");}")
-            .arg(textColor.name(), checkPath, dotPath);
-    QList<QWidget*> toggles = {tooltipEnableCheck_, ttPageCheck_, ttScreenCheck_,
-                               ttCoordsCheck_, ctxAllowFormulas_};
-    if (filterButtons_)
-      for (QAbstractButton* b : filterButtons_->buttons()) toggles.append(b);
-    for (QWidget* w : toggles)
-      if (w) w->setStyleSheet(css);
+  // Bound the moment the action is CREATED, so this is its first triggered() slot and runs
+  // before the handler. Bound later — after the handlers — it recorded the anchor only once
+  // exec() had returned, i.e. after the dialog had come and gone, so every dialog flew out
+  // of the icon used the time before (and the first one out of nowhere).
+  void MainWindow::bindRevealAnchor(QAction* a) {
+    if (!a || a->property("revealBound").toBool()) return;
+    a->setProperty("revealBound", true);
+    connect(a, &QAction::triggered, this, [this, a] {
+      dialogAnchor_ = buttonForAction(a);   // resolved at trigger time; buttons come later
+      dialogAnchorRect_ = (menuRowAction_ == a) ? menuRowRect_ : QRect();
+    });
   }
+
+  // The visible toolbar button that presents `act`, if any — used to anchor the theme
+  // wipe at the icon the user actually pressed.
+  QWidget* MainWindow::buttonForAction(QAction* act) const {
+    if (!act) return nullptr;
+    for (QToolButton* b : findChildren<QToolButton*>())
+      if (b->defaultAction() == act && b->isVisible()) return b;
+    return nullptr;
+  }
+
 
   // One-shot first-show fade-in (browser appReveal counterpart). Ramps window
   // opacity — no per-child graphics effect, so the canvas paint path is untouched.
@@ -3503,43 +2848,28 @@ namespace stencil::gui {
     fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
-  // Guard every user-initiated exit (Quit / Ctrl+Q / title-bar X all route through
-  // QWidget::close()) with an "are you sure?" prompt. Ignoring the event cancels the
-  // close. forceClose_ lets the load-failure auto-close paths skip the prompt.
-  // Hand-built (not the QMessageBox::question helper) to drop the oversized default
-  // question-mark glyph and use clear "Quit"/"Cancel" action buttons, Cancel default.
+  // Closing is IMMEDIATE on every path — ⌘Q / app-menu Quit / Dock Quit /
+  // window ✕ / Alt+F4 / window-manager close — with no confirmation modal
+  // (deliberate user decision); autosave/session persistence below preserves
+  // the work regardless.
   void MainWindow::closeEvent(QCloseEvent* event) {
-    if (!forceClose_) {
-      QMessageBox box(this);
-      box.setWindowTitle("Quit Stencil");
-      box.setIcon(QMessageBox::NoIcon);
-      // Rich-text header, one size larger than the informative subline and tinted with
-      // the current brand accent (the same violet/… the rest of the app uses).
-      box.setTextFormat(Qt::RichText);
-      box.setText(QString("<div style='font-size:17pt; font-weight:600; color:%1;'>"
-                          "Quit Stencil?</div>")
-                      .arg(accentPrimary(settings_.accentColor).name()));
-      box.setInformativeText("Are you sure you want to quit?");
-      QPushButton* quitBtn = box.addButton("Quit", QMessageBox::AcceptRole);
-      QPushButton* cancelBtn = box.addButton("Cancel", QMessageBox::RejectRole);
-      box.setDefaultButton(cancelBtn);   // safe default: a stray Enter/Esc keeps the app open
-      // A modest width bump over QMessageBox's tight default — enough to breathe without
-      // the wide empty gutter a larger spacer leaves between the text and the buttons.
-      if (auto* grid = qobject_cast<QGridLayout*>(box.layout()))
-        grid->addItem(new QSpacerItem(300, 0, QSizePolicy::Minimum, QSizePolicy::Fixed),
-                      grid->rowCount(), 0, 1, grid->columnCount());
-      box.exec();
-      if (box.clickedButton() != quitBtn) {
-        event->ignore();
-        return;
-      }
-    }
+    // Persist the dock/toolbar layout (selection-panel area etc.). The chat
+    // dock rides along in the blob but is reset to hidden/default on boot —
+    // it is session-transient like the browser panel. Incognito never writes
+    // (persistSettings gates it).
+    settings_.windowState = QString::fromLatin1(saveState(kToolbarLayoutVersion).toBase64());
+    persistSettings();
     QMainWindow::closeEvent(event);
   }
 
   // Ctrl+D sets an explicit light/dark and stops following the OS (browser
   // behavior: a manual toggle overrides the system preference).
   void MainWindow::toggleTheme() {
+    // One flip at a time: a second press mid-wipe restyles the window under an overlay
+    // holding the PREVIOUS snapshot, and the two palettes tear across each other. The
+    // browser gets this from the View Transitions API (a new transition supersedes the
+    // one in flight); here the press is simply dropped until the wipe has finished.
+    if (themeSwapping()) return;
     settings_.themeMode = resolveDark(settings_.themeMode) ? "light" : "dark";
     applySettings(settings_, true);
     notify_->info(settings_.themeMode == "dark" ? "Dark theme" : "Light theme");
@@ -3547,8 +2877,8 @@ namespace stencil::gui {
 
   void MainWindow::applySettings(const Settings& s, bool persist) {
     settings_ = s;
-    canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultMarkerSize,
-                         s.defaultStyle);
+    canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
+                         s.defaultStyle, s.defaultPointColor);
     canvas_->setHoldDrawDelay(s.holdDrawDelay);
     {
       QSignalBlocker bp(actShowPoints_);
@@ -3570,7 +2900,7 @@ namespace stencil::gui {
     // Sync custom page-size inputs (S10) in the active display unit.
     if (customW_) {
       applyUnitToPageInputs();
-      if (customGroupAct_) customGroupAct_->setVisible(s.pageSize == "custom");
+      if (customGroup_) customGroup_->setVisible(s.pageSize == "custom");
     }
     // Sync formula controls (S11).
     if (allowFormulas_) {
@@ -3580,7 +2910,7 @@ namespace stencil::gui {
       allowFormulas_->setChecked(s.allowFormulas);
       formulaX_->setText(s.formulaX);
       formulaY_->setText(s.formulaY);
-      if (formulaGroupAct_) formulaGroupAct_->setVisible(s.allowFormulas);
+      if (formulaGroup_) formulaGroup_->setVisible(s.allowFormulas);
       formulaError_->setVisible(false);
       if (actAllowFormulas_) {
         QSignalBlocker baf(actAllowFormulas_);
@@ -3592,15 +2922,18 @@ namespace stencil::gui {
     // re-persist. The filter is applied to the canvas once at the end.
     lineColorValue_ = QColor(s.defaultColor);
     filterColorValue_ = QColor(s.filterColor);
-    if (lineColorBtn_) updateColorSwatch(lineColorBtn_, lineColorValue_);
-    if (filterColorBtn_) updateColorSwatch(filterColorBtn_, filterColorValue_);
+    // The chips themselves are painted by applyTheme() at the end of this function, not
+    // here: their frame is palette-coloured, and `settings_ = s` above has ALREADY handed
+    // them the new theme — so repainting them now bakes the new border into the snapshot
+    // the wipe is about to take, and the pickers sit there light while the window around
+    // them is still dark until the circle finally reaches them. Only the values change here.
     if (lineThickness_) {
       QSignalBlocker bt(lineThickness_);
       lineThickness_->setValue(qRound(s.defaultThickness));
     }
-    if (markerSize_) {
-      QSignalBlocker bm(markerSize_);
-      markerSize_->setValue(qRound(s.defaultMarkerSize));
+    if (pointSize_) {
+      QSignalBlocker bm(pointSize_);
+      pointSize_->setValue(qRound(s.defaultPointSize));
     }
     if (lineStyle_) {
       QSignalBlocker bs(lineStyle_);
@@ -3612,29 +2945,41 @@ namespace stencil::gui {
       const int idx = imageFilter_->findData(s.imageFilter);
       imageFilter_->setCurrentIndex(idx < 0 ? 0 : idx);
     }
-    if (filterColorAct_) filterColorAct_->setVisible(s.imageFilter == "custom");
+    if (filterColorBtn_) filterColorBtn_->setVisible(s.imageFilter == "custom");
     canvas_->setImageFilter(s.imageFilter, filterColorValue_);
+    if (chatDock_) refreshLlmStatus();  // re-describe + re-probe the AI provider
     applyTheme();
     // S6: even an explicit Settings-dialog save is suppressed in incognito.
     if (persist && !incognito_) fileStore::saveSettings(settings_);
   }
 
-  void MainWindow::openSettings() {
-    SettingsDialog dlg(settings_, this);
+
+  // The chat gear's dedicated dialog: only the provider/base URL/model/API key/
+  // server rows (llm-contract.md §5). It writes the SAME settings keys
+  // through the same applySettings path as the full dialog, so either route
+  // ends up in the same file — the full Settings dialog keeps its AI-assistant
+  // group for users who go that way.
+  void MainWindow::openAssistantSettings() {
+    AssistantSettingsDialog dlg(settings_, this);
     if (dlg.exec() == QDialog::Accepted) {
       applySettings(dlg.result(), true);
-      notify_->success("Settings saved");
+    }
+  }
+
+  void MainWindow::openSettings() {
+    SettingsDialog dlg(settings_, this);
+    // execMaybePopover, not exec(): every other dialog-opening icon grows its window out
+    // of the icon (and answers dblclick/right-click with the compact anchored shape).
+    // Visuals live in here, so this one was the odd one out.
+    if (execMaybePopover(dlg, actSettings_) == QDialog::Accepted) {
+      applySettings(dlg.result(), true);
     }
   }
 
   // ── persistence ──
-  // Incognito (S6) gates every write of the incognito editor's OWN state —
-  // its session autosave, its settings, its project promotion/save, and the
-  // shortcut overrides. This is a deliberate desktop-only extension: the
-  // browser's incognito only skips the session + project promotion, but the
-  // desktop also freezes settings + shortcut writes while incognito is on.
-  // It does NOT gate maintenance on OTHER saved projects (explicit delete and
-  // the expiry sweep in openProjects) — see the notes at those call sites.
+  // Incognito gates every write of the incognito editor's OWN state (session,
+  // settings, promotion, shortcut overrides — a deliberate desktop-only widening
+  // of the browser rule) but never maintenance on OTHER saved projects.
   void MainWindow::scheduleAutosave() {
     if (incognito_) return;  // S6: no autosave timer while incognito
     if (settings_.autosave) autosaveTimer_->start(600);
@@ -3661,6 +3006,7 @@ namespace stencil::gui {
         canvas_->drawMode() == CanvasWidget::DrawMode::Rect ? "rect" : "line";
     s.cropRect = canvas_->cropRect();
     s.rotationQuarters = canvas_->rotationQuarters();
+    s.activeProjectId = activeProjectId_;
     fileStore::saveSession(s);
   }
 
@@ -3675,6 +3021,12 @@ namespace stencil::gui {
     }
     canvas_->restore(sess->imagePath, sess->lines, sess->scale, sess->cropRect,
                      sess->rotationQuarters);
+    // Re-bind the restored canvas to its project (when it still exists), so removing
+    // that project empties the editor instead of orphaning its picture on screen.
+    if (!sess->activeProjectId.isEmpty()
+        && findProject(sess->activeProjectId.toStdString())) {
+      activeProjectId_ = sess->activeProjectId;
+    }
     {
       QSignalBlocker b(pageSize_);
       const int idx = pageSize_->findData(sess->pageSize);
@@ -3692,14 +3044,13 @@ namespace stencil::gui {
       const int idx = imageFilter_->findData(sess->imageFilter);
       imageFilter_->setCurrentIndex(idx < 0 ? 0 : idx);
     }
-    if (filterColorAct_)
-      filterColorAct_->setVisible(sess->imageFilter == "custom");
+    if (filterColorBtn_)
+      filterColorBtn_->setVisible(sess->imageFilter == "custom");
     canvas_->setImageFilter(sess->imageFilter, filterColorValue_);
     canvas_->setDrawMode(sess->drawMode == "rect"
                              ? CanvasWidget::DrawMode::Rect
                              : CanvasWidget::DrawMode::Line);
     setZoom(sess->scale);
-    notify_->info("Restored last session");
   }
 
   // ── server connections ──
@@ -3749,9 +3100,321 @@ namespace stencil::gui {
             .arg(insecure.join(", ")));
   }
 
+  // ── Alt-peek helpers ──
+  // The Alt+hover peek: open `act`'s popover pinned to `btn` (browser popover.js
+  // altHover parity). Closes a floating compact chat the glide is moving off;
+  // never adopts the machine's own open window.
+  void MainWindow::altPeekOpen(QToolButton* btn, QAction* act) {
+    if (!btn || !act || !act->isEnabled() || activePopover_) return;
+    // Gliding off an open COMPACT chat (peek, linger, or sticky popover) closes
+    // it; a docked chat panel — or a float the user chose (tear-off, the title
+    // bar's float button) — is never touched (chatCompactShowing).
+    if (act != actChat_ && actChat_ && actChat_->isChecked() && chatCompactShowing()) {
+      altPeekAction_.clear();
+      actChat_->setChecked(false);
+    }
+    stopLingerPoll();
+    if (popoverClickTimer_) popoverClickTimer_->stop();
+    popoverPendingAction_.clear();
+    // A chat already on screen: the gesture still means "show it compact HERE",
+    // so it takes the same animated swap the right-click route does (it used to
+    // return early, leaving the window where it was). Never adopted as a peek,
+    // though — the Alt release must not close what the user opened deliberately.
+    if (act == actChat_ && actChat_->isChecked()) {
+      popoverAnchor_.clear();
+      altPeekAction_.clear();
+      openChatCompact(btn);
+      return;
+    }
+    popoverAnchor_ = btn;
+    altPeekAction_ = act;
+    act->trigger();
+    // A modal dialog blocks in exec() until it closes, so reaching here means
+    // the peek is over — only the NON-blocking chat keeps its flag until the
+    // Alt release (or a later deliberate gesture) consumes it.
+    if (act != actChat_) altPeekAction_.clear();
+  }
+
+  // A LINGERING window (an engaged peek whose Alt was released): poll the cursor
+  // and close it once the pointer is outside — unless a field inside holds typed
+  // content, or the chat composer does (never yank a window mid-typing).
+  void MainWindow::startLingerPoll() {
+    if (!lingerPoll_) {
+      lingerPoll_ = new QTimer(this);
+      lingerPoll_->setInterval(120);
+      connect(lingerPoll_, &QTimer::timeout, this, [this] {
+        QWidget* w = activePopover_
+            ? static_cast<QWidget*>(activePopover_.data())
+            : ((chatDock_ && chatDock_->isFloating() && chatDock_->isVisible()) ? chatDock_ : nullptr);
+        if (!w) { lingerPoll_->stop(); return; }
+        // The popover is a child widget, so ask the overlay where it is on screen.
+        const QRect box = activePopover_ ? popoverRectGlobal() : w->frameGeometry();
+        if (box.contains(QCursor::pos())) return;
+        if (typedContentInside(w)) return;
+        if (w == chatDock_ && chatDock_->hasComposerText()) return;
+        lingerPoll_->stop();
+        if (activePopover_) dismissPopover();
+        else if (actChat_ && actChat_->isChecked()) actChat_->setChecked(false);
+      });
+    }
+    lingerPoll_->start();
+  }
+  void MainWindow::stopLingerPoll() { if (lingerPoll_) lingerPoll_->stop(); }
+
+  // exec() a dialog — centred window, or (when a gesture armed popoverAnchor_) a
+  // compact popover pinned to that icon; call sites read exec()'s return unchanged.
+  // Outside-click rejects via the app filter, but a NESTED dialog is not "outside".
+  // Close the open popover by fading the WINDOW out, then rejecting — the
+  // shrink-into-icon ghost only shows after the window unmaps, so fading avoids
+  // a close/come-back blink. activePopover_ is dropped up front (re-entrancy).
+  void MainWindow::dismissPopover() {
+    if (!activePopover_) return;
+    // Whatever was watching it has nothing left to watch — and the linger poll would
+    // otherwise spend the closing animation looking at the floating chat dock instead.
+    stopLingerPoll();
+    // reject() is the whole dismissal: execMaybePopover's finished() handler owns the
+    // collapse animation, so every route out closes exactly the same way.
+    activePopover_->reject();
+  }
+
+  // The popover overlay's motion, matching the app's dialog reveal (modalReveal.cpp).
+  static constexpr int kPopoverOpenMs = 300;
+  static constexpr int kPopoverCloseMs = 240;
+
+  QRect MainWindow::popoverRectGlobal() const {
+    if (popoverOverlay_)
+      return QRect(popoverOverlay_->mapToGlobal(QPoint(0, 0)), popoverOverlay_->size());
+    return activePopover_ ? activePopover_->frameGeometry() : QRect();
+  }
+
+  bool MainWindow::handlePopoverPress(QWidget* target, const QPoint& globalPos,
+                                      Qt::MouseButton button) {
+    if (!activePopover_) return false;
+    // Inside the popover itself is not "outside" — and it lives INSIDE this window now,
+    // so this test, not the window it belongs to, is what tells the two apart.
+    if (popoverRectGlobal().contains(globalPos)) return false;
+    if (target) {
+      // Delivered press: a press in a NESTED dialog (a confirm, a native picker)
+      // belongs to another window and is left alone, so flows launched from inside
+      // the popover keep working.
+      if (target->window() != this) return false;
+    } else {
+      // Polled press: the same exemption, decided by geometry — any other visible
+      // top-level (a nested dialog, a menu) owns that click.
+      for (QWidget* w : QApplication::topLevelWidgets())
+        if (w != this && w != activePopover_.data() && w->isVisible() &&
+            w->frameGeometry().contains(globalPos))
+          return false;
+    }
+    // Gestures on the LOGO while its accent popover PEEKS (browser parity): a
+    // RIGHT-press PROMOTES the same popover to sticky — clearing the peek marker is
+    // all it takes, the Alt release then leaves it alone — and a LEFT-press is a
+    // NO-OP (no accent cycle, no dismiss: the peek's visibility belongs to the hold
+    // gesture). Both are consumed; every other press dismisses.
+    const bool onLogo =
+        logoBtn_ && (target ? target == logoBtn_
+                            : QRect(logoBtn_->mapToGlobal(QPoint(0, 0)), logoBtn_->size())
+                                  .contains(globalPos));
+    if (onLogo && altPeekAction_.data() == actAccent_ &&
+        activePopover_->objectName() == QLatin1String("accentPopover")) {
+      if (button == Qt::RightButton) { altPeekAction_.clear(); return true; }
+      if (button == Qt::LeftButton) return true;
+    }
+    dismissPopover();
+    // The press travels on (it always did), but the icon it landed on must not
+    // re-OPEN what this click just dismissed — a real popup swallows its closing
+    // click, and with the popover non-modal that gesture now actually reaches the
+    // button. Consumed by the logo's click-cycle and the popover icons' deferred
+    // click; harmless if no such gesture follows.
+    if (target && (target == logoBtn_ || popoverButtons_.contains(target)))
+      popoverDismissClick_ = true;
+    return false;
+  }
+
+  // One window at a time, driven from the keyboard: while a dialog is up, the shortcut that
+  // opened it closes it again, and ANOTHER window's shortcut swaps to that window. A modal
+  // dialog runs its own event loop, so the main window's QActions never fire there — the
+  // dialog carries its own copies of those chords for as long as it is showing, and the
+  // originals are parked (an active QAction with the same chord would be ambiguous when the
+  // dialog is an in-window popover, and neither would fire).
+  template <typename Actions>
+  static void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
+    for (QAction* a : actions) {
+      if (!a || a->shortcut().isEmpty()) continue;
+      auto* sc = new QShortcut(a->shortcut(), &dlg);
+      sc->setContext(Qt::WidgetWithChildrenShortcut);
+      QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
+        // The same window: just close it. A different one: close, then open that instead
+        // once this dialog's event loop has actually unwound.
+        if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
+        dlg.reject();
+      });
+    }
+  }
+
+  int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
+    wireWindowSwitching(dlg, popoverDialogActions_, opener);
+    // Park the originals while the dialog owns those chords, and put them back after.
+    QList<QPair<QAction*, Qt::ShortcutContext>> parked;
+    for (QAction* a : popoverDialogActions_) {
+      if (!a || a->shortcut().isEmpty()) continue;
+      parked.append({a, a->shortcutContext()});
+      a->setShortcutContext(Qt::WidgetShortcut);
+    }
+    const QScopeGuard restore([&] {
+      for (const auto& [a, ctx] : parked) a->setShortcutContext(ctx);
+    });
+    QWidget* anchor = popoverAnchor_.data();
+    popoverAnchor_.clear();
+    if (!anchor) {
+      // Ordinary centred window: it still grows out of the icon that opened it — or,
+      // when that icon is hidden, out of the menu row that was clicked.
+      support::revealDialog(dlg, dialogAnchor_.data(), dialogAnchorRect_);
+      return dlg.exec();
+    }
+    // The popover is a CHILD WIDGET, never a window of its own: a small frameless
+    // top-level simply does not animate on macOS. As a child, grow/shrink are
+    // ordinary widget animations; the dialog keeps its content/result identity.
+    const QSize cap(470, 590);
+    dlg.setMinimumSize(0, 0);
+    dlg.setMaximumSize(cap);
+    const QSize want(qMin(dlg.sizeHint().width(), cap.width()),
+                     qMin(dlg.sizeHint().height(), cap.height()));
+
+    auto* overlay = new QWidget(this);
+    overlay->setObjectName(QStringLiteral("popoverOverlay"));   // themed + found by tests
+    overlay->setAutoFillBackground(true);
+    dlg.setParent(overlay);
+    dlg.setWindowFlags(Qt::Widget);   // a plain child now: no frame, no title, no window
+    dlg.setGeometry(QRect(QPoint(0, 0), want));
+    dlg.show();
+
+    // Anchored beside the icon in WINDOW coordinates, and kept inside the window: the
+    // same popoverRect placement as before, with this window standing in for the screen.
+    const QRect anchorGlobal(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
+    const QRect windowGlobal(mapToGlobal(QPoint(0, 0)), size());
+    const QRect box(mapFromGlobal(support::popoverRect(anchorGlobal, want, windowGlobal)
+                                      .topLeft()),
+                    want);
+    const QRect fromBox(mapFromGlobal(anchorGlobal.topLeft()), anchorGlobal.size());
+    overlay->setGeometry(support::motionReduced() ? box : fromBox);
+    overlay->raise();
+    overlay->show();
+    dlg.setFocus(Qt::PopupFocusReason);   // Escape and typing go to the popover
+    // Grow out of the icon (the app's open motion + duration), inside the window.
+    if (!support::motionReduced()) {
+      auto* fx = new QGraphicsOpacityEffect(overlay);
+      fx->setOpacity(0.0);
+      overlay->setGraphicsEffect(fx);
+      auto* grow = new QPropertyAnimation(overlay, "geometry", overlay);
+      grow->setDuration(kPopoverOpenMs);
+      grow->setStartValue(fromBox);
+      grow->setEndValue(box);
+      grow->setEasingCurve(QEasingCurve::OutCubic);
+      auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
+      fade->setDuration(kPopoverOpenMs);
+      fade->setStartValue(0.0);
+      fade->setEndValue(1.0);
+      grow->start(QAbstractAnimation::DeleteWhenStopped);
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+    activePopover_ = &dlg;
+    popoverOverlay_ = overlay;
+    // Alt-GLIDE: while any popover shows and Alt is HELD, the cursor landing on a
+    // DIFFERENT popover icon closes this dialog and opens that icon's peek. The
+    // modal loop blocks Enter/hover events, so a poll watches the cursor.
+    QTimer glide;
+    glide.setInterval(80);
+    connect(&glide, &QTimer::timeout, this, [this, anchor] {
+      if (!activePopover_) return;
+      // altHeldForTest_: the offscreen GUI test's stand-in for a physically held Alt
+      // (QTest key events never reach the platform's modifier state).
+      if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest_)
+        return;
+      for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
+        auto* b = static_cast<QToolButton*>(it.key());
+        if (b == anchor || !b->isVisible() || !it.value()->isEnabled()) continue;
+        // underMouse() as backup, same as the Alt KeyPress loop (and the test's mock).
+        if (!(b->underMouse() || b->rect().contains(b->mapFromGlobal(QCursor::pos()))))
+          continue;
+        altPeekNextButton_ = b;
+        altPeekNextAction_ = it.value();
+        dismissPopover();
+        break;
+      }
+    });
+    glide.start();
+    // A nested loop, not exec(): the caller still blocks here and still reads a
+    // QDialog::DialogCode, so no call site changes — but there is no modal window to
+    // block the app, and (now) no window at all.
+    QPointer<QDialog> alive(&dlg);
+    QPointer<QWidget> overlayAlive(overlay);
+    QEventLoop loop;
+    bool ended = false, closing = false;
+    const auto end = [&ended, &loop] { ended = true; loop.quit(); };
+    // ONE close path, whatever ended the turn — an outside press, Escape, a row click,
+    // the Alt release, the glide. The dialog hides itself on its way to finished(), so
+    // its picture is frozen into the overlay first; then the box collapses back into the
+    // icon it grew from and the loop ends with it.
+    connect(&dlg, &QDialog::finished, &loop, [&] {
+      if (closing) return;   // a second reject during the collapse is a no-op
+      closing = true;
+      if (!overlayAlive || support::motionReduced()) return end();
+      if (alive) {
+        auto* frozen = new QLabel(overlayAlive);
+        frozen->setPixmap(alive->grab());   // grab() renders a hidden widget
+        frozen->setGeometry(alive->geometry());
+        frozen->show();
+      }
+      auto* fx = qobject_cast<QGraphicsOpacityEffect*>(overlayAlive->graphicsEffect());
+      if (!fx) {
+        fx = new QGraphicsOpacityEffect(overlayAlive);
+        overlayAlive->setGraphicsEffect(fx);
+      }
+      fx->setOpacity(1.0);
+      auto* shrink = new QPropertyAnimation(overlayAlive, "geometry", overlayAlive);
+      shrink->setDuration(kPopoverCloseMs);
+      shrink->setStartValue(overlayAlive->geometry());
+      shrink->setEndValue(fromBox);
+      shrink->setEasingCurve(QEasingCurve::InCubic);
+      auto* fade = new QPropertyAnimation(fx, "opacity", overlayAlive);
+      fade->setDuration(kPopoverCloseMs);
+      fade->setStartValue(1.0);
+      fade->setEndValue(0.0);
+      connect(shrink, &QAbstractAnimation::finished, &loop, end);
+      shrink->start(QAbstractAnimation::DeleteWhenStopped);
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+    });
+    connect(&dlg, &QObject::destroyed, &loop, end);
+    connect(qApp, &QCoreApplication::aboutToQuit, &loop, end);
+    if (!ended) loop.exec();
+    glide.stop();
+    activePopover_.clear();
+    popoverOverlay_.clear();
+    const int result = alive ? alive->result() : int(QDialog::Rejected);
+    // Hand the dialog back to its caller — it is a stack object, so it must NOT be left
+    // parented to the overlay we are about to delete.
+    if (alive) {
+      alive->hide();
+      alive->setParent(nullptr);
+    }
+    if (overlayAlive) overlayAlive->deleteLater();
+    // The glide picked the next icon: open its peek once this dialog unwinds.
+    if (altPeekNextAction_) {
+      QTimer::singleShot(0, this, [this] {
+        QToolButton* b = altPeekNextButton_.data();
+        QAction* a = altPeekNextAction_.data();
+        altPeekNextButton_.clear();
+        altPeekNextAction_.clear();
+        altPeekOpen(b, a);
+      });
+    }
+    return result;
+  }
+
   void MainWindow::openConnections() {
     ConnectDialog dlg(ensureConnections(), this);
-    dlg.exec();
+    execMaybePopover(dlg, actConnect_);
     warnInsecureConnections();  // the dialog may have added a plaintext-remote connection
   }
 
@@ -3779,15 +3442,70 @@ namespace stencil::gui {
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
                        unitFormat(), this);
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
-    if (dlg.exec() != QDialog::Accepted) return;
+    // "Clear All (Local)" is handled WHILE the dialog is up: it confirms itself (over its
+    // own window), we remove the projects, and it repaints the now-empty list. Closing the
+    // window to ask, then leaving it closed, lost the user their place.
+    connect(&dlg, &ProjectsDialog::clearAllRequested, this, [this, &dlg] {
+      const int n = static_cast<int>(projectList_.size());
+      const bool hadActive = !activeProjectId_.isEmpty();
+      projectList_.clear();
+      if (hadActive) resetToBlankEditor();   // the open one went with them
+      fileStore::saveProjects(projectList_);
+      refreshActions();
+      refreshDockMenu();
+      // The rows are already scattering (ProjectsDialog::scatterRows); emptying the list in
+      // the same turn pulled them out from under their own dust and dropped "No projects
+      // yet" in underneath it. Rebuild once the motes have landed (browser: beginRemoval).
+      QPointer<ProjectsDialog> live(&dlg);
+      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live] {
+        if (live) live->setProjects(projectList_);
+      });
+      notify_->success(QString("Cleared %1 local project(s)").arg(n));
+    });
+    // Single Delete / batch Remove: same stay-open pattern — the dialog confirmed and is
+    // scattering the rows; remove here, then repaint the still-open list once the dust lands.
+    connect(&dlg, &ProjectsDialog::removeRequested, this,
+            [this, &dlg](const QVector<QPair<QString, QString>>& items) {
+      QPointer<ProjectsDialog> live(&dlg);
+      const bool single = items.size() == 1 && items.first().second.isEmpty();
+      // Block removing a project that's open in another window (matches the browser's
+      // "open in another tab" guard). Restore the scattered row right away.
+      if (single && projectOpenInOtherWindow(items.first().first)) {
+        notify_->error("That project is open in another window — close it there first");
+        if (live) live->setProjects(projectList_);
+        return;
+      }
+      for (const auto& pr : items) {
+        if (pr.second.isEmpty()) {
+          eraseLocalProject(pr.first);
+        } else if (auto* c = connections_ ? connections_->find(pr.second) : nullptr) {
+          c->deleteProjectAsync(pr.first, [](bool) {});  // fire-and-forget; list refresh is independent
+        }
+      }
+      // Not gated by incognito: operates on other saved projects, not the
+      // incognito editor's content (see S6 scope note above).
+      fileStore::saveProjects(projectList_);
+      refreshActions();
+      refreshDockMenu();  // drop it from the Dock "recent" list
+      if (single) notify_->info("Project deleted");
+      // Rebuild once the motes have landed (see the Clear All note above).
+      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live] {
+        if (live) live->setProjects(projectList_);
+      });
+    });
+    if (execMaybePopover(dlg) != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
     // Open CONFIRM lives here — AFTER the dialog closed — not inside the drag release (where a
     // QMessageBox got dismissed by that same release, so nothing opened and the row snapped back).
-    // Mirrors the Delete confirm below, which is why Remove worked while Open didn't.
-    auto confirmOpen = [this](const QString& id, bool newWindow) -> bool {
+    // (Remove confirms INSIDE the dialog instead, deferred a turn for the same reason.)
+    // The gesture decides whether to ask: a single click (or Return, or a
+    // drag-out) confirms; a double click opens straight away.
+    auto confirmOpen = [this, &dlg](const QString& id, bool newWindow) -> bool {
+      if (!dlg.confirmRequested()) return true;
       const Project* pr = findProject(id.toStdString());
-      const QString nm = pr ? QString::fromStdString(pr->meta.name) : QStringLiteral("this project");
+      const QString nm = pr ? support::shortName(QString::fromStdString(pr->meta.name))
+                           : QStringLiteral("this project");
       const QString msg = newWindow
           ? QString("Open \"%1\" in a new window?").arg(nm)
           : QString("Open \"%1\"? Any unsaved changes in the current window will be replaced.").arg(nm);
@@ -3849,79 +3567,6 @@ namespace stencil::gui {
               });
         }
       }
-    } else if (dlg.action() == Action::BatchRemove) {
-      const auto items = dlg.batchItems();
-      if (QMessageBox::question(
-              this, "Remove projects",
-              QString("Remove %1 selected project(s)? Server projects are deleted from the server.")
-                  .arg(items.size()),
-              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
-        return;
-      for (const auto& pr : items) {
-        const QString id = pr.first;
-        const QString server = pr.second;
-        if (server.isEmpty()) {
-          const std::string sid = id.toStdString();
-          projectList_.erase(
-              std::remove_if(projectList_.begin(), projectList_.end(),
-                             [&](const Project& p) { return p.meta.id == sid; }),
-              projectList_.end());
-          if (activeProjectId_ == id) activeProjectId_.clear();
-        } else if (auto* c = connections_ ? connections_->find(server) : nullptr) {
-          c->deleteProjectAsync(id, [](bool) {});  // fire-and-forget; local list refresh is independent
-        }
-      }
-      fileStore::saveProjects(projectList_);
-      refreshActions();
-      refreshDockMenu();
-    } else if (dlg.action() == Action::ClearAll) {
-      // Remove ALL local projects (server projects are untouched), mirroring the browser modal's
-      // "Clear All". Confirmed because it's destructive.
-      const int n = static_cast<int>(projectList_.size());
-      if (n == 0) {
-        notify_->info("No local projects to clear");
-        return;
-      }
-      if (QMessageBox::question(
-              this, "Clear all projects",
-              QString("Are you sure? This removes all %1 local project(s) and cannot be undone. "
-                      "Server projects are not affected.")
-                  .arg(n),
-              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
-        return;
-      projectList_.clear();
-      activeProjectId_.clear();
-      fileStore::saveProjects(projectList_);
-      refreshActions();
-      refreshDockMenu();
-      notify_->success(QString("Cleared %1 local project(s)").arg(n));
-    } else if (dlg.action() == Action::Delete) {
-      // Block removing a project that's open in another window (matches the browser's
-      // "open in another tab" guard).
-      if (projectOpenInOtherWindow(dlg.selectedId())) {
-        notify_->error("That project is open in another window — close it there first");
-        return;
-      }
-      // Confirm the destructive remove (the browser modal asks too).
-      const Project* pr = findProject(dlg.selectedId().toStdString());
-      const QString nm = pr ? QString::fromStdString(pr->meta.name) : QStringLiteral("this project");
-      if (QMessageBox::question(
-              this, "Remove project",
-              QString("Remove \"%1\"? This cannot be undone.").arg(nm),
-              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
-        return;
-      const std::string id = dlg.selectedId().toStdString();
-      projectList_.erase(
-          std::remove_if(projectList_.begin(), projectList_.end(),
-                         [&](const Project& p) { return p.meta.id == id; }),
-          projectList_.end());
-      if (activeProjectId_ == dlg.selectedId()) activeProjectId_.clear();
-      // Not gated by incognito: operates on other saved projects, not the
-      // incognito editor's content (see S6 scope note above).
-      fileStore::saveProjects(projectList_);
-      refreshActions();
-      refreshDockMenu();  // drop it from the Dock "recent" list
-      notify_->info("Project deleted");
     } else if (dlg.action() == Action::SetColor) {
       // Set/clear a project's accent colour (local meta or server PUT), then repaint the active
       // name if it's the one that changed. Capture the dialog's selection by value — `dlg` is
@@ -3959,12 +3604,16 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
       notify_->success(pr->meta.expiresAt == 0
                            ? QString("\"%1\" is kept forever")
-                                 .arg(QString::fromStdString(pr->meta.name))
+                                 .arg(support::shortName(QString::fromStdString(pr->meta.name)))
                            : QString("\"%1\" expiration updated")
-                                 .arg(QString::fromStdString(pr->meta.name)));
+                                 .arg(support::shortName(QString::fromStdString(pr->meta.name))));
     } else if (dlg.action() == Action::New) {
-      if (incognito_) {  // S6: no project promotion while incognito
-        notify_->info("Incognito mode — saving is disabled");
+      if (incognito_) {  // an explicit promotion out of incognito, not an app-side write
+        const QString promoted = promoteIncognitoToLocal(dlg.newName());
+        notify_->success(promoted.isEmpty()
+                             ? QStringLiteral("Nothing to save yet")
+                             : QStringLiteral("Left incognito — saved \"%1\"")
+                                   .arg(support::shortName(promoted)));
         return;
       }
       createProject(dlg.newName());
@@ -4036,10 +3685,15 @@ namespace stencil::gui {
     currentResource_ = QString::fromStdString(pr->meta.resource);
     // Restore the blank-fill colour so the Blank control reappears for a reopened blank.
     blankColor_ = pr->meta.blank ? QString::fromStdString(pr->meta.blankColor) : QString();
+    canvas_->setBlankPage(!blankColor_.isEmpty());
+    // Chat persistence (§12): with saving on the conversation is project-scoped —
+    // swap in this project's saved chat (an absent one = a fresh scope). With it
+    // off, the session conversation survives switches (the pre-§12 behavior).
+    if (settings_.saveChatsWithProject) restoreChatFromDoc(pr->chat);
     refreshActions();
     fitToWindow();   // fit the opened project to the window (matches the browser)
     notify_->success(
-        QString("Opened \"%1\"").arg(QString::fromStdString(pr->meta.name)));
+        QString("Opened \"%1\"").arg(support::shortName(QString::fromStdString(pr->meta.name))));
     return true;
   }
 
@@ -4049,9 +3703,14 @@ namespace stencil::gui {
     // A stable value key for a line, for dedup when merging two editors' layouts on a
     // save conflict (mirrors the browser's JSON-stringify dedup in mergeLines).
     QString lineKey(const core::Line& l) {
-      QString k = QString("%1|%2|%3|%4|%5|%6")
+      // pointColor rides second, matching the browser's lineDedupeKey field order: two
+      // lines alike but for their point colour are different lines, and an UNSET one keys
+      // as "" so a server round-trip (which omits the field) still dedupes against the
+      // local original.
+      QString k = QString("%1|%2|%3|%4|%5|%6|%7")
                       .arg(QString::fromStdString(l.color))
-                      .arg(l.thickness).arg(l.markerSize)
+                      .arg(QString::fromStdString(l.pointColor))
+                      .arg(l.thickness).arg(l.pointSize)
                       .arg(QString::fromStdString(l.style))
                       .arg(l.locked ? 1 : 0)
                       .arg(QString::fromStdString(l.fillColor));
@@ -4059,20 +3718,6 @@ namespace stencil::gui {
       return k;
     }
 
-    // Read all of `path` into `out`; false (leaving `out` untouched) on open failure.
-    bool readFileBytes(const QString& path, QByteArray& out) {
-      QFile f(path);
-      if (!f.open(QIODevice::ReadOnly)) return false;
-      out = f.readAll();
-      return true;
-    }
-    // Overwrite `path` with `data` (truncating); false on open failure.
-    bool writeFileBytes(const QString& path, const QByteArray& data) {
-      QFile f(path);
-      if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-      f.write(data);
-      return true;
-    }
 
     // GET an http(s) URL's bytes (no auth) with a 10s timeout,
     // delivering them to `done` on the event loop (empty on any failure/timeout). `ctx` owns the
@@ -4182,6 +3827,7 @@ namespace stencil::gui {
         // Adopt the full layout (page/formulas + geometry + lines + filter) onto the image.
         loadImageWithLayout(img, layout);
         blankColor_ = meta.blankColor;  // restore blank-fill so the recolour control tracks it
+        canvas_->setBlankPage(!blankColor_.isEmpty());
         // Link the session; clear any local-project linkage so saves go to the server.
         // Unlinked (incognito deep-link) opens adopt the content only: no remote link,
         // no live co-edit, nothing ever pushed back — mirroring the browser's
@@ -4201,9 +3847,24 @@ namespace stencil::gui {
         // Skipped for a silent live-poll reload so a peer's edit doesn't reset zoom/pan.
         if (!silent) fitToWindow();
         if (link) remoteSync_->startRemotePoll();   // live co-edit: watch for peer changes
+        // Chat persistence (§12): a linked, user-initiated open pulls the
+        // project's server-stored chat (silent live-poll reloads must not stomp
+        // the conversation mid-thought). Missing/invalid = a fresh scope.
+        if (link && !silent && settings_.saveChatsWithProject) {
+          if (auto* cc = connections_ ? connections_->find(serverUrl) : nullptr) {
+            cc->downloadFileAsync(id, QStringLiteral("chat"),
+                                  [this, self](bool cok, QByteArray data) {
+                                    if (!self) return;
+                                    restoreChatFromDoc(
+                                        cok ? QJsonDocument::fromJson(data).object() : QJsonObject());
+                                  });
+          } else {
+            restoreChatFromDoc(QJsonObject());
+          }
+        }
         if (!silent)
           notify_->success(QString("Opened \"%1\" from %2")
-                               .arg(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name,
+                               .arg(support::shortName(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name),
                                     serverUrl));
       };
       c->downloadFileAsync(id, "original", [this, self, c, meta, adopt,
@@ -4252,7 +3913,7 @@ namespace stencil::gui {
         if (idx >= 0) pageSize_->setCurrentIndex(idx);
       }
       settings_.pageSize = pageSizeValue();
-      if (customGroupAct_) customGroupAct_->setVisible(settings_.pageSize == "custom");
+      if (customGroup_) customGroup_->setVisible(settings_.pageSize == "custom");
       if (customW_ && customH_) {
         QSignalBlocker bw(customW_), bh(customH_);
         const double f = unitFormat().factor;
@@ -4277,7 +3938,7 @@ namespace stencil::gui {
         QSignalBlocker b(actAllowFormulas_);
         actAllowFormulas_->setChecked(allow);
       }
-      if (formulaGroupAct_) formulaGroupAct_->setVisible(allow);
+      if (formulaGroup_) formulaGroup_->setVisible(allow);
       {
         QSignalBlocker bx(formulaX_), by(formulaY_);
         formulaX_->setText(fx);
@@ -4296,8 +3957,7 @@ namespace stencil::gui {
     win->show();
     if (!win->loadProjectIntoCanvas(id)) {
       notify_->error("Could not open the project in a new window");
-      win->forceClose_ = true;   // auto-close a failed load without a quit prompt
-      win->close();
+      win->close();  // auto-close the failed load
     }
   }
 
@@ -4445,7 +4105,7 @@ namespace stencil::gui {
       return;
     }
     OpenInDialog dlg(this, serverProject, remoteSession_->link().address, browserAvailable, telegramAvailable, incognito_);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (execMaybePopover(dlg) != QDialog::Accepted) return;
     const bool incog = dlg.incognito();
 
     if (dlg.outcome() == OpenInDialog::Outcome::Telegram) {
@@ -4545,7 +4205,6 @@ namespace stencil::gui {
       return;
     }
     ensureMediaLoader();
-    notify_->info("Opening…");
     mediaLoader_->load(src, frame);
   }
 
@@ -4615,8 +4274,18 @@ namespace stencil::gui {
     createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
     // Link this file as the project's live-sync target (auto-save + watch when live sync is on).
     linkStencilFile(path, bytes);
+    // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is
+    // on (an absent one = a fresh scope), and carry it onto the new local record.
+    if (settings_.saveChatsWithProject) {
+      restoreChatFromDoc(pf.chat);
+      if (!pf.chat.isEmpty()) {
+        if (Project* pr = findProject(activeProjectId_.toStdString())) {
+          pr->chat = buildActiveChatDoc();
+          fileStore::saveProjects(projectList_);
+        }
+      }
+    }
     fitToWindow();
-    notify_->success("Opened project " + pf.name);
   }
 
   // Serialize the current project to .stencil bytes (ORIGINAL image + layout + metadata + theme); shared by Save Project As and live-sync auto-save. Mirrors browser ExportService.saveProjectFile.
@@ -4632,237 +4301,6 @@ namespace stencil::gui {
     QByteArray bytes;
     if (!ext.isEmpty()) readFileBytes(path, bytes);
     setSourceBytes(bytes, ext);   // empty bytes ⇒ buildStencilBytes re-encodes from pixels
-  }
-
-  QByteArray MainWindow::buildStencilBytes() {
-    if (!canvas_->hasImage()) return {};
-    const QImage& orig = canvas_->originalImage();
-    QByteArray png;
-    QString ext = QStringLiteral("png");
-    if (!sourceBytes_.isEmpty()) {
-      png = sourceBytes_;                                  // untouched original (lossless)
-      if (!sourceExt_.isEmpty()) ext = sourceExt_;
-    } else {
-      QBuffer buf(&png);                                  // synthetic original — encode from pixels
-      buf.open(QIODevice::WriteOnly);
-      orig.save(&buf, "PNG");
-    }
-    fileStore::ProjectFileData pf;
-    pf.name = projectBaseName();
-    pf.imageExt = ext;
-    pf.imageBytes = png;
-    pf.imageWidth = orig.width();
-    pf.imageHeight = orig.height();
-    pf.source = currentSource_;
-    pf.resource = currentResource_;
-    if (const Project* pr = findProject(activeProjectId_.toStdString())) {
-      pf.color = QString::fromStdString(pr->meta.color);
-      for (const auto& k : pr->meta.keywords) pf.keywords << QString::fromStdString(k);
-      pf.blank = pr->meta.blank;
-      pf.blankColor = QString::fromStdString(pr->meta.blankColor);
-    }
-    pf.layout = fileStore::buildLayoutJson(
-        canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
-        settings_.imageFilter, settings_.filterColor,
-        canvas_->cropRect(), canvas_->rotationQuarters(), currentLayoutMeta());
-    pf.hasTheme = true;
-    pf.themeMode = resolveDark(settings_.themeMode) ? "dark" : "light";
-    pf.themeAccent = settings_.accentColor;
-    return fileStore::buildProjectFile(pf);
-  }
-
-  void MainWindow::saveProjectFileAs() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");
-      return;
-    }
-    const QString suggested = projectBaseName() + ".stencil";
-    const QString path = QFileDialog::getSaveFileName(
-        this, "Save project", suggested, "Stencil project (*.stencil)");
-    if (path.isEmpty()) return;
-    const QByteArray out = buildStencilBytes();
-    if (!writeFileBytes(path, out)) {
-      notify_->error("Could not write the project file");
-      return;
-    }
-    linkStencilFile(path, out);   // this file becomes the project's live-sync target
-    notify_->success("Project saved");
-  }
-
-  // Delete the linked .stencil file from disk (after a confirm), then unlink so live-sync stops.
-  // The project itself stays open in the editor — only the on-disk file is removed. On a failed
-  // remove the link is kept. Mirrors the browser ExportService.deleteProjectFile.
-  void MainWindow::deleteProjectFile() {
-    if (stencilLink_.isEmpty()) {
-      notify_->error("No linked .stencil file to delete");
-      return;
-    }
-    const QString path = stencilLink_;
-    const QString shown = QFileInfo(path).fileName();
-    QMessageBox box(this);
-    box.setWindowTitle(tr("Delete project file"));
-    box.setText(tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown));
-    QPushButton* del = box.addButton(tr("Delete"), QMessageBox::AcceptRole);
-    QPushButton* cancel = box.addButton(tr("Cancel"), QMessageBox::RejectRole);
-    box.setDefaultButton(cancel);   // default to the safe choice for a destructive action
-    box.exec();
-    if (box.clickedButton() != del) { notify_->info("Delete canceled"); return; }
-
-    if (!QFile::remove(path)) {
-      notify_->error("Could not delete the project file");   // keep the link so live-sync survives
-      return;
-    }
-    unlinkStencilFile();   // gone from disk → nothing to sync to
-    notify_->success(tr("Deleted “%1”").arg(shown));
-  }
-
-  // ── .stencil live sync ───────────────────────────────────────────────────────
-  namespace {
-    // Union two line lists, de-duplicating by the compact JSON of each line (a merge that keeps
-    // both editors' annotations without duplicating a round-tripped twin — mirrors browser mergeLines).
-    core::Lines mergeLinesUnion(const core::Lines& base, const core::Lines& extra) {
-      core::Lines out = base;
-      QSet<QString> seen;
-      auto keyOf = [](const core::Line& l) {
-        return QString::fromUtf8(QJsonDocument(fileStore::lineToJson(l)).toJson(QJsonDocument::Compact));
-      };
-      for (const auto& l : base) seen.insert(keyOf(l));
-      for (const auto& l : extra) {
-        const QString k = keyOf(l);
-        if (!seen.contains(k)) { out.push_back(l); seen.insert(k); }
-      }
-      return out;
-    }
-  }  // namespace
-
-  void MainWindow::linkStencilFile(const QString& path, const QByteArray& baseline) {
-    stencilLink_ = path;
-    stencilBaseline_ = baseline;
-    if (!stencilWatcher_) {
-      stencilWatcher_ = new QFileSystemWatcher(this);
-      connect(stencilWatcher_, &QFileSystemWatcher::fileChanged, this, [this](const QString&) { onStencilFileChanged(); });
-    }
-    if (!stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
-    if (stencilLiveSync_ && !path.isEmpty()) stencilWatcher_->addPath(path);
-    if (actStencilLiveSync_) actStencilLiveSync_->setEnabled(!stencilLink_.isEmpty());
-    if (actDeleteProjectFile_) actDeleteProjectFile_->setEnabled(!stencilLink_.isEmpty());
-  }
-
-  // Drop the .stencil file link (mirrors the browser StencilSync.unlink()): stop the pending
-  // auto-save + the watcher and disable the file-linked actions. The project stays open; there is
-  // just no file to sync to anymore.
-  void MainWindow::unlinkStencilFile() {
-    if (stencilAutosaveTimer_) stencilAutosaveTimer_->stop();
-    if (stencilWatcher_ && !stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
-    stencilLink_.clear();
-    stencilBaseline_.clear();
-    if (actStencilLiveSync_) actStencilLiveSync_->setEnabled(false);
-    if (actDeleteProjectFile_) actDeleteProjectFile_->setEnabled(false);
-  }
-
-  void MainWindow::scheduleStencilAutosave() {
-    if (stencilLink_.isEmpty() || !stencilLiveSync_ || stencilApplying_) return;
-    if (!stencilAutosaveTimer_) {
-      stencilAutosaveTimer_ = new QTimer(this);
-      stencilAutosaveTimer_->setSingleShot(true);
-      connect(stencilAutosaveTimer_, &QTimer::timeout, this, &MainWindow::flushStencilAutosave);
-    }
-    stencilAutosaveTimer_->start(800);
-  }
-
-  void MainWindow::flushStencilAutosave() {
-    if (stencilLink_.isEmpty() || !stencilLiveSync_ || !canvas_->hasImage()) return;
-    const QByteArray cur = buildStencilBytes();
-    if (cur == stencilBaseline_) return;   // no local change
-    // Race: if the file changed externally since our baseline, route to the change handler
-    // (apply / prompt) instead of clobbering it — reusing `cur` so it needn't rebuild them.
-    QByteArray ext;
-    if (readFileBytes(stencilLink_, ext) && ext != stencilBaseline_) {
-      onStencilFileChanged(cur);
-      return;
-    }
-    writeStencilNow(cur);   // reuse the bytes we just built (no second PNG re-encode)
-    notify_->info("Synced to file");
-  }
-
-  void MainWindow::writeStencilNow(const QByteArray& prebuilt) {
-    if (stencilLink_.isEmpty()) return;
-    const QByteArray cur = prebuilt.isEmpty() ? buildStencilBytes() : prebuilt;
-    QFile wf(stencilLink_);
-    if (!wf.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-    wf.write(cur);
-    wf.close();
-    stencilBaseline_ = cur;
-    // QFileSystemWatcher drops a path once its file is replaced — re-add so we keep watching.
-    if (stencilWatcher_ && !stencilWatcher_->files().contains(stencilLink_)) stencilWatcher_->addPath(stencilLink_);
-  }
-
-  void MainWindow::onStencilFileChanged(const QByteArray& prebuilt) {
-    if (stencilLink_.isEmpty()) return;
-    if (stencilWatcher_ && !stencilWatcher_->files().contains(stencilLink_)) stencilWatcher_->addPath(stencilLink_);
-    QByteArray ext;
-    if (!readFileBytes(stencilLink_, ext)) return;
-    if (ext.isEmpty() || ext == stencilBaseline_) return;   // no external change vs our baseline
-    const QByteArray cur = prebuilt.isEmpty() ? buildStencilBytes() : prebuilt;
-    if (cur == stencilBaseline_) {                          // no local edits → apply theirs
-      applyStencilExternal(ext);
-      return;
-    }
-    // Conflict: both changed since the baseline — prompt (mirrors the browser 3-way choice).
-    QMessageBox box(this);
-    box.setWindowTitle(tr("File changed"));
-    box.setText(tr("“%1” was changed outside the app and conflicts with your unsaved edits.")
-                    .arg(QFileInfo(stencilLink_).fileName()));
-    QPushButton* theirs = box.addButton(tr("Take file’s version"), QMessageBox::AcceptRole);
-    QPushButton* merge = box.addButton(tr("Merge lines"), QMessageBox::ActionRole);
-    box.addButton(tr("Keep mine (overwrite file)"), QMessageBox::RejectRole);
-    box.exec();
-    if (box.clickedButton() == theirs) applyStencilExternal(ext);
-    else if (box.clickedButton() == merge) applyStencilExternal(ext, /*merge=*/true);
-    else writeStencilNow(cur);   // keep mine → overwrite the file (reuse the bytes we built)
-  }
-
-  void MainWindow::applyStencilExternal(const QByteArray& text, bool merge) {
-    fileStore::ProjectFileData pf;
-    QString err;
-    if (!fileStore::parseProjectFile(text, pf, &err)) {
-      notify_->error("Could not read the changed project file");
-      return;
-    }
-    QImage img;
-    if (!img.loadFromData(pf.imageBytes)) return;
-    QJsonObject layout = pf.layout;
-    if (merge) {
-      int w = 0, h = 0;
-      const core::Lines fileLines = fileStore::parseLayoutJson(pf.layout, w, h);
-      layout["lines"] = fileStore::linesToJson(mergeLinesUnion(fileLines, canvas_->allLines()));
-    }
-    stencilApplying_ = true;
-    loadImageWithLayout(img, layout, pf.imageBytes, pf.imageExt);
-    stencilApplying_ = false;
-    if (merge) {
-      writeStencilNow();   // push the merged result back to the file
-      notify_->success("Merged with file");
-    } else {
-      stencilBaseline_ = text;
-      notify_->success("Reloaded from file");
-    }
-    refreshActions();
-  }
-
-  void MainWindow::toggleStencilLiveSync(bool on) {
-    stencilLiveSync_ = on;
-    if (on && !stencilLink_.isEmpty()) {
-      QFile rf(stencilLink_);
-      if (rf.open(QIODevice::ReadOnly)) { stencilBaseline_ = rf.readAll(); rf.close(); }
-      if (stencilWatcher_) stencilWatcher_->addPath(stencilLink_);
-      scheduleStencilAutosave();   // push any pending local edits
-      notify_->success(tr("Live sync on — auto-saving to %1").arg(QFileInfo(stencilLink_).fileName()));
-    } else {
-      if (stencilWatcher_ && !stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());
-      if (on) notify_->info("Open or save a .stencil file first to enable live sync");
-      else notify_->info("Live sync off");
-    }
   }
 
   bool MainWindow::openProjectByName(const QString& name) {
@@ -4905,7 +4343,6 @@ namespace stencil::gui {
         currentResource_ = provResource;
         refreshActions();
         fitToWindow();
-        notify_->success("Opened from Stencil");
         return;
       }
       notify_->error("Invalid layout in the stencil:// link"
@@ -4943,7 +4380,7 @@ namespace stencil::gui {
     activeProjectId_.clear();  // a fresh URL/video/OS-open load is a new editor
     refreshActions();
     fitToWindow();
-    notify_->success("Image opened");
+    playImageArrival();
 
     // --layout: apply now that an image exists (applyLayoutJson needs one). This is the
     // path/URL --layout variant; the inline stencil:// layout is handled up top via the
@@ -5047,7 +4484,7 @@ namespace stencil::gui {
     auto* win = new MainWindow();
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
-    if (!win->loadProjectIntoCanvas(id)) { win->forceClose_ = true; win->close(); }
+    if (!win->loadProjectIntoCanvas(id)) win->close();
   }
 
   // Rebuild the macOS Dock menu: New Incognito Editor · Open Projects · the most
@@ -5172,13 +4609,51 @@ namespace stencil::gui {
       box.setText(tr("An image is already open. Where should the dropped image open?"));
       QPushButton* hereBtn = box.addButton(tr("This window"), QMessageBox::AcceptRole);
       QPushButton* newBtn = box.addButton(tr("New window"), QMessageBox::ActionRole);
-      box.addButton(QMessageBox::Cancel);
+      QAbstractButton* dropCancel = box.addButton(QMessageBox::Cancel);
+      const QColor dropTxt = box.palette().color(QPalette::WindowText);
+      hereBtn->setIcon(themedIcon("image", dropTxt, 15));      // browser: confirmIcon 'image'
+      newBtn->setIcon(themedIcon("external", dropTxt, 15));    // …opened in another window
+      if (dropCancel) dropCancel->setIcon(themedIcon("x", dropTxt, 15));
       box.exec();
       if (box.clickedButton() == hereBtn) openHere();
       else if (box.clickedButton() == newBtn) openNew();
       return;
     }
     openHere();
+  }
+
+  // A fresh image ASSEMBLES from dust (Sweep::Gather; browser ghostIn). The
+  // canvas waits at opacity 0, effect torn down at the end (an opacity effect
+  // must never stay on a repainting canvas); snapshot BEFORE the effect goes on.
+  void MainWindow::playImageArrival() {
+    if (!canvas_) return;
+
+    const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
+        && !canvas_->visibleRegion().boundingRect().isEmpty()
+        && DisintegrateOverlay::overRect(canvas_, canvas_->visibleRegion().boundingRect(),
+                                         scroll_->viewport(), DisintegrateOverlay::Sweep::Gather);
+    auto* fx = new QGraphicsOpacityEffect(canvas_);
+    fx->setOpacity(0.0);
+    canvas_->setGraphicsEffect(fx);
+    if (dust) {
+      // Hidden for the whole flight, then simply revealed — the motes have already drawn
+      // it into place, so fading it up as well would double the arrival.
+      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
+                         [this] { if (canvas_) canvas_->setGraphicsEffect(nullptr); });
+      return;
+    }
+    // No dust to play (a canvas not on screen yet, or too small to tile): fall back to
+    // the plain fade rather than to a hidden canvas.
+    auto* anim = new QVariantAnimation(canvas_);
+    anim->setDuration(360);
+    anim->setStartValue(0.0);
+    anim->setEndValue(1.0);
+    anim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(anim, &QVariantAnimation::valueChanged, canvas_,
+            [fx](const QVariant& v) { fx->setOpacity(v.toDouble()); });
+    connect(anim, &QVariantAnimation::finished, canvas_,
+            [this] { if (canvas_) canvas_->setGraphicsEffect(nullptr); });
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   // View/edit/open/remove the current image's source & resource links, or add a
@@ -5200,7 +4675,7 @@ namespace stencil::gui {
 
     LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize,
                     settings_.units, this);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (execMaybePopover(dlg) != QDialog::Accepted) return;
 
     if (dlg.loadRequested()) {
       // Quick pre-load edits: crop to the chosen page aspect/orientation, or load
@@ -5255,8 +4730,14 @@ namespace stencil::gui {
   }
 
   void MainWindow::newProjectFromCanvas() {
-    if (incognito_) {  // S6: project promotion is blocked while incognito
-      notify_->info("Incognito mode — saving is disabled");
+    if (incognito_) {  // an explicit promotion: leave incognito and keep the work
+      const QString promoted = promoteIncognitoToLocal();
+      if (!promoted.isEmpty()) {
+        notify_->success(QStringLiteral("Left incognito — saved \"%1\"")
+                             .arg(support::shortName(promoted)));
+        return;
+      }
+      notify_->info("Nothing to save yet");
       return;
     }
     // Seed the name from the image filename (mirrors the browser, where a new project
@@ -5287,6 +4768,19 @@ namespace stencil::gui {
     auto it = std::find_if(projectList_.begin(), projectList_.end(),
                            [&](const Project& p) { return p.meta.id == id; });
     return it == projectList_.end() ? nullptr : &*it;
+  }
+
+  // Remove ONE local project row, resetting the editor when it is the open one
+  // (browser removeProject → storage.newTemporary: clearing only the id left its
+  // image, lines and name sitting there as a project that no longer exists). The
+  // caller persists + refreshes after its batch.
+  void MainWindow::eraseLocalProject(const QString& id) {
+    const std::string sid = id.toStdString();
+    projectList_.erase(
+        std::remove_if(projectList_.begin(), projectList_.end(),
+                       [&](const Project& p) { return p.meta.id == sid; }),
+        projectList_.end());
+    if (activeProjectId_ == id) resetToBlankEditor();
   }
 
   // Persist settings to disk unless this is an incognito window (which never writes).
@@ -5359,7 +4853,7 @@ namespace stencil::gui {
     fileStore::saveProjects(projectList_);
     refreshActions();
     refreshDockMenu();  // surface the new project in the Dock "recent" list
-    if (announce) notify_->success(QString("Created \"%1\"").arg(name));
+    if (announce) notify_->success(QString("Created \"%1\"").arg(support::shortName(name)));
   }
 
   void MainWindow::adoptCanvasAsLocalProject() {
@@ -5379,6 +4873,8 @@ namespace stencil::gui {
       seed = QString::fromStdString(tmp.defaultName());
     }
     createLocalProject(seed, /*announce=*/false);  // the load path already notified
+    // Browser parity: storage.save() flashes "Saved" whenever a project persists.
+    notify_->success(QStringLiteral("Saved"));
   }
 
   // Create the project on `serverUrl` (POST /projects), upload the current image as
@@ -5567,8 +5063,13 @@ namespace stencil::gui {
   void MainWindow::saveToActiveProject() {
     if (incognito_) {  // S6: no local save while incognito…
       const QStringList servers = connections_ ? connections_->urls() : QStringList();
-      if (servers.isEmpty() || !canvas_->hasImage()) {
-        notify_->info("Incognito mode — saving is disabled");
+      if (!canvas_->hasImage()) {
+        notify_->info("Nothing to save yet");
+        return;
+      }
+      if (servers.isEmpty()) {   // no server to publish to — keep it locally instead
+        notify_->success(QStringLiteral("Left incognito — saved \"%1\"")
+                             .arg(support::shortName(promoteIncognitoToLocal())));
         return;
       }
       // …but it CAN be published to a server (it then becomes a normal server-backed project
@@ -5613,10 +5114,13 @@ namespace stencil::gui {
     // wipe links set via the Links dialog, but a fresh URL-loaded image updates them).
     if (!currentSource_.isEmpty()) pr->meta.source = currentSource_.toStdString();
     if (!currentResource_.isEmpty()) pr->meta.resource = currentResource_.toStdString();
+    // Chat persistence (§12): the saved copy mirrors the current conversation
+    // when the opt-in is on; with it off, an earlier saved chat is left alone.
+    if (settings_.saveChatsWithProject) pr->chat = buildActiveChatDoc();
     fileStore::saveProjects(projectList_);
     refreshDockMenu();  // bump it to the top of the Dock "recent" list
     notify_->success(
-        QString("Saved to \"%1\"").arg(QString::fromStdString(pr->meta.name)));
+        QString("Saved to \"%1\"").arg(support::shortName(QString::fromStdString(pr->meta.name))));
   }
 
   // Trash button — mirrors the browser #clear-storage handler (controlsBinder.js).
@@ -5644,7 +5148,9 @@ namespace stencil::gui {
     }
     resetToBlankEditor();
     refreshDockMenu();  // drop the cleared project from the Dock "recent" list
-    notify_->info(hasProject ? "Project cleared" : "Editor cleared");
+    // A success, not a notice: the clear did what was asked (browser controlsBinder.js
+    // shows the same two strings in --success).
+    notify_->success(hasProject ? "Project cleared" : "Editor cleared");
   }
 
   // Reset the editor to the empty "Open an image" canvas — the desktop equivalent of
@@ -5657,7 +5163,23 @@ namespace stencil::gui {
     currentSource_.clear();
     currentResource_.clear();
     blankColor_.clear();
+    // The image scatters (browser ghostOut): snapshot BEFORE clearImage repaints.
+    // Hosted on the scroll VIEWPORT and confined to visibleRegion() — a
+    // window-parented overlay spilled across the panel and the chat dock.
+    if (canvas_ && scroll_ && scroll_->viewport()) {
+      const QRect vis = canvas_->visibleRegion().boundingRect();
+      if (!vis.isEmpty())
+        DisintegrateOverlay::overRect(canvas_, vis, scroll_->viewport(),
+                                      DisintegrateOverlay::Sweep::Fall);
+    }
     canvas_->clearImage();
+    updateStatusIdle();   // the last hovered pixel must not outlive the image it named
+    // …and keep the empty-canvas invitation off screen until the dust has landed, or the
+    // "click to create a blank image" box appears underneath the falling particles and the
+    // clear reads as happening twice (browser parity: .canvas-clearing).
+    canvas_->setIdleHintHidden(true);
+    QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
+                       [this] { if (canvas_) canvas_->setIdleHintHidden(false); });
     refreshActions();
     saveSessionNow();  // persist the cleared state so it doesn't restore on next launch
   }
@@ -5702,29 +5224,96 @@ namespace stencil::gui {
     fileStore::saveProjects(projectList_);
     refreshDockMenu();
     if (activeProjectId_ == id) updateProjectTitle();
-    notify_->success(QString("Renamed to \"%1\"").arg(name));
+    notify_->success(QString("Renamed to \"%1\"").arg(support::shortName(name)));
     return true;
   }
 
   // Header-row "Image Size: W × H px" (+ "· blank"), or a neutral hint when no image is loaded.
   // Always visible — the header row never collapses — mirroring the browser's #image-info bar.
-  void MainWindow::updateImageSizeInfo() {
+  // The incognito half of the image-info line: a muted "|" divider, then the app's OWN
+  // incognito glyph (the one the toolbar toggle wears — never an emoji, which rendered
+  // in the font's colour and style) tinted like the accent tag beside it. Divider and
+  // tag are one unit: nothing here is ever emitted without the rest, so a plain line
+  // can't end in a dangling separator.
+  QString MainWindow::incognitoTagHtml() const {
+    const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    const int glyphPx = std::max(12, QFontMetrics(imageSizeInfo_->font()).height() - 2);
+    return QStringLiteral("&nbsp;&nbsp;<span style=\"color:%1;\">|</span>&nbsp;&nbsp;"
+                          "%2<span style=\"color:%3;font-weight:700;vertical-align:middle;\">"
+                          "&nbsp;Incognito &mdash; not saved</span>")
+        .arg(pal.textMuted.name(),
+             inlineIconHtml("incognito", pal.accent, glyphPx,
+                            QStringLiteral("vertical-align:middle")),
+             pal.accent.name());
+  }
+
+  // Hold the info row at its TALLER state's height: the incognito glyph is ~2px
+  // taller than plain text, and it must not shift the rows below. Measured on a
+  // throwaway twin (the live label would flicker); cached until font/theme changes.
+  void MainWindow::reserveImageInfoHeight() {
     if (!imageSizeInfo_) return;
+    const QString key = imageSizeInfo_->font().key() + QLatin1Char('|') +
+                        QString::number(imageSizeInfo_->font().pointSizeF()) +
+                        QLatin1Char('|') + settings_.themeMode + QLatin1Char('|') +
+                        settings_.accentColor;
+    if (key == imageInfoHeightKey_ && imageSizeInfo_->minimumHeight() > 0) return;
+    QLabel twin;
+    twin.setFont(imageSizeInfo_->font());
+    twin.setStyleSheet(imageSizeInfo_->styleSheet());
+    twin.ensurePolished();   // the stylesheet's padding counts toward the hint
+    twin.setTextFormat(Qt::PlainText);
+    twin.setText(QStringLiteral("No image loaded"));
+    int h = twin.sizeHint().height();
+    twin.setTextFormat(Qt::RichText);
+    twin.setText(QStringLiteral("Image Size: 8888 × 8888 px") + incognitoTagHtml());
+    h = std::max(h, twin.sizeHint().height());
+    imageInfoHeightKey_ = key;
+    imageSizeInfo_->setFixedHeight(h);
+  }
+
+  void MainWindow::updateImageSizeInfo() {
+    QString size;
     if (canvas_ && canvas_->hasImage()) {
       const bool isBlank = !blankColor_.isEmpty();
-      imageSizeInfo_->setText(QString("Image Size: %1 × %2 px%3")
-                                  .arg(canvas_->imageWidth())
-                                  .arg(canvas_->imageHeight())
-                                  .arg(isBlank ? QStringLiteral("  ·  blank") : QString()));
+      size = QString("Image Size: %1 × %2 px%3")
+                 .arg(canvas_->imageWidth())
+                 .arg(canvas_->imageHeight())
+                 .arg(isBlank ? QStringLiteral("  ·  blank") : QString());
     } else {
-      imageSizeInfo_->setText(QStringLiteral("No image loaded"));
+      size = QStringLiteral("No image loaded");
+    }
+    if (imageSizeInfo_) {
+      // The row's height is RESERVED for the taller of its two states before either is
+      // shown, so switching between them cannot resize the info bar (see below).
+      reserveImageInfoHeight();
+      // Browser parity (drawingApp.js updateInfo + layout.css .info-incognito):
+      // the incognito state rides INLINE on this line, accent-coloured and bold,
+      // in both the loaded and the empty state. It is our own text, never model
+      // output, so rich text is safe here.
+      if (incognito_) {
+        imageSizeInfo_->setTextFormat(Qt::RichText);
+        imageSizeInfo_->setText(size.toHtmlEscaped() + incognitoTagHtml());
+      } else {
+        imageSizeInfo_->setTextFormat(Qt::PlainText);
+        imageSizeInfo_->setText(size);
+      }
+    }
+    // The "?" beside the project name carries the SAME size plus the incognito
+    // line — and only those two facts. It is the collapsed state's only readout,
+    // so it is refreshed from here (every incognito change ends in this call via
+    // updateProjectTitle).
+    if (statusHint_) {
+      QString tip = size;
+      if (incognito_) tip += QStringLiteral("\nIncognito — not saved");
+      statusHint_->setToolTip(tip);
+      refreshStatusHintVisibility();
     }
   }
 
-  // Mini line-chart logo — a QPainter port of the browser's app-logo SVG (toolbar.js): a dark rounded
-  // square with an ACCENT-coloured frame, an inner darker square, and a yellow polyline over four
-  // dots. Only the frame tracks the accent (like the browser), so it never looks garish. Repainted on
-  // theme/accent change from applyTheme.
+  // Mini S-mark logo — a QPainter port of the browser's app-logo SVG (toolbar.js): a dark rounded
+  // square with an ACCENT-coloured frame, an inner darker square, and a yellow polyline whose seven
+  // dots trace an S. Only the frame tracks the accent (like the browser), so it never looks garish.
+  // Repainted on theme/accent change from applyTheme.
   QPixmap MainWindow::makeLogoPixmap(int size) const {
     const qreal dpr = devicePixelRatioF();
     QPixmap pm(qRound(size * dpr), qRound(size * dpr));
@@ -5749,19 +5338,101 @@ namespace stencil::gui {
     p.setBrush(QColor("#3a3f4b"));
     p.drawRoundedRect(QRectF(12 * u, 12 * u, 40 * u, 40 * u), 4 * u, 4 * u);
     // Yellow polyline + dots.
-    const QPointF pts[4] = {QPointF(16 * u, 46 * u), QPointF(27 * u, 24 * u),
-                            QPointF(38 * u, 38 * u), QPointF(50 * u, 18 * u)};
+    const QPointF pts[7] = {QPointF(44 * u, 20 * u), QPointF(32 * u, 16 * u), QPointF(20 * u, 24 * u),
+                            QPointF(32 * u, 32 * u), QPointF(44 * u, 40 * u), QPointF(32 * u, 48 * u),
+                            QPointF(20 * u, 44 * u)};
     QPen line(QColor("#FFFF00"));
     line.setWidthF(3.5 * u);
     line.setCapStyle(Qt::RoundCap);
     line.setJoinStyle(Qt::RoundJoin);
     p.setPen(line);
     p.setBrush(Qt::NoBrush);
-    p.drawPolyline(pts, 4);
+    p.drawPolyline(pts, 7);
     p.setBrush(QColor("#FFFF00"));
     p.setPen(QPen(QColor("#000000"), 1.25 * u));
-    for (const auto& pt : pts) p.drawEllipse(pt, 3.4 * u, 3.4 * u);
+    for (const auto& pt : pts) p.drawEllipse(pt, 2.6 * u, 2.6 * u);
     return pm;
+  }
+
+  // The logo's accent-preset picker — a FIRST-CLASS popover dialog (not a QMenu),
+  // so all Alt-peek/glide/linger/outside-click rules are the popover system's own.
+  // Entries come from theme.cpp accentPresets (the one shared list); a pick applies
+  // through the click-cycle's exact applySettings(…, true) path, then closes.
+  void MainWindow::openAccentPicker() {
+    QDialog dlg(this);
+    dlg.setObjectName(QStringLiteral("accentPopover"));
+    auto* col = new QVBoxLayout(&dlg);
+    col->setContentsMargins(8, 8, 8, 8);
+    col->setSpacing(1);
+    // No section header: the swatches say what this is, and the popover is anchored
+    // to the logo that opened it.
+    // Rounded colour chip per row — the Settings dropdown's swatch recipe
+    // (settingsDialog.cpp), so the two accent pickers read identically. The CURRENT
+    // accent's ✓ is baked into its chip (white over a dark halo, readable on light
+    // chips), which keeps the rows a tight chip+label pair with no check column.
+    const auto swatch = [](const QColor& c, bool current) {
+      QPixmap pm(16, 16);
+      pm.fill(Qt::transparent);
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      p.setPen(QPen(QColor(0, 0, 0, 70), 1));
+      p.setBrush(c);
+      p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+      if (current) {
+        p.setBrush(Qt::NoBrush);
+        const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
+        p.setPen(QPen(QColor(0, 0, 0, 160), 3.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPolyline(pts, 3);
+        p.setPen(QPen(Qt::white, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPolyline(pts, 3);
+      }
+      p.end();
+      return QIcon(pm);
+    };
+    // Rows are built once and RE-MARKED in place when a pick lands: picking must not
+    // rebuild or move the popover (see the clicked handler below).
+    QList<QPushButton*> rows;
+    for (const AccentPreset& a : accentPresets()) {
+      const bool current = a.key == settings_.accentColor;   // a custom #… accent marks nothing
+      auto* row = new QPushButton(&dlg);
+      row->setObjectName(QStringLiteral("accentRow-") + a.key);
+      row->setFlat(true);
+      row->setCursor(Qt::PointingHandCursor);
+      row->setIconSize(QSize(16, 16));
+      row->setIcon(swatch(QColor(a.hex), current));
+      row->setText(a.label);
+      row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      // Menu-tight metrics: left-aligned label hugging the chip, row-wide hover fill.
+      row->setStyleSheet(
+          "QPushButton { border: none; border-radius: 6px; text-align: left; "
+          "padding: 5px 14px 5px 4px; }"
+          "QPushButton:hover { background: palette(highlight); color: palette(highlighted-text); }");
+      row->setProperty("accentKey", a.key);         // observable by the GUI test
+      row->setProperty("currentAccent", current);
+      connect(row, &QPushButton::clicked, &dlg, [this, &dlg, &rows, swatch, key = a.key] {
+        auto next = settings_;
+        next.accentColor = key;
+        applySettings(next, true);   // the click-cycle's apply + persist path
+        // The popover STAYS OPEN: the point of the list is trying colours against the
+        // live app, so a pick re-marks the ✓ in place and waits for the next one. It
+        // closes the ways every popover closes — outside click, Escape, Alt release, a
+        // glide to another icon, the app losing focus. Re-marking touches only the row
+        // icons, so nothing is rebuilt, re-laid out, or re-anchored under the cursor.
+        for (QPushButton* r : rows) {
+          const QString rowKey = r->property("accentKey").toString();
+          const bool now = rowKey == key;
+          r->setIcon(swatch(QColor(accentPrimary(rowKey)), now));
+          r->setProperty("currentAccent", now);
+        }
+        // An accent change re-themes the window (and may play the accent wipe over it):
+        // keep the popover on top of whatever that repaints, and keyboard-ready.
+        if (popoverOverlay_) popoverOverlay_->raise();
+        dlg.setFocus(Qt::PopupFocusReason);
+      });
+      rows << row;
+      col->addWidget(row);
+    }
+    execMaybePopover(dlg);
   }
 
   void MainWindow::updateProjectTitle() {
@@ -5823,10 +5494,14 @@ namespace stencil::gui {
     // mode only ✓/✗ show; out of it only ✎ + 🎨 show — exactly like the browser topbar.
     if (projectNameAcceptAction_) projectNameAcceptAction_->setVisible(nameEditing_);
     if (projectNameCancelAction_) projectNameCancelAction_->setVisible(nameEditing_);
-    // ✎ rename + 🎨 colour reveal only while the cursor is over the name group (browser: the topbar
-    // shows them on hover), or while editing they're replaced by ✓/✗ anyway.
-    if (projectNameEditAction_) projectNameEditAction_->setVisible(editable && !nameEditing_ && nameHover_);
-    if (projectColorBtnAction_) projectColorBtnAction_->setVisible(editable && !nameEditing_ && nameHover_);
+    // ✎/🎨 reveal only on name-group hover (✓/✗ replace them while editing) and
+    // must not MOVE anything: they keep their slots and are merely painted out —
+    // the browser's `visibility: hidden`. Removing slots shoved the "?" sideways.
+    const bool affordable = editable && !nameEditing_;
+    if (projectNameEditAction_) projectNameEditAction_->setVisible(affordable);
+    if (projectColorBtnAction_) projectColorBtnAction_->setVisible(affordable);
+    setPaintedOut(projectNameEdit_, affordable && !nameHover_);
+    setPaintedOut(projectColorBtn_, affordable && !nameHover_);
     // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
     // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
     // Paint its icon as a live swatch of the current fill colour.
@@ -5834,10 +5509,10 @@ namespace stencil::gui {
       const bool showBlank = !blankColor_.isEmpty() && !nameEditing_;
       blankColorBtn_->setVisible(showBlank);   // now a plain layout widget, gated directly
       if (showBlank) {
-        QPixmap sw(14, 14);
-        QColor c(blankColor_);
-        sw.fill(c.isValid() ? c : QColor("#ffffff"));
-        blankColorBtn_->setIcon(QIcon(sw));
+        // Same input-palette chip recipe as the line-style colour button
+        // (inset swatch rect + luminance-tuned outline, theme/accent tracked).
+        const QColor c(blankColor_);
+        updateColorSwatch(blankColorBtn_, c.isValid() ? c : QColor("#ffffff"));
       }
     }
     if (!nameEditing_) return;
@@ -5860,6 +5535,19 @@ namespace stencil::gui {
     projectNameAccept_->setToolTip(reason);
   }
 
+  // Qt has no `visibility: hidden` — a hidden widget leaves its layout, taking its space with
+  // it. An opacity effect paints the widget out while it keeps its slot, which is what the
+  // browser's hover-revealed affordances do.
+  void MainWindow::setPaintedOut(QWidget* w, bool out) {
+    if (!w) return;
+    auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
+    if (!fx) {
+      fx = new QGraphicsOpacityEffect(w);
+      w->setGraphicsEffect(fx);
+    }
+    fx->setOpacity(out ? 0.0 : 1.0);
+  }
+
   // Recompute hover state over the name group (field + ✎ + 🎨). Deferred callers give underMouse()
   // a beat to settle after a Leave, so moving the cursor from the field onto ✎ doesn't flicker them.
   void MainWindow::updateNameHover() {
@@ -5870,6 +5558,21 @@ namespace stencil::gui {
       nameHover_ = over;
       refreshProjectNameButtons();
     }
+  }
+
+  // Exactly one override on the stack, ever: push/pop pairs are the whole risk of this
+  // approach, so the flag — not the caller — decides whether anything happens.
+  void MainWindow::setBlockedCursor(bool on) {
+    if (on == blockedCursorOn_) return;
+    if (on) QApplication::setOverrideCursor(Qt::ForbiddenCursor);
+    else QApplication::restoreOverrideCursor();
+    blockedCursorOn_ = on;
+  }
+
+  void MainWindow::setActionTip(QAction* a, const QString& desc) {
+    if (!a) return;
+    const QString sc = a->shortcut().toString(QKeySequence::NativeText);
+    a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
   }
 
   void MainWindow::enterNameEdit() {
@@ -5923,115 +5626,6 @@ namespace stencil::gui {
     updateProjectTitle();   // revert the field to the stored name
   }
 
-  bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
-    // Escape leaves fullscreen (browser parity). Handled from the APP-wide filter so it fires no
-    // matter which widget (or native macOS view) holds focus — keyPressEvent / a shortcut both miss
-    // it there. Gated on our own fsActive_ flag (isFullScreen() is unreliable on macOS). Catch both
-    // KeyPress and ShortcutOverride (sent first if any widget claims Escape) so nothing swallows it.
-    if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
-        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fsActive_) {
-      toggleFullscreen();
-      return true;
-    }
-    // Zoom field → open the preset list without the separate arrow. Trigger on the click's
-    // mouse-RELEASE (not press/focus): showing the popup during the press cycle lets the pending
-    // release land outside it and immediately dismiss it (macOS), so it just flashed. Tab/keyboard
-    // focus opens it too. The field stays editable, so the user can still type over the popup.
-    if (zoom_ && obj == zoom_->lineEdit()) {
-      const auto openPopup = [this] {
-        QTimer::singleShot(0, this, [this] {
-          if (zoom_ && zoom_->lineEdit()->hasFocus() && !zoom_->view()->isVisible()) zoom_->showPopup();
-        });
-      };
-      if (event->type() == QEvent::MouseButtonRelease &&
-          static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
-        openPopup();
-      } else if (event->type() == QEvent::FocusIn) {
-        const auto reason = static_cast<QFocusEvent*>(event)->reason();
-        if (reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason ||
-            reason == Qt::ShortcutFocusReason)
-          openPopup();
-      }
-      return false;   // never consume — the field's caret / typing must behave normally
-    }
-    // Logo double-click → custom theme-colour picker (browser parity). Cancels the pending single-
-    // click accent-cycle first, then opens the non-native colour dialog seeded with the current accent.
-    if (obj == logoBtn_ && event->type() == QEvent::MouseButtonDblClick) {
-      if (logoClickTimer_) logoClickTimer_->stop();
-      const QColor cur = accentPrimary(settings_.accentColor);
-      const QColor c = QColorDialog::getColor(cur, this, "Theme colour",
-                                              QColorDialog::DontUseNativeDialog);
-      if (c.isValid()) {
-        auto next = settings_;
-        next.accentColor = c.name();   // store as hex → custom accent (accentPrimary handles it)
-        applySettings(next, true);
-      }
-      return true;
-    }
-    // Zoom over the empty margin around a zoomed-out image (the viewport, not the
-    // canvas). Mirrors CanvasWidget's Ctrl+wheel / pinch zoom; the event position is
-    // already in viewport coordinates, which is what setZoomAnchored wants.
-    if (scroll_ && obj == scroll_->viewport()) {
-      const QEvent::Type t = event->type();
-      if (t == QEvent::Resize) { positionOverlayArrows(); positionPanelReopenButton(); }
-      if (t == QEvent::Wheel) {
-        auto* we = static_cast<QWheelEvent*>(event);
-        if (we->modifiers() & Qt::ControlModifier) {
-          const QPoint d = we->angleDelta();
-          const int delta = d.y() != 0 ? d.y() : d.x();
-          if (delta != 0) {
-            const double step = (we->modifiers() & Qt::ShiftModifier) ? 0.3 : 0.1;
-            setZoomAnchored(canvas_->scale() + (delta > 0 ? step : -step),
-                            we->position().toPoint());
-            return true;
-          }
-        }
-        // Plain wheel over the margin → let the scroll area scroll.
-      } else if (t == QEvent::NativeGesture) {
-        auto* g = static_cast<QNativeGestureEvent*>(event);
-        if (g->gestureType() == Qt::ZoomNativeGesture) {
-          const double factor = 1.0 + g->value();
-          if (factor > 0.0 && factor != 1.0)
-            setZoomAnchored(canvas_->scale() * factor, g->position().toPoint());
-          return true;
-        }
-      }
-    }
-    // Hover-reveal for the name group: any Enter/Leave on the field or the ✎/🎨 buttons recomputes
-    // hover (deferred so underMouse() settles — moving field→button stays "hovered", no flicker).
-    if (obj == projectName_ || obj == projectNameEdit_ || obj == projectColorBtn_) {
-      const QEvent::Type t = event->type();
-      if (t == QEvent::Enter || t == QEvent::Leave)
-        QTimer::singleShot(0, this, [this] { updateNameHover(); });
-    }
-    if (obj == projectName_) {
-      const QEvent::Type t = event->type();
-      if (t == QEvent::MouseButtonDblClick) {
-        // Double-click a read-only name → enter edit mode (browser parity).
-        if (!nameEditing_) {
-          enterNameEdit();
-          return true;
-        }
-      } else if (t == QEvent::KeyPress) {
-        if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
-          // Escape always drops focus (clears the outline). If mid-edit, revert too.
-          if (nameEditing_) cancelProjectName();
-          else projectName_->clearFocus();
-          return true;
-        }
-      } else if (t == QEvent::FocusOut) {
-        // Clicking away leaves the edit: revert. Deferred so a click on ✓ commits first
-        // (after which the field no longer has focus AND nameEditing_ is already false → no-op).
-        if (nameEditing_) {
-          QTimer::singleShot(0, this, [this] {
-            if (nameEditing_ && projectName_ && !projectName_->hasFocus()) cancelProjectName();
-          });
-        }
-      }
-    }
-    return QMainWindow::eventFilter(obj, event);
-  }
-
   // ── Per-project accent colour ──
 
   QString MainWindow::activeProjectColor() const {
@@ -6065,11 +5659,10 @@ namespace stencil::gui {
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid())
                             ? QColor(cur)
                             : QColor("#80868f");
-    // DontUseNativeDialog: the macOS native NSColorPanel is a shared floating panel that the
-    // app-wide event filter / focus changes dismiss on mouse-move — Qt's own modal dialog runs a
-    // self-contained nested loop and stays put. (Same reason native pickers misbehave here.)
+    // Non-native (helper) — the macOS shared NSColorPanel gets dismissed by our event
+    // filters; Qt's own modal dialog stays put. Anchored on the 🎨 button that opened it.
     const QColor picked =
-        QColorDialog::getColor(seed, this, "Project name colour", QColorDialog::DontUseNativeDialog);
+        support::pickColorAnimated(seed, this, "Project name color", projectColorBtn_);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }
@@ -6080,10 +5673,10 @@ namespace stencil::gui {
     const QString cur = currentProjectColor();
     const bool hasCustom = !cur.isEmpty();
     QMenu menu(this);
-    QAction* pick = menu.addAction("Choose colour…");
+    QAction* pick = menu.addAction("Choose color…");
     // "Use theme default colour" is only meaningful when a custom colour is set — hide it
     // entirely (not just disable) when the project is already on the theme default.
-    QAction* def = hasCustom ? menu.addAction("Use theme default colour") : nullptr;
+    QAction* def = hasCustom ? menu.addAction("Use theme default color") : nullptr;
     QAction* chosen =
         menu.exec(projectColorBtn_->mapToGlobal(QPoint(0, projectColorBtn_->height())));
     if (chosen == pick) {
@@ -6125,7 +5718,7 @@ namespace stencil::gui {
   void MainWindow::setActiveProjectColor(const QString& color) {
     const auto norm = normalizeProjectColor(color);
     if (!norm) {
-      notify_->error("Invalid colour");
+      notify_->error("Invalid color");
       return;
     }
     // A server-linked session has no local id: push the colour straight to the server.
@@ -6153,10 +5746,17 @@ namespace stencil::gui {
     if (blankColor_.isEmpty() || !canvas_->hasImage()) return;  // blanks only
     QColor init(blankColor_);
     if (!init.isValid()) init = QColor("#ffffff");
-    // Qt's own dialog (not the OS-native one) so it matches the project-name colour picker.
-    const QColor c = QColorDialog::getColor(init, this, "Blank background colour",
-                                            QColorDialog::DontUseNativeDialog);
+    // Qt's own dialog (not the OS-native one), anchored on the Blank swatch button.
+    const QColor c =
+        support::pickColorAnimated(init, this, "Blank background color", blankColorBtn_);
     if (!c.isValid()) return;
+    applyBlankColor(c);
+  }
+
+  // The recolour itself, dialog-free — shared by the toolbar button above and
+  // the assistant's §10 blankColor op (ChatPlanTarget).
+  void MainWindow::applyBlankColor(const QColor& c) {
+    if (blankColor_.isEmpty() || !canvas_->hasImage() || !c.isValid()) return;  // blanks only
     // Regenerate the solid fill at the current size, KEEPING the drawn lines (a separate overlay).
     const core::Lines keep = canvas_->lines();
     QImage img(canvas_->imageWidth(), canvas_->imageHeight(), QImage::Format_RGB32);
@@ -6165,6 +5765,7 @@ namespace stencil::gui {
     setSourceBytes({}, {});  // recoloured blank is synthetic → re-encode on bundle
     if (!keep.empty()) canvas_->setLines(keep);
     blankColor_ = c.name();
+    canvas_->setBlankPage(true);  // loadFromImage reset the flag; still a blank
     // Persist the new fill into the active local project's meta + raster so a reopen shows it.
     // (A server-linked session pushes the recoloured original on the next Save.)
     if (Project* pr = findProject(activeProjectId_.toStdString())) {
@@ -6174,14 +5775,13 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
     }
     refreshActions();
-    notify_->success("Blank recoloured");
   }
 
   void MainWindow::setProjectColorById(const QString& id, const QString& serverUrl,
                                        const QString& color, std::function<void(bool)> done) {
     const auto norm = normalizeProjectColor(color);
     if (!norm) {
-      notify_->error("Invalid colour");
+      notify_->error("Invalid color");
       if (done) done(false);
       return;
     }
@@ -6200,14 +5800,14 @@ namespace stencil::gui {
           [this, self, c, id, serverUrl, n, done](bool ok, qint64 newVersion) {
             if (!self) return;
             if (!ok) {
-              notify_->error(QString("Colour update failed: %1").arg(c->lastError()));
+              notify_->error(QString("Color update failed: %1").arg(c->lastError()));
               if (done) done(false);
               return;
             }
             if (remoteSession_->link().id == id && remoteSession_->link().address == serverUrl)
               remoteSession_->link().version = newVersion;
-            notify_->success(n.isEmpty() ? QStringLiteral("Colour reset to theme default")
-                                         : QString("Colour set to %1").arg(n));
+            notify_->success(n.isEmpty() ? QStringLiteral("Color reset to theme default")
+                                         : QString("Color set to %1").arg(n));
             if (done) done(true);
           });
       return;
@@ -6218,14 +5818,14 @@ namespace stencil::gui {
     pr->meta.color = norm->toStdString();
     fileStore::saveProjects(projectList_);
     refreshDockMenu();
-    notify_->success(norm->isEmpty() ? QStringLiteral("Colour reset to theme default")
-                                     : QString("Colour set to %1").arg(*norm));
+    notify_->success(norm->isEmpty() ? QStringLiteral("Color reset to theme default")
+                                     : QString("Color set to %1").arg(*norm));
     if (done) done(true);
   }
 
   void MainWindow::openInfo() {
     InfoDialog dlg(this);
-    dlg.exec();
+    execMaybePopover(dlg, actInfo_);   // the controls/shortcuts window grows out of its icon too
   }
 
   // S13: open the rebind dialog, then persist overrides and re-apply them to the
@@ -6241,7 +5841,7 @@ namespace stencil::gui {
       entries.push_back(e);
     }
     ShortcutsDialog dlg(entries, this);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (execMaybePopover(dlg, actShortcuts_) != QDialog::Accepted) return;   // grows out of its icon too
 
     const auto overrides = dlg.overrides();
     // Rebuild the effective map: defaults, then overrides on top.
@@ -6281,15 +5881,14 @@ namespace stencil::gui {
       const QString seq = hotkeys_.value(it.key(), hotkeyDefaults_.value(it.key()));
       it.value()->setShortcut(QKeySequence(platformizeSeq(seq)));
     }
-    notify_->success("Shortcuts updated");
   }
 
   void MainWindow::updateStatusIdle() {
-    // Cursor off the canvas: show nothing when an image is loaded (no "Ready" filler,
-    // matching the browser), only the idle hint while there's no image at all.
-    status_->setText(canvas_->hasImage()
-                         ? QString()
-                         : QStringLiteral("Open an image — or create a blank one — to begin"));
+    // The coordinate bar reads out the cursor and nothing else: empty with the pointer off
+    // the canvas, and empty when there is no image at all. It used to carry an "Open an
+    // image…" invitation — the canvas already shows one in the middle of the empty page,
+    // and the browser's bar is blank there too.
+    status_->setText(QString());
   }
 
 }

@@ -50,7 +50,7 @@ enable_testing()
 # by include(CPack) below, which lives in this Qt6_FOUND block).
 option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packaging)" OFF)
 # Svg is needed by support/iconSet.cpp, which rasterizes the shared SVG icon set
-# (ported from browser/js/ui/icons.js) into themed toolbar/menu QIcons. qt6-qtsvg
+# (the qrc-embedded browser/js/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
 # drawn by the same module's SVG icon engine.
 if(STENCIL_REQUIRE_QT)
@@ -70,6 +70,7 @@ if(Qt6_FOUND)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
     ${CMAKE_CURRENT_SOURCE_DIR}/src/io
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/llm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     ${CMAKE_CURRENT_SOURCE_DIR}/src/support)
 
@@ -77,6 +78,16 @@ if(Qt6_FOUND)
   # the app and the MainWindow GUI e2e test target below so the two never drift.
   set(STENCIL_GUI_SOURCES
     src/app/mainWindow.cpp
+    src/app/mainWindowActions.cpp
+    src/app/mainWindowToolbar.cpp
+    src/app/mainWindowMenus.cpp
+    src/app/mainWindowTheme.cpp
+    src/app/stencilFileSync.cpp
+    src/app/mainWindowChat.cpp
+    src/app/mainWindowEvents.cpp
+    src/app/stayOpenMenu.cpp
+    src/app/logoHoverFx.cpp
+    src/app/dockZonesOverlay.cpp
     src/app/dataExportController.cpp
     src/app/remoteSession.cpp
     src/app/remoteSyncController.cpp
@@ -84,10 +95,23 @@ if(Qt6_FOUND)
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
     src/app/selectionPanel.cpp
+    src/llm/chatDock.cpp
+    src/llm/chatWidgets.cpp
+    src/llm/chatCardRenderer.cpp
+    src/llm/chatMenuPanel.cpp
+    src/llm/chatPlanTarget.cpp
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/llm/llmClient.cpp
+    src/llm/planExecutor.cpp
+    src/llm/qtLlmTransport.cpp
+    src/support/tipContent.cpp
     src/canvas/canvasWidget.cpp
     src/canvas/canvasTooltip.cpp
     src/canvas/incognitoOverlay.cpp
     src/dialogs/settingsDialog.cpp
+    src/dialogs/assistantSettingsDialog.cpp
+    src/dialogs/llmSettingsForm.cpp
     src/dialogs/projectsDialog.cpp
     src/dialogs/expirationDialog.cpp
     src/dialogs/openImageDialog.cpp
@@ -105,8 +129,11 @@ if(Qt6_FOUND)
     src/support/theme.cpp
     src/support/notifications.cpp
     src/support/guiHelpers.cpp
+    src/support/menuReveal.cpp
+    src/support/modalReveal.cpp
     src/support/searchCombo.cpp
     src/support/iconSet.cpp
+    src/support/numericInput.cpp
     resources/app.qrc)
 
   add_executable(stencil_gui
@@ -216,13 +243,64 @@ if(Qt6_FOUND)
   add_executable(stencil_crop_headless
     tests/cropCanvas.headless.cpp
     src/canvas/canvasWidget.cpp
-    src/support/theme.cpp)
+    src/support/theme.cpp
+    resources/app.qrc)
   # "canvasWidget.hpp"/"theme.hpp" come from the src/ group dirs; the "core/*.hpp"
   # headers they pull in arrive transitively from the linked stencil_core.
   target_include_directories(stencil_crop_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_crop_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_crop_headless COMMAND stencil_crop_headless)
   set_tests_properties(stencil_crop_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Modal-popover placement (support/popover.hpp) — the pure clamp behind the anchored
+  # compact dialogs; header-only, so the test is the only extra compile unit.
+  add_executable(stencil_popover_headless tests/popover.headless.cpp)
+  target_include_directories(stencil_popover_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_popover_headless PRIVATE Qt6::Core)
+  add_test(NAME stencil_popover_headless COMMAND stencil_popover_headless)
+  set_tests_properties(stencil_popover_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # The theme wipe's easing (support/themeSwapOverlay.hpp) — header-only, so the test is
+  # the only compile unit. Holds the curve to the AREA it sweeps, like the browser's
+  # tests/motion.test.js does for its half.
+  add_executable(stencil_themeswapease_headless tests/themeSwapEase.headless.cpp)
+  target_include_directories(stencil_themeswapease_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_themeswapease_headless PRIVATE Qt6::Widgets)
+  add_test(NAME stencil_themeswapease_headless COMMAND stencil_themeswapease_headless)
+  set_tests_properties(stencil_themeswapease_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Rich control tooltips (support/tipContent.cpp) — the desktop port of the browser's
+  # tipContent.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
+  add_executable(stencil_tipcontent_headless
+    tests/tipContent.headless.cpp
+    src/support/tipContent.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_tipcontent_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_tipcontent_headless PRIVATE Qt6::Widgets)
+  add_test(NAME stencil_tipcontent_headless COMMAND stencil_tipcontent_headless)
+  set_tests_properties(stencil_tipcontent_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
+  # scroller; header-only, so the test is the only extra compile unit.
+  add_executable(stencil_scrollreveal_headless tests/scrollReveal.headless.cpp)
+  target_include_directories(stencil_scrollreveal_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_scrollreveal_headless PRIVATE Qt6::Widgets)
+  add_test(NAME stencil_scrollreveal_headless COMMAND stencil_scrollreveal_headless)
+  set_tests_properties(stencil_scrollreveal_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Name display-shortening (support/displayName.hpp) — the middle-ellipsis behind the
+  # project dialogs/notifications; header-only, so the test is the only extra compile unit.
+  add_executable(stencil_displayname_headless tests/displayName.headless.cpp)
+  target_include_directories(stencil_displayname_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_displayname_headless PRIVATE Qt6::Core)
+  add_test(NAME stencil_displayname_headless COMMAND stencil_displayname_headless)
+  set_tests_properties(stencil_displayname_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # GUI end-to-end (Qt Test framework): drives the REAL MainWindow — load via the OS-open
@@ -235,14 +313,19 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_mainwindow_gui PRIVATE
     stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test)
   add_test(NAME stencil_mainwindow_gui COMMAND stencil_mainwindow_gui)
+  # STENCIL_NO_ANIM: this test opens dialogs and acts on them at once, so the
+  # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
+  # window under the test for its first ~200 ms, which is exactly the kind of timing the
+  # suite must not depend on.
   set_tests_properties(stencil_mainwindow_gui PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;STENCIL_NO_ANIM=1")
 
   # Hold-to-draw + selection-delete headless check (CanvasWidget public API).
   add_executable(stencil_holddraw_headless
     tests/holdDrawCanvas.headless.cpp
     src/canvas/canvasWidget.cpp
-    src/support/theme.cpp)
+    src/support/theme.cpp
+    resources/app.qrc)
   target_include_directories(stencil_holddraw_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_holddraw_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_holddraw_headless COMMAND stencil_holddraw_headless)
@@ -255,11 +338,14 @@ if(Qt6_FOUND)
     tests/imageFixture.headless.cpp
     src/canvas/canvasWidget.cpp
     src/canvas/incognitoOverlay.cpp
-    src/support/theme.cpp)
+    src/support/iconSet.cpp
+    src/support/numericInput.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
   target_include_directories(stencil_image_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_compile_definitions(stencil_image_headless PRIVATE
     "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\"")
-  target_link_libraries(stencil_image_headless PRIVATE stencil_core Qt6::Widgets)
+  target_link_libraries(stencil_image_headless PRIVATE stencil_core Qt6::Widgets Qt6::Svg)
   add_test(NAME stencil_image_headless COMMAND stencil_image_headless)
   set_tests_properties(stencil_image_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -268,7 +354,8 @@ if(Qt6_FOUND)
   # fileStore::buildLayoutJson <-> parseLayoutMeta (server save/load parity with browser + CLI).
   add_executable(stencil_layout_headless
     tests/layoutMeta.headless.cpp
-    src/io/fileStore.cpp)
+    src/io/fileStore.cpp
+    resources/app.qrc)   # Settings defaults read the providers.json canon
   target_include_directories(stencil_layout_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_layout_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_layout_headless COMMAND stencil_layout_headless)
@@ -279,7 +366,8 @@ if(Qt6_FOUND)
   # (browser/server colour-persistence parity).
   add_executable(stencil_projectcolor_headless
     tests/projectColor.headless.cpp
-    src/io/fileStore.cpp)
+    src/io/fileStore.cpp
+    resources/app.qrc)
   target_include_directories(stencil_projectcolor_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_projectcolor_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_projectcolor_headless COMMAND stencil_projectcolor_headless)
@@ -289,7 +377,8 @@ if(Qt6_FOUND)
   # Per-project keywords persistence round-trip (browser/server keywords parity).
   add_executable(stencil_projectkeywords_headless
     tests/projectKeywords.headless.cpp
-    src/io/fileStore.cpp)
+    src/io/fileStore.cpp
+    resources/app.qrc)
   target_include_directories(stencil_projectkeywords_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_projectkeywords_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_projectkeywords_headless COMMAND stencil_projectkeywords_headless)
@@ -300,7 +389,8 @@ if(Qt6_FOUND)
   # image + layout + metadata + optional theme, cross-surface parity with browser projectFile.js.
   add_executable(stencil_projectfile_headless
     tests/projectFile.headless.cpp
-    src/io/fileStore.cpp)
+    src/io/fileStore.cpp
+    resources/app.qrc)
   target_include_directories(stencil_projectfile_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_projectfile_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_projectfile_headless COMMAND stencil_projectfile_headless)
@@ -317,10 +407,12 @@ if(Qt6_FOUND)
     src/canvas/canvasWidget.cpp
     src/support/theme.cpp
     src/support/notifications.cpp
-    src/io/fileStore.cpp)
+    src/support/iconSet.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)
   target_include_directories(stencil_projecttransfer_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_projecttransfer_headless PRIVATE
-    stencil_core Qt6::Widgets Qt6::Network)
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
   add_test(NAME stencil_projecttransfer_headless COMMAND stencil_projecttransfer_headless)
   set_tests_properties(stencil_projecttransfer_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -352,6 +444,78 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_livefeed_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Toast coalescing (support/notifications): identical texts refresh the standing
+  # toast's lifetime instead of stacking; distinct texts still stack.
+  add_executable(stencil_notifications_headless
+    tests/notifications.headless.cpp
+    src/support/notifications.cpp
+    src/support/iconSet.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_notifications_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_notifications_headless PRIVATE Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_notifications_headless COMMAND stencil_notifications_headless)
+  set_tests_properties(stencil_notifications_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Servers dialog rows (dialogs/connectDialog): long URLs elide inside the viewport
+  # (no horizontal scrollbar), removal retires-then-finalizes (empty state waits for the
+  # dust), and a new row gathers in as the reverse. Mock QTcpServer stands in for the
+  # collaboration server.
+  add_executable(stencil_connectrow_headless
+    tests/connectRow.headless.cpp
+    src/dialogs/connectDialog.cpp
+    src/net/serverClient.cpp
+    src/net/connectionStore.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_connectrow_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_connectrow_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+  add_test(NAME stencil_connectrow_headless COMMAND stencil_connectrow_headless)
+  set_tests_properties(stencil_connectrow_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Stale-session handling (net/serverClient + the Servers row): a refused
+  # credential is Expired (never the "unreachable" bucket), is not retried in a
+  # loop, keeps the saved connection, and the row offers a labelled Reconnect.
+  add_executable(stencil_serverauth_headless
+    tests/serverAuth.headless.cpp
+    src/dialogs/connectDialog.cpp
+    src/net/serverClient.cpp
+    src/net/connectionStore.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_serverauth_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_serverauth_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+  add_test(NAME stencil_serverauth_headless COMMAND stencil_serverauth_headless)
+  set_tests_properties(stencil_serverauth_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Projects dialog multi-select surface (dialogs/projectsDialog): the batch bar HIDES
+  # inapplicable direction buttons by selection composition, Select all / Deselect all
+  # toggles over the filtered view, and batch remove resolves every checked row into a
+  # viewport-clipped DisintegrateOverlay. Mock QTcpServer serves the token + /projects
+  # listing, so the server-row compositions need no Go server.
+  add_executable(stencil_projectsbatch_headless
+    tests/projectsBatchBar.headless.cpp
+    src/dialogs/projectsDialog.cpp
+    src/net/serverClient.cpp
+    src/io/fileStore.cpp
+    src/support/guiHelpers.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    src/support/searchCombo.cpp   # the dialog's filter/sort/mode pickers are these now
+    resources/app.qrc)
+  target_include_directories(stencil_projectsbatch_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projectsbatch_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+  add_test(NAME stencil_projectsbatch_headless COMMAND stencil_projectsbatch_headless)
+  set_tests_properties(stencil_projectsbatch_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Server-connected co-edit smoke test: drives the async open/load + guarded-write-merge
   # primitives that MainWindow::openServerProject/saveToServer are built on, with two
   # connections as two editors (self-skips when no server is reachable — point it at one
@@ -365,6 +529,151 @@ if(Qt6_FOUND)
   add_test(NAME stencil_coedit_headless COMMAND stencil_coedit_headless)
   set_tests_properties(stencil_coedit_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # LLM op-plan parser check (src/llm/opPlan) — the llm-contract.md §1-2
+  # parse matrix (extraction tolerance, strict per-op validation, limits).
+  add_executable(stencil_llmopplan_headless
+    tests/llmOpPlan.headless.cpp
+    src/llm/opPlan.cpp)
+  target_include_directories(stencil_llmopplan_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_llmopplan_headless PRIVATE stencil_core Qt6::Core)
+  add_test(NAME stencil_llmopplan_headless COMMAND stencil_llmopplan_headless)
+  set_tests_properties(stencil_llmopplan_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Shared conformance-fixture corpus (browser/js/config/**/fixtures) + the
+  # desktop override map: compile definitions shared by the fixture walkers below.
+  set(STENCIL_FIXTURE_WALKER_DEFS
+    "STENCIL_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../browser/js/config\""
+    "STENCIL_OVERRIDES_JSON=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtureOverrides.json\"")
+
+  # Op-plan corpus walker: every shared opPlan fixture (profile editor/all)
+  # through the real desktop parseOpPlan, honouring knownDivergence.desktop and
+  # the local override map (the desktop drift inventory).
+  add_executable(stencil_opplanfixtures_headless
+    tests/opPlanFixtures.headless.cpp
+    src/llm/opPlan.cpp)
+  target_include_directories(stencil_opplanfixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_opplanfixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
+  target_link_libraries(stencil_opplanfixtures_headless PRIVATE stencil_core Qt6::Core)
+  add_test(NAME stencil_opplanfixtures_headless COMMAND stencil_opplanfixtures_headless)
+  set_tests_properties(stencil_opplanfixtures_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Provider-wire + sanitizer corpus walker: the shared §6 wire vectors and the
+  # sanitizer vectors through the real LlmClient (mock transport, no network).
+  # llmClient.cpp is #included by the test TU for sanitizer access, not compiled here.
+  add_executable(stencil_llmwirefixtures_headless
+    tests/llmWireFixtures.headless.cpp
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/net/serverClient.cpp
+    src/net/connectionStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_llmwirefixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_llmwirefixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
+  target_link_libraries(stencil_llmwirefixtures_headless PRIVATE stencil_core Qt6::Network)
+  add_test(NAME stencil_llmwirefixtures_headless COMMAND stencil_llmwirefixtures_headless)
+  set_tests_properties(stencil_llmwirefixtures_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # LLM client check (src/llm/llmClient) — the contract §6 wire mappings driven
+  # through a mock transport (canned responses; no network).
+  add_executable(stencil_llmclient_headless
+    tests/llmClient.headless.cpp
+    src/llm/llmClient.cpp
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/net/serverClient.cpp
+    src/net/connectionStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_llmclient_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_llmclient_headless PRIVATE stencil_core Qt6::Network)
+  add_test(NAME stencil_llmclient_headless COMMAND stencil_llmclient_headless)
+  set_tests_properties(stencil_llmclient_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Persistence-corpus walker: the shared chatDoc / layout / stencilProject
+  # fixtures through the real io/fileStore serializers and parsers.
+  add_executable(stencil_storefixtures_headless
+    tests/storeFixtures.headless.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_storefixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_storefixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
+  target_link_libraries(stencil_storefixtures_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_storefixtures_headless COMMAND stencil_storefixtures_headless)
+  set_tests_properties(stencil_storefixtures_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Deep-link corpus walker: the shared telegramStart golden vectors through the
+  # real codec (the launchPayload receiver vectors don't apply — builders only).
+  add_executable(stencil_deeplinkfixtures_headless
+    tests/deepLinkFixtures.headless.cpp
+    src/app/deepLink.cpp
+    src/net/serverClient.cpp)
+  target_include_directories(stencil_deeplinkfixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_deeplinkfixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
+  target_link_libraries(stencil_deeplinkfixtures_headless PRIVATE stencil_core Qt6::Network)
+  add_test(NAME stencil_deeplinkfixtures_headless COMMAND stencil_deeplinkfixtures_headless)
+  set_tests_properties(stencil_deeplinkfixtures_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # LLM plan-executor check (src/llm/planExecutor) — runs a parsed plan with
+  # actions + variants against a CanvasWidget-backed target seeded with the
+  # PNG fixture, asserting pixel/setting outcomes and the variant images.
+  add_executable(stencil_llmexecutor_headless
+    tests/llmExecutor.headless.cpp
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/llm/planExecutor.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_llmexecutor_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_llmexecutor_headless PRIVATE
+    "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\"")
+  target_link_libraries(stencil_llmexecutor_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_llmexecutor_headless COMMAND stencil_llmexecutor_headless)
+  set_tests_properties(stencil_llmexecutor_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # LLM settings defaults + fileStore Settings JSON round-trip of the contract
+  # §5 llm* keys (and the windowState dock blob).
+  add_executable(stencil_llmsettings_headless
+    tests/llmSettings.headless.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_llmsettings_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_llmsettings_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_llmsettings_headless COMMAND stencil_llmsettings_headless)
+  set_tests_properties(stencil_llmsettings_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Shared-config canon check: the qrc-embedded browser JSON (accents / icons /
+  # layoutFields) parses and matches what theme.cpp / iconSet.cpp / fileStore
+  # consume — a broken app.qrc alias fails here fast.
+  add_executable(stencil_configcanon_headless
+    tests/configCanon.headless.cpp
+    src/io/fileStore.cpp
+    src/support/iconSet.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_configcanon_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_configcanon_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_configcanon_headless COMMAND stencil_configcanon_headless)
+  set_tests_properties(stencil_configcanon_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Every test writes to an ISOLATED state dir, never the dev .stencil the real
+  # app uses — a ctest run used to persist test-flipped settings (view toggles,
+  # provider) into the developer's own app state.
+  get_property(stencil_all_tests DIRECTORY PROPERTY TESTS)
+  foreach(t ${stencil_all_tests})
+    set_property(TEST ${t} APPEND PROPERTY
+      ENVIRONMENT "STENCIL_STATE_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-state/${t}")
+  endforeach()
 
   # ── Distributable packaging ───────────────────────────────────────────────
   # `cmake --install build` lays the app out under the install prefix; the Qt

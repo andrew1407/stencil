@@ -1,7 +1,6 @@
-//! Console command implementations: one handler per verb/transform. Each drives the same
-//! pipeline.zig building blocks the flag mode uses, snapshots the result into the session's
-//! undo history, and reports via ui.zig. Pure parsing lives in commands.zig; this file is
-//! the I/O-bearing half (load/save/clipboard/theme + the undoable transforms).
+//! Console command implementations: one handler per verb/transform, driving the same
+//! pipeline.zig building blocks the flag mode uses, snapshotting into the session's undo
+//! history, and reporting via ui.zig. Pure parsing lives in commands.zig.
 const std = @import("std");
 const image = @import("../image.zig");
 const pipeline = @import("../pipeline.zig");
@@ -13,46 +12,60 @@ const core = @import("../core.zig");
 const theme = @import("../theme.zig");
 const clipboard = @import("../clipboard.zig");
 const commands = @import("commands.zig");
+const line_edit = @import("../line_edit.zig");
+const llm = @import("../llm.zig");
 const layout_mod = @import("../layout.zig");
 const project = @import("../project.zig");
 const ui = @import("ui.zig");
 const screen = @import("screen.zig");
 const Session = @import("session.zig").Session;
+const Attachment = @import("session.zig").Attachment;
 const Action = commands.Action;
+const projectsTable = @import("projectsTable.zig");
+const remoteEvents = @import("remoteEvents.zig");
+const attachments = @import("attachments.zig");
 
 // ── source / save ─────────────────────────────────────────────────────────────
 
 pub fn doUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
-        logo.print("error: upload needs a path or URL — e.g. '/upload photo.png'\n", .{});
+        // A bare /upload takes the CLIPBOARD's picture when there is one — the same image
+        // Ctrl-V attaches — so a copied screenshot needs no path typed at all.
+        if (try attachments.clipboardToImage(session, io, true)) return;
+        logo.err("upload needs a path or URL — e.g. '/upload photo.png' (or copy an image and run a bare '/upload')\n", .{});
         return;
     }
     // A whole .stencil project loads its image + layout (crop/rotation/filter/lines) at once.
     if (project.isStencilPath(arg)) return openProject(session, io, arg);
     const src = pipeline.acquireInput(session.gpa, io, arg, 0) catch return; // message already printed
-    try session.loadImage(src.img, arg, net.isUrl(arg), src.default_fmt, src.bytes);
+    // §2.1: the uploads of one turn are its attachments — a later /prompt sends them all
+    // and an `image` op indexes them. Best-effort: a copy we can't afford just isn't one.
+    const att_bytes: ?[]u8 = session.gpa.dupe(u8, src.bytes) catch null;
+    errdefer if (att_bytes) |b| session.gpa.free(b);
+    const temp = net.isUrl(arg);
+    try session.loadImage(src.img, arg, temp, src.default_fmt, src.bytes);
+    if (att_bytes) |b| session.addAttachment(arg, b, src.default_fmt, temp) catch {};
     ui.redraw(session);
 }
 
 /// `/upload <file>.stencil` — load a portable project: decode its embedded ORIGINAL image and
 /// adopt its layout (crop/rotation/filter/lines) so the view matches the browser/desktop editors.
-fn openProject(session: *Session, io: std.Io, path: []const u8) !void {
+pub fn openProject(session: *Session, io: std.Io, path: []const u8) !void {
     var proj = project.loadInto(session, io, path) catch return; // message already printed
     proj.deinit();
     ui.redraw(session);
 }
 
 /// `/source-upload <url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]`
-/// (alias `/scrape`) — scrape a page, filter to image-category items by format + dimension,
-/// pick the item at 0-based `index`, and load it as the working image. `-1` = unset bound;
-/// `format` `all` = any. Mirrors doUpload (ends in session.loadImage + ui.redraw).
+/// (alias `/scrape`) — scrape a page, filter media by format + dimensions, and load the
+/// item at 0-based `index` as the working image. `-1` = unset bound; `all` = any format.
 pub fn doSourceUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
-        logo.print("error: source-upload needs a URL — e.g. '/source-upload https://example.com'\n", .{});
+        logo.err("source-upload needs a URL — e.g. '/source-upload https://example.com'\n", .{});
         return;
     }
     const o = parseSourceUpload(arg) orelse {
-        logo.print("error: source-upload takes '<url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]'\n", .{});
+        logo.err("source-upload takes '<url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]'\n", .{});
         return;
     };
     // The fetch + download can take a moment; announce it up front (parity with the one-shot
@@ -105,7 +118,7 @@ fn parseBound(tok: ?[]const u8) !?u32 {
 
 pub fn doBlank(session: *Session, arg: []const u8) !void {
     var blank = commands.parseBlank(session.gpa, arg) orelse {
-        logo.print("error: blank takes '[format] [w h] [color]' (a page format and explicit dims are exclusive) — e.g. '/blank 800 600 white' or '/blank b5 pink'\n", .{});
+        logo.err("blank takes '[format] [w h] [color]' (a page format and explicit dims are exclusive) — e.g. '/blank 800 600 white' or '/blank b5 pink'\n", .{});
         return;
     };
     // Capture the session's /format pick before the load wipes it (loadImage → clearAll →
@@ -167,11 +180,11 @@ pub fn saveTarget(arg_len: usize, has_remote: bool) SaveTarget {
 pub fn doSave(session: *Session, io: std.Io, arg: []const u8) !void {
     if (!session.hasImage()) return ui.noImage();
     switch (saveTarget(arg.len, session.hasRemote())) {
-        .none => logo.print("error: save needs an output path — e.g. '/save out.png' (or a bare '/save' to push to the active server project)\n", .{}),
+        .none => logo.err("save needs an output path — e.g. '/save out.png' (or a bare '/save' to push to the active server project)\n", .{}),
         .server => {
             // Manual server push: upload the current result now even when sync is off, so
             // there is always a way to update the server image after new edits.
-            pushResult(session);
+            remoteEvents.pushResult(session);
             session.dirty = false; // a manual push satisfies any pending sync
         },
         .local => {
@@ -183,15 +196,14 @@ pub fn doSave(session: *Session, io: std.Io, arg: []const u8) !void {
             defer session.gpa.free(page_label);
             pipeline.writeOutputLabeled(session.gpa, io, session.current().*, arg, session.default_fmt, page_label) catch return;
             // When syncing, a local save also queues a push of the result to the active project.
-            markDirty(session);
+            remoteEvents.markDirty(session);
         },
     }
 }
 
-/// `/layout [path]` — export the current structured layout JSON to a local file (distinct
-/// from `/apply`, which *draws* a layout onto the image). With a `.json` path it writes there
-/// exactly; a non-`.json` path is a directory/prefix and gets "<path>/<project>.json"; a bare
-/// `/layout` writes "<project>.json" in the cwd (project = the working image's base name).
+/// `/layout [path]` — export the current structured layout JSON (distinct from `/apply`,
+/// which *draws* one). A `.json` path is exact; another path is a directory/prefix getting
+/// "<path>/<project>.json"; bare writes "<project>.json" in the cwd.
 pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
     if (!session.hasImage()) return ui.noImage();
     const json = try session.currentLayoutJson();
@@ -200,14 +212,14 @@ pub fn doLayout(session: *Session, io: std.Io, arg: []const u8) !void {
     const path = try commands.layoutTarget(session.gpa, arg, name);
     defer session.gpa.free(path);
     std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = json }) catch |e| {
-        logo.print("error: could not write layout to {s} ({s})\n", .{ path, @errorName(e) });
+        logo.err("could not write layout to {s} ({s})\n", .{ path, @errorName(e) });
         return;
     };
     logo.print("wrote {s} (layout)\n", .{path});
 }
 
 /// `/save <file>.stencil` — bundle the ORIGINAL image + layout + metadata; prints a `/layout`-style line outside the mcp/bot `wrote`-line contract.
-fn saveProject(session: *Session, io: std.Io, path: []const u8) !void {
+pub fn saveProject(session: *Session, io: std.Io, path: []const u8) !void {
     project.saveInto(session, io, path, .{
         .name = commands.projectBaseName(session.label orelse "project"),
         .color = session.remote_color orelse "",
@@ -231,26 +243,25 @@ pub fn deleteReject(arg: []const u8) DeleteReject {
 pub fn doDelete(io: std.Io, arg: []const u8) !void {
     switch (deleteReject(arg)) {
         .ok => {},
-        .empty => return logo.print("error: delete needs a .stencil path — e.g. '/delete project.stencil'\n", .{}),
-        .url => return logo.print("error: delete only removes local files, not URLs\n", .{}),
-        .not_stencil => return logo.print("error: delete only removes .stencil project files (got '{s}')\n", .{arg}),
-        .traversal => return logo.print("error: refusing to delete a path that escapes the working directory: '{s}'\n", .{arg}),
+        .empty => return logo.err("delete needs a .stencil path — e.g. '/delete project.stencil'\n", .{}),
+        .url => return logo.err("delete only removes local files, not URLs\n", .{}),
+        .not_stencil => return logo.err("delete only removes .stencil project files (got '{s}')\n", .{arg}),
+        .traversal => return logo.err("refusing to delete a path that escapes the working directory: '{s}'\n", .{arg}),
     }
     std.Io.Dir.cwd().deleteFile(io, arg) catch |e|
-        return logo.print("error: could not delete {s} ({s})\n", .{ arg, @errorName(e) });
+        return logo.err("could not delete {s} ({s})\n", .{ arg, @errorName(e) });
     logo.print("deleted {s}\n", .{arg});
 }
 
-fn printFormula(session: *Session) void {
+pub fn printFormula(session: *Session) void {
     const fx = if (session.formula_x.len != 0) session.formula_x else "(identity)";
     const fy = if (session.formula_y.len != 0) session.formula_y else "(identity)";
     logo.print("formulas {s}: x -> {s}, y -> {s}\n", .{ if (session.allow_formulas) "on" else "off", fx, fy });
 }
 
-/// `/formula [x|y <expr> | on | off | clear]` — the x/y coordinate-transform formulas that
-/// ride the saved layout (validated with the shared parser; the browser applies them, the CLI
-/// preserves + round-trips). Bare `/formula` shows the current state. Returns true when the
-/// formula state actually changed (so the caller only queues a sync on a real edit).
+/// `/formula [x|y <expr> | on | off | clear]` — the coordinate-transform formulas riding
+/// the saved layout (validated with the shared parser). Bare shows the state. Returns true
+/// only when the formula state changed, so the caller only queues a sync on a real edit.
 pub fn doFormula(session: *Session, arg: []const u8) bool {
     const trimmed = std.mem.trim(u8, arg, " \t");
     if (trimmed.len == 0) {
@@ -275,11 +286,11 @@ pub fn doFormula(session: *Session, arg: []const u8) bool {
     } else if (eq(sub, "x") or eq(sub, "y")) {
         const axis: u8 = if (eq(sub, "y")) 'y' else 'x';
         const ok = session.setFormula(axis, expr) catch {
-            logo.print("error: out of memory\n", .{});
+            logo.err("out of memory\n", .{});
             return false;
         };
         if (!ok) {
-            logo.print("error: invalid {c} formula: {s}\n", .{ axis, expr });
+            logo.err("invalid {c} formula: {s}\n", .{ axis, expr });
             return false;
         }
         printFormula(session);
@@ -290,11 +301,9 @@ pub fn doFormula(session: *Session, arg: []const u8) bool {
     return true;
 }
 
-/// `/format [name | custom <w> <h>]` — show or set the session's page format. Bare lists
-/// every named format with its cm size (current marked); a name (case-insensitive) picks it;
-/// `custom <w> <h>` sets explicit cm dims. The pick drives the header label, the layout
-/// `pageSize` written on save/sync, and the `/blank` default page. Returns true when the
-/// pick actually changed (so a bare listing / rejected name never queues a sync).
+/// `/format [name | custom <w> <h>]` — show or set the session's page format (bare lists,
+/// a name picks, custom sets cm dims). Drives the header label, the saved `pageSize`, and
+/// the `/blank` default. Returns true only when the pick changed (a listing never syncs).
 pub fn doFormat(session: *Session, arg: []const u8) bool {
     const trimmed = std.mem.trim(u8, arg, " \t");
     if (trimmed.len == 0) {
@@ -308,7 +317,7 @@ pub fn doFormat(session: *Session, arg: []const u8) bool {
         const w = parseCmDim(it.next());
         const h = parseCmDim(it.next());
         if (w == null or h == null or it.next() != null) {
-            logo.print("error: custom takes width + height in cm (0.1–500) — e.g. '/format custom 21 29.7'\n", .{});
+            logo.err("custom takes width + height in cm (0.1–500) — e.g. '/format custom 21 29.7'\n", .{});
             return false;
         }
         session.setPageSize("custom") catch return false;
@@ -319,11 +328,11 @@ pub fn doFormat(session: *Session, arg: []const u8) bool {
     }
 
     const name = core.canonicalPageFormat(head) orelse {
-        logo.print("error: unknown page format '{s}' — type '/format' to list them\n", .{head});
+        logo.err("unknown page format '{s}' — type '/format' to list them\n", .{head});
         return false;
     };
     if (it.next() != null) {
-        logo.print("error: /format takes one name — e.g. '/format b5' (or '/format custom <w> <h>')\n", .{});
+        logo.err("/format takes one name — e.g. '/format b5' (or '/format custom <w> <h>')\n", .{});
         return false;
     }
     const p = core.namedPageSize(session.gpa, name) orelse return false;
@@ -343,16 +352,19 @@ fn parseCmDim(tok: ?[]const u8) ?f64 {
 
 // ── server connections ─────────────────────────────────────────────────────────
 
-/// `/connect <url[ url2 ...]>` — open one or more server connections for the session.
+/// `/connect <url [token][ url2 ...]>` — open one or more server connections for the
+/// session; a token word after a URL authenticates against a gated server (session or
+/// admin token — an admin one mints a session).
 pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
-        logo.print("error: connect needs a server URL — e.g. '/connect http://host:8090'\n", .{});
+        logo.err("connect needs a server URL — e.g. '/connect http://host:8090 [token]'\n", .{});
         return;
     }
-    var it = std.mem.tokenizeAny(u8, arg, " ,\t");
-    while (it.next()) |url| {
-        var client = server.connect(session.gpa, io, url, null) catch |e| {
-            logo.print("error: could not connect to {s} ({s})\n", .{ url, @errorName(e) });
+    const pairs = try commands.parseConnectArgs(session.gpa, arg);
+    defer session.gpa.free(pairs);
+    for (pairs) |p| {
+        var client = server.connect(session.gpa, io, p.url, p.token) catch |e| {
+            server.printConnectError(p.url, e);
             continue;
         };
         if (session.findServer(client.base) != null) {
@@ -361,6 +373,7 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
             continue;
         }
         try session.servers.append(session.gpa, client);
+        session.rememberServer(client.base) catch {}; // the pool a plan `connect` resolves against
         logo.print("connected to {s}\n", .{client.base});
     }
 }
@@ -368,7 +381,7 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
 /// `/disconnect [url]` — close one connection (or the most recent when omitted).
 pub fn doDisconnect(session: *Session, arg: []const u8) !void {
     if (session.servers.items.len == 0) {
-        logo.print("no server connections\n", .{});
+        logo.err("no server connections — use '/connect <url>'\n", .{});
         return;
     }
     if (arg.len == 0) {
@@ -393,7 +406,7 @@ pub fn doDisconnect(session: *Session, arg: []const u8) !void {
 /// live edit-events feed (the one socket that goes stale when the server bounces or drops).
 pub fn doReconnect(session: *Session, io: std.Io, arg: []const u8) !void {
     if (session.servers.items.len == 0) {
-        logo.print("no server connections — use '/connect <url>'\n", .{});
+        logo.err("no server connections — use '/connect <url>'\n", .{});
         return;
     }
     if (arg.len == 0) {
@@ -413,14 +426,17 @@ pub fn doReconnect(session: *Session, io: std.Io, arg: []const u8) !void {
     _ = reconnectAt(session, io, idx);
 }
 
-/// Reconnect the server at `i` in place: open a fresh client (new token) and swap it for the
-/// old one, reviving the events feed if this server hosts the active project. Returns success.
+/// Reconnect the server at `i` in place: open a fresh client (new token, reusing any
+/// user-supplied credential so gated servers stay reachable) and swap it for the old
+/// one, reviving the events feed if this server hosts the active project. Returns success.
 fn reconnectAt(session: *Session, io: std.Io, i: usize) bool {
-    // Copy the base first — the reconnect frees the old client (and its base slice).
+    // Copy base + credential first — the reconnect frees the old client (and its slices).
     const base = session.gpa.dupe(u8, session.servers.items[i].base) catch return false;
     defer session.gpa.free(base);
-    const fresh = server.connect(session.gpa, io, base, null) catch |e| {
-        logo.print("error: reconnect to {s} failed ({s})\n", .{ base, @errorName(e) });
+    const cred = session.gpa.dupe(u8, session.servers.items[i].credential) catch return false;
+    defer session.gpa.free(cred);
+    const fresh = server.connect(session.gpa, io, base, if (cred.len != 0) cred else null) catch |e| {
+        logo.err("reconnect to {s} failed ({s})\n", .{ base, @errorName(e) });
         return false;
     };
     const was_events = session.events_url != null and std.mem.eql(u8, session.events_url.?, base);
@@ -433,7 +449,7 @@ fn reconnectAt(session: *Session, io: std.Io, i: usize) bool {
 }
 
 /// `/connections` — list the connected servers, each with a live reachability status
-/// (a quick GET probe per server) and a marker for the active project's server.
+/// (a quick GET probe per server) and a badge for the active project's server.
 pub fn doConnections(session: *Session) void {
     if (session.servers.items.len == 0) {
         logo.print("no server connections — use '/connect <url>'\n", .{});
@@ -467,8 +483,8 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
     }
     const now = std.Io.Clock.real.now(io).toMilliseconds();
 
-    var rows: std.ArrayList(ProjectRow) = .empty;
-    defer freeRows(session.gpa, &rows);
+    var rows: std.ArrayList(projectsTable.ProjectRow) = .empty;
+    defer projectsTable.freeRows(session.gpa, &rows);
 
     var multi = false;
     if (arg.len != 0) {
@@ -478,11 +494,11 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
             logo.print("not connected to {s} — '/connect' first\n", .{base});
             return;
         };
-        try gatherRows(session.gpa, &rows, client, now, false);
+        try projectsTable.gatherRows(session.gpa, &rows, client, now, false);
         logo.print("projects on {s} ({d}):\n", .{ client.base, rows.items.len });
     } else {
         multi = session.servers.items.len > 1;
-        for (session.servers.items) |*c| try gatherRows(session.gpa, &rows, c, now, multi);
+        for (session.servers.items) |*c| try projectsTable.gatherRows(session.gpa, &rows, c, now, multi);
         if (multi) {
             logo.print("projects across {d} servers ({d}):\n", .{ session.servers.items.len, rows.items.len });
         } else {
@@ -494,164 +510,28 @@ pub fn doProjects(session: *Session, io: std.Io, arg: []const u8) !void {
         logo.print("  (none)\n", .{});
         return;
     }
-    renderTable(session.gpa, rows.items, multi);
+    projectsTable.renderTable(session.gpa, rows.items, multi);
     logo.print("use '/fetch <name>' to open a project\n", .{});
 }
 
-/// One rendered project row; all fields owned so rows outlive the per-server lists they came
-/// from. `color` is the project's custom name colour ("" = none → paint in the theme accent);
-/// `description` is the free-text caption ("" = none → shown as a trailing dimmed note).
-const ProjectRow = struct { name: []u8, size: []u8, created: []u8, expires: []u8, changed: []u8, color: []u8, description: []u8, server: []const u8 };
-
-fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
-    for (rows.items) |r| {
-        gpa.free(r.name);
-        gpa.free(r.size);
-        gpa.free(r.created);
-        gpa.free(r.expires);
-        gpa.free(r.changed);
-        gpa.free(r.color);
-        gpa.free(r.description);
-    }
-    rows.deinit(gpa);
-}
-
-/// Fetch one server's projects and append a rendered row per project. A network/listing failure
-/// is reported and skipped (other servers still list); only allocation errors propagate.
-fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), client: *server.Client, now: i64, multi: bool) !void {
-    const items = client.listProjectInfos() catch |e| {
-        logo.print("error: could not list projects on {s} ({s})\n", .{ client.base, @errorName(e) });
-        return;
-    };
-    defer server.freeProjectList(gpa, items);
-    for (items) |p| {
-        const name = try gpa.dupe(u8, p.name);
-        errdefer gpa.free(name);
-        // Some projects have no stored dimensions (e.g. never rendered) — show "-", not "0x0".
-        const size = if (p.w == 0 and p.h == 0) try gpa.dupe(u8, "-") else try std.fmt.allocPrint(gpa, "{d}x{d}", .{ p.w, p.h });
-        errdefer gpa.free(size);
-        var tb: [32]u8 = undefined;
-        const changed = try gpa.dupe(u8, server.formatAgo(&tb, now, p.updated_at));
-        errdefer gpa.free(changed);
-        // Created date, shown relatively like CHANGED (reuses tb after `changed`
-        // is already its own allocation).
-        const created = try gpa.dupe(u8, server.formatAgo(&tb, now, p.created_at));
-        errdefer gpa.free(created);
-        // Expiry, shown forward-looking ("in 3d" / "expired" / "never"), next to CREATED.
-        const expires = try gpa.dupe(u8, server.formatUntil(&tb, now, p.expires_at));
-        errdefer gpa.free(expires);
-        const color = try gpa.dupe(u8, p.color);
-        errdefer gpa.free(color);
-        const description = try gpa.dupe(u8, p.description);
-        errdefer gpa.free(description);
-        try rows.append(gpa, .{ .name = name, .size = size, .created = created, .expires = expires, .changed = changed, .color = color, .description = description, .server = if (multi) client.base else "" });
-    }
-}
-
-/// Render the gathered rows as a left-aligned columnar table (2-space indent, 2-space gaps).
-fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool) void {
-    var nw: usize = "NAME".len;
-    var sw: usize = "SIZE".len;
-    var crw: usize = "CREATED".len;
-    var erw: usize = "EXPIRES".len;
-    var cw: usize = "CHANGED".len;
-    for (rows) |r| {
-        nw = @max(nw, r.name.len);
-        sw = @max(sw, r.size.len);
-        crw = @max(crw, r.created.len);
-        erw = @max(erw, r.expires.len);
-        cw = @max(cw, r.changed.len);
-    }
-    printRow(gpa, "NAME", "", nw, "SIZE", sw, "CREATED", crw, "EXPIRES", erw, "CHANGED", cw, if (multi) "SERVER" else null, ""); // header: no colour/description
-    for (rows) |r| {
-        var buf: [20]u8 = undefined;
-        printRow(gpa, r.name, theme.nameSeq(r.color, &buf), nw, r.size, sw, r.created, crw, r.expires, erw, r.changed, cw, if (multi) r.server else null, r.description);
-    }
-}
-
-/// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
-/// column ("" = plain); a non-empty `desc` is appended as a trailing dimmed note (truncated).
-/// Best-effort.
-fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, expires: []const u8, erw: usize, changed: []const u8, cw: usize, srv: ?[]const u8, desc: []const u8) void {
-    var line: std.ArrayList(u8) = .empty;
-    defer line.deinit(gpa);
-    appendCol(gpa, &line, "  ", 0); // 2-space indent (no padding)
-    appendName(gpa, &line, name, name_seq, nw);
-    appendCol(gpa, &line, size, sw);
-    appendCol(gpa, &line, created, crw);
-    appendCol(gpa, &line, expires, erw);
-    if (srv) |s| {
-        appendCol(gpa, &line, changed, cw);
-        appendCol(gpa, &line, s, 0); // final column, no trailing pad
-    } else {
-        appendCol(gpa, &line, changed, 0); // final column
-    }
-    appendDesc(gpa, &line, desc); // trailing "— <caption>" note, when present
-    logo.print("{s}\n", .{line.items});
-}
-
-/// Append a free-text description as a trailing dimmed "— <caption>" note after the last column,
-/// truncated to ~48 bytes (with an ellipsis) so a long caption can't blow up the row. Truncation
-/// backs off any partial UTF-8 codepoint so we never emit an invalid byte. No-op when empty.
-/// Best-effort.
-fn appendDesc(gpa: std.mem.Allocator, line: *std.ArrayList(u8), desc: []const u8) void {
-    if (desc.len == 0) return;
-    const on = logo.colorEnabled();
-    line.appendSlice(gpa, "  ") catch return;
-    if (on) line.appendSlice(gpa, "\x1b[2m") catch {}; // faint
-    line.appendSlice(gpa, "— ") catch return;
-    if (desc.len > 48) {
-        // Back off from byte 48 to a codepoint boundary (skip UTF-8 continuation bytes 0b10xxxxxx).
-        var end: usize = 48;
-        while (end > 0 and (desc[end] & 0xC0) == 0x80) : (end -= 1) {}
-        line.appendSlice(gpa, desc[0..end]) catch return;
-        line.appendSlice(gpa, "…") catch {};
-    } else line.appendSlice(gpa, desc) catch return;
-    if (on) line.appendSlice(gpa, logo.resetSeq()) catch {};
-}
-
-/// Append `text`, then (when width > 0) pad with spaces to `width` plus a 2-space column gap.
-/// The final column passes width 0 to skip trailing padding. Best-effort.
-fn appendCol(gpa: std.mem.Allocator, line: *std.ArrayList(u8), text: []const u8, width: usize) void {
-    line.appendSlice(gpa, text) catch return;
-    if (width == 0) return;
-    var i = text.len;
-    while (i < width + 2) : (i += 1) line.append(gpa, ' ') catch return;
-}
-
-/// Like appendCol for the NAME column, wrapping the (visible) name in `seq`…reset when a colour
-/// is given. Padding is computed from the VISIBLE name length — the SGR escapes have zero
-/// display width — so the columns stay aligned. Best-effort.
-fn appendName(gpa: std.mem.Allocator, line: *std.ArrayList(u8), name: []const u8, seq: []const u8, width: usize) void {
-    const on = seq.len != 0;
-    if (on) line.appendSlice(gpa, seq) catch {};
-    line.appendSlice(gpa, name) catch return;
-    if (on) line.appendSlice(gpa, logo.resetSeq()) catch {};
-    var i = name.len;
-    while (i < width + 2) : (i += 1) line.append(gpa, ' ') catch return;
-}
-
-/// `/project-color [#hex | name | clear]` — show or set the active server project's custom
-/// name colour (the colour `/projects` paints its name in; empty = the theme accent). With no
-/// argument it prints the current colour rendered in that colour; a '#hex'/CSS-name is validated
-/// via the core colour parser, normalised to "#rrggbb", and PUT to the server; 'clear'/'none'/
-/// 'default' resets it to "" (theme fallback).
-/// The connected client + id for the active server project, or null (with an error already
-/// printed) when there is no active project or its server isn't connected. Shared preamble for
-/// the `/project-*`, `/rename`, `/expire` handlers.
+/// The connected client + id for the active server project, or null (error printed) when
+/// none is active or its server isn't connected. Shared by `/project-*`, `/rename`, `/expire`.
 const ActiveProject = struct { client: *server.Client, id: []const u8 };
 fn requireActiveProject(session: *Session) ?ActiveProject {
     if (!session.hasRemote()) {
-        logo.print("error: no active server project — '/fetch <name>' first\n", .{});
+        logo.err("no active server project — '/fetch <name>' first\n", .{});
         return null;
     }
     const client = session.findServer(session.remote_url.?) orelse {
-        logo.print("error: the active project's server is not connected — '/reconnect' first\n", .{});
+        logo.err("the active project's server is not connected — '/reconnect' first\n", .{});
         return null;
     };
     return .{ .client = client, .id = session.remote_id.? };
 }
 
+/// `/project-color [#hex | name | clear]` — show or set the active server project's custom
+/// name colour (empty = theme accent; `/projects` paints the name in it). A '#hex'/CSS-name
+/// is validated by the core parser, normalised, and PUT; 'clear'/'none'/'default' resets.
 pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const client = active.client;
@@ -661,7 +541,7 @@ pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     // No argument: read and show the project's current colour, rendered in it.
     if (trimmed.len == 0) {
         const color = client.getProjectColor(id) catch |e| {
-            logo.print("error: could not read the project colour ({s})\n", .{@errorName(e)});
+            logo.err("could not read the project colour ({s})\n", .{@errorName(e)});
             return;
         };
         defer session.gpa.free(color);
@@ -674,7 +554,7 @@ pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     var color: []const u8 = "";
     if (!isClearWord(trimmed)) {
         const col = core.parseColor(session.gpa, trimmed) orelse {
-            logo.print("error: invalid colour '{s}' — give a '#rrggbb' / name, or 'clear'\n", .{trimmed});
+            logo.err("invalid colour '{s}' — give a '#rrggbb' / name, or 'clear'\n", .{trimmed});
             return;
         };
         color = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ col.r, col.g, col.b }) catch "#000000";
@@ -701,7 +581,7 @@ pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
 
     // Current fill colour ("" = not a blank project).
     const cur = client.getProjectBlankColor(id) catch |e| {
-        logo.print("error: could not read the blank colour ({s})\n", .{@errorName(e)});
+        logo.err("could not read the blank colour ({s})\n", .{@errorName(e)});
         return;
     };
     defer session.gpa.free(cur);
@@ -715,12 +595,12 @@ pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
         return;
     }
     if (cur.len == 0) {
-        logo.print("error: this project is not a blank image — nothing to recolour\n", .{});
+        logo.err("this project is not a blank image — nothing to recolour\n", .{});
         return;
     }
     var hexbuf: [8]u8 = undefined;
     const col = core.parseColor(session.gpa, trimmed) orelse {
-        logo.print("error: invalid colour '{s}' — give a '#rrggbb' / name\n", .{trimmed});
+        logo.err("invalid colour '{s}' — give a '#rrggbb' / name\n", .{trimmed});
         return;
     };
     const color = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ col.r, col.g, col.b }) catch "#000000";
@@ -728,17 +608,16 @@ pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
     printProjectColor("blank colour set to", color);
 }
 
-/// `/project-description [<text...>]` — set (or, with no text, clear) the active server project's
-/// free-text description. The current value is shown in the `/projects` listing (a trailing note),
-/// so this command is set/clear only; the whole argument is the description verbatim. A ~2000-char
-/// soft cap guards against pathological input (the core imposes no length limit).
+/// `/project-description [<text...>]` — set (or with no text clear) the active server
+/// project's description, shown as `/projects`' trailing note. The whole argument is taken
+/// verbatim; a ~2000-char soft cap guards pathological input.
 pub fn doProjectDescription(session: *Session, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const client = active.client;
     const id = active.id;
     const trimmed = std.mem.trim(u8, arg, " \t");
     if (trimmed.len > 2000) {
-        logo.print("error: description too long ({d} bytes) — keep it under 2000\n", .{trimmed.len});
+        logo.err("description too long ({d} bytes) — keep it under 2000\n", .{trimmed.len});
         return;
     }
 
@@ -758,10 +637,9 @@ fn isClearWord(s: []const u8) bool {
 
 const ProjectField = enum { color, name, blank_color, description };
 
-/// Version-guarded PUT of one project metadata field (colour or name) with a 409 retry (a peer
-/// saved first → re-read the version and retry), mirroring pushLayout. Advances the LWW guard so
-/// the server's echo of our own change isn't mistaken for a peer edit. Returns success; prints on
-/// a hard failure.
+/// Version-guarded PUT of one project metadata field with a 409 re-read-and-retry (a peer
+/// saved first), mirroring pushLayout; advances the LWW guard so our own echo isn't taken
+/// for a peer edit. Returns success; prints on a hard failure.
 fn putProjectField(session: *Session, client: *server.Client, id: []const u8, value: []const u8, field: ProjectField) bool {
     var tries: u8 = 0;
     while (tries < 4) : (tries += 1) {
@@ -779,10 +657,10 @@ fn putProjectField(session: *Session, client: *server.Client, id: []const u8, va
                 } else |_| return false;
             }
             switch (field) {
-                .color => logo.print("error: could not set the project colour ({s})\n", .{@errorName(e)}),
-                .name => logo.print("error: could not rename the project ({s})\n", .{@errorName(e)}),
-                .blank_color => logo.print("error: could not set the blank colour ({s})\n", .{@errorName(e)}),
-                .description => logo.print("error: could not set the description ({s})\n", .{@errorName(e)}),
+                .color => logo.err("could not set the project colour ({s})\n", .{@errorName(e)}),
+                .name => logo.err("could not rename the project ({s})\n", .{@errorName(e)}),
+                .blank_color => logo.err("could not set the blank colour ({s})\n", .{@errorName(e)}),
+                .description => logo.err("could not set the description ({s})\n", .{@errorName(e)}),
             }
             return false;
         };
@@ -878,7 +756,7 @@ fn putKeywords(client: *server.Client, id: []const u8, keywords: []const []const
                     continue;
                 } else |_| return false;
             }
-            logo.print("error: could not update keywords ({s})\n", .{@errorName(e)});
+            logo.err("could not update keywords ({s})\n", .{@errorName(e)});
             return false;
         };
         return true;
@@ -893,7 +771,7 @@ fn applyKeywordChange(session: *Session, name: []const u8, delta: []const []cons
     var ref: ?server.ProjectRef = null;
     for (session.servers.items) |*c| {
         const r = c.findProjectRef(name) catch |e| {
-            logo.print("error: could not query {s} ({s})\n", .{ c.base, @errorName(e) });
+            logo.err("could not query {s} ({s})\n", .{ c.base, @errorName(e) });
             continue;
         };
         if (r) |rr| {
@@ -911,7 +789,7 @@ fn applyKeywordChange(session: *Session, name: []const u8, delta: []const []cons
     defer session.gpa.free(rf.id);
 
     const current = cl.getProjectKeywords(rf.id) catch |e| {
-        logo.print("error: could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
+        logo.err("could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
         return;
     };
     defer server.freeStrList(session.gpa, current);
@@ -966,7 +844,7 @@ pub fn doKeywords(session: *Session, arg: []const u8) !void {
             if (r) |rf| {
                 defer session.gpa.free(rf.id);
                 const kws = c.getProjectKeywords(rf.id) catch |e| {
-                    logo.print("error: could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
+                    logo.err("could not read keywords for \"{s}\" ({s})\n", .{ name, @errorName(e) });
                     shown = true;
                     break;
                 };
@@ -998,7 +876,7 @@ pub fn doKeywordsSearch(session: *Session, arg: []const u8) !void {
     var found: usize = 0;
     for (session.servers.items) |*c| {
         const items = c.listProjectInfos() catch |e| {
-            logo.print("error: could not list projects on {s} ({s})\n", .{ c.base, @errorName(e) });
+            logo.err("could not list projects on {s} ({s})\n", .{ c.base, @errorName(e) });
             continue;
         };
         defer server.freeProjectList(session.gpa, items);
@@ -1036,7 +914,7 @@ pub fn doKeywordsDel(session: *Session, arg: []const u8) !void {
 
 fn doKeywordsChange(session: *Session, arg: []const u8, mode: KwMode) !void {
     if (session.servers.items.len == 0) {
-        logo.print("no server connections — use '/connect <url>'\n", .{});
+        logo.err("no server connections — use '/connect <url>'\n", .{});
         return;
     }
     const split = splitTargetSpec(arg);
@@ -1060,7 +938,7 @@ pub fn doRename(session: *Session, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const name = std.mem.trim(u8, arg, " \t");
     if (name.len == 0) {
-        logo.print("error: give a new name — e.g. '/rename MyProject'\n", .{});
+        logo.err("give a new name — e.g. '/rename MyProject'\n", .{});
         return;
     }
     if (!putProjectField(session, active.client, active.id, name, .name)) return;
@@ -1069,11 +947,9 @@ pub fn doRename(session: *Session, arg: []const u8) !void {
     ui.status(session); // reprint "image: <name> …" with the new name
 }
 
-/// `/expire [<duration>]` — set when the active server project expires, from a free-form
-/// duration parsed by the shared core ("days 23", "months 3", "fortnight", "month", "off").
-/// With no argument it prints the accepted formats. A valid spec is resolved to an absolute
-/// time (now + duration) and PUT to the server version-guarded; "off"/"never" clears it (0 =
-/// keep forever). Server projects have no expiry until one is set this way.
+/// `/expire [<duration>]` — set the active server project's expiry from a core-parsed
+/// duration ("days 23", "month", "off"); bare prints the accepted formats. A valid spec is
+/// resolved to now+duration and PUT version-guarded; "off"/"never" clears (0 = keep forever).
 pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
     const spec = std.mem.trim(u8, arg, " \t");
     if (spec.len == 0) {
@@ -1083,7 +959,7 @@ pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const client = active.client;
     const ms = core.parseDuration(session.gpa, spec) orelse {
-        logo.print("error: invalid duration '{s}'\n", .{spec});
+        logo.err("invalid duration '{s}'\n", .{spec});
         printExpireFormats();
         return;
     };
@@ -1118,7 +994,7 @@ fn putProjectExpiry(session: *Session, client: *server.Client, id: []const u8, e
                     continue; // re-read won the race; retry the PUT
                 } else |_| return false;
             }
-            logo.print("error: could not set the project expiry ({s})\n", .{@errorName(e)});
+            logo.err("could not set the project expiry ({s})\n", .{@errorName(e)});
             return false;
         };
         if (client.getProjectVersion(id)) |v| {
@@ -1151,7 +1027,7 @@ fn printProjectColor(label: []const u8, color: []const u8) void {
 pub fn doFetch(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
         if (session.servers.items.len == 0) {
-            logo.print("error: no connections — '/connect <url>' first\n", .{});
+            logo.err("no connections — '/connect <url>' first\n", .{});
             return;
         }
         try doProjects(session, io, "");
@@ -1168,35 +1044,35 @@ pub fn doFetch(session: *Session, io: std.Io, arg: []const u8) !void {
         const base = try server.normalizeBase(session.gpa, u);
         defer session.gpa.free(base);
         client = session.findServer(base) orelse {
-            logo.print("error: not connected to {s} — '/connect' first\n", .{base});
+            logo.err("not connected to {s} — '/connect' first\n", .{base});
             return;
         };
     } else if (session.servers.items.len == 1) {
         client = &session.servers.items[0];
     } else if (session.servers.items.len == 0) {
-        logo.print("error: no connections — '/connect <url>' first\n", .{});
+        logo.err("no connections — '/connect <url>' first\n", .{});
         return;
     } else {
-        logo.print("error: multiple servers connected — give a URL: '/fetch {s} <url>'\n", .{name});
+        logo.err("multiple servers connected — give a URL: '/fetch {s} <url>'\n", .{name});
         return;
     }
 
     const ref = (client.findProjectRef(name) catch |e| {
-        logo.print("error: server lookup failed ({s})\n", .{@errorName(e)});
+        logo.err("server lookup failed ({s})\n", .{@errorName(e)});
         return;
     }) orelse {
-        logo.print("error: no project named \"{s}\" on {s}\n", .{ name, client.base });
+        logo.err("no project named \"{s}\" on {s}\n", .{ name, client.base });
         return;
     };
     defer session.gpa.free(ref.id);
 
     const bytes = client.downloadFile(ref.id, "original") catch |e| {
-        logo.print("error: could not download image ({s})\n", .{@errorName(e)});
+        logo.err("could not download image ({s})\n", .{@errorName(e)});
         return;
     };
     defer session.gpa.free(bytes);
     const img = image.decode(session.gpa, bytes) catch |e| {
-        logo.print("error: could not decode server image ({s})\n", .{@errorName(e)});
+        logo.err("could not decode server image ({s})\n", .{@errorName(e)});
         return;
     };
     try session.loadImage(img, name, true, .png, null);
@@ -1209,7 +1085,8 @@ pub fn doFetch(session: *Session, io: std.Io, arg: []const u8) !void {
     } else |_| {
         session.setRemoteColor("") catch {};
     }
-    adoptServerLayout(session, client, ref.id); // show the project's stored crop/rotation/filter/lines
+    remoteEvents.adoptServerLayout(session, client, ref.id); // show the project's stored crop/rotation/filter/lines
+    remoteEvents.restoreServerChat(session, client, ref.id); // §12: restore the project's saved chat (only when /chat is on)
     // Open the live read-only events feed ALWAYS (not just when syncing) so a peer's name/colour
     // change updates the header even with sync off; sync only gates auto-pulling layout edits.
     session.openEvents(client);
@@ -1228,7 +1105,7 @@ pub fn doSync(session: *Session, arg: []const u8) void {
     } else if (a.len == 0) {
         session.sync = !session.sync; // bare /sync toggles
     } else {
-        logo.print("error: sync takes 'on', 'off', or nothing (to toggle)\n", .{});
+        logo.err("sync takes 'on', 'off', or nothing (to toggle)\n", .{});
         return;
     }
     logo.print("sync {s}\n", .{if (session.sync) "on" else "off"});
@@ -1244,241 +1121,51 @@ pub fn doSync(session: *Session, arg: []const u8) void {
     }
 }
 
-/// What to do with one incoming project event for the active project. Kept pure (no I/O,
-/// no session) so the live-edit decision is unit-tested without a socket or a server.
-pub const PullAction = enum {
-    ignore, // not our project, or an edit we already hold (incl. our own echoed push)
-    pull, // a newer peer edit and no local edits pending — take it
-    warn_dirty, // a newer peer edit but we have unsynced local edits — don't clobber, warn
-    deleted, // the active project was deleted on the server
-};
-
-pub fn pullAction(remote_active: bool, ids_match: bool, deleted: bool, ev_version: i64, remote_version: i64, dirty: bool) PullAction {
-    if (!remote_active or !ids_match) return .ignore;
-    if (deleted) return .deleted;
-    if (ev_version <= remote_version) return .ignore; // older, or our own push echoed back
-    if (dirty) return .warn_dirty;
-    return .pull;
-}
-
-/// Clear the current terminal line ONCE before emitting async output at the prompt (tracked via
-/// `done`), so the caller only repaints — and a no-op poll prints nothing → no idle flicker.
-fn clearPromptLine(done: *bool) void {
-    if (done.*) return;
-    logo.print("\r\x1b[K", .{});
-    done.* = true;
-}
-
-/// Drain pending project-update events from the live feed and act on ones touching the active
-/// project: auto-pull a peer's newer image into the working session (live editing), reflect a
-/// peer's name/colour change in the header, or — when we have unsynced local edits — warn instead
-/// of clobbering them. Each message shows when the change happened, never an internal version
-/// number. Called at the REPL prompt boundary; best-effort and never blocks. Returns true if it
-/// printed anything (so the line editor repaints the prompt only then — no idle flicker otherwise).
-pub fn pollEvents(session: *Session, io: std.Io) bool {
-    if (session.events == null) return false;
-    const now = std.Io.Clock.real.now(io).toMilliseconds();
-    var printed = false;
-    while (session.events.?.poll() catch null) |ev| {
-        var e = ev;
-        defer e.deinit(session.gpa);
-        const ids_match = session.remote_id != null and std.mem.eql(u8, e.id, session.remote_id.?);
-        switch (pullAction(session.hasRemote(), ids_match, e.deleted, e.version, session.remote_version, session.dirty)) {
-            .ignore => {},
-            .deleted => {
-                clearPromptLine(&printed);
-                logo.print("✗ \"{s}\" was deleted on the server\n", .{e.name});
-            },
-            .pull => {
-                session.remote_version = e.version;
-                if (session.sync) {
-                    // Live editing: pull the peer's image + layout (also refreshes name + colour, reprints).
-                    clearPromptLine(&printed);
-                    pullActive(session, &e, now);
-                } else if (applyMetaUpdate(session, e.name)) {
-                    // Sync off: never pull image/layout edits, but always reflect a peer's NAME/COLOUR.
-                    // Refresh the WHOLE view rather than stacking a new "image: …" line under the old one.
-                    printed = true;
-                    ui.redraw(session);
-                }
-            },
-            .warn_dirty => {
-                session.remote_version = e.version;
-                _ = applyMetaUpdate(session, e.name); // metadata is cheap and clobbers nothing
-                clearPromptLine(&printed);
-                var tb: [32]u8 = undefined;
-                logo.print(
-                    "↺ \"{s}\" changed on the server ({s}) — you have local edits; '/save' to push yours or '/fetch' to take theirs\n",
-                    .{ e.name, server.formatAgo(&tb, now, e.updated_at) },
-                );
-            },
-        }
-    }
-    return printed;
-}
-
-/// Refresh the active project's displayed name + colour from a peer's metadata change. `name` is
-/// the event's (canonical) name; the colour is re-read from the server. Returns true when either
-/// actually changed (so the caller only reprints on a real change). Cheap — no image download.
-fn applyMetaUpdate(session: *Session, name: []const u8) bool {
-    var changed = false;
-    if (name.len != 0 and (session.label == null or !std.mem.eql(u8, session.label.?, name))) {
-        session.setLabel(name) catch {};
-        changed = true;
-    }
-    const client = session.findServer(session.remote_url.?) orelse return changed;
-    if (client.getProjectColor(session.remote_id.?)) |c| {
-        defer session.gpa.free(c);
-        const old = session.remote_color orelse "";
-        if (!std.mem.eql(u8, old, c)) {
-            session.setRemoteColor(c) catch {};
-            changed = true;
-        }
-    } else |_| {}
-    return changed;
-}
-
-/// Replace the working image with the active project's latest server image (a peer's edit).
-/// Resets the undo history to the pulled image and clears the dirty flag — the session now
-/// matches the server. Keeps the active-remote/events binding intact.
-fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
-    const client = session.findServer(session.remote_url.?) orelse return;
-    // Pull the ORIGINAL + the layout and rebuild the view from them (rotate/crop/filter/lines),
-    // the same way the GUIs reconstruct a peer's change — never the baked result.
-    const bytes = client.downloadFile(session.remote_id.?, "original") catch |err| {
-        logo.print("↺ \"{s}\" changed but the image could not be pulled ({s})\n", .{ e.name, @errorName(err) });
-        return;
-    };
-    defer session.gpa.free(bytes);
-    const img = image.decode(session.gpa, bytes) catch |err| {
-        logo.print("↺ pull failed: could not decode the server image ({s})\n", .{@errorName(err)});
-        return;
-    };
-    session.loadImage(img, e.name, true, session.default_fmt, null) catch |err| {
-        logo.print("↺ pull failed ({s})\n", .{@errorName(err)});
-        return;
-    };
-    adoptServerLayout(session, client, session.remote_id.?); // apply the peer's crop/rotation/filter/lines
-    // A peer may also have recoloured the project — refresh so the header repaints in it.
-    if (client.getProjectColor(session.remote_id.?)) |c| {
-        defer session.gpa.free(c);
-        session.setRemoteColor(c) catch {};
-    } else |_| {}
-    session.dirty = false; // the working image now matches the server
-    var tb: [32]u8 = undefined;
-    ui.redraw(session);
-    logo.print("↺ pulled \"{s}\" from the server (changed {s})\n", .{ e.name, server.formatAgo(&tb, now, e.updated_at) });
-}
-
-// ── /sync debounce ─────────────────────────────────────────────────────────────
-//
-// Uploading after every edit would re-encode + re-upload the whole image once per action.
-// Instead each edit sets a cheap `dirty` flag (markDirty) and the REPL flushes it with one
-// upload once the input burst settles (flushSync, at the prompt boundary). `input_pending`
-// keeps the upload deferred while more commands remain buffered, so a run of edits coalesces.
-
-/// Queue a sync upload for the current result. Cheap and synchronous; the actual upload is
-/// deferred to `flushSync`. No-op unless sync is on and a server project is active.
-pub fn markDirty(session: *Session) void {
-    if (session.sync and session.hasRemote()) session.dirty = true;
-}
-
-/// Pure debounce decision: upload only when sync is on, a project is active, an edit is
-/// pending, and the input burst has settled (no more buffered commands). Unit-tested.
-pub fn shouldFlush(sync: bool, has_remote: bool, dirty: bool, input_pending: bool) bool {
-    return sync and has_remote and dirty and !input_pending;
-}
-
-/// Flush a pending sync upload when the burst has settled. `input_pending` is true when the
-/// REPL still has buffered input to process, coalescing a run of edits into one upload.
-pub fn flushSync(session: *Session, input_pending: bool) void {
-    if (!shouldFlush(session.sync, session.hasRemote(), session.dirty, input_pending)) return;
-    session.dirty = false;
-    pushResult(session);
-}
-
-/// Push the current edit state to the active project: the full structured LAYOUT (lines +
-/// filter + crop + rotation) so every CLI edit shows live in open browser/desktop editors (they
-/// render original + layout, not the baked result), then the rendered `result` raster (used by
-/// the GUIs only for the projects-list thumbnail). Shared by the `/sync` flush and `/save`.
-fn pushResult(session: *Session) void {
-    if (!session.hasImage() or !session.hasRemote()) return;
-    const client = session.findServer(session.remote_url.?) orelse return;
-    const id = session.remote_id.?;
-    pushLayout(session, client, id);
-    const img = session.current();
-    const result = image.encode(session.gpa, img.*, session.default_fmt) catch return;
-    defer session.gpa.free(result);
-    client.uploadFile(id, "result", result, session.default_fmt.ext(), img.width, img.height) catch |e| {
-        logo.print("sync: upload failed ({s})\n", .{@errorName(e)});
-        return;
-    };
-    // Advance the LWW guard to the version our push produced, so the server's echo of our own
-    // change (which arrives on the events feed) isn't mistaken for a peer edit to pull.
-    if (client.getProjectVersion(id)) |v| {
-        session.remote_version = v;
-    } else |_| {}
-    logo.print("synced to {s}\n", .{client.base});
-}
-
-/// PUT the current structured layout (version-guarded). On a 409 (a peer saved first) re-read
-/// the version and retry — last-writer-wins for the CLI's edits (a fetched project already
-/// carries the server's lines/geometry, so a normal push preserves them).
-fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
-    var tries: u8 = 0;
-    while (tries < 4) : (tries += 1) {
-        const layout = session.currentLayoutJson() catch return;
-        defer session.gpa.free(layout);
-        client.updateProject(id, layout, session.remote_version) catch |e| {
-            if (e == server.Error.Conflict) {
-                if (client.getProjectVersion(id)) |v| {
-                    session.remote_version = v;
-                    continue; // re-read won the race; retry the PUT
-                } else |_| return;
+/// `/chat [show|on|off|clear]` — opt-in per-project chat persistence (contract §12). Bare
+/// shows; on/off sets whether the /prompt conversation is saved/restored with the project;
+/// clear drops the turns and (§12.2) best-effort deletes the server chat file.
+pub fn doChat(session: *Session, arg: []const u8) void {
+    const a = std.mem.trim(u8, arg, " \t");
+    const eq = std.ascii.eqlIgnoreCase;
+    var turned_on = false;
+    if (eq(a, "on") or eq(a, "true")) {
+        session.chat_on = true;
+        turned_on = true;
+    } else if (eq(a, "off") or eq(a, "false")) {
+        session.chat_on = false;
+    } else if (eq(a, "clear")) {
+        session.clearChat();
+        logo.print("chat history cleared\n", .{});
+        // Clearing the conversation clears the persisted server copy too (idempotent DELETE,
+        // best-effort — a miss never surfaces as an error).
+        if (session.chat_on and session.hasRemote()) {
+            if (session.findServer(session.remote_url.?)) |client| {
+                if (client.deleteFile(session.remote_id.?, "chat")) {
+                    logo.print("  (server chat file deleted)\n", .{});
+                } else |_| {}
             }
-            logo.print("sync: layout update failed ({s})\n", .{@errorName(e)});
-            return;
-        };
-        if (client.getProjectVersion(id)) |v| {
-            session.remote_version = v;
-        } else |_| {}
+        }
+        return;
+    } else if (a.len != 0 and !eq(a, "show")) {
+        logo.err("chat takes 'on', 'off', 'show', or 'clear'\n", .{});
         return;
     }
-}
-
-/// Fetch the active project's stored layout and adopt it into the session (crop/rotation/filter/
-/// lines), so a fetched/pulled project's full state shows — not just the bare original.
-fn adoptServerLayout(session: *Session, client: *server.Client, id: []const u8) void {
-    const body = client.getProject(id) catch return;
-    defer session.gpa.free(body);
-    const layout_json = extractLayoutObject(session.gpa, body) catch return;
-    defer session.gpa.free(layout_json);
-    session.adoptServerLayout(layout_json) catch {};
-}
-
-/// Pull the `layout` object out of a GET /projects/{id} response as its own JSON string ("{}"
-/// when absent). Caller owns the result.
-fn extractLayoutObject(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
-    var parsed = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return server.Error.BadResponse;
-    defer parsed.deinit();
-    if (parsed.value == .object) {
-        if (parsed.value.object.get("layout")) |lv| {
-            if (lv == .object) return std.json.Stringify.valueAlloc(gpa, lv, .{});
-        }
+    logo.print("chat {s} ({d} saved turns)\n", .{ if (session.chat_on) "on" else "off", session.chat_history.items.len });
+    // §12.2: say who can read a saved chat BEFORE one is written anywhere.
+    if (turned_on) {
+        logo.print("  saved into the .stencil project on /save; on a server project, readable by everyone it is shared with\n", .{});
     }
-    return gpa.dupe(u8, "{}");
 }
 
 // ── transforms (crop / rotate / filter / layout, all undoable) ─────────────────
 //
-// Each transform updates the session's STRUCTURED edit state (rotation/crop/filter/lines) and
-// rebuilds the derived view — so the exact edit serializes to a browser-compatible layout and
-// shows live in open GUI editors, not just baked into the result raster.
+// Each transform updates the session's STRUCTURED edit state and rebuilds the derived view,
+// so the exact edit serializes to a browser-compatible layout and shows live in GUI editors.
 
 /// Map a /filter argument ("bw"|"sepia"|"invert"|"contour"|"none"|<colour>) onto the layout
 /// filter and apply it. The named modes are checked before the colour fallback. Returns
 /// false for an unrecognized argument (the caller reports the error).
-fn applyFilterArg(session: *Session, arg: []const u8) bool {
+pub fn applyFilterArg(session: *Session, arg: []const u8) bool {
     if (std.ascii.eqlIgnoreCase(arg, "bw")) {
         session.setFilter("bw", "") catch {};
     } else if (std.ascii.eqlIgnoreCase(arg, "sepia")) {
@@ -1530,7 +1217,7 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
             return false;
         },
         .layout => {
-            logo.print("error: apply needs a path or URL to a layout JSON — e.g. '/apply notes.json'\n", .{});
+            logo.err("apply needs a path or URL to a layout JSON — e.g. '/apply notes.json'\n", .{});
             return false;
         },
     };
@@ -1550,7 +1237,7 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
         },
         .rotate => {
             const n = std.fmt.parseInt(i32, action.arg, 10) catch {
-                logo.print("error: rotate needs an integer (quarter-turns), e.g. '/rotate -1'\n", .{});
+                logo.err("rotate needs an integer (quarter-turns), e.g. '/rotate -1'\n", .{});
                 return false;
             };
             if (@mod(n, 4) == 0) {
@@ -1562,23 +1249,38 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
         },
         .filter => {
             if (!applyFilterArg(session, action.arg)) {
-                logo.print("error: unknown filter \"{s}\" — 'bw', 'sepia', 'invert', 'contour', 'none', or a colour\n", .{action.arg});
+                logo.err("unknown filter \"{s}\" — 'bw', 'sepia', 'invert', 'contour', 'none', or a colour\n", .{action.arg});
                 return false;
             }
             ui.ack(session, action.arg);
         },
         .layout => {
-            const bytes = pipeline.loadLayoutBytes(session.gpa, io, action.arg) catch return false; // msg printed
+            // `apply <src> [combine|replace]` — combine (append) stays the default; the
+            // GUI editors offer the same choice as a Combine/Replace prompt.
+            var src = std.mem.trim(u8, action.arg, " \t");
+            var replace = false;
+            if (std.mem.lastIndexOfScalar(u8, src, ' ')) |i| {
+                const tail = std.mem.trim(u8, src[i + 1 ..], " \t");
+                if (std.ascii.eqlIgnoreCase(tail, "replace") or std.ascii.eqlIgnoreCase(tail, "combine")) {
+                    replace = std.ascii.eqlIgnoreCase(tail, "replace");
+                    src = std.mem.trim(u8, src[0..i], " \t");
+                }
+            }
+            const bytes = pipeline.loadLayoutBytes(session.gpa, io, src) catch return false; // msg printed
             defer session.gpa.free(bytes);
-            session.addLines(bytes) catch return false;
-            // Adopt the layout file's embedded filter, if any (layout.zig top-level "filter").
+            if (replace) {
+                session.setLines(bytes) catch return false;
+            } else {
+                session.addLines(bytes) catch return false;
+            }
+            // Adopt the layout file's embedded filter, if any (layout.zig "imageFilter"/legacy "filter").
             var L = layout_mod.parse(session.gpa, bytes) catch {
-                ui.ack(session, "drawn");
+                ui.ack(session, if (replace) "drawn (replaced)" else "drawn");
                 return true; // the lines were added even if the filter parse failed
             };
             defer L.deinit();
             if (L.filter) |f| _ = applyFilterArg(session, f);
-            ui.ack(session, "drawn");
+            ui.ack(session, if (replace) "drawn (replaced)" else "drawn");
         },
     }
     return true;
@@ -1592,54 +1294,16 @@ pub fn doStep(session: *Session, moved: bool, ok: []const u8, none: []const u8) 
 }
 
 pub fn doReset(session: *Session) void {
-    if (!session.hasImage()) {
-        logo.print("no image loaded\n", .{});
-        return;
-    }
+    if (!session.hasImage()) return ui.noImage();
     session.revert();
     ui.redraw(session);
     logo.print("reset to original\n", .{});
 }
 
 pub fn doDrop(session: *Session) void {
-    if (!session.hasImage()) {
-        logo.print("no image loaded\n", .{});
-        return;
-    }
+    if (!session.hasImage()) return ui.noImage();
     session.clearAll();
     ui.redraw(session); // header now reads "(none)"
-}
-
-pub fn doCopy(session: *Session, io: std.Io) !void {
-    if (!session.hasImage()) return ui.noImage();
-    const img = session.current().*;
-    const png = image.encode(session.gpa, img, .png) catch |e| {
-        logo.print("error: could not encode the image for the clipboard ({s})\n", .{@errorName(e)});
-        return;
-    };
-    defer session.gpa.free(png);
-    clipboard.writeImage(session.gpa, io, png) catch |e| return clipError("copy", e);
-    logo.print("copied to clipboard ({d}x{d})\n", .{ img.width, img.height });
-}
-
-pub fn doPaste(session: *Session, io: std.Io) !void {
-    const bytes = clipboard.readImage(session.gpa, io) catch |e| return clipError("paste", e);
-    defer session.gpa.free(bytes);
-    const img = image.decode(session.gpa, bytes) catch |e| {
-        logo.print("error: the clipboard image could not be decoded ({s})\n", .{@errorName(e)});
-        return;
-    };
-    try session.loadImage(img, "clipboard", true, .png, null);
-    ui.redraw(session);
-}
-
-fn clipError(verb: []const u8, e: anyerror) void {
-    switch (e) {
-        clipboard.Error.Unsupported => logo.print("error: clipboard {s} is only supported on macOS\n", .{verb}),
-        clipboard.Error.ToolMissing => logo.print("error: 'osascript' not found — clipboard {s} needs macOS\n", .{verb}),
-        clipboard.Error.NoImage => logo.print("error: no image on the clipboard to paste\n", .{}),
-        else => logo.print("error: clipboard {s} failed ({s})\n", .{ verb, @errorName(e) }),
-    }
 }
 
 pub fn doTheme(session: *Session, arg: []const u8) void {
@@ -1660,7 +1324,7 @@ pub fn doTheme(session: *Session, arg: []const u8) void {
         return;
     }
 
-    logo.print("error: unknown theme '{s}' — type '/theme' to list them, or give a colour like #ff5623\n", .{arg});
+    logo.err("unknown theme '{s}' — type '/theme' to list them, or give a colour like #ff5623\n", .{arg});
 }
 
 // Repaint everything in a new accent: the logo's RGB, the stored label and the screen. When
@@ -1679,7 +1343,7 @@ fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8
 /// is active — the single-click-on-logo behaviour, mirroring the browser (accents.js). Silent.
 pub fn cycleTheme(session: *Session) void {
     const key = screen.nextAccentKey(ui.currentAccentKey());
-    const a = theme.find(key) orelse theme.accents[0];
+    const a = theme.find(key) orelse theme.accents()[0];
     applyAccent(session, a.rgb, a.key, a.hex, false);
 }
 
@@ -1689,50 +1353,15 @@ pub fn cycleTheme(session: *Session) void {
 pub fn randomCustomTheme(session: *Session, seed: u64) void {
     var prng = std.Random.DefaultPrng.init(seed);
     const h = @as(f64, @floatFromInt(prng.random().intRangeLessThan(u16, 0, 360)));
-    const rgb = hsvToRgb(h, 0.7, 0.95); // always vivid + readable, essentially never a preset
+    const rgb = theme.hsvToRgb(h, 0.7, 0.95); // always vivid + readable, essentially never a preset
     var hexbuf: [8]u8 = undefined;
     const hex = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ rgb[0], rgb[1], rgb[2] }) catch "#??????";
     applyAccent(session, rgb, hex, hex, false);
 }
 
-fn hsvToRgb(h: f64, s: f64, v: f64) [3]u8 {
-    const c = v * s;
-    const hp = h / 60.0;
-    const x = c * (1.0 - @abs(@mod(hp, 2.0) - 1.0));
-    var r: f64 = 0;
-    var g: f64 = 0;
-    var b: f64 = 0;
-    if (hp < 1) {
-        r = c;
-        g = x;
-    } else if (hp < 2) {
-        r = x;
-        g = c;
-    } else if (hp < 3) {
-        g = c;
-        b = x;
-    } else if (hp < 4) {
-        g = x;
-        b = c;
-    } else if (hp < 5) {
-        r = x;
-        b = c;
-    } else {
-        r = c;
-        b = x;
-    }
-    const m = v - c;
-    return .{
-        @intFromFloat(@round((r + m) * 255.0)),
-        @intFromFloat(@round((g + m) * 255.0)),
-        @intFromFloat(@round((b + m) * 255.0)),
-    };
-}
-
-/// `/mouse [on|off]` (bare toggles): enable or disable mouse reporting in full-screen mode.
-/// Turning it OFF hands the mouse back to the terminal for native select/copy; turning it ON
-/// re-enables logo clicks + wheel scrolling + the visual drag-selection. No-op (with a note)
-/// outside full-screen.
+/// `/mouse [on|off]` (bare toggles) — mouse reporting in full-screen mode: OFF hands the
+/// mouse back for native select/copy, ON re-enables logo clicks + wheel + drag-selection.
+/// No-op (with a note) outside full-screen.
 pub fn doMouse(session: *Session, arg: []const u8) void {
     _ = session;
     const s = screen.current() orelse {
@@ -1754,6 +1383,44 @@ pub fn doMouse(session: *Session, arg: []const u8) void {
         logo.print("mouse on — click the logo to theme, drag to select (Ctrl-S copies), wheel to scroll\n", .{})
     else
         logo.print("mouse off — you can select/copy text natively now; '/mouse on' to re-enable clicks\n", .{});
+}
+
+/// `/reveal-speed [speed]` — how fast new output reveals, 0.01 … 1 (bare shows; 1 =
+/// instant; `off`/`on` name the two ends; STENCIL_CONSOLE_REVEAL_SPEED is the per-session
+/// default). No-op with a note outside full-screen, the only mode painting its own output.
+pub fn doRevealSpeed(session: *Session, arg: []const u8) void {
+    _ = session;
+    const s = screen.current() orelse {
+        logo.print("reveal speed is only available in --console-full-screen\n", .{});
+        return;
+    };
+    if (arg.len == 0) {
+        report(s.revealSpeed(), true);
+        return;
+    }
+    const want: f64 = if (std.ascii.eqlIgnoreCase(arg, "off"))
+        screen.speed_max
+    else if (std.ascii.eqlIgnoreCase(arg, "on"))
+        screen.speed_default
+    else
+        screen.parseRevealSpeed(arg) orelse {
+            logo.print("usage: /reveal-speed [{d} … {d}] — {d} slowest, {d} instant (default {d})\n", .{ screen.speed_min, screen.speed_max, screen.speed_min, screen.speed_max, screen.speed_default });
+            return;
+        };
+    s.setRevealSpeed(want);
+    report(s.revealSpeed(), false);
+}
+
+/// One line describing the current reveal speed — what `/reveal-speed` prints, whether it was
+/// asked to show the setting or to change it. Deliberately terse: the line is itself revealed
+/// at the speed it names, so it demonstrates the setting rather than describing it.
+fn report(speed: f64, showing: bool) void {
+    const verb = if (showing) "reveal speed is" else "reveal speed";
+    if (speed >= screen.speed_max) {
+        logo.print("{s} {d} — output appears instantly\n", .{ verb, speed });
+        return;
+    }
+    logo.print("{s} {d}\n", .{ verb, speed });
 }
 
 // ── tests (pure routing / debounce logic) ──────────────────────────────────────
@@ -1800,32 +1467,3 @@ test "deleteReject: empty/url/non-stencil/traversal guards gate a local .stencil
     try testing.expectEqual(DeleteReject.ok, deleteReject("sub/dir/project.stencil"));
 }
 
-test "pullAction: live-pull a newer peer edit, warn on local edits, ignore self/old" {
-    // No active project, or an event for a different project → ignore.
-    try testing.expectEqual(PullAction.ignore, pullAction(false, false, false, 5, 0, false));
-    try testing.expectEqual(PullAction.ignore, pullAction(true, false, false, 5, 0, false));
-
-    // A newer peer edit with no pending local edits → pull it.
-    try testing.expectEqual(PullAction.pull, pullAction(true, true, false, 5, 4, false));
-
-    // A newer peer edit but we have unsynced local edits → warn, don't clobber.
-    try testing.expectEqual(PullAction.warn_dirty, pullAction(true, true, false, 5, 4, true));
-
-    // Our own push echoed back (version not newer than what we hold) → ignore, even dirty.
-    try testing.expectEqual(PullAction.ignore, pullAction(true, true, false, 4, 4, false));
-    try testing.expectEqual(PullAction.ignore, pullAction(true, true, false, 3, 4, true));
-
-    // A delete of the active project is surfaced regardless of version/dirty.
-    try testing.expectEqual(PullAction.deleted, pullAction(true, true, true, 9, 4, true));
-}
-
-test "shouldFlush only uploads when on, active, dirty, and the burst has settled" {
-    // The happy path: all preconditions met and no more buffered input.
-    try testing.expect(shouldFlush(true, true, true, false));
-    // Deferred while more commands are still queued (coalesce the burst into one upload).
-    try testing.expect(!shouldFlush(true, true, true, true));
-    // Each precondition is necessary.
-    try testing.expect(!shouldFlush(false, true, true, false)); // sync off
-    try testing.expect(!shouldFlush(true, false, true, false)); // no active project
-    try testing.expect(!shouldFlush(true, true, false, false)); // nothing pending
-}

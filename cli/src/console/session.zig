@@ -10,6 +10,7 @@ const server = @import("../serverClient.zig");
 const core = @import("../core.zig");
 const pipeline = @import("../pipeline.zig");
 const layout_mod = @import("../layout.zig");
+const llm = @import("../llm.zig");
 
 const max_states = 64; // pristine + up to 63 undoable edits; older edits drop off the front
 
@@ -45,6 +46,23 @@ pub const EditState = struct {
     }
 };
 
+/// One image the user brought into the turn with `/upload` (contract §2.1/§7): its
+/// label (the path/URL it came from), the raw ENCODED bytes — kept instead of pixels so
+/// a whole turn of attachments costs kilobytes, and so a `save` embeds the untouched
+/// original — plus how to re-encode it. All owned by the session.
+pub const Attachment = struct {
+    label: []u8,
+    bytes: []u8,
+    fmt: image.Format = .png,
+    temp: bool = false, // came from a URL/in-memory source, not a file on disk
+
+    pub fn deinit(self: *Attachment, gpa: std.mem.Allocator) void {
+        gpa.free(self.label);
+        gpa.free(self.bytes);
+        self.* = undefined;
+    }
+};
+
 pub const Session = struct {
     gpa: std.mem.Allocator,
     label: ?[]u8 = null, // owned display label (the source path / URL / "blank" / "clipboard")
@@ -58,14 +76,56 @@ pub const Session = struct {
 
     // ── Server connections (collaboration) ──
     servers: std.ArrayList(server.Client) = .empty, // connected servers (REST clients)
+    // Every base URL this session successfully /connect-ed to (owned; survives a
+    // /disconnect). The ONLY pool a plan `connect` op may resolve against — the
+    // assistant can reconnect a server the user named, never introduce one.
+    known_servers: std.ArrayList([]const u8) = .empty,
     sync: bool = false, // when on, edits auto-upload the layout + result to the active remote
-    dirty: bool = false, // a pending sync upload coalesced from a burst of edits (see handlers.flushSync)
+    dirty: bool = false, // a pending sync upload coalesced from a burst of edits (see remoteEvents.flushSync)
     remote_url: ?[]u8 = null, // owned base URL of the active fetched project's server
     remote_id: ?[]u8 = null, // owned id of the active fetched project
     remote_version: i64 = 0, // last server version we hold for the active project (LWW guard for auto-pull)
     remote_color: ?[]u8 = null, // owned active project's custom name colour ("#rrggbb"); null/"" = default
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
+
+    // ── LLM assistant (/prompt, /llm) ──
+    llm_env: llm.Env = .{}, // the raw STENCIL_LLM_* values captured at startup
+    llm_cfg: ?llm.Config = null, // resolved lazily on first /prompt or /llm (in-session overrides)
+    // The option labels of the LAST `ask` card the assistant printed (contract §11), owned.
+    // They let the NEXT /prompt be answered by number ("2", "1,3") instead of retyping a
+    // label; cleared once used, or when a later turn asks something else.
+    ask_options: [][]u8 = &.{},
+    ask_multi: bool = false,
+    // /prompt attachment cache: the base64 PNG of the working image, keyed by a digest of
+    // its pixels (owned) — a no-edit follow-up turn (e.g. answering an ask card) re-sends
+    // the same image without paying a full PNG + base64 re-encode.
+    prompt_b64: ?[]u8 = null,
+    prompt_digest: u64 = 0,
+    // §2.1 multi-image plans: the images `/upload`ed for the CURRENT turn, in upload
+    // order — what an `image` op indexes (1-based) and what the next /prompt attaches
+    // when there is more than one. A /prompt consumes the list: the next /upload after
+    // it starts a fresh turn rather than piling onto the answered one.
+    attachments: std.ArrayList(Attachment) = .empty,
+    attachments_used: bool = false,
+    // Images pasted into the LINE being typed (Ctrl-V, or a pasted image-file path): held
+    // against the `[Image #N …]` markers the editor shows in the prompt until Enter turns
+    // them into real uploads (attachments.drainPending). An abandoned line drops them.
+    pending: std.ArrayList(Attachment) = .empty,
+    // ── /chat: opt-in per-project chat persistence (contract §12) ──
+    chat_on: bool = false, // default OFF — replaying/persisting chat is an explicit opt-in
+    chat_history: std.ArrayList(llm.Turn) = .empty, // owned texts; ≤ llm.max_chat_messages turns
+    // §10 clearChat: armed by the plan action, consumed once the /prompt turn settles.
+    pending_chat_clear: bool = false,
+    // How the deferred clearChat confirm asks its question: the console wires the TTY
+    // editor's keypress confirm (or a piped-stdin line read); null declines, like an EOF.
+    confirm_fn: ?*const fn (ctx: ?*anyopaque, question: []const u8) bool = null,
+    confirm_ctx: ?*anyopaque = null,
+    // Ctrl-C during a long call (an LLM turn): the console installs its tty watch here so a
+    // waiting call can be cancelled. Null in the one-shot CLI and in tests — nothing to poll,
+    // so calls simply run to completion.
+    cancel_ctx: ?*anyopaque = null,
+    cancel_poll: ?*const fn (ctx: *anyopaque, timeout_ms: i32) bool = null,
 
     // Page format + x/y formulas, set via /format or round-tripped through a fetched layout.
     page_size: []u8 = &.{}, // "" | a named format ("A0".."C10") | "custom"
@@ -80,13 +140,190 @@ pub const Session = struct {
         return self.remote_id != null and self.remote_url != null;
     }
 
+    /// True when the user pressed Ctrl-C since the last check — waits up to `timeout_ms` for
+    /// one, so a caller waiting on a slow call can use this as its whole idle beat.
+    pub fn cancelRequested(self: *Session, timeout_ms: i32) bool {
+        const poll = self.cancel_poll orelse return false;
+        const ctx = self.cancel_ctx orelse return false;
+        return poll(ctx, timeout_ms);
+    }
+
     pub fn deinit(self: *Session) void {
         self.clearAll();
         self.closeEvents();
         self.history.deinit(self.gpa);
         for (self.servers.items) |*c| c.deinit();
         self.servers.deinit(self.gpa);
+        for (self.known_servers.items) |u| self.gpa.free(u);
+        self.known_servers.deinit(self.gpa);
         self.clearRemote();
+        if (self.llm_cfg) |*c| c.deinit(self.gpa);
+        self.llm_cfg = null;
+        self.clearAsk();
+        self.clearChat();
+        self.chat_history.deinit(self.gpa);
+        self.clearAttachments();
+        self.attachments.deinit(self.gpa);
+        self.clearPending();
+        self.pending.deinit(self.gpa);
+    }
+
+    /// Drop every saved conversation turn (the `/chat clear` local half; §12).
+    pub fn clearChat(self: *Session) void {
+        for (self.chat_history.items) |t| self.gpa.free(t.text);
+        self.chat_history.clearRetainingCapacity();
+    }
+
+    /// Append one conversation turn (owned copy of `text`), trimming the history to the
+    /// most recent 32 turns (the §7/§12 bound) — the same pattern ask_options uses.
+    pub fn appendChatTurn(self: *Session, role: llm.ChatRole, text: []const u8) !void {
+        const dup = try self.gpa.dupe(u8, text);
+        errdefer self.gpa.free(dup);
+        try self.chat_history.append(self.gpa, .{ .role = role, .text = dup });
+        while (self.chat_history.items.len > llm.max_chat_messages) {
+            self.gpa.free(self.chat_history.items[0].text);
+            _ = self.chat_history.orderedRemove(0);
+        }
+    }
+
+    /// Replace the whole history with `turns` (a §12 restore), taking ownership of the
+    /// slice and its texts (as returned by llm.parseChatDoc).
+    pub fn adoptChatTurns(self: *Session, turns: []llm.Turn) void {
+        self.clearChat();
+        defer self.gpa.free(turns);
+        self.chat_history.ensureTotalCapacity(self.gpa, turns.len) catch {
+            for (turns) |t| self.gpa.free(t.text);
+            return;
+        };
+        for (turns) |t| self.chat_history.appendAssumeCapacity(t);
+    }
+
+    /// Drop the pending `ask` card's options (contract §11) — called when a new card
+    /// replaces it, when one is answered, and at teardown.
+    pub fn clearAsk(self: *Session) void {
+        for (self.ask_options) |o| self.gpa.free(o);
+        if (self.ask_options.len != 0) self.gpa.free(self.ask_options);
+        self.ask_options = &.{};
+        self.ask_multi = false;
+    }
+
+    // ── §2.1 turn attachments ──
+    /// Remember an uploaded image as an attachment of the current turn (taking ownership
+    /// of `label_src`'s copy and `bytes`). A previous turn's list is dropped first, so
+    /// `/upload a` `/upload b` `/prompt …` attaches exactly a and b; past
+    /// `max_attachments` the oldest falls off, keeping the newest §7-many.
+    pub fn addAttachment(self: *Session, label_src: []const u8, bytes: []u8, fmt: image.Format, temp: bool) !void {
+        if (self.attachments_used) self.clearAttachments();
+        const label = self.gpa.dupe(u8, label_src) catch |e| {
+            self.gpa.free(bytes);
+            return e;
+        };
+        self.attachments.append(self.gpa, .{ .label = label, .bytes = bytes, .fmt = fmt, .temp = temp }) catch |e| {
+            self.gpa.free(label);
+            self.gpa.free(bytes);
+            return e;
+        };
+        if (self.attachments.items.len > llm.max_attachments) {
+            var oldest = self.attachments.orderedRemove(0);
+            oldest.deinit(self.gpa);
+        }
+    }
+
+    /// Take back the newest attachment of the CURRENT turn, handing it to the caller (who
+    /// deinits it). Null when the turn has none — including when a `/prompt` already spent
+    /// them: that turn is over, so there is nothing left to take back.
+    pub fn popAttachment(self: *Session) ?Attachment {
+        if (self.attachments_used or self.attachments.items.len == 0) return null;
+        return self.attachments.pop();
+    }
+
+    /// The images this turn will send, in attachment order (empty once a /prompt spent them).
+    pub fn liveAttachments(self: *Session) []const Attachment {
+        return if (self.attachments_used) &.{} else self.attachments.items;
+    }
+
+    /// Take back attachment `idx` (0-based) — `/unpaste <n>`. Caller deinits it.
+    pub fn removeAttachment(self: *Session, idx: usize) ?Attachment {
+        if (self.attachments_used or idx >= self.attachments.items.len) return null;
+        return self.attachments.orderedRemove(idx);
+    }
+
+    /// The newest attachment of the current turn, borrowed — null under `popAttachment`'s rules.
+    pub fn lastAttachment(self: *Session) ?*const Attachment {
+        if (self.attachments_used or self.attachments.items.len == 0) return null;
+        return &self.attachments.items[self.attachments.items.len - 1];
+    }
+
+    /// Mark the turn's attachments as spent (called once a /prompt turn has used them):
+    /// the next `/upload` starts a new turn's list.
+    pub fn consumeAttachments(self: *Session) void {
+        if (self.attachments.items.len != 0) self.attachments_used = true;
+    }
+
+    pub fn clearAttachments(self: *Session) void {
+        for (self.attachments.items) |*at| at.deinit(self.gpa);
+        self.attachments.clearRetainingCapacity();
+        self.attachments_used = false;
+    }
+
+    // ── images pasted into the line being typed ──
+    /// The most images one line can hold markers for — the editor caps at its own (smaller)
+    /// number; this is just the bound the fixed-size handoff buffers below are sized to.
+    pub const max_pending = 8;
+
+    /// Hold a pasted image against the line being edited (taking ownership of `bytes`).
+    /// Nothing else in the session sees it until the line is submitted or abandoned.
+    pub fn addPending(self: *Session, label_src: []const u8, bytes: []u8, fmt: image.Format, temp: bool) !void {
+        const label = self.gpa.dupe(u8, label_src) catch |e| {
+            self.gpa.free(bytes);
+            return e;
+        };
+        self.pending.append(self.gpa, .{ .label = label, .bytes = bytes, .fmt = fmt, .temp = temp }) catch |e| {
+            self.gpa.free(label);
+            self.gpa.free(bytes);
+            return e;
+        };
+    }
+
+    /// Keep only the pending images at `kept` (0-based, in the order the line's markers now
+    /// read) and drop the rest — how the editor reports a marker the user deleted or moved.
+    pub fn keepPending(self: *Session, kept: []const usize) void {
+        var out: [max_pending]Attachment = undefined;
+        var taken = [_]bool{false} ** max_pending;
+        var n: usize = 0;
+        for (kept) |i| {
+            if (i >= self.pending.items.len or i >= max_pending or taken[i] or n == out.len) continue;
+            taken[i] = true;
+            out[n] = self.pending.items[i];
+            n += 1;
+        }
+        for (self.pending.items, 0..) |*at, i| {
+            if (i < max_pending and taken[i]) continue; // moved into `out`, not ours to free
+            at.deinit(self.gpa);
+        }
+        self.pending.clearRetainingCapacity();
+        self.pending.appendSliceAssumeCapacity(out[0..n]); // n ≤ what we just cleared
+    }
+
+    pub fn clearPending(self: *Session) void {
+        self.keepPending(&.{});
+    }
+
+    /// Hand the line's pending images over: the caller owns every one it receives (the
+    /// session keeps none), which is how a submitted line turns them into uploads.
+    pub fn takePending(self: *Session, out: []Attachment) usize {
+        const n = @min(self.pending.items.len, out.len);
+        @memcpy(out[0..n], self.pending.items[0..n]);
+        for (self.pending.items[n..]) |*at| at.deinit(self.gpa); // more than `out` holds: dropped
+        self.pending.clearRetainingCapacity();
+        return n;
+    }
+
+    /// The session's LLM configuration, resolved from the captured environment on first use
+    /// (so `/llm` overrides layer on top of the `STENCIL_LLM_*` initial values).
+    pub fn llmConfig(self: *Session) !*llm.Config {
+        if (self.llm_cfg == null) self.llm_cfg = try llm.Config.init(self.gpa, self.llm_env);
+        return &self.llm_cfg.?;
     }
 
     // ── live events feed ──
@@ -112,6 +349,16 @@ pub const Session = struct {
     }
 
     // ── connection helpers ──
+    /// Remember a successfully connected base URL in the known-servers pool (deduped).
+    pub fn rememberServer(self: *Session, base: []const u8) !void {
+        for (self.known_servers.items) |u| {
+            if (std.mem.eql(u8, u, base)) return;
+        }
+        const dup = try self.gpa.dupe(u8, base);
+        errdefer self.gpa.free(dup);
+        try self.known_servers.append(self.gpa, dup);
+    }
+
     pub fn findServer(self: *Session, url: []const u8) ?*server.Client {
         for (self.servers.items) |*c| {
             if (std.mem.eql(u8, c.base, url)) return c;
@@ -229,7 +476,19 @@ pub const Session = struct {
     /// Rebuild the derived view from the original + the current snapshot:
     /// rotate → crop → filter → rasterize lines. Replaces `working`.
     fn rebuild(self: *Session) !void {
-        const orig = self.original orelse return;
+        if (self.original == null) return;
+        var img = try self.viewWithoutLines();
+        errdefer img.deinit(self.gpa);
+        rasterizeLinesJson(self.gpa, &img, self.history.items[self.cursor].lines());
+        if (self.working) |*w| w.deinit(self.gpa);
+        self.working = img;
+    }
+
+    /// The current view derived WITHOUT the drawn lines (rotate → crop → filter only) —
+    /// the base `rebuild` rasterizes onto, and the base a variant render starts from so its
+    /// own filter never recolours the lines. Caller owns the result; needs a loaded image.
+    pub fn viewWithoutLines(self: *Session) !image.Rgba8 {
+        const orig = self.original.?;
         var img = image.Rgba8{ .width = orig.width, .height = orig.height, .pixels = try self.gpa.dupe(u8, orig.pixels) };
         errdefer img.deinit(self.gpa);
         const st = self.history.items[self.cursor];
@@ -239,9 +498,7 @@ pub const Session = struct {
             const arg = if (std.ascii.eqlIgnoreCase(st.filter_mode, "custom")) st.filter_color else st.filter_mode;
             pipeline.applyFilterMode(self.gpa, &img, arg);
         }
-        rasterizeLinesJson(self.gpa, &img, st.lines());
-        if (self.working) |*w| w.deinit(self.gpa);
-        self.working = img;
+        return img;
     }
 
     /// Push `next` as the new current state (dropping any redo states), then rebuild the view.
@@ -314,6 +571,20 @@ pub const Session = struct {
         try self.pushState(next);
     }
 
+    /// Replace the drawing's lines with those from a layout JSON document — the
+    /// counterpart to `addLines` (which appends), for `apply <src> replace`.
+    pub fn setLines(self: *Session, layout_bytes: []const u8) !void {
+        const add = try extractLinesJson(self.gpa, layout_bytes);
+        defer self.gpa.free(add);
+        const cur = self.state();
+        var next = try cur.dupe(self.gpa);
+        errdefer next.deinit(self.gpa);
+        const only = try self.gpa.dupe(u8, add);
+        if (next.lines_json.len != 0) self.gpa.free(next.lines_json);
+        next.lines_json = only;
+        try self.pushState(next);
+    }
+
     /// Adopt a server project's stored layout into the pristine state (used right after a
     /// fetch/pull loads the original), so the view shows the peer's crop/rotation/filter/lines.
     pub fn adoptServerLayout(self: *Session, layout_bytes: []const u8) !void {
@@ -360,10 +631,14 @@ pub const Session = struct {
     pub fn currentLayoutJson(self: *Session) ![]u8 {
         const st = self.state();
         const img = self.current();
+        // No explicit crop means the WHOLE rotated original — state that instead of omitting
+        // the field. The GUIs auto-crop a fresh image to the page aspect and only skip it when
+        // the layout names a cropRect, so an omitted one makes them shrink the image on open
+        // and strand lines drawn outside the page rect.
         const crop: ?server.CropRect = if (st.crop) |c|
             .{ .x = c.x, .y = c.y, .w = c.w, .h = c.h }
         else
-            null;
+            .{ .x = 0, .y = 0, .w = @intCast(img.width), .h = @intCast(img.height) };
         return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, self.pageMeta());
     }
 
@@ -411,6 +686,9 @@ pub const Session = struct {
         self.source_bytes = null;
         if (self.working) |*w| w.deinit(self.gpa);
         self.working = null;
+        if (self.prompt_b64) |b| self.gpa.free(b);
+        self.prompt_b64 = null;
+        self.prompt_digest = 0;
         self.cursor = 0;
         if (self.label) |l| self.gpa.free(l);
         self.label = null;

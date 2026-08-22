@@ -1,8 +1,11 @@
+#include "../support/searchCombo.hpp"
 #include "selectionPanel.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "numericInput.hpp"
+#include "../support/disintegrateOverlay.hpp"
+#include "../support/modalReveal.hpp"
 #include <QCheckBox>
-#include <QColorDialog>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGuiApplication>
@@ -20,6 +23,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QToolButton>
+#include <QShowEvent>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -31,6 +35,12 @@ namespace stencil::gui {
   namespace {
     // Points-table columns: index · X(px, editable) · Y(px, editable) · page(cm, read-only) · 🗑.
     enum PointCol { ColIndex = 0, ColX, ColY, ColPage, ColDel, ColCount };
+
+    // The header chevron's box + glyph. Also the floating re-open chevron's, which has to
+    // read as the same button (mainWindow kPanelToggleBox).
+    constexpr int kToggleBox = 24;
+    constexpr int kToggleGlyph = 15;
+
 
     // Paints a selected row as a flat accent OUTLINE (not a filled background); hover tint + cell
     // text come from QSS / the base. Mirrors the browser row treatment but with an outline.
@@ -65,19 +75,26 @@ namespace stencil::gui {
     // Custom title bar with a right-aligned chevron that hides the panel — mirrors the browser
     // panel header's #toggle-coord-panel chevron (placed IN the panel, not floating over the canvas).
     auto* titleBar = new QWidget(this);
+    // Named + WA_StyledBackground so theme.cpp can give it the panel surface: a bare QWidget
+    // paints nothing and let the window backdrop through, which is why the header read as a
+    // black band across the top of the panel.
+    titleBar->setObjectName("selPanelTitle");
+    titleBar->setAttribute(Qt::WA_StyledBackground, true);
     auto* titleRow = new QHBoxLayout(titleBar);
-    titleRow->setContentsMargins(10, 5, 6, 5);
+    titleRow->setContentsMargins(10, 2, 5, 2);
     auto* titleLbl = new QLabel("Points", titleBar);
     titleLbl->setStyleSheet("font-weight:600;");
     collapseBtn_ = new QToolButton(titleBar);
     collapseBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     collapseBtn_->setCursor(Qt::PointingHandCursor);
     collapseBtn_->setToolTip("Hide panel");
-    // Same rounded-square look as the floating re-open chevron (guiHelpers::panelToggleQss) so the
-    // shown/hidden toggles read as one consistent button, just mirrored.
-    collapseBtn_->setFixedSize(28, 28);
-    collapseBtn_->setIconSize(QSize(18, 18));
-    collapseBtn_->setStyleSheet(panelToggleQss());
+    // Sits ON the panel surface, so it takes the browser's #toggle-coord-panel treatment
+    // (transparent, themed hairline border) rather than the floating chevron's dark slab —
+    // that one overlays the canvas, this one would be a dark hole in a light panel.
+    collapseBtn_->setObjectName("panelCollapseBtn");   // styled in theme.cpp
+    collapseBtn_->setFocusPolicy(Qt::NoFocus);   // no macOS focus halo around the chevron
+    collapseBtn_->setFixedSize(kToggleBox, kToggleBox);
+    collapseBtn_->setIconSize(QSize(kToggleGlyph, kToggleGlyph));
     connect(collapseBtn_, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
     titleRow->addWidget(titleLbl);
     titleRow->addStretch(1);
@@ -85,6 +102,8 @@ namespace stencil::gui {
     setTitleBarWidget(titleBar);
 
     auto* body = new QWidget(this);
+    body->setObjectName("selPanelBody");
+    body->setAttribute(Qt::WA_StyledBackground, true);
     auto* layout = new QVBoxLayout(body);
     layout->setContentsMargins(8, 8, 8, 8);
 
@@ -98,22 +117,28 @@ namespace stencil::gui {
     colorSwatch_ = new QPushButton(editor_);
     colorSwatch_->setToolTip("Line color");
     setSwatchColor(colorSwatch_, currentColor_);
-    form->addRow("Color:", colorSwatch_);
+    form->addRow("Line Color:", colorSwatch_);
+
+    // selPointColor — the point colour, set independently of the stroke.
+    pointColorSwatch_ = new QPushButton(editor_);
+    pointColorSwatch_->setToolTip("Point color for this line");
+    setSwatchColor(pointColorSwatch_, currentPointColor_);
+    form->addRow("Point Color:", pointColorSwatch_);
 
     // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
-    thickness_ = new QSpinBox(editor_);
+    thickness_ = new ExprSpinBox(editor_);
     thickness_->setRange(1, 20);
     thickness_->setToolTip("Thickness of the selected line (px)");
     form->addRow("Thickness:", thickness_);
 
-    // selMarkerSize — drawingApp.js:1547 / :183 (min 1, max 30)
-    markerSize_ = new QSpinBox(editor_);
-    markerSize_->setRange(1, 30);
-    markerSize_->setToolTip("Point marker size of the selected line (px)");
-    form->addRow("Marker Size:", markerSize_);
+    // selPointSize — drawingApp.js:1547 / :183 (min 1, max 30)
+    pointSize_ = new ExprSpinBox(editor_);
+    pointSize_->setRange(1, 30);
+    pointSize_->setToolTip("Point size of the selected line (px)");
+    form->addRow("Point Size:", pointSize_);
 
     // selStyle — drawingApp.js:1548 / :184
-    style_ = new QComboBox(editor_);
+    style_ = new SearchComboBox(editor_, /*searchable=*/false);
     style_->addItem("Solid", "solid");
     style_->addItem("Dashed", "dashed");
     style_->addItem("Dotted", "dotted");
@@ -185,6 +210,12 @@ namespace stencil::gui {
     points_->setEditTriggers(QAbstractItemView::DoubleClicked |
                              QAbstractItemView::EditKeyPressed);
     points_->installEventFilter(this);
+    // Hover cross-highlight, row → canvas: entering a row rings that point on the
+    // canvas (browser coordTable.js row mouseenter). Leave is caught in eventFilter.
+    points_->setMouseTracking(true);
+    points_->viewport()->setMouseTracking(true);
+    connect(points_, &QTableWidget::cellEntered, this,
+            [this](int row, int) { emit pointRowHovered(row); });
     auto* hh = points_->horizontalHeader();
     hh->setSectionResizeMode(ColIndex, QHeaderView::ResizeToContents);
     hh->setSectionResizeMode(ColX, QHeaderView::Stretch);
@@ -206,7 +237,17 @@ namespace stencil::gui {
     lines_ = new QListWidget(linesTab);
     lines_->setObjectName("linesList");
     lines_->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
-    lines_->setFocusPolicy(Qt::NoFocus);
+    // ClickFocus (not NoFocus) so a bare Delete/Backspace can be scoped to this list the way
+    // it already is for the points table. Selection stays canvas-driven — only the CURRENT
+    // row moves on click, which is what the key acts on.
+    lines_->setFocusPolicy(Qt::ClickFocus);
+    lines_->installEventFilter(this);
+    // Hover cross-highlight, row → canvas: entering a row glows that line on the
+    // canvas (browser renderLinesList row mouseenter). Leave is caught in eventFilter.
+    lines_->setMouseTracking(true);
+    lines_->viewport()->setMouseTracking(true);
+    connect(lines_, &QListWidget::itemEntered, this,
+            [this](QListWidgetItem* it) { emit lineRowHovered(lines_->row(it)); });
     linesLay->addWidget(lines_, 1);
     tabs_->addTab(linesTab, "Lines");
 
@@ -214,6 +255,7 @@ namespace stencil::gui {
     connect(lines_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
       const int idx = lines_->row(it);
       if (idx < 0) return;
+      lines_->setCurrentRow(idx);   // the row Delete/Backspace will act on
       const auto mods = QGuiApplication::keyboardModifiers();
       const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
                          (mods & Qt::ShiftModifier);
@@ -244,12 +286,22 @@ namespace stencil::gui {
     // selColor: open a color dialog, repaint swatch, emit (drawingApp.js:181).
     connect(colorSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = QColorDialog::getColor(currentColor_, this, "Line color",
-                                              QColorDialog::DontUseNativeDialog);
+      const QColor c =
+          support::pickColorAnimated(currentColor_, this, "Line color", colorSwatch_);
       if (!c.isValid()) return;
       currentColor_ = c;
       setSwatchColor(colorSwatch_, c);
       emit lineColorChanged(c.name());
+    });
+    // selPointColor: same flow as the line colour, emitting the point signal instead.
+    connect(pointColorSwatch_, &QPushButton::clicked, this, [this] {
+      if (updating_) return;
+      const QColor c = support::pickColorAnimated(currentPointColor_, this, "Point color",
+                                                  pointColorSwatch_);
+      if (!c.isValid()) return;
+      currentPointColor_ = c;
+      setSwatchColor(pointColorSwatch_, c);
+      emit linePointColorChanged(c.name());
     });
     // selThickness (drawingApp.js:182).
     connect(thickness_, QOverload<int>::of(&QSpinBox::valueChanged), this,
@@ -257,11 +309,11 @@ namespace stencil::gui {
               if (updating_) return;
               emit lineThicknessChanged(v);
             });
-    // selMarkerSize (drawingApp.js:183).
-    connect(markerSize_, QOverload<int>::of(&QSpinBox::valueChanged), this,
+    // selPointSize (drawingApp.js:183).
+    connect(pointSize_, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [this](int v) {
               if (updating_) return;
-              emit lineMarkerSizeChanged(v);
+              emit linePointSizeChanged(v);
             });
     // selStyle (drawingApp.js:184).
     connect(style_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -279,8 +331,8 @@ namespace stencil::gui {
     // selFill: choosing a color implies enabled=true (drawingApp.js:186-189).
     connect(fillSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = QColorDialog::getColor(currentFill_, this, "Area fill color",
-                                              QColorDialog::DontUseNativeDialog);
+      const QColor c =
+          support::pickColorAnimated(currentFill_, this, "Area fill color", fillSwatch_);
       if (!c.isValid()) return;
       currentFill_ = c;
       setSwatchColor(fillSwatch_, c);
@@ -332,16 +384,20 @@ namespace stencil::gui {
                                 const std::vector<int>& selected) {
     if (!lines_) return;
     QSignalBlocker block(lines_);
+    // clear() drops the current row, so a keyboard delete (which repopulates the list)
+    // would lose its target and the next Delete would do nothing. Carry it across, clamped
+    // to the new count — the browser re-focuses the equivalent row for the same reason.
+    const int prevCurrent = lines_->currentRow();
     lines_->clear();
+    linesSelected_ = selected;   // styleLineRow's selection snapshot
+    canvasHoverPointRow_ = -1;   // rebuilt rows carry no stale hover tint
+    canvasHoverLineRow_ = -1;
     if (lines.empty()) {
       auto* item = new QListWidgetItem("No lines yet.", lines_);
       item->setFlags(Qt::NoItemFlags);
       item->setTextAlignment(Qt::AlignCenter);
       return;
     }
-    const auto isSel = [&](int i) {
-      return std::find(selected.begin(), selected.end(), i) != selected.end();
-    };
     for (int i = 0; i < static_cast<int>(lines.size()); ++i) {
       const core::Line& ln = lines[i];
       auto* item = new QListWidgetItem(lines_);
@@ -377,20 +433,74 @@ namespace stencil::gui {
       rm->setToolTip("Remove line");
       rm->setIcon(themedIcon("trash", iconColor_, 14));
       connect(rm, &QPushButton::clicked, this,
-              [this, i] { emit lineListRemoveRequested(i); });
+              [this, i] {
+                // The row scatters before setLines() rebuilds the list without it.
+                if (QListWidgetItem* it = lines_->item(i))
+                  DisintegrateOverlay::overRect(lines_->viewport(), lines_->visualItemRect(it), window());
+                emit lineListRemoveRequested(i);
+              });
 
       rl->addWidget(swatch);
       rl->addWidget(label, 1);
       rl->addWidget(rm);
 
-      // Selected rows carry an accent outline (canvas-driven, since selection mode is Off).
-      if (isSel(i))
-        row->setStyleSheet(
-            "background: palette(alternate-base);"
-            "border:1px solid palette(highlight);border-radius:5px;");
-
       item->setSizeHint(row->sizeHint());
       lines_->setItemWidget(item, row);
+      // Selected rows carry an accent outline (canvas-driven, since selection mode is Off);
+      // styleLineRow also handles the canvas-hover tint.
+      styleLineRow(i);
+    }
+    if (prevCurrent >= 0)
+      lines_->setCurrentRow(std::min(prevCurrent, lines_->count() - 1));
+  }
+
+  // Selected outline > canvas-hover tint > plain. Kept in one place so setCanvasHover can
+  // restyle two rows without rebuilding the list (and without scrolling it).
+  void SelectionPanel::styleLineRow(int i) {
+    if (!lines_ || i < 0 || i >= lines_->count()) return;
+    QListWidgetItem* it = lines_->item(i);
+    QWidget* w = it ? lines_->itemWidget(it) : nullptr;
+    if (!w) return;
+    const bool sel = std::find(linesSelected_.begin(), linesSelected_.end(), i) !=
+                     linesSelected_.end();
+    QString ss;
+    if (sel) {
+      ss = "background: palette(alternate-base);"
+           "border:1px solid palette(highlight);border-radius:5px;";
+    } else if (i == canvasHoverLineRow_) {
+      // The line under the canvas cursor (browser .lines-row-hover).
+      ss = "background: palette(alternate-base);border-radius:5px;";
+    }
+    // Scope to the row container so the colour chip's own sheet stays untouched.
+    w->setStyleSheet(ss);
+  }
+
+  void SelectionPanel::setCanvasHover(int pointRow, int lineRow) {
+    // Points table: tint the row of the point under the canvas cursor (browser
+    // .row-highlighted). setBackground fires itemChanged, so updating_ guards it
+    // from reading as a user coordinate edit.
+    if (points_ && pointRow != canvasHoverPointRow_) {
+      const bool wasUpdating = updating_;
+      updating_ = true;
+      QColor tint = palette().color(QPalette::Highlight);
+      tint.setAlpha(45);
+      const auto paintRow = [this, &tint](int r, bool on) {
+        if (r < 0 || r >= points_->rowCount()) return;
+        for (int c = 0; c < ColCount; ++c)
+          if (auto* cell = points_->item(r, c))
+            cell->setBackground(on ? QBrush(tint) : QBrush());
+      };
+      paintRow(canvasHoverPointRow_, false);
+      paintRow(pointRow, true);
+      canvasHoverPointRow_ = pointRow;
+      updating_ = wasUpdating;
+    }
+    // Lines tab: tint the row of the hovered line. Never scrolls the list.
+    if (lines_ && lineRow != canvasHoverLineRow_) {
+      const int prev = canvasHoverLineRow_;
+      canvasHoverLineRow_ = lineRow;
+      styleLineRow(prev);
+      styleLineRow(lineRow);
     }
   }
 
@@ -400,8 +510,9 @@ namespace stencil::gui {
     if (deleteLine_) deleteLine_->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
     if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", iconColor, 15));
     if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 14));
-    // Chevron points toward the edge to hide (›) the panel.
-    if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, 18));
+    // Chevron points toward the edge to hide (›) the panel — back at 0°, since any spin
+    // from the last click ended with the panel (and this button) hidden.
+    if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, kToggleGlyph));
     // Re-theme the per-row 🗑 buttons too (new ones in showLine use the stored colour).
     iconColor_ = iconColor;
     if (points_) {
@@ -409,6 +520,15 @@ namespace stencil::gui {
         if (auto* b = qobject_cast<QPushButton*>(points_->cellWidget(r, ColDel)))
           b->setIcon(themedIcon("trash", iconColor_, 14));
     }
+  }
+
+  void SelectionPanel::spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms) {
+    if (collapseBtn_) spinIcon(collapseBtn_, "chevron-right", iconColor_, kToggleGlyph, fromDeg, toDeg, ms);
+  }
+
+  void SelectionPanel::showEvent(QShowEvent* event) {
+    QDockWidget::showEvent(event);
+    spinCollapseChevron(0, 0, 0);
   }
 
   void SelectionPanel::setToggleHint(const QString& hint) {
@@ -423,20 +543,23 @@ namespace stencil::gui {
     points_->setRowCount(0);  // clear rows (NOT clear() — that would drop the header labels)
 
     // Populate the inline editor from the *selected* line only, suppressing the
-    // control change handlers while we do so (drawingApp.js:1544-1564). The
-    // browser reveals #selectionPanel solely on an explicit selection; gating on
-    // editorLine (canvas selectedLine(), null when selectedLineIdx_ < 0) keeps
-    // the editor hidden for the fallback panelLine() — whose mutators all
-    // early-return — so the user never sees controls that silently do nothing.
+    // change handlers meanwhile (drawingApp.js:1544-1564). Gating on editorLine
+    // (null when nothing is explicitly selected) keeps the editor hidden for the
+    // fallback panelLine(), whose mutators all early-return.
     updating_ = true;
     editor_->setVisible(editorLine != nullptr);
     if (editorLine) {
       currentColor_ = QColor(QString::fromStdString(editorLine->color));
       setSwatchColor(colorSwatch_, currentColor_);
+      // A line with no point colour of its own shows the colour it actually draws in (its
+      // stroke), via core::pointColorOr — not a blank or stale swatch.
+      currentPointColor_ =
+          QColor(QString::fromStdString(core::pointColorOr(*editorLine)));
+      setSwatchColor(pointColorSwatch_, currentPointColor_);
       thickness_->setValue(
           static_cast<int>(std::lround(editorLine->thickness)));
-      markerSize_->setValue(
-          static_cast<int>(std::lround(editorLine->markerSize)));
+      pointSize_->setValue(
+          static_cast<int>(std::lround(editorLine->pointSize)));
       const int sidx =
           style_->findData(QString::fromStdString(editorLine->style));
       style_->setCurrentIndex(sidx >= 0 ? sidx : 0);
@@ -457,10 +580,9 @@ namespace stencil::gui {
 
     if (!line || line->points.empty()) return;
 
-    // Build the editable points table. `updating_` suppresses the itemChanged handler while we
-    // set cell text (only a USER edit should fire pointCoordChanged). X/Y are editable px cells
-    // (double-click); the page (cm) column is read-only and pre-formatted by the caller; each row
-    // ends with a 🗑 button. Mirrors browser coordTable.js.
+    // Build the editable points table; `updating_` suppresses itemChanged while
+    // cells are set (only a USER edit should fire pointCoordChanged). X/Y editable
+    // px, page (cm) read-only, each row ends with 🗑. Mirrors browser coordTable.js.
     updating_ = true;
     points_->setRowCount(static_cast<int>(line->points.size()));
     for (std::size_t i = 0; i < line->points.size(); ++i) {
@@ -487,7 +609,13 @@ namespace stencil::gui {
       del->setCursor(Qt::PointingHandCursor);
       del->setToolTip("Remove point");
       del->setIcon(themedIcon("trash", iconColor_, 14));
-      connect(del, &QPushButton::clicked, this, [this, r] { emit pointDeleteRequested(r); });
+      connect(del, &QPushButton::clicked, this, [this, r] {
+        // A QTableWidget row has no widget of its own — scatter its RECT instead.
+        const QRect rowRect(0, points_->rowViewportPosition(r),
+                            points_->viewport()->width(), points_->rowHeight(r));
+        DisintegrateOverlay::overRect(points_->viewport(), rowRect, window());
+        emit pointDeleteRequested(r);
+      });
       points_->setCellWidget(r, ColDel, del);
     }
     if (selectedPoint >= 0 && selectedPoint < points_->rowCount())
@@ -497,11 +625,24 @@ namespace stencil::gui {
   }
 
   bool SelectionPanel::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == points_ && event->type() == QEvent::KeyPress) {
+    // The cursor left a list entirely → clear its row → canvas hover highlight.
+    if (event->type() == QEvent::Leave) {
+      if (obj == points_) emit pointRowHovered(-1);
+      else if (obj == lines_) emit lineRowHovered(-1);
+    }
+    if (event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
-      if ((ke->key() == Qt::Key_Delete || ke->key() == Qt::Key_Backspace) &&
-          points_->currentRow() >= 0) {
+      const bool isDelete =
+          ke->key() == Qt::Key_Delete || ke->key() == Qt::Key_Backspace;
+      if (isDelete && obj == points_ && points_->currentRow() >= 0) {
         emit pointDeleteRequested(points_->currentRow());
+        return true;
+      }
+      // Same key on the Lines tab removes the current line — the row's 🗑 path, and the
+      // browser's focused lines-row Delete (drawingApp.js renderLinesList).
+      if (isDelete && obj == lines_ && lines_->currentRow() >= 0 &&
+          lines_->currentRow() < lines_->count()) {
+        emit lineListRemoveRequested(lines_->currentRow());
         return true;
       }
     }

@@ -14,6 +14,8 @@ class QLineEdit;
 // Settings, exec(); on QDialog::Accepted, read result().
 namespace stencil::gui {
 
+  class LlmSettingsForm;
+
   class SettingsDialog : public QDialog {
     Q_OBJECT
    public:
@@ -26,13 +28,14 @@ namespace stencil::gui {
     Settings base_;  // preserves fields this dialog doesn't edit (formulas etc.)
     QComboBox* theme_ = nullptr;
     QComboBox* accent_ = nullptr;
+    QCheckBox* nativeMenuBar_ = nullptr;
     QCheckBox* autosave_ = nullptr;
     QCheckBox* syncToServer_ = nullptr;
     QCheckBox* showPoints_ = nullptr;
     QCheckBox* showLines_ = nullptr;
     QPushButton* color_ = nullptr;
     QDoubleSpinBox* thickness_ = nullptr;
-    QDoubleSpinBox* markerSize_ = nullptr;
+    QDoubleSpinBox* pointSize_ = nullptr;
     QComboBox* style_ = nullptr;
     QComboBox* page_ = nullptr;
     QDoubleSpinBox* customW_ = nullptr;
@@ -40,6 +43,9 @@ namespace stencil::gui {
     QSpinBox* holdDelay_ = nullptr;
     QLineEdit* browserUrl_ = nullptr;   // "Open in…" browser-app base URL
     QLineEdit* botUsername_ = nullptr;  // "Open in…" Telegram bot username
+    // The shared AI-assistant rows (llm-contract.md §5), in DisableRows
+    // mode; result() delegates the llm* keys to it.
+    LlmSettingsForm* llmForm_ = nullptr;
     QString colorHex_;
   };
 

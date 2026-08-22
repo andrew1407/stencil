@@ -4,6 +4,7 @@
 const std = @import("std");
 const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
+const layout_mod = @import("layout.zig");
 const net = @import("net.zig");
 const project = @import("project.zig");
 const logo = @import("logo.zig");
@@ -61,21 +62,39 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         meta_blank = true;
         meta_blank_color = try gpa.dupe(u8, blank.color);
     } else {
-        logo.print("error: no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
+        logo.err("no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
         return error.NoSource;
     }
 
     // ── 2) Extra flag edits ON TOP (crop → rotate → layout → filter), mirroring pipeline order ──
+    // --layout-frame source records the crop/rotate as frame steps so the layout doc's
+    // SOURCE-frame points are re-mapped + clamped before drawing (llm-contract.md §1).
+    var steps_buf: [2]layout_mod.FrameStep = undefined;
+    var n_steps: usize = 0;
     if (opts.crop) |spec| {
         const cur = sess.current();
         const rect = pipeline.resolveCropSpec(gpa, cur.width, cur.height, spec, opts.album) orelse return error.BadCrop;
         try sess.applyCrop(rect);
+        steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
+        n_steps += 1;
     }
-    if (@mod(opts.rotate, 4) != 0) try sess.applyRotate(opts.rotate);
+    if (@mod(opts.rotate, 4) != 0) {
+        const cur = sess.current().*;
+        steps_buf[n_steps] = .{ .rotate = .{ .quarters = opts.rotate, .w = @floatFromInt(cur.width), .h = @floatFromInt(cur.height) } };
+        n_steps += 1;
+        try sess.applyRotate(opts.rotate);
+    }
     if (opts.layout) |src| {
         const lb = try pipeline.loadLayoutBytes(gpa, io, src);
         defer gpa.free(lb);
-        try sess.addLines(lb);
+        if (opts.layout_frame == .source) {
+            const cur = sess.current().*;
+            const remapped = try layout_mod.remapLayoutDocAlloc(gpa, lb, steps_buf[0..n_steps], cur.width, cur.height);
+            defer gpa.free(remapped);
+            try sess.addLines(remapped);
+        } else {
+            try sess.addLines(lb);
+        }
     }
     if (opts.filter) |f| {
         const mc = filterModeColor(f);
@@ -84,7 +103,7 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
 
     // ── 3) Output ──────────────────────────────────────────────────────────────
     const out = opts.output orelse {
-        logo.print("error: no output path given\n", .{});
+        logo.err("no output path given\n", .{});
         return error.NoOutput;
     };
     if (project.isStencilPath(out)) {

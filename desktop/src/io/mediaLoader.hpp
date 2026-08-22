@@ -21,6 +21,14 @@ class QTimer;
 // fetch-and-open behavior, driven from the command line instead of the page.
 namespace stencil::gui {
 
+  // File-suffix sniffers shared by MediaLoader's own resolution and the chat
+  // dock's clipboard-paste / drag-drop attach routing: video by container
+  // extension (the same list load() uses), image by the common raster
+  // extensions QImageReader decodes. Pure (path string only) so they are
+  // headless-testable.
+  bool isVideoFileName(const QString& path);
+  bool isImageFileName(const QString& path);
+
   class MediaLoader : public QObject {
     Q_OBJECT
    public:
@@ -57,6 +65,15 @@ namespace stencil::gui {
     // The URL the last load() resolved to (local file → file URL, else fromUserInput).
     // Lets the links dialog hand the same source to its persistent scrub player.
     QUrl resolvedUrl() const { return url_; }
+
+    // Extract several video frames by SEQUENTIAL seeks, reusing load()'s
+    // single-frame pipeline once per index (frames arrive in `indices` order;
+    // the first failure aborts with its message). The desktop side of the LLM
+    // contract's `frame` op and of chat video attachments
+    // (llm-contract.md §2/§7). Cancels any in-flight load(); don't issue
+    // another load() on this loader until `done` fires.
+    void extractFrames(const QString& src, const QList<int>& indices,
+                       std::function<void(QList<QImage> frames, QString error)> done);
 
    signals:
     // image  : the decoded pixels.

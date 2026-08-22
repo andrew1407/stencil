@@ -18,10 +18,29 @@ namespace stencil::gui {
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons);
 
-  // Shared stylesheet for the points-panel toggle chevrons — the header "collapse" chevron and the
-  // floating "re-open" chevron — so the two read as ONE consistent button (rounded square, subtle
-  // fill + border, hover lift), just mirrored/moved. Keeps both surfaces from drifting apart.
+  // Stylesheet for the floating "re-open panel" chevron: a rounded square with a subtle fill +
+  // border and a hover lift. Deliberately theme-INDEPENDENT — it overlays the CANVAS, not a
+  // themed surface, so it has to read against whatever image is under it. Its twin, the panel
+  // header's collapse chevron, sits on the panel and is themed in theme.cpp instead.
   QString panelToggleQss();
+
+  // Turn the named glyph from `fromDeg` to `toDeg` over `ms` as `btn`'s icon, re-rendering
+  // it each frame. The collapse chevrons spin half a turn with their panel instead of
+  // blinking to the opposite glyph (browser: `#toggle-controls .ic` in animations.css).
+  // A second call supersedes an in-flight spin; the animation dies with the button.
+  void spinIcon(QAbstractButton* btn, const QString& name, const QColor& color, int size,
+                qreal fromDeg, qreal toDeg, int ms);
+
+  // An <img> element carrying the named iconSet glyph, tinted `color` and shown at
+  // `px` LOGICAL pixels — for the rich-text QLabels that mix a glyph into a line of
+  // text (the image-size line's incognito tag, the toasts). The PNG is rasterised at
+  // the device pixel ratio and displayed at `px`, so it stays crisp on Retina;
+  // `dpr` (0 = ask qApp) is the same test seam iconSet::themedIcon takes, since an
+  // offscreen screen is always 1x. `style` rides on the element (e.g. vertical-align).
+  // Empty string for an unknown glyph — a typo degrades to "no icon", never markup
+  // pointing at nothing.
+  QString inlineIconHtml(const QString& name, const QColor& color, int px,
+                         const QString& style = QString(), qreal dpr = 0);
 
   // Paint a flat 20×20 color chip as `btn`'s icon so the swatch reads as its
   // current color (the browser uses <input type=color>). No-op on a null button.

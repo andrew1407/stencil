@@ -82,7 +82,7 @@ through `net/serverClient` (a `QNetworkAccessManager` REST client + a multi-conn
 `QWebSocket` / third-party WebSocket dependency**.
 
 Connected servers expose their stored projects in the **Projects** dialog as a **golden band
-(gold fill + bold gold text) with a 🖧 marker**, listed alongside local projects and refreshed live by a short
+(gold fill + bold gold text) with a 🖧 badge**, listed alongside local projects and refreshed live by a short
 periodic re-list while the dialog is open (the REST stand-in for the browser's WebSocket
 project-event feed). **Open** on a golden row downloads the project's original image + layout
 and loads them into the editor, linking the session to `{address, remoteId, version}`. When a
@@ -90,6 +90,59 @@ server is connected, **New Project / Save** offers a target — this computer or
 saving a server-linked session does a version-guarded `PUT` of name + layout (a 409 surfaces
 an "edited elsewhere" message) and uploads the rendered result. Live *co-editing* over a TCP
 edit transport is **not** implemented on the desktop.
+
+### AI assistant (LLM chat)
+
+> Getting a model running (Ollama / an OpenAI-compatible server / the collaboration
+> server's Anthropic proxy), verification and troubleshooting:
+> [root README → AI assistant](../README.md#ai-assistant--setting-up-a-model).
+
+The **✦ Assistant** toolbar button (also **View ▸ Assistant**, `Ctrl+Shift+A`) toggles a chat
+dock (`app/chatDock`) that — unlike the fixed selection panel — is fully movable: dock it on
+any of the four window edges or float it as a free window (drag to move, resize normally);
+the placement persists via `QMainWindow::saveState()` in the settings file. Docked, it slides
+in and out from its edge (`MainWindow::setChatShown`, ~0.34 s in / 0.26 s out, browser panel
+parity) and reopens at the width it was dismissed at. Prompts go to the provider configured
+in the dock's own gear — a dedicated **Assistant** dialog (`dialogs/assistantSettingsDialog`,
+browser `llmSettingsModal` parity) with only the provider/base URL/model/API key/server rows,
+hiding whichever are irrelevant to the chosen provider; the same fields also stay in the full
+**Settings ▸ AI assistant** group, and both write the same keys. Choose Ollama or any local
+OpenAI-compatible server (LM Studio etc.) called directly over Qt Network (`llm/qtLlmTransport`), or Anthropic
+Claude proxied by a connected collaboration server — the API key never leaves the server. The
+model answers with a validated *op-plan* (see [`../llm-contract/llm-contract.md`](../llm-contract/llm-contract.md))
+executed through the same appliers the toolbar uses (`llm/planExecutor`): crop, quarter
+rotates, filters/tint, layout lines (including vision-based "extract the lines from this
+image"), formulas, page formats, blanks — and can return several **variant** images per
+prompt, each opened as its own project entry. Attach SEVERAL images and one plan can work
+them in turn (contract §2.1): an `image` op switches the working image to the Nth attachment
+and a `save` persists that result as its own local project (one project per image, named
+after it; the layout self-check sits those turns out). It can also read and write the **local
+filesystem** where you point it: `{"op":"openFile","path":"~/Pictures/a.png"}` opens a file
+(image/video, a `.json` layout, or a `.stencil` project) and `save`'s optional `path` writes the
+result to a folder or file — both only for a path **you** wrote in the conversation (the same
+user-echo rule `openUrl` has), gated to the formats the editor opens; an un-echoed path blocks
+the `openFile` and is dropped with a note for a `save`. Attach images ("use as working image" or
+"analyze") or videos — frames are extracted with the existing Qt Multimedia pipeline
+(`io/mediaLoader`), can open as separate projects, and the source video can be uploaded to a
+connected server (file kind `video`); the video itself is never sent to the model. Provider,
+endpoint URL (editable, localhost defaults pre-filled), model, and key live in the settings
+JSON (`llm*` fields). The dock's header carries a **trash** button ("Clear the conversation")
+that wipes the transcript, the attachments, and the replayed history in one go — the provider
+settings and the working image stay put; it is disabled while a turn is in flight. The canvas
+right-click menu also carries an **Assistant ▸** submenu (hidden when the provider is `none`),
+a nested entry in the top group just above the drawing actions — a capped transcript
+over a resizable composer (drag the splitter, as in the dock) that drives the same pipeline and
+the same history as the dock, so you can prompt without opening it, with the dock's own
+composer trio — send/stop, attach, and the settings gear with its provider dot. Both views
+render the one conversation: whichever surface you send from, the other shows the same rows in
+the same order, and a surface opened later renders what already happened. The menu and its submenu stay open while you chat; attach
+and the gear dismiss the menu first (a modal dialog can't live under a popup grab) and stage
+into the same attachment state; variant results are announced there but rendered with
+thumbnails in the dock. New
+transcript cards fade and slide in (~140 ms), matching the browser's motion, and cards
+dissolve toward the transcript's edges as it scrolls (`src/app/scrollReveal.hpp`, the
+desktop port of the browser's `.reveal-item`; the projects list rows fade the same way
+through `ProjectRowDelegate`). Nothing is dimmed when there is nothing to scroll.
 
 ### Architecture parity with the browser app
 
@@ -103,7 +156,7 @@ divergence, the eval-free recursive-descent `formulaParser` that replaces the br
 Like the browser app, each project carries an optional **accent colour** that paints its
 name everywhere it appears — the toolbar project-name field, the window title field, and
 the rows in the Projects window. Set or clear it from the swatch button next to the
-project name or the per-row "Set colour…" / "Clear colour" actions in the Projects window
+project name or the per-row "Set color…" / "Clear color" actions in the Projects window
 (empty = a neutral muted grey, readable on light and dark). The colour is saved with the project and, for a
 server-backed project, pushed to the collaboration server so every connected client
 (browser/desktop/CLI) re-renders the name in it.
@@ -370,7 +423,11 @@ The desktop app mirrors the browser app's interaction surface:
 - **Top menu bar** (File / Edit / View / Project / Help) plus a toolbar, sharing the
   same actions.
 - **Keyboard shortcuts** ported from `browser/js/config/hotkeysConfig.json`
-  (embedded as a Qt resource) with **tooltips** showing label + shortcut.
+  (embedded as a Qt resource) with **tooltips** showing label + shortcut. Project
+  actions include *Remove Current Project* (`Ctrl+Alt+R`, the trash) and *Rename
+  Project* (`Ctrl+Alt+N`, which opens the toolbar name field for inline editing —
+  the ✎ beside it). `shareImage` (`Ctrl+Alt+S`) is browser-only: this app has no
+  share action, so the shortcut appears in the Shortcuts window but does nothing.
 - **Right-click context menu** on the canvas (New Line, Delete Last Point, Clear
   All, Deselect).
 - **Page formats** — the toolbar page selector offers the full ISO 216/269
@@ -385,10 +442,35 @@ The desktop app mirrors the browser app's interaction surface:
   same pixels as the browser app by construction (shared `core/` math).
 - **Selection panel** dock — the active line's points and live measurements (point
   count, segment count, total length).
-- **Settings** dialog (theme, autosave, show points/lines, default visuals, page
-  size), a **Projects** dialog (save / open / delete, with the `core/projectsStore`
-  one-week expiry sweep), and an **Info & Shortcuts** dialog rendered from the shared
-  config JSON.
+- **Settings** dialog (theme, menu-bar placement, autosave, show points/lines,
+  default visuals, page size), a **Projects** dialog (save / open / delete, with the
+  `core/projectsStore` one-week expiry sweep), and an **Info & Shortcuts** dialog
+  rendered from the shared config JSON.
+  - *Use the system menu bar* (`nativeMenuBar`, default **on**) puts the menus where
+    the platform does — the macOS menu bar, a GNOME/Unity app menu — and turning it
+    off keeps them inside the window. That escape hatch matters because Qt's export
+    leaves an empty in-window bar on some GNOME setups; it takes effect on restart,
+    and the Settings shortcut (`Alt+V` by default, from the shared hotkey registry) reopens this dialog even with no menus showing. Inert on Windows,
+    which has no global bar (the checkbox is disabled there).
+- **Toolbar sections**: every group in all three tool rows carries an uppercase header
+  (`makeToolSection`) — IMAGE / PROJECTS / CONNECTIONS & LINKS / EDIT / DRAW / ZOOM /
+  SETTINGS on the main row, PAGE / FORMULA on the second, FILTER / VIEW / LINE / POINT on
+  the third — mirroring the browser toolbar's named clusters. Fields inside a group keep
+  their own inline label, so a colour swatch reads as "LINE ▸ Color". Section buttons carry
+  a solid accent (or danger) fill; **Fit to window** is the browser's ghost box instead
+  (outlined, glyph in the text colour), and anything unavailable — buttons *and* combos, e.g.
+  the image filter with no image — drops to the muted disabled face.
+- **Removal motion**: a cleared chat card and a cleared image don't blink out — a snapshot
+  is scattered cell by cell (`support/disintegrateOverlay.hpp`, the port of the browser's
+  `disintegrate()`), and toasts rise in and drop away instead of only fading.
+- **Palette swap**: changing theme or accent snapshots the window, restyles, then erases the
+  snapshot with a circle growing from the centre (`support/themeSwapOverlay.hpp`).
+- **Drag-and-drop motion**: the split drop-zones overlay leaves on a fade rather than
+  blinking out, and a dropped image's canvas fades up into place — so the file is visibly
+  the thing that just arrived. Entering fullscreen plays the canvas **stretching** out of
+  the viewport box it had, and leaving **minimises** it back (`beginFullscreenZoom`); the
+  ramp only ever ends on the zoom you picked, so the motion never changes your view. Both
+  mirror `browser/js/ui/motion.js`.
 - **Toast notifications** and **autosave**: the in-progress drawing (points, page
   format, zoom, image path) is autosaved to a gitignored temp config
   (`desktop/.stencil/session.autosave`) and **restored on next launch**; settings and

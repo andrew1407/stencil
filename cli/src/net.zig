@@ -3,6 +3,7 @@
 //! http(s) URLs are downloaded in-process. (Video URLs are handled by ffmpeg, which reads
 //! URLs directly; pure-Zig video decoding isn't practical — see video.zig.)
 const std = @import("std");
+const logo = @import("logo.zig");
 
 pub const Error = error{ HttpFailed, BlockedHost };
 
@@ -201,23 +202,40 @@ fn isBlockedV6(b: [16]u8, strict: bool) bool {
     return false;
 }
 
-/// GET `url`, returning the owned response body bytes (capped at `MAX_FETCH_BYTES`).
-/// `strict` blocks loopback in addition to the always-blocked internal ranges — pass it for
-/// sub-resource URLs harvested from untrusted scanned content, false for a URL the user named.
-pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) ![]u8 {
+pub const RequestOptions = struct {
+    /// null lets std.http.Client infer it (GET without a payload, POST with one).
+    method: ?std.http.Method = null,
+    payload: ?[]const u8 = null,
+    extra_headers: []const std.http.Header = &.{},
+    /// Block loopback in addition to the always-blocked internal ranges — pass true for
+    /// sub-resource URLs harvested from untrusted scanned content, false for user-named URLs.
+    strict: bool = false,
+};
+
+pub const Response = struct {
+    status: u16,
+    body: []u8, // owned by the caller (present for non-2xx statuses too)
+};
+
+/// Send one HTTP request through the full SSRF guard and return the status + owned body
+/// (capped at `MAX_FETCH_BYTES`; the caller judges non-2xx). Every outbound http(s) request
+/// the CLI makes to a non-server host goes through here so the guard is uniform: the literal
+/// host check, the DNS-resolution check (a hostname must not resolve to an internal
+/// address), and the redirect refusal. Failures print a human-readable reason.
+pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) (Error || error{OutOfMemory})!Response {
     // SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
     const host = hostOf(url) orelse {
-        std.debug.print("error: could not parse a host from URL '{s}'\n", .{url});
+        logo.err("could not parse a host from URL '{s}'\n", .{url});
         return Error.BlockedHost;
     };
-    if (isBlockedFetchHost(host, strict)) {
-        std.debug.print("error: refusing to fetch internal/blocked host '{s}'\n", .{host});
+    if (isBlockedFetchHost(host, opts.strict)) {
+        logo.err("refusing to fetch internal/blocked host '{s}'\n", .{host});
         return Error.BlockedHost;
     }
     // For a DNS name, also refuse when it RESOLVES to an internal target (closes the
     // hostname-with-internal-record vector the literal check above can't see).
-    if (!isNumericHost(host) and hostResolvesToBlocked(io, host, strict)) {
-        std.debug.print("error: refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
+    if (!isNumericHost(host) and hostResolvesToBlocked(io, host, opts.strict)) {
+        logo.err("refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
         return Error.BlockedHost;
     }
 
@@ -233,25 +251,39 @@ pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) 
 
     const result = client.fetch(.{
         .location = .{ .url = url },
+        .method = opts.method,
+        .payload = opts.payload,
+        .extra_headers = opts.extra_headers,
         .response_writer = &body,
         // Refuse redirects: a public first hop must not 30x-bounce to an internal
         // host, which would slip past the pre-fetch host check above.
         .redirect_behavior = .not_allowed,
     }) catch |e| {
         if (e == error.WriteFailed) {
-            std.debug.print("error: response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
+            logo.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
         } else {
-            std.debug.print("error: HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+            logo.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
         }
         return Error.HttpFailed;
     };
 
-    const code = @intFromEnum(result.status);
-    if (code < 200 or code >= 300) {
-        std.debug.print("error: HTTP {d} fetching {s}\n", .{ code, url });
+    return .{
+        .status = @intFromEnum(result.status),
+        .body = try gpa.dupe(u8, body.buffered()),
+    };
+}
+
+/// GET `url`, returning the owned response body bytes (capped at `MAX_FETCH_BYTES`).
+/// `strict` blocks loopback in addition to the always-blocked internal ranges — pass it for
+/// sub-resource URLs harvested from untrusted scanned content, false for a URL the user named.
+pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) ![]u8 {
+    const res = try request(gpa, io, url, .{ .strict = strict });
+    if (res.status < 200 or res.status >= 300) {
+        defer gpa.free(res.body);
+        logo.err("HTTP {d} fetching {s}\n", .{ res.status, url });
         return Error.HttpFailed;
     }
-    return gpa.dupe(u8, body.buffered());
+    return res.body;
 }
 
 const testing = std.testing;

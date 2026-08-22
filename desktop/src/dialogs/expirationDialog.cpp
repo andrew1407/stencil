@@ -1,4 +1,6 @@
+#include "../support/searchCombo.hpp"
 #include "expirationDialog.hpp"
+#include "iconSet.hpp"
 
 #include "guiHelpers.hpp"
 #include "projectsStore.hpp"
@@ -66,10 +68,11 @@ namespace stencil::gui {
     // Period + Refresh row.
     auto* periodRow = new QHBoxLayout;
     periodRow->addWidget(new QLabel("Expires in:", this));
-    period_ = new QComboBox(this);
+    period_ = new SearchComboBox(this, /*searchable=*/false);
     for (const auto& p : kPresets) period_->addItem(p.label, QString::fromLatin1(p.key));
     periodRow->addWidget(period_, 1);
     refresh_ = new QPushButton("Refresh", this);
+    refresh_->setIcon(themedIcon("refresh", palette().color(QPalette::WindowText), 15));
     refresh_->setToolTip("Set the expiration to now + the selected period");
     periodRow->addWidget(refresh_);
     layout->addLayout(periodRow);

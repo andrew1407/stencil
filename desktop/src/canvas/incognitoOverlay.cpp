@@ -3,10 +3,12 @@
 
 #include <QColor>
 #include <QEvent>
-#include <QFont>
-#include <QFontMetrics>
 #include <QPainter>
 #include <QRectF>
+#include <QVariantAnimation>
+
+#include <algorithm>
+#include <cmath>
 
 namespace stencil::gui {
 
@@ -23,14 +25,61 @@ namespace stencil::gui {
     hide();
   }
 
+  // The clockwise perimeter, revealed in four equal quarters starting at the top-left:
+  // top → right → bottom → left. Each quarter is a straight run, so `t` maps linearly
+  // onto it. Port of the four staggered .ig-edge elements in the browser, and the reason
+  // both surfaces draw the dashes in the same direction rather than just fading a box in.
+  QPainterPath IncognitoOverlay::framePath(const QRectF& box, double t) {
+    QPainterPath path;
+    t = std::clamp(t, 0.0, 1.0);
+    if (t <= 0.0 || box.isEmpty()) return path;
+    // Quarter q spans [q/4, (q+1)/4); `run` is how far into the current quarter we are.
+    const auto run = [t](int q) { return std::clamp(t * 4.0 - q, 0.0, 1.0); };
+    const qreal w = box.width(), h = box.height();
+    path.moveTo(box.topLeft());
+    path.lineTo(box.left() + w * run(0), box.top());
+    if (t > 0.25) { path.moveTo(box.topRight());    path.lineTo(box.right(), box.top() + h * run(1)); }
+    if (t > 0.50) { path.moveTo(box.bottomRight()); path.lineTo(box.right() - w * run(2), box.bottom()); }
+    if (t > 0.75) { path.moveTo(box.bottomLeft());  path.lineTo(box.left(), box.bottom() - h * run(3)); }
+    return path;
+  }
+
   void IncognitoOverlay::setActive(bool on) {
     if (active_ == on) return;
     active_ = on;
     if (on) {
       fitToParent();
       raise();  // stay above the canvas sibling
+      show();
     }
-    setVisible(on);
+    if (!anim_) {
+      anim_ = new QVariantAnimation(this);
+      anim_->setEasingCurve(QEasingCurve::OutCubic);
+      connect(anim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+        progress_ = v.toDouble();
+        update();
+      });
+      // Only hide once the frame has finished retracting — hiding on the toggle would
+      // cut the animation off at its first frame.
+      connect(anim_, &QVariantAnimation::finished, this, [this] {
+        if (!active_) hide();
+      });
+    }
+    // Capture where the frame actually is BEFORE touching the animation. Both
+    // setStartValue and setEndValue recalculate the current interval and emit
+    // valueChanged, which lands right back in progress_ via the connection below — so
+    // reading progress_ after them yields the new END value, and the duration below
+    // would come out as "no distance to cover", i.e. an instant snap on every toggle
+    // after the first.
+    const double from = progress_;
+    const double to = on ? 1.0 : 0.0;
+    // Scale the time to the distance left, so a fast re-toggle doesn't crawl.
+    const int ms = std::max(1, int(kDrawMs * std::abs(to - from)));
+    anim_->stop();
+    anim_->setDuration(ms);
+    anim_->setStartValue(from);
+    anim_->setEndValue(to);
+    anim_->start();
     update();
   }
 
@@ -53,40 +102,28 @@ namespace stencil::gui {
   }
 
   void IncognitoOverlay::paintEvent(QPaintEvent*) {
-    if (!active_) return;
+    if (progress_ <= 0.0) return;
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor accent = themePalette(dark_, accentKey_).accent;
 
-    // 3px dashed accent outline, inset by 3px — mirrors
+    // 3px dashed accent outline sitting FLUSH on the viewport edge — mirrors
     //   body.incognito-mode .canvas-viewport { outline: 3px dashed var(--accent);
     //                                           outline-offset: -3px; }
+    // which puts the outline's OUTER edge on the box. Qt strokes centred, so the
+    // only inset is the pen's half-width (kPenPx/2) — anything more leaves a gap
+    // of bare canvas outside the dashes.
+    // Stroke only the part of the perimeter drawn so far. The dash pattern rides ON the
+    // partial path, so the dashes are REVEALED in order rather than stretched into place.
     QPen pen(accent);
     pen.setStyle(Qt::DashLine);
-    pen.setWidth(3);
+    pen.setWidth(kPenPx);
+    pen.setCapStyle(Qt::FlatCap);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
-    p.drawRect(QRectF(rect()).adjusted(3, 3, -3, -3));
-
-    // "🕶 Incognito — not saved" pill at top-left (8,8) — mirrors
-    //   body.incognito-mode .canvas-section::after { ... background: accent 90%;
-    //     color: #fff; font: 600 11px; padding: 3px 9px; border-radius: 10px; }
-    QFont f = font();
-    f.setPixelSize(11);
-    f.setWeight(QFont::DemiBold);
-    const QString label = QStringLiteral("🕶 Incognito — not saved");
-    const QFontMetrics fm(f);
-    const qreal padX = 9.0, padY = 3.0, radius = 10.0;
-    const QRectF pill(8, 8, fm.horizontalAdvance(label) + padX * 2,
-                      fm.height() + padY * 2);
-    QColor bg = accent;
-    bg.setAlphaF(0.9);
-    p.setPen(Qt::NoPen);
-    p.setBrush(bg);
-    p.drawRoundedRect(pill, radius, radius);
-    p.setFont(f);
-    p.setPen(Qt::white);
-    p.drawText(pill, Qt::AlignCenter, label);
+    p.drawPath(framePath(frameBox(QRectF(rect())), progress_));
+    // No badge over the picture: the "Incognito — not saved" fact lives on the
+    // toolbar's "?" hint beside the project name, where it covers no content.
   }
 
 }

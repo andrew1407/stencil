@@ -1,0 +1,126 @@
+{
+  "providerWire/plain single turn — empty model is OMITTED, messages carry role+text only": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "desktop chatServer always sends a top-level model key (\"\" when unset, llmClient.cpp:396); the browser omits an empty model"
+  },
+  "providerWire/image attachments pass through as {mediaType,data} objects; text-only turns omit \"images\"": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "same desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+  },
+  "providerWire/maxTokens is never sent — the server clamps its own default": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "same desktop model:\"\" always-sent divergence (llmClient.cpp:396); maxTokens absence itself matches"
+  },
+  "providerWire/reply extraction: stopReason max_tokens is a typed truncation error, never a reply": {
+    "verdict": { "bodyPatch": { "model": "" }, "message": "response truncated (max tokens reached)" },
+    "note": "kind truncated matches; desktop phrases the message its own way and sends model:\"\" (llmClient.cpp:396,414)"
+  },
+  "providerWire/reply extraction: stopReason refusal surfaces the reply text as a refusal error": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "kind refusal + surfaced text match; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+  },
+  "providerWire/reply extraction: missing text on end_turn is a typed badReply error": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "badReply kind + message match (BadResponse 'malformed server response (no text)'); only the desktop model:\"\" always-sent divergence"
+  },
+  "providerWire/server 503 llmDisabled maps to the typed \"disabled\" error": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "kind Disabled + message match (the message rides inside the endpoint-tagged error); only the desktop model:\"\" always-sent divergence"
+  },
+  "providerWire/server 502 llmUpstream renders the sanitized message with its code as plain http": {
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "kind http + message match; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+  },
+
+  "sanitizer/DIVERGENCE(server): private-use characters survive the browser, the server blanks them": {
+    "verdict": "marker kept",
+    "note": "QChar::isPrint is false for Co (private use), so desktop blanks the U+E000 markers to spaces and simplified() collapses them — the Go server's behavior, not the browser's"
+  },
+  "sanitizer/DIVERGENCE(server,pystencil): length caps count UTF-16 code units in the browser, runes elsewhere": {
+    "verdict": "",
+    "note": "desktop iterates QChars: QChar::isPrint is false for Cs (surrogate halves), so every astral-plane emoji is blanked to two spaces and simplified() leaves \"\" — no cap even applies (Qt counts UTF-16 units like the browser, but never reaches the cut here)"
+  },
+
+  "layout/empty-input-emits-only-forced-keys": {
+    "verdict": { "imageWidth": 0, "imageHeight": 0, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
+    "note": "desktop buildLayoutJson always emits imageWidth/imageHeight (0 when unset) and imageFilter/filterColor (parameter defaults, fileStore.cpp:147-148); the browser's undefined-valued forced keys drop out in JSON"
+  },
+  "layout/bare-trio": {
+    "verdict": { "imageWidth": 800, "imageHeight": 600, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
+    "note": "desktop always emits imageFilter/filterColor (defaults \"none\"/\"#7c3aed\"); the browser omits absent filter fields"
+  },
+  "layout/session-only-fields-never-exported": {
+    "verdict": { "imageWidth": 1, "imageHeight": 1, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
+    "note": "desktop's builder takes no session fields at all (they cannot leak); only the always-emitted imageFilter/filterColor defaults differ from the browser payload"
+  },
+  "layout/falsy-values-still-exported": {
+    "verdict": { "imageWidth": 4, "imageHeight": 4, "lines": [], "imageFilter": "", "filterColor": "#7c3aed" },
+    "note": "desktop omits WHEN-DEFAULT rather than when-absent: explicit falsy rotationQuarters 0 / customPageWidth 0 / allowFormulas false / formulaX \"\" are dropped (fileStore.cpp:149-159) where the browser still exports them; imageFilter \"\" passes through, filterColor default rides along"
+  },
+  "layout/null-optionals-omitted": {
+    "verdict": { "imageWidth": 2, "imageHeight": 3, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
+    "note": "null optionals map to desktop's absent-parameter defaults (omitted as the browser omits them); only the always-emitted imageFilter/filterColor defaults differ"
+  },
+  "layout/lines-pass-through-by-reference-unsanitized": {
+    "verdict": {
+      "imageWidth": 1, "imageHeight": 1,
+      "lines": [ { "points": [ { "x": 1, "y": 2 } ], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent" } ],
+      "imageFilter": "none", "filterColor": "#7c3aed"
+    },
+    "note": "desktop lines never pass through: linesFromJson->lineToJson re-materializes core::Line, dropping unknown keys (\"junk\") and non-numeric thickness \"9\" -> default 2 (fileStore.cpp:88-103); browser exports the live array by reference"
+  },
+  "layout/junk-points-dropped-numeric-strings-coerced": {
+    "verdict": [ { "points": [ { "x": 0, "y": 4 }, { "x": 1, "y": 0 }, { "x": 0, "y": 2 }, { "x": 0, "y": 0 }, { "x": 0, "y": 0 }, { "x": 0, "y": 7 }, { "x": 8, "y": 0 } ], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" } ],
+    "note": "desktop lineFromJson keeps EVERY points[] entry and zero-fills: no numeric-string coercion (QJsonValue::toDouble never coerces \"3\") and no junk-point drop (fileStore.cpp:90-93); the shared contract drops junk and coerces"
+  },
+  "layout/field-type-coercion-and-drops": {
+    "verdict": [ { "points": [ { "x": 1, "y": 2 } ], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" } ],
+    "note": "desktop does no type coercion: thickness \"3.5\" (string) -> default 2 and locked 1 (number) -> default false (QJsonValue toDouble/toBool never coerce, fileStore.cpp:95-98); the shared contract coerces both"
+  },
+  "layout/non-object-line-entries-skipped": {
+    "verdict": [
+      { "points": [], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" },
+      { "points": [], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" },
+      { "points": [], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" },
+      { "points": [ { "x": 0, "y": 0 } ], "color": "#FFFF00", "thickness": 2, "pointSize": 4, "style": "solid", "locked": false, "fillColor": "transparent", "pointColor": "" }
+    ],
+    "note": "desktop linesFromJson turns non-object entries (5, null, \"line\") into empty default lines instead of skipping them (toObject() on a non-object yields {}, fileStore.cpp:113)"
+  },
+
+  "stencilProject/version-as-numeric-string-accepted": {
+    "verdict": { "expect": "error" },
+    "note": "desktop reads version with QJsonValue::toInt (no string coercion): \"1\" -> 0 -> 'Unrecognized project-file version' (fileStore.cpp:245); the browser coerces the numeric string and accepts"
+  },
+  "stencilProject/minimal-image-only": {
+    "verdict": { "projectPatch": { "layout": {} } },
+    "note": "desktop keeps the raw layout object; a missing layout reads as {} rather than the browser's normalized {\"lines\":[]} (fileStore.cpp:269)"
+  },
+  "stencilProject/full-featured": {
+    "verdict": { "projectPatch": { "name": "  Floor plan  ", "color": "FF8800", "keywords": [ " a ", "", "", "b " ], "ext": "JPG", "w": 0, "h": 0, "theme": { "mode": "DARK", "accent": "sky" } } },
+    "note": "desktop parseProjectFile is verbatim: no name trim, no color hex normalization, keywords untrimmed with non-strings -> \"\" kept, ext case kept, w 800.7 / h \"600\" -> 0 (toInt never coerces), theme mode case kept (fileStore.cpp:266-285); the browser normalizes all of these"
+  },
+  "stencilProject/blank-project-truthy-blank-short-hex": {
+    "verdict": { "projectPatch": { "blank": false, "blankColor": "0f0", "layout": {} } },
+    "note": "desktop blank uses QJsonValue::toBool (no truthiness): \"yes\" -> false, and blankColor \"0f0\" is kept raw, not expanded to #00ff00 (fileStore.cpp:278-279)"
+  },
+  "stencilProject/unknown-top-level-keys-tolerated": {
+    "verdict": { "projectPatch": { "layout": {} } },
+    "note": "unknown keys tolerated the same; only the missing-layout {} vs normalized {\"lines\":[]} difference"
+  },
+  "stencilProject/layout-lines-hardened-session-keys-dropped": {
+    "verdict": { "projectPatch": { "layout": { "lines": [ { "points": [ { "x": "3", "y": 4 } ], "junk": true } ], "zoom": 2, "color": "#123456" } } },
+    "note": "desktop stores the layout object VERBATIM (fileStore.cpp:269) — session keys, junk line fields and string coords survive parse (hardening happens later in linesFromJson); the browser hardens at parse"
+  },
+  "stencilProject/data-url-leading-whitespace-accepted-preserved": {
+    "verdict": { "projectPatch": { "layout": {} } },
+    "note": "leading-whitespace dataUrl decodes the same (indexOf(\"base64,\")); only the missing-layout {} difference"
+  },
+  "stencilProject/theme-custom-accent-hex-normalized": {
+    "verdict": { "projectPatch": { "layout": {}, "theme": { "accent": "abc" } } },
+    "note": "desktop keeps the theme accent raw (\"abc\", not expanded to #aabbcc, fileStore.cpp:284) plus the missing-layout {} difference"
+  },
+  "stencilProject/invalid-theme-and-nonpositive-dims-dropped": {
+    "verdict": { "projectPatch": { "layout": {}, "ext": "...", "w": -5, "theme": { "mode": "blue", "accent": "#12" } } },
+    "note": "desktop performs no validity filtering: bogus ext \"...\", negative w -5 and an invalid theme {mode:\"blue\",accent:\"#12\"} all survive parse (fileStore.cpp:266-285); the browser drops them"
+  }
+}

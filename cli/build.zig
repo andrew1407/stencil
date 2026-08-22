@@ -51,6 +51,13 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
         .files = &core_sources,
         .flags = &.{"-std=c++17"},
     });
+    // Canonical shared static data from the browser app, embeddable via
+    // @embedFile("<name>") (cross-tree paths need an anonymous import).
+    mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../browser/js/config/accents.json") });
+    mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../browser/js/config/colorNames.json") });
+    mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../browser/js/config/constants.json") });
+    mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../browser/js/config/llm/systemPrompt.json") });
+    mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../browser/js/config/llm/providers.json") });
     mod.addCSourceFiles(.{
         .root = b.path("src"),
         // stb: the image codecs. regex_shim: owns POSIX regex_t for the --source-name filter

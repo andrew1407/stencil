@@ -14,7 +14,8 @@
 #include <functional>
 #include <vector>
 
-class QNativeGestureEvent;  // not transitively declared by <QWidget> (unlike QWheelEvent)
+class QNativeGestureEvent;
+class QVariantAnimation;  // not transitively declared by <QWidget> (unlike QWheelEvent)
 
 // The drawing surface. Mirrors browser/js/core/renderer.js (what to draw) and
 // zoomPan.js (scale), implemented with QPainter. Drawing/geometry decisions reuse
@@ -26,7 +27,7 @@ namespace stencil::gui {
   class CanvasWidget : public QWidget {
     Q_OBJECT
    public:
-    // Drawing mode (S2; port of browser drawingApp.js `drawMode` field ~101):
+    // Drawing mode (port of browser drawingApp.js `drawMode` field ~101):
     // freehand polyline vs. drag-to-create rectangle.
     enum class DrawMode { Line, Rect };
 
@@ -85,8 +86,10 @@ namespace stencil::gui {
     bool canRedo() const { return history_.canRedo(); }
 
     // Default visuals applied to newly drawn lines (from Settings).
-    void setDefaults(const QString& color, double thickness, double markerSize,
-                     const QString& style);
+    // `pointColor` is the default POINT colour for new lines; empty = follow `color`
+    // (core::Line::pointColor). Defaulted so existing call sites keep compiling.
+    void setDefaults(const QString& color, double thickness, double pointSize,
+                     const QString& style, const QString& pointColor = QString());
     void setShowPoints(bool on);
     void setShowLines(bool on);
     void setDark(bool dark);
@@ -97,6 +100,13 @@ namespace stencil::gui {
     // Selection panel support: the line whose points are shown, and the focused
     // point within it (-1 = none).
     const core::Line* panelLine() const;
+    // panelLine()'s index in lines() (-1 = the in-progress line / none) — lets the
+    // panel map its point rows back onto canvas lines for the hover cross-highlight.
+    int panelLineIdx() const;
+    // Hover arriving FROM the panel lists: ring the panel line's point `ptIdx`
+    // (points-table row) / glow line `lineIdx` (Lines-tab row). -1 clears.
+    void setListHoverPoint(int ptIdx);
+    void setListHoverLine(int lineIdx);
     int selectedPoint() const { return selectedPoint_; }
     void selectPoint(int index);
     void deletePoint(int index);
@@ -106,7 +116,7 @@ namespace stencil::gui {
     void setPointCoord(int index, int axis, double value);
     void deselect();
 
-    // ── selected-line + draw-mode state (S2) ──
+    // ── selected-line + draw-mode state ──
     DrawMode drawMode() const { return drawMode_; }
     void setDrawMode(DrawMode mode);
     // Hit-test the committed lines at image-space (x, y) and select the topmost
@@ -133,7 +143,7 @@ namespace stencil::gui {
     void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
-    // ── image filters (S3; port of browser/js/core/renderer.js) ──
+    // ── image filters (port of browser/js/core/renderer.js) ──
     void setFilter(const QString& mode);
     void setFilterColor(const QColor& tint);
     // Unified entrypoint: set both filter mode + tint with a single repaint.
@@ -153,11 +163,21 @@ namespace stencil::gui {
     // Alt+Shift+O momentary "peek at the original" override (shown while held).
     void setCompareHoldOriginal(bool on);
     bool compareHoldOriginal() const { return compareHoldOriginal_; }
-    // A compare view (original / split / Alt+Shift+O peek) is read-only: hover tooltips,
-    // selection/hover highlights, and editing gestures are all suppressed while active.
+    // Blank (generated solid-fill) page: its colour IS the page, so the compare
+    // views keep the filter/tint on the "original" side — only the lines differ.
+    void setBlankPage(bool on);
+    bool blankPage() const { return blankPage_; }
+    // A compare view (original / split / Alt+Shift+O peek) is read-only: selection/hover
+    // highlights and editing gestures are all suppressed while active. The coordinate
+    // readout and the hover tooltip stay — they are information, not editing.
     bool compareReadOnly() const { return effectiveCompareMode() != "none"; }
+    // Does the image-space point fall in the region showing the EDITED image — the only
+    // place the layout is drawn? "none" everywhere, "original" nowhere, a split on the
+    // right/bottom of the divider. Gates the hover tooltip: a point the "before" half
+    // covers isn't on screen, so there is nothing to label.
+    bool compareShowsEdited(double imageX, double imageY) const;
 
-    // ── render-to-image + image accessors (S6) ──
+    // ── render-to-image + image accessors ──
     // Native-resolution render of the (filtered) image; overlay draws the lines
     // honoring the current show flags when `withOverlay` is true.
     QImage renderToImage(bool withOverlay) const;
@@ -175,17 +195,27 @@ namespace stencil::gui {
     // canvas (mirrors the browser storage.newTemporary() reset). Used when clearing
     // the current project/editor.
     void clearImage();
+    // Hold the empty-canvas invitation OFF while the clear's dust is still falling,
+    // or the dashed box pops in underneath the particles (browser parity:
+    // .canvas-clearing hides .idle-create). Clicks are ignored while hidden.
+    void setIdleHintHidden(bool on);
+    // The "＋ Blank image" card's box in GLOBAL coords (empty when it is not showing) —
+    // what the blank-image dialog grows out of.
+    QRect idleCardGlobalRect() const;
+    bool idleHintHidden() const { return idleHintHidden_; }
 
-    // ── selected-line mutators + delete (S7; port of applySelectionChange
+    // ── selected-line mutators + delete (port of applySelectionChange
     // ~1674 and canvasDblClick delete ~1515) ──
     void setSelectedLineColor(const QString& color);
     void setSelectedLineThickness(double thickness);
-    void setSelectedLineMarker(double markerSize);
+    void setSelectedLinePointSize(double pointSize);
+    // Point colour of the selected line(s); empty clears it back to the line colour.
+    void setSelectedLinePointColor(const QString& pointColor);
     void setSelectedLineStyle(const QString& style);
     void setSelectedLineFill(const QString& fillColor);
     void deleteSelectedLine();
 
-    // ── drawing-mode state machine (S2; port of drawingApp.js) ──
+    // ── drawing-mode state machine (port of drawingApp.js) ──
     bool isDrawing() const { return isDrawing_; }
 
     // ── hold-to-draw (alternative flow; port of browser holdDraw.js) ──
@@ -202,11 +232,16 @@ namespace stencil::gui {
 
    signals:
     void hovered(double imageX, double imageY);  // image-space cursor position
-    // Richer hover for the tooltip (S12): image-space pos + global cursor +
+    // Richer hover for the tooltip: image-space pos + global cursor +
     // modifier flags, emitted alongside hovered() on mouse move.
     void hoverDetail(double imageX, double imageY, const QPoint& globalPos,
                      Qt::KeyboardModifiers mods);
     void hoverLeft();  // cursor left the canvas -> hide tooltip
+    // The point/line under the canvas cursor changed (all -1 = nothing hovered).
+    // lineIdx -1 with a valid ptIdx = a point of the in-progress line; overLineIdx
+    // is the committed line under the cursor (point hit or stroke hit) for the
+    // panel's Lines-list row tint.
+    void canvasHoverChanged(int lineIdx, int ptIdx, int overLineIdx);
     void changed();                              // lines or history changed
     void selectionChanged();
     void contextRequested(const QPoint& globalPos);
@@ -215,16 +250,16 @@ namespace stencil::gui {
     void blankImageRequested();
     void zoomStep(int dir);  // Ctrl+wheel: +1 = in, -1 = out
     void drawingModeChanged(bool drawing);
-    void drawModeChanged(DrawMode mode);  // line vs. rect (S2)
-    // Pan/zoom interactions (S7/S8/S9). Deltas/positions are widget-space px;
+    void drawModeChanged(DrawMode mode);  // line vs. rect
+    // Pan/zoom interactions. Deltas/positions are widget-space px;
     // MainWindow owns the scroll area and translates them.
-    void panBy(int dx, int dy, bool fast);          // S7 drag pan
-    void fitRequested();                            // S7 double-click fit
-    void zoomAtCursor(int dir, const QPoint& posInWidget, bool fast);  // S8
+    void panBy(int dx, int dy, bool fast);          // drag pan
+    void fitRequested();                            // double-click fit
+    void zoomAtCursor(int dir, const QPoint& posInWidget, bool fast);
     // Trackpad pinch (macOS native gesture): a continuous scale factor about the
     // cursor. MainWindow multiplies the current scale by it, anchored at posInWidget.
     void zoomByFactorAt(double factor, const QPoint& posInWidget);
-    void zoomToRect(const QRectF& imageRect);       // S9 (image-space rect)
+    void zoomToRect(const QRectF& imageRect);       // image-space rect
 
    public slots:
     void startDrawingMode();
@@ -252,10 +287,9 @@ namespace stencil::gui {
     // and emit selectionChanged. Backs the setSelectedLine* mutators.
     void mutateSelectedLine(const std::function<void(core::Line&)>& set);
 
-    // S6: drawLine became scale-parameterized so renderToImage can draw the
-    // overlay at native resolution (scale 1.0) while the live view uses scale_.
-    // `lineIdx` (-1 = the in-progress line) and `highlight` drive the hover/
-    // selection rings, which are drawn live but never baked into exports.
+    // Scale-parameterized so renderToImage can draw the overlay at native
+    // resolution (1.0) while the live view uses scale_. `lineIdx` (-1 = in-progress)
+    // and `highlight` drive the hover/selection rings — never baked into exports.
     void drawLineScaled(class QPainter& p, const core::Line& line, int lineIdx,
                         double scale, bool highlight) const;
     // drawLineScaled decomposed into ordered const paint passes; poly/stroke/pal
@@ -266,12 +300,12 @@ namespace stencil::gui {
                   int lineIdx, bool highlight, const Palette& pal) const;
     void drawStroke(QPainter& p, const core::Line& line, const QPolygonF& poly,
                     const class QColor& stroke) const;
-    void drawMarkers(QPainter& p, const core::Line& line, const QPolygonF& poly,
+    void drawPoints(QPainter& p, const core::Line& line, const QPolygonF& poly,
                      int lineIdx, bool highlight, const QColor& stroke,
                      const Palette& pal) const;
-    // mousePressEvent dispatch helpers (behavior-preserving split). Precedence
-    // is preserved by the call order in mousePressEvent. handleCtrlClick returns
-    // true when it consumes the click; false falls through to a normal append.
+    // mousePressEvent dispatch helpers; precedence comes from the call order
+    // there. handleCtrlClick returns true when it consumes the click; false
+    // falls through to a normal append.
     void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods,
                       const QPoint& globalPos);
     void beginZoomRect(const QPoint& widgetPos);
@@ -298,6 +332,15 @@ namespace stencil::gui {
     // divider; hit-test the divider in widget space for the drag.
     void paintCompareSplit(QPainter& p, const QString& mode) const;
     bool nearCompareDivider(const QPoint& widgetPos) const;
+    // What the compare "original" side shows: the raw pixels for a picture, but a
+    // BLANK page as currently coloured (fill + tint) — there is no earlier
+    // picture to reveal. Caller rebuilds the filter cache first.
+    const QImage& compareBaseImage() const {
+      return (blankPage_ && imageFilter_ != QLatin1String("none") &&
+              !filteredImage_.isNull())
+                 ? filteredImage_
+                 : image_;
+    }
     QString effectiveCompareMode() const {
       return compareHoldOriginal_ ? QStringLiteral("original") : compareMode_;
     }
@@ -306,8 +349,8 @@ namespace stencil::gui {
     void commitHistory();
     void applyDefaultsToCurrent();
     core::Line* mutablePanelLine();
-    void createRect(double x1, double y1, double x2, double y2);  // S2
-    void rebuildFilteredImage();  // S3
+    void createRect(double x1, double y1, double x2, double y2);
+    void rebuildFilteredImage();
 
     // Point-insertion / continuation drawing (port of drawingApp.js). Insert a
     // point into an existing line between two points; add a point connected to
@@ -356,18 +399,30 @@ namespace stencil::gui {
     int selectedPoint_ = -1;
     bool showPoints_ = true;
     bool showLines_ = true;
-    bool isDrawing_ = false;  // gates left-click point adds (S2)
+    bool isDrawing_ = false;  // gates left-click point adds
+    bool idleHintHidden_ = false;
+    // The idle "＋ Blank image" card (browser .idle-create-btn): its last painted rect,
+    // whether the cursor is inside it, and the 0..1 hover blend the paint interpolates —
+    // the browser transitions colour/lift/shadow over 0.2s rather than snapping.
+    QRectF idleCardRect_;
+    bool idleCardHover_ = false;
+    double idleCardHoverT_ = 0.0;
+    QVariantAnimation* idleCardAnim_ = nullptr;
+    // Hover glass sweep (browser ui-shimmer). -1 = no sweep in flight.
+    double idleShimmerT_ = -1.0;
+    QVariantAnimation* idleShimmerAnim_ = nullptr;
+    // Drive idleCardHoverT_ toward `on`, repainting as it goes.
+    void setIdleCardHover(bool on);
     bool dark_ = false;
     QString accentKey_ = "violet";  // brand accent for the rubber-band previews
 
-    // S2: selected committed-line index (-1 = none) + draw-mode/rect state.
+    // Selected committed-line index (-1 = none) + draw-mode/rect state.
     // Canonical owner; filters/render/line-edit only consume selectedLineIdx_.
     DrawMode drawMode_ = DrawMode::Line;
     int selectedLineIdx_ = -1;
-    // Multi-line selection set (Ctrl+Shift+click to add/toggle). Empty in ordinary single-select
-    // mode — selectedIndices() then falls back to [selectedLineIdx_] so every single-line path is
-    // untouched. With 2+ entries selectedLineIdx_ is -1 (the single-line editor hides) and
-    // move/rotate act on all. Mirrors the browser drawingApp.selectedLines.
+    // Multi-line selection set (Ctrl+Shift+click to add/toggle). Empty in single-select
+    // mode — selectedIndices() then falls back to [selectedLineIdx_]. With 2+ entries
+    // selectedLineIdx_ is -1 and move/rotate act on all (browser drawingApp.selectedLines).
     std::vector<int> selectedLines_;
     bool rectDrawActive_ = false;     // drag-to-create rectangle in progress
     QPoint rectDrawStart_, rectDrawEnd_;  // rubber-band corners (widget space)
@@ -378,7 +433,7 @@ namespace stencil::gui {
     int continueLineIdx_ = -1;
     int continueInsertIdx_ = -1;
 
-    // S3: image filter (none | bw | sepia | invert | contour | custom tint)
+    // Image filter (none | bw | sepia | invert | contour | custom tint)
     // cache. filteredImage_ is rebuilt lazily on paint when filterDirty_ is set.
     QString imageFilter_ = "none";
     QColor filterColor_{"#7c3aed"};
@@ -390,8 +445,9 @@ namespace stencil::gui {
     double compareSplit_ = 0.5;           // divider position (0..1) for the split modes
     bool compareHoldOriginal_ = false;    // Alt+Shift+O momentary "peek original"
     bool draggingCompareSplit_ = false;   // divider drag in progress
+    bool blankPage_ = false;              // generated solid-fill page (set by the owner)
 
-    // Pan/zoom-rect drag state (S7/S9).
+    // Pan/zoom-rect drag state.
     bool panning_ = false;        // Alt+left or middle-button drag
     QPoint lastPanPos_;           // last cursor pos during a pan (GLOBAL space)
     bool zoomRectActive_ = false; // Shift+left drag rubber band
@@ -399,8 +455,9 @@ namespace stencil::gui {
     QPoint zoomRectEnd_;          // rubber-band current corner (widget space)
 
     QString defColor_ = "#FFFF00";
+    QString defPointColor_ = "";   // empty = points follow defColor_
     double defThickness_ = 2.0;
-    double defMarkerSize_ = 4.0;
+    double defPointSize_ = 4.0;
     QString defStyle_ = "solid";
 
     // Hover highlight: line/point under the cursor (-1 = none; lineIdx -1 with a
@@ -408,6 +465,19 @@ namespace stencil::gui {
     // `hoverPt` (~1469) driving renderer.js's point hover ring.
     int hoverLineIdx_ = -1;
     int hoverPointIdx_ = -1;
+    // Committed line under the cursor (point OR stroke hit) → panel Lines-list tint.
+    int hoverOverLineIdx_ = -1;
+    // Hover arriving from the panel lists (setListHoverPoint/Line): point ring on the
+    // panel line / hover glow on a committed line. Ports of the browser's
+    // hoveredPtIdx (coord-table row hover) and listHoverLineIdx.
+    int listHoverPointIdx_ = -1;
+    int listHoverLineIdx_ = -1;
+    // Hit thresholds are constant ON SCREEN: base screen px ÷ zoom (browser parity).
+    double hitRadius(double basePx) const { return basePx / (scale_ > 0 ? scale_ : 1.0); }
+    // Drop every cached hover index after a structural change (point/line removal,
+    // undo/redo, reload) — a stale index would ring a DIFFERENT point until the
+    // next mousemove.
+    void clearHoverCache();
 
     // Active Alt-drag gesture. Port of drawingApp.js point/segment/line drags.
     enum class DragKind { None, Point, Segment, Line };

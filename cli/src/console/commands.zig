@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, theme, mouse, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del };
+pub const Verb = enum { upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, unpaste, images, theme, mouse, reveal_speed, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del, prompt, llm, chat };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -46,8 +46,11 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "clear") or eq(w, "cls")) return .clear;
     if (eq(w, "copy") or eq(w, "yank")) return .copy;
     if (eq(w, "paste")) return .paste;
+    if (eq(w, "unpaste") or eq(w, "pop")) return .unpaste;
+    if (eq(w, "images") or eq(w, "attachments") or eq(w, "attached")) return .images;
     if (eq(w, "theme") or eq(w, "themes")) return .theme;
     if (eq(w, "mouse")) return .mouse;
+    if (eq(w, "reveal-speed")) return .reveal_speed;
     if (eq(w, "status") or eq(w, "info") or eq(w, "image")) return .status;
     if (eq(w, "help") or eq(w, "?") or eq(w, "h")) return .help;
     if (eq(w, "exit") or eq(w, "quit") or eq(w, "q")) return .quit;
@@ -67,6 +70,11 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "keywords-del") or eq(w, "keywords-delete") or eq(w, "keywords-rm") or eq(w, "kwdel")) return .keywords_del;
     if (eq(w, "keywords") or eq(w, "kw")) return .keywords;
     if (eq(w, "rename") or eq(w, "mv")) return .rename;
+    // LLM assistant: send a prompt / configure the provider (llm-contract.md).
+    if (eq(w, "prompt") or eq(w, "p")) return .prompt;
+    if (eq(w, "llm")) return .llm;
+    // Opt-in per-project chat persistence (llm-contract.md §12).
+    if (eq(w, "chat")) return .chat;
     if (eq(w, "expire") or eq(w, "expiry") or eq(w, "ttl")) return .expire;
     if (eq(w, "fetch") or eq(w, "pull")) return .fetch;
     if (eq(w, "sync")) return .sync;
@@ -146,6 +154,36 @@ pub fn parseBlank(gpa: std.mem.Allocator, arg: []const u8) ?args.Blank {
     return b;
 }
 
+// One `/connect` argument pair: a server URL plus its optional access token.
+pub const ConnectArg = struct { url: []const u8, token: ?[]const u8 = null };
+
+// A `/connect` word that reads as a server URL rather than a token: it has a scheme,
+// a dot or port, or names localhost. Session/admin tokens carry none of those.
+pub fn looksLikeServerUrl(word: []const u8) bool {
+    if (std.mem.indexOf(u8, word, "://") != null) return true;
+    if (std.mem.indexOfAny(u8, word, ".:") != null) return true;
+    return eqIgnoreCase(word, "localhost");
+}
+
+// Split `/connect` arguments into url/token pairs: each URL-looking word starts a
+// connection and a following token word attaches to it (one each; anything after that
+// starts a new URL, preserving the plain multi-URL form). Slices into `arg`; caller
+// owns the returned slice. The first word is always taken as a URL.
+pub fn parseConnectArgs(gpa: std.mem.Allocator, arg: []const u8) ![]ConnectArg {
+    var out: std.ArrayList(ConnectArg) = .empty;
+    errdefer out.deinit(gpa);
+    var it = std.mem.tokenizeAny(u8, arg, " ,\t");
+    while (it.next()) |word| {
+        const last = if (out.items.len != 0) &out.items[out.items.len - 1] else null;
+        if (last != null and last.?.token == null and !looksLikeServerUrl(word)) {
+            last.?.token = word;
+        } else {
+            try out.append(gpa, .{ .url = word });
+        }
+    }
+    return out.toOwnedSlice(gpa);
+}
+
 // Pull a standalone "album" / "--album" token out of a crop spec, setting `album`. The
 // core crop parser only accepts key=value triples, so the modifier must be removed first.
 pub fn stripAlbum(gpa: std.mem.Allocator, spec: []const u8, album: *bool) ![]u8 {
@@ -214,6 +252,10 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("drop").? == .drop);
     try testing.expect(verbOf("clear").? == .clear);
     try testing.expect(verbOf("paste").? == .paste);
+    try testing.expect(verbOf("unpaste").? == .unpaste);
+    try testing.expect(verbOf("pop").? == .unpaste);
+    try testing.expect(verbOf("images").? == .images);
+    try testing.expect(verbOf("attached").? == .images);
     try testing.expect(verbOf("theme").? == .theme);
     try testing.expect(verbOf("crop") == null); // a transform, not a session verb
     try testing.expect(verbOf("frob") == null);
@@ -245,6 +287,13 @@ test "verbOf / actionOf: session verbs vs transforms" {
     try testing.expect(verbOf("keywords-rm").? == .keywords_del);
     try testing.expect(verbOf("fetch").? == .fetch);
     try testing.expect(verbOf("sync").? == .sync);
+
+    // LLM assistant verbs (+ the /p shorthand; not shadowed by paste/projects).
+    try testing.expect(verbOf("prompt").? == .prompt);
+    try testing.expect(verbOf("p").? == .prompt);
+    try testing.expect(verbOf("llm").? == .llm);
+    try testing.expect(verbOf("chat").? == .chat); // §12 chat persistence toggle
+    try testing.expect(verbOf("paste").? == .paste); // /p stays distinct from /paste
 
     // Delete a local .stencil project file (and its aliases); not shadowed by drop/keywords-del.
     try testing.expect(verbOf("delete").? == .delete);
@@ -365,6 +414,44 @@ test "parseBlank: leading page-format token, canonical + exclusive with dims" {
     try testing.expect(parseBlank(a, "b5 800 600") == null); // format + dims are exclusive
     try testing.expect(parseBlank(a, "b5 notacolour") == null);
     try testing.expect(parseBlank(a, "b5 red extra") == null);
+}
+
+test "parseConnectArgs: url/token pairs, multi-url form preserved" {
+    const a = testing.allocator;
+
+    // Plain single URL, no token.
+    const p1 = try parseConnectArgs(a, "http://host:8090");
+    defer a.free(p1);
+    try testing.expectEqual(@as(usize, 1), p1.len);
+    try testing.expectEqualStrings("http://host:8090", p1[0].url);
+    try testing.expect(p1[0].token == null);
+
+    // URL + token (base64url tokens have no dot/colon/scheme).
+    const p2 = try parseConnectArgs(a, "http://host:8090 s3cr3t-tok_en");
+    defer a.free(p2);
+    try testing.expectEqual(@as(usize, 1), p2.len);
+    try testing.expectEqualStrings("s3cr3t-tok_en", p2[0].token.?);
+
+    // The old multi-URL form still parses as two connections.
+    const p3 = try parseConnectArgs(a, "http://a:1 http://b:2");
+    defer a.free(p3);
+    try testing.expectEqual(@as(usize, 2), p3.len);
+    try testing.expect(p3[0].token == null);
+    try testing.expectEqualStrings("http://b:2", p3[1].url);
+
+    // Mixed: a tokened URL followed by a bare one; localhost counts as a URL.
+    const p4 = try parseConnectArgs(a, "host:8090 tok localhost");
+    defer a.free(p4);
+    try testing.expectEqual(@as(usize, 2), p4.len);
+    try testing.expectEqualStrings("tok", p4[0].token.?);
+    try testing.expectEqualStrings("localhost", p4[1].url);
+
+    // A leading word is always the URL, even without a dot/port.
+    const p5 = try parseConnectArgs(a, "myserver tok");
+    defer a.free(p5);
+    try testing.expectEqual(@as(usize, 1), p5.len);
+    try testing.expectEqualStrings("myserver", p5[0].url);
+    try testing.expectEqualStrings("tok", p5[0].token.?);
 }
 
 test "stripAlbum: removes the modifier and sets the flag" {

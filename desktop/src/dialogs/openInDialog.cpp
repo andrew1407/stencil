@@ -1,4 +1,5 @@
 #include "openInDialog.hpp"
+#include "iconSet.hpp"
 #include <QCheckBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -41,6 +42,10 @@ namespace stencil::gui {
     btnRow->addStretch(1);
     auto* cancel = new QPushButton("Cancel", this);
     cancel->setToolTip("Close without opening anything");
+    // Same glyphs as the browser's Open In… modal (openInModal.js): x to back out,
+    // message for the Telegram bot; the browser app is the "leave this app" target.
+    const QColor openInTxt = palette().color(QPalette::WindowText);
+    cancel->setIcon(themedIcon("x", openInTxt, 15));
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     btnRow->addWidget(cancel);
 
@@ -49,6 +54,7 @@ namespace stencil::gui {
     // at least one is available, so the footer is never empty.
     if (browserAvailable) {
       browser_ = new QPushButton("Browser app", this);
+      browser_->setIcon(themedIcon("external", openInTxt, 15));
       browser_->setToolTip("Open this project in the Stencil browser app "
                            "(the base URL is set in Settings)");
       connect(browser_, &QPushButton::clicked, this, [this] {
@@ -61,6 +67,7 @@ namespace stencil::gui {
     // payload can't carry image bytes) — both folded into telegramAvailable.
     if (telegramAvailable) {
       telegram_ = new QPushButton("Telegram bot", this);
+      telegram_->setIcon(themedIcon("message", openInTxt, 15));
       telegram_->setToolTip("Open this server project in the Telegram bot");
       connect(telegram_, &QPushButton::clicked, this, [this] {
         outcome_ = Outcome::Telegram;

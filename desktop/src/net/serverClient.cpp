@@ -96,13 +96,31 @@ namespace stencil::net {
                        const QByteArray data = reply->readAll();
                        if (reply->error() != QNetworkReply::NoError && status == 0)
                          err_ = reply->errorString();
+                       // A live session refused mid-flight is EXPIRED, not a dead
+                       // server: the row offers a reconnect instead of pretending
+                       // the host is down. One warning, and only on the way in.
+                       if ((status == 401 || status == 403) && status_ == Status::Connected) {
+                         status_ = Status::Expired;
+                         err_ = QStringLiteral("session expired (HTTP %1)").arg(status);
+                         qWarning("stencil: session on %s expired — reconnect to sign in again",
+                                  qPrintable(base_));
+                       }
                        reply->deleteLater();
                        done(status, data);
                      });
   }
 
   bool ServerClient::connect(const QString& token) {
+    credential_ = token;
     status_ = Status::Connecting;
+    // A refused credential is Expired, not Error: see the enum's note.
+    const auto failAuth = [this](const QString& msg) {
+      err_ = msg;
+      status_ = Status::Expired;
+      qWarning("stencil: session on %s needs re-authentication (%s)", qPrintable(base_),
+               qPrintable(msg));   // ONE warning, never a repeated error
+      return false;
+    };
     const auto fail = [this](const QString& msg) {
       err_ = msg;
       status_ = Status::Error;
@@ -114,7 +132,10 @@ namespace stencil::net {
       const QByteArray body =
           request("POST", "/auth/token", "{}", "application/json", status);
       if (status < 200 || status >= 300)
-        return fail(QString("token request failed (HTTP %1)").arg(status));
+        return status == 401 || status == 403
+                   ? failAuth(QString("this server gates token minting (ADMIN_TOKEN) — paste a "
+                                      "session token, or the admin token, into the Token field"))
+                   : fail(QString("token request failed (HTTP %1)").arg(status));
       const QJsonObject obj = QJsonDocument::fromJson(body).object();
       token_ = obj.value("token").toString();
       if (token_.isEmpty()) return fail("server returned no token");
@@ -122,8 +143,19 @@ namespace stencil::net {
       token_ = token;
       request("GET", "/projects", {}, {}, status);
       if (status < 200 || status >= 300) {
-        token_.clear();
-        return fail(QString("token rejected (HTTP %1)").arg(status));
+        // Not a session token — but it may be the server's ADMIN token (the gate
+        // operators hold): try minting a session WITH it. Entering ADMIN_TOKEN in
+        // the Token field then just works, instead of a bare 401.
+        int mint = 0;
+        const QByteArray minted =
+            request("POST", "/auth/token", "{}", "application/json", mint);
+        if (mint >= 200 && mint < 300) {
+          token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
+          if (token_.isEmpty()) return fail("server returned no token");
+        } else {
+          token_.clear();
+          return failAuth(QString("token rejected (HTTP %1)").arg(status));
+        }
       }
     }
     status_ = Status::Connected;
@@ -133,6 +165,7 @@ namespace stencil::net {
   // ── Async REST surface (mirrors the synchronous methods above op-for-op) ──
 
   void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done) {
+    credential_ = token;
     status_ = Status::Connecting;
     if (base_.isEmpty()) {
       err_ = "empty server URL";
@@ -144,8 +177,15 @@ namespace stencil::net {
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int status, QByteArray body) {
                      if (status < 200 || status >= 300) {
-                       err_ = QString("token request failed (HTTP %1)").arg(status);
-                       status_ = Status::Error;
+                       const bool refused = status == 401 || status == 403;
+                       err_ = refused
+                                  ? QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
+                                                   "session token, or the admin token, into the Token field")
+                                  : QString("token request failed (HTTP %1)").arg(status);
+                       // A gate is a credential problem, not a dead server.
+                       status_ = refused ? Status::Expired : Status::Error;
+                       if (refused)
+                         qWarning("stencil: %s needs a token (ADMIN_TOKEN gate)", qPrintable(base_));
                        done(false);
                        return;
                      }
@@ -162,16 +202,39 @@ namespace stencil::net {
     } else {
       token_ = token;
       requestAsync("GET", "/projects", {}, {},
-                   [this, done = std::move(done)](int status, QByteArray) {
-                     if (status < 200 || status >= 300) {
-                       token_.clear();
-                       err_ = QString("token rejected (HTTP %1)").arg(status);
-                       status_ = Status::Error;
-                       done(false);
+                   [this, done = std::move(done)](int status, QByteArray) mutable {
+                     if (status >= 200 && status < 300) {
+                       status_ = Status::Connected;
+                       done(true);
                        return;
                      }
-                     status_ = Status::Connected;
-                     done(true);
+                     // Same admin-token fallback as the sync path: token_ still holds
+                     // the entered value, so the mint request carries it as bearer.
+                     requestAsync("POST", "/auth/token", "{}", "application/json",
+                                  [this, status, done = std::move(done)](int mint, QByteArray body) {
+                                    if (mint >= 200 && mint < 300) {
+                                      token_ = QJsonDocument::fromJson(body).object().value("token").toString();
+                                      if (!token_.isEmpty()) {
+                                        status_ = Status::Connected;
+                                        done(true);
+                                        return;
+                                      }
+                                      err_ = "server returned no token";
+                                      token_.clear();
+                                      status_ = Status::Error;
+                                      done(false);
+                                      return;
+                                    }
+                                    // The token is not a session token and not the
+                                    // admin token: a refused CREDENTIAL, so the row
+                                    // offers a sign-in rather than a dead server.
+                                    err_ = QString("token rejected (HTTP %1)").arg(status);
+                                    token_.clear();
+                                    status_ = Status::Expired;
+                                    qWarning("stencil: token refused by %s — reconnect to sign in again",
+                                             qPrintable(base_));
+                                    done(false);
+                                  });
                    });
     }
   }
@@ -370,6 +433,21 @@ namespace stencil::net {
                  });
   }
 
+  void ServerClient::deleteFileAsync(const QString& id, const QString& kind,
+                                     std::function<void(bool)> done) {
+    // Filestore-only kinds (video/variantN/chat) only; the server answers an
+    // idempotent 204 (llm-contract.md §9) and refuses original/result.
+    requestAsync("DELETE", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
+                 [this, done = std::move(done)](int status, QByteArray) {
+                   if (status < 200 || status >= 300) {
+                     err_ = QString("file delete failed (HTTP %1)").arg(status);
+                     done(false);
+                     return;
+                   }
+                   done(true);
+                 });
+  }
+
   void ServerClient::deleteProjectAsync(const QString& id, std::function<void(bool)> done) {
     requestAsync("DELETE", QString("/projects/%1").arg(id), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
@@ -440,6 +518,14 @@ namespace stencil::net {
     auto* client = new ServerClient(base);
     if (!client->connect(token)) {
       err = client->lastError();
+      // A REFUSED CREDENTIAL keeps its place: the server is fine and the URL worth
+      // keeping, so the row can offer a sign-in. An unreachable host is still
+      // dropped — there is nothing to sign in to.
+      if (client->needsReauth()) {
+        clients_.push_back(client);
+        emit changed();
+        return false;
+      }
       delete client;
       return false;
     }
@@ -520,7 +606,9 @@ namespace stencil::net {
   QVector<SavedServer> ConnectionManager::snapshot() const {
     QVector<SavedServer> out;
     out.reserve(clients_.size());
-    for (auto* c : clients_) out.push_back({c->base(), c->token()});
+    // Persist the CREDENTIAL, never the minted session token — sessions die
+    // with a server restart; the credential re-mints on the next connect.
+    for (auto* c : clients_) out.push_back({c->base(), c->credential()});
     return out;
   }
 

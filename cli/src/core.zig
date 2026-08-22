@@ -128,17 +128,21 @@ pub const LineDraw = struct {
     points: []const f64, // x,y pairs (2 * n_points)
     color: [:0]const u8,
     thickness: f64,
-    marker_size: f64,
+    point_size: f64,
     style: [:0]const u8,
     locked: bool,
     fill_color: [:0]const u8,
+    /// Point colour. Empty = inherit `color` (the pre-field behaviour), so callers
+    /// that don't set it get exactly the old rendering. Defaulted so existing construction
+    /// sites keep compiling unchanged.
+    point_color: [:0]const u8 = "",
 };
 
 pub fn rasterizeLine(buf: []u8, w: i32, h: i32, line: LineDraw) void {
     const n_pts: c_int = @intCast(line.points.len / 2);
     c.stencil_cli_rasterizeLine(buf.ptr, w, h, line.points.ptr, n_pts, line.color.ptr,
-        line.thickness, line.marker_size, line.style.ptr, @intFromBool(line.locked),
-        line.fill_color.ptr);
+        line.thickness, line.point_size, line.style.ptr, @intFromBool(line.locked),
+        line.fill_color.ptr, line.point_color.ptr);
 }
 
 /// Validate a single-variable formula (`var_name` is 'x' or 'y'). Empty = valid (identity).

@@ -7,6 +7,7 @@
 #include <QColor>
 #include <QCursor>
 #include <QFileInfo>
+#include <QFontMetricsF>
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -15,6 +16,7 @@
 #include <QPen>
 #include <QPointF>
 #include <QPolygonF>
+#include <QVariantAnimation>
 #include <QTransform>
 #include <QNativeGestureEvent>
 #include <QWheelEvent>
@@ -53,12 +55,13 @@ namespace stencil::gui {
     cropRect_ = defaultCropRect();
     rebuildCroppedFromOriginal();
     lines_.clear();
+    clearHoverCache();
     currentLine_ = core::Line{};
     applyDefaultsToCurrent();
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
-    filterDirty_ = true;    // S3: new image -> rebuild filter cache
+    filterDirty_ = true;    // new image -> rebuild filter cache
     history_.reset(lines_);
     setFixedSize(QSize(qRound(image_.width() * scale_),
                        qRound(image_.height() * scale_)));
@@ -186,6 +189,7 @@ namespace stencil::gui {
     if (!path.isEmpty()) {
       QImage img;
       if (img.load(path)) {
+        blankPage_ = false;   // the owner re-marks reopened blanks after restore
         originalImage_ = img;
         imagePath_ = path;
         // Rotation must be set before defaultCropRect / rebuild read it.
@@ -197,12 +201,13 @@ namespace stencil::gui {
       }
     }
     lines_ = lines;
+    clearHoverCache();
     currentLine_ = core::Line{};
     applyDefaultsToCurrent();
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
-    filterDirty_ = true;    // S3
+    filterDirty_ = true;
     history_.reset(lines_);
     if (!image_.isNull()) {
       setFixedSize(QSize(qRound(image_.width() * scale_),
@@ -221,14 +226,15 @@ namespace stencil::gui {
 
   void CanvasWidget::setLines(const core::Lines& lines) {
     lines_ = lines;
+    clearHoverCache();   // indices are meaningless against the new set
     currentLine_ = core::Line{};
     applyDefaultsToCurrent();
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
     history_.reset(lines_);
     update();
-    emit changed();  // S7: setLines must signal a content change
+    emit changed();  // setLines must signal a content change
     emit selectionChanged();
   }
 
@@ -242,11 +248,13 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::setDefaults(const QString& color, double thickness,
-                                 double markerSize, const QString& style) {
+                                 double pointSize, const QString& style,
+                                 const QString& pointColor) {
     defColor_ = color;
     defThickness_ = thickness;
-    defMarkerSize_ = markerSize;
+    defPointSize_ = pointSize;
     defStyle_ = style;
+    defPointColor_ = pointColor;
     if (currentLine_.points.empty()) applyDefaultsToCurrent();
     update();
   }
@@ -254,8 +262,12 @@ namespace stencil::gui {
   void CanvasWidget::applyDefaultsToCurrent() {
     currentLine_.color = defColor_.toStdString();
     currentLine_.thickness = defThickness_;
-    currentLine_.markerSize = defMarkerSize_;
+    currentLine_.pointSize = defPointSize_;
     currentLine_.style = defStyle_.toStdString();
+    // Resolved AT DRAW TIME (empty setting → the current line colour) so a later
+    // line-colour change never recolours already-drawn points (browser parity).
+    currentLine_.pointColor =
+        (defPointColor_.isEmpty() ? defColor_ : defPointColor_).toStdString();
   }
 
   void CanvasWidget::setShowPoints(bool on) {
@@ -276,7 +288,7 @@ namespace stencil::gui {
     update();
   }
 
-  // ── S3: image filters (port of browser/js/core/renderer.js
+  // ── image filters (port of browser/js/core/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164) ──
   void CanvasWidget::setFilter(const QString& mode) {
     imageFilter_ = mode;
@@ -317,10 +329,17 @@ namespace stencil::gui {
     update();
   }
 
+  // Loads reset this to false; the owner re-marks blanks right after creating,
+  // recolouring, or reopening one.
+  void CanvasWidget::setBlankPage(bool on) {
+    if (blankPage_ == on) return;
+    blankPage_ = on;
+    update();
+  }
+
   // Rebuild filteredImage_ from image_ per the active filter. bw/sepia/invert/
-  // custom mirror the CSS/pixel filters the browser applies on the canvas
-  // context; contour routes through core::applyContourRGBA (a convolution, not
-  // a per-pixel map).
+  // custom mirror the browser's canvas pixel filters; contour routes through
+  // core::applyContourRGBA (a convolution, not a per-pixel map).
   void CanvasWidget::rebuildFilteredImage() {
     filterDirty_ = false;
     if (image_.isNull() || imageFilter_ == "none") {
@@ -330,10 +349,9 @@ namespace stencil::gui {
     const core::FilterMode mode =
         core::filterModeFromString(imageFilter_.toStdString());
     if (mode == core::FilterMode::Contour) {
-      // Contour is a Sobel convolution over the whole w×h grid, so it can't go
-      // through the per-pixel loop below. Hand core::applyContourRGBA a
-      // Format_RGBA8888 copy — the interleaved R,G,B,A byte order its luma math
-      // expects (ARGB32's packed layout would feed it swapped channels).
+      // Contour is a whole-grid Sobel convolution, so it can't use the per-pixel
+      // loop below. Hand core::applyContourRGBA a Format_RGBA8888 copy — the
+      // byte order its luma math expects (ARGB32 would feed swapped channels).
       QImage rgba = image_.convertToFormat(QImage::Format_RGBA8888);
       core::applyContourRGBA(rgba.bits(), rgba.width(), rgba.height());
       filteredImage_ = rgba;
@@ -425,7 +443,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     isDrawing_ = false;
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
     update();
     emit drawingModeChanged(false);
@@ -449,6 +467,7 @@ namespace stencil::gui {
     if (compareReadOnly()) return;   // read-only compare view
     if (currentLine_.points.empty()) return;
     currentLine_.points.pop_back();
+    clearHoverCache();   // the hovered in-progress point may be the one removed
     selectedPoint_ = -1;
     update();
     emit selectionChanged();
@@ -458,10 +477,11 @@ namespace stencil::gui {
     if (compareReadOnly()) return;   // read-only compare view
     if (lines_.empty() && currentLine_.points.empty()) return;
     lines_.clear();
+    clearHoverCache();
     currentLine_ = core::Line{};
     applyDefaultsToCurrent();
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
     commitHistory();
     update();
@@ -477,10 +497,11 @@ namespace stencil::gui {
     if (compareReadOnly()) return;   // read-only compare view
     if (auto snap = history_.undo()) {
       lines_ = *snap;
+      clearHoverCache();   // the snapshot may not contain the hovered indices
       currentLine_ = core::Line{};
       applyDefaultsToCurrent();
       selectedPoint_ = -1;
-      selectedLineIdx_ = -1;  // S2
+      selectedLineIdx_ = -1;
       update();
       emit changed();
       emit selectionChanged();
@@ -491,21 +512,20 @@ namespace stencil::gui {
     if (compareReadOnly()) return;   // read-only compare view
     if (auto snap = history_.redo()) {
       lines_ = *snap;
+      clearHoverCache();   // see undo()
       currentLine_ = core::Line{};
       applyDefaultsToCurrent();
       selectedPoint_ = -1;
-      selectedLineIdx_ = -1;  // S2
+      selectedLineIdx_ = -1;
       update();
       emit changed();
       emit selectionChanged();
     }
   }
 
-  // The line whose points the selection panel shows. S2 priority: an explicitly
-  // selected committed line wins, else the in-progress line while drawing, else
-  // the most recently committed line.
-  // Mutable forwarder: const_cast the result of the const overload (matches the
-  // renderToImage const_cast pattern; never recurse via the mutable version).
+  // The line the selection panel shows: an explicitly selected committed line
+  // wins, else the in-progress line while drawing, else the last committed one.
+  // Mutable forwarder: const_cast the const overload's result; never recurse.
   core::Line* CanvasWidget::mutablePanelLine() {
     return const_cast<core::Line*>(
         static_cast<const CanvasWidget*>(this)->panelLine());
@@ -536,10 +556,13 @@ namespace stencil::gui {
     const bool committed = (line != &currentLine_);
     line->points.erase(line->points.begin() + index);
     if (committed) {
-      if (line->points.empty()) lines_.pop_back();
-      selectedLineIdx_ = -1;  // S2: index may now be stale/invalid
+      // Erase the line the panel actually shows (it need not be lines_.back()).
+      if (line->points.empty())
+        lines_.erase(lines_.begin() + (line - lines_.data()));
+      selectedLineIdx_ = -1;  // index may now be stale/invalid
       commitHistory();
     }
+    clearHoverCache();   // indices shifted
     selectedPoint_ = -1;
     update();
     emit changed();
@@ -561,13 +584,13 @@ namespace stencil::gui {
 
   void CanvasWidget::deselect() {
     selectedPoint_ = -1;
-    selectedLineIdx_ = -1;  // S2
+    selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
     update();
     emit selectionChanged();
   }
 
-  // S2: port of browser drawingApp.js setDrawMode ~1120. Guard equality so we
+  // port of browser drawingApp.js setDrawMode ~1120. Guard equality so we
   // don't churn repaints / re-emit when nothing actually changed.
   void CanvasWidget::setDrawMode(DrawMode mode) {
     if (drawMode_ == mode) return;
@@ -575,18 +598,16 @@ namespace stencil::gui {
     emit drawModeChanged(drawMode_);
   }
 
-  // S2: hit-test committed lines and select the topmost match. Port of the
-  // click-select branch in drawingApp.js ~1251: a click on a point selects that
-  // line AND focuses the clicked point (which becomes the rotation pivot); a
-  // click on a segment selects the line with no focused point; empty space
-  // clears the selection.
+  // Hit-test committed lines, topmost match wins (drawingApp.js ~1251): a point
+  // hit selects its line AND focuses that point (the rotation pivot); a segment
+  // hit selects with no focused point; empty space clears the selection.
   int CanvasWidget::selectLineAt(double x, double y) {
     selectedLines_.clear();   // a plain click leaves multi-select mode
-    if (auto pt = core::findNearestPoint(lines_, x, y)) {
+    if (auto pt = core::findNearestPoint(lines_, x, y, hitRadius(12.0))) {
       selectedLineIdx_ = pt->lineIdx;
       selectedPoint_ = pt->ptIdx;
     } else {
-      selectedLineIdx_ = core::findLineAt(lines_, x, y);
+      selectedLineIdx_ = core::findLineAt(lines_, x, y, hitRadius(8.0));
       selectedPoint_ = -1;
     }
     update();
@@ -635,8 +656,8 @@ namespace stencil::gui {
 
   void CanvasWidget::toggleLineSelection(const core::Point& ip) {
     int idx = -1;
-    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y)) idx = pt->lineIdx;
-    else idx = core::findLineAt(lines_, ip.x, ip.y);
+    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y, hitRadius(12.0))) idx = pt->lineIdx;
+    else idx = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
     toggleLineIndex(idx);  // idx == -1 (empty space) is a no-op inside
   }
 
@@ -660,6 +681,7 @@ namespace stencil::gui {
     if (compareReadOnly()) return;   // read-only compare view
     if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
     lines_.erase(lines_.begin() + idx);
+    clearHoverCache();   // indices shifted
     for (auto it = selectedLines_.begin(); it != selectedLines_.end();) {
       if (*it == idx) { it = selectedLines_.erase(it); continue; }
       if (*it > idx) --*it;
@@ -690,7 +712,7 @@ namespace stencil::gui {
     return &lines_[selectedLineIdx_];
   }
 
-  // S2: port of browser drawingApp.js createRect ~1393 (standalone branch). Build
+  // port of browser drawingApp.js createRect ~1393 (standalone branch). Build
   // a locked 4-corner rectangle (drawPolygon closes the loop, so no 5th point),
   // push it, select it, and commit history.
   void CanvasWidget::createRect(double x1, double y1, double x2, double y2) {
@@ -720,8 +742,10 @@ namespace stencil::gui {
     core::Line rect;
     rect.points = {{xa, ya}, {xb, ya}, {xb, yb}, {xa, yb}};  // exactly 4 corners
     rect.color = defColor_.toStdString();
+    rect.pointColor =
+        (defPointColor_.isEmpty() ? defColor_ : defPointColor_).toStdString();
     rect.thickness = defThickness_;
-    rect.markerSize = defMarkerSize_;
+    rect.pointSize = defPointSize_;
     rect.style = defStyle_.toStdString();
     rect.locked = true;
     rect.fillColor = "transparent";
@@ -738,10 +762,9 @@ namespace stencil::gui {
     return {widgetX / scale_, widgetY / scale_};
   }
 
-  // Port of the line-drawing logic in browser/js/core/renderer.js: locked-area
-  // fill beneath the stroke, dash patterns per style, then point markers.
-  // S6: scale-parameterized so renderToImage can draw at native resolution
-  // (scale 1.0) while the live view passes scale_.
+  // Port of the line drawing in browser/js/core/renderer.js: locked-area fill
+  // beneath the stroke, dash patterns per style, then points. Scale-parameterized
+  // so renderToImage draws at native resolution while the live view passes scale_.
   void CanvasWidget::drawLineScaled(QPainter& p, const core::Line& line,
                                     int lineIdx, double scale,
                                     bool highlight) const {
@@ -755,10 +778,16 @@ namespace stencil::gui {
     const QColor stroke(QString::fromStdString(line.color));
     const Palette pal = themePalette(dark_, accentKey_);
 
+    // Points take the line's own point colour, which core::pointColorOr resolves to the
+    // stroke colour when unset — so a line without one paints exactly as it always did.
+    // An unparseable colour falls back to the stroke rather than painting points black.
+    const QColor pointParsed(QString::fromStdString(core::pointColorOr(line)));
+    const QColor pointFill = pointParsed.isValid() ? pointParsed : stroke;
+
     drawFill(p, line, poly);
     drawGlow(p, line, poly, lineIdx, highlight, pal);
     drawStroke(p, line, poly, stroke);
-    drawMarkers(p, line, poly, lineIdx, highlight, stroke, pal);
+    drawPoints(p, line, poly, lineIdx, highlight, pointFill, pal);
   }
 
   // Locked-area fill beneath the stroke (renderer.js): only for closed shapes
@@ -778,6 +807,21 @@ namespace stencil::gui {
   void CanvasWidget::drawGlow(QPainter& p, const core::Line& line,
                               const QPolygonF& poly, int lineIdx, bool highlight,
                               const Palette& pal) const {
+    // Lines-list row hover: a thinner, fainter glow than the selection's, so the
+    // two states stay distinguishable (browser renderer.js listHoverLineIdx).
+    if (highlight && showLines_ && lineIdx >= 0 && lineIdx == listHoverLineIdx_ &&
+        !isLineSelected(lineIdx) && line.points.size() >= 2) {
+      QColor glow = pal.hoverRing;
+      glow.setAlphaF(0.35);
+      QPen gpen(glow);
+      gpen.setWidthF(line.thickness + 6.0);
+      gpen.setCapStyle(Qt::RoundCap);
+      gpen.setJoinStyle(Qt::RoundJoin);
+      p.setPen(gpen);
+      p.setBrush(Qt::NoBrush);
+      if (line.locked) p.drawPolygon(poly);
+      else p.drawPolyline(poly);
+    }
     if (highlight && showLines_ && lineIdx >= 0 && isLineSelected(lineIdx) &&
         line.points.size() >= 2) {
       QColor glow = pal.selGlow;
@@ -813,17 +857,16 @@ namespace stencil::gui {
     }
   }
 
-  // Point markers + hover/focus rings. The browser does NOT number points on
-  // the canvas (renderer.js draws no labels), so we don't either — S4 removed
-  // the per-point index drawText. Rings are live-only (never baked into exports).
-  void CanvasWidget::drawMarkers(QPainter& p, const core::Line& line,
+  // Points + hover/focus rings. The browser draws no point labels on the canvas
+  // (renderer.js), so neither do we. Rings are live-only (never baked into exports).
+  void CanvasWidget::drawPoints(QPainter& p, const core::Line& line,
                                  const QPolygonF& poly, int lineIdx,
                                  bool highlight, const QColor& stroke,
                                  const Palette& pal) const {
     if (!showPoints_) return;
 
     const bool isActive = highlight && (&line == panelLine());
-    const double r = line.markerSize;
+    const double r = line.pointSize;
     p.setPen(QPen(pal.textMain, 1));
     for (int i = 0; i < poly.size(); ++i) {
       const QPointF v = poly[i];
@@ -834,9 +877,13 @@ namespace stencil::gui {
         p.drawEllipse(v, r + 3, r + 3);
         p.setPen(QPen(pal.textMain, 1));
       }
-      // Hovered point: thin translucent ring (renderer.js state 1). Skipped on the
-      // focused point, which already has the bolder ring above.
-      else if (highlight && lineIdx == hoverLineIdx_ && i == hoverPointIdx_) {
+      // Hovered point: thin translucent ring (renderer.js state 1) — from the
+      // canvas cursor, a hovered points-table row, or a hovered Lines-list row.
+      // Skipped on the focused point, which has the bolder ring above.
+      else if (highlight &&
+               ((lineIdx == hoverLineIdx_ && i == hoverPointIdx_) ||
+                (isActive && i == listHoverPointIdx_) ||
+                (lineIdx >= 0 && lineIdx == listHoverLineIdx_))) {
         QColor ring = pal.hoverRing;
         ring.setAlphaF(0.55);
         QPen rpen(ring);
@@ -857,52 +904,144 @@ namespace stencil::gui {
     const Palette pal = themePalette(dark_, accentKey_);
     if (image_.isNull()) {
       p.fillRect(rect(), pal.bgPage);
-      // Centred dashed drop-zone outline (browser parity) — the whole canvas is the click target
-      // (mousePressEvent → blankImageRequested), and this box makes that affordance visible.
-      setCursor(Qt::PointingHandCursor);
-      const QString msg = QStringLiteral("Open an image to begin\n🖼  Click to create a blank image");
-      // Responsive drop box: scales with the canvas but stays within comfortable bounds and
-      // never overflows the widget, so the dashed border is fully visible on all four sides.
+      // The clear's dust is still falling: paint the bare page and nothing else, so the
+      // invitation does not appear underneath the particles (setIdleHintHidden).
+      if (idleHintHidden_) { unsetCursor(); return; }
+      // The idle card (port of the browser's .idle-create-btn): a dashed box with
+      // the 32 px `image` glyph over a "＋ Blank image" label, accent fill on hover.
+      // The card alone is the click/cursor target, never the whole page.
+      const QString label = QStringLiteral("＋ Blank image");
+      constexpr int kIconPx = 32;
+      constexpr qreal kGap = 6, kPadX = 26, kPadY = 16;
+
+      QFont cardFont = p.font();
+      cardFont.setPixelSize(13);
+      const QFontMetricsF fm(cardFont);
+      const qreal textW = fm.horizontalAdvance(label);
+      const qreal textH = fm.height();
       const QRectF wr(rect());
-      QRectF box(0, 0, std::clamp(wr.width() * 0.5, 300.0, 560.0),
-                 std::clamp(wr.height() * 0.4, 120.0, 190.0));
+      QRectF box(0, 0, std::max<qreal>(kIconPx, textW) + kPadX * 2,
+                 kIconPx + kGap + textH + kPadY * 2);
+      // Never wider/taller than the canvas it sits in, so the dashed border stays whole.
       box.setWidth(std::min(box.width(), wr.width() - 32.0));
       box.setHeight(std::min(box.height(), wr.height() - 32.0));
       box.moveCenter(wr.center());
+
       QColor accent = accentPrimary(accentKey_);
       if (!accent.isValid()) accent = pal.textMuted;
+      // The whole hover is a blend on `t`, mirroring the browser transition: panel fill →
+      // solid accent, muted dashed edge → bright, text → white, plus a 3 px lift, a drop
+      // shadow and a 1.12× icon (.idle-create-btn / .idle-create-icon in animations.css).
+      const double t = idleCardHoverT_;
+      const auto mix = [t](const QColor& a, const QColor& b) {
+        return QColor::fromRgbF(a.redF() + (b.redF() - a.redF()) * t,
+                                a.greenF() + (b.greenF() - a.greenF()) * t,
+                                a.blueF() + (b.blueF() - a.blueF()) * t,
+                                a.alphaF() + (b.alphaF() - a.alphaF()) * t);
+      };
+      QColor edgeIdle = accent;
+      edgeIdle.setAlpha(dark_ ? 150 : 120);
+      const QColor fill = mix(pal.bgControls, accent);
+      const QColor edge = mix(edgeIdle, accent.lighter(115));
+      const QColor ink = mix(pal.textMain, QColor(Qt::white));
+      // Hit-test against the RESTING rect, never the lifted one: if the hover target rose
+      // with the card, a cursor on its bottom edge would fall out of it, drop the hover,
+      // fall back in, and oscillate. Only the painted box moves.
+      idleCardRect_ = box;
+      box.translate(0, -3.0 * t);
+
+      // Drop shadow (0 8px 24px): a few expanding rounded rects, since QPainter has no
+      // blur. Only while lifted, and skipped entirely at rest so the idle card is flat.
+      if (t > 0.01) {
+        constexpr int kLayers = 6;
+        for (int i = kLayers; i >= 1; --i) {
+          const double spread = i * 2.4;
+          QColor sh(0, 0, 0);
+          sh.setAlphaF(0.05 * t * (1.0 - double(i) / (kLayers + 1)));
+          p.setPen(Qt::NoPen);
+          p.setBrush(sh);
+          p.drawRoundedRect(box.adjusted(-spread, -spread + 8, spread, spread + 8),
+                            10 + spread, 10 + spread);
+        }
+      }
       // Fill first with NO pen, then stroke the dashed border as a separate rounded path.
       // Filling + dash-stroking in one drawRoundedRect call drops the vertical dashed edges
       // on some Qt/macOS builds (leaving only the top/bottom rules), so keep the two apart.
-      QColor fill = accent;
-      fill.setAlpha(dark_ ? 22 : 16);
       p.setPen(Qt::NoPen);
       p.setBrush(fill);
-      p.drawRoundedRect(box, 14, 14);
-      QPen dash(accent, 2, Qt::DashLine);
-      dash.setDashPattern({6.0, 4.0});
+      p.drawRoundedRect(box, 10, 10);
+      QPen dash(edge, 2, Qt::DashLine);
+      dash.setDashPattern({3.0, 2.0});
       p.setPen(dash);
       p.setBrush(Qt::NoBrush);
       QPainterPath border;
-      border.addRoundedRect(box, 14, 14);
+      border.addRoundedRect(box, 10, 10);
       p.drawPath(border);
-      p.setPen(pal.textMuted);
-      p.drawText(box, Qt::AlignCenter, msg);
+
+      // Glass sweep: a soft diagonal light band crossing the card, clipped to its
+      // rounded box (browser layout.css ::after + @keyframes ui-shimmer).
+      if (idleShimmerT_ >= 0.0) {
+        const double w = box.width();
+        const double x = box.left() - 1.35 * w + idleShimmerT_ * 2.7 * w;
+        QLinearGradient band(x, box.top(), x + w * 0.9, box.bottom());
+        QColor glass(Qt::white);
+        glass.setAlphaF(dark_ ? 0.30 : 0.55);
+        band.setColorAt(0.38, QColor(255, 255, 255, 0));
+        band.setColorAt(0.50, glass);
+        band.setColorAt(0.62, QColor(255, 255, 255, 0));
+        p.save();
+        p.setClipPath(border);
+        p.setPen(Qt::NoPen);
+        p.setBrush(band);
+        p.drawRect(box);
+        p.restore();
+      }
+
+      const QRectF content = box.adjusted(kPadX, kPadY, -kPadX, -kPadY);
+      // The glyph grows 1.12x and rises 2px with the hover, about its own centre.
+      const double iconScale = 1.0 + 0.12 * t;
+      const QRectF iconBox(content.center().x() - kIconPx / 2.0,
+                           content.top() - 2.0 * t, kIconPx, kIconPx);
+      // The shared `image` glyph, stroked inline rather than via support/iconSet
+      // (that would drag Qt6::Svg into the headless targets compiling this file).
+      // Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / icons.js; keep in sync.
+      p.save();
+      p.translate(iconBox.center());
+      p.scale(iconScale, iconScale);
+      p.translate(-iconBox.width() / 2.0, -iconBox.height() / 2.0);
+      p.scale(kIconPx / 24.0, kIconPx / 24.0);
+      QPen glyph(ink, 2);
+      glyph.setCapStyle(Qt::RoundCap);
+      glyph.setJoinStyle(Qt::RoundJoin);
+      p.setPen(glyph);
+      p.setBrush(Qt::NoBrush);
+      p.drawRoundedRect(QRectF(3, 3, 18, 18), 2, 2);
+      p.drawEllipse(QPointF(8.5, 8.5), 1.5, 1.5);
+      QPolygonF hill;
+      hill << QPointF(21, 15) << QPointF(16, 10) << QPointF(5, 21);
+      p.drawPolyline(hill);
+      p.restore();
+      p.setFont(cardFont);
+      p.setPen(ink);
+      p.drawText(QRectF(content.left(), iconBox.bottom() + kGap, content.width(), textH),
+                 Qt::AlignCenter, label);
       return;
     }
-    // Compare view: "original" shows the cropped+rotated original alone (no filter,
-    // no annotations); the split modes render the edit normally and overlay the
-    // original on one half afterwards (see the end of this function).
+    // An image is loaded: the idle card's tooltip must not linger over the artwork.
+    if (!toolTip().isEmpty()) setToolTip(QString());
+    // Compare: "original" shows the cropped+rotated original alone (a BLANK page
+    // keeps its fill + tint, compareBaseImage); the split modes render the edit
+    // normally and overlay the original on one half at the end of this function.
+    if (filterDirty_) rebuildFilteredImage();
     const QString compare = effectiveCompareMode();
     if (compare == "original") {
       p.drawImage(QRectF(0, 0, image_.width() * scale_, image_.height() * scale_),
-                  image_);
+                  compareBaseImage());
       return;
     }
 
-    // S3: draw the raw image when no filter, else the cached filtered copy
-    // (rebuilt lazily). Wraps the original single p.drawImage call.
-    if (filterDirty_) rebuildFilteredImage();
+    // Draw the raw image when no filter, else the cached filtered copy
+    // (rebuilt lazily above).
     const QImage& shown = (imageFilter_ == "none" || filteredImage_.isNull())
                               ? image_
                               : filteredImage_;
@@ -915,7 +1054,7 @@ namespace stencil::gui {
       drawLineScaled(p, lines_[i], i, scale_, /*highlight=*/hl);
     drawLineScaled(p, currentLine_, -1, scale_, /*highlight=*/hl);
 
-    // Zoom-to-rect rubber band preview (S9).
+    // Zoom-to-rect rubber band preview.
     if (zoomRectActive_) {
       QPen pen(themePalette(dark_, accentKey_).accent);
       pen.setStyle(Qt::DashLine);
@@ -925,7 +1064,7 @@ namespace stencil::gui {
       p.drawRect(QRectF(zoomRectStart_, zoomRectEnd_).normalized());
     }
 
-    // S2: drag-to-create rectangle rubber band (browser drawingApp.js rect-draw
+    // drag-to-create rectangle rubber band (browser drawingApp.js rect-draw
     // overlay). Same dashed-accent style as the zoom band.
     if (rectDrawActive_) {
       QPen pen(themePalette(dark_, accentKey_).accent);
@@ -937,7 +1076,7 @@ namespace stencil::gui {
     }
 
     // Hold-to-draw: faded dashed segment from the stroke's anchor to the held
-    // cursor + a ghost marker — mirrors renderer.js drawHoldPreview. Transient.
+    // cursor + a ghost point — mirrors renderer.js drawHoldPreview. Transient.
     if (holdHasPreview_) {
       const QColor base(QString::fromStdString(
           currentLine_.points.empty() && selectedLine()
@@ -957,7 +1096,7 @@ namespace stencil::gui {
       QColor dot = base; dot.setAlphaF(0.6);
       p.setPen(Qt::NoPen);
       p.setBrush(dot);
-      p.drawEllipse(cur, defMarkerSize_, defMarkerSize_);
+      p.drawEllipse(cur, defPointSize_, defPointSize_);
     }
 
     // Split compare: overlay the untouched original on the original-side half (covering
@@ -975,7 +1114,9 @@ namespace stencil::gui {
 
     p.save();
     p.setClipRect(mode == "vertical" ? QRectF(0, 0, w * f, h) : QRectF(0, 0, w, h * f));
-    p.drawImage(QRectF(0, 0, w, h), image_);   // original — no filter, no annotations
+    // Original — no annotations; a blank page keeps its fill + tint (its colour
+    // IS the page), a picture drops the filter too.
+    p.drawImage(QRectF(0, 0, w, h), compareBaseImage());
     p.restore();
 
     p.save();
@@ -1010,6 +1151,18 @@ namespace stencil::gui {
     p.restore();
   }
 
+  // Which half of a compare view a point lands in (image space). Mirrors the clip
+  // rects paintCompareSplit uses: the original covers x < w*f / y < h*f, the edit
+  // holds the rest.
+  bool CanvasWidget::compareShowsEdited(double imageX, double imageY) const {
+    const QString mode = effectiveCompareMode();
+    if (mode == QLatin1String("none")) return true;
+    const double f = std::clamp(compareSplit_, 0.0, 1.0);
+    if (mode == QLatin1String("vertical")) return imageX >= image_.width() * f;
+    if (mode == QLatin1String("horizontal")) return imageY >= image_.height() * f;
+    return false;  // "original": the edit (and its layout) is nowhere on screen
+  }
+
   // Whether widgetPos is within grab distance (widget px) of the split divider.
   bool CanvasWidget::nearCompareDivider(const QPoint& widgetPos) const {
     if (compareMode_ != "vertical" && compareMode_ != "horizontal") return false;
@@ -1020,20 +1173,21 @@ namespace stencil::gui {
     return std::abs(widgetPos.y() - image_.height() * scale_ * f) <= tol;
   }
 
-  // Flat dispatch (behavior-preserving). Precedence is load-bearing and matches
-  // the original order: RightButton -> MiddleButton pan -> Alt+Left drag/pan ->
-  // Shift+Left zoom-rect -> Left{Ctrl, rect-draw, select, rect-noop,
-  // continuation, close, append}. Each branch computes its own coords (Alt/Left
-  // use image space; Shift/Middle stay in widget/global space).
+  // Flat dispatch; precedence is load-bearing: RightButton -> MiddleButton pan ->
+  // Alt+Left drag/pan -> Shift+Left zoom-rect -> Left{Ctrl, rect-draw, select,
+  // rect-noop, continuation, close, append}. Alt/Left branches use image space.
   void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::RightButton) {
       emit contextRequested(event->globalPosition().toPoint());
       return;
     }
     if (image_.isNull()) {
-      // Idle state: the canvas invites creating a blank image (paintEvent hint);
-      // a plain left-click opens the creator dialog.
-      if (event->button() == Qt::LeftButton) emit blankImageRequested();
+      // Idle: the "＋ Blank image" CARD alone opens the creator — never the empty
+      // page around it. While the hint is held back for the clear animation, or
+      // before it has been painted, nothing is clickable.
+      if (event->button() == Qt::LeftButton && !idleHintHidden_ &&
+          idleCardRect_.contains(event->position()))
+        emit blankImageRequested();
       return;
     }
 
@@ -1065,9 +1219,8 @@ namespace stencil::gui {
     if (event->button() == Qt::MiddleButton) {
       panning_ = true;
       // Track the pan anchor in GLOBAL coords: panBy() scrolls the viewport,
-      // which slides this canvas widget under the cursor, so widget-space
-      // event->pos() would shift on its own and feed back into the next delta
-      // (the flicker/jump). Global cursor coords are immune to that.
+      // sliding this widget under the cursor, so widget-space event->pos() would
+      // feed back into the next delta (flicker/jump).
       lastPanPos_ = event->globalPosition().toPoint();
       setCursor(Qt::ClosedHandCursor);
       return;
@@ -1097,30 +1250,27 @@ namespace stencil::gui {
         if (handleCtrlClick(ip)) return;
         // drawing + Ctrl + no segment -> fall through to handleDrawingClick.
       }
-      // Hold-to-draw is the plain-left alternative flow: it only arms when not
-      // already drawing and with no modifiers. handleDrawingClick still runs first
-      // so a quick click keeps selecting; the controller (driven by holdTimer_)
-      // takes over only once the press is held near-stationary past the delay.
+      // Hold-to-draw arms only when not already drawing and with no modifiers.
+      // handleDrawingClick still runs first so a quick click keeps selecting; the
+      // controller takes over once the press is held near-stationary past the delay.
       const bool eligibleHold = !isDrawing_ && mods == Qt::NoModifier;
       handleDrawingClick(ip, mods, event->pos());
       if (eligibleHold && !isDrawing_) beginHold(event->pos());
     }
   }
 
-  // Alt+left (port of startPan ~721/~764): if the cursor is over a point,
-  // segment, or (with Shift) a whole line, drag that; otherwise pan. Takes
-  // precedence over drawing — no points are added while editing/panning. Every
-  // path ends in a state-set + return, so the caller always returns afterwards.
+  // Alt+left (port of startPan ~721/~764): drag the point, segment, or (with
+  // Shift) whole line under the cursor, else pan. Takes precedence over drawing —
+  // no points are added while editing/panning. Every path sets state + returns.
   void CanvasWidget::beginAltDrag(const core::Point& ip,
                                   Qt::KeyboardModifiers mods,
                                   const QPoint& globalPos) {
     dragStart_ = ip;
     dragMoved_ = false;
 
-    // Alt+Shift over a line -> whole-line drag. Record the grabbed segment too
-    // so releasing Shift mid-drag drops to moving just that segment.
+    // Alt+Shift over a line -> whole-line drag (always translates EVERY point).
     if (mods & Qt::ShiftModifier) {
-      const int li = core::findLineAt(lines_, ip.x, ip.y);
+      const int li = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
       if (li != -1) {
         dragKind_ = DragKind::Line;
         dragLineIdx_ = li;
@@ -1131,27 +1281,22 @@ namespace stencil::gui {
         const auto sel = selectedIndices();
         if (sel.size() >= 2 && std::find(sel.begin(), sel.end(), li) != sel.end())
           for (int i : sel) dragMultiOrig_.push_back({i, lines_[i].points});
-        const auto seg = core::findNearestSegment(lines_, ip.x, ip.y);
-        if (seg && seg->lineIdx == li) {
-          dragPtIdx1_ = seg->ptIdx1;
-          dragPtIdx2_ = seg->ptIdx2;
-        } else {
-          dragPtIdx1_ = dragPtIdx2_ = -1;
-        }
+        dragPtIdx1_ = dragPtIdx2_ = -1;
         setCursor(Qt::SizeAllCursor);
         return;
       }
     }
 
     // Priority 1: near a point (in-progress line first) -> drag the point.
-    if (auto idx = core::nearestPointInLine(currentLine_.points, ip.x, ip.y)) {
+    if (auto idx = core::nearestPointInLine(currentLine_.points, ip.x, ip.y,
+                                            hitRadius(12.0))) {
       dragKind_ = DragKind::Point;
       dragLineIdx_ = -1;  // in-progress line
       dragPtIdx1_ = *idx;
       setCursor(Qt::SizeAllCursor);
       return;
     }
-    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y)) {
+    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y, hitRadius(12.0))) {
       dragKind_ = DragKind::Point;
       dragLineIdx_ = pt->lineIdx;
       dragPtIdx1_ = pt->ptIdx;
@@ -1159,7 +1304,7 @@ namespace stencil::gui {
       return;
     }
     // Priority 2: near a segment -> drag that segment.
-    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
+    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
       dragKind_ = DragKind::Segment;
       dragLineIdx_ = seg->lineIdx;
       dragPtIdx1_ = seg->ptIdx1;
@@ -1174,7 +1319,7 @@ namespace stencil::gui {
     setCursor(Qt::ClosedHandCursor);
   }
 
-  // Zoom-to-rect: Shift+left-drag sweeps a rubber band (S9; drawingApp.js
+  // Zoom-to-rect: Shift+left-drag sweeps a rubber band (drawingApp.js
   // startPan shift branch ~746). No points added while sweeping. widgetPos is
   // widget space (NOT image space).
   void CanvasWidget::beginZoomRect(const QPoint& widgetPos) {
@@ -1183,13 +1328,11 @@ namespace stencil::gui {
     update();
   }
 
-  // Ctrl+left: insert a point onto the nearest segment of an existing line,
-  // else (when not drawing) add a point connected to the selection. Returns true
-  // when it consumed the click; false only for the drawing + Ctrl + no-segment
-  // case, which falls through to a normal point append. Port of drawingApp.js
-  // canvasClick Ctrl branches (~1187/1239).
+  // Ctrl+left (drawingApp.js canvasClick ~1187/1239): insert a point onto the
+  // nearest segment, else (when not drawing) add a point connected to the selection.
+  // Returns false only for drawing+Ctrl+no-segment, which falls through to append.
   bool CanvasWidget::handleCtrlClick(const core::Point& ip) {
-    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y)) {
+    if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
       insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);
       // Inserting shifts later indices right by one; keep the continuation
       // tail anchored to the same spot (drawingApp.js ~1193).
@@ -1207,14 +1350,13 @@ namespace stencil::gui {
     return false;
   }
 
-  // The plain (no-Alt / no-Shift) left-click drawing logic: rect-draw press,
-  // select-when-not-drawing, rect-mode no-op, continuation extend/close, the
-  // close-shape gate, and the normal point append. widgetPos seeds the rect-draw
-  // rubber band (widget space).
+  // Plain left-click drawing: rect-draw press, select-when-not-drawing, rect-mode
+  // no-op, continuation extend/close, the close-shape gate, and the normal point
+  // append. widgetPos seeds the rect-draw rubber band (widget space).
   void CanvasWidget::handleDrawingClick(const core::Point& ip,
                                         Qt::KeyboardModifiers mods,
                                         const QPoint& widgetPos) {
-    // S2: rect-draw press (drawingApp.js mousedown ~710). While drawing in rect
+    // rect-draw press (drawingApp.js mousedown ~710). While drawing in rect
     // mode with no modifier, begin a drag-to-create rubber band.
     if (isDrawing_ && drawMode_ == DrawMode::Rect && mods == Qt::NoModifier) {
       rectDrawActive_ = true;
@@ -1223,14 +1365,14 @@ namespace stencil::gui {
       return;
     }
 
-    // S2: when not drawing, a left-click hit-tests + selects a committed line
+    // when not drawing, a left-click hit-tests + selects a committed line
     // (port of drawingApp.js click-select ~1270) instead of being a no-op.
     if (!isDrawing_) {
       selectLineAt(ip.x, ip.y);
       return;
     }
 
-    // S2: in rect mode, areas are created by dragging, never click-to-add
+    // in rect mode, areas are created by dragging, never click-to-add
     // (browser drawingApp.js ~1182).
     if (drawMode_ == DrawMode::Rect) return;
 
@@ -1242,7 +1384,7 @@ namespace stencil::gui {
       core::Line& line = lines_[continueLineIdx_];
       if (line.points.size() >= 3 &&
           std::hypot(line.points.front().x - ip.x,
-                     line.points.front().y - ip.y) <= line.markerSize + 8.0) {
+                     line.points.front().y - ip.y) <= line.pointSize + 8.0) {
         closeContinuedShape();
         emit changed();
         return;
@@ -1257,7 +1399,7 @@ namespace stencil::gui {
     // Closing an area: with >= 3 points, a click near point[0] closes + locks
     // the shape (mirrors #closeCurrentShape), then stops drawing.
     if (core::shouldCloseShape(currentLine_.points, ip,
-                               currentLine_.markerSize)) {
+                               currentLine_.pointSize)) {
       currentLine_.points.push_back(currentLine_.points.front());
       currentLine_.locked = true;
       stopDrawingMode();
@@ -1273,7 +1415,12 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
-    if (image_.isNull()) return;
+    if (image_.isNull()) {
+      // Idle: the only thing tracking the cursor is the "＋ Blank image" card's hover fill.
+      setIdleCardHover(!idleHintHidden_ && idleCardRect_.contains(event->position()));
+      return;
+    }
+    setIdleCardHover(false);
 
     // Compare divider drag takes priority over every other gesture.
     if (draggingCompareSplit_) {
@@ -1313,10 +1460,9 @@ namespace stencil::gui {
     }
 
     if (panning_) {
-      // Drag pan: scrollLeft -= dx (Shift = faster). MainWindow applies the
-      // speed. The delta is taken in global cursor coords (not widget coords)
-      // so the scroll we trigger — which moves this widget under the pointer —
-      // doesn't feed back into the next sample and cause jitter.
+      // Drag pan: scrollLeft -= dx (Shift = faster; MainWindow applies the speed).
+      // Delta in global cursor coords so the scroll we trigger — which moves this
+      // widget under the pointer — doesn't feed back into the next sample (jitter).
       const QPoint gp = event->globalPosition().toPoint();
       const QPoint d = gp - lastPanPos_;
       lastPanPos_ = gp;
@@ -1330,7 +1476,7 @@ namespace stencil::gui {
       return;
     }
 
-    // S2: extend the rect-draw rubber band (drawingApp.js mousemove ~815).
+    // extend the rect-draw rubber band (drawingApp.js mousemove ~815).
     if (rectDrawActive_) {
       rectDrawEnd_ = event->pos();
       update();
@@ -1343,17 +1489,22 @@ namespace stencil::gui {
         (compareMode_ == "vertical" || compareMode_ == "horizontal") &&
         nearCompareDivider(event->pos())) {
       setCursor(compareMode_ == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
-      return;
-    }
-
-    // Compare view is read-only: no hover ring, tooltip or edit cursor.
-    if (compareReadOnly()) {
-      unsetCursor();
-      emit hoverLeft();
+      emit hoverLeft();  // the divider is the affordance; drop any tooltip under it
       return;
     }
 
     const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
+
+    if (compareReadOnly()) {
+      // Comparing is read-only EDITING: no hover ring or cursor affordance, but
+      // the coordinate readout and hover tooltips are information and must keep
+      // following the cursor (MainWindow drops tooltips the "before" half covers).
+      unsetCursor();
+      emit hovered(ip.x, ip.y);
+      emit hoverDetail(ip.x, ip.y, event->globalPosition().toPoint(),
+                       event->modifiers());
+      return;
+    }
 
     // Hover ring: track the point under the cursor and repaint when it changes
     // (drawingApp.js canvasMouseMove ~1463 -> renderer point hover ring).
@@ -1367,10 +1518,9 @@ namespace stencil::gui {
                      event->modifiers());
   }
 
-  // Active Alt-drag move (port of drawingApp.js #dragMove ~1701). One of the
-  // point/segment/line moves; `shift` switches segment/line modes live from the
-  // original snapshot so toggling Shift never accumulates. Caller computes ip +
-  // shift, sets dragMoved_, and repaints.
+  // Active Alt-drag move (port of drawingApp.js #dragMove ~1701): point/segment/
+  // line; `shift` switches segment/line modes live from the original snapshot so
+  // toggling Shift never accumulates. Caller sets dragMoved_ and repaints.
   void CanvasWidget::updateDrag(const core::Point& ip, bool shift) {
     if (dragKind_ == DragKind::Point) {
       core::Line* line =
@@ -1396,10 +1546,11 @@ namespace stencil::gui {
         }
         return;
       }
-      // Segment / Line drags translate from the snapshot by (dx, dy).
+      // Segment / Line drags translate from the snapshot by (dx, dy). A LINE drag
+      // always moves the whole line even when Shift lifts a beat before the mouse —
+      // degrading to the grabbed segment would snap the rest back on commit.
       core::Line& line = lines_[dragLineIdx_];
-      const bool whole =
-          (dragKind_ == DragKind::Line) ? (shift || dragPtIdx1_ < 0) : shift;
+      const bool whole = (dragKind_ == DragKind::Line) ? true : shift;
       if (whole) {
         for (std::size_t i = 0; i < line.points.size(); ++i) {
           line.points[i].x = dragOrig_[i].x + dx;
@@ -1422,14 +1573,15 @@ namespace stencil::gui {
     if (mods & Qt::AltModifier) {
       bool overTarget;
       if (mods & Qt::ShiftModifier) {
-        overTarget = core::findLineAt(lines_, ip.x, ip.y) != -1;
+        overTarget = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1;
       } else {
         overTarget = (hoverPointIdx_ >= 0) ||
-                     core::findNearestSegment(lines_, ip.x, ip.y).has_value();
+                     core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))
+                         .has_value();
       }
       setCursor(overTarget ? Qt::SizeAllCursor : Qt::OpenHandCursor);
     } else if (!isDrawing_) {
-      setCursor(core::findLineAt(lines_, ip.x, ip.y) != -1
+      setCursor(core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1
                     ? Qt::PointingHandCursor
                     : Qt::ArrowCursor);
     } else {
@@ -1437,10 +1589,9 @@ namespace stencil::gui {
     }
   }
 
-  // App-wide event filter: when a modifier key (Shift/Ctrl/Alt/Meta) is pressed
-  // or released and the cursor is over the canvas, re-apply the hover state so
-  // the tooltip + cursor reflect the new modifiers immediately (no mouse move
-  // needed). Mirrors the browser, where the same handlers run on keydown/keyup.
+  // App-wide filter: on a modifier key press/release with the cursor over the
+  // canvas, re-apply hover so tooltip + cursor update without a mouse move
+  // (browser parity: the same handlers run on keydown/keyup).
   bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
     const QEvent::Type t = event->type();
     if (t == QEvent::KeyPress || t == QEvent::KeyRelease) {
@@ -1473,19 +1624,68 @@ namespace stencil::gui {
     // queryKeyboardModifiers() reports the live physical state, which (unlike the
     // key event's own modifiers()) already includes the key being pressed.
     const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
-    if (updateHover(ip.x, ip.y)) update();
-    applyHoverCursor(ip, mods);
+    // Same split as the mouse path: a compare view keeps the readout + tooltip but
+    // no hover ring or edit cursor.
+    if (compareReadOnly()) {
+      unsetCursor();
+    } else {
+      if (updateHover(ip.x, ip.y)) update();
+      applyHoverCursor(ip, mods);
+    }
     emit hovered(ip.x, ip.y);
     emit hoverDetail(ip.x, ip.y, QCursor::pos(), mods);
   }
 
+  // Hover the idle card the way the browser does (.idle-create-btn transitions colour,
+  // lift and shadow over 0.2s) rather than snapping between two states.
+  void CanvasWidget::setIdleCardHover(bool on) {
+    if (idleCardHover_ == on) return;
+    idleCardHover_ = on;
+    // The hand belongs to the button, so it appears exactly where the click works.
+    if (on) setCursor(Qt::PointingHandCursor);
+    else unsetCursor();
+    if (!idleCardAnim_) {
+      idleCardAnim_ = new QVariantAnimation(this);
+      idleCardAnim_->setDuration(200);
+      idleCardAnim_->setEasingCurve(QEasingCurve::OutCubic);
+      connect(idleCardAnim_, &QVariantAnimation::valueChanged, this,
+              [this](const QVariant& v) { idleCardHoverT_ = v.toDouble(); update(); });
+    }
+    idleCardAnim_->stop();
+    // Start from wherever the previous run got to, so a quick in-out doesn't jump.
+    idleCardAnim_->setStartValue(idleCardHoverT_);
+    idleCardAnim_->setEndValue(on ? 1.0 : 0.0);
+    idleCardAnim_->start();
+
+    // …and the glass sweep the browser gives every button on hover-enter
+    // (layout.css ui-shimmer, 0.75s: a light band crossing from -135% to 135%).
+    if (!on) return;
+    if (!idleShimmerAnim_) {
+      idleShimmerAnim_ = new QVariantAnimation(this);
+      idleShimmerAnim_->setDuration(750);
+      idleShimmerAnim_->setStartValue(0.0);
+      idleShimmerAnim_->setEndValue(1.0);
+      idleShimmerAnim_->setEasingCurve(QEasingCurve::InOutQuad);
+      connect(idleShimmerAnim_, &QVariantAnimation::valueChanged, this,
+              [this](const QVariant& v) { idleShimmerT_ = v.toDouble(); update(); });
+      connect(idleShimmerAnim_, &QVariantAnimation::finished, this,
+              [this] { idleShimmerT_ = -1.0; update(); });
+    }
+    idleShimmerAnim_->stop();
+    idleShimmerT_ = 0.0;
+    idleShimmerAnim_->start();
+  }
+
   void CanvasWidget::leaveEvent(QEvent* event) {
     emit hoverLeft();
-    if (hoverLineIdx_ != -1 || hoverPointIdx_ != -1) {
+    if (hoverLineIdx_ != -1 || hoverPointIdx_ != -1 || hoverOverLineIdx_ != -1) {
       hoverLineIdx_ = -1;
       hoverPointIdx_ = -1;
+      hoverOverLineIdx_ = -1;
+      emit canvasHoverChanged(-1, -1, -1);   // panel row tints clear too
       update();
     }
+    setIdleCardHover(false);
     QWidget::leaveEvent(event);
   }
 
@@ -1535,7 +1735,7 @@ namespace stencil::gui {
     }
     if (zoomRectActive_) {
       zoomRectActive_ = false;
-      // Convert the swept rubber band to image space and emit (S9). Only act on a
+      // Convert the swept rubber band to image space and emit. Only act on a
       // rect bigger than 4x4 image px (drawingApp.js mouseup ~882).
       const core::Point a = toImageSpace(zoomRectStart_.x(), zoomRectStart_.y());
       const core::Point b = toImageSpace(zoomRectEnd_.x(), zoomRectEnd_.y());
@@ -1547,7 +1747,7 @@ namespace stencil::gui {
       if (w > 4.0 && h > 4.0) emit zoomToRect(QRectF(x1, y1, w, h));
       return;
     }
-    // S2: commit the drag-to-create rectangle (drawingApp.js mouseup ~861). Only
+    // commit the drag-to-create rectangle (drawingApp.js mouseup ~861). Only
     // act when the swept box exceeds 3 image px in both axes.
     if (rectDrawActive_) {
       rectDrawActive_ = false;
@@ -1573,13 +1773,33 @@ namespace stencil::gui {
       emit fitRequested();
       return;
     }
+    // Plain left double-click on a line erases it (drawingApp.js canvasDblClick).
+    if (event->button() == Qt::LeftButton && !isDrawing_ && !compareReadOnly()) {
+      const QPoint pos = event->position().toPoint();
+      const core::Point ip = toImageSpace(pos.x(), pos.y());
+      const int idx = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
+      if (idx != -1) {
+        panning_ = false;   // the press that opened this double-click armed it
+        unsetCursor();
+        lines_.erase(lines_.begin() + idx);
+        clearHoverCache();   // indices shifted
+        selectedLines_.clear();
+        if (selectedLineIdx_ == idx) selectedLineIdx_ = -1;
+        else if (selectedLineIdx_ > idx) --selectedLineIdx_;
+        selectedPoint_ = -1;
+        commitHistory();
+        update();
+        emit changed();
+        emit selectionChanged();
+        return;
+      }
+    }
     QWidget::mouseDoubleClickEvent(event);
   }
 
   void CanvasWidget::wheelEvent(QWheelEvent* event) {
     // drawingApp.js wheel (~655). Use whichever axis carries the delta: with a
-    // modifier held, X11/GNOME often reports the wheel on angleDelta().x() with
-    // .y()==0, which previously made every Ctrl+wheel read as "down".
+    // modifier held, X11/GNOME often reports the wheel on angleDelta().x() with .y()==0.
     const auto mods = event->modifiers();
     const QPoint d = event->angleDelta();
     const int delta = d.y() != 0 ? d.y() : d.x();
@@ -1588,10 +1808,8 @@ namespace stencil::gui {
       return;
     }
 
-    // Alt+wheel (no Ctrl): adjust thickness of the line under the cursor
-    // (drawingApp.js #adjustThicknessAtCursor ~1810). Wheel-up thickens. This
-    // repurposes the old Alt+wheel zoom; Ctrl+wheel still zooms, matching the
-    // browser and the shared info docs (Alt+wheel = thickness).
+    // Alt+wheel (no Ctrl): adjust thickness of the line under the cursor; wheel-up
+    // thickens (drawingApp.js #adjustThicknessAtCursor ~1810). Ctrl+wheel still zooms.
     if ((mods & Qt::AltModifier) && !(mods & Qt::ControlModifier)) {
       const QPoint wp = event->position().toPoint();
       const core::Point ip = toImageSpace(wp.x(), wp.y());
@@ -1610,7 +1828,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Ctrl+wheel: zoom toward the cursor (S8). Shift triples the step.
+    // Ctrl+wheel: zoom toward the cursor. Shift triples the step.
     if (mods & Qt::ControlModifier) {
       const bool fast = bool(mods & Qt::ShiftModifier);
       emit zoomAtCursor(delta > 0 ? 1 : -1, event->position().toPoint(), fast);
@@ -1622,11 +1840,9 @@ namespace stencil::gui {
     event->ignore();
   }
 
-  // Trackpad pinch (macOS/Wayland native gesture). Ctrl+wheel is keyboard-driven;
-  // a two-finger pinch arrives as a QEvent::NativeGesture instead (QWidget has no
-  // dedicated virtual for it) and was previously unhandled, so trackpad zoom did
-  // nothing. value() is the incremental scale delta per event; multiply the current
-  // scale by (1 + delta), anchored at the cursor.
+  // Trackpad pinch (macOS/Wayland) arrives as QEvent::NativeGesture — QWidget has
+  // no dedicated virtual for it. value() is the incremental scale delta per event;
+  // multiply the current scale by (1 + delta), anchored at the cursor.
   bool CanvasWidget::event(QEvent* e) {
     if (e->type() == QEvent::NativeGesture) {
       auto* g = static_cast<QNativeGestureEvent*>(e);
@@ -1641,7 +1857,7 @@ namespace stencil::gui {
     return QWidget::event(e);
   }
 
-  // ── S6: render-to-image + image accessors + loadFromImage ──
+  // ── render-to-image + image accessors + loadFromImage ──
 
   // Native-resolution render of the (filtered) image. With overlay, the lines are
   // drawn at scale 1.0 honoring the current show flags — the export equivalent of
@@ -1693,6 +1909,7 @@ namespace stencil::gui {
   void CanvasWidget::loadFromImage(const QImage& img) {
     if (img.isNull()) return;
     unsetCursor();   // drop the idle "pointing hand" (set while the empty-canvas hint was showing)
+    blankPage_ = false;   // a fresh load is a picture until the owner marks it a blank
     originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
     rotationQuarters_ = 0;
     cropRect_ = defaultCropRect();
@@ -1720,6 +1937,7 @@ namespace stencil::gui {
   void CanvasWidget::loadFromImage(const QImage& img, const core::CropRect& cropRect,
                                    int rotationQuarters) {
     if (img.isNull()) return;
+    blankPage_ = false;   // a fresh load is a picture until the owner marks it a blank
     originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
     rotationQuarters_ = ((rotationQuarters % 4) + 4) % 4;  // before defaultCropRect/rebuild
     cropRect_ = cropRect.width > 0 ? cropRect : defaultCropRect();
@@ -1741,7 +1959,21 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  QRect CanvasWidget::idleCardGlobalRect() const {
+    if (!image_.isNull() || idleHintHidden_ || idleCardRect_.isEmpty()) return {};
+    const QRect local = idleCardRect_.toRect();
+    return QRect(mapToGlobal(local.topLeft()), local.size());
+  }
+
+  void CanvasWidget::setIdleHintHidden(bool on) {
+    if (idleHintHidden_ == on) return;
+    idleHintHidden_ = on;
+    if (on) unsetCursor();
+    update();
+  }
+
   void CanvasWidget::clearImage() {
+    blankPage_ = false;
     originalImage_ = QImage();
     image_ = QImage();
     imagePath_.clear();
@@ -1756,16 +1988,19 @@ namespace stencil::gui {
     scale_ = 1.0;
     filterDirty_ = true;
     history_.reset(lines_);
-    // Release the image-locked fixed size so the empty canvas reflows to its
-    // minimum and paintEvent draws the idle "Open an image" hint again.
+    // Release the image-locked fixed size AND actually shrink back: the host scroll
+    // area is not widgetResizable, so relaxing the constraints alone keeps the old
+    // image's size and the idle hint paints centred in a huge off-screen rect.
     setMinimumSize(320, 240);
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    resize(minimumSize());
+    updateGeometry();
     update();
     emit changed();
     emit selectionChanged();
   }
 
-  // ── S7: selected-line mutators + delete (port of applySelectionChange ~1674
+  // ── selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515) ──
 
   void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set) {
@@ -1779,15 +2014,25 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::setSelectedLineColor(const QString& color) {
-    mutateSelectedLine([&](core::Line& line) { line.color = color.toStdString(); });
+    mutateSelectedLine([&](core::Line& line) {
+      // Recolouring the stroke must never recolour the points: a line still on the
+      // inherit fallback ('' pointColor) pins its rendered colour first (browser parity).
+      if (line.pointColor.empty()) line.pointColor = line.color;
+      line.color = color.toStdString();
+    });
   }
 
   void CanvasWidget::setSelectedLineThickness(double thickness) {
     mutateSelectedLine([&](core::Line& line) { line.thickness = thickness; });
   }
 
-  void CanvasWidget::setSelectedLineMarker(double markerSize) {
-    mutateSelectedLine([&](core::Line& line) { line.markerSize = markerSize; });
+  void CanvasWidget::setSelectedLinePointSize(double pointSize) {
+    mutateSelectedLine([&](core::Line& line) { line.pointSize = pointSize; });
+  }
+
+  void CanvasWidget::setSelectedLinePointColor(const QString& pointColor) {
+    mutateSelectedLine(
+        [&](core::Line& line) { line.pointColor = pointColor.toStdString(); });
   }
 
   void CanvasWidget::setSelectedLineStyle(const QString& style) {
@@ -1798,15 +2043,20 @@ namespace stencil::gui {
     mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); });
   }
 
-  // Port of drawingApp.js canvasDblClick delete ~1515: erase the selected line
-  // and reset the selection indices.
+  // Deletes the WHOLE selection (browser parity: removeSelectedLines): erase from
+  // the highest index down so lower indices stay valid, and commit ONE history
+  // entry so a single undo restores the batch.
   void CanvasWidget::deleteSelectedLine() {
     if (compareReadOnly()) return;   // read-only compare view
-    if (selectedLineIdx_ < 0 ||
-        selectedLineIdx_ >= static_cast<int>(lines_.size())) {
-      return;
+    std::vector<int> sel = selectedIndices();
+    if (sel.empty()) return;
+    std::sort(sel.begin(), sel.end(), std::greater<int>());
+    for (int idx : sel) {
+      if (idx < 0 || idx >= static_cast<int>(lines_.size())) continue;
+      lines_.erase(lines_.begin() + idx);
     }
-    lines_.erase(lines_.begin() + selectedLineIdx_);
+    clearHoverCache();   // indices shifted
+    selectedLines_.clear();
     selectedLineIdx_ = -1;
     selectedPoint_ = -1;
     commitHistory();
@@ -1849,8 +2099,7 @@ namespace stencil::gui {
 
   // Hold completed → auto-enter drawing and seed the stroke. The target under the
   // press decides: existing point → continue that line; line body → insert a point
-  // there then continue; empty → fresh line. Selection from the press already
-  // matches the target (same finders), so startDrawingMode continues correctly.
+  // there then continue; empty → fresh line.
   void CanvasWidget::holdStart(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
     const core::HoldTarget t = core::holdDrawTarget(lines_, ip.x, ip.y);
@@ -1938,20 +2187,64 @@ namespace stencil::gui {
   bool CanvasWidget::updateHover(double imageX, double imageY) {
     int li = -1;
     int pi = -1;
-    if (auto idx = core::nearestPointInLine(currentLine_.points, imageX, imageY)) {
+    if (auto idx = core::nearestPointInLine(currentLine_.points, imageX, imageY,
+                                            hitRadius(12.0))) {
       li = -1;
       pi = *idx;
     }
     if (pi < 0) {
-      if (auto pt = core::findNearestPoint(lines_, imageX, imageY)) {
+      if (auto pt = core::findNearestPoint(lines_, imageX, imageY, hitRadius(12.0))) {
         li = pt->lineIdx;
         pi = pt->ptIdx;
       }
     }
-    if (li == hoverLineIdx_ && pi == hoverPointIdx_) return false;
+    // The committed LINE under the cursor (a point hit names its line, else a stroke
+    // hit) — tints the panel's Lines-list row, the reverse of setListHoverLine.
+    const int over =
+        (li >= 0) ? li : core::findLineAt(lines_, imageX, imageY, hitRadius(8.0));
+    if (li == hoverLineIdx_ && pi == hoverPointIdx_ && over == hoverOverLineIdx_)
+      return false;
     hoverLineIdx_ = li;
     hoverPointIdx_ = pi;
+    hoverOverLineIdx_ = over;
+    emit canvasHoverChanged(li, pi, over);
     return true;
+  }
+
+  int CanvasWidget::panelLineIdx() const {
+    const core::Line* l = panelLine();
+    if (!l || l == &currentLine_ || lines_.empty()) return -1;
+    return static_cast<int>(l - lines_.data());
+  }
+
+  void CanvasWidget::setListHoverPoint(int ptIdx) {
+    const core::Line* l = panelLine();
+    const int n = l ? static_cast<int>(l->points.size()) : 0;
+    const int i = (ptIdx >= 0 && ptIdx < n) ? ptIdx : -1;
+    if (i == listHoverPointIdx_) return;
+    listHoverPointIdx_ = i;
+    update();
+  }
+
+  void CanvasWidget::setListHoverLine(int lineIdx) {
+    const int i =
+        (lineIdx >= 0 && lineIdx < static_cast<int>(lines_.size())) ? lineIdx : -1;
+    if (i == listHoverLineIdx_) return;
+    listHoverLineIdx_ = i;
+    update();
+  }
+
+  void CanvasWidget::clearHoverCache() {
+    if (hoverLineIdx_ == -1 && hoverPointIdx_ == -1 && hoverOverLineIdx_ == -1 &&
+        listHoverPointIdx_ == -1 && listHoverLineIdx_ == -1) {
+      return;
+    }
+    hoverLineIdx_ = -1;
+    hoverPointIdx_ = -1;
+    hoverOverLineIdx_ = -1;
+    listHoverPointIdx_ = -1;
+    listHoverLineIdx_ = -1;
+    emit canvasHoverChanged(-1, -1, -1);
   }
 
   // Alt+wheel: bump the thickness of the line under the cursor by ±1 (clamped
@@ -1960,10 +2253,10 @@ namespace stencil::gui {
   void CanvasWidget::adjustThicknessAtCursor(double imageX, double imageY,
                                              int dir) {
     int lineIdx = -1;
-    if (auto pt = core::findNearestPoint(lines_, imageX, imageY)) {
+    if (auto pt = core::findNearestPoint(lines_, imageX, imageY, hitRadius(12.0))) {
       lineIdx = pt->lineIdx;
     } else {
-      lineIdx = core::findLineAt(lines_, imageX, imageY);
+      lineIdx = core::findLineAt(lines_, imageX, imageY, hitRadius(8.0));
     }
     if (lineIdx < 0 || lineIdx >= static_cast<int>(lines_.size())) return;
 
@@ -1976,10 +2269,9 @@ namespace stencil::gui {
     scheduleEditCommit();
   }
 
-  // Apply `op` (rotate/flip) in place to the selection about its pivot: ≥2 selected → the whole
-  // set about their combined bounding-box centre; 1 → the focused point, else that line's bbox
-  // centre. Redraws + emits selectionChanged + schedules the debounced commit. Shared scaffold so
-  // rotate and flip can't drift (no new core op, no parity change).
+  // Apply `op` (rotate/flip) to the selection about its pivot: ≥2 selected → the
+  // combined bbox centre; 1 → the focused point, else that line's bbox centre.
+  // Shared scaffold so rotate and flip can't drift (no new core op).
   void CanvasWidget::transformSelection(
       const std::function<void(std::vector<core::Point>&, double, double)>& op) {
     if (compareReadOnly()) return;   // read-only compare view
@@ -2088,8 +2380,10 @@ namespace stencil::gui {
     core::Line nl;
     nl.points = {{x, y}};
     nl.color = defColor_.toStdString();
+    nl.pointColor =
+        (defPointColor_.isEmpty() ? defColor_ : defPointColor_).toStdString();
     nl.thickness = defThickness_;
-    nl.markerSize = defMarkerSize_;
+    nl.pointSize = defPointSize_;
     nl.style = defStyle_.toStdString();
     lines_.push_back(nl);
     selectedLineIdx_ = static_cast<int>(lines_.size()) - 1;
