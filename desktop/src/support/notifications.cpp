@@ -114,8 +114,11 @@ namespace stencil::gui {
           .toImage()
           .save(&buf, "PNG");
     }
-    toast->setText(QString("<img src=\"data:image/png;base64,%1\" width=\"16\" height=\"16\">"
-                           "&nbsp;&nbsp;%2")
+    // vertical-align: middle centres the glyph on the message; an inline image
+    // otherwise sits on the text BASELINE and rides visibly high (tipContent's rule).
+    toast->setText(QString("<img src=\"data:image/png;base64,%1\" width=\"16\" height=\"16\""
+                           " style=\"vertical-align: middle;\">"
+                           "&nbsp;&nbsp;<span style=\"vertical-align: middle;\">%2</span>")
                        .arg(QString::fromLatin1(png.toBase64()), text.toHtmlEscaped()));
     // The message on its own — text() is now markup wrapping an inline glyph, so anything
     // reading a toast back (the GUI tests) has a plain string to compare.
