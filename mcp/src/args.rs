@@ -2,8 +2,11 @@
 //!
 //! This mirrors the role of `cli/src/args.zig`: it owns the mapping between a request and
 //! the exact `stencil [options] <output>` command line. The pipeline order is fixed by the
-//! CLI itself (source → crop → rotate → layout → filter → encode), so argv order here is
+//! CLI itself (source → crop → rotate → filter → layout → encode), so argv order here is
 //! only cosmetic; the CLI parses flags order-independently.
+
+use std::collections::HashSet;
+use std::sync::LazyLock;
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -47,6 +50,14 @@ pub struct EditParams {
     /// Layout to draw onto the image: a path/URL string, or an inline layout object.
     #[serde(default)]
     pub layout: Option<LayoutArg>,
+
+    /// Which frame the layout's coordinates are in (CLI `--layout-frame`): `"current"`
+    /// (the CLI default — the already cropped/rotated image) or `"source"` (the source
+    /// image; the CLI re-maps the points through its resolved crop/rotate and clamps
+    /// them). Not part of the tool schema — set internally by the op-plan executor,
+    /// whose plan coordinates are snapshot-frame per `llm-contract.md` §1.
+    #[serde(skip)]
+    pub layout_frame: Option<String>,
 
     /// Image filter: `bw`, `sepia`, `invert`, `contour`, or a CSS color / `#hex` for a
     /// duotone tint. Overrides any filter baked into the layout.
@@ -166,15 +177,20 @@ impl Crop {
     }
 }
 
-/// The ISO page-format names the CLI's core recognizes: `A0`–`A10`, `B0`–`B10`,
-/// `C0`–`C10` (ISO 216 A/B + ISO 269 C series), matched case-insensitively. Mirrors
-/// `canonicalPageFormat` in `cli/src/core.zig` / `pageFormatNames` in
-/// `core/page/pageMetrics.cpp`.
-const PAGE_FORMATS: [&str; 33] = [
-    "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", //
-    "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", //
-    "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10",
-];
+/// The ISO page-format names the CLI's core recognizes (`A0`–`C10`), matched
+/// case-insensitively. Loaded from the canonical `PAGE_SIZES` table in
+/// `browser/js/config/constants.json`, embedded at compile time.
+static PAGE_FORMATS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let constants: serde_json::Value =
+        serde_json::from_str(include_str!("../../browser/js/config/constants.json"))
+            .expect("canonical browser/js/config/constants.json is not valid JSON");
+    constants["PAGE_SIZES"]
+        .as_object()
+        .expect("browser/js/config/constants.json: PAGE_SIZES must be an object")
+        .keys()
+        .cloned()
+        .collect()
+});
 
 /// Whether `name` is a known page-format token (case-insensitive). The CLI's `--blank`
 /// parser silently skips an unrecognized token — it would fall through to the positional
@@ -184,37 +200,16 @@ fn is_page_format(name: &str) -> bool {
     PAGE_FORMATS.iter().any(|f| f.eq_ignore_ascii_case(name))
 }
 
-/// The CSS Color Module Level 4 extended colour keywords the CLI's core recognizes.
-/// Mirrors the `namedColors` table in `core/color/colorNames.cpp` (which `parseColor`
-/// consults after trying `transparent` and `#hex`).
-const COLOR_NAMES: [&str; 148] = [
-    "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", //
-    "bisque", "black", "blanchedalmond", "blue", "blueviolet", "brown", //
-    "burlywood", "cadetblue", "chartreuse", "chocolate", "coral", "cornflowerblue", //
-    "cornsilk", "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", //
-    "darkgray", "darkgrey", "darkgreen", "darkkhaki", "darkmagenta", "darkolivegreen", //
-    "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue", //
-    "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", //
-    "dimgray", "dimgrey", "dodgerblue", "firebrick", "floralwhite", "forestgreen", //
-    "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", //
-    "grey", "green", "greenyellow", "honeydew", "hotpink", "indianred", //
-    "indigo", "ivory", "khaki", "lavender", "lavenderblush", "lawngreen", //
-    "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrodyellow", "lightgray", //
-    "lightgrey", "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", //
-    "lightslategray", "lightslategrey", "lightsteelblue", "lightyellow", "lime", "limegreen", //
-    "linen", "magenta", "maroon", "mediumaquamarine", "mediumblue", "mediumorchid", //
-    "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise",
-    "mediumvioletred", //
-    "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", //
-    "oldlace", "olive", "olivedrab", "orange", "orangered", "orchid", //
-    "palegoldenrod", "palegreen", "paleturquoise", "palevioletred", "papayawhip", "peachpuff", //
-    "peru", "pink", "plum", "powderblue", "purple", "rebeccapurple", //
-    "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", //
-    "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue", //
-    "slategray", "slategrey", "snow", "springgreen", "steelblue", "tan", //
-    "teal", "thistle", "tomato", "turquoise", "violet", "wheat", //
-    "white", "whitesmoke", "yellow", "yellowgreen",
-];
+/// The CSS Color Module Level 4 extended colour keywords the CLI's core recognizes
+/// (`parseColor` consults them after trying `transparent` and `#hex`). Only the names
+/// matter here, loaded from the canonical name→hex table in
+/// `browser/js/config/colorNames.json`, embedded at compile time.
+static COLOR_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    let table: std::collections::HashMap<String, String> =
+        serde_json::from_str(include_str!("../../browser/js/config/colorNames.json"))
+            .expect("canonical browser/js/config/colorNames.json is not a valid name->hex object");
+    table.into_keys().collect()
+});
 
 /// Whether `spec` is a colour the CLI's `parseColor` accepts (`cli/src/core.zig` →
 /// `parseColor` in `core/color/colorNames.cpp`): after trimming and ASCII-lowercasing,
@@ -232,7 +227,29 @@ fn is_color(spec: &str) -> bool {
     if let Some(hex) = s.strip_prefix('#') {
         return matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|b| b.is_ascii_hexdigit());
     }
-    COLOR_NAMES.contains(&s.as_str())
+    COLOR_NAMES.contains(s.as_str())
+}
+
+#[cfg(test)]
+mod canonical_tables_tests {
+    use super::*;
+
+    #[test]
+    fn color_table_has_148_names_and_validates() {
+        assert_eq!(COLOR_NAMES.len(), 148);
+        assert!(is_color("rebeccapurple"));
+        assert!(is_color(" RebeccaPurple "));
+        assert!(!is_color("notacolour"));
+    }
+
+    #[test]
+    fn page_format_table_has_33_names_and_validates() {
+        assert_eq!(PAGE_FORMATS.len(), 33);
+        assert!(is_page_format("a10"));
+        assert!(is_page_format("C7"));
+        assert!(!is_page_format("A11"));
+        assert!(!is_page_format("Letter"));
+    }
 }
 
 /// A layout argument: a path/URL the CLI reads, or an inline layout object the server
@@ -249,6 +266,31 @@ pub enum LayoutArg {
 pub struct ProbeParams {
     /// Image source: a local path or an `http(s)://` URL.
     pub input: String,
+}
+
+/// Parameters for the `stencil_prompt` tool — hand a natural-language request to the
+/// configured LLM (see `llm-contract.md`) and execute the op-plan it returns with the
+/// same pipeline `stencil_edit` uses.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PromptParams {
+    /// The user's instruction or question, e.g. "rotate it right and give me a sepia and
+    /// a b&w variant".
+    pub prompt: String,
+
+    /// Working image: a local path or an `http(s)://` URL. A local image file is also
+    /// attached to the LLM for vision (≤ 8 MiB; png/jpg/webp/gif). Omit for chat-only
+    /// questions or plans that create blank pages.
+    #[serde(default)]
+    pub input: Option<String>,
+
+    /// Directory the results are written into (created if missing): `result.png` for the
+    /// plan's base actions plus one `{label}.png` per variant.
+    pub output_dir: String,
+
+    /// Override the configured `STENCIL_LLM_MODEL` for this call. The provider and endpoint
+    /// are NOT overridable — they are operator config, so a caller cannot redirect the key.
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Parameters for the `source_site` tool — scrape a web page, download the media that
@@ -344,6 +386,7 @@ const FLAG_CROP: &str = "-c";
 const FLAG_ALBUM: &str = "--album";
 const FLAG_ROTATE: &str = "-r";
 const FLAG_LAYOUT: &str = "-l";
+const FLAG_LAYOUT_FRAME: &str = "--layout-frame";
 const FLAG_FILTER: &str = "--filter";
 const FLAG_REMOTE_UPDATE: &str = "--remote-update";
 const FLAG_REMOTE: &str = "--remote";
@@ -652,6 +695,10 @@ pub fn build_argv(
     }
     if let Some(path) = layout_path {
         b.opt(FLAG_LAYOUT, path);
+        // Only meaningful alongside a layout; omitted = the CLI's `current` default.
+        if let Some(frame) = &params.layout_frame {
+            b.opt(FLAG_LAYOUT_FRAME, frame.clone());
+        }
     }
     if let Some(filter) = &params.filter {
         b.opt(FLAG_FILTER, filter.clone());

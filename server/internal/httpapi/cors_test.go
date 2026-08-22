@@ -76,6 +76,32 @@ func TestCORSExplicitOriginAllowed(t *testing.T) {
 	}
 }
 
+func TestCORSEmptyListAllowsLoopbackOnly(t *testing.T) {
+	// nil/empty allowlist = the loopback-only default: local dev pages work,
+	// everything else gets no ACAO header.
+	for _, origins := range [][]string{nil, {}} {
+		h := CORS(origins)(okHandler())
+		cases := []struct {
+			origin string
+			want   string
+		}{
+			{"http://localhost:8080", "http://localhost:8080"},
+			{"http://127.0.0.1:3000", "http://127.0.0.1:3000"},
+			{"https://evil.example", ""},
+			{"chrome-extension://abcdefghijklmnop", ""}, // non-http scheme
+		}
+		for _, c := range cases {
+			req := httptest.NewRequest(http.MethodGet, "/projects", nil)
+			req.Header.Set("Origin", c.origin)
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != c.want {
+				t.Fatalf("origin %q: allow-origin = %q, want %q", c.origin, got, c.want)
+			}
+		}
+	}
+}
+
 func TestCORSNoOriginHeaderUntouched(t *testing.T) {
 	h := CORS([]string{"*"})(okHandler())
 	req := httptest.NewRequest(http.MethodGet, "/projects", nil)

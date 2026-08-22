@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
@@ -8,6 +9,7 @@ using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Workspace;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -20,6 +22,12 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// <c>.json</c> while an image is loaded) overlays a drawing layout; and callback queries go
 /// through <see cref="CallbackAction"/>. Every handler body is guarded so a domain error is
 /// surfaced verbatim and an unexpected one is logged and apologised for.
+///
+/// Plain text is claimed in a fixed precedence: a pending free-text prompt (<see
+/// cref="PendingInputs"/>) first, then an http(s) link (treated as <c>/url</c>; in chat mode any
+/// words around the link then run as a prompt ON it), then — when chat mode is on (<c>/chat</c>)
+/// — the AI assistant via the <c>prompt</c> handler, and finally the "send a photo" hint. Slash
+/// commands short-circuit all of it, so a command is never swallowed by chat mode.
 /// </summary>
 public sealed class UpdateRouter
 {
@@ -31,6 +39,7 @@ public sealed class UpdateRouter
     private readonly UserGate _gate;
     private readonly BotOptions _options;
     private readonly ILogger<UpdateRouter> _logger;
+    private readonly AlbumCollector _albums;
 
     public UpdateRouter(
         CommandHandlers handlers,
@@ -40,7 +49,8 @@ public sealed class UpdateRouter
         ITelegramBotClient bot,
         UserGate gate,
         BotOptions options,
-        ILogger<UpdateRouter> logger)
+        ILogger<UpdateRouter> logger,
+        AlbumCollector? albums = null)
     {
         _handlers = handlers;
         _callbacks = callbacks;
@@ -50,6 +60,7 @@ public sealed class UpdateRouter
         _gate = gate;
         _options = options;
         _logger = logger;
+        _albums = albums ?? new AlbumCollector();
     }
 
     /// <summary>Route one incoming message (slash command, photo, or document).</summary>
@@ -62,11 +73,77 @@ public sealed class UpdateRouter
     {
         long chatId = message.Chat.Id;
         long userId = message.From?.Id ?? chatId;
+        // Album members buffer OUTSIDE the gate: the flush acquires it itself, so waiting for
+        // sibling messages while holding it would deadlock this user's queue.
+        if (message.MediaGroupId is string groupId && message.Photo is { Length: > 0 } album)
+        {
+            _albums.Add(userId, groupId,
+                new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
+                photos => FlushAlbumAsync(userId, chatId, photos, ct), ct);
+            return;
+        }
         await SafeAsync(chatId, async () =>
         {
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             await RouteMessageAsync(userId, chatId, message, ct);
         }, ct);
+    }
+
+    /// <summary>A settled album's background flush: same error guard + user gate as a message.</summary>
+    private Task FlushAlbumAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
+        SafeAsync(chatId, async () =>
+        {
+            using IDisposable gate = await _gate.AcquireAsync(userId, ct);
+            await ProcessAlbumAsync(userId, chatId, photos, ct);
+        }, ct);
+
+    /// <summary>
+    /// One settled album. With a caption (on whichever member carries it): adopt + run that
+    /// caption once per photo, sequentially in album order — the same path a single captioned
+    /// photo takes — buffering each rendered result so the batch replies as ONE media group.
+    /// The last photo's edited result stays as the working image. With no caption at all, only
+    /// the last photo is adopted (one working image), with a single note — captionless members
+    /// are never individually echoed.
+    /// </summary>
+    private async Task ProcessAlbumAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
+    {
+        List<AlbumPhoto> ordered = photos.OrderBy(p => p.MessageId).ToList();
+        await ClearPendingInputAsync(userId, ct);
+        string? caption = ordered.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Caption))?.Caption;
+        if (caption is null)
+        {
+            await _bot.SendMessage(
+                chatId,
+                $"Got an album of {ordered.Count} photos — only one can be the working image, so I took the last. Caption an album to edit every photo.",
+                cancellationToken: ct);
+            await AdoptImageAsync(userId, chatId, ordered[^1].FileId, ".jpg", "photo", caption: null, ct);
+            return;
+        }
+        List<PromptRender> results = new();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            string label = $"photo {i + 1}/{ordered.Count}";
+            string path = await DownloadToTempAsync(ordered[i].FileId, ".jpg", ct);
+            try
+            {
+                await _editing.SetImageFromLocalFileAsync(userId, path, label, ct: ct);
+                List<PromptRender> captured = new();
+                using (_handlers.BeginRenderCapture(userId, captured))
+                {
+                    await ApplyCaptionOrRenderAsync(userId, chatId, caption, ct);
+                }
+                // A caption run can render more than once; the last render is this photo's result.
+                if (captured.Count > 0)
+                {
+                    results.Add(captured[^1]);
+                }
+            }
+            finally
+            {
+                TempFiles.TryDelete(path);
+            }
+        }
+        await _handlers.SendRenderAlbumAsync(chatId, results, ct);
     }
 
     /// <summary>Route one non-message update — only callback queries are acted on here.</summary>
@@ -78,6 +155,14 @@ public sealed class UpdateRouter
         }
         long chatId = query.Message?.Chat.Id ?? query.From.Id;
         long userId = query.From.Id;
+        // Stop skips the gate ON PURPOSE: the assistant turn it cancels holds that gate for as
+        // long as it runs, so taking it here would park the tap behind the very turn it means to
+        // end. It touches no session state, so running it alongside the turn is safe.
+        if (query.Data == CallbackAction.StopToken)
+        {
+            await SafeAsync(chatId, () => _callbacks.HandleAsync(query, ct), ct);
+            return;
+        }
         await SafeAsync(chatId, async () =>
         {
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
@@ -93,6 +178,21 @@ public sealed class UpdateRouter
             // A command supersedes any pending free-text prompt (e.g. the custom-expiry entry).
             await ClearPendingInputAsync(userId, ct);
             BotCommand command = CommandParser.Parse(text);
+            // "/prompt …" sent as a REPLY to a photo means "ask the AI about THAT photo":
+            // adopt the replied-to image as the working image first (the same download path an
+            // upload takes), then let the handler attach it to the LLM turn.
+            if (command.Verb == "prompt" && message.ReplyToMessage?.Photo is { Length: > 0 } replied)
+            {
+                string repliedPath = await DownloadToTempAsync(replied[^1].FileId, ".jpg", ct);
+                try
+                {
+                    await _editing.SetImageFromLocalFileAsync(userId, repliedPath, "photo", ct: ct);
+                }
+                finally
+                {
+                    TempFiles.TryDelete(repliedPath);
+                }
+            }
             await _handlers.DispatchAsync(userId, chatId, command, ct);
             return;
         }
@@ -121,9 +221,30 @@ public sealed class UpdateRouter
             return;
         }
         // A pasted http(s) link (no command, no attachment) is treated as /url — fetch it.
+        // Words AROUND the link are a request about it ("b&w this and outline the face: <url>"),
+        // so in chat mode the link is loaded first and the rest goes to the assistant, which
+        // then sees it as the working image. Without chat mode the link alone still wins.
         if (message.Text is string body && TryExtractUrl(body, out string url))
         {
             await _handlers.DispatchAsync(userId, chatId, new BotCommand("url", url, [url]), ct);
+            string around = body.Replace(url, " ", StringComparison.Ordinal).Trim();
+            if (around.Length > 0 && (await _store.GetAsync(userId, ct)).ChatMode)
+            {
+                // The /url render above already answered with the edit menu, which reads as
+                // "done" — say the edit is still coming before the assistant turn runs (which
+                // posts its own spinning notice for how long it takes).
+                await _bot.SendMessage(chatId, "✏️ Loaded — now editing per your request…", cancellationToken: ct);
+                await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(around), ct);
+            }
+            return;
+        }
+        // Chat mode (/chat): anything left over — a plain message that is not a command, not an
+        // attachment, not the answer to a pending prompt and not a bare image link — is handed to
+        // the assistant exactly as "/prompt <text>" would be, same handler, same media groups.
+        if (message.Text is string chat && !string.IsNullOrWhiteSpace(chat)
+            && (await _store.GetAsync(userId, ct)).ChatMode)
+        {
+            await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(chat), ct);
             return;
         }
         if (!string.IsNullOrWhiteSpace(message.Text))
@@ -203,7 +324,7 @@ public sealed class UpdateRouter
         }
         finally
         {
-            TryDelete(path);
+            TempFiles.TryDelete(path);
         }
     }
 
@@ -235,18 +356,25 @@ public sealed class UpdateRouter
         }
         finally
         {
-            TryDelete(path);
+            TempFiles.TryDelete(path);
         }
     }
 
     /// <summary>
     /// After adopting an upload, apply a caption command when it is a recognised edit (it then
-    /// renders the result), otherwise just render the adopted image.
+    /// renders the result); a plain-text caption goes to the assistant when chat mode is on;
+    /// otherwise just render the adopted image.
     /// </summary>
     private async Task ApplyCaptionOrRenderAsync(long userId, long chatId, string? caption, CancellationToken ct)
     {
         if (!HasCaptionCommand(caption))
         {
+            // Chat mode: a plain-text caption is an assistant request about the adopted image.
+            if (!string.IsNullOrWhiteSpace(caption) && (await _store.GetAsync(userId, ct)).ChatMode)
+            {
+                await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(caption!), ct);
+                return;
+            }
             await _handlers.RenderAndSendAsync(userId, chatId, ct);
             return;
         }
@@ -286,6 +414,7 @@ public sealed class UpdateRouter
         "crop", "rotate", "filter",
         "draw", "line", "polyline", "rect", "rectangle", "poly", "polygon",
         "reset", "undoline", "clearlines", "image", "json",
+        "prompt",
     };
 
     /// <summary>
@@ -347,7 +476,7 @@ public sealed class UpdateRouter
             await _bot.SendMessage(chatId, "That file isn't a valid Stencil layout JSON.", cancellationToken: ct);
             return;
         }
-        await _editing.ApplyLayoutAsync(userId, layout, ct);
+        await _editing.ApplyLayoutAsync(userId, layout, ct: ct);
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
     }
 
@@ -391,7 +520,7 @@ public sealed class UpdateRouter
         }
         catch
         {
-            TryDelete(path);
+            TempFiles.TryDelete(path);
             throw;
         }
         return path;
@@ -414,6 +543,11 @@ public sealed class UpdateRouter
         }
         catch (StencilCliException ex)
         {
+            // Deployment faults tell the chat a plain sentence and the operator the whole story.
+            if (ex.OperatorDetail is string detail)
+            {
+                _logger.LogError("Stencil CLI unavailable: {Detail}", detail);
+            }
             await ReplyError(chatId, ex.Message, ct);
         }
         catch (OperationCanceledException)
@@ -427,12 +561,15 @@ public sealed class UpdateRouter
         }
     }
 
-    /// <summary>Best-effort error reply (a failed reply must not mask the original error).</summary>
+    /// <summary>
+    /// Best-effort error reply (a failed reply must not mask the original error). Every failure
+    /// the bot answers with — CLI, server, validation, the catch-all — wears the error glyph here.
+    /// </summary>
     private async Task ReplyError(long chatId, string message, CancellationToken ct)
     {
         try
         {
-            await _bot.SendMessage(chatId, message, cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.Tag(Replies.Tone.Error, message), cancellationToken: ct);
         }
         catch (Exception ex)
         {
@@ -467,18 +604,5 @@ public sealed class UpdateRouter
     {
         string ext = Path.GetExtension(name);
         return ext.Length == 0 ? fallback : ext.ToLowerInvariant();
-    }
-
-    /// <summary>Delete a temp file, ignoring failures.</summary>
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch
-        {
-            // Best effort — a leftover temp file is harmless.
-        }
     }
 }

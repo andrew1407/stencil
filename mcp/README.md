@@ -84,10 +84,16 @@ mcp/
     locate.rs          # find the stencil binary (STENCIL_CLI → repo cli/zig-out/bin → PATH)
     layout.rs          # Layout/Line/Point types + write an inline layout to a temp file
     outcome.rs         # parse the CLI's `wrote …` success line and `error:` lines (stderr)
+    llmtransport.rs    # hand-rolled plain-http HTTP/1.1 POST transport (no TLS, no deps)
+    llm.rs             # LLM providers, system prompt + wire mappings (llm-contract.md)
+    opplan.rs          # op-plan parser/validator + mapping onto EditParams runs
   tests/
     args_test.rs       # param → argv mapping + surface resolution + guards (pure)
     outcome_test.rs    # stderr parsing (pure)
-    e2e_test.rs        # real CLI runs, self-skipping when the binary is absent
+    opplan_test.rs     # op-plan parse tables + EditParams mapping (pure)
+    llmtransport_test.rs # HTTP transport against a canned local TcpListener
+    llm_test.rs        # provider wire shapes via a mock recording transport
+    e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
 ```
 
@@ -185,8 +191,9 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 | `stencil_edit` | Run the full pipeline, write a file, deliver to surface(s), optionally fetch/publish on a collaboration server | `input` \| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface`, `server`, `remote_update`, `remote`, `remote_name` |
 | `stencil_probe` | Read an image's pixel size | `input` |
 | `source_site` | Scrape a web page and download its matching media into a **directory** | `source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height` |
+| `stencil_prompt` | Ask a configured LLM to plan edits from natural language and run them (see [LLM assistant](#llm-assistant-stencil_prompt)) | `prompt`, `input`, `output_dir`, `model` override |
 
-`stencil_edit` maps directly onto the CLI (`source → crop → rotate → layout → filter →
+`stencil_edit` maps directly onto the CLI (`source → crop → rotate → filter → layout →
 encode`):
 
 - **`input`** — a local path or `http(s)://` URL to an image or video. Mutually exclusive
@@ -240,6 +247,80 @@ video and any unmeasured item — plus a `wrote …` / `scraped N file(s) …` t
     "filter": "img", "format": "png|jpg", "min_width": 400, "count": 10 } }
 ```
 
+#### LLM assistant (`stencil_prompt`)
+
+`stencil_prompt` implements the shared Stencil LLM contract —
+[`llm-contract.md`](../llm-contract/llm-contract.md) is authoritative for the system prompt,
+the op-plan schema/limits, and the provider wire formats. The tool sends the `prompt` (and,
+for vision, a local `input` image ≤ 8 MiB, png/jpg/webp/gif) to the configured provider,
+strictly validates the returned op-plan (crop / rotate / filter / layout / formula / page /
+blank / frame / image / save; unknown ops are skipped with a note), and executes it through
+the **same CLI pipeline** as `stencil_edit`: the plan's base actions are written to
+`{output_dir}/result.png` and each variant to `{output_dir}/{sanitized-label}.png`. A plan
+with no actions is a chat-only answer — text back, nothing written.
+
+The contract's §7 **auto-continuation** applies: a plan whose actions only LOAD a picture
+the model has not seen (`blank`/`frame`, possibly with pixel-independent crop/filter/page
+edits, but no layout line drawn — and no variants or `ask`) is applied and the prompt is
+automatically re-sent **once** with the freshly rendered `result.png` attached (plus its
+edge map), so "create a blank page and draw something on it" completes in one call. The
+follow-up plan is executed normally, whatever it contains — bounded to a single
+continuation, so a second load-only answer never loops. Both replies come back joined, and
+a follow-up failure keeps the loaded image with a note rather than erroring the call.
+
+The contract's §2.1 multi-image ops land here as follows. A `save` writes the image + layout
+built so far as a project — `{output_dir}/{name}.stencil`, the CLI's own bundle format, named
+from the op's `name`, else the input file, deduped so one save never overwrites another. An
+`image` op restarts the working image from `input`: this tool carries exactly ONE image, so
+index 1 is it and any higher index is skipped with a note (the rest of the plan still runs),
+never a failed plan — as is a `save` with no working image. Both are top-level only: a variant
+that holds one is dropped with a note naming it (an ask option keeps its place and loses only
+its preview) and the rest of the plan still runs — the misplacement costs that variant, never
+the turn.
+
+A turn is **one model round** (contract §3.0): the plan executes, the reply comes back, and
+nothing runs after it — no extra pass re-checks or re-traces the lines the model drew. (§7's
+auto-continuation above is part of the turn, not a post-plan pass, and is bounded to one
+re-send.)
+
+Configuration (contract §5; env / `.env`. Only `model` is overridable per call — the
+provider and its endpoint are operator configuration, so a caller cannot redirect the
+configured API key to a host of its choosing) — see the
+[root README](../README.md#ai-assistant--setting-up-a-model) for getting a provider
+running behind these keys:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `STENCIL_LLM_PROVIDER` | `ollama` | `ollama` \| `openai-compat` (LM Studio, llama.cpp, vLLM…) \| `stencil-server` |
+| `STENCIL_LLM_BASE_URL` | `http://localhost:11434` (ollama) / `http://localhost:1234/v1` (openai-compat) | provider endpoint |
+| `STENCIL_LLM_MODEL` | empty | model name (empty = server default) |
+| `STENCIL_LLM_API_KEY` | empty | `openai-compat` bearer key (LM Studio needs none) |
+| `STENCIL_LLM_SERVER_URL` | — | `stencil-server` only: a Stencil collaboration server proxying Anthropic |
+| `STENCIL_LLM_SERVER_TOKEN` | empty | bearer token for that server |
+
+> **Plain-http only, and credentials stay on the box.** Per the contract's
+> no-new-dependency rule, the transport is a small hand-rolled HTTP/1.1 client
+> (`llmtransport.rs`) — `https://` endpoints are rejected. Because there is no TLS, it also
+> **refuses to send `Authorization` / `x-api-key` to anything but loopback** (decided from
+> the resolved peer address, before the socket opens), so a key can never leave in
+> cleartext. Use a local provider (Ollama / LM Studio), a local TLS proxy, or a
+> stencil-server on loopback; the collaboration server holds the Anthropic key and does the
+> TLS hop.
+
+Notes vs. the richer clients: this tool is single-turn (no chat history is kept between
+calls; the §7 continuation re-sends the turn once, still without history), attached images are not downscaled (the adapter is codec-free), and a plan's
+actions are collapsed into the CLI's fixed pipeline order — plans needing two crops on one
+image, a `formula`, a standalone `page`, or several frames at once are rejected with an
+explanation.
+
+```jsonc
+// "rotate photo.jpg right and give me a sepia and a b&w variant" → out/result.png,
+// out/sepia.png, out/b-w.png
+{ "name": "stencil_prompt", "arguments": {
+    "prompt": "rotate it right and give me a sepia and a b&w variant",
+    "input": "photo.jpg", "output_dir": "out" } }
+```
+
 #### Collaboration server
 
 The Stencil [collaboration server](../server/README.md) stores and shares projects across
@@ -276,7 +357,7 @@ first point and setting a non-`transparent` `fillColor`):
   "lines": [
     {
       "points": [ { "x": 50, "y": 50 }, { "x": 750, "y": 50 }, { "x": 400, "y": 550 } ],
-      "color": "#ff0000", "thickness": 3, "markerSize": 0,
+      "color": "#ff0000", "thickness": 3, "pointSize": 0,
       "style": "solid", "locked": false, "fillColor": "transparent"
     }
   ]

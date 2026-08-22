@@ -21,13 +21,16 @@ public static class StencilCliLocator
     /// <summary>The relative path of the built CLI inside a repo checkout.</summary>
     private const string RepoBinary = "cli/zig-out/bin/stencil";
 
-    /// <summary>A marker that identifies the repo root unambiguously.</summary>
-    private const string RepoMarker = "cli/build.zig";
+    /// <summary>A sentinel path that identifies the repo root unambiguously.</summary>
+    private const string RepoSentinel = "cli/build.zig";
 
-    /// <summary>The actionable message thrown when no CLI binary can be found.</summary>
+    /// <summary>The actionable message logged for the operator when no CLI binary can be found.</summary>
     public const string MissingMessage =
         "could not find the `stencil` CLI. Build it with `zig build` in `cli/`, " +
         "set the STENCIL_CLI env var to its path, or run the Docker image.";
+
+    /// <summary>What the chat is told instead — the fix is the operator's, not the user's.</summary>
+    public const string UnavailableMessage = "The image engine isn't available on this bot right now.";
 
     /// <summary>
     /// Resolve the CLI binary path. <paramref name="overridePath"/> (or the
@@ -45,7 +48,8 @@ public static class StencilCliLocator
             {
                 return envOverride;
             }
-            throw new StencilCliException($"STENCIL_CLI is set to '{envOverride}', which is not a file");
+            throw StencilCliException.Deployment(
+                UnavailableMessage, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
         }
 
         string? inRepo = FindInRepo();
@@ -60,7 +64,7 @@ public static class StencilCliLocator
             return onPath;
         }
 
-        throw new StencilCliException(MissingMessage);
+        throw StencilCliException.Deployment(UnavailableMessage, MissingMessage);
     }
 
     /// <summary>
@@ -116,14 +120,14 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Walk up from <paramref name="start"/> for an ancestor containing the marker.</summary>
+    /// <summary>Walk up from <paramref name="start"/> for an ancestor containing the sentinel.</summary>
     private static string? RepoRootFrom(string start)
     {
         DirectoryInfo? dir = new(start);
         while (dir is not null)
         {
-            string marker = Path.Combine(dir.FullName, RepoMarker);
-            if (File.Exists(marker))
+            string sentinel = Path.Combine(dir.FullName, RepoSentinel);
+            if (File.Exists(sentinel))
             {
                 return dir.FullName;
             }

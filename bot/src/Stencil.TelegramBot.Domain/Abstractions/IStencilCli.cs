@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Domain.Abstractions;
 public interface IStencilCli
 {
     /// <summary>
-    /// Run one edit (source → crop → rotate → layout → filter → encode) and return the
+    /// Run one edit (source → crop → rotate → filter → layout → encode) and return the
     /// written file's path and dimensions. Throws <see cref="Exceptions.StencilCliException"/>
     /// on failure.
     /// </summary>

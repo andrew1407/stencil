@@ -80,13 +80,13 @@ class BuildRequestTest(unittest.TestCase):
         # so we can assert the `color` field rides the PUT body like `name`.
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["method"] = req.get_method()
             captured["url"] = req.full_url
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {"id": "p1", "version": 3, "color": "#abcdef"}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.update_project("p1", name="Demo", color="#abcdef", version=2)
         self.assertEqual(captured["method"], "PUT")
         self.assertEqual(captured["url"], "http://host:8090/projects/p1")
@@ -100,11 +100,11 @@ class BuildRequestTest(unittest.TestCase):
         # color=None must NOT appear in the body (nil => unchanged, like name).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.update_project("p1", layout={"lines": []}, version=5)
         self.assertNotIn("color", captured["body"])
         self.assertNotIn("name", captured["body"])
@@ -114,11 +114,11 @@ class BuildRequestTest(unittest.TestCase):
         # An explicit "" is a clear request and MUST be sent (it is not None).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.update_project("p1", color="", version=1)
         self.assertEqual(captured["body"]["color"], "")
 
@@ -126,11 +126,11 @@ class BuildRequestTest(unittest.TestCase):
         # expires_at rides the PUT body like color/name; None omits it, 0 is sent (clear).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {"id": "p1", "version": 4, "expiresAt": 5000}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.update_project("p1", expires_at=5000, version=3)
         self.assertEqual(captured["body"], {"version": 3, "expiresAt": 5000})
         self.assertEqual(rec["expiresAt"], 5000)
@@ -145,7 +145,7 @@ class BuildRequestTest(unittest.TestCase):
         # Mirrors rename_project: GET for the current version, then PUT expiresAt.
         calls = []
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             calls.append((req.get_method(), req.full_url))
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": 7}}
@@ -153,7 +153,7 @@ class BuildRequestTest(unittest.TestCase):
             self.assertEqual(body, {"version": 7, "expiresAt": 9000})
             return {"id": "p1", "version": 8, "expiresAt": 9000}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.set_project_expiration("p1", 9000)
         self.assertEqual(rec["expiresAt"], 9000)
         self.assertEqual(calls[0][0], "GET")
@@ -172,7 +172,7 @@ class BuildRequestTest(unittest.TestCase):
         versions = iter([5, 6])  # GET returns v5, then v6 after the conflict
         attempts = {"put": 0}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": next(versions)}}
             attempts["put"] += 1
@@ -183,19 +183,19 @@ class BuildRequestTest(unittest.TestCase):
             self.assertEqual(body["version"], 6)              # retried with the fresh version
             return {"id": "p1", "version": 7, "expiresAt": 9000}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.set_project_expiration("p1", 9000)
         self.assertEqual(rec["expiresAt"], 9000)
         self.assertEqual(attempts["put"], 2)                  # retried exactly once
 
     def test_field_write_gives_up_after_sustained_conflict(self) -> None:
         # Never-winning contention surfaces the conflict (not a silent no-op).
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": 1}}
             raise ServerError("conflict", "stale version", status=409)
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         with self.assertRaises(ServerError) as ctx:
             self.conn.rename_project("p1", "nope")
         self.assertEqual(ctx.exception.code, "conflict")
@@ -204,13 +204,13 @@ class BuildRequestTest(unittest.TestCase):
         # A non-conflict error (e.g. notFound) is not retried — it propagates immediately.
         calls = {"put": 0}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": 1}}
             calls["put"] += 1
             raise ServerError("notFound", "gone", status=404)
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         with self.assertRaises(ServerError) as ctx:
             self.conn.set_project_expiration("p1", 5)
         self.assertEqual(ctx.exception.code, "notFound")
@@ -218,30 +218,30 @@ class BuildRequestTest(unittest.TestCase):
 
     def test_get_project_color_reads_record(self) -> None:
         # get_project_color extracts ProjectRecord.color from the GET payload.
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             return {"project": {"id": "p1", "color": "#112233"}}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.assertEqual(self.conn.get_project_color("p1"), "#112233")
 
     def test_get_project_color_defaults_to_empty(self) -> None:
         # A project with no color comes back as "" (theme fallback).
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             return {"project": {"id": "p1"}}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.assertEqual(self.conn.get_project_color("p1"), "")
 
     def test_update_project_body_includes_description(self) -> None:
         # description rides the PUT body like color/name (nil => unchanged contract).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["method"] = req.get_method()
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {"id": "p1", "version": 3, "description": "a note"}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.update_project("p1", description="a note", version=2)
         self.assertEqual(captured["method"], "PUT")
         self.assertEqual(captured["body"], {"version": 2, "description": "a note"})
@@ -251,11 +251,11 @@ class BuildRequestTest(unittest.TestCase):
         # description=None must NOT appear (keep the server's current value).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.update_project("p1", color="#fff", version=5)
         self.assertNotIn("description", captured["body"])
 
@@ -263,11 +263,11 @@ class BuildRequestTest(unittest.TestCase):
         # An explicit "" is a clear request and MUST be sent (it is not None).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.update_project("p1", description="", version=1)
         self.assertEqual(captured["body"]["description"], "")
 
@@ -275,7 +275,7 @@ class BuildRequestTest(unittest.TestCase):
         # Mirrors rename_project: GET for the current version, then a version-guarded PUT.
         calls = []
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             calls.append(req.get_method())
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": 4}}
@@ -283,7 +283,7 @@ class BuildRequestTest(unittest.TestCase):
             self.assertEqual(body, {"version": 4, "description": "note"})
             return {"id": "p1", "version": 5, "description": "note"}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         rec = self.conn.set_project_description("p1", "note")
         self.assertEqual(rec["description"], "note")
         self.assertEqual(calls[0], "GET")
@@ -293,13 +293,13 @@ class BuildRequestTest(unittest.TestCase):
         # Clearing sends "" under the version guard (not a silent no-op).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             if req.get_method() == "GET":
                 return {"project": {"id": "p1", "version": 2}}
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {"id": "p1", "version": 3, "description": ""}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.set_project_description("p1", "")
         self.assertEqual(captured["body"], {"version": 2, "description": ""})
 
@@ -314,12 +314,12 @@ class BuildRequestTest(unittest.TestCase):
         # create_project passes description through; a None value is dropped (server default).
         captured = {}
 
-        def fake_open(req, raw=False):
+        def stub_open(req, raw=False):
             captured["method"] = req.get_method()
             captured["body"] = json.loads(req.data.decode("utf-8"))
             return {"id": "p1", "version": 1}
 
-        self.conn._open = fake_open
+        self.conn._open = stub_open
         self.conn.create_project(name="Demo", description="a note")
         self.assertEqual(captured["method"], "POST")
         self.assertEqual(captured["body"], {"name": "Demo", "description": "a note"})
@@ -327,7 +327,7 @@ class BuildRequestTest(unittest.TestCase):
         self.assertNotIn("description", captured["body"])
 
     def test_raw_body_is_octet_stream_with_query(self) -> None:
-        payload = b"\x89PNGfakebytes"
+        payload = b"\x89PNGstubbytes"
         req = self.conn._build_request(
             "POST",
             "/projects/p1/files/original",
@@ -341,6 +341,21 @@ class BuildRequestTest(unittest.TestCase):
             req.full_url,
             "http://host:8090/projects/p1/files/original?ext=png&w=320&h=240",
         )
+
+    def test_delete_file_sends_delete_and_returns_none(self) -> None:
+        # delete_file drops a filestore-only kind (video/variantN/chat) with the
+        # §9 per-file DELETE; the idempotent 204 comes back as None.
+        captured = {}
+
+        def stub_open(req, raw=False):
+            captured["method"] = req.get_method()
+            captured["url"] = req.full_url
+            return None  # what _open yields for a 204 No Content
+
+        self.conn._open = stub_open
+        self.assertIsNone(self.conn.delete_file("p1", "chat"))
+        self.assertEqual(captured["method"], "DELETE")
+        self.assertEqual(captured["url"], "http://host:8090/projects/p1/files/chat")
 
 
 class ErrorParsingTest(unittest.TestCase):
@@ -472,11 +487,11 @@ class RenameProjectTest(unittest.TestCase):
         conn._current_version = lambda pid, fb: 7  # type: ignore[method-assign]
         captured: dict = {}
 
-        def fake_update(pid, layout=None, name=None, color=None, version=0):  # noqa: ANN001
+        def stub_update(pid, layout=None, name=None, color=None, version=0):  # noqa: ANN001
             captured.update(pid=pid, name=name, version=version)
             return {"id": pid, "name": name, "version": version + 1}
 
-        conn.update_project = fake_update  # type: ignore[method-assign]
+        conn.update_project = stub_update  # type: ignore[method-assign]
         rec = conn.rename_project("p_1", "New Name")
         self.assertEqual(captured, {"pid": "p_1", "name": "New Name", "version": 7})
         self.assertEqual(rec["name"], "New Name")

@@ -1,12 +1,8 @@
-using Microsoft.Extensions.Logging.Abstractions;
-using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
-using Stencil.TelegramBot.Infrastructure.Links;
 using Stencil.TelegramBot.Infrastructure.Sessions;
-using Stencil.TelegramBot.Infrastructure.Workspace;
-using Stencil.TelegramBot.Tests.Fakes;
+using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
@@ -23,8 +19,8 @@ public sealed class ProjectNameHandlerTests : IDisposable
     private const long ChatId = 88;
 
     private readonly string _dataDir;
-    private readonly FakeStencilCli _cli = new();
-    private readonly FakeBotClient _bot = new();
+    private readonly MockStencilCli _cli = new();
+    private readonly MockBotClient _bot = new();
     private readonly InMemorySessionStore _store = new();
     private readonly CommandHandlers _handlers;
 
@@ -32,18 +28,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-name-" + Guid.NewGuid().ToString("N"));
         BotOptions options = new() { DataDir = _dataDir };
-        UserWorkspace workspace = new(options);
-        EditingService editing = new(_cli, workspace, _store);
-        LayoutFetcher layoutFetcher = new(options, isBlockedAddress: RemoteImageUrl.IsBlockedAddress);
-        _handlers = new CommandHandlers(
-            editing,
-            new ThrowingServerService(),
-            _store,
-            _bot,
-            options,
-            new SyncRegistry(),
-            layoutFetcher,
-            NullLogger<CommandHandlers>.Instance);
+        _handlers = TestHandlers.Create(options, _store, _cli, _bot);
     }
 
     public void Dispose()

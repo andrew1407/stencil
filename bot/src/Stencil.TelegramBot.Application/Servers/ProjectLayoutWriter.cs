@@ -29,6 +29,7 @@ public static class ProjectLayoutWriter
     public static JsonObject Build(string? baseLayoutJson, EditState edits, int resultWidth, int resultHeight)
     {
         JsonObject root = TryParseObject(baseLayoutJson) ?? new JsonObject();
+        NormalizeCropRect(root);
 
         root["lines"] = JsonSerializer.SerializeToNode(edits.Layout?.Lines ?? [], StencilJson.Options);
 
@@ -48,6 +49,19 @@ public static class ProjectLayoutWriter
                 root["customPageWidth"] = pw;
                 root["customPageHeight"] = ph;
             }
+        }
+
+        // An LLM `formula` op overrides the fetched layout's formula for that axis; otherwise
+        // whatever the base layout carried is preserved as-is (the bot-doesn't-model default).
+        if (edits.FormulaX is string formulaX)
+        {
+            root["formulaX"] = formulaX;
+            root["allowFormulas"] = true;
+        }
+        if (edits.FormulaY is string formulaY)
+        {
+            root["formulaY"] = formulaY;
+            root["allowFormulas"] = true;
         }
 
         root["rotationQuarters"] = edits.Rotate;
@@ -88,6 +102,29 @@ public static class ProjectLayoutWriter
             return ("contour", null);
         }
         return ("custom", filter);
+    }
+
+    /// <summary>
+    /// Rewrite a preserved legacy <c>cropRect</c> (<c>{width,height}</c>, pre-Phase-6 desktop)
+    /// to the canonical <c>{x,y,w,h}</c> keys, so the saved envelope is canonical-only.
+    /// </summary>
+    private static void NormalizeCropRect(JsonObject root)
+    {
+        if (root["cropRect"] is not JsonObject rect)
+        {
+            return;
+        }
+        foreach (var (legacy, canonical) in new[] { ("width", "w"), ("height", "h") })
+        {
+            if (rect.ContainsKey(legacy))
+            {
+                if (!rect.ContainsKey(canonical))
+                {
+                    rect[canonical] = rect[legacy]?.DeepClone();
+                }
+                rect.Remove(legacy);
+            }
+        }
     }
 
     private static JsonObject? TryParseObject(string? json)

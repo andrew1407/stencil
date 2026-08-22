@@ -23,3 +23,8 @@ stencil-py = "pystencil.cli:main"
 
 [tool.setuptools]
 packages = ["pystencil"]
+
+[tool.setuptools.package-data]
+# The checked-in copies of the canonical LLM assets (system prompt + providers),
+# loaded at import via importlib.resources (byte-pinned by tests/test_canonical_drift.py).
+pystencil = ["_data/*.json"]

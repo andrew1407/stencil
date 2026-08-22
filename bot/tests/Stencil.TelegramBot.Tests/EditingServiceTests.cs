@@ -5,12 +5,12 @@ using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
-using Stencil.TelegramBot.Tests.Fakes;
+using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// <see cref="EditingService"/> over a <see cref="FakeStencilCli"/>, a real
+/// <see cref="EditingService"/> over a <see cref="MockStencilCli"/>, a real
 /// <see cref="InMemorySessionStore"/> and a real <see cref="UserWorkspace"/> rooted at a temp
 /// directory: the edit-state accumulation, rotate wrap, render-request mapping and JSON export.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class EditingServiceTests : IDisposable
     private const long UserId = 1234;
 
     private readonly string _root;
-    private readonly FakeStencilCli _cli;
+    private readonly MockStencilCli _cli;
     private readonly InMemorySessionStore _store;
     private readonly EditingService _service;
 
@@ -28,7 +28,7 @@ public sealed class EditingServiceTests : IDisposable
         _root = Path.Combine(Path.GetTempPath(), "stencil-editing-" + Guid.NewGuid().ToString("N"));
         BotOptions options = new() { DataDir = _root };
         UserWorkspace workspace = new(options);
-        _cli = new FakeStencilCli();
+        _cli = new MockStencilCli();
         _store = new InMemorySessionStore();
         _service = new EditingService(_cli, workspace, _store);
     }
@@ -183,6 +183,46 @@ public sealed class EditingServiceTests : IDisposable
         Assert.Null(cleared.Edits.Filter);
     }
 
+    // `combine` mirrors the GUI editors' Combine/Replace prompt and the CLI console's
+    // `apply … combine`: keep what is drawn and add the incoming lines after it.
+    private static StencilLayout LayoutWith(int x) => new()
+    {
+        Lines = [new LayoutLine { Points = [new LayoutPoint(x, x), new LayoutPoint(x + 1, x + 1)] }],
+    };
+
+    [Fact]
+    public async Task ApplyLayoutReplacesTheCurrentLinesByDefault()
+    {
+        await _service.BlankAsync(UserId, new BlankSpec());
+        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5));
+
+        Assert.Single(session.Edits.Layout!.Lines);
+        Assert.Equal(5, session.Edits.Layout!.Lines[0].Points[0].X);
+    }
+
+    [Fact]
+    public async Task ApplyLayoutCombineKeepsTheExistingLinesAndAddsTheNewOnTop()
+    {
+        await _service.BlankAsync(UserId, new BlankSpec());
+        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5), combine: true);
+
+        Assert.Equal(2, session.Edits.Layout!.Lines.Count);
+        Assert.Equal(1, session.Edits.Layout!.Lines[0].Points[0].X);   // existing first…
+        Assert.Equal(5, session.Edits.Layout!.Lines[1].Points[0].X);   // …new on top
+    }
+
+    [Fact]
+    public async Task ApplyLayoutCombineOnAnEmptyDrawingJustAdoptsTheLayout()
+    {
+        await _service.BlankAsync(UserId, new BlankSpec());
+        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(3), combine: true);
+
+        Assert.Single(session.Edits.Layout!.Lines);
+        Assert.Equal(3, session.Edits.Layout!.Lines[0].Points[0].X);
+    }
+
     [Fact]
     public async Task RenderBuildsRequestCarryingEditsAndLayoutPath()
     {
@@ -218,7 +258,7 @@ public sealed class EditingServiceTests : IDisposable
     public async Task DrawingAppendsLinesStyledWithThePen()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ConfigurePenAsync(UserId, color: "#ff0000", thickness: 5, markerSize: 0, style: "dashed", fill: "#00ff00");
+        await _service.ConfigurePenAsync(UserId, color: "#ff0000", thickness: 5, pointSize: 0, style: "dashed", fill: "#00ff00");
 
         await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(10, 10)], closed: false);
         UserSession afterOpen = await _store.GetAsync(UserId);
@@ -337,7 +377,7 @@ public sealed class EditingServiceTests : IDisposable
         string json = _service.ExportLayoutJson(session);
         Assert.Contains("\"imageWidth\": 320", json);
         Assert.Contains("\"imageHeight\": 240", json);
-        Assert.Contains("\"filter\": \"sepia\"", json);
+        Assert.Contains("\"imageFilter\": \"sepia\"", json); // canonical key (Phase 6)
         Assert.Contains("\"lines\"", json);
     }
 }

@@ -4,7 +4,7 @@ using Telegram.Bot.Exceptions;
 using Telegram.Bot.Requests.Abstractions;
 using Telegram.Bot.Types;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// An in-process <see cref="ITelegramBotClient"/> stand-in that records every outbound request
@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests.Fakes;
 /// call <see cref="SendRequest{TResponse}"/>). Tests inspect <see cref="Requests"/> to assert what
 /// the handler sent — no Telegram network is ever touched.
 /// </summary>
-public sealed class FakeBotClient : ITelegramBotClient
+public class MockBotClient : ITelegramBotClient
 {
     /// <summary>Every request the bot handed to <see cref="SendRequest{TResponse}"/>, in order.</summary>
     public List<object> Requests { get; } = new();
@@ -29,9 +29,24 @@ public sealed class FakeBotClient : ITelegramBotClient
 
     public event AsyncEventHandler<ApiResponseEventArgs>? OnApiResponseReceived;
 
-    public Task<TResponse> SendRequest<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
+    private int _nextMessageId;
+
+    public virtual Task<TResponse> SendRequest<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         Requests.Add(request);
+        // File-info lookups need a real TGFile back (GetInfoAndDownloadFile reads its FilePath).
+        if (request is global::Telegram.Bot.Requests.GetFileRequest getFile)
+        {
+            TGFile file = new() { FileId = getFile.FileId, FileUniqueId = getFile.FileId, FilePath = "files/" + getFile.FileId };
+            return Task.FromResult((TResponse)(object)file);
+        }
+        // A sent message gets a real id back, so a caller that edits or deletes its own notice
+        // (ProgressNotice) exercises that path here instead of null-guarding out of it.
+        if (request is global::Telegram.Bot.Requests.SendMessageRequest)
+        {
+            Message sent = new() { Id = Interlocked.Increment(ref _nextMessageId) };
+            return Task.FromResult((TResponse)(object)sent);
+        }
         return Task.FromResult<TResponse>(default!);
     }
 
@@ -43,7 +58,7 @@ public sealed class FakeBotClient : ITelegramBotClient
     public Task DownloadFile(TGFile file, Stream destination, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
-    /// <summary>Suppress "event never used" warnings — the fake never raises them.</summary>
+    /// <summary>Suppress "event never used" warnings — the mock never raises them.</summary>
     private void TouchEvents()
     {
         _ = OnMakingApiRequest;

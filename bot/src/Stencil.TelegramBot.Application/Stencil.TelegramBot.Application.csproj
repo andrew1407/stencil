@@ -8,6 +8,11 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Canonical §4 system-prompt prose, embedded so the bot needs no repo checkout at run time. -->
+    <EmbeddedResource Include="../../../browser/js/config/llm/systemPrompt.json" Link="Assets/systemPrompt.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

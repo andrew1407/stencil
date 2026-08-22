@@ -43,13 +43,26 @@ public sealed class StencilCliLocatorTests
         }
     }
 
+    // The chat is told the engine is unavailable; the env var and the bad path are the
+    // operator's to read in the log, so they ride OperatorDetail instead of the message.
     [Fact]
-    public void NonFileOverrideThrows()
+    public void NonFileOverrideThrowsWithThePathInTheOperatorDetailOnly()
     {
         string missing = Path.Combine(Path.GetTempPath(), "stencil-missing-" + Guid.NewGuid().ToString("N"));
         StencilCliException ex = Assert.Throws<StencilCliException>(() => StencilCliLocator.FindCli(missing));
-        Assert.Contains("not a file", ex.Message);
-        Assert.Contains(missing, ex.Message);
+        Assert.Equal(StencilCliLocator.UnavailableMessage, ex.Message);
+        Assert.DoesNotContain("STENCIL_", ex.Message);
+        Assert.DoesNotContain(missing, ex.Message);
+        Assert.Contains("not a file", ex.OperatorDetail);
+        Assert.Contains(missing, ex.OperatorDetail);
+    }
+
+    [Fact]
+    public void UnavailableMessageNamesNoDeploymentDetail()
+    {
+        Assert.DoesNotContain("STENCIL_", StencilCliLocator.UnavailableMessage);
+        Assert.DoesNotContain("zig", StencilCliLocator.UnavailableMessage);
+        Assert.DoesNotContain("/", StencilCliLocator.UnavailableMessage);
     }
 
     [Fact]

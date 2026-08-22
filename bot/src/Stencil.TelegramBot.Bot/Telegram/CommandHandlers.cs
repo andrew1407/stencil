@@ -1,12 +1,15 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
@@ -14,15 +17,17 @@ using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
 /// <summary>
 /// One handler per slash command, plus the shared render-and-send helper. Each command folds its
 /// intent through <see cref="IEditingService"/> / <see cref="IServerService"/> — the same
-/// Application services the callback buttons use — then replies over Telegram.
+/// Application services the callback buttons use — then replies over Telegram. Split by command
+/// group into partial files: Projects, Editing, Sources, and Assistant (LLM).
 /// </summary>
-public sealed class CommandHandlers
+public sealed partial class CommandHandlers
 {
     private readonly IEditingService _editing;
     private readonly IServerService _servers;
@@ -31,7 +36,12 @@ public sealed class CommandHandlers
     private readonly BotOptions _options;
     private readonly SyncRegistry _sync;
     private readonly LayoutFetcher _layoutFetcher;
+    private readonly PromptService _prompts;
+    private readonly LlmAttachmentLoader _attachments;
+    private readonly PromptCancellations _cancellations;
     private readonly ILogger<CommandHandlers> _logger;
+    // User ids whose assistant refusal already carried the operator hint to the log.
+    private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
 
     public CommandHandlers(
         IEditingService editing,
@@ -41,6 +51,9 @@ public sealed class CommandHandlers
         BotOptions options,
         SyncRegistry sync,
         LayoutFetcher layoutFetcher,
+        PromptService prompts,
+        LlmAttachmentLoader attachments,
+        PromptCancellations cancellations,
         ILogger<CommandHandlers> logger)
     {
         _editing = editing;
@@ -50,6 +63,9 @@ public sealed class CommandHandlers
         _options = options;
         _sync = sync;
         _layoutFetcher = layoutFetcher;
+        _prompts = prompts;
+        _attachments = attachments;
+        _cancellations = cancellations;
         _logger = logger;
     }
 
@@ -59,6 +75,10 @@ public sealed class CommandHandlers
         {
             "start" => StartAsync(userId, chatId, cmd, ct),
             "help" => HelpAsync(chatId, ct),
+            // "/p" is normalised to "prompt" by CommandParser, so one verb covers both.
+            "prompt" => PromptAsync(userId, chatId, cmd, ct),
+            "chat" => ChatAsync(userId, chatId, cmd, ct),
+            "chatapi" => ChatApiAsync(userId, chatId, cmd, ct),
             "connect" => ConnectAsync(userId, chatId, cmd, ct),
             "disconnect" => DisconnectAsync(userId, chatId, cmd, ct),
             "connections" => ConnectionsAsync(userId, chatId, ct),
@@ -88,7 +108,7 @@ public sealed class CommandHandlers
             "poly" or "polygon" => DrawShapeAsync(userId, chatId, "poly", cmd.Args, ct),
             "color" or "colour" => PenColorAsync(userId, chatId, cmd, ct),
             "thickness" => PenThicknessAsync(userId, chatId, cmd, ct),
-            "markers" or "marker" => PenMarkersAsync(userId, chatId, cmd, ct),
+            "points" or "point" => PenPointsAsync(userId, chatId, cmd, ct),
             "style" => PenStyleAsync(userId, chatId, cmd, ct),
             "fill" => PenFillAsync(userId, chatId, cmd, ct),
             "pen" => PenAsync(userId, chatId, ct),
@@ -108,1056 +128,26 @@ public sealed class CommandHandlers
         };
 
     /// <summary>
-    /// Greet the user — or, when the message carries a deep-link start payload (a
-    /// t.me/&lt;bot&gt;?start=&lt;payload&gt; link from the browser/desktop "Open in…"), connect to
-    /// the referenced server like a fresh client and open the project.
+    /// The shared send-photo tail: stream a rendered result file from disk as a "result.png"
+    /// photo with its caption (and optional keyboard). Used by <see cref="RenderAndSendAsync"/>,
+    /// <see cref="SendPromptRenderAsync"/> and the album fallback.
     /// </summary>
-    private async Task StartAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task SendResultPhotoAsync(long chatId, string path, string caption,
+        InlineKeyboardMarkup? keyboard, CancellationToken ct)
     {
-        if (cmd.ArgumentText.Length > 0
-            && DeepLinkCodec.TryDecode(cmd.ArgumentText, out string serverUrl, out string projectId))
-        {
-            await OpenDeepLinkedProjectAsync(userId, chatId, serverUrl, projectId, ct);
-            return;
-        }
-        await _bot.SendMessage(
+        await using FileStream stream = File.OpenRead(path);
+        InputFileStream photo = InputFile.FromStream(stream, "result.png");
+        await _bot.SendPhoto(
             chatId,
-            "Welcome to Stencil. Send a photo to start editing, or tap a button below.",
-            replyMarkup: Keyboards.MainMenu(),
+            photo,
+            caption: caption,
+            replyMarkup: keyboard,
             cancellationToken: ct);
-    }
-
-    /// <summary>
-    /// Open a deep-linked server project: reuse the session's connection to that origin, else
-    /// connect tokenless (the server mints one — no token ever rides the link), then fetch and
-    /// render. Failures reply with the manual /connect + /fetch recipe.
-    /// </summary>
-    private async Task OpenDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
-        string projectId, CancellationToken ct)
-    {
-        try
-        {
-            UserSession session = await _store.GetAsync(userId, ct);
-            if (session.FindConnection(serverUrl) is null)
-            {
-                await _servers.ConnectAsync(userId, serverUrl, token: null, !_options.TlsInsecure, ct);
-            }
-            UserSession updated = await _servers.FetchAsync(userId, projectId, serverUrl, ct);
-            await _bot.SendMessage(
-                chatId,
-                $"Loaded shared project '{updated.ActiveProjectName}' from {serverUrl}.",
-                cancellationToken: ct);
-            await RenderAndSendAsync(userId, chatId, ct, mutating: false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            await _bot.SendMessage(
-                chatId,
-                $"Couldn't open the shared project — {ex.Message}\n\n"
-                + $"Try manually:\n/connect {serverUrl} [token]\n/fetch {projectId}",
-                cancellationToken: ct);
-        }
-    }
-
-    /// <summary>
-    /// Apply a layout to the working image: <c>/layout &lt;json | http(s) url to a .json&gt;</c> —
-    /// the command-line sibling of uploading a .json document. URLs are SSRF-vetted like /url.
-    /// </summary>
-    private async Task LayoutAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.ArgumentText.Length == 0)
-        {
-            await _bot.SendMessage(
-                chatId,
-                "Usage: /layout <layout JSON | link to a layout .json>, e.g. "
-                + "/layout {\"imageWidth\":800,\"imageHeight\":600,\"lines\":[…]} — "
-                + "or just upload the .json file.",
-                cancellationToken: ct);
-            return;
-        }
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "Upload an image (or use /blank) before applying a layout.", cancellationToken: ct);
-            return;
-        }
-        byte[] bytes;
-        bool isUrl = cmd.Args.Count == 1
-            && Uri.TryCreate(cmd.Args[0], UriKind.Absolute, out Uri? uri)
-            && uri.Scheme is "http" or "https";
-        if (isUrl)
-        {
-            // Same guard as /url: the bot is open to any Telegram user, so reject
-            // loopback/private/metadata hosts before fetching.
-            await RemoteImageUrl.ValidateAsync(cmd.Args[0], ct);
-            byte[]? fetched = await _layoutFetcher.FetchAsync(cmd.Args[0], ct);
-            if (fetched is null)
-            {
-                await _bot.SendMessage(chatId, "Could not fetch the layout from that link.", cancellationToken: ct);
-                return;
-            }
-            bytes = fetched;
-        }
-        else
-        {
-            bytes = Encoding.UTF8.GetBytes(cmd.ArgumentText);
-        }
-        StencilLayout? layout = StencilLayoutParser.Parse(bytes);
-        if (layout is null)
-        {
-            await _bot.SendMessage(chatId, "That isn't a valid Stencil layout JSON.", cancellationToken: ct);
-            return;
-        }
-        await _editing.ApplyLayoutAsync(userId, layout, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
     }
 
     /// <summary>Show the full command help plus the main menu.</summary>
     private Task HelpAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, Replies.HelpText(), replyMarkup: Keyboards.MainMenu(), cancellationToken: ct);
-
-    /// <summary>Connect to a collaboration server: <c>/connect &lt;url&gt; [token]</c>.</summary>
-    private async Task ConnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.ConnectUsage(), cancellationToken: ct);
-            return;
-        }
-        string url = cmd.Args[0];
-        string? token = cmd.Args.Count > 1 ? cmd.Args[1] : null;
-        bool verifyTls = !_options.TlsInsecure;
-        ServerConnectionInfo info = await _servers.ConnectAsync(userId, url, token, verifyTls, ct);
-        await _bot.SendMessage(
-            chatId,
-            $"Connected to {info.Url}.",
-            replyMarkup: Keyboards.MainMenu(),
-            cancellationToken: ct);
-    }
-
-    /// <summary>Forget a connection: <c>/disconnect [url]</c> (the most recent when omitted).</summary>
-    private async Task DisconnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
-        bool removed = await _servers.DisconnectAsync(userId, url, ct);
-        string text = removed ? "Disconnected." : "No matching connection to disconnect.";
-        await _bot.SendMessage(chatId, text, cancellationToken: ct);
-    }
-
-    private async Task ConnectionsAsync(long userId, long chatId, CancellationToken ct)
-    {
-        IReadOnlyList<ServerConnectionInfo> connections = await _servers.ConnectionsAsync(userId, ct);
-        await _bot.SendMessage(chatId, Replies.ConnectionsText(connections), cancellationToken: ct);
-    }
-
-    /// <summary>List projects (across all servers, or one) as tappable buttons.</summary>
-    private async Task ProjectsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
-        IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, url, ct);
-        if (projects.Count == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.ProjectsText(projects), cancellationToken: ct);
-            return;
-        }
-        await _bot.SendMessage(
-            chatId,
-            Replies.ProjectsText(projects),
-            replyMarkup: Keyboards.ProjectList(projects),
-            cancellationToken: ct);
-    }
-
-    /// <summary>Load a project as the working image: <c>/fetch &lt;name|id&gt;</c> (bare lists them).</summary>
-    private async Task FetchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.ArgumentText.Length == 0)
-        {
-            // Bare /fetch: list the fetchable projects (as tappable buttons) plus the usage hint.
-            IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, null, ct);
-            string text = $"{Replies.ProjectsText(projects)}\n\nUsage: /fetch <project name or id>";
-            await _bot.SendMessage(
-                chatId,
-                text,
-                replyMarkup: projects.Count == 0 ? null : Keyboards.ProjectList(projects),
-                cancellationToken: ct);
-            return;
-        }
-        UserSession session = await _servers.FetchAsync(userId, cmd.ArgumentText, null, ct);
-        await _bot.SendMessage(chatId, $"Loaded project '{session.ActiveProjectName}'.", cancellationToken: ct);
-        await RenderAndSendAsync(userId, chatId, ct, mutating: false);
-    }
-
-    /// <summary>Save the current result as a new project: <c>/create [name]</c>.</summary>
-    private async Task CreateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string? name = cmd.ArgumentText.Length == 0 ? null : cmd.ArgumentText;
-        ProjectRecord record = await _servers.CreateProjectAsync(userId, name, null, ct);
-        await _bot.SendMessage(
-            chatId,
-            $"Created project '{record.Name}' (id {record.Id}, v{record.Version}).",
-            cancellationToken: ct);
-    }
-
-    private async Task SaveAsync(long userId, long chatId, CancellationToken ct)
-    {
-        ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
-        await _bot.SendMessage(
-            chatId,
-            $"Saved '{record.Name}' (v{record.Version}).",
-            cancellationToken: ct);
-    }
-
-    /// <summary>Start a blank canvas: <c>/blank [format] [w h] [color]</c>.</summary>
-    private async Task BlankAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string? page = null;
-        int? width = null;
-        int? height = null;
-        string? color = null;
-        IReadOnlyList<string> args = cmd.Args;
-        // An optional leading named page format (case-insensitive), e.g. /blank b5 pink.
-        if (args.Count >= 1 && PageFormats.TryGet(args[0], out string canonical, out _, out _))
-        {
-            page = canonical;
-            args = args.Skip(1).ToList();
-        }
-        if (args.Count >= 2 && int.TryParse(args[0], out int w) && int.TryParse(args[1], out int h))
-        {
-            width = w;
-            height = h;
-            if (args.Count >= 3)
-            {
-                color = args[2];
-            }
-        }
-        else if (args.Count >= 1 && !int.TryParse(args[0], out _))
-        {
-            color = args[0];
-        }
-        // A format plus explicit dims is rejected by CliArgvBuilder (mutually exclusive).
-        BlankSpec spec = new(width, height, color, page);
-        await _editing.BlankAsync(userId, spec, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Show or set the page format: <c>/format [name | custom &lt;w&gt; &lt;h&gt;]</c>.</summary>
-    private async Task FormatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.PageFormatList(), cancellationToken: ct);
-            return;
-        }
-        string first = cmd.Args[0];
-        if (first.Equals("custom", StringComparison.OrdinalIgnoreCase))
-        {
-            if (cmd.Args.Count < 3
-                || !double.TryParse(cmd.Args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double w)
-                || !double.TryParse(cmd.Args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double h)
-                || w <= 0 || h <= 0)
-            {
-                await _bot.SendMessage(chatId, "Usage: /format custom <width> <height> (cm), e.g. /format custom 10 15", cancellationToken: ct);
-                return;
-            }
-            await _editing.SetPageFormatAsync(userId, "custom", w, h, ct);
-            await _bot.SendMessage(chatId, $"Page format set to custom ({PageFormats.Cm(w)}×{PageFormats.Cm(h)} cm) — saved into the project layout.", cancellationToken: ct);
-            return;
-        }
-        if (!PageFormats.TryGet(first, out string name, out double wcm, out double hcm))
-        {
-            await _bot.SendMessage(chatId, $"Unknown page format '{first}' — type /format to list formats.", cancellationToken: ct);
-            return;
-        }
-        await _editing.SetPageFormatAsync(userId, name, null, null, ct);
-        await _bot.SendMessage(chatId, $"Page format set to {name} ({PageFormats.Cm(wcm)}×{PageFormats.Cm(hcm)} cm) — the /blank default, saved into the project layout.", cancellationToken: ct);
-    }
-
-    /// <summary>Crop the working image: <c>/crop &lt;spec&gt; [album]</c>.</summary>
-    private async Task CropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string spec = cmd.ArgumentText;
-        bool album = false;
-        if (cmd.Args.Count > 0 && string.Equals(cmd.Args[^1], "album", StringComparison.OrdinalIgnoreCase))
-        {
-            album = true;
-            int idx = spec.LastIndexOf(cmd.Args[^1], StringComparison.OrdinalIgnoreCase);
-            spec = idx >= 0 ? spec[..idx].TrimEnd() : spec;
-        }
-        if (spec.Length == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.CropUsage(), cancellationToken: ct);
-            return;
-        }
-        await _editing.SetCropAsync(userId, spec, album, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Load an image from an http(s) URL: <c>/url &lt;link&gt;</c>.</summary>
-    private async Task UrlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /url <http(s) image link>, e.g. /url https://example.com/photo.png", cancellationToken: ct);
-            return;
-        }
-        string url = cmd.Args[0];
-        await _editing.SetImageFromUrlAsync(userId, url, LabelFromUrl(url), ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>
-    /// Scrape a web page's media into the chat: <c>/sourcesite &lt;url&gt; [count] [filter=…]
-    /// [format=…] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=…]</c>. The CLI fetches the page,
-    /// filters the media and downloads the matches; each image comes back as a photo, each video
-    /// as a document, plus a one-line summary. The URL is SSRF-vetted like /url.
-    /// </summary>
-    private async Task SourceSiteAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, SourceSiteUsage, cancellationToken: ct);
-            return;
-        }
-        string url = cmd.Args[0];
-        if (!TryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
-        {
-            await _bot.SendMessage(chatId, $"{error}\n\n{SourceSiteUsage}", cancellationToken: ct);
-            return;
-        }
-        // Same trust boundary as /url: the bot is open to any Telegram user, so reject
-        // loopback/private/metadata hosts before the CLI fetches the page.
-        await RemoteImageUrl.ValidateAsync(url, ct);
-        string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
-        // Fetching the page and downloading its media can take a while, so post an interim notice
-        // right away instead of leaving the chat silent — then clear it once the results land.
-        // (In tests the fake client returns a null Message; the null-guard skips the delete.)
-        Message? progress = await _bot.SendMessage(chatId, $"🔎 Scraping {host}…", cancellationToken: ct);
-        ScrapeResult result;
-        try
-        {
-            await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
-            result = await _editing.ScrapeAsync(userId, request, ct);
-        }
-        finally
-        {
-            // Best-effort: remove the "Scraping…" notice whether the scrape succeeded or threw,
-            // so it never lingers. A delete that races or ages out is harmless.
-            if (progress is not null)
-            {
-                try { await _bot.DeleteMessage(chatId, progress.MessageId, cancellationToken: ct); }
-                catch (Exception) { /* ignore: the notice is cosmetic */ }
-            }
-        }
-        foreach (ScrapedFile file in result.Files)
-        {
-            string name = Path.GetFileName(file.Path);
-            await using FileStream stream = File.OpenRead(file.Path);
-            if (file.Width is int w && file.Height is int h)
-            {
-                // A measured item is an image — send it as a photo with its dimensions.
-                InputFileStream photo = InputFile.FromStream(stream, name);
-                await _bot.SendPhoto(chatId, photo, caption: $"{name} — {w}x{h}", cancellationToken: ct);
-            }
-            else
-            {
-                // A video / unmeasured item — send the raw file as a document.
-                InputFileStream document = InputFile.FromStream(stream, name);
-                await _bot.SendDocument(chatId, document, caption: name, cancellationToken: ct);
-            }
-        }
-        await _bot.SendMessage(
-            chatId,
-            $"Scraped {result.Files.Count} file(s) from {host}.",
-            cancellationToken: ct);
-    }
-
-    /// <summary>The /sourcesite usage hint (shown on no args or a bad option).</summary>
-    private const string SourceSiteUsage =
-        "Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] "
-        + "[filter=img|video|background|poster] "
-        + "[format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=N]\n"
-        + "name= is a case-insensitive regex matched on each media URL.\n"
-        + "e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200";
-
-    /// <summary>
-    /// Parse the /sourcesite operands into a <see cref="ScrapeRequest"/>: <c>args[0]</c> is the
-    /// URL, and each later token is either a bare integer (the item count) or a <c>key=value</c>
-    /// option (count/group/filter/format and the min/max width/height bounds). A malformed numeric
-    /// value yields a false result with a human-readable <paramref name="error"/>.
-    /// </summary>
-    private static bool TryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
-    {
-        error = null;
-        // A minimal fallback the callers ignore on `false`; the success path overwrites it below.
-        request = new ScrapeRequest { Url = url };
-        int? count = null, group = null, minW = null, maxW = null, minH = null, maxH = null;
-        string? filter = null, format = null, name = null;
-        for (int i = 1; i < args.Count; i++)
-        {
-            string token = args[i];
-            int eq = token.IndexOf('=');
-            if (eq < 0)
-            {
-                // A bare integer is the item count (e.g. "/sourcesite <url> 6").
-                if (int.TryParse(token, out int bare) && bare >= 0)
-                {
-                    count = bare;
-                    continue;
-                }
-                error = $"Unrecognised option '{token}'.";
-                return false;
-            }
-            string key = token[..eq].ToLowerInvariant();
-            string value = token[(eq + 1)..];
-            switch (key)
-            {
-                case "count": if (!SetInt(ref count, value, key, out error)) return false; break;
-                case "group": if (!SetInt(ref group, value, key, out error)) return false; break;
-                case "minw" or "minwidth": if (!SetInt(ref minW, value, key, out error)) return false; break;
-                case "maxw" or "maxwidth": if (!SetInt(ref maxW, value, key, out error)) return false; break;
-                case "minh" or "minheight": if (!SetInt(ref minH, value, key, out error)) return false; break;
-                case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
-                case "filter": filter = value; break;
-                case "format": format = value; break;
-                // A regex matched against each media URL (passed through as --source-name).
-                case "name": name = value; break;
-                default:
-                    error = $"Unrecognised option '{key}'.";
-                    return false;
-            }
-        }
-        request = new ScrapeRequest
-        {
-            Url = url,
-            // A batch scrape with no explicit count defaults to 5 (a sensible chat-sized page);
-            // an explicit 0 means "all" and rides through as `--source-count 0`, which the CLI
-            // interprets as every match.
-            Count = count ?? 5,
-            Group = group,
-            Filter = filter,
-            Format = format,
-            Name = name,
-            MinWidth = minW,
-            MaxWidth = maxW,
-            MinHeight = minH,
-            MaxHeight = maxH,
-        };
-        return true;
-    }
-
-    /// <summary>Parse a non-negative integer option value; false with an <paramref name="error"/> otherwise.</summary>
-    private static bool SetInt(ref int? target, string value, string key, out string? error)
-    {
-        if (int.TryParse(value, out int parsed) && parsed >= 0)
-        {
-            target = parsed;
-            error = null;
-            return true;
-        }
-        error = $"'{key}' needs a non-negative number (got '{value}').";
-        return false;
-    }
-
-    /// <summary>
-    /// Scrape a web page and load ONE of its stills into the working image: <c>/sourceupload
-    /// &lt;url&gt; [index=0] [format=…] [minw=… maxw=… minh=… maxh=…]</c> — the chat analog of the
-    /// console <c>/source-upload</c>. Isolates the still at <c>index</c> (image-category only,
-    /// video excluded), adopts it as the editable base image (replacing the session like /url),
-    /// then renders and sends it with the edit menu. The URL is SSRF-vetted like /url.
-    /// </summary>
-    private async Task SourceUploadAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, SourceUploadUsage, cancellationToken: ct);
-            return;
-        }
-        string url = cmd.Args[0];
-        if (!TryParseSourceUploadArgs(url, cmd.Args, out ScrapeRequest request, out int index, out string? error))
-        {
-            await _bot.SendMessage(chatId, $"{error}\n\n{SourceUploadUsage}", cancellationToken: ct);
-            return;
-        }
-        // Same trust boundary as /url: the bot is open to any Telegram user, so reject
-        // loopback/private/metadata hosts before the CLI fetches the page.
-        await RemoteImageUrl.ValidateAsync(url, ct);
-        string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
-        // The page fetch + download can take a moment; post an interim notice and clear it once
-        // the still is in (mirrors /sourcesite; the fake client returns null → the delete is skipped).
-        Message? progress = await _bot.SendMessage(chatId, $"🔎 Scraping {host}…", cancellationToken: ct);
-        ScrapeResult result;
-        try
-        {
-            await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
-            // Count = 1, Group = index isolates exactly the still at that 0-based index (the CLI's
-            // paging window is filtered[index : index+1]); an empty result means no still lives there.
-            result = await _editing.ScrapeAsync(userId, request, ct);
-        }
-        finally
-        {
-            if (progress is not null)
-            {
-                try { await _bot.DeleteMessage(chatId, progress.MessageId, cancellationToken: ct); }
-                catch (Exception) { /* ignore: the notice is cosmetic */ }
-            }
-        }
-        if (result.Files.Count == 0)
-        {
-            await _bot.SendMessage(chatId, $"No image at index {index}.\n\n{SourceUploadUsage}", cancellationToken: ct);
-            return;
-        }
-        // Replace the working image via the local-file load path (mirrors how /url adopts a
-        // source — Telegram has no modal, so there's no TTY-style confirmation).
-        await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, LabelFromUrl(url), sourceUrl: url, ct: ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>The /sourceupload usage hint (shown on no args or a bad option).</summary>
-    private const string SourceUploadUsage =
-        "Usage: /sourceupload <http(s) link> [index=0] [format=png|jpg|…] [name=<regex>] "
-        + "[minw=…] [maxw=…] [minh=…] [maxh=…]\n"
-        + "Scrapes the page and loads its index-th still (img/background/poster — not video) as "
-        + "the editable working image. name= is a case-insensitive regex on the media URL.\n"
-        + "e.g. /sourceupload https://example.com 2 format=png name=cat minw=200";
-
-    /// <summary>
-    /// Parse the /sourceupload operands into a single-item <see cref="ScrapeRequest"/>: <c>args[0]</c>
-    /// is the URL; a bare integer (or <c>index=</c>) is the 0-based item index, and
-    /// <c>format=</c>/min-max width/height are the optional stills filters. The request pins
-    /// <c>Filter = "img|background|poster"</c> (stills only, excluding video), <c>Count = 1</c> and
-    /// <c>Group = index</c> so the CLI's paging window isolates exactly one still. A malformed value
-    /// yields a false result with a human-readable <paramref name="error"/>.
-    /// </summary>
-    private static bool TryParseSourceUploadArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out int index, out string? error)
-    {
-        error = null;
-        index = 0;
-        // A minimal fallback the callers ignore on `false`; the success path overwrites it below.
-        request = new ScrapeRequest { Url = url };
-        int? minW = null, maxW = null, minH = null, maxH = null;
-        string? format = null, name = null;
-        for (int i = 1; i < args.Count; i++)
-        {
-            string token = args[i];
-            int eq = token.IndexOf('=');
-            if (eq < 0)
-            {
-                // A bare integer is the 0-based item index (e.g. "/sourceupload <url> 2").
-                if (int.TryParse(token, out int bare) && bare >= 0)
-                {
-                    index = bare;
-                    continue;
-                }
-                error = $"Unrecognised option '{token}'.";
-                return false;
-            }
-            string key = token[..eq].ToLowerInvariant();
-            string value = token[(eq + 1)..];
-            switch (key)
-            {
-                case "index":
-                    int? idx = null;
-                    if (!SetInt(ref idx, value, key, out error)) return false;
-                    index = idx!.Value;
-                    break;
-                case "minw" or "minwidth": if (!SetInt(ref minW, value, key, out error)) return false; break;
-                case "maxw" or "maxwidth": if (!SetInt(ref maxW, value, key, out error)) return false; break;
-                case "minh" or "minheight": if (!SetInt(ref minH, value, key, out error)) return false; break;
-                case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
-                case "format": format = value; break;
-                // A regex matched against each media URL (narrows the candidate stills).
-                case "name": name = value; break;
-                default:
-                    error = $"Unrecognised option '{key}'.";
-                    return false;
-            }
-        }
-        request = new ScrapeRequest
-        {
-            Url = url,
-            // Image-category stills only (exclude video); the single item at `index` is isolated
-            // by the CLI's paging window (Count = 1, Group = index).
-            Filter = "img|background|poster",
-            Format = format,
-            Name = name,
-            Count = 1,
-            Group = index,
-            MinWidth = minW,
-            MaxWidth = maxW,
-            MinHeight = minH,
-            MaxHeight = maxH,
-        };
-        return true;
-    }
-
-    /// <summary>Re-grab a frame from the loaded video: <c>/frame [n]</c> (needs ffmpeg).</summary>
-    private async Task FrameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        int frame = 0;
-        if (cmd.Args.Count >= 1 && int.TryParse(cmd.Args[0], out int n))
-        {
-            frame = n;
-        }
-        await _editing.ExtractFrameAsync(userId, frame, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Draw a shape: <c>/draw &lt;line|rect|poly&gt; x1,y1 x2,y2 …</c>.</summary>
-    private async Task DrawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.DrawHelp(), cancellationToken: ct);
-            return;
-        }
-        string shape = cmd.Args[0];
-        IReadOnlyList<string> pointTokens = cmd.Args.Skip(1).ToList();
-        await DrawShapeAsync(userId, chatId, shape, pointTokens, ct);
-    }
-
-    /// <summary>Append a styled line/rectangle/polygon built from the point tokens.</summary>
-    private async Task DrawShapeAsync(long userId, long chatId, string shape, IReadOnlyList<string> pointTokens, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "Upload an image (or use /blank) before drawing.", cancellationToken: ct);
-            return;
-        }
-        string kind = shape.ToLowerInvariant();
-        bool closed = kind is "rect" or "rectangle" or "poly" or "polygon";
-        if (!DrawArguments.TryParsePoints(pointTokens, session.OriginalWidth, session.OriginalHeight, out List<LayoutPoint> points, out string? error))
-        {
-            await _bot.SendMessage(chatId, $"{error}\n\n{Replies.DrawHelp()}", cancellationToken: ct);
-            return;
-        }
-        IReadOnlyList<LayoutPoint> shapePoints = points;
-        if (kind is "rect" or "rectangle")
-        {
-            if (points.Count != 2)
-            {
-                await _bot.SendMessage(chatId, "A rectangle needs exactly two corner points: /draw rect x1,y1 x2,y2", cancellationToken: ct);
-                return;
-            }
-            shapePoints = DrawArguments.Rectangle(points[0], points[1]);
-        }
-        else if (kind is "poly" or "polygon")
-        {
-            if (points.Count < 3)
-            {
-                await _bot.SendMessage(chatId, "A polygon needs at least three points.", cancellationToken: ct);
-                return;
-            }
-        }
-        else if (kind is "line" or "polyline")
-        {
-            if (points.Count < 2)
-            {
-                await _bot.SendMessage(chatId, "A line needs at least two points.", cancellationToken: ct);
-                return;
-            }
-        }
-        else
-        {
-            await _bot.SendMessage(chatId, Replies.DrawHelp(), cancellationToken: ct);
-            return;
-        }
-        await _editing.AddLineAsync(userId, shapePoints, closed, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Set the pen colour: <c>/color &lt;#hex|name&gt;</c>.</summary>
-    private async Task PenColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /color <#hex|name>, e.g. /color #ff5623", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: cmd.Args[0], thickness: null, markerSize: null, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Pen colour set to {cmd.Args[0]}.", cancellationToken: ct);
-    }
-
-    /// <summary>Set the pen stroke width: <c>/thickness &lt;n&gt;</c>.</summary>
-    private async Task PenThicknessAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (!TryParseNonNegative(cmd.Args, out double value))
-        {
-            await _bot.SendMessage(chatId, "Usage: /thickness <n> (pixels, e.g. 4)", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: value, markerSize: null, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Pen thickness set to {value}.", cancellationToken: ct);
-    }
-
-    /// <summary>Set the vertex marker radius: <c>/markers &lt;n&gt;</c> (0 hides them).</summary>
-    private async Task PenMarkersAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (!TryParseNonNegative(cmd.Args, out double value))
-        {
-            await _bot.SendMessage(chatId, "Usage: /markers <n> (radius in pixels; 0 hides markers), e.g. /markers 6", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, markerSize: value, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Marker size set to {value}.", cancellationToken: ct);
-    }
-
-    /// <summary>Parse a non-negative invariant-culture number from the first argument.</summary>
-    private static bool TryParseNonNegative(IReadOnlyList<string> args, out double value)
-    {
-        value = 0;
-        return args.Count > 0
-            && double.TryParse(args[0], NumberStyles.Float, CultureInfo.InvariantCulture, out value)
-            && value >= 0;
-    }
-
-    /// <summary>Set the line style: <c>/style &lt;solid|dashed|dotted&gt;</c>.</summary>
-    private async Task PenStyleAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string style = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
-        if (style is not ("solid" or "dashed" or "dotted"))
-        {
-            await _bot.SendMessage(chatId, "Usage: /style <solid|dashed|dotted>, e.g. /style dashed", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, markerSize: null, style: style, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Line style set to {style}.", cancellationToken: ct);
-    }
-
-    /// <summary>Set the closed-shape fill: <c>/fill &lt;#hex|name|none&gt;</c>.</summary>
-    private async Task PenFillAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /fill <#hex|name|none>, e.g. /fill #00ff00 (none clears it)", cancellationToken: ct);
-            return;
-        }
-        string fill = cmd.Args[0];
-        bool clear = fill.Equals("none", StringComparison.OrdinalIgnoreCase)
-            || fill.Equals("clear", StringComparison.OrdinalIgnoreCase)
-            || fill.Equals("transparent", StringComparison.OrdinalIgnoreCase);
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, markerSize: null, style: null, fill: clear ? "none" : fill, ct);
-        await _bot.SendMessage(
-            chatId,
-            clear ? "Fill cleared (closed shapes are unfilled)." : $"Fill set to {fill} (applies to closed shapes).",
-            cancellationToken: ct);
-    }
-
-    private async Task PenAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        await _bot.SendMessage(chatId, Replies.PenText(session.Edits.Pen), cancellationToken: ct);
-    }
-
-    /// <summary>Step back one edit (crop/rotate/filter/draw), then re-render.</summary>
-    private async Task UndoAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession before = await _store.GetAsync(userId, ct);
-        if (!before.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        if (before.EditHistory.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Nothing to undo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
-            return;
-        }
-        await _editing.UndoAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Re-apply the most recently undone edit, then re-render.</summary>
-    private async Task RedoAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession before = await _store.GetAsync(userId, ct);
-        if (!before.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        if (before.EditRedo.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Nothing to redo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
-            return;
-        }
-        await _editing.RedoAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Remove the most recently drawn line/shape, then re-render.</summary>
-    private async Task UndoLineAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _editing.RemoveLastLineAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Remove every drawn line/shape, then re-render.</summary>
-    private async Task ClearLinesAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _editing.ClearLinesAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Rotate clockwise: <c>/rotate &lt;n&gt;</c> quarter-turns (bare lists the variants).</summary>
-    private async Task RotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0 || !int.TryParse(cmd.Args[0], out int turns))
-        {
-            await _bot.SendMessage(chatId, Replies.RotateVariants(), cancellationToken: ct);
-            return;
-        }
-        await _editing.RotateAsync(userId, turns, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>
-    /// Set or clear the filter: <c>/filter &lt;bw|sepia|invert|contour|none|color&gt;</c>
-    /// (bare lists the variants plus the filter submenu).
-    /// </summary>
-    private async Task FilterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.ArgumentText.Length == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.FilterVariants(), replyMarkup: Keyboards.FilterSubmenu(), cancellationToken: ct);
-            return;
-        }
-        await _editing.SetFilterAsync(userId, cmd.ArgumentText, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Clear pending edits but keep the working image.</summary>
-    private async Task ResetAsync(long userId, long chatId, CancellationToken ct)
-    {
-        await _editing.ResetEditsAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>Drop the working image and active project entirely.</summary>
-    private async Task DropAsync(long userId, long chatId, CancellationToken ct)
-    {
-        await _editing.DropImageAsync(userId, ct);
-        await _bot.SendMessage(
-            chatId,
-            "Dropped the working image. Send a photo or use /blank to start again.",
-            replyMarkup: Keyboards.MainMenu(),
-            cancellationToken: ct);
-    }
-
-    /// <summary>Re-render and send the current result (non-mutating — never triggers auto-sync).</summary>
-    private Task ImageAsync(long userId, long chatId, CancellationToken ct) =>
-        RenderAndSendAsync(userId, chatId, ct, mutating: false);
-
-    /// <summary>Toggle live sync for the active project: <c>/sync [on|off]</c>.</summary>
-    private async Task SyncAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        bool target = cmd.Args.Count == 0
-            ? !session.SyncEnabled
-            : cmd.Args[0] is "on" or "true" or "1" or "yes";
-        if (target && session.ActiveProjectId is null)
-        {
-            await _bot.SendMessage(chatId, "Open a server project first (/fetch or /create), then /sync on.", cancellationToken: ct);
-            return;
-        }
-        await _store.SaveAsync(session with { SyncEnabled = target }, ct);
-        if (target)
-        {
-            _sync.Enable(userId, chatId);
-            await _bot.SendMessage(chatId, "🔄 Live sync ON — your edits upload automatically, and a peer's changes are pulled into the chat.", cancellationToken: ct);
-        }
-        else
-        {
-            _sync.Disable(userId);
-            await _bot.SendMessage(chatId, "Live sync OFF. Use /save to push changes manually.", cancellationToken: ct);
-        }
-    }
-
-    /// <summary>Set the active project's accent colour: <c>/project-color &lt;#hex|name|clear&gt;</c>.</summary>
-    private async Task ProjectColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /project-color <#hex|name|clear>, e.g. /project-color #ff5623", cancellationToken: ct);
-            return;
-        }
-        string arg = cmd.Args[0];
-        string color = arg is "clear" or "none" or "default" ? "" : arg;
-        string effective = await _servers.SetProjectColorAsync(userId, color, ct);
-        await _bot.SendMessage(
-            chatId,
-            effective.Length == 0 ? "Project colour cleared." : $"Project colour set to {effective} {Replies.ColorDot(effective)}",
-            cancellationToken: ct);
-    }
-
-    /// <summary>Rename the working image, or — when it's a saved server project — the project:
-    /// <c>/project-name &lt;text&gt;</c> (the whole remainder is the new name; a blank argument is
-    /// rejected). For a not-yet-saved image this just relabels it, which is the name <c>/create</c>
-    /// will save it under.</summary>
-    private async Task ProjectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        // Free text: the whole remainder is the name (project names may contain spaces).
-        string name = cmd.ArgumentText.Trim();
-        if (name.Length == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /project-name <new name>, e.g. /project-name Poster draft", cancellationToken: ct);
-            return;
-        }
-        UserSession session = await _store.GetAsync(userId, ct);
-        // A saved server project renames on the server (version-guarded, broadcast to peers).
-        if (session.ActiveProjectId is not null)
-        {
-            string effective = await _servers.SetProjectNameAsync(userId, name, ct);
-            await _bot.SendMessage(chatId, $"Project renamed to: {effective}", cancellationToken: ct);
-            return;
-        }
-        // No server project yet — just relabel the local working image (the /create default name).
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image to name — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await _store.SaveAsync(session with { ImageLabel = name }, ct);
-        await _bot.SendMessage(chatId, $"Working image renamed to: {name} — /create will save it under this name.", cancellationToken: ct);
-    }
-
-    /// <summary>Set the description of the working image, or — when it's a saved server project —
-    /// the project: <c>/project-description &lt;text&gt;</c> (an empty argument clears it). For a
-    /// not-yet-saved image this is held locally and uploaded when <c>/create</c> saves it.</summary>
-    private async Task ProjectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        // Free text: the whole remainder is the description; empty clears it.
-        string description = cmd.ArgumentText.Trim();
-        UserSession session = await _store.GetAsync(userId, ct);
-        // A saved server project writes through to the server (version-guarded, broadcast to peers).
-        if (session.ActiveProjectId is not null)
-        {
-            string effective = await _servers.SetProjectDescriptionAsync(userId, description, ct);
-            await _bot.SendMessage(
-                chatId,
-                effective.Length == 0 ? "Project description cleared." : $"Project description set:\n{effective}",
-                cancellationToken: ct);
-            return;
-        }
-        // No server project yet — hold the description locally (uploaded when /create saves it).
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image to describe — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await _store.SaveAsync(session with { ActiveProjectDescription = description }, ct);
-        await _bot.SendMessage(
-            chatId,
-            description.Length == 0
-                ? "Description cleared."
-                : $"Description set (saved with the project on /create):\n{description}",
-            cancellationToken: ct);
-    }
-
-    /// <summary>Recolour the active BLANK project's background fill: <c>/blank-color &lt;#hex|name&gt;</c>
-    /// (blanks only). Bare shows the current fill.</summary>
-    private async Task BlankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            string cur = await _servers.GetProjectBlankColorAsync(userId, ct);
-            await _bot.SendMessage(
-                chatId,
-                cur.Length == 0 ? "This project is not a blank image." : $"Blank colour: {cur} {Replies.ColorDot(cur)}",
-                cancellationToken: ct);
-            return;
-        }
-        string effective = await _servers.SetProjectBlankColorAsync(userId, cmd.Args[0], ct);
-        await _bot.SendMessage(
-            chatId,
-            effective.Length == 0 ? "This project is not a blank image — nothing to recolour." : $"Blank colour set to {effective} {Replies.ColorDot(effective)}",
-            cancellationToken: ct);
-    }
-
-    /// <summary>
-    /// Set the active project's expiry: <c>/expire &lt;amount&gt;</c> (e.g. <c>3 days</c>,
-    /// <c>1 week</c>, <c>2 weeks</c>, <c>1 month</c>), <c>/expire never</c> to keep it forever, or
-    /// bare <c>/expire</c> to show the current expiry and the duration picker. <c>/expire custom</c>
-    /// (the Custom… button) arms a one-shot free-text prompt consumed by <see cref="UpdateRouter"/>.
-    /// </summary>
-    private async Task ExpireAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null)
-        {
-            await _bot.SendMessage(chatId, "Open a server project first (/fetch or /create), then set an expiry.", cancellationToken: ct);
-            return;
-        }
-        if (cmd.ArgumentText.Length == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.ExpiryPrompt(session.ActiveProjectExpiresAt), replyMarkup: Keyboards.ExpirationMenu(), cancellationToken: ct);
-            return;
-        }
-        // The Custom… button arms a free-text prompt; the next plain message is parsed as a duration.
-        if (cmd.ArgumentText.Equals("custom", StringComparison.OrdinalIgnoreCase))
-        {
-            await _store.SaveAsync(session with { PendingInput = PendingInputs.ExpiryDuration }, ct);
-            await _bot.SendMessage(
-                chatId,
-                "Send a custom expiry, e.g. \"3 days\", \"week\", \"2 weeks\", \"1 month\", or \"week 4\".",
-                cancellationToken: ct);
-            return;
-        }
-        if (!DurationParser.TryParse(cmd.ArgumentText, out ParsedDuration duration, out bool clear))
-        {
-            await _bot.SendMessage(chatId, Replies.ExpireUsage(), cancellationToken: ct);
-            return;
-        }
-        long expiresAt = clear ? 0 : duration.From(DateTimeOffset.UtcNow).ToUnixTimeMilliseconds();
-        long effective = await _servers.SetProjectExpiryAsync(userId, expiresAt, ct);
-        string message = effective <= 0
-            ? "Expiry cleared — this project is kept forever."
-            : $"Expiry set to {Replies.FmtDate(effective)} ({duration} from now).";
-        await _bot.SendMessage(chatId, message, cancellationToken: ct);
-    }
-
-    /// <summary>
-    /// Remove the active project from its server: bare <c>/delete</c> (or the 🗑 Remove button)
-    /// asks for confirmation; <c>/delete confirm</c> (the confirm button) actually deletes it, then
-    /// clears the active project and turns live sync off. Destructive, so it never deletes on a
-    /// single tap. The working image is kept so it can be re-saved elsewhere.
-    /// </summary>
-    private async Task DeleteProjectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null)
-        {
-            await _bot.SendMessage(chatId, "No active server project to remove — /fetch or /create one first.", cancellationToken: ct);
-            return;
-        }
-        if (!cmd.ArgumentText.Equals("confirm", StringComparison.OrdinalIgnoreCase))
-        {
-            string name = session.ActiveProjectName ?? session.ActiveProjectId;
-            await _bot.SendMessage(
-                chatId,
-                Replies.DeleteConfirmPrompt(name, session.ActiveServerUrl),
-                replyMarkup: Keyboards.DeleteConfirmMenu(),
-                cancellationToken: ct);
-            return;
-        }
-        string removed = await _servers.DeleteActiveProjectAsync(userId, ct);
-        _sync.Disable(userId);
-        await _bot.SendMessage(
-            chatId,
-            $"🗑 Removed '{removed}' from the server.",
-            replyMarkup: Keyboards.MainMenu(),
-            cancellationToken: ct);
-    }
 
     /// <summary>Export and send the layout JSON as a document.</summary>
     private async Task JsonAsync(long userId, long chatId, CancellationToken ct)
@@ -1223,20 +213,20 @@ public sealed class CommandHandlers
     /// </summary>
     public async Task RenderAndSendAsync(long userId, long chatId, CancellationToken ct, bool mutating = true)
     {
+        // Album batch: buffer the render for the single media-group reply instead of sending.
+        // (A fresh album adoption cleared any active project, so the auto-sync tail is moot.)
+        if (_renderCaptures.TryGetValue(userId, out List<PromptRender>? captured))
+        {
+            RenderResult buffered = await _editing.RenderAsync(userId, ct);
+            UserSession current = await _store.GetAsync(userId, ct);
+            captured.Add(new PromptRender(current.ImageLabel ?? "image", buffered));
+            return;
+        }
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
         RenderResult result = await _editing.RenderAsync(userId, ct);
         UserSession session = await _store.GetAsync(userId, ct);
-        string caption = BuildCaption(session, result);
-        await using (FileStream stream = File.OpenRead(result.Path))
-        {
-            InputFileStream photo = InputFile.FromStream(stream, "result.png");
-            await _bot.SendPhoto(
-                chatId,
-                photo,
-                caption: caption,
-                replyMarkup: Keyboards.EditMenu(session.ActiveProjectId is not null),
-                cancellationToken: ct);
-        }
+        await SendResultPhotoAsync(chatId, result.Path, BuildCaption(session, result),
+            Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
         // Live sync: a mutating edit on a synced active project auto-uploads so peers see it.
         if (mutating && session.SyncEnabled && session.ActiveProjectId is not null)
         {
@@ -1250,11 +240,16 @@ public sealed class CommandHandlers
         try
         {
             ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
-            await _bot.SendMessage(chatId, $"↑ synced to '{record.Name}' (v{record.Version}).", cancellationToken: ct);
+            // The ↑ already marks it; Tag keeps the line to one glyph.
+            await _bot.SendMessage(
+                chatId,
+                Replies.Tag(Replies.Tone.Success, $"↑ synced to '{record.Name}' (v{record.Version})."),
+                cancellationToken: ct);
         }
         catch (ServerException ex)
         {
-            await _bot.SendMessage(chatId, $"Couldn't sync: {ex.Message}", cancellationToken: ct);
+            await _bot.SendMessage(
+                chatId, Replies.Tag(Replies.Tone.Error, $"Couldn't sync: {ex.Message}"), cancellationToken: ct);
         }
     }
 

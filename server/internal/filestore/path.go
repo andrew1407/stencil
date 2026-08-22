@@ -25,11 +25,6 @@ type ErrUnsafePath struct{ Reason string }
 
 func (e ErrUnsafePath) Error() string { return "filestore: unsafe path: " + e.Reason }
 
-// validKind reports whether kind is an allowed file role.
-func validKind(kind string) bool {
-	return kind == protocol.KindOriginal || kind == protocol.KindResult
-}
-
 // normalizeExt lowercases and validates a file extension (no dot). An empty ext
 // defaults to "bin".
 func normalizeExt(ext string) (string, error) {
@@ -55,7 +50,7 @@ func (s *Store) projectDir(id string) (string, error) {
 // and re-checking that the cleaned absolute path is still inside the store root.
 // This is the single choke point guarding against path traversal.
 func (s *Store) safeJoin(id, kind, ext string) (string, error) {
-	if !validKind(kind) {
+	if !protocol.IsFileKind(kind) {
 		return "", ErrUnsafePath{Reason: "kind " + kind}
 	}
 	dir, err := s.projectDir(id)

@@ -59,6 +59,19 @@ public sealed class ProjectLayoutMapperTests
     }
 
     [Fact]
+    public void CropRectReadsCanonicalKeysAndCanonicalWins()
+    {
+        // Canonical browser form {x,y,w,h} reads.
+        var canonical = Parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467}, "rotationQuarters": 1, "lines": [] }""");
+        Assert.Equal("x1=16px x2=483px y1=0px y2=329px",
+            ProjectLayoutMapper.ToEditState(canonical, 500, 330).CropSpec);
+        // Both forms present: canonical wins over the legacy width/height pair.
+        var both = Parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467,"width":1,"height":1}, "rotationQuarters": 1, "lines": [] }""");
+        Assert.Equal("x1=16px x2=483px y1=0px y2=329px",
+            ProjectLayoutMapper.ToEditState(both, 500, 330).CropSpec);
+    }
+
+    [Fact]
     public void FullCoverCropIsSkipped()
     {
         var layout = Parse("""{ "rotationQuarters": 0, "cropRect": {"x":0,"y":0,"width":100,"height":80}, "lines": [] }""");

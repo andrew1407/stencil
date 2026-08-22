@@ -3,9 +3,10 @@ using Stencil.TelegramBot.Bot.Telegram;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// <see cref="PageFormats"/> — the bot's hardcoded ISO 216/269 table (the thin-adapter twin of
-/// <c>core/page/pageMetrics.cpp</c>): canonical order/casing, case-insensitive lookup, and the
-/// trimmed cm formatting used in chat text.
+/// <see cref="PageFormats"/> — the bot's ISO 216/269 table, parsed from the canonical
+/// <c>browser/js/config/constants.json</c> <c>PAGE_SIZES</c> embedded at build time:
+/// canonical order/casing, case-insensitive lookup, and the trimmed cm formatting used
+/// in chat text.
 /// </summary>
 public sealed class PageFormatsTests
 {
@@ -16,6 +17,31 @@ public sealed class PageFormatsTests
         Assert.Equal("A0", PageFormats.All[0].Name);
         Assert.Equal("B0", PageFormats.All[11].Name);
         Assert.Equal("C10", PageFormats.All[^1].Name);
+    }
+
+    [Fact]
+    public void EmbeddedTableParsesThirtyThreeFormatsWithA4Dimensions()
+    {
+        // Fails fast if the build-time embed of constants.json breaks or goes stale.
+        Assert.Equal(33, PageFormats.All.Count);
+        (string name, double w, double h) = PageFormats.All[4];
+        Assert.Equal("A4", name);
+        Assert.Equal(21, w);
+        Assert.Equal(29.7, h);
+    }
+
+    [Fact]
+    public void EmbeddedConstantsMatchCanonicalFileBytes()
+    {
+        // The embed copies the file at build time; catch drift against the repo's canonical copy.
+        using Stream? stream = typeof(PageFormats).Assembly.GetManifestResourceStream(
+            "Stencil.TelegramBot.Bot.Assets.constants.json");
+        Assert.NotNull(stream);
+        using var embedded = new MemoryStream();
+        stream.CopyTo(embedded);
+        byte[] canonical = File.ReadAllBytes(
+            SharedFixtures.PathOf("browser", "js", "config", "constants.json"));
+        Assert.Equal(canonical, embedded.ToArray());
     }
 
     [Theory]

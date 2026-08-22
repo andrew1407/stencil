@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Application.Servers;
+using Stencil.TelegramBot.Domain.Llm;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
@@ -11,6 +12,69 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// </summary>
 public static class Keyboards
 {
+    /// <summary>
+    /// The §11 choice card: one button per option, plus a Send button when the card takes
+    /// several picks. A ticked option shows ✓ — the selection and the labels live in the
+    /// session (see <c>UserSession.AskOptions</c> for why callback data cannot carry them).
+    /// Tapping never applies an edit; it only composes the answer sent as the user's next turn.
+    /// </summary>
+    public static InlineKeyboardMarkup AskCardKeyboard(IReadOnlyList<string> options, bool multi, IReadOnlyList<int> picked, bool allowCustom)
+    {
+        List<InlineKeyboardButton[]> rows = new();
+        for (int i = 0; i < options.Count; i++)
+        {
+            string tick = multi && picked.Contains(i) ? "☑️ " : multi ? "⬜️ " : "";
+            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(options[i])}", $"ask:{i}")]);
+        }
+        if (multi)
+        {
+            rows.Add([InlineKeyboardButton.WithCallbackData("✅ Send", "ask:send")]);
+        }
+        if (allowCustom)
+        {
+            // No button: a custom answer IS just typing, which chat mode already forwards.
+            rows.Add([InlineKeyboardButton.WithCallbackData("✍️ Type my own", "ask:custom")]);
+        }
+        return new InlineKeyboardMarkup(rows);
+    }
+
+    /// <summary>
+    /// The one-button keyboard on an assistant turn that did not deliver — it failed, or the user
+    /// stopped it. Re-runs the same prompt (its text is held in
+    /// <c>UserSession.LastRetryablePrompt</c>, since callback data cannot carry it). A timed-out or
+    /// unreachable endpoint is the common case, and retyping the prompt on a phone is the worst way
+    /// to recover from it.
+    /// </summary>
+    public static InlineKeyboardMarkup RetryPrompt() =>
+        new(new[] { new[] { InlineKeyboardButton.WithCallbackData("🔄 Retry", "retry:prompt") } });
+
+    /// <summary>
+    /// The one-button keyboard on the assistant's working notice. A turn can run for minutes and
+    /// holds the user's gate while it does, so without this there is no way to call it off —
+    /// see <see cref="PromptCancellations"/> for why the tap bypasses that gate.
+    /// </summary>
+    public static InlineKeyboardMarkup StopPrompt() =>
+        new(new[] { new[] { InlineKeyboardButton.WithCallbackData("⏹ Stop", "stop:prompt") } });
+
+    /// <summary>
+    /// The <c>/chatapi</c> picker: one button per configured chat API, the current one ticked.
+    /// The payload carries the profile NAME (operator-defined, short by construction) — never an
+    /// endpoint, which is what keeps a tap from pointing the bot at an arbitrary host.
+    /// </summary>
+    public static InlineKeyboardMarkup ChatApiMenu(IReadOnlyList<LlmProfile> profiles, string? current)
+    {
+        List<InlineKeyboardButton[]> rows = new();
+        foreach (LlmProfile p in profiles)
+        {
+            string tick = string.Equals(p.Name, current, StringComparison.OrdinalIgnoreCase) ? "✅ " : "";
+            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(p.Label)}", $"api:{p.Name}")]);
+        }
+        return new InlineKeyboardMarkup(rows);
+    }
+
+    /// <summary>Button labels have to stay readable on a phone — long option text is clipped.</summary>
+    private static string Trim(string label) => label.Length <= 40 ? label : label[..39] + "…";
+
     /// <summary>The top-level menu shown after /start and /help.</summary>
     public static InlineKeyboardMarkup MainMenu() => new(MainRows());
 
@@ -63,10 +127,51 @@ public static class Keyboards
             new[] { InlineKeyboardButton.WithCallbackData("« Cancel", "del:cancel") },
         });
 
-    /// <summary>The shared top-level rows (Help/Status, Connect/Projects, Create/Save).</summary>
+    /// <summary>
+    /// The §10 <c>clearChat</c> confirmation (the clear never fires on the model's word alone):
+    /// Yes rides the same <c>/chat clear</c> path as the 🧹 button (<c>chatclear:confirm</c>);
+    /// Cancel retires the prompt with a "clear canceled" note (<c>chatclear:cancel</c>).
+    /// </summary>
+    public static InlineKeyboardMarkup ClearChatConfirmMenu() =>
+        new(new[]
+        {
+            new[] { InlineKeyboardButton.WithCallbackData("🧹 Yes, clear it", "chatclear:confirm") },
+            new[] { InlineKeyboardButton.WithCallbackData("« Cancel", "chatclear:cancel") },
+        });
+
+    /// <summary>
+    /// The chat-mode keyboard sent with the chat-mode confirmation (and with a clear): the visible
+    /// way back out of chat mode (token <c>chat:off</c>) plus "forget the conversation"
+    /// (<c>chat:clear</c>) — the same two things <c>/chat off</c> and <c>/chat clear</c> do — and
+    /// the §12 chat-persistence toggle, whose label shows the current setting and whose token
+    /// (<c>chat:save-on</c>/<c>chat:save-off</c>) flips it like <c>/chat save on|off</c> would.
+    /// </summary>
+    public static InlineKeyboardMarkup ChatModeMenu(bool saveChats = false) =>
+        new(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🧹 Clear chat", "chat:clear"),
+                InlineKeyboardButton.WithCallbackData("🚪 Chat off", "chat:off"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    saveChats ? "💾 Save chats: on" : "💾 Save chats: off",
+                    saveChats ? "chat:save-off" : "chat:save-on"),
+            },
+        });
+
+    /// <summary>The shared top-level rows (Chat, Help/Status, Connect/Projects, Create/Save).</summary>
     private static List<InlineKeyboardButton[]> MainRows() =>
         new()
         {
+            // Chat mode gets its own full-width row: it's the entry point to the assistant, and
+            // the token is the same command (/chat on) the slash surface exposes.
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("💬 Chat with assistant", "chat:on"),
+            },
             new[]
             {
                 InlineKeyboardButton.WithCallbackData("❓ Help", "help"),
@@ -138,6 +243,7 @@ public static class Keyboards
             {
                 InlineKeyboardButton.WithCallbackData("↩️ Undo", "undo"),
                 InlineKeyboardButton.WithCallbackData("↪️ Redo", "redo"),
+                InlineKeyboardButton.WithCallbackData("💬 Chat", "chat:on"),
             },
             new[]
             {

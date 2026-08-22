@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// A test <see cref="HttpMessageHandler"/> that captures the outgoing request (method, URI,

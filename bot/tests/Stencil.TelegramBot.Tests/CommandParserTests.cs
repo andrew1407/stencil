@@ -38,6 +38,14 @@ public sealed class CommandParserTests
     }
 
     [Fact]
+    public void NormalizesThePShortcutToPrompt()
+    {
+        BotCommand command = CommandParser.Parse("/p make it sepia");
+        Assert.Equal("prompt", command.Verb);
+        Assert.Equal("make it sepia", command.ArgumentText);
+    }
+
+    [Fact]
     public void BlankOrNonSlashYieldsEmptyVerb()
     {
         Assert.Equal("", CommandParser.Parse("").Verb);

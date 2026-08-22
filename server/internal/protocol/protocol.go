@@ -106,11 +106,83 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-// File kinds accepted by the files endpoints and the filestore.
+// File kinds accepted by the files endpoints and the filestore. Besides the
+// fixed kinds below, the eight LLM variant slots "variant1".."variant8"
+// (IsVariantKind) are accepted; video/variant/chat bytes live in the filestore
+// only and are removed with the project (llm-contract.md §9). "chat" holds
+// the persisted-chat JSON document (§12), uploaded with ext=json.
 const (
 	KindOriginal = "original"
 	KindResult   = "result"
+	KindVideo    = "video"
+	KindChat     = "chat"
 )
+
+// IsVariantKind reports whether kind names one of the eight per-project variant
+// slots ("variant1".."variant8"). The cap deliberately matches the op-plan
+// variant cap in llm-contract.md.
+func IsVariantKind(kind string) bool {
+	const prefix = "variant"
+	if len(kind) != len(prefix)+1 || kind[:len(prefix)] != prefix {
+		return false
+	}
+	n := kind[len(prefix)]
+	return n >= '1' && n <= '8'
+}
+
+// IsFileKind reports whether kind is an accepted project file kind — the single
+// allowlist shared by the files endpoints and the filestore.
+func IsFileKind(kind string) bool {
+	return kind == KindOriginal || kind == KindResult ||
+		kind == KindVideo || kind == KindChat || IsVariantKind(kind)
+}
+
+// IsFilestoreOnlyKind reports whether kind lives in the filestore only (no
+// project-record columns): these are the kinds the per-file DELETE route may
+// remove (llm-contract.md §9); original/result are removed with the
+// project.
+func IsFilestoreOnlyKind(kind string) bool {
+	return kind == KindVideo || kind == KindChat || IsVariantKind(kind)
+}
+
+// ----- LLM proxy DTOs (llm-contract.md §6.3) -----
+
+// LlmImage is one base64-encoded image attachment inside a chat turn.
+type LlmImage struct {
+	MediaType string `json:"mediaType"` // image/png, image/jpeg, image/webp, image/gif
+	Data      string `json:"data"`      // base64 payload (no data: prefix)
+}
+
+// LlmMessage is one chat turn replayed by the client (history is client-side).
+type LlmMessage struct {
+	Role   string     `json:"role"` // "user" | "assistant"
+	Text   string     `json:"text"`
+	Images []LlmImage `json:"images,omitempty"`
+}
+
+// LlmChatRequest is the body of POST /llm/chat.
+type LlmChatRequest struct {
+	System    string       `json:"system,omitempty"`
+	Messages  []LlmMessage `json:"messages"`
+	Model     string       `json:"model,omitempty"`     // empty = server default
+	MaxTokens int          `json:"maxTokens,omitempty"` // clamped server-side
+}
+
+// LlmChatResponse is returned by POST /llm/chat. StopReason passes through the
+// provider's value: "end_turn" (normal), "max_tokens" (truncated — clients show
+// a note and never parse a plan from it), "refusal" (shown as a chat error).
+type LlmChatResponse struct {
+	Model      string `json:"model"`
+	Text       string `json:"text"`
+	StopReason string `json:"stopReason"`
+}
+
+// LlmInfoResponse is returned by GET /llm/info so settings UIs can render
+// "via server X (model)". Enabled is false when the server has no API key.
+type LlmInfoResponse struct {
+	Enabled bool   `json:"enabled"`
+	Model   string `json:"model"`
+}
 
 // ----- WebSocket envelope -----
 
@@ -150,6 +222,9 @@ const (
 	CodeConflict     = "conflict"
 	CodeBadRequest   = "badRequest"
 	CodeInternal     = "internal"
+	CodeLlmDisabled  = "llmDisabled" // /llm/chat on a server with no LLM key configured
+	CodeRateLimited  = "rateLimited" // /llm/chat over the per-session rate or the in-flight cap
+	CodeLlmUpstream  = "llmUpstream" // /llm/chat when the upstream provider failed; message names the condition
 )
 
 // Peer identifies a participant in a live edit session.

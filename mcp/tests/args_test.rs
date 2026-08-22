@@ -46,6 +46,21 @@ fn full_pipeline_order_and_flags() {
 }
 
 #[test]
+fn layout_frame_flag_rides_with_the_layout_only() {
+    // The field is #[serde(skip)] — tool callers can't set it, so it deserializes unset…
+    let mut p = params(json!({ "input": "a.png", "output": "out.png" }));
+    assert_eq!(p.layout_frame, None);
+    // …and the op-plan executor sets it internally; it is emitted right after -l.
+    p.layout_frame = Some("source".to_string());
+    assert_eq!(
+        build_argv(&p, Some("/tmp/layout.json")).unwrap(),
+        ["-i", "a.png", "-l", "/tmp/layout.json", "--layout-frame", "source", "out.png"]
+    );
+    // Without a layout path the flag is meaningless and omitted.
+    assert_eq!(build_argv(&p, None).unwrap(), ["-i", "a.png", "out.png"]);
+}
+
+#[test]
 fn crop_object_renders_to_spec() {
     let p = params(json!({
         "input": "a.png",

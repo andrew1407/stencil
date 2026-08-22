@@ -106,4 +106,23 @@ public interface IServerService
     /// no active project.
     /// </summary>
     Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Upload the §12.1 persisted-chat JSON to the active project's <c>chat</c> file kind
+    /// (<c>ext=json</c>). Filestore-only per contract §9: the upload never bumps the project
+    /// version, so no version refresh is needed. Requires an active project.
+    /// </summary>
+    Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default);
+
+    /// <summary>
+    /// The active project's stored §12.1 chat JSON, or null when there is no active project or
+    /// no chat has been saved with it.
+    /// </summary>
+    Task<string?> LoadChatAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Remove the active project's stored chat (the §9 per-file DELETE — idempotent, never bumps
+    /// the version). A no-op without an active project.
+    /// </summary>
+    Task DeleteChatAsync(long userId, CancellationToken ct = default);
 }

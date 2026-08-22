@@ -1,0 +1,97 @@
+{
+  "opPlan": {},
+  "providerWire": {
+    "non-JSON error body falls back to \"HTTP <status>\"": {
+      "message": "the LLM endpoint answered HTTP 500",
+      "note": "mcp phrasing of the same fallback seam (empty sanitized reason -> bare status message)"
+    },
+    "error message that is ONLY a URL sanitizes to nothing and falls back to \"HTTP <status>\"": {
+      "message": "the LLM endpoint answered HTTP 400",
+      "note": "mcp phrasing of the same fallback seam (empty sanitized reason -> bare status message)"
+    }
+  },
+  "sanitizer": {
+    "zero-width/format characters are stripped too": {
+      "expect": "invisible​space‌here",
+      "note": "mcp drift: only is_whitespace/is_control split words - format (Cf) characters like U+200B/U+200C are neither, so they survive verbatim inside a word instead of becoming spaces"
+    },
+    "201 characters truncate to 199 + ellipsis": {
+      "expect": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor…",
+      "note": "mcp cuts on a word boundary (word-accumulating sanitizer): 197 chars + ellipsis, vs the browser's mid-word 199 + ellipsis"
+    },
+    "DIVERGENCE(server,pystencil): length caps count UTF-16 code units in the browser, runes elsewhere": {
+      "expect": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "note": "mcp counts chars (Unicode scalar values): 120 emoji = 120 chars, under the 200 cap, so the text passes whole - no surrogate split, no truncation"
+    }
+  },
+  "layout": {
+    "empty-input-emits-only-forced-keys": {
+      "payload": {
+        "lines": []
+      },
+      "note": "mcp drift: `lines` is always emitted (no skip_serializing_if), so an empty layout round-trips to {\"lines\":[]} instead of {}"
+    },
+    "every-export-field-non-default": {
+      "payload": {
+        "imageWidth": 1024,
+        "imageHeight": 768,
+        "lines": [
+          {
+            "points": [
+              {
+                "x": 1,
+                "y": 2
+              },
+              {
+                "x": 3.5,
+                "y": 4.25
+              }
+            ],
+            "color": "#ff0000",
+            "pointColor": "#00ff00",
+            "fillColor": "#0000ff",
+            "style": "dashed",
+            "thickness": 7.5,
+            "pointSize": 12,
+            "locked": true
+          }
+        ],
+        "imageFilter": "bw"
+      },
+      "note": "mcp drift: imageFilter round-trips since Phase 6 (canonical key, legacy `filter` still read), but Layout has no filterColor/cropRect/rotationQuarters/pageSize/customPageWidth/customPageHeight/allowFormulas/formulaX/formulaY — those nine export fields are silently dropped on round-trip"
+    },
+    "falsy-values-still-exported": {
+      "payload": {
+        "imageWidth": 4,
+        "imageHeight": 4,
+        "lines": [],
+        "imageFilter": ""
+      },
+      "note": "mcp drift: imageFilter \"\" survives since Phase 6, but the other falsy exported fields (rotationQuarters 0, customPageWidth 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
+    },
+    "lines-pass-through-by-reference-unsanitized": {
+      "verdict": "reject",
+      "note": "mcp drift: serde Line is strict — thickness \"9\" (string) is a type error, so the whole layout is rejected instead of passing lines through unsanitized (the unknown `junk` key alone would have been dropped silently)"
+    },
+    "empty-line-object-gets-all-defaults": {
+      "verdict": "reject",
+      "note": "mcp drift: Line.points is required with no serde default — a bare {} line is rejected, not defaulted"
+    },
+    "junk-points-dropped-numeric-strings-coerced": {
+      "verdict": "reject",
+      "note": "mcp drift: serde Point requires numeric x AND y — string coords, bare numbers, null and partial points are type errors, not skipped/coerced"
+    },
+    "field-type-coercion-and-drops": {
+      "verdict": "reject",
+      "note": "mcp drift: no type coercion — thickness \"3.5\" (string), locked 1, color 42 are serde type errors that reject the whole line list"
+    },
+    "non-array-lines-become-empty": {
+      "verdict": "reject",
+      "note": "mcp drift: a non-array `lines` value is a serde type error, not an empty list"
+    },
+    "non-object-line-entries-skipped": {
+      "verdict": "reject",
+      "note": "mcp drift: non-object line entries (5, null, \"line\") are serde type errors, not skipped"
+    }
+  }
+}

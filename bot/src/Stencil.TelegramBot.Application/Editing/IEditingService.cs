@@ -55,14 +55,24 @@ public interface IEditingService
     Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default);
 
     /// <summary>Apply a whole drawing layout to the edit state (replaces any current lines).</summary>
-    Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, CancellationToken ct = default);
+    /// <param name="combine">Keep the lines already drawn and add these after them;
+    /// false (the default) replaces them. Mirrors the editors' Combine/Replace prompt.</param>
+    Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default);
+
+    /// <summary>
+    /// Set the coordinate-transform formula for one axis (<c>x</c>/<c>y</c>) — the LLM
+    /// <c>formula</c> op. A metadata setting (like the browser's <c>formulaX</c>/<c>formulaY</c>):
+    /// it never changes the raster, but rides the saved project layout so the other front-ends
+    /// pick it up. An empty <paramref name="expr"/> clears the axis.
+    /// </summary>
+    Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default);
 
     /// <summary>
     /// Update the pen (the style for newly drawn lines); only non-null arguments change.
     /// <paramref name="style"/> must be <c>solid</c>/<c>dashed</c>/<c>dotted</c>;
     /// <paramref name="fill"/> may be <c>none</c>/<c>transparent</c> to clear a closed-shape fill.
     /// </summary>
-    Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? markerSize, string? style, string? fill, CancellationToken ct = default);
+    Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default);
 
     /// <summary>
     /// Append a polyline through <paramref name="points"/> (image pixels) styled with the
@@ -114,6 +124,19 @@ public interface IEditingService
     /// fresh result file. Does not mutate the session. Throws when no working image is loaded.
     /// </summary>
     Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Run one image file through the CLI's <c>contour</c> filter to a fresh PNG (the §7
+    /// edge-map attachment). Does not touch the session or its edit state.
+    /// </summary>
+    Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replay the original through the CLI with an explicit <see cref="EditState"/> instead of
+    /// the session's (the LLM variant path: each variant renders from a copy of the current
+    /// state with its own ops folded in). Does not mutate the session.
+    /// </summary>
+    Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default);
 
     /// <summary>Open a <c>.stencil</c> project: adopt its ORIGINAL image and rebuild the <see cref="EditState"/> from its layout, clearing any active server project.</summary>
     Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default);

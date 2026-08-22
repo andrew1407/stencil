@@ -1,20 +1,17 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Infrastructure.Configuration;
-using Stencil.TelegramBot.Infrastructure.Links;
 using Stencil.TelegramBot.Infrastructure.Sessions;
-using Stencil.TelegramBot.Infrastructure.Workspace;
-using Stencil.TelegramBot.Tests.Fakes;
+using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// The <c>/sourcesite</c> handler end-to-end through the real <see cref="CommandHandlers"/> +
-/// <see cref="EditingService"/>, but with the CLI and Telegram faked: <see cref="FakeStencilCli"/>
-/// materialises a directory of stub files (an image + a video) and <see cref="FakeBotClient"/>
+/// <see cref="EditingService"/>, but with the CLI and Telegram mocked: <see cref="MockStencilCli"/>
+/// materialises a directory of stub files (an image + a video) and <see cref="MockBotClient"/>
 /// captures what the handler sends. Stays fully offline — the URL uses a public IP literal so the
 /// SSRF pre-check needs no DNS.
 /// </summary>
@@ -27,27 +24,15 @@ public sealed class SourceSiteHandlerTests : IDisposable
     private const string PublicUrl = "https://93.184.216.34/gallery";
 
     private readonly string _dataDir;
-    private readonly FakeStencilCli _cli = new();
-    private readonly FakeBotClient _bot = new();
+    private readonly MockStencilCli _cli = new();
+    private readonly MockBotClient _bot = new();
     private readonly CommandHandlers _handlers;
 
     public SourceSiteHandlerTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-scrape-" + Guid.NewGuid().ToString("N"));
         BotOptions options = new() { DataDir = _dataDir };
-        UserWorkspace workspace = new(options);
-        InMemorySessionStore store = new();
-        EditingService editing = new(_cli, workspace, store);
-        LayoutFetcher layoutFetcher = new(options, isBlockedAddress: RemoteImageUrl.IsBlockedAddress);
-        _handlers = new CommandHandlers(
-            editing,
-            new ThrowingServerService(),
-            store,
-            _bot,
-            options,
-            new SyncRegistry(),
-            layoutFetcher,
-            NullLogger<CommandHandlers>.Instance);
+        _handlers = TestHandlers.Create(options, new InMemorySessionStore(), _cli, _bot);
     }
 
     public void Dispose()

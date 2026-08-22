@@ -1,0 +1,48 @@
+{
+  "providers": {
+    "ollama": {
+      "displayName": "Ollama",
+      "defaultBaseUrl": "http://localhost:11434",
+      "chatPath": "/api/chat",
+      "wire": "ollama"
+    },
+    "openai-compat": {
+      "displayName": "OpenAI API (LM Studio, vLLM, …)",
+      "defaultBaseUrl": "http://localhost:1234/v1",
+      "chatPath": "/chat/completions",
+      "wire": "openai"
+    },
+    "stencil-server": {
+      "displayName": "Stencil server",
+      "defaultBaseUrl": null,
+      "chatPath": "/llm/chat",
+      "infoPath": "/llm/info",
+      "wire": "server",
+      "note": "base URL is the user-configured collaboration server; auth is the session bearer token"
+    }
+  },
+  "anthropicUpstream": {
+    "defaultBaseUrl": "https://api.anthropic.com",
+    "version": "2023-06-01",
+    "note": "server-side only (server/internal/llm); clients never talk to Anthropic directly"
+  },
+  "timeouts": {
+    "chatSeconds": 120,
+    "probeMs": 3000,
+    "perSurface": {
+      "cli": {
+        "chatSeconds": 600,
+        "note": "console waiter allows long local-model runs; unification to 120 deliberately deferred — change is one constant (cli/src/llm.zig request_timeout_ms)"
+      },
+      "browser": {
+        "chatSeconds": null,
+        "note": "abort-driven (user stop button), no fixed chat deadline"
+      }
+    }
+  },
+  "serverDefaults": {
+    "model": "claude-opus-5",
+    "maxTokens": 32768,
+    "note": "server env LLM_MODEL / LLM_MAX_TOKENS defaults (server/internal/config)"
+  }
+}

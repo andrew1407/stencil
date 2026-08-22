@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
@@ -427,6 +428,50 @@ public sealed class ServerService : IServerService
             return null;
         }
         return await FetchAsync(userId, session.ActiveProjectId, session.ActiveServerUrl, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default)
+    {
+        var session = await RequireActiveSessionAsync(userId, ct);
+        var client = ClientForActive(session);
+        // Contract §9: `chat` is filestore-only — the upload does NOT bump the project version
+        // (the server only bumps for original/result), so no version re-read/save is needed.
+        await client.PutFileAsync(session.ActiveProjectId!, ProjectFileKind.Chat,
+            Encoding.UTF8.GetBytes(chatJson), "json", 0, 0, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<string?> LoadChatAsync(long userId, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            return null;
+        }
+        var client = ClientForActive(session);
+        try
+        {
+            var bytes = await client.GetFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (ServerException ex) when (ex.Status == 404)
+        {
+            return null; // no chat saved with this project
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteChatAsync(long userId, CancellationToken ct = default)
+    {
+        var session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            return;
+        }
+        var client = ClientForActive(session);
+        // Idempotent per §9 (an absent chat still answers 204); never bumps the version.
+        await client.DeleteFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
     }
 
     /// <summary>The connections to query: the named one (normalised) or every connection.</summary>

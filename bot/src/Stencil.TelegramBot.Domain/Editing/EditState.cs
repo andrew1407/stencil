@@ -8,7 +8,7 @@ namespace Stencil.TelegramBot.Domain.Editing;
 /// <remarks>
 /// The bot keeps a single base image on disk (the <i>original</i>: an uploaded photo, a
 /// rendered blank, or a fetched server project's original) and re-derives the result by
-/// replaying this state through the CLI pipeline (source → crop → rotate → layout → filter).
+/// replaying this state through the CLI pipeline (source → crop → rotate → filter → layout).
 /// Mirrors the CLI console's single working image + ordered transforms, except crop/rotate
 /// are stored as the latest spec rather than a baked snapshot, so a render is reproducible
 /// and the layout JSON is exportable.
@@ -39,6 +39,18 @@ public sealed record EditState
 
     /// <summary>Custom page height in cm (only when <see cref="PageFormat"/> is <c>custom</c>).</summary>
     public double? CustomPageHeight { get; init; }
+
+    /// <summary>
+    /// Coordinate-transform formula for the x axis (e.g. <c>x*2+10</c>), set by the LLM's
+    /// <c>formula</c> op. A display/metadata setting like the browser's <c>formulaX</c>: it does
+    /// not change the raster, but rides the saved project layout (<c>formulaX</c> +
+    /// <c>allowFormulas</c>) so the other front-ends pick it up. Null preserves whatever the
+    /// fetched layout carried.
+    /// </summary>
+    public string? FormulaX { get; init; }
+
+    /// <summary>Coordinate-transform formula for the y axis (see <see cref="FormulaX"/>).</summary>
+    public string? FormulaY { get; init; }
 
     /// <summary>An applied drawing layout (polylines), or null when none was applied.</summary>
     public StencilLayout? Layout { get; init; }

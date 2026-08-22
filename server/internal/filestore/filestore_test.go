@@ -2,6 +2,7 @@ package filestore
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,7 +23,7 @@ func newTestStore(t *testing.T) *Store {
 
 func TestPutGetRoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	want := []byte("\x89PNG fake bytes")
+	want := []byte("\x89PNG stub bytes")
 	rel, err := s.Put(validID, protocol.KindOriginal, "png", want)
 	if err != nil {
 		t.Fatalf("Put: %v", err)
@@ -127,6 +128,101 @@ func TestPathTraversalRejected(t *testing.T) {
 	}
 }
 
+// TestFileKindAllowlist pins the kind table: original/result plus the LLM-era
+// video and variant1..variant8 kinds are accepted, everything else rejected.
+func TestFileKindAllowlist(t *testing.T) {
+	s := newTestStore(t)
+	good := []string{
+		protocol.KindOriginal, protocol.KindResult, protocol.KindVideo,
+		protocol.KindChat, "variant1", "variant3", "variant8",
+	}
+	for _, k := range good {
+		if _, err := s.Put(validID, k, "png", []byte("x")); err != nil {
+			t.Fatalf("kind %q should be accepted: %v", k, err)
+		}
+		if _, err := s.Get(validID, k, "png"); err != nil {
+			t.Fatalf("kind %q round trip failed: %v", k, err)
+		}
+	}
+	bad := []string{
+		"variant0", "variant9", "variantx", "variant", "variant10",
+		"videos", "Variant1", "variant1/../original", "chats", "Chat",
+	}
+	for _, k := range bad {
+		if _, err := s.Put(validID, k, "png", []byte("x")); err == nil {
+			t.Fatalf("kind %q should be rejected", k)
+		}
+	}
+}
+
+// TestRemoveKind pins the per-kind delete used by the files DELETE route:
+// exactly the named kind's file goes away (any extension), other kinds'
+// bytes survive, and deleting an absent kind is a no-op.
+func TestRemoveKind(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.Put(validID, protocol.KindChat, "json", []byte(`{"version":1}`)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", []byte("img")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RemoveKind(validID, protocol.KindChat); err != nil {
+		t.Fatalf("remove chat: %v", err)
+	}
+	if _, err := s.FindByKind(validID, protocol.KindChat); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("chat should be gone, got %v", err)
+	}
+	if _, err := s.FindByKind(validID, protocol.KindOriginal); err != nil {
+		t.Fatalf("original must survive a chat delete: %v", err)
+	}
+	// Idempotent: deleting again (or a never-written kind) is not an error.
+	if err := s.RemoveKind(validID, protocol.KindChat); err != nil {
+		t.Fatalf("second remove should be a no-op: %v", err)
+	}
+	if err := s.RemoveKind(validID, protocol.KindVideo); err != nil {
+		t.Fatalf("absent kind remove should be a no-op: %v", err)
+	}
+}
+
+// TestPutReplacesStaleSiblingExtension pins that re-uploading a kind with a new
+// extension drops the old-extension file, so kind-based lookups (FindByKind)
+// can never resolve to stale bytes. Other kinds' files are untouched.
+func TestPutReplacesStaleSiblingExtension(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.Put(validID, protocol.KindVideo, "mp4", []byte("old")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", []byte("keep")); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := s.Put(validID, protocol.KindVideo, "webm", []byte("new"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Get(validID, protocol.KindVideo, "mp4"); err != ErrNotFound {
+		t.Fatalf("stale video.mp4 should be gone, got err %v", err)
+	}
+	if got, err := s.FindByKind(validID, protocol.KindVideo); err != nil || got != rel {
+		t.Fatalf("FindByKind = %q, %v; want %q", got, err, rel)
+	}
+	if _, err := s.FindByKind(validID, protocol.KindResult); err != ErrNotFound {
+		t.Fatalf("FindByKind for absent kind should be ErrNotFound, got %v", err)
+	}
+	files, err := s.List(validID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{rel: true, "projects/" + validID + "/original.png": true}
+	if len(files) != len(want) {
+		t.Fatalf("unexpected files after re-upload: %v", files)
+	}
+	for _, f := range files {
+		if !want[f] {
+			t.Fatalf("unexpected file %q after re-upload", f)
+		}
+	}
+}
+
 func TestGetByRelPathConfined(t *testing.T) {
 	s := newTestStore(t)
 	if _, err := s.GetByRelPath("../../../etc/passwd"); err == nil {
@@ -166,5 +262,91 @@ func TestExtNormalization(t *testing.T) {
 	rel2, err := s.Put("p_a_b", protocol.KindResult, "", []byte("y"))
 	if err != nil || filepath.Ext(rel2) != ".bin" {
 		t.Fatalf("empty ext default failed: %q %v", rel2, err)
+	}
+}
+
+// ----- aggregate storage quota (NewWithQuota / ErrQuotaExceeded) -----
+
+func newQuotaStore(t *testing.T, quota int64) *Store {
+	t.Helper()
+	s, err := NewWithQuota(t.TempDir(), quota)
+	if err != nil {
+		t.Fatalf("NewWithQuota: %v", err)
+	}
+	return s
+}
+
+func TestQuotaRejectsWritePastTheCap(t *testing.T) {
+	s := newQuotaStore(t, 100)
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", make([]byte, 60)); err != nil {
+		t.Fatalf("under-quota Put: %v", err)
+	}
+	// 60 + 60 > 100: the aggregate cap, not the per-file size, is what trips.
+	if _, err := s.Put(validID, protocol.KindResult, "png", make([]byte, 60)); !errors.Is(err, ErrQuotaExceeded) {
+		t.Fatalf("over-quota Put: got %v, want ErrQuotaExceeded", err)
+	}
+	// The rejected write must not have consumed budget.
+	if _, err := s.Put(validID, protocol.KindResult, "png", make([]byte, 40)); err != nil {
+		t.Fatalf("fitting Put after a rejection: %v", err)
+	}
+}
+
+func TestQuotaAccountsReplacementsAndRemovals(t *testing.T) {
+	s := newQuotaStore(t, 100)
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", make([]byte, 90)); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	// Replacing a kind re-uses its budget (delta, not sum)...
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", make([]byte, 95)); err != nil {
+		t.Fatalf("replacement within quota: %v", err)
+	}
+	// ...including a replacement that switches extension (stale-sibling cleanup).
+	if _, err := s.Put(validID, protocol.KindOriginal, "jpg", make([]byte, 95)); err != nil {
+		t.Fatalf("cross-extension replacement: %v", err)
+	}
+	// RemoveKind frees its bytes for new writes.
+	if err := s.RemoveKind(validID, protocol.KindOriginal); err != nil {
+		t.Fatalf("RemoveKind: %v", err)
+	}
+	if _, err := s.Put(validID, protocol.KindResult, "png", make([]byte, 90)); err != nil {
+		t.Fatalf("Put after RemoveKind: %v", err)
+	}
+	// Remove (whole project) frees everything.
+	if err := s.Remove(validID); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, err := s.Put("p_other1_id2", protocol.KindOriginal, "png", make([]byte, 100)); err != nil {
+		t.Fatalf("Put after Remove: %v", err)
+	}
+}
+
+// Pre-existing bytes count: the starting usage is computed from disk, so a
+// restart cannot forget what is already stored.
+func TestQuotaCountsPreexistingBytes(t *testing.T) {
+	dir := t.TempDir()
+	s0, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s0.Put(validID, protocol.KindOriginal, "png", make([]byte, 80)); err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewWithQuota(dir, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Put(validID, protocol.KindResult, "png", make([]byte, 30)); !errors.Is(err, ErrQuotaExceeded) {
+		t.Fatalf("preexisting bytes not counted: got %v", err)
+	}
+	if _, err := s.Put(validID, protocol.KindResult, "png", make([]byte, 20)); err != nil {
+		t.Fatalf("fitting Put: %v", err)
+	}
+}
+
+// Quota 0 keeps the unlimited behavior (and skips accounting entirely).
+func TestQuotaZeroIsUnlimited(t *testing.T) {
+	s := newQuotaStore(t, 0)
+	if _, err := s.Put(validID, protocol.KindOriginal, "png", make([]byte, 1<<16)); err != nil {
+		t.Fatalf("Put with quota 0: %v", err)
 	}
 }

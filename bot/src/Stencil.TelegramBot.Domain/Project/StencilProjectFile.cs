@@ -89,9 +89,9 @@ public static class StencilProjectFile
 
             if (!root.TryGetProperty("image", out JsonElement img) || img.ValueKind != JsonValueKind.Object) return null;
             string dataUrl = img.TryGetProperty("dataUrl", out JsonElement du) ? du.GetString() ?? "" : "";
-            int marker = dataUrl.IndexOf("base64,", StringComparison.Ordinal);
-            if (marker < 0) return null;
-            byte[] imageBytes = Convert.FromBase64String(dataUrl[(marker + "base64,".Length)..]);
+            int idx = dataUrl.IndexOf("base64,", StringComparison.Ordinal);
+            if (idx < 0) return null;
+            byte[] imageBytes = Convert.FromBase64String(dataUrl[(idx + "base64,".Length)..]);
             if (imageBytes.Length == 0) return null;
 
             return new StencilProject

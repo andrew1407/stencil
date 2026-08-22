@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 /// validation invariants the CLI would otherwise reject with a terse message.
 /// </summary>
 /// <remarks>
-/// The pipeline order is fixed by the CLI itself (source → crop → rotate → layout → filter →
+/// The pipeline order is fixed by the CLI itself (source → crop → rotate → filter → layout →
 /// encode), so argv order here is only cosmetic — the CLI parses flags order-independently.
 /// </remarks>
 public static class CliArgvBuilder

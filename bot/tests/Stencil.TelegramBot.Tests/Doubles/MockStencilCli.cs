@@ -1,7 +1,7 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 
-namespace Stencil.TelegramBot.Tests.Fakes;
+namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// An in-process <see cref="IStencilCli"/> stand-in: it records the last
@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Tests.Fakes;
 /// (so callers that read the rendered file work), and returns a canned
 /// <see cref="RenderResult"/> / <see cref="ImageSize"/>. No real CLI binary is involved.
 /// </summary>
-public sealed class FakeStencilCli : IStencilCli
+public sealed class MockStencilCli : IStencilCli
 {
     /// <summary>The most recent request passed to <see cref="EditAsync"/> (null until first call).</summary>
     public EditRequest? LastRequest { get; private set; }
@@ -17,14 +17,21 @@ public sealed class FakeStencilCli : IStencilCli
     /// <summary>How many times <see cref="EditAsync"/> ran.</summary>
     public int EditCalls { get; private set; }
 
-    /// <summary>The dimensions the fake reports for both edits and probes.</summary>
+    /// <summary>The dimensions the mock reports for both edits and probes.</summary>
     public ImageSize CannedSize { get; set; } = new(640, 480);
+
+    /// <summary>When set, <see cref="EditAsync"/> throws for any request this predicate matches.</summary>
+    public Func<EditRequest, bool>? FailWhen { get; set; }
 
     /// <summary>Capture the request, materialise the output file and return a canned result.</summary>
     public async Task<RenderResult> EditAsync(EditRequest request, CancellationToken ct = default)
     {
         LastRequest = request;
         EditCalls++;
+        if (FailWhen?.Invoke(request) == true)
+        {
+            throw new InvalidOperationException("canned CLI failure");
+        }
         await File.WriteAllBytesAsync(request.Output, new byte[] { 0x89, 0x50 }, ct);
         return new RenderResult(request.Output, CannedSize.Width, CannedSize.Height);
     }
