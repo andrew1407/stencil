@@ -1,0 +1,13 @@
+{
+  "name": "null-actions-ok",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": null
+  },
+  "expect": "valid",
+  "reason": "null actions = no actions"
+}

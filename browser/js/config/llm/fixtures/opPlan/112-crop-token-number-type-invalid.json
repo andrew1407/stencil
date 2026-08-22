@@ -1,0 +1,23 @@
+{
+  "name": "crop-token-number-type-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "x1": 10
+        }
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "tokens are strings, never JSON numbers"
+}

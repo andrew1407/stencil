@@ -1,0 +1,89 @@
+{
+  "name": "variants-8-max-ok",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+      {
+        "label": "v0",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v1",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v2",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v3",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v4",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v5",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v6",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      },
+      {
+        "label": "v7",
+        "actions": [
+          {
+            "op": "rotate",
+            "dir": "left"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": "valid"
+}

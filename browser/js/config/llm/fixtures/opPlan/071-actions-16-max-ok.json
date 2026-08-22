@@ -1,0 +1,78 @@
+{
+  "name": "actions-16-max-ok",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      },
+      {
+        "op": "rotate",
+        "dir": "left"
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "MAX_ACTIONS boundary; the extension drops each rotate as unknown but the plan stands"
+}

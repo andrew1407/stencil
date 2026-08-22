@@ -1,0 +1,19 @@
+{
+  "name": "projectcolor-clear",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "projectColor",
+        "color": ""
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "\"\" restores the theme accent"
+}

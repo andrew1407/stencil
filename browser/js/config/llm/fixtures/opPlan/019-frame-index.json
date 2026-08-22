@@ -1,0 +1,20 @@
+{
+  "name": "frame-index",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "frame",
+        "index": 0
+      }
+    ]
+  },
+  "expect": "valid"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "zoom-percent",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "zoom",
+        "percent": 150
+      }
+    ]
+  },
+  "expect": "valid"
+}

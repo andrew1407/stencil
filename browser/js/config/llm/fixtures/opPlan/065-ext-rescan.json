@@ -1,0 +1,16 @@
+{
+  "name": "ext-rescan",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rescan"
+      }
+    ]
+  },
+  "expect": "valid"
+}

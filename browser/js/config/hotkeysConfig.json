@@ -1,47 +1,262 @@
 [
-  { "id": "undo", "label": "Undo", "default": "Ctrl+Z" },
-  { "id": "redo", "label": "Redo", "default": "Ctrl+Shift+Z" },
-  { "id": "startDraw", "label": "Start Drawing", "default": "Alt+A" },
-  { "id": "stopDraw", "label": "Stop Drawing", "default": "Alt+S" },
-  { "id": "togglePoints", "label": "Toggle Show Points", "default": "Alt+P" },
-  { "id": "toggleLines", "label": "Toggle Show Lines", "default": "Alt+L" },
-  { "id": "cycleFilter", "label": "Cycle Image Filter", "default": "Alt+B" },
-  { "id": "cycleCompare", "label": "Cycle Compare View", "default": "Alt+O" },
-  { "id": "resetZoom", "label": "Fit to Window", "default": "Alt+0" },
-  { "id": "toggleControls", "label": "Toggle Controls Panel", "default": "Alt+C" },
-  { "id": "togglePointsList", "label": "Toggle Points List", "default": "Alt+X" },
-  { "id": "fullscreen", "label": "Toggle Fullscreen", "default": "Alt+F" },
-  { "id": "zoomIn", "label": "Zoom In", "default": "Alt+ArrowUp" },
-  { "id": "zoomOut", "label": "Zoom Out", "default": "Alt+ArrowDown" },
-  { "id": "zoomInBig", "label": "Zoom In (Large Step)", "default": "Alt+Shift+ArrowUp" },
-  { "id": "zoomOutBig", "label": "Zoom Out (Large Step)", "default": "Alt+Shift+ArrowDown" },
-  { "id": "rotateImageLeft", "label": "Rotate Image Left", "default": "Alt+R" },
-  { "id": "rotateImageRight", "label": "Rotate Image Right", "default": "Alt+Shift+R" },
-  { "id": "flipLineHorizontal", "label": "Flip Line Horizontal", "default": "Alt+Shift+ArrowUp" },
-  { "id": "flipLineVertical", "label": "Flip Line Vertical", "default": "Alt+Shift+ArrowDown" },
-  { "id": "rotateLineCW90", "label": "Rotate Line +90", "default": "Alt+Shift+ArrowRight" },
-  { "id": "rotateLineCCW90", "label": "Rotate Line -90", "default": "Alt+Shift+ArrowLeft" },
-  { "id": "copyImage", "label": "Copy Image to Clipboard", "default": "Ctrl+C" },
-  { "id": "copyLayout", "label": "Copy Layout JSON", "default": "Ctrl+Alt+C" },
-  { "id": "paste", "label": "Paste (Image or Layout)", "default": "Ctrl+V" },
-  { "id": "clearAllLines", "label": "Clear All Lines", "default": "Alt+W" },
-  { "id": "deleteLine", "label": "Delete Selected Line", "default": "Alt+Delete" },
-  { "id": "deletePoint", "label": "Delete Selected Point", "default": "Alt+Shift+Delete" },
-  { "id": "loadImage", "label": "Load / Open Image", "default": "Ctrl+O" },
-  { "id": "openAnotherImage", "label": "Open Another Image", "default": "Ctrl+Shift+O" },
-  { "id": "openIn", "label": "Open in Desktop / Telegram", "default": "Ctrl+Shift+E" },
-  { "id": "saveImage", "label": "Download Image", "default": "Ctrl+Shift+D" },
-  { "id": "cropImage", "label": "Crop Image", "default": "Ctrl+Shift+X" },
-  { "id": "downloadJson", "label": "Download Layout JSON", "default": "Ctrl+Shift+J" },
-  { "id": "uploadJson", "label": "Upload Layout JSON", "default": "Ctrl+Shift+U" },
-  { "id": "saveProject", "label": "Save Project (.stencil)", "default": "Ctrl+Shift+S" },
-  { "id": "openProject", "label": "Open Project (.stencil)", "default": "Ctrl+Shift+F" },
-  { "id": "toggleLiveSync", "label": "Toggle Live File Sync", "default": "Ctrl+Shift+Y" },
-  { "id": "deleteProject", "label": "Delete Project File (.stencil)", "default": "Ctrl+Shift+Backspace" },
-  { "id": "openProjects", "label": "Open Projects", "default": "Ctrl+Shift+P" },
-  { "id": "openServers", "label": "Open Servers / Connect", "default": "Ctrl+Shift+K" },
-  { "id": "openLinks", "label": "Open Image Links", "default": "Ctrl+Shift+L" },
-  { "id": "toggleTheme", "label": "Toggle Dark / Light Theme", "default": "Ctrl+D" },
-  { "id": "toggleIncognito", "label": "Toggle Incognito", "default": "Alt+I" },
-  { "id": "openHelp", "label": "Controls & Shortcuts Help", "default": "F1" }
+  {
+    "id": "undo",
+    "label": "Undo",
+    "default": "Ctrl+Z"
+  },
+  {
+    "id": "redo",
+    "label": "Redo",
+    "default": "Ctrl+Shift+Z"
+  },
+  {
+    "id": "startDraw",
+    "label": "Start Drawing",
+    "default": "Alt+A"
+  },
+  {
+    "id": "stopDraw",
+    "label": "Stop Drawing",
+    "default": "Alt+S"
+  },
+  {
+    "id": "togglePoints",
+    "label": "Toggle Show Points",
+    "default": "Alt+P"
+  },
+  {
+    "id": "toggleLines",
+    "label": "Toggle Show Lines",
+    "default": "Alt+L"
+  },
+  {
+    "id": "cycleFilter",
+    "label": "Cycle Image Filter",
+    "default": "Alt+B"
+  },
+  {
+    "id": "cycleCompare",
+    "label": "Cycle Compare View",
+    "default": "Alt+O"
+  },
+  {
+    "id": "resetZoom",
+    "label": "Fit to Window",
+    "default": "Alt+0"
+  },
+  {
+    "id": "toggleControls",
+    "label": "Toggle Controls Panel",
+    "default": "Alt+C"
+  },
+  {
+    "id": "togglePointsList",
+    "label": "Toggle Points List",
+    "default": "Alt+X"
+  },
+  {
+    "id": "fullscreen",
+    "label": "Toggle Fullscreen",
+    "default": "Alt+F"
+  },
+  {
+    "id": "zoomIn",
+    "label": "Zoom In",
+    "default": "Alt+ArrowUp"
+  },
+  {
+    "id": "zoomOut",
+    "label": "Zoom Out",
+    "default": "Alt+ArrowDown"
+  },
+  {
+    "id": "zoomInBig",
+    "label": "Zoom In (Large Step)",
+    "default": "Alt+Shift+ArrowUp"
+  },
+  {
+    "id": "zoomOutBig",
+    "label": "Zoom Out (Large Step)",
+    "default": "Alt+Shift+ArrowDown"
+  },
+  {
+    "id": "rotateImageLeft",
+    "label": "Rotate Image Left",
+    "default": "Alt+R"
+  },
+  {
+    "id": "rotateImageRight",
+    "label": "Rotate Image Right",
+    "default": "Alt+Shift+R"
+  },
+  {
+    "id": "flipLineHorizontal",
+    "label": "Flip Line Horizontal",
+    "default": "Alt+Shift+ArrowUp"
+  },
+  {
+    "id": "flipLineVertical",
+    "label": "Flip Line Vertical",
+    "default": "Alt+Shift+ArrowDown"
+  },
+  {
+    "id": "rotateLineCW90",
+    "label": "Rotate Line +90",
+    "default": "Alt+Shift+ArrowRight"
+  },
+  {
+    "id": "rotateLineCCW90",
+    "label": "Rotate Line -90",
+    "default": "Alt+Shift+ArrowLeft"
+  },
+  {
+    "id": "copyImage",
+    "label": "Copy Image to Clipboard",
+    "default": "Ctrl+C"
+  },
+  {
+    "id": "copyLayout",
+    "label": "Copy Layout JSON",
+    "default": "Ctrl+Alt+C"
+  },
+  {
+    "id": "paste",
+    "label": "Paste (Image or Layout)",
+    "default": "Ctrl+V"
+  },
+  {
+    "id": "clearAllLines",
+    "label": "Clear All Lines",
+    "default": "Alt+W"
+  },
+  {
+    "id": "deleteLine",
+    "label": "Delete Selected Line (Point if focused)",
+    "default": "Alt+Delete"
+  },
+  {
+    "id": "deletePoint",
+    "label": "Delete Selected Point",
+    "default": "Alt+Shift+Delete"
+  },
+  {
+    "id": "deselect",
+    "label": "Deselect",
+    "default": "Escape"
+  },
+  {
+    "id": "loadImage",
+    "label": "Load / Open Image",
+    "default": "Ctrl+O"
+  },
+  {
+    "id": "openAnotherImage",
+    "label": "Open Another Image",
+    "default": "Ctrl+Shift+O"
+  },
+  {
+    "id": "openIn",
+    "label": "Open in Desktop / Telegram",
+    "default": "Ctrl+Shift+E"
+  },
+  {
+    "id": "saveImage",
+    "label": "Download Image",
+    "default": "Ctrl+Shift+D"
+  },
+  {
+    "id": "shareImage",
+    "label": "Share Image",
+    "default": "Ctrl+Alt+S"
+  },
+  {
+    "id": "cropImage",
+    "label": "Crop Image",
+    "default": "Ctrl+Shift+X"
+  },
+  {
+    "id": "downloadJson",
+    "label": "Download Layout JSON",
+    "default": "Ctrl+Shift+J"
+  },
+  {
+    "id": "uploadJson",
+    "label": "Upload Layout JSON",
+    "default": "Ctrl+Shift+U"
+  },
+  {
+    "id": "saveProject",
+    "label": "Save Project (.stencil)",
+    "default": "Ctrl+Shift+S"
+  },
+  {
+    "id": "openProject",
+    "label": "Open Project (.stencil)",
+    "default": "Ctrl+Shift+F"
+  },
+  {
+    "id": "toggleLiveSync",
+    "label": "Toggle Live File Sync",
+    "default": "Ctrl+Shift+Y"
+  },
+  {
+    "id": "deleteProject",
+    "label": "Delete Project File (.stencil)",
+    "default": "Ctrl+Shift+Backspace"
+  },
+  {
+    "id": "clearProject",
+    "label": "Remove Current Project",
+    "default": "Ctrl+Alt+R"
+  },
+  {
+    "id": "renameProject",
+    "label": "Rename Project",
+    "default": "Ctrl+Alt+N"
+  },
+  {
+    "id": "openProjects",
+    "label": "Open Projects",
+    "default": "Ctrl+Shift+P"
+  },
+  {
+    "id": "openServers",
+    "label": "Open Servers / Connect",
+    "default": "Ctrl+Shift+K"
+  },
+  {
+    "id": "openLinks",
+    "label": "Open Image Links",
+    "default": "Ctrl+Shift+L"
+  },
+  {
+    "id": "toggleTheme",
+    "label": "Toggle Dark / Light Theme",
+    "default": "Ctrl+D"
+  },
+  {
+    "id": "toggleIncognito",
+    "label": "Toggle Incognito",
+    "default": "Alt+I"
+  },
+  {
+    "id": "toggleChat",
+    "label": "Toggle AI Assistant",
+    "default": "Alt+G"
+  },
+  {
+    "id": "openHelp",
+    "label": "Controls & Shortcuts Help",
+    "default": "Alt+H"
+  },
+  {
+    "id": "openHotkeys",
+    "label": "Keyboard Shortcuts",
+    "default": "Alt+K"
+  },
+  {
+    "id": "openVisuals",
+    "label": "Default Visuals & Highlights",
+    "default": "Alt+V"
+  }
 ]

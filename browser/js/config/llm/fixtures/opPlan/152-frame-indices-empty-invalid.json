@@ -1,0 +1,21 @@
+{
+  "name": "frame-indices-empty-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "frame",
+        "indices": []
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "indices must be non-empty"
+}

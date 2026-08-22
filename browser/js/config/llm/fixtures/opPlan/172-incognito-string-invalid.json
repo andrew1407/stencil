@@ -1,0 +1,18 @@
+{
+  "name": "incognito-string-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "incognito",
+        "on": "yes"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "on must be a boolean"
+}

@@ -1,0 +1,301 @@
+[
+  {
+    "name": "empty-input-emits-only-forced-keys",
+    "divergences": {
+      "desktop": "buildLayoutJson always emits imageWidth/imageHeight (0 when unset) and imageFilter/filterColor (parameter defaults \"none\"/\"#7c3aed\"); the browser's undefined-valued forced keys drop out in JSON",
+      "mcp": "`lines` is always emitted (no skip_serializing_if), so an empty layout round-trips to {\"lines\":[]} instead of {}",
+      "pystencil": "has no undefined — missing dims parse as 0 and export as 0 ({imageWidth:0, imageHeight:0, lines:[]})"
+    },
+    "layout": {},
+    "expectPayload": {},
+    "expectKeyOrder": [],
+    "forcedKeys": [
+      "imageWidth",
+      "imageHeight",
+      "lines"
+    ]
+  },
+  {
+    "name": "bare-trio",
+    "divergences": {
+      "desktop": "always emits imageFilter/filterColor (defaults \"none\"/\"#7c3aed\"); the browser omits absent filter fields"
+    },
+    "layout": {
+      "imageWidth": 800,
+      "imageHeight": 600,
+      "lines": []
+    },
+    "expectPayload": {
+      "imageWidth": 800,
+      "imageHeight": 600,
+      "lines": []
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines"
+    ],
+    "forcedKeys": [
+      "imageWidth",
+      "imageHeight",
+      "lines"
+    ]
+  },
+  {
+    "name": "every-export-field-non-default",
+    "divergences": {
+      "desktop": "cropRect key drift resolved in Phase 6: desktop writes the canonical {x,y,w,h} and reads both spellings ({width,height} legacy, canonical wins)",
+      "cli": "filter key drift resolved in Phase 6: the cli reads both top-level keys (canonical \"imageFilter\" wins over legacy \"filter\") — this payload's imageFilter \"bw\" is honoured; filterColor still has no cli representation",
+      "mcp": "reads/writes the canonical imageFilter since Phase 6 (legacy `filter` read-only), but Layout has no filterColor/cropRect/rotationQuarters/pageSize/customPageWidth/customPageHeight/allowFormulas/formulaX/formulaY — those nine export fields silently drop on round-trip"
+    },
+    "layout": {
+      "imageWidth": 1024,
+      "imageHeight": 768,
+      "cropRect": {
+        "x": 10,
+        "y": 20,
+        "w": 100,
+        "h": 50
+      },
+      "rotationQuarters": 3,
+      "lines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            },
+            {
+              "x": 3.5,
+              "y": 4.25
+            }
+          ],
+          "color": "#ff0000",
+          "pointColor": "#00ff00",
+          "fillColor": "#0000ff",
+          "style": "dashed",
+          "thickness": 7.5,
+          "pointSize": 12,
+          "locked": true
+        }
+      ],
+      "pageSize": "custom",
+      "customPageWidth": 10.5,
+      "customPageHeight": 14.8,
+      "imageFilter": "bw",
+      "filterColor": "#336699",
+      "allowFormulas": true,
+      "formulaX": "x*2",
+      "formulaY": "y+1"
+    },
+    "expectPayload": {
+      "imageWidth": 1024,
+      "imageHeight": 768,
+      "lines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            },
+            {
+              "x": 3.5,
+              "y": 4.25
+            }
+          ],
+          "color": "#ff0000",
+          "pointColor": "#00ff00",
+          "fillColor": "#0000ff",
+          "style": "dashed",
+          "thickness": 7.5,
+          "pointSize": 12,
+          "locked": true
+        }
+      ],
+      "imageFilter": "bw",
+      "filterColor": "#336699",
+      "cropRect": {
+        "x": 10,
+        "y": 20,
+        "w": 100,
+        "h": 50
+      },
+      "rotationQuarters": 3,
+      "pageSize": "custom",
+      "customPageWidth": 10.5,
+      "customPageHeight": 14.8,
+      "allowFormulas": true,
+      "formulaX": "x*2",
+      "formulaY": "y+1"
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines",
+      "imageFilter",
+      "filterColor",
+      "cropRect",
+      "rotationQuarters",
+      "pageSize",
+      "customPageWidth",
+      "customPageHeight",
+      "allowFormulas",
+      "formulaX",
+      "formulaY"
+    ]
+  },
+  {
+    "name": "session-only-fields-never-exported",
+    "divergences": {
+      "desktop": "its builder takes no session fields at all (they cannot leak); only the always-emitted imageFilter/filterColor defaults differ from the browser payload"
+    },
+    "layout": {
+      "imageWidth": 1,
+      "imageHeight": 1,
+      "lines": [],
+      "unit": "cm",
+      "color": "#123456",
+      "pointColor": "#654321",
+      "thickness": 9,
+      "pointSize": 3,
+      "style": "dotted",
+      "showPoints": false,
+      "showLines": true,
+      "zoom": 2,
+      "scrollLeft": 5,
+      "scrollTop": 6,
+      "imageBaseName": "pic",
+      "imageExt": "png",
+      "imageSource": "https://x",
+      "imageResource": "r",
+      "tooltipEnabled": true,
+      "tooltipShowPage": true,
+      "tooltipShowScreen": false,
+      "tooltipShowCoords": true,
+      "drawMode": "hold",
+      "holdDrawDelay": 300,
+      "selGlowColor": "#ffc800",
+      "hoverRingColor": "#7c3aed",
+      "focusRingColor": "#7c3aed",
+      "defaultFillColor": "#3399ff"
+    },
+    "expectPayload": {
+      "imageWidth": 1,
+      "imageHeight": 1,
+      "lines": []
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines"
+    ]
+  },
+  {
+    "name": "falsy-values-still-exported",
+    "divergences": {
+      "desktop": "omits WHEN-DEFAULT rather than when-absent: explicit falsy rotationQuarters 0 / customPageWidth 0 / allowFormulas false / formulaX \"\" are dropped where the browser still exports them; imageFilter \"\" passes through, filterColor default rides along",
+      "mcp": "imageFilter \"\" survives since Phase 6; the other falsy exported fields (rotationQuarters 0, customPageWidth 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
+    },
+    "layout": {
+      "imageWidth": 4,
+      "imageHeight": 4,
+      "lines": [],
+      "imageFilter": "",
+      "rotationQuarters": 0,
+      "customPageWidth": 0,
+      "allowFormulas": false,
+      "formulaX": ""
+    },
+    "expectPayload": {
+      "imageWidth": 4,
+      "imageHeight": 4,
+      "lines": [],
+      "imageFilter": "",
+      "rotationQuarters": 0,
+      "customPageWidth": 0,
+      "allowFormulas": false,
+      "formulaX": ""
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines",
+      "imageFilter",
+      "rotationQuarters",
+      "customPageWidth",
+      "allowFormulas",
+      "formulaX"
+    ]
+  },
+  {
+    "name": "null-optionals-omitted",
+    "divergences": {
+      "desktop": "null optionals map to absent-parameter defaults (omitted as the browser omits them); only the always-emitted imageFilter/filterColor defaults differ"
+    },
+    "layout": {
+      "imageWidth": 2,
+      "imageHeight": 3,
+      "lines": [],
+      "cropRect": null,
+      "rotationQuarters": null,
+      "pageSize": null,
+      "imageFilter": null,
+      "filterColor": null,
+      "allowFormulas": null,
+      "formulaX": null,
+      "formulaY": null
+    },
+    "expectPayload": {
+      "imageWidth": 2,
+      "imageHeight": 3,
+      "lines": []
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines"
+    ]
+  },
+  {
+    "name": "lines-pass-through-by-reference-unsanitized",
+    "divergences": {
+      "desktop": "lines never pass through: linesFromJson->lineToJson re-materializes core::Line, dropping unknown keys (\"junk\") and non-numeric thickness \"9\" -> default 2; browser exports the live array by reference",
+      "cli": "thickness \"9\" (numeric string) -> cli default 2; the unknown \"junk\" key is ignored on read",
+      "mcp": "serde Line is strict — thickness \"9\" (string) is a type error, so the whole layout is rejected instead of passing lines through unsanitized",
+      "pystencil": "always re-parses lines (unknown 'junk' key dropped, thickness '9' coerced to 9, defaults filled) — the same-reference assertion has no pystencil equivalent"
+    },
+    "layout": {
+      "imageWidth": 1,
+      "imageHeight": 1,
+      "lines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            }
+          ],
+          "junk": "kept",
+          "thickness": "9"
+        }
+      ]
+    },
+    "expectPayload": {
+      "imageWidth": 1,
+      "imageHeight": 1,
+      "lines": [
+        {
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            }
+          ],
+          "junk": "kept",
+          "thickness": "9"
+        }
+      ]
+    },
+    "expectLinesSameRef": true
+  }
+]

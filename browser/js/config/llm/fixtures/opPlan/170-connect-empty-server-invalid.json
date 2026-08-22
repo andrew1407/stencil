@@ -1,0 +1,20 @@
+{
+  "name": "connect-empty-server-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "connect",
+        "server": "  "
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "server must be non-empty"
+}

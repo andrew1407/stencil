@@ -1,0 +1,352 @@
+[
+  {
+    "name": "plain single turn, no api key — content stays a bare string",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "crop 10% off the left"
+        }
+      ]
+    },
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "role": "assistant",
+            "content": "{\"version\":1,\"actions\":[]}"
+          }
+        }
+      ]
+    },
+    "expectReply": "{\"version\":1,\"actions\":[]}"
+  },
+  {
+    "name": "api key becomes Authorization: Bearer",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl",
+      "apiKey": "test-key-123"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectAuthorization": "Bearer test-key-123",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "content": "hello"
+          }
+        }
+      ]
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "multi-turn history keeps assistant turns as plain strings",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "rotate it"
+        },
+        {
+          "role": "assistant",
+          "text": "Done — anything else?"
+        },
+        {
+          "role": "user",
+          "text": "sepia now"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "rotate it"
+        },
+        {
+          "role": "assistant",
+          "content": "Done — anything else?"
+        },
+        {
+          "role": "user",
+          "content": "sepia now"
+        }
+      ]
+    },
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "content": "ok"
+          }
+        }
+      ]
+    },
+    "expectReply": "ok"
+  },
+  {
+    "name": "image attachments become a content-parts array with data: URLs",
+    "divergences": {
+      "cli": "hardcodes data:image/png for every attachment part (its attachments are always PNG-encoded snapshots) — the fixture's image/jpeg mediaType is not representable"
+    },
+    "comment": "mediaType survives inside the data: URL; text part always comes first",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "what is in these?",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGVsbG8tcGl4ZWxz"
+            },
+            {
+              "mediaType": "image/jpeg",
+              "data": "d29ybGQtcGl4ZWxz"
+            }
+          ]
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "what is in these?"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,aGVsbG8tcGl4ZWxz"
+              }
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/jpeg;base64,d29ybGQtcGl4ZWxz"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "content": "two test images"
+          }
+        }
+      ]
+    },
+    "expectReply": "two test images"
+  },
+  {
+    "name": "openai: empty model setting is sent as an empty string, not omitted",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "content": "hello"
+          }
+        }
+      ]
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "reply extraction: empty choices is a typed badReply error",
+    "divergences": {
+      "cli": "same typed bad_reply kind; its detail is the clipped raw body, not the browser's message",
+      "mcp": "same BadReply kind; its own phrasing ('unexpected LLM response: no choices[0].message.content string …')",
+      "pystencil": "same typed error; its own phrasing ('malformed openai-compat response: no reply text')"
+    },
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "choices": []
+    },
+    "expectError": {
+      "kind": "badReply",
+      "message": "malformed response (no choices[0].message.content)"
+    }
+  },
+  {
+    "name": "reply extraction: error-shaped 200 body is a typed badReply error",
+    "divergences": {
+      "cli": "same typed bad_reply kind; its detail is the clipped raw body, not the browser's message",
+      "mcp": "same BadReply kind; its own phrasing ('unexpected LLM response: no choices[0].message.content string …')",
+      "pystencil": "same typed error; its own phrasing ('malformed openai-compat response: no reply text')"
+    },
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "response": {
+      "error": {
+        "message": "no model loaded",
+        "type": "invalid_request_error"
+      }
+    },
+    "expectError": {
+      "kind": "badReply",
+      "message": "malformed response (no choices[0].message.content)"
+    }
+  }
+]

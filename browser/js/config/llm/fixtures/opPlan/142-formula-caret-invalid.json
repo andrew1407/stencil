@@ -1,0 +1,22 @@
+{
+  "name": "formula-caret-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "formula",
+        "axis": "x",
+        "expr": "x^2"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "^ is outside the charset — power is **"
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "loopback-default-http-scheme-dropped",
+    "serverUrl": "localhost:8090",
+    "projectId": "p_1a2b3c_x1",
+    "expectPayload": "1bG9jYWxob3N0OjgwOTB8cF8xYTJiM2NfeDE"
+  },
+  {
+    "name": "bare-remote-defaults-https-scheme-dropped",
+    "serverUrl": "stencil.example.com",
+    "projectId": "p_1a2b3c_x1",
+    "expectPayload": "1c3RlbmNpbC5leGFtcGxlLmNvbXxwXzFhMmIzY194MQ"
+  },
+  {
+    "name": "explicit-http-on-remote-keeps-full-origin",
+    "serverUrl": "http://stencil.example.com",
+    "projectId": "p_1",
+    "expectPayload": "1aHR0cDovL3N0ZW5jaWwuZXhhbXBsZS5jb218cF8x"
+  },
+  {
+    "name": "https-remote-with-port-scheme-dropped-port-kept",
+    "serverUrl": "https://stencil.example.com:8443",
+    "projectId": "p_1",
+    "expectPayload": "1c3RlbmNpbC5leGFtcGxlLmNvbTo4NDQzfHBfMQ"
+  },
+  {
+    "name": "boundary-47-plain-bytes-is-64-chars",
+    "serverUrl": "https://hoooooooooooooooooooooooooooooooooooooooooo",
+    "projectId": "p_1",
+    "expectPayload": "1aG9vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb29vb3xwXzE"
+  },
+  {
+    "name": "overflow-past-64-chars-returns-null",
+    "serverUrl": "https://hooooooooooooooooooooooooooooooooooooooooooo",
+    "projectId": "p_1",
+    "expectPayload": null
+  }
+]

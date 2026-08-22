@@ -1,0 +1,21 @@
+{
+  "name": "formula-empty-expr-clears",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "formula",
+        "axis": "y",
+        "expr": ""
+      }
+    ]
+  },
+  "expect": "valid"
+}

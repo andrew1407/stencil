@@ -1,0 +1,17 @@
+{
+  "name": "ext-pin",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "pin",
+        "image": 1
+      }
+    ]
+  },
+  "expect": "valid"
+}

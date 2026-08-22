@@ -1,0 +1,30 @@
+{
+  "name": "deep-nested-junk-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left",
+        "meta": {
+          "a": [
+            {
+              "b": {
+                "c": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "unknown field, however deep its value"
+}

@@ -1,0 +1,1774 @@
+{
+  "$meta": {
+    "description": "Normative machine-readable registry of the Stencil LLM op-plan surface (llm-contract.md §1-§13), documenting CURRENT measured reality across the seven implementations. Key schemas record the browser registry as baseline (browser/js/llm/opPlan.js); where surfaces disagree, a \"divergence\" entry names them — this file records the drift, it does not reconcile it.",
+    "sources": {
+      "browser": "browser/js/llm/opPlan.js (OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS)",
+      "desktop": "desktop/src/llm/opRegistry.cpp (opRegistry, forbiddenOps)",
+      "cli": "cli/src/llm.zig (op_registry, forbidden_ops)",
+      "pystencil": "pystencil/pystencil/llm.py (OP_REGISTRY, FORBIDDEN_OPS)",
+      "bot": "bot/src/Stencil.TelegramBot.Application/Llm/OpRegistry.cs (Ops, ForbiddenOps)",
+      "mcp": "mcp/src/registry.rs (OP_REGISTRY, FORBIDDEN_OPS)",
+      "extension": "extension/src/llm/opPlan.js (OP_REGISTRY, FORBIDDEN_OPS)",
+      "corpus": "browser/js/config/llm/fixtures/opPlan/ (profiles + knownDivergence = the measured truth)"
+    },
+    "surfaceProfiles": {
+      "browser": "editor",
+      "desktop": "editor",
+      "cli": "console",
+      "pystencil": "console",
+      "bot": "bot",
+      "mcp": "mcp",
+      "extension": "extension"
+    },
+    "guard": "browser/tests/opRegistryCanon.test.js pins this file to the live browser OPS/LIMITS structures and to the fixture corpus"
+  },
+  "limits": {
+    "MAX_ACTIONS": 16,
+    "MAX_VARIANTS": 8,
+    "MAX_LAYOUT_LINES": 200,
+    "MAX_FRAME_INDICES": 32,
+    "MAX_STRING_CHARS": 5000,
+    "MAX_SAVE_NAME": 120,
+    "MAX_PATH_CHARS": 1024,
+    "MAX_RENAME_NAME": 80,
+    "MAX_UNDO_STEPS": 20,
+    "ask": {
+      "minOptions": 2,
+      "maxOptions": 5,
+      "question": 300,
+      "label": 80,
+      "answer": 500
+    },
+    "extension": {
+      "attachIndices": 8,
+      "pinIndices": 8,
+      "filterSearch": 200,
+      "filterFormats": 40,
+      "filterSize": 100000,
+      "note": "extension-profile extras from extension/src/llm/opPlan.js LIMITS; the extension has no frameIndices limit (it registers no frame op at top level)"
+    }
+  },
+  "regexes": {
+    "CROP_TOKEN": "^-?(\\d+(\\.\\d+)?|\\.\\d+)(%|px|cm|in)?$",
+    "CROP_ASPECT": "^(\\d+):(\\d+)$",
+    "PAGE_FORMAT": "^[abc](10|[0-9])$",
+    "HEX": "^#[0-9a-fA-F]{6}$",
+    "CSS_NAME": "^[a-zA-Z]+$",
+    "FORMULA_X": "^[0-9x+\\-*/(). ]+$",
+    "FORMULA_Y": "^[0-9y+\\-*/(). ]+$",
+    "note": "sourced from browser/js/llm/opPlan.js; CROP_ASPECT additionally requires both integers > 0, and the formula charsets apply to non-empty expressions only (** rides on * being allowed)"
+  },
+  "profiles": {
+    "editor": {
+      "surfaces": [
+        "browser",
+        "desktop"
+      ],
+      "ops": [
+        "crop",
+        "rotate",
+        "filter",
+        "layout",
+        "formula",
+        "page",
+        "blank",
+        "undo",
+        "redo",
+        "frame",
+        "image",
+        "save",
+        "theme",
+        "accent",
+        "lineStyle",
+        "units",
+        "view",
+        "clear",
+        "openUrl",
+        "openFile",
+        "connect",
+        "disconnect",
+        "copy",
+        "removeProject",
+        "clearProjects",
+        "compare",
+        "zoom",
+        "renameProject",
+        "projectColor",
+        "blankColor",
+        "openProject",
+        "incognito",
+        "clearChat"
+      ],
+      "notes": {
+        "openFile": "desktop-only drift: the browser does not register openFile — there it falls to the §1 unknown-op skip (fixture 052 stays verdict-valid); browser = 32 ops, desktop = 33"
+      }
+    },
+    "console": {
+      "surfaces": [
+        "cli",
+        "pystencil"
+      ],
+      "ops": [
+        "crop",
+        "rotate",
+        "filter",
+        "layout",
+        "formula",
+        "page",
+        "blank",
+        "undo",
+        "redo",
+        "reset",
+        "frame",
+        "image",
+        "save",
+        "accent",
+        "connect",
+        "disconnect",
+        "reconnect",
+        "delete",
+        "openFile",
+        "openUrl",
+        "copy",
+        "clear",
+        "clearChat"
+      ],
+      "notes": {
+        "accent": "cli-only drift: pystencil does not register accent (no theme store wired) — unknown-op skip there (fixtures 165-167)",
+        "reconnect": "cli-only drift: pystencil does not register reconnect (fixture 055)",
+        "openFile": "cli-only drift: pystencil does not register openFile",
+        "copy": "cli-only drift: pystencil does not register copy (no clipboard wired)",
+        "reset": "cli parses reset but never advertises it (no bullet); pystencil advertises it in the console block"
+      }
+    },
+    "bot": {
+      "surfaces": [
+        "bot"
+      ],
+      "ops": [
+        "crop",
+        "rotate",
+        "filter",
+        "layout",
+        "formula",
+        "page",
+        "blank",
+        "undo",
+        "redo",
+        "frame",
+        "image",
+        "save",
+        "connect",
+        "disconnect",
+        "reset",
+        "clear",
+        "lineStyle",
+        "openUrl",
+        "renameProject",
+        "describe",
+        "blankColor",
+        "projectColor",
+        "export",
+        "clearChat"
+      ],
+      "notes": {}
+    },
+    "mcp": {
+      "surfaces": [
+        "mcp"
+      ],
+      "ops": [
+        "crop",
+        "rotate",
+        "filter",
+        "layout",
+        "formula",
+        "page",
+        "blank",
+        "frame",
+        "image",
+        "save"
+      ],
+      "notes": {}
+    },
+    "extension": {
+      "surfaces": [
+        "extension"
+      ],
+      "ops": [
+        "focus",
+        "open",
+        "attach",
+        "pin",
+        "unpin",
+        "scanTab",
+        "rescan",
+        "openUrl",
+        "theme",
+        "accent",
+        "filter",
+        "clearChat"
+      ],
+      "notes": {
+        "filter": "the extension's filter is the panel-list filter (entry filter.extension), NOT the §2 image filter"
+      }
+    }
+  },
+  "forbidden": {
+    "core": [
+      "llm",
+      "provider",
+      "apiKey",
+      "paste",
+      "hotkey",
+      "shortcut",
+      "quit",
+      "exit",
+      "chat",
+      "shareTabs"
+    ],
+    "note": "The canonical §13 categories as the browser names them; every surface implements the same categories with its own name list below. Enforcement differs: cli and mcp HARD-FAIL a plan naming a forbidden op, every other surface skips the unknown name at parse and rejects it at the executor (fixtures 207-217 knownDivergence). Notable membership drift: \"endpoint\" is list-forbidden only on cli (fixture 214); \"chat\"/\"shareTabs\" hard-fail only on mcp (215, 216); mcp also forbids clearChat/chatPersist (it registers no chat surface); bot forbids delete/removeProject/clearProjects/expire — names other profiles register as ops.",
+    "perSurface": {
+      "browser": [
+        "llm",
+        "provider",
+        "apiKey",
+        "paste",
+        "hotkey",
+        "shortcut",
+        "quit",
+        "exit",
+        "chat",
+        "shareTabs"
+      ],
+      "desktop": [
+        "llm",
+        "llmProvider",
+        "llmModel",
+        "llmBaseUrl",
+        "llmApiKey",
+        "setProvider",
+        "setModel",
+        "setEndpoint",
+        "setApiKey",
+        "paste",
+        "readClipboard",
+        "clipboardRead",
+        "hotkey",
+        "setHotkey",
+        "rebindHotkey",
+        "keybinding",
+        "rebindKey",
+        "quit",
+        "exit",
+        "closeWindow",
+        "endSession",
+        "logout",
+        "chatPersistence",
+        "persistChat",
+        "chatConsent",
+        "chatOptIn",
+        "deleteServerProject",
+        "clearServerProjects",
+        "removeServerFile",
+        "deleteRemote"
+      ],
+      "cli": [
+        "llm",
+        "provider",
+        "apiKey",
+        "endpoint",
+        "paste",
+        "hotkey",
+        "keybind",
+        "exit",
+        "quit",
+        "chatPersist",
+        "consent",
+        "deleteRemote",
+        "unshare"
+      ],
+      "pystencil": [
+        "llm",
+        "llmConfig",
+        "provider",
+        "apiKey",
+        "setEndpoint",
+        "paste",
+        "hotkey",
+        "rebind",
+        "exit",
+        "quit",
+        "closeWindow",
+        "chat",
+        "chatSave",
+        "shareTabs",
+        "deleteRemote",
+        "removeServerProject",
+        "expire"
+      ],
+      "bot": [
+        "llm",
+        "provider",
+        "apiKey",
+        "paste",
+        "hotkey",
+        "hotkeys",
+        "quit",
+        "exit",
+        "chat",
+        "shareTabs",
+        "delete",
+        "removeProject",
+        "clearProjects",
+        "expire"
+      ],
+      "mcp": [
+        "llm",
+        "provider",
+        "apiKey",
+        "configureLlm",
+        "paste",
+        "hotkey",
+        "rebind",
+        "quit",
+        "exit",
+        "closeWindow",
+        "endSession",
+        "chat",
+        "chatPersist",
+        "clearChat",
+        "shareTabs",
+        "deleteRemote",
+        "removeRemote",
+        "expireProject",
+        "transferProject"
+      ],
+      "extension": [
+        "llm",
+        "llmSettings",
+        "provider",
+        "model",
+        "apiKey",
+        "baseUrl",
+        "paste",
+        "hotkey",
+        "hotkeys",
+        "rebind",
+        "quit",
+        "exit",
+        "closeWindow",
+        "endSession",
+        "chatPersist",
+        "chatConsent",
+        "persistChat",
+        "deleteProject",
+        "deleteServerProject",
+        "expireProject",
+        "editorUrl",
+        "options",
+        "shareTabs",
+        "download"
+      ]
+    }
+  },
+  "ask": {
+    "limitsRef": "limits.ask",
+    "defaultCustomLabel": "Something else…",
+    "divergence": [
+      "cli and pystencil accept an ask-option image carrying two reference keys where the editors/bot/extension reject it (fixture 103 knownDivergence)",
+      "only browser and desktop reject a non-http ask-option image URL; extension/cli/pystencil/bot accept the string and drop or ignore the preview (fixture 104 knownDivergence)"
+    ]
+  },
+  "ops": [
+    {
+      "name": "crop",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"aspect\":\"3:4\"}} — move edges inward;\n  tokens are numbers with optional unit % / px / cm / in; a leading \"-\" measures from the\n  opposite side. Include only the edges you want to move. For a target aspect ratio add\n  \"aspect\":\"W:H\" INSIDE \"spec\", never beside it (portrait \"3:4\", album/landscape \"4:3\",\n  square \"1:1\") — the editor cuts the resolved crop to that exact ratio about its centre,\n  so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific\n  region should be kept.",
+      "flags": {},
+      "keys": {
+        "spec": {
+          "type": "object",
+          "required": true,
+          "fields": {
+            "x1": {
+              "type": "string",
+              "regex": "CROP_TOKEN"
+            },
+            "x2": {
+              "type": "string",
+              "regex": "CROP_TOKEN"
+            },
+            "y1": {
+              "type": "string",
+              "regex": "CROP_TOKEN"
+            },
+            "y2": {
+              "type": "string",
+              "regex": "CROP_TOKEN"
+            },
+            "aspect": {
+              "type": "string",
+              "regex": "CROP_ASPECT",
+              "note": "both integers must be > 0 (checked beyond the regex)"
+            }
+          },
+          "note": "needs at least one of x1/x2/y1/y2/aspect; unknown spec keys fail the plan"
+        },
+        "aspect": {
+          "type": "string",
+          "regex": "CROP_ASPECT",
+          "note": "§3.2 tolerance: \"aspect\" beside \"spec\" is folded into it when the spec lacks one; a conflicting duplicate fails the plan"
+        }
+      },
+      "divergence": [
+        "cli (console): the spec also accepts \"album\": true — derive the missing crop axis from the page format in landscape orientation; no other surface takes it",
+        "extension: crop exists only inside open.actions, with spec keys x1/x2/y1/y2 only — no \"aspect\" (inside or beside the spec) and no action-level fold"
+      ],
+      "bulletVariants": {
+        "console": {
+          "addendum": "- The crop op's \"spec\" also takes \"album\": true — derive the missing crop axis from\n  the page format in landscape orientation (the console's '/crop … album')."
+        }
+      },
+      "id": "crop"
+    },
+    {
+      "name": "rotate",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"rotate\",\"dir\":\"left\"|\"right\",\"times\":1..3} — quarter turns only.",
+      "flags": {},
+      "keys": {
+        "dir": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "times": {
+          "type": "integer",
+          "range": [
+            1,
+            3
+          ],
+          "default": 1
+        }
+      },
+      "id": "rotate"
+    },
+    {
+      "name": "filter",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"filter\",\"mode\":\"none\"|\"bw\"|\"sepia\"|\"invert\"|\"contour\"|\"custom\",\"tint\":\"#rrggbb\"}\n  — \"custom\" is a duotone tint and requires \"tint\"; \"contour\" is edge detection.",
+      "flags": {},
+      "keys": {
+        "mode": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "none",
+            "bw",
+            "sepia",
+            "invert",
+            "contour",
+            "custom"
+          ]
+        },
+        "tint": {
+          "type": "string",
+          "regex": "HEX",
+          "note": "required with mode \"custom\", forbidden with every other mode"
+        }
+      },
+      "divergence": [
+        "extension: the name \"filter\" is a DIFFERENT op there (the panel-list filter — see the filter.extension entry); this §2 image-filter shape is invalid at the extension top level (fixture 069) and allowed only inside open.actions"
+      ],
+      "id": "filter"
+    },
+    {
+      "name": "layout",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},...],\"color\":\"#FFFF00\",\"thickness\":2,\n  \"pointSize\":4,\"style\":\"solid\"|\"dashed\"|\"dotted\",\"locked\":false,\"fillColor\":\"transparent\"}]}\n  — draw annotation polylines in image-pixel coordinates. When asked to extract lines,\n  shapes, or structure from an attached image, answer with this op. An empty \"lines\"\n  array REMOVES every drawn line — that is what \"clear/remove the lines\" means.",
+      "flags": {},
+      "keys": {
+        "lines": {
+          "type": "array",
+          "required": true,
+          "maxItems": "MAX_LAYOUT_LINES",
+          "items": {
+            "points": {
+              "type": "array",
+              "required": true,
+              "items": {
+                "x": {
+                  "type": "number",
+                  "required": true,
+                  "note": "finite"
+                },
+                "y": {
+                  "type": "number",
+                  "required": true,
+                  "note": "finite"
+                }
+              }
+            },
+            "color": {
+              "type": "string"
+            },
+            "thickness": {
+              "type": "number"
+            },
+            "pointSize": {
+              "type": "number"
+            },
+            "style": {
+              "type": "string",
+              "enum": [
+                "solid",
+                "dashed",
+                "dotted"
+              ]
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "fillColor": {
+              "type": "string"
+            }
+          },
+          "note": "an empty array removes every drawn line"
+        }
+      },
+      "bulletVariants": {
+        "mcp": "- {\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},...],\"color\":\"#FFFF00\",\"thickness\":2,\n  \"pointSize\":4,\"style\":\"solid\"|\"dashed\"|\"dotted\",\"locked\":false,\"fillColor\":\"transparent\"}]}\n  — draw annotation polylines in image-pixel coordinates. When asked to extract lines,\n  shapes, or structure from an attached image, answer with this op."
+      },
+      "id": "layout"
+    },
+    {
+      "name": "formula",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"formula\",\"axis\":\"x\"|\"y\",\"expr\":\"x*2+10\"} — coordinate transform; single variable\n  matching the axis; operators + - * / ** and parentheses only. An empty \"expr\" clears\n  that axis; {\"op\":\"formula\",\"enabled\":false} switches formulas OFF entirely.",
+      "flags": {},
+      "keys": {
+        "axis": {
+          "type": "string",
+          "enum": [
+            "x",
+            "y"
+          ]
+        },
+        "expr": {
+          "type": "string",
+          "maxChars": "MAX_STRING_CHARS",
+          "regex": "FORMULA_X | FORMULA_Y (matching the axis)",
+          "note": "empty/whitespace clears that axis"
+        },
+        "enabled": {
+          "type": "boolean",
+          "note": "rides ALONE — mutually exclusive with axis+expr; false switches formulas off"
+        }
+      },
+      "note": "exactly one form: axis+expr, or enabled alone",
+      "divergence": [
+        "mcp: \"enabled\" alone and the empty-expr clear are ACCEPTED since the Phase-6 widening but execute as inert no-ops with a note (a one-shot headless run has no persistent formula state); fixtures 011/012 agree on all surfaces"
+      ],
+      "id": "formula"
+    },
+    {
+      "name": "page",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"page\",\"format\":\"a4\"} — ISO page formats a0–a10, b0–b10, c0–c10 — or a custom\n  size: {\"op\":\"page\",\"width\":20,\"height\":30} in centimetres (one form or the other).",
+      "flags": {},
+      "keys": {
+        "format": {
+          "type": "string",
+          "regex": "PAGE_FORMAT"
+        },
+        "width": {
+          "type": "number",
+          "range": [
+            0.1,
+            500
+          ],
+          "unit": "cm"
+        },
+        "height": {
+          "type": "number",
+          "range": [
+            0.1,
+            500
+          ],
+          "unit": "cm"
+        }
+      },
+      "note": "exactly one form: \"format\", or \"width\"+\"height\" in centimetres",
+      "id": "page"
+    },
+    {
+      "name": "blank",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"blank\",\"color\":\"#ffffff\",\"format\":\"a4\"} — create a blank page; explicit\n  centimetre dims ride as \"width\"/\"height\" instead of \"format\".",
+      "flags": {
+        "newFrame": true
+      },
+      "keys": {
+        "color": {
+          "type": "string",
+          "required": true,
+          "regex": "HEX | CSS_NAME"
+        },
+        "format": {
+          "type": "string",
+          "regex": "PAGE_FORMAT"
+        },
+        "width": {
+          "type": "number",
+          "range": [
+            0.1,
+            500
+          ],
+          "unit": "cm",
+          "note": "rides together with height; overrides format"
+        },
+        "height": {
+          "type": "number",
+          "range": [
+            0.1,
+            500
+          ],
+          "unit": "cm",
+          "note": "rides together with width; overrides format"
+        }
+      },
+      "divergence": [
+        "desktop: rejects a color name that is not a real CSS colour, where browser/cli/pystencil/bot accept any alphabetic name (fixture 137)"
+      ],
+      "id": "blank"
+    },
+    {
+      "name": "undo",
+      "profiles": [
+        "editor",
+        "console",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"undo\",\"steps\":1} / {\"op\":\"redo\",\"steps\":1} — step this surface's edit history.\n  \"Undo that\" means {\"op\":\"undo\"}; steps count history entries, which can be finer\n  than one request.",
+      "flags": {
+        "topLevelOnly": true,
+        "newFrame": true
+      },
+      "keys": {
+        "steps": {
+          "type": "integer",
+          "range": [
+            1,
+            20
+          ],
+          "rangeRef": "MAX_UNDO_STEPS",
+          "default": 1
+        }
+      },
+      "note": "not registered on mcp — a one-shot headless tool has no edit history to step",
+      "id": "undo"
+    },
+    {
+      "name": "redo",
+      "profiles": [
+        "editor",
+        "console",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": null,
+      "flags": {
+        "topLevelOnly": true,
+        "newFrame": true
+      },
+      "bulletSharedWith": "undo",
+      "keys": {
+        "steps": {
+          "type": "integer",
+          "range": [
+            1,
+            20
+          ],
+          "rangeRef": "MAX_UNDO_STEPS",
+          "default": 1
+        }
+      },
+      "note": "not registered on mcp — a one-shot headless tool has no edit history to step",
+      "id": "redo"
+    },
+    {
+      "name": "frame",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"frame\",\"index\":0} or {\"op\":\"frame\",\"indices\":[0,30,60]} — pick video frame(s);\n  only valid when the current input is a video.",
+      "flags": {
+        "newFrame": true
+      },
+      "keys": {
+        "index": {
+          "type": "integer",
+          "range": [
+            0,
+            null
+          ]
+        },
+        "indices": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "range": [
+              0,
+              null
+            ]
+          },
+          "minItems": 1,
+          "maxItems": "MAX_FRAME_INDICES"
+        }
+      },
+      "note": "exactly one of index / indices; only valid when the current input is a video",
+      "id": "frame"
+    },
+    {
+      "name": "image",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"image\",\"index\":1} — switch the working image to the Nth image attached to THIS\n  message (1-based, in attachment order); coordinates in later actions are in THAT\n  image's pixel frame. Only valid when the user attached images. Use it to edit several\n  attached images in one plan, giving each image its OWN actions.",
+      "requires": [
+        "loadAttachment"
+      ],
+      "flags": {
+        "topLevelOnly": true,
+        "newFrame": true
+      },
+      "keys": {
+        "index": {
+          "type": "integer",
+          "required": true,
+          "range": [
+            1,
+            null
+          ],
+          "note": "1-based attachment index"
+        }
+      },
+      "id": "image"
+    },
+    {
+      "name": "save",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "mcp"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"save\",\"name\":\"portrait 1\"} — save the current image with its drawn lines as a\n  project. When the user asks to process several images and keep the results, finish\n  each image's actions with a \"save\" before switching to the next: image 1, its edits,\n  save, image 2, its edits, save, …",
+      "requires": [
+        "saveProject"
+      ],
+      "flags": {
+        "topLevelOnly": true
+      },
+      "keys": {
+        "name": {
+          "type": "string",
+          "maxChars": "MAX_SAVE_NAME"
+        },
+        "path": {
+          "type": "string",
+          "maxChars": "MAX_PATH_CHARS",
+          "note": "a local destination (folder or file name; \".stencil\" saves the whole project, an image extension saves the picture); trimmed, a URL scheme is rejected, \"\" is dropped"
+        }
+      },
+      "divergence": [
+        "\"path\" acceptance is uniform since the Phase-6 reconciliation: every surface carrying save validates it (string ≤ MAX_PATH_CHARS, trimmed, no URL scheme, \"\" ≡ absent) — fixture 024 covers all four profiles",
+        "\"path\" execution honor split: desktop and cli honor the destination (under the user-echo guard — only a path the user themselves wrote); mcp honors it relative to the run's output_dir (traversal-guarded: absolute, \"..\" or \"~\" paths note-and-fall-back; \".stencil\" is a file, anything else a folder); browser, pystencil and bot accept the field but note-and-skip at execution, saving to the usual place"
+      ],
+      "bulletVariants": {
+        "desktop": "- {\"op\":\"save\",\"name\":\"portrait 1\",\"path\":\"~/Downloads\"} — save the current image with its\n  drawn lines. \"path\" is optional and may be a folder or a file name (\".stencil\" saves the\n  whole project, an image extension saves the picture); with no path it becomes a project in\n  the editor. ONLY a path the user themselves wrote in this conversation — never invent,\n  complete or rewrite one. When the user asks to process several images and keep the results,\n  finish each image's actions with a \"save\" before switching to the next: image 1, its edits,\n  save, image 2, its edits, save, …",
+        "cli": "- {\"op\":\"save\",\"name\":\"portrait 1\",\"path\":\"~/Downloads\"} — save the current image with its\n  drawn lines. `path` is optional and may be a folder or a file name (\".stencil\" saves the\n  whole project, an image extension saves the picture); with no path it writes a project\n  into the working directory. ONLY a path the user themselves wrote in this conversation —\n  never invent, complete or rewrite one. When the user asks to process several images and\n  keep the results, finish each image's actions with a \"save\" before switching to the\n  next: image 1, its edits, save, image 2, its edits, save, …"
+      },
+      "id": "save"
+    },
+    {
+      "name": "theme",
+      "profiles": [
+        "editor",
+        "extension"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"theme\",\"mode\":\"light\"|\"dark\"} — switch the editor between light and dark\n  ONLY; \"mode\" takes no other value. A COLOUR (\"make the theme cyan\") is the accent\n  op below, never this one.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "mode": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "light",
+            "dark"
+          ]
+        }
+      },
+      "divergence": [
+        "extension: a different enum — \"mode\" also accepts \"system\" (follows the OS setting); \"system\" is invalid in the editor (fixtures 066, 070)"
+      ],
+      "bulletVariants": {
+        "extension": "- {\"op\":\"theme\",\"mode\":\"dark\"|\"light\"|\"system\"} — switch the Stencil panel's own theme\n  (\"system\" follows the OS setting). This changes the panel's appearance only."
+      },
+      "id": "theme"
+    },
+    {
+      "name": "accent",
+      "profiles": [
+        "editor",
+        "console",
+        "extension"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the editor accent colour. \"color\" must be\n  a #rrggbb hex, so translate colour names yourself (cyan = \"#00ffff\").",
+      "also": "- \"accent\" also accepts {\"op\":\"accent\",\"preset\":\"green\"} — a named preset persists and\n  syncs; use a preset when the user names a colour that has one.",
+      "alsoOrder": 3,
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "color": {
+          "type": "string",
+          "regex": "HEX"
+        },
+        "preset": {
+          "type": "string",
+          "maxChars": 40,
+          "note": "non-empty; browser trims + lowercases; an unknown preset NAME is a note + skip at run"
+        }
+      },
+      "note": "exactly one of color / preset",
+      "divergence": [
+        "console membership is cli-only: pystencil does not register accent, so its form errors fall to the unknown-op skip there (fixtures 165-167 knownDivergence)",
+        "extension: keeps the preset case as typed (no lowercasing) and resolves a hex to the nearest of the panel's preset accents"
+      ],
+      "bulletVariants": {
+        "console": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the console's colour theme (its accent).\n  \"color\" must be a #rrggbb hex, so translate colour names yourself (cyan =\n  \"#00ffff\"). The console has no light/dark mode — a theme request means this op.\n- \"accent\" also accepts {\"op\":\"accent\",\"preset\":\"green\"} — one of the console's\n  named /theme presets; use a preset when the user names a colour that has one.",
+        "extension": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the Stencil panel's own accent colour. \"color\"\n  must be # + 6 hex digits (the nearest of the panel's preset accents applies); also\n  accepts {\"op\":\"accent\",\"preset\":\"green\"} — a preset name (violet, pink, yellow, orange,\n  crimson, aqua, sky, blue, grass, green, brown, grey). Panel appearance only."
+      },
+      "id": "accent"
+    },
+    {
+      "name": "lineStyle",
+      "profiles": [
+        "editor",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"lineStyle\",\"color\":\"#00ff00\",\"thickness\":3,\"pointSize\":6,\"style\":\"dashed\"} —\n  change the DEFAULT style for new lines (any subset of fields).",
+      "also": "- \"lineStyle\" also carries \"pointColor\" (\"\" = follow the stroke), \"drawMode\"\n  (\"line\"|\"rect\") and \"fillColor\" for the defaults of NEW lines.",
+      "alsoOrder": 4,
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "color": {
+          "type": "string",
+          "regex": "HEX | CSS_NAME"
+        },
+        "pointColor": {
+          "type": "string",
+          "regex": "HEX",
+          "note": "or \"\" = follow the stroke colour"
+        },
+        "thickness": {
+          "type": "integer",
+          "range": [
+            1,
+            20
+          ]
+        },
+        "pointSize": {
+          "type": "integer",
+          "range": [
+            1,
+            30
+          ]
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "drawMode": {
+          "type": "string",
+          "enum": [
+            "line",
+            "rect"
+          ]
+        },
+        "fillColor": {
+          "type": "string",
+          "regex": "HEX",
+          "note": "or \"transparent\""
+        }
+      },
+      "note": "any subset, at least one field",
+      "divergence": [
+        "bot: its bullet advertises only color/thickness/pointSize/style/fillColor, but the parser also accepts pointColor (fixture 029); drawMode is measured only on the editor"
+      ],
+      "bulletVariants": {
+        "bot": "- {\"op\":\"lineStyle\",\"color\":\"#00ff00\",\"thickness\":3,\"pointSize\":6,\"style\":\"dashed\",\n  \"fillColor\":\"transparent\"} — change the DEFAULT pen for newly drawn lines (any\n  subset of fields), like the /color /thickness /points /style /fill commands."
+      },
+      "id": "lineStyle"
+    },
+    {
+      "name": "units",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"units\",\"value\":\"cm\"|\"in\"} — display units.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "value": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "cm",
+            "in"
+          ]
+        }
+      },
+      "id": "units"
+    },
+    {
+      "name": "view",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"view\",\"points\":true,\"lines\":false} — show or hide points and lines.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "points": {
+          "type": "boolean"
+        },
+        "lines": {
+          "type": "boolean"
+        }
+      },
+      "note": "at least one of points / lines",
+      "id": "view"
+    },
+    {
+      "name": "clear",
+      "profiles": [
+        "editor",
+        "console",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"clear\"} — REMOVE the working image and its lines, leaving the editor empty.\n  This is what \"remove/delete/clear the image\" means. Never answer that with\n  {\"op\":\"blank\"}: a blank REPLACES the picture with a white page, which is not a\n  removal. Takes no fields.",
+      "flags": {
+        "editorSetting": true,
+        "newFrame": true
+      },
+      "keys": {},
+      "bulletVariants": {
+        "bot": "- {\"op\":\"clear\"} — REMOVE the working image and its edits, leaving the chat with no\n  working image; the conversation itself is kept. This is what \"remove/delete/clear\n  the image\" means. Never answer that with {\"op\":\"blank\"}: a blank REPLACES the\n  picture with a white page, which is not a removal. Takes no fields."
+      },
+      "id": "clear"
+    },
+    {
+      "name": "openUrl",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "extension"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"openUrl\",\"url\":\"https://…\",\"incognito\":false} — load an image (or video\n  frame) from a URL into the editor; \"incognito\": true loads it into THIS editor\n  switched to incognito (nothing is saved), never a second tab or window, so the\n  rest of your plan keeps acting on it. ONLY a URL the user themselves wrote in\n  this conversation — never introduce, complete, or rewrite one.",
+      "flags": {
+        "editorSetting": true,
+        "newFrame": true
+      },
+      "keys": {
+        "url": {
+          "type": "string",
+          "required": true,
+          "note": "http(s) URL; at run time it must be a URL the user themselves wrote in this conversation"
+        },
+        "incognito": {
+          "type": "boolean"
+        }
+      },
+      "divergence": [
+        "console and bot bullets do not advertise \"incognito\", but every surface's parser accepts the field (fixture 034)"
+      ],
+      "bulletVariants": {
+        "console": "- {\"op\":\"openUrl\",\"url\":\"https://…\"} — load an image (or video frame) from a URL\n  as the working image (the console's /upload). ONLY a URL the user themselves\n  wrote in this conversation — never introduce, complete, or rewrite one.",
+        "bot": "- {\"op\":\"openUrl\",\"url\":\"https://…\"} — load an image (or video frame) from a URL as\n  the working image (the /url command). ONLY a URL the user themselves wrote in this\n  conversation — never introduce, complete, or rewrite one.",
+        "extension": "- {\"op\":\"openUrl\",\"url\":\"https://…\",\"incognito\":false} — open an image URL in the Stencil\n  editor (\"incognito\": true opens it as an incognito editor). ONLY a URL the user themselves\n  wrote in this conversation — never introduce, complete, or rewrite one; images from the\n  page listing open with \"open\" by index instead."
+      },
+      "id": "openUrl"
+    },
+    {
+      "name": "openFile",
+      "profiles": [
+        "editor",
+        "console"
+      ],
+      "baseline": "desktop",
+      "bullet": "- {\"op\":\"openFile\",\"path\":\"~/Pictures/portrait.png\"} — load a LOCAL file the user named\n  into the editor: an image or video, a layout \".json\" (drawn onto the current picture), or a\n  \".stencil\" project. ONLY a path the user themselves wrote in this conversation — never\n  invent, complete, guess or list one, and never a directory.",
+      "flags": {
+        "editorSetting": true,
+        "topLevelOnly": true
+      },
+      "keys": {
+        "path": {
+          "type": "string",
+          "required": true,
+          "note": "a local file the user themselves named — an image/video, a layout \".json\", or a \".stencil\" project; never a directory"
+        }
+      },
+      "divergence": [
+        "editor membership is desktop-only: the browser does not register openFile — there it falls to the §1 unknown-op skip, so fixture 052 stays verdict-valid",
+        "console membership is cli-only: pystencil does not register openFile either"
+      ],
+      "bulletVariants": {
+        "cli": "- {\"op\":\"openFile\",\"path\":\"~/Pictures/portrait.png\"} — load a LOCAL file the user named\n  as the working image: an image or video, a layout \".json\" (drawn onto the current\n  picture), or a \".stencil\" project. ONLY a path the user themselves wrote in this\n  conversation — never invent, complete, guess or list one, and never a directory."
+      },
+      "id": "openFile"
+    },
+    {
+      "name": "connect",
+      "profiles": [
+        "editor",
+        "console",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"connect\",\"server\":\"...\"} / {\"op\":\"disconnect\",\"server\":\"...\"} — manage the\n  user's collaboration-server connections. Only a server the user has already saved\n  may be named — never invent or suggest a new address. These editor ops are not\n  image edits and cannot appear inside \"variants\".",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "server": {
+          "type": "string",
+          "required": true,
+          "note": "non-empty; resolved against the user's SAVED servers — a plan can never introduce a host"
+        }
+      },
+      "bulletVariants": {
+        "console": "- {\"op\":\"connect\",\"server\":\"...\"} / {\"op\":\"disconnect\",\"server\":\"...\"} — manage the\n  user's collaboration-server connections. Only a server listed in the console\n  state below may be named — never invent, complete, or suggest a new address; for\n  a server not listed there, tell the user to run '/connect <url>' themselves.",
+        "bot": "- {\"op\":\"connect\",\"server\":\"...\"} / {\"op\":\"disconnect\",\"server\":\"...\"} — manage the\n  user's collaboration-server connections. Only a server the user has already saved\n  may be named — never invent or suggest a new address."
+      },
+      "id": "connect"
+    },
+    {
+      "name": "disconnect",
+      "profiles": [
+        "editor",
+        "console",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": null,
+      "flags": {
+        "editorSetting": true
+      },
+      "bulletSharedWith": "connect",
+      "keys": {
+        "server": {
+          "type": "string",
+          "required": true,
+          "note": "non-empty; resolved against the CONNECTED servers"
+        }
+      },
+      "id": "disconnect"
+    },
+    {
+      "name": "reconnect",
+      "profiles": [
+        "console"
+      ],
+      "baseline": "cli",
+      "bullet": "- {\"op\":\"reconnect\",\"server\":\"...\"} — re-establish a connection that went stale\n  (the console's /reconnect); the same server rule as connect.",
+      "flags": {
+        "consoleSetting": true
+      },
+      "keys": {
+        "server": {
+          "type": "string",
+          "required": true,
+          "note": "the same server rule as connect"
+        }
+      },
+      "divergence": [
+        "cli-only: pystencil does not register reconnect (unknown-op skip there); fixture 055"
+      ],
+      "id": "reconnect"
+    },
+    {
+      "name": "delete",
+      "profiles": [
+        "console"
+      ],
+      "baseline": "cli",
+      "bullet": "- {\"op\":\"delete\",\"path\":\"old.stencil\"} — delete a LOCAL .stencil project file in\n  the working directory (the console's /delete). Only .stencil files, never a URL\n  or a path outside the working directory.",
+      "flags": {
+        "consoleSetting": true
+      },
+      "keys": {
+        "path": {
+          "type": "string",
+          "required": true,
+          "note": "a LOCAL .stencil project file in the working directory — never a URL or a path outside it"
+        }
+      },
+      "note": "registered by both cli and pystencil; the NAME \"delete\" is on the bot's forbidden list (server-side destruction) — bot hard-scopes it out",
+      "id": "delete"
+    },
+    {
+      "name": "copy",
+      "profiles": [
+        "editor",
+        "console"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"copy\"} — copy the current rendered image to the system clipboard. This IS\n  what \"copy the result / copy to clipboard\" means; never answer that it cannot be\n  done. Takes no fields.",
+      "also": "- \"copy\" also accepts {\"op\":\"copy\",\"what\":\"layout\"} — the layout JSON instead of the\n  image.",
+      "alsoOrder": 2,
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "what": {
+          "type": "string",
+          "enum": [
+            "image",
+            "layout"
+          ],
+          "default": "image"
+        }
+      },
+      "divergence": [
+        "\"what\":\"layout\" is editor-only as measured (fixture 038); the cli console copy takes no fields",
+        "console membership is cli-only: pystencil does not register copy (no clipboard wired)"
+      ],
+      "id": "copy"
+    },
+    {
+      "name": "removeProject",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"removeProject\",\"name\":\"portrait 1\"} — remove ONE saved local project by its\n  name; the app asks the user to confirm before anything is deleted.",
+      "also": "- \"removeProject\" also accepts {\"op\":\"removeProject\",\"current\":true} — remove the\n  project that is open right now (confirmed in-app).",
+      "alsoOrder": 1,
+      "requires": [
+        "removeProjectNamed"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "name": {
+          "type": "string",
+          "maxChars": 120,
+          "note": "non-empty"
+        },
+        "current": {
+          "type": "boolean",
+          "note": "must be exactly true — remove the project open right now"
+        }
+      },
+      "note": "exactly one of name / current; the app asks the user to confirm",
+      "id": "removeProject"
+    },
+    {
+      "name": "clearProjects",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"clearProjects\"} — remove EVERY saved local project. This IS what \"clear/\n  delete my projects\" means; the app asks the user to confirm first. Server-stored\n  projects are never touched from chat. Takes no fields.",
+      "requires": [
+        "clearLocalProjects"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {},
+      "id": "clearProjects"
+    },
+    {
+      "name": "compare",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"compare\",\"mode\":\"none\"|\"original\"|\"vertical\"|\"horizontal\",\"split\":0.5} — the\n  comparison view: the original beside/over the edit (\"vertical\" = side-by-side split).\n  View-only; the exported image is unchanged.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "mode": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "none",
+            "original",
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "split": {
+          "type": "number",
+          "range": [
+            0.02,
+            0.98
+          ],
+          "note": "only with the split modes \"vertical\"/\"horizontal\""
+        }
+      },
+      "divergence": [
+        "desktop: accepts \"split\" alongside non-split modes, where the browser rejects it (fixture 160 knownDivergence)"
+      ],
+      "id": "compare"
+    },
+    {
+      "name": "zoom",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"zoom\",\"percent\":150} or {\"op\":\"zoom\",\"fit\":true} — zoom the USER'S VIEW (or\n  fit to the window). This never changes the picture — cropping is the crop op.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "percent": {
+          "type": "number",
+          "range": [
+            5,
+            3200
+          ]
+        },
+        "fit": {
+          "type": "boolean",
+          "note": "must be exactly true"
+        }
+      },
+      "note": "exactly one of percent / fit",
+      "id": "zoom"
+    },
+    {
+      "name": "renameProject",
+      "profiles": [
+        "editor",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"renameProject\",\"name\":\"…\"} — rename the active saved project.",
+      "requires": [
+        "renameActiveProject"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "maxChars": "MAX_RENAME_NAME",
+          "note": "non-empty"
+        }
+      },
+      "bulletVariants": {
+        "bot": "- {\"op\":\"renameProject\",\"name\":\"…\"} — rename the active server project (or relabel\n  a not-yet-saved working image)."
+      },
+      "id": "renameProject"
+    },
+    {
+      "name": "projectColor",
+      "profiles": [
+        "editor",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"projectColor\",\"color\":\"#ec4899\"} — the project's name colour (\"\" = theme).",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "color": {
+          "type": "string",
+          "required": true,
+          "regex": "HEX",
+          "note": "or \"\" = restore the theme accent"
+        }
+      },
+      "bulletVariants": {
+        "bot": "- {\"op\":\"projectColor\",\"color\":\"#ec4899\"} — the project's name colour (\"\" = clear)."
+      },
+      "id": "projectColor"
+    },
+    {
+      "name": "blankColor",
+      "profiles": [
+        "editor",
+        "bot"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"blankColor\",\"color\":\"#dbeafe\"} — recolour a BLANK project's background,\n  KEEPING the drawn lines. \"Recolour/change the background\" means THIS, never a new\n  {\"op\":\"blank\"} (that replaces the page and destroys the lines).",
+      "requires": [
+        "setBlankColor"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "color": {
+          "type": "string",
+          "required": true,
+          "regex": "HEX | CSS_NAME"
+        }
+      },
+      "id": "blankColor"
+    },
+    {
+      "name": "openProject",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"openProject\",\"name\":\"…\"} — open a saved local project into the editor (the\n  app confirms first when unsaved work would be replaced).",
+      "requires": [
+        "openProjectNamed"
+      ],
+      "flags": {
+        "editorSetting": true,
+        "newFrame": true
+      },
+      "keys": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "maxChars": 120,
+          "note": "non-empty; exact match, else unique case-insensitive prefix"
+        }
+      },
+      "id": "openProject"
+    },
+    {
+      "name": "incognito",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"incognito\",\"on\":true} — edit without saving; only togglable on a blank editor.",
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "on": {
+          "type": "boolean",
+          "required": true
+        }
+      },
+      "id": "incognito"
+    },
+    {
+      "name": "clearChat",
+      "profiles": [
+        "editor",
+        "console",
+        "bot",
+        "extension"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"clearChat\"} — clear THIS conversation's history; the app asks the user to\n  confirm first, and the clear happens after this plan's other actions finish. This IS\n  what \"clear the chat / conversation / history\" means; never answer that it cannot be\n  done. Takes no fields.",
+      "requires": [
+        "clearChatConversation"
+      ],
+      "flags": {
+        "editorSetting": true,
+        "deferred": true
+      },
+      "keys": {},
+      "note": "identical bullet on every surface that registers it; deferred to the plan's end behind the app's own confirm",
+      "id": "clearChat"
+    },
+    {
+      "name": "reset",
+      "profiles": [
+        "console",
+        "bot"
+      ],
+      "baseline": "bot",
+      "bullet": "- {\"op\":\"reset\"} — drop EVERY pending edit and go back to the original image (the\n  /reset command). \"Start over with this picture\" means THIS. Takes no fields.",
+      "flags": {
+        "topLevelOnly": true
+      },
+      "keys": {},
+      "divergence": [
+        "cli parses reset (§2 compatibility) but never advertises it — no bullet there",
+        "browser/desktop do not register reset: in the editor it falls to the §1 unknown-op skip (fixture 054)"
+      ],
+      "bulletVariants": {
+        "pystencil": "- {\"op\":\"reset\"} — drop every edit, back to the image exactly as it was loaded (the\n  console's /reset). Takes no fields."
+      },
+      "id": "reset"
+    },
+    {
+      "name": "describe",
+      "profiles": [
+        "bot"
+      ],
+      "baseline": "bot",
+      "bullet": "- {\"op\":\"describe\",\"text\":\"…\"} — set the project's free-text description (up to 500\n  characters); \"\" clears it.",
+      "flags": {
+        "profileOp": true
+      },
+      "keys": {
+        "text": {
+          "type": "string",
+          "required": true,
+          "maxChars": 500,
+          "note": "\"\" clears the description"
+        }
+      },
+      "id": "describe"
+    },
+    {
+      "name": "export",
+      "profiles": [
+        "bot"
+      ],
+      "baseline": "bot",
+      "bullet": "- {\"op\":\"export\",\"what\":\"layout\"|\"project\"} — send the layout JSON or the portable\n  .stencil project file into this chat as a document.",
+      "flags": {
+        "profileOp": true
+      },
+      "keys": {
+        "what": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "layout",
+            "project"
+          ]
+        }
+      },
+      "id": "export"
+    },
+    {
+      "name": "focus",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"focus\",\"image\":3} — scroll image 3 into view on the page and highlight it.",
+      "flags": {},
+      "keys": {
+        "image": {
+          "type": "integer",
+          "required": true,
+          "note": "index into the current scan listing (0-based, bounds-checked)"
+        }
+      },
+      "id": "focus"
+    },
+    {
+      "name": "open",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"open\",\"image\":3,\"mode\":\"copy\",\"actions\":[...],\"incognito\":false} — open image 3 in\n  the Stencil editor. \"mode\":\"resume\" focuses the editor tab ALREADY holding that image\n  instead of opening a fresh copy — prefer it when the image was opened before (it is the\n  non-destructive path); \"copy\" (the default) always opens fresh. \"actions\" is an optional\n  list of editor operations applied on open, drawn from\n  the core op set crop / rotate / filter / layout / page:\n  - {\"op\":\"crop\",\"spec\":{\"x1\":\"10%\",\"x2\":\"-10%\",\"y1\":\"0\",\"y2\":\"90%\"}} — move edges inward;\n    tokens are numbers with optional unit % / px / cm / in; a leading \"-\" measures from the\n    opposite side. Include only the edges you want to move.\n  - {\"op\":\"rotate\",\"dir\":\"left\"|\"right\",\"times\":1..3} — quarter turns only.\n  - {\"op\":\"filter\",\"mode\":\"none\"|\"bw\"|\"sepia\"|\"invert\"|\"contour\"|\"custom\",\"tint\":\"#rrggbb\"}\n    — \"custom\" is a duotone tint and requires \"tint\"; \"contour\" is edge detection.\n  - {\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},...],\"color\":\"#FFFF00\",\"thickness\":2,\n    \"pointSize\":4,\"style\":\"solid\"|\"dashed\"|\"dotted\",\"locked\":false,\"fillColor\":\"transparent\"}]}\n    — draw annotation polylines in image-pixel coordinates.\n  - {\"op\":\"page\",\"format\":\"a4\"} — ISO page formats a0–a10, b0–b10, c0–c10.",
+      "flags": {},
+      "keys": {
+        "image": {
+          "type": "integer",
+          "required": true,
+          "note": "index into the current scan listing"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "resume",
+            "copy"
+          ],
+          "default": "copy"
+        },
+        "incognito": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": "MAX_ACTIONS",
+          "note": "editor operations applied on open — only crop/rotate/filter/layout/page, with the extension's reduced crop (no aspect) and page (format only) shapes; another §2 core op here fails the plan, a truly unknown op drops with a warning"
+        }
+      },
+      "id": "open"
+    },
+    {
+      "name": "attach",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"attach\",\"image\":3} or {\"op\":\"attach\",\"images\":[0,1,2]} — fetch the image(s) and\n  attach them to this conversation so you can look at them (max 8); use this when you must\n  see the images to answer (e.g. \"which of these is the cat?\", \"read the chart\").",
+      "flags": {
+        "gather": true
+      },
+      "keys": {
+        "image": {
+          "type": "integer",
+          "note": "index into the current scan listing"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "maxItems": 8
+        }
+      },
+      "note": "exactly one of image / images",
+      "id": "attach"
+    },
+    {
+      "name": "pin",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"pin\",\"image\":3} or {\"op\":\"pin\",\"images\":[0,1,2]} — pin the image(s) in the Stencil\n  panel (max 8 per action) so they float to the top of the list; use this when the user asks\n  to pin, keep, or shortlist images.",
+      "flags": {},
+      "keys": {
+        "image": {
+          "type": "integer",
+          "note": "index into the current scan listing"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "maxItems": 8
+        }
+      },
+      "note": "exactly one of image / images",
+      "id": "pin"
+    },
+    {
+      "name": "unpin",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"unpin\",\"image\":3} or {\"op\":\"unpin\",\"images\":[0,1,2]} — unpin image(s) pinned in the\n  Stencil panel (max 8 per action; local pins only); use this when the user asks to unpin or\n  drop images from their shortlist.",
+      "flags": {},
+      "keys": {
+        "image": {
+          "type": "integer",
+          "note": "index into the current scan listing"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "maxItems": 8
+        }
+      },
+      "note": "exactly one of image / images; local pins only",
+      "id": "unpin"
+    },
+    {
+      "name": "scanTab",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"scanTab\",\"tab\":2} — scan open browser tab 2 (from the tab list in the context\n  below) and REPLACE this conversation's image listing with that tab's images; use this when\n  the user asks about a page they have open in another tab. After the switch, indices refer\n  to the new listing.",
+      "flags": {
+        "gather": true
+      },
+      "keys": {
+        "tab": {
+          "type": "integer",
+          "required": true,
+          "note": "index into the shared-tabs listing (bounds-checked; fails when no other tabs are open)"
+        }
+      },
+      "id": "scanTab"
+    },
+    {
+      "name": "rescan",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"rescan\"} — re-scan the CURRENT page and refresh this conversation's image listing;\n  use this when the page may have changed (images loaded since the scan) or the user asks to\n  refresh or rescan. After it, indices refer to the fresh listing.",
+      "flags": {
+        "gather": true
+      },
+      "keys": {},
+      "id": "rescan"
+    },
+    {
+      "name": "filter",
+      "id": "filter.extension",
+      "profiles": [
+        "extension"
+      ],
+      "baseline": "extension",
+      "bullet": "- {\"op\":\"filter\",\"search\":\"cat\",\"regex\":false,\"kinds\":[\"images\",\"css\",\"video\",\"posters\",\n  \"meta\"],\"formats\":[\"PNG\",\"JPG\"],\"minWidth\":200,\"maxWidth\":0,\"minHeight\":0,\"maxHeight\":0,\n  \"markOpened\":true,\"openedFirst\":true,\"showPinned\":true}\n  — set the panel's own filters, i.e. what the list shows. Every field is optional; send\n  only the ones you are changing. \"kinds\" replaces the \"elements to include\" tick-boxes,\n  \"formats\" the format pills ([\"*\"] selects every format, [] clears them all), and a size\n  bound of 0 clears that bound. The booleans drive the three list toggles: \"markOpened\"\n  badges already-opened images, \"openedFirst\" sorts them first, \"showPinned\" floats pinned\n  images to the top. Use this when the user asks to show, hide, narrow, search\n  or filter the listing — never to answer a question about the images yourself.",
+      "flags": {
+        "panelSettings": true
+      },
+      "keys": {
+        "search": {
+          "type": "string",
+          "maxChars": 200
+        },
+        "regex": {
+          "type": "boolean"
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "images",
+              "css",
+              "video",
+              "posters",
+              "meta"
+            ]
+          }
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 40,
+          "note": "trimmed + uppercased; [\"*\"] selects every format, [] clears them all"
+        },
+        "minWidth": {
+          "type": "integer",
+          "range": [
+            0,
+            100000
+          ],
+          "note": "0 clears the bound"
+        },
+        "maxWidth": {
+          "type": "integer",
+          "range": [
+            0,
+            100000
+          ],
+          "note": "0 clears the bound"
+        },
+        "minHeight": {
+          "type": "integer",
+          "range": [
+            0,
+            100000
+          ],
+          "note": "0 clears the bound"
+        },
+        "maxHeight": {
+          "type": "integer",
+          "range": [
+            0,
+            100000
+          ],
+          "note": "0 clears the bound"
+        },
+        "markOpened": {
+          "type": "boolean"
+        },
+        "openedFirst": {
+          "type": "boolean"
+        },
+        "showPinned": {
+          "type": "boolean"
+        }
+      },
+      "note": "at least one field; SAME WIRE NAME as the §2 image filter but a different operation — the panel-list filter (see the core filter entry's divergence)"
+    }
+  ]
+}

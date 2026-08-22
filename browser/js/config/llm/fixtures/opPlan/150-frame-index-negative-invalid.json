@@ -1,0 +1,21 @@
+{
+  "name": "frame-index-negative-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "frame",
+        "index": -1
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "index >= 0"
+}

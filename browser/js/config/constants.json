@@ -43,7 +43,7 @@
   "DEFAULT_VISUALS": {
     "color": "#FFFF00",
     "thickness": 2,
-    "markerSize": 4,
+    "pointSize": 4,
     "style": "solid",
     "defaultFillColor": "#3399ff",
     "selGlowColor": "#ffc800",
@@ -55,8 +55,8 @@
     "zoomMax": 5,
     "thickMin": 1,
     "thickMax": 20,
-    "markerMin": 1,
-    "markerMax": 30
+    "pointMin": 1,
+    "pointMax": 30
   },
   "DEFAULT_PAGE": { "size": "A3", "width": 21, "height": 29.7 }
 }

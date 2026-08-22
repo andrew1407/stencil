@@ -1,0 +1,18 @@
+{
+  "name": "filter-core-shape-in-extension",
+  "profiles": [
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "filter",
+        "mode": "sepia"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "name collision: \"filter\" exists in the extension as the panel filter, so the core shape hits a KNOWN op with unknown field \"mode\" and fails the plan instead of skip-as-unknown"
+}

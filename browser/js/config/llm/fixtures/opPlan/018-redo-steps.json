@@ -1,0 +1,19 @@
+{
+  "name": "redo-steps",
+  "profiles": [
+    "editor",
+    "console",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "redo",
+        "steps": 3
+      }
+    ]
+  },
+  "expect": "valid"
+}

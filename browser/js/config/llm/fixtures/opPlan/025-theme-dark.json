@@ -1,0 +1,18 @@
+{
+  "name": "theme-dark",
+  "profiles": [
+    "editor",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "theme",
+        "mode": "dark"
+      }
+    ]
+  },
+  "expect": "valid"
+}

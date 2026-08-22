@@ -1,0 +1,303 @@
+[
+  {
+    "name": "plain single turn — empty model is OMITTED, messages carry role+text only",
+    "divergences": {
+      "desktop": "chatServer always sends a top-level model key (\"\" when unset, llmClient.cpp) — never omitted"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "text": "{\"version\":1,\"actions\":[]}",
+      "stopReason": "end_turn"
+    },
+    "expectReply": "{\"version\":1,\"actions\":[]}"
+  },
+  {
+    "name": "explicit model rides as a top-level \"model\" key",
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090",
+      "model": "claude-haiku-4-5"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ],
+      "model": "claude-haiku-4-5"
+    },
+    "response": {
+      "model": "claude-haiku-4-5",
+      "text": "hello",
+      "stopReason": "end_turn"
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "image attachments pass through as {mediaType,data} objects; text-only turns omit \"images\"",
+    "divergences": {
+      "desktop": "always sends the top-level model key (\"\" when unset) — never omitted",
+      "cli": "history turns are text-only (llm.Turn has no images, per §7/§12) — an image on a REPLAYED turn is dropped from the wire; only the current turn carries attachments"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-2",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "what is in this?",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGVsbG8tcGl4ZWxz"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "a test image"
+        },
+        {
+          "role": "user",
+          "text": "crop it"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-2",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "what is in this?",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGVsbG8tcGl4ZWxz"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "a test image"
+        },
+        {
+          "role": "user",
+          "text": "crop it"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "text": "ok",
+      "stopReason": "end_turn"
+    },
+    "expectReply": "ok"
+  },
+  {
+    "name": "maxTokens is never sent — the server clamps its own default",
+    "divergences": {
+      "desktop": "always sends the top-level model key (\"\" when unset) — never omitted; maxTokens absence itself matches"
+    },
+    "comment": "contract §6.3 makes maxTokens optional; no Stencil client sends it (expectBody pins absence)",
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "text": "hello",
+      "stopReason": "end_turn"
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "reply extraction: stopReason max_tokens is a typed truncation error, never a reply",
+    "divergences": {
+      "desktop": "same truncated kind with its own message ('response truncated (max tokens reached)'), plus the always-sent model:\"\"",
+      "bot": "same truncated kind with its own message ('The AI response was cut off at the token limit — try a shorter or simpler request.')"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "text": "partial…",
+      "stopReason": "max_tokens"
+    },
+    "expectError": {
+      "kind": "truncated",
+      "message": "Response truncated — the model hit its output limit; try a shorter request"
+    }
+  },
+  {
+    "name": "reply extraction: stopReason refusal surfaces the reply text as a refusal error",
+    "divergences": {
+      "desktop": "kind refusal + surfaced text match; only the always-sent model:\"\" divergence",
+      "bot": "same refusal kind; prefixes the provider text with 'The AI declined: '"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "text": "I cannot help with that.",
+      "stopReason": "refusal"
+    },
+    "expectError": {
+      "kind": "refusal",
+      "message": "I cannot help with that."
+    }
+  },
+  {
+    "name": "reply extraction: missing text on end_turn is a typed badReply error",
+    "divergences": {
+      "desktop": "same badReply kind and message; only the always-sent model:\"\" body divergence",
+      "cli": "same typed bad_reply kind; its detail is the clipped raw body, not the browser's message",
+      "mcp": "same BadReply kind; its own phrasing ('unexpected LLM response: no text string …')",
+      "pystencil": "same typed error; its own phrasing ('malformed stencil-server response: no reply text')"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stopReason": "end_turn"
+    },
+    "expectError": {
+      "kind": "badReply",
+      "message": "malformed server response (no text)"
+    }
+  }
+]

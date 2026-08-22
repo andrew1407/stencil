@@ -1,0 +1,291 @@
+[
+  {
+    "name": "minimal-image-only",
+    "divergences": {
+      "desktop": "keeps the raw layout object; a missing layout reads as {} rather than the browser's normalized {\"lines\":[]}"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "full-featured",
+    "divergences": {
+      "desktop": "parseProjectFile is verbatim: no name trim, no color hex normalization, keywords untrimmed with non-strings -> \"\" kept, ext case kept, w 800.7 / h \"600\" -> 0 (toInt never coerces), theme mode case kept",
+      "cli": "keeps metadata verbatim (name untrimmed, color un-normalized, ext case kept); w 800.7 truncates to 800, h \"600\" -> 0 (no numeric-string coercion); keywords[] and theme{} have no cli representation — dropped on read",
+      "bot": "REJECTS the file: image.h as the string \"600\" hits JsonElement.TryGetInt32 on a non-number, which throws InvalidOperationException (uncaught by Parse's filter)"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"name\":\"  Floor plan  \",\"color\":\"FF8800\",\"keywords\":[\" a \",\"\",5,\"b \"],\"source\":\"https://example.com/img.png\",\"resource\":\"cameras/7\",\"image\":{\"dataUrl\":\"data:image/jpeg;base64,BBBB\",\"ext\":\"JPG\",\"w\":800.7,\"h\":\"600\"},\"layout\":{\"imageWidth\":800,\"imageHeight\":600,\"lines\":[{\"points\":[{\"x\":1,\"y\":2},{\"x\":3.5,\"y\":4.25}],\"color\":\"#ff0000\",\"pointColor\":\"#00ff00\",\"fillColor\":\"#0000ff\",\"style\":\"dashed\",\"thickness\":7.5,\"pointSize\":12,\"locked\":true}],\"imageFilter\":\"bw\",\"filterColor\":\"#336699\",\"cropRect\":{\"x\":0,\"y\":0,\"w\":800,\"h\":600},\"rotationQuarters\":1,\"pageSize\":\"A4\",\"allowFormulas\":true,\"formulaX\":\"x*2\",\"formulaY\":\"y+1\"},\"theme\":{\"mode\":\"DARK\",\"accent\":\"sky\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Floor plan",
+      "color": "#ff8800",
+      "keywords": [
+        "a",
+        "b"
+      ],
+      "source": "https://example.com/img.png",
+      "resource": "cameras/7",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/jpeg;base64,BBBB",
+        "ext": "jpg",
+        "w": 801,
+        "h": 600
+      },
+      "layout": {
+        "imageWidth": 800,
+        "imageHeight": 600,
+        "lines": [
+          {
+            "points": [
+              {
+                "x": 1,
+                "y": 2
+              },
+              {
+                "x": 3.5,
+                "y": 4.25
+              }
+            ],
+            "color": "#ff0000",
+            "pointColor": "#00ff00",
+            "fillColor": "#0000ff",
+            "style": "dashed",
+            "thickness": 7.5,
+            "pointSize": 12,
+            "locked": true
+          }
+        ],
+        "imageFilter": "bw",
+        "filterColor": "#336699",
+        "cropRect": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 600
+        },
+        "rotationQuarters": 1,
+        "pageSize": "A4",
+        "allowFormulas": true,
+        "formulaX": "x*2",
+        "formulaY": "y+1"
+      },
+      "theme": {
+        "mode": "dark",
+        "accent": "sky"
+      }
+    }
+  },
+  {
+    "name": "blank-project-truthy-blank-short-hex",
+    "divergences": {
+      "desktop": "blank uses QJsonValue::toBool (no truthiness): \"yes\" -> false, and blankColor \"0f0\" is kept raw, not expanded to #00ff00",
+      "cli": "reads blank only when it is a JSON bool — the truthy string \"yes\" leaves blank false; blankColor \"0f0\" stays verbatim"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"name\":\"Blank\",\"blank\":\"yes\",\"blankColor\":\"0f0\",\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Blank",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": true,
+      "blankColor": "#00ff00",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "version-as-numeric-string-accepted",
+    "divergences": {
+      "desktop": "REJECTS: reads version with QJsonValue::toInt (no string coercion): \"1\" -> 0 -> 'Unrecognized project-file version'",
+      "cli": "REJECTS: jsonInt() reads a STRING version as 0, so \"1\" fails the 1..VERSION gate with UnsupportedVersion",
+      "bot": "REJECTS: version \"1\" (string) hits TryGetInt32 on a non-number -> InvalidOperationException",
+      "pystencil": "REJECTS: open_project requires an int version and raises ValueError('unrecognized project-file version')"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":\"1\",\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "unknown-top-level-keys-tolerated",
+    "divergences": {
+      "desktop": "unknown keys tolerated the same; only the missing-layout {} vs normalized {\"lines\":[]} difference"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"},\"futureField\":{\"a\":1},\"chat\":[1,2]}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "layout-lines-hardened-session-keys-dropped",
+    "divergences": {
+      "desktop": "stores the layout object VERBATIM — session keys, junk line fields and string coords survive parse (hardening happens later in linesFromJson); the browser hardens at parse",
+      "cli": "verdicts agree; re-stringifies the embedded layout RAW at parse (zoom/color/junk keys and string coords survive in layout_json); hardening happens later in layout.zig"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"},\"layout\":{\"lines\":[{\"points\":[{\"x\":\"3\",\"y\":4}],\"junk\":true}],\"zoom\":2,\"color\":\"#123456\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": [
+          {
+            "points": [
+              {
+                "x": 3,
+                "y": 4
+              }
+            ],
+            "locked": false
+          }
+        ]
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "data-url-leading-whitespace-accepted-preserved",
+    "divergences": {
+      "desktop": "leading-whitespace dataUrl decodes the same (indexOf(\"base64,\")); only the missing-layout {} difference",
+      "cli": "verdicts agree; locates \"base64,\" anywhere in the dataUrl, so the leading whitespace is harmless; it stores the DECODED bytes rather than preserving the raw dataUrl string"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"  data:image/png;base64,DDDD\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "  data:image/png;base64,DDDD",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  },
+  {
+    "name": "theme-custom-accent-hex-normalized",
+    "divergences": {
+      "desktop": "keeps the theme accent raw (\"abc\", not expanded to #aabbcc), plus the missing-layout {} difference"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"},\"theme\":{\"accent\":\"abc\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,AAAA",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": {
+        "accent": "#aabbcc"
+      }
+    }
+  },
+  {
+    "name": "invalid-theme-and-nonpositive-dims-dropped",
+    "divergences": {
+      "desktop": "performs no validity filtering: bogus ext \"...\", negative w -5 and an invalid theme {mode:\"blue\",accent:\"#12\"} all survive parse; the browser drops them",
+      "cli": "keeps ext \"...\" verbatim (browser falls back to png) and does not validate dims (w -5 / h 0 kept as-is); the invalid theme is dropped either way (no cli theme field)"
+    },
+    "file": "{\"format\":\"stencil-project\",\"version\":1,\"image\":{\"dataUrl\":\"data:image/png;base64,EEEE\",\"ext\":\"...\",\"w\":-5,\"h\":0},\"theme\":{\"mode\":\"blue\",\"accent\":\"#12\"}}",
+    "expect": "ok",
+    "project": {
+      "name": "Untitled",
+      "color": "",
+      "keywords": [],
+      "source": "",
+      "resource": "",
+      "blank": false,
+      "blankColor": "",
+      "image": {
+        "dataUrl": "data:image/png;base64,EEEE",
+        "ext": "png"
+      },
+      "layout": {
+        "lines": []
+      },
+      "theme": null
+    }
+  }
+]

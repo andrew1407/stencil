@@ -1,0 +1,18 @@
+{
+  "name": "projectcolor-hex",
+  "profiles": [
+    "editor",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "projectColor",
+        "color": "#ec4899"
+      }
+    ]
+  },
+  "expect": "valid"
+}

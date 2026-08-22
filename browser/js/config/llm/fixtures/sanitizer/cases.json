@@ -1,0 +1,117 @@
+[
+  {
+    "name": "plain short prose passes through untouched",
+    "input": "model \"llava\" not found, try pulling it first",
+    "expect": "model \"llava\" not found, try pulling it first"
+  },
+  {
+    "name": "empty string stays empty",
+    "input": "",
+    "expect": ""
+  },
+  {
+    "name": "null input reads as empty",
+    "comment": "walkers in languages without null may skip null-input cases",
+    "input": null,
+    "expect": ""
+  },
+  {
+    "name": "control characters become spaces and collapse",
+    "input": "line one\nline two\ttabbed\u0007bell",
+    "expect": "line one line two tabbed bell"
+  },
+  {
+    "name": "zero-width/format characters are stripped too",
+    "divergences": {
+      "cli": "separates on BYTES <= 0x20 only — U+200B/U+200C are multi-byte and pass through untouched (browser strips \\p{Cf})",
+      "mcp": "only is_whitespace/is_control split words — format (Cf) characters like U+200B/U+200C are neither, so they survive verbatim inside a word",
+      "pystencil": "_CONTROLISH covers only [\\x00-\\x1f\\x7f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
+    },
+    "input": "invisible​space‌here",
+    "expect": "invisible space here"
+  },
+  {
+    "name": "absolute URLs are redacted",
+    "input": "connect to http://internal-host:8080/v1/messages failed",
+    "expect": "connect to [redacted] failed"
+  },
+  {
+    "name": "every URL in the text is redacted",
+    "input": "tried https://api.anthropic.com/v1/messages then http://fallback.local/x",
+    "expect": "tried [redacted] then [redacted]"
+  },
+  {
+    "name": "bearer credential runs are redacted",
+    "input": "authorization Bearer abcdef1234567890 was rejected",
+    "expect": "authorization [redacted] was rejected"
+  },
+  {
+    "name": "sk-style keys are redacted",
+    "input": "Incorrect API key provided: sk-proj-abcdef1234567890abcdef",
+    "expect": "Incorrect API key provided: [redacted]"
+  },
+  {
+    "name": "api_key=… pairs are redacted",
+    "input": "request had api_key=supersecretvalue1 attached",
+    "expect": "request had [redacted] attached"
+  },
+  {
+    "name": "bare 24+ char token-shaped runs are redacted",
+    "input": "echoed token AAAAABBBBBCCCCCDDDDDEEEEE in body",
+    "expect": "echoed token [redacted] in body"
+  },
+  {
+    "name": "ordinary prose about keys survives — separators gate the redaction",
+    "input": "Incorrect API key provided. Check your key and try again.",
+    "expect": "Incorrect API key provided. Check your key and try again."
+  },
+  {
+    "name": "whitespace collapses to single spaces",
+    "input": "  spaced    out\n\n  text  ",
+    "expect": "spaced out text"
+  },
+  {
+    "name": "exactly 200 characters pass uncut",
+    "input": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lo",
+    "expect": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lo"
+  },
+  {
+    "name": "201 characters truncate to 199 + ellipsis",
+    "divergences": {
+      "cli": "cuts on a WORD boundary (drops the word that does not fit, 197 chars + ellipsis); the browser cuts mid-word at exactly 199 chars",
+      "mcp": "cuts on a word boundary (word-accumulating sanitizer): 197 chars + ellipsis, vs the browser's mid-word 199 + ellipsis"
+    },
+    "input": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lor",
+    "expect": "lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor lorem ipsum dolor l…"
+  },
+  {
+    "name": "only the first 800 characters are ever scanned",
+    "comment": "text past the 800-char pre-cap never reaches the output even when collapse would leave room",
+    "input": "                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           abc dddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "expect": "abc d"
+  },
+  {
+    "name": "DIVERGENCE(server): private-use characters survive the browser, the server blanks them",
+    "divergences": {
+      "desktop": "QChar::isPrint is false for Co (private use), so the U+E000 markers are blanked to spaces and simplified() collapses them — the Go server's behavior, not the browser's"
+    },
+    "comment": "browser strips \\p{Cc}\\p{Cf} only; Go sanitizeUpstreamText blanks every !unicode.IsPrint rune (private-use, unassigned) — server walkers must expect a space here",
+    "input": "marker  kept",
+    "expect": "marker  kept"
+  },
+  {
+    "name": "DIVERGENCE(server,pystencil): length caps count UTF-16 code units in the browser, runes elsewhere",
+    "divergences": {
+      "desktop": "QChar::isPrint is false for Cs (surrogate halves), so every astral-plane emoji is blanked to two spaces and simplified() leaves \"\" — no cap even applies",
+      "mcp": "counts chars (Unicode scalar values): 120 emoji = 120 chars, under the 200 cap, so the text passes whole — no surrogate split, no truncation"
+    },
+    "comment": "browser String.slice can even split a surrogate pair at the 199-code-unit cut (the expect ends in a lone high surrogate); Go/Python count code points, Zig counts bytes — non-browser walkers must recompute their own expectation for astral input",
+    "input": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+    "expect": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\ud83d…"
+  },
+  {
+    "name": "URL query carrying a token: URL redaction wins first",
+    "input": "GET http://host/v1?key=sk-abcdef123456 refused",
+    "expect": "GET [redacted] refused"
+  }
+]

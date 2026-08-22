@@ -1,0 +1,23 @@
+{
+  "name": "accent-both-forms-invalid",
+  "profiles": [
+    "editor",
+    "console"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "accent",
+        "color": "#112233",
+        "preset": "green"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "knownDivergence": {
+    "pystencil": "valid"
+  },
+  "reason": "exactly one of color / preset; pystencil has no accent op — unknown-op skip makes the plan valid there"
+}

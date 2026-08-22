@@ -1,0 +1,21 @@
+{
+  "name": "image-index-zero-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "image",
+        "index": 0
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "attachment indices are 1-based"
+}

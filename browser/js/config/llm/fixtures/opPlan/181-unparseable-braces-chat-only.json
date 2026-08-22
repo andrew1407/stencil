@@ -1,0 +1,9 @@
+{
+  "name": "unparseable-braces-chat-only",
+  "profiles": [
+    "all"
+  ],
+  "input": "{this is not json at all}",
+  "expect": "valid",
+  "reason": "SUSPECTED DIVERGENCE: §1 only defines \"no JSON object\" as chat-only; the browser also treats a brace-blob that fails JSON.parse as chat-only rather than erroring — other surfaces may differ"
+}

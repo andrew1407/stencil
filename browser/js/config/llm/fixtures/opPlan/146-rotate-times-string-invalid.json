@@ -1,0 +1,22 @@
+{
+  "name": "rotate-times-string-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "left",
+        "times": "1"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "times must be a JSON integer"
+}

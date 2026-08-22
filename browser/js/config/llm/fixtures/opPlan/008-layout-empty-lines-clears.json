@@ -1,0 +1,21 @@
+{
+  "name": "layout-empty-lines-clears",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "layout",
+        "lines": []
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "empty lines array removes every drawn line (contract §2); mcp prompt omits that sentence but the shape is valid there too"
+}

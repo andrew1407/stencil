@@ -1,0 +1,23 @@
+{
+  "name": "crop-token-inner-space-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "x1": "10 %"
+        }
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "space between number and unit"
+}

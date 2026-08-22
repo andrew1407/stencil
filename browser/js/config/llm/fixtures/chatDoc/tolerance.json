@@ -1,0 +1,572 @@
+[
+  {
+    "name": "unknown top-level fields are dropped on read",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "hello"
+        }
+      ],
+      "title": "my chat",
+      "pinned": true
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "hello"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a stray images field on a stored message is dropped, never written back",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "look",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGk="
+            }
+          ]
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "look"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown extra fields on a message are stripped to role+text",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "assistant",
+          "text": "hi",
+          "meta": {
+            "tokens": 12
+          }
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "assistant",
+          "text": "hi"
+        }
+      ]
+    }
+  },
+  {
+    "name": "roles other than user/assistant are dropped",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "system",
+          "text": "you are…"
+        },
+        {
+          "role": "user",
+          "text": "kept"
+        },
+        {
+          "role": "tool",
+          "text": "dropped"
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "kept"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a message without a string text is dropped",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": 7
+        },
+        {
+          "role": "user"
+        },
+        null,
+        {
+          "role": "assistant",
+          "text": "kept"
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "assistant",
+          "text": "kept"
+        }
+      ]
+    }
+  },
+  {
+    "name": "the §7 continuation note never comes back from storage",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "[The working image is now the picture those actions loaded — continue with it.]"
+        },
+        {
+          "role": "user",
+          "text": "[The working image is now something else entirely — carry on.]"
+        },
+        {
+          "role": "user",
+          "text": "kept"
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "kept"
+        }
+      ]
+    }
+  },
+  {
+    "name": "an assistant turn that is a raw op-plan (incl. ask plans) is dropped",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "assistant",
+          "text": "{\"version\":1,\"actions\":[{\"op\":\"rotate\"}]}"
+        },
+        {
+          "role": "assistant",
+          "text": "{\"version\":1,\"ask\":{\"question\":\"which?\"}}"
+        },
+        {
+          "role": "assistant",
+          "text": "Rotated it."
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "assistant",
+          "text": "Rotated it."
+        }
+      ]
+    }
+  },
+  {
+    "name": "33 messages truncate to the most recent 32",
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "m0"
+        },
+        {
+          "role": "user",
+          "text": "m1"
+        },
+        {
+          "role": "user",
+          "text": "m2"
+        },
+        {
+          "role": "user",
+          "text": "m3"
+        },
+        {
+          "role": "user",
+          "text": "m4"
+        },
+        {
+          "role": "user",
+          "text": "m5"
+        },
+        {
+          "role": "user",
+          "text": "m6"
+        },
+        {
+          "role": "user",
+          "text": "m7"
+        },
+        {
+          "role": "user",
+          "text": "m8"
+        },
+        {
+          "role": "user",
+          "text": "m9"
+        },
+        {
+          "role": "user",
+          "text": "m10"
+        },
+        {
+          "role": "user",
+          "text": "m11"
+        },
+        {
+          "role": "user",
+          "text": "m12"
+        },
+        {
+          "role": "user",
+          "text": "m13"
+        },
+        {
+          "role": "user",
+          "text": "m14"
+        },
+        {
+          "role": "user",
+          "text": "m15"
+        },
+        {
+          "role": "user",
+          "text": "m16"
+        },
+        {
+          "role": "user",
+          "text": "m17"
+        },
+        {
+          "role": "user",
+          "text": "m18"
+        },
+        {
+          "role": "user",
+          "text": "m19"
+        },
+        {
+          "role": "user",
+          "text": "m20"
+        },
+        {
+          "role": "user",
+          "text": "m21"
+        },
+        {
+          "role": "user",
+          "text": "m22"
+        },
+        {
+          "role": "user",
+          "text": "m23"
+        },
+        {
+          "role": "user",
+          "text": "m24"
+        },
+        {
+          "role": "user",
+          "text": "m25"
+        },
+        {
+          "role": "user",
+          "text": "m26"
+        },
+        {
+          "role": "user",
+          "text": "m27"
+        },
+        {
+          "role": "user",
+          "text": "m28"
+        },
+        {
+          "role": "user",
+          "text": "m29"
+        },
+        {
+          "role": "user",
+          "text": "m30"
+        },
+        {
+          "role": "user",
+          "text": "m31"
+        },
+        {
+          "role": "user",
+          "text": "m32"
+        }
+      ]
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": [
+        {
+          "role": "user",
+          "text": "m1"
+        },
+        {
+          "role": "user",
+          "text": "m2"
+        },
+        {
+          "role": "user",
+          "text": "m3"
+        },
+        {
+          "role": "user",
+          "text": "m4"
+        },
+        {
+          "role": "user",
+          "text": "m5"
+        },
+        {
+          "role": "user",
+          "text": "m6"
+        },
+        {
+          "role": "user",
+          "text": "m7"
+        },
+        {
+          "role": "user",
+          "text": "m8"
+        },
+        {
+          "role": "user",
+          "text": "m9"
+        },
+        {
+          "role": "user",
+          "text": "m10"
+        },
+        {
+          "role": "user",
+          "text": "m11"
+        },
+        {
+          "role": "user",
+          "text": "m12"
+        },
+        {
+          "role": "user",
+          "text": "m13"
+        },
+        {
+          "role": "user",
+          "text": "m14"
+        },
+        {
+          "role": "user",
+          "text": "m15"
+        },
+        {
+          "role": "user",
+          "text": "m16"
+        },
+        {
+          "role": "user",
+          "text": "m17"
+        },
+        {
+          "role": "user",
+          "text": "m18"
+        },
+        {
+          "role": "user",
+          "text": "m19"
+        },
+        {
+          "role": "user",
+          "text": "m20"
+        },
+        {
+          "role": "user",
+          "text": "m21"
+        },
+        {
+          "role": "user",
+          "text": "m22"
+        },
+        {
+          "role": "user",
+          "text": "m23"
+        },
+        {
+          "role": "user",
+          "text": "m24"
+        },
+        {
+          "role": "user",
+          "text": "m25"
+        },
+        {
+          "role": "user",
+          "text": "m26"
+        },
+        {
+          "role": "user",
+          "text": "m27"
+        },
+        {
+          "role": "user",
+          "text": "m28"
+        },
+        {
+          "role": "user",
+          "text": "m29"
+        },
+        {
+          "role": "user",
+          "text": "m30"
+        },
+        {
+          "role": "user",
+          "text": "m31"
+        },
+        {
+          "role": "user",
+          "text": "m32"
+        }
+      ]
+    }
+  },
+  {
+    "name": "savedAt as a numeric string is coerced",
+    "divergences": {
+      "bot": "ChatDocument.TryParse only reads savedAt when ValueKind is Number — a numeric string reads as 0, not 123"
+    },
+    "doc": {
+      "version": 1,
+      "savedAt": "123",
+      "messages": []
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 123,
+      "messages": []
+    }
+  },
+  {
+    "name": "savedAt as garbage reads as 0",
+    "doc": {
+      "version": 1,
+      "savedAt": "yesterday",
+      "messages": []
+    },
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 0,
+      "messages": []
+    }
+  },
+  {
+    "name": "version 2 is treated as missing (null)",
+    "doc": {
+      "version": 2,
+      "savedAt": 42,
+      "messages": []
+    },
+    "expectParsed": null
+  },
+  {
+    "name": "missing version is treated as missing (null)",
+    "doc": {
+      "savedAt": 42,
+      "messages": []
+    },
+    "expectParsed": null
+  },
+  {
+    "name": "string version \"1\" is NOT version 1 (strict compare) — null",
+    "doc": {
+      "version": "1",
+      "savedAt": 42,
+      "messages": []
+    },
+    "expectParsed": null
+  },
+  {
+    "name": "messages that is not an array — null",
+    "divergences": {
+      "bot": "ChatDocument.TryParse tolerates a non-array messages value and returns a document with zero messages, where the reference treats the whole doc as missing (null)"
+    },
+    "doc": {
+      "version": 1,
+      "savedAt": 42,
+      "messages": "nope"
+    },
+    "expectParsed": null
+  },
+  {
+    "name": "a non-object document — null",
+    "doc": 17,
+    "expectParsed": null
+  },
+  {
+    "name": "invalid JSON string input parses to null",
+    "docString": "{\"version\":1,\"messages\":",
+    "expectParsed": null
+  },
+  {
+    "name": "a valid document as a JSON string parses the same as the object form",
+    "docString": "{\"version\":1,\"savedAt\":9,\"messages\":[{\"role\":\"user\",\"text\":\"hi\"}]}",
+    "expectParsed": {
+      "version": 1,
+      "savedAt": 9,
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    }
+  }
+]

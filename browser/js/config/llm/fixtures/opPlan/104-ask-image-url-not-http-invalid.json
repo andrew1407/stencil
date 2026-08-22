@@ -1,0 +1,36 @@
+{
+  "name": "ask-image-url-not-http-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+      "question": "Which?",
+      "options": [
+        {
+          "label": "a",
+          "image": {
+            "url": "data:image/png;base64,AAAA"
+          }
+        },
+        {
+          "label": "b"
+        }
+      ]
+    }
+  },
+  "expect": "invalid",
+  "knownDivergence": {
+    "extension": "valid",
+    "cli": "valid",
+    "pystencil": "valid",
+    "bot": "valid"
+  },
+  "reason": "only http(s) image.url is accepted — data:/file:/javascript: never. MEASURED DIVERGENCE: the extension never fetches ask urls and skips the scheme check (option kept, picture dropped with a warning), the consoles (cli and pystencil) never inspect an option image at all (previews dropped at parse), and the bot checks only that image.url is a non-empty string (it fetches nothing; no-preview warning) — VALID on all four"
+}

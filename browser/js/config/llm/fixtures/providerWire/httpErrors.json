@@ -1,0 +1,272 @@
+[
+  {
+    "name": "server 503 llmDisabled maps to the typed \"disabled\" error",
+    "divergences": {
+      "desktop": "same Disabled kind; the message survives inside the endpoint-tagged error, plus the always-sent model:\"\" body divergence",
+      "bot": "same disabled kind and message; LlmException carries no HTTP status"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 503,
+      "body": {
+        "code": "llmDisabled",
+        "message": "LLM is not configured on this server"
+      }
+    },
+    "expectError": {
+      "kind": "disabled",
+      "message": "LLM is not configured on this server",
+      "status": 503
+    }
+  },
+  {
+    "name": "server 502 llmUpstream renders the sanitized message with its code as plain http",
+    "divergences": {
+      "desktop": "kind http + message match; only the always-sent model:\"\" body divergence"
+    },
+    "provider": "server",
+    "settings": {
+      "serverUrl": "http://stencil.test:8090"
+    },
+    "token": "sess-token-1",
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://stencil.test:8090/llm/chat",
+    "expectAuthorization": "Bearer sess-token-1",
+    "expectBody": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 502,
+      "body": {
+        "code": "llmUpstream",
+        "message": "out of credits or no active billing"
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "out of credits or no active billing",
+      "status": 502
+    }
+  },
+  {
+    "name": "ollama {\"error\":\"…\"} body: the provider prose survives, sanitized",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "nope"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "nope",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 404,
+      "body": {
+        "error": "model \"nope\" not found, try pulling it first"
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "model \"nope\" not found, try pulling it first",
+      "status": 404
+    }
+  },
+  {
+    "name": "openai {\"error\":{\"message\":…}} body: prose survives, embedded key is redacted",
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl",
+      "apiKey": "k"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectAuthorization": "Bearer k",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 401,
+      "body": {
+        "error": {
+          "message": "Incorrect API key provided: sk-proj-abcdef1234567890abcdef. You can find your key at the dashboard."
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "Incorrect API key provided: [redacted] You can find your key at the dashboard.",
+      "status": 401
+    }
+  },
+  {
+    "name": "non-JSON error body falls back to \"HTTP <status>\"",
+    "divergences": {
+      "mcp": "own phrasing of the same fallback seam: 'the LLM endpoint answered HTTP 500'",
+      "bot": "own phrasing of the same fallback seam: 'The LLM endpoint answered HTTP 500.'"
+    },
+    "provider": "openai",
+    "settings": {
+      "baseUrl": "http://lmstudio.test:1234/v1",
+      "model": "qwen2-vl"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://lmstudio.test:1234/v1/chat/completions",
+    "expectBody": {
+      "model": "qwen2-vl",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 500,
+      "body": "<html>Internal Server Error</html>"
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "error message that is ONLY a URL sanitizes to nothing and falls back to \"HTTP <status>\"",
+    "divergences": {
+      "mcp": "own phrasing of the same fallback seam: 'the LLM endpoint answered HTTP 400'",
+      "bot": "own phrasing of the same fallback seam: 'The LLM endpoint answered HTTP 400.'"
+    },
+    "comment": "sanitizer output \"[redacted]\" is kept, but an empty sanitize falls back — this pins the fallback seam",
+    "provider": "ollama",
+    "settings": {
+      "baseUrl": "http://ollama.test:11434",
+      "model": "llava"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "http://ollama.test:11434/api/chat",
+    "expectBody": {
+      "model": "llava",
+      "stream": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the Stencil image-editing assistant. Answer with a v1 op-plan."
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 400,
+      "body": {
+        "error": "   "
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "HTTP 400",
+      "status": 400
+    }
+  }
+]

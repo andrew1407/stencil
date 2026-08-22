@@ -1,0 +1,199 @@
+[
+  {
+    "name": "empty document",
+    "doc": {
+      "version": 1,
+      "savedAt": 0,
+      "messages": []
+    }
+  },
+  {
+    "name": "the §12.1 example two-turn document",
+    "doc": {
+      "version": 1,
+      "savedAt": 1753900000000,
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        },
+        {
+          "role": "assistant",
+          "text": "Done — anything else?"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unicode and multi-line text round-trips exactly",
+    "doc": {
+      "version": 1,
+      "savedAt": 1753900000001,
+      "messages": [
+        {
+          "role": "user",
+          "text": "add a caption: „Straße 12\" → 5×7 см\nsecond line"
+        },
+        {
+          "role": "assistant",
+          "text": "Added the caption."
+        }
+      ]
+    }
+  },
+  {
+    "name": "a user turn that LOOKS like an op-plan is conversation and survives",
+    "comment": "the raw-plan filter applies to assistant turns only — users may paste JSON and see it again",
+    "doc": {
+      "version": 1,
+      "savedAt": 1753900000002,
+      "messages": [
+        {
+          "role": "user",
+          "text": "{\"version\":1,\"actions\":[{\"op\":\"rotate\"}]}"
+        },
+        {
+          "role": "assistant",
+          "text": "That plan rotates the image a quarter turn."
+        }
+      ]
+    }
+  },
+  {
+    "name": "a document at the 32-message cap round-trips whole",
+    "doc": {
+      "version": 1,
+      "savedAt": 1753900000003,
+      "messages": [
+        {
+          "role": "user",
+          "text": "turn 0"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 1"
+        },
+        {
+          "role": "user",
+          "text": "turn 2"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 3"
+        },
+        {
+          "role": "user",
+          "text": "turn 4"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 5"
+        },
+        {
+          "role": "user",
+          "text": "turn 6"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 7"
+        },
+        {
+          "role": "user",
+          "text": "turn 8"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 9"
+        },
+        {
+          "role": "user",
+          "text": "turn 10"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 11"
+        },
+        {
+          "role": "user",
+          "text": "turn 12"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 13"
+        },
+        {
+          "role": "user",
+          "text": "turn 14"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 15"
+        },
+        {
+          "role": "user",
+          "text": "turn 16"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 17"
+        },
+        {
+          "role": "user",
+          "text": "turn 18"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 19"
+        },
+        {
+          "role": "user",
+          "text": "turn 20"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 21"
+        },
+        {
+          "role": "user",
+          "text": "turn 22"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 23"
+        },
+        {
+          "role": "user",
+          "text": "turn 24"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 25"
+        },
+        {
+          "role": "user",
+          "text": "turn 26"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 27"
+        },
+        {
+          "role": "user",
+          "text": "turn 28"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 29"
+        },
+        {
+          "role": "user",
+          "text": "turn 30"
+        },
+        {
+          "role": "assistant",
+          "text": "reply 31"
+        }
+      ]
+    }
+  }
+]

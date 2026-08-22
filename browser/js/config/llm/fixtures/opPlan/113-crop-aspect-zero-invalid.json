@@ -1,0 +1,23 @@
+{
+  "name": "crop-aspect-zero-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "crop",
+        "spec": {
+          "aspect": "0:4"
+        }
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "both aspect terms must be positive"
+}

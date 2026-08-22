@@ -1,0 +1,9 @@
+{
+  "name": "empty-plan-object",
+  "profiles": [
+    "all"
+  ],
+  "input": {},
+  "expect": "valid",
+  "reason": "an empty {} is a valid empty plan; the client substitutes the explicit empty-plan reply"
+}

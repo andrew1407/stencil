@@ -1,0 +1,21 @@
+{
+  "name": "rotate-dir-up-invalid",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "rotate",
+        "dir": "up"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "dir is left|right"
+}

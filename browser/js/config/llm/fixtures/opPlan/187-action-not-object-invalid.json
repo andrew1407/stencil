@@ -1,0 +1,15 @@
+{
+  "name": "action-not-object-invalid",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      3
+    ]
+  },
+  "expect": "invalid",
+  "reason": "actions hold objects"
+}

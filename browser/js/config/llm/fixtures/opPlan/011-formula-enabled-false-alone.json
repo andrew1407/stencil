@@ -1,0 +1,20 @@
+{
+  "name": "formula-enabled-false-alone",
+  "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "formula",
+        "enabled": false
+      }
+    ]
+  },
+  "expect": "valid"
+}

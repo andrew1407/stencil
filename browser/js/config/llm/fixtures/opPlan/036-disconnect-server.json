@@ -1,0 +1,19 @@
+{
+  "name": "disconnect-server",
+  "profiles": [
+    "editor",
+    "console",
+    "bot"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "disconnect",
+        "server": "stencil.example.com"
+      }
+    ]
+  },
+  "expect": "valid"
+}
