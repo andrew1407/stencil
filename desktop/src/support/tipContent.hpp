@@ -55,6 +55,11 @@ namespace stencil::gui {
   // `mac` draws modifiers as Apple glyphs; it defaults to the platform.
   QString renderTip(const QString& text, const Palette& pal, bool mac = kOnMac);
 
+  // Class marker carried by every painted keycap <img>, so a rendered tooltip can be asked
+  // whether it shows any caps at all — appTooltip shakes only the ones that do.
+  inline constexpr const char* kKeycapClass = "stencil-tip-key";
+  bool hasKeycaps(const QString& richText);
+
   // Install the app-wide tooltip enrichment: every plain `setToolTip` is re-rendered
   // through renderTip. Call once at startup and again on a theme change, so keycaps and
   // muted text follow the palette. Idempotent.

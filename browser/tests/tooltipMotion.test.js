@@ -26,17 +26,62 @@ const press = (key, { code = '', ctrl = false, alt = false, shift = false, meta 
 
 // ── 1. Appear / disappear ───────────────────────────────────────────────────
 
-test('the tooltip fades and rises in, on a transition rather than an animation', () => {
+test('the tooltip forms from sand and disperses again, on a transition not an animation', () => {
   const block = componentsCss.match(/#app-tooltip \{([\s\S]*?)\n\}/);
   assert.ok(block, '#app-tooltip is styled');
   assert.match(block[1], /opacity: 0;/, 'hidden at rest');
-  assert.match(block[1], /transform: translateY\(5px\) scale\(0\.97\);/, 'and offset, so it rises in');
-  assert.match(block[1], /transition: opacity \d+ms [^;]*, transform \d+ms/,
-    'both properties transition');
+  assert.match(block[1], /--dissolve: 1;/, '…and fully grained: it is sand before it is a box');
+  assert.match(block[1], /transform: translate\(3px, 6px\) scale\(0\.96\);/,
+    'offset toward the cursor, so the grain gathers out of it');
+  assert.match(block[1], /transition: opacity \d+ms [^;]*,\s*\n?\s*transform \d+ms[^;]*,\s*\n?\s*--dissolve \d+ms/,
+    'all three transition — the grain included');
   assert.ok(!/animation:/.test(block[1]),
     'no keyframes — a sweep across many controls would restart one mid-flight');
-  assert.match(componentsCss, /#app-tooltip\.visible \{ opacity: 1; transform: none; \}/,
-    'and `.visible` is the whole of the shown state, so removing it plays the exit');
+  const shown = componentsCss.match(/#app-tooltip\.visible \{([\s\S]*?)\n\}/);
+  assert.ok(shown, '`.visible` is the whole of the shown state, so removing it plays the exit');
+  assert.match(shown[1], /opacity: 1;[\s\S]*transform: none;[\s\S]*--dissolve: 0;/);
+  // Arriving and leaving are timed apart on purpose: a transition is taken from the
+  // state it goes TO, so the base rule is the exit. It must be READABLE fast and come
+  // apart slowly — the reverse would make a toolbar sweep wait on the grain.
+  const ms = (css) => Number(css.match(/transition: opacity (\d+)ms/)[1]);
+  assert.ok(ms(shown[1]) < ms(block[1]),
+    'opaque sooner than it fades, so the grain is what you watch either way');
+});
+
+// The tooltip is the ONE overlay that cannot carry a mote layer: it is re-pointed many
+// times a second on a toolbar sweep and it tracks the cursor while it is up, so a layer
+// measured at one position is stranded a frame later. It takes the same sand as a MASK
+// on itself instead — the scroll dissolve's three coprime dot grids (animations.css
+// .reveal-masked) — which rides the box, costs one composited layer, and can neither
+// stack nor strand nor leak a timer.
+test('the tooltip’s sand is the app’s own grain: three coprime dot grids, unioned', () => {
+  const block = componentsCss.match(/#app-tooltip \{([\s\S]*?)\n\}/)[1];
+  for (const prop of ['-webkit-mask-image', 'mask-image']) {
+    assert.ok(block.includes(`${prop}:`), `${prop} is set (both spellings ship)`);
+  }
+  const dots = block.match(/radial-gradient\(circle at 50% 50%/g) || [];
+  assert.equal(dots.length, 6, 'three grids, in both mask spellings');
+  assert.match(block, /mask-size: 4px 4px, 7px 7px, 11px 11px;/, 'coprime cells, like the row grain');
+  assert.match(block, /mask-position: 0 0, 2px 3px, 5px 1px;/, 'and at three phases, so no lattice forms');
+  assert.match(block, /mask-composite: add;/, 'UNION — an intersect would punch holes in a settled tip');
+  // Solid when settled is not negotiable: a tooltip you cannot read is not decoration.
+  // 120% of the half-diagonal is 0.85 of the cell, well past the 0.707 that covers it.
+  const stops = block.match(/calc\(120% - var\(--dissolve\) \* (\d+)%\)/g) || [];
+  assert.equal(stops.length, 6, 'every grid starts solid at --dissolve 0');
+  // Each grid dies at a different rate, so they thin out in sequence, not together.
+  const rates = [...block.matchAll(/#000 max\(0%, calc\(120% - var\(--dissolve\) \* (\d+)%\)\)/g)]
+    .map((m) => Number(m[1]));
+  assert.equal(new Set(rates).size, 3, 'three distinct death rates');
+});
+
+test('no reflow: the sand is a mask, so the tooltip’s box never changes', () => {
+  const block = componentsCss.match(/#app-tooltip \{([\s\S]*?)\n\}/)[1];
+  // Only opacity / transform / mask move. Anything that resizes the box would break
+  // place(), which measures offsetWidth to clamp the tip against the screen edge.
+  for (const prop of ['width:', 'height:', 'padding:', 'margin:', 'font-size:']) {
+    const after = block.slice(block.indexOf('--dissolve: 1;'));
+    assert.ok(!after.includes(prop), `${prop} is not part of the effect`);
+  }
 });
 
 test('the tooltip grows away from the cursor it is anchored to', () => {
@@ -119,6 +164,19 @@ test('a keystroke matches the cap that spells it — and only that one', () => {
   assert.ok(!comboMatchesEvent('Shift', press('Shift', { code: 'ShiftLeft', shift: true })));
 });
 
+test('every cap nudges as the tooltip lands, so the shortcut announces itself', () => {
+  // The shake's job is to draw the eye to the shortcut while you are READING the tip,
+  // so it fires on the show — not only when the key happens to be pressed.
+  assert.match(tooltipJs, /t\.classList\.add\('visible'\);\s*\n\s*place\(lastEvent\);\s*\n\s*shakeKeys\(t\);/,
+    'shaken on every reveal, right after it is placed');
+  assert.match(tooltipJs,
+    /const shakeKeys = \(t\) => \{\s*\n\s*t\.querySelectorAll\('\.tip-key'\)\.forEach\(cap => flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)\);/);
+  // A tip with no shortcut has no caps, so the query is empty and nothing happens —
+  // no guard needed, and none that could get it wrong.
+  assert.ok(!/shakeKeys[\s\S]{0,200}if \(/.test(tooltipJs.slice(tooltipJs.indexOf('const shakeKeys'))),
+    'no special case for a shortcut-less tooltip');
+});
+
 test('the shake is wired to the tooltip’s own caps, one shot, and Escape still dismisses', () => {
   // The combos rendered on the live tooltip are kept from the same parse renderTip ran,
   // so a cap can be matched back to the shortcut it spells.
@@ -149,10 +207,12 @@ test('the keycap shake is one brief, non-repeating pass', () => {
 
 test('reduced motion: the tooltip appears at once and the cap answers without moving', () => {
   const block = componentsCss.match(
-    /@media \(prefers-reduced-motion: reduce\) \{\s*\n\s*#app-tooltip \{([\s\S]*?)\n\}/);
+    /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?#app-tooltip \{([\s\S]*?)\n    \}/);
   assert.ok(block, 'the tooltip opts out under the preference');
   assert.match(block[1], /transition: none;/);
   assert.match(block[1], /transform: none;/, 'and lands in its end state, not the offset one');
+  assert.match(block[1], /--dissolve: 0;/, 'no half-sanded tooltip either');
+  assert.match(block[1], /mask-image: none;/, 'the grain is off outright, not merely settled');
   assert.match(componentsCss, /\.tip-key\.key-shake \{ animation: none; \}/);
   // The accent recolour is not motion, so it survives — the cap still answers.
   const shake = componentsCss.match(/\.tip-key\.key-shake \{([\s\S]*?)\n\}/)[1];

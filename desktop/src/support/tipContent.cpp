@@ -138,10 +138,11 @@ namespace stencil::gui {
       // The alt text is the key itself — what tests and screen readers get.
       // vertical-align: middle centres the cap in running prose (browser .tip-key);
       // on the baseline the words would hang off its bottom edge.
-      const QString html = QStringLiteral("<img alt=\"%1\" width=\"%2\" height=\"%3\" "
+      const QString html = QStringLiteral("<img alt=\"%1\" class=\"%2\" width=\"%3\" height=\"%4\" "
                                           "style=\"vertical-align: middle;\" "
-                                          "src=\"data:image/png;base64,%4\">")
+                                          "src=\"data:image/png;base64,%5\">")
                                .arg(label.toHtmlEscaped())
+                               .arg(QLatin1String(kKeycapClass))
                                .arg(qRound(w + 2 * gapX))
                                .arg(qRound(h))
                                .arg(QString::fromLatin1(png.toBase64()));
@@ -375,6 +376,10 @@ namespace stencil::gui {
       const QString rich = renderTip(plain.toString(), g_pal);
       if (!rich.isEmpty()) w->setToolTip(rich);
     }
+  }
+
+  bool hasKeycaps(const QString& richText) {
+    return richText.contains(QLatin1String(kKeycapClass));
   }
 
   QString enrichedToolTip(const QString& plain) {

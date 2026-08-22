@@ -15,7 +15,7 @@ import {
   chatSuggestionsHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer,
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
 } from './chatView.js';
-import { menuPopOrigin } from './motion.js';
+import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced } from './motion.js';
 // ── Component: custom right-click context menu ──────────────────
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
 const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
@@ -338,8 +338,14 @@ export class StencilContextMenu extends StencilElement {
     // ── Live-sync timer ─────────────────────────────────────────
     // Keeps ctx menu state current while it's open (hotkeys may change state)
     let syncInterval = null;
+    // Where the menu grew from — the click. Kept so the close pours back into it.
+    let openPoint = null;
 
     const closeMenu = () => {
+      // Into the very point it grew out of (js/ui/motion.js) — measured while it is
+      // still on screen, and only if it IS: closeMenu is also the idle teardown.
+      if (menu.classList.contains('ctx-open') && !motionReduced()) surfaceOut(menu, openPoint);
+      else settleSurface(menu);
       menu.classList.remove('ctx-open');
       closeAllSubs();
       setPointerTracking(false);
@@ -446,6 +452,7 @@ export class StencilContextMenu extends StencilElement {
     };
 
     const openAt = (x, y) => {
+      openPoint = { x, y };
       closeAllSubs();
       // Track the pointer only while open; seed it with the click point so the
       // idle checks never compare against a stale position from a previous open.
@@ -458,6 +465,10 @@ export class StencilContextMenu extends StencilElement {
       menu.style.left = '-9999px'; menu.style.top = '-9999px';
       menu.classList.add('ctx-open');
       placeMenu(x, y);
+      // …and it forms out of that same point as dust (js/ui/motion.js). Opacity only —
+      // a live transform on the menu would make it the containing block for its
+      // position:fixed flyouts, which is the very trap menuPop's comment names.
+      if (!motionReduced()) surfaceIn(menu, openPoint);
       // Start live-sync so hotkey changes reflect immediately
       clearInterval(syncInterval);
       syncInterval = setInterval(() => {
