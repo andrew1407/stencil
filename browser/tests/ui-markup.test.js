@@ -357,7 +357,9 @@ test('the incognito frame traces the canvas VIEWPORT, not the picture', () => {
         'the empty-state stretch is obsolete now the frame owns the viewport');
     const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
     const base = layout.slice(layout.indexOf('\n.canvas-container {'), layout.indexOf('}', layout.indexOf('\n.canvas-container {')));
-    assert.ok(/display: inline-block/.test(base) && !/width:/.test(base),
+    // …and the container still shrink-wraps the canvas: as a flex item, `flex: none` with
+    // no width of its own is the inline-block's replacement (see canvasCentering.test.js).
+    assert.ok(/flex: none/.test(base) && !/width:/.test(base),
         'and the container still shrink-wraps the canvas, untouched');
 });
 

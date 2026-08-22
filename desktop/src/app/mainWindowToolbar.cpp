@@ -799,13 +799,8 @@ namespace stencil::gui {
     // syncDrawModeUI ~1125): label + tooltip per mode.
     connect(canvas_, &CanvasWidget::drawModeChanged, this,
             [this](CanvasWidget::DrawMode mode) {
-              const bool rect = mode == CanvasWidget::DrawMode::Rect;
-              drawModeBtn_->setText(rect ? "Rect" : "Line");
-              drawModeBtn_->setIcon(
-                  themedIcon(rect ? "rect-filled" : "pencil", iconColor_, 16));
-              drawModeBtn_->setToolTip(
-                  rect ? "Drawing mode: Rectangle (click to switch to Line)"
-                       : "Drawing mode: Line (click to switch to Rectangle)");
+              // Glyph + word cross over together (support/faceSwap.hpp), like Start/Stop.
+              syncDrawModeFace(mode == CanvasWidget::DrawMode::Rect, true);
             });
 
     // Default line color (drawingApp.js:155): pick a color, store as the default

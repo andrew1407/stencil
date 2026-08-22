@@ -1,5 +1,6 @@
 import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
+import { canvasOrigin } from './zoomPan.js';
 
 // ── InputController: touchscreen + hold-to-draw alternative input ───
 // Owns the two alternative input flows — hold-to-draw (a near-stationary press
@@ -157,8 +158,11 @@ export class InputController {
         const [a, b] = [e.touches[0], e.touches[1]];
         const mid = midpoint(a, b);
         const vpRect = viewport.getBoundingClientRect();
-        const contentX = mid.x - vpRect.left + viewport.scrollLeft;
-        const contentY = mid.y - vpRect.top + viewport.scrollTop;
+        // Minus the centring margins: a picture smaller than the frame does not start at
+        // the scroll origin (canvasOrigin), so the pinched pixel would be the wrong one.
+        const org = canvasOrigin();
+        const contentX = mid.x - vpRect.left + viewport.scrollLeft - org.x;
+        const contentY = mid.y - vpRect.top + viewport.scrollTop - org.y;
         app.canvas.classList.add('zoom-no-transition');
         this.#touch = {
           mode: 'pinch',

@@ -302,10 +302,10 @@ namespace stencil::gui {
       /* Active toggle → SOLID accent fill with white text, matching the browser's
          .active toolbar buttons (fullscreen while on, incognito while on) rather than
          a soft tint — so an enabled toggle clearly reads as active. */
-      QToolButton:checked, QToolButton[drawActive="true"] {
+      QToolButton:checked {
         background: %ACCENT%; border-color: %ACCENT%; color: white;
       }
-      QToolButton:checked:hover, QToolButton[drawActive="true"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
+      QToolButton:checked:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
       /* Disabled: a filled, low-contrast "inactive" chip (matches QPushButton:disabled)
          so a greyed toolbar button reads clearly. The :checked:disabled override is
          higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
@@ -334,6 +334,26 @@ namespace stencil::gui {
       QToolButton[toolFill="danger"]:hover { background: %DANGER2%; border-color: %DANGER2%; }
       QToolButton[toolFill="danger"]:pressed { background: %DANGER2%; }
       QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled {
+        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+      }
+      /* The Draw Start/Stop toggle is an ACCENT TOGGLE, not another filled section
+         button (browser #draw-toggle in layout.css): OUTLINED while idle — accent ring,
+         accent word and glyph on a neutral face — and accent-FILLED while a session is
+         live, with the on-accent white the app's other filled accent controls use (the
+         glyph takes the light-accent halo from accentNeedsGlyphShadow, as chatDock's do).
+         It opts out of toolFill for exactly this reason: filled in both states, the
+         toggle said nothing about which one you were in. */
+      QToolButton[drawToggle="idle"] {
+        background: transparent; border-color: %ACCENT%; color: %ACCENT%;
+      }
+      QToolButton[drawToggle="idle"]:hover { background: %ACCENT_SOFT%; border-color: %ACCENT%; }
+      QToolButton[drawToggle="idle"]:pressed { background: %ACCENT_SOFT2%; }
+      QToolButton[drawToggle="on"] { background: %ACCENT%; border-color: %ACCENT%; color: white; }
+      QToolButton[drawToggle="on"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
+      QToolButton[drawToggle="on"]:pressed { background: %ACCENT2%; }
+      /* Disabled outranks both states (the browser's :not(:disabled) guard): the shared
+         muted chip, so a toggle you cannot press never wears the accent. */
+      QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
       /* Fit-to-window is the one section button that keeps a GHOST box (browser

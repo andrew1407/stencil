@@ -132,6 +132,58 @@ test('fullscreen takes the whole window height', () => {
   assert.equal(new ZoomPan({}).availContentHeight(), 953);
 });
 
+// ── syncViewportHeight ───────────────────────────────────────────────────────
+// The bug these lock down: the cap used to HUG the picture (min(image × scale, available)),
+// so the frame collapsed to a short horizontal strip whenever the image was small, zoomed
+// out, or absent — a 163px band with 350px of dead space under it (user report, with
+// screenshots). The cap is the available height now, full stop; the picture is centred
+// inside it by the auto margins (css/layout.css, tests/canvasCentering.test.js).
+
+const sized = (app) => {
+  const vp = installDom({ ...ROOMY, containerBottom: 933 });
+  new ZoomPan(app).syncViewportHeight();
+  return parseFloat(vp.style.maxHeight);
+};
+
+test('the frame takes the whole available height whatever the picture is doing', () => {
+  const withImage = (h, scale) => ({ image: { width: 100, height: h }, canvas: { width: 100, height: h, style: {} },
+                                     scale, storage: { save() {} } });
+  assert.equal(sized({}), ROOMY_AVAIL, 'no image at all');
+  assert.equal(sized(withImage(40, 1)), ROOMY_AVAIL, 'a picture far shorter than the frame');
+  assert.equal(sized(withImage(1587, 0.1)), ROOMY_AVAIL, 'zoomed out to a thumbnail');
+  assert.equal(sized(withImage(1587, 0.32)), ROOMY_AVAIL, 'fitted');
+  assert.equal(sized(withImage(1587, 8)), ROOMY_AVAIL, 'and zoomed far past it — the cap is what scrolls');
+});
+
+test('a cleared image does not leave the frame at the size the picture had', () => {
+  const vp = installDom({ ...ROOMY, containerBottom: 933 });
+  const app = { image: { width: 300, height: 200 }, canvas: { width: 300, height: 200, style: {} },
+                scale: 1, storage: { save() {} } };
+  const zp = new ZoomPan(app);
+  zp.syncViewportHeight();
+  app.image = null;                       // newEditor(): the picture is gone
+  zp.syncViewportHeight();
+  assert.equal(parseFloat(vp.style.maxHeight), ROOMY_AVAIL, 'the empty editor gets the room too');
+});
+
+test('every zoom step leaves the frame the same height', () => {
+  const vp = installDom({ ...ROOMY, containerBottom: 933 });
+  vp.clientWidth = 1061;
+  const zp = new ZoomPan({ image: { width: 438, height: 619 },
+                           canvas: { width: 438, height: 619, style: {} }, storage: { save() {} } });
+  for (const s of [0.05, 0.5, 1, 4, 32]) {
+    zp.setZoom(s, false);
+    assert.equal(parseFloat(vp.style.maxHeight), ROOMY_AVAIL, `unchanged at ${s}×`);
+  }
+});
+
+test('fullscreen keeps its own box — the in-flow rule stays out of it', () => {
+  const vp = installDom({ ...ROOMY, containerBottom: 933 });
+  globalThis.document.body.classList.contains = (c) => c === 'fullscreen-mode';
+  new ZoomPan({}).syncViewportHeight();
+  assert.equal(vp.style.maxHeight, undefined, 'components.css pins it to the window');
+});
+
 // ── syncCoordPanelHeight ─────────────────────────────────────────────────────
 // The bug these lock down: the panel's cap lived in CSS as `max-height: calc(100vh - 40px)`,
 // which assumes it starts at the top of the page. It starts BELOW the toolbar, so a traced

@@ -37,6 +37,7 @@ namespace stencil::net {
 namespace stencil::gui {
 
   class ProjectDragZones;
+  class ListFilterFade;
 
   // Which batch-transfer directions apply to a selection of `locals` local + `remotes`
   // server rows. Inapplicable directions are HIDDEN, not greyed (browser parity:
@@ -184,8 +185,10 @@ namespace stencil::gui {
     // Make a detached local copy of the selected SERVER project (server copy kept), prompting a name.
     void makeLocalCopySelected();
     // Re-apply the storage filter (All / Local / Server / a specific server) + the search
-    // text to the visible rows.
+    // text to the visible rows: excluded rows fade + collapse out, included ones back in.
     void applyFilter();
+    // Lazily build that transition (support/filterFade).
+    ListFilterFade* filterFade();
     // (Re)populate the "Show:" combo with All / Local / All-servers + one entry per connected
     // server, preserving the current selection. Called when the connected-server set changes.
     void rebuildFilterOptions();
@@ -248,6 +251,7 @@ namespace stencil::gui {
     // is connected so the label tracks the actual removal across the remote poll.
     QPushButton* clearAllBtn_ = nullptr;
     QComboBox* filter_ = nullptr;   // All / Local / Server / per-server row filter
+    ListFilterFade* filterFade_ = nullptr;  // its enter/exit transition (owned by the list)
     ProjectDragZones* dragZones_ = nullptr;  // main-window drag-out overlay (nullptr = none)
     QComboBox* sortCombo_ = nullptr;  // Name / Local first / Server first / Newest / Oldest / Manual
     QComboBox* searchModeCombo_ = nullptr;  // Name + keywords / Names only / Keywords only

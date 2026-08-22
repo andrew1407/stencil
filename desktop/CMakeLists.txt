@@ -303,6 +303,20 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_displayname_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # The toggle face swap (support/faceSwap.hpp) — the shared exchange behind Draw's
+  # Start/Stop and Line/Rect: the curve, plus the driver on a live QToolButton (converges,
+  # flips the caller's state once, survives rapid supersession, obeys reduced motion).
+  add_executable(stencil_faceswap_headless
+    tests/faceSwap.headless.cpp
+    src/support/iconSet.cpp       # the glyphs it turns
+    src/support/modalReveal.cpp   # motionReduced()
+    resources/app.qrc)
+  target_include_directories(stencil_faceswap_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_faceswap_headless PRIVATE Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_faceswap_headless COMMAND stencil_faceswap_headless)
+  set_tests_properties(stencil_faceswap_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # GUI end-to-end (Qt Test framework): drives the REAL MainWindow — load via the OS-open
   # path, trigger the actual Rotate/Undo/Start-Drawing QActions, and send real mouse clicks
   # to the live canvas. Links the whole GUI (STENCIL_GUI_SOURCES) + Qt6::Test. Offscreen.
@@ -459,8 +473,9 @@ if(Qt6_FOUND)
 
   # Servers dialog rows (dialogs/connectDialog): long URLs elide inside the viewport
   # (no horizontal scrollbar), removal retires-then-finalizes (empty state waits for the
-  # dust), and a new row gathers in as the reverse. Mock QTcpServer stands in for the
-  # collaboration server.
+  # dust), a new row gathers in as the reverse, and a KIND-FILTER change fades +
+  # collapses rows out and back (support/filterFade — not the removal's dust). Mock
+  # QTcpServer stands in for the collaboration server.
   add_executable(stencil_connectrow_headless
     tests/connectRow.headless.cpp
     src/dialogs/connectDialog.cpp
@@ -500,7 +515,8 @@ if(Qt6_FOUND)
 
   # Projects dialog multi-select surface (dialogs/projectsDialog): the batch bar HIDES
   # inapplicable direction buttons by selection composition, Select all / Deselect all
-  # toggles over the filtered view, and batch remove resolves every checked row into a
+  # toggles over the filtered view, filter/search changes fade + collapse rows out and
+  # back (support/filterFade), and batch remove resolves every checked row into a
   # viewport-clipped DisintegrateOverlay. Mock QTcpServer serves the token + /projects
   # listing, so the server-row compositions need no Go server.
   add_executable(stencil_projectsbatch_headless

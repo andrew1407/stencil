@@ -30,6 +30,7 @@ const makeApp = (over = {}) => ({
   compareReadOnly: () => false,
   openInAvailable: () => false,
   syncDrawToggleUI() {},
+  syncDrawModeUI() {},
   updateStencilSyncUI() {},
   updateIncognitoUI() {},
   updateProjectTitle() {},

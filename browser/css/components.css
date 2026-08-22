@@ -159,11 +159,10 @@ body.fullscreen-mode .canvas-viewport {
     border-radius: 0 !important;
     background: #000;
     overflow: auto;
-    /* safe center: centered when image fits, start-aligned when overflows
-       so all four edges stay reachable by scrolling */
+    /* Centring is the shared one from layout.css: a flex column whose canvas carries
+       `margin: auto`. The old `safe center` pair centred the INCOGNITO FRAME as another
+       row item beside the picture; auto margins leave it where its sticky corner needs it. */
     display: flex;
-    align-items: safe center;
-    justify-content: safe center;
     z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
 }
 /* …except when there is nothing to frame. The black above is a viewing ground for an
@@ -1985,6 +1984,9 @@ stencil-fullscreen-layer { display: contents; }
     width: var(--vp-w, 100%);
     height: var(--vp-h, 100%);
     margin-bottom: calc(-1 * var(--vp-h, 0px));
+    /* The viewport is a flex column (layout.css), so the frame is a flex item: without
+       this it would be shrunk by an overflowing canvas and stop tracing the viewport. */
+    flex: none;
     z-index: 6;
     pointer-events: none;
 }

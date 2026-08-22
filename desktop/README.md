@@ -468,6 +468,11 @@ The desktop app mirrors the browser app's interaction surface:
 - **Removal motion**: a cleared chat card and a cleared image don't blink out — a snapshot
   is scattered cell by cell (`support/disintegrateOverlay.hpp`, the port of the browser's
   `disintegrate()`), and toasts rise in and drop away instead of only fading.
+- **Filter motion**: a list row a *filter* excludes is not a row being deleted, so it never
+  gets the removal's dust — it fades out while its slot collapses (~170 ms), and a row
+  entering the filtered set plays exactly that backwards (`support/filterFade.hpp`). Used by
+  the Servers dialog's All / Admin / Non-admin picker, the Projects dialog's
+  filter/sort/search, and the Shortcuts search. `STENCIL_NO_ANIM=1` skips to the end state.
 - **Palette swap**: changing theme or accent snapshots the window, restyles, then erases the
   snapshot with a circle growing from the centre (`support/themeSwapOverlay.hpp`).
 - **Drag-and-drop motion**: the split drop-zones overlay leaves on a fade rather than

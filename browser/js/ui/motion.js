@@ -508,10 +508,156 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
   };
 };
 
+// ── Filtering a list ────────────────────────────────────────────────────────
+// A row a FILTER drops was not destroyed — it is only out of view — so it must not
+// play the delete's scatter (leaveThenRemove + scatterGridFor). It gets a lighter,
+// quicker collapse instead, and the rows the filter reveals fade back in on the same
+// short clock: enter and exit are the same shape, played opposite ways.
+export const FILTER_LEAVE_MS = 150;
+export const FILTER_ENTER_MS = 200;
+// Small enough that a long list still settles in one beat.
+export const FILTER_STAGGER_MS = 16;
+// Past this many rows the effect is noise (and a cost) — the rest simply appear.
+export const FILTER_MAX_ANIMATED = 16;
+export const FILTER_LEAVING_CLASS = 'filter-leaving';
+export const FILTER_ENTERING_CLASS = 'filter-entering';
+
+export const motionReduced = () =>
+  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// What a filter change does to a list, by row key: which keys it drops, which it
+// reveals, and whether the sequence moved at all (`moved` is what a SORT switch has —
+// same membership, new order). Pure — unit-tested.
+export const filterDelta = (before = [], after = []) => {
+  const prev = [...before];
+  const next = [...after];
+  const prevSet = new Set(prev);
+  const nextSet = new Set(next);
+  return {
+    leaving: prev.filter((k) => !nextSet.has(k)),
+    entering: next.filter((k) => !prevSet.has(k)),
+    moved: prev.length !== next.length || prev.some((k, i) => k !== next[i]),
+  };
+};
+
+// One filter animator per list. `keys()` is what the list shows RIGHT NOW, `next()`
+// what the pending state WILL show, `render()` rebuilds it, `find(key)` resolves a
+// rendered row. Returns a run() for every filter/sort/search handler to call.
+// render() ALWAYS runs exactly once per call — under reduced motion, with nothing to
+// play, or mid-animation. The rendered set never depends on the decoration.
+export const createFilterAnimator = ({
+  keys = () => [], next = () => [], render = () => {}, find = () => null,
+  leaveMs = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS, max = FILTER_MAX_ANIMATED,
+  setTimer = setTimeout, reduced = motionReduced,
+} = {}) => {
+  let seq = 0;
+  let flight = 0;   // generation of the leave in flight; 0 when idle
+  const rowsFor = (keyList) => keyList.slice(0, max).map((k) => find(k)).filter((el) => el?.classList);
+
+  const playEnter = (rows) => rows.forEach((el, i) => {
+    const delay = i * FILTER_STAGGER_MS;
+    if (el.style) el.style.animationDelay = `${delay}ms`;
+    el.classList.add(FILTER_ENTERING_CLASS);
+    setTimer(() => {
+      el.classList.remove(FILTER_ENTERING_CLASS);
+      if (el.style) el.style.animationDelay = '';
+    }, enterMs + delay + 60);
+  });
+
+  return () => {
+    const gen = ++seq;
+    const after = [...next()];
+    const { leaving, entering, moved } = filterDelta(keys(), after);
+    // Same membership, new order (a sort switch): the whole list settles back in.
+    const arriving = (leaving.length || entering.length) ? entering : (moved ? after : []);
+    // Reduced motion, nothing to play, or a change landing mid-animation (fast typing
+    // in the search box): render straight away — a second overlapping leave would drop
+    // rows, and correctness of the rendered set is not negotiable.
+    if (flight || reduced() || (!leaving.length && !arriving.length)) {
+      render();
+      return Promise.resolve({ leaving, entering: arriving });
+    }
+    const doomed = rowsFor(leaving);
+    for (const el of doomed) {
+      // Freeze the height, like leaveThenRemove: `height: auto → 0` does not animate.
+      const r = el.getBoundingClientRect?.();
+      if (r?.height) el.style?.setProperty?.('--leave-h', `${r.height}px`);
+      el.classList.add(FILTER_LEAVING_CLASS);
+    }
+    const settle = () => { render(); playEnter(rowsFor(arriving)); };
+    if (!doomed.length) { settle(); return Promise.resolve({ leaving, entering: arriving }); }
+    flight = gen;
+    return new Promise((resolve) => setTimer(() => {
+      flight = 0;
+      // Superseded meanwhile? A newer change already rendered the current state; this
+      // enter would flash rows that have been on screen for a while.
+      if (gen === seq) settle();
+      resolve({ leaving, entering: arriving });
+    }, leaveMs));
+  };
+};
+
 // May a list's "nothing here" placeholder show RIGHT NOW? Only when it is truly empty
 // AND no wipe is still playing — under a hold the empty state would land beneath the
 // falling ash and read as appearing before the removal finished. Pure — unit-tested.
 export const emptyStateVisible = (count, holding = false) => count === 0 && !holding;
+
+// ── Swapping a control's face ───────────────────────────────────────────────
+// One shared transition for the toggles that rewrite themselves in place — the Draw
+// group's Start↔Stop and Line↔Rect. Replacing innerHTML outright cannot animate, so
+// the new markup is written FIRST (the DOM is never behind the state, however fast
+// the toggling) and the decoration plays around it: the new glyph turns in, the new
+// word rises, and the outgoing face leaves as a ghost stacked on top of it. CSS owns
+// the keyframes (animations.css .swapping / .swap-ghost).
+export const SWAP_MS = 260;
+export const SWAP_CLASS = 'swapping';
+export const SWAP_GHOST_CLASS = 'swap-ghost';
+
+// The face each element last rendered, and the generation of its in-flight swap.
+// Keyed by the ELEMENT: a re-rendered toolbar hands us a fresh node with no entry,
+// which paints rather than being skipped as unchanged.
+const swapFace = new WeakMap();
+const swapGen = new WeakMap();
+
+/**
+ * Swap an element's content with the shared transition. `key` identifies the face
+ * (markup does not survive a DOM round-trip byte-for-byte, so it is not the trigger).
+ * Returns whether the swap ANIMATED — false for an unchanged face, the first paint,
+ * or reduced motion, all of which still leave the correct content behind.
+ */
+export function swapContent(el, html, {
+  key = html, ms = SWAP_MS, reduced = motionReduced, setTimer = setTimeout,
+} = {}) {
+  if (!el) return false;
+  const first = !swapFace.has(el);
+  if (!first && swapFace.get(el) === key) return false;
+  swapFace.set(el, key);
+  // Drop a ghost still in flight: it belongs to a face that is now two swaps old.
+  for (const g of el.querySelectorAll?.(`.${SWAP_GHOST_CLASS}`) || []) g.remove?.();
+  const before = el.innerHTML;
+  el.innerHTML = html;
+  if (first || reduced()) return false;
+
+  const doc = el.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const ghost = el.appendChild ? doc?.createElement?.('span') : null;
+  if (ghost) {
+    ghost.className = SWAP_GHOST_CLASS;
+    ghost.innerHTML = before;
+    ghost.setAttribute?.('aria-hidden', 'true');
+    el.appendChild(ghost);
+  }
+  const gen = (swapGen.get(el) || 0) + 1;
+  swapGen.set(el, gen);
+  el.classList?.remove(SWAP_CLASS);
+  void el.offsetWidth;   // reflow, so the keyframes replay from the top mid-swap
+  el.classList?.add(SWAP_CLASS);
+  setTimer(() => {
+    if (swapGen.get(el) !== gen) return;   // a newer swap owns the element now
+    el.classList?.remove(SWAP_CLASS);
+    ghost?.remove?.();
+  }, ms + 60);
+  return true;
+}
 
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
 // A removed element comes apart: one clone per tile, clipped to its own cell, drifting

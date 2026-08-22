@@ -289,6 +289,13 @@ namespace stencil::gui {
     // and red-on-menu-background in menus, so the button's glyph differs from the action's.
     void styleDangerToolButtons();
     bool sectionButtonVisible(QAction* act, QToolButton* btn) const;
+    // The two Draw toggles' faces (support/faceSwap.hpp). Each puts the button in the
+    // state named — the Start/Stop toggle also takes the matching accent treatment,
+    // outlined while idle, filled while drawing — and, with `animate`, gets there through
+    // the shared swap instead of blinking. `animate=false` is the repaint path (theme /
+    // accent change), which must land on the end state at once.
+    void syncDrawToggleFace(bool drawing, bool animate);
+    void syncDrawModeFace(bool rect, bool animate);
     void bindRevealAnchors();
     void bindRevealAnchor(QAction* a);
     QColor toolButtonIconColor(QAction* act, const QColor& normal) const;

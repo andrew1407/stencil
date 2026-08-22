@@ -30,7 +30,7 @@ import { loadLlmSettings, assistantEnabled, LLM_SETTINGS_KEY } from '../llm/llmS
 import { createAssistant, applyAssistantVisibility } from './assistant.js';
 import { createEditorMode } from './editorMode.js';
 import { watchNumericInputs } from '../lib/numericInput.js';
-import { observeReveal, flashLanding, leaveThenRemove, disintegrate } from '../lib/motion.js';
+import { observeReveal, flashLanding, filterLeave, createFilterTransition } from '../lib/motion.js';
 import { createActionMenu } from '../lib/actionMenu.js';
 import { createHoverPreview } from '../lib/hoverPreview.js';
 import { createFilterUi, FILTERS_KEY } from '../lib/filterUi.js';
@@ -153,6 +153,28 @@ const measureObs = new IntersectionObserver((entries) => {
     measure(e.target._image, e.target._dimEl, e.target);
   }
 }, { root: listEl, rootMargin: '200px' });
+
+// A filter change animates BOTH ways (lib/motion.js): rows the filters no longer admit
+// fade out where they stood while the arriving ones ramp in. Rows are keyed by source,
+// so a re-render of the same set animates nothing. A ghost is on its way out and belongs
+// to no image, so it must not be measured any more.
+const filterTransition = createFilterTransition({
+  list: listEl,
+  onLeave: (li) => measureObs.unobserve(li),
+});
+
+// Stable identity for a row across renders — what the transition diffs. The source alone
+// won't do: a server row and a local pin of the same image are different rows, and so are
+// a video's poster and a plain image that happen to share a URL (each has its own toggle).
+const rowKey = (image) => (image.shared
+  ? `server:${image.serverUrl}:${image.projectId || ''}:`
+  : `page:${image.kind || ''}:${image.poster ? 'p' : ''}${image.meta ? 'm' : ''}:`)
+  + (sourceOf(image) || image.src || image.name || '');
+// The rendered row for an image, found by that key (indexes shift while ghosts play out).
+const rowElFor = (image) => {
+  try { return listEl.querySelector(`li[data-key="${CSS.escape(rowKey(image))}"] .row`); }
+  catch { return null; }
+};
 
 // ── Scan ──
 const scan = async () => {
@@ -417,27 +439,6 @@ const renderCount = () => {
 };
 
 
-// The sources currently on screen, in render order — `applyFilters` diffs the next
-// set against this to know which rows are actually going away.
-let renderedSources = [];
-
-// Scatter every rendered row whose image is NOT in `nextSet` (lib/motion.js). The
-// particles are lifted out of the list first: the very next statement wipes the list's
-// innerHTML, which would take them with it.
-const scatterDroppedRows = (next) => {
-  const keep = new Set(next.map((it) => sourceOf(it) || it.src));
-  const rows = [...listEl.children];
-  renderedSources.forEach((src, i) => {
-    if (keep.has(src)) return;
-    const row = rows[i]?.querySelector('.row');
-    if (!row) return;
-    disintegrate(row);
-    for (const host of row.parentElement.querySelectorAll('.disintegrate-host'))
-      document.body.appendChild(host);   // survive the innerHTML wipe below
-  });
-  renderedSources = next.map((it) => sourceOf(it) || it.src);
-};
-
 const applyFilters = () => {
   filters = filterUi.read();
   filterUi.save();                       // persist the current filter state on every change
@@ -460,25 +461,25 @@ const applyFilters = () => {
   if (!state.showServerPins) sharedRows = [];
   else if (store !== 'all') sharedRows = sharedRows.filter(s => s.serverUrl === store);
   state.filtered = state.filtered.concat(sharedRows);
-  // Rows that this pass drops — a narrowed search, a filter toggled off, an unpin with
-  // "show pinned" off — scatter on their way out. The list is rebuilt wholesale, so
-  // they are identified by comparing the OUTGOING render against the incoming set.
-  scatterDroppedRows(state.filtered);
+  // Rows this pass drops — a narrowed search, a format pill off, an unpin with "show
+  // pinned" off — fade out where they stood, and the ones it admits ramp in. The list is
+  // rebuilt wholesale, so the transition diffs the outgoing render against the new set;
+  // a filter fade is deliberately lighter than the destructive leave a delete plays.
+  filterTransition.begin();
   listEl.innerHTML = '';
   renderCount();
   if (!state.all.length && !sharedRows.length) {
     listEl.innerHTML = '<li class="empty">No images found on this page.</li>';
-    return;
-  }
-  if (!state.filtered.length) {
+  } else if (!state.filtered.length) {
     listEl.innerHTML = '<li class="empty">No images match the filters.</li>';
-    return;
+  } else {
+    // `.status:empty` is display:none, which can't transition — so fade it out first,
+    // then empty it (lib/animations.css .status-leaving).
+    clearStatus();
+    // Render every matching row; thumbnails + size measurement load lazily on scroll.
+    state.filtered.forEach(renderRow);
   }
-  // `.status:empty` is display:none, which can't transition — so fade it out first,
-  // then empty it (lib/animations.css .status-leaving).
-  clearStatus();
-  // Render every matching row; thumbnails + size measurement load lazily on scroll.
-  state.filtered.forEach(renderRow);
+  filterTransition.end();
 };
 
 // A row that represents a project (a shared server-project row, or a local pin with kind
@@ -488,6 +489,7 @@ const isProjectRow = (image) => !!image.shared || image.kind === 'project';
 // ── Rows ──
 const renderRow = (image) => {
   const li = document.createElement('li');
+  li.dataset.key = rowKey(image);   // the filter transition diffs renders by this
   const row = document.createElement('div');
   row.className = 'row';
 
@@ -618,9 +620,9 @@ const measure = (image, dimEl, li) => {
     dimEl.textContent = dimText(image);
     // The now-known size may no longer match — drop the row, keep the counter synced.
     if (!passesFilters(image, filters)) {
-      // The measurement disqualified it — collapse the row away rather than
-      // having it blink out from under the cursor.
-      leaveThenRemove(li.querySelector('.row') || li, () => {
+      // The measurement disqualified it — a FILTER dropping the row, not a delete, so it
+      // gets the light fade rather than the destructive scatter.
+      filterLeave(li, () => {
         li.remove();
         state.filtered = state.filtered.filter(it => it !== image);
         renderCount();
@@ -940,8 +942,7 @@ const enableShowPinned = async () => {
 // Scroll a freshly-pinned row into view and flash it (shared by drop-pin so a new row is
 // noticed even mid-list).
 const flashRow = (image, { landing = false } = {}) => {
-  const idx = state.filtered.indexOf(image);
-  const row = idx >= 0 ? listEl.children[idx]?.querySelector('.row') : null;
+  const row = state.filtered.includes(image) ? rowElFor(image) : null;
   if (!row) return;
   row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   // A row a DROP just created lands in from the drag and pulses the accent ring;
@@ -1233,9 +1234,9 @@ let listHlRow = null;
 const highlightListRowForSource = (source) => {
   if (listHlRow) { listHlRow.classList.remove('list-hl'); listHlRow = null; }
   if (!source) return;
-  const idx = state.filtered.findIndex((im) => !im.shared && pinnable(im) && sameSource(sourceOf(im), source));
-  if (idx < 0) return;
-  const row = listEl.children[idx]?.querySelector('.row');
+  const image = state.filtered.find((im) => !im.shared && pinnable(im) && sameSource(sourceOf(im), source));
+  if (!image) return;
+  const row = rowElFor(image);
   if (!row) return;
   row.classList.add('list-hl');
   row.scrollIntoView({ block: 'nearest' });

@@ -33,6 +33,19 @@ const belowInColumn = (vp) => {
   return total;
 };
 
+// Where the image starts inside the viewport's scrollable content. The canvas is centred
+// with auto margins (layout.css .canvas-container), so while it is SMALLER than the frame
+// its origin is no longer the scroll origin — every viewport→image conversion has to take
+// this off first, or a zoom focal point lands half a viewport away from the cursor.
+// Measured, so it needs no knowledge of scrollbars or the frame; 0 once the canvas
+// overflows, which is also the only time scrolling exists. That is why the reverse
+// direction (image→scroll) needs no term: the margins are 0 exactly when a scroll offset
+// can be non-zero, and any other write is clamped to 0 — i.e. to the centred state.
+export const canvasOrigin = () => {
+  const c = typeof document !== 'undefined' && document.getElementById('canvas-container');
+  return { x: (c && c.offsetLeft) || 0, y: (c && c.offsetTop) || 0 };
+};
+
 // How long after the LAST zoom step the session is persisted. Trailing-edge: a
 // wheel/hold burst writes the final zoom once — one save, one "Saved" toast — instead
 // of a full layout + thumbnail write per notch.
@@ -143,7 +156,7 @@ export class ZoomPan {
   }
 
   // Vertical border + padding of the viewport. It is a border-box element with a 2px frame,
-  // so its max-height budget (availContentHeight) includes room the image cannot use — count
+  // so its height budget (availContentHeight) includes room the image cannot use — count
   // it once here rather than as a magic constant in the two places that need it.
   viewportChromeY() {
     const vp = document.getElementById('canvas-viewport');
@@ -153,29 +166,32 @@ export class ZoomPan {
       .reduce((n, k) => n + (parseFloat(cs[k]) || 0), 0);
   }
 
-  // Viewport max-height that hugs the image at `scale` but never exceeds the available
-  // height. ceil + the frame, not round + 4: a scaled height is fractional, and rounding
-  // it down inside a border-box budget leaves the last pixel row behind a scrollbar.
-  #viewportMaxHeightPx(scale) {
-    const hug = Math.ceil(this.app.canvas.height * scale) + this.viewportChromeY();
-    return Math.min(hug, this.availContentHeight());
+  // canvasOrigin() for a zoom level that is not on screen yet: half the free space, or
+  // nothing once the image outgrows the frame — the rule the auto margins follow.
+  originAt(scale) {
+    const vp = document.getElementById('canvas-viewport');
+    if (!vp || !this.app.canvas) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, ((vp.clientWidth || 0) - this.app.canvas.width * scale) / 2),
+      y: Math.max(0, ((vp.clientHeight || 0) - this.app.canvas.height * scale) / 2),
+    };
   }
 
-  // Size the viewport to hug the on-screen image but GROW with zoom up to the available
-  // height, so zooming in reveals more instead of scrolling a thin fitted strip. No image
-  // → the inline caps come off and CSS fills the window. No-op in fullscreen.
+  // The frame ALWAYS takes the whole available height — with no image, with a small one, and
+  // at any zoom — and the picture is centred inside it by the auto margins (layout.css).
+  // It used to hug the image instead, which collapsed the frame to a short strip whenever
+  // the picture was small or zoomed out (user report, with screenshots).
+  //
+  // The cap is now the AVAILABLE height, not the image's: `flex: 1 1 auto` (layout.css)
+  // fills the column up to it, so the frame is full height without a pixel height pinning
+  // it — which is what lets it follow a toolbar fold smoothly instead of jumping at the end.
+  // The cap is still what stops a zoomed-in canvas from stretching the page instead of
+  // scrolling. Scale-independent: nothing here has to run per zoom step. No-op in
+  // fullscreen, where the layer owns the box (components.css pins it to the window).
   syncViewportHeight() {
     const vp = document.getElementById('canvas-viewport');
     if (!vp || document.body.classList.contains('fullscreen-mode')) return;
-    if (!this.app.image) {
-      // Nothing to hug: drop the inline caps and let the CSS fill chain (layout.css, body →
-      // .canvas-viewport) give the empty editor the whole window. A measured pixel height
-      // here is what left the frame stranded above a page of dead space.
-      vp.style.minHeight = '';
-      vp.style.maxHeight = '';
-      return;
-    }
-    vp.style.maxHeight = this.#viewportMaxHeightPx(this.app.scale) + 'px';
+    vp.style.maxHeight = this.availContentHeight() + 'px';
   }
 
   // Cap the coordinates panel to the room it actually has, so a long point list scrolls
@@ -195,9 +211,15 @@ export class ZoomPan {
     if (!this.app.image) return;
     newScale = this.clampScale(newScale);
     this.app.scale = newScale;
+    // This IS what goes on screen, so the on-screen tracker moves with it: left stale from
+    // an older animated zoom, the next focal zoom measures its start from a scale the
+    // canvas no longer has and lands somewhere else entirely.
+    this.app.renderedScale = newScale;
     this.app.canvas.style.width = (this.app.canvas.width * newScale) + 'px';
     this.app.canvas.style.height = (this.app.canvas.height * newScale) + 'px';
-    this.syncViewportHeight();   // grow/shrink the viewport with the new zoom level
+    // Not for the zoom (the frame is full-height at every scale) but for the room: a toolbar
+    // that reflowed moves the viewport's top, and this is the cheapest place to catch it.
+    this.syncViewportHeight();
     this.setZoomInputValue(Math.round(newScale * 100));
     // Persist zoom level — debounced (createTrailingSave): a wheel/hold burst writes
     // once, at its end, instead of a full save + "Saved" toast per step. (Scroll is
@@ -261,11 +283,8 @@ export class ZoomPan {
       return;
     }
     newScale = this.clampScale(newScale);
-
-    // Grow the viewport to the target zoom's height up front (before the centering math
-    // reads clientHeight) so zooming in has room to scroll instead of being confined to
-    // the old fitted strip. Capped at the available height; hugs the image when smaller.
-    vp.style.maxHeight = this.#viewportMaxHeightPx(newScale) + 'px';
+    // No viewport resize here any more: the frame is full-height at every zoom, so the
+    // clientHeight the centring math reads below is already the one the zoom lands in.
 
     // Cancel any in-flight animation; start from whatever is on screen NOW
     if (this.app.zoomAnimRaf) {
@@ -278,12 +297,16 @@ export class ZoomPan {
     const scrollX0 = vp.scrollLeft;
     const scrollY0 = vp.scrollTop;
 
-    // Image-space point at current viewport center (use scaleStart, not this.app.scale)
-    const imgCx = (scrollX0 + vp.clientWidth / 2) / scaleStart;
-    const imgCy = (scrollY0 + vp.clientHeight / 2) / scaleStart;
+    // Image-space point at current viewport center (use scaleStart, not this.app.scale).
+    const o0 = canvasOrigin();
+    const imgCx = (scrollX0 + vp.clientWidth / 2 - o0.x) / scaleStart;
+    const imgCy = (scrollY0 + vp.clientHeight / 2 - o0.y) / scaleStart;
 
-    const scrollX1 = imgCx * newScale - vp.clientWidth / 2;
-    const scrollY1 = imgCy * newScale - vp.clientHeight / 2;
+    // Predicted centring margin at the target zoom (0 once the image overflows), so a zoom
+    // that ends up smaller than the frame targets 0 exactly instead of a clamped guess.
+    const o1 = this.originAt(newScale);
+    const scrollX1 = imgCx * newScale - vp.clientWidth / 2 + o1.x;
+    const scrollY1 = imgCy * newScale - vp.clientHeight / 2 + o1.y;
 
     // Suppress CSS transition — we control every frame ourselves
     this.app.canvas.classList.add('zoom-no-transition');
@@ -340,19 +363,28 @@ export class ZoomPan {
     if (!vp) { this.setZoom(newScale); return; }
     if (this.app.zoomAnimRaf) { cancelAnimationFrame(this.app.zoomAnimRaf); this.app.zoomAnimRaf = null; }
     const scaleStart = (this.app.renderedScale != null) ? this.app.renderedScale : this.app.scale;
-    // On-screen offset (within the viewport) of the focal point right now.
-    const offX = imgX * scaleStart - vp.scrollLeft;
-    const offY = imgY * scaleStart - vp.scrollTop;
+    // On-screen offset (within the viewport) of the focal point right now — through the
+    // centring margins, which move the image origin off the scroll origin.
+    const o0 = canvasOrigin();
+    const offX = imgX * scaleStart + o0.x - vp.scrollLeft;
+    const offY = imgY * scaleStart + o0.y - vp.scrollTop;
+    // The canvas CSS size TRANSITIONS (layout.css), so mid-flight the scroll range is
+    // still the old one and the browser clamps the write below — the focal point slid.
+    // Suppress it for this step (the animated zoom does the same), and let it back on a
+    // frame later, once the new size is settled and nothing is left to animate.
+    this.app.canvas.classList.add('zoom-no-transition');
     this.setZoom(newScale);          // updates scale + canvas CSS size + zoom input + persist
     this.app.renderedScale = newScale;
-    vp.scrollLeft = imgX * newScale - offX;
-    vp.scrollTop = imgY * newScale - offY;
+    const o1 = canvasOrigin();       // re-measured (and flushes the new size into layout)
+    vp.scrollLeft = imgX * newScale + o1.x - offX;
+    vp.scrollTop = imgY * newScale + o1.y - offY;
+    requestAnimationFrame(() => this.app.canvas.classList.remove('zoom-no-transition'));
   }
 
   fitToWindow() {
     if (!this.app.image) return;
     // Fit against the box the image actually lands in — the SAME measurements
-    // #viewportMaxHeightPx() clamps the viewport to; fixed insets over-estimate the room
+    // syncViewportHeight() sizes the viewport to; fixed insets over-estimate the room
     // and clip the fitted image. The height budget is border-box, so take the frame off.
     const availW = this.availContentWidth();
     const availH = Math.max(1, this.availContentHeight() - this.viewportChromeY());
@@ -363,9 +395,8 @@ export class ZoomPan {
     // overflow this fit exists to avoid (619px at 0.7754 → 0.78 → 3px clipped).
     this.setZoom(Math.floor(fit * 100) / 100);
 
-    // Viewport height: in normal mode setZoom() above already sized it adaptively via
-    // syncViewportHeight() (hugs the fitted image, grows with later zoom). In fullscreen the
-    // maxHeight/maxWidth are set by toggleFullscreen — don't override or the image re-clips.
+    // Viewport height is the available height either way (setZoom → syncViewportHeight, or
+    // the fullscreen layer's own rule) — nothing to size here, just the scroll reset.
     const viewport = document.getElementById('canvas-viewport');
     if (viewport) {
       // Reset scroll to top-left on fit

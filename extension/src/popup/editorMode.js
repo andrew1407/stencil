@@ -7,6 +7,7 @@ import { MSG } from '../lib/messages.js';
 import { matchEditors, matchSourceTabs } from '../lib/editorTabs.js';
 import { editableSrc, sourceOf } from '../lib/imageModel.js';
 import { icon } from '../lib/icons.js';
+import { createFilterTransition } from '../lib/motion.js';
 import { openPanelDialog } from './dialogShell.js';
 
 // Preview refresh interval (ms) — the same poll-while-open the shared pins use, an MV3 popup
@@ -47,6 +48,11 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   // The DevTools panel has no editor sections (it is pinned to one tab), so every method
   // no-ops there and popup.js keeps the classic surface.
   const present = !!(listEl && listedEl);
+  // Both lists are rebuilt wholesale on every search/filter keystroke — the transition
+  // (lib/motion.js) fades the rows the filter dropped out where they stood and ramps the
+  // new ones in. Rows are keyed by tabId, so re-rendering the same tabs animates nothing.
+  const edTransition = createFilterTransition({ list: listEl });
+  const srcTransition = createFilterTransition({ list: listedEl });
 
   let editorTabId = null;   // the editor tab this panel stands on (null = page mode)
   let editors = [];         // the last EDITOR_LIST rows (editorRow shape)
@@ -126,6 +132,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
 
   const renderEditorRow = (row) => {
     const li = document.createElement('li');
+    li.dataset.key = String(row.tabId);   // the filter transition diffs renders by this
     const el = document.createElement('div');
     el.className = 'ed-row' + (row.current ? ' current' : '');
     // The accent outline alone says "this tab" (see .ed-row.current) — a badge saying it too
@@ -189,17 +196,16 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   // Render the fetched rows through the search box — `matchEditors`, i.e. exactly the image
   // list's rules (empty matches all, substring by default, the pill switches to regex).
   const renderEditors = () => {
+    edTransition.begin();
     listEl.textContent = '';
     if (!editors.length) {
       emptyRow('No editor tabs are open.');
-      return;
+    } else {
+      const rows = matchEditors(editors, searchEl.value.trim(), { regex: regexEl.checked });
+      if (!rows.length) emptyRow('No editors match the search.');
+      else rows.forEach(renderEditorRow);
     }
-    const rows = matchEditors(editors, searchEl.value.trim(), { regex: regexEl.checked });
-    if (!rows.length) {
-      emptyRow('No editors match the search.');
-      return;
-    }
-    rows.forEach(renderEditorRow);
+    edTransition.end();
   };
 
   // Re-pull every open editor tab + the state its bridge reports (previews included).
@@ -208,8 +214,10 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     const res = await ask({ type: MSG.EDITOR_LIST, tabId: editorTabId, thumbnails: true });
     if (!res.ok) {
       editors = [];
+      edTransition.begin();
       listEl.textContent = '';
       emptyRow(`Couldn’t list the open editors (${res.error}).`);
+      edTransition.end();
       return;
     }
     editors = res.editors || [];
@@ -257,6 +265,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
 
   const renderChoiceRow = (c) => {
     const li = document.createElement('li');
+    li.dataset.key = String(c.tabId);   // the filter transition diffs renders by this
     const el = document.createElement('div');
     el.className = 'src-row' + (selected.has(c.tabId) ? ' picked' : '');
     el.title = `${c.title || c.host}\n${c.url}\n\nClick: ${selected.has(c.tabId) ? 'stop listing' : 'list'} this page’s images`;
@@ -311,6 +320,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   const renderChoices = () => {
     // Drop ticks for tabs that have since closed, so the count can't outrun the list.
     for (const id of [...selected]) if (!choices.some((c) => c.tabId === id)) selected.delete(id);
+    srcTransition.begin();
     listedEl.textContent = '';
     const shown = visibleChoices();
     if (!choices.length) {
@@ -326,6 +336,7 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     } else {
       for (const c of shown) listedEl.appendChild(renderChoiceRow(c));
     }
+    srcTransition.end();
     const n = selected.size;
     noteEl.textContent = n
       ? `Listing the images on ${n} page${n === 1 ? '' : 's'} — open one into this editor.`

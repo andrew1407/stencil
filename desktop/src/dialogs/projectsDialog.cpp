@@ -9,6 +9,7 @@
 #include "../support/disintegrateOverlay.hpp"  // deleted rows come apart
 #include "../support/displayName.hpp"          // shortName for the remove confirm
 #include "../support/dissolveEffect.hpp"      // scroll-edge grain dissolve
+#include "../support/filterFade.hpp"          // filtered-out rows fade + collapse
 #include "../support/modalReveal.hpp"         // animated colour picker
 #include "serverClient.hpp"
 #include <QAbstractItemView>
@@ -189,14 +190,35 @@ namespace stencil::gui {
         QSize s = QStyledItemDelegate::sizeHint(opt, idx);
         if (const auto* av = qobject_cast<const QAbstractItemView*>(opt.widget))
           s.setWidth(av->viewport()->width());
+        // A row leaving the filtered set collapses its slot (support/filterFade), so the
+        // rows below it close the gap instead of jumping once it disappears.
+        s.setHeight(filterHeight(s.height(), filterPresenceOf(idx)));
         return s;
       }
-      // Rows dissolve toward the list's top/bottom edges as it scrolls (browser parity:
-      // .reveal-item in css/animations.css). The whole row — background, text, badges —
-      // rides one painter opacity, so nothing can fade out of step.
+      // The whole row — background, text, badges — rides one painter opacity, so
+      // nothing can fade out of step.
       void paint(QPainter* p, const QStyleOptionViewItem& opt,
                  const QModelIndex& idx) const override {
         if (idx.data(kDoomedRole).toBool()) return;   // scatter plays over the held-open slot
+        // A filter fade rides one painter opacity over the whole row. Distinct from the
+        // grain above on purpose: excluded is not deleted.
+        const double fo = filterOpacity(filterPresenceOf(idx));
+        if (fo <= 0.004) return;   // faded out — its slot is still closing
+        if (fo < 1.0) {
+          p->save();
+          p->setOpacity(p->opacity() * fo);
+          paintRevealed(p, opt, idx);
+          p->restore();
+          return;
+        }
+        paintRevealed(p, opt, idx);
+      }
+
+     private:
+      // The scroll-edge reveal (unchanged): rows dissolve toward the list's top/bottom
+      // edges as it scrolls (browser parity: .reveal-item in css/animations.css).
+      void paintRevealed(QPainter* p, const QStyleOptionViewItem& opt,
+                         const QModelIndex& idx) const {
         const auto* av = qobject_cast<const QAbstractItemView*>(opt.widget);
         const double dissolve = revealDissolveForItem(av ? av->viewport() : nullptr, opt.rect);
         if (dissolve <= 0.001) { paintRow(p, opt, idx); return; }
@@ -223,7 +245,6 @@ namespace stencil::gui {
         p->drawPixmap(opt.rect.topLeft(), buf);
       }
 
-     private:
       // Breathing room between a row's thumbnail and its name: at this icon size the style's
       // own gap leaves the text sitting against the picture.
       static constexpr int kThumbTextGap = 12;
@@ -1135,7 +1156,8 @@ namespace stencil::gui {
     bool any = false;
     for (int i = 0; i < list_->count(); ++i) {
       const QListWidgetItem* it = list_->item(i);
-      if (it->isHidden() || it->data(Qt::UserRole).isNull() ||
+      // filteredIn, not isHidden: a row still fading OUT has already left the pool.
+      if (!filteredIn(it) || it->data(Qt::UserRole).isNull() ||
           !(it->flags() & Qt::ItemIsUserCheckable))
         continue;   // placeholders, filtered-out and doomed rows are not selectable
       if (!checked_.contains(rowKeyAt(i))) return false;
@@ -1151,7 +1173,7 @@ namespace stencil::gui {
     bool any = false;
     for (int i = 0; i < list_->count() && !any; ++i) {
       const QListWidgetItem* it = list_->item(i);
-      any = !it->isHidden() && !it->data(Qt::UserRole).isNull() &&
+      any = filteredIn(it) && !it->data(Qt::UserRole).isNull() &&
             (it->flags() & Qt::ItemIsUserCheckable);
     }
     selectAllBtn_->setVisible(any);
@@ -1168,7 +1190,7 @@ namespace stencil::gui {
     }
     for (int i = 0; i < list_->count(); ++i) {
       QListWidgetItem* it = list_->item(i);
-      if (!it->isHidden() && !it->data(Qt::UserRole).isNull() &&
+      if (filteredIn(it) && !it->data(Qt::UserRole).isNull() &&
           (it->flags() & Qt::ItemIsUserCheckable))
         it->setCheckState(Qt::Checked);   // onItemChanged maintains checked_
     }
@@ -1234,13 +1256,29 @@ namespace stencil::gui {
     filter_->blockSignals(false);
   }
 
+  // The filter/sort/search transition: an excluded row fades and collapses its slot,
+  // an included one plays that backwards (support/filterFade). Deliberately lighter and
+  // quicker than the removal scatter — filtered out is not deleted.
+  ListFilterFade* ProjectsDialog::filterFade() {
+    if (filterFade_ || !list_) return filterFade_;
+    filterFade_ = new ListFilterFade(list_);
+    // setData fires itemChanged; the check-state bookkeeping must ignore our frames.
+    filterFade_->beforeFrame = [this] { building_ = true; };
+    filterFade_->afterFrame = [this] {
+      building_ = false;
+      list_->viewport()->update();   // the delegate paints the fade; setData relayouts
+    };
+    return filterFade_;
+  }
+
   void ProjectsDialog::applyFilter() {
     if (!filter_) return;
     const QString mode = filter_->currentData().toString();
     const QString needle = search_ ? search_->text().trimmed() : QString();
-    for (int i = 0; i < list_->count(); ++i) {
-      QListWidgetItem* it = list_->item(i);
-      if (it->data(Qt::UserRole).isNull()) continue;  // skip "Loading…"/"No projects" placeholders
+    const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString()
+                                           : QStringLiteral("common");
+    auto wanted = [&](QListWidgetItem* it) {
+      if (it->data(Qt::UserRole).isNull()) return true;  // "Loading…"/"No projects" placeholders
       const QString srv = it->data(Qt::UserRole + 1).toString();
       const bool remote = !srv.isEmpty();
       bool show = true;
@@ -1248,15 +1286,15 @@ namespace stencil::gui {
       else if (mode == "server") show = remote;          // any server
       else if (mode != "all") show = (srv == mode);      // a specific server URL
       if (show && !needle.isEmpty()) {                   // name / keyword search (case-insensitive)
-        const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString() : QStringLiteral("common");
         const QString name = it->data(Qt::UserRole + 3).toString();
         const QString kw = it->data(Qt::UserRole + 5).toString();
         const bool nameHit = name.contains(needle, Qt::CaseInsensitive);
         const bool kwHit = kw.contains(needle, Qt::CaseInsensitive);
         show = smode == "names" ? nameHit : smode == "keywords" ? kwHit : (nameHit || kwHit);
       }
-      it->setHidden(!show);
-    }
+      return show;
+    };
+    if (auto* fade = filterFade()) fade->apply(wanted);
     updateSelectAll();   // the filtered view IS the select-all pool
   }
 
@@ -1601,6 +1639,8 @@ namespace stencil::gui {
   // (modalReveal), so doomed rows leave NOW and their overlays stop — otherwise the
   // motes redraw the removed rows in the shrinking ghost.
   void ProjectsDialog::done(int result) {
+    // A filter fade settles NOW too — nothing half-faded survives into the close flight.
+    if (filterFade_) filterFade_->finishNow();
     for (int i = list_->count() - 1; i >= 0; --i)
       if (list_->item(i)->data(kDoomedRole).toBool()) delete list_->takeItem(i);
     for (QWidget* fx : findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::kObjectName))) {

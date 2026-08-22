@@ -13,6 +13,8 @@ import {
 
 import { readFileSync } from 'node:fs';
 import { installChromeStub } from './helpers/chromeStub.js';
+import { createFilterTransition } from '../src/lib/motion.js';
+import { makeList, renderKeys } from './helpers/listDom.js';
 
 const installStorageMock = () => {
   const stub = installChromeStub();
@@ -425,4 +427,56 @@ test('options page: the kind pills are compact and the connect row wraps as a un
   // Popup format-pill sizing (popup.css .formats .chk), right-aligned on the row.
   assert.match(html, /\.conn-filters \.chk \{[^}]*font-size:11px/);
   assert.match(html, /\.conn-filters \{[^}]*margin-left:auto/);
+});
+
+// ── The kind filter animates the list both ways ──────────────────────────────
+// The options list is rebuilt wholesale whenever the All / Admin / Non-admin pill
+// changes, so what the user sees leave and arrive is decided by the keys of the two
+// renders — connections are keyed by their url (the data-url the row already carries).
+// The transition's own mechanics are pinned in tests/motion.test.js.
+
+const CONNS = [
+  { url: 'http://a', credentialKind: 'admin' },
+  { url: 'http://b', credentialKind: '' },
+  { url: 'http://c' },
+];
+const urlsFor = (mode) => filterConnections(CONNS, mode).map((c) => c.url);
+
+test('switching the kind filter drops exactly the excluded rows, and brings them back', () => {
+  const list = makeList();
+  const tr = createFilterTransition({ list, keyAttr: 'url', reduced: () => false });
+
+  renderKeys(list, tr, urlsFor('all'), { attr: 'url' });
+  const toAdmin = renderKeys(list, tr, urlsFor('admin'), { attr: 'url' });
+  assert.deepEqual(toAdmin, { entered: [], left: ['http://b', 'http://c'] });
+  assert.equal(tr.ghostCount, 2, 'the non-admin rows play out instead of blinking away');
+
+  const backToAll = renderKeys(list, tr, urlsFor('all'), { attr: 'url' });
+  assert.deepEqual(backToAll, { entered: ['http://b', 'http://c'], left: [] },
+    're-admitted rows ENTER — the filter reads the same in both directions');
+  assert.equal(tr.ghostCount, 0, 'the interrupted exits were dropped, not left under the new rows');
+  assert.deepEqual(list.keys('url'), ['http://a', 'http://b', 'http://c']);
+});
+
+test('reduced motion: the kind filter still lands on exactly the right rows', () => {
+  const list = makeList();
+  const tr = createFilterTransition({ list, keyAttr: 'url', reduced: () => true });
+  renderKeys(list, tr, urlsFor('all'), { attr: 'url' });
+  renderKeys(list, tr, urlsFor('other'), { attr: 'url' });
+  assert.deepEqual(list.keys('url'), ['http://b', 'http://c']);
+  assert.equal(tr.ghostCount, 0);
+});
+
+test('options page: the two lists animate filter changes, and a delete still scatters', () => {
+  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  // Both lists are wrapped: snapshot before the wipe, play after the rebuild.
+  assert.match(js, /createFilterTransition\(\{ list: pinListEl \}\)/);
+  assert.match(js, /createFilterTransition\(\{ list: connListEl, keyAttr: 'url' \}\)/);
+  assert.match(js, /pinTransition\.begin\(\);\s*\n\s*pinListEl\.innerHTML = '';/);
+  assert.match(js, /connTransition\.begin\(\);\s*\n\s*connListEl\.innerHTML = '';/);
+  // A DELETE keeps the heavier effect and leaves the DOM, so it never also fades
+  // out as if a filter had merely excluded it.
+  assert.match(js, /leaveThenRemove\(li, \(\) => li\.remove\(\), scatterGridFor\(1\)\)/);
+  // A freshly added connection is materialized by the add flow, not ramped in twice.
+  assert.match(js, /connTransition\.end\(\{ skipEnter: materializingUrl/);
 });

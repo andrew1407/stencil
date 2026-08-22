@@ -12,11 +12,15 @@
 // parity): Admin when the credential PROVED it can mint a session, Session when
 // the supplied token passed the /projects probe, None when nothing was supplied —
 // persisted with the saved connections and shown as the row's golden band, its
-// Invite button, and the All / Admin / Non-admin filter.
+// Invite button, and the All / Admin / Non-admin filter — whose changes are a
+// symmetric, LIGHT transition (support/filterFade): excluded rows fade + collapse out,
+// included ones back in, no destructive dust, reduced motion straight to the end state.
 // A mock QTcpServer stands in for the collaboration server, so no Go server is
 // needed (same approach as connectRow.headless).
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
+#include "disintegrateOverlay.hpp"  // the DESTRUCTIVE effect a filter-out must not use
+#include "filterFade.hpp"           // the light filter transition it uses instead
 #include "serverClient.hpp"
 
 #include <QApplication>
@@ -36,6 +40,10 @@
 #include <functional>
 
 using stencil::gui::ConnectDialog;
+using stencil::gui::DisintegrateOverlay;
+using stencil::gui::filteredIn;
+using stencil::gui::kFilterFadeMs;
+using stencil::gui::kFilterFullHeightRole;
 using stencil::net::ConnectionManager;
 using stencil::net::ServerClient;
 
@@ -626,15 +634,56 @@ int main(int argc, char** argv) {
             "…three ways, All by default");
       check(!lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
             "…which shows every row");
+      const int fullH = lw->item(plainRow)->data(kFilterFullHeightRole).toInt();
+      check(fullH > 0 && lw->item(plainRow)->sizeHint().height() == fullH,
+            "a settled row occupies its whole slot");
+
+      // ── Leaving the filtered set is a TRANSITION, not a snap: the excluded row is
+      // still in the view, fading while its slot collapses, and only goes once played.
       filter->setCurrentIndex(filter->findData(QStringLiteral("admin")));
+      check(!lw->item(plainRow)->isHidden(), "an excluded row stays up while it leaves");
+      check(!filteredIn(lw->item(plainRow)), "…though it has already left the filtered set");
+      check(filteredIn(lw->item(adminRow)), "…and the matching row is still in it");
+      pumpFor(kFilterFadeMs / 3);
+      check(lw->item(plainRow)->sizeHint().height() < fullH, "…its slot collapsing as it goes");
+      // The semantics: a filter-out is NOT a removal, so it never spends the dust.
+      check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+            "…with none of the destructive scatter a disconnect uses");
+      pumpUntil([&] { return lw->item(plainRow)->isHidden(); });
       check(!lw->item(adminRow)->isHidden() && lw->item(plainRow)->isHidden(),
             "Admin hides the non-admin row");
+      check(lw->item(adminRow)->sizeHint().height() == fullH,
+            "…leaving the surviving row at full height");
+
+      // ── …and the way back in is the same motion reversed: up at once, still growing.
       filter->setCurrentIndex(filter->findData(QStringLiteral("nonadmin")));
+      check(!lw->item(plainRow)->isHidden() && lw->item(plainRow)->sizeHint().height() < fullH,
+            "an entering row is in the view at once, still expanding");
+      check(filteredIn(lw->item(plainRow)), "…and already counted in the filtered set");
+      pumpUntil([&] { return lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(); });
       check(lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
             "Non-admin hides the admin row");
-      filter->setCurrentIndex(filter->findData(QStringLiteral("all")));
+      check(lw->item(plainRow)->sizeHint().height() == fullH,
+            "…with the arrived row back at its full slot");
+
+      // ── Rapid changes: whatever is mid-flight, the LAST pick decides the visible set.
+      for (const char* mode : {"admin", "nonadmin", "admin", "all"}) {
+        filter->setCurrentIndex(filter->findData(QString::fromLatin1(mode)));
+        pumpFor(kFilterFadeMs / 6);   // each flip interrupts the one before it
+      }
+      pumpUntil([&] {
+        return !lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden() &&
+               lw->item(adminRow)->sizeHint().height() == fullH &&
+               lw->item(plainRow)->sizeHint().height() == fullH;
+      });
       check(!lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
             "…and All brings both back");
+      check(lw->item(adminRow)->sizeHint().height() == fullH &&
+                lw->item(plainRow)->sizeHint().height() == fullH,
+            "no row is left stuck part-collapsed after a rapid sequence");
+      for (int i = 0; i < lw->count(); ++i)
+        check(filteredIn(lw->item(i)) == !lw->item(i)->isHidden(),
+              "…and every row's hidden state agrees with the filtered set");
     }
 
     // Nothing matching says so, instead of leaving an empty list unexplained.
@@ -656,6 +705,19 @@ int main(int argc, char** argv) {
       f2->setCurrentIndex(f2->findData(QStringLiteral("all")));
       check(l2->count() == 1 && !l2->item(0)->isHidden(),
             "…which leaves again once rows match");
+      pumpUntil([&] { return !l2->item(0)->isHidden(); });
+
+      // ── Reduced motion: the same result, reached with no transition at all.
+      qputenv("STENCIL_NO_ANIM", "1");
+      f2->setCurrentIndex(f2->findData(QStringLiteral("admin")));
+      check(l2->item(0)->isHidden(), "reduced motion hides the excluded row at once");
+      check(l2->item(0)->sizeHint().height() == 0, "…with its slot already closed");
+      f2->setCurrentIndex(f2->findData(QStringLiteral("all")));
+      check(!l2->item(0)->isHidden() &&
+                l2->item(0)->sizeHint().height() ==
+                    l2->item(0)->data(kFilterFullHeightRole).toInt(),
+            "…and restores it whole, still without animating");
+      qunsetenv("STENCIL_NO_ANIM");
     }
     mock.mintBearer.clear();
     mock.goodBearer.clear();
