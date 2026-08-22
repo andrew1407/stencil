@@ -158,6 +158,11 @@ test('the shared vocabulary — latch, timings and the 24-unit space — matches
     'animation-fill-mode: both;',
     '--ic-on: 1;',
     'animation-name: var(--ic-play, none);',
+    // The trigger switches the animation on for the glyph AND every element inside it, so
+    // an INHERITED --ic-play would run the same keyframes a second time on the children of
+    // whatever named it, doubling every <g>-hooked and whole-glyph pose. Both sheets
+    // register it non-inheriting; the canonical numbers only hold while they do.
+    '@property --ic-play { syntax: "*"; inherits: false; }',
   ]) {
     assert.ok(EXT.includes(decl), `the extension sheet is missing "${decl}"`);
     assert.ok(APP.includes(decl), `"${decl}" is not the app's spelling any more`);
@@ -190,7 +195,9 @@ test('the keyframes are the app\'s, and every one is played exactly as designed'
 test('no layout shift: nothing in the section can move a box', () => {
   const SAFE = /^(--[\w-]+|transform|transform-origin|transform-box|transition|overflow|animation-name|animation-duration|animation-delay|animation-timing-function|animation-fill-mode|stroke-dasharray|stroke-dashoffset)$/;
   for (const r of extRules) {
-    if (r.prelude.startsWith('@keyframes')) continue;
+    // @keyframes only pose the glyph (checked below); @property registers a custom
+    // property's type and declares no style at all.
+    if (r.prelude.startsWith('@')) continue;
     for (const decl of r.body.split(';')) {
       if (!decl.trim()) continue;
       const prop = decl.split(':')[0].trim();
@@ -266,9 +273,17 @@ test('the injected overlay shell mimes the same two actions', () => {
   assert.deepEqual(MOTION.icons.external.parts[0].to.translate, [1.4, -1.4]);
   assert.match(src, /\.ic-arrow\{transform:translate\(calc\(var\(--ic-on\)\*1\.4px\),calc\(var\(--ic-on\)\*-1\.4px\)\)/,
     'and the arrow leaves the box by the canonical 1.4 units');
-  const snap = MOTION.icons.x.parts[0].keyframes.find((k) => k.at > 0 && k.at < 100);
-  assert.match(src, new RegExp(`stencilSnapShut\\{0%,100%\\{transform:scale\\(1\\)\\}${snap.at}%\\{transform:scale\\(\\.?${String(snap.scale).replace('0.', '')}\\)`),
-    'the close cross snaps shut on the canonical keyframe');
+  // …and the close cross is struck out one stroke at a time, on the canonical dash and
+  // the canonical stagger — the second stroke starting as the first lands.
+  const strokes = MOTION.icons.x.parts[0];
+  assert.equal(strokes.hook, 'ic-stroke');
+  assert.equal((src.match(/class="ic-stroke"/g) || []).length, 2,
+    'both of the shell cross\'s strokes carry the hook');
+  assert.match(src, new RegExp(`stencilDrawSlash\\{from\\{stroke-dashoffset:${strokes.dashArray}\\}to\\{stroke-dashoffset:0\\}\\}`));
+  assert.ok(src.includes(`.bar button.close svg .ic-stroke{stroke-dasharray:${strokes.dashArray};}`));
+  const secs = (ms) => `${ms / 1000}`.replace(/^0/, '');
+  assert.ok(src.includes(`animation:stencilDrawSlash ${secs(strokes.durationMs)}s`));
+  assert.ok(src.includes(`.ic-stroke:nth-of-type(2){animation-delay:${secs(strokes.stagger)}s;}`));
   assert.match(src, /\.bar button svg,\.bar button svg \*\{--ic-on:0 !important;animation:none !important;transition:none !important;\}/,
     'and the shell honours prefers-reduced-motion');
 });
@@ -294,13 +309,19 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
 });
 
 test('the sun rises, the assistant types, and the LEDs blink in order', () => {
-  const orb = MOTION.icons.sun.parts.find((p) => p.hook === 'ic-orb');
-  assert.ok(orb.keyframes[0].translate[1] > 0, 'the sun starts below its resting place');
-  const rays = MOTION.icons.sun.parts.find((p) => p.hook === 'ic-rays');
-  assert.ok(rays.keyframes[0].scale < 1 && rays.delayMs > 0, 'its rays open out a beat later');
-  assert.match(EXT, /\.ic-sun \.ic-rays\s+\{[^}]*--ic-delay: 0\.09s;/);
-  // The moon rises the same way, and both settle back into the glyph.
-  assert.ok(MOTION.icons.moon.parts[0].keyframes[0].translate[1] > 0);
+  // The theme pair are ONE design: the whole sun, or the whole moon, rises into view
+  // from below the icon box — no part choreography, no turn.
+  for (const name of ['sun', 'moon']) {
+    const parts = MOTION.icons[name].parts;
+    assert.equal(parts.length, 1, `${name} rises whole`);
+    assert.equal(parts[0].hook, null);
+    const kf = parts[0].keyframes;
+    assert.ok(kf[0].translate[1] >= 12, `${name} starts below the icon box`);
+    assert.equal(kf.at(-1).translate, undefined, `${name} settles back into the glyph`);
+    for (const k of kf) assert.equal(k.rotate, undefined, `${name}: the rise is a translation`);
+  }
+  assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts);
+  assert.match(EXT, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmRise;/);
   // Three dots, one bounce each, left to right — the typing idiom.
   const dots = MOTION.icons.sparkle.parts[0];
   assert.equal(dots.hook, 'ic-dot');

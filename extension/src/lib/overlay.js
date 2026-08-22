@@ -81,14 +81,16 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     /* Per-icon hover motion for the two glyphs this shell carries, on the canonical
        values (browser js/config/iconMotion.json, ported in lib/animations.css — this
        surface is injected and can't link it): the arrow LEAVES the box, and the cross
-       snaps shut, because close/clear/disconnect all mean "make this go away".
-       Transform only, so the bar can't reflow. */
-    @keyframes stencilSnapShut{0%,100%{transform:scale(1)}42%{transform:scale(.7)}}
+       is struck out one stroke at a time, because close/clear/disconnect all mean
+       "make this go away". Transform / stroke-dashoffset only, so the bar can't reflow. */
+    @keyframes stencilDrawSlash{from{stroke-dashoffset:17}to{stroke-dashoffset:0}}
     .bar button svg,.bar button svg *{transition:transform .2s cubic-bezier(.16,1,.3,1);}
     .bar button svg *{transform-box:view-box;}
     .bar button.tab:hover svg{--ic-on:1;}
     .bar button.tab svg .ic-arrow{transform:translate(calc(var(--ic-on)*1.4px),calc(var(--ic-on)*-1.4px));}
-    .bar button.close:hover svg{animation:stencilSnapShut .3s cubic-bezier(.34,1.2,.64,1) both;}
+    .bar button.close svg .ic-stroke{stroke-dasharray:17;}
+    .bar button.close:hover svg .ic-stroke{animation:stencilDrawSlash .18s cubic-bezier(.33,1,.68,1) both;}
+    .bar button.close:hover svg .ic-stroke:nth-of-type(2){animation-delay:.18s;}
     @media (prefers-reduced-motion: reduce){
       .backdrop,.panel{animation-duration:.001ms;}
       .bar button{transition-duration:.001ms;}
@@ -109,7 +111,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     '<div class="panel">' +
       '<div class="bar"><span class="title"></span><span class="sp"></span>' +
         '<button class="tab" title="Open in a full tab instead"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><g class="ic-arrow"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></g></svg></button>' +
-        '<button class="close" title="Close (Esc)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
+        '<button class="close" title="Close (Esc)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line class="ic-stroke" x1="18" y1="6" x2="6" y2="18"/><line class="ic-stroke" x1="6" y1="6" x2="18" y2="18"/></svg></button></div>' +
       '<div class="loading">Loading…</div>' +
       '<iframe allow="clipboard-read; clipboard-write"></iframe>' +
     '</div>';

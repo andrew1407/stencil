@@ -254,13 +254,77 @@ int main(int argc, char** argv) {
   // The marks that DRAW themselves: a tick / a box / a segment is partly absent early
   // in the play and whole by the end (stroke-dashoffset, which Qt's SVG renderer honours).
   {
-    for (const char* g : {"check", "line", "rect", "file-text"}) {
+    for (const char* g : {"check", "line", "rect", "file-text", "x"}) {
       const IconMotionSpec* s = iconMotionFor(QLatin1String(g));
       const int early = inkCount(frame(g, *s, s->totalMs * 0.12));
       const int whole = inkCount(frame(g, *s, s->totalMs));
       check(early < whole * 9 / 10,
             (QByteArray(g) + ": the mark draws itself on, it is not just there").constData());
     }
+  }
+
+  // The theme pair RISE as whole glyphs from below the icon box. Qt clips at that box,
+  // so early in the play the icon is both lower and partly out of view — a rise over a
+  // horizon — and it lands whole. One part, no hook: no ray/orb choreography, no turn.
+  {
+    for (const char* g : {"sun", "moon"}) {
+      const IconMotionSpec* s = iconMotionFor(QLatin1String(g));
+      check(s && s->parts.size() == 1 && s->parts.first().hook.isEmpty(),
+            (QByteArray(g) + ": the WHOLE glyph rises — one part, hooked to nothing").constData());
+      const QImage early = frame(g, *s, s->totalMs * 0.15);
+      const QImage rest = frame(g, *s, s->totalMs);
+      check(inkBox(early).top() > inkBox(rest).top() + 4,
+            (QByteArray(g) + ": it still sits low in the box early in the rise").constData());
+      check(inkCount(early) < inkCount(rest),
+            (QByteArray(g) + ": …with part of it still below the box, out of view").constData());
+    }
+  }
+
+  // The help mark TREMBLES INSIDE its ring. Everything the play touches stays well within
+  // the ring's inner edge, so the ring itself never moves and the ? never swings out of
+  // it — which is what rotating the mark about the icon centre did.
+  {
+    const IconMotionSpec* h = iconMotionFor(QStringLiteral("help"));
+    const QImage rest = frame("help", *h, 0);
+    const double c = kPx / 2.0, limit = 8.5 / 24.0 * kPx;   // the ring's inner edge is 9u
+    bool inRing = true;
+    for (double f : {0.15, 0.25, 0.4, 0.55, 0.8, 1.0}) {
+      const QImage im = frame("help", *h, h->totalMs * f);
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x)
+          if ((qAlpha(im.pixel(x, y)) > 40) != (qAlpha(rest.pixel(x, y)) > 40)
+              && std::hypot(x + 0.5 - c, y + 0.5 - c) > limit)
+            inRing = false;
+    }
+    check(inRing, "the help tremor moves only the mark, and only inside its ring");
+  }
+
+  // The close cross is struck out ONE STROKE AT A TIME: at the moment the first stroke
+  // lands the second has not started, so the glyph is still a single diagonal.
+  {
+    const IconMotionSpec* xs = iconMotionFor(QStringLiteral("x"));
+    const int one = inkCount(frame("x", *xs, xs->totalMs * 0.5));
+    const int both = inkCount(frame("x", *xs, xs->totalMs));
+    check(one > 0 && one < both * 6 / 10,
+          "the x draws its first stroke whole before the second one starts");
+  }
+
+  // The picture DRAWS itself INSIDE its frame. Two things matter: no frame of the play
+  // ever puts ink outside the picture frame (sliding the contents up from below dragged
+  // them across its outline), and the ridge really draws on rather than simply being there.
+  {
+    const IconMotionSpec* im = iconMotionFor(QStringLiteral("image"));
+    const QRect box = inkBox(frame("image", *im, im->totalMs));
+    bool inside = true;
+    for (double f : {0.0, 0.15, 0.35, 0.55, 0.8, 1.0})
+      if (!box.contains(inkBox(frame("image", *im, im->totalMs * f)))) inside = false;
+    check(inside, "no frame of the `image` play puts ink outside the picture frame");
+    // Strictly inside the frame's outline (5..19 of the 24 units), where only the ridge
+    // and the little sun live.
+    const QRect in(kPx * 5 / 24, kPx * 5 / 24, kPx * 14 / 24, kPx * 14 / 24);
+    const int early = inkCount(frame("image", *im, im->totalMs * 0.12).copy(in));
+    const int whole = inkCount(frame("image", *im, im->totalMs).copy(in));
+    check(early < whole * 7 / 10, "…and the ridge inside it draws itself on");
   }
 
   // The staggered parts really are staggered: sparkle's three dots bounce in turn, so
@@ -338,9 +402,11 @@ int main(int argc, char** argv) {
     QDir().mkpath(dumpDir);
     for (auto it = table.begin(); it != table.end(); ++it) {
       const IconMotionSpec& s = it.value();
-      for (double f : {0.0, 0.35, 0.6, 1.0})
+      // Enough stops to read a fast ease: an OutBack rise is most of the way home by 35%.
+      for (double f : {0.0, 0.08, 0.15, 0.25, 0.4, 0.6, 0.8, 1.0})
         frame(it.key(), s, s.totalMs * f)
-            .save(QStringLiteral("%1/%2@%3.png").arg(dumpDir, it.key()).arg(int(f * 100)));
+            .save(QStringLiteral("%1/%2@%3.png").arg(dumpDir, it.key()).arg(int(f * 100), 3, 10,
+                                                                            QLatin1Char('0')));
     }
     for (double f : {0.0, 1.0}) {
       const IconMotionSpec* mx = iconMotionFor(QStringLiteral("maximize"));

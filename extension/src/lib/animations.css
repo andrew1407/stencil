@@ -50,6 +50,14 @@ select:focus,
    Opted out: the fold chevrons, whose rotation is their open/closed STATE rather than
    hover feedback. Here they are `.chev`, outside .ic entirely; the guard below keeps
    it that way. */
+/* `--ic-play` is registered NON-INHERITING on purpose. The trigger below has to switch the
+   animation on for the glyph AND every element inside it, because a part hook can be any
+   of them — so an inherited value would run the SAME keyframes a second time on every
+   descendant of the element that named it, and the two compose. That doubled every pose
+   whose hook was a <g> or the whole glyph: the sun's rays bloomed from scale 0.2 / -80°
+   instead of 0.45 / -40°, and the picture inside the `image` frame slid 7 units instead of
+   3.5. Non-inheriting puts every design back on the canonical numbers. */
+@property --ic-play { syntax: "*"; inherits: false; }
 .ic {
     --ic-on: 0;
     /* A lifting lid or a rising sun leaves the 24-unit box for a moment. At rest every
@@ -113,28 +121,35 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 /* ── SETTLE: plays once on hover, then rests where it started ── */
 @keyframes icmTick        { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
 @keyframes icmInkLine     { from { stroke-dashoffset: 8; }  to { stroke-dashoffset: 0; } }
-@keyframes icmSnapShut    { 0%, 100% { transform: scale(1); }  42% { transform: scale(0.7); } }
+@keyframes icmDrawSlash   { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
+@keyframes icmDrawRidge   { from { stroke-dashoffset: 23; } to { stroke-dashoffset: 0; } }
+@keyframes icmHandlePop   { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.28); } }
 @keyframes icmLedBlink    { 0%, 100% { transform: scale(1); }  40% { transform: scale(2.1); } }
 @keyframes icmPencilStroke{ 0%, 100% { transform: none; }      45% { transform: translate(-4.17%, 4.17%) rotate(-8deg); } }
 @keyframes icmPressDown   { 0%, 100% { transform: none; }      45% { transform: translateY(6.67%); } }
 @keyframes icmDotBounce   { 0%, 100% { transform: none; }      45% { transform: translateY(-2px); } }
 @keyframes icmBob         { 0%, 100% { transform: none; }      45% { transform: translateY(-1.6px); } }
 @keyframes icmWave        { 0%, 100% { transform: skewX(0); }  30% { transform: skewX(7deg); } 65% { transform: skewX(-5deg); } }
-@keyframes icmMoonRise    { 0% { transform: translateY(18.75%) rotate(-14deg); } 65% { transform: translateY(-2.5%) rotate(2deg); } 100% { transform: none; } }
-@keyframes icmSunRise     { 0% { transform: translateY(4.5px) scale(0.8); } 65% { transform: translateY(-0.5px) scale(1.03); } 100% { transform: none; } }
-@keyframes icmRayBloom    { 0% { transform: scale(0.45) rotate(-40deg); } 100% { transform: none; } }
-@keyframes icmPhotoDrop   { 0% { transform: translateY(3.5px); } 68% { transform: translateY(-0.4px); } 100% { transform: none; } }
+@keyframes icmRise        { 0% { transform: translateY(75%); } 100% { transform: none; } }
 
-/* Close / clear / disconnect all mean "make this go away": the cross snaps shut. */
-.ic-x                 { --ic-ms: 0.3s; --ic-play: icmSnapShut; }
 /* Marks that draw themselves, the way you'd make them. */
 .ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
+/* Close / clear / disconnect all mean "make this go away": the cross is struck out one
+   stroke at a time, the second starting as the first lands (12√2 ≈ 16.97 units each). */
+.ic-x .ic-stroke      { --ic-ms: 0.18s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17; --ic-play: icmDrawSlash; }
+.ic-x .ic-stroke:nth-of-type(2) { --ic-delay: 0.18s; }
 .ic-file-text .ic-textline { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 8; --ic-play: icmInkLine; }
 .ic-file-text .ic-textline:nth-of-type(2) { --ic-delay: 0.09s; }
 .ic-pencil            { --ic-ms: 0.3s; --ic-play: icmPencilStroke; }   /* one short stroke */
 .ic-pin               { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pushed in */
 .ic-calendar .ic-rings { --ic-ms: 0.3s; --ic-play: icmBob; }
-.ic-image .ic-photo   { --ic-ms: 0.38s; --ic-play: icmPhotoDrop; }     /* drops into the frame */
+/* The picture is DRAWN inside its frame — the ridge draws itself and the sun pops as it
+   lands. Sliding the contents up from below dragged them across the frame's outline. */
+.ic-image .ic-ridge   { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 23; --ic-play: icmDrawRidge; }
+.ic-image .ic-orb {
+    --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmHandlePop;
+    transform-box: fill-box; transform-origin: center;
+}
 .ic-flag .ic-cloth    { --ic-ms: 0.42s; transform-origin: 4px 3px; --ic-play: icmWave; }
 /* The assistant's bubble types; the same bounce is the "work pending" dots. */
 .ic-sparkle .ic-dot, .ic-dots .ic-dot { --ic-ms: 0.3s; --ic-play: icmDotBounce; }
@@ -144,10 +159,10 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
 .ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
 .ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
-/* Theme: the moon rises, and so does the sun — its rays opening out behind it. */
-.ic-moon              { --ic-ms: 0.38s; --ic-play: icmMoonRise; }
-.ic-sun .ic-orb       { --ic-ms: 0.38s; --ic-play: icmSunRise; }
-.ic-sun .ic-rays      { --ic-ms: 0.38s; --ic-delay: 0.09s; --ic-play: icmRayBloom; }
+/* Theme: the WHOLE sun, or the whole moon, rises into view from below — one literal
+   move, no part choreography and no turn. `overflow: visible` is what lets it start
+   off-icon; a surface that clips its icon box reads the same rise into view. */
+.ic-moon, .ic-sun     { --ic-ms: 0.38s; --ic-play: icmRise; }
 
 @media (prefers-reduced-motion: reduce) {
     /* The hover MOVE only, killed at the latch and the keyframe switch, so every glyph

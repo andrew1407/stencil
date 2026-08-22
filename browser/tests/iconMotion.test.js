@@ -134,9 +134,24 @@ test('the stylesheet implements every design', () => {
   }
 });
 
+test('a design plays ONCE, on the element that names it — never again on its children', () => {
+  // The trigger has to switch the animation on for the glyph AND every element inside it,
+  // because a part hook can be any of them. An INHERITED --ic-play therefore ran the same
+  // keyframes a second time on every descendant of the element that named it, and the two
+  // composed: a <g> part or a whole-glyph design landed on DOUBLE its canonical pose (the
+  // help mark turned 18° instead of 9° and swung out of its ring; the sun's rays bloomed
+  // from scale 0.2 / -40°×2). Registering the property non-inheriting is the fix, and the
+  // numbers in iconMotion.json only mean what they say while it holds.
+  assert.match(SECTION, /@property --ic-play \{ syntax: "\*"; inherits: false; \}/);
+  assert.match(SECTION, /animation-name: var\(--ic-play, none\);/);
+  // Only --ic-play is registered: the latch and the timings are meant to inherit.
+  assert.deepEqual([...SECTION.matchAll(/@property (--[\w-]+)/g)].map((m) => m[1]), ['--ic-play']);
+});
+
 test('nothing in the icon-motion section can move a box', () => {
   const SAFE = /^(--[\w-]+|transform|transform-origin|transform-box|transition|overflow|animation-name|animation-duration|animation-delay|animation-timing-function|animation-fill-mode|stroke-dasharray|stroke-dashoffset|background|border-color)$/;
-  const body = SECTION.replace(/\/\*[\s\S]*?\*\//g, '');
+  // `@property` registers a custom property's type; its body declares no style at all.
+  const body = SECTION.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@property[^{]*\{[^}]*\}/g, '');
   for (const [, block] of body.matchAll(/\{([^{}]*)\}/g))
     for (const decl of block.split(';'))
       if (decl.trim()) {
@@ -188,15 +203,72 @@ test('the fullscreen corners extend to enter and retract to leave', () => {
   assert.match(SECTION, /\.active \.ic-maximize \.ic-corner-tl/, 'and the sheet keys on it');
 });
 
-test('sun and moon both RISE into place', () => {
-  for (const [name, hook] of [['moon', null], ['sun', 'ic-orb']]) {
-    const kf = MOTION.icons[name].parts.find((p) => p.hook === hook).keyframes;
-    assert.ok(kf[0].translate[1] > 0, `${name} starts below its resting place`);
+test('sun and moon RISE into view from below — each as ONE whole glyph', () => {
+  for (const name of ['moon', 'sun']) {
+    const parts = MOTION.icons[name].parts;
+    assert.equal(parts.length, 1, `${name}: the whole glyph rises, not choreographed parts`);
+    assert.equal(parts[0].hook, null, `${name}: hook null = the whole glyph`);
+    const kf = parts[0].keyframes;
+    // Below the BOTTOM of the 24-unit box, not merely a little low: the icon rises into
+    // view over a horizon. (The browser's `overflow: visible` lets it start off-icon; a
+    // surface that clips its icon box reads the same rise.)
+    assert.ok(kf[0].translate[1] >= 12, `${name} starts below the icon box`);
     assert.equal(kf.at(-1).translate, undefined, `${name} comes to rest in the glyph`);
+    // A turn or a per-part scale is exactly what made this pair read as broken.
+    for (const k of kf)
+      for (const prop of ['rotate', 'scale', 'scaleX', 'scaleY', 'skewX'])
+        assert.equal(k[prop], undefined, `${name}: the rise is a translation and nothing else`);
   }
-  // …and the sun's rays open out behind it, a beat later.
-  const rays = MOTION.icons.sun.parts.find((p) => p.hook === 'ic-rays');
-  assert.ok(rays.keyframes[0].scale < 1 && rays.delayMs > 0);
+  assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts,
+    'the theme pair rise on the same numbers — they are one design');
+  assert.match(SECTION, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmRise;/);
+});
+
+test('the help mark trembles inside its ring, and never turns out of it', () => {
+  const part = MOTION.icons.help.parts[0];
+  assert.equal(part.hook, 'ic-mark', 'the ring is not part of the motion, so it cannot move');
+  for (const k of part.keyframes) {
+    // Rotating the mark about the icon centre [12,12] swung the ? out past the ring —
+    // the bug this design replaced. Translation keeps it in.
+    assert.equal(k.rotate, undefined, 'a tremor is a translation, not a rotation');
+    if (!k.translate) continue;
+    assert.equal(k.translate[1], 0, 'side to side only');
+    assert.ok(Math.abs(k.translate[0]) <= 1, 'and small: the mark stays inside the ring');
+  }
+  // The mark's ink spans x ≈ 9.1–14.9 inside a ring of r=10 about [12,12], so a ±1 shift
+  // still leaves ~4 units of clearance on either side.
+  assert.ok(ICONS.help.startsWith('<circle cx="12" cy="12" r="10"/>'));
+  assert.match(SECTION, /\.ic-help \.ic-mark\s+\{[^}]*--ic-play: icmTremor;/);
+});
+
+test('the close cross is struck out one stroke at a time', () => {
+  const part = MOTION.icons.x.parts[0];
+  assert.equal(part.hook, 'ic-stroke');
+  assert.equal((ICONS.x.match(/class="ic-stroke"/g) || []).length, 2, 'both strokes are hooked');
+  // Each stroke runs (18,6)→(6,18): 12√2 ≈ 16.97 units, so one dash covers it whole.
+  assert.ok(part.dashArray >= 17 && part.dashArray < 18, 'the dash spans a whole stroke');
+  assert.equal(part.keyframes[0].dashOffset, part.dashArray, 'it starts undrawn');
+  assert.equal(part.keyframes.at(-1).dashOffset, 0, '…and ends whole');
+  // The second stroke starts exactly as the first lands, and the pair finish inside the
+  // range the other settles live in — a draw-on that dawdles reads as sluggish.
+  assert.equal(part.stagger, part.durationMs, 'the second starts as the first finishes');
+  const total = part.durationMs + part.stagger;
+  assert.ok(total >= 300 && total <= 380, `${total}ms is out of the settle range`);
+  assert.match(SECTION, /\.ic-x \.ic-stroke:nth-of-type\(2\) \{ --ic-delay: 0\.18s; \}/);
+});
+
+test('the picture draws itself INSIDE its frame, which never moves', () => {
+  const d = MOTION.icons.image;
+  assert.deepEqual(d.parts.map((p) => p.hook), ['ic-ridge', 'ic-orb']);
+  // The frame rect carries no hook at all, so nothing can move it — and nothing travels
+  // across its outline any more, which is what sliding the contents up from below did.
+  assert.ok(ICONS.image.startsWith('<rect x="3" y="3" width="18" height="18" rx="2"/>'));
+  const [ridge, orb] = d.parts;
+  assert.ok(ridge.dashArray >= 23, 'the ridge is ≈22.6 units of polyline');
+  assert.equal(ridge.keyframes[0].dashOffset, ridge.dashArray);
+  assert.equal(ridge.keyframes.at(-1).dashOffset, 0);
+  assert.ok(orb.originSelf && orb.delayMs > 0, 'the little sun pops in place, a beat later');
+  for (const k of orb.keyframes) assert.equal(k.translate, undefined, '…and never travels');
 });
 
 test('the assistant types and the layers assemble', () => {
