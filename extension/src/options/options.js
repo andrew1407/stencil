@@ -503,13 +503,17 @@ const renderConnections = async () => {
     const info = document.createElement('div');
     info.className = 'pin-info';
     const name = document.createElement('div');
-    name.className = 'pin-name';
+    name.className = 'pin-name conn-name';
     // Status dot: yellow while we probe, green if reachable, red if not.
     const dot = document.createElement('span');
     dot.className = 'conn-status conn-status-connecting';
     dot.title = 'Checking…';
     name.append(dot);
-    name.insertAdjacentHTML('beforeend', icon('server', { size: 14 }) + ' ' + hostLabel(c.url));
+    name.insertAdjacentHTML('beforeend', icon('server', { size: 14 }));
+    const label = document.createElement('span');
+    label.className = 'conn-label';
+    label.textContent = hostLabel(c.url);
+    name.append(label);
     name.title = c.url;
     info.appendChild(name);
     // Probe reachability (auth-checked via GET /projects) and recolor the dot.

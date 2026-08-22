@@ -63,7 +63,12 @@
     .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
     .pin-info { flex:1 1 auto; min-width:0; }
     .pin-name { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .conn-status { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--muted); }
+    /* The connection row lines up a status dot, an icon and the host label; flex
+       centres all three instead of leaving them on three different baselines. */
+    .conn-name { display:flex; align-items:center; gap:6px; }
+    .conn-name .ic { flex:none; }
+    .conn-label { overflow:hidden; text-overflow:ellipsis; }
+    .conn-status { flex:none; width:9px; height:9px; border-radius:50%; background:var(--muted); }
     .conn-status-connected { background:#28a745; }
     .conn-status-connecting { background:#e0a800; animation:statusPulse 1s ease-in-out infinite; }
     .conn-status-error { background:#dc3545; }
