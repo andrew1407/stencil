@@ -87,6 +87,34 @@ button:not(:disabled):active {
     animation: shimmerSweep 0.7s ease;
 }
 
+/* ── Toggle face swap (js/ui/motion.js swapContent) ──────────────────────────
+   A toggle that rewrites itself in place — Start↔Stop, Line↔Rect — turns its new glyph
+   in while the new word rises, and the outgoing face leaves as a ghost stacked exactly
+   on top of it. The ghost is ABSOLUTE (and the host relative only while swapping), so
+   the pinned button width holds and nothing in the row moves mid-animation. */
+@keyframes swapGlyphIn { from { opacity: 0; transform: rotate(-115deg) scale(0.55); } to { opacity: 1; transform: none; } }
+@keyframes swapLabelIn { from { opacity: 0; transform: translateY(0.55em) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes swapFaceOut { from { opacity: 0.9; transform: none; } to { opacity: 0; transform: translateY(-0.5em) scale(0.86); } }
+.swapping { position: relative; }
+.swapping > svg { animation: swapGlyphIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.swapping > span:not(.swap-ghost) { animation: swapLabelIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.swap-ghost {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: none;   /* the live face underneath keeps every click */
+    animation: swapFaceOut 0.22s ease-in both;
+}
+/* Reduced motion: swapContent skips the ghost entirely; this covers a preference
+   flipped mid-swap — the new face is already in place, so nothing is lost. */
+@media (prefers-reduced-motion: reduce) {
+    .swapping > svg, .swapping > span:not(.swap-ghost) { animation: none; }
+    .swap-ghost { display: none; animation: none; }
+}
+
 /* Icon buttons use the shared hover shimmer (layout.css), so no per-button magnify here — a
    consistent hover treatment across the toolbar. Keep the theme toggle's press feedback only. */
 #theme-toggle { transition: background 0.2s, border-color 0.2s, transform 0.3s ease; }
@@ -882,6 +910,34 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     to   { opacity: 0; transform: translateY(-8px) scale(0.95); max-width: 0;
            padding-left: 0; padding-right: 0; border-left-width: 0; border-right-width: 0;
            margin-right: calc(0px - var(--chip-gap, 6px)); }
+}
+
+/* ── Filtering (js/ui/motion.js createFilterAnimator) ────────────────────────
+   A row a FILTER dropped was not destroyed, only hidden — so it must read differently
+   from a delete: a quick, light collapse with no dust, and the rows the filter reveals
+   fade back in with the same shape played the other way. Faster than .leaving above
+   on purpose; the two must never be mistaken for each other. */
+.filter-leaving {
+    pointer-events: none;
+    overflow: hidden;
+    animation: rowFilterOut 0.15s ease-in both;
+}
+@keyframes rowFilterOut {
+    from { opacity: 1; transform: none; max-height: var(--leave-h, 200px); }
+    to   { opacity: 0; transform: translateY(-4px);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+/* The arrival is the same move reversed. Opacity + transform only — no height
+   animation: the revealed row is already laid out at its natural size. */
+.filter-entering {
+    animation: rowFilterIn 0.2s cubic-bezier(0, 0, 0.6, 1) both;
+}
+@keyframes rowFilterIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .filter-leaving, .filter-entering { animation: none; }
 }
 
 /* ── Disintegration (js/ui/motion.js disintegrate) ───────────────────────────

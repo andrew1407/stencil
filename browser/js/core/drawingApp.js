@@ -34,7 +34,7 @@ import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
-import { arriveFrom, flashLanding, ghostIn, GHOST_MS, leaveThenRemove } from '../ui/motion.js';
+import { arriveFrom, flashLanding, ghostIn, GHOST_MS, leaveThenRemove, swapContent } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
@@ -338,13 +338,19 @@ export class DrawingApp {
     const syncViewport = () => {
       const vp = document.getElementById('canvas-viewport');
       if (!vp || document.body.classList.contains('fullscreen-mode')) return;
-      this.zoomPan.syncViewportHeight(); // hugs a loaded image, fills the height without one
+      this.zoomPan.syncViewportHeight(); // the frame always fills the available height
       this.zoomPan.syncCoordPanelHeight();
     };
     syncViewport();
     // …and again after the first paint: the first call runs before the shell's layout is
     // real, which leaves the empty editor slightly too tall (permanent scrollbar).
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
+    // …and once the shell's reveal animation ends: appReveal (animations.css) TRANSLATES the
+    // container 8px, and a translated box measures 8px lower — the frame boots that short.
+    const shell = document.querySelector('.container');
+    shell?.addEventListener('animationend', (e) => {
+      if (e.target === shell && e.animationName === 'appReveal') syncViewport();
+    });
     window.addEventListener('resize', syncViewport);
     // Docking/undocking the chat moves body's padding (editor height), so re-measure too;
     // deferred a frame so the emitter's class change is in the layout.
@@ -357,6 +363,11 @@ export class DrawingApp {
     // the events above fire at the start of the slide and measure the old geometry.
     document.body.addEventListener('transitionend', (e) => {
       if (e.target === document.body && e.propertyName.startsWith('padding')) syncViewport();
+    });
+    // …and once the toolbar fold lands: collapsing it moves the viewport's top by the whole
+    // height of the tool rows, so the cap it was given no longer reaches the window bottom.
+    document.getElementById('controls-body')?.addEventListener('transitionend', (e) => {
+      if (e.propertyName === 'grid-template-rows') syncViewport();
     });
     // Boot synchronously into a blank temporary editor (migrate + sweep only); the
     // projects component decides whether to offer a chooser after readiness.
@@ -970,7 +981,10 @@ export class DrawingApp {
     const btn = document.getElementById('draw-toggle');
     if (!btn) return;
     const on = !!this.isDrawing;
-    btn.innerHTML = icon(on ? 'stop' : 'play', { size: 13 }) + `<span>${on ? 'Stop' : 'Start'}</span>`;
+    // The face swaps on the shared transition (motion.js): the markup is written
+    // synchronously, so however fast the toggling, what the button shows is isDrawing.
+    swapContent(btn, icon(on ? 'stop' : 'play', { size: 13 }) + `<span>${on ? 'Stop' : 'Start'}</span>`,
+      { key: on ? 'stop' : 'start' });
     btn.classList.toggle('active', on);
     // The tooltip's hotkey follows the state too: Alt+A starts, Alt+S stops.
     btn.dataset.hkTitle = on ? 'stopDraw' : 'startDraw';
@@ -986,8 +1000,10 @@ export class DrawingApp {
   syncDrawModeUI() {
     const btn = document.getElementById('draw-mode-toggle');
     if (btn) {
-      btn.innerHTML = (this.drawMode === 'rect' ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
-        (this.drawMode === 'rect' ? '<span>Rect</span>' : '<span>Line</span>');
+      const rect = this.drawMode === 'rect';
+      // Same swap as Start/Stop — one transition for the whole Draw group.
+      swapContent(btn, (rect ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line) +
+        (rect ? '<span>Rect</span>' : '<span>Line</span>'), { key: this.drawMode });
       btn.dataset.title = this.drawMode === 'rect'
         ? 'Drawing mode: Rectangle (click to switch to Line)'
         : 'Drawing mode: Line (click to switch to Rectangle)';
@@ -2168,6 +2184,9 @@ export class DrawingApp {
     this.stencilSync?.unlink();         // drop any .stencil live-sync link so a new/empty project
                                         // can't auto-save over the previous project's linked file
     this.storage.newTemporary({ keepChat });
+    // Dropping the image can move the viewport's top (the toolbar reflows) — re-measure, or
+    // the empty editor keeps the height it had with a picture in it.
+    this.zoomPan.syncViewportHeight();
     this.tabs.reportActive(null);
     this.#reportIncognitoSession();   // newTemporary clears incognito → drop our peer entry
   }

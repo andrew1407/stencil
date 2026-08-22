@@ -7,6 +7,7 @@ import { layout } from '../js/ui/layout.js';
 import {
   createListHold, emptyStateVisible, tileMotion, materialize,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
+  FILTER_LEAVING_CLASS, FILTER_ENTERING_CLASS, FILTER_LEAVE_MS,
 } from '../js/ui/motion.js';
 import { canRefreshList } from '../js/ui/projectsModal.js';
 import { StencilConnectModal, matchesConnFilter } from '../js/ui/connectModal.js';
@@ -259,10 +260,12 @@ const conn = (url, kind) => ({
 });
 
 // Wire the REAL modal against the DOM-lite stubs and open it (onOpen renders the list).
-const openModal = (conns) => {
+// `reduced` false is for the motion tests: everything else runs with reduced motion
+// on, so a render is synchronous and the assertions read the settled list.
+const openModal = (conns, { reduced = true } = {}) => {
   const doc = installDom({}, {
-    window: createStubElement('window', { matchMedia: () => ({ matches: true }) }),
-    matchMedia: () => ({ matches: true }),   // motion.js reads the bare global
+    window: createStubElement('window', { matchMedia: () => ({ matches: reduced }) }),
+    matchMedia: () => ({ matches: reduced }),   // motion.js reads the bare global
     CSS: { escape: (s) => s },
   });
   const list = createStubElement('div', {
@@ -429,4 +432,68 @@ test('components.css: the credential filter is compact and cannot crowd the head
   assert.ok(compact.includes('font-size: 12px'), 'the .vs-section heading’s scale, not a form field’s');
   assert.ok(compact.includes('padding: 3px 8px'));
   assert.ok(compact.includes('max-width: 100%'), 'never wider than the modal');
+});
+
+// ── The filter transition ───────────────────────────────────────────────────
+// Filtering used to be one-sided: revealed rows materialized, excluded ones simply
+// vanished. Both directions now play the SHARED light filter effect — and neither is
+// the disconnect's scatter, because a filtered-out connection was not removed.
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('filtering plays the excluded rows OUT before the list is rebuilt', async () => {
+  const { list, filter } = openModal([
+    conn('http://adm:1', 'admin'), conn('http://plain:2', ''), conn('http://adm:3', 'admin'),
+  ], { reduced: false });
+  filter.value = 'admin';
+  filter.dispatch('change');
+  // Still listed, and collapsing — the old code deleted them from under the user.
+  assert.deepEqual(rowUrls(list), ['http://adm:1', 'http://plain:2', 'http://adm:3'],
+    'the rebuild waits for the leave');
+  const dropped = rows(list).find((r) => r.dataset.url === 'http://plain:2');
+  assert.ok(hasClass(dropped, FILTER_LEAVING_CLASS), 'the excluded row plays out');
+  assert.ok(!hasClass(dropped, 'leaving'), 'but NOT the delete effect — nothing was disconnected');
+  await sleep(FILTER_LEAVE_MS + 80);
+  assert.deepEqual(rowUrls(list), ['http://adm:1', 'http://adm:3'], 'then the list settles');
+});
+
+test('filtering plays the revealed rows IN, with the same light effect', async () => {
+  const { list, filter } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')],
+    { reduced: false });
+  filter.value = 'admin';
+  filter.dispatch('change');
+  await sleep(FILTER_LEAVE_MS + 80);
+  filter.value = 'all';
+  filter.dispatch('change');
+  // Nothing leaves on the way back to All, so the rebuild is immediate.
+  assert.deepEqual(rowUrls(list), ['http://adm:1', 'http://plain:2']);
+  const revealed = rows(list).find((r) => r.dataset.url === 'http://plain:2');
+  assert.ok(hasClass(revealed, FILTER_ENTERING_CLASS), 'the revealed row fades in');
+  assert.ok(!hasClass(revealed, 'materializing'), 'the dust gather stays for a real connect');
+  const kept = rows(list).find((r) => r.dataset.url === 'http://adm:1');
+  assert.ok(!hasClass(kept, FILTER_ENTERING_CLASS), 'a row that never left does not re-enter');
+});
+
+test('under reduced motion the filter still lands the right set, with no classes', () => {
+  const { list, filter } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')]);
+  filter.value = 'admin';
+  filter.dispatch('change');
+  assert.deepEqual(rowUrls(list), ['http://adm:1'], 'straight to the re-render');
+  assert.ok(!hasClass(rows(list)[0], FILTER_ENTERING_CLASS));
+});
+
+test('a row filtered out of view stays in a pending batch selection', async () => {
+  const { list, filter } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')],
+    { reduced: false });
+  const cb = find(rows(list).find((r) => r.dataset.url === 'http://plain:2'), 'connect-select');
+  cb.checked = true;
+  cb.dispatch('change');
+  filter.value = 'admin';
+  filter.dispatch('change');
+  await sleep(FILTER_LEAVE_MS + 80);
+  assert.deepEqual(rowUrls(list), ['http://adm:1'], 'the non-admin row is out of view…');
+  filter.value = 'all';
+  filter.dispatch('change');
+  const back = find(rows(list).find((r) => r.dataset.url === 'http://plain:2'), 'connect-select');
+  assert.strictEqual(back.checked, true, '…but never dropped from the batch');
 });

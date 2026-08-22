@@ -2,7 +2,8 @@ import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { wirePanelResizer } from '../utils.js';
-import { flipFrom } from './motion.js';
+import { flipFrom, FLIP_MS } from './motion.js';
+import { canvasOrigin } from '../core/zoomPan.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
 // controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
@@ -215,8 +216,12 @@ export class StencilFullscreenLayer extends StencilElement {
       let savedImgCy = null;
       if (app && app.image && vp) {
         savedScale = app.scale;
-        savedImgCx = (vp.scrollLeft + vp.clientWidth  / 2) / savedScale;
-        savedImgCy = (vp.scrollTop  + vp.clientHeight / 2) / savedScale;
+        // Minus the centring margins (canvasOrigin): a fitted picture sits in the middle
+        // of the frame, not at the scroll origin, so without them the "centre" saved here
+        // is half a viewport off and fullscreen opens looking somewhere else.
+        const org = canvasOrigin();
+        savedImgCx = (vp.scrollLeft + vp.clientWidth  / 2 - org.x) / savedScale;
+        savedImgCy = (vp.scrollTop  + vp.clientHeight / 2 - org.y) / savedScale;
       }
 
       // The box the viewport occupies RIGHT NOW — replayed as the start of the
@@ -246,12 +251,18 @@ export class StencilFullscreenLayer extends StencilElement {
         if (savedScale === null) { app.zoomPan.fitToWindow(); return; }
         app.zoomPan.setZoom(savedScale, true);
         if (vp && savedImgCx !== null) {
-          vp.scrollLeft = Math.max(0, savedImgCx * savedScale - vp.clientWidth  / 2);
-          vp.scrollTop = Math.max(0, savedImgCy * savedScale - vp.clientHeight / 2);
+          // Put the centring margin back on — the saved centre had it taken off. It is 0
+          // once the picture overflows, so this only matters while it fits.
+          const org = app.zoomPan.originAt(savedScale);
+          vp.scrollLeft = Math.max(0, savedImgCx * savedScale + org.x - vp.clientWidth  / 2);
+          vp.scrollTop = Math.max(0, savedImgCy * savedScale + org.y - vp.clientHeight / 2);
         }
       };
 
       if (isFullscreen) {
+        // Hand the box over to the fullscreen rule (components.css pins it to the window):
+        // the in-flow height written by syncViewportHeight has no business here.
+        if (vp) vp.style.maxHeight = '';
         populateFsControls();
         populateFsPoints();
         // Wait one frame so the CSS position:fixed layout is committed and
@@ -261,10 +272,18 @@ export class StencilFullscreenLayer extends StencilElement {
           if (app && app.selectedLineIdx >= 0) app.syncFsSelectionPanel(app.lines[app.selectedLineIdx]);
         });
       } else {
-        // Restore normal viewport max-height (CSS position:fixed removed by class toggle).
-        // Use the adaptive available height; restoreView()'s refit then hugs+grows it to zoom.
+        // Back in flow (CSS position:fixed removed by the class toggle) — restore the
+        // full-height frame the normal mode's rule gives it.
         if (vp) {
-          vp.style.maxHeight = (app && app.zoomPan ? app.zoomPan.availContentHeight() : Math.max(300, window.innerHeight - 220)) + 'px';
+          if (app && app.zoomPan) {
+            app.zoomPan.syncViewportHeight();
+            // …and again once the exit flight has landed: measured now, the toolbar rows are
+            // still coming back and the viewport's top is ~60px off, which would leave the
+            // frame too tall (a permanent page scrollbar).
+            setTimeout(() => app.zoomPan.syncViewportHeight(), FLIP_MS + 120);
+          } else {
+            vp.style.maxHeight = Math.max(300, window.innerHeight - 220) + 'px';
+          }
           vp.style.maxWidth = '';
         }
         fsControlsPanel.classList.remove('fs-panel-visible');

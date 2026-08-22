@@ -6,7 +6,8 @@ import { isExpiredSession } from '../net/connectionManager.js';
 import { normalizeUrl, isInsecureRemote } from '../net/connectionManager.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
-import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible } from './motion.js';
+import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible,
+  createFilterAnimator } from './motion.js';
 import { canRefreshList } from './projectsModal.js';
 
 // Three-way credential filter over the connections list: all | admin | non-admin.
@@ -423,17 +424,19 @@ export class StencilConnectModal extends StencilElement {
       render();
     });
 
-    // Switching the filter re-lists in place: rows the new filter REVEALS materialize
-    // like a freshly connected one; the leave/wipe stays the disconnect's (a filtered-out
-    // row was not removed, so it must not play a removal).
-    filterEl.addEventListener('change', () => {
-      filterMode = filterEl.value;
-      const before = shownUrls;
-      render();
-      const fresh = [...shownUrls].filter((u) => !before.has(u));
-      fresh.forEach((u, i) => materialize(
-        list.querySelector(`[data-url="${CSS.escape(u)}"]`), scatterGridFor(fresh.length, i)));
+    // Switching the filter re-lists in place, symmetrically: rows the filter DROPS
+    // collapse out, then the rebuild, then the rows it REVEALS fade in. Deliberately
+    // the light filter effect, never the disconnect's scatter — nothing was removed.
+    const runFilter = createFilterAnimator({
+      keys: () => shownUrls,
+      next: () => {
+        const cm = mgr();
+        return (cm ? cm.knownUrls : []).filter((u) => matchesConnFilter(cm?.get(u), filterMode));
+      },
+      render,
+      find: (u) => list.querySelector(`[data-url="${CSS.escape(u)}"]`),
     });
+    filterEl.addEventListener('change', () => { filterMode = filterEl.value; runFilter(); });
 
     const autoEl = $('connect-autoconnect');
     autoEl.checked = getAutoConnect();

@@ -7,6 +7,7 @@ import { icon } from '../ui/icons.js';
 import { applyAccentFavicon, normalizeHex } from './accents.js';
 import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from './dragImageUrl.js';
 import { showDropOverlay, hideDropOverlay } from '../ui/dropOverlay.js';
+import { canvasOrigin } from './zoomPan.js';
 
 // Chords that must work even while a text box has focus. These windows autofocus an
 // input, so a blanket typing guard would make their toggles one-way — able to open the
@@ -924,7 +925,7 @@ export class ControlsBinder {
     // ── Smooth zoom via rAF ──
     // Rapid wheel events accumulate into one rAF loop. IMPORTANT: add `zoom-no-transition`
     // while the rAF runs so the CSS width/height transition doesn't fight it (causes flicker).
-    this.#smoothZoom = { target: null, focal: null, rafId: null, avail: null };
+    this.#smoothZoom = { target: null, focal: null, rafId: null };
 
     const viewport = document.getElementById('canvas-viewport');
 
@@ -940,13 +941,13 @@ export class ControlsBinder {
         // Apply final focal-point scroll after snap
         if (sz.focal && viewport) {
           const { imgX, imgY, clientX, clientY } = sz.focal;
-          viewport.scrollLeft = imgX * sz.target - clientX;
-          viewport.scrollTop = imgY * sz.target - clientY;
+          const org = app.zoomPan.originAt(sz.target);
+          viewport.scrollLeft = imgX * sz.target + org.x - clientX;
+          viewport.scrollTop = imgY * sz.target + org.y - clientY;
         }
         sz.rafId = null;
         sz.focal = null;
         sz.target = null;
-        sz.avail = null;
         return;
       }
 
@@ -956,20 +957,18 @@ export class ControlsBinder {
       app.scale = next;
       app.canvas.style.width = (app.canvas.width  * next) + 'px';
       app.canvas.style.height = (app.canvas.height * next) + 'px';
-      // Grow/shrink the viewport WITH the canvas every frame, or the height cap only
-      // catches up in the final setZoom() and zoom-in visibly jumps. `avail` is captured
-      // once per gesture — the zoom moves nothing it depends on; re-measuring is thrash.
-      if (sz.avail != null && viewport) {
-        viewport.style.maxHeight = Math.min(Math.round(app.canvas.height * next) + 4, sz.avail) + 'px';
-      }
+      // No viewport resize per frame: the frame is full-height at every zoom now.
       app.zoomPan.setZoomInputValue(Math.round(next * 100));
 
-      // Maintain focal point: keep the image pixel under the cursor fixed.
-      // scrollLeft = imgX * newScale - clientX_in_viewport
+      // Maintain focal point: keep the image pixel under the cursor fixed. Through the
+      // centring margins at THIS scale (originAt), which are what hold a picture smaller
+      // than the frame in the middle — they collapse to 0 exactly when scrolling starts,
+      // so the pixel stays put across that boundary instead of jumping.
       if (sz.focal && viewport) {
         const { imgX, imgY, clientX, clientY } = sz.focal;
-        viewport.scrollLeft = imgX * next - clientX;
-        viewport.scrollTop = imgY * next - clientY;
+        const org = app.zoomPan.originAt(next);
+        viewport.scrollLeft = imgX * next + org.x - clientX;
+        viewport.scrollTop = imgY * next + org.y - clientY;
       }
 
       sz.rafId = requestAnimationFrame(runSmoothZoom);
@@ -1019,12 +1018,17 @@ export class ControlsBinder {
 
       // Focal point in image-space (unscaled pixels).
       // Works in both fullscreen (viewport fixed at 0,0) and normal mode.
+      // Through the centring margins (canvasOrigin): with the picture smaller than the
+      // frame the scroll origin is not the image origin, and the cursor would pin the
+      // wrong pixel the moment the zoom grew past the frame. The scroll writes in
+      // runSmoothZoom put the margin back on, at the scale of that frame.
       const vpRect = viewport.getBoundingClientRect();
+      const org = canvasOrigin();
       const contentX = e.clientX - vpRect.left + viewport.scrollLeft;
       const contentY = e.clientY - vpRect.top  + viewport.scrollTop;
       sz.focal = {
-        imgX: contentX / app.scale,
-        imgY: contentY / app.scale,
+        imgX: (contentX - org.x) / app.scale,
+        imgY: (contentY - org.y) / app.scale,
         // cursor position relative to viewport left/top edge (viewport-local)
         clientX: e.clientX - vpRect.left,
         clientY: e.clientY - vpRect.top,
@@ -1033,10 +1037,6 @@ export class ControlsBinder {
       // Start animation loop; disable CSS transition first to prevent conflict
       if (!sz.rafId) {
         app.canvas.classList.add('zoom-no-transition');
-        // Measure the height budget once for this gesture (see runSmoothZoom). In
-        // fullscreen the layer owns the viewport's height, so leave it alone.
-        sz.avail = document.body.classList.contains('fullscreen-mode')
-          ? null : app.zoomPan.availContentHeight();
         sz.rafId = requestAnimationFrame(runSmoothZoom);
       }
     }, { passive: false });

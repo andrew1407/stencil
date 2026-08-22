@@ -19,6 +19,8 @@ namespace stencil::net {
 
 namespace stencil::gui {
 
+  class ListFilterFade;
+
   class ConnectDialog : public QDialog {
     Q_OBJECT
    public:
@@ -41,9 +43,11 @@ namespace stencil::gui {
     // Fade rows toward the list's edges as it scrolls, instead of cutting one
     // mid-outline (the widget twin of the projects delegate's reveal dissolve).
     void applyRowReveal();
-    // Hide the rows the All / Admin / Non-admin picker excludes (view state only —
-    // never persisted) and show the "nothing matches" line when none survive.
+    // Fade + collapse the rows the All / Admin / Non-admin picker excludes (view state
+    // only — never persisted) and show the "nothing matches" line when none survive.
     void applyKindFilter();
+    // Lazily build the filter transition and its per-row writers (support/filterFade).
+    ListFilterFade* filterFade();
     // Sign in again on a row whose session expired: fresh session first, then a
     // token prompt (session OR admin token) if the server refuses.
     void reauthenticate(const QString& url);
@@ -77,6 +81,8 @@ namespace stencil::gui {
     QSet<QString> known_;
     QWidget* batchBar_ = nullptr;
     QLabel* batchCount_ = nullptr;
+    // The kind picker's enter/exit transition (owned by the list).
+    ListFilterFade* filterFade_ = nullptr;
   };
 
 }  // namespace stencil::gui

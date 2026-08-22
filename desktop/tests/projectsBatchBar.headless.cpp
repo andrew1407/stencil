@@ -9,11 +9,15 @@
 //   - batch remove confirms in-dialog (the dialog stays open) and resolves every checked
 //     row: each VISIBLE row's clipped rect gets a DisintegrateOverlay inside the list
 //     viewport (never over the dialog chrome), rows scrolled out of view spawn none, and
-//     every checked id is retired in place while removeRequested carries the batch.
+//     every checked id is retired in place while removeRequested carries the batch;
+//   - filter/search changes are a symmetric, LIGHT transition (support/filterFade):
+//     excluded rows fade + collapse out, included ones back in, no destructive dust,
+//     reduced motion straight to the end, and the right visible set after rapid edits.
 // A mock QTcpServer stands in for the collaboration server (token + /projects list),
 // so the server-row compositions run without a Go server. Offscreen, like the others.
 #include "disintegrateOverlay.hpp"
 #include "fileStore.hpp"
+#include "filterFade.hpp"   // the light enter/exit transition the search/filter uses
 #include "projectsDialog.hpp"
 #include "serverClient.hpp"
 
@@ -36,6 +40,8 @@
 using stencil::gui::BatchDirections;
 using stencil::gui::batchDirectionsFor;
 using stencil::gui::DisintegrateOverlay;
+using stencil::gui::filteredIn;
+using stencil::gui::kFilterFadeMs;
 using stencil::gui::Project;
 using stencil::gui::ProjectsDialog;
 using stencil::net::ConnectionManager;
@@ -335,6 +341,74 @@ int main(int argc, char** argv) {
     // confirm (and closed the dialog); now the dialog must simply stay.
     pumpFor(QApplication::doubleClickInterval() + 120);
     check(dlg.isVisible(), "checkbox-strip click never opens the row (dialog stays up)");
+    dlg.reject();
+  }
+
+  // ── Filter transitions: a row the SEARCH excludes fades and collapses out (the light
+  // support/filterFade motion), never with the scatter a removal uses, and comes back
+  // the same way round. Local-only dialog: no server poll to re-list rows mid-flight.
+  {
+    std::printf("filter enter/exit transitions:\n");
+    ProjectsDialog dlg(locals, 5000);
+    dlg.show();
+    pumpFor(50);
+    auto* list = dlg.findChild<QListWidget*>("projectsList");
+    auto* search = dlg.findChild<QLineEdit*>();
+    check(list && search, "finds the projects list and its search box");
+    if (!list || !search) return 1;
+    auto keep = [&] { return rowById(list, "l1", false); };   // "alpha" — matches "alp"
+    auto drop = [&] { return rowById(list, "l2", false); };   // "beta"  — does not
+    auto rowH = [&](QListWidgetItem* it) { return it ? list->visualItemRect(it).height() : -1; };
+    check(keep() && drop(), "finds the rows the search keeps and drops");
+    if (!keep() || !drop()) { dlg.reject(); return 1; }
+    const int fullH = rowH(keep());
+    check(fullH > 0 && rowH(drop()) == fullH, "a settled row occupies its whole slot");
+
+    search->setText("alp");
+    check(!drop()->isHidden(), "an excluded row stays up while it leaves");
+    check(!filteredIn(drop()), "…though it has already left the filtered set");
+    check(filteredIn(keep()), "…and the matching row is still in it");
+    check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+          "…with none of the destructive scatter a removal uses");
+    pumpFor(kFilterFadeMs / 3);
+    check(rowH(drop()) < fullH, "…its slot collapsing as it goes");
+    pumpUntil([&] { return drop()->isHidden(); });
+    check(drop()->isHidden() && !keep()->isHidden(), "the excluded row goes once it has played");
+    check(rowH(keep()) == fullH, "…leaving the matching row at full height");
+
+    search->clear();
+    check(!drop()->isHidden() && rowH(drop()) < fullH,
+          "an entering row is in the view at once, still expanding");
+    check(filteredIn(drop()), "…and already counted in the filtered set");
+    pumpUntil([&] { return rowH(drop()) == fullH; });
+    check(rowH(drop()) == fullH, "…and lands on its full slot");
+
+    // Rapid edits: the LAST needle decides, with nothing left stuck part-collapsed.
+    for (const char* q : {"al", "be", "ga", "a", ""}) {
+      search->setText(QString::fromLatin1(q));
+      pumpFor(kFilterFadeMs / 6);   // each edit interrupts the transition before it
+    }
+    pumpUntil([&] {
+      for (int i = 0; i < list->count(); ++i)
+        if (list->item(i)->isHidden() || rowH(list->item(i)) != fullH) return false;
+      return true;
+    });
+    bool allBack = true;
+    for (int i = 0; i < list->count(); ++i)
+      allBack = allBack && !list->item(i)->isHidden() && filteredIn(list->item(i)) &&
+                rowH(list->item(i)) == fullH;
+    check(allBack, "an empty search leaves every row whole after a rapid sequence");
+
+    // Reduced motion: the same result, reached with no transition at all.
+    qputenv("STENCIL_NO_ANIM", "1");
+    search->setText("alp");
+    check(drop()->isHidden() && rowH(drop()) == 0,
+          "reduced motion hides the excluded row at once, slot closed");
+    check(!keep()->isHidden() && rowH(keep()) == fullH, "…and leaves the match untouched");
+    search->clear();
+    check(!drop()->isHidden() && rowH(drop()) == fullH,
+          "…restoring it whole, still without animating");
+    qunsetenv("STENCIL_NO_ANIM");
     dlg.reject();
   }
 

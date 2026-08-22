@@ -4,6 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isEditorTab, editorRow, matchEditors, matchSourceTabs, sourceTabChoices, importModeFor } from '../src/lib/editorTabs.js';
+import { readFileSync } from 'node:fs';
+import { createFilterTransition } from '../src/lib/motion.js';
+import { makeList, renderKeys } from './helpers/listDom.js';
 
 test('isEditorTab: origin match, ignoring path/query/fragment on either side', () => {
   const editorUrl = 'http://localhost:8080/';
@@ -227,4 +230,60 @@ test('importModeFor: accepts an editorRow as-is (both carry hasImage)', () => {
   assert.equal(importModeFor(occupied), 'ask');
   assert.equal(importModeFor(blank), 'new');
   assert.equal(importModeFor(editorRow({ id: 3, url: 'http://localhost:8080/' }, null)), 'new');
+});
+
+// ── Editor mode's two lists animate their filters both ways ─────────────────
+// "Open editors" and "Images from another page" are both rebuilt wholesale on every
+// keystroke in their search boxes, so what leaves and what arrives is decided by the
+// tab ids of the two renders. The transition's mechanics live in tests/motion.test.js.
+
+const EDITORS = [
+  editorRow({ id: 1, url: 'http://localhost:8080/', title: 'Sunset' }, { projectName: 'Sunset' }),
+  editorRow({ id: 2, url: 'http://localhost:8080/', title: 'Harbour' }, { projectName: 'Harbour' }),
+  editorRow({ id: 3, url: 'http://localhost:8080/', title: 'Sunrise' }, { projectName: 'Sunrise' }),
+];
+const editorKeys = (q) => matchEditors(EDITORS, q).map((r) => String(r.tabId));
+
+test('the editor search leaves and re-enters rows symmetrically', () => {
+  const list = makeList();
+  const tr = createFilterTransition({ list, reduced: () => false });
+
+  renderKeys(list, tr, editorKeys(''));
+  assert.deepEqual(renderKeys(list, tr, editorKeys('sun')), { entered: [], left: ['2'] });
+  assert.equal(tr.ghostCount, 1, 'the excluded editor plays out');
+  assert.deepEqual(renderKeys(list, tr, editorKeys('sunset')), { entered: [], left: ['3'] });
+  assert.deepEqual(renderKeys(list, tr, editorKeys('')), { entered: ['2', '3'], left: [] },
+    'clearing the box brings both back as arrivals');
+  assert.deepEqual(list.keys(), ['1', '2', '3']);
+  assert.equal(tr.ghostCount, 0, 'a burst of typing leaks no half-faded rows');
+});
+
+test('the source-page filter animates the same way, and reduced motion just lands', () => {
+  const choices = sourceTabChoices([
+    { id: 10, url: 'https://example.com/a', title: 'A' },
+    { id: 11, url: 'https://other.org/b', title: 'B' },
+  ], {});
+  const keys = (q) => matchSourceTabs(choices, q).map((c) => String(c.tabId));
+
+  const list = makeList();
+  const tr = createFilterTransition({ list, reduced: () => false });
+  renderKeys(list, tr, keys(''));
+  assert.deepEqual(renderKeys(list, tr, keys('example')), { entered: [], left: ['11'] });
+
+  const still = makeList();
+  const quiet = createFilterTransition({ list: still, reduced: () => true });
+  renderKeys(still, quiet, keys(''));
+  renderKeys(still, quiet, keys('example'));
+  assert.deepEqual(still.keys(), ['10'], 'reduced motion: the right set, with no animation');
+  assert.equal(quiet.ghostCount, 0);
+});
+
+test('editorMode.js wraps both rebuilds and keys its rows by tab id', () => {
+  const js = readFileSync(new URL('../src/popup/editorMode.js', import.meta.url), 'utf8');
+  assert.match(js, /edTransition\.begin\(\);\s*\n\s*listEl\.textContent = '';/);
+  assert.match(js, /srcTransition\.begin\(\);\s*\n\s*listedEl\.textContent = '';/);
+  assert.match(js, /edTransition\.end\(\)/);
+  assert.match(js, /srcTransition\.end\(\)/);
+  assert.equal((js.match(/li\.dataset\.key = String\((row|c)\.tabId\)/g) || []).length, 2,
+    'both row builders carry the key the transition diffs by');
 });

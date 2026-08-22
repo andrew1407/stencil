@@ -2,7 +2,7 @@ import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl, originPat
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins, setPinKeywords, pinMatchesSearch, pinKeywords } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connections.js';
-import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible } from '../lib/motion.js';
+import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { listModels } from '../llm/llmClient.js';
@@ -248,6 +248,21 @@ const pinSearchModeEl = document.getElementById('pin-search-mode');
 // Host label for a site origin (e.g. https://example.com → example.com).
 const hostLabel = (origin) => { try { return new URL(origin).host; } catch { return origin || '(unknown site)'; } };
 
+// Both lists on this page are rebuilt wholesale on every filter change, so the shared
+// transition (lib/motion.js) fades out the rows the filters dropped, where they stood,
+// and ramps the arriving ones in. A pin is keyed by the pair that identifies it in
+// storage; a connection by its URL (the data-url the animations already find it by).
+const pinKey = (pin) => `${pin.site}\n${pin.source}`;
+const pinTransition = createFilterTransition({ list: pinListEl });
+
+// The particle layer is appended to the row's parent — move it to <body> so the list
+// rebuild underneath can't take the dust with it.
+const liftDust = (el) => {
+  const parent = el.parentElement;
+  if (!parent) return;
+  for (const host of parent.querySelectorAll('.disintegrate-host')) document.body.appendChild(host);
+};
+
 // Lazily recover a thumbnail a plain <img> couldn't load (hotlink-protected http(s));
 // videos and unfetchable sources keep the neutral placeholder.
 const recoverThumb = (img, source, kind, resource = '') => {
@@ -262,6 +277,7 @@ const recoverThumb = (img, source, kind, resource = '') => {
 const renderPinRow = (pin, serverSources) => {
   const li = document.createElement('li');
   li.className = 'pin-row';
+  li.dataset.key = pinKey(pin);   // the filter transition diffs renders by this
   // Golden outline + server badge when this pinned image is also stored on a server.
   const onServer = !!(serverSources && pin.source && serverSources.has(pin.source));
   if (onServer) li.classList.add('shared');
@@ -341,6 +357,11 @@ const renderPinRow = (pin, serverSources) => {
   unpin.title = 'Unpin';
   unpin.innerHTML = icon('x', { size: 15 });
   unpin.addEventListener('click', async () => {
+    // A DELETE, not a filter: the row scatters (the heavier effect) and leaves the DOM
+    // before the rebuild, so the filter transition can't also fade it out.
+    const played = leaveThenRemove(li, () => li.remove(), scatterGridFor(1));
+    liftDust(li);
+    await played;
     await setPinned({ source: pin.source, site: pin.site, pinned: false });
     renderPins();   // storage.onChanged also fires, but re-render now for instant feedback
   });
@@ -374,8 +395,14 @@ const refreshServerPins = async () => {
   } catch { serverPins = emptyServerPins(); }
 };
 
+// Only the newest render may touch the DOM: loadPins() is async, so a burst of filter
+// changes could otherwise land out of order and leave the wrong set on screen.
+let pinRenderSeq = 0;
+
 const renderPins = async () => {
+  const seq = ++pinRenderSeq;
   const pins = await loadPins();
+  if (seq !== pinRenderSeq) return;   // a newer render is already in flight
   const sites = sitesOf(pins);
 
   // Site filter (where the image was pinned). Keep the chosen site if it still has pins.
@@ -419,15 +446,24 @@ const renderPins = async () => {
     if (storeSel.value !== 'all') return !!servers && servers.has(storeSel.value);  // a specific server
     return true;
   });
+  pinTransition.begin();
   pinListEl.innerHTML = '';
   shown.forEach((p) => pinListEl.appendChild(renderPinRow(p, serverPins.sources)));
+  pinTransition.end();
   pinEmptyEl.hidden = pins.length > 0;
 };
 
 siteSel.addEventListener('change', renderPins);
 storeSel.addEventListener('change', renderPins);
 showServerChk.addEventListener('change', renderPins);
-if (pinSearchEl) pinSearchEl.addEventListener('input', renderPins);
+// Typing filters on a pause, not on every keystroke: one render per burst keeps the
+// fades from stacking (and the list from being rebuilt under your fingers).
+const PIN_SEARCH_DEBOUNCE_MS = 150;
+let pinSearchTimer = null;
+if (pinSearchEl) pinSearchEl.addEventListener('input', () => {
+  clearTimeout(pinSearchTimer);
+  pinSearchTimer = setTimeout(renderPins, PIN_SEARCH_DEBOUNCE_MS);
+});
 if (pinSearchModeEl) pinSearchModeEl.addEventListener('change', renderPins);
 
 // Themed Yes/No confirmation. The options page has no native modal of its own, so this
@@ -461,6 +497,19 @@ const confirmDialog = (message) => new Promise((resolve) => {
   yes.focus();
 });
 
+// A CLEAR is destructive too, so the listed rows scatter rather than fading like a
+// filter — all at once, on the shared mesh budget (scatterGridFor), and out of the DOM
+// before the rebuild.
+const wipePinRows = async () => {
+  pinTransition.clear();   // a row already fading out of the filter isn't there to destroy
+  const rows = [...pinListEl.children];
+  await Promise.all(rows.map((el, i) => {
+    const played = leaveThenRemove(el, () => el.remove(), scatterGridFor(rows.length, i));
+    liftDust(el);
+    return played;
+  }));
+};
+
 // Scoped bulk clear: wipe every pin ("all" scope) or just the selected site's pins.
 // Confirmed first — it's destructive and can't be undone.
 pinClearBtn.addEventListener('click', async () => {
@@ -469,11 +518,13 @@ pinClearBtn.addEventListener('click', async () => {
   if (scope === 'all') {
     if (!pins.length) return;
     if (!(await confirmDialog(`Are you sure? Remove ALL ${pins.length} pinned image(s) from every site? This cannot be undone.`))) return;
+    await wipePinRows();
     await clearPins('all');
   } else {
     const n = matchPinsForSite(pins, scope).length;
     if (!n) return;
     if (!(await confirmDialog(`Are you sure? Remove all ${n} pinned image(s) for ${hostLabel(scope)}? This cannot be undone.`))) return;
+    await wipePinRows();
     await clearPins(scope);
   }
   renderPins();   // storage.onChanged also fires; re-render now for instant feedback
@@ -499,9 +550,23 @@ const connKind = () => {
 // state hidden — a rebuild mid-wipe would cut the animation and pop the placeholder in.
 const connHold = createListHold({ settle: () => { renderConnections(); connListEl.style.minHeight = ''; } });
 
+// The kind filter (All / Admin / Non-admin) rebuilds the list wholesale, so the rows it
+// excludes fade out where they stood and the ones it admits ramp in — keyed by the
+// data-url the leave/materialize animations already find a row by.
+const connTransition = createFilterTransition({ list: connListEl, keyAttr: 'url' });
+// A connection the ADD flow materializes itself: its arrival is already animated, so the
+// transition must not also ramp that one row in.
+let materializingUrl = null;
+// Newest render wins — loadConnections() is async, so rapid filter clicks could
+// otherwise land out of order.
+let connRenderSeq = 0;
+
 const renderConnections = async () => {
+  const seq = ++connRenderSeq;
   const all = await loadConnections();
+  if (seq !== connRenderSeq) return;   // a newer render is already in flight
   const conns = filterConnections(all, connKind());
+  connTransition.begin();
   connListEl.innerHTML = '';
   for (const c of conns) {
     const li = document.createElement('li');
@@ -560,7 +625,9 @@ const renderConnections = async () => {
       const held = connListEl.getBoundingClientRect().height;
       if (held) connListEl.style.minHeight = `${held}px`;
       const settle = connHold.begin();
-      await leaveThenRemove(li, () => {}, scatterGridFor(1));
+      // The row leaves the DOM with its scatter, so the rebuild's filter transition
+      // can't fade a deleted row out a second time.
+      await leaveThenRemove(li, () => li.remove(), scatterGridFor(1));
       await removeServer(c.url);
       await settle();
     });
@@ -568,6 +635,7 @@ const renderConnections = async () => {
     li.append(info, actions);
     connListEl.appendChild(li);
   }
+  connTransition.end({ skipEnter: materializingUrl ? [materializingUrl] : [] });
   // Mid-wipe the empty state stays hidden — it waits for the hold's settle render.
   connEmptyEl.hidden = !emptyStateVisible(conns.length, connHold.holding);
   connEmptyEl.textContent = all.length
@@ -607,8 +675,10 @@ document.getElementById('conn-add').addEventListener('click', async () => {
     // a dust copy gathers into it). On the same hold as a removal, so the
     // storage.onChanged echo can't rebuild the list mid-animation.
     const settle = connHold.begin();
+    materializingUrl = normalizeUrl(url);   // this row's arrival is the materialize, not the filter ramp
     await renderConnections();
-    materialize(connListEl.querySelector(`li[data-url="${CSS.escape(normalizeUrl(url))}"]`), scatterGridFor(1));
+    materialize(connListEl.querySelector(`li[data-url="${CSS.escape(materializingUrl)}"]`), scatterGridFor(1));
+    materializingUrl = null;
     setTimeout(() => { connStatus.textContent = ''; }, 1500);
     await settle();
   } catch (err) {

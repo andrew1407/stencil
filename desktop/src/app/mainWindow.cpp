@@ -1623,16 +1623,10 @@ namespace stencil::gui {
         startDrawBtn_->setDefaultAction(keep);
         startDrawBtn_->setFixedWidth(widest);
       }
-      QAction* want = drawing ? actStopDraw_ : actStartDraw_;
-      if (startDrawBtn_->defaultAction() != want) startDrawBtn_->setDefaultAction(want);
-    }
-    // Accent-fill the Start button while a draw session is live (browser parity: start-drawing
-    // gains the .active class). A dynamic property + repolish, so we don't make the action itself
-    // checkable (which would add a stray check-mark to the Edit/context menus).
-    if (startDrawBtn_ && startDrawBtn_->property("drawActive").toBool() != drawing) {
-      startDrawBtn_->setProperty("drawActive", drawing);
-      startDrawBtn_->style()->unpolish(startDrawBtn_);
-      startDrawBtn_->style()->polish(startDrawBtn_);
+      // Hand the button the state's action + face. The accent treatment (outlined while
+      // idle, filled while drawing) rides along, and the change is animated — a no-op
+      // when the state hasn't actually moved, so refreshActions can call this freely.
+      syncDrawToggleFace(drawing, true);
     }
     // Its Draw-section neighbour, the Line/Rect toggle: same gate as the browser's
     // #draw-mode-toggle (drawingApp.js:2217 — needs an image, not while read-only), and the

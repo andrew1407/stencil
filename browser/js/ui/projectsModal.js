@@ -4,7 +4,7 @@ import { icon } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
-import { observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor } from './motion.js';
+import { observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator } from './motion.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 
@@ -1357,6 +1357,38 @@ export class StencilProjectsModal extends StencilElement {
     // picks up each rebuild's rows itself, so render() stays untouched.
     observeReveal(list, '.project-row');
 
+    // Every row the current state would list, in order — the one source of truth for
+    // both render() and the filter transition's key delta (createFilterAnimator), so
+    // the two can never disagree about what a filter/sort/search change moves.
+    const rowPlan = () => {
+      const q = search.value || '';
+      const plan = [];
+      const showIncog = filterMode === 'all' || filterMode === 'incognito';
+      // Synthetic current-tab temporary/incognito row (pinned at the top, above the sorted
+      // rows). In the incognito filter only a real incognito session qualifies.
+      if (showIncog && app.storage.temporary) {
+        const label = app.storage.incognito ? 'incognito (unsaved)' : 'temporary (unsaved)';
+        const qualifies = filterMode === 'incognito' ? app.storage.incognito : true;
+        if (qualifies && rowMatches(label, q))
+          plan.push({ key: 'temp', build: () => makeRow(null, { temp: true, incognito: app.storage.incognito }) });
+      }
+      // Incognito sessions open in OTHER tabs (read-only) — also pinned above the sorted rows.
+      if (showIncog) {
+        for (const p of incognitoPeers)
+          if (rowMatches(p.name || 'Incognito', q))
+            plan.push({ key: `peer:${p.peerId ?? p.name}`, build: () => makeIncognitoPeerRow(p) });
+      }
+      // Local + server rows as one sorted, drag-reorderable list per the active sort mode.
+      for (const it of sortItems(buildItems({ applySearch: true }), sortMode))
+        plan.push({ key: it.key, item: it, build: it.build });
+      return plan;
+    };
+
+    // Keys the LAST render actually listed — the "before" side of a filter transition.
+    let shownKeys = [];
+    const rowByFilterKey = (key) =>
+      list.querySelector(`[data-filter-key="${String(key).replace(/["\\]/g, '\\$&')}"]`);
+
     const render = () => {
       const q = search.value || '';
       hideZoom();
@@ -1367,30 +1399,19 @@ export class StencilProjectsModal extends StencilElement {
       remoteObjectUrls.clear();
       list.innerHTML = '';
       const showServer = showsServer();
-      const showIncog = filterMode === 'all' || filterMode === 'incognito';
 
-      // Synthetic current-tab temporary/incognito row (pinned at the top, above the sorted
-      // rows). In the incognito filter only a real incognito session qualifies.
-      if (showIncog && app.storage.temporary) {
-        const label = app.storage.incognito ? 'incognito (unsaved)' : 'temporary (unsaved)';
-        const qualifies = filterMode === 'incognito' ? app.storage.incognito : true;
-        if (qualifies && rowMatches(label, q)) list.appendChild(makeRow(null, { temp: true, incognito: app.storage.incognito }));
-      }
-      // Incognito sessions open in OTHER tabs (read-only) — also pinned above the sorted rows.
-      if (showIncog) {
-        for (const p of incognitoPeers)
-          if (rowMatches(p.name || 'Incognito', q)) list.appendChild(makeIncognitoPeerRow(p));
-      }
-
-      // Kick off (or reuse) the cached server listing, then render local + server rows as one
-      // sorted, drag-reorderable list per the active sort mode.
+      // Kick off (or reuse) the cached server listing before the plan reads it.
       if (showServer && hasServers()) ensureRemotes();
       keyMeta.clear();
-      for (const it of sortItems(buildItems({ applySearch: true }), sortMode)) {
-        keyMeta.set(it.key, it);
-        const row = it.build();
-        attachRowDrag(row, it.key);
+      shownKeys = [];
+      for (const entry of rowPlan()) {
+        const row = entry.build();
+        // Stamped on EVERY row (the synthetic ones too) so the filter transition can
+        // find the rows a change drops or reveals.
+        row.dataset.filterKey = entry.key;
+        if (entry.item) { keyMeta.set(entry.key, entry.item); attachRowDrag(row, entry.key); }
         list.appendChild(row);
+        shownKeys.push(entry.key);
       }
 
       // Shimmer skeletons after the sorted rows — but ONLY while a fetch is genuinely in
@@ -1431,12 +1452,23 @@ export class StencilProjectsModal extends StencilElement {
       onOpen: () => { search.value = ''; clearSelection(); invalidateRemotes(); sortEl.value = sortMode; searchModeEl.value = searchMode; render(); }
     });
 
-    attachSearchFilter(search, render);
-    filterEl.addEventListener('change', () => { filterMode = filterEl.value; render(); });
+    // Every filter control re-lists through the SAME symmetric transition: what the
+    // change drops collapses out, then the rebuild, then what it reveals fades in — the
+    // light filter effect, never the delete's scatter (nothing here was removed). Typing
+    // is safe: a keystroke landing mid-animation re-renders immediately instead of
+    // stacking a second leave (createFilterAnimator).
+    const runFilter = createFilterAnimator({
+      keys: () => shownKeys,
+      next: () => rowPlan().map((e) => e.key),
+      render,
+      find: rowByFilterKey,
+    });
+    attachSearchFilter(search, () => runFilter());
+    filterEl.addEventListener('change', () => { filterMode = filterEl.value; runFilter(); });
     sortEl.value = sortMode;
-    sortEl.addEventListener('change', () => { setSortMode(sortEl.value); render(); });
+    sortEl.addEventListener('change', () => { setSortMode(sortEl.value); runFilter(); });
     searchModeEl.value = searchMode;
-    searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); render(); });
+    searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); runFilter(); });
 
     // Delete a server project even when this tab's live connection object is gone
     // (dropped feed, listing served from cache): fall back to a direct authenticated

@@ -12,6 +12,7 @@
 #include "selectionPanel.hpp"
 #include "theme.hpp"
 #include "tipContent.hpp"
+#include "../support/faceSwap.hpp"
 #include "../support/themeSwapOverlay.hpp"
 
 #include <QApplication>
@@ -162,10 +163,14 @@ namespace stencil::gui {
     for (QToolButton* b : findChildren<QToolButton*>()) {
       QAction* a = b->defaultAction();
       if (!a) continue;
+      // A toggle that paints its own face (support/faceSwap.hpp) is re-synced below, not
+      // repainted from the action — its glyph colour is its STATE, not the theme text.
+      if (b->property(kFaceGlyphProperty).isValid()) continue;
       const auto name = actionIconNames_.constFind(a);
       if (name != actionIconNames_.constEnd())
         b->setIcon(themedIcon(name.value(), toolButtonIconColor(a, appIconColor), s));
     }
+    syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
 #else
     Q_UNUSED(appDark);
     Q_UNUSED(appIconColor);
@@ -292,15 +297,63 @@ namespace stencil::gui {
     if (projectNameEdit_) projectNameEdit_->setIcon(themedIcon("pencil", iconColor, 15));
     if (projectColorBtn_) projectColorBtn_->setIcon(themedIcon("palette", iconColor, 15));
     // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
-    if (drawModeBtn_) {
-      const bool rect =
-          canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect;
-      drawModeBtn_->setIcon(
-          themedIcon(rect ? "rect-filled" : "pencil", iconColor, 16));
-    }
+    // Both Draw toggles own their own glyph (support/faceSwap.hpp), so they are repainted
+    // through their face — instantly, this is a theme change and not a toggle.
+    syncDrawModeFace(canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect, false);
     styleDangerToolButtons();          // filled-red trash buttons (browser .danger parity)
     restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
     if (chatUnread_) setChatUnread(true);   // repaint the mark in the new accent
+  }
+
+  // ── the two Draw toggles' faces ──
+  // Start ▶ / Stop ■. The FUNCTIONAL half lands at once — which action a click fires, the
+  // tooltip and shortcut it carries, whether it is enabled — while the face (glyph + word)
+  // and the accent state cross over through the shared swap. Idle is the OUTLINED accent
+  // (accent glyph and word on a neutral face); drawing is the filled one, whose foreground
+  // is the app's on-accent white plus the light-accent halo, exactly as chatDock's filled
+  // accent buttons pick theirs. Browser parity: #draw-toggle / .active in layout.css.
+  void MainWindow::syncDrawToggleFace(bool drawing, bool animate) {
+    if (!startDrawBtn_ || !actStartDraw_ || !actStopDraw_) return;
+    QAction* want = drawing ? actStopDraw_ : actStartDraw_;
+    const bool flipped = startDrawBtn_->defaultAction() != want;
+    // A swap already heading for this face owns the button until it lands — refreshActions
+    // runs on all sorts of things, and none of them should cut a toggle short.
+    if (!flipped && animate && faceSwapping(startDrawBtn_)) return;
+    if (flipped) startDrawBtn_->setDefaultAction(want);   // icon/tooltip/enabled/click target
+    const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    FaceSpec face;
+    face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
+    face.label = want->iconText();   // the short toolbar word; the menus keep the long one
+    face.iconSize = kToolIcon;
+    face.glyphColor = drawing ? QColor(Qt::white) : pal.accent;
+    face.textColor = face.glyphColor;
+    face.halo = drawing && accentNeedsGlyphShadow(pal.accent);
+    // The fill flip is hidden at the swap's pivot, where the face is invisible. It SETS the
+    // state (never toggles it), so a superseded swap can be dropped without stranding it.
+    auto applyFill = [this, drawing] {
+      startDrawBtn_->setProperty("drawToggle", drawing ? QStringLiteral("on")
+                                                       : QStringLiteral("idle"));
+      startDrawBtn_->style()->unpolish(startDrawBtn_);
+      startDrawBtn_->style()->polish(startDrawBtn_);
+    };
+    swapFace(startDrawBtn_, face, applyFill, animate && flipped ? kFaceSwapMs : 0);
+  }
+
+  // Line ✎ / Rect ▭ — the same swap, no accent state of its own (it picks the mode, it does
+  // not report a live session). Port of drawingApp.js syncDrawModeUI.
+  void MainWindow::syncDrawModeFace(bool rect, bool animate) {
+    if (!drawModeBtn_) return;
+    FaceSpec face;
+    face.glyph = rect ? QStringLiteral("rect-filled") : QStringLiteral("pencil");
+    face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
+    face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
+    face.glyphColor = iconColor_;
+    face.textColor = themePalette(resolveDark(settings_.themeMode), settings_.accentColor).textMain;
+    drawModeBtn_->setToolTip(rect ? "Drawing mode: Rectangle (click to switch to Line)"
+                                  : "Drawing mode: Line (click to switch to Rectangle)");
+    const bool flipped =
+        drawModeBtn_->property(kFaceLabelProperty).toString() != face.label;
+    swapFace(drawModeBtn_, face, {}, animate && flipped ? kFaceSwapMs : 0);
   }
 
   // The glyph colour a TOOLBAR button wants for `act`. Destructive actions sit on a solid
@@ -324,6 +377,26 @@ namespace stencil::gui {
       // section they belong to. Settings stays a bordered ghost, as in the browser.
       const QVariant sect = b->property("toolSection");
       if (!sect.isValid()) continue;
+      // The Start/Stop toggle opts OUT of the section fill: its accent says which state it
+      // is in (QToolButton[drawToggle]), so a permanent accent chip would say nothing.
+      // Both actions have to restore its face, since either one's enable/disable re-copies
+      // that action's menu glyph onto the button.
+      if (b == startDrawBtn_) {
+        b->setProperty("toolFill", QString());
+        if (!b->property("fillSync").toBool()) {
+          b->setProperty("fillSync", true);
+          // A REPAINT, not a transition: the state change itself comes through
+          // refreshActions and gets the swap, and this must not pre-empt it (the
+          // enable/disable that starts a session fires first).
+          for (QAction* state : {actStartDraw_, actStopDraw_})
+            connect(state, &QAction::changed, b, [b] { repaintFace(b); });
+        }
+        syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
+        b->style()->unpolish(b);
+        b->style()->polish(b);
+        b->update();
+        continue;
+      }
       // No fill for the Settings ghosts, for a button tagged toolGhost (Fit to window), nor
       // for a CHECKABLE toggle: on those the accent means "on" (browser #chat-btn /
       // .active), so it comes from QToolButton:checked.

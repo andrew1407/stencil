@@ -1,6 +1,7 @@
 #include "shortcutsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "filterFade.hpp"  // rows fade in/out with the search, never blink
 #include <QDialogButtonBox>
 #include <QGridLayout>
 #include <QKeySequenceEdit>
@@ -78,10 +79,11 @@ namespace stencil::gui {
     for (const Row& row : rows_) {
       const bool match = q.isEmpty() || row.label.toLower().contains(q) ||
                          row.id.toLower().contains(q);
-      // Hide all three cells so the grid row collapses when filtered out.
-      if (row.labelWidget) row.labelWidget->setVisible(match);
-      if (row.edit) row.edit->setVisible(match);
-      if (row.reset) row.reset->setVisible(match);
+      // All three cells fade together, then hide, so the grid row collapses once it has
+      // gone (a grid has no slot to shrink, so this is the fade alone — support/filterFade).
+      fadeFiltered(row.labelWidget, match);
+      fadeFiltered(row.edit, match);
+      fadeFiltered(row.reset, match);
     }
   }
 

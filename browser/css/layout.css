@@ -229,6 +229,34 @@ button.danger:hover {
     width: 5.5rem;
     justify-content: center;
 }
+/* The Start/Stop toggle is an ACCENT toggle, not a status light: outlined while idle
+   ("Start"), accent-filled while drawing ("Stop") — the .pill-toggle convention in
+   components.css. It deliberately opts out of the global green `button.active`, which
+   stays as-is for the other active controls (#fullscreen-toggle, #incognito-toggle,
+   the chat button). box-sizing is border-box, so the outline costs no width and the
+   pinned .btn-draw-fixed box never changes between the two states. */
+#draw-toggle {
+    border: 1px solid transparent;
+}
+#draw-toggle:not(:disabled) {
+    background: transparent;
+    border-color: var(--accent);
+    color: var(--accent);
+    text-shadow: none;   /* accent-on-neutral: the on-accent halo would only muddy it */
+}
+#draw-toggle:not(:disabled) .ic { filter: none; }
+#draw-toggle:not(:disabled):hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* Drawing: filled, with the app's on-accent foreground — white plus the light-accent
+   halo (--glyph-text-shadow / --glyph-shadow), so a yellow accent stays legible. */
+#draw-toggle.active:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    text-shadow: var(--glyph-text-shadow);
+}
+#draw-toggle.active:not(:disabled) .ic { filter: var(--glyph-shadow); }
+#draw-toggle.active:not(:disabled):hover { background: var(--accent-2); }
 /* Icon-only buttons: square-ish, glyph centered; disabled keeps a clear look. */
 .btn-icon {
     display: inline-flex;
@@ -355,12 +383,19 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     margin-top: 20px;
     border: 2px solid var(--border-canvas);
     max-width: 100%;
-    /* The end of the fill chain: with no image it takes every remaining pixel; with one,
-       ZoomPan.syncViewportHeight caps it with an inline max-height so the frame hugs the
-       picture and grows with zoom. */
+    /* The end of the fill chain — and the frame ALWAYS takes every remaining pixel, image or
+       not, at any zoom: the picture is centred inside it (.canvas-container below), never
+       shrink-wrapped by it. ZoomPan.syncViewportHeight pins that height in px (measured, so
+       a tall canvas scrolls INSIDE the frame instead of stretching the page); these two are
+       what fill the box before it has run. */
     flex: 1 1 auto;
     min-height: 0;
     background: var(--bg-page);
+    /* A column flex box purely so the canvas can centre itself with `margin: auto` below.
+       Column, not row: the sticky .incognito-frame is a flex item too and must stay ABOVE
+       the picture in flow, not beside it. */
+    display: flex;
+    flex-direction: column;
     /* Cursor: see the canvas-cursor block below — the aim is state-driven, not a constant. */
     cursor: default;
     /* anchor for the idle blank-image overlay (.idle-create) */
@@ -376,11 +411,16 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 .canvas-container {
     position: relative;
-    display: inline-block;
-    /* Baseline-aligned inline-blocks reserve descender space under the box, so the
-       viewport scrolled ~4px past a canvas fitted exactly to it. Top-align instead —
-       inline-block still shrink-wraps the canvas. */
-    vertical-align: top;
+    /* Centre a picture smaller than the frame, both axes. `margin: auto` — NOT
+       justify/align-content or text-align: auto margins take the free space when there is
+       any and collapse to 0 when there isn't, so a zoomed-in canvas still scrolls all the
+       way to its top-left edge instead of overflowing equally in both directions. */
+    margin: auto;
+    /* Pin it to the canvas's own size: a flex item defaults to shrinking, which would
+       squash the picture instead of letting the viewport scroll. (This is also what
+       retires the old inline-block — a flex item sits on no baseline, so the descender
+       gap that once scrolled a fitted canvas ~4px cannot come back.) */
+    flex: none;
     /* No border here — border is on viewport */
 }
 /* Golden frame while editing a project stored on a server (mirrors the projects

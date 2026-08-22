@@ -24,6 +24,7 @@
 #include "mediaLoader.hpp"
 #include "popover.hpp"
 #include "iconSet.hpp"
+#include "faceSwap.hpp"
 #include "guiHelpers.hpp"
 #include "theme.hpp"
 #include "modalReveal.hpp"
@@ -2048,6 +2049,184 @@ class MainWindowGuiTest : public QObject {
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Line"));
     QCOMPARE(mode->width(), modeWidth);
+    beat();
+  }
+
+  // The Start/Stop toggle is an ACCENT toggle, not a status light (browser #draw-toggle):
+  // OUTLINED while idle — accent ring, accent glyph, neutral face — and accent-FILLED with
+  // the on-accent white while a session is live. The bug this locks down: it carried the
+  // sections' permanent toolFill, so both states were the same filled accent chip and the
+  // button said nothing about which one you were in. The accent is the USER's, so every
+  // assertion is made again after switching it — a hard-coded colour cannot pass twice.
+  void drawToggleWearsTheThemeAccentPerState() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QToolButton* btn = win.startDrawBtn_;
+    QVERIFY(btn);
+    QVERIFY2(btn->property("toolFill").toString().isEmpty(),
+             "the draw toggle must opt out of the section fill — its accent IS its state");
+
+    const auto near = [](const QColor& a, const QColor& b, int tol) {
+      return qAbs(a.red() - b.red()) < tol && qAbs(a.green() - b.green()) < tol
+             && qAbs(a.blue() - b.blue()) < tol;
+    };
+    // The chip's own ground, read well inside it (clear of the glyph and the word).
+    const auto ground = [btn] {
+      QTest::qWait(30);
+      const QImage im = btn->grab().toImage();
+      return im.pixelColor(3, im.height() / 2);
+    };
+    // …and its 1px outline, at the same height.
+    const auto outline = [btn] {
+      const QImage im = btn->grab().toImage();
+      return im.pixelColor(0, im.height() / 2);
+    };
+    // The glyph's tint: the mean of the pixels the line-art actually covers.
+    const auto glyph = [btn] {
+      const QImage im = btn->icon().pixmap(QSize(18, 18), 1.0).toImage();
+      long r = 0, g = 0, b = 0, n = 0;
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x) {
+          const QColor c = im.pixelColor(x, y);
+          if (c.alpha() > 200) { r += c.red(); g += c.green(); b += c.blue(); ++n; }
+        }
+      return n ? QColor(int(r / n), int(g / n), int(b / n)) : QColor();
+    };
+
+    for (const QString& accentKey : {QStringLiteral("violet"), QStringLiteral("grass")}) {
+      auto s = win.settings_;
+      s.accentColor = accentKey;
+      win.applySettings(s, /*persist=*/false);
+      QTest::qWait(80);
+      const QColor accent = stencil::gui::accentPrimary(accentKey);
+      const QString why = QStringLiteral(" (accent %1)").arg(accentKey);
+
+      // ── Idle: outlined. Accent ring + accent glyph, and NO accent fill.
+      QVERIFY(!canvas->isDrawing());
+      QCOMPARE(btn->property("drawToggle").toString(), QString("idle"));
+      QVERIFY2(near(outline(), accent, 40), qPrintable("idle draws no accent ring" + why));
+      QVERIFY2(!near(ground(), accent, 50), qPrintable("idle is accent-FILLED" + why));
+      QVERIFY2(near(glyph(), accent, 40), qPrintable("the idle ▶ is not accent-tinted" + why));
+
+      // ── Drawing: filled, with the on-accent white the app's other filled accent
+      // controls use (chatDock's send/attach/gear).
+      QAction* start = actionByText(&win, "Start Drawing");
+      QVERIFY(start);
+      start->trigger();
+      QTRY_VERIFY(canvas->isDrawing());
+      QTRY_COMPARE(btn->property("drawToggle").toString(), QString("on"));
+      QVERIFY2(near(ground(), accent, 50), qPrintable("drawing is not accent-filled" + why));
+      QVERIFY2(near(glyph(), QColor(Qt::white), 40),
+               qPrintable("the ■ is not the on-accent foreground" + why));
+      btn->defaultAction()->trigger();
+      QTRY_VERIFY(!canvas->isDrawing());
+      QTRY_COMPARE(btn->property("drawToggle").toString(), QString("idle"));
+    }
+
+    // ── Disabled still looks disabled: with no image there is nothing to draw on, and a
+    // toggle you cannot press must not wear the accent in either shape.
+    MainWindow empty(nullptr, false);
+    empty.resize(1400, 700);
+    empty.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&empty));
+    QTest::qWait(150);
+    QToolButton* dead = empty.startDrawBtn_;
+    QVERIFY(dead);
+    QVERIFY2(!dead->isEnabled(), "the draw toggle is live with no image loaded");
+    const QColor deadAccent = stencil::gui::accentPrimary(empty.settings_.accentColor);
+    const QImage im = dead->grab().toImage();
+    QVERIFY2(!near(im.pixelColor(3, im.height() / 2), deadAccent, 50),
+             "a disabled draw toggle is accent-filled");
+    QVERIFY2(!near(im.pixelColor(0, im.height() / 2), deadAccent, 40),
+             "a disabled draw toggle keeps its accent ring");
+    beat();
+  }
+
+  // Both Draw toggles cross over through the ONE shared swap (support/faceSwap.hpp): the
+  // glyph turns and the word fades out, they are exchanged at the invisible pivot, and the
+  // new pair turns back in. What must hold whatever the user does: the button never
+  // resizes, a burst of toggles always lands on the REAL state, and reduced motion goes
+  // straight to the end state. (The suite runs with STENCIL_NO_ANIM=1, so this case takes
+  // it off for the animated half and puts it back for the last one.)
+  void drawTogglesSwapTheirFaceAndConverge() {
+    const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
+    qunsetenv("STENCIL_NO_ANIM");
+    const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
+
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QToolButton* btn = win.startDrawBtn_;
+    QToolButton* mode = win.drawModeBtn_;
+    QVERIFY(btn && mode);
+    const QSize drawSize = btn->size();
+    const QSize modeSize = mode->size();
+
+    // ── Start → Stop: the word is exchanged at the pivot, not at the click.
+    QAction* start = actionByText(&win, "Start Drawing");
+    QVERIFY(start);
+    start->trigger();
+    QVERIFY2(canvas->isDrawing(), "the drawing state itself must not wait for the animation");
+    QVERIFY2(stencil::gui::faceSwapping(btn), "the toggle snapped instead of swapping");
+    QCOMPARE(btn->text(), QString("Start"));   // still the outgoing face
+    QCOMPARE(btn->size(), drawSize);           // …and the row has not shifted
+    QTRY_COMPARE(btn->text(), QString("Stop"));
+    QTRY_VERIFY(!stencil::gui::faceSwapping(btn));
+    QCOMPARE(btn->size(), drawSize);
+    QCOMPARE(btn->property("drawToggle").toString(), QString("on"));
+    QVERIFY2(btn->styleSheet().isEmpty(), "the swap's colour override outlived it");
+
+    // ── Line ↔ Rect: the same swap, the same pinned box.
+    QCOMPARE(mode->text(), QString("Line"));
+    mode->click();
+    QVERIFY2(stencil::gui::faceSwapping(mode), "the mode toggle snapped instead of swapping");
+    QCOMPARE(mode->size(), modeSize);
+    QTRY_COMPARE(mode->text(), QString("Rect"));
+    QTRY_VERIFY(!stencil::gui::faceSwapping(mode));
+    QCOMPARE(mode->size(), modeSize);
+    QVERIFY2(mode->toolTip().contains("Rectangle"), "the tooltip did not follow the mode");
+    mode->click();
+    QTRY_COMPARE(mode->text(), QString("Line"));
+    QVERIFY(mode->toolTip().contains("Line"));
+
+    // ── Rapid toggling (a held shortcut): each swap supersedes the one in flight, and
+    // what the button ends up saying is the state the canvas is actually in.
+    for (int i = 0; i < 6; ++i) {
+      QAction* live = btn->defaultAction();
+      QVERIFY(live && live->isEnabled());
+      live->trigger();
+      QTest::qWait(stencil::gui::kFaceSwapMs / 5);   // interrupt the swap in flight
+      mode->click();
+      QTest::qWait(stencil::gui::kFaceSwapMs / 5);
+    }
+    QTRY_VERIFY(!stencil::gui::faceSwapping(btn) && !stencil::gui::faceSwapping(mode));
+    QCOMPARE(btn->text(), canvas->isDrawing() ? QString("Stop") : QString("Start"));
+    QCOMPARE(btn->property("drawToggle").toString(),
+             canvas->isDrawing() ? QString("on") : QString("idle"));
+    QCOMPARE(btn->defaultAction()->text(),
+             canvas->isDrawing() ? QString("Stop Drawing") : QString("Start Drawing"));
+    QCOMPARE(mode->text(),
+             canvas->drawMode() == CanvasWidget::DrawMode::Rect ? QString("Rect")
+                                                                : QString("Line"));
+    QCOMPARE(btn->size(), drawSize);
+    QCOMPARE(mode->size(), modeSize);
+    QVERIFY(btn->styleSheet().isEmpty() && mode->styleSheet().isEmpty());
+
+    // ── Reduced motion: the end state at once, no animation to wait on.
+    qputenv("STENCIL_NO_ANIM", "1");
+    const bool wasDrawing = canvas->isDrawing();
+    btn->defaultAction()->trigger();
+    QCOMPARE(canvas->isDrawing(), !wasDrawing);
+    QVERIFY2(!stencil::gui::faceSwapping(btn), "reduced motion still animated the swap");
+    QCOMPARE(btn->text(), canvas->isDrawing() ? QString("Stop") : QString("Start"));
+    QCOMPARE(btn->property("drawToggle").toString(),
+             canvas->isDrawing() ? QString("on") : QString("idle"));
+    mode->click();
+    QVERIFY2(!stencil::gui::faceSwapping(mode), "reduced motion still animated the mode swap");
+    QCOMPARE(mode->text(),
+             canvas->drawMode() == CanvasWidget::DrawMode::Rect ? QString("Rect")
+                                                                : QString("Line"));
     beat();
   }
 

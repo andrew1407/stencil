@@ -64,6 +64,10 @@ export function updateButtons(app) {
   setDisabled('draw-toggle', !hasImage || ro);
   app.syncDrawToggleUI();
   setDisabled('draw-mode-toggle', !hasImage || ro);
+  // Both Draw-group faces are owned here. Syncing the mode toggle too is what records its
+  // CURRENT face, so the first Line↔Rect switch of the session is a swap and not a silent
+  // first paint — and an unchanged face costs nothing (motion.js skips the rewrite).
+  app.syncDrawModeUI();
   setDisabled('crop-image', !hasImage);
   setDisabled('rotate-left', !hasImage);
   setDisabled('rotate-right', !hasImage);

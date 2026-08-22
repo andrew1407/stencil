@@ -2,6 +2,7 @@
 #include "../app/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
 #include "../support/disintegrateOverlay.hpp"  // disconnected rows come apart
 #include "../support/dissolveEffect.hpp"       // scroll-edge grain dissolve
+#include "../support/filterFade.hpp"           // filtered-out rows fade + collapse
 #include "../support/guiHelpers.hpp"           // confirmYesNo()
 #include "../support/modalReveal.hpp"          // motionReduced()
 
@@ -21,6 +22,7 @@
 #include <QGuiApplication>
 #include <QFont>
 #include <QFrame>
+#include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -404,6 +406,8 @@ namespace stencil::gui {
       doomed_.clear();
       rebuildList();
     }
+    // …and the same for a filter fade: nothing half-faded survives into the close flight.
+    if (filterFade_) filterFade_->finishNow();
     QDialog::done(r);
   }
 
@@ -425,6 +429,8 @@ namespace stencil::gui {
     for (int i = 0; i < list_->count(); ++i) {
       QWidget* w = list_->itemWidget(list_->item(i));
       if (!w || w->isHidden()) continue;
+      // A row mid-filter-fade owns its own opacity effect; two writers would flicker.
+      if (w->property(kFilterFadeProperty).toBool()) continue;
       const int top = w->mapTo(vp, QPoint(0, 0)).y();
       const int h = w->height();
       const double d = scrollable ? revealDissolve(top, top + h, viewH) : 0.0;
@@ -498,6 +504,37 @@ namespace stencil::gui {
     });
   }
 
+  // The row transition: a filtered-out row fades and collapses its slot (support/
+  // filterFade) — deliberately quicker and quieter than the disconnect scatter, so
+  // "excluded by the picker" never reads as "forgotten".
+  ListFilterFade* ConnectDialog::filterFade() {
+    if (filterFade_ || !list_) return filterFade_;
+    filterFade_ = new ListFilterFade(list_);
+    filterFade_->writeRow = [this](QListWidgetItem* it, double p) {
+      const QVariant full = it->data(kFilterFullHeightRole);
+      if (full.isValid()) it->setSizeHint(QSize(rowWidth(), filterHeight(full.toInt(), p)));
+      QWidget* w = list_->itemWidget(it);
+      if (!w) return;
+      if (p >= 1.0) {   // settled in — hand the row back to the scroll-edge reveal
+        if (w->property(kFilterFadeProperty).toBool()) {
+          w->setProperty(kFilterFadeProperty, false);
+          w->setGraphicsEffect(nullptr);
+        }
+        return;
+      }
+      w->setProperty(kFilterFadeProperty, true);   // applyRowReveal skips it meanwhile
+      auto* fx = dynamic_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
+      if (!fx) {
+        fx = new QGraphicsOpacityEffect(w);
+        w->setGraphicsEffect(fx);
+      }
+      fx->setOpacity(filterOpacity(p));
+    };
+    // The edge dissolve reads laid-out geometry, so it re-runs after every frame.
+    filterFade_->afterFrame = [this] { applyRowReveal(); };
+    return filterFade_;
+  }
+
   void ConnectDialog::applyKindFilter() {
     if (!list_) return;
     const QString mode =
@@ -506,16 +543,19 @@ namespace stencil::gui {
     // whenever something matches (their indices line up with manager_->urls()).
     for (int i = list_->count() - 1; i >= 0; --i)
       if (list_->item(i)->data(Qt::UserRole + 1).toBool()) delete list_->takeItem(i);
+    auto wanted = [&mode](QListWidgetItem* it) {
+      if (it->data(Qt::UserRole).isNull()) return true;   // "No servers connected." line
+      const bool admin = it->data(Qt::UserRole).toBool();
+      return mode == QLatin1String("all") || (mode == QLatin1String("admin")) == admin;
+    };
     int rows = 0, shown = 0;
     for (int i = 0; i < list_->count(); ++i) {
       QListWidgetItem* it = list_->item(i);
-      if (it->data(Qt::UserRole).isNull()) continue;   // "No servers connected." line
+      if (it->data(Qt::UserRole).isNull()) continue;
       ++rows;
-      const bool admin = it->data(Qt::UserRole).toBool();
-      const bool show = mode == QLatin1String("all") || (mode == QLatin1String("admin")) == admin;
-      it->setHidden(!show);
-      if (show) ++shown;
+      if (wanted(it)) ++shown;
     }
+    if (auto* fade = filterFade()) fade->apply(wanted);
     if (rows == 0 || shown > 0) return;
     // Appended AFTER the rows, so the indices above stay valid while it is up.
     auto* none = new QListWidgetItem(mode == QLatin1String("admin")
@@ -732,7 +772,9 @@ namespace stencil::gui {
       list_->setItemWidget(item, row);
       // Sized AFTER parenting (the cascaded sheet is then in the hint, so the outline
       // has room) and capped to the viewport, so a long URL elides instead of scrolling.
-      item->setSizeHint(QSize(rowWidth(), std::max(row->sizeHint().height(), kRowHeight)));
+      const int rowH = std::max(row->sizeHint().height(), kRowHeight);
+      item->setSizeHint(QSize(rowWidth(), rowH));
+      item->setData(kFilterFullHeightRole, rowH);   // the slot the filter collapses
     }
     applyKindFilter();
     updateBatchBar();

@@ -209,6 +209,119 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
 // falling ash and read as appearing before the removal finished. Pure — unit-tested.
 export const emptyStateVisible = (count, holding = false) => count === 0 && !holding;
 
+// ── Filtering a list, in and out ────────────────────────────────────────────
+// A row the FILTER stopped admitting is not a row that was DELETED: no particles, and a
+// shorter, lighter collapse than the destructive leave above — narrowing a list must
+// never read as destroying part of it. Arrivals play the mirror of it.
+export const FILTER_LEAVE_MS = 150;
+export const FILTER_ENTER_MS = 180;
+export const FILTER_OUT_CLASS = 'filter-out';
+export const FILTER_IN_CLASS = 'filter-in';
+
+// Does the user want motion at all? Never throws (no matchMedia outside a browser).
+export const prefersReducedMotion = () => {
+  try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+};
+
+// Which keys arrived and which went away between two renders, in render order. Pure.
+export const diffListKeys = (prev = [], next = []) => {
+  const had = new Set(prev);
+  const has = new Set(next);
+  return { entered: next.filter((k) => !had.has(k)), left: prev.filter((k) => !has.has(k)) };
+};
+
+// Play ONE row out as a filter exclusion (no particles, the light collapse), then run
+// `done`. Like leaveThenRemove, `done` ALWAYS runs — no element or reduced motion just
+// skips the animation. For a whole re-render use createFilterTransition below.
+export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
+                                                   reduced = prefersReducedMotion, setTimer = setTimeout } = {}) {
+  const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
+  if (!el?.classList || reduced()) { finish(); return Promise.resolve(); }
+  if (el.getBoundingClientRect) {
+    const h = el.getBoundingClientRect().height;
+    if (h) el.style?.setProperty?.('--leave-h', `${h}px`);
+  }
+  el.classList.add(FILTER_OUT_CLASS);
+  return new Promise((resolve) => setTimer(() => { finish(); resolve(); }, ms));
+}
+
+// Wrap a list that re-renders WHOLESALE (`innerHTML = ''` + rebuild) so a filter change
+// animates both ways: call begin() before the wipe and end() after the rebuild. Rows
+// whose key is new ramp in; rows whose key is gone are put back where they stood purely
+// to play their exit ("ghosts") and dropped when it ends. Rows are matched by
+// `el.dataset[keyAttr]`; anything without one (an empty-state row) is ignored.
+//
+// Correctness outranks the decoration: begin() kills every ghost still on screen first,
+// so a burst of filter changes can neither stack animations nor strand a row — after
+// end() the list holds exactly the rebuilt set, plus ghosts that are on their way out
+// and belong to nothing. Under reduced motion nothing is added at all. Timers and the
+// media query are injectable, so the semantics are unit-tested.
+export const createFilterTransition = ({
+  list, keyAttr = 'key', ms = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS,
+  reduced = prefersReducedMotion, setTimer = setTimeout, clearTimer = clearTimeout,
+  onLeave = () => {},
+} = {}) => {
+  let ghosts = [];   // { el, timer } — on screen only to finish their exit
+  let taken = [];    // begin()'s snapshot of the live rows
+  const keyOf = (el) => (el && el.dataset ? el.dataset[keyAttr] : undefined);
+  const kids = () => [...(list && list.children ? list.children : [])];
+
+  const drop = (g) => {
+    clearTimer(g.timer);
+    g.el.remove?.();
+    ghosts = ghosts.filter((x) => x !== g);
+  };
+  // Every ghost goes NOW: before each render (the same row must never animate twice)
+  // and on teardown.
+  const clear = () => {
+    for (const g of [...ghosts]) drop(g);
+    ghosts = [];
+  };
+
+  const begin = () => {
+    clear();
+    taken = kids().filter((el) => keyOf(el) != null).map((el) => ({ el, key: keyOf(el) }));
+    return taken.map((t) => t.key);
+  };
+
+  // `skipEnter` = keys whose arrival the caller animates itself (a freshly added row
+  // materializing), so the two effects don't stack on one element.
+  const end = ({ skipEnter = [] } = {}) => {
+    const before = taken;
+    taken = [];
+    const rows = kids();
+    const diff = diffListKeys(before.map((t) => t.key), rows.map(keyOf).filter((k) => k != null));
+    if (reduced()) return diff;   // straight to the final state, no classes, no ghosts
+    const skip = new Set(skipEnter);
+    const arriving = new Set(diff.entered.filter((k) => !skip.has(k)));
+    for (const el of rows) {
+      if (!arriving.has(keyOf(el)) || !el.classList) continue;
+      el.classList.add(FILTER_IN_CLASS);
+      setTimer(() => el.classList.remove(FILTER_IN_CLASS), enterMs + 40);
+    }
+    const gone = new Set(diff.left);
+    before.forEach(({ el, key }, i) => {
+      if (!gone.has(key) || !el.classList) return;
+      onLeave(el);
+      // Freeze the height so the collapse has a start value — `height: auto` has none
+      // (the same trick leaveThenRemove plays with --leave-h).
+      const h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
+      if (h) el.style?.setProperty?.('--leave-h', `${h}px`);
+      el.classList.remove(FILTER_IN_CLASS);
+      el.classList.add(FILTER_OUT_CLASS);
+      const at = (list.children && list.children[i]) || null;   // back where it stood
+      if (typeof list.insertBefore === 'function') list.insertBefore(el, at);
+      else list.appendChild(el);
+      const g = { el, timer: null };
+      g.timer = setTimer(() => drop(g), ms + 40);
+      ghosts.push(g);
+    });
+    return diff;
+  };
+
+  return { begin, end, clear, get ghostCount() { return ghosts.length; } };
+};
+
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
 // A removed element comes apart: cloned once per tile, each clone clipped to its own
 // grid cell, the cells drifting off in a staggered sweep. Mirror of browser
