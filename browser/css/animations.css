@@ -1368,7 +1368,12 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    so the first frame is the app's own dot grain rather than a mosaic of chips. The
    speck is a GRAIN inside its cell, not the cell: motion.js sizes and centres it, and
    caps it at SURFACE_SPECK_PX however far the mote budget let the cell grow. */
-.dust-mote { border-radius: 50%; }
+.dust-mote {
+    border-radius: 50%;
+    /* A painted tile IS the mote, so it sizes and places itself rather than filling the
+       host box — the `inset: 0` above would fight its own left/top/width/height. */
+    inset: auto;
+}
 @media (prefers-reduced-motion: reduce) {
     /* motion.js never adds these under reduced motion; this is the preference flipped
        mid-flight — the surface must land at its true opacity, not a keyframed one. */
