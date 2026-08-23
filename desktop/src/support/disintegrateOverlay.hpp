@@ -8,6 +8,7 @@
 // drives the lot, so it stays a single repaint per frame however many cells there are.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
+#include <QColor>
 #include <QEasingCurve>
 #include <QPainter>
 #include <QPointF>
@@ -46,6 +47,13 @@ namespace stencil::gui {
     static constexpr int kSurfaceCellPx = 6;    // browser SURFACE_MOTE_PX
     static constexpr int kSurfaceMaxCells = 3000;
     static constexpr double kSurfaceSpreadPx = 34;   // browser SURFACE_SPREAD
+    // How far a surface's motes are lifted towards the window's own INK before they fly
+    // (browser motion.js MOTE_INK). Without it the cloud is invisible: a window and the
+    // one behind it are the same family of colour, so a dark dialog came apart into dark
+    // motes over a dark page and the flight simply could not be seen. Mixing in the ink
+    // keeps every mote the window's own colour and gives it something to read against,
+    // and it flips with the theme for free — ink always contrasts with its background.
+    static constexpr double kSurfaceInkMix = 0.42;
 
     // Which way the sweep runs. A ROW erodes upward off a list (Rows = bottom→top);
     // an IMAGE falls apart from its top edge and the pieces drop (Fall = top→bottom);
@@ -155,9 +163,9 @@ namespace stencil::gui {
     // journey is out to that point and a layer the size of the surface would clip it.
     static DisintegrateOverlay* overSurface(const QPixmap& snap, const QRect& picture,
                                             QWidget* host, const QPoint& target, bool gather,
-                                            int ms = 0) {
+                                            int ms = 0, const QColor& ink = QColor()) {
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
-      auto* fx = new DisintegrateOverlay(host, snap);
+      auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
       fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
       fx->picture_ = picture;
       fx->target_ = QPointF(target);
@@ -296,6 +304,18 @@ namespace stencil::gui {
     }
 
    private:
+    // The snapshot, mixed towards `ink` — one pass over the picture, so every mote is
+    // already lifted by the time it is drawn. An invalid ink leaves it exactly as taken.
+    static QPixmap liftedToInk(const QPixmap& snap, const QColor& ink) {
+      if (!ink.isValid() || snap.isNull()) return snap;
+      QPixmap out = snap;
+      QPainter p(&out);
+      p.setCompositionMode(QPainter::CompositionMode_SourceAtop);   // tints, never spreads
+      p.fillRect(out.rect(), QColor(ink.red(), ink.green(), ink.blue(),
+                                    qRound(255 * kSurfaceInkMix)));
+      return out;
+    }
+
     DisintegrateOverlay(QWidget* host, const QPixmap& snap) : QWidget(host), snap_(snap) {
       setObjectName(kObjectName);   // findable without a Q_OBJECT (this class stays MOC-free)
       setAttribute(Qt::WA_TransparentForMouseEvents, true);

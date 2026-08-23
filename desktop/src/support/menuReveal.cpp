@@ -35,9 +35,12 @@ namespace stencil::support {
       const QPixmap shot = m->grab();
       if (shot.isNull()) return false;
       const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
+      // Lifted towards the menu's own text colour, so its motes read against the window
+      // behind them whatever the theme is (DisintegrateOverlay::kSurfaceInkMix).
       if (!gui::DisintegrateOverlay::overSurface(shot, box, host,
                                                  host->mapFromGlobal(originGlobal), true,
-                                                 kMenuDustMs))
+                                                 kMenuDustMs,
+                                                 m->palette().color(QPalette::WindowText)))
         return false;
       // The menu waits behind its own dust and fades up as the last motes land.
       auto* fade = new QPropertyAnimation(m, "windowOpacity", m);

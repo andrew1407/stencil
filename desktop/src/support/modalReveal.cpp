@@ -101,12 +101,17 @@ namespace stencil::support {
     // stays as the fallback for anything the dust declines (an unmeasurable box, a
     // snapshot that failed), so a window never simply blinks.
     bool flySurfaceDust(QWidget* host, const QPixmap& shot, const QRect& windowGlobal,
-                        const QRect& iconGlobal, bool opening) {
+                        const QRect& iconGlobal, bool opening, const QColor& ink) {
       if (!host || shot.isNull() || !windowGlobal.isValid()) return false;
       const QRect box(host->mapFromGlobal(windowGlobal.topLeft()), windowGlobal.size());
       const QPoint point = host->mapFromGlobal(iconGlobal.center());
-      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening) != nullptr;
+      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening, 0, ink)
+             != nullptr;
     }
+
+    // The window's own text colour — what its motes are lifted towards, so a dark window
+    // dusts light and a light one dusts dark (DisintegrateOverlay::kSurfaceInkMix).
+    QColor inkOf(const QWidget& w) { return w.palette().color(QPalette::WindowText); }
 
     // The window waits behind its own dust and fades up as the last motes land — the
     // browser's `@keyframes surfaceForm`, which holds it invisible for the first 55% of
@@ -159,7 +164,7 @@ namespace stencil::support {
       const QRect from = opening ? icon : target;
       const QRect to = opening ? target : icon;
       if (opening) w.setWindowOpacity(0.0);
-      if (flySurfaceDust(host, shot, target, icon, opening)) {
+      if (flySurfaceDust(host, shot, target, icon, opening, inkOf(w))) {
         if (opening && guard) fadeUpBehindDust(guard);
         if (after) after();
         return;
@@ -208,7 +213,7 @@ namespace stencil::support {
         if (!host || !target.isValid() || shot.isNull()) return;
         const QRect to = originRect(anchor_.data(), target, anchorRect_);
         if (to == target) return;
-        if (flySurfaceDust(host, shot, target, to, false)) return;
+        if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg_))) return;
         QLabel* ghost = makeGhost(host, shot, target);
         // Painted NOW rather than on the next posted update: one deferred frame here is
         // exactly the gap the dialog's disappearance shows through.
@@ -279,7 +284,7 @@ namespace stencil::support {
       if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
       const QRect from = originRect(anchorGuard.data(), target, anchorRect);
       if (from == target) { restore(); return; }
-      if (flySurfaceDust(host, shot, target, from, true)) { fadeUpBehindDust(guard); return; }
+      if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
       QLabel* ghost = makeGhost(host, shot, from);
       flyGhost(ghost, host, from, target, kOpenMs, 0.0, 1.0, 0.18,
                QEasingCurve::OutCubic, restore);
