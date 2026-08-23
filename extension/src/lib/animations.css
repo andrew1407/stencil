@@ -73,8 +73,13 @@ select:focus,
 }
 /* A part moves in the glyph's own 24-unit space, so 1px here is 1/24 of the icon at any
    size. The root <svg> is an HTML box instead, so its whole-glyph moves are written as
-   percentages of that box (1 unit = 4.1667%) to stay size-independent. */
-.ic * { transform-box: view-box; }
+   percentages of that box (1 unit = 4.1667%) to stay size-independent.
+   transform-origin is pinned to the glyph CENTRE as well: an SVG child's initial
+   transform-origin is `0 0`, not the 50% 50% an HTML box gets, so every part that
+   SCALES or TURNS pivoted on the view-box corner instead — the fit icon's inner frame
+   swelled away into a corner rather than growing in place. The per-part overrides
+   below (a hinge, a part's own centre) still outrank this. */
+.ic * { transform-box: view-box; transform-origin: 50% 50%; }
 /* Every control that holds a glyph on these surfaces is a <button>: the header
    icon-btns, the row "…" menu items and submenu heads, the logo drag-menu items, the
    crop toolbar, the accent dropdown trigger and the chat composer. */
@@ -90,10 +95,9 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-chevron-down  { transform: translateY(calc(var(--ic-on) * 8.33%)); }
 .ic-chevron-right { transform: translateX(calc(var(--ic-on) * 8.33%)); }
 .ic-send          { transform: translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%)); }
-/* A quarter-turn button turns; the gear turns exactly one tooth and the refresh wheel
-   exactly half a revolution, so both come to rest looking untouched. */
-.ic-rotate-ccw    { transform: rotate(calc(var(--ic-on) * -30deg)); }
-.ic-rotate-cw     { transform: rotate(calc(var(--ic-on) * 30deg)); }
+/* The gear turns exactly one tooth and the refresh wheel exactly half a revolution, so
+   both come to rest looking untouched. (The quarter-turn pair turn WHOLE revolutions
+   instead — settles, below.) */
 .ic-gear          { --ic-ms: 0.3s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
 .ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
@@ -112,10 +116,6 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 /* The two sheets separate, so you can see there are two of them. */
 .ic-copy .ic-front { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * 1px)); }
 .ic-copy .ic-back  { transform: translate(calc(var(--ic-on) * -0.8px), calc(var(--ic-on) * -0.8px)); }
-/* The receiving nodes move outward, away from the source. */
-.ic-share .ic-node-tr { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * -0.9px)); }
-.ic-share .ic-node-br { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * 0.9px)); }
-.ic-monitor .ic-screen  { transform: translateY(calc(var(--ic-on) * -1.2px)); }
 /* The disguise comes apart: the hat lifts off, the glasses drop away from it. */
 .ic-incognito .ic-brim    { transform: translateY(calc(var(--ic-on) * -1px)); }
 .ic-incognito .ic-glasses { transform: translateY(calc(var(--ic-on) * 1px)); }
@@ -131,9 +131,19 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 @keyframes icmDotBounce   { 0%, 100% { transform: none; }      45% { transform: translateY(-2px); } }
 @keyframes icmBob         { 0%, 100% { transform: none; }      45% { transform: translateY(-1.6px); } }
 @keyframes icmWave        { 0%, 100% { transform: skewX(0); }  30% { transform: skewX(7deg); } 65% { transform: skewX(-5deg); } }
-@keyframes icmShiver      { 0%, 100% { transform: none; }      25% { transform: translateX(-4.17%); } 55% { transform: translateX(3.75%); } 80% { transform: translateX(-1.88%); } }
 @keyframes icmSunDrop     { 0% { transform: translateY(-1.6px); } 70% { transform: translateY(0.3px); } 100% { transform: none; } }
+@keyframes icmTurnCw      { from { transform: rotate(0); }      to { transform: rotate(360deg); } }
+@keyframes icmTurnCcw     { from { transform: rotate(0); }      to { transform: rotate(-360deg); } }
+@keyframes icmRock        { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-11deg); } 55% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@keyframes icmNodePulse   { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.45); } }
+@keyframes icmLiftOff     { 0%, 100% { transform: none; }      45% { transform: translateY(-2.6px); } }
 
+/* A quarter-turn button turns a WHOLE revolution the way it turns the image, and the
+   live-sync wheel one whole turn as well — a sync runs and completes. Each rests
+   exactly where it started, which a held part-turn never did. */
+.ic-rotate-ccw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCcw; }
+.ic-rotate-cw,
+.ic-refresh-cw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
 /* Marks that draw themselves, the way you'd make them. */
 .ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
 /* Close / clear / disconnect all mean "make this go away": the cross is struck out one
@@ -155,14 +165,25 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-sparkle .ic-dot, .ic-dots .ic-dot { --ic-ms: 0.3s; --ic-play: icmDotBounce; }
 .ic-sparkle .ic-dot:nth-of-type(2), .ic-dots .ic-dot:nth-of-type(2) { --ic-delay: 0.07s; }
 .ic-sparkle .ic-dot:nth-of-type(3), .ic-dots .ic-dot:nth-of-type(3) { --ic-delay: 0.14s; }
+/* Share: the two receiving nodes light up in turn, top then bottom — the copy reaching
+   one recipient and then the other. They SWELL rather than travel: each sits on the end
+   of a connecting line, and a move big enough to read pulled it off that end. */
+.ic-share .ic-node { --ic-ms: 0.38s; --ic-play: icmNodePulse;
+                     transform-box: fill-box; transform-origin: center; }
+.ic-share .ic-node:nth-of-type(3) { --ic-delay: 0.12s; }
+/* Open in another app: the screen lifts clear off its stand and settles back. Held at
+   1.2 units it was half a pixel at toolbar size — no motion at all, which is the very
+   thing this table exists to prevent. */
+.ic-monitor .ic-screen { --ic-ms: 0.38s; --ic-play: icmLiftOff; }
 /* The status LEDs blink, top unit then bottom. */
 .ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
 .ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
 .ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
-/* Theme: the WHOLE sun, or the whole moon, gives a quick shake in place — the `help`
-   tremor on the whole glyph. TRANSLATION, not rotation: a turn is invisible on a disc,
-   reads as a tip on a crescent, and here means an actual turn (gear, refresh). */
-.ic-moon, .ic-sun     { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmShiver; }
+/* Theme: the sun TURNS one whole revolution, rays and all, and comes to rest exactly
+   where it started. Its twin the moon WAVES instead — a small damped rock: a turn is
+   plain on a rayed disc and plain nonsense on a crescent. */
+.ic-sun               { --ic-ms: 0.7s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
+.ic-moon              { --ic-ms: 0.52s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmRock; }
 
 @media (prefers-reduced-motion: reduce) {
     /* The hover MOVE only, killed at the latch and the keyframe switch, so every glyph
@@ -684,7 +705,10 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 }
 .dust-leaving .disintegrate-tile {
     animation-name: stTileScatterSurface;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 1);
+    /* Ease-OUT both ways: the motes break away at once and drift to a stop, which is
+       what sand does. The old ease-in-out held them still for the first frames and read
+       as the surface hesitating before it came apart. */
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes stTileGatherSurface {
     0%   { opacity: 0.55;
@@ -700,7 +724,9 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 }
 /* A whole dialog cannot be cloned per cell (motion.js surfaceClones), so its motes are
    flat specks in its own colours — at mote size that is all a clone would show. Round, so
-   the first frame is the app's own dot grain rather than a mosaic of chips. */
+   the first frame is the app's own dot grain rather than a mosaic of chips. The speck is
+   a GRAIN inside its cell, not the cell: motion.js sizes and centres it, and caps it at
+   SURFACE_SPECK_PX however far the mote budget let the cell grow. */
 .dust-mote { border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) {
     /* motion.js never adds these under the preference; this is it flipped mid-flight —

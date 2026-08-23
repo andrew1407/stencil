@@ -293,7 +293,10 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
   const to = (name, hook) => MOTION.icons[name].parts.find((p) => p.hook === hook).to;
   assert.ok(to('download', 'ic-arrow').translate[1] > 0, 'download goes DOWN, into the tray');
   assert.ok(to('external', 'ic-arrow').translate[1] < 0, 'external leaves the box, upward');
-  assert.equal(to('rotate-ccw', null).rotate, -to('rotate-cw', null).rotate);
+  // The quarter-turn pair make WHOLE revolutions now, each the way it turns the image.
+  const spin = (name) => MOTION.icons[name].parts[0].keyframes.at(-1).rotate;
+  assert.equal(spin('rotate-ccw'), -360);
+  assert.equal(spin('rotate-cw'), 360);
   assert.ok(to('chevron-down', null).translate[1] > 0 && to('chevron-right', null).translate[0] > 0);
   // The crop brackets close IN on the region they would keep.
   assert.deepEqual(to('crop', 'ic-crop-bl').translate, [1, -1]);
@@ -312,23 +315,25 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
   assert.match(EXT, /overflow: visible;/);
 });
 
-test('the sun shakes, the assistant types, and the LEDs blink in order', () => {
-  // The theme pair are ONE design: the whole sun, or the whole moon, shakes side to side
-  // in place — no part choreography, and no turn (rotation here means an actual turn).
+test('the sun turns, the moon waves, the assistant types, and the LEDs blink in order', () => {
+  // Each is ONE whole-glyph design, turning about the glyph centre and nothing else.
   for (const name of ['sun', 'moon']) {
     const parts = MOTION.icons[name].parts;
-    assert.equal(parts.length, 1, `${name} shakes whole`);
+    assert.equal(parts.length, 1, `${name} moves whole`);
     assert.equal(parts[0].hook, null);
-    const kf = parts[0].keyframes;
-    assert.equal(kf[0].translate, undefined, `${name} starts at rest`);
-    assert.equal(kf.at(-1).translate, undefined, `${name} settles back into the glyph`);
-    const xs = kf.filter((k) => k.translate).map((k) => k.translate[0]);
-    assert.ok(xs.length >= 3 && xs.every((x, i) => !i || x * xs[i - 1] < 0),
-      `${name}: the throws reverse — a shake, not a slide`);
-    for (const k of kf) assert.equal(k.rotate, undefined, `${name}: the shake is a translation`);
+    assert.equal(parts[0].keyframes[0].rotate, 0, `${name} starts upright`);
+    for (const k of parts[0].keyframes)
+      assert.equal(k.translate, undefined, `${name}: the theme pair turn, they do not slide`);
   }
-  assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts);
-  assert.match(EXT, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmShiver;/);
+  // The sun makes one whole revolution; the moon rocks, each swing reversing the last.
+  assert.deepEqual(MOTION.icons.sun.parts[0].keyframes.map((k) => k.rotate), [0, 360]);
+  const rocks = MOTION.icons.moon.parts[0].keyframes.map((k) => k.rotate);
+  assert.equal(rocks.at(-1), 0, 'the moon comes back upright');
+  const swings = rocks.slice(1, -1);
+  assert.ok(swings.length >= 3 && swings.every((r, i) => !i || r * swings[i - 1] < 0),
+    'the moon waves — each swing reverses the last');
+  assert.match(EXT, /\.ic-sun\s+\{[^}]*--ic-play: icmTurnCw;/);
+  assert.match(EXT, /\.ic-moon\s+\{[^}]*--ic-play: icmRock;/);
   // Three dots, one bounce each, left to right — the typing idiom.
   const dots = MOTION.icons.sparkle.parts[0];
   assert.equal(dots.hook, 'ic-dot');

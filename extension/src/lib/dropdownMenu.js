@@ -12,10 +12,21 @@
 // component, so an outside-press check must test the menu as well as the trigger.
 
 import { popoverPosition } from './popover.js';
+import { surfaceIn, surfaceOut, settleSurface, motionReduced } from './motion.js';
 
 const GAP = 4;        // between trigger and menu
 const MARGIN = 8;     // minimum distance to a viewport edge
 const MAX_H = 280;    // the .accent-dd-menu cap, respected while fitting to the window
+// The list is sand, like every other surface in the app (js/ui/motion.js): it forms
+// from motes streaming out of its trigger and comes apart into motes pouring back in.
+const MENU_IN_MS = 340;
+const MENU_OUT_MS = 220;
+// Where those motes come from and go back to: the trigger's own centre.
+const dustPoint = (trigger) => {
+  const r = trigger?.getBoundingClientRect?.();
+  if (!r || !(r.width > 0 && r.height > 0)) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
 
 // Where each portaled menu came from, so it can be put back exactly there.
 const home = new WeakMap();
@@ -55,6 +66,12 @@ export const showMenu = (menu, trigger) => {
   menu.classList.add('dd-portal');
   menu.hidden = false;
   placeMenu(menu, trigger);
+  // Kept so hideMenu can send the motes back where they came from, whoever calls it.
+  menu.__ddTrigger = trigger;
+  // Placed first, so the motes stream at the box the list will actually occupy.
+  const point = motionReduced() ? null : dustPoint(trigger);
+  if (point) surfaceIn(menu, point, { ms: MENU_IN_MS });
+  else settleSurface(menu);
   const reflow = () => placeMenu(menu, trigger);
   menu.__ddReflow = reflow;
   window.addEventListener('resize', reflow);
@@ -64,6 +81,12 @@ export const showMenu = (menu, trigger) => {
 // Hide `menu` and put it back where it was built, clearing everything showMenu set.
 export const hideMenu = (menu) => {
   if (!menu) return;
+  // Measured while it is still up, then hidden at once: the cloud is a copy on <body>
+  // with a life of its own, so the end state never waits for the animation.
+  const point = !menu.hidden && !motionReduced() ? dustPoint(menu.__ddTrigger) : null;
+  if (point) surfaceOut(menu, point, { ms: MENU_OUT_MS });
+  else settleSurface(menu);
+  menu.__ddTrigger = null;
   menu.hidden = true;
   if (menu.__ddReflow) {
     window.removeEventListener('resize', menu.__ddReflow);

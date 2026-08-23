@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { surfaceIn, surfaceOut, settleSurface } from './motion.js';
 import { cmToUnit, unitLabel } from '../utils.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Owns its dynamically-filled DOM and the show/hide/position logic.
@@ -111,8 +112,7 @@ export class StencilTooltip extends StencilElement {
         </tbody>
       </table>
     `;
-    this.style.display = 'block';
-    this.position(clientX, clientY);
+    this.reveal(clientX, clientY);
   }
 
   // Show a tooltip describing the hovered line:
@@ -154,8 +154,28 @@ export class StencilTooltip extends StencilElement {
       <thead>${header}</thead>
       <tbody>${bodyRows}</tbody>
     </table>${hint}`;
+    this.reveal(clientX, clientY);
+  }
+
+  // ── The readout is sand too ─────────────────────────────────────────────
+  // Same flight as every other overlay (js/ui/motion.js surfaceIn/surfaceOut), out of —
+  // and back into — the cursor it belongs to. Only on the none↔block edge: this tooltip
+  // is re-rendered on every mousemove while it is up, and a burst per frame would be
+  // both a mess and a cost. Short, because the cursor is already moving.
+  static IN_MS = 240;
+  static OUT_MS = 170;
+  dust(clientX, clientY, enter) {
+    const point = { x: clientX, y: clientY };
+    if (enter ? !surfaceIn(this, point, { ms: StencilTooltip.IN_MS })
+              : !surfaceOut(this, point, { ms: StencilTooltip.OUT_MS })) settleSurface(this);
+  }
+
+  // Reveal at `clientX/Y`, playing the gather only when it was not already showing.
+  reveal(clientX, clientY) {
+    const wasHidden = this.style.display !== 'block';
     this.style.display = 'block';
     this.position(clientX, clientY);
+    if (wasHidden) this.dust(clientX, clientY, true);
   }
 
   position(clientX, clientY) {
@@ -173,6 +193,11 @@ export class StencilTooltip extends StencilElement {
   }
 
   hide() {
+    // The box goes NOW; the cloud it leaves behind owns its own lifetime.
+    if (this.style.display === 'block') {
+      const r = this.getBoundingClientRect?.();
+      if (r) this.dust(r.left + r.width / 2, r.top + r.height / 2, false);
+    } else settleSurface(this);
     this.style.display = 'none';
   }
 }

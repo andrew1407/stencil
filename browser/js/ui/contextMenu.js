@@ -181,9 +181,28 @@ export class StencilContextMenu extends StencilElement {
     let activeSub = null;
     let activeSubItem = null;
 
+    // ── A submenu is dust too ────────────────────────────────────────────
+    // Same flight as the menu it hangs off (js/ui/motion.js surfaceIn/surfaceOut), out
+    // of — and back into — the ROW that owns it, which is where it grows from.
+    const SUB_IN_MS = 300;
+    const SUB_OUT_MS = 200;
+    const subPoint = (sub) => {
+      const r = sub.__ctxItem?.getBoundingClientRect?.();
+      if (!r || !(r.width > 0 && r.height > 0)) return null;
+      return { x: r.right, y: r.top + r.height / 2 };
+    };
+    // Close one submenu, leaving its motes to pour back into the row. The class comes
+    // off NOW either way — the cloud owns its own lifetime.
+    const closeSub = (sub) => {
+      const point = sub.classList.contains('ctx-sub-visible') && !motionReduced() ? subPoint(sub) : null;
+      if (point) surfaceOut(sub, point, { ms: SUB_OUT_MS });
+      else settleSurface(sub);
+      sub.classList.remove('ctx-sub-visible');
+    };
+
     const closeAllSubs = () => {
       clearTimeout(subHideTimer);
-      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => s.classList.remove('ctx-sub-visible'));
+      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(closeSub);
       document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => i.classList.remove('ctx-open-sub'));
       activeSub = null;
       activeSubItem = null;
@@ -191,6 +210,10 @@ export class StencilContextMenu extends StencilElement {
     };
 
     const positionSub = (item, sub) => {
+      // A re-place of an ALREADY open flyout (the item moved under a still cursor, the
+      // chat flyout grew) must not replay the gather — only a genuine open does.
+      const wasOpen = sub.classList.contains('ctx-sub-visible');
+      sub.__ctxItem = item;
       // The menu's entry pop (animations.css) keeps a live transform for ~140ms, and a
       // transformed ancestor becomes the containing block for our position:fixed
       // flyouts — one placed during the pop lands off-target. A quick hover beats the
@@ -219,6 +242,10 @@ export class StencilContextMenu extends StencilElement {
       sub.style.left = left + 'px';
       sub.style.top = top  + 'px';
       subShownPointer = { ...lastPointer };
+      // Placed first, so the motes stream at the box the flyout will actually occupy.
+      const point = wasOpen || motionReduced() ? null : subPoint(sub);
+      if (point) surfaceIn(sub, point, { ms: SUB_IN_MS });
+      else if (!wasOpen) settleSurface(sub);
     };
 
     const repositionActiveSub = () => {
@@ -263,14 +290,14 @@ export class StencilContextMenu extends StencilElement {
         return;
       }
       if (pointerOver(item) || pointerOver(sub)) return;
-      sub.classList.remove('ctx-sub-visible');
+      closeSub(sub);
       item.classList.remove('ctx-open-sub');
       if (activeSub === sub) { activeSub = null; activeSubItem = null; }
     };
 
     const closeActiveSub = () => {
       if (!activeSub || keepSubOpen(activeSub) || pointerIdle()) return;
-      activeSub.classList.remove('ctx-sub-visible');
+      closeSub(activeSub);
       if (activeSubItem) activeSubItem.classList.remove('ctx-open-sub');
       activeSub = null;
       activeSubItem = null;
@@ -303,7 +330,7 @@ export class StencilContextMenu extends StencilElement {
         // Close other open subs (this is the one path that also closes the assistant
         // flyout while it's engaged: opening a sibling submenu wins, as everywhere).
         document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => {
-          if (s !== sub) s.classList.remove('ctx-sub-visible');
+          if (s !== sub) closeSub(s);
         });
         document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => {
           if (i !== item) i.classList.remove('ctx-open-sub');

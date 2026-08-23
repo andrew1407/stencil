@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import {
   surfaceMotion, dockAwayPoint, surfaceClones, reshapeGrid, settleSurface,
   surfaceIn, surfaceOut, cancelDust, tileNoise,
-  SURFACE_IN_MS, SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX,
+  SURFACE_IN_MS, SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPECK_PX,
   SURFACE_CLONE_NODE_BUDGET, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../js/ui/motion.js';
@@ -126,9 +126,15 @@ test('a small popup comes apart into pieces of ITSELF; a whole window into speck
   assert.ok(surfaceClones(0, 0), 'a stub with nothing to count never trips it');
 });
 
-test('a surface is grained coarser than a row, and the ceiling is the wipe’s own', () => {
-  assert.ok(SURFACE_MOTE_PX > MOTE_PX, 'a window is tens of times a row’s area');
-  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1200, 'SCATTER_TILE_BUDGET — the wipe’s ceiling');
+test('a surface is grained at least as fine as a row, under its own mote ceiling', () => {
+  // A window is tens of times a row's area, so the BUDGET is what sizes its cells — and
+  // at the wipe's own 1200 a settings window came apart into 20px slabs, a mosaic
+  // rather than sand. The grain aimed for is the row's or finer.
+  assert.ok(SURFACE_MOTE_PX <= MOTE_PX, 'a surface mote is no coarser than a row’s');
+  assert.equal(SURFACE_COLS * SURFACE_ROWS, 2400, 'the surface mote ceiling');
+  // Whatever the budget leaves, the SPECK drawn in a cell is capped at a grain — a
+  // cell-filling square is the "huge rectangles" a scatter must never show.
+  assert.ok(SURFACE_SPECK_PX <= MOTE_PX, 'the drawn grain never grows with the cell');
   // reshapeGrid sizes motes in PIXELS and only then thins to the budget.
   const wide = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, 600, 400, SURFACE_MOTE_PX);
   assert.ok(wide.cols * wide.rows <= SURFACE_COLS * SURFACE_ROWS, 'never over budget');
@@ -307,9 +313,9 @@ test('the ⋯ overflow menus grow out of the button (or the right-click) that op
   assert.match(chatViewJs, /surfaceOut\(menu, \{ x, y \}\);\s*\n\s*menu\.remove\(\);/);
 });
 
-test('the two clocks match the motion they replaced, so no timing was silently changed', () => {
-  assert.equal(SURFACE_IN_MS, 420, 'modalFromIcon’s 0.42s');
-  assert.equal(SURFACE_OUT_MS, 340, 'modalToIcon’s 0.34s');
+test('a surface forms slower than it leaves — arriving is the half you watch', () => {
+  assert.ok(SURFACE_IN_MS > SURFACE_OUT_MS, 'the gather is the slower half');
+  assert.ok(SURFACE_IN_MS >= 560 && SURFACE_IN_MS <= 700, 'slow enough to read as sand gathering');
   // tileNoise is the shared hash — the surface flight is the row's, not a second system.
   assert.equal(typeof tileNoise(1, 2), 'number');
   assert.equal(tileNoise(1, 2), tileNoise(1, 2));

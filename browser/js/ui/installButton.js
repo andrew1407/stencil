@@ -1,4 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
+import { wireHoverDust } from './motion.js';
 import { notify, detectDesktopOS } from '../utils.js';
 import INSTALL from '../config/installConfig.json' with { type: 'json' };
 import { icon } from './icons.js';
@@ -50,6 +51,9 @@ export class StencilInstall extends StencilElement {
   wire(_app) {
     const pwaBtn = this.querySelector('#install-pwa-btn');
     const toggle = this.querySelector('#install-toggle');
+    // The menu is shown by a :hover / :focus-within rule alone, so its sand is wired
+    // here rather than hung off an open/close (js/ui/motion.js wireHoverDust).
+    wireHoverDust(this, this.querySelector('#install-menu'));
     // Touch device: the button IS the PWA install (no menu / desktop option), so it
     // only makes sense while installable — hide it until `beforeinstallprompt`.
     const mobile = matchMedia('(hover: none) and (pointer: coarse)').matches;

@@ -167,8 +167,8 @@ test('a keystroke matches the cap that spells it — and only that one', () => {
 test('every cap nudges as the tooltip lands, so the shortcut announces itself', () => {
   // The shake's job is to draw the eye to the shortcut while you are READING the tip,
   // so it fires on the show — not only when the key happens to be pressed.
-  assert.match(tooltipJs, /t\.classList\.add\('visible'\);\s*\n\s*place\(lastEvent\);\s*\n\s*shakeKeys\(t\);/,
-    'shaken on every reveal, right after it is placed');
+  assert.match(tooltipJs, /t\.classList\.add\('visible'\);[\s\S]{0,400}?place\(lastEvent\);[\s\S]{0,400}?shakeKeys\(t\);/,
+    'shaken on every reveal, once it is placed and its dust is away');
   assert.match(tooltipJs,
     /const shakeKeys = \(t\) => \{\s*\n\s*t\.querySelectorAll\('\.tip-key'\)\.forEach\(cap => flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)\);/);
   // A tip with no shortcut has no caps, so the query is empty and nothing happens —
