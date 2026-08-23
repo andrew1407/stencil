@@ -1,10 +1,12 @@
 #include "menuReveal.hpp"
+#include "disintegrateOverlay.hpp"
 #include "modalReveal.hpp"  // motionReduced()
 
 #include <QAbstractAnimation>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QGuiApplication>
+#include <QPixmap>
 #include <QMenu>
 #include <QParallelAnimationGroup>
 #include <QPointer>
@@ -16,6 +18,41 @@ namespace stencil::support {
   namespace {
     // Snappier than the dialog flight — a menu should feel instant, not staged.
     constexpr int kMenuMs = 140;
+    // …and its DUST is on the browser's menu clock (js/ui/motion.js SURFACE_MENU_IN_MS):
+    // brisker than a window's, because a menu is opened to be clicked, often blind.
+    constexpr int kMenuDustMs = 340;
+    constexpr double kDustHold = 0.55;   // the browser's surfaceForm stop
+
+    // The popup forms out of motes streaming from the point it was opened at — the same
+    // flight every other surface plays (browser js/ui/motion.js surfaceIn). Drawn inside
+    // the window the menu belongs to, since the overlay is a child widget; a menu with no
+    // such window (or one that declines) falls back to the grow-from-the-cursor pop.
+    bool dustMenuIn(QMenu* m, const QPoint& originGlobal) {
+      QWidget* host = m->parentWidget() ? m->parentWidget()->window() : nullptr;
+      if (!host || !host->isVisible()) return false;
+      const QRect target = m->geometry();
+      if (target.width() < 8 || target.height() < 8) return false;
+      const QPixmap shot = m->grab();
+      if (shot.isNull()) return false;
+      const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
+      if (!gui::DisintegrateOverlay::overSurface(shot, box, host,
+                                                 host->mapFromGlobal(originGlobal), true,
+                                                 kMenuDustMs))
+        return false;
+      // The menu waits behind its own dust and fades up as the last motes land.
+      auto* fade = new QPropertyAnimation(m, "windowOpacity", m);
+      fade->setDuration(kMenuDustMs);
+      fade->setKeyValueAt(0.0, 0.0);
+      fade->setKeyValueAt(kDustHold, 0.0);
+      fade->setKeyValueAt(1.0, 1.0);
+      QPointer<QMenu> guard(m);
+      QObject::connect(fade, &QPropertyAnimation::finished, m, [guard] {
+        if (guard) guard->setWindowOpacity(1.0);
+      });
+      m->setWindowOpacity(0.0);
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+      return true;
+    }
 
     // One-shot filter, parented to the menu: plays the growth on the first Show,
     // and settles (restores constraints/opacity/geometry) on finish or on an
@@ -44,6 +81,8 @@ namespace stencil::support {
         // exec()/popup() has already placed the popup by Show time.
         target_ = m->geometry();
         if (!target_.isValid()) return;
+        // Sand first; the grow-from-the-cursor pop below is what plays when it declines.
+        if (dustMenuIn(m, origin_)) { settled_ = true; return; }
         // Start box: ~1/3 size, keeping the click point at the same fractional
         // spot it has in the final rect, so the growth radiates from the cursor.
         const QPoint a(qBound(target_.left(), origin_.x(), target_.right()),

@@ -37,6 +37,7 @@
 
 #include <vector>
 
+#include "disintegrateOverlay.hpp"   // the shared surface dust
 #include "modalReveal.hpp"   // support::motionReduced()
 #include "tipContent.hpp"    // enrichedToolTip(), hasKeycaps(), blankKeycaps()
 
@@ -192,9 +193,18 @@ namespace stencil::gui {
 
   class AppTooltip : public QFrame {
    public:
-    static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition
+    static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition (the fallback)
     static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
                                             // (TipBody holds its steps — the CAPS move, not this)
+    // ── The tooltip is sand too (browser js/ui/controlTooltip.js) ──────────────
+    // It forms from motes streaming out of the control it describes and comes apart into
+    // motes pouring back into it — the same flight a dialog or a menu plays. Its own,
+    // short clock: a tooltip is re-pointed many times a second on a toolbar sweep, so a
+    // flight has to be over before the next control's begins.
+    static constexpr int kDustInMs = 260;
+    static constexpr int kDustOutMs = 190;
+    static constexpr double kDustHold = 0.55;   // browser: the surfaceForm stop
+    static constexpr int kDustHandOverMs = 60;  // …and surfaceLeave's, on the way out
     static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* kObjectName = "stencilAppTooltip";
 
@@ -259,8 +269,22 @@ namespace stencil::gui {
         setWindowOpacity(from);
         show();
         raise();
-        fade_->setStartValue(from);
-        fade_->setEndValue(1.0);
+        // An APPEARANCE forms out of the control it describes; a re-send inside the same
+        // control just carries on where it is.
+        if (appearing && dust(true)) {
+          // The tip waits behind its own motes and fades up as the last of them land.
+          setWindowOpacity(0.0);
+          fade_->setKeyValues({});
+          fade_->setDuration(kDustInMs);
+          fade_->setKeyValueAt(0.0, 0.0);
+          fade_->setKeyValueAt(kDustHold, 0.0);
+          fade_->setKeyValueAt(1.0, 1.0);
+        } else {
+          fade_->setKeyValues({});
+          fade_->setDuration(kFadeMs);
+          fade_->setStartValue(from);
+          fade_->setEndValue(1.0);
+        }
         fade_->start();
       }
       // The point of the whole thing: caps on screen announce themselves as they arrive.
@@ -271,11 +295,16 @@ namespace stencil::gui {
     // up from wherever it got to rather than blinking.
     void hideTip() {
       if (!isVisible()) { owner_.clear(); return; }
-      owner_.clear();
       settleShake();   // it fades out with its caps home, not mid-flick
       fade_->stop();
-      if (support::motionReduced()) { closing_ = false; QFrame::hide(); return; }
+      if (support::motionReduced()) { owner_.clear(); closing_ = false; QFrame::hide(); return; }
+      // Photographed and dusted while the owner is still known — the cloud is what the
+      // tip leaves behind, so the panel itself hands over in one beat and goes.
+      const bool dusted = dust(false);
+      owner_.clear();
       closing_ = true;
+      fade_->setKeyValues({});
+      fade_->setDuration(dusted ? kDustHandOverMs : kFadeMs);
       fade_->setStartValue(windowOpacity());
       fade_->setEndValue(0.0);
       fade_->start();
@@ -308,6 +337,23 @@ namespace stencil::gui {
     bool fadingOut() const { return closing_; }
 
    private:
+    // Fly the tooltip's own motes out of — or back into — the control it describes.
+    // Drawn inside that control's window, since the overlay is a child widget; without
+    // one (or when the box is too small to grain) the plain fade above stands in.
+    bool dust(bool gather) {
+      QWidget* owner = owner_.data();
+      QWidget* host = owner ? owner->window() : nullptr;
+      if (!host || !host->isVisible() || !owner->isVisible()) return false;
+      const QRect target(mapToGlobal(QPoint(0, 0)), size());
+      if (target.width() < 8 || target.height() < 8) return false;
+      const QPixmap shot = grab();
+      if (shot.isNull()) return false;
+      const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
+      const QPoint point = host->mapFromGlobal(owner->mapToGlobal(owner->rect().center()));
+      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, gather,
+                                                   gather ? kDustInMs : kDustOutMs) != nullptr;
+    }
+
     void place(const QPoint& cursor) {
       const QScreen* scr = QGuiApplication::screenAt(cursor);
       if (!scr) scr = QGuiApplication::primaryScreen();

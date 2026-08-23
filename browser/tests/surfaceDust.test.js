@@ -292,9 +292,9 @@ test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
 
 test('the context menu forms out of the very click it was opened at', () => {
   assert.match(ctxJs, /const openAt = \(x, y\) => \{\s*\n\s*openPoint = \{ x, y \};/);
-  assert.match(ctxJs, /if \(!motionReduced\(\)\) surfaceIn\(menu, openPoint\);/);
+  assert.match(ctxJs, /if \(!motionReduced\(\)\) surfaceIn\(menu, openPoint, \{ ms: SURFACE_MENU_IN_MS \}\);/);
   // Measured while still open, and only when it IS — closeMenu is also the idle teardown.
-  assert.match(ctxJs, /if \(menu\.classList\.contains\('ctx-open'\) && !motionReduced\(\)\) surfaceOut\(menu, openPoint\);/);
+  assert.match(ctxJs, /if \(menu\.classList\.contains\('ctx-open'\) && !motionReduced\(\)\) surfaceOut\(menu, openPoint, \{ ms: SURFACE_MENU_OUT_MS \}\);/);
   assert.ok(ctxJs.indexOf('surfaceOut(menu, openPoint)') < ctxJs.indexOf("menu.classList.remove('ctx-open')"));
   // The pop it replaces set a transform, which would have made the menu the containing
   // block for its position:fixed flyouts. The dust drives opacity only.
@@ -305,12 +305,12 @@ test('the context menu forms out of the very click it was opened at', () => {
 test('the ⋯ overflow menus grow out of the button (or the right-click) that opened them', () => {
   // Projects: the cursor for a right-click, the "⋯" button's centre otherwise.
   assert.match(projectsJs, /menuPoint = point \|\| \(ar \? \{ x: ar\.left \+ ar\.width \/ 2, y: ar\.top \+ ar\.height \/ 2 \} : null\);/);
-  assert.match(projectsJs, /surfaceIn\(menu, menuPoint\);/);
+  assert.match(projectsJs, /surfaceIn\(menu, menuPoint, \{ ms: SURFACE_MENU_IN_MS \}\);/);
   // …and back into it. The node still goes NOW: the layer owns its own lifetime.
-  assert.match(projectsJs, /surfaceOut\(openMenu, menuPoint\);\s*\n\s*openMenu\.remove\(\);/);
+  assert.match(projectsJs, /surfaceOut\(openMenu, menuPoint, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*openMenu\.remove\(\);/);
   // The chat bubble's "⋯" is cursor-anchored, and uses the same open point both ways.
-  assert.match(chatViewJs, /surfaceIn\(menu, \{ x, y \}\);/);
-  assert.match(chatViewJs, /surfaceOut\(menu, \{ x, y \}\);\s*\n\s*menu\.remove\(\);/);
+  assert.match(chatViewJs, /surfaceIn\(menu, \{ x, y \}, \{ ms: SURFACE_MENU_IN_MS \}\);/);
+  assert.match(chatViewJs, /surfaceOut\(menu, \{ x, y \}, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*menu\.remove\(\);/);
 });
 
 test('a surface forms slower than it leaves — arriving is the half you watch', () => {

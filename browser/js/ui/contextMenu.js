@@ -15,7 +15,8 @@ import {
   chatSuggestionsHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer,
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
 } from './chatView.js';
-import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced } from './motion.js';
+import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
+         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 // ── Component: custom right-click context menu ──────────────────
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
 const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
@@ -184,8 +185,8 @@ export class StencilContextMenu extends StencilElement {
     // ── A submenu is dust too ────────────────────────────────────────────
     // Same flight as the menu it hangs off (js/ui/motion.js surfaceIn/surfaceOut), out
     // of — and back into — the ROW that owns it, which is where it grows from.
-    const SUB_IN_MS = 300;
-    const SUB_OUT_MS = 200;
+    const SUB_IN_MS = SURFACE_MENU_IN_MS;
+    const SUB_OUT_MS = SURFACE_MENU_OUT_MS;
     const subPoint = (sub) => {
       const r = sub.__ctxItem?.getBoundingClientRect?.();
       if (!r || !(r.width > 0 && r.height > 0)) return null;
@@ -371,7 +372,7 @@ export class StencilContextMenu extends StencilElement {
     const closeMenu = () => {
       // Into the very point it grew out of (js/ui/motion.js) — measured while it is
       // still on screen, and only if it IS: closeMenu is also the idle teardown.
-      if (menu.classList.contains('ctx-open') && !motionReduced()) surfaceOut(menu, openPoint);
+      if (menu.classList.contains('ctx-open') && !motionReduced()) surfaceOut(menu, openPoint, { ms: SURFACE_MENU_OUT_MS });
       else settleSurface(menu);
       menu.classList.remove('ctx-open');
       closeAllSubs();
@@ -495,7 +496,7 @@ export class StencilContextMenu extends StencilElement {
       // …and it forms out of that same point as dust (js/ui/motion.js). Opacity only —
       // a live transform on the menu would make it the containing block for its
       // position:fixed flyouts, which is the very trap menuPop's comment names.
-      if (!motionReduced()) surfaceIn(menu, openPoint);
+      if (!motionReduced()) surfaceIn(menu, openPoint, { ms: SURFACE_MENU_IN_MS });
       // Start live-sync so hotkey changes reflect immediately
       clearInterval(syncInterval);
       syncInterval = setInterval(() => {

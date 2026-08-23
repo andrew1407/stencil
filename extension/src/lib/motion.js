@@ -566,6 +566,10 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 // Going out is brisk — you have already decided.
 export const SURFACE_IN_MS = 620;
 export const SURFACE_OUT_MS = 380;
+// A MENU is not a window: it is opened to be clicked, often blind, so it may not spend
+// half a second forming. Its own, brisker clock — the flight is the same one.
+export const SURFACE_MENU_IN_MS = 340;
+export const SURFACE_MENU_OUT_MS = 220;
 // The grain a mote AIMS for, and the ceiling on how many of them a flight may cost.
 // A window is tens of times a row's area, so the budget is what actually sizes its
 // cells: at 1200 an options dialog came apart into 20px slabs — a mosaic, not sand.

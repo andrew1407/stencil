@@ -103,6 +103,35 @@ using stencil::gui::ThemeSwapOverlay;
 using stencil::gui::Settings;
 
 namespace {
+  // ── Reading a surface flight ────────────────────────────────────────────────
+  // A window, a popup menu and the tooltip form from motes streaming out of the control
+  // that owns them and come apart into motes pouring back in (support/modalReveal.cpp,
+  // menuReveal.cpp, appTooltip.hpp — the browser's js/ui/motion.js surfaceIn/surfaceOut).
+  // The flight is a DisintegrateOverlay child of the window, and it carries the point it
+  // is aimed at: that point IS "where the window comes out of", which is what these tests
+  // are about. Q_OBJECT-free, so it is found by object name and cast statically.
+  stencil::gui::DisintegrateOverlay* surfaceFlight(const QWidget* host) {
+    stencil::gui::DisintegrateOverlay* found = nullptr;
+    for (QWidget* w : host->findChildren<QWidget*>(
+             QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName))) {
+      auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+      if (fx->surfacePicture().isValid()) found = fx;   // the newest one wins
+    }
+    return found;
+  }
+
+  // Where the live flight is aimed, in `host` coordinates; an invalid point = nothing
+  // is flying.
+  QPoint surfaceFlightTarget(const QWidget* host) {
+    auto* fx = surfaceFlight(host);
+    return fx ? fx->surfaceTarget() : QPoint(-1, -1);
+  }
+
+  // A control's centre in the window's coordinates — what a flight out of it aims at.
+  QPoint flightPointOf(const QWidget* control, const QWidget* host) {
+    return control->mapTo(host, control->rect().center());
+  }
+
   // Comfortably past the f(x,y) idle-commit delay (mainWindow.cpp kFormulaCommitMs), so a
   // "stopped typing" wait can't race the timer on a loaded machine.
   constexpr int kFormulaSettleMs = 1600;
@@ -4907,8 +4936,9 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The dialog reveal must START at the icon that opened it. This checks the flight
-  // itself: support::revealDialog puts a snapshot QLabel in the window and animates its
-  // geometry, so the ghost's first rect IS the origin the user sees.
+  // itself: support::revealDialog dusts a snapshot of the dialog across the window, every
+  // mote streaming out of that icon — so the flight's target point IS the origin the user
+  // sees the window come out of.
   //
   // Regression: only eight actions recorded an anchor, so a dialog opened from the menu
   // bar, a shortcut, or any other icon grew out of whichever of those eight was used last
@@ -4924,23 +4954,15 @@ class MainWindowGuiTest : public QObject {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
-    // The ghost is a plain QLabel child of the window; note the ones already there.
-    const auto ghosts = [&] { return win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly); };
-    const QSet<QLabel*> before(ghosts().begin(), ghosts().end());
-    // The ghost is already in flight by the time we can look, so read the animation's
-    // START value — that is the box the user sees the window come out of.
+    // The cloud is already in flight by the time we can look, so read the point it aims
+    // at — that is where the user sees the window come out of.
     const auto flightOrigin = [&](QWidget* anchor) {
       QDialog dlg(&win);
       dlg.resize(300, 200);
       stencil::support::revealDialog(dlg, anchor, QRect());
       dlg.show();
-      QTest::qWait(50);          // past the 0-timer that builds the ghost, inside the 300ms flight
-      QRect from;
-      for (QLabel* l : ghosts()) {
-        if (before.contains(l)) continue;
-        for (QPropertyAnimation* an : l->findChildren<QPropertyAnimation*>())
-          if (an->propertyName() == QByteArray("geometry")) from = an->startValue().toRect();
-      }
+      QTest::qWait(50);          // past the 0-timer that builds the cloud, inside the flight
+      const QPoint from = surfaceFlightTarget(&win);
       dlg.close();
       return from;
     };
@@ -4948,9 +4970,9 @@ class MainWindowGuiTest : public QObject {
     for (QToolButton* b : win.findChildren<QToolButton*>())
       if (b->isVisible() && b->property("toolSection").isValid()) { icon = b; break; }
     QVERIFY2(icon, "no visible toolbar icon to fly out of");
-    const QRect origin = flightOrigin(icon);
-    QVERIFY2(origin.isValid(), "no reveal ghost was created");
-    const QRect want(icon->mapTo(&win, QPoint(0, 0)), icon->size());
+    const QPoint origin = flightOrigin(icon);
+    QVERIFY2(origin != QPoint(-1, -1), "no reveal flight was created");
+    const QPoint want = flightPointOf(icon, &win);
     QVERIFY2(origin == want, qPrintable(QString("the flight starts at %1, the icon is at %2")
                                             .arg(QDebug::toString(origin), QDebug::toString(want))));
   }
@@ -4972,20 +4994,14 @@ class MainWindowGuiTest : public QObject {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
-    const auto ghosts = [&] { return win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly); };
-    const QSet<QLabel*> before(ghosts().begin(), ghosts().end());
-    // exec() blocks, so a 0-timer drives the modal: read the in-flight ghost's start
-    // rect (the box the user sees the picker come out of), then pick a colour and OK.
-    QRect origin;
+    // exec() blocks, so a 0-timer drives the modal: read the point the in-flight cloud
+    // aims at (where the user sees the picker come out of), then pick a colour and OK.
+    QPoint origin(-1, -1);
     QTimer::singleShot(0, [&] {
       for (int i = 0; i < 200; ++i) {
         if (auto* dlg = qobject_cast<QColorDialog*>(QApplication::activeModalWidget())) {
-          QTest::qWait(50);   // past the 0-timer that builds the ghost, inside the flight
-          for (QLabel* l : ghosts()) {
-            if (before.contains(l)) continue;
-            for (QPropertyAnimation* an : l->findChildren<QPropertyAnimation*>())
-              if (an->propertyName() == QByteArray("geometry")) origin = an->startValue().toRect();
-          }
+          QTest::qWait(50);   // past the 0-timer that builds the cloud, inside the flight
+          origin = surfaceFlightTarget(&win);
           dlg->setCurrentColor(QColor("#12ab34"));
           dlg->accept();
           return;
@@ -4996,7 +5012,7 @@ class MainWindowGuiTest : public QObject {
     const QColor picked =
         stencil::support::pickColorAnimated(QColor("#ffffff"), &win, "Test colour", icon);
     QCOMPARE(picked, QColor("#12ab34"));
-    const QRect want(icon->mapTo(&win, QPoint(0, 0)), icon->size());
+    const QPoint want = flightPointOf(icon, &win);
     QVERIFY2(origin == want,
              qPrintable(QString("the picker's flight starts at %1, the anchor icon is at %2")
                             .arg(QDebug::toString(origin), QDebug::toString(want))));
@@ -5060,14 +5076,12 @@ class MainWindowGuiTest : public QObject {
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
 
-    // Reads the reveal ghost's start box while the dialog is blocked in exec(), then
-    // closes it so trigger() returns.
-    QRect start;
+    // Reads the point the reveal's cloud aims at while the dialog is blocked in exec(),
+    // then closes it so trigger() returns.
+    QPoint start(-1, -1);
     const auto watchThenClose = [&] {
       QTimer::singleShot(140, &win, [&] {
-        for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-          for (QPropertyAnimation* an : l->findChildren<QPropertyAnimation*>())
-            if (an->propertyName() == QByteArray("geometry")) start = an->startValue().toRect();
+        start = surfaceFlightTarget(&win);
         if (QWidget* modal = QApplication::activeModalWidget()) modal->close();
       });
     };
@@ -5075,12 +5089,12 @@ class MainWindowGuiTest : public QObject {
     // ── an icon-backed dialog ──
     QWidget* icon = win.buttonForAction(win.actProjects_);
     QVERIFY2(icon && icon->isVisible(), "the Projects icon is not on the toolbar");
-    start = QRect();
+    start = QPoint(-1, -1);
     watchThenClose();
     win.actProjects_->trigger();
     QTest::qWait(50);
     {
-      const QRect want(icon->mapTo(&win, QPoint(0, 0)), icon->size());
+      const QPoint want = flightPointOf(icon, &win);
       QVERIFY2(start == want, qPrintable(QString("icon case: flight starts at %1, icon at %2")
                                              .arg(QDebug::toString(start), QDebug::toString(want))));
     }
@@ -5098,13 +5112,14 @@ class MainWindowGuiTest : public QObject {
     QTest::mouseMove(help, row.center());
     QTest::qWait(30);
     help->close();
-    start = QRect();
+    start = QPoint(-1, -1);
     watchThenClose();
     act->trigger();
     QTest::qWait(50);
     const QRect rowInWin(win.mapFromGlobal(help->mapToGlobal(row.topLeft())), row.size());
-    QVERIFY2(start == rowInWin, qPrintable(QString("menu case: flight starts at %1, row at %2")
-                                               .arg(QDebug::toString(start), QDebug::toString(rowInWin))));
+    QVERIFY2(start == rowInWin.center(),
+             qPrintable(QString("menu case: flight starts at %1, row at %2")
+                            .arg(QDebug::toString(start), QDebug::toString(rowInWin))));
   }
 
   // The labelled Open Image button centres its icon+text. Qt left-aligns a
@@ -5541,24 +5556,23 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(300);
     QWidget* icon = win.buttonForAction(win.actChat_);
     QVERIFY2(icon && icon->isVisible(), "no chat icon to fly from");
-    const QRect iconRect(icon->mapTo(&win, QPoint(0, 0)), icon->size());
-    // The flight is a snapshot QLabel in the MAIN window; its geometry animation says
-    // where the motion begins.
-    const auto flightStart = [&]() -> QRect {
-      for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-        for (QPropertyAnimation* a : l->findChildren<QPropertyAnimation*>())
-          if (a->propertyName() == QByteArray("geometry")) return a->startValue().toRect();
-      return QRect();
-    };
-    win.actChat_->setChecked(false);          // close: starts at the window, ends at the icon
+    const QPoint iconPoint = flightPointOf(icon, &win);
+    // The flight is a cloud of the dock's own pixels inside the MAIN window, aimed at
+    // that icon: gathering out of it on the way in, scattering back into it on the way
+    // out. Both are the icon — the DIRECTION is what tells the two apart.
+    win.actChat_->setChecked(false);          // close: the window comes apart into the icon
     QTest::qWait(60);
-    const QRect closing = flightStart();
-    QVERIFY2(closing.isValid(), "closing a floating chat did not animate");
-    QVERIFY2(closing != iconRect, "the close flight should START at the window, not the icon");
+    auto* closing = surfaceFlight(&win);
+    QVERIFY2(closing, "closing a floating chat did not animate");
+    QCOMPARE(closing->surfaceTarget(), iconPoint);
+    QVERIFY2(!closing->gathering(), "the close flight scatters INTO the icon, it does not gather");
     QTest::qWait(400);
-    win.actChat_->setChecked(true);           // open: starts at the icon
+    win.actChat_->setChecked(true);           // open: it forms out of the icon
     QTest::qWait(60);
-    QCOMPARE(flightStart(), iconRect);
+    auto* opening = surfaceFlight(&win);
+    QVERIFY2(opening, "opening a floating chat did not animate");
+    QCOMPARE(opening->surfaceTarget(), iconPoint);
+    QVERIFY2(opening->gathering(), "the open flight gathers OUT of the icon");
   }
 
   // The two chat surfaces must render the SAME transcript. The panel replays the
@@ -6346,12 +6360,9 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->appendUser(QStringLiteral("kept across the close"));
 
     // The float's exit is a snapshot flown inside the main window.
-    const auto flight = [&win]() -> QRect {
-      for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-        for (QPropertyAnimation* a : l->findChildren<QPropertyAnimation*>())
-          if (a->propertyName() == QByteArray("geometry")) return a->startValue().toRect();
-      return QRect();
-    };
+    // The float's exit is a cloud of its own pixels flown inside the main window, every
+    // mote pouring back into the icon.
+    const auto flight = [&win] { return surfaceFlight(&win); };
     const auto settle = [] { QTest::qWait(700);
                              QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete); };
 
@@ -6408,12 +6419,12 @@ class MainWindowGuiTest : public QObject {
     const QRect windowBox(dock->mapToGlobal(QPoint(0, 0)), dock->size());
     closeBtn->click();
     QTest::qWait(60);
-    const QRect from = flight();
-    QVERIFY2(from.isValid(), "floating: the X closed with no flight");
+    auto* from = flight();
+    QVERIFY2(from, "floating: the X closed with no flight");
     QWidget* icon = win.buttonForAction(win.actChat_);
     QVERIFY(icon);
-    QVERIFY2(from != QRect(icon->mapTo(&win, QPoint(0, 0)), icon->size()),
-             "floating: the flight started at the icon, not the window");
+    QVERIFY2(!from->gathering(), "floating: the X must scatter the window INTO the icon");
+    QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
     QTRY_VERIFY2(!dock->isVisible(), "floating: it never finished closing");
     settle();
     win.actChat_->setChecked(true);
@@ -6439,16 +6450,13 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     auto* icon = qobject_cast<QToolButton*>(win.buttonForAction(win.actChat_));
 
-    // The outgoing FLOAT's exit is a snapshot QLabel flown inside the main window;
-    // its geometry animation starts at the window's box, never at the icon.
-    const auto flight = [&win]() -> QRect {
-      for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-        for (QPropertyAnimation* a : l->findChildren<QPropertyAnimation*>())
-          if (a->propertyName() == QByteArray("geometry")) return a->startValue().toRect();
-      return QRect();
-    };
+    // The outgoing FLOAT's exit is a cloud of its own pixels flown inside the main
+    // window: it SCATTERS, every mote pouring back into the icon.
+    const auto flight = [&win] { return surfaceFlight(&win); };
+    // Past the whole surface flight, so a cloud from the LAST swap can never be mistaken
+    // for the next one's (the gather is the longer of the two clocks).
     const auto flushGhosts = [] {
-      QTest::qWait(500);
+      QTest::qWait(stencil::gui::DisintegrateOverlay::kSurfaceInMs + 300);
       QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     };
 
@@ -6468,11 +6476,11 @@ class MainWindowGuiTest : public QObject {
     // the compact float lands, and the transcript came along.
     const auto expectSwap = [&](bool wasFloating, const QString& mark, const char* route) {
       if (wasFloating) {
-        const QRect from = flight();
-        QVERIFY2(from.isValid(),
-                 qPrintable(QString("%1: the outgoing FLOAT did not fly out").arg(route)));
-        QVERIFY2(from != QRect(icon->mapTo(&win, QPoint(0, 0)), icon->size()),
-                 qPrintable(QString("%1: the flight started at the icon, not the window").arg(route)));
+        auto* from = flight();
+        QVERIFY2(from, qPrintable(QString("%1: the outgoing FLOAT did not fly out").arg(route)));
+        QVERIFY2(!from->gathering(),
+                 qPrintable(QString("%1: the outgoing float must come APART, not form").arg(route)));
+        QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
       } else {
         QVERIFY2(win.chatAnim_ != nullptr,
                  qPrintable(QString("%1: the docked panel did not slide out").arg(route)));
@@ -6524,7 +6532,7 @@ class MainWindowGuiTest : public QObject {
       const QRect settled = dock->geometry();
       QApplication::sendEvent(icon, &ev);
       QCOMPARE(dock->geometry(), settled);
-      QVERIFY2(!flight().isValid(), "a re-pin that moves nothing must not animate");
+      QVERIFY2(!flight(), "a re-pin that moves nothing must not animate");
       QVERIFY(win.chatCompactShowing());
     }
     beat();
@@ -6562,26 +6570,27 @@ class MainWindowGuiTest : public QObject {
     const QRect card = win.canvas_->idleCardGlobalRect();
     QVERIFY2(card.isValid(), "the blank-image card is not on screen");
 
-    QRect start;
+    QPoint start(-1, -1);
     QTimer::singleShot(140, &win, [&] {
-      for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-        for (QPropertyAnimation* a : l->findChildren<QPropertyAnimation*>())
-          if (a->propertyName() == QByteArray("geometry")) start = a->startValue().toRect();
+      start = surfaceFlightTarget(&win);
       if (QWidget* modal = QApplication::activeModalWidget()) modal->close();
     });
-    // The CLOSE flight is captured separately: it starts at the dialog and must END at
-    // the card. It used to ignore the anchor rect and shrink into the box above instead.
-    QRect closeEnd;
-    QTimer::singleShot(260, &win, [&] {
-      for (QLabel* l : win.findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
-        for (QPropertyAnimation* a : l->findChildren<QPropertyAnimation*>())
-          if (a->propertyName() == QByteArray("geometry")) closeEnd = a->endValue().toRect();
+    // The CLOSE flight is captured separately: its motes must pour back into the CARD.
+    // It used to ignore the anchor rect and shrink into the box above instead.
+    QPoint closeEnd(-1, -1);
+    bool closeScatters = false;
+    QTimer::singleShot(300, &win, [&] {
+      if (auto* fx = surfaceFlight(&win)) {
+        closeEnd = fx->surfaceTarget();
+        closeScatters = !fx->gathering();
+      }
     });
     emit win.canvas_->blankImageRequested();
-    QTest::qWait(400);
-    const QRect want(win.mapFromGlobal(card.topLeft()), card.size());
+    QTest::qWait(500);
+    const QPoint want = win.mapFromGlobal(card.center());
     QCOMPARE(start, want);
-    QVERIFY2(closeEnd == want, qPrintable(QString("the close shrinks into %1, the card is at %2")
+    QVERIFY2(closeScatters, "the close must come APART into the card, not form out of it");
+    QVERIFY2(closeEnd == want, qPrintable(QString("the close pours into %1, the card is at %2")
                                               .arg(QDebug::toString(closeEnd), QDebug::toString(want))));
   }
 
@@ -7227,14 +7236,13 @@ class MainWindowGuiTest : public QObject {
       if (!item) { bailOut(); return; }
       sawRow = true;
       list->scrollToItem(item);
-      // Let the OPEN flight land and delete its own ghost, so the one found below is
+      // Let the OPEN flight land and delete its own cloud, so the one found below is
       // unambiguously the close flight's. The reveal's deferred grab has long fired
       // (the dialog-find loop above pumped events); the extra beat is belt and braces.
       // Bounded wait — a loaded machine may need more than the nominal duration.
       QTest::qWait(50);
-      for (int i = 0; i < 250 && win.findChild<QLabel*>("stencilModalGhost"); ++i)
-        QTest::qWait(10);
-      if (win.findChild<QLabel*>("stencilModalGhost")) { bailOut(); return; }
+      for (int i = 0; i < 250 && surfaceFlight(&win); ++i) QTest::qWait(10);
+      if (surfaceFlight(&win)) { bailOut(); return; }
       // Where the row sits, in DIALOG coordinates — the ghost photographs the dialog.
       const QRect rowInDlg =
           QRect(list->viewport()->mapTo(dlg, list->visualItemRect(item).topLeft()),
@@ -7256,11 +7264,11 @@ class MainWindowGuiTest : public QObject {
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->data(Qt::UserRole).toString() == id) finalized = false;
 
-      // The close flight's ghost must show the slot as bare background — the stale
-      // open-time snapshot (or a barely-started scatter) would still paint the row.
-      if (auto* ghost = win.findChild<QLabel*>("stencilModalGhost")) {
+      // The close flight's SNAPSHOT must show the slot as bare background — the stale
+      // open-time picture (or a barely-started scatter) would still paint the row.
+      if (auto* fx = surfaceFlight(&win)) {
         ghostSeen = true;
-        const QPixmap shot = ghost->pixmap();
+        const QPixmap shot = fx->snapshot();
         const qreal dpr = shot.devicePixelRatio();
         const QImage gi = shot.toImage();
         const QRect strip(int(rowInDlg.x() * dpr), int(rowInDlg.y() * dpr),
