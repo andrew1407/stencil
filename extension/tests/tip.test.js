@@ -81,14 +81,19 @@ test('the custom tooltip fades and rises instead of blinking', () => {
   const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
   // A TRANSITION, not keyframes: a fast sweep re-points the one shared tooltip many
   // times a second, and a transition simply re-aims from wherever it is.
-  assert.match(css, /#app-tooltip \{[^}]*transition: opacity 110ms ease, transform 110ms cubic-bezier\(0\.16, 1, 0\.3, 1\)/);
-  assert.match(css, /#app-tooltip \{[^}]*transform: translateY\(5px\) scale\(0\.97\)/);
-  assert.match(css, /#app-tooltip \{[^}]*transform-origin: top left/, 'it grows away from the cursor it is anchored to');
-  assert.match(css, /#app-tooltip\.visible \{ opacity: 1; transform: none; \}/);
+  assert.match(css, /#app-tooltip \{[\s\S]*?transition: opacity 190ms cubic-bezier\(0\.55, 0, 1, 0\.45\)/);
+  assert.match(css, /#app-tooltip \{[\s\S]*?transform: translate\(3px, 6px\) scale\(0\.96\)/);
+  assert.match(css, /#app-tooltip \{[\s\S]*?transform-origin: top left/, 'it grows away from the cursor it is anchored to');
+  assert.match(css, /#app-tooltip\.visible \{[\s\S]*?opacity: 1;[\s\S]*?transform: none;[\s\S]*?--dissolve: 0;/);
+  // The sand, in its lightest form: a MASK on the box (three coprime dot grids ramped by
+  // --dissolve), never a mote layer — the one shared tooltip re-points many times a second.
+  assert.match(css, /#app-tooltip \{[\s\S]*?--dissolve: 1;/);
+  assert.equal((css.match(/mask-size: 4px 4px, 7px 7px, 11px 11px;/g) || []).length, 2,
+    'both the prefixed and unprefixed mask-size are declared');
   // The keycap shake controlTooltip.js plays on a matching keystroke.
   assert.match(css, /@keyframes keycapShake/);
   assert.match(css, /\.tip-key\.key-shake \{[\s\S]*?animation: keycapShake/);
   const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
-  assert.match(anims, /#app-tooltip \{ transition: none !important; transform: none !important; \}/,
-    'reduced motion lands it where it is, at full size');
+  assert.match(anims, /#app-tooltip \{\s*\n\s*transition: none; transform: none; --dissolve: 0;/,
+    'reduced motion lands it where it is, at full size and solid');
 });

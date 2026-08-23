@@ -177,17 +177,64 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
   pointer-events: none;
   opacity: 0;
-  /* Appear/disappear as a short fade + rise, not a blink. A TRANSITION, deliberately,
-     not keyframes: sweeping a toolbar re-points the ONE shared tooltip many times a
-     second, and a transition simply re-aims from wherever it is — nothing to restart,
-     stack, or leave half-played on a control the pointer already left. transform-origin
-     is top-left, where controlTooltip.js anchors the box, so it grows away from the
-     cursor. Mirrors #app-tooltip in browser/css/components.css. */
-  transform: translateY(5px) scale(0.97);
+  /* ── The sand, in its lightest form ─────────────────────────────────────────
+     Every other overlay here forms from motes and comes apart into them (lib/motion.js
+     surfaceIn/surfaceOut). A tooltip cannot: it is re-pointed many times a second on a
+     toolbar sweep and it TRACKS THE CURSOR while it is up — a mote layer measured at one
+     position would be stranded a frame later, and a burst per show would be both a cost
+     and a mess. So it takes the same sand as a MASK on itself: the three coprime dot
+     grids of the scroll dissolve (animations.css .reveal-masked), which ride the box
+     wherever it goes, cost one composited layer, and can neither stack, strand, nor leak
+     a timer.
+     Still a TRANSITION, not keyframes, for the original reason: re-pointing simply
+     re-aims from wherever the grain is, with no animation to restart or half-play.
+     --dissolve: 1 = pure grain, 0 = solid. Registered in lib/animations.css, which is
+     why it can be transitioned at all; at 120% the dots overlap outright, so a settled
+     tooltip is solid to the pixel and nothing here costs legibility.
+     transform-origin sits at the top-left, where controlTooltip.js anchors the box, so
+     the grain gathers toward the cursor. Mirrors #app-tooltip in
+     browser/css/components.css. */
+  --dissolve: 1;
+  transform: translate(3px, 6px) scale(0.96);
   transform-origin: top left;
-  transition: opacity 110ms ease, transform 110ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* LEAVING (a transition is taken from the state it goes TO, so this rule is the exit):
+     the alpha eases IN — it holds up while the grain opens — so the tip visibly comes
+     apart instead of merely fading out. */
+  transition: opacity 190ms cubic-bezier(0.55, 0, 1, 0.45),
+              transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              --dissolve 190ms ease-out;
+  -webkit-mask-image:
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 160%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 160%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 140%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 140%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 125%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 125%)));
+  mask-image:
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 160%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 160%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 140%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 140%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 125%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 125%)));
+  /* Three cell sizes at three phases: one lattice alone lines its dots up into joining
+     rectangles, which is exactly what stops it reading as sand. */
+  -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px;
+  mask-size: 4px 4px, 7px 7px, 11px 11px;
+  -webkit-mask-position: 0 0, 2px 3px, 5px 1px;
+  mask-position: 0 0, 2px 3px, 5px 1px;
+  -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
+  mask-composite: add;
 }
-#app-tooltip.visible { opacity: 1; transform: none; }
+/* ARRIVING: opaque by 100ms — a sweep must never wait to read it — and what you watch
+   for the rest is the sand closing up. */
+#app-tooltip.visible {
+  opacity: 1;
+  transform: none;
+  --dissolve: 0;
+  transition: opacity 100ms ease, transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              --dissolve 220ms ease;
+}
 .tip-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .tip-title { font-weight: 600; }
 .tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
@@ -200,9 +247,9 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   vertical-align: middle;
 }
 .tip-plus { font-size: 13px; color: var(--muted); margin: 0 1px; vertical-align: middle; }
-/* Keycap shake (controlTooltip.js SHAKE_CLASS): press the shortcut the open tooltip is
-   showing and its cap shakes once instead of the tooltip blinking away. The accent
-   recolour is the half that survives reduced motion. */
+/* Keycap shake (controlTooltip.js SHAKE_CLASS): a tooltip that carries a shortcut shakes
+   its caps once as it appears, so the eye finds the shortcut while it reads the tip. The
+   accent recolour is the half that survives reduced motion. */
 @keyframes keycapShake {
   0%, 100% { transform: none; }
   15% { transform: translateX(-3px) rotate(-3deg); }

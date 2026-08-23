@@ -2,7 +2,8 @@ import { getSettings, setSettings, DEFAULT_EDITOR_URL, fetchAsDataUrl, originPat
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { PINS_KEY, loadPins, matchPinsForSite, sitesOf, setPinned, clearPins, setPinKeywords, pinMatchesSearch, pinKeywords } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, collectSharedPins, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connections.js';
-import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition } from '../lib/motion.js';
+import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition,
+         surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { listModels } from '../llm/llmClient.js';
@@ -52,8 +53,10 @@ if (accent) {
   };
   const onDocPtr = (e) => { if (!mount.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const open = () => { menu.hidden = false; trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
-  const close = () => { menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
+  // The swatch list pours out of its trigger and back into it (lib/motion.js) — the same
+  // corner it has always grown from, drawn as particles.
+  const open = () => { menu.hidden = false; surfaceIn(menu, centerOf(trigger)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
+  const close = () => { if (!menu.hidden) surfaceOut(menu, centerOf(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
   // The wipe starts at the dropdown TRIGGER, not at the option row: the menu is gone by
   // the time the palette floods, and a row near the top of a scrolled menu would look
   // like the colour came out of a corner.
@@ -471,12 +474,17 @@ if (pinSearchModeEl) pinSearchModeEl.addEventListener('change', renderPins);
 // Themed Yes/No confirmation. The options page has no native modal of its own, so this
 // stands in for window.confirm() and matches the editor's look (theme.css vars). Resolves
 // true on Yes/Enter, false on No/Esc/backdrop click.
-const confirmDialog = (message) => new Promise((resolve) => {
+// `anchor` is the button it was raised from: the box's particles fly out of that button
+// and stream back into it, the same as every menu here.
+const confirmDialog = (message, anchor) => new Promise((resolve) => {
   const overlay = document.getElementById('confirm-overlay');
+  const box = overlay.querySelector('.confirm-box');
+  const origin = centerOf(anchor);
   document.getElementById('confirm-msg').textContent = message;
   const yes = document.getElementById('confirm-yes');
   const no = document.getElementById('confirm-no');
   const done = (val) => {
+    surfaceOut(box, origin);   // dusted while still on screen, hidden on this frame
     overlay.hidden = true;
     yes.removeEventListener('click', onYes);
     no.removeEventListener('click', onNo);
@@ -496,6 +504,7 @@ const confirmDialog = (message) => new Promise((resolve) => {
   overlay.addEventListener('mousedown', onBackdrop);
   document.addEventListener('keydown', onKey, true);
   overlay.hidden = false;
+  surfaceIn(box, origin);
   yes.focus();
 });
 
@@ -519,13 +528,13 @@ pinClearBtn.addEventListener('click', async () => {
   const scope = siteSel.value || 'all';
   if (scope === 'all') {
     if (!pins.length) return;
-    if (!(await confirmDialog(`Are you sure? Remove ALL ${pins.length} pinned image(s) from every site? This cannot be undone.`))) return;
+    if (!(await confirmDialog(`Are you sure? Remove ALL ${pins.length} pinned image(s) from every site? This cannot be undone.`, pinClearBtn))) return;
     await wipePinRows();
     await clearPins('all');
   } else {
     const n = matchPinsForSite(pins, scope).length;
     if (!n) return;
-    if (!(await confirmDialog(`Are you sure? Remove all ${n} pinned image(s) for ${hostLabel(scope)}? This cannot be undone.`))) return;
+    if (!(await confirmDialog(`Are you sure? Remove all ${n} pinned image(s) for ${hostLabel(scope)}? This cannot be undone.`, pinClearBtn))) return;
     await wipePinRows();
     await clearPins(scope);
   }
