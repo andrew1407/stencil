@@ -350,8 +350,12 @@ namespace stencil::gui {
       if (shot.isNull()) return false;
       const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
       const QPoint point = host->mapFromGlobal(owner->mapToGlobal(owner->rect().center()));
+      // Lifted towards the tip's own text colour, so its motes read against the window
+      // behind them whatever the theme is (DisintegrateOverlay::kSurfaceInkMix).
       return gui::DisintegrateOverlay::overSurface(shot, box, host, point, gather,
-                                                   gather ? kDustInMs : kDustOutMs) != nullptr;
+                                                   gather ? kDustInMs : kDustOutMs,
+                                                   palette().color(QPalette::WindowText))
+             != nullptr;
     }
 
     void place(const QPoint& cursor) {

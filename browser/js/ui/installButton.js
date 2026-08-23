@@ -33,12 +33,15 @@ export class StencilInstall extends StencilElement {
   }
 
   static inner() {
+    // The desktop row is an <a> (it downloads a file), and the shared hover shimmer is
+    // keyed on `button` and friends — so it takes the `.shimmer` opt-in explicitly, or it
+    // would be the one row in the menu that does not light up under the pointer.
     const { label, url } = StencilInstall.#desktop();
     return `<div id="install-menu" role="menu" aria-label="Get Stencil">
         <button type="button" id="install-pwa-btn" role="menuitem" hidden>
           <span class="install-ic">${icon('download')}</span><span>Install web app (PWA)</span>
         </button>
-        <a id="install-desktop-btn" role="menuitem" href="${url}" download rel="noopener"
+        <a id="install-desktop-btn" class="shimmer" role="menuitem" href="${url}" download rel="noopener"
            title="Download the Stencil desktop app for ${label}">
           <span class="install-ic">${icon('monitor')}</span><span>Download desktop app</span>
         </a>

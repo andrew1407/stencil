@@ -627,20 +627,37 @@ export const centerOf = (elOrRect) => {
 // Is `c` a colour that paints nothing? An unset background, or a fully transparent one.
 const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 
+// How far a mote is lifted off the surface's own background, towards its own ink: the
+// body of the cloud, and its rim. See surfacePaint.
+export const MOTE_INK = 42;
+export const MOTE_RIM_INK = 66;
+
 // What the motes are PAINTED in. The element's own background, else the nearest
 // ancestor that actually paints one — a surface whose box is transparent (a panel that
 // leaves the colour to a child) would otherwise dust in a fallback nobody chose.
+//
+// …and then LIFTED towards that surface's own ink, because the background alone is
+// invisible: a surface and the page under it are the same family of colour, so a cloud
+// painted in the surface's exact background dissolved into nothing at all. Mixing in the
+// ink keeps every mote the surface's own colour and gives it something to read against,
+// and it flips with the theme for free — dark surfaces lighten, light ones darken,
+// because ink always contrasts with the background it is written on.
 const surfacePaint = (el) => {
   const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
   const own = get ? get(el) : null;
-  let fill = '';
-  for (let node = el; get && node && node.nodeType === 1 && !fill; node = node.parentElement)
-    if (!blankPaint(get(node).backgroundColor)) fill = get(node).backgroundColor;
+  let bg = '';
+  for (let node = el; get && node && node.nodeType === 1 && !bg; node = node.parentElement)
+    if (!blankPaint(get(node).backgroundColor)) bg = get(node).backgroundColor;
+  bg = bg || 'var(--panel)';
+  const ink = own && !blankPaint(own.color) ? own.color : 'var(--text)';
+  const grain = (pct) => `color-mix(in srgb, ${bg} ${pct}%, ${ink})`;
   // An element with `border-style: none` still COMPUTES a border colour, and its
   // initial value is `currentColor` — the TEXT colour. Reading it unguarded painted
-  // every rim mote near-white on a dark theme, whatever the theme actually was.
+  // every rim mote near-white on a dark theme, whatever the theme actually was; a real
+  // border is used as drawn, and without one the rim is simply a stronger grain, so the
+  // cloud keeps the box's outline for its first frames either way.
   const bordered = own && own.borderTopStyle !== 'none' && parseFloat(own.borderTopWidth) > 0;
-  return { fill: fill || 'var(--panel)', edge: bordered ? own.borderTopColor : '' };
+  return { fill: grain(100 - MOTE_INK), edge: bordered ? own.borderTopColor : grain(100 - MOTE_RIM_INK) };
 };
 
 // Flat speck in the surface's own colours; the rim cells take its border instead, so the
@@ -656,9 +673,9 @@ const speckPainter = (el) => {
   return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
     tile.classList.add('dust-mote');
-    tile.style.background = (edge && (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1))
-      ? edge : fill;
-    tile.style.opacity = (0.62 + n * 0.38).toFixed(2);
+    tile.style.background = (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1) ? edge : fill;
+    // Never faint: a mote you can barely see is a flight you cannot follow.
+    tile.style.opacity = (0.78 + n * 0.22).toFixed(2);
     // Grains of ONE size read as a mosaic; the spread is what makes it sand…
     const grain = Math.min(cellW, cellH, SURFACE_SPECK_PX);
     const px = grain * (0.62 + n * 0.5);
