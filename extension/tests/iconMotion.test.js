@@ -1,7 +1,7 @@
 // ── Per-icon hover motion: the extension's half of the contract ──────────────
 // browser/js/config/iconMotion.json is the CANONICAL design table — ONE motion per
 // glyph, matched to what that glyph's action DOES (the trash lid lifts, download's
-// arrow travels down, the crop brackets close in, the sun rises, the assistant's dots
+// arrow travels down, the crop brackets close in, the sun shakes, the assistant's dots
 // type). The browser implements it in css/animations.css. The extension ships a
 // deliberate SUBSET of the glyphs (lib/icons.js, pinned by dataParity.test.js) and
 // implements the SAME designs, on the SAME numbers, in lib/animations.css — otherwise
@@ -304,24 +304,31 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
   assert.deepEqual(lid.origin, [5, 6]);
   assert.ok(lid.to.rotate < 0);
   assert.match(EXT, /\.ic-trash \.ic-lid \{[^}]*transform-origin: 5px 6px;/);
+  // The disguise comes APART: the hat lifts off, the glasses drop away from it.
+  assert.ok(to('incognito', 'ic-brim').translate[1] < 0);
+  assert.ok(to('incognito', 'ic-glasses').translate[1] > 0);
+  assert.match(ICONS.incognito, /<g class="ic-glasses">/, 'the extension copy carries the hook');
   // …which is why the glyphs stop clipping.
   assert.match(EXT, /overflow: visible;/);
 });
 
-test('the sun rises, the assistant types, and the LEDs blink in order', () => {
-  // The theme pair are ONE design: the whole sun, or the whole moon, rises into view
-  // from below the icon box — no part choreography, no turn.
+test('the sun shakes, the assistant types, and the LEDs blink in order', () => {
+  // The theme pair are ONE design: the whole sun, or the whole moon, shakes side to side
+  // in place — no part choreography, and no turn (rotation here means an actual turn).
   for (const name of ['sun', 'moon']) {
     const parts = MOTION.icons[name].parts;
-    assert.equal(parts.length, 1, `${name} rises whole`);
+    assert.equal(parts.length, 1, `${name} shakes whole`);
     assert.equal(parts[0].hook, null);
     const kf = parts[0].keyframes;
-    assert.ok(kf[0].translate[1] >= 12, `${name} starts below the icon box`);
+    assert.equal(kf[0].translate, undefined, `${name} starts at rest`);
     assert.equal(kf.at(-1).translate, undefined, `${name} settles back into the glyph`);
-    for (const k of kf) assert.equal(k.rotate, undefined, `${name}: the rise is a translation`);
+    const xs = kf.filter((k) => k.translate).map((k) => k.translate[0]);
+    assert.ok(xs.length >= 3 && xs.every((x, i) => !i || x * xs[i - 1] < 0),
+      `${name}: the throws reverse — a shake, not a slide`);
+    for (const k of kf) assert.equal(k.rotate, undefined, `${name}: the shake is a translation`);
   }
   assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts);
-  assert.match(EXT, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmRise;/);
+  assert.match(EXT, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmShiver;/);
   // Three dots, one bounce each, left to right — the typing idiom.
   const dots = MOTION.icons.sparkle.parts[0];
   assert.equal(dots.hook, 'ic-dot');

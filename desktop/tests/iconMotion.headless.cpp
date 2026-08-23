@@ -263,20 +263,31 @@ int main(int argc, char** argv) {
     }
   }
 
-  // The theme pair RISE as whole glyphs from below the icon box. Qt clips at that box,
-  // so early in the play the icon is both lower and partly out of view — a rise over a
-  // horizon — and it lands whole. One part, no hook: no ray/orb choreography, no turn.
+  // The theme pair SHAKE as whole glyphs: side to side, reversing, and back to rest. One
+  // part, no hook: no ray/orb choreography — and no turn, which on a disc is invisible and
+  // on a crescent reads as a tip.
   {
     for (const char* g : {"sun", "moon"}) {
       const IconMotionSpec* s = iconMotionFor(QLatin1String(g));
       check(s && s->parts.size() == 1 && s->parts.first().hook.isEmpty(),
-            (QByteArray(g) + ": the WHOLE glyph rises — one part, hooked to nothing").constData());
-      const QImage early = frame(g, *s, s->totalMs * 0.15);
-      const QImage rest = frame(g, *s, s->totalMs);
-      check(inkBox(early).top() > inkBox(rest).top() + 4,
-            (QByteArray(g) + ": it still sits low in the box early in the rise").constData());
-      check(inkCount(early) < inkCount(rest),
-            (QByteArray(g) + ": …with part of it still below the box, out of view").constData());
+            (QByteArray(g) + ": the WHOLE glyph shakes — one part, hooked to nothing").constData());
+      const QRect rest = inkBox(frame(g, *s, s->totalMs));
+      // The ink's CENTRE, not an edge: the sun's rays already reach the icon box, so Qt
+      // clips the leading tip and the edge on that side cannot move.
+      int lefts = 0, rights = 0;
+      bool level = true;
+      for (double f : {0.1, 0.25, 0.4, 0.55, 0.7, 0.85}) {
+        const QRect b = inkBox(frame(g, *s, s->totalMs * f));
+        if (b.center().x() < rest.center().x()) ++lefts;
+        if (b.center().x() > rest.center().x()) ++rights;
+        if (b.top() != rest.top() || b.bottom() != rest.bottom()) level = false;
+      }
+      check(level,
+            (QByteArray(g) + ": side to side — the shake never rides up or down").constData());
+      check(lefts && rights,
+            (QByteArray(g) + ": it throws BOTH ways — a shake, not a slide").constData());
+      check(inkBox(frame(g, *s, 0)) == rest,
+            (QByteArray(g) + ": …starting and ending on the rest glyph").constData());
     }
   }
 
@@ -325,6 +336,31 @@ int main(int argc, char** argv) {
     const int early = inkCount(frame("image", *im, im->totalMs * 0.12).copy(in));
     const int whole = inkCount(frame("image", *im, im->totalMs).copy(in));
     check(early < whole * 7 / 10, "…and the ridge inside it draws itself on");
+    // The little sun DROPS in from above: over the sun's own columns (6..11.5 units) the
+    // frame's outline rows (2..4) are untouched in every frame — it never reaches them —
+    // while the sun itself does travel there, high early and home at the end.
+    const int x0 = kPx * 6 / 24, w = kPx * 55 / 240;   // the sun's own columns, 6..11.5u
+    const QRect outline(x0, 0, w, kPx * 4 / 24);       // the frame's top stroke, 2..4u
+    const QImage rest = frame("image", *im, im->totalMs);
+    bool clear = true;
+    for (double f : {0.0, 0.1, 0.2, 0.3, 0.45, 0.6, 0.8, 1.0})
+      if (frame("image", *im, im->totalMs * f).copy(outline) != rest.copy(outline)) clear = false;
+    check(clear, "…and the sun never crosses the frame's outline on its way in");
+    const QRect band(x0, kPx * 45 / 240, w, kPx * 85 / 240);   // under the outline, 4.5..13u
+    check(topIn(frame("image", *im, im->totalMs * 0.25).copy(band), 0, 1)
+              < topIn(rest.copy(band), 0, 1),
+          "…having started ABOVE the place it lands");
+  }
+
+  // The disguise COMES APART: the hat lifts off while the glasses drop away from it, so
+  // the glyph gets taller at both ends — and still fits the icon box.
+  {
+    const IconMotionSpec* ic = iconMotionFor(QStringLiteral("incognito"));
+    const QRect rest = inkBox(frame("incognito", *ic, 0));
+    const QRect open = inkBox(frame("incognito", *ic, ic->totalMs));
+    check(open.top() < rest.top(), "the hat lifts off");
+    check(open.bottom() > rest.bottom(), "…and the glasses drop away from it");
+    check(open.top() > 0 && open.bottom() < kPx - 1, "…without either leaving the icon box");
   }
 
   // The staggered parts really are staggered: sparkle's three dots bounce in turn, so

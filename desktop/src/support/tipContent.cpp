@@ -142,7 +142,7 @@ namespace stencil::gui {
                                           "style=\"vertical-align: middle;\" "
                                           "src=\"data:image/png;base64,%5\">")
                                .arg(label.toHtmlEscaped())
-                               .arg(QLatin1String(kKeycapClass))
+                               .arg(QLatin1String(joiner ? kJoinerClass : kKeycapClass))
                                .arg(qRound(w + 2 * gapX))
                                .arg(qRound(h))
                                .arg(QString::fromLatin1(png.toBase64()));
@@ -380,6 +380,25 @@ namespace stencil::gui {
 
   bool hasKeycaps(const QString& richText) {
     return richText.contains(QLatin1String(kKeycapClass));
+  }
+
+  QString blankKeycaps(const QString& richText) {
+    // Only the cap faces: the "+" joiners keep their picture, so a diff separates the caps.
+    static const QRegularExpression cap("(<img alt=\"[^\"]*\" class=\"" +
+                                        QString::fromLatin1(kKeycapClass) +
+                                        "\"[^>]*base64,)[^\"]*(\">)");
+    static const QString empty = [] {  // 1x1 transparent, drawn to whatever the box asks
+      QImage img(1, 1, QImage::Format_ARGB32);
+      img.fill(Qt::transparent);
+      QByteArray png;
+      QBuffer buf(&png);
+      buf.open(QIODevice::WriteOnly);
+      img.save(&buf, "PNG");
+      return QString::fromLatin1(png.toBase64());
+    }();
+    QString out = richText;
+    out.replace(cap, "\\1" + empty + "\\2");
+    return out == richText ? QString() : out;
   }
 
   QString enrichedToolTip(const QString& plain) {

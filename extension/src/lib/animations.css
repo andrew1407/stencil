@@ -37,7 +37,7 @@ select:focus,
    matched to what that glyph's action DOES. One generic move for all of them is worse
    than none — a minus that swells reads as "increase" — so the trash lid lifts, the
    download arrow travels down, the crop brackets close in on the region, the sun
-   rises, the assistant's dots type. Every number below is the canonical one, so the
+   shakes, the assistant's dots type. Every number below is the canonical one, so the
    extension and the app genuinely match; tests/iconMotion.test.js pins them together.
 
    Two modes, one trigger. `--ic-on` is a 0/1 latch the hovered control flips: a HOLD
@@ -60,8 +60,8 @@ select:focus,
 @property --ic-play { syntax: "*"; inherits: false; }
 .ic {
     --ic-on: 0;
-    /* A lifting lid or a rising sun leaves the 24-unit box for a moment. At rest every
-       glyph is inside it, so nothing that isn't moving renders differently. */
+    /* A lifting lid or a shaken sun ray leaves the 24-unit box for a moment. At rest
+       every glyph is inside it, so nothing that isn't moving renders differently. */
     overflow: visible;
 }
 .ic, .ic * {
@@ -116,21 +116,23 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-share .ic-node-tr { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * -0.9px)); }
 .ic-share .ic-node-br { transform: translate(calc(var(--ic-on) * 0.9px), calc(var(--ic-on) * 0.9px)); }
 .ic-monitor .ic-screen  { transform: translateY(calc(var(--ic-on) * -1.2px)); }
-.ic-incognito .ic-brim  { transform: translateY(calc(var(--ic-on) * 1.4px)); }  /* brim pulled down */
+/* The disguise comes apart: the hat lifts off, the glasses drop away from it. */
+.ic-incognito .ic-brim    { transform: translateY(calc(var(--ic-on) * -1px)); }
+.ic-incognito .ic-glasses { transform: translateY(calc(var(--ic-on) * 1px)); }
 
 /* ── SETTLE: plays once on hover, then rests where it started ── */
 @keyframes icmTick        { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
 @keyframes icmInkLine     { from { stroke-dashoffset: 8; }  to { stroke-dashoffset: 0; } }
 @keyframes icmDrawSlash   { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
 @keyframes icmDrawRidge   { from { stroke-dashoffset: 23; } to { stroke-dashoffset: 0; } }
-@keyframes icmHandlePop   { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.28); } }
 @keyframes icmLedBlink    { 0%, 100% { transform: scale(1); }  40% { transform: scale(2.1); } }
 @keyframes icmPencilStroke{ 0%, 100% { transform: none; }      45% { transform: translate(-4.17%, 4.17%) rotate(-8deg); } }
 @keyframes icmPressDown   { 0%, 100% { transform: none; }      45% { transform: translateY(6.67%); } }
 @keyframes icmDotBounce   { 0%, 100% { transform: none; }      45% { transform: translateY(-2px); } }
 @keyframes icmBob         { 0%, 100% { transform: none; }      45% { transform: translateY(-1.6px); } }
 @keyframes icmWave        { 0%, 100% { transform: skewX(0); }  30% { transform: skewX(7deg); } 65% { transform: skewX(-5deg); } }
-@keyframes icmRise        { 0% { transform: translateY(75%); } 100% { transform: none; } }
+@keyframes icmShiver      { 0%, 100% { transform: none; }      25% { transform: translateX(-4.17%); } 55% { transform: translateX(3.75%); } 80% { transform: translateX(-1.88%); } }
+@keyframes icmSunDrop     { 0% { transform: translateY(-1.6px); } 70% { transform: translateY(0.3px); } 100% { transform: none; } }
 
 /* Marks that draw themselves, the way you'd make them. */
 .ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
@@ -143,13 +145,11 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-pencil            { --ic-ms: 0.3s; --ic-play: icmPencilStroke; }   /* one short stroke */
 .ic-pin               { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pushed in */
 .ic-calendar .ic-rings { --ic-ms: 0.3s; --ic-play: icmBob; }
-/* The picture is DRAWN inside its frame — the ridge draws itself and the sun pops as it
-   lands. Sliding the contents up from below dragged them across the frame's outline. */
+/* The picture is DRAWN inside its frame — the ridge draws itself and the little sun drops
+   in from just above, a beat later. Its top rests 2 units under the frame's inner edge, so
+   1.6 is the whole drop the frame allows: nothing ever crosses that outline. */
 .ic-image .ic-ridge   { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 23; --ic-play: icmDrawRidge; }
-.ic-image .ic-orb {
-    --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmHandlePop;
-    transform-box: fill-box; transform-origin: center;
-}
+.ic-image .ic-orb     { --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmSunDrop; }
 .ic-flag .ic-cloth    { --ic-ms: 0.42s; transform-origin: 4px 3px; --ic-play: icmWave; }
 /* The assistant's bubble types; the same bounce is the "work pending" dots. */
 .ic-sparkle .ic-dot, .ic-dots .ic-dot { --ic-ms: 0.3s; --ic-play: icmDotBounce; }
@@ -159,10 +159,10 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
 .ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
 .ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
-/* Theme: the WHOLE sun, or the whole moon, rises into view from below — one literal
-   move, no part choreography and no turn. `overflow: visible` is what lets it start
-   off-icon; a surface that clips its icon box reads the same rise into view. */
-.ic-moon, .ic-sun     { --ic-ms: 0.38s; --ic-play: icmRise; }
+/* Theme: the WHOLE sun, or the whole moon, gives a quick shake in place — the `help`
+   tremor on the whole glyph. TRANSLATION, not rotation: a turn is invisible on a disc,
+   reads as a tip on a crescent, and here means an actual turn (gear, refresh). */
+.ic-moon, .ic-sun     { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmShiver; }
 
 @media (prefers-reduced-motion: reduce) {
     /* The hover MOVE only, killed at the latch and the keyframe switch, so every glyph

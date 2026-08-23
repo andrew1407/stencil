@@ -7,7 +7,8 @@
 // frameless panel is shown in its place. Qt still owns the TIMING — a ToolTip event only
 // arrives after SH_ToolTip_WakeUpDelay (main.cpp pins it at 120 ms) — and the content is
 // still tipContent's rendering, so nothing but the motion changes: the fade, plus one
-// brief shake as a tip carrying keycaps appears, to point at the shortcut.
+// brief shake of the KEYCAPS as a tip carrying them appears, to point at the shortcut
+// (browser/extension: .tip-key.key-shake). The panel itself never moves.
 //
 // Only a widget with its OWN non-empty toolTip() is taken over. Item views resolve
 // per-index tooltips inside viewportEvent and have no widget tooltip of their own, so
@@ -16,32 +17,184 @@
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include <QApplication>
 #include <QCursor>
+#include <QEasingCurve>
 #include <QEvent>
 #include <QFrame>
 #include <QHelpEvent>
+#include <QImage>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QList>
+#include <QPainter>
+#include <QPixmap>
 #include <QPointer>
+#include <QRegion>
 #include <QScreen>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
 #include <QtGlobal>
 
-#include <cmath>
+#include <vector>
 
 #include "modalReveal.hpp"   // support::motionReduced()
-#include "tipContent.hpp"    // enrichedToolTip(), hasKeycaps()
+#include "tipContent.hpp"    // enrichedToolTip(), hasKeycaps(), blankKeycaps()
 
 namespace stencil::gui {
+
+  // The tooltip's body — the rendered rich text, and the keycaps' shake.
+  //
+  // The caps are painted PNGs inline in that ONE rich-text label (tipContent), not widgets,
+  // so no layout can move them. They are LOCATED instead: the label is rendered twice, as
+  // it is and with the cap faces blanked in boxes of the same size, and the pixels that
+  // differ are the caps — wherever Qt's layout put them, caps mid-prose included. Each is
+  // then blitted back at an offset with its resting slot clipped out. At rest the paint is
+  // QLabel's own, untouched, so the settled tooltip renders exactly as it always did.
+  class TipBody : public QLabel {
+   public:
+    // browser: @keyframes keycapShake (css/components.css) — one damped left/right flick.
+    static constexpr int kStops = 6;
+    static constexpr double kStopT[kStops] = {0.0, 0.15, 0.38, 0.62, 0.84, 1.0};
+    static constexpr double kStopX[kStops] = {0.0, -3.0, 3.0, -2.0, 2.0, 0.0};
+    static constexpr double kStopDeg[kStops] = {0.0, -3.0, 3.0, -2.0, 1.5, 0.0};
+
+    explicit TipBody(QWidget* parent = nullptr) : QLabel(parent) {}
+
+    // New content: settled, and the cap hunt has to run again.
+    void setTip(const QString& rich) {
+      settle();
+      tip_ = rich;
+      setText(rich);
+      caps_.clear();
+      pieces_.clear();
+      hunted_ = false;
+    }
+
+    // How many caps this tooltip drew, hunting for them on first ask. 0 = nothing to shake.
+    int capCount() {
+      if (!hunted_) { hunted_ = true; findCaps(); }
+      return int(caps_.size());
+    }
+    // Where the caps are along the flick, 0 at rest — what the tests watch.
+    int capOffset() const { return dx_; }
+
+    // Put the caps at `t` (0..1) along the keyframes; 0 or 1 is the resting slot.
+    void setShake(double t) {
+      double x = 0, deg = 0;
+      if (t > 0.0 && t < 1.0 && !caps_.isEmpty()) {
+        int i = 0;
+        while (i < kStops - 2 && t > kStopT[i + 1]) i++;
+        const double u = ease().valueForProgress((t - kStopT[i]) / (kStopT[i + 1] - kStopT[i]));
+        x = kStopX[i] + (kStopX[i + 1] - kStopX[i]) * u;
+        deg = kStopDeg[i] + (kStopDeg[i + 1] - kStopDeg[i]) * u;
+      }
+      const int px = qRound(x);
+      if (px == dx_ && qFuzzyCompare(deg + 1.0, deg_ + 1.0)) return;
+      dx_ = px;
+      deg_ = deg;
+      update();
+    }
+    void settle() { setShake(0.0); }
+
+   protected:
+    void paintEvent(QPaintEvent* e) override {
+      if (caps_.isEmpty() || (dx_ == 0 && qFuzzyIsNull(deg_))) { QLabel::paintEvent(e); return; }
+      QPainter p(this);
+      p.setRenderHint(QPainter::SmoothPixmapTransform);
+      QRegion holes;
+      for (const QRect& r : caps_) holes += r;
+      p.setClipRegion(QRegion(rect()) - holes);   // the caps' slots stay empty
+      p.drawPixmap(0, 0, flat_);
+      p.setClipping(false);
+      for (int i = 0; i < caps_.size(); i++) {
+        const QPointF c = QRectF(caps_[i]).center();
+        p.save();
+        p.translate(c + QPointF(dx_, 0));
+        p.rotate(deg_);
+        p.translate(-c);
+        p.drawPixmap(caps_[i].topLeft(), pieces_[i]);
+        p.restore();
+      }
+    }
+
+   private:
+    static const QEasingCurve& ease() {  // browser: cubic-bezier(0.36, 0.07, 0.19, 0.97)
+      static const QEasingCurve c = [] {
+        QEasingCurve e(QEasingCurve::BezierSpline);
+        e.addCubicBezierSegment(QPointF(0.36, 0.07), QPointF(0.19, 0.97), QPointF(1, 1));
+        return e;
+      }();
+      return c;
+    }
+
+    // Render with and without the cap faces; the pixels that differ are the caps.
+    void findCaps() {
+      const QString bare = blankKeycaps(tip_);
+      if (bare.isEmpty() || width() <= 0 || height() <= 0) return;
+      flat_ = grab();
+      setText(bare);
+      const QImage without = grab().toImage().convertToFormat(QImage::Format_ARGB32);
+      setText(tip_);
+      const QImage with = flat_.toImage().convertToFormat(QImage::Format_ARGB32);
+      if (with.isNull() || with.size() != without.size()) return;
+      const int w = with.width(), h = with.height();
+      const qreal dpr = flat_.devicePixelRatio() > 0 ? flat_.devicePixelRatio() : 1.0;
+      std::vector<char> diff(size_t(w) * h, 0);
+      for (int y = 0; y < h; y++) {
+        const auto* a = reinterpret_cast<const QRgb*>(with.constScanLine(y));
+        const auto* b = reinterpret_cast<const QRgb*>(without.constScanLine(y));
+        for (int x = 0; x < w; x++)
+          if (a[x] != b[x]) diff[size_t(y) * w + x] = 1;
+      }
+      auto rowHas = [&](int y) {
+        for (int x = 0; x < w; x++) if (diff[size_t(y) * w + x]) return true;
+        return false;
+      };
+      auto colHas = [&](int x, int y0, int y1) {
+        for (int y = y0; y <= y1; y++) if (diff[size_t(y) * w + x]) return true;
+        return false;
+      };
+      // Bands of rows are the tip's lines; runs of columns inside one are its caps (the
+      // untouched "+" between two caps leaves a gap, so a chord splits cap by cap).
+      for (int y0 = 0; y0 < h;) {
+        if (!rowHas(y0)) { y0++; continue; }
+        int y1 = y0;
+        while (y1 + 1 < h && rowHas(y1 + 1)) y1++;
+        for (int x0 = 0; x0 < w;) {
+          if (!colHas(x0, y0, y1)) { x0++; continue; }
+          int x1 = x0;
+          while (x1 + 1 < w && colHas(x1 + 1, y0, y1)) x1++;
+          const QRect r = QRectF(x0 / dpr, y0 / dpr, (x1 - x0 + 1) / dpr, (y1 - y0 + 1) / dpr)
+                              .toAlignedRect()
+                              .intersected(rect());   // rounding never reaches past the label
+          caps_ << r;
+          pieces_ << cut(r, dpr);
+          x0 = x1 + 1;
+        }
+        y0 = y1 + 1;
+      }
+    }
+    QPixmap cut(const QRect& r, qreal dpr) const {
+      QPixmap piece = flat_.copy(QRect(QPoint(qRound(r.x() * dpr), qRound(r.y() * dpr)),
+                                       QSize(qRound(r.width() * dpr), qRound(r.height() * dpr))));
+      piece.setDevicePixelRatio(dpr);
+      return piece;
+    }
+
+    QString tip_;
+    QList<QRect> caps_;      // the caps' resting slots
+    QList<QPixmap> pieces_;  // each cap, cut out of the settled render
+    QPixmap flat_;           // the whole settled render
+    bool hunted_ = false;
+    int dx_ = 0;
+    double deg_ = 0;
+  };
 
   class AppTooltip : public QFrame {
    public:
     static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition
-    static constexpr int kShakeMs = 260;    // one brief attention shake per appearance
-    // Keycaps are painted PNGs inline in the body's rich text (tipContent), not widgets, so
-    // there is nothing smaller than the panel to move — the panel swings for them.
-    static constexpr int kShakePx = 4;
+    static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
+                                            // (TipBody holds its steps — the CAPS move, not this)
     static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* kObjectName = "stencilAppTooltip";
 
@@ -52,7 +205,7 @@ namespace stencil::gui {
       setFocusPolicy(Qt::NoFocus);
       auto* lay = new QVBoxLayout(this);
       lay->setContentsMargins(0, 0, 0, 0);
-      body_ = new QLabel(this);
+      body_ = new TipBody(this);
       body_->setTextFormat(Qt::RichText);
       body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
       lay->addWidget(body_);
@@ -90,9 +243,9 @@ namespace stencil::gui {
       // Qt keeps re-sending ToolTip while the pointer wanders inside one control (its own
       // label never appears, so its wake-up timer re-arms), and those must not re-shake.
       const bool appearing = !isVisible() || closing_ || owner != owner_ || rich != body_->text();
-      settleShake();                   // never animate away from a stale placement
+      settleShake();                   // never animate away from stale content
       owner_ = owner;
-      body_->setText(rich);
+      body_->setTip(rich);
       adjustSize();
       place(globalPos);
       closing_ = false;
@@ -119,7 +272,7 @@ namespace stencil::gui {
     void hideTip() {
       if (!isVisible()) { owner_.clear(); return; }
       owner_.clear();
-      settleShake();   // it fades out on its placement, not mid-swing
+      settleShake();   // it fades out with its caps home, not mid-flick
       fade_->stop();
       if (support::motionReduced()) { closing_ = false; QFrame::hide(); return; }
       closing_ = true;
@@ -129,27 +282,28 @@ namespace stencil::gui {
     }
 
     // A brief attention shake as the tooltip appears — "and here is its shortcut". One
-    // damped left-right pass, never a loop, settling exactly where it was placed.
-    // The caps are inline <img> data URIs inside the one rich-text label, so the panel
-    // carrying them is what moves (see the note on kShakePx).
+    // damped left-right pass over the KEYCAPS, never a loop, settling exactly on them.
     void shakeKeys() {
       if (!isVisible() || support::motionReduced()) return;
+      if (body_->capCount() == 0) return;   // nothing was drawn to move
       if (!shake_) {
         shake_ = new QVariantAnimation(this);
         shake_->setDuration(kShakeMs);
         shake_->setStartValue(0.0);
         shake_->setEndValue(1.0);
         QObject::connect(shake_, &QVariantAnimation::valueChanged, this,
-                         [this](const QVariant& v) { applyShake(v.toDouble()); });
+                         [this](const QVariant& v) { body_->setShake(v.toDouble()); });
         QObject::connect(shake_, &QVariantAnimation::finished, this,
-                         [this] { applyShake(1.0); });
+                         [this] { body_->settle(); });
       }
-      shake_->stop();    // a pointer sweep restarts it from the new placement, never stacks
+      shake_->stop();    // a pointer sweep restarts it on the new caps, never stacks
+      body_->settle();
       shake_->start();
     }
 
-    // The offset the shake is at, for tests: 0 when settled.
-    int shakeOffset() const { return x() - home_.x(); }
+    // The offset the caps are at, for tests: 0 when settled. The panel never moves.
+    int shakeOffset() const { return body_->capOffset(); }
+    int keycapsShown() const { return body_->capCount(); }
     bool shaking() const { return shake_ && shake_->state() == QAbstractAnimation::Running; }
     bool fadingOut() const { return closing_; }
 
@@ -164,26 +318,18 @@ namespace stencil::gui {
       if (top + height() > avail.bottom()) top = cursor.y() - height() - kGap;
       left = qBound(avail.left() + 10, left, qMax(avail.left() + 10, avail.right() - width()));
       top = qBound(avail.top() + 10, top, qMax(avail.top() + 10, avail.bottom() - height()));
-      home_ = QPoint(left, top);
-      move(home_);
+      move(left, top);
     }
-    // Stop any shake and put the panel back exactly on its placement.
+    // Stop any shake and put the caps back exactly on their slots.
     void settleShake() {
-      if (!shake_ || shake_->state() == QAbstractAnimation::Stopped) return;
-      shake_->stop();
-      move(home_);
-    }
-    // Three half-cycles, amplitude decaying to nothing, so it settles exactly at home.
-    void applyShake(double t) {
-      const double off = t >= 1.0 ? 0.0 : std::sin(t * 3.0 * M_PI) * kShakePx * (1.0 - t);
-      move(home_ + QPoint(qRound(off), 0));
+      if (shake_) shake_->stop();
+      body_->settle();
     }
 
-    QLabel* body_ = nullptr;
+    TipBody* body_ = nullptr;
     QVariantAnimation* fade_ = nullptr;
     QVariantAnimation* shake_ = nullptr;
     QPointer<QWidget> owner_;
-    QPoint home_;
     bool closing_ = false;
   };
 
