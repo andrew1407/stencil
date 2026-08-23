@@ -2131,12 +2131,8 @@ body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
 }
 .tip-plus { font-size: 13px; color: var(--text-shortcut); margin: 0 1px; vertical-align: middle; }
 /* ── Keycap shake (js/ui/controlTooltip.js) ──────────────────────────────────
-   Press the shortcut the visible tooltip is showing and its cap shakes once instead of
-   the tooltip blinking away — the answer to "was that the key?" lands on the cap itself.
-   That covers the disabled control too: greyed controls are exactly the ones whose tip
-   you are reading when the key does nothing. One shot, no repeat; every OTHER key still
-   dismisses the tooltip as before. The accent recolour is the half that survives reduced
-   motion, so the cap still answers when it may not move. */
+   The caps nudge once as the tooltip appears, pointing at the shortcut. Movement only —
+   the cap keeps its resting colours, so it reads as the same key throughout. */
 @keyframes keycapShake {
     0%, 100% { transform: none; }
     15% { transform: translateX(-3px) rotate(-3deg); }
@@ -2146,8 +2142,6 @@ body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
 }
 .tip-key.key-shake {
     animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-    border-color: var(--accent);
-    color: var(--accent);
 }
 @media (prefers-reduced-motion: reduce) {
     /* No grain either — a half-sanded tooltip is a surprise, not motion. It shows and

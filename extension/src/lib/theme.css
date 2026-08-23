@@ -248,8 +248,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 }
 .tip-plus { font-size: 13px; color: var(--muted); margin: 0 1px; vertical-align: middle; }
 /* Keycap shake (controlTooltip.js SHAKE_CLASS): a tooltip that carries a shortcut shakes
-   its caps once as it appears, so the eye finds the shortcut while it reads the tip. The
-   accent recolour is the half that survives reduced motion. */
+   its caps once as it appears. Movement only — the cap keeps its resting colours. */
 @keyframes keycapShake {
   0%, 100% { transform: none; }
   15% { transform: translateX(-3px) rotate(-3deg); }
@@ -259,8 +258,6 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 }
 .tip-key.key-shake {
   animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  border-color: var(--accent);
-  color: var(--accent);
 }
 .tip-rows {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin-top: 5px; max-width: 100%;
