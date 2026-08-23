@@ -15,7 +15,7 @@
 
 import { icon } from './icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
-import { surfaceIn, surfaceOut, centerOf } from './motion.js';
+
 
 // Case-insensitive substring match, the browser's base.js rowMatches (not worth a module
 // of its own here — this is its only caller in the extension).
@@ -153,24 +153,21 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     sync();
     // Placed against the trigger in viewport space: `.controls` clips its overflow and
     // the toolbar sits low enough that a long list would run off the window.
+    // showMenu is what pours the sand out of the trigger (lib/dropdownMenu.js): the list
+    // still GROWS from the corner nearest that control (stMenuFromAnchor's
+    // transform-origin, flipped with .dd-above) — particles are how that growth is drawn.
     showMenu(menu, trigger);
-    // The list is sand pouring out of the control that opened it. It still GROWS from the
-    // corner nearest that control (stMenuFromAnchor's transform-origin, flipped with
-    // .dd-above) — the particles are only how that growth is drawn.
-    surfaceIn(menu, centerOf(trigger));
     if (searchInput) searchInput.focus();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
-  // Closing plays the entrance backwards — the list shrinks toward the corner it grew
-  // from — and only then is it hidden and put back (animationend, with a timer fallback so
-  // a neutralised or missing animation can never wedge it open). animationend BUBBLES, so
-  // an option row's own hover transition must not be mistaken for the menu's exit.
+  // Closing hands over to the dust: hideMenu measures the list where it stands and flies
+  // a cloud of it back into the trigger (lib/dropdownMenu.js surfaceOut), so the list
+  // itself goes at once and there is no exit animation to wait on. The `.dd-closing`
+  // clean-up stays only so a reopen mid-flight starts from a clean slate.
   let closeTimer = null;
   let closeDone = null;
-  const reducedMotion = () =>
-    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
     trigger.setAttribute('aria-expanded', 'false');
@@ -183,14 +180,7 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
       menu.classList.remove('dd-closing');
       hideMenu(menu);
     };
-    if (reducedMotion()) { closeDone(); return; }
-    // Dusted back into the trigger, the list is gone on this very frame — the motes carry
-    // the exit, so there is no shrinking box to double up with them and nothing async to
-    // wedge open. .dd-closing stays as the fallback when no motes could be made.
-    if (surfaceOut(menu, centerOf(trigger))) { closeDone(); return; }
-    menu.classList.add('dd-closing');
-    closeTimer = setTimeout(closeDone, 250);
-    menu.addEventListener('animationend', closeDone);
+    closeDone();
   };
   const choose = (v) => {
     selectEl.value = v;   // routes through the wrapped setter → re-syncs the trigger

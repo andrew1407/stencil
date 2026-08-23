@@ -46,13 +46,15 @@ import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 // (3,13) and (13,3), the corners a drag actually starts and ends on — in the same
 // 1.5 stroke. Only what joins them changes, a segment or the box it spans, so
 // Line↔Rect swaps between two siblings instead of two different families.
+// The hooks are the canon's own (icons.json `line`/`rect`), so both faces play the
+// canonical draw-on: the shape draws itself between the handles, which then pop.
 export const DRAW_MODE_ICON = {
   line: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-    '<line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
-    '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
+    '<line class="ic-stroke" x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<circle class="ic-handle" cx="3" cy="13" r="2" fill="currentColor"/><circle class="ic-handle" cx="13" cy="3" r="2" fill="currentColor"/></svg>',
   rect: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-    '<rect x="3" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
-    '<circle cx="3" cy="13" r="2" fill="currentColor"/><circle cx="13" cy="3" r="2" fill="currentColor"/></svg>',
+    '<rect class="ic-box" x="3" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<circle class="ic-handle" cx="3" cy="13" r="2" fill="currentColor"/><circle class="ic-handle" cx="13" cy="3" r="2" fill="currentColor"/></svg>',
 };
 
 // Base name without its file extension (for project naming / source matching).

@@ -831,15 +831,22 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         tile.style.setProperty('--rot', `${m.rot}deg`);
         tile.style.setProperty('--tile-scale', String(m.scale));
         tile.style.animationDelay = `${m.delay}ms`;
-        const copy = makeCopy(el, { cx, cy, cols, rows });
-        copy.style.margin = '0';
+        const cellW = r.width / cols;
+        const cellH = r.height / rows;
+        const copy = makeCopy(el, { cx, cy, cols, rows, cellW, cellH });
         if (perCell) {
           copy.style.position = 'absolute';
-          copy.style.left = `${(cx * r.width) / cols}px`;
-          copy.style.top = `${(cy * r.height) / rows}px`;
-          copy.style.width = `${r.width / cols}px`;
-          copy.style.height = `${r.height / rows}px`;
+          copy.style.left = `${cx * cellW}px`;
+          copy.style.top = `${cy * cellH}px`;
+          // A speck sizes ITSELF (it is a grain inside its cell, not the cell); a real
+          // per-cell slice is drawn at cell size and needs the box stated.
+          if (!copy.classList.contains('dust-mote')) {
+            copy.style.margin = '0';
+            copy.style.width = `${cellW}px`;
+            copy.style.height = `${cellH}px`;
+          }
         } else {
+          copy.style.margin = '0';
           // The clone is out of its parent's layout, so its box has to be restated.
           copy.style.width = `${r.width}px`;
           copy.style.height = `${r.height}px`;
@@ -891,13 +898,20 @@ export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather
 // the icon that opened it, the click a context menu grew from, the edge a docked
 // panel slides off. Origin and direction are exactly what the old scale had; what
 // changed is that the flight is rendered as particles instead of a moving rectangle.
-export const SURFACE_IN_MS = 420;    // was modalFromIcon's 0.42s
-export const SURFACE_OUT_MS = 340;   // …and modalToIcon's 0.34s (ui/base.js CLOSE_MS)
-// Coarser than a row's 7px grain: a window is tens of times the area, and the mote
-// COUNT — not the mote size — is what a frame has to pay for.
-export const SURFACE_MOTE_PX = 8;
-export const SURFACE_COLS = 40;
-export const SURFACE_ROWS = 30;      // 1200 motes — the wipe's own ceiling (SCATTER_TILE_BUDGET)
+// The way IN is the slower half on purpose: a window forming is the thing you watch,
+// and it has to arrive gently enough to read as sand gathering rather than a flash.
+// Going out is brisk — you have already decided.
+export const SURFACE_IN_MS = 620;
+export const SURFACE_OUT_MS = 380;   // ui/base.js CLOSE_MS rides this
+// The grain a mote AIMS for, and the ceiling on how many of them a flight may cost.
+// A window is tens of times a row's area, so the budget is what actually sizes its
+// cells: at 1200 a settings window came apart into 20px slabs — a mosaic, not sand.
+export const SURFACE_MOTE_PX = 6;
+export const SURFACE_COLS = 60;
+export const SURFACE_ROWS = 40;      // 2400 motes
+// …and past that ceiling the CELL is bigger than the grain we want, so the speck drawn
+// inside it is capped instead of filling it. What you see is the speck, not the cell.
+export const SURFACE_SPECK_PX = 7;
 export const SURFACE_SPREAD = 34;    // how far a mote may fan off its line to the point
 export const SURFACE_FORMING_CLASS = 'surface-forming';
 export const SURFACE_LEAVING_CLASS = 'surface-leaving';
@@ -955,22 +969,46 @@ export const SURFACE_CLONE_NODE_BUDGET = 12000;
 export const surfaceClones = (nodes, tiles) =>
   Math.max(1, nodes || 0) * Math.max(0, tiles || 0) <= SURFACE_CLONE_NODE_BUDGET;
 
+// Is `c` a colour that paints nothing? An unset background, or a fully transparent one.
+const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
+
+// What the motes are PAINTED in. The element's own background, else the nearest
+// ancestor that actually paints one — a surface whose box is transparent (a panel that
+// leaves the colour to a child) would otherwise dust in a fallback nobody chose.
+const surfacePaint = (el) => {
+  const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
+  const own = get ? get(el) : null;
+  let fill = '';
+  for (let node = el; get && node && node.nodeType === 1 && !fill; node = node.parentElement)
+    if (!blankPaint(get(node).backgroundColor)) fill = get(node).backgroundColor;
+  // An element with `border-style: none` still COMPUTES a border colour, and its
+  // initial value is `currentColor` — the TEXT colour. Reading it unguarded painted
+  // every rim mote near-white on a dark theme, whatever the theme actually was.
+  const bordered = own && own.borderTopStyle !== 'none' && parseFloat(own.borderTopWidth) > 0;
+  return { fill: fill || 'var(--bg-container)', edge: bordered ? own.borderTopColor : '' };
+};
+
 // Flat speck in the surface's own colours; the rim cells take its border instead, so
-// the cloud keeps the window's outline for the first frames.
+// the cloud keeps the window's outline for the first frames. The speck is a GRAIN, not
+// the cell it sits in: past the mote budget a cell can be several times the grain we
+// want, and a cell-filling square is the "huge rectangles" a scatter must never show.
 const speckMaker = (el) => {
-  const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
-  const blank = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
-  const fill = blank(cs?.backgroundColor) ? 'var(--bg-container)' : cs.backgroundColor;
-  const edge = blank(cs?.borderTopColor) ? fill : cs.borderTopColor;
-  return (_el, { cx, cy, cols, rows }) => {
+  const { fill, edge } = surfacePaint(el);
+  return (_el, { cx, cy, cols, rows, cellW, cellH }) => {
     const d = document.createElement('div');
     d.className = 'dust-mote';
     const n = tileNoise(cx, cy);
-    d.style.background = (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1) ? edge : fill;
+    d.style.background = (edge && (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1))
+      ? edge : fill;
     d.style.opacity = (0.62 + n * 0.38).toFixed(2);
-    // Grains of ONE size read as a mosaic; the spread is what makes it sand. On the
-    // copy, not the tile — the tile's own transform is the flight.
-    d.style.transform = `scale(${(0.72 + n * 0.5).toFixed(2)})`;
+    // Grains of ONE size read as a mosaic; the spread is what makes it sand.
+    const grain = Math.min(cellW || SURFACE_SPECK_PX, cellH || SURFACE_SPECK_PX, SURFACE_SPECK_PX);
+    const px = grain * (0.62 + n * 0.5);
+    d.style.width = `${px.toFixed(2)}px`;
+    d.style.height = `${px.toFixed(2)}px`;
+    // …centred in its cell, so the field stays even however far the cell outgrew it.
+    d.style.marginLeft = `${(((cellW || px) - px) / 2).toFixed(2)}px`;
+    d.style.marginTop = `${(((cellH || px) - px) / 2).toFixed(2)}px`;
     return d;
   };
 };
@@ -1040,6 +1078,35 @@ export const surfaceIn = (el, point, { ms = SURFACE_IN_MS } = {}) =>
 // hide/remove: like leaveThenRemove, the end state never depends on the animation.
 export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS } = {}) =>
   playSurface(el, point, { ms, gather: false });
+
+// ── Hover popups: the two whose visibility is pure CSS ─────────────────────
+// The toolbar's hints bubble and the install menu are shown by a `:hover` rule alone,
+// with no JS open/close to hang a flight off. They are surfaces all the same, so they
+// take the same sand — the only difference is the EXIT: by the time pointerleave runs,
+// `:hover` is gone and the popup is already display:none, so there is nothing left to
+// copy. The hold class puts the box back for exactly as long as the motes need.
+export const HOVER_DUST_HOLD_CLASS = 'dust-hold';
+export const HOVER_DUST_HOLD_MS = 120;
+export function wireHoverDust(host, popup, { inMs = 300, outMs = 200 } = {}) {
+  if (!host?.addEventListener || !popup?.classList) return;
+  const point = () => {
+    const r = host.getBoundingClientRect?.();
+    if (!r || !(r.width > 0 && r.height > 0) || motionReduced()) return null;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+  host.addEventListener('pointerenter', () => {
+    const p = point();
+    if (!p || !surfaceIn(popup, p, { ms: inMs })) settleSurface(popup);
+  });
+  host.addEventListener('pointerleave', () => {
+    const p = point();
+    if (!p) { settleSurface(popup); return; }
+    popup.classList.add(HOVER_DUST_HOLD_CLASS);
+    const played = surfaceOut(popup, p, { ms: outMs });
+    if (!played) settleSurface(popup);
+    setTimeout(() => popup.classList.remove(HOVER_DUST_HOLD_CLASS), played ? HOVER_DUST_HOLD_MS : 0);
+  });
+}
 
 // ── Materialize: leaveThenRemove reversed, for a freshly-ADDED row ──────────
 // Call on the new row right after the render that inserted it: its box expands on the

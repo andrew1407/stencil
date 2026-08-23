@@ -99,13 +99,21 @@
     },
     "rotate-ccw": {
       "action": "rotate image left (quarter turn)",
-      "mode": "hold",
-      "parts": [{ "hook": null, "to": { "rotate": -30 } }]
+      "mode": "settle",
+      "note": "one FULL turn the way the button turns the image, so the glyph comes to rest exactly as it started — a partial tilt held on hover only hinted at the turn",
+      "parts": [{
+        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": -360 }]
+      }]
     },
     "rotate-cw": {
       "action": "rotate image right (quarter turn)",
-      "mode": "hold",
-      "parts": [{ "hook": null, "to": { "rotate": 30 } }]
+      "mode": "settle",
+      "note": "the mirror of `rotate-ccw` — same turn, the other way",
+      "parts": [{
+        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
+      }]
     },
     "play": {
       "action": "start drawing",
@@ -163,21 +171,52 @@
     "eraser": {
       "action": "clear all lines",
       "mode": "settle",
-      "note": "two rubbing passes along its own diagonal",
-      "parts": [{
-        "hook": null, "durationMs": 340, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0 }, { "at": 35, "translate": [-1.3, 1.3] }, { "at": 70, "translate": [0.9, -0.9] }, { "at": 100 }]
-      }]
+      "note": "it actually ERASES: the pad sweeps right along the line under it and that line vanishes from behind the pad, then the pad comes home and the line is written back — the action mimed, not a generic wobble. The baseline runs (22,21)→(7,21), 15 units, so a POSITIVE dash offset eats it from the x=7 end the pad starts on; 4 units of offset track the pad's own 4-unit travel",
+      "parts": [
+        {
+          "hook": "ic-body", "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [{ "at": 0 }, { "at": 45, "translate": [4, 0] }, { "at": 100 }]
+        },
+        {
+          "hook": "ic-baseline", "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "dashArray": 15,
+          "keyframes": [{ "at": 0, "dashOffset": 0 }, { "at": 45, "dashOffset": 4 }, { "at": 100, "dashOffset": 0 }]
+        }
+      ]
     },
     "undo": {
       "action": "undo — step back",
-      "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [-1.8, 0] } }]
+      "mode": "settle",
+      "note": "the arrow draws itself slowly, tail to head: the shaft (11 + a r5 half turn + 4 ≈ 30.7 units) is drawn from its far END — a NEGATIVE dash offset, so the ink advances backwards along the path towards the head — and the head is struck last. Direction is still the meaning: undo's head points left, redo's right",
+      "parts": [
+        {
+          "hook": "ic-shaft", "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 31,
+          "keyframes": [{ "at": 0, "dashOffset": -31 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-head", "durationMs": 200, "delayMs": 380,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 15,
+          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+        }
+      ]
     },
     "redo": {
       "action": "redo — step forward",
-      "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [1.8, 0] } }]
+      "mode": "settle",
+      "note": "undo's mirror: the same draw-on, on a glyph pointing the other way",
+      "parts": [
+        {
+          "hook": "ic-shaft", "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 31,
+          "keyframes": [{ "at": 0, "dashOffset": -31 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-head", "durationMs": 200, "delayMs": 380,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 15,
+          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+        }
+      ]
     },
     "dots": {
       "action": "more actions / work pending",
@@ -278,19 +317,19 @@
     "moon": {
       "action": "switch to the dark theme",
       "mode": "settle",
-      "note": "the WHOLE moon gives a quick shake in place — `help`'s tremor on the whole glyph. TRANSLATION, not rotation: a turn is invisible on a disc, reads as a tip on a crescent, and in this table means an actual turn (gear, refresh, the quarter-turns)",
+      "note": "the crescent WAVES — a small damped rock about the glyph centre, each swing reversing the last and settling upright. Small on purpose: a crescent tipped far enough reads as a different shape",
       "parts": [{
-        "hook": null, "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
+        "hook": null, "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 25, "rotate": -11 }, { "at": 55, "rotate": 8 }, { "at": 80, "rotate": -4 }, { "at": 100, "rotate": 0 }]
       }]
     },
     "sun": {
       "action": "switch to the light theme",
       "mode": "settle",
-      "note": "the moon's twin: the WHOLE glyph, rays and all, shakes on the same numbers",
+      "note": "the sun TURNS — one whole revolution, rays and all, coming to rest exactly where it started. Its twin the moon waves instead: a turn is invisible on a disc but plain on a rayed one, and plain nonsense on a crescent",
       "parts": [{
-        "hook": null, "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
+        "hook": null, "durationMs": 700, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
       }]
     },
     "maximize": {
@@ -441,18 +480,21 @@
     },
     "share": {
       "action": "share",
-      "mode": "hold",
-      "note": "the two receiving nodes move outward, away from the source",
-      "parts": [
-        { "hook": "ic-node-tr", "to": { "translate": [0.9, -0.9] } },
-        { "hook": "ic-node-br", "to": { "translate": [0.9, 0.9] } }
-      ]
+      "mode": "settle",
+      "note": "the two receiving nodes light up in turn, top then bottom — the copy reaching one recipient and then the other. They SWELL rather than travel: the nodes sit on the ends of the two connecting lines, and a move big enough to read pulled them off those ends",
+      "parts": [{
+        "hook": "ic-node", "durationMs": 380, "stagger": 120, "originSelf": true,
+        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.45 }, { "at": 100, "scale": 1 }]
+      }]
     },
     "monitor": {
       "action": "open in another app",
-      "mode": "hold",
-      "note": "restrained: the screen lifts off its stand — the image being handed to another app",
-      "parts": [{ "hook": "ic-screen", "to": { "translate": [0, -1.2] } }]
+      "mode": "settle",
+      "note": "the screen lifts clear off its stand and settles back — the image being handed to another app. A held 1.2-unit nudge was half a pixel at toolbar size and read as no motion at all, which is the whole reason this table exists",
+      "parts": [{
+        "hook": "ic-screen", "durationMs": 380,
+        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -2.6] }, { "at": 100 }]
+      }]
     },
     "server": {
       "action": "servers — connect, share, co-edit",
@@ -476,9 +518,12 @@
       "parts": [{ "hook": "ic-meridian", "to": { "scaleX": 0.45 } }]
     },
     "refresh-cw": {
-      "action": "live sync to file — the same wheel as `refresh`, and the same half turn",
-      "mode": "hold",
-      "parts": [{ "hook": null, "durationMs": 420, "to": { "rotate": 180 } }]
+      "action": "live sync to file — the same wheel as `refresh`, turning a WHOLE revolution: a sync runs and completes, so the wheel comes back to where it started instead of resting half-turned",
+      "mode": "settle",
+      "parts": [{
+        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
+      }]
     },
     "lightbulb": {
       "action": "a hint / tip",
@@ -577,10 +622,25 @@
   "extras": {
     "draw-mode-icon": {
       "action": "line / rectangle draw mode — the browser's own inline pair (DRAW_MODE_ICON in core/drawingApp.js), which is the canonical `line`/`rect` pair on a 16-grid instead of 24. A surface drawing the canon uses those two designs; this entry is only for the inline faces.",
-      "mode": "hold",
-      "note": "restrained: the two drag handles — the corners a drag actually starts and ends on — swell; the pair's own face swap owns everything else",
+      "mode": "settle",
+      "note": "the canonical `line`/`rect` design at 16 units: the shape DRAWS ITSELF between the two drag handles the way a drag would — the segment (10\u221a2 \u2248 14.2) or the box it spans (4\u00d78 straights + a r1 corner each \u2248 38.3) — and the handles pop as it lands. The face swap owns everything else about this button",
       "grid": 16,
-      "parts": [{ "hook": "circle", "originSelf": true, "to": { "scale": 1.3 } }]
+      "parts": [
+        {
+          "hook": "ic-stroke", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 15,
+          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-box", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 39,
+          "keyframes": [{ "at": 0, "dashOffset": 39 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-handle", "durationMs": 300, "delayMs": 90, "stagger": 80, "originSelf": true,
+          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+        }
+      ]
     }
   }
 }

@@ -32,10 +32,11 @@ const partsOf = (design) => [
 ];
 const classesIn = (markup) => (markup.match(/class="([^"]+)"/g) || [])
   .map((m) => m.slice(7, -1));
-// The rest pose: no move, no turn, full size, the stroke fully drawn.
+// The rest pose: no move, full size, the stroke fully drawn — and, for a turn, a WHOLE
+// number of revolutions, which leaves the glyph looking exactly as it started.
 const REST = { translate: [0, 0], rotate: 0, rotateX: 0, scale: 1, scaleX: 1, scaleY: 1, skewX: 0, dashOffset: 0 };
-const isIdentity = (pose) => Object.entries(pose)
-  .every(([k, v]) => k === 'at' || JSON.stringify(v) === JSON.stringify(REST[k]));
+const isIdentity = (pose) => Object.entries(pose).every(([k, v]) =>
+  k === 'at' || (k === 'rotate' ? v % 360 === 0 : JSON.stringify(v) === JSON.stringify(REST[k])));
 
 test('every canonical icon has a motion design, and every design an icon', () => {
   assert.deepEqual(Object.keys(MOTION.icons), Object.keys(ICONS),
@@ -167,8 +168,27 @@ test('direction is the meaning: the pairs point opposite ways', () => {
   const to = (name, hook) => MOTION.icons[name].parts.find((p) => p.hook === hook).to;
   assert.ok(to('download', 'ic-arrow').translate[1] > 0, 'download goes DOWN');
   assert.ok(to('upload', 'ic-arrow').translate[1] < 0, 'upload goes UP');
-  assert.ok(to('undo', null).translate[0] < 0 && to('redo', null).translate[0] > 0);
-  assert.equal(to('rotate-ccw', null).rotate, -to('rotate-cw', null).rotate);
+  // Undo and redo DRAW themselves now, so their direction lives in the glyph: the head
+  // path runs left for undo and right for redo, and each is struck after its own shaft.
+  // The shaft starts AT the head, so where it starts is which way the arrow points.
+  const headX = (name) => +ICONS[name].match(/class="ic-shaft" d="M([\d.]+) /)[1];
+  assert.ok(headX('undo') < 12, "undo's head is on the LEFT");
+  assert.ok(headX('redo') > 12, "redo's head is on the RIGHT");
+  for (const name of ['undo', 'redo']) {
+    const [shaft, head] = MOTION.icons[name].parts;
+    assert.deepEqual([shaft.hook, head.hook], ['ic-shaft', 'ic-head']);
+    assert.ok(shaft.keyframes[0].dashOffset < 0,
+      `${name}: the shaft is drawn from its far END — tail to head, not head to tail`);
+    // The head is struck as the shaft lands (the `x` cross's overlap), and finishes after it.
+    assert.ok(head.delayMs > shaft.durationMs * 0.8
+              && head.delayMs + head.durationMs > shaft.durationMs,
+      `${name}: the head is struck last`);
+  }
+  // The quarter-turn buttons turn a WHOLE revolution, each the way it turns the image.
+  const spin = (name) => MOTION.icons[name].parts[0].keyframes.at(-1).rotate;
+  assert.equal(spin('rotate-ccw'), -360);
+  assert.equal(spin('rotate-cw'), 360);
+  assert.equal(spin('refresh-cw'), 360, 'the live-sync wheel completes its turn too');
   assert.ok(to('chevron-up', null).translate[1] < 0 && to('chevron-down', null).translate[1] > 0);
   assert.ok(to('chevron-left', null).translate[0] < 0 && to('chevron-right', null).translate[0] > 0);
   // The two halves of the chain move TOWARDS each other, not apart.
@@ -208,37 +228,52 @@ test('the fullscreen corners extend to enter and retract to leave', () => {
   assert.match(SECTION, /\.active \.ic-maximize \.ic-corner-tl/, 'and the sheet keys on it');
 });
 
-test('sun and moon SHAKE in place — each as ONE whole glyph', () => {
+test('the sun turns and the moon waves — each as ONE whole glyph', () => {
   for (const name of ['moon', 'sun']) {
     const parts = MOTION.icons[name].parts;
-    assert.equal(parts.length, 1, `${name}: the whole glyph shakes, not choreographed parts`);
+    assert.equal(parts.length, 1, `${name}: the whole glyph moves, not choreographed parts`);
     assert.equal(parts[0].hook, null, `${name}: hook null = the whole glyph`);
-    const kf = parts[0].keyframes;
-    // Side to side and back, `help`'s tremor shape: at least two reversals, each small
-    // enough to stay a shake rather than a slide, and rest at both ends.
-    assert.equal(kf[0].translate, undefined, `${name} starts at rest`);
-    assert.equal(kf.at(-1).translate, undefined, `${name} comes back to rest`);
-    const xs = kf.filter((k) => k.translate).map((k) => k.translate[0]);
-    assert.ok(xs.length >= 3, `${name}: a shake needs more than one throw`);
-    for (let i = 1; i < xs.length; i++)
-      assert.ok(xs[i] * xs[i - 1] < 0, `${name}: each throw reverses the last`);
-    for (const k of kf.filter((x) => x.translate)) {
-      assert.equal(k.translate[1], 0, `${name}: side to side only`);
-      assert.ok(Math.abs(k.translate[0]) <= 1, `${name}: and small — a shake, not a move`);
-    }
-    // TRANSLATION, not rotation: a turn is invisible on a disc, reads as a tip on a
-    // crescent, and in this table means an actual turn (gear, refresh, quarter-turns).
-    for (const k of kf)
-      for (const prop of ['rotate', 'scale', 'scaleX', 'scaleY', 'skewX'])
-        assert.equal(k[prop], undefined, `${name}: the shake is a translation and nothing else`);
-    // In the same band as the other settles, and one shot: it never repeats.
-    assert.ok(parts[0].durationMs >= 300 && parts[0].durationMs <= 380,
-      `${name}: ${parts[0].durationMs}ms is out of the settle range`);
+    // Both are pure rotations about the glyph centre, so neither can leave its own box.
+    for (const k of parts[0].keyframes)
+      for (const prop of ['translate', 'scale', 'scaleX', 'scaleY', 'skewX'])
+        assert.equal(k[prop], undefined, `${name}: the theme pair turn, and do nothing else`);
+    assert.equal(parts[0].keyframes[0].rotate, 0, `${name} starts upright`);
   }
-  assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts,
-    'the theme pair shake on the same numbers — they are one design');
-  assert.match(SECTION, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmShiver;/);
+  // The sun makes ONE whole revolution — rays and all — and lands where it started.
+  const sun = MOTION.icons.sun.parts[0];
+  assert.deepEqual(sun.keyframes.map((k) => k.rotate), [0, 360], 'the sun turns once, all the way');
+  // The moon WAVES: a damped rock, each swing reversing the last and settling upright.
+  // Small on purpose — a crescent tipped far enough reads as a different shape.
+  const rocks = MOTION.icons.moon.parts[0].keyframes.map((k) => k.rotate);
+  assert.equal(rocks.at(0), 0);
+  assert.equal(rocks.at(-1), 0, 'the moon comes back upright');
+  const swings = rocks.slice(1, -1);
+  assert.ok(swings.length >= 3, 'a wave needs more than one swing');
+  for (let i = 1; i < swings.length; i++)
+    assert.ok(swings[i] * swings[i - 1] < 0, 'each swing reverses the last');
+  for (const r of swings) assert.ok(Math.abs(r) <= 12, `${r}° is a tumble, not a wave`);
+  assert.ok(Math.abs(swings.at(-1)) < Math.abs(swings[0]), 'and the wave damps out');
+  assert.match(SECTION, /\.ic-sun\s+\{[^}]*--ic-play: icmTurnCw;/);
+  assert.match(SECTION, /\.ic-moon\s+\{[^}]*--ic-play: icmRock;/);
   assert.doesNotMatch(SECTION, /animation-iteration-count/, 'a settle plays once');
+});
+
+test('the eraser erases a line, and writes it back', () => {
+  const [body, base] = MOTION.icons.eraser.parts;
+  assert.deepEqual([body.hook, base.hook], ['ic-body', 'ic-baseline']);
+  // The pad sweeps along the line under it — right, the way the baseline runs from the
+  // pad's own corner — and the line disappears from behind it by exactly that much.
+  const sweep = body.keyframes.find((k) => k.translate).translate;
+  assert.ok(sweep[0] > 0 && sweep[1] === 0, 'the pad rubs ALONG the line, not across it');
+  const eaten = base.keyframes.map((k) => k.dashOffset);
+  assert.deepEqual([eaten.at(0), eaten.at(-1)], [0, 0], 'the line is whole at both ends');
+  assert.equal(Math.max(...eaten), sweep[0], 'and vanishes exactly as far as the pad travels');
+  // A positive offset on a 15-unit baseline drawn (22,21)→(7,21) eats it from x=7 — the
+  // end the pad starts on. Both live in the SAME element so the pad can cover the join.
+  assert.equal(base.dashArray, 15);
+  assert.match(ICONS.eraser, /<line class="ic-baseline" x1="22" y1="21" x2="7" y2="21"\/>/);
+  assert.match(SECTION, /\.ic-eraser \.ic-body\s+\{[^}]*--ic-play: icmRub;/);
+  assert.match(SECTION, /\.ic-eraser \.ic-baseline\s+\{[^}]*--ic-play: icmRubOut;/);
 });
 
 test('the help mark trembles inside its ring, and never turns out of it', () => {

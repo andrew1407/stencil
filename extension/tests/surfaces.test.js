@@ -26,8 +26,8 @@ const OVERLAY = css('../src/lib/overlay.js');
 // one gives real dust. The quoted grid is only the frame-budget ceiling.
 test('reshapeGrid aims for the mote size, not a fixed cell count', () => {
   const { cols, rows } = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, 160, 240, SURFACE_MOTE_PX);
-  assert.equal(cols, 20);   // 160 / 8
-  assert.equal(rows, 30);   // 240 / 8
+  assert.equal(cols, 27);   // 160 / 6
+  assert.equal(rows, 40);   // 240 / 6
 });
 
 test('reshapeGrid holds a full-window surface to the quoted budget', () => {
@@ -275,9 +275,10 @@ test('reduced motion neutralises the surface classes the preference may have fli
   assert.match(ANIMS, /\.disintegrate-host \{ display: none; \}/, 'no motes at all under the preference');
 });
 
-test('the tooltip takes the same sand as a MASK, never a mote layer', () => {
-  // Three coprime dot grids ramped by --dissolve — the scroll dissolve's own grain — so
-  // one shared tooltip re-pointed many times a second has nothing to clone or strand.
+test('the tooltip keeps its mask grain as the fallback under the real motes', () => {
+  // The tooltip forms and leaves as PARTICLES now, like every other surface. The three
+  // coprime dot grids ramped by --dissolve stay as the rest state and the reduced-motion
+  // / declined-dust fallback; `.dust-driven` steps them aside once real motes have flown.
   assert.match(THEME, /#app-tooltip \{[\s\S]*?--dissolve: 1;/);
   assert.match(THEME, /#app-tooltip\.visible \{[\s\S]*?--dissolve: 0;/);
   assert.match(THEME, /mask-size: 4px 4px, 7px 7px, 11px 11px;/);
@@ -288,9 +289,11 @@ test('the tooltip takes the same sand as a MASK, never a mote layer', () => {
   assert.match(THEME, /#000 max\(0%, calc\(120% - var\(--dissolve\) \* 160%\)\)/);
   // --dissolve can only be transitioned because animations.css registers it.
   assert.match(ANIMS, /@property --dissolve \{ syntax: "<number>"; inherits: false; initial-value: 0; \}/);
-  // No mote layer is ever built for it: nothing in the tooltip's own module asks for one.
+  // …and once a real cloud has flown, the mask and the transition are off for good.
+  assert.match(THEME, /#app-tooltip\.dust-driven \{[\s\S]*?mask-image: none;/);
   const tip = readFileSync(new URL('../src/lib/controlTooltip.js', import.meta.url), 'utf8');
-  assert.ok(!/surfaceIn|surfaceOut|disintegrate/.test(tip));
+  assert.match(tip, /surfaceIn\(t, point, \{ ms: TIP_IN_MS \}\)/);
+  assert.match(tip, /surfaceOut\(tip, point, \{ ms: TIP_OUT_MS \}\)/);
 });
 
 test('the injected in-page modal carries the same grain inline (it can link nothing)', () => {
@@ -321,7 +324,8 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     // [file, what opens it, the point it is aimed at]
     ['../src/lib/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
     ['../src/lib/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
-    ['../src/lib/customSelect.js', 'surfaceIn(menu, centerOf(trigger));', 'surfaceOut(menu, centerOf(trigger))'],
+    // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
+    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, point, { ms: MENU_IN_MS })', 'surfaceOut(menu, point, { ms: MENU_OUT_MS })'],
     ['../src/lib/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../src/popup/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/options.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],

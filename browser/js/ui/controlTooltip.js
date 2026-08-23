@@ -7,10 +7,32 @@
 // bullets, and the muted disabled-reason note — and this only positions and shows it.
 
 import { renderTip, parseTip } from './tipContent.js';
+import { surfaceIn, surfaceOut, settleSurface } from './motion.js';
 
 const SHOW_DELAY_MS = 90;   // tiny delay so flicking the cursor across the bar doesn't flash tips
 const SHAKE_CLASS = 'key-shake';
 const SHAKE_MS = 340;       // the keycap nudge — one shot, matched to the CSS keyframes
+// ── The tooltip is sand too ──────────────────────────────────────────────────
+// Every other overlay in the app forms from motes streaming out of the control that
+// opened it and comes apart into motes pouring back in (js/ui/motion.js
+// surfaceIn/surfaceOut); a tooltip is no different, and the control it describes is
+// exactly the point its dust belongs to. Its own clock, though: a tooltip is re-pointed
+// many times a second on a toolbar sweep, so both halves are short — the flight has to
+// be over before the next control's begins.
+const TIP_IN_MS = 260;
+const TIP_OUT_MS = 190;
+// While the motes are still gathering the box may not move: the cloud was measured
+// where the tip was placed, and a tip that tracked the cursor mid-flight would leave
+// its own sand behind. It picks the cursor up again the moment it lands.
+let placeHeldUntil = 0;
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+// Where a tooltip's dust comes from and goes back to: the centre of the control it
+// describes. A detached or unmeasurable owner has no point, and the dust declines.
+const dustPoint = (el) => {
+  const r = el?.getBoundingClientRect?.();
+  if (!r || !(r.width > 0 && r.height > 0)) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
 
 let tip = null;             // the floating element (created lazily)
 let curEl = null;           // element whose tooltip is currently shown/pending
@@ -104,6 +126,7 @@ const textFor = (el) => {
 
 const place = (e) => {
   if (!tip || !e) return;
+  if (now() < placeHeldUntil) return;   // the motes are still on their way to this box
   const pad = 10;
   // offsetWidth/Height, NOT a client rect: the entry transform scales the box while it
   // plays, and a rect measured mid-flight would clamp against a tooltip 3% too small —
@@ -124,6 +147,7 @@ const hide = () => {
   clearTimeout(showTimer);
   showTimer = null;
   curCombos = [];
+  const owner = curEl;
   if (curEl) {
     // Restore the native title we suppressed (only if still blanked, so a live re-compose wins).
     const saved = curEl.__nativeTitle;
@@ -131,7 +155,14 @@ const hide = () => {
     if (curEl.__nativeTitle != null) delete curEl.__nativeTitle;
     curEl = null;
   }
-  if (tip) tip.classList.remove('visible');
+  if (!tip) return;
+  // It comes apart into its control. The class goes NOW either way: the cloud owns its
+  // own lifetime, and the end state must never depend on the animation.
+  const point = dustPoint(owner);
+  if (tip.classList.contains('visible') && point) surfaceOut(tip, point, { ms: TIP_OUT_MS });
+  else settleSurface(tip);
+  placeHeldUntil = 0;
+  tip.classList.remove('visible');
 };
 
 const reveal = (el) => {
@@ -151,7 +182,12 @@ const reveal = (el) => {
   // it drew. Order matches the .tip-combo spans in the markup one for one.
   curCombos = parseTip(txt).keys;
   t.classList.add('visible');
+  placeHeldUntil = 0;
   place(lastEvent);
+  // Placed first, so the motes stream at the box the tip will actually occupy.
+  const point = dustPoint(el);
+  if (point && surfaceIn(t, point, { ms: TIP_IN_MS })) placeHeldUntil = now() + TIP_IN_MS;
+  else settleSurface(t);
   shakeKeys(t);
 };
 

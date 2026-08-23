@@ -5,6 +5,7 @@ import { icon } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
+import { surfaceIn, surfaceOut, settleSurface, wireHoverDust } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
@@ -301,6 +302,8 @@ export class StencilToolbar extends StencilElement {
     const body = document.getElementById('controls-body');
     const hintsBtn = document.getElementById('hints-btn');
     const popup = document.getElementById('hints-popup');
+    // Shown by a :hover rule alone, so its sand is wired here (js/ui/motion.js).
+    wireHoverDust(hintsBtn, popup);
     let hidden = false;
 
     // Two facts, nothing else: the image size, and — only in incognito — that this
@@ -402,6 +405,23 @@ export function wireLogoColorPicker(logo, app) {
     typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
   const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
+  // The list is sand, like every other surface (js/ui/motion.js): it forms from motes
+  // streaming out of the logo and comes apart into motes pouring back into it. The
+  // `hidden` / `.dd-closing` hooks are unchanged — the dust simply replaces the scale
+  // those two used to drive, and its own animationend still ends the exit.
+  const MENU_IN_MS = 340;
+  const MENU_OUT_MS = 220;
+  const logoPoint = () => {
+    const r = wrap.getBoundingClientRect?.();
+    if (!r || !(r.width > 0 && r.height > 0)) return null;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+  const dustMenu = (enter) => {
+    if (!menu) return;
+    const point = reducedMotion() ? null : logoPoint();
+    if (point && (enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS })) return;
+    settleSurface(menu);
+  };
   const openMenu = () => {
     if (!menu) return;
     if (pendingKind) menuKind = pendingKind;
@@ -424,6 +444,7 @@ export function wireLogoColorPicker(logo, app) {
     if (menuCloseDone) menu.removeEventListener('animationend', menuCloseDone);
     menu.classList.remove('dd-closing');
     menu.hidden = false;
+    dustMenu(true);
     // Idempotent (same refs), so a reopen can't double-register.
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onMenuKey);
@@ -453,6 +474,7 @@ export function wireLogoColorPicker(logo, app) {
     // Leaves on the shared pop-out; hidden only once the exit has played — with a timer
     // fallback so a missing/neutralised animation can never wedge the menu open.
     menu.classList.add('dd-closing');
+    dustMenu(false);
     menuCloseTimer = setTimeout(menuCloseDone, 250);
     menu.addEventListener('animationend', menuCloseDone);
   };

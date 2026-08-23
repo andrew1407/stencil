@@ -419,14 +419,14 @@ test('the Line and Rect glyphs are siblings, not two different families', async 
     assert.match(svg, /viewBox="0 0 16 16"/, `${name} shares the grid`);
     assert.ok(!/#|rgb\(|var\(/.test(svg), `${name} paints in currentColor only`);
     // The same two handles, filled, at the same radius.
-    assert.match(svg, /<circle cx="3" cy="13" r="2" fill="currentColor"\/>/, `${name} anchors the start handle`);
-    assert.match(svg, /<circle cx="13" cy="3" r="2" fill="currentColor"\/>/, `${name} anchors the end handle`);
+    assert.match(svg, /<circle class="ic-handle" cx="3" cy="13" r="2" fill="currentColor"\/>/, `${name} anchors the start handle`);
+    assert.match(svg, /<circle class="ic-handle" cx="13" cy="3" r="2" fill="currentColor"\/>/, `${name} anchors the end handle`);
   }
   // One stroke weight across the pair — a heavier rect would read as a different set.
   const weights = new Set(svgs.flatMap((s) => [...s.matchAll(/stroke-width="([^"]+)"/g)].map((m) => m[1])));
   assert.deepEqual([...weights], ['1.5'], 'one stroke weight across both faces');
   // …and the rect really spans those two handles (3,3)→(13,13), so the dots sit ON it.
-  assert.match(DRAW_MODE_ICON.rect, /<rect x="3" y="3" width="10" height="10"/,
+  assert.match(DRAW_MODE_ICON.rect, /<rect class="ic-box" x="3" y="3" width="10" height="10"/,
     'the box spans the same corners the line connects');
 });
 

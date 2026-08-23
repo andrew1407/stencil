@@ -19,7 +19,7 @@ export const ICONS = {
   'refresh':   '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
   'calendar':  '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><g class="ic-rings"><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></g><line x1="3" y1="10" x2="21" y2="10"/>',
   'external':  '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><g class="ic-arrow"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></g>',
-  'share':     '<circle class="ic-node-tr" cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle class="ic-node-br" cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+  'share':     '<circle class="ic-node" cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle class="ic-node" cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
   'incognito': '<g class="ic-brim"><path d="M2 12h20"/><path d="M5 12l1.6-5.3A2 2 0 0 1 8.5 5.3h7a2 2 0 0 1 1.9 1.4L19 12"/></g><g class="ic-glasses"><circle cx="6.5" cy="15.5" r="2.8"/><circle cx="17.5" cy="15.5" r="2.8"/><path d="M9.3 15a2.8 2.8 0 0 1 5.4 0"/></g>',
   'monitor':   '<rect class="ic-screen" x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
   'server':    '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line class="ic-led" x1="6" y1="6" x2="6.01" y2="6"/><line class="ic-led" x1="6" y1="18" x2="6.01" y2="18"/>',

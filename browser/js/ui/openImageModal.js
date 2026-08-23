@@ -418,8 +418,12 @@ export class StencilOpenImageModal extends StencilElement {
     // The open-ANOTHER icon (shown once an image exists) answers the same popover
     // gestures as the primary trigger: dblclick / right-click / long press pin the
     // compact shape to THIS icon instead of centring the full dialog.
+    // …and the FULL open grows out of this icon too. The shell's own opener
+    // (#load-image-btn) is display:none the moment an image exists, so a hidden 0x0 box
+    // sent the dust to the fall-from-above fallback — the dialog dropped in from the top
+    // and left the same way, out of a control nobody had touched.
     const anotherBtn = $('open-image-btn');
-    if (anotherBtn) wireModalOpenGestures(anotherBtn, { openFull: open, openPopover: () => openPopover(anotherBtn) });
+    if (anotherBtn) wireModalOpenGestures(anotherBtn, { openFull: () => open(anotherBtn), openPopover: () => openPopover(anotherBtn) });
     $('create-blank-btn')?.addEventListener('click', () => openBlank($('create-blank-btn')));
     // Projects footer: close that modal (via its own close, so its handlers run) first.
     $('projects-blank-image')?.addEventListener('click', () => {

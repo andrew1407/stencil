@@ -143,14 +143,12 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
-  // Closing plays the entrance backwards — the list shrinks toward the corner it grew
-  // from — and only then is it hidden and put back (animationend, with a timer fallback so
-  // a neutralised or missing animation can never wedge it open). animationend BUBBLES, so
-  // an option row's own hover transition must not be mistaken for the menu's exit.
+  // Closing hands over to the dust: hideMenu measures the list where it stands and
+  // flies a cloud of it back into the trigger (ui/dropdownMenu.js surfaceOut), so the
+  // list itself goes at once and there is no exit animation to wait on. The
+  // `.dd-closing` clean-up stays only so a reopen mid-flight starts from a clean slate.
   let closeTimer = null;
   let closeDone = null;
-  const reducedMotion = () =>
-    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
     trigger.setAttribute('aria-expanded', 'false');
@@ -163,10 +161,7 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
       menu.classList.remove('dd-closing');
       hideMenu(menu);
     };
-    if (reducedMotion()) { closeDone(); return; }
-    menu.classList.add('dd-closing');
-    closeTimer = setTimeout(closeDone, 250);
-    menu.addEventListener('animationend', closeDone);
+    closeDone();
   };
   const choose = (v) => {
     selectEl.value = v;   // routes through the wrapped setter → re-syncs the trigger

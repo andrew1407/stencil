@@ -226,6 +226,19 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
   mask-composite: add;
 }
+/* …and once the real motes have flown for it (lib/controlTooltip.js surfaceIn), the
+   mask, the transition and the entry offset all step aside for good: the sand is a
+   cloud of actual particles now, streaming out of the control the tip describes and
+   pouring back into it, exactly as a menu or a dialog does. `.dust-driven` is permanent
+   by design (lib/motion.js), and surfaceForm / surfaceLeave own the alpha while a
+   flight is up. Under reduced motion the dust never plays, so this never applies. */
+#app-tooltip.dust-driven {
+  transition: none;
+  transform: none;
+  --dissolve: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 /* ARRIVING: opaque by 100ms — a sweep must never wait to read it — and what you watch
    for the rest is the sand closing up. */
 #app-tooltip.visible {
