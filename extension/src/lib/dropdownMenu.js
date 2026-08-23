@@ -12,15 +12,18 @@
 // component, so an outside-press check must test the menu as well as the trigger.
 
 import { popoverPosition } from './popover.js';
-import { surfaceIn, surfaceOut, settleSurface, motionReduced } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, motionReduced,
+         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 
 const GAP = 4;        // between trigger and menu
 const MARGIN = 8;     // minimum distance to a viewport edge
 const MAX_H = 280;    // the .accent-dd-menu cap, respected while fitting to the window
 // The list is sand, like every other surface in the app (js/ui/motion.js): it forms
-// from motes streaming out of its trigger and comes apart into motes pouring back in.
-const MENU_IN_MS = 340;
-const MENU_OUT_MS = 220;
+// from motes streaming out of its trigger and comes apart into motes pouring back in,
+// on the shared MENU clock — brisker than a window's, because a list is opened to be
+// clicked rather than looked at.
+const MENU_IN_MS = SURFACE_MENU_IN_MS;
+const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
 // Where those motes come from and go back to: the trigger's own centre.
 const dustPoint = (trigger) => {
   const r = trigger?.getBoundingClientRect?.();

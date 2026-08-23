@@ -6,7 +6,7 @@ import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator,
-  surfaceIn, surfaceOut,
+  surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
 } from './motion.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
@@ -455,7 +455,7 @@ export class StencilProjectsModal extends StencilElement {
       if (!openMenu) return;
       // Back into that same point as dust (js/ui/motion.js) — its own layer, so the
       // menu node still goes away NOW and nothing can be left half-removed.
-      surfaceOut(openMenu, menuPoint);
+      surfaceOut(openMenu, menuPoint, { ms: SURFACE_MENU_OUT_MS });
       openMenu.remove();
       openMenu = null;
       document.removeEventListener('mousedown', onMenuDocDown, true);
@@ -501,7 +501,7 @@ export class StencilProjectsModal extends StencilElement {
       // button's centre otherwise.
       const ar = anchor?.getBoundingClientRect?.();
       menuPoint = point || (ar ? { x: ar.left + ar.width / 2, y: ar.top + ar.height / 2 } : null);
-      surfaceIn(menu, menuPoint);
+      surfaceIn(menu, menuPoint, { ms: SURFACE_MENU_IN_MS });
       setTimeout(() => {
         document.addEventListener('mousedown', onMenuDocDown, true);
         document.addEventListener('keydown', onMenuKey, true);

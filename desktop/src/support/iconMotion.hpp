@@ -325,9 +325,14 @@ namespace stencil::gui {
     }
 
     // Geometric identity only — a dash offset is written as its own attribute pair.
+    // A WHOLE number of turns counts: the quarter-turn buttons, the live-sync wheel and
+    // the sun each end their play a full revolution on, which leaves the glyph exactly as
+    // it was — so the rest frame is the canon's own markup, byte for byte, and nothing
+    // marks a settled icon as still transformed.
     inline bool isIdentity(const IconPose& p) {
+      const double spun = std::fmod(std::abs(p.rotate), 360.0);
       return std::abs(p.tx) < 1e-4 && std::abs(p.ty) < 1e-4
-             && std::abs(p.rotate) < 1e-4 && std::abs(p.sx - 1) < 1e-4
+             && (spun < 1e-4 || 360.0 - spun < 1e-4) && std::abs(p.sx - 1) < 1e-4
              && std::abs(p.sy - 1) < 1e-4 && std::abs(p.skewX) < 1e-4;
     }
 

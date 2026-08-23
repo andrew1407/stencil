@@ -23,6 +23,7 @@
 #include <QImage>
 #include <QRect>
 #include <QToolButton>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -263,32 +264,34 @@ int main(int argc, char** argv) {
     }
   }
 
-  // The theme pair SHAKE as whole glyphs: side to side, reversing, and back to rest. One
-  // part, no hook: no ray/orb choreography — and no turn, which on a disc is invisible and
-  // on a crescent reads as a tip.
+  // The theme pair TURN as whole glyphs — one part, no hook, no ray/orb choreography —
+  // and each lands back exactly on its rest pose. The sun makes a whole revolution; the
+  // moon only rocks, because a crescent tipped far enough reads as a different shape.
   {
     for (const char* g : {"sun", "moon"}) {
       const IconMotionSpec* s = iconMotionFor(QLatin1String(g));
       check(s && s->parts.size() == 1 && s->parts.first().hook.isEmpty(),
-            (QByteArray(g) + ": the WHOLE glyph shakes — one part, hooked to nothing").constData());
-      const QRect rest = inkBox(frame(g, *s, s->totalMs));
-      // The ink's CENTRE, not an edge: the sun's rays already reach the icon box, so Qt
-      // clips the leading tip and the edge on that side cannot move.
-      int lefts = 0, rights = 0;
-      bool level = true;
-      for (double f : {0.1, 0.25, 0.4, 0.55, 0.7, 0.85}) {
-        const QRect b = inkBox(frame(g, *s, s->totalMs * f));
-        if (b.center().x() < rest.center().x()) ++lefts;
-        if (b.center().x() > rest.center().x()) ++rights;
-        if (b.top() != rest.top() || b.bottom() != rest.bottom()) level = false;
-      }
-      check(level,
-            (QByteArray(g) + ": side to side — the shake never rides up or down").constData());
-      check(lefts && rights,
-            (QByteArray(g) + ": it throws BOTH ways — a shake, not a slide").constData());
-      check(inkBox(frame(g, *s, 0)) == rest,
-            (QByteArray(g) + ": …starting and ending on the rest glyph").constData());
+            (QByteArray(g) + ": the WHOLE glyph turns — one part, hooked to nothing").constData());
+      const QImage rest = frame(g, *s, s->totalMs);
+      check(rest == frame(g, *s, 0),
+            (QByteArray(g) + ": …starting and ending on the very same glyph").constData());
+      // Something actually moved in between — with the pixels back where they started,
+      // that is the only thing a whole turn and a damped rock have in common.
+      bool moved = false;
+      for (double f : {0.15, 0.3, 0.45, 0.6, 0.8})
+        if (frame(g, *s, s->totalMs * f) != rest) moved = true;
+      check(moved, (QByteArray(g) + ": …and turns on the way").constData());
     }
+    // The sun's is a FULL revolution, so it passes through every quarter turn: a quarter
+    // of the way in, the ray that pointed up points sideways. The moon's swings are small
+    // enough that its ink box never leaves the glyph's own.
+    const IconMotionSpec* sun = iconMotionFor(QStringLiteral("sun"));
+    check(sun->parts.first().keys.last().pose.rotate == 360, "the sun turns all the way round");
+    const IconMotionSpec* moon = iconMotionFor(QStringLiteral("moon"));
+    double swing = 0;
+    for (const IconMotionKey& k : moon->parts.first().keys)
+      swing = std::max(swing, std::abs(k.pose.rotate));
+    check(swing > 0 && swing <= 12, "the moon waves — it does not tumble");
   }
 
   // The help mark TREMBLES INSIDE its ring. Everything the play touches stays well within

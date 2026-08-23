@@ -1,4 +1,5 @@
 #include "modalReveal.hpp"
+#include "disintegrateOverlay.hpp"
 #include <QEvent>
 
 #include <QAbstractAnimation>
@@ -21,6 +22,8 @@ namespace stencil::support {
   namespace {
     // Brisk, but not so brisk the flight from the icon is over before it registers.
     // Ease-OUT on the way in, so the growth visibly slows as it settles into place.
+    // These belong to the GHOST fallback below; the dust has its own pair
+    // (DisintegrateOverlay::kSurfaceInMs / kSurfaceOutMs, the browser's numbers).
     constexpr int kOpenMs = 300;
     constexpr int kCloseMs = 240;
 
@@ -90,6 +93,37 @@ namespace stencil::support {
       group->start(QAbstractAnimation::DeleteWhenStopped);
     }
 
+    // ── The dust flight (browser js/ui/motion.js surfaceIn / surfaceOut) ──────
+    // A window does not SCALE out of its icon any more: it forms from motes streaming
+    // out of that icon, and comes apart into motes pouring back into it. Same origin,
+    // same direction, same clock family as the ghost it replaces — what changed is that
+    // the flight is drawn as particles rather than as a moving rectangle. The ghost
+    // stays as the fallback for anything the dust declines (an unmeasurable box, a
+    // snapshot that failed), so a window never simply blinks.
+    bool flySurfaceDust(QWidget* host, const QPixmap& shot, const QRect& windowGlobal,
+                        const QRect& iconGlobal, bool opening) {
+      if (!host || shot.isNull() || !windowGlobal.isValid()) return false;
+      const QRect box(host->mapFromGlobal(windowGlobal.topLeft()), windowGlobal.size());
+      const QPoint point = host->mapFromGlobal(iconGlobal.center());
+      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening) != nullptr;
+    }
+
+    // The window waits behind its own dust and fades up as the last motes land — the
+    // browser's `@keyframes surfaceForm`, which holds it invisible for the first 55% of
+    // the flight. Parented to the window, so it dies with it.
+    void fadeUpBehindDust(QWidget* w) {
+      auto* fade = new QPropertyAnimation(w, "windowOpacity", w);
+      fade->setDuration(gui::DisintegrateOverlay::kSurfaceInMs);
+      fade->setKeyValueAt(0.0, 0.0);
+      fade->setKeyValueAt(0.55, 0.0);
+      fade->setKeyValueAt(1.0, 1.0);
+      QPointer<QWidget> guard(w);
+      QObject::connect(fade, &QPropertyAnimation::finished, w, [guard] {
+        if (guard) guard->setWindowOpacity(1.0);   // however it ended, never left dimmed
+      });
+      fade->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+
     // The window the ghost lives in — the dialog's own top-level parent. Null only for an
     // unparented dialog, which has nothing to fly inside of. Deliberately NOT also
     // requiring the target to fit inside the host: that test rejected ordinary centred
@@ -125,6 +159,11 @@ namespace stencil::support {
       const QRect from = opening ? icon : target;
       const QRect to = opening ? target : icon;
       if (opening) w.setWindowOpacity(0.0);
+      if (flySurfaceDust(host, shot, target, icon, opening)) {
+        if (opening && guard) fadeUpBehindDust(guard);
+        if (after) after();
+        return;
+      }
       QLabel* ghost = makeGhost(host, shot, from);
       flyGhost(ghost, host, from, to, opening ? kOpenMs : kCloseMs,
                opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? 0.18 : 0.7,
@@ -169,6 +208,7 @@ namespace stencil::support {
         if (!host || !target.isValid() || shot.isNull()) return;
         const QRect to = originRect(anchor_.data(), target, anchorRect_);
         if (to == target) return;
+        if (flySurfaceDust(host, shot, target, to, false)) return;
         QLabel* ghost = makeGhost(host, shot, target);
         // Painted NOW rather than on the next posted update: one deferred frame here is
         // exactly the gap the dialog's disappearance shows through.
@@ -239,6 +279,7 @@ namespace stencil::support {
       if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
       const QRect from = originRect(anchorGuard.data(), target, anchorRect);
       if (from == target) { restore(); return; }
+      if (flySurfaceDust(host, shot, target, from, true)) { fadeUpBehindDust(guard); return; }
       QLabel* ghost = makeGhost(host, shot, from);
       flyGhost(ghost, host, from, target, kOpenMs, 0.0, 1.0, 0.18,
                QEasingCurve::OutCubic, restore);
