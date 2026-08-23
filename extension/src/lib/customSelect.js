@@ -15,6 +15,7 @@
 
 import { icon } from './icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
+import { surfaceIn, surfaceOut, centerOf } from './motion.js';
 
 // Case-insensitive substring match, the browser's base.js rowMatches (not worth a module
 // of its own here — this is its only caller in the extension).
@@ -153,6 +154,10 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     // Placed against the trigger in viewport space: `.controls` clips its overflow and
     // the toolbar sits low enough that a long list would run off the window.
     showMenu(menu, trigger);
+    // The list is sand pouring out of the control that opened it. It still GROWS from the
+    // corner nearest that control (stMenuFromAnchor's transform-origin, flipped with
+    // .dd-above) — the particles are only how that growth is drawn.
+    surfaceIn(menu, centerOf(trigger));
     if (searchInput) searchInput.focus();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocDown, true);
@@ -179,6 +184,10 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
       hideMenu(menu);
     };
     if (reducedMotion()) { closeDone(); return; }
+    // Dusted back into the trigger, the list is gone on this very frame — the motes carry
+    // the exit, so there is no shrinking box to double up with them and nothing async to
+    // wedge open. .dd-closing stays as the fallback when no motes could be made.
+    if (surfaceOut(menu, centerOf(trigger))) { closeDone(); return; }
     menu.classList.add('dd-closing');
     closeTimer = setTimeout(closeDone, 250);
     menu.addEventListener('animationend', closeDone);

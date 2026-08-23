@@ -134,7 +134,9 @@ export const createLogoDragMenu = ({
     open = true;
     menuEl.hidden = false;
     const r = logoEl.getBoundingClientRect();
-    placeMenu(r.left, r.bottom + 6);
+    // Third argument = the point it grows out of, and the point its particles fly from:
+    // the MARK itself, not the menu's top-left corner a few pixels below it.
+    placeMenu(r.left, r.bottom + 6, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
   };
 
   for (const type of ['dragenter', 'dragover']) {

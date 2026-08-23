@@ -43,6 +43,32 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   };
   applyTheme(t.mode, t.accent);
 
+  // ── The sand (the extension's own grain, written out inline) ──
+  // The #app-tooltip mask from lib/theme.css: three coprime dot screens (4/7/11px, at
+  // different phases) dying at different rates so the specks thin out in sequence. At
+  // 120% the dots overlap outright, so a settled panel is solid to the pixel. `d` is
+  // 0 (settled) … 1 (dispersed).
+  const grain = (d) => {
+    const stop = (rate) => `radial-gradient(circle at 50% 50%,#000 ${Math.max(0, 120 - rate * d)}%,`
+      + `transparent ${Math.max(0, 128 - rate * d)}%)`;
+    return `${stop(160)},${stop(140)},${stop(125)}`;
+  };
+  // Chrome does NOT interpolate gradients inside mask-image (it flips at the midpoint), so
+  // the dissolve is written out as a ramp of discrete steps rather than two endpoints —
+  // which is what sand does anyway. `ends` carries the opacity/transform for 0% and 100%.
+  // The cell sizes ride along in every step: Chrome resolves mask-size against the
+  // FIRST layer while mask-image is animating, which would flatten the three coprime
+  // grids into one lattice — and one lattice lines its dots up into joining rectangles,
+  // which is exactly what stops it reading as sand.
+  const SIZES = '4px 4px,7px 7px,11px 11px';
+  const grainFrames = (name, levels, ends) => `@keyframes ${name}{` + levels.map((d, i) => {
+    const pct = Math.round((i / (levels.length - 1)) * 100);
+    const edge = i === 0 ? ends[0] : (i === levels.length - 1 ? ends[1] : '');
+    return `${pct}%{${edge}-webkit-mask-image:${grain(d)};mask-image:${grain(d)};`
+      + `-webkit-mask-size:${SIZES};mask-size:${SIZES};}`;
+  }).join('') + '}';
+  const FORM = [1, 0.82, 0.64, 0.48, 0.32, 0.16, 0];
+
   const style = document.createElement('style');
   style.textContent = `
     /* Isolation: everything is scoped inside the shadow root, and the few INHERITED
@@ -51,20 +77,35 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     :host{all:initial;}
     *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
       letter-spacing:normal;text-transform:none;direction:ltr;}
-    /* Entrance: backdrop fades, panel pops up. Disabled under reduced-motion
-       (block at the bottom) since this is injected and self-contained. */
+    /* Entrance/exit: the panel FORMS OUT OF SAND and disperses again — the same grain the
+       extension's own surfaces use (lib/animations.css). It is the MASK form of the
+       effect, not the cloned-mote form the menus play: this panel frames a live <iframe>,
+       and a mote layer would mean cloning that iframe a hundred-odd times. Disabled under
+       reduced-motion (block at the bottom). */
     @keyframes stencilBackdropIn{from{opacity:0}to{opacity:1}}
-    @keyframes stencilPanelIn{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}
-      to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+    @keyframes stencilBackdropOut{from{opacity:1}to{opacity:0}}
+    ${grainFrames('stencilPanelIn', FORM,
+      ['opacity:0;transform:translate(-50%,-46%) scale(.96);',
+       'opacity:1;transform:translate(-50%,-50%) scale(1);'])}
+    ${grainFrames('stencilPanelOut', [...FORM].reverse(),
+      ['opacity:1;transform:translate(-50%,-50%) scale(1);',
+       'opacity:0;transform:translate(-50%,-52%) scale(.97);'])}
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);
       animation:stencilBackdropIn .2s ease both;}
+    .wrap.leaving .backdrop{animation:stencilBackdropOut .26s ease both;}
     /* Colours come from the host's CSS variables (set from the user's Appearance +
        accent choice), so the shell matches the framed page and re-themes live. */
     .panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
       width:min(1040px,94vw);height:min(760px,90vh);display:flex;flex-direction:column;
       background:var(--st-bg);border:1px solid var(--st-line);border-radius:12px;overflow:hidden;
       box-shadow:0 20px 60px rgba(0,0,0,.45);
-      animation:stencilPanelIn .26s cubic-bezier(.16,1,.3,1) both;}
+      -webkit-mask-size:4px 4px,7px 7px,11px 11px;
+      mask-size:4px 4px,7px 7px,11px 11px;
+      -webkit-mask-position:0 0,2px 3px,5px 1px;
+      mask-position:0 0,2px 3px,5px 1px;
+      -webkit-mask-composite:source-over;mask-composite:add;
+      animation:stencilPanelIn .34s cubic-bezier(.16,1,.3,1) both;}
+    .wrap.leaving .panel{animation:stencilPanelOut .26s cubic-bezier(.4,0,1,1) both;}
     .bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--st-panel);
       border-bottom:1px solid var(--st-line);color:var(--st-text);font:600 13px system-ui,sans-serif;}
     .bar .sp{flex:1}
@@ -93,6 +134,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     .bar button.close:hover svg .ic-stroke:nth-of-type(2){animation-delay:.18s;}
     @media (prefers-reduced-motion: reduce){
       .backdrop,.panel{animation-duration:.001ms;}
+      /* A half-formed panel is a surprise, not motion — show it whole. */
+      .panel{-webkit-mask-image:none !important;mask-image:none !important;}
       .bar button{transition-duration:.001ms;}
       /* The glyph stays in its rest pose — which is also each motion's end state. */
       .bar button svg,.bar button svg *{--ic-on:0 !important;animation:none !important;transition:none !important;}
@@ -103,6 +146,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   `;
 
   const wrap = document.createElement('div');
+  wrap.className = 'wrap';   // .wrap.leaving is what plays the dispersal
   // The ONE place the extension still uses a native `title`: this shell is injected into
   // the HOST page (executeScript({func}) — it can't import), so lib/controlTooltip.js
   // never runs over it and data-title alone would leave the two icons unexplained.
@@ -147,9 +191,18 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     try { chrome.storage.onChanged.removeListener(onStore); } catch (e) { /* noop */ }
     clearTimeout(timer);
   };
+  // The modal disperses on the way out too. Listeners go at once (so a second Escape or
+  // a click on the dissolving panel can do nothing) and the node is torn down on a timer
+  // — idempotent, so every close route lands on "gone" however many of them fire.
+  const LEAVE_MS = 260;
+  let leaving = false;
   const close = () => {
+    if (leaving) return;
+    leaving = true;
     cleanup();
-    host.remove();
+    wrap.classList.add('leaving');
+    host.style.pointerEvents = 'none';
+    setTimeout(() => host.remove(), LEAVE_MS);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onMsg = (e) => {

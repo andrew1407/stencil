@@ -8,6 +8,8 @@
 // The Escape listener must be removed on EVERY close route (finish), not only when
 // Escape itself fires — otherwise it lingers for the panel's lifetime.
 import { popoverPosition } from '../lib/popover.js';
+import { menuTransformOrigin } from '../lib/chatMsgMenu.js';
+import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
 /**
  * Open a dialog shell and resolve it exactly once.
@@ -23,12 +25,19 @@ export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
   const box = document.createElement('div');
   box.className = 'dialog';
 
+  // The control it grew out of — its particles fly from there and back into it. Without
+  // an anchor (the centred dialog) they bloom from the box's own middle.
+  let origin = null;
+
   let settled = false;
   const onEscape = (e) => { if (e.key === 'Escape') finish(undefined); };
   const finish = (value) => {
     if (settled) return;   // one settle, no matter how many close routes fire
     settled = true;
     document.removeEventListener('keydown', onEscape);
+    // Dusted while it is still on screen, then removed on the same frame: the motes are
+    // the dialog leaving, and nothing waits on them (the backdrop goes with the box).
+    surfaceOut(box, origin);
     back.remove();
     resolve(value);
   };
@@ -50,5 +59,13 @@ export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
     });
     box.style.left = `${p.left}px`;
     box.style.top = `${p.top}px`;
+    origin = centerOf(anchor);
+    // Grow FROM the control, like every other anchored surface here: the origin is the
+    // anchor's centre held inside the placed box (menuTransformOrigin, the row menu's).
+    const r = box.getBoundingClientRect();
+    box.style.transformOrigin = menuTransformOrigin({
+      x: origin.x, y: origin.y, left: p.left, top: p.top, size: { width: r.width, height: r.height },
+    });
   }
+  surfaceIn(box, origin || centerOf(box));
 });

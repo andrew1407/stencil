@@ -5,6 +5,7 @@
 // DOM (the lib/chatUi.js pattern); popup/assistant.js wires the real clipboard,
 // selection and send loop. Message text is untrusted model output: labels/glyphs
 // here are fixed strings, and the text itself only ever travels as DATA.
+import { surfaceIn, surfaceOut, settleSurface } from './motion.js';
 
 // The items a message of `role` offers, in order. Resend re-sends only the user's
 // own turns — an assistant reply has nothing to send "again".
@@ -74,6 +75,7 @@ export const menuTransformOrigin = ({ x, y, left, top, size }) => {
  * @returns {{el:object, openFor:Function, close:Function, isOpen:()=>boolean}}
  */
 export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
+  let openOrigin = null;   // the point it grew out of, so the close pours it back there
   const el = doc.createElement('div');
   el.className = 'action-menu chat-msg-menu';
   el.hidden = true;
@@ -91,6 +93,10 @@ export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
   };
 
   const close = () => {
+    // Dusted back into the point it came from BEFORE it is hidden, while it can still be
+    // measured — the motes are the menu leaving, and the close stays synchronous.
+    if (!el.hidden) surfaceOut(el, openOrigin);
+    else settleSurface(el);
     el.hidden = true;
     el.innerHTML = '';
     doc.removeEventListener?.('keydown', onEscape, true);
@@ -115,8 +121,11 @@ export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
     const { left, top } = clampMenuPosition({ x, y, size, viewport });
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
-    // The pop animation grows out of the click point (popup.css .action-menu).
+    // The pop animation grows out of the click point (popup.css .action-menu) — and so
+    // do its particles, which erupt from that same point and gather into the box.
     el.style.transformOrigin = menuTransformOrigin({ x, y, left, top, size });
+    openOrigin = { x, y };
+    surfaceIn(el, openOrigin);
     doc.addEventListener?.('keydown', onEscape, true);   // idempotent re-add on reopen
   };
 

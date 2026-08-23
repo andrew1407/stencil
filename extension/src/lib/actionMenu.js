@@ -6,6 +6,7 @@
 // exported for tests; the factory takes its DOM (menuEl, doc, win) and the caller's
 // action runner, so popup.js and editorMode.js build their contents from the SAME pieces.
 import { menuTransformOrigin } from './chatMsgMenu.js';
+import { surfaceIn, surfaceOut, settleSurface, centerOf } from './motion.js';
 import { icon } from './icons.js';
 
 const MARGIN = 6;   // minimum distance to a viewport edge
@@ -109,13 +110,31 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
       fly.style.left = `${p.left}px`;
       fly.style.top = `${p.top}px`;
     };
-    wrap.addEventListener('mouseenter', place);
+    // The flyout is sand too, out of and back into its own head — the "icon" that opens
+    // it. Its visibility is CSS :hover, so by the time mouseleave fires it is already
+    // display:none; unhide it for the one frame the clone is taken in.
+    wrap.addEventListener('mouseenter', () => {
+      place();
+      surfaceIn(fly, centerOf(head));
+    });
+    wrap.addEventListener('mouseleave', () => {
+      // Its visibility is CSS :hover, so by the time mouseleave fires it is already
+      // display:none — unhide it for the one frame the motes are cloned in.
+      fly.style.display = 'block';
+      surfaceOut(fly, centerOf(head));
+      fly.style.display = '';
+    });
     wrap.append(head, fly);
     return wrap;
   };
 
+  // The point the open menu came out of, kept so the close can pour it back into the
+  // same icon — every open path goes through place(), including the logo drag menu's.
+  let openOrigin = null;
+
   // Place the (already-built, visible) menu at top-left x/y, flipping to stay on-screen.
-  // `origin` is the click point the pop animation grows from (defaults to x/y).
+  // `origin` is the click point the pop animation grows from (defaults to x/y), and the
+  // point its particles fly out of and back into.
   const place = (x, y, origin = { x, y }) => {
     const size = { width: menuEl.offsetWidth, height: menuEl.offsetHeight };
     const { left, top } = menuPlacement({
@@ -124,6 +143,8 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
     menuEl.style.left = `${left}px`;
     menuEl.style.top = `${top}px`;
     menuEl.style.transformOrigin = menuTransformOrigin({ x: origin.x, y: origin.y, left, top, size });
+    openOrigin = { x: origin.x, y: origin.y };
+    surfaceIn(menuEl, openOrigin);
   };
 
   // Escape closes only the open menu: capture-phase so it wins over the surface's own
@@ -170,6 +191,12 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
   };
 
   const close = () => {
+    // Dust it out FIRST, while it is still on screen and measurable: the motes start as
+    // an exact copy of the box where it stood, so hiding it on this very frame is
+    // invisible — and the close stays synchronous, which is what lets a burst of
+    // open/close land on the true state instead of stranding a half-played menu.
+    if (!menuEl.hidden) surfaceOut(menuEl, openOrigin);
+    else settleSurface(menuEl);
     menuEl.hidden = true;
     menuEl.innerHTML = '';
     if (anchorBtn) anchorBtn.classList.remove('active');

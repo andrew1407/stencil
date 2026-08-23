@@ -445,7 +445,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     position: absolute;
     inset: 0;
     will-change: transform, opacity, filter;
-    animation: stTileScatter 0.9s cubic-bezier(0.22, 0.55, 0.3, 1) both;
+    animation: stTileScatter var(--dust-ms, 0.9s) cubic-bezier(0.22, 0.55, 0.3, 1) both;
 }
 @keyframes stTileScatter {
     0%   { opacity: 1; transform: none; filter: none; }
@@ -489,7 +489,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    has landed by the time the veil lifts at DISINTEGRATE_MS. Declared after
    .disintegrate-tile so the gather animation wins on the shared tile class. */
 .reintegrate-tile {
-    animation: stTileGather 0.48s cubic-bezier(0.7, 0, 0.78, 0.45) both;
+    animation: stTileGather var(--gather-ms, 0.48s) cubic-bezier(0.7, 0, 0.78, 0.45) both;
 }
 @keyframes stTileGather {
     0%   { opacity: 0;
@@ -586,8 +586,13 @@ html.theme-swapping *::before, html.theme-swapping *::after {
        preference flipped underneath. A filtered-out row is gone, not faded. */
     .filter-out { display: none !important; }
     .filter-in { animation: none !important; }
-    /* The tooltip lands where it is, at full size — no rise, no scale. */
-    #app-tooltip { transition: none !important; transform: none !important; }
+    /* The tooltip lands where it is, at full size — no rise, no scale. No grain either:
+       a half-sanded tooltip is a surprise, not motion. It shows and hides solid, and
+       `visible` still owns which of the two it is. */
+    #app-tooltip {
+        transition: none; transform: none; --dissolve: 0;
+        -webkit-mask-image: none; mask-image: none;
+    }
     .tip-key.key-shake { animation: none !important; }
 }
 
@@ -645,4 +650,60 @@ html.theme-swapping *::before, html.theme-swapping *::after {
   /* No growth, no shrink — customSelect.js hides the list outright rather than waiting
      for an exit that never plays. */
   .accent-dd-menu:not([hidden]), .accent-dd-menu.dd-closing { animation: none; }
+}
+
+/* ── Surfaces made of dust (lib/motion.js surfaceIn / surfaceOut) ───────────
+   browser css/animations.css twin. A dialog and the ⋯/context/dropdown popups no longer
+   SCALE out of the icon that owns them — they form from motes streaming out of it and
+   come apart into motes pouring back in. Same tiles, same noise, same keyframes as a
+   removed row; only the flight is aimed at a point instead of falling (motion.js
+   surfaceMotion). `.dust-driven` is permanent and kills the element's own pop for good:
+   dropping it at the end of the flight would let the old entrance restart on the spot. */
+.dust-driven { animation: none !important; }
+.dust-driven.surface-forming { animation: stSurfaceForm var(--dust-ms, 420ms) linear both !important; }
+.dust-driven.surface-leaving { animation: stSurfaceLeave var(--dust-ms, 340ms) linear both !important; }
+/* Held back while the motes gather (they ARE the menu forming), then up as they land —
+   the veil idea .materialize-veil uses, written as one keyframe so the same class also
+   carries the duration. Visible well before the last mote, so nothing you can already
+   click stays invisible. */
+@keyframes stSurfaceForm  { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
+/* …and out at once on the way back: the cloud starts as an exact copy of the box, so the
+   hand-over is a cross-fade over one beat rather than a cut. */
+@keyframes stSurfaceLeave { 0% { opacity: 1; } 16%, 100% { opacity: 0; } }
+@keyframes stDustHostIn   { 0% { opacity: 0; } 16%, 100% { opacity: 1; } }
+@keyframes stDustHostOut  { 0%, 58% { opacity: 1; } 100% { opacity: 0; } }
+.disintegrate-host.dust-leaving { animation: stDustHostIn var(--dust-ms, 340ms) linear both; }
+.disintegrate-host.dust-forming { animation: stDustHostOut var(--gather-ms, 420ms) linear both; }
+/* A surface's motes ARE the window — they must be visible from the FIRST frame. A row's
+   stTileScatter/stTileGather spend their opening third near transparent (the row itself is
+   still there to look at); on a surface that read as the menu opening late. Same flight,
+   same noise, same vars — only the alpha ramp and the easing differ. */
+.dust-forming .disintegrate-tile {
+    animation-name: stTileGatherSurface;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dust-leaving .disintegrate-tile {
+    animation-name: stTileScatterSurface;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 1);
+}
+@keyframes stTileGatherSurface {
+    0%   { opacity: 0.55;
+           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3)); }
+    45%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes stTileScatterSurface {
+    0%   { opacity: 1; transform: none; }
+    55%  { opacity: 0.9; }
+    100% { opacity: 0;
+           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3)); }
+}
+/* A whole dialog cannot be cloned per cell (motion.js surfaceClones), so its motes are
+   flat specks in its own colours — at mote size that is all a clone would show. Round, so
+   the first frame is the app's own dot grain rather than a mosaic of chips. */
+.dust-mote { border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) {
+    /* motion.js never adds these under the preference; this is it flipped mid-flight —
+       the surface must land at its true opacity, not a keyframed one. */
+    .dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving { animation: none !important; }
 }
