@@ -95,10 +95,11 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-chevron-down  { transform: translateY(calc(var(--ic-on) * 8.33%)); }
 .ic-chevron-right { transform: translateX(calc(var(--ic-on) * 8.33%)); }
 .ic-send          { transform: translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%)); }
-/* The gear turns exactly one tooth and the refresh wheel exactly half a revolution, so
-   both come to rest looking untouched. (The quarter-turn pair turn WHOLE revolutions
-   instead — settles, below.) */
+/* The gear turns exactly one tooth, the refresh wheel exactly half a revolution, and the
+   sun exactly one of its eight rays — each comes to rest looking untouched. (The
+   quarter-turn pair turn WHOLE revolutions instead — settles, below.) */
 .ic-gear          { --ic-ms: 0.3s; transform: rotate(calc(var(--ic-on) * 45deg)); }
+.ic-sun           { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
 .ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
 /* The lid lifts off the can, hinged at its left end. */
@@ -179,10 +180,9 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
 .ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
 .ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
-/* Theme: the sun TURNS one whole revolution, rays and all, and comes to rest exactly
-   where it started. Its twin the moon WAVES instead — a small damped rock: a turn is
-   plain on a rayed disc and plain nonsense on a crescent. */
-.ic-sun               { --ic-ms: 0.7s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
+/* Theme: the moon WAVES — a small damped rock. Its twin the sun turns instead, one ray
+   at a time (the hold above): a turn is plain on a rayed disc and plain nonsense on a
+   crescent. */
 .ic-moon              { --ic-ms: 0.52s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmRock; }
 
 @media (prefers-reduced-motion: reduce) {

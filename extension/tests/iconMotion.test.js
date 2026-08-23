@@ -315,24 +315,27 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
   assert.match(EXT, /overflow: visible;/);
 });
 
-test('the sun turns, the moon waves, the assistant types, and the LEDs blink in order', () => {
+test('the sun turns by one ray, the moon waves, the assistant types, the LEDs blink', () => {
   // Each is ONE whole-glyph design, turning about the glyph centre and nothing else.
   for (const name of ['sun', 'moon']) {
     const parts = MOTION.icons[name].parts;
     assert.equal(parts.length, 1, `${name} moves whole`);
     assert.equal(parts[0].hook, null);
-    assert.equal(parts[0].keyframes[0].rotate, 0, `${name} starts upright`);
-    for (const k of parts[0].keyframes)
-      assert.equal(k.translate, undefined, `${name}: the theme pair turn, they do not slide`);
+    for (const pose of parts[0].keyframes || [parts[0].to])
+      assert.equal(pose.translate, undefined, `${name}: the theme pair turn, they do not slide`);
   }
-  // The sun makes one whole revolution; the moon rocks, each swing reversing the last.
-  assert.deepEqual(MOTION.icons.sun.parts[0].keyframes.map((k) => k.rotate), [0, 360]);
+  // The sun's ray spacing IS its turn: eight rays, 45° apart, so one ray-space leaves the
+  // glyph looking untouched — the `gear`'s one-tooth idea. The moon rocks instead, each
+  // swing reversing the last.
+  const rays = (ICONS.sun.match(/<line /g) || []).length;
+  assert.equal(rays, 8, 'the sun is drawn with eight rays');
+  assert.equal(MOTION.icons.sun.parts[0].to.rotate, 360 / rays, 'exactly one ray of turn');
   const rocks = MOTION.icons.moon.parts[0].keyframes.map((k) => k.rotate);
   assert.equal(rocks.at(-1), 0, 'the moon comes back upright');
   const swings = rocks.slice(1, -1);
   assert.ok(swings.length >= 3 && swings.every((r, i) => !i || r * swings[i - 1] < 0),
     'the moon waves — each swing reverses the last');
-  assert.match(EXT, /\.ic-sun\s+\{[^}]*--ic-play: icmTurnCw;/);
+  assert.match(EXT, /\.ic-sun\s+\{[^}]*rotate\(calc\(var\(--ic-on\) \* 45deg\)\);/);
   assert.match(EXT, /\.ic-moon\s+\{[^}]*--ic-play: icmRock;/);
   // Three dots, one bounce each, left to right — the typing idiom.
   const dots = MOTION.icons.sparkle.parts[0];
