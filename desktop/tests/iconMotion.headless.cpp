@@ -148,12 +148,13 @@ int main(int argc, char** argv) {
     return s && s->hold == hold;
   };
   check(mode("trash", true) && mode("download", true) && mode("upload", true)
-            && mode("folder", true) && mode("link", true) && mode("maximize", true),
-        "the hold designs are held (trash / download / upload / folder / link / maximize)");
-  check(mode("sun", false) && mode("plus", false) && mode("minus", false)
+            && mode("folder", true) && mode("link", true) && mode("maximize", true)
+            && mode("sun", true),
+        "the hold designs are held (trash / download / upload / folder / link / maximize / sun)");
+  check(mode("moon", false) && mode("plus", false) && mode("minus", false)
             && mode("layers", false) && mode("sparkle", false) && mode("line", false)
             && mode("rect", false),
-        "the settle designs play once (sun / plus / minus / layers / sparkle / line / rect)");
+        "the settle designs play once (moon / plus / minus / layers / sparkle / line / rect)");
 
   // ── No layout shift, and convergence on the rest pose ────────────────────────
   bool sameBox = true, converges = true, restIsRest = true;
@@ -264,29 +265,25 @@ int main(int argc, char** argv) {
     }
   }
 
-  // The theme pair TURN as whole glyphs — one part, no hook, no ray/orb choreography —
-  // and each lands back exactly on its rest pose. The sun makes a whole revolution; the
-  // moon only rocks, because a crescent tipped far enough reads as a different shape.
+  // The theme pair TURN as whole glyphs — one part, no hook, no ray/orb choreography.
+  // The sun is HELD one ray round (its eight rays are 45 degrees apart, so a single
+  // ray-space leaves it looking untouched — the gear's one-tooth idea); the moon only
+  // rocks, because a crescent tipped far enough reads as a different shape.
   {
     for (const char* g : {"sun", "moon"}) {
       const IconMotionSpec* s = iconMotionFor(QLatin1String(g));
       check(s && s->parts.size() == 1 && s->parts.first().hook.isEmpty(),
             (QByteArray(g) + ": the WHOLE glyph turns — one part, hooked to nothing").constData());
-      const QImage rest = frame(g, *s, s->totalMs);
-      check(rest == frame(g, *s, 0),
-            (QByteArray(g) + ": …starting and ending on the very same glyph").constData());
-      // Something actually moved in between — with the pixels back where they started,
-      // that is the only thing a whole turn and a damped rock have in common.
+      // A hold rests at elapsed 0, a settle at the end of its play; either way the rest
+      // frame is the untouched glyph, and either way something moves in between.
+      const QImage rest = frame(g, *s, s->hold ? 0.0 : double(s->totalMs));
       bool moved = false;
       for (double f : {0.15, 0.3, 0.45, 0.6, 0.8})
         if (frame(g, *s, s->totalMs * f) != rest) moved = true;
       check(moved, (QByteArray(g) + ": …and turns on the way").constData());
     }
-    // The sun's is a FULL revolution, so it passes through every quarter turn: a quarter
-    // of the way in, the ray that pointed up points sideways. The moon's swings are small
-    // enough that its ink box never leaves the glyph's own.
     const IconMotionSpec* sun = iconMotionFor(QStringLiteral("sun"));
-    check(sun->parts.first().keys.last().pose.rotate == 360, "the sun turns all the way round");
+    check(sun->hold && sun->parts.first().to.rotate == 45, "the sun turns by exactly one ray");
     const IconMotionSpec* moon = iconMotionFor(QStringLiteral("moon"));
     double swing = 0;
     for (const IconMotionKey& k : moon->parts.first().keys)

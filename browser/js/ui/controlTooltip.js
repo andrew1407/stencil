@@ -25,6 +25,11 @@ const TIP_OUT_MS = 190;
 // where the tip was placed, and a tip that tracked the cursor mid-flight would leave
 // its own sand behind. It picks the cursor up again the moment it lands.
 let placeHeldUntil = 0;
+// The keycap nudge waits for the motes to land: a shake played while the tip is still
+// assembling is a move nobody can see, and the point of it is to be seen. Held here so
+// a tooltip dismissed or re-pointed mid-flight never shakes the caps of a tip that is
+// already gone.
+let shakeTimer = null;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 // Where a tooltip's dust comes from and goes back to: the centre of the control it
 // describes. A detached or unmeasurable owner has no point, and the dust declines.
@@ -145,7 +150,8 @@ const place = (e) => {
 
 const hide = () => {
   clearTimeout(showTimer);
-  showTimer = null;
+  clearTimeout(shakeTimer);
+  showTimer = shakeTimer = null;
   curCombos = [];
   const owner = curEl;
   if (curEl) {
@@ -186,9 +192,13 @@ const reveal = (el) => {
   place(lastEvent);
   // Placed first, so the motes stream at the box the tip will actually occupy.
   const point = dustPoint(el);
-  if (point && surfaceIn(t, point, { ms: TIP_IN_MS })) placeHeldUntil = now() + TIP_IN_MS;
+  const dusted = point && surfaceIn(t, point, { ms: TIP_IN_MS });
+  if (dusted) placeHeldUntil = now() + TIP_IN_MS;
   else settleSurface(t);
-  shakeKeys(t);
+  // …and the caps nudge once it has ARRIVED — never while it is still sand.
+  clearTimeout(shakeTimer);
+  if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, TIP_IN_MS);
+  else shakeKeys(t);
 };
 
 // Every keycap the tooltip drew nudges once as the tip lands, so the eye goes straight

@@ -325,12 +325,9 @@
     },
     "sun": {
       "action": "switch to the light theme",
-      "mode": "settle",
-      "note": "the sun TURNS — one whole revolution, rays and all, coming to rest exactly where it started. Its twin the moon waves instead: a turn is invisible on a disc but plain on a rayed one, and plain nonsense on a crescent",
-      "parts": [{
-        "hook": null, "durationMs": 700, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
-      }]
+      "mode": "hold",
+      "note": "the sun TURNS — but by exactly ONE RAY. The glyph has eight of them, 45 degrees apart, so a single ray-space is the smallest turn that still comes to rest looking untouched: the `gear`'s one-tooth idea on a sun. A whole revolution had to be fast to fit a hover and read as a spin rather than a turn. Its twin the moon waves instead — a turn is plain on a rayed disc and plain nonsense on a crescent",
+      "parts": [{ "hook": null, "durationMs": 420, "to": { "rotate": 45 } }]
     },
     "maximize": {
       "action": "enter fullscreen (base) / leave it (variant `active`)",

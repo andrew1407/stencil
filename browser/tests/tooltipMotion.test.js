@@ -164,11 +164,20 @@ test('a keystroke matches the cap that spells it — and only that one', () => {
   assert.ok(!comboMatchesEvent('Shift', press('Shift', { code: 'ShiftLeft', shift: true })));
 });
 
-test('every cap nudges as the tooltip lands, so the shortcut announces itself', () => {
+test('every cap nudges once the tooltip has LANDED, announcing the shortcut', () => {
   // The shake's job is to draw the eye to the shortcut while you are READING the tip,
   // so it fires on the show — not only when the key happens to be pressed.
-  assert.match(tooltipJs, /t\.classList\.add\('visible'\);[\s\S]{0,400}?place\(lastEvent\);[\s\S]{0,400}?shakeKeys\(t\);/,
-    'shaken on every reveal, once it is placed and its dust is away');
+  assert.match(tooltipJs, /t\.classList\.add\('visible'\);[\s\S]{0,600}?place\(lastEvent\);[\s\S]{0,600}?shakeKeys\(t\);/,
+    'shaken on every reveal, once it is placed');
+  // …but only once the motes have arrived: a nudge played while the tip is still
+  // assembling is a movement nobody can see, which is the whole point of it.
+  assert.match(tooltipJs,
+    /if \(dusted\) shakeTimer = setTimeout\(\(\) => \{ shakeTimer = null; shakeKeys\(t\); \}, TIP_IN_MS\);\s*\n\s*else shakeKeys\(t\);/,
+    'the shake waits out the gather, and fires at once when there was none');
+  // …and a tip dismissed or re-pointed mid-flight never shakes the caps of a tip that
+  // has already gone: both routes drop the pending nudge first.
+  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*showTimer = shakeTimer = null;/);
+  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*if \(dusted\)/);
   assert.match(tooltipJs,
     /const shakeKeys = \(t\) => \{\s*\n\s*t\.querySelectorAll\('\.tip-key'\)\.forEach\(cap => flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)\);/);
   // A tip with no shortcut has no caps, so the query is empty and nothing happens —

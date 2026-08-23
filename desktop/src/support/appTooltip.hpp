@@ -249,6 +249,7 @@ namespace stencil::gui {
     void showFor(QWidget* owner, const QString& text, const QPoint& globalPos) {
       const QString rich = text.trimmed().startsWith('<') ? text : enrichedToolTip(text);
       if (rich.isEmpty()) { hideTip(); return; }
+      bool dusted = false;
       // An APPEARANCE: a first show, one re-pointed at another control, or new content.
       // Qt keeps re-sending ToolTip while the pointer wanders inside one control (its own
       // label never appears, so its wake-up timer re-arms), and those must not re-shake.
@@ -271,7 +272,8 @@ namespace stencil::gui {
         raise();
         // An APPEARANCE forms out of the control it describes; a re-send inside the same
         // control just carries on where it is.
-        if (appearing && dust(true)) {
+        dusted = appearing && dust(true);
+        if (dusted) {
           // The tip waits behind its own motes and fades up as the last of them land.
           setWindowOpacity(0.0);
           fade_->setKeyValues({});
@@ -287,8 +289,14 @@ namespace stencil::gui {
         }
         fade_->start();
       }
-      // The point of the whole thing: caps on screen announce themselves as they arrive.
-      if (appearing && hasKeycaps(rich)) shakeKeys();
+      // The point of the whole thing: caps on screen announce themselves as they arrive —
+      // once they have ARRIVED. A nudge played while the tip is still assembling out of
+      // its own motes is a movement nobody can see, which is the whole point of it, so
+      // the dust route waits out the gather first.
+      if (appearing && hasKeycaps(rich)) {
+        if (dusted) shakeDelay()->start(kDustInMs);
+        else shakeKeys();
+      }
     }
 
     // Fade out and then hide. Idempotent, and a showFor() mid-fade takes it straight back
@@ -313,6 +321,7 @@ namespace stencil::gui {
     // A brief attention shake as the tooltip appears — "and here is its shortcut". One
     // damped left-right pass over the KEYCAPS, never a loop, settling exactly on them.
     void shakeKeys() {
+      if (shakeDelay_) shakeDelay_->stop();   // an explicit shake supersedes a queued one
       if (!isVisible() || support::motionReduced()) return;
       if (body_->capCount() == 0) return;   // nothing was drawn to move
       if (!shake_) {
@@ -334,6 +343,8 @@ namespace stencil::gui {
     int shakeOffset() const { return body_->capOffset(); }
     int keycapsShown() const { return body_->capCount(); }
     bool shaking() const { return shake_ && shake_->state() == QAbstractAnimation::Running; }
+    // Queued, but holding until the tip's own motes have landed — see showFor().
+    bool shakePending() const { return shakeDelay_ && shakeDelay_->isActive(); }
     bool fadingOut() const { return closing_; }
 
    private:
@@ -370,15 +381,28 @@ namespace stencil::gui {
       top = qBound(avail.top() + 10, top, qMax(avail.top() + 10, avail.bottom() - height()));
       move(left, top);
     }
-    // Stop any shake and put the caps back exactly on their slots.
+    // Stop any shake — pending or playing — and put the caps back on their slots. A tip
+    // dismissed or re-pointed mid-flight must never shake the caps of one already gone.
     void settleShake() {
+      if (shakeDelay_) shakeDelay_->stop();
       if (shake_) shake_->stop();
       body_->settle();
+    }
+
+    // The one-shot that holds the nudge back until the motes have landed.
+    QTimer* shakeDelay() {
+      if (!shakeDelay_) {
+        shakeDelay_ = new QTimer(this);
+        shakeDelay_->setSingleShot(true);
+        QObject::connect(shakeDelay_, &QTimer::timeout, this, [this] { shakeKeys(); });
+      }
+      return shakeDelay_;
     }
 
     TipBody* body_ = nullptr;
     QVariantAnimation* fade_ = nullptr;
     QVariantAnimation* shake_ = nullptr;
+    QTimer* shakeDelay_ = nullptr;
     QPointer<QWidget> owner_;
     bool closing_ = false;
   };

@@ -228,20 +228,23 @@ test('the fullscreen corners extend to enter and retract to leave', () => {
   assert.match(SECTION, /\.active \.ic-maximize \.ic-corner-tl/, 'and the sheet keys on it');
 });
 
-test('the sun turns and the moon waves — each as ONE whole glyph', () => {
+test('the sun turns by ONE RAY and the moon waves — each as one whole glyph', () => {
   for (const name of ['moon', 'sun']) {
     const parts = MOTION.icons[name].parts;
     assert.equal(parts.length, 1, `${name}: the whole glyph moves, not choreographed parts`);
     assert.equal(parts[0].hook, null, `${name}: hook null = the whole glyph`);
     // Both are pure rotations about the glyph centre, so neither can leave its own box.
-    for (const k of parts[0].keyframes)
+    for (const pose of parts[0].keyframes || [parts[0].to])
       for (const prop of ['translate', 'scale', 'scaleX', 'scaleY', 'skewX'])
-        assert.equal(k[prop], undefined, `${name}: the theme pair turn, and do nothing else`);
-    assert.equal(parts[0].keyframes[0].rotate, 0, `${name} starts upright`);
+        assert.equal(pose[prop], undefined, `${name}: the theme pair turn, and do nothing else`);
   }
-  // The sun makes ONE whole revolution — rays and all — and lands where it started.
-  const sun = MOTION.icons.sun.parts[0];
-  assert.deepEqual(sun.keyframes.map((k) => k.rotate), [0, 360], 'the sun turns once, all the way');
+  // The sun's ray spacing IS its turn: eight rays, 45° apart, so one ray-space is the
+  // smallest move that still leaves the glyph looking untouched — the `gear`'s one-tooth
+  // idea. A whole revolution had to race to fit a hover, and read as a spin.
+  const rays = (ICONS.sun.match(/<line /g) || []).length;
+  assert.equal(rays, 8, 'the sun is drawn with eight rays');
+  assert.equal(MOTION.icons.sun.mode, 'hold', 'held, so it eases back the same way it went');
+  assert.equal(MOTION.icons.sun.parts[0].to.rotate, 360 / rays, 'exactly one ray of turn');
   // The moon WAVES: a damped rock, each swing reversing the last and settling upright.
   // Small on purpose — a crescent tipped far enough reads as a different shape.
   const rocks = MOTION.icons.moon.parts[0].keyframes.map((k) => k.rotate);
@@ -253,7 +256,7 @@ test('the sun turns and the moon waves — each as ONE whole glyph', () => {
     assert.ok(swings[i] * swings[i - 1] < 0, 'each swing reverses the last');
   for (const r of swings) assert.ok(Math.abs(r) <= 12, `${r}° is a tumble, not a wave`);
   assert.ok(Math.abs(swings.at(-1)) < Math.abs(swings[0]), 'and the wave damps out');
-  assert.match(SECTION, /\.ic-sun\s+\{[^}]*--ic-play: icmTurnCw;/);
+  assert.match(SECTION, /\.ic-sun\s+\{[^}]*rotate\(calc\(var\(--ic-on\) \* 45deg\)\);/);
   assert.match(SECTION, /\.ic-moon\s+\{[^}]*--ic-play: icmRock;/);
   assert.doesNotMatch(SECTION, /animation-iteration-count/, 'a settle plays once');
 });

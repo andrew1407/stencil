@@ -612,18 +612,39 @@ class MainWindowGuiTest : public QObject {
     stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
     QVERIFY(tip);
 
-    // Park the pointer ON the control so the anti-stranding heartbeat leaves it up.
-    QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
+    // Park the pointer ON the control so the anti-stranding heartbeat leaves it up. The
+    // offscreen screen is smaller than this window, so a control out past its edge can
+    // never take the cursor at all: walk the WINDOW towards wherever the cursor actually
+    // landed until the two agree. It matters more than it used to — the keycap shake now
+    // waits out the tip's own arrival, well past the heartbeat's first look.
+    const auto onControl = [&] {
+      return btn->rect().contains(btn->mapFromGlobal(QCursor::pos()));
+    };
+    for (int i = 0; i < 4 && !onControl(); ++i) {
+      QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
+      if (onControl()) break;
+      win.move(win.pos() + (QCursor::pos() - btn->mapToGlobal(btn->rect().center())));
+      QTest::qWait(40);
+    }
     sendToolTipTo(btn);
     QVERIFY2(tip->isVisible(), "the tooltip did not appear");
-    QVERIFY2(tip->shaking(), "the keycaps did not shake as the tooltip came up");
+    // The caps HOLD STILL while the tip is still assembling out of its own motes — a
+    // nudge nobody can see is the one thing this must never be — and are queued for the
+    // moment it lands. Without dust (an unmeasurable host) there is nothing to wait for
+    // and the shake is immediate instead.
+    QVERIFY2(tip->shaking() || tip->shakePending(),
+             "the keycaps were neither shaken nor queued to shake");
+    if (tip->shakePending())
+      QVERIFY2(!tip->shaking(), "the caps moved while the tip was still forming");
+    QTRY_VERIFY_WITH_TIMEOUT(tip->shaking(), stencil::gui::AppTooltip::kDustInMs + 2000);
     QVERIFY2(tip->keycapsShown() > 0, "the shake found no caps to move");
     QLabel* body = tip->findChild<QLabel*>();
     QVERIFY(body);
     const QPoint home = tip->pos();
-    QCOMPARE(tip->shakeOffset(), 0);
     // The CAPS really move — pixels, not a counter — while the panel around them holds
     // still, and it is one pass: they settle back on the picture they started from.
+    // (No "starts at 0" check here any more: the wait above is what lets the queued
+    // shake begin, so by this line it is already a frame or two in.)
     QImage midShake;
     for (int i = 0; i < 40 && midShake.isNull(); ++i) {
       QTest::qWait(8);
@@ -640,7 +661,8 @@ class MainWindowGuiTest : public QObject {
     // A re-sent ToolTip for the SAME control is not a new appearance (Qt keeps re-arming
     // its wake-up while the pointer wanders inside one control): no second shake.
     sendToolTipTo(btn);
-    QVERIFY2(!tip->shaking(), "the same tooltip shook again under a wandering pointer");
+    QVERIFY2(!tip->shaking() && !tip->shakePending(),
+             "the same tooltip shook again under a wandering pointer");
 
     // ANY key retires it — Escape included. The shake announces the shortcut; it is not a
     // way to pin the tooltip open.
@@ -660,7 +682,7 @@ class MainWindowGuiTest : public QObject {
     sendToolTipTo(plain);
     QVERIFY(tip->isVisible());
     QVERIFY2(!stencil::gui::hasKeycaps(body->text()), "the control drew keycaps after all");
-    QVERIFY2(!tip->shaking(), "a tooltip with no keycaps still shook");
+    QVERIFY2(!tip->shaking() && !tip->shakePending(), "a tooltip with no keycaps still shook");
     QCOMPARE(tip->shakeOffset(), 0);
     QCOMPARE(tip->keycapsShown(), 0);
     const QPoint bareHome = tip->pos();
