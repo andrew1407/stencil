@@ -21,6 +21,11 @@ const chatLeave = (el, done, count = 1, index = 0) =>
 // Chips ride the longer chip clock (css chipLeave hold + collapse — see motion.js).
 const chipLeave = (el, done) =>
   leaveThenRemove(el, done, { ms: CHIP_LEAVE_MS, ...scatterGridFor(1, 0) });
+// How the empty attachments row waits out the last chip's dust (see below): after the
+// wipe, then every step until the layer is gone — a cloud is torn down a beat after the
+// wipe it belongs to, and it lives in the row it left.
+const ATTACH_SETTLE_STEP_MS = 120;
+const ATTACH_SETTLE_TRIES = 12;
 
 // ── The empty state: ONE set of suggestion chips for every chat surface ─────
 // Clicking a chip prefills that surface's input (each wires a delegated listener on
@@ -677,16 +682,20 @@ export const chatAttachmentChips = (container, controller) => {
   }
   // The dust layer lives IN this container (motion.js appends to the parent), so an
   // empty queue must not hide the row while particles are still flying. Hide only
-  // once nothing is animating; if something is, check back after the wipe.
+  // once nothing is animating — and KEEP looking until that is true: a mote layer
+  // outlives the wipe's own clock by the grace disintegrate gives it, so a single look
+  // at wipeDurationMs can land while the cloud is still there and leave the row open
+  // for good. Bounded, so a stranded layer can never hold it open forever either.
   const animating = () => [...container.children].some((el) =>
     el.classList.contains('disintegrate-host') || el.classList.contains(LEAVING_CLASS));
+  const hideWhenSettled = (wait, tries) => setTimeout(() => {
+    if (controller?.attachments?.length) return;   // something was queued again
+    if (animating()) { if (tries > 0) hideWhenSettled(ATTACH_SETTLE_STEP_MS, tries - 1); return; }
+    container.style.display = 'none';
+  }, wait);
   if (list.length || animating()) {
     container.style.display = '';
-    if (!list.length) {
-      setTimeout(() => {
-        if (!(controller?.attachments?.length) && !animating()) container.style.display = 'none';
-      }, wipeDurationMs() + 50);
-    }
+    if (!list.length) hideWhenSettled(wipeDurationMs() + 50, ATTACH_SETTLE_TRIES);
   } else {
     container.style.display = 'none';
   }

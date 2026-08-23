@@ -10,10 +10,10 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import {
-  reshapeGrid, surfaceMotion, surfaceClones, centerOf, cancelDust, settleSurface,
+  reshapeGrid, surfaceMotion, centerOf, cancelDust, settleSurface,
   surfaceIn, surfaceOut, disintegrate,
   SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPREAD, SURFACE_IN_MS, SURFACE_OUT_MS,
-  SURFACE_CLONE_NODE_BUDGET, SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
+  SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
 } from '../src/lib/motion.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -88,13 +88,17 @@ test('a degenerate box or point never produces NaN', () => {
   }
 });
 
-// ── What a surface may afford ───────────────────────────────────────────────
-test('a small menu comes apart into pieces of ITSELF; a heavy dialog into flat specks', () => {
-  assert.ok(surfaceClones(40, 200), 'a 40-node menu at 200 cells clones');
-  assert.ok(!surfaceClones(600, 600), 'a 600-node dialog at 600 cells does not');
-  assert.ok(surfaceClones(1, SURFACE_CLONE_NODE_BUDGET));
-  assert.ok(!surfaceClones(2, SURFACE_CLONE_NODE_BUDGET));
-  assert.ok(surfaceClones(0, 0) && surfaceClones(null, 0), 'degenerate input never throws');
+// ── What a surface's cloud is made of ───────────────────────────────────────
+test('a surface never dusts as copies of ITSELF — a cloud carries no identity', () => {
+  // A row scatter can afford real clones (a list row is one element in one place), but a
+  // surface's cloud lands on <body>: a few hundred copies of a menu would be a few
+  // hundred more elements answering to `.accent-dd-menu`, `.action-menu`, an id — and
+  // every query on the page would have to know about a decoration.
+  const motionJs = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
+  assert.match(dust, /paintTile: speckPainter\(el\),/, 'a surface always paints specks');
+  assert.ok(!/makeCopy|cloneNode|cloneForTile/.test(dust.slice(0, dust.indexOf('settleSurface'))),
+    'and never hands disintegrate an element to copy');
 });
 
 test('centerOf is the middle of the control, and null when there is nothing to measure', () => {

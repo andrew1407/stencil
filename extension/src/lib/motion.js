@@ -624,15 +624,6 @@ export const centerOf = (elOrRect) => {
   return { x: r.left + (r.width || 0) / 2, y: r.top + (r.height || 0) / 2 };
 };
 
-// May this surface afford a REAL clone per cell? That is what makes a menu come apart
-// into pieces of itself, and a small menu is cheap enough for it. An options dialog is
-// hundreds of nodes and the grid is hundreds of cells, and the PRODUCT is what would
-// stall the frame — past this budget the motes are flat specks in the surface's own
-// colours, which at mote size is nearly all a clone would show anyway. Pure.
-export const SURFACE_CLONE_NODE_BUDGET = 12000;
-export const surfaceClones = (nodes, tiles) =>
-  Math.max(1, nodes || 0) * Math.max(0, tiles || 0) <= SURFACE_CLONE_NODE_BUDGET;
-
 // Is `c` a colour that paints nothing? An unset background, or a fully transparent one.
 const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 
@@ -680,26 +671,23 @@ const speckPainter = (el) => {
   };
 };
 
-// A menu is position:fixed. Inside a tile it must lay out from the tile's own corner
-// instead of re-anchoring to the viewport — or, once the tile is moving, to the tile.
-const surfaceCloneMaker = () => (el) => {
-  const c = cloneForTile(el);
-  if (c.style) { c.style.position = 'static'; c.style.left = ''; c.style.top = ''; }
-  return c;
-};
-
+// A surface NEVER dusts as clones of itself, however small it is. A row scatter can
+// afford to (a list row is one element in one place), but a surface's cloud lands on
+// <body> — and a cloud of a few hundred copies of a menu is a few hundred more elements
+// answering to `.accent-dd-menu`, `.action-menu`, `#…`. Everything that queries the page
+// — the surface's own code, and every test that drives it — would have to know about a
+// decoration. Flat specks in the surface's own colours carry no identity at all, and at
+// a 6px grain that is very nearly all a clone would have shown anyway.
 const surfaceDust = (el, point, { ms, gather }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
   const r = el.getBoundingClientRect();
   if (!(r.width >= 8 && r.height >= 8)) return false;
   const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, SURFACE_MOTE_PX);
-  const nodes = el.getElementsByTagName ? el.getElementsByTagName('*').length : 0;
-  const clone = surfaceClones(nodes, grid.cols * grid.rows);
   return disintegrate(el, {
     ...grid, gather, toward: point, ms, px: SURFACE_MOTE_PX, toBody: true,
     hostClass: gather ? 'dust-forming' : 'dust-leaving',
-    ...(clone ? { makeCopy: surfaceCloneMaker() } : { paintTile: speckPainter(el) }),
+    paintTile: speckPainter(el),
   });
 };
 
