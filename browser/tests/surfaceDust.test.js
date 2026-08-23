@@ -8,7 +8,7 @@
 // rendering is what changed.
 //
 // What is pinned here:
-//   1. the flight arithmetic (pure: surfaceMotion, dockAwayPoint, surfaceClones);
+//   1. the flight arithmetic (pure: surfaceMotion, dockAwayPoint, reshapeGrid);
 //   2. the CSS contract — the old pop/slide is OFF for good, the dust owns the box's
 //      opacity, and nothing plays at all under reduced motion;
 //   3. the wiring on each surface, including that the origin point is still the icon
@@ -18,10 +18,10 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import {
-  surfaceMotion, dockAwayPoint, surfaceClones, reshapeGrid, settleSurface,
+  surfaceMotion, dockAwayPoint, reshapeGrid, settleSurface,
   surfaceIn, surfaceOut, cancelDust, tileNoise,
   SURFACE_IN_MS, SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPECK_PX,
-  SURFACE_CLONE_NODE_BUDGET, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
+  SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../js/ui/motion.js';
 
@@ -112,18 +112,21 @@ test('dockAwayPoint keeps the panel’s own slide direction', () => {
   assert.equal(dockAwayPoint(null, 'left'), null);
 });
 
-// ── 3. Clones vs specks ─────────────────────────────────────────────────────
+// ── 3. Specks, and never clones ─────────────────────────────────────────────
 
-test('a small popup comes apart into pieces of ITSELF; a whole window into specks', () => {
-  // A ⋯ menu: a dozen nodes over a few hundred cells — the same order as a chat row's
-  // scatter, which is what makes a removal read as the thing coming apart.
-  assert.ok(surfaceClones(12, 300), 'a mini popup clones for real');
-  // A settings window: hundreds of nodes over ~1200 cells. The PRODUCT is what would
-  // stall the frame, so those motes are flat specks in the surface's own colours.
-  assert.ok(!surfaceClones(400, 1200), 'a whole window does not');
-  assert.ok(surfaceClones(1, SURFACE_CLONE_NODE_BUDGET), 'the budget itself is allowed');
-  assert.ok(!surfaceClones(2, SURFACE_CLONE_NODE_BUDGET), 'one past it is not');
-  assert.ok(surfaceClones(0, 0), 'a stub with nothing to count never trips it');
+test('a surface never dusts as copies of ITSELF — a cloud carries no identity', () => {
+  // A row scatter can afford real clones (a list row is one element in one place), but a
+  // surface's cloud lands on <body>: a few hundred copies of a menu would be a few
+  // hundred more elements answering to `.accent-dd-menu`, `.ctx-sub`, `#chat-…`, and
+  // every query on the page — the app's own, and every test that drives it — would have
+  // to know about a decoration. This is the guard against that coming back.
+  const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
+  assert.match(dust, /paintTile: speckPainter\(el\),/, 'a surface always paints specks');
+  assert.ok(!/makeCopy/.test(dust.slice(0, dust.indexOf('settleSurface'))),
+    'and never hands disintegrate an element to copy');
+  assert.ok(!/cloneForTile|cloneNode/.test(motionJs.slice(motionJs.indexOf('// ── Surfaces'),
+                                                          motionJs.indexOf('// ── Hover popups'))),
+    'nothing in the surface section clones a node');
 });
 
 test('a surface is grained at least as fine as a row, under its own mote ceiling', () => {

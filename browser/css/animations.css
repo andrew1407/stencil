@@ -1363,11 +1363,12 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    own alpha is the surfaceLeave keyframes', which are down to nothing by then. */
 .hints-popup.dust-hold { display: block; }
 #install-menu.dust-hold { display: flex; }
-/* A whole panel cannot be cloned per cell (motion.js surfaceClones), so its motes are
-   flat specks in its own colours — at mote size that is all a clone would show. Round,
-   so the first frame is the app's own dot grain rather than a mosaic of chips. The
-   speck is a GRAIN inside its cell, not the cell: motion.js sizes and centres it, and
-   caps it at SURFACE_SPECK_PX however far the mote budget let the cell grow. */
+/* A surface's motes are flat specks in its own colours — never copies of it (motion.js
+   surfaceDust): a cloud on <body> made of copies is a cloud of elements answering to the
+   surface's own selectors, and at mote size a copy shows very nearly nothing more. Round,
+   so the first frame is the app's own dot grain rather than a mosaic of chips. The speck
+   is a GRAIN inside its cell, not the cell: motion.js sizes and centres it, and caps it
+   at SURFACE_SPECK_PX however far the mote budget let the cell grow. */
 .dust-mote {
     border-radius: 50%;
     /* A painted tile IS the mote, so it sizes and places itself rather than filling the
