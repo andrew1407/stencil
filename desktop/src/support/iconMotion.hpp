@@ -5,7 +5,7 @@
 // its CSS realisation in browser/css/animations.css. One generic tilt for everything is
 // worse than none — a minus that swells reads as "increase" — so the trash lid lifts, the
 // download arrow travels down and upload's up, the folder tips open, the chain links join,
-// the sun rises, the fullscreen corners extend (and RETRACT on the control that leaves
+// the sun shakes, the fullscreen corners extend (and RETRACT on the control that leaves
 // fullscreen), plus grows, minus shrinks, the layers assemble, the sparkle dots type.
 //
 // How it works in Qt. QSvgRenderer has no CSS engine and cannot address a class, so a frame

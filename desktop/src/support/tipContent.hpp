@@ -56,9 +56,16 @@ namespace stencil::gui {
   QString renderTip(const QString& text, const Palette& pal, bool mac = kOnMac);
 
   // Class marker carried by every painted keycap <img>, so a rendered tooltip can be asked
-  // whether it shows any caps at all — appTooltip shakes only the ones that do.
+  // whether it shows any caps at all — appTooltip shakes only the ones that do. The "+"
+  // between caps carries its own marker and never shakes (browser: .tip-key vs .tip-plus).
   inline constexpr const char* kKeycapClass = "stencil-tip-key";
+  inline constexpr const char* kJoinerClass = "stencil-tip-plus";
   bool hasKeycaps(const QString& richText);
+
+  // The same rich text with every keycap FACE blanked — same boxes, same layout, nothing
+  // drawn in them. Rendering both and diffing is how appTooltip finds where Qt put the
+  // caps. Empty when the tip draws none.
+  QString blankKeycaps(const QString& richText);
 
   // Install the app-wide tooltip enrichment: every plain `setToolTip` is re-rendered
   // through renderTip. Call once at startup and again on a theme change, so keycaps and

@@ -278,19 +278,19 @@
     "moon": {
       "action": "switch to the dark theme",
       "mode": "settle",
-      "note": "the WHOLE moon rises into view from below the icon box, the way one clears a horizon — no turn, no part choreography",
+      "note": "the WHOLE moon gives a quick shake in place — `help`'s tremor on the whole glyph. TRANSLATION, not rotation: a turn is invisible on a disc, reads as a tip on a crescent, and in this table means an actual turn (gear, refresh, the quarter-turns)",
       "parts": [{
-        "hook": null, "durationMs": 380,
-        "keyframes": [{ "at": 0, "translate": [0, 18] }, { "at": 100 }]
+        "hook": null, "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
       }]
     },
     "sun": {
       "action": "switch to the light theme",
       "mode": "settle",
-      "note": "the sun's twin: the WHOLE glyph, rays and all, rises from below on the same numbers",
+      "note": "the moon's twin: the WHOLE glyph, rays and all, shakes on the same numbers",
       "parts": [{
-        "hook": null, "durationMs": 380,
-        "keyframes": [{ "at": 0, "translate": [0, 18] }, { "at": 100 }]
+        "hook": null, "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
       }]
     },
     "maximize": {
@@ -333,8 +333,11 @@
     "incognito": {
       "action": "incognito — edit without saving",
       "mode": "hold",
-      "note": "the hat brim pulls down over the glasses",
-      "parts": [{ "hook": "ic-brim", "to": { "translate": [0, 1.4] } }]
+      "note": "the disguise comes apart: the hat lifts off while the glasses drop away from it",
+      "parts": [
+        { "hook": "ic-brim", "to": { "translate": [0, -1] } },
+        { "hook": "ic-glasses", "to": { "translate": [0, 1] } }
+      ]
     },
     "lock": {
       "action": "admin / secured",
@@ -393,7 +396,7 @@
     "image": {
       "action": "open an image",
       "mode": "settle",
-      "note": "the picture is DRAWN inside its frame — the ridge (≈22.6 units of polyline) draws itself and the little sun pops as it lands, the `line`/`rect` idiom. Nothing travels across the frame's outline, which sliding the contents in from below did",
+      "note": "the picture is DRAWN inside its frame — the ridge (≈22.6 units of polyline) draws itself and the little sun DROPS in from just above it, a beat later. Nothing crosses the frame's outline, which sliding the contents in from below did: the sun's top (8.5 − r1.5 − a 1-unit half stroke = 6) clears that outline's inner edge (3 + 1) by 2, so 1.6 is the whole drop there is — it lands with a 0.3 overshoot rather than more height",
       "parts": [
         {
           "hook": "ic-ridge", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
@@ -401,8 +404,8 @@
           "keyframes": [{ "at": 0, "dashOffset": 23 }, { "at": 100, "dashOffset": 0 }]
         },
         {
-          "hook": "ic-orb", "durationMs": 300, "delayMs": 90, "originSelf": true,
-          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+          "hook": "ic-orb", "durationMs": 300, "delayMs": 90,
+          "keyframes": [{ "at": 0, "translate": [0, -1.6] }, { "at": 70, "translate": [0, 0.3] }, { "at": 100 }]
         }
       ]
     },

@@ -174,6 +174,11 @@ test('direction is the meaning: the pairs point opposite ways', () => {
   // The two halves of the chain move TOWARDS each other, not apart.
   const [a, b] = ['ic-link-a', 'ic-link-b'].map((h) => to('link', h).translate);
   assert.ok(a[0] < 0 && a[1] > 0 && b[0] > 0 && b[1] < 0, 'the links join');
+  // The disguise comes APART: the hat lifts off, the glasses drop away from it.
+  assert.ok(to('incognito', 'ic-brim').translate[1] < 0, 'the hat goes up');
+  assert.ok(to('incognito', 'ic-glasses').translate[1] > 0, 'the glasses go down');
+  assert.match(ICONS.incognito, /<g class="ic-glasses">(<circle[^>]*\/>){2}<path[^>]*\/><\/g>/,
+    'both lenses and the bridge move as one');
 });
 
 test('plus grows and minus shrinks — each settling back to the default size', () => {
@@ -203,25 +208,37 @@ test('the fullscreen corners extend to enter and retract to leave', () => {
   assert.match(SECTION, /\.active \.ic-maximize \.ic-corner-tl/, 'and the sheet keys on it');
 });
 
-test('sun and moon RISE into view from below — each as ONE whole glyph', () => {
+test('sun and moon SHAKE in place — each as ONE whole glyph', () => {
   for (const name of ['moon', 'sun']) {
     const parts = MOTION.icons[name].parts;
-    assert.equal(parts.length, 1, `${name}: the whole glyph rises, not choreographed parts`);
+    assert.equal(parts.length, 1, `${name}: the whole glyph shakes, not choreographed parts`);
     assert.equal(parts[0].hook, null, `${name}: hook null = the whole glyph`);
     const kf = parts[0].keyframes;
-    // Below the BOTTOM of the 24-unit box, not merely a little low: the icon rises into
-    // view over a horizon. (The browser's `overflow: visible` lets it start off-icon; a
-    // surface that clips its icon box reads the same rise.)
-    assert.ok(kf[0].translate[1] >= 12, `${name} starts below the icon box`);
-    assert.equal(kf.at(-1).translate, undefined, `${name} comes to rest in the glyph`);
-    // A turn or a per-part scale is exactly what made this pair read as broken.
+    // Side to side and back, `help`'s tremor shape: at least two reversals, each small
+    // enough to stay a shake rather than a slide, and rest at both ends.
+    assert.equal(kf[0].translate, undefined, `${name} starts at rest`);
+    assert.equal(kf.at(-1).translate, undefined, `${name} comes back to rest`);
+    const xs = kf.filter((k) => k.translate).map((k) => k.translate[0]);
+    assert.ok(xs.length >= 3, `${name}: a shake needs more than one throw`);
+    for (let i = 1; i < xs.length; i++)
+      assert.ok(xs[i] * xs[i - 1] < 0, `${name}: each throw reverses the last`);
+    for (const k of kf.filter((x) => x.translate)) {
+      assert.equal(k.translate[1], 0, `${name}: side to side only`);
+      assert.ok(Math.abs(k.translate[0]) <= 1, `${name}: and small — a shake, not a move`);
+    }
+    // TRANSLATION, not rotation: a turn is invisible on a disc, reads as a tip on a
+    // crescent, and in this table means an actual turn (gear, refresh, quarter-turns).
     for (const k of kf)
       for (const prop of ['rotate', 'scale', 'scaleX', 'scaleY', 'skewX'])
-        assert.equal(k[prop], undefined, `${name}: the rise is a translation and nothing else`);
+        assert.equal(k[prop], undefined, `${name}: the shake is a translation and nothing else`);
+    // In the same band as the other settles, and one shot: it never repeats.
+    assert.ok(parts[0].durationMs >= 300 && parts[0].durationMs <= 380,
+      `${name}: ${parts[0].durationMs}ms is out of the settle range`);
   }
   assert.deepEqual(MOTION.icons.sun.parts, MOTION.icons.moon.parts,
-    'the theme pair rise on the same numbers — they are one design');
-  assert.match(SECTION, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmRise;/);
+    'the theme pair shake on the same numbers — they are one design');
+  assert.match(SECTION, /\.ic-moon, \.ic-sun\s+\{[^}]*--ic-play: icmShiver;/);
+  assert.doesNotMatch(SECTION, /animation-iteration-count/, 'a settle plays once');
 });
 
 test('the help mark trembles inside its ring, and never turns out of it', () => {
@@ -267,8 +284,24 @@ test('the picture draws itself INSIDE its frame, which never moves', () => {
   assert.ok(ridge.dashArray >= 23, 'the ridge is ≈22.6 units of polyline');
   assert.equal(ridge.keyframes[0].dashOffset, ridge.dashArray);
   assert.equal(ridge.keyframes.at(-1).dashOffset, 0);
-  assert.ok(orb.originSelf && orb.delayMs > 0, 'the little sun pops in place, a beat later');
-  for (const k of orb.keyframes) assert.equal(k.translate, undefined, '…and never travels');
+  // The little sun DROPS in from above, a beat after the ridge, and lands in the glyph.
+  assert.ok(orb.delayMs > 0, 'the sun arrives after the ridge has started');
+  assert.ok(orb.keyframes[0].translate[1] < 0, 'it starts ABOVE its place');
+  assert.equal(orb.keyframes.at(-1).translate, undefined, '…and settles into it');
+  for (const k of orb.keyframes) assert.equal(k.scale, undefined, 'by movement, not by scale');
+  // …within the clearance the frame leaves. Both are stroked at sw=2 (ui/icons.js), so
+  // the sun's visual top is cy-r-1 and the frame's outline reaches inward to y+1: the
+  // gap between them is the ENTIRE travel budget, and every keyframe stays inside it.
+  const half = 1;
+  const y = Number(ICONS.image.match(/<rect[^>]*\by="([\d.]+)"/)[1]);
+  const [cy, r] = [/\bcy="([\d.]+)"/, /\br="([\d.]+)"/].map((re) => Number(ICONS.image.match(re)[1]));
+  const clearance = (cy - r - half) - (y + half);
+  assert.equal(clearance, 2, 'the frame leaves the sun 2 units of headroom, not 4');
+  for (const k of orb.keyframes) {
+    const lift = -(k.translate?.[1] ?? 0);
+    assert.ok(lift < clearance,
+      `a keyframe lifts the sun ${lift}u into a ${clearance}u gap — it would cross the frame`);
+  }
 });
 
 test('the assistant types and the layers assemble', () => {

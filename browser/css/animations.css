@@ -121,7 +121,7 @@ button:not(:disabled):active {
    a minus that swells reads as "increase" — so each icon gets the motion its own
    action means: the trash lid lifts, download's arrow travels down and upload's up,
    the folder tips open, the assistant's dots type, plus grows and minus shrinks (both
-   settling back to their default size), the chain links join, the sun rises, the
+   settling back to their default size), the chain links join, the sun shakes, the
    fullscreen corners extend — or retract, on the control that LEAVES fullscreen.
 
    The table is canonical data (js/config/iconMotion.json) because the desktop app and
@@ -149,8 +149,8 @@ button:not(:disabled):active {
 @property --ic-play { syntax: "*"; inherits: false; }
 .ic, .draw-mode-icon {
     --ic-on: 0;
-    /* A lifting lid or a rising sun leaves the 24-unit box for a moment. At rest every
-       glyph is inside it, so nothing that isn't moving renders differently. */
+    /* A lifting lid or a shaken sun ray leaves the 24-unit box for a moment. At rest
+       every glyph is inside it, so nothing that isn't moving renders differently. */
     overflow: visible;
 }
 .ic, .draw-mode-icon, .ic *, .draw-mode-icon * {
@@ -235,7 +235,9 @@ button:not(:disabled):active {
 .ic-fit .ic-inner       { transform: scale(calc(1 + var(--ic-on) * 0.22)); }  /* grows to fit */
 .ic-globe .ic-meridian  { transform: scaleX(calc(1 - var(--ic-on) * 0.55)); } /* turning on its axis */
 .ic-monitor .ic-screen  { transform: translateY(calc(var(--ic-on) * -1.2px)); }
-.ic-incognito .ic-brim  { transform: translateY(calc(var(--ic-on) * 1.4px)); }  /* brim pulled down */
+/* The disguise comes apart: the hat lifts off, the glasses drop away from it. */
+.ic-incognito .ic-brim    { transform: translateY(calc(var(--ic-on) * -1px)); }
+.ic-incognito .ic-glasses { transform: translateY(calc(var(--ic-on) * 1px)); }
 .ic-lock .ic-shackle    { transform: translateY(calc(var(--ic-on) * -1.4px)); } /* about to unlatch */
 /* Fullscreen: the corner brackets EXTEND to enter it and RETRACT to leave it, so the
    motion always shows where the click takes you (.active = already in fullscreen). */
@@ -279,7 +281,8 @@ button:not(:disabled):active {
 @keyframes icmTremor      { 0%, 100% { transform: none; }      25% { transform: translateX(-1px); } 55% { transform: translateX(0.9px); } 80% { transform: translateX(-0.45px); } }
 @keyframes icmShake       { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 55% { transform: rotate(6deg); } 80% { transform: rotate(-3deg); } }
 @keyframes icmWave        { 0%, 100% { transform: skewX(0); }  30% { transform: skewX(7deg); } 65% { transform: skewX(-5deg); } }
-@keyframes icmRise        { 0% { transform: translateY(75%); } 100% { transform: none; } }
+@keyframes icmShiver      { 0%, 100% { transform: none; }      25% { transform: translateX(-4.17%); } 55% { transform: translateX(3.75%); } 80% { transform: translateX(-1.88%); } }
+@keyframes icmSunDrop     { 0% { transform: translateY(-1.6px); } 70% { transform: translateY(0.3px); } 100% { transform: none; } }
 @keyframes icmLayerBot    { 0% { transform: translateY(4.5px); } 65% { transform: translateY(-0.5px); } 100% { transform: none; } }
 @keyframes icmLayerMid    { 0% { transform: translateY(3.5px); } 65% { transform: translateY(-0.4px); } 100% { transform: none; } }
 @keyframes icmLayerTop    { 0% { transform: translateY(-3px); }  65% { transform: translateY(0.4px); }  100% { transform: none; } }
@@ -298,7 +301,7 @@ button:not(:disabled):active {
    joins them changes, so both draw that join between them and pop the handles after. */
 .ic-rect .ic-box      { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 58; --ic-play: icmDrawBox; }
 .ic-line .ic-stroke   { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 22; --ic-play: icmDrawLine; }
-.ic-line .ic-handle, .ic-rect .ic-handle, .ic-image .ic-orb {
+.ic-line .ic-handle, .ic-rect .ic-handle {
     --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmHandlePop;
     transform-box: fill-box; transform-origin: center;
 }
@@ -317,9 +320,11 @@ button:not(:disabled):active {
 .ic-info .ic-mark,
 .ic-calendar .ic-rings { --ic-ms: 0.3s; --ic-play: icmBob; }
 .ic-eye .ic-pupil     { --ic-ms: 0.42s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmGlance; }
-/* The picture is DRAWN inside its frame — the ridge draws itself and the sun pops as it
-   lands. Sliding the contents up from below dragged them across the frame's outline. */
+/* The picture is DRAWN inside its frame — the ridge draws itself and the little sun drops
+   in from just above, a beat later. Its top rests 2 units under the frame's inner edge, so
+   1.6 is the whole drop the frame allows: nothing ever crosses that outline. */
 .ic-image .ic-ridge   { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 23; --ic-play: icmDrawRidge; }
+.ic-image .ic-orb     { --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmSunDrop; }
 .ic-flag .ic-cloth    { --ic-ms: 0.42s; transform-origin: 4px 3px; --ic-play: icmWave; }
 .ic-lightbulb .ic-bulb { --ic-ms: 0.34s; transform-origin: 12px 17px; --ic-play: icmBulbGlow; }
 /* The assistant's bubble types; the same bounce is the "work pending" dots. */
@@ -335,10 +340,10 @@ button:not(:disabled):active {
 .ic-server .ic-led    { --ic-ms: 0.36s; --ic-play: icmLedBlink; }
 .ic-server .ic-led:nth-of-type(1) { transform-origin: 6px 6px; }
 .ic-server .ic-led:nth-of-type(2) { transform-origin: 6px 18px; --ic-delay: 0.11s; }
-/* Theme: the WHOLE sun, or the whole moon, rises into view from below — one literal
-   move, no part choreography and no turn. `overflow: visible` is what lets it start
-   off-icon; a surface that clips its icon box reads the same rise into view. */
-.ic-moon, .ic-sun     { --ic-ms: 0.38s; --ic-play: icmRise; }
+/* Theme: the WHOLE sun, or the whole moon, gives a quick shake in place — the `help`
+   tremor on the whole glyph. TRANSLATION, not rotation: a turn is invisible on a disc,
+   reads as a tip on a crescent, and here means an actual turn (gear, refresh). */
+.ic-moon, .ic-sun     { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmShiver; }
 /* Projects: the three layers fly in and assemble into the icon, bottom first. */
 .ic-layers .ic-layer-bot { --ic-ms: 0.38s; --ic-play: icmLayerBot; }
 .ic-layers .ic-layer-mid { --ic-ms: 0.38s; --ic-delay: 0.07s; --ic-play: icmLayerMid; }

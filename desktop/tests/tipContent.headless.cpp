@@ -180,6 +180,25 @@ int main(int argc, char** argv) {
           "a combo Qt already glyphed renders the same either way");
   }
 
+  {  // The caps are marked apart from the "+" between them (browser: .tip-key vs .tip-plus),
+     // and can be blanked in boxes of the same size — that pair of renders is how the app
+     // tooltip finds where Qt laid the caps out, so it can shake them.
+    const QString html = renderTip("Undo (Ctrl+Shift+Z)", pal);
+    check(html.count(QLatin1String(stencil::gui::kKeycapClass)) == 3 &&
+              html.count(QLatin1String(stencil::gui::kJoinerClass)) == 2,
+          "each key is marked a cap and each \"+\" a joiner");
+    const QString bare = stencil::gui::blankKeycaps(html);
+    check(!bare.isEmpty() && bare.length() < html.length(), "the cap faces blank out");
+    check(bare.count("<img alt=") == html.count("<img alt=") &&
+              bare.count("width=") == html.count("width="),
+          "…leaving every box, and its size, exactly where it was");
+    check(bare.count("alt=\"+\"") == html.count("alt=\"+\"") &&
+              bare.contains(QLatin1String(stencil::gui::kJoinerClass)),
+          "the joiners keep their picture, so a chord's caps stay separable");
+    check(stencil::gui::blankKeycaps(renderTip("Bare hover text", pal)).isEmpty(),
+          "a tooltip with no caps blanks to nothing at all");
+  }
+
   std::printf("%s\n", failures == 0 ? "RESULT: ALL PASS" : "RESULT: FAILURES");
   return failures == 0 ? 0 : 1;
 }
