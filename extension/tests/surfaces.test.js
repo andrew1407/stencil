@@ -270,7 +270,7 @@ test("a surface's motes are visible from the FIRST frame, unlike a row's", () =>
 });
 
 test('reduced motion neutralises the surface classes the preference may have flipped under', () => {
-  const tail = ANIMS.slice(ANIMS.indexOf('.dust-mote { border-radius: 50%; }'));
+  const tail = ANIMS.slice(ANIMS.indexOf('.dust-mote {'));
   assert.match(tail, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.dust-driven, \.dust-driven\.surface-forming, \.dust-driven\.surface-leaving \{ animation: none !important; \}/);
   assert.match(ANIMS, /\.disintegrate-host \{ display: none; \}/, 'no motes at all under the preference');
 });

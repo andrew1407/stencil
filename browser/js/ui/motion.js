@@ -791,7 +791,7 @@ export function cancelDust(el) {
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    makeCopy = cloneForTile, perCell = false, gather = false,
                                    toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
-                                   toBody = false, hostClass = '' } = {}) {
+                                   toBody = false, hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
@@ -821,11 +821,13 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         tile.className = gather ? 'disintegrate-tile reintegrate-tile' : 'disintegrate-tile';
         // A per-cell copy is already only its own slice, so it is POSITIONED; a full
         // clone covers the whole box and is CLIPPED down to its cell instead.
-        if (!perCell) tile.style.clipPath = tileInset(cx, cy, cols, rows);
-        // Every tile is a FULL-SIZE box clipped to its cell, so the default 50% 50% origin
-        // is the row's centre — scaling shrank them all toward the middle, which read as the
-        // row imploding rather than coming apart. Each mote turns about its own cell.
-        tile.style.transformOrigin = `${((cx + 0.5) / cols) * 100}% ${((cy + 0.5) / rows) * 100}%`;
+        if (!perCell && !paintTile) tile.style.clipPath = tileInset(cx, cy, cols, rows);
+        // A full-size tile clipped to its cell keeps the WHOLE box, so the default
+        // 50% 50% origin is the row's centre — scaling shrank them all toward the middle,
+        // which read as the row imploding rather than coming apart. Each mote turns about
+        // its own cell. A painted tile IS its own cell, so the default is already right.
+        if (!paintTile)
+          tile.style.transformOrigin = `${((cx + 0.5) / cols) * 100}% ${((cy + 0.5) / rows) * 100}%`;
         tile.style.setProperty('--dx', `${m.dx}px`);
         tile.style.setProperty('--dy', `${m.dy}px`);
         tile.style.setProperty('--rot', `${m.rot}deg`);
@@ -833,20 +835,21 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         tile.style.animationDelay = `${m.delay}ms`;
         const cellW = r.width / cols;
         const cellH = r.height / rows;
+        // A PAINTED tile is the mote itself — no copy, no child, one node per grain.
+        if (paintTile) {
+          paintTile(tile, { cx, cy, cols, rows, cellW, cellH });
+          host.appendChild(tile);
+          continue;
+        }
         const copy = makeCopy(el, { cx, cy, cols, rows, cellW, cellH });
+        copy.style.margin = '0';
         if (perCell) {
           copy.style.position = 'absolute';
           copy.style.left = `${cx * cellW}px`;
           copy.style.top = `${cy * cellH}px`;
-          // A speck sizes ITSELF (it is a grain inside its cell, not the cell); a real
-          // per-cell slice is drawn at cell size and needs the box stated.
-          if (!copy.classList.contains('dust-mote')) {
-            copy.style.margin = '0';
-            copy.style.width = `${cellW}px`;
-            copy.style.height = `${cellH}px`;
-          }
+          copy.style.width = `${cellW}px`;
+          copy.style.height = `${cellH}px`;
         } else {
-          copy.style.margin = '0';
           // The clone is out of its parent's layout, so its box has to be restated.
           copy.style.width = `${r.width}px`;
           copy.style.height = `${r.height}px`;
@@ -996,24 +999,27 @@ const surfacePaint = (el) => {
 // the cloud keeps the window's outline for the first frames. The speck is a GRAIN, not
 // the cell it sits in: past the mote budget a cell can be several times the grain we
 // want, and a cell-filling square is the "huge rectangles" a scatter must never show.
-const speckMaker = (el) => {
+//
+// Painted onto the TILE ITSELF rather than into a child of it — one node per mote, not
+// two. A window's cloud is thousands of them, and building (and then styling and
+// laying out) two nodes each is what turned an open into a visible hitch.
+const speckPainter = (el) => {
   const { fill, edge } = surfacePaint(el);
-  return (_el, { cx, cy, cols, rows, cellW, cellH }) => {
-    const d = document.createElement('div');
-    d.className = 'dust-mote';
+  return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
-    d.style.background = (edge && (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1))
+    tile.classList.add('dust-mote');
+    tile.style.background = (edge && (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1))
       ? edge : fill;
-    d.style.opacity = (0.62 + n * 0.38).toFixed(2);
-    // Grains of ONE size read as a mosaic; the spread is what makes it sand.
-    const grain = Math.min(cellW || SURFACE_SPECK_PX, cellH || SURFACE_SPECK_PX, SURFACE_SPECK_PX);
+    tile.style.opacity = (0.62 + n * 0.38).toFixed(2);
+    // Grains of ONE size read as a mosaic; the spread is what makes it sand…
+    const grain = Math.min(cellW, cellH, SURFACE_SPECK_PX);
     const px = grain * (0.62 + n * 0.5);
-    d.style.width = `${px.toFixed(2)}px`;
-    d.style.height = `${px.toFixed(2)}px`;
-    // …centred in its cell, so the field stays even however far the cell outgrew it.
-    d.style.marginLeft = `${(((cellW || px) - px) / 2).toFixed(2)}px`;
-    d.style.marginTop = `${(((cellH || px) - px) / 2).toFixed(2)}px`;
-    return d;
+    // …each centred in its own cell, so the field stays even however far the mote
+    // budget let the cell outgrow the grain.
+    tile.style.left = `${(cx * cellW + (cellW - px) / 2).toFixed(2)}px`;
+    tile.style.top = `${(cy * cellH + (cellH - px) / 2).toFixed(2)}px`;
+    tile.style.width = `${px.toFixed(2)}px`;
+    tile.style.height = `${px.toFixed(2)}px`;
   };
 };
 
@@ -1036,7 +1042,7 @@ const surfaceDust = (el, point, { ms, gather }) => {
   return disintegrate(el, {
     ...grid, gather, toward: point, ms, px: SURFACE_MOTE_PX, toBody: true,
     hostClass: gather ? 'dust-forming' : 'dust-leaving',
-    perCell: !clone, makeCopy: clone ? surfaceClone : speckMaker(el),
+    ...(clone ? { makeCopy: surfaceClone } : { paintTile: speckPainter(el) }),
   });
 };
 

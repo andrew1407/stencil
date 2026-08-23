@@ -252,9 +252,13 @@ test('the layer can never take a click or hold focus, and never moves the page',
   const host = animCss.match(/\.disintegrate-host \{([\s\S]*?)\n\}/)[1];
   assert.match(host, /position: fixed;/, 'out of flow — no reflow, ever');
   assert.match(host, /pointer-events: none;/);
-  // Motes are <div>s with no text and no tabindex (motion.js speckMaker), so there is
-  // nothing focusable in the layer at all.
-  assert.match(motionJs, /const d = document\.createElement\('div'\);\s*\n\s*d\.className = 'dust-mote';/);
+  // Motes are the tiles themselves — <div>s with no text and no tabindex (motion.js
+  // speckPainter paints them), so there is nothing focusable in the layer at all.
+  assert.match(motionJs, /tile\.classList\.add\('dust-mote'\);/);
+  assert.match(motionJs, /const tile = document\.createElement\('div'\);/);
+  // …and a painted tile carries no child at all: one node per grain, not two, which is
+  // what a window-sized cloud can actually afford to build in a frame.
+  assert.match(motionJs, /if \(paintTile\) \{\s*\n\s*paintTile\(tile,[\s\S]{0,200}?continue;/);
 });
 
 test('reduced motion: no cloud, no veil — the surface simply is, or is not', () => {
