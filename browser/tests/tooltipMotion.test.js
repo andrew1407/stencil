@@ -214,8 +214,7 @@ test('reduced motion: the tooltip appears at once and the cap answers without mo
   assert.match(block[1], /--dissolve: 0;/, 'no half-sanded tooltip either');
   assert.match(block[1], /mask-image: none;/, 'the grain is off outright, not merely settled');
   assert.match(componentsCss, /\.tip-key\.key-shake \{ animation: none; \}/);
-  // The accent recolour is not motion, so it survives — the cap still answers.
+  // The cap shakes and nothing else: no repaint, so it reads as the same key throughout.
   const shake = componentsCss.match(/\.tip-key\.key-shake \{([\s\S]*?)\n\}/)[1];
-  assert.match(shake, /border-color: var\(--accent\);/);
-  assert.match(shake, /color: var\(--accent\);/);
+  assert.doesNotMatch(shake, /border-color|color:|background/);
 });
