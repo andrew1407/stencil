@@ -38,6 +38,7 @@ e2e/blob-report/
 # generated artifact too — built in CI (and on demand locally, see desktop/WASM.md),
 # not committed.
 build/
+build_ci/
 build-wasm/
 *.o
 *.obj

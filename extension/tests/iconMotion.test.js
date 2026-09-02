@@ -102,7 +102,7 @@ test('every glyph the extension carries with a canonical design has motion', () 
   }
   assert.deepEqual(missing, [], 'glyphs the extension shows but never animates');
   // The subset is a fact worth pinning: a glyph added to lib/icons.js needs motion too.
-  assert.equal(DESIGNED.length, 29);
+  assert.equal(DESIGNED.length, 31);
   assert.equal(Object.keys(ICONS).length, DESIGNED.length + EXTENSION_ONLY.length);
 });
 
@@ -242,8 +242,11 @@ test('the fold chevrons opt out — their rotation is state, not hover feedback'
 test('the hover trigger excludes the controls that already own their glyph', () => {
   const trigger = extRules.find((r) => /:hover/.test(r.prelude) && /--ic-on: 1/.test(r.body));
   assert.ok(trigger, 'a hover rule flips the latch');
-  for (const not of [':not(:disabled)', ':not(.is-loading)', ':not(.swapping)'])
+  for (const not of [':not(.is-loading)', ':not(.swapping)'])
     assert.ok(trigger.prelude.includes(not), `the trigger should carry ${not}`);
+  // A DISABLED control is not one of them (browser iconMotion.json trigger.disabled): it
+  // is still hovered and still explains itself, and a frozen glyph read as a dead strip.
+  assert.ok(!trigger.prelude.includes(':not(:disabled)'), 'a greyed control animates too');
   assert.match(trigger.prelude, /:is\(\.ic, \.ic \*\)/, 'the glyph and its parts both latch');
 });
 

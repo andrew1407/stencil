@@ -10,11 +10,16 @@
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include <QColor>
 #include <QEasingCurve>
+#include <QGuiApplication>
 #include <QPainter>
+#include <QPalette>
 #include <QPointF>
+#include <QPointer>
 #include <QPaintEvent>
 #include <QPixmap>
+#include <QPropertyAnimation>
 #include <QRectF>
+#include <QScreen>
 #include <QSize>
 #include <QTimer>
 #include <QVariantAnimation>
@@ -24,6 +29,54 @@
 #include <cmath>
 
 namespace stencil::gui {
+
+  // ── The floating-tip clock family (browser controlTooltip.js / exportPreview.js):
+  // tooltips, the export preview and popup menus gather/leave on this shared clock.
+  inline constexpr int kTipDustInMs = 260;
+  inline constexpr int kTipDustOutMs = 190;
+  // Where the browser's surfaceForm keyframes hold a forming surface invisible while
+  // its motes gather, and surfaceLeave's one-beat hand-over on the way out.
+  inline constexpr double kDustHold = 0.55;
+  inline constexpr int kDustHandOverMs = 60;
+
+  // Where a docked surface's dust comes from / returns to: `picture`'s centre pushed
+  // out past the edge named by `area` by `reach`x that edge's own extent — the
+  // browser's dockAwayPoint (motion.js).
+  inline QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
+                              double reach = 1.2) {
+    const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
+    const int reachPx = qRound((horiz ? picture.width() : picture.height()) * reach);
+    QPoint target = picture.center();
+    if (area == Qt::LeftDockWidgetArea) target.setX(picture.left() - reachPx);
+    else if (area == Qt::RightDockWidgetArea) target.setX(picture.right() + reachPx);
+    else if (area == Qt::TopDockWidgetArea) target.setY(picture.top() - reachPx);
+    else if (area == Qt::BottomDockWidgetArea) target.setY(picture.bottom() + reachPx);
+    return target;
+  }
+
+  // The browser surfaceForm ramp: held at 0 until kDustHold, then up to 1 — the fade
+  // every surface plays behind its own gathering dust. Works on any variant animation
+  // (windowOpacity or a QGraphicsOpacityEffect's opacity alike).
+  inline void holdFadeKeys(QVariantAnimation* fade, int ms) {
+    fade->setKeyValues({});
+    fade->setDuration(ms);
+    fade->setKeyValueAt(0.0, 0.0);
+    fade->setKeyValueAt(kDustHold, 0.0);
+    fade->setKeyValueAt(1.0, 1.0);
+  }
+
+  // windowOpacity flavour for a top-level surface: waits invisible behind its own
+  // gathering dust and fades up as the last motes land; never left dimmed.
+  inline void fadeUpBehindDust(QWidget* w, int ms) {
+    auto* fade = new QPropertyAnimation(w, "windowOpacity", w);
+    holdFadeKeys(fade, ms);
+    QPointer<QWidget> guard(w);
+    QObject::connect(fade, &QPropertyAnimation::finished, w, [guard] {
+      if (guard) guard->setWindowOpacity(1.0);
+    });
+    w->setWindowOpacity(0.0);
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
+  }
 
   class DisintegrateOverlay : public QWidget {
    public:
@@ -45,7 +98,11 @@ namespace stencil::gui {
     static constexpr int kSurfaceInMs = 620;    // browser SURFACE_IN_MS
     static constexpr int kSurfaceOutMs = 380;   // browser SURFACE_OUT_MS
     static constexpr int kSurfaceCellPx = 6;    // browser SURFACE_MOTE_PX
-    static constexpr int kSurfaceMaxCells = 3000;
+    // A window's whole cloud is redrawn in ONE paintEvent every frame, so the cost
+    // scales with cell count — a few thousand cells per frame is what read as lag on
+    // a big surface (a tall dialog, a full-height dock). browser SURFACE_COLS*ROWS.
+    // overSurface() takes an override for a caller that wants a bigger budget.
+    static constexpr int kSurfaceMaxCells = 1380;
     static constexpr double kSurfaceSpreadPx = 34;   // browser SURFACE_SPREAD
     // How far a surface's motes are lifted towards the window's own INK before they fly
     // (browser motion.js MOTE_INK). Without it the cloud is invisible: a window and the
@@ -67,6 +124,18 @@ namespace stencil::gui {
     static double cellNoise(int cx, int cy) {
       const double h = std::sin(cx * 127.1 + cy * 311.7) * 43758.5453;
       return h - std::floor(h);
+    }
+
+    // Motes sized on SCREEN (`cellPx` each), thinned back if that would exceed the
+    // ceiling — browser motion.js reshapeGrid. Shared with controlReveal's mark grid.
+    static void dustGrid(const QSize& size, int cellPx, int maxCells, int* cols, int* rows) {
+      *cols = std::max(1, qRound(double(size.width()) / cellPx));
+      *rows = std::max(1, qRound(double(size.height()) / cellPx));
+      while (*cols * *rows > std::max(64, maxCells)) {
+        // ceil(x/1.1) is x itself for x <= 10 — force a strict shrink or this spins forever.
+        *cols = std::max(1, std::min(*cols - 1, int(std::ceil(*cols / 1.1))));
+        *rows = std::max(1, std::min(*rows - 1, int(std::ceil(*rows / 1.1))));
+      }
     }
 
     // Snapshot `victim` and scatter it inside `host` (which must outlive the play —
@@ -108,9 +177,11 @@ namespace stencil::gui {
     // `dustCells` caps the mote count for THIS overlay. Removing several rows at once means
     // several overlays repainting every frame, and the cost is their SUM — so a mass removal
     // divides the budget between them (browser motion.js scatterGridFor does the same).
+    // `ms` shortens the flight for a motion that is not a removal — a filter change moves
+    // rows in and out on its own short clock (support/filterFade.hpp kFilterDustMs).
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
                                         Sweep sweep = Sweep::Rows, bool dust = false,
-                                        int dustCells = kDustMaxCells) {
+                                        int dustCells = kDustMaxCells, int ms = kMs) {
       if (!source || !host || !source->isVisible()) return nullptr;
       if (rect.width() < 8 || rect.height() < 8) return nullptr;
       const QPixmap snap = source->grab(rect);
@@ -123,7 +194,7 @@ namespace stencil::gui {
       fx->show();
       fx->raise();
       QTimer::singleShot(0, fx, [fx] { fx->raise(); });
-      fx->start();
+      fx->start(ms > 0 ? ms : kMs);
       return fx;
     }
 
@@ -157,20 +228,42 @@ namespace stencil::gui {
       return fx;
     }
 
+    // Slack around a surface flight's own box: how far past the picture/target a mote
+    // can still be drawn (kSurfaceSpreadPx of jitter plus a rotated cell's corner).
+    static constexpr int kSurfacePadPx = 64;
+
+    // Everything a flight can paint — picture plus target point, each padded. All GLOBAL.
+    // A layer smaller than this crops the cloud; placeForSurface() tests the host on it.
+    static QRect surfaceLayerRect(const QRect& pictureGlobal, const QPoint& targetGlobal) {
+      QRect need = pictureGlobal;
+      need |= QRect(targetGlobal, QSize(1, 1));
+      return need.adjusted(-kSurfacePadPx, -kSurfacePadPx, kSurfacePadPx, kSurfacePadPx);
+    }
+
     // A whole surface's flight. `picture` is where the snapshot sits and `target` the
     // point its motes stream out of (SurfaceIn) or pour into (SurfaceOut), both in HOST
-    // coordinates; the overlay itself covers the whole host, because a mote's whole
-    // journey is out to that point and a layer the size of the surface would clip it.
+    // coordinates; the overlay covers the whole host rather than just the picture,
+    // because a mote's journey is out to that point and a surface-sized layer clips it.
+    // `escapeHost` is for a surface that is its own top-level window (a dialog, a menu,
+    // the tooltip), whose cloud must be free to leave the host too — see
+    // placeForSurface(). Ones living INSIDE it leave it false: the docked chat and the
+    // toasts aim past the window edge on purpose and want to be cropped there.
+    // `alwaysEscape`: a surface that is its own window floating ABOVE the host (the
+    // projects hover preview) hides a child layer's motes underneath itself — this
+    // lifts the cloud into the top-level layer even when the flight would fit the
+    // host, so it rides above both (browser stacking, where the dust is z-topmost).
     static DisintegrateOverlay* overSurface(const QPixmap& snap, const QRect& picture,
                                             QWidget* host, const QPoint& target, bool gather,
-                                            int ms = 0, const QColor& ink = QColor()) {
+                                            int ms = 0, const QColor& ink = QColor(),
+                                            int maxCells = kSurfaceMaxCells,
+                                            bool escapeHost = false, bool alwaysEscape = false) {
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
       auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
       fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
       fx->picture_ = picture;
       fx->target_ = QPointF(target);
-      fx->sizeGridForDust(picture.size(), kSurfaceMaxCells, kSurfaceCellPx);
-      fx->setGeometry(host->rect());
+      fx->sizeGridForDust(picture.size(), maxCells, kSurfaceCellPx);
+      fx->placeForSurface(host, picture, target, escapeHost, alwaysEscape);
       fx->show();
       fx->raise();
       QTimer::singleShot(0, fx, [fx] { fx->raise(); });
@@ -187,15 +280,35 @@ namespace stencil::gui {
     bool gathering() const { return sweep_ == Sweep::SurfaceIn; }
     const QPixmap& snapshot() const { return snap_; }
 
+    // Shift a still-flying SURFACE by `delta`, keeping its timing/phase — for a caller
+    // whose stacking algorithm moved the widget mid-flight (a toast a burst bumped to a
+    // new slot). Both the picture and the target move together, so every mote's path
+    // (an offset RELATIVE to its home cell) still lands where it always would have,
+    // just re-based on the corrected position.
+    void retarget(const QPoint& delta) {
+      if (delta.isNull()) return;
+      picture_.translate(delta);
+      target_ += QPointF(delta);
+      update();
+    }
+
    protected:
     void paintEvent(QPaintEvent*) override {
       if (snap_.isNull()) return;
       QPainter p(this);
-      p.setRenderHint(QPainter::Antialiasing, true);
+      // A SURFACE's cells are motes a few px across. Antialiasing (vector/rotation edge
+      // smoothing) is skippable there for perf. SmoothPixmapTransform is not: without it
+      // adjacent tiles blit with nearest-neighbour sampling, and float-rounded cell rects
+      // that don't land on exact device pixels show as hairline black seams between
+      // them — the "cracked glass" look instead of dust. Keep the bilinear filter, drop
+      // only the edge AA.
+      const bool surfaceSweep = sweep_ == Sweep::SurfaceIn || sweep_ == Sweep::SurfaceOut;
+      p.setRenderHint(QPainter::Antialiasing, !surfaceSweep);
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
       // Where the picture itself sits — the whole overlay unless `pad` widened it, or a
       // SURFACE placed it somewhere inside a host-sized layer.
-      const QRectF box = picture_.isValid() ? QRectF(picture_)
+      // `shift_` is zero for a child layer; an escaped one draws host coords in its own.
+      const QRectF box = picture_.isValid() ? QRectF(picture_.translated(shift_))
                                             : QRectF(rect()).adjusted(pad_, pad_, -pad_, -pad_);
       if (box.width() <= 0 || box.height() <= 0) return;
       // The state left behind, under the particles.
@@ -259,24 +372,29 @@ namespace stencil::gui {
     // the tileGatherSurface / tileScatterSurface keyframes. The path is the cell's own
     // offset to the target, so every mote converges there instead of falling; the two
     // decorrelated hashes only fan the arrival. The delay rides the DISTANCE, so the edge
-    // nearest the point goes first and the far one last.
+    // nearest the point goes first and the far one last. Halved for a SCATTER (browser
+    // motion.js surfaceMotion delayScale): held at its 0% pose for up to 45% of the
+    // flight, a mote is indistinguishable from the surface not having reacted yet — on a
+    // big surface (a full-height docked chat panel) that read as nothing moving at all
+    // until a sudden, late flick, not sand leaving.
     void paintSurfaceCell(QPainter& p, const QRectF& box, int cx, int cy,
                           double cw, double ch, double sx, double sy) {
       const double n = cellNoise(cx, cy);
       const double m = cellNoise(cx + 41, cy + 17);
       const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
       const QPointF home = dst.center();
-      const double toX = target_.x() - home.x();
-      const double toY = target_.y() - home.y();
+      const QPointF tgt = target_ + QPointF(shift_);
+      const double toX = tgt.x() - home.x();
+      const double toY = tgt.y() - home.y();
       // Normalised against the longest trip any cell in this box makes, so the sweep
       // fills the whole flight whatever the point's distance is.
       const double reach = std::hypot(toX, toY);
       const double far = std::hypot(box.width(), box.height()) + reach;
       const double progress = far > 0 ? std::min(1.0, reach / far) : 0.0;
-      const double delay = progress * 0.45 + n * 0.12;
+      const bool gather = sweep_ == Sweep::SurfaceIn;
+      const double delay = (progress * 0.45 + n * 0.12) * (gather ? 1.0 : 0.5);
       double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
       t = std::clamp(t, 0.0, 1.0);
-      const bool gather = sweep_ == Sweep::SurfaceIn;
       // Ease-out both ways: the motes break away (or arrive) at once and drift to a stop,
       // which is what sand does. `away` is 1 out at the point, 0 home. The curve is a
       // file-static: building one per cell per frame is thousands of allocations a frame.
@@ -304,6 +422,42 @@ namespace stencil::gui {
     }
 
    private:
+    // A child widget is clipped by its parent, so a flight that leaves the host (a dialog
+    // dragged off it or taller than it, a menu past its edge) was cropped at the window
+    // border. When it needs room the host hasn't got, the layer becomes a frameless,
+    // input-transparent top-level window spanning the whole trip; `host` stays its
+    // QObject parent, and picture_/target_ stay in HOST coords via `shift_`.
+    void placeForSurface(QWidget* host, const QRect& picture, const QPoint& target,
+                         bool escapeHost, bool alwaysEscape = false) {
+      const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
+      QRect need = surfaceLayerRect(picture.translated(hostBox.topLeft()),
+                                    host->mapToGlobal(target));
+      // Nothing to escape for: it fits (unless the caller wants the top layer even
+      // then — see overSurface's alwaysEscape), the caller draws inside the host by
+      // design, or there is no desktop to escape ONTO — offscreen's virtual screen is
+      // a fixed box unrelated to any real one, so the tests keep the plain child layer.
+      if (!escapeHost || (hostBox.contains(need) && !alwaysEscape) || !hostBox.isValid()
+          || QGuiApplication::platformName() == QLatin1String("offscreen")) {
+        setGeometry(host->rect());
+        return;
+      }
+      // Never bigger than the desktop it can actually be seen on.
+      QRect desktop;
+      for (const QScreen* s : QGuiApplication::screens()) desktop |= s->geometry();
+      if (desktop.isValid()) need &= desktop;
+      if (need.width() < 8 || need.height() < 8) { setGeometry(host->rect()); return; }
+      // Above the host, never focusable/clickable, no shadow. Qt::ToolTip, not Qt::Window:
+      // a plain top-level window steals an open QMenu/QComboBox popup's platform grab and
+      // closes it instantly (confirmed live) — ToolTip is the same non-activating kind
+      // AppTooltip already floats over an open menu with.
+      setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
+                     | Qt::WindowTransparentForInput | Qt::WindowDoesNotAcceptFocus
+                     | Qt::NoDropShadowWindowHint);
+      setAttribute(Qt::WA_ShowWithoutActivating, true);
+      shift_ = hostBox.topLeft() - need.topLeft();
+      setGeometry(need);
+    }
+
     // The snapshot, mixed towards `ink` — one pass over the picture, so every mote is
     // already lifted by the time it is drawn. An invalid ink leaves it exactly as taken.
     static QPixmap liftedToInk(const QPixmap& snap, const QColor& ink) {
@@ -342,14 +496,7 @@ namespace stencil::gui {
     // if that would exceed the per-frame ceiling.
     void sizeGridForDust(const QSize& size, int maxCells = kDustMaxCells,
                          int cellPx = kDustCellPx) {
-      cols_ = std::max(1, qRound(double(size.width()) / cellPx));
-      rows_ = std::max(1, qRound(double(size.height()) / cellPx));
-      while (cols_ * rows_ > std::max(64, maxCells)) {
-        // ceil(x/1.1) is x itself for x ≤ 10 — force a strict shrink or this spins forever
-        // (a mass removal's shared budget gets small enough to reach that range).
-        cols_ = std::max(1, std::min(cols_ - 1, int(std::ceil(cols_ / 1.1))));
-        rows_ = std::max(1, std::min(rows_ - 1, int(std::ceil(rows_ / 1.1))));
-      }
+      dustGrid(size, cellPx, maxCells, &cols_, &rows_);
     }
 
     QPixmap snap_;
@@ -360,8 +507,35 @@ namespace stencil::gui {
     int pad_ = 0;           // slack around the picture for the motes to fly into
     QRect picture_;         // where the snapshot sits (surfaces only); invalid = the whole box
     QPointF target_;        // the point a surface's motes stream out of / pour into
+    QPoint shift_;          // host coords → this layer's, non-zero only when it escaped the host
     double spread_ = 1.0;   // throw distance, as a share of a list row's
     double t_ = 0.0;
   };
+
+  // Grab-and-fly for the floating-tip family (tooltips, the export preview, popup
+  // menus, the projects hover preview): photograph `subject` and fly it as surface
+  // dust inside `host`, out of / into `originGlobal`. Handles the size gate, host
+  // mapping and ink lift; `paintNow` paints the first frame synchronously (a closing
+  // tip hands over in one beat); `alwaysEscape` lifts the cloud into the top-level
+  // layer even when it would fit the host (a tip window floating ABOVE the host would
+  // hide a child layer's motes — see overSurface). Callers keep their own pre-guards
+  // (motion, owner visibility, subject state).
+  inline DisintegrateOverlay* flyTipDust(QWidget* subject, QWidget* host,
+                                         const QPoint& originGlobal, bool gather, int ms,
+                                         bool escapeHost, bool paintNow = false,
+                                         bool alwaysEscape = false) {
+    if (!subject || !host || !host->isVisible()) return nullptr;
+    const QRect target(subject->mapToGlobal(QPoint(0, 0)), subject->size());
+    if (target.width() < 8 || target.height() < 8) return nullptr;
+    const QPixmap shot = subject->grab();
+    if (shot.isNull()) return nullptr;
+    const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
+    DisintegrateOverlay* fx = DisintegrateOverlay::overSurface(
+        shot, box, host, host->mapFromGlobal(originGlobal), gather, ms,
+        subject->palette().color(QPalette::WindowText),
+        DisintegrateOverlay::kSurfaceMaxCells, escapeHost, alwaysEscape);
+    if (fx && paintNow) fx->repaint();
+    return fx;
+  }
 
 }  // namespace stencil::gui

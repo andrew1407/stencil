@@ -7,17 +7,21 @@ import { escapeHtml } from './base.js';
 import { notify } from '../utils.js';
 import { sanitizeLabel, askAnswerText } from '../llm/opPlan.js';
 import {
-  observeReveal, leaveThenRemove, LEAVING_CLASS, wipeDurationMs,
+  observeReveal, leaveThenRemove, LEAVING_CLASS, wipeDurationMs, chatIn, CHAT_ENTERING_CLASS,
   CHAT_LEAVE_MS, CHIP_LEAVE_MS, scatterGridFor, menuPopOrigin,
   REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
-  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
+  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, surfaceIn, surfaceOut, rectCenter,
+  SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
 } from './motion.js';
+import { toggleChatSide, applyChatSide } from './chatLayoutPrefs.js';
 
 // Every chat entry leaves on the same dissolve. `count` is how many are going at once
 // — one removal gets the full fine mesh, a whole-transcript wipe coarsens so the total
 // number of flying tiles stays inside the budget (motion.js scatterGridFor).
 const chatLeave = (el, done, count = 1, index = 0) =>
   leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, ...scatterGridFor(count, index) });
+// (…and the mirror, motion.js chatIn, is played by renderChatLog on every entry that
+// APPEARS — a fresh row, or a pending "…" resolving into the answer.)
 // Chips ride the longer chip clock (css chipLeave hold + collapse — see motion.js).
 const chipLeave = (el, done) =>
   leaveThenRemove(el, done, { ms: CHIP_LEAVE_MS, ...scatterGridFor(1, 0) });
@@ -30,12 +34,13 @@ const ATTACH_SETTLE_TRIES = 12;
 // ── The empty state: ONE set of suggestion chips for every chat surface ─────
 // Clicking a chip prefills that surface's input (each wires a delegated listener on
 // its transcript, which survives the re-renders below). The list lives here so the
-// panel and the context-menu flyout can never drift apart.
+// panel and the context-menu flyout can never drift apart. One string per chip: what's
+// written on the button is exactly what lands in the input — no separate longer prompt.
 export const CHAT_SUGGESTIONS = [
   { prompt: 'Make it sepia', label: 'Make it sepia' },
-  { prompt: 'Give me 3 variants: rotated, tinted, cropped', label: '3 variants: rotated · tinted · cropped' },
+  { prompt: '3 variants: rotated · tinted · cropped', label: '3 variants: rotated · tinted · cropped' },
   { prompt: 'Extract the lines from this image', label: 'Extract the lines from this image' },
-  { prompt: 'Crop 10% off every edge and rotate right', label: 'Crop 10% off every edge, rotate right' },
+  { prompt: 'Crop 10% off every edge, rotate right', label: 'Crop 10% off every edge, rotate right' },
 ];
 // The chips as markup, for the two static templates (so the first paint already has
 // them, before any JS runs).
@@ -87,11 +92,28 @@ export const chatComposerActionsHtml = ({ prefix, actionsClass, gearClass, trail
                     <span class="chat-more-menu" id="${prefix}-more-menu" hidden>
                         <button id="${prefix}-attach-btn" class="chat-more-item">${icon('image', { size: 14 })}<span>Add image</span></button>
                         <button id="${prefix}-clear" class="chat-more-item">${icon('trash', { size: 14 })}<span>Clear history</span></button>
+                        <button id="${prefix}-swap-sides" class="chat-more-item" aria-label="Swap which side user and assistant messages sit on">${icon('swap', { size: 14 })}<span>Swap message sides</span></button>
                         <button id="${prefix}-settings-btn" class="chat-more-item" aria-label="Assistant settings — provider &amp; model">${icon('gear', { size: 14 })}<span>Settings</span></button>
                     </span>
                 </span>
                 <input type="file" id="${prefix}-attach-input" accept="image/*,video/*" multiple style="display:none;">${trailingHtml}
             </span>`;
+
+// The "…" the user last opened, so a window raised from inside it knows which composer
+// it belongs to when both surfaces are up (visibleChatMoreBtn below).
+let lastMoreBtn = null;
+const shownBtn = (el) => {
+  const r = el?.getBoundingClientRect?.();
+  return r && r.width > 0 && r.height > 0 ? el : null;
+};
+// The "…" trigger a settings window opened from this menu should fly to. The gear item
+// itself is already hidden by then, so its rect is useless — the trigger owns the flight.
+// Nothing on screen ⇒ null, and the window falls from above instead (ui/base.js).
+export const visibleChatMoreBtn = (doc = document) =>
+  shownBtn(lastMoreBtn)
+  || shownBtn(doc.getElementById('chat-more-btn'))
+  || shownBtn(doc.getElementById('ctx-assist-more-btn'))
+  || null;
 
 // Wire one composer's "…" menu: toggle on click, close on outside click, on
 // Escape, and after any item runs (the item's own listener still does the work).
@@ -99,10 +121,21 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   const btn = doc.getElementById(`${prefix}-more-btn`);
   const menu = doc.getElementById(`${prefix}-more-menu`);
   if (!btn || !menu) return;
+  // The motes stream out of / pour back into the "…" itself.
+  const dustPoint = () => rectCenter(btn);
   // Both edges go through setOpen, so the popup accounting (and the pills that stand
   // down for it) can never disagree with what is on screen.
   const setOpen = (on) => {
-    menu.hidden = !on;
+    // Only a real change flies, and the flight is played while the menu is still up:
+    // `hidden` is display:none, and the cloud is a copy on <body> with its own life,
+    // so the end state never waits for it (same contract as ui/dropdownMenu.js).
+    const changed = on === menu.hidden;
+    if (on) { menu.hidden = false; lastMoreBtn = btn; }
+    if (changed) {
+      if (on) surfaceIn(menu, dustPoint(), { ms: SURFACE_MENU_IN_MS });
+      else surfaceOut(menu, dustPoint(), { ms: SURFACE_MENU_OUT_MS });
+    }
+    if (!on) menu.hidden = true;
     btn.setAttribute('aria-expanded', String(on));
     if (on) openComposerMenus.add(menu); else openComposerMenus.delete(menu);
     announcePopup();
@@ -116,6 +149,16 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   for (const item of menu.querySelectorAll('.chat-more-item')) item.addEventListener('click', close);
   doc.addEventListener('pointerdown', (e) => { if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close(); });
   doc.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) close(); });
+};
+
+// Wire one surface's "Swap message sides" item: apply the persisted side to its own
+// `transcript` on mount, flip it on click. Both surfaces share the one preference
+// (chatLayoutPrefs.js), so whichever opens later picks up the other's last setting.
+export const wireChatSideToggle = (prefix, transcript, doc = document) => {
+  if (!transcript) return;
+  applyChatSide(transcript);
+  doc.getElementById(`${prefix}-swap-sides`)
+    ?.addEventListener('click', () => applyChatSide(transcript, toggleChatSide()));
 };
 
 // The send ↔ Stop swap both composers share: while a turn is in flight the send
@@ -158,8 +201,13 @@ export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { i
 // Render the SHARED transcript log (js/llm/chatSession.js) into `transcript`.
 // Reset a row's classes without dropping the motion classes motion.js owns — repaints
 // rewrite className wholesale, which would strand a revealed row at its dimmed rest state.
+// CHAT_ENTERING_CLASS is in here for the same reason and it MATTERS: one turn appends two
+// rows (the message, then the pending "…"), so the second append repaints the first — and
+// without this the user's own bubble had its veil torn off a frame after it went on, and
+// appeared instantly while its dust was still flying (reported on Retry, where the eye is
+// already on that bubble).
 const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
-  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS];
+  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];
 const setRowClass = (el, cls) => {
   const keep = MOTION_CLASSES.filter((k) => el.classList.contains(k));
   el.className = cls;
@@ -178,6 +226,63 @@ const rowTextNode = (el) => {
   return t;
 };
 
+// ── A wrapped bubble hugs its LONGEST LINE, not the max-width cap ───────────────────
+// A block that must wrap never searches for a narrower box that still breaks the same
+// way — CSS just gives it the full space .chat-msg's max-width allows, and the shorter
+// line is left stranded in dead space (user report: "message width is adjusted wrong").
+// Freezing the text at its own widest rendered line reproduces the IDENTICAL break —
+// line-breaking is a deterministic left-to-right greedy scan, so a re-wrap at that exact
+// width chooses the same points — nothing about the text moves, only the bubble's excess
+// goes away. Pure: given the per-line widths a wrapped node's Range reports, the width to
+// pin it at; null for one line, which already hugs its own content correctly.
+export const shrinkWrapWidth = (lineWidths) => {
+  if (!Array.isArray(lineWidths) || lineWidths.length < 2) return null;
+  const max = Math.max(...lineWidths);
+  return max > 0 ? Math.ceil(max) : null;
+};
+
+// A max-width, not a fixed width: a later narrower resize (the dock dragged in, the
+// window shrunk) still reflows normally under it; only a WIDER one leaves an old bubble
+// conservatively wrapped rather than re-claiming the new room — bindShrinkWrapResize
+// below re-measures every row once the transcript itself changes size, which covers that
+// case too. Guarded for the DOM-lite test tree, which has no Range.
+const measureShrinkWrap = (el) => {
+  if (!el.firstChild) return null;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return shrinkWrapWidth([...range.getClientRects()].map((r) => r.width));
+};
+
+const applyShrinkWrap = (el) => {
+  if (!el?.style || typeof document.createRange !== 'function') return;
+  el.style.maxWidth = '';   // drop any earlier pin before re-measuring the natural wrap
+  const width = measureShrinkWrap(el);
+  if (width != null) el.style.maxWidth = `${width}px`;
+};
+
+// A row rendered while the panel was CLOSED (a background turn landing off-screen —
+// closedTurnToast exists for exactly that case) measures zero rects at paint time
+// (display:none) and skips its pin; this re-measures every settled row's text the
+// moment the transcript itself gains — or changes — a real size, so opening the panel
+// or dragging its dock/float edge catches every bubble the inline call above missed.
+// Bound once per transcript, alongside observeReveal below.
+const bindShrinkWrapResize = (transcript) => {
+  if (transcript._shrinkWrapBound || typeof ResizeObserver === 'undefined') return;
+  transcript._shrinkWrapBound = true;
+  let raf = 0;
+  const reapply = () => {
+    raf = 0;
+    if (typeof document.createRange !== 'function') return;
+    const rows = [...transcript.querySelectorAll('.chat-msg-text')].filter((t) => t?.style);
+    // Clear-all, measure-all, apply-all: the per-row write→read interleave cost two
+    // reflows per row on every pass while the panel edge was being dragged.
+    for (const t of rows) t.style.maxWidth = '';
+    const widths = rows.map(measureShrinkWrap);
+    rows.forEach((t, i) => { if (widths[i] != null) t.style.maxWidth = `${widths[i]}px`; });
+  };
+  new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(reapply); }).observe(transcript);
+};
+
 // Keyed by row id and incremental: existing rows update in place, new rows append in
 // log order, gone rows are removed. Both surfaces call this on every log change —
 // that keeps them in lockstep and renders history a surface opened late has missed.
@@ -194,6 +299,14 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
   // context-menu flyout both get it. Idempotent — one observer per transcript.
   // smooth: these rows are TEXT — a grainy dissolve on the cut edge reads as corruption.
   if (!transcript._revealBound) transcript._revealBound = observeReveal(transcript, '[data-row]', { smooth: true });
+  bindShrinkWrapResize(transcript);
+  // Everything that APPEARS in this repaint, collected and played out at the END: the
+  // dust is a CLONE of the entry, so it can only be taken once the row is fully built
+  // (its text, its CTAs, its "…"), and the count is what budgets a burst's mesh.
+  // The FIRST paint of a transcript is deliberately silent — a surface opening onto
+  // history it missed is not a conversation happening in front of you.
+  const entering = [];
+  const enters = (el) => { if (transcript._chatPainted) entering.push(el); };
   const live = new Set();
   for (const row of log) {
     live.add(String(row.id));
@@ -202,7 +315,16 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       el = document.createElement('div');
       el.dataset.row = row.id;
       transcript.appendChild(el);
+      // …but NOT a row born pending: the "…" is a placeholder that lives about as long as
+      // the gather itself, so dusting it in kept it veiled for almost its whole life and
+      // the bouncing dots were never seen. Its arrival is the SETTLE below — the reply
+      // taking their place is the thing worth animating.
+      if (!row.pending) enters(el);
     }
+    // …and a settling turn is an arrival too: the reply (or the failure) takes the place
+    // the bouncing dots held, in the SAME element, so nothing above would catch it.
+    if (el._chatPending && !row.pending) enters(el);
+    el._chatPending = !!row.pending;
     // A row that will carry a Retry becomes a flex COLUMN for it. Part of the class
     // string, not a later classList.add: setRowClass rewrites className wholesale on
     // every repaint, so anything added afterwards is lost on the next log change.
@@ -222,7 +344,10 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       if (!typing) { textEl.textContent = ''; textEl.appendChild(typingDots()); }
       // A SETTLED row must lose the dots even when its text did not "change": a pending
       // bubble reads as '', so a turn answering with '' left the dots spinning forever.
-    } else if (typing || textEl.textContent !== row.text) textEl.textContent = row.text;
+    } else if (typing || textEl.textContent !== row.text) {
+      textEl.textContent = row.text;
+      applyShrinkWrap(textEl);
+    }
     // The unreachable-provider card adds its configure CTA beside that text — built
     // once, like every other affordance on the row. An EXPIRED session takes the
     // reconnect CTA instead: the provider is configured correctly, the token is dead.
@@ -265,6 +390,7 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
         const strip = chatAttachmentStrip(row.attachments);
         strip.dataset.row = attachId;
         el.before(strip);
+        enters(strip);
       }
     }
     // Result cards ride in their own row right after the message they belong to.
@@ -278,6 +404,7 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
         cards.className = 'chat-results';
         for (const r of row.results) cards.appendChild(chatResultCard(r));
         el.after(cards);
+        enters(cards);
       }
     } else if (cards && !cards.classList.contains(LEAVING_CLASS)) {
       cards.removeAttribute('data-row');   // out of every lookup the moment it starts leaving
@@ -296,6 +423,7 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
         });
         askEl.dataset.row = askId;
         (cards || el).after(askEl);
+        enters(askEl);
       }
     } else if (askEl && !askEl.classList.contains(LEAVING_CLASS)) {
       askEl.removeAttribute('data-row');
@@ -313,6 +441,15 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
   });
   restoreEmptyState(transcript, log, wiped);
   if (stick) stickToBottom(transcript);
+  // …and only THEN the arrivals (motion.js chatIn), last of all: every entry is fully
+  // built by now (the dust is a clone, so a cloud taken mid-build would be missing the
+  // row's own text and CTAs) and the transcript has been told to scroll. chatIn veils
+  // each entry at once and waits two frames before photographing it, so what it measures
+  // is the settled box — the height is allocated and scrolled to first, the motes fly
+  // second. Sharing one grid budget with the wipe above: a Clear that also lands a fresh
+  // turn must not put two full meshes in the air at once.
+  entering.forEach((el, i) => chatIn(el, entering.length + going.length, i));
+  transcript._chatPainted = true;
 };
 
 // Pin the transcript to its bottom NOW and again as the entrance animations settle:
@@ -735,14 +872,31 @@ export const chatRowMenuButton = (row) => {
   return b;
 };
 
-// The jump pills float exactly where a cut row parks its "…" and sit at a higher
-// z-index, so they swallowed the trigger. Desktop parity: the pills stand down while
-// the trigger would touch them. Pure rect test — `pad` keeps them from sitting flush.
-export const rowMenuHitsJumps = (btn, pills = [], pad = 4) => {
-  if (!btn || !(btn.width > 0)) return false;
-  return pills.some((p) => p && p.width > 0 && p.height > 0
-    && btn.left < p.right + pad && btn.right > p.left - pad
-    && btn.top < p.bottom + pad && btn.bottom > p.top - pad);
+// The jump pills float exactly where a cut row parks its "…" and win the paint order,
+// so the trigger lifts clear of THEM — or hides where a short bubble leaves nowhere to
+// lift to. Desktop placeChatCardMore's "shift, else hide". Pure geometry, unit-tested.
+export const CHAT_ROW_MENU_JUMP_GAP = 6;   // clearance once lifted clear of the pills
+
+// How far (px) `btn` must rise to clear every pill it currently overlaps — 0 when none
+// of them touch it.
+export const rowMenuLiftPx = (btn, pills = [], gap = CHAT_ROW_MENU_JUMP_GAP) => {
+  if (!btn || !(btn.width > 0)) return 0;
+  let lift = 0;
+  for (const p of pills) {
+    if (!p || !(p.width > 0 && p.height > 0)) continue;
+    const overlapsX = btn.left < p.right && btn.right > p.left;
+    const overlapsY = btn.bottom > p.top && btn.top < p.bottom;
+    if (overlapsX && overlapsY) lift = Math.max(lift, Math.ceil(btn.bottom - p.top) + gap);
+  }
+  return lift;
+};
+
+// Whether lifting `btn` by `lift` still keeps the WHOLE button inside `row` — a short
+// bubble has nowhere to lift the trigger TO, and the caller hides it rather than park
+// it over the neighbouring message.
+export const rowMenuLiftFits = (row, btn, lift) => {
+  if (!row || !btn || !(lift > 0)) return true;
+  return btn.top - lift >= row.top;
 };
 
 // Copy `text` to the clipboard: the async API first, the hidden-textarea
@@ -968,14 +1122,22 @@ export const chatReconnectButton = (serverUrl, onReconnect) => {
 };
 
 // The "Configure provider" call-to-action shown under an unreachable-provider
-// message: opens the LLM settings modal through its own gear button.
+// message: opens the LLM settings modal. Unlike the gear (which lives inside the
+// composer's "…" menu and so flies from THAT trigger, per llmSettingsModal's
+// originEl), this button opens itself directly, through the modal's own API, so
+// the window grows out of (and gathers back into) the CTA itself — in the panel,
+// where it sits right in the transcript and stays on screen through the click,
+// AND in the context-menu flyout, where onBeforeOpen closes that popup first
+// (a modal can't show under the menu's own grab): its rect is captured BEFORE
+// that close and passed as the plain rect the shell's open() accepts.
 export const chatConfigureButton = (onBeforeOpen) => {
   const cfg = document.createElement('button');
   cfg.className = 'btn-icon-text chat-config-cta';
   cfg.innerHTML = icon('gear', { size: 13 }) + '<span>Configure provider</span>';
   cfg.addEventListener('click', () => {
-    onBeforeOpen?.();
-    document.getElementById('chat-settings-btn')?.click();
+    const rect = cfg.getBoundingClientRect();   // captured before onBeforeOpen hides it
+    onBeforeOpen?.();   // e.g. the context-menu chat closing its own popup first
+    document.getElementById('chat-settings-overlay')?.__stencilModal?.open(rect);
   });
   return cfg;
 };

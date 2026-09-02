@@ -16,6 +16,28 @@ export const setRadioGroup = (name, value) => {
 export const mountHTML = (parent, html) => {
   parent.insertAdjacentHTML('beforeend', html);
 };
+// Write innerHTML only when it CHANGED, compared against the string last WRITTEN — not
+// against el.innerHTML: reading an SVG back re-serializes self-closing tags, so it never
+// matches and an unconditional write would rebuild (and re-animate) the nodes per poll.
+const lastHtml = new WeakMap();
+export const setHtml = (el, html) => {
+  if (!el || lastHtml.get(el) === html) return;
+  el.innerHTML = html;
+  lastHtml.set(el, html);
+};
+// Place a fixed-position cursor-follow popup down-right of (x, y): flipped to the
+// cursor's other side when it would clip, then edge-clamped. `clampY` pins an
+// overflowing box to the bottom edge instead of flipping above (the projects thumb
+// zoom). Shared by exportPreview.js and projectsModal.js.
+export const placeNearCursor = (el, x, y, { pad = 18, edge = 8, clampY = false } = {}) => {
+  const { width: w, height: h } = el.getBoundingClientRect();
+  let left = x + pad;
+  let top = y + pad;
+  if (left + w > window.innerWidth - edge) left = x - w - pad;
+  if (top + h > window.innerHeight - edge) top = clampY ? window.innerHeight - edge - h : y - h - pad;
+  el.style.left = `${Math.max(edge, left)}px`;
+  el.style.top = `${Math.max(edge, top)}px`;
+};
 
 // ── Length units ────────────────────────────────────────────────
 // The model always stores lengths in centimetres; `unit` ('cm' | 'in') only
@@ -24,6 +46,15 @@ export const CM_PER_INCH = 2.54;
 export const cmToUnit = (cm, unit) => (unit === 'in' ? cm / CM_PER_INCH : cm);
 export const unitToCm = (val, unit) => (unit === 'in' ? val * CM_PER_INCH : val);
 export const unitLabel = (unit) => (unit === 'in' ? 'in' : 'cm');
+
+// True while a split compare view (vertical/horizontal) is actually showing. Shared by
+// exportService/contextMenu/exportOptionsMenu/controlsBinder so the check can't drift.
+export const isSplitCompare = (app) => app.compareMode === 'vertical' || app.compareMode === 'horizontal';
+
+// Gates for the "Filter Only"/"Current" export-variant rows (contextMenu.js,
+// exportOptionsMenu.js) — each would otherwise render byte-identical to a sibling variant.
+export const hasActiveFilter = (app) => !!(app.imageFilter && app.imageFilter !== 'none');
+export const hasAnyLines = (app) => !!(app.lines && app.lines.length > 0);
 
 // ── Comparison view: is an image point in the EDITED half? ───────────────────
 // Same geometry as the desktop's hover gate (mainWindow) — the two surfaces must agree
@@ -336,7 +367,9 @@ export const formatCombo = (combo, isMac) => {
 // Compose an element's `title` from 3 optional parts: base (data-title, else the current
 // title with trailing "(…)"/"— reason" stripped and cached), hotkey (data-hk-title id →
 // " (…)" via the injected getCombo — hotkeys imports this module, so no direct import),
-// and reason (data-disabled-reason, shown only while disabled / `ctx-disabled`).
+// and reason (data-disabled-reason, shown only while disabled). Context-menu rows carry
+// no tooltip of their own and hide instead of disabling (js/ui/contextMenu.js), so the
+// disabled branch here only ever fires for a real disabled button.
 export const composeControlTitle = (el, isMac, getCombo) => {
   let base = el.dataset.title;
   if (base == null) {
@@ -351,8 +384,7 @@ export const composeControlTitle = (el, isMac, getCombo) => {
     const combo = getCombo(hkId);
     if (combo) out += `${out ? ' ' : ''}(${formatCombo(combo, isMac)})`;
   }
-  const off = el.disabled === true || el.classList.contains('ctx-disabled');
-  if (off && el.dataset.disabledReason) out += `${out ? '\n' : ''}— ${el.dataset.disabledReason}`;
+  if (el.disabled === true && el.dataset.disabledReason) out += `${out ? '\n' : ''}— ${el.dataset.disabledReason}`;
   return out;
 };
 

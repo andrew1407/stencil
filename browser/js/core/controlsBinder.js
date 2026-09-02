@@ -1,13 +1,18 @@
-import { notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect } from '../utils.js';
+import { notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect, isSplitCompare } from '../utils.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
+import { setChecked } from '../ui/controlSwap.js';
+import { markSwap, markIn, markOut, surfaceIn, surfaceOut, rectCenter,
+         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../ui/motion.js';
 import { COMPARE_MODES } from './settingsController.js';
 import { icon } from '../ui/icons.js';
 import { applyAccentFavicon, normalizeHex } from './accents.js';
 import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from './dragImageUrl.js';
 import { showDropOverlay, hideDropOverlay } from '../ui/dropOverlay.js';
+import { wireExportOptionsMenu } from '../ui/exportOptionsMenu.js';
 import { canvasOrigin } from './zoomPan.js';
+import { showMenu, hideMenu } from '../ui/dropdownMenu.js';
 
 // Chords that must work even while a text box has focus. These windows autofocus an
 // input, so a blanket typing guard would make their toggles one-way — able to open the
@@ -60,7 +65,12 @@ export class ControlsBinder {
     // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn
     // (empty state) is its open button; #open-image-btn (image loaded) and the blank
     // shortcuts open the same dialog. The rest of the Image-actions group are direct.
-    document.getElementById('copy-image')?.addEventListener('click', () => app.export.copyImageToClipboard());
+    // Plain click copies the "current" variant; double-click / right-click / Alt+hover
+    // opens the other variants in a small dust-animated options list (exportOptionsMenu.js).
+    wireExportOptionsMenu(document.getElementById('copy-image'), app, {
+      run: (variant) => app.export.copyImageToClipboard(variant),
+      hotkeyIds: { current: 'copyImage', original: 'copyImageOriginal', tint: 'copyImageTint' },
+    });
     const shareBtn = document.getElementById('share-image');
     if (shareBtn) {
       if (supportsShareFiles()) shareBtn.style.display = '';
@@ -163,6 +173,9 @@ export class ControlsBinder {
       const endEdit = () => {
         app.nameEditing = false;
         nameInput.readOnly = true;
+        // ✓/✗ come apart as dust — photographed before the display flip hides them.
+        markOut(nameAccept);
+        markOut(nameCancel);
         nameAccept.style.display = 'none';
         nameCancel.style.display = 'none';
         app.updateProjectTitle(true);   // restore value + ✎ visibility
@@ -176,6 +189,9 @@ export class ControlsBinder {
         if (colorBtn) colorBtn.style.display = 'none';
         nameAccept.style.display = '';
         nameCancel.style.display = '';
+        // …and FORM from dust once shown (the projects-modal rename editor's twin).
+        markIn(nameAccept);
+        markIn(nameCancel);
         app.nameEditor?.refresh();     // set ✓ enabled/disabled for the starting value
         nameInput.focus();
         nameInput.select();
@@ -192,6 +208,24 @@ export class ControlsBinder {
       });
       nameInput.addEventListener('dblclick', () => beginEdit());
       if (nameEdit) nameEdit.addEventListener('click', () => beginEdit());
+      // ✎/🎨 hover-reveal as sand (desktop setPaintedOut parity): the .name-hover class
+      // flips their visibility, and the mark dust makes the flip read as forming /
+      // coming apart instead of a hard pop.
+      {
+        const field = nameInput.closest('.project-name-field');
+        const revealable = () => [nameEdit, document.getElementById('project-color-btn')]
+          .filter((b) => b && b.style.display !== 'none');
+        if (field) {
+          field.addEventListener('mouseenter', () => {
+            field.classList.add('name-hover');
+            for (const b of revealable()) markIn(b, { ms: 160 });
+          });
+          field.addEventListener('mouseleave', () => {
+            for (const b of revealable()) markOut(b, { ms: 120 });   // photographed before the class hides them
+            field.classList.remove('name-hover');
+          });
+        }
+      }
       // A real click-away (the ✓/✗ buttons prevent their own mousedown, so they don't
       // blur) discards the in-progress rename.
       nameInput.addEventListener('blur', () => { if (app.nameEditing) endEdit(); });
@@ -219,33 +253,53 @@ export class ControlsBinder {
           colorInput.click();
         }
       };
-      // Click opens a small menu so resetting to the neutral default is a visible choice — not a
-      // hidden right-click: "Choose colour…" opens the native picker, "Default (no colour)" clears
-      // it. (Right-click still clears as a shortcut.)
+      // With a custom colour set, click opens a small menu so resetting to the neutral default is
+      // a visible choice — not a hidden right-click: "Choose colour…" opens the native picker,
+      // "Default (no colour)" clears it. With none set there is nothing to clear, so the click
+      // goes straight into the picker. (Right-click still clears as a shortcut.)
       colorBtn.addEventListener('click', e => {
         if (app.activeProjectId == null || app.storage.incognito) return;
         e.stopPropagation();
-        const open = document.getElementById('project-color-menu');
-        if (open) { open.remove(); return; }   // toggle off
+        // The menu is sand like every other popup (projects kebab parity): it forms out
+        // of the button and pours back into it, whichever way it is dismissed.
+        const btnPoint = () => rectCenter(colorBtn);
+        const openMenu = document.getElementById('project-color-menu');
+        if (openMenu) {   // toggle off — through its own close(), so the doc listener goes too
+          openMenu.__close?.();
+          return;
+        }
+        // No custom colour → there is nothing to clear, and a one-row menu is a detour:
+        // straight into the picker (desktop showProjectColorMenu parity).
+        if (!app.storage.store.getMeta(app.activeProjectId)?.color) {
+          openPicker();
+          return;
+        }
         const menu = document.createElement('div');
         menu.id = 'project-color-menu';
         menu.className = 'project-menu';
+        const close = () => {
+          surfaceOut(menu, btnPoint(), { ms: SURFACE_MENU_OUT_MS });
+          menu.remove();
+          document.removeEventListener('mousedown', onDoc, true);
+        };
+        menu.__close = close;
         const item = (ic, label, onClick) => {
           const b = document.createElement('button');
           b.className = 'project-menu-item btn-icon-text';
           b.innerHTML = `${icon(ic, { size: 15 })}<span>${label}</span>`;
-          b.addEventListener('click', ev => { ev.stopPropagation(); menu.remove(); onClick(); });
+          b.addEventListener('click', ev => { ev.stopPropagation(); close(); onClick(); });
           menu.appendChild(b);
         };
+        // The menu shows only WITH a custom colour set (the guard above), so the clear
+        // row is always meaningful here.
         item('palette', 'Choose color…', openPicker);
-        if (app.storage.store.getMeta(app.activeProjectId)?.color)
-          item('x', 'Default (no color)', () => app.setProjectColor(app.activeProjectId, ''));
+        item('x', 'Default (no color)', () => app.setProjectColor(app.activeProjectId, ''));
         document.body.appendChild(menu);
         const r = colorBtn.getBoundingClientRect();
         const mw = menu.offsetWidth;
         menu.style.left = `${Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8))}px`;
         menu.style.top = `${r.bottom + 6}px`;
-        const close = () => { menu.remove(); document.removeEventListener('mousedown', onDoc, true); };
+        surfaceIn(menu, btnPoint(), { ms: SURFACE_MENU_IN_MS });
         const onDoc = ev => { if (!menu.contains(ev.target)) close(); };
         setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
       });
@@ -291,7 +345,14 @@ export class ControlsBinder {
     document.getElementById('redo').addEventListener('click', () => app.redo());
     document.getElementById('download-json').addEventListener('click', () => app.export.downloadJSON());
     document.getElementById('copy-json-btn').addEventListener('click', () => app.export.copyLayoutToClipboard());
-    document.getElementById('save-image').addEventListener('click', () => app.export.saveImage());
+    // Same treatment as copy-image: click downloads "current" (or the split composite
+    // while a split compare view is active — exportOptionsMenu.js); double-click/
+    // right-click/Alt+hover opens the other variants.
+    wireExportOptionsMenu(document.getElementById('save-image'), app, {
+      run: (variant) => app.export.saveImage(variant),
+      currentIcon: 'download',
+      hotkeyIds: { current: 'saveImage', original: 'saveImageOriginal', tint: 'saveImageTint' },
+    });
     document.getElementById('upload-json-btn').addEventListener('click', () => document.getElementById('upload-json').click());
     document.getElementById('upload-json').addEventListener('change', e => app.export.uploadJSON(e));
     // Shift+click saves without embedding the light/dark + accent theme (a portable, theme-neutral
@@ -367,14 +428,16 @@ export class ControlsBinder {
     // one-click preset selection (the native datalist on number inputs is unreliable). ──
     const ZOOM_PRESETS = [10, 25, 50, 75, 100, 125, 150, 200, 300, 400, 500, 800, 1600, 3200];
     const zoomMenu = document.getElementById('zoom-menu');
+    // Ported to the shared dropdown machinery (js/ui/dropdownMenu.js): same portal,
+    // placement and particle-dust open/close every other popup uses. Markup unchanged.
     const openZoomMenu = () => {
-      if (!zoomMenu || zoomInput.disabled) return;
+      if (!zoomMenu || zoomInput.disabled || !zoomMenu.hidden) return;
       const cur = Math.round(app.scale * 100);
       zoomMenu.innerHTML = ZOOM_PRESETS.map(p =>
         `<div class="zoom-menu-item${p === cur ? ' active' : ''}" data-val="${p}" role="option">${p}%</div>`).join('');
-      zoomMenu.hidden = false;
+      showMenu(zoomMenu, zoomInput);
     };
-    const closeZoomMenu = () => { if (zoomMenu) zoomMenu.hidden = true; };
+    const closeZoomMenu = () => { if (zoomMenu && !zoomMenu.hidden) hideMenu(zoomMenu); };
     zoomInput.addEventListener('focus', openZoomMenu);
     zoomInput.addEventListener('click', openZoomMenu);
     if (zoomMenu) {
@@ -383,14 +446,23 @@ export class ControlsBinder {
         const item = e.target.closest('.zoom-menu-item');
         if (!item) return;
         e.preventDefault();
-        zoomInput.value = item.dataset.val;
+        // A preset pick is a value EXCHANGE like a select's (customSelect markSwap):
+        // the outgoing number dusts away and the incoming one forms. Typing stays
+        // plain — this fires only from the dropped list.
+        const to = item.dataset.val;
+        if (zoomInput.value !== to) markSwap(zoomInput, () => { zoomInput.value = to; });
+        else zoomInput.value = to;
         applyZoomInput(true);
         closeZoomMenu();
         zoomInput.blur();
       });
     }
     zoomInput.addEventListener('blur', () => setTimeout(closeZoomMenu, 120));
-    document.addEventListener('click', e => { if (!e.target.closest('.zoom-input-wrap')) closeZoomMenu(); });
+    // The open menu now lives on <body> (showMenu), so "outside" has to miss it too, or
+    // a click on its own padding (not a .zoom-menu-item row) would count as outside.
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.zoom-input-wrap') && !e.target.closest('.zoom-menu')) closeZoomMenu();
+    });
 
     zoomInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); applyZoomInput(true); closeZoomMenu(); zoomInput.blur(); }
@@ -455,13 +527,13 @@ export class ControlsBinder {
       stopDraw: () => { if (app.isDrawing) app.stopDrawingMode(); },
       togglePoints: () => {
         const cb = document.getElementById('show-points');
-        cb.checked = !cb.checked;
+        setChecked(cb, !cb.checked);
         app.showPoints = cb.checked;
         app.renderer.redraw();
       },
       toggleLines: () => {
         const cb = document.getElementById('show-lines');
-        cb.checked = !cb.checked;
+        setChecked(cb, !cb.checked);
         app.showLines = cb.checked;
         app.renderer.redraw();
       },
@@ -495,7 +567,14 @@ export class ControlsBinder {
       flipLineVertical: () => app.flipSelectedLine(false),
       rotateLineCW90: () => app.rotateSelectedLineQuarter(1),
       rotateLineCCW90: () => app.rotateSelectedLineQuarter(-1),
-      copyImage: () => app.export.copyImageToClipboard(),
+      // Ctrl+C's OWN slot is 'split' while a split compare view is active — that view is
+      // what's actually on screen right now — and 'current' (plain tint+lines) otherwise.
+      // Resolved HERE, not inside copyImageToClipboard: the write must run synchronously
+      // inside this gesture (exportService.js), so it can't route through the toolbar
+      // button's click (openFull resolves the same way, for the mouse-click/saveImage path).
+      copyImage: () => app.export.copyImageToClipboard(isSplitCompare(app) ? 'split' : 'current'),
+      copyImageOriginal: () => app.export.copyImageToClipboard('original'),
+      copyImageTint: () => app.export.copyImageToClipboard('tint'),
       copyLayout: () => app.export.copyLayoutToClipboard(),
       // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
       paste: () => { /* handled by paste event */ },
@@ -526,6 +605,8 @@ export class ControlsBinder {
       openAnotherImage: () => clickIfActive(app.image ? 'open-image-btn' : 'load-image-btn'),
       openIn: () => clickIfActive('open-in-btn'),
       saveImage: () => clickIfActive('save-image'),
+      saveImageOriginal: () => app.export.saveImage('original'),
+      saveImageTint: () => app.export.saveImage('tint'),
       // Only rendered where the Web Share API takes files (mobile/PWA); exportService
       // guards the unsupported case with a toast, so the chord is safe everywhere.
       shareImage: () => clickIfActive('share-image'),
@@ -592,9 +673,11 @@ export class ControlsBinder {
         if (def.id === 'paste') return;
         // Compare view is read-only — swallow editing shortcuts (but keep view/nav ones).
         if (EDIT_HOTKEYS.has(def.id) && app.compareReadOnly()) { e.preventDefault(); return; }
-        // With text selected, let the native Ctrl+C / Ctrl+Alt+C copy that text instead
-        // of hijacking for copy-image / copy-layout (the user is copying a URL/label).
-        if ((def.id === 'copyImage' || def.id === 'copyLayout') && hasTextSelection()) return;
+        // With text selected, let the native Ctrl+C / Ctrl+Shift+C / Ctrl+Alt+C / Ctrl+Shift+Alt+C
+        // copy that text instead of hijacking for copy-image / copy-layout (the user is
+        // copying a URL/label).
+        if (['copyImage', 'copyImageOriginal', 'copyImageTint', 'copyLayout'].includes(def.id)
+            && hasTextSelection()) return;
         e.preventDefault();
         const fn = HK_HANDLERS[def.id];
         if (fn) fn();

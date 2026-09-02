@@ -37,7 +37,15 @@ export const turnFailureText = (settings, err) => {
   const why = err?.message ?? String(err ?? '');
   if (err instanceof LlmError && err.answered) return `${name}${at}: ${why}`;
   if (err instanceof LlmError && (err.kind === 'http' || err.kind === 'network')) {
-    return `Couldn't reach ${name}${at} — is it running? (${why})`;
+    return `Couldn't reach ${name}${at} (${why})`;
   }
   return `Failed: ${why}`;
 };
+
+// Whether a failed turn's error is the PROVIDER itself unreachable or unconfigured —
+// browser describeChatError's 'unreachable' kind, ported: the transport failed, the base
+// URL is missing, or nothing is configured, so the fix is a different provider/endpoint,
+// not a retry. Drives whether a turn's error bubble also offers the Configure provider CTA
+// (browser chatConfigureButton parity). Pure.
+export const isUnreachableError = (err) =>
+  err instanceof LlmError && (err.kind === 'http' || err.kind === 'network' || err.kind === 'config');

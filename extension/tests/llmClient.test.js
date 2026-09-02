@@ -245,7 +245,7 @@ test('turnFailureText: same error voice as the browser on every surface', () => 
   // fetch failures are tagged kind 'network' by the client itself.
   assert.strictEqual(
     turnFailureText({ provider: 'ollama', baseUrl: 'http://localhost:11434' }, new LlmError('Failed to fetch', 'network')),
-    "Couldn't reach Ollama at localhost:11434 — is it running? (Failed to fetch)");
+    "Couldn't reach Ollama at localhost:11434 (Failed to fetch)");
   // A bare TypeError is NOT read as unreachable (plan execution can throw those).
   assert.strictEqual(turnFailureText(server, new TypeError('x is not a function')), 'Failed: x is not a function');
   assert.strictEqual(turnFailureText(server, new Error('bad plan')), 'Failed: bad plan');

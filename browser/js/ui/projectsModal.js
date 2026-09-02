@@ -1,12 +1,13 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
-import { wireNameEditor, notify, cmToUnit, unitLabel, isTouchLike, pointInRect, shortName } from '../utils.js';
+import { wireNameEditor, notify, cmToUnit, unitLabel, isTouchLike, pointInRect, shortName, placeNearCursor } from '../utils.js';
 import { icon } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator,
-  surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
+  surfaceIn, surfaceOut, settleSurface, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
+  TIP_DUST_IN_MS, TIP_DUST_OUT_MS, markIn, markOut,
 } from './motion.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
@@ -162,7 +163,7 @@ export class StencilProjectsModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>${icon('layers', { size: 18 })} Projects</h2>
-                <button class="app-modal-close btn-icon-text" id="projects-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
+                <button class="app-modal-close btn-icon-text" id="projects-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <!-- Search full-width on its own row; the filter selects sit on the row below
                  (user decision — the shared single-row bar squeezed the search box). -->
@@ -175,6 +176,8 @@ export class StencilProjectsModal extends StencilElement {
                     <option value="local">Local</option>
                     <option value="server">Server</option>
                     <option value="incognito">Incognito tabs</option>
+                    <option value="peer-open">Open elsewhere</option>
+                    <option value="peer-closed">Not open elsewhere</option>
                 </select>
                 <select id="projects-sort" class="modal-filter" title="Sort projects (drag a row to set a manual order)">
                     <option value="name">Name</option>
@@ -232,6 +235,10 @@ export class StencilProjectsModal extends StencilElement {
 
     let peers = []; // active project ids open in OTHER tabs
     let incognitoPeers = []; // incognito sessions open in OTHER tabs ({ peerId, name, updatedAt })
+    // The worker echoes every tab's active id (including ours), so exclude this tab's own
+    // active project — only true when a DIFFERENT tab has it. Shared by the row badge and
+    // the "Open elsewhere" / "Not open elsewhere" filter so the two can never disagree.
+    const isPeerOpen = (m) => peers.includes(m.id) && m.id !== app.storage.activeId;
     let filterMode = 'all';
     const hasServers = () => !!app.connections?.urls?.length;
 
@@ -386,7 +393,20 @@ export class StencilProjectsModal extends StencilElement {
       document.body.appendChild(zoomEl);
       return zoomEl;
     };
-    const hideZoom = () => { if (zoomEl) { zoomEl.style.display = 'none'; zoomSize = null; } };
+    // ── The zoom is sand too (js/ui/motion.js surfaceIn/surfaceOut), on the shared
+    // short tip clock — a sweep across rows re-triggers it fast. ──
+    const ZOOM_DUST_IN_MS = TIP_DUST_IN_MS;
+    const ZOOM_DUST_OUT_MS = TIP_DUST_OUT_MS;
+    let zoomPoint = null;   // the thumbnail's own centre — the flight's origin/destination
+    const hideZoom = () => {
+      if (zoomEl) {
+        if (zoomEl.style.display !== 'none') surfaceOut(zoomEl, zoomPoint, { ms: ZOOM_DUST_OUT_MS });
+        else settleSurface(zoomEl);
+        zoomEl.style.display = 'none';
+        zoomSize = null;
+      }
+      zoomPoint = null;
+    };
     // Switching window never fires the row's mouseleave — hide on blur, or the
     // zoom is still up when the user comes back (chatView hideThumbPreview parity).
     window.addEventListener('blur', hideZoom);
@@ -394,6 +414,17 @@ export class StencilProjectsModal extends StencilElement {
     // extension, desktop): factor 2 on the zoom cap AND the viewport ceilings.
     let zoomSize = null;   // {nw, nh} of the picture currently zoomed
     let zoomAlt = false;
+    // A keyup can be lost off-window — Alt released while a docked DevTools pane (or any
+    // other panel) holds keyboard focus never reaches this listener — which would leave
+    // the NEXT hover's glance stuck doubled with no key actually held. blur is the one
+    // signal that always fires when focus leaves, so it's the backstop that un-sticks it.
+    window.addEventListener('blur', () => { zoomAlt = false; });
+    // The size change IS a re-formation, not just a resize — replay the gather so
+    // holding/releasing Alt reads as sand rather than a snap.
+    const replayZoomDust = () => {
+      if (!zoomEl || zoomEl.style.display === 'none' || !zoomPoint) return;
+      surfaceIn(zoomEl, zoomPoint, { ms: ZOOM_DUST_IN_MS });
+    };
     const applyZoomScale = () => {
       if (!zoomEl || !zoomSize || zoomEl.style.display === 'none') return;
       const f = zoomAlt ? 2 : 1;
@@ -407,20 +438,24 @@ export class StencilProjectsModal extends StencilElement {
       img.style.width = `${Math.round(zoomSize.nw * scale)}px`;
       img.style.height = `${Math.round(zoomSize.nh * scale)}px`;
     };
-    window.addEventListener('keydown', e => { if (e.key === 'Alt') { zoomAlt = true; applyZoomScale(); } });
-    window.addEventListener('keyup', e => { if (e.key === 'Alt') { zoomAlt = false; applyZoomScale(); } });
+    window.addEventListener('keydown', e => { if (e.key === 'Alt') { zoomAlt = true; applyZoomScale(); replayZoomDust(); } });
+    window.addEventListener('keyup', e => { if (e.key === 'Alt') { zoomAlt = false; applyZoomScale(); replayZoomDust(); } });
+    // A backstop under applyZoomScale's own vw/vh caps: those track the window at the
+    // moment a hover STARTS, so the box is re-cropped into whatever the window actually
+    // is — applied on show and on resize, not per mousemove (a style write before every
+    // measure forced a layout per move).
+    const ZOOM_EDGE = 8;
+    const applyZoomCaps = () => {
+      if (!zoomEl) return;
+      zoomEl.style.maxWidth = `${Math.max(0, window.innerWidth - ZOOM_EDGE * 2)}px`;
+      zoomEl.style.maxHeight = `${Math.max(0, window.innerHeight - ZOOM_EDGE * 2)}px`;
+    };
+    window.addEventListener('resize', applyZoomCaps);
+    // Down-right of the cursor, flipped/clamped into the viewport (shared helper); an
+    // overflowing height pins to the bottom edge rather than flipping above.
     const positionZoom = e => {
       if (!zoomEl) return;
-      const pad = 18;
-      const w = zoomEl.offsetWidth;
-      const h = zoomEl.offsetHeight;
-      // Prefer down-right of the cursor; flip/clamp so it never leaves the viewport.
-      let x = e.clientX + pad;
-      let y = e.clientY + pad;
-      if (x + w > window.innerWidth - 8) x = e.clientX - pad - w;
-      if (y + h > window.innerHeight - 8) y = window.innerHeight - 8 - h;
-      zoomEl.style.left = `${Math.max(8, x)}px`;
-      zoomEl.style.top = `${Math.max(8, y)}px`;
+      placeNearCursor(zoomEl, e.clientX, e.clientY, { edge: ZOOM_EDGE, clampY: true });
     };
     const enableThumbZoom = thumbEl => {
       thumbEl.addEventListener('mouseenter', e => {
@@ -437,9 +472,12 @@ export class StencilProjectsModal extends StencilElement {
           nh: img.naturalHeight || img.height || 160,
         };
         zoomAlt = e.altKey;   // Alt already held on entry counts too
+        zoomPoint = rectCenter(thumbEl);
         z.style.display = 'block';
+        applyZoomCaps();
         applyZoomScale();
         positionZoom(e);
+        surfaceIn(z, zoomPoint, { ms: ZOOM_DUST_IN_MS });
       });
       thumbEl.addEventListener('mousemove', positionZoom);
       thumbEl.addEventListener('mouseleave', hideZoom);
@@ -499,8 +537,7 @@ export class StencilProjectsModal extends StencilElement {
       openMenu = menu;
       // Grow out of the control that opened it: the cursor for a right-click, the "⋯"
       // button's centre otherwise.
-      const ar = anchor?.getBoundingClientRect?.();
-      menuPoint = point || (ar ? { x: ar.left + ar.width / 2, y: ar.top + ar.height / 2 } : null);
+      menuPoint = point || rectCenter(anchor);
       surfaceIn(menu, menuPoint, { ms: SURFACE_MENU_IN_MS });
       setTimeout(() => {
         document.addEventListener('mousedown', onMenuDocDown, true);
@@ -631,12 +668,20 @@ export class StencilProjectsModal extends StencilElement {
         cancel.title = 'Cancel (Esc)';
         wrap.append(input, accept, cancel);
         name.replaceWith(wrap);
+        // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
+        // draws the check / strikes the cross (animations.css .ic-check/.ic-x).
+        markIn(accept);
+        markIn(cancel);
         input.focus();
         input.select();
         let done = false;
         const finish = (save, next) => {
           if (done) return;
           done = true;
+          // …and come apart BEFORE the re-render sweeps the editor away — the
+          // clouds are copies on <body>, so the rebuild never waits for them.
+          markOut(accept);
+          markOut(cancel);
           // renameProject re-checks uniqueness; adopt the name only if accepted.
           if (save && next && next !== meta.name && app.renameProject(meta.id, next)) meta.name = next;
           render();
@@ -671,10 +716,10 @@ export class StencilProjectsModal extends StencilElement {
         else if (exp.soon) sub.classList.add('project-expiring');
         // The worker echoes every tab's active id (including ours), so exclude
         // this tab's own active project — only mark it when a DIFFERENT tab has it.
-        if (peers.includes(meta.id) && meta.id !== app.storage.activeId) {
+        if (isPeerOpen(meta)) {
           const open = document.createElement('span');
           open.className = 'project-open-elsewhere';
-          open.textContent = ' · open in another tab';
+          open.innerHTML = `${icon('external', { size: 12 })}<span>opened in another tab</span>`;
           sub.appendChild(open);
         }
         // Origin badge — one per row, with an icon + tooltip naming where the project lives:
@@ -699,6 +744,16 @@ export class StencilProjectsModal extends StencilElement {
           badge.innerHTML = `${icon('globe', { size: 12 })}<span>browser</span>`;
           sub.appendChild(badge);
         }
+        // The row for whatever's open in THIS editor right now — right after the origin
+        // badge (browser/server/.stencil), not a separate mark of its own, and no icon:
+        // just the word, in the accent that already means "this one" everywhere else.
+        if (meta.id === app.activeProjectId) {
+          const cur = document.createElement('span');
+          cur.className = 'project-current-badge';
+          cur.title = 'Currently open in this editor';
+          cur.textContent = ' (Current)';
+          sub.appendChild(cur);
+        }
       }
       info.appendChild(sub);
       // Free-text description line (when set): a single truncated line under the metadata.
@@ -714,7 +769,7 @@ export class StencilProjectsModal extends StencilElement {
         const isActive = meta.id === app.activeProjectId;
         // True while THIS project is open in a DIFFERENT tab — removing/moving it
         // would yank it out from under that tab, so both are blocked then.
-        const openElsewhere = () => peers.includes(meta.id) && meta.id !== app.storage.activeId;
+        const openElsewhere = () => isPeerOpen(meta);
 
         const moveToServer = async () => {
           if (openElsewhere()) { notify('Open in another tab — close it there first', 'fail'); return; }
@@ -1123,12 +1178,18 @@ export class StencilProjectsModal extends StencilElement {
     const remoteRowKey = (m) => `remote:${m.serverUrl}:${m.id}`;
     const metaName = (m) => (m.name || '').toLowerCase();
     const metaDate = (m) => m.updatedAt || m.createdAt || 0;
+    // "Open elsewhere" / "Not open elsewhere" are LOCAL-only scopes, like "Local" itself —
+    // a not-yet-claimed remote-cache row (makeRemoteRow) has no peers relationship to filter on.
+    const showsPeerOpen = () => filterMode === 'peer-open' || filterMode === 'peer-closed';
     const buildItems = ({ applySearch }) => {
       const q = applySearch ? (search.value || '') : '';
-      const showLocal = filterMode === 'all' || filterMode === 'local';
+      const showLocal = filterMode === 'all' || filterMode === 'local' || showsPeerOpen();
       const showServer = showsServer();
       const items = [];
-      const all = store.list().filter((m) => !applySearch || matchRow(m.name, m.keywords, q));
+      const all = store.list()
+        .filter((m) => !applySearch || matchRow(m.name, m.keywords, q))
+        .filter((m) => filterMode !== 'peer-open' || isPeerOpen(m))
+        .filter((m) => filterMode !== 'peer-closed' || !isPeerOpen(m));
       const localLinked = all.filter((m) => isServerMeta(m));
       if (showLocal) for (const meta of all.filter((m) => !isServerMeta(m)))
         items.push({ key: localRowKey(meta), name: metaName(meta), date: metaDate(meta), isRemote: false, meta, build: () => makeRow(meta) });
@@ -1363,7 +1424,9 @@ export class StencilProjectsModal extends StencilElement {
       mode === 'incognito' ? 'No incognito tabs.'
         : mode === 'server' ? 'No server projects.'
           : mode === 'local' ? 'No local projects.'
-            : 'No saved projects yet.';
+            : mode === 'peer-open' ? 'Nothing open in another tab.'
+              : mode === 'peer-closed' ? 'Every saved project is open in another tab.'
+                : 'No saved projects yet.';
 
     // Rows fade + lift through the scroller as it scrolls. Bound once; the observer
     // picks up each rebuild's rows itself, so render() stays untouched.

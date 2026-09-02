@@ -83,4 +83,13 @@ namespace stencil::gui {
   // already rich text (something composed its own HTML, e.g. the chat provider tooltip).
   QString enrichedToolTip(const QString& plain);
 
+  // The palette rich tooltips are currently drawn in (last given to setTooltipPalette) —
+  // for callers elsewhere (the context menu's hotkey chips) that want the same colours.
+  Palette currentPalette();
+
+  // One shortcut combo as bordered keycap chips joined by "+" — the same picture a
+  // tooltip's own shortcut wears (capHtml), reusable anywhere a combo needs to look
+  // like a key. `mac` picks Apple glyphs (⌥⇧⌃⌘) over spelled modifiers.
+  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac = kOnMac);
+
 }

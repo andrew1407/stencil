@@ -68,8 +68,10 @@
     --disabled-text:  #9aa0a8;
     --sb-track:        transparent;
     --sb-thumb:        #d4d8de;
-    --sb-thumb-hover:  #a8b0b8;
-    --sb-thumb-active: #7a838c;
+    /* Hover/active pick up the brand accent — a neutral grey thumb read as "nothing
+       happened" on hover; --accent-2 for the boldest, about-to-drag state. */
+    --sb-thumb-hover:  var(--accent);
+    --sb-thumb-active: var(--accent-2);
 }
 
 /* Accent presets — set only --accent; --accent-2, --text-key and every glow derive
@@ -147,6 +149,7 @@
     --disabled-text:  #777777;
     --sb-track:        transparent;
     --sb-thumb:        #6a6a6a;
-    --sb-thumb-hover:  #8a8a8a;
-    --sb-thumb-active: #a8a8a8;
+    /* Hover/active pick up the brand accent, same as light — see :root. */
+    --sb-thumb-hover:  var(--accent);
+    --sb-thumb-active: var(--accent-2);
 }

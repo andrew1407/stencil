@@ -325,7 +325,50 @@ test('the trigger is an absolute ghost, revealed only for hover-capable pointers
   assert.match(css, /\.msg-menu-btn \{[^}]*opacity: 0/);
   assert.match(css, /\.msg-menu-btn \{[^}]*user-select: none/);
   assert.match(css, /#sec-assistant \.msg \{[^}]*position: relative/);   // the button's anchor
-  assert.match(css, /@media \(hover: hover\) \{\s*#sec-assistant \.msg:hover \.msg-menu-btn \{[^}]*opacity: 1/);
+  assert.match(css, /@media \(hover: hover\) \{\s*#sec-assistant \.msg:hover \.msg-menu-btn \{[^}]*opacity: \.7/);
+  assert.match(css, /#sec-assistant \.msg:hover \.msg-menu-btn:hover \{[^}]*opacity: 1/);
   assert.match(css, /\.msg-menu-btn\.left \{ left: -24px; \}/);   // beside the bubble, no overlap
   assert.match(css, /\.msg-menu-btn\.right \{ right: -24px; \}/);
+  // A circle, like the browser's and the desktop's — not the 6px rounded square it was.
+  assert.match(css, /\.msg-menu-btn \{[^}]*border-radius: 50%/);
+  // Hittable at rest, and the gap to the bubble bridged: crossing it must not un-hover
+  // the row and take the button away mid-reach.
+  const btnRule = /\.msg-menu-btn \{([^}]*)\n\}/.exec(css)[1].replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!btnRule.includes('pointer-events'), 'no pointer-events: none to fall through');
+  assert.match(css, /\.msg-menu-btn::before \{[^}]*position: absolute/);
+  assert.match(css, /\.msg-menu-btn\.left::before \{ left: 100%; \}/);
+  assert.match(css, /\.msg-menu-btn\.right::before \{ right: 100%; \}/);
+  // The leave grace (desktop scheduleHide parity), cancelled on the way in.
+  assert.match(css, /\.msg-menu-btn \{[^}]*transition: opacity \.12s ease \.22s/);
+  assert.match(css, /#sec-assistant \.msg:hover \.msg-menu-btn \{[^}]*transition-delay: 0s/);
+});
+
+test('the failed-turn bubble has a danger tone to reach for', () => {
+  const theme = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  // --danger was USED by #sec-assistant .msg.error and never defined: every one of those
+  // declarations was invalid at computed-value time, so a failed turn lost its red text,
+  // its border and its wash and read as an ordinary message.
+  assert.match(theme, /:root, :root\[data-theme="light"\] \{[\s\S]*?--danger: #d6293e;[\s\S]*?\n\}/);
+  assert.match(theme, /:root\[data-theme="dark"\] \{[\s\S]*?--danger: #f0697a;[\s\S]*?\n\}/);
+  // Browser .chat-msg-error parity, tail included (it is an assistant-side row there).
+  // --msg-border/--msg-fill (not the raw color-mix() inline): the tail reuses the
+  // SAME two values, so restating them would let the bubble and its tail drift apart.
+  const err = /#sec-assistant \.msg\.error \{([\s\S]*?)\n\}/.exec(css)[1];
+  assert.match(err, /color: var\(--danger\)/);
+  assert.match(err, /--msg-border: color-mix\(in srgb, var\(--danger\) 45%, transparent\)/);
+  assert.match(err, /border: 1px solid var\(--msg-border\)/);
+  assert.match(err, /--msg-fill: color-mix\(in srgb, var\(--danger\) 10%, var\(--panel-2\)\)/);
+  assert.match(err, /background: var\(--msg-fill\)/);
+});
+
+test('the reveal mask reaches the "…" the row paints outside its box', () => {
+  const anim = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const masked = anim.slice(anim.indexOf('.reveal-item.reveal-masked {'),
+    anim.indexOf('\n}', anim.indexOf('.reveal-item.reveal-masked {')));
+  // Clipped to the row's box, the wipe layer erased the trigger beside the bubble
+  // entirely — invisible and un-hittable on any row the scroller cuts.
+  assert.match(masked, /mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%/);
+  assert.match(masked, /mask-position: 0 0, 2px 3px, 5px 1px, center top/);
+  assert.match(masked, /\n {4}mask-clip: no-clip/);
+  assert.match(masked, /-webkit-mask-clip: no-clip/);
 });

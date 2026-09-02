@@ -288,16 +288,14 @@ test('swapContent survives a bare element (no ghost to make, no throw)', () => {
 
 // ── 4. The real toggles: DrawingApp.syncDrawToggleUI / syncDrawModeUI ───────
 
-// A fresh pair of registered buttons + the context-menu label mirror, and a `this` with
-// only what the two methods touch. Fresh elements per test: the swap's "same face" skip
-// is keyed by element, so a reused button would carry the previous test's face.
+// A fresh pair of registered buttons and a `this` with only what the two methods touch.
+// Fresh elements per test: the swap's "same face" skip is keyed by element, so a reused
+// button would carry the previous test's face.
 const uiRig = () => {
   const drawBtn = makeBtn();
   const modeBtn = makeBtn();
-  const ctxLabel = createStubElement('span');
   doc.register('draw-toggle', drawBtn);
   doc.register('draw-mode-toggle', modeBtn);
-  doc.register('ctx-drawmode-label', ctxLabel);
   const app = {
     isDrawing: false,
     drawMode: 'line',
@@ -305,7 +303,7 @@ const uiRig = () => {
     syncDrawModeUI: DrawingApp.prototype.syncDrawModeUI,
     setDrawMode: DrawingApp.prototype.setDrawMode,
   };
-  return { app, drawBtn, modeBtn, ctxLabel };
+  return { app, drawBtn, modeBtn };
 };
 // The visible face, as (glyph, label) — one label or the assertion fails loudly.
 const faceOf = (btn) => ({
@@ -342,17 +340,15 @@ test('Start/Stop: the swap keeps the tooltip and its state-dependent hotkey', ()
   assert.ok(drawBtn.title.startsWith('Stop Drawing'), `composed title, got ${drawBtn.title}`);
 });
 
-test('Line/Rect: the mode toggle swaps glyph, word, tooltip and the context-menu mirror', () => {
-  const { app, modeBtn, ctxLabel } = uiRig();
+test('Line/Rect: the mode toggle swaps glyph, word and tooltip', () => {
+  const { app, modeBtn } = uiRig();
   app.syncDrawModeUI();
   assert.deepEqual(faceOf(modeBtn), { glyph: 'line', labels: ['Line'] });
   assert.match(modeBtn.dataset.title, /^Drawing mode: Line/);
-  assert.equal(ctxLabel.textContent, 'Switch to Rectangle Drawing');
 
   app.setDrawMode('rect');
   assert.deepEqual(faceOf(modeBtn), { glyph: 'rect', labels: ['Rect'] });
   assert.match(modeBtn.dataset.title, /^Drawing mode: Rectangle/);
-  assert.equal(ctxLabel.textContent, 'Switch to Line Drawing');
 });
 
 test('holding the hotkey: every face still matches the state it was rendered for', () => {

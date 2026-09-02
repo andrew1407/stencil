@@ -344,8 +344,8 @@ test('unreachableText degrades gracefully without a label or a URL', () => {
   assert.ok(unreachableText({ provider: 'mystery', baseUrl: 'http://h' }, new Error('x'))
     .startsWith("Couldn't reach mystery at h"));
   assert.strictEqual(unreachableText(null, new Error('x')),
-    "Couldn't reach the assistant — is it running? (x)");
+    "Couldn't reach the assistant (x)");
   // No URL → no dangling " at ", and a bare non-Error reason still reads.
   assert.strictEqual(unreachableText({ provider: 'openai-compat', baseUrl: '' }, 'ECONNREFUSED'),
-    "Couldn't reach OpenAI API (LM Studio, vLLM, …) — is it running? (ECONNREFUSED)");
+    "Couldn't reach OpenAI API (LM Studio, vLLM, …) (ECONNREFUSED)");
 });

@@ -22,6 +22,10 @@ export class InputController {
     this.app = app;
   }
 
+  // True while press-and-hold is armed or already drawing (mouse or touch) — used by
+  // canvasMouseMove's drag guard to keep the tooltip off a mid-hold ghost line.
+  get holdEngaged() { return !!this.#holdDraw && this.#holdDraw.engaged; }
+
   // ── Hold-to-draw: an alternative drawing flow ──────────────────
   // Press-and-hold drops the first point; dwelling drops more; releasing commits and
   // exits drawing. The pure HoldDrawController (./holdDraw.js) decides timing/transitions;

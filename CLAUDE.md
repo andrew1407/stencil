@@ -29,7 +29,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 |---|---|---|---|
 | **browser** | none (ES modules) | `cd browser && npm test` | `npm run serve` (→ http://localhost:8080); single: `node --test tests/<file>.test.js` |
 | **core** | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j` | `ctest --test-dir core/build --output-on-failure` | single suite: `core/build/stencil_tests -ts=<suite>` (Doctest) |
-| **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j` | `ctest --test-dir build --output-on-failure` (needs Qt; runs headless crop/image tests) | `./build/stencil_gui` |
+| **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j` | `ctest --test-dir build --output-on-failure` (needs Qt; runs headless crop/image tests) | `./build/stencil` |
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e tests self-skip without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |

@@ -1,6 +1,7 @@
 #include "infoDialog.hpp"
 #include "guiHelpers.hpp"
 #include "hotkeyFormat.hpp"
+#include "../support/modalChrome.hpp"   // gui::kModalWidth
 #include "iconSet.hpp"
 #include <QDialogButtonBox>
 #include <QFile>
@@ -24,7 +25,7 @@ namespace stencil::gui {
 
   InfoDialog::InfoDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle("Info & Shortcuts");
-    setMinimumSize(560, 600);
+    setMinimumSize(kModalWidth, 600);   // the shared .app-modal width (modalChrome.hpp)
 
     // Live search box (mirrors the browser info modal's filter).
     search_ = new QLineEdit(this);

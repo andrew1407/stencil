@@ -64,6 +64,186 @@ test('copyLayoutToClipboard: no lines → fail notify', () => {
   assert.deepEqual(lastNote(), ['No layout to copy', 'fail']);
 });
 
+test('saveImage("split"): outside a split compare view → fail notify, no work', () => {
+  reset();
+  new ExportService(makeApp({ image: {}, compareMode: 'none' })).saveImage('split');
+  assert.deepEqual(lastNote(), ['Turn on split compare to download with the splitter', 'fail']);
+});
+
+// ── Export variants (js/core/exportService.js renderExportCanvas) ──
+// The stub canvas's getContext() returns null (helpers/dom.js) — fine for 'current'/'tint'/
+// the split render, which only ever reach the CTX through app.renderer's own methods (mocked
+// below). Only the 'original' branch touches ctx directly, so it gets a real stand-in.
+const fakeCtx = () => ({
+  filter: 'none', drawImage() {}, save() {}, restore() {}, beginPath() {}, rect() {}, clip() {},
+});
+// Swap document.createElement for the duration of `fn`, faking 'canvas' (a working 2D
+// ctx stand-in + toBlob/toDataURL) and 'a' (a clickable download link) — the two elements
+// saveImage/copyImageToClipboard actually create. Returns fn's result plus every <a> made,
+// so a test can inspect the .download filename it was given.
+const withFakeCanvas = (fn) => {
+  const orig = document.createElement;
+  const ctx = fakeCtx();
+  const links = [];
+  document.createElement = (tag) => {
+    if (tag === 'canvas') {
+      return { width: 0, height: 0, getContext: () => ctx, toDataURL: () => 'data:image/png;base64,x', toBlob: (cb) => cb(new Blob()) };
+    }
+    if (tag === 'a') { const a = { click() {} }; links.push(a); return a; }
+    return orig(tag);
+  };
+  try { return { result: fn(ctx), links }; } finally { document.createElement = orig; }
+};
+
+test('renderExportCanvas: "current" draws the filter + the visible lines, not points', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, showLines: true, showPoints: false, lines: [{ points: [{ x: 0, y: 0 }], color: '#000' }],
+    renderer: {
+      drawImageWithFilter: () => calls.push('filter'),
+      drawLine: (line, sel) => calls.push(['line', sel]),
+      drawPoint: () => calls.push('point'),
+    },
+  });
+  const off = new ExportService(app).renderExportCanvas('current');
+  assert.equal(off.width, app.canvas.width);
+  assert.deepEqual(calls, ['filter', ['line', false]]);
+});
+
+test('renderExportCanvas: "tint" draws the filter but never annotations', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, showLines: true, showPoints: true, lines: [{ points: [{ x: 0, y: 0 }], color: '#000' }],
+    renderer: { drawImageWithFilter: () => calls.push('filter'), drawLine: () => calls.push('line'), drawPoint: () => calls.push('point') },
+  });
+  new ExportService(app).renderExportCanvas('tint');
+  assert.deepEqual(calls, ['filter']);
+});
+
+test('renderExportCanvas: "original" draws the raw image only — no filter, no annotations', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, showLines: true, lines: [{ points: [{ x: 0, y: 0 }], color: '#000' }],
+    renderer: { drawImageWithFilter: () => calls.push('filter'), drawLine: () => calls.push('line') },
+  });
+  withFakeCanvas(() => new ExportService(app).renderExportCanvas('original'));
+  assert.deepEqual(calls, []);
+});
+
+test('renderExportCanvas("split"): draws the filtered+annotated frame, then a CLEAN split — no divider, no knob', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, showLines: true, compareMode: 'vertical', lines: [{ points: [{ x: 0, y: 0 }], color: '#000' }],
+    renderer: {
+      drawImageWithFilter: () => calls.push('filter'),
+      drawLine: () => calls.push('line'),
+      drawCompareSplit: (mode, opts) => calls.push(['split', mode, opts]),
+    },
+  });
+  new ExportService(app).renderExportCanvas('split');
+  assert.deepEqual(calls, ['filter', 'line', ['split', 'vertical', { withDivider: false }]]);
+});
+
+test('renderExportCanvas("split"): "horizontal" compare mode passes through as-is', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, compareMode: 'horizontal',
+    renderer: { drawImageWithFilter() {}, drawCompareSplit: (mode) => calls.push(mode) },
+  });
+  new ExportService(app).renderExportCanvas('split');
+  assert.deepEqual(calls, ['horizontal']);
+});
+
+test('saveImage: each variant downloads with its own filename suffix', () => {
+  const app = makeApp({
+    image: {}, imageBaseName: 'pic', imageExt: 'png',
+    renderer: { drawImageWithFilter() {}, drawLine() {}, drawPoint() {} },
+  });
+  const svc = new ExportService(app);
+  const { links } = withFakeCanvas(() => {
+    svc.saveImage('current'); svc.saveImage('original'); svc.saveImage('tint');
+  });
+  assert.deepEqual(links.map(l => l.download), ['pic-drawing.png', 'pic-drawing-original.png', 'pic-drawing-tint.png']);
+});
+
+test('saveImage("split"): downloads a CLEAN split composite while a split compare view is active — no divider/knob baked in', () => {
+  const calls = [];
+  const app = makeApp({
+    image: {}, compareMode: 'vertical', imageBaseName: 'pic', imageExt: 'png',
+    renderer: { drawImageWithFilter() {}, drawCompareSplit: (mode, opts) => calls.push([mode, opts]) },
+  });
+  const { links } = withFakeCanvas(() => new ExportService(app).saveImage('split'));
+  assert.deepEqual(links.map(l => l.download), ['pic-drawing-split.png']);
+  assert.deepEqual(calls, [['vertical', { withDivider: false }]]);
+});
+
+// ── copyImageToClipboard: variant labels + the split-compare special case ──
+const fakeOffscreen = () => ({ toBlob: (cb) => cb(new Blob()) });
+const withFakeClipboard = async (fn) => {
+  // Node's own `navigator` global is a getter-only accessor — redefine it, don't assign.
+  const origNav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const origCI = globalThis.ClipboardItem;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true, value: { clipboard: { write: () => Promise.resolve() } },
+  });
+  globalThis.ClipboardItem = function (parts) { this.parts = parts; };
+  try { return await fn(); } finally {
+    if (origNav) Object.defineProperty(globalThis, 'navigator', origNav); else delete globalThis.navigator;
+    globalThis.ClipboardItem = origCI;
+  }
+};
+
+test('copyImageToClipboard: "current" ignores compare mode — always the plain edited frame, never auto-upgraded to split', async () => {
+  // The PRIMARY-gesture decision (split vs current) is made by the CALLER
+  // (controlsBinder.js's copyImage hotkey handler, exportOptionsMenu.js's openFull) —
+  // this method never substitutes one for the other, so an explicit 'current' request
+  // (the menu's own "Current" row, reachable even while comparing) stays literal.
+  reset();
+  const app = makeApp({ image: {}, compareMode: 'horizontal' });
+  const svc = new ExportService(app);
+  const seen = [];
+  svc.renderExportCanvas = (v) => { seen.push(v); return fakeOffscreen(); };
+  await withFakeClipboard(() => svc.copyImageToClipboard('current'));
+  assert.deepEqual(seen, ['current']);
+  assert.deepEqual(lastNote(), ['Image copied to clipboard', 'ok']);
+});
+
+test('copyImageToClipboard: "split" is its own explicit variant, valid only while comparing', async () => {
+  reset();
+  const app = makeApp({ image: {}, compareMode: 'horizontal' });
+  const svc = new ExportService(app);
+  const seen = [];
+  svc.renderExportCanvas = (v) => { seen.push(v); return fakeOffscreen(); };
+  await withFakeClipboard(() => svc.copyImageToClipboard('split'));
+  assert.deepEqual(seen, ['split']);
+  assert.deepEqual(lastNote(), ['Split image copied to clipboard', 'ok']);
+});
+
+test('copyImageToClipboard: "original"/"tint" ignore compare mode — always the plain render', async () => {
+  reset();
+  const app = makeApp({ image: {}, compareMode: 'vertical' });
+  const svc = new ExportService(app);
+  const seen = [];
+  svc.renderExportCanvas = (v) => { seen.push(v); return fakeOffscreen(); };
+  await withFakeClipboard(async () => {
+    await svc.copyImageToClipboard('original');
+    await svc.copyImageToClipboard('tint');
+  });
+  assert.deepEqual(seen, ['original', 'tint']);
+  assert.deepEqual(notifications.map(n => n[0]), ['Original image copied to clipboard', 'Tinted image copied to clipboard']);
+});
+
+test('copyImageToClipboard: "current" with no split compare active is the plain render, default label', async () => {
+  reset();
+  const app = makeApp({ image: {}, compareMode: 'none' });
+  const svc = new ExportService(app);
+  const seen = [];
+  svc.renderExportCanvas = (v) => { seen.push(v); return fakeOffscreen(); };
+  await withFakeClipboard(() => svc.copyImageToClipboard());
+  assert.deepEqual(seen, ['current']);
+  assert.deepEqual(lastNote(), ['Image copied to clipboard', 'ok']);
+});
+
 test('applyPastedLayout: no image → "Load an image first", no mutation', async () => {
   reset();
   const app = makeApp({ image: null });

@@ -1,5 +1,7 @@
 #include "notifications.hpp"
+#include "disintegrateOverlay.hpp"
 #include "iconSet.hpp"
+#include "modalReveal.hpp"  // stencil::support::motionReduced()
 #include <algorithm>
 #include <QBuffer>
 #include <QGuiApplication>
@@ -8,6 +10,8 @@
 #include <QEvent>
 #include <QGraphicsOpacityEffect>
 #include <QLabel>
+#include <QPixmap>
+#include <QPointer>
 #include <QPropertyAnimation>
 #include <QTimer>
 #include <QWidget>
@@ -18,7 +22,8 @@ namespace {
   // identically on macOS/Windows/Linux with no compositor dependency.
   constexpr int kFadeInMs = 180;
   constexpr int kFadeOutMs = 160;
-  // How far a toast rises in from / drops away to (browser: notifyLeave's 14px).
+  // How far a toast rises in from / drops away to (browser: notifyLeave's 14px) — the
+  // plain fade+rise fallback only.
   constexpr int kSlidePx = 14;
   // Distance from the host's left edge. Tighter than the browser's 18px: the stack hangs off
   // the WINDOW here, whose frame already reads as an edge, so 18 left it floating mid-canvas.
@@ -30,6 +35,48 @@ namespace {
   constexpr const char* kLeavingProperty = "stencilToastLeaving";
   // The plain message, kept beside the rich text() that carries the glyph.
   constexpr const char* kTextProperty = "stencilToastText";
+
+  // Toast dust (browser motion.js surfaceIn/surfaceOut; desktop DisintegrateOverlay).
+  // 2x the shared menu clock — a passing notice can afford to drift rather than snap.
+  // Leaving is slower still than arriving (browser ENTER_DUST_MS / LEAVE_DUST_MS).
+  constexpr int kToastInMs = 680;
+  constexpr int kToastOutMs = 1040;
+
+
+  // Off the left edge, at the toast's own height (browser motion.js dockAwayPoint(rect, 'left')).
+  QPoint toastDustPoint(const QRect& r) {
+    return stencil::gui::dockAwayPoint(r, Qt::LeftDockWidgetArea);
+  }
+
+  // Returns the flying cloud (so the caller can track it for reflow()'s retarget), or
+  // null — declined under STENCIL_NO_ANIM / offscreen.
+  stencil::gui::DisintegrateOverlay* dustToastIn(QLabel* toast, QGraphicsOpacityEffect* fx,
+                                                 QWidget* host, const QRect& rest) {
+    if (!stencil::support::dustMotionOk()) return nullptr;
+    const QPixmap shot = toast->grab();
+    if (shot.isNull()) return nullptr;
+    auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
+        shot, rest, host, toastDustPoint(rest), /*gather=*/true, kToastInMs,
+        toast->palette().color(QPalette::WindowText));
+    if (!overlay) return nullptr;
+    fx->setOpacity(0.0);
+    auto* fade = new QPropertyAnimation(fx, "opacity", toast);
+    stencil::gui::holdFadeKeys(fade, kToastInMs);
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
+    return overlay;
+  }
+
+  // …and the way out — a snapshot with a life of its own, so it can run before the
+  // real label's own fade/deletion.
+  bool dustToastOut(QLabel* toast, QWidget* host) {
+    if (!stencil::support::dustMotionOk()) return false;
+    const QPixmap shot = toast->grab();
+    if (shot.isNull()) return false;
+    return stencil::gui::DisintegrateOverlay::overSurface(
+               shot, toast->geometry(), host, toastDustPoint(toast->geometry()),
+               /*gather=*/false, kToastOutMs, toast->palette().color(QPalette::WindowText))
+           != nullptr;
+  }
 }  // namespace
 
 namespace stencil::gui {
@@ -85,6 +132,22 @@ namespace stencil::gui {
         return;
       }
 
+    // A repeat of the same message can land while the LAST one is already leaving (e.g. a
+    // debounced "Saved" firing again mid-exit-flight). liveToasts() above only coalesces into
+    // a standing one, so the fresh, fully-opaque label buried the leaving one's still-running
+    // dust — reading as the message vanishing with no dust (user report). Finish the old
+    // label outright instead; its dust cloud (a separate overlay this doesn't touch) keeps
+    // playing on its own.
+    for (const QPointer<QLabel>& t : stack_) {
+      if (!t || !t->property(kLeavingProperty).toBool()
+             || t->property(kTextProperty).toString() != text)
+        continue;
+      for (QPropertyAnimation* a : t->findChildren<QPropertyAnimation*>()) a->stop();
+      stack_.removeAll(t);
+      t->deleteLater();
+      break;   // text is unique among live toasts, but a stale leaving one is a one-off
+    }
+
     // Cap the stack BEFORE adding this one, so a burst never walls off the corner.
     // Oldest go first; only standing toasts count — one already playing its exit
     // shouldn't push a live one off the stack.
@@ -114,11 +177,17 @@ namespace stencil::gui {
           .toImage()
           .save(&buf, "PNG");
     }
-    // vertical-align: middle centres the glyph on the message; an inline image
-    // otherwise sits on the text BASELINE and rides visibly high (tipContent's rule).
-    toast->setText(QString("<img src=\"data:image/png;base64,%1\" width=\"16\" height=\"16\""
-                           " style=\"vertical-align: middle;\">"
-                           "&nbsp;&nbsp;<span style=\"vertical-align: middle;\">%2</span>")
+    // A one-row TABLE, not inline vertical-align on the <img>: Qt's rich text aligns an
+    // inline image's "middle" to the font's own x-height rather than the true line
+    // centre, which reads as the glyph riding high next to the text. A table cell's
+    // vertical-align is a real box-centre, matching the browser's flex `align-items:
+    // center`; the 8px cell padding mirrors its `gap: 8px` too.
+    toast->setText(QString(
+        "<table cellspacing=\"0\" cellpadding=\"0\" width=\"100%\"><tr>"
+        "<td style=\"vertical-align: middle;\">"
+        "<img src=\"data:image/png;base64,%1\" width=\"16\" height=\"16\"></td>"
+        "<td style=\"vertical-align: middle; padding-left: 8px;\">%2</td>"
+        "</tr></table>")
                        .arg(QString::fromLatin1(png.toBase64()), text.toHtmlEscaped()));
     // The message on its own — text() is now markup wrapping an inline glyph, so anything
     // reading a toast back (the GUI tests) has a plain string to compare.
@@ -146,31 +215,35 @@ namespace stencil::gui {
     // takes ownership) and the animation deletes itself when it stops, so this
     // adds no lifetime bookkeeping to the toast's existing delete-on-timeout.
     auto* fx = new QGraphicsOpacityEffect(toast);
-    fx->setOpacity(0.0);
+    fx->setOpacity(1.0);   // real appearance first — the dust flight grabs this snapshot
     toast->setGraphicsEffect(fx);
     toast->show();
     toast->raise();
     stack_.push_back(toast);
     reflow();
-    auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
-    fadeIn->setDuration(kFadeInMs);
-    fadeIn->setStartValue(0.0);
-    fadeIn->setEndValue(1.0);
-    fadeIn->setEasingCurve(QEasingCurve::OutCubic);
-    fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
-    // …and rises into place while it does (browser parity: the balloon's springy
-    // entrance). Geometry, not a transform — a QLabel has no transform to animate.
     const QRect rest = toast->geometry();
-    auto* riseIn = new QPropertyAnimation(toast, "geometry", toast);
-    // Named so reflow() can find it: a toast that arrives while this one is still rising
-    // restacks it, and an entrance animation left pointing at the OLD slot would drag it
-    // back down there the moment it finished — a burst ended up piled in one place.
-    riseIn->setObjectName("toastRise");
-    riseIn->setDuration(kFadeInMs + 80);
-    riseIn->setStartValue(rest.translated(0, kSlidePx));
-    riseIn->setEndValue(rest);
-    riseIn->setEasingCurve(QEasingCurve::OutBack);
-    riseIn->start(QAbstractAnimation::DeleteWhenStopped);
+    // Sand first; a decline falls back to the plain fade + rise-into-place below.
+    if (auto* overlay = dustToastIn(toast, fx, host_, rest)) {
+      entering_[toast] = overlay;
+    } else {
+      fx->setOpacity(0.0);
+      auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
+      fadeIn->setDuration(kFadeInMs);
+      fadeIn->setStartValue(0.0);
+      fadeIn->setEndValue(1.0);
+      fadeIn->setEasingCurve(QEasingCurve::OutCubic);
+      fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
+      auto* riseIn = new QPropertyAnimation(toast, "geometry", toast);
+      // Named so reflow() can find it: a toast that arrives while this one is still rising
+      // restacks it, and an entrance animation left pointing at the OLD slot would drag it
+      // back down there the moment it finished — a burst ended up piled in one place.
+      riseIn->setObjectName("toastRise");
+      riseIn->setDuration(kFadeInMs + 80);
+      riseIn->setStartValue(rest.translated(0, kSlidePx));
+      riseIn->setEndValue(rest);
+      riseIn->setEasingCurve(QEasingCurve::OutBack);
+      riseIn->start(QAbstractAnimation::DeleteWhenStopped);
+    }
 
     // A named, restartable lifetime timer (not an anonymous singleShot), so the
     // coalescing branch above can extend a standing toast instead of stacking one.
@@ -196,6 +269,7 @@ namespace stencil::gui {
   void Notifications::dismiss(QLabel* toast) {
     if (!toast || toast->property(kLeavingProperty).toBool()) return;
     toast->setProperty(kLeavingProperty, true);
+    entering_.remove(toast);   // no longer entering — reflow() must not chase it anymore
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect());
     if (!fx) {   // no effect to animate (defensive): drop it straight away
       stack_.removeAll(QPointer<QLabel>(toast));
@@ -203,19 +277,21 @@ namespace stencil::gui {
       QTimer::singleShot(0, this, [this] { reflow(); });
       return;
     }
+    // Sand first; a decline falls back to the plain drop-away below.
+    const bool dusted = dustToastOut(toast, host_);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
     fadeOut->setDuration(kFadeOutMs);
     fadeOut->setStartValue(fx->opacity());
     fadeOut->setEndValue(0.0);
     fadeOut->setEasingCurve(QEasingCurve::InCubic);
-    // Drop away as it goes, rather than fading in place — the browser's
-    // .notify-leaving, which deliberately doesn't replay the entrance backwards.
-    auto* dropOut = new QPropertyAnimation(toast, "geometry", toast);
-    dropOut->setDuration(kFadeOutMs);
-    dropOut->setStartValue(toast->geometry());
-    dropOut->setEndValue(toast->geometry().translated(0, kSlidePx));
-    dropOut->setEasingCurve(QEasingCurve::InCubic);
-    dropOut->start(QAbstractAnimation::DeleteWhenStopped);
+    if (!dusted) {
+      auto* dropOut = new QPropertyAnimation(toast, "geometry", toast);
+      dropOut->setDuration(kFadeOutMs);
+      dropOut->setStartValue(toast->geometry());
+      dropOut->setEndValue(toast->geometry().translated(0, kSlidePx));
+      dropOut->setEasingCurve(QEasingCurve::InCubic);
+      dropOut->start(QAbstractAnimation::DeleteWhenStopped);
+    }
     QObject::connect(fadeOut, &QPropertyAnimation::finished, this,
                      [this, toast] {
                        stack_.removeAll(QPointer<QLabel>(toast));
@@ -245,6 +321,11 @@ namespace stencil::gui {
         rise->setStartValue(rest.translated(0, kSlidePx));
         rise->setEndValue(rest);
       } else {
+        // A still-flying entrance cloud was grabbed at the OLD box; drag it along by the
+        // same delta so a burst that bumps this toast to a new slot doesn't strand the
+        // motes at a stale position while the (invisible-till-they-land) widget jumps.
+        const QPoint delta = rest.topLeft() - t->geometry().topLeft();
+        if (QPointer<DisintegrateOverlay> overlay = entering_.value(t)) overlay->retarget(delta);
         t->move(rest.topLeft());
       }
       t->raise();

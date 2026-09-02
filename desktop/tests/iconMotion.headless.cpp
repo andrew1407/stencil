@@ -5,8 +5,9 @@
 //   • the TABLE — every design in the canon is loaded, and every part hook it addresses
 //     really resolves to an element of that glyph in icons.json (the two files are one
 //     contract; a renamed hook must fail here, not silently animate nothing);
-//   • the MEANING — the semantic pins that make this table exist at all: plus GROWS and
-//     minus SHRINKS, the fullscreen corners extend to enter and RETRACT to leave, the
+//   • the MEANING — the semantic pins that make this table exist at all: plus DRAWS
+//     itself (the vertical stroke first, then the horizontal) while minus SHRINKS, the
+//     fullscreen corners extend to enter and RETRACT to leave, the
 //     trash hinges at its lid and never moves the can, download's arrow goes down and
 //     upload's up;
 //   • the CONTRACT — a motion converges on the rest pose, never changes the icon's box
@@ -183,18 +184,22 @@ int main(int argc, char** argv) {
   check(converges, "a settle motion moves, then lands back on the untouched glyph");
 
   // ── The meanings ────────────────────────────────────────────────────────────
-  // plus GROWS and minus SHRINKS. The direction IS the meaning: this pin is the whole
-  // reason the table exists (a swelling minus reads as "increase").
+  // plus DRAWS itself — the vertical stroke first, then the horizontal — and minus
+  // SHRINKS. The sequence/direction IS the meaning: this pin is the whole reason the
+  // table exists (a swelling minus reads as "increase").
   {
     const IconMotionSpec* plus = iconMotionFor(QStringLiteral("plus"));
     const IconMotionSpec* minus = iconMotionFor(QStringLiteral("minus"));
     const QRect p0 = inkBox(frame("plus", *plus, 0));
     const QRect pm = inkBox(frame("plus", *plus, plus->totalMs * 0.45));
     const QRect pe = inkBox(frame("plus", *plus, plus->totalMs));
+    check(p0.isNull(), "plus starts UNDRAWN — no ink before the strokes draw on");
+    check(!pm.isNull() && pm.height() > pm.width() * 2,
+          "mid-play only the VERTICAL stroke is down — drawn first, the way you'd write one");
+    check(!pe.isNull() && std::abs(pe.width() - pe.height()) <= 1 && pe.width() > pm.width() + 10,
+          "…then the horizontal strikes through and the whole cross lands");
     const QRect m0 = inkBox(frame("minus", *minus, 0));
     const QRect mm = inkBox(frame("minus", *minus, minus->totalMs * 0.45));
-    check(pm.width() > p0.width() + 2, "plus GROWS at the peak of its play");
-    check(pe.width() == p0.width(), "…and settles back to its default size");
     check(mm.width() < m0.width() - 2, "minus SHRINKS at the peak of its play");
     check(inkBox(frame("minus", *minus, minus->totalMs)).width() == m0.width(),
           "…and settles back too");
@@ -318,6 +323,9 @@ int main(int argc, char** argv) {
     const int both = inkCount(frame("x", *xs, xs->totalMs));
     check(one > 0 && one < both * 6 / 10,
           "the x draws its first stroke whole before the second one starts");
+    // Desktop draws the cross 1.5× faster than the canonical 270ms/stroke table
+    // (user decision; see iconMotion.hpp): 180 + 180 stagger = 360ms in all.
+    check(xs->totalMs == 360, "the x draw-on runs 1.5x faster than the canonical table");
   }
 
   // The picture DRAWS itself INSIDE its frame. Two things matter: no frame of the play
@@ -424,12 +432,20 @@ int main(int argc, char** argv) {
     hover(btn, false);
     btn->setProperty(kNoIconMotionProperty, false);
 
-    // A disabled control cannot act, so it does not react.
+    // A DISABLED control still reacts (iconMotion.json trigger.disabled). It is still
+    // hovered — Enter/Leave reach a disabled widget, which is how its tooltip shows the
+    // disabled reason at all — and freezing the glyph read as a dead area of the toolbar
+    // rather than as a control that cannot act right now.
     btn->setEnabled(false);
     btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, false, 1.0));
+    const qint64 plusKey = btn->icon().cacheKey();
     hover(btn, true);
-    pumpFor(80);
-    check(btn->icon().cacheKey() == restKey, "a disabled control does not react");
+    check(pumpUntil([&] { return btn->icon().cacheKey() != plusKey; }, 2000),
+          "a greyed control still mimes what it would do");
+    check(pumpUntil([&] { return btn->icon().cacheKey() == plusKey; }, 2000),
+          "…and its settle comes back to the rest glyph");
+    hover(btn, false);
+    btn->setEnabled(true);
     delete btn;
   }
 

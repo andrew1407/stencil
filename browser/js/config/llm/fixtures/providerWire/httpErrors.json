@@ -2,7 +2,7 @@
   {
     "name": "server 503 llmDisabled maps to the typed \"disabled\" error",
     "divergences": {
-      "desktop": "same Disabled kind; the message survives inside the endpoint-tagged error, plus the always-sent model:\"\" body divergence",
+      "desktop": "same Disabled kind and message (unwrapped, no endpoint tag — browser parity); only the always-sent model:\"\" body divergence",
       "bot": "same disabled kind and message; LlmException carries no HTTP status"
     },
     "provider": "server",

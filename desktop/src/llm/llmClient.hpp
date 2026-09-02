@@ -37,13 +37,16 @@ namespace stencil::llm {
   };
 
   // Typed failure so stopReason max_tokens / refusal are surfaced as errors and
-  // NEVER parsed as plans (contract §6.3). Disabled = provider "none"
-  // (assistant off, §5 note) or the server's 503 llmDisabled (no LLM key
-  // configured) — a config state, not a network failure.
+  // NEVER parsed as plans (contract §6.3). Off = provider "none" (assistant off,
+  // §5 note) — browser kind "config", rendered with the Configure-provider CTA
+  // like Transport/Http (choosing a provider IS the fix). Disabled = the
+  // server's 503 llmDisabled (no LLM key configured) — browser kind "disabled",
+  // a plain notice in the server's own words, no CTA: the provider IS
+  // configured, its own operator just hasn't turned the LLM on.
   // Expired: the SERVER PROVIDER refused our session (401/403). Distinct from a
   // generic Http failure so the chat can offer a way back in instead of "the
   // request failed"; a local provider's 401 stays an ordinary Http error.
-  enum class LlmFailure { None, Transport, Http, BadResponse, Truncated, Refusal, Disabled, Expired };
+  enum class LlmFailure { None, Transport, Http, BadResponse, Truncated, Refusal, Disabled, Off, Expired };
 
   struct LlmReply {
     bool ok = false;

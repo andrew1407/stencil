@@ -1,3 +1,4 @@
+#include "../support/modalChrome.hpp"
 #include "../support/searchCombo.hpp"
 #include "llmSettingsForm.hpp"
 #include "connectionStore.hpp"
@@ -26,18 +27,6 @@ namespace stencil::gui {
     constexpr const char* kStatusErrorColor = "#dc3545";
     constexpr const char* kStatusConnectingColor = "#e0a800";
 
-    QString statusHtml(const char* color, const QString& text) {
-      return QStringLiteral("<span style=\"color:%1;\">●</span> %2")
-          .arg(QLatin1String(color), text.toHtmlEscaped());
-    }
-
-    // A muted, slightly-tracked uppercase section header — the browser modal's
-    // .vs-section rendering (same recipe as connectDialog's sectionLabel).
-    QLabel* sectionLabel(const QString& text, QWidget* parent) {
-      auto* l = new QLabel(text.toUpper(), parent);
-      l->setStyleSheet("color: palette(mid); font-weight: 600; letter-spacing: 1px;");
-      return l;
-    }
   }
 
   LlmSettingsForm::LlmSettingsForm(const Settings& current, RowMode mode,
@@ -46,12 +35,40 @@ namespace stencil::gui {
     auto* col = new QVBoxLayout(this);
     col->setContentsMargins(0, 0, 0, 0);
     form_ = new QFormLayout;
+    // Browser .vs-row/.vs-field geometry: labels flush left and the fields
+    // spanning the rest of the row (the modal's inputs run the full width).
+    alignModalForm(form_, /*growFields=*/mode_ == RowMode::HideRows);
+    // The browser rows breathe: a .vs-row is 7px padding + control + 7px + its
+    // hairline (~49px pitch, measured live). The default form spacing packs the
+    // same rows into ~37px, leaving the dialog visibly shorter than the modal.
+    if (mode_ == RowMode::HideRows) form_->setVerticalSpacing(9);
     col->addLayout(form_);
 
     // Browser assistant-modal parity (HideRows hosts only): the fields sit
-    // under the same section headers the modal draws.
+    // under the same section headers the modal draws (.vs-section), and every
+    // row wears the .vs-row hairline under it. Conditional rows hand back their
+    // divider so syncRows hides the pair together.
+    const auto rowDivider = [this]() -> QFrame* {
+      if (mode_ != RowMode::HideRows) return nullptr;
+      auto* d = modalDivider(this);
+      form_->addRow(d);
+      return d;
+    };
+    // Browser parity: the modal's SELECTS hug their content on the row's right
+    // edge (the .accent-dd trigger — measured live: content-sized, right-aligned)
+    // while text fields span. Maximum policy keeps them out of the grow set;
+    // the item alignment pins them right.
+    const auto hugRight = [this](QWidget* w) {
+      w->setSizePolicy(QSizePolicy::Maximum, w->sizePolicy().verticalPolicy());
+      int row = -1;
+      QFormLayout::ItemRole role;
+      form_->getWidgetPosition(w, &row, &role);
+      if (row >= 0)
+        if (QLayoutItem* it = form_->itemAt(row, QFormLayout::FieldRole))
+          it->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    };
     if (mode_ == RowMode::HideRows)
-      form_->addRow(sectionLabel(QStringLiteral("Provider"), this));
+      form_->addRow(modalSectionLabel(QStringLiteral("Provider"), this));
 
     // Provider labels come from the providers.json canon (browser/extension
     // parity). "none" is the local-only assistant-off value (contract §5 note)
@@ -74,6 +91,8 @@ namespace stencil::gui {
         "Where the chat assistant runs: a local Ollama, any OpenAI-compatible "
         "server, or a Stencil collaboration server");
     form_->addRow("Provider", provider_);
+    hugRight(provider_);
+    rowDivider();
 
     baseUrl_ = new QLineEdit(current.llmBaseUrl, this);
     baseUrl_->setObjectName("llmBaseUrl");
@@ -84,6 +103,7 @@ namespace stencil::gui {
             .arg(stencil::llm::defaultLlmBaseUrl("ollama"),
                  stencil::llm::defaultLlmBaseUrl("openai-compat")));
     form_->addRow("Base URL", baseUrl_);
+    baseUrlDiv_ = rowDivider();
 
     // Editable combo: provider-supplied suggestions arrive asynchronously
     // (refreshModels); free-typed text always wins (NoInsert).
@@ -91,24 +111,25 @@ namespace stencil::gui {
     model_->setObjectName("llmModel");
     model_->setEditable(true);
     model_->setInsertPolicy(QComboBox::NoInsert);
-    model_->lineEdit()->setPlaceholderText(
-        "e.g. llama3.2-vision (empty = server default)");
+    model_->lineEdit()->setPlaceholderText("(provider default)");
     model_->setToolTip(
         "Model name; leave empty to use whatever the server serves — pick a "
         "suggestion or type any name");
     model_->setCurrentIndex(-1);
     model_->setEditText(current.llmModel);
     form_->addRow("Model", model_);
+    modelDiv_ = rowDivider();
 
     apiKey_ = new QLineEdit(current.llmApiKey, this);
     apiKey_->setObjectName("llmApiKey");
     apiKey_->setEchoMode(QLineEdit::Password);
-    apiKey_->setPlaceholderText("optional — local servers need none");
+    apiKey_->setPlaceholderText("(optional — most local servers need none)");
     apiKey_->setToolTip(
         "Optional API key, sent as a Bearer token (OpenAI-compatible providers only).\n"
         "Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible\n"
         "services issue keys in their dashboards.");
     form_->addRow("API key", apiKey_);
+    apiKeyDiv_ = rowDivider();
 
     server_ = new SearchComboBox(this, /*searchable=*/false);
     server_->setObjectName("llmServer");
@@ -123,25 +144,43 @@ namespace stencil::gui {
       const int idx = server_->findData(current.llmServerUrl);
       server_->setCurrentIndex(idx >= 0 ? idx : 0);
     }
+    server_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     form_->addRow("Server", server_);
+    hugRight(server_);
+    serverDiv_ = rowDivider();
 
     // Live reachability of the EDITED settings — the dialog-local rendering of
     // the dock gear's status dot, so misconfiguration shows before Save.
-    status_ = new QLabel(this);
-    status_->setObjectName("llmStatus");
-    status_->setTextFormat(Qt::RichText);
-    status_->setWordWrap(true);
-    status_->setToolTip(
+    // Browser #chat-server-status-row: no "Status" label — the coloured dot on
+    // the left, the muted text on the right of the same row (space-between).
+    auto* statusRow = new QWidget(this);
+    statusRow->setObjectName("llmStatusRow");
+    statusRow->setToolTip(
         "Reachability of the provider configured above, re-checked as you "
         "edit (ollama /api/version, OpenAI-compatible /models, Stencil server "
         "/llm/info)");
-    form_->addRow("Status", status_);
+    auto* statusLay = new QHBoxLayout(statusRow);
+    statusLay->setContentsMargins(0, 0, 0, 0);
+    statusLay->setSpacing(8);
+    statusDot_ = new QLabel(statusRow);
+    statusDot_->setObjectName("llmStatusDot");
+    statusDot_->setTextFormat(Qt::RichText);
+    statusLay->addWidget(statusDot_);
+    status_ = new QLabel(statusRow);
+    status_->setObjectName("llmStatus");
+    status_->setWordWrap(true);
+    status_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    statusLay->addWidget(status_, 1);
+    form_->addRow(statusRow);
+    rowDivider();
 
     if (mode_ == RowMode::HideRows)
-      form_->addRow(sectionLabel(QStringLiteral("Chat history"), this));
+      form_->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
 
     // Chat persistence opt-in (llm-contract.md §12): provider-independent,
     // so it gets no per-provider row treatment in syncRows. Ships OFF.
+    // Browser row shape: label on the left, the checkbox pinned to the row's
+    // right edge (.vs-row space-between).
     saveChats_ = new QCheckBox(this);
     saveChats_->setObjectName("llmSaveChats");
     saveChats_->setChecked(current.saveChatsWithProject);
@@ -151,29 +190,35 @@ namespace stencil::gui {
         "never saves.\n\nFor a project on a server the transcript is stored with it, "
         "so everyone that project is shared with can read it. Local projects stay "
         "on this machine.");
-    form_->addRow("Save chats with projects", saveChats_);
+    auto* saveWrap = new QWidget(this);
+    auto* saveLay = new QHBoxLayout(saveWrap);
+    saveLay->setContentsMargins(0, 0, 0, 0);
+    saveLay->addStretch(1);
+    saveLay->addWidget(saveChats_);
+    form_->addRow("Save chats with projects", saveWrap);
+    rowDivider();
     // §12.2 requires the sharing consequence to be visible, not only on hover.
-    auto* saveChatsHint =
-        new QLabel("Server projects: readable by everyone the project is shared with.", this);
+    auto* saveChatsHint = new QLabel(
+        "Chats saved with a server project are <b>readable by everyone the "
+        "project is shared with</b>; local projects stay on this machine.",
+        this);
     saveChatsHint->setObjectName("llmSaveChatsHint");
     saveChatsHint->setWordWrap(true);
-    saveChatsHint->setStyleSheet("color: palette(mid);");
-    form_->addRow(saveChatsHint);
 
     if (mode_ == RowMode::HideRows) {
-      // The browser modal's tinted help note (.chat-cors-note), adapted: the
-      // desktop calls the endpoint over Qt Network so CORS is not its problem —
-      // what matters is that the local server is actually running and reachable.
+      // ONE tinted help note (browser .chat-cors-note; the two boxes merged per
+      // user decision): the §12.2 sharing line, and — for direct providers only —
+      // the local-endpoint line. The desktop calls the endpoint over Qt Network
+      // so CORS is not its problem; being up at the URL is what matters.
       noteBox_ = new QFrame(this);
       noteBox_->setObjectName("llmNoteBox");
-      noteBox_->setStyleSheet(
-          "#llmNoteBox { border: 1px solid palette(highlight); "
-          "border-radius: 6px; background: palette(alternate-base); }");
       auto* noteLay = new QVBoxLayout(noteBox_);
       noteLay->setContentsMargins(10, 8, 10, 8);
+      noteLay->setSpacing(6);
+      noteLay->addWidget(saveChatsHint);
       note_ = new QLabel(
-          QStringLiteral("Local providers must be running and reachable at the URL above "
-                         "(Ollama serves on %1, LM Studio on %2).")
+          QStringLiteral("Local providers must be running at the URL above "
+                         "(Ollama on port %1, LM Studio on %2).")
               .arg(QUrl(stencil::llm::defaultLlmBaseUrl("ollama")).port())
               .arg(QUrl(stencil::llm::defaultLlmBaseUrl("openai-compat")).port()),
           noteBox_);
@@ -181,6 +226,9 @@ namespace stencil::gui {
       note_->setWordWrap(true);
       noteLay->addWidget(note_);
       col->addWidget(noteBox_);
+    } else {
+      saveChatsHint->setStyleSheet("color: palette(mid);");
+      form_->addRow(saveChatsHint);
     }
 
     // Best-effort model suggestions through the shared transport seam: async,
@@ -235,12 +283,19 @@ namespace stencil::gui {
     const bool viaServer = provider == "stencil-server";
     const bool direct = !off && !viaServer;  // called by us over the network
     if (mode_ == RowMode::HideRows) {
-      // Browser parity: irrelevant rows disappear rather than sitting greyed out.
-      form_->setRowVisible(baseUrl_, direct);
-      form_->setRowVisible(model_, !off);
-      form_->setRowVisible(apiKey_, provider == "openai-compat");
-      form_->setRowVisible(server_, viaServer);
-      noteBox_->setVisible(direct);
+      // Browser parity: irrelevant rows disappear rather than sitting greyed out —
+      // each together with its .vs-row hairline.
+      const auto showRow = [this](QWidget* row, QFrame* divider, bool on) {
+        form_->setRowVisible(row, on);
+        if (divider) form_->setRowVisible(divider, on);
+      };
+      showRow(baseUrl_, baseUrlDiv_, direct);
+      showRow(model_, modelDiv_, !off);
+      showRow(apiKey_, apiKeyDiv_, provider == "openai-compat");
+      showRow(server_, serverDiv_, viaServer);
+      // The merged note stays (the §12.2 line always applies); only its
+      // local-endpoint line is provider-conditional.
+      note_->setVisible(direct);
     } else {
       baseUrl_->setEnabled(direct);
       model_->setEnabled(!off);
@@ -282,9 +337,8 @@ namespace stencil::gui {
     // "none" is local-only (contract §5): nothing is probed or sent anywhere.
     if (provider == QLatin1String("none")) {
       ++probeGen_;  // invalidate any probe still in flight
-      status_->setText(statusHtml(
-          kStatusErrorColor,
-          QStringLiteral("Assistant turned off — nothing is sent anywhere")));
+      setStatus(kStatusErrorColor,
+                QStringLiteral("Assistant turned off — nothing is sent anywhere"));
       return;
     }
     stencil::llm::LlmSettings cfg;
@@ -292,8 +346,7 @@ namespace stencil::gui {
     cfg.baseUrl = baseUrl_->text().trimmed();
     cfg.apiKey = apiKey_->text().trimmed();
     cfg.serverUrl = server_->currentData().toString();
-    status_->setText(statusHtml(kStatusConnectingColor,
-                                QStringLiteral("Checking the configured LLM…")));
+    setStatus(kStatusConnectingColor, QStringLiteral("Checking the configured LLM…"));
     const int gen = ++probeGen_;
     QPointer<LlmSettingsForm> self(this);
     client_->probe(cfg, [self, gen](stencil::llm::LlmProbeResult r) {
@@ -305,13 +358,20 @@ namespace stencil::gui {
         // stencil-server /llm/info reports the server-side model — show it, so
         // "server default" stops being a mystery.
         if (!r.model.isEmpty()) text += QStringLiteral(" · %1").arg(r.model);
-        self->status_->setText(statusHtml(kStatusOkColor, text));
+        self->setStatus(kStatusOkColor, text);
       } else {
-        self->status_->setText(statusHtml(
-            kStatusErrorColor,
-            r.detail.isEmpty() ? QStringLiteral("Unreachable") : r.detail));
+        self->setStatus(kStatusErrorColor,
+                        r.detail.isEmpty() ? QStringLiteral("Unreachable") : r.detail);
       }
     });
+  }
+
+  // Paint the status row: the dot carries the state colour, the text stays the
+  // muted .chat-server-status type (browser #chat-server-status-row).
+  void LlmSettingsForm::setStatus(const char* color, const QString& text) {
+    statusDot_->setText(QStringLiteral("<span style=\"color:%1;\">●</span>")
+                            .arg(QLatin1String(color)));
+    status_->setText(text);
   }
 
   void LlmSettingsForm::applyTo(Settings& s) const {

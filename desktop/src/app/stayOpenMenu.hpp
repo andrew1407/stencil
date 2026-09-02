@@ -13,7 +13,14 @@ namespace stencil::gui {
   class StayOpenMenu : public QMenu {
     Q_OBJECT
    public:
-    using QMenu::QMenu;
+    // Own constructors (not `using QMenu::QMenu;`) so every instance gets
+    // WA_TranslucentBackground: theme.cpp styles QMenu with a rounded
+    // border-radius, and without true window transparency a native popup's own
+    // opaque backing paints through as square black wedges outside that rounded
+    // shape — reading as a colder, blacker menu than the browser's DOM-rendered
+    // (already-composited) rounded div ever shows.
+    explicit StayOpenMenu(QWidget* parent = nullptr);
+    explicit StayOpenMenu(const QString& title, QWidget* parent = nullptr);
 
     // Register a hosted widget with LIVE keyboard + mouse input (the assistant
     // chat row): real events are re-dispatched to the child under the cursor,

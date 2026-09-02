@@ -1,5 +1,6 @@
 import { notify, setVal, setRadioGroup, cmToUnit } from '../utils.js';
 import { normalizePageSize } from './units.js';
+import { revealControls } from '../ui/motion.js';
 import { mergeLines } from './layout.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
@@ -169,8 +170,7 @@ export class RemoteSyncController {
     if (n) {
       app.pageSize = n;
       setVal('page-size', n);
-      const cg = document.getElementById('custom-size-group');
-      if (cg) cg.style.display = n === 'custom' ? 'inline-flex' : 'none';
+      revealControls(document.getElementById('custom-size-group'), n === 'custom');
     }
     if (Number.isFinite(layout.customPageWidth)) {
       app.customPageWidth = layout.customPageWidth;

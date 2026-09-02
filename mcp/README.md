@@ -139,7 +139,7 @@ parameter.
 | Surface | Delivery | Needs |
 |---|---|---|
 | `cli` | writes the output file (always implied) | the Stencil CLI |
-| `desktop` | also launches the Qt app showing the result (`stencil_gui --src`) | a built `desktop/` binary |
+| `desktop` | also launches the Qt app showing the result (`stencil --src`) | a built `desktop/` binary |
 | `browser` | also builds (and optionally opens) an editor launch URL with the result loaded | the `browser/` app served |
 | `browser-live` | **delegated** to the [`stencil-operator` agent](../.claude/agents/stencil-operator.md) for live tab driving; still returns a launch URL | Chrome + the served app |
 | `extension` | **delegated** to the `stencil-operator` agent for page scanning; still returns the edited file + URL | Chrome + the extension |
@@ -153,7 +153,7 @@ the resolved default for that one call. Copy [`.env.example`](.env.example) to `
 |---|---|---|
 | `STENCIL_SURFACES` | `cli` | default surfaces (see list form below), e.g. `cli,desktop,browser` |
 | `STENCIL_CLI` | auto-discovered | path to the `stencil` CLI binary |
-| `STENCIL_DESKTOP` | `<repo>/desktop/build/stencil_gui` | path to the Qt desktop binary |
+| `STENCIL_DESKTOP` | `<repo>/desktop/build/stencil` | path to the Qt desktop binary |
 | `STENCIL_BROWSER_URL` | `http://localhost:8080` | base URL of the served editor — only for the browser surfaces, only if not on the default |
 | `STENCIL_AUTO_OPEN` | `false` | open the browser URL with the OS opener (`open`/`xdg-open`) |
 

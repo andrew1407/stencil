@@ -117,37 +117,79 @@ test('chatRowMenuItems: every settled row gets Copy / Insert; user rows add Rese
     ['Copy message', 'Insert into prompt'], 'a stopped turn keeps its menu');
 });
 
-// ── The jump pills yield to the trigger (the reported "no ⋯ on the error card") ──
-test('rowMenuHitsJumps: only an ACTUAL overlap with a shown pill stands the pills down', async () => {
+// ── The trigger yields to the jump pills (the reported "arrows disappear, ⋯ instead") ──
+// The pills are the higher-priority control and stay put; a row's "…" lifts clear of
+// them, or — a bubble too short to lift it to — hides, rather than the old rule
+// (hiding the pills) which the user reported as backwards.
+test('rowMenuLiftPx: the lift clears exactly the overlap, plus the gap', async () => {
   stubDom();
-  const { rowMenuHitsJumps } = await import('../js/ui/chatView.js?rowmenu-jumps');
+  const { rowMenuLiftPx } = await import('../js/ui/chatView.js?rowmenu-jumps');
   // The measured collision from the live repro: the card's trigger under the ⌄ pill.
   const btn = { left: 296, right: 317, top: 181, bottom: 202, width: 21, height: 21 };
   const jumpTop = { left: 263, right: 291, top: 182, bottom: 210, width: 28, height: 28 };
   const jumpBottom = { left: 297, right: 325, top: 182, bottom: 210, width: 28, height: 28 };
-  assert.strictEqual(rowMenuHitsJumps(btn, [jumpTop, jumpBottom]), true);
-  // A user row's trigger sits far left of both — the pills stay.
+  assert.strictEqual(rowMenuLiftPx(btn, [jumpTop, jumpBottom]), Math.ceil(202 - 182) + 6);
+  // A user row's trigger sits far left of both — nothing to clear.
   const userBtn = { left: 153, right: 174, top: 181, bottom: 202, width: 21, height: 21 };
-  assert.strictEqual(rowMenuHitsJumps(userBtn, [jumpTop, jumpBottom]), false);
+  assert.strictEqual(rowMenuLiftPx(userBtn, [jumpTop, jumpBottom]), 0);
   // …and so does a trigger well above the pills' band.
-  assert.strictEqual(rowMenuHitsJumps({ ...btn, top: 40, bottom: 61 }, [jumpTop, jumpBottom]), false);
-  // Nothing hovered / nothing shown / a collapsed rect: never hide them.
-  assert.strictEqual(rowMenuHitsJumps(null, [jumpBottom]), false);
-  assert.strictEqual(rowMenuHitsJumps(btn, []), false);
-  assert.strictEqual(rowMenuHitsJumps(btn, [{ left: 297, right: 297, top: 182, bottom: 182, width: 0, height: 0 }]), false);
+  assert.strictEqual(rowMenuLiftPx({ ...btn, top: 40, bottom: 61 }, [jumpTop, jumpBottom]), 0);
+  // Nothing hovered / nothing shown / a collapsed rect: nothing to lift.
+  assert.strictEqual(rowMenuLiftPx(null, [jumpBottom]), 0);
+  assert.strictEqual(rowMenuLiftPx(btn, []), 0);
+  assert.strictEqual(rowMenuLiftPx(btn, [{ left: 297, right: 297, top: 182, bottom: 182, width: 0, height: 0 }]), 0);
 });
 
-test('the panel feeds the hovered row\'s trigger to the pill test, and a pill hover can\'t hide it', () => {
+test('rowMenuLiftFits: only when the lifted trigger stays inside its own row', async () => {
+  stubDom();
+  const { rowMenuLiftFits } = await import('../js/ui/chatView.js?rowmenu-jumps-fits');
+  const row = { top: 100, bottom: 300 };
+  const btn = { top: 260, bottom: 281 };
+  assert.strictEqual(rowMenuLiftFits(row, btn, 40), true);    // 260-40=220, still >= 100
+  assert.strictEqual(rowMenuLiftFits(row, btn, 200), false);  // 260-200=60, above the row's own top
+  assert.strictEqual(rowMenuLiftFits(row, btn, 0), true);     // nothing to lift, always fits
+  assert.strictEqual(rowMenuLiftFits(null, btn, 40), true);
+  assert.strictEqual(rowMenuLiftFits(row, null, 40), true);
+});
+
+test('the panel feeds the hovered row\'s trigger to the lift, and a pill hover can\'t hide it', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  const sync = panel.slice(panel.indexOf('const syncJumps = () => {'), panel.indexOf('transcript.addEventListener(\'scroll\', syncJumps'));
-  assert.ok(sync.includes('rowMenuHitsJumps(btn, pillRects)'), 'the pure test decides');
-  assert.ok(/can-up[^\n]*!standDown/.test(sync) && /can-down[^\n]*!standDown/.test(sync),
-    'it rides the EXISTING can-up/can-down visibility, no second mechanism');
+  const sync = panel.slice(panel.indexOf('const syncRowMenuLift = () => {'), panel.indexOf('const syncJumps = () => {'));
+  assert.ok(sync.includes('rowMenuLiftPx(btn, pills)'), 'the pure test decides how far');
+  assert.ok(sync.includes('rowMenuLiftFits(hoverRow.getBoundingClientRect(), btn, lift)'),
+    'and the pure test decides whether it fits');
+  assert.ok(sync.includes("setProperty('--row-menu-lift'"), 'a fit writes the CSS var the trigger reads');
+  assert.ok(sync.includes("classList.add('chat-row-menu-yield')"), 'no fit hides it instead');
+  // can-up/can-down answer to the popup-open reason only now — never the row overlap.
+  const jumpsBody = panel.slice(panel.indexOf('const syncJumps = () => {'),
+    panel.indexOf('transcript.addEventListener(\'scroll\', syncJumps'));
+  assert.ok(/const up = [^\n]*!standDown;/.test(jumpsBody) && /const down = [^\n]*!standDown;/.test(jumpsBody));
+  assert.ok(jumpsBody.includes("classList.toggle('can-up', up)")
+    && jumpsBody.includes("classList.toggle('can-down', down)"));
+  assert.ok(!jumpsBody.includes('rowMenuLiftPx') && !jumpsBody.includes('rowMenuHitsJumps'),
+    'the pills no longer stand down for the row overlap reason');
   // Hover tracking is on the transcript, so a cursor on a pill (a sibling that floats
   // OVER it) leaves no row hovered and the pill survives.
   assert.ok(sync.includes(".chat-row-menu-btn'"), 'measured from the hovered row\'s own trigger');
   assert.ok(panel.includes("transcript.addEventListener('mouseover'"));
   assert.ok(panel.includes("transcript.addEventListener('mouseleave'"));
+});
+
+// A LIFTED trigger sits outside its row's own box, so reaching it crosses bare
+// transcript background first — a mouseover with no `.chat-msg` at all. Clearing the
+// lift on THAT (the earlier bug, user report) snapped the trigger back down and out
+// from under the cursor mid-reach; only an actual different row (or a real
+// mouseleave) may change what is hovered.
+test('reaching a lifted trigger never snaps it back: a no-row mouseover is ignored', () => {
+  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const over = panel.slice(panel.indexOf("transcript.addEventListener('mouseover'"),
+    panel.indexOf("transcript.addEventListener('mouseleave'"));
+  assert.match(over, /if \(!row \|\| !transcript\.contains\(row\) \|\| row === hoverRow\) return;/,
+    'no row (or the same one) is a no-op — it does NOT fall through to clearing hoverRow');
+  // The clear only happens once we know we are switching to a REAL different row.
+  const afterGuard = over.slice(over.indexOf('return;') + 'return;'.length);
+  assert.ok(afterGuard.includes('clearRowMenuLift(hoverRow)'));
+  assert.ok(afterGuard.includes('hoverRow = row;'), 'row is non-null past the guard — no `?? null` needed');
 });
 
 // ── Copy ──
@@ -325,7 +367,7 @@ test('the panel and the flyout wire the SHARED row menu with insert + resend hoo
   // label made that comparison mismatch forever, rebuilding the card every repaint).
   // …replaced only when the text changed — OR when the row is settling out of its
   // typing dots, which read as '' and so "match" an empty reply (the stuck spinner).
-  assert.ok(view.includes('} else if (typing || textEl.textContent !== row.text) textEl.textContent = row.text;'),
+  assert.ok(view.includes('} else if (typing || textEl.textContent !== row.text) {'),
     'text nodes are replaced only when the text changed, dots aside');
   // A row menu open over the flyout counts as "engaged" — hover-out must not close it.
   assert.ok(menu.includes('chatRowMenuOpen()'), 'the flyout keep-open predicate consults it');
@@ -519,16 +561,16 @@ test('a chat popup is announced on BOTH edges, and the pills stand down while it
   const clearAt = close.indexOf('rowMenuEl = null;');
   const announceAt = close.indexOf('announcePopup();');
   assert.ok(clearAt > -1 && announceAt > clearAt, 'closed state is visible before the event fires');
-  // The panel reacts to both edges and ORs the two stand-down reasons together.
+  // The panel reacts to both edges: an open popup stands the PILLS down (they are
+  // never hidden by the row-overlap reason any more — that yields the TRIGGER instead).
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  assert.ok(panel.includes('const standDown = chatPopupOpen() || rowMenuHitsJumps(btn, pillRects);'),
-    'the open-popup rule composes with the trigger-overlap rule, it does not replace it');
+  assert.ok(panel.includes('const standDown = chatPopupOpen();'));
   assert.ok(panel.includes('window.addEventListener(CHAT_POPUP_EVENT, syncJumps);'));
   // …and standDown gates BOTH classes, so neither arrow can survive an open menu.
-  assert.ok(/can-up[^\n]*!standDown/.test(panel) && /can-down[^\n]*!standDown/.test(panel));
-  // Nothing latches: the only inputs are the live menu state and the hovered trigger,
-  // so a close restores whatever the scroll position deserves.
-  const sync = panel.slice(panel.indexOf('const syncJumps = () => {'), panel.indexOf('transcript.addEventListener(\'mouseover\''));
+  assert.ok(/const up = [^\n]*!standDown;/.test(panel) && /const down = [^\n]*!standDown;/.test(panel));
+  // Nothing latches: the only inputs are the live menu/pill state and the hovered
+  // trigger, so a close restores whatever the scroll position deserves.
+  const sync = panel.slice(panel.indexOf('const syncRowMenuLift = () => {'), panel.indexOf('transcript.addEventListener(\'mouseover\''));
   assert.ok(!/menuWasOpen|pillsHidden|wasStandDown/.test(sync),
     'no remembered hidden state to get stuck in — it is recomputed every time');
 });

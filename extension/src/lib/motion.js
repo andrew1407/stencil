@@ -409,6 +409,17 @@ export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   return { cols: c, rows: r };
 };
 
+// Re-anchor a still-flying cloud to `el`'s CURRENT box (browser motion.js twin). The
+// host's left/top are pinned once, at launch — a scroll or layout change that moves `el`
+// afterwards leaves the cloud stranded at the old spot. A no-op when `el` owns no cloud.
+export function retargetDust(el) {
+  if (!el?.__dustHost || !el.getBoundingClientRect) return;
+  const r = el.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return;
+  el.__dustHost.style.left = `${r.left}px`;
+  el.__dustHost.style.top = `${r.top}px`;
+}
+
 // Drop the dust layer an element still owns, if any. A superseding open/close calls
 // this, so a double-clicked menu never strands a cloud over the page.
 export function cancelDust(el) {
@@ -422,7 +433,7 @@ export function cancelDust(el) {
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    makeCopy = cloneForTile, perCell = false, gather = false,
                                    toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
-                                   toBody = false, hostClass = '', paintTile = null } = {}) {
+                                   toBody = false, hostEl = null, hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
@@ -504,8 +515,14 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // A SURFACE goes on <body> outright: its own parent (a dialog backdrop) is about to
     // be removed under it, and body is last in tree order, so a clone carrying duplicate
     // ids can never shadow the real thing in getElementById.
-    (toBody ? document.body : (el.parentElement || document.body)).appendChild(host);
-    // …but only if the parent can actually host it: an ancestor with a transform /
+    // `hostEl` is the middle ground a chat entry needs: EVERY bubble rule here is scoped
+    // `#sec-assistant .msg …`, so a body-level clone matched none of them and the motes
+    // came out as bare text with no fill, border or radius — while hosting them in the
+    // transcript itself would put `.msg` clones where everything that walks it (the clear
+    // gate, the reveal observer) reads them as live conversation. The section is inside
+    // the one and outside the other.
+    (toBody ? document.body : (hostEl || el.parentElement || document.body)).appendChild(host);
+    // …but only if that parent can actually host it: an ancestor with a transform /
     // filter / backdrop-filter becomes the containing block for position:fixed, which
     // re-anchors the layer AND lets overflow:hidden clip it away. Detected by MEASURING
     // — if the layer did not land where told, re-home it on <body> (unstyled but visible).
@@ -557,6 +574,145 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
   }, dusted ? wipeDurationMs() : ms));
 }
 
+// ── A chat entry ARRIVES as dust (the mirror of leaveThenRemove) ────────────
+// Browser motion.js twin. A message appearing is a message being deleted, played
+// backwards: the same fine mesh (scatterGridFor), the same flight, flown HOME
+// (reintegrate). The entry itself is HELD BACK for the whole flight — the motes ARE it
+// forming, and fading it up underneath them showed the message first and the animation
+// after, which is the one thing an arrival must not do.
+export const CHAT_ENTER_MS = DISINTEGRATE_MS;
+export const CHAT_ENTERING_CLASS = 'chat-entering';
+
+// Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
+// entry's own layout, frame two is the scroll that follows it (assistant.js scrollDown
+// pins on a rAF). No rAF (node) ⇒ a macrotask, which is still after the caller returns.
+const afterLayout = (fn) => (typeof requestAnimationFrame === 'function'
+  ? requestAnimationFrame(() => requestAnimationFrame(fn))
+  : setTimeout(fn, 0));
+
+// Is `el` a whole entry sitting inside its scroller right now? The cloud is
+// position:fixed, so the transcript does NOT clip it: an entry still below the fold
+// would scatter its motes over the composer under it. Taller than the scroller ⇒ no
+// dust either, for the same reason. Pure enough to unit-test.
+// Shared with trackDust below, which measures each box once per frame.
+const rectInScroller = (r, s) => !!(r && s && r.width > 0 && r.height > 0
+  && r.top >= s.top - 1 && r.bottom <= s.bottom + 1);
+
+export const dustFitsScroller = (el, scroller = el?.parentElement) => {
+  if (!el?.getBoundingClientRect || !scroller?.getBoundingClientRect) return false;
+  return rectInScroller(el.getBoundingClientRect(), scroller.getBoundingClientRect());
+};
+
+// Confine a flying cloud to its SCROLLER. On the desktop the overlay is a real widget, so
+// it paints only inside its own box and a mote can never land on the composer; here the
+// tiles translate freely out of a `overflow: visible` host, so a gather next to the input
+// rained motes across it (reported). The clip is expressed against the host's own border
+// box — negative insets EXPAND it, so a mote may still fly anywhere inside the transcript,
+// just never outside it. Re-applied per frame by trackDust, since both boxes move.
+const dustClipInset = (r, s) => {
+  const px = (n) => `${Math.round(n)}px`;
+  return `inset(${px(s.top - r.top)} ${px(r.right - s.right)} ${px(r.bottom - s.bottom)} ${px(s.left - r.left)})`;
+};
+const clipDustToScroller = (el, scroller = el?.parentElement) => {
+  const host = el?.__dustHost;
+  if (!host || !scroller?.getBoundingClientRect || !el.getBoundingClientRect) return;
+  host.style.clipPath = dustClipInset(el.getBoundingClientRect(), scroller.getBoundingClientRect());
+};
+
+// Keep a flying cloud pinned to its entry until the motes land. The layer is
+// position:fixed at the box measured when it launched, but a transcript SCROLLS under it:
+// scrollDown pins again on a 220ms timer (and a later turn appends more rows), so a
+// cloud left where it started ends up drawn over whatever has since moved into those
+// coordinates — the reported "text appears mid-animation and breaks the UI". Re-anchored
+// per frame; if the entry leaves the scroller entirely the cloud is dropped rather than
+// drawn outside it. Returns a stop function.
+const trackDust = (el, ms, onDrop = () => {}) => {
+  if (typeof requestAnimationFrame !== 'function') return () => {};
+  let raf = 0;
+  let live = true;
+  const started = Date.now();
+  // The box the cloud was photographed at. A tile is a fixed-size clone, so a subject
+  // that RESIZES mid-flight (a wrapped label re-reserving its height, a font finishing
+  // loading, the panel being dragged wider) leaves a cloud that no longer matches the
+  // entry it is standing in for — visibly narrower or shorter than what lands. There is
+  // no re-photographing it, so the stale copy is dropped instead: decoration missing
+  // beats decoration lying.
+  const shot = el.getBoundingClientRect?.();
+  let last = {};   // the anchor/clip already written — an unchanged frame writes nothing
+  const step = () => {
+    if (!live) return;
+    if (Date.now() - started >= ms) return;
+    // Each box measured ONCE per frame; the helpers each re-measured, with host writes
+    // interleaved — one forced layout per frame per flying cloud.
+    const r = el.getBoundingClientRect?.();
+    const s = el.parentElement?.getBoundingClientRect?.();
+    const resized = !r || !shot || Math.abs(r.width - shot.width) > 1 || Math.abs(r.height - shot.height) > 1;
+    // Dropping the cloud must HAND THE ENTRY OVER in the same frame: the veil is lifted
+    // by a timer at the end of the full flight, so a cancel that only killed the motes
+    // left the message invisible with nothing standing in for it until that timer fired.
+    if (!rectInScroller(r, s) || resized) { cancelDust(el); live = false; onDrop(); return; }
+    // Re-anchor + re-clip (retargetDust/clipDustToScroller), reads done, writes batched.
+    const host = el.__dustHost;
+    if (host) {
+      const next = { left: `${r.left}px`, top: `${r.top}px`, clip: dustClipInset(r, s) };
+      if (next.left !== last.left) host.style.left = next.left;
+      if (next.top !== last.top) host.style.top = next.top;
+      if (next.clip !== last.clip) host.style.clipPath = next.clip;
+      last = next;
+    }
+    raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+  return () => { live = false; if (raf) cancelAnimationFrame(raf); };
+};
+
+export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
+  if (!el?.classList || prefersReducedMotion()) return Promise.resolve();
+  const { cols, rows } = scatterGridFor(count, index);
+  // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
+  // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
+  // own motes. Lifted below the moment they land — or at once if none can fly.
+  el.classList.add(CHAT_ENTERING_CLASS);
+  const unveil = () => el.classList.remove(CHAT_ENTERING_CLASS);
+  return new Promise((resolve) => {
+    // Fonts first, when the platform offers the promise: a webfont landing after the
+    // photograph re-wraps the entry and widens it, and the cloud is then visibly the
+    // wrong size for what arrives. Already-loaded fonts resolve this in the same tick,
+    // so only the very first arrival of a session ever waits on it.
+    const ready = globalThis.document?.fonts?.ready;
+    const go = () => afterLayout(() => {
+      // `host` is the caller's ancestor its bubble rules are scoped to (assistant.js
+      // passes its section): outside the transcript, so nothing that walks it sees `.msg`
+      // clones as live conversation (which is exactly why syncClearBtn had to be :scope-d
+      // against the scatter's clones), but still inside the ancestor the rules reach —
+      // on <body> the motes lost their fill, border and radius and arrived as bare text.
+      // Browser parity: there `.chat-msg` is styled standalone, so its cloud can sit on
+      // <body> and still look like the bubble. No host given = the entry's own parent.
+      const flying = cols !== 0 && dustFitsScroller(el)
+        && reintegrate(el, { cols, rows, hostEl: host || el.parentElement || null });
+      if (!flying) { unveil(); resolve(); return; }
+      clipDustToScroller(el);   // before the first frame paints, not after it
+      let handedOver = false;
+      const handOver = () => {
+        if (handedOver) return;   // the cut happens once, whichever path gets there first
+        handedOver = true;
+        unveil();
+        cancelDust(el);
+        resolve();
+      };
+      const stop = trackDust(el, CHAT_ENTER_MS, handOver);
+      setTimeout(() => {
+        // The motes have landed, so the entry takes their place in the SAME frame the
+        // cloud goes. Left to its own grace period the layer holds its finished state —
+        // opaque, at identity — which is an exact second copy over the real entry.
+        stop();
+        handOver();
+      }, CHAT_ENTER_MS);
+    });
+    if (ready?.then) ready.then(go, go); else go();
+  });
+}
+
 
 // ── Surfaces: a menu, a dialog and a mini popup are dust too ────────────────
 // Browser motion.js twin. A modal and the ⋯/context/dropdown popups play the SAME
@@ -573,12 +729,30 @@ export const SURFACE_OUT_MS = 380;
 // half a second forming. Its own, brisker clock — the flight is the same one.
 export const SURFACE_MENU_IN_MS = 340;
 export const SURFACE_MENU_OUT_MS = 220;
+// A hover TIP is brisker still: re-triggered fast mid-sweep, its flight must be over
+// before the next one begins (hoverPreview.js and the chat status tip share this clock;
+// names shared with browser motion.js so the ported modules import them unchanged).
+export const TIP_DUST_IN_MS = 260;
+export const TIP_DUST_OUT_MS = 190;
+// …and wakes on one delay across surfaces (desktop SnappyTooltipStyle, main.cpp).
+export const TIP_SHOW_DELAY_MS = 200;
+
+// The centre of an element (or of a rect): the point a popup's dust belongs to.
+// Null for a detached/unmeasurable owner — the flight then settles instead.
+export const rectCenter = (elOrRect) => {
+  const r = typeof elOrRect?.getBoundingClientRect === 'function'
+    ? elOrRect.getBoundingClientRect() : elOrRect;
+  if (!r || !(r.width > 0 || r.height > 0)) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
 // The grain a mote AIMS for, and the ceiling on how many of them a flight may cost.
 // A window is tens of times a row's area, so the budget is what actually sizes its
 // cells: at 1200 an options dialog came apart into 20px slabs — a mosaic, not sand.
 export const SURFACE_MOTE_PX = 6;
-export const SURFACE_COLS = 60;
-export const SURFACE_ROWS = 40;      // 2400 motes
+export const SURFACE_COLS = 46;
+export const SURFACE_ROWS = 30;      // 1380 motes — a few thousand individually
+                                     // compositor-promoted motes is what read as lag
+                                     // on a big surface (see browser js/ui/motion.js)
 // …and past that ceiling the CELL is bigger than the grain we want, so the speck drawn
 // inside it is capped instead of filling it. What you see is the speck, not the cell.
 export const SURFACE_SPECK_PX = 7;

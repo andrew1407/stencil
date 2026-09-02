@@ -440,7 +440,10 @@ body.on-editor-page #row-highlight { display: none; }
 /* ── AI assistant section (llm-contract.md §8) ──────────────────────────
    Embedded chat at the bottom of the popup / side panel / DevTools panel; the
    message/card/chip styling is scoped under #sec-assistant. */
-#sec-assistant { padding: 8px 12px; background: var(--panel); border-top: 1px solid var(--line); }
+/* No rule off the top edge: it sits directly under Found resources, and with both
+   collapsed the hairline read as a divider between two headers that need none — the
+   section's own heading is the boundary. */
+#sec-assistant { padding: 8px 12px; background: var(--panel); }
 /* Capped, and NOT shrinkable (see the .filters/.list note above): the transcript's own
    max-height bounds the section, and the composer must never be squeezed off the
    bottom of the popup. The list is what yields the space. */
@@ -449,8 +452,41 @@ body.on-editor-page #row-highlight { display: none; }
 .chat-transcript {
   display: flex; flex-direction: column; gap: 8px;
   flex: 1 1 auto; min-height: 56px;
-  max-height: 240px; overflow-y: auto; padding: 2px;
+  max-height: 240px; overflow-y: auto;
+  /* Browser parity: bubbles 10px in, with overflow-x: hidden cropping the decorations
+     that poke past (the tail, the -24px "⋯" trigger) instead of growing a scrollbar. */
+  padding: 2px 10px;
+  overflow-x: hidden;
+  /* Measured for the narrow-column rule below (browser parity: the side panel and
+     DevTools panel resize independently of the popup, so a media query would
+     answer the wrong question). */
+  container-type: inline-size;
+  container-name: chat-transcript;
 }
+/* Jump pills riding the transcript's bottom edge (browser .chat-jumps parity): a
+   zero-height strip right after the transcript anchors them without owning layout,
+   so they float over the log without pushing the composer down. ⌃ = the very
+   beginning, ⌄ = the latest message; each shows only once there is somewhere to go
+   (.can-up / .can-down, toggled from scroll position in assistant.js). */
+#sec-assistant .chat-jumps { position: relative; height: 0; overflow: visible; z-index: 2; }
+#sec-assistant .chat-jump-btn {
+  position: absolute; bottom: 8px; width: 28px; height: 28px; padding: 0;
+  display: none; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2);
+  color: var(--muted); cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+  /* Rest translucent like the row "…" trigger, full opacity under the cursor —
+     the accent fill on hover mirrors the browser's generic button:hover, which the
+     extension has no equivalent of, so it is stated here explicitly. */
+  opacity: .7;
+  transition: opacity .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
+}
+#sec-assistant .chat-jump-btn:hover {
+  opacity: 1; background: var(--accent-2); border-color: var(--accent); color: var(--text);
+}
+#sec-assistant #chat-jump-bottom { right: 14px; }
+#sec-assistant #chat-jump-top { right: 48px; }
+#sec-assistant .chat-jumps.can-up #chat-jump-top,
+#sec-assistant .chat-jumps.can-down #chat-jump-bottom { display: inline-flex; }
 #sec-assistant .msg { position: relative; max-width: 90%; padding: 6px 10px; border-radius: 10px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; cursor: text; }
 /* The per-message right-click menu (assistant.js): .action-menu styling, but its own
    text never selects — pressing an item must not clobber a selection in the bubble —
@@ -459,40 +495,166 @@ body.on-editor-page #row-highlight { display: none; }
 /* Hover-revealed "⋯" on a bubble: same menu as right-click, sitting on the corner
    facing the panel centre. A ghost — absolute, so it never shifts the bubble. */
 .msg-menu-btn {
-  position: absolute; bottom: 0; width: 18px; height: 18px; padding: 0; z-index: 1;
+  /* --menu-lift (assistant.js): pushed up clear of the jump pills when the hovered
+     bubble's trigger would otherwise sit under them — 0px, its normal spot, the rest
+     of the time. */
+  position: absolute; bottom: var(--menu-lift, 0px); width: 18px; height: 18px; padding: 0; z-index: 1;
   display: flex; align-items: center; justify-content: center;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  /* A circle, like the browser's .chat-row-menu-btn (50% on 21px) and the desktop's
+     (border-radius:10px on 21px) — 6px read as a rounded SQUARE at this size. */
+  background: var(--panel); border: 1px solid var(--line); border-radius: 50%;
   color: var(--muted); cursor: pointer; user-select: none;
-  opacity: 0; pointer-events: none; transition: opacity .12s;
+  /* Hittable at rest (browser parity: it never sets pointer-events: none). It is a
+     CHILD of the bubble, so the pointer reaching it keeps `.msg:hover` true — with the
+     events switched off the cursor fell through it, the row un-hovered, and the button
+     vanished from under the cursor before it could be clicked. The delay is the
+     desktop's 220ms grace (chatWidgets.hpp scheduleHide): it holds while the pointer
+     crosses the gap, and the reveal below cancels it on the way in. */
+  opacity: 0; transition: opacity .12s ease .22s;
+}
+/* …and the gap itself is bridged by a transparent extension of the button's own hit
+   area, so crossing it never leaves BOTH the bubble and the button un-hovered. */
+.msg-menu-btn::before {
+  content: ""; position: absolute; top: -3px; bottom: -3px; width: 8px;
 }
 /* Fully beside the bubble (18px button + 6px gap), never overlapping it. */
 .msg-menu-btn.left { left: -24px; }
 .msg-menu-btn.right { right: -24px; }
+.msg-menu-btn.left::before { left: 100%; }    /* the bubble is to its right */
+.msg-menu-btn.right::before { right: 100%; }
 /* Small full-accent glow + a 1px lift — never a background fill. */
 .msg-menu-btn:hover {
   box-shadow: 0 1px 6px var(--accent);
   transform: translateY(-1px);
 }
-/* Reveal on hover-capable pointers only; touch keeps the long-press (contextmenu) path. */
+/* Reveal on hover-capable pointers only; touch keeps the long-press (contextmenu) path.
+   Translucent revealed (browser .chat-row-menu-btn parity) — only the trigger under the
+   cursor goes fully opaque. */
 @media (hover: hover) {
-  #sec-assistant .msg:hover .msg-menu-btn { opacity: 1; pointer-events: auto; }
+  #sec-assistant .msg:hover .msg-menu-btn { opacity: .7; transition-delay: 0s; }
+  #sec-assistant .msg:hover .msg-menu-btn:hover { opacity: 1; }
 }
-#sec-assistant .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
-#sec-assistant .msg.assistant { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+/* The jump pills win: on a bubble too short to lift the trigger clear of them
+   (assistant.js msgMenuLiftFits), the trigger yields and hides instead of sitting
+   under them — never the other way around (desktop/browser parity). */
+.msg-menu-btn.msg-menu-btn-yield { opacity: 0 !important; pointer-events: none !important; }
+#sec-assistant .msg.user {
+  align-self: flex-end;
+  /* Browser .chat-msg-user parity (components.css): a subtle accent-tinted
+     wash with a matching accent-tinted border, not a solid accent fill — the
+     two surfaces read as the same chat, not two different designs (user
+     report). Named so the tail below can reach the SAME colours without
+     repeating the color-mix() expressions — and so
+     #sec-assistant .chat-transcript.chat-swapped only has to flip which
+     corner reads them, never restate them. */
+  --msg-fill: color-mix(in srgb, var(--accent) 14%, var(--panel-2));
+  --msg-border: color-mix(in srgb, var(--accent) 32%, transparent);
+  background: var(--msg-fill); border: 1px solid var(--msg-border); color: var(--text);
+  /* Flattened at the tail's corner — browser .chat-msg-user parity. A partial
+     (3px) radius here left the rounded arc and the tail's straight edge meeting
+     at an angle instead of continuing one line, reading as a torn/notched
+     corner (user report) — only a FULL flatten (0, not just "less round")
+     keeps the two flush. */
+  border-bottom-right-radius: 0;
+}
+#sec-assistant .msg.assistant {
+  align-self: flex-start;
+  --msg-fill: var(--panel-2); --msg-border: var(--line);
+  background: var(--msg-fill); border: 1px solid var(--msg-border);
+  border-bottom-left-radius: 0;   /* the tail's corner — see .msg.user */
+}
 /* Browser .chat-msg-error parity: the theme's danger tone (not a hardcoded red), a
    translucent danger border and a faint danger wash behind it. */
 #sec-assistant .msg.error {
   align-self: flex-start;
+  --msg-border: color-mix(in srgb, var(--danger) 45%, transparent);
+  --msg-fill: rgba(214, 41, 62, .10);                                         /* fallback */
+  --msg-fill: color-mix(in srgb, var(--danger) 10%, var(--panel-2));
   color: var(--danger);
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
-  background: rgba(214, 41, 62, .10);                                         /* fallback */
-  background: color-mix(in srgb, var(--danger) 10%, var(--panel-2));
+  border: 1px solid var(--msg-border);
+  background: var(--msg-fill);
+  border-bottom-left-radius: 0;   /* the tail's corner — see .msg.user */
 }
-/* One-click retry on a failed turn (re-sends the same text). */
-/* The retry sits INSIDE the failed bubble, so it takes that bubble's tone rather than
-   shouting in the accent colour (browser .chat-retry-cta is the same quiet ghost). */
-#sec-assistant .chat-retry { display: flex; align-items: center; justify-content: center; margin-top: 6px; width: 22px; height: 22px; padding: 0; border: 1px solid currentColor; border-radius: 6px; background: none; color: inherit; opacity: .8; cursor: pointer; }
-#sec-assistant .chat-retry:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
+/* ── Message tails: a triangular flag on the BOTTOM edge, at the corner facing the
+   panel centre — user right, assistant/error left. Browser
+   .chat-msg-user::before/::after parity; see components.css for the shape. */
+#sec-assistant .msg.user::before, #sec-assistant .msg.user::after,
+#sec-assistant .msg.assistant::before, #sec-assistant .msg.assistant::after,
+#sec-assistant .msg.error::before, #sec-assistant .msg.error::after {
+  content: ""; position: absolute; border-style: solid;
+}
+/* Which corner is pure membership: right-facing for the user's bubbles (swapped: the
+   assistant/error ones), left-facing for the rest — .chat-swapped only moves a bubble
+   between the two groups. A dust clone (.disintegrate-host, outside the transcript) is
+   never under .chat-swapped, so it keeps the default side, as before. */
+#sec-assistant :is(.msg.user:not(.chat-swapped *), .chat-swapped :is(.msg.assistant, .msg.error))::before {
+  bottom: -1px; right: -10px; border-width: 9px 0 0 9px;
+  border-color: transparent transparent transparent var(--msg-border);
+}
+#sec-assistant :is(.msg.user:not(.chat-swapped *), .chat-swapped :is(.msg.assistant, .msg.error))::after {
+  bottom: 0; right: -8px; border-width: 8px 0 0 8px;
+  border-color: transparent transparent transparent var(--msg-fill);
+}
+#sec-assistant :is(:is(.msg.assistant, .msg.error):not(.chat-swapped *), .chat-swapped .msg.user)::before {
+  bottom: -1px; left: -10px; border-width: 9px 9px 0 0;
+  border-color: transparent var(--msg-border) transparent transparent;
+}
+#sec-assistant :is(:is(.msg.assistant, .msg.error):not(.chat-swapped *), .chat-swapped .msg.user)::after {
+  bottom: 0; left: -8px; border-width: 8px 8px 0 0;
+  border-color: transparent var(--msg-fill) transparent transparent;
+}
+/* ── Swapped sides (assistant.js wireChatSideToggle): the "…" chat-more-menu item
+   between Clear history and Settings. One class on the transcript flips every
+   bubble — alignment (here), tail side (the membership groups above) and the "…"
+   trigger's side (its -24px offset classes are pure positioning). Default (no
+   class) is exactly today's layout. */
+#sec-assistant .chat-transcript.chat-swapped .msg.user {
+  align-self: flex-start;
+  border-bottom-right-radius: 10px; border-bottom-left-radius: 0;
+}
+#sec-assistant .chat-transcript.chat-swapped .msg.assistant,
+#sec-assistant .chat-transcript.chat-swapped .msg.error {
+  align-self: flex-end;
+  border-bottom-left-radius: 10px; border-bottom-right-radius: 0;
+}
+#sec-assistant .chat-transcript.chat-swapped .msg-menu-btn.left { left: auto; right: -24px; }
+#sec-assistant .chat-transcript.chat-swapped .msg-menu-btn.right { right: auto; left: -24px; }
+/* ── Narrow column: same rule as the browser (js/ui/components.css) — below this the
+   split has no room to read as one, so both roles go near-full-width and stack.
+   The popup itself (400px) stays split; only a narrowed side panel/DevTools panel
+   collapses. !important: column mode has no "sides" to swap, so it must outrank the
+   swap rule's higher-specificity selectors above. */
+@container chat-transcript (max-width: 300px) {
+  #sec-assistant .msg.user, #sec-assistant .msg.assistant, #sec-assistant .msg.error {
+    max-width: 96% !important;
+    align-self: flex-start !important;
+  }
+}
+/* One-click retry on a failed turn (re-sends the same text). Browser .chat-hbtn parity:
+   a NEUTRAL ghost glyph even inside the red error bubble — `color: inherit` here used to
+   pull the bubble's --danger red onto the retry icon, which is why it read as red instead
+   of the quiet grey every other surface uses. */
+/* Browser .chat-retry-cta parity: no fill on hover, just its own muted glyph colour
+   traced as a thin outline — a panel-2 fill read as a stray dark square on the error
+   card's danger wash (user report). Border reserved at rest so hover costs no shift. */
+#sec-assistant .chat-retry { display: flex; align-items: center; justify-content: center; margin-top: 6px; width: 22px; height: 22px; padding: 0; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; }
+#sec-assistant .chat-retry:hover { background: transparent; border-color: var(--muted); color: var(--muted); }
+/* "Configure provider" (assistant.js addConfigureCta): browser .chat-config-cta parity —
+   a labelled pill above the icon-only Retry, shown only when the PROVIDER itself is the
+   problem (unreachable/unconfigured). Solid accent on hover, not a lighter fill: a lighten
+   reads as washed-out on a pill this small (the browser's own fix for the same button). */
+#sec-assistant .chat-config-cta {
+  /* Overrides .btn-icon-text's inline-flex (inline outer display, so it would sit
+     beside the preceding text, overlapping it): a block flex row, same reasoning as
+     .chat-retry above, so it lands on its own line under the message. width:max-content
+     keeps it sized to its own label instead of a block box's default of filling the
+     bubble — the button, not the whole width, is what should look pressable. */
+  display: flex; align-items: center; width: max-content; max-width: 100%;
+  margin-top: 6px; padding: 6px 9px; gap: 7px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer;
+}
+#sec-assistant .chat-config-cta:hover { box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 55%, transparent); }
 #sec-assistant .msg.note { align-self: center; color: var(--muted); font-size: 11px; background: none; padding: 0 10px; }
 /* The in-flight bubble carries only the dots, so it sizes to them (browser parity). */
 #sec-assistant .msg.typing-row { display: inline-flex; align-items: center; min-height: 22px; }
@@ -649,8 +811,45 @@ body.on-editor-page #row-highlight { display: none; }
   position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%;
   background: var(--muted); border: 1px solid rgba(255, 255, 255, .63); pointer-events: none;
 }
-#sec-assistant .chat-status-dot.ok { background: #2e9e4f; }
-#sec-assistant .chat-status-dot.bad { background: #d6293e; }
+#sec-assistant .chat-status-dot.ok { background: var(--ok); }
+#sec-assistant .chat-status-dot.bad { background: var(--danger); }
+/* The … trigger's rich status tooltip (assistant.js gearTip): a themed TABLE — label
+   column muted, status cell coloured by state — plus a pre-line footer, fixed-positioned
+   above the trigger. Browser .chat-status-tip parity (browser/css/components.css):
+   same accent-outlined card #app-tooltip already uses here, not the plain flat lines the
+   generic controlTooltip.js prints a `title` as. Unscoped like #app-tooltip: appended to
+   <body>, outside #sec-assistant. */
+.chat-status-tip {
+  position: fixed;
+  z-index: 100003;
+  max-width: 320px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.chat-status-tip.visible { opacity: 1; }
+/* Once the real motes have flown (lib/motion.js surfaceIn/surfaceOut), the plain fade
+   steps aside for good — same reasoning as #app-tooltip.dust-driven above — so it can
+   never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+.chat-status-tip.dust-driven { transition: none; }
+.chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
+.chat-status-tip th {
+  text-align: left; font-weight: 500; color: var(--muted); padding-right: 12px;
+  vertical-align: top; white-space: nowrap;
+}
+.chat-status-tip td { color: var(--text); word-break: break-word; }
+.chat-status-tip td.chat-status-ok { color: var(--ok); }
+.chat-status-tip td.chat-status-error { color: var(--danger); }
+.chat-status-tip td.chat-status-connecting { color: var(--yellow); }
+.chat-status-tip-foot {
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--muted); white-space: pre-line;
+}
 #sec-assistant .chat-more-wrap > .chat-clear { position: relative; }
 /* Composer overflow: only Send stays inline, the rest sit behind the … button. */
 #sec-assistant .chat-more-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
@@ -667,7 +866,9 @@ body.on-editor-page #row-highlight { display: none; }
   font-size: 12px; text-align: left; cursor: pointer;
 }
 #sec-assistant .chat-more-item:hover:not(:disabled) { background: var(--accent); color: #fff; }
-#sec-assistant .chat-more-item:disabled { opacity: .5; cursor: default; }
+/* An inapplicable item (nothing to clear, attach paused mid-turn) leaves the menu
+   instead of greying out — browser/desktop parity. */
+#sec-assistant .chat-more-item:disabled { display: none; }
 /* Transcript entries ride the shared scroll reveal (lib/animations.css), which
    covers the entrance AND the scroll — an `animation: … both` end state here
    would out-rank the reveal's transform (browser parity). */

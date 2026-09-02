@@ -7,25 +7,30 @@
 
 class QTableWidget;
 class QLabel;
-class QSpinBox;
-class QComboBox;
 class QPushButton;
 class QToolButton;
-class QCheckBox;
 class QWidget;
 class QTabWidget;
+class QTabBar;
 class QListWidget;
 
-// Side panel listing the selected line's points and its measurements (point
-// count, segment count, total length) AND an inline editor for the selected
-// line's style (color, thickness, point size, dash style, locked-area fill).
-// Port of browser/js/ui/selectionPanel.js (markup) +
-// browser/js/core/drawingApp.js showSelectionPanel/applySelectionChange wiring.
+// Side panel listing the selected line's points and its measurements (point count,
+// segment count, total length), plus a flat list of every committed line. Port of
+// browser/js/ui/selectionPanel.js's coordinate table + #lines-list. The inline "Selected
+// Line:" style editor is SelectedLineBar (a bar above the canvas, browser parity with
+// #selection-panel) — not this dock.
 namespace stencil::gui {
 
   class SelectionPanel : public QDockWidget {
     Q_OBJECT
    public:
+    // One point's page coordinates, already formatted in the app's current unit — X and Y
+    // as their own columns, mirroring the browser's `X cm` / `Y cm` pair (coordTable.js).
+    struct PageRow {
+      QString x;
+      QString y;
+    };
+
     explicit SelectionPanel(QWidget* parent = nullptr);
 
     // Re-tint the panel's line-art button icons (trash / x) to the active theme
@@ -33,20 +38,18 @@ namespace stencil::gui {
     // like the toolbar icons (MainWindow::styleActionIcons).
     void restyleIcons(const QColor& iconColor);
 
-    // Refresh from the currently selected line (nullptr = nothing selected) and
-    // which point within it is focused (-1 = none). cmRows carries the per-point
-    // page (cm) coordinates already run through MainWindow's pageCoords converter
-    // (so formulas + custom page apply identically to the status bar / tooltip);
-    // mirrors browser/js/core/coordTable.js, which shows px AND cm per point. An
-    // empty cmRows (e.g. no image yet) falls back to px-only rows.
-    // `line` drives the always-on points/coord table (browser coordTable.js,
-    // shown whenever any line exists). `editorLine` gates AND populates the
-    // inline editor (selectionPanel.js #selectionPanel), which the browser
-    // reveals only on an explicit selection — pass canvas selectedLine() (null
-    // when selectedLineIdx_ < 0) so the editor stays hidden for a mere fallback
-    // line and its controls never silently no-op.
-    void showLine(const core::Line* line, const core::Line* editorLine,
-                  int selectedPoint, const std::vector<QString>& cmRows = {});
+    // Refresh from the currently shown line (browser coordTable.js, shown whenever any
+    // line exists — panelLine(), not necessarily the selection) and which point within it
+    // is focused (-1 = none). pageRows carries the per-point page (cm) coordinates already
+    // run through MainWindow's pageCoords converter (so formulas + custom page apply
+    // identically to the status bar / tooltip); mirrors browser/js/core/coordTable.js,
+    // which shows px AND cm per point. An empty pageRows (e.g. no image yet) falls back
+    // to px-only rows.
+    void showLine(const core::Line* line, int selectedPoint,
+                  const std::vector<PageRow>& pageRows = {});
+    // Relabel the two page columns for the app's unit ("cm" / "in" / …) — the browser
+    // rewrites the same two ths on every unit change (drawingApp.js updateUnitLabels).
+    void setUnitLabel(const QString& label);
     // Show/hide the "N lines selected" multi-select note (n >= 2 shows it).
     void setMultiSelectCount(int n);
     // Rebuild the "Lines" tab list — one row per committed line (color chip, index, point
@@ -78,17 +81,6 @@ namespace stencil::gui {
     // canvas's setPointCoord (mirrors browser coordTable.js double-click-to-edit).
     void pointCoordChanged(int index, int axis, double value);
 
-    // Inline-editor signals — MainWindow forwards these to the canvas's
-    // setSelectedLine* mutators (browser/js/core/drawingApp.js:181-195).
-    void lineColorChanged(const QString& color);
-    // Point colour of the selected line, set independently of lineColorChanged.
-    void linePointColorChanged(const QString& pointColor);
-    void lineThicknessChanged(int thickness);
-    void linePointSizeChanged(int pointSize);
-    void lineStyleChanged(const QString& style);
-    void lineFillChanged(const QString& fillColor);  // "transparent" = no fill
-    void lineDeleteRequested();
-    void deselectRequested();
     // The header chevron was clicked → MainWindow slides the panel closed (browser #toggle-coord-panel).
     void collapseRequested();
 
@@ -99,40 +91,24 @@ namespace stencil::gui {
     void showEvent(QShowEvent* event) override;
 
    private:
-    // Re-paint a flat color chip onto a swatch button's icon (mirrors the
-    // toolbar's MainWindow::updateColorSwatch; browser uses <input type=color>).
-    void setSwatchColor(QPushButton* btn, const QColor& color);
     // Apply row `i`'s Lines-tab style: selected outline > canvas-hover tint > plain.
     void styleLineRow(int i);
+    // Write the column headers, page columns included, for the current unit.
+    void applyUnitHeaders();
+    // The browser's "No points yet." row — one italic line across the whole table.
+    void showEmptyPoints();
 
     QToolButton* collapseBtn_ = nullptr;  // header chevron: hide the panel (browser panel header)
-    QTabWidget* tabs_ = nullptr;     // Points | Lines
+    // The Points | Lines strip, which lives in the HEADER row beside the chevron (browser
+    // .coord-panel-header) — `tabs_` keeps the pages and hides its own bar.
+    QTabBar* tabBar_ = nullptr;
+    QTabWidget* tabs_ = nullptr;     // Points | Lines pages
+    QString unitLabel_{"cm"};        // what the two page columns are headed with
     QTableWidget* points_ = nullptr;
     QListWidget* lines_ = nullptr;   // Lines tab: one row per committed line
     QLabel* multiLabel_ = nullptr;   // "N lines selected" note (multi-select mode)
     QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
-
-    // Inline line editor (above the points list). Browser selectionPanel.js
-    // ids: selColor / selThickness / selPointSize / selStyle / selFillGroup /
-    // selFillEnabled / selFill / selFillClear / selDeselect.
-    QWidget* editor_ = nullptr;
-    QPushButton* colorSwatch_ = nullptr;   // selColor
-    QPushButton* pointColorSwatch_ = nullptr;   // selPointColor
-    QSpinBox* thickness_ = nullptr;        // selThickness   (1..20)
-    QSpinBox* pointSize_ = nullptr;       // selPointSize  (1..30)
-    QComboBox* style_ = nullptr;           // selStyle
-    QWidget* fillGroup_ = nullptr;         // selFillGroup (locked areas only)
-    QCheckBox* fillEnabled_ = nullptr;     // selFillEnabled
-    QPushButton* fillSwatch_ = nullptr;    // selFill
-    QPushButton* fillClear_ = nullptr;     // selFillClear
-    QPushButton* deleteLine_ = nullptr;    // delete the selected line
-    QPushButton* deselectBtn_ = nullptr;   // selDeselect
-
-    QColor currentColor_{"#FFFF00"};       // backing for colorSwatch_
-
-    QColor currentPointColor_{"#FFFF00"};
-    QColor currentFill_{"#3399ff"};        // backing for fillSwatch_
-    bool updating_ = false;                // suppress signals during showLine
+    bool updating_ = false;        // suppress itemChanged while showLine repopulates
 
     // Canvas-driven hover rows (setCanvasHover) + the Lines-tab selection snapshot
     // styleLineRow needs to restyle a single row without a full rebuild.

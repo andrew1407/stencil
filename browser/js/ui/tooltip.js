@@ -1,10 +1,17 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { surfaceIn, surfaceOut, settleSurface } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, TIP_SHOW_DELAY_MS } from './motion.js';
 import { cmToUnit, unitLabel } from '../utils.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Owns its dynamically-filled DOM and the show/hide/position logic.
 export class StencilTooltip extends StencilElement {
   app = null;
+
+  // The shared tooltip wake-up delay (motion.js; controlTooltip.js rides it too).
+  static SHOW_DELAY_MS = TIP_SHOW_DELAY_MS;
+  showTimer = null;       // pending reveal, armed while the delay is running
+  pendingKey = null;      // the target it's armed for
+  pendingReveal = null;   // …and how to actually show it, once the delay elapses
+  shownKey = null;        // the target CURRENTLY on screen (or about to be, mid-timer)
 
   static inner() { return ''; } // content is rendered on demand by show()/showLine()
   static template() { return hostTag('stencil-tooltip', 'id="tooltip" class="tooltip"', StencilTooltip.inner()); }
@@ -19,7 +26,9 @@ export class StencilTooltip extends StencilElement {
 
   // Shared tooltip decision — used by mousemove and by Shift/Ctrl key-refresh
   // so the tooltip updates the instant a modifier is pressed (no need to re-hover).
-  applyHover(clientX, clientY, x, y, mods) {
+  // `immediate` skips the reveal delay: refresh() passes it, because a modifier changing
+  // what's shown for the SAME hover is a live update, not a fresh hover to wait out.
+  applyHover(clientX, clientY, x, y, mods, immediate = false) {
     if (mods.altKey) {
       this.hide();
       return;
@@ -31,7 +40,7 @@ export class StencilTooltip extends StencilElement {
     const visible = (px, py) => this.app.compareShowsPoint(px, py);
     // Ctrl held → show the live cursor-position coordinates
     if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) {
-      if (visible(x, y)) this.show(clientX, clientY, x, y);
+      if (visible(x, y)) this.scheduleShow('coords', () => this.show(clientX, clientY, x, y), immediate);
       else this.hide();
       return;
     }
@@ -39,15 +48,19 @@ export class StencilTooltip extends StencilElement {
     if (point) {
       // The POINT's own coordinates decide: one just across the divider from the
       // pointer is not visible, however close the cursor is to it.
-      if (visible(point.x, point.y)) this.show(clientX, clientY, point.x, point.y);
-      else this.hide();
+      if (visible(point.x, point.y)) {
+        this.scheduleShow(`point:${point.x}:${point.y}`,
+          () => this.show(clientX, clientY, point.x, point.y), immediate);
+      } else this.hide();
       return;
     }
     const lineIdx = this.app.findLineAt(x, y);
     // A line is hit-tested AT the cursor, so the cursor is the part of it being pointed
     // at — a line straddling the divider answers for its visible half only.
-    if (lineIdx !== -1 && visible(x, y)) this.showLine(clientX, clientY, this.app.lines[lineIdx], mods.shiftKey);
-    else this.hide();
+    if (lineIdx !== -1 && visible(x, y)) {
+      this.scheduleShow(`line:${lineIdx}:${mods.shiftKey}`,
+        () => this.showLine(clientX, clientY, this.app.lines[lineIdx], mods.shiftKey), immediate);
+    } else this.hide();
   }
 
   // Re-run the tooltip logic at the last known cursor position with given modifiers.
@@ -55,9 +68,41 @@ export class StencilTooltip extends StencilElement {
   refresh(mods) {
     if (!this.app.mouseOverCanvas || !this.app.image) return;
     if (this.app.isPanning || this.app.isDraggingPoint || this.app.isDraggingSegment ||
-        this.app.isDraggingLine || this.app.isZoomRectDragging || this.app.isRectDrawDragging) return;
+        this.app.isDraggingLine || this.app.isZoomRectDragging || this.app.isRectDrawDragging ||
+        this.app.input.holdEngaged) return;
     const { x, y } = this.app.canvasCoords(this.app.lastMouseClientX, this.app.lastMouseClientY);
-    this.applyHover(this.app.lastMouseClientX, this.app.lastMouseClientY, x, y, mods);
+    this.applyHover(this.app.lastMouseClientX, this.app.lastMouseClientY, x, y, mods, /* immediate */ true);
+  }
+
+  // Debounces the reveal by the target hovered, not by the mouse event: a target change
+  // re-arms the delay, but the SAME target just feeds fresher content/position.
+  // `immediate` (keyboard refresh) skips the wait outright.
+  scheduleShow(key, revealFn, immediate) {
+    if (immediate) {
+      clearTimeout(this.showTimer);
+      this.showTimer = null;
+      this.pendingKey = null;
+      this.pendingReveal = null;
+      this.shownKey = key;
+      revealFn();
+      return;
+    }
+    if (this.shownKey === key) { revealFn(); return; }
+    if (this.pendingKey === key) { this.pendingReveal = revealFn; return; }
+    // A different target: if one is actually ON SCREEN, take it down (dust and all) —
+    // otherwise nothing has appeared yet, so there's only a timer to drop, not a hide.
+    if (this.shownKey != null) this.hide();
+    else { clearTimeout(this.showTimer); this.showTimer = null; }
+    this.pendingKey = key;
+    this.pendingReveal = revealFn;
+    this.showTimer = setTimeout(() => {
+      this.showTimer = null;
+      this.shownKey = this.pendingKey;
+      this.pendingKey = null;
+      const fn = this.pendingReveal;
+      this.pendingReveal = null;
+      fn?.();
+    }, StencilTooltip.SHOW_DELAY_MS);
   }
 
   show(clientX, clientY, x, y) {
@@ -166,8 +211,8 @@ export class StencilTooltip extends StencilElement {
   static OUT_MS = 170;
   dust(clientX, clientY, enter) {
     const point = { x: clientX, y: clientY };
-    if (enter ? !surfaceIn(this, point, { ms: StencilTooltip.IN_MS })
-              : !surfaceOut(this, point, { ms: StencilTooltip.OUT_MS })) settleSurface(this);
+    (enter ? surfaceIn : surfaceOut)(this, point,
+      { ms: enter ? StencilTooltip.IN_MS : StencilTooltip.OUT_MS });
   }
 
   // Reveal at `clientX/Y`, playing the gather only when it was not already showing.
@@ -193,6 +238,13 @@ export class StencilTooltip extends StencilElement {
   }
 
   hide() {
+    // Drop the reveal delay along with the box — a target abandoned mid-wait must not
+    // pop in late, describing whatever the cursor has since moved on to.
+    clearTimeout(this.showTimer);
+    this.showTimer = null;
+    this.pendingKey = null;
+    this.pendingReveal = null;
+    this.shownKey = null;
     // The box goes NOW; the cloud it leaves behind owns its own lifetime.
     if (this.style.display === 'block') {
       const r = this.getBoundingClientRect?.();

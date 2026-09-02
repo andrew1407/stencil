@@ -154,10 +154,16 @@
   <div class="fsection collapsed" id="sec-assistant">
     <div class="section-head" role="button" tabindex="0" aria-expanded="false">
       <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      <span class="dlbl">Assistant</span>
+      <span class="dlbl">Assistant chat</span>
     </div>
     <div class="section-body">
       <div id="chat-transcript" class="chat-transcript" aria-live="polite"></div>
+      <!-- Scroll-to-top / scroll-to-latest, riding the transcript's bottom edge (browser
+           .chat-jumps parity) — shown only once there is somewhere to jump to. -->
+      <div class="chat-jumps" id="chat-jumps">
+        <button id="chat-jump-top" class="chat-jump-btn" aria-label="Jump to the beginning" data-title="Jump to the beginning"></button>
+        <button id="chat-jump-bottom" class="chat-jump-btn" aria-label="Jump to the latest message" data-title="Jump to the latest message"></button>
+      </div>
       <!-- Pending dropped attachments (thumbnail + analyze badge + remove); ride the next send. -->
       <div id="chat-tray" class="chat-tray" hidden></div>
       <div class="chat-composer">
@@ -165,10 +171,11 @@
         <button id="chat-send" aria-label="Send" class="chat-send" data-title="Send"></button>
         <!-- Only Send stays inline; attach / clear / settings live behind the … -->
         <span class="chat-more-wrap">
-          <button id="chat-more-btn" aria-label="More" class="chat-clear" aria-haspopup="true" aria-expanded="false" data-title="More — attach, clear, settings"><span id="chat-status-dot" class="chat-status-dot"></span></button>
+          <button id="chat-more-btn" aria-label="More actions" class="chat-clear" aria-haspopup="true" aria-expanded="false"><span id="chat-status-dot" class="chat-status-dot"></span></button>
           <span class="chat-more-menu" id="chat-more-menu" hidden>
             <button id="chat-attach-btn" class="chat-more-item" data-title="Attach an image">Add image</button>
             <button id="chat-clear" class="chat-more-item" data-title="Clear the conversation">Clear history</button>
+            <button id="chat-swap-sides" class="chat-more-item" data-title="Swap which side user and assistant messages sit on">Swap message sides</button>
             <button id="chat-open-options" class="chat-more-item" data-title="Assistant settings">Settings</button>
           </span>
         </span>

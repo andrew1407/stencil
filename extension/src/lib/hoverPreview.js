@@ -2,6 +2,16 @@
 // One shared card per surface: debounced so a sweep across rows doesn't strobe cards,
 // token-guarded so a pointer that moves on beats a slow fetch, and a tiny-source memo so
 // a thumbnail-sized image never flashes an empty card twice. Extracted from popup.js.
+//
+// ── The card is sand too (lib/motion.js surfaceIn/surfaceOut) ───────────────
+// It forms from motes streaming out of the row it previews and comes apart into motes
+// pouring back into it, like every other overlay in the extension. Its own, short clock
+// (lib/controlTooltip.js's own precedent): a sweep across rows re-triggers it fast, so a
+// flight has to be over before the next row's begins — and an UPGRADE (the small source
+// swapped for the fetched/decoded one) replays the same gather rather than snapping.
+import {
+  surfaceIn, surfaceOut, settleSurface, centerOf, TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
+} from './motion.js';
 
 const GAP = 12;
 
@@ -47,6 +57,7 @@ export const createHoverPreview = ({
   let showTimer = null;
   let anchor = null;      // the row the card is anchored to (repositioned on late size)
   let token = 0;          // drops a stale async fetch when the pointer moves on
+  let dustPoint = null;   // the row's own centre — the card's dust origin/destination
 
   // The preview only fires once the pointer SETTLES on a row for a beat.
   const schedule = (fn) => {
@@ -72,18 +83,43 @@ export const createHoverPreview = ({
     return dataUrl;
   };
 
+  // Dust the card out and hide it — the cloud is what it leaves behind, so it is
+  // photographed while still the box on screen, not after. A card that was never
+  // shown (the tiny/undecodable bail-outs below) just goes, nothing to leave behind.
+  const dustHide = () => {
+    if (!previewEl.hidden && dustPoint) {
+      if (!surfaceOut(previewEl, dustPoint, { ms: TIP_DUST_OUT_MS })) settleSurface(previewEl);
+    } else settleSurface(previewEl);
+    previewEl.hidden = true;
+    dustPoint = null;
+  };
+
+  // Reveal the card beside `el` — the row's centre becomes the dust origin/destination.
+  // Returns whether this was a fresh show (the only edge that flies — see dustIn).
+  const revealAt = (el) => {
+    const wasHidden = previewEl.hidden;
+    dustPoint = centerOf(el);
+    previewEl.hidden = false;
+    position(el);
+    return wasHidden;
+  };
+  // Gather the card from the dust point, settling instantly when the flight declines.
+  const dustIn = () => {
+    if (!surfaceIn(previewEl, dustPoint, { ms: TIP_DUST_IN_MS })) settleSurface(previewEl);
+  };
+
   // Reposition once the real dimensions are known; hide when the bytes turn out no
   // bigger than the row thumbnail (nothing to reveal) or won't decode.
   previewImg.addEventListener('load', () => {
     if (previewImg.naturalWidth > 0 && previewImg.naturalWidth <= thumbPx &&
         previewImg.naturalHeight > 0 && previewImg.naturalHeight <= thumbPx) {
       if (srcKey) tiny.add(srcKey);
-      previewEl.hidden = true;
+      dustHide();
       return;
     }
     if (anchor) position(anchor);
   });
-  previewImg.addEventListener('error', () => { previewEl.hidden = true; });
+  previewImg.addEventListener('error', dustHide);
 
   // Hide the card. A drag started from a thumbnail suppresses its mouseleave — which
   // would pin the card over the panel for the whole drag — so the owner also wires this
@@ -92,7 +128,7 @@ export const createHoverPreview = ({
     clearTimeout(showTimer);   // a pending debounced show must not fire late
     token++;                   // cancel any in-flight fetch for this row
     anchor = null;
-    previewEl.hidden = true;
+    dustHide();
   };
 
   // The magnifier for a source that is ALREADY bytes (an editor row's canvas capture):
@@ -104,14 +140,15 @@ export const createHoverPreview = ({
       anchor = el;
       srcKey = '';   // canvas captures are transient — never memo them as tiny
       previewImg.src = small;
-      previewEl.hidden = false;
-      position(el);
+      if (revealAt(el)) dustIn();
       if (typeof bigger !== 'function') return;
       let big = '';
       try { big = await bigger(); } catch { big = ''; }
       if (!big || t !== token) return;
       previewImg.src = big;
       position(el);
+      // The upgrade is a genuine content swap — replay the gather rather than snap.
+      dustIn();
     }));
     el.addEventListener('mouseleave', hide);
   };
@@ -137,14 +174,16 @@ export const createHoverPreview = ({
       const nw = previewImg.naturalWidth;
       const nh = previewImg.naturalHeight;
       if (nw > 0 && nh > 0 && nw <= thumbPx && nh <= thumbPx) { tiny.add(ps); return; }
-      previewEl.hidden = false;
-      position(el);
+      const wasHidden = revealAt(el);
       // A 0×0-intrinsic SVG can render collapsed — hide the bare padding pill.
       const box = previewImg.getBoundingClientRect();
       if (box.width < 24 || box.height < 24) {
         previewEl.hidden = true;
+        dustPoint = null;
         tiny.add(ps);
+        return;
       }
+      if (wasHidden) dustIn();
     }));
     el.addEventListener('mouseleave', hide);
   };

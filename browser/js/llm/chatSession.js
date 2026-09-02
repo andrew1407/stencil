@@ -301,10 +301,12 @@ export const replyWithWarnings = (entry) => {
 export const EMPTY_REPLY_TEXT = 'The model returned an empty answer — nothing was changed. Retry, or switch to a larger model.';
 export const settledReplyText = (entry) => replyWithWarnings(entry).trim() || EMPTY_REPLY_TEXT;
 
-// "Couldn't reach <provider> at <host> — is it running? (<why>)" — shown when the
-// transport fails (or the assistant is off). An endpoint that ANSWERED with an error
-// (err.answered) is quoted in its own words instead — the server is clearly up, and the
-// endpoint is a label on that reason, not a second sentence (§6.3 "Say the reason once").
+// "Couldn't reach <provider> at <host> (<why>)" — shown when the transport fails (or the
+// assistant is off). An endpoint that ANSWERED with an error (err.answered) is quoted in
+// its own words instead — the server is clearly up, and the endpoint is a label on that
+// reason, not a second sentence (§6.3 "Say the reason once"). No "— is it running?": a
+// rhetorical question adds nothing the user can act on and pads the one line that has to
+// carry the actual reason.
 export const unreachableText = (settings, err) => {
   if (settings?.provider === 'none') return 'The assistant is turned off — choose a provider to enable it.';
   const name = PROVIDER_LABELS[settings?.provider] || settings?.provider || 'the assistant';
@@ -312,7 +314,7 @@ export const unreachableText = (settings, err) => {
   const at = url ? ` at ${url.replace(/^https?:\/\//i, '')}` : '';
   const why = err?.message ?? String(err ?? '');
   if (err?.answered) return `${name}${at}: ${why}`;
-  return `Couldn't reach ${name}${at} — is it running? (${why})`;
+  return `Couldn't reach ${name}${at} (${why})`;
 };
 
 // Map a failed turn to what the user sees. `kind`:

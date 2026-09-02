@@ -30,7 +30,7 @@ graph LR
 ```
 
 A normal native `cmake` build never enters the Emscripten branch and produces the
-same `stencil_core`, `stencil_tests`, and `stencil_gui` targets; only `emcmake`
+same `stencil_core`, `stencil_tests`, and `stencil` targets; only `emcmake`
 (which defines `EMSCRIPTEN`) builds the wasm module. To rebuild it after editing the
 core, follow *Build the wasm module* below and copy `stencil_core.js` to
 `browser/js/wasm/stencilCore.js`.

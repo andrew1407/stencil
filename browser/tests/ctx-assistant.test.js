@@ -246,9 +246,10 @@ test('attach queues into the shared controller; the gear opens the one settings 
   assert.ok(src.includes('notifyAttachmentsChanged();'), 'the panel row repaints too');
   assert.ok(src.includes('window.addEventListener(CHAT_ATTACHMENTS_EVENT, renderAttachments);'), 'and this one listens back');
   assert.ok(view.includes('attachBtn.disabled = sending || attachFull;'), 'attach pauses mid-turn (and at the queue cap) — the shared control sync');
-  // Gear → close the menu FIRST (a modal behind a popup menu is unusable), then the
-  // panel's own gear opens the single settings modal.
-  assert.match(src, /gearBtn\.addEventListener\('click', \(\) => \{\s*closeMenu\(\);\s*document\.getElementById\('chat-settings-btn'\)\?\.click\(\);/);
+  // Gear → its own rect is captured (this popup is about to hide it) and handed to
+  // the ONE settings modal directly, so it flies from THIS gear, not the panel's.
+  assert.match(src, /gearBtn\.addEventListener\('click', \(\) => \{[\s\S]*?const rect = gearBtn\.getBoundingClientRect\(\);/);
+  assert.match(src, /document\.getElementById\('chat-settings-overlay'\)\?\.__stencilModal\?\.open\(rect\);/);
   // Dot: the shared probe cache first, a probe only if nothing fresh is known.
   assert.ok(src.includes('const known = cachedProbe(settings);'));
   assert.ok(src.includes('.then((probe) => { cacheProbe(settings, probe); setDot(probe); })'));
@@ -744,10 +745,10 @@ test('a successful turn with warnings stays one NON-error assistant row', async 
 test('unreachableText names the provider and its endpoint (host only)', () => {
   assert.strictEqual(
     unreachableText({ provider: 'ollama', baseUrl: 'http://localhost:11434' }, new Error('fetch failed')),
-    "Couldn't reach Ollama at localhost:11434 — is it running? (fetch failed)");
+    "Couldn't reach Ollama at localhost:11434 (fetch failed)");
   assert.strictEqual(
     unreachableText({ provider: 'stencil-server', serverUrl: 'https://srv:8090', baseUrl: 'ignored' }, new Error('401')),
-    "Couldn't reach Stencil server at srv:8090 — is it running? (401)");
+    "Couldn't reach Stencil server at srv:8090 (401)");
   assert.strictEqual(
     unreachableText({ provider: 'none' }, new Error('x')),
     'The assistant is turned off — choose a provider to enable it.');

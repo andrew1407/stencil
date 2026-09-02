@@ -14,34 +14,54 @@ import { icon } from '../lib/icons.js';
 import { guessKindFromUrl } from '../lib/dragUrl.js';
 import { isAllowedImageUrl } from '../lib/urlGuard.js';
 import { loadLlmSettings, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
-import { createLlmClient, LlmError, probeProvider } from '../llm/llmClient.js';
-import { serverTokenFor, turnFailureText } from '../llm/llmSurface.js';
+import { createLlmClient, LlmError, probeProvider, PROVIDER_LABELS } from '../llm/llmClient.js';
+import { serverTokenFor, turnFailureText, isUnreachableError } from '../llm/llmSurface.js';
 import { loadConnections } from '../lib/connections.js';
 import { createChatController, translateOpenActions, splitDataUrl, matchListingIndex, MAX_IMAGE_EDGE, MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { askAnswerText } from '../llm/opPlan.js';
 import { wireDropTarget, isVideoFile } from '../lib/chatDrop.js';
 import { rasterizeToPngDataUrl, decodeSize, fitSize } from '../lib/rasterize.js';
-import { makeDismissible, renderSuggestions, wireThumbPreview, AUTO_DISMISS_MS } from '../lib/chatUi.js';
-import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../lib/chatMsgMenu.js';
+import {
+  makeDismissible, renderSuggestions, wireThumbPreview, AUTO_DISMISS_MS,
+  applyShrinkWrap, bindShrinkWrapResize,
+} from '../lib/chatUi.js';
+import {
+  createMsgMenu, createMsgMenuButton, appendToPrompt, msgMenuLiftPx, msgMenuLiftFits,
+} from '../lib/chatMsgMenu.js';
 import { openPanelDialog } from './dialogShell.js';
 import { MSG } from '../lib/messages.js';
 import { setTip } from '../lib/tip.js';
+import { applyChatSide, toggleChatSide } from '../lib/chatLayoutPrefs.js';
+import { dismissTip } from '../lib/controlTooltip.js';
 import {
-  observeReveal, leaveThenRemove, wipeDurationMs, CHAT_LEAVE_MS, scatterGridFor,
+  observeReveal, leaveThenRemove, wipeDurationMs, CHAT_LEAVE_MS, scatterGridFor, chatIn,
+  surfaceIn, surfaceOut, centerOf, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
 } from '../lib/motion.js';
+import { createChatStatusTip } from '../lib/chatStatusTip.js';
 
 // Every assistant entry leaves on the same dissolve. `count` is how many are going at
 // once — one removal gets the full fine mesh, a whole-transcript clear coarsens so the
 // total number of flying tiles stays inside the budget (lib/motion.js scatterGridFor).
 const chatLeave = (el, done, count = 1, index = 0) =>
   leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, ...scatterGridFor(count, index) });
+// …and arrives on its mirror (lib/motion.js chatIn): the motes gather INTO the entry
+// instead of falling off it, and the entry appears as they land. Every appended entry
+// plays it — a message you sent, a reply that landed, a failure card — so an arrival
+// reads as the same gesture a removal does. Called AFTER scrollDown(): chatIn veils the
+// entry at once (it keeps its height, so the transcript grows and scrolls to it as
+// usual) and photographs it two frames later, once that scroll has landed — a cloud
+// measured before it is stranded above the entry, or drawn over the composer. `host` is
+// the section, the ancestor the bubble rules are scoped to (chatIn hosts the cloud there).
+const chatEnter = (el, host) => { chatIn(el, 1, 0, { host }); return el; };
 
 // Videos are never sent to the LLM (contract §7): dropped video files/URLs are
 // decoded by a <video> element and sampled into JPEG frames, which attach as images.
 const VIDEO_FRAME_COUNT = 4;
 const VIDEO_TIMEOUT_MS = 8000;
 const VIDEO_JPEG_QUALITY = 0.92;
-const VIDEO_DECODE_ERROR = 'this video can’t be decoded here (unsupported codec?)';
+// Stated, not asked: "(unsupported codec?)" made the message guess out loud at the user
+// instead of telling them what happened.
+const VIDEO_DECODE_ERROR = 'this video can’t be decoded here — its codec is not supported';
 
 // Show/hide the whole assistant surface — section AND the ✦ header button. Provider
 // 'none' (contract §5) hides both; the elements stay in the DOM so re-enabling in
@@ -139,10 +159,90 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
   const inputEl = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
   const trayEl = document.getElementById('chat-tray');
+  // A bubble rendered while the (collapsed-by-default) section was closed measures
+  // zero rects and skips its shrink-wrap pin — catch it (and any later resize) the
+  // moment the transcript itself gains a real size.
+  bindShrinkWrapResize(transcriptEl);
 
   // Transcript entries fade + lift in as they arrive and dissolve at the top edge
-  // as the conversation scrolls past them (browser parity, css/animations.css).
-  observeReveal(transcriptEl, ':scope > *');
+  // as the conversation scrolls past them (browser parity, css/animations.css). The
+  // dust layers are excluded: they are position:fixed clouds owning their own alpha,
+  // not rows, and the scroll curve masking them sanded the particles away (the browser
+  // twin selects '[data-row]', which never matched them either).
+  observeReveal(transcriptEl, ':scope > *:not(.disintegrate-host)');
+
+  // ── Jump pills over the transcript's bottom edge (browser .chat-jumps parity) ──
+  // ⌃ while scrolled off the beginning, ⌄ while off the latest message, neither once
+  // the whole log fits. They win the paint order over a row's hover "…" — when the
+  // two would touch, the hovered bubble's trigger lifts clear of them, or (too
+  // little room) hides instead of sitting under them (desktop/browser parity).
+  const jumpsEl = document.getElementById('chat-jumps');
+  const jumpTopBtn = document.getElementById('chat-jump-top');
+  const jumpBottomBtn = document.getElementById('chat-jump-bottom');
+  if (jumpTopBtn) jumpTopBtn.innerHTML = icon('chevron-up', { size: 14 });
+  if (jumpBottomBtn) jumpBottomBtn.innerHTML = icon('chevron-down', { size: 14 });
+  let hoverMsgEl = null;
+  const clearMenuLift = (el) => {
+    const btn = el?.querySelector?.('.msg-menu-btn');
+    btn?.style.removeProperty('--menu-lift');
+    btn?.classList.remove('msg-menu-btn-yield');
+  };
+  // The pills are anchored OUTSIDE the scroller, so scrolling can't move them: their
+  // rects are cached, dropped when their visibility flips (syncJumps), the window
+  // resizes, or the section re-opens — not re-read on every scroll tick.
+  let pillRects = null;
+  const livePillRects = () => (pillRects ||= [jumpTopBtn, jumpBottomBtn]
+    .map((b) => b?.getBoundingClientRect?.()).filter((r) => r && r.width > 0));
+  const syncRowMenuLift = () => {
+    if (!hoverMsgEl) return;
+    const btn = hoverMsgEl.querySelector('.msg-menu-btn');
+    if (!btn) return;
+    const pills = livePillRects();
+    const btnRect = btn.getBoundingClientRect();
+    const lift = msgMenuLiftPx(btnRect, pills);
+    if (!lift) { clearMenuLift(hoverMsgEl); return; }
+    if (msgMenuLiftFits(hoverMsgEl.getBoundingClientRect(), btnRect, lift)) {
+      btn.style.setProperty('--menu-lift', `${lift}px`);
+      btn.classList.remove('msg-menu-btn-yield');
+    } else {
+      btn.style.removeProperty('--menu-lift');
+      btn.classList.add('msg-menu-btn-yield');
+    }
+  };
+  const syncJumps = () => {
+    if (!jumpsEl) return;
+    const max = transcriptEl.scrollHeight - transcriptEl.clientHeight;
+    const up = transcriptEl.scrollTop > 12;
+    const down = max - transcriptEl.scrollTop > 12;
+    if (up !== jumpsEl.classList.contains('can-up')
+      || down !== jumpsEl.classList.contains('can-down')) pillRects = null;
+    jumpsEl.classList.toggle('can-up', up);
+    jumpsEl.classList.toggle('can-down', down);
+    syncRowMenuLift();
+  };
+  window.addEventListener('resize', () => { pillRects = null; });
+  // The pills float OVER the transcript, so a cursor on one leaves no row hovered —
+  // hovering a pill can never hide it (browser chatPanel.js parity).
+  transcriptEl.addEventListener('mouseover', (e) => {
+    const row = e.target?.closest?.('.msg');
+    // A lifted trigger sits OUTSIDE its bubble's box, so reaching it crosses bare
+    // background — a mouseover with no `.msg`. Only an actual different bubble (or
+    // mouseleave, truly leaving) changes the hover, else the lift clears mid-reach.
+    if (!row || !transcriptEl.contains(row) || row === hoverMsgEl) return;
+    if (hoverMsgEl) clearMenuLift(hoverMsgEl);
+    hoverMsgEl = row;
+    syncRowMenuLift();
+  });
+  transcriptEl.addEventListener('mouseleave', () => {
+    if (hoverMsgEl) clearMenuLift(hoverMsgEl);
+    hoverMsgEl = null;
+  });
+  jumpTopBtn?.addEventListener('click', () => transcriptEl.scrollTo({ top: 0, behavior: 'smooth' }));
+  jumpBottomBtn?.addEventListener('click', () => transcriptEl.scrollTo({ top: transcriptEl.scrollHeight, behavior: 'smooth' }));
+  transcriptEl.addEventListener('scroll', syncJumps, { passive: true });
+  // Direct children only: a subtree watch made every dust-host insert cost syncJumps
+  // its layout reads, and only the entry list itself changes what there is to jump to.
+  new MutationObserver(syncJumps).observe(transcriptEl, { childList: true });
 
   let booted = false;
   let busy = false;
@@ -200,14 +300,24 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     setTimeout(pin, 220);
   };
 
-  const appendDiv = (className, text) => {
+  // One ritual for every transcript arrival: append, sync the clear button, pin the
+  // scroll, then dust the entry in. `arrive: false` opts out of the dust (the in-flight
+  // "…" — see addThinking); `wrap` pins a text bubble to its longest line (chatUi.js) —
+  // cards, strips and ask cards keep their natural width.
+  const appendEntry = (node, { arrive = true, wrap = false } = {}) => {
+    transcriptEl.appendChild(node);
+    if (wrap) applyShrinkWrap(node);
+    syncClearBtn();
+    scrollDown();
+    if (arrive) chatEnter(node, sectionEl);
+    return node;
+  };
+
+  const appendDiv = (className, text, { arrive = true } = {}) => {
     const div = document.createElement('div');
     div.className = className;
     div.textContent = text;
-    transcriptEl.appendChild(div);
-    syncClearBtn();
-    scrollDown();
-    return div;
+    return appendEntry(div, { arrive, wrap: true });
   };
 
   // Side-notes (warnings) stay DISMISSABLE; error MESSAGES carry no × — the browser
@@ -247,29 +357,49 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       wireThumbPreview(img, { caption });
       strip.appendChild(img);
     }
-    transcriptEl.appendChild(strip);
-    syncClearBtn();
-    scrollDown();
-    return strip;
+    return appendEntry(strip);
   };
 
   // Icon-only Retry inside a bubble: re-sends the SAME turn through the normal path
   // — its attachments included (nothing is auto-retried). Failed and stopped turns.
+  // The failed bubble STAYS, exactly as it does in the browser (chatView.js onRetry logs
+  // a NEW turn) and on the desktop (mainWindowChat.cpp chatRetryTurn just resends): a
+  // retry is another attempt, not an undo, and the transcript is the record of both.
+  // Deleting it here also deleted it mid-flight — with no leave animation, and taking
+  // whatever dust was still flying over it with it.
   const addRetry = (el, text, send, attachments = []) => {
     const retry = document.createElement('button');
     retry.className = 'chat-retry';
     setTip(retry, 'Send this message again');
     retry.setAttribute('aria-label', 'Retry');
     retry.innerHTML = icon('refresh', { size: 13 });
-    retry.addEventListener('click', () => { if (!busy) { el.remove(); send(text, attachments); } });
+    retry.addEventListener('click', () => { if (!busy) send(text, attachments); });
     el.appendChild(retry);
+    applyShrinkWrap(el);   // re-measure now the icon rides beside the pinned text
+  };
+
+  // The "Configure provider" call-to-action a failed turn's bubble carries when the
+  // PROVIDER itself is the problem (browser chatConfigureButton parity) — unreachable or
+  // unconfigured, not merely disabled/truncated/refused. Opens the same Options page the
+  // "…" menu's Settings item does (there is no in-panel settings modal here to grow out of
+  // the CTA, unlike the browser's docked panel).
+  const addConfigureCta = (el) => {
+    const cfg = document.createElement('button');
+    cfg.className = 'btn-icon-text chat-config-cta';
+    cfg.innerHTML = icon('gear', { size: 13 }) + '<span>Configure provider</span>';
+    cfg.addEventListener('click', () => { document.getElementById('open-options')?.click(); });
+    el.appendChild(cfg);
+    applyShrinkWrap(el);   // never pin narrower than the button that just rode in
   };
 
   // The in-flight turn's placeholder: an assistant BUBBLE holding three bouncing dots
   // — the shape the reply will take, in the place it will take it (browser chatView.js
   // typingDots).
   const addThinking = () => {
-    const el = appendDiv('msg assistant typing-row', '');
+    // No arrival for the placeholder (browser chatView.js parity): it lives about as long
+    // as the gather itself, so dusting it in kept it veiled for almost its whole life and
+    // the bouncing dots were never seen. The reply that replaces it is what arrives.
+    const el = appendDiv('msg assistant typing-row', '', { arrive: false });
     const dots = document.createElement('span');
     dots.className = 'chat-typing';
     dots.setAttribute('role', 'status');
@@ -291,10 +421,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     span.textContent = label;
     div.appendChild(span);
     if (!ok) makeDismissible(div, { doc: document, autoMs });
-    transcriptEl.appendChild(div);
-    syncClearBtn();
-    scrollDown();
-    return div;
+    return appendEntry(div);
   };
 
   // ── Empty-state suggestion chips (browser parity, §8 wording) ─────────────
@@ -468,9 +595,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       wrap.classList.add('chat-ask-answered');
       send(answer);
     });
-    transcriptEl.appendChild(wrap);
-    syncClearBtn();
-    scrollDown();
+    appendEntry(wrap);
   };
 
   const renderResult = (result) => {
@@ -499,34 +624,34 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     }
   };
 
+  // ── The … trigger's rich status tooltip (lib/chatStatusTip.js — a themed table,
+  // saying only what the dropdown's items don't: reachability). ──
+  const gearTip = createChatStatusTip({
+    doc: document,
+    getAnchor: () => document.getElementById('chat-more-btn'),
+    labels: PROVIDER_LABELS,
+    win: window,
+  });
+
   // ── Settings / provider line ───────────────────────────────────────────────
   const refreshSettings = async () => {
     llmSettings = await loadLlmSettings();
     const s = llmSettings;
     // No provider line in the panel (browser parity): reachability lives on the …
-    // trigger's dot + rich tooltip. Amber while probing, green connected, red
-    // unreachable; generation-guarded so a slow probe can't paint over a newer one.
+    // trigger's dot + the rich tooltip above. Amber while probing, green connected,
+    // red unreachable; generation-guarded so a slow probe can't paint over a newer one.
     const dot = document.getElementById('chat-status-dot');
     const moreBtn = document.getElementById('chat-more-btn');
     if (!dot || !moreBtn) return;
     const gen = ++probeGen;
     dot.className = 'chat-status-dot';
-    setTip(moreBtn, 'More — attach, clear, settings\nChecking the configured LLM…', { label: true });
+    gearTip.setProbe(null);
     const probe = await probeProvider(s, {
       getToken: async (u) => serverTokenFor(u, { connections: await loadConnections(), settings: s }),
     });
     if (gen !== probeGen) return;
     dot.className = `chat-status-dot ${probe.ok ? 'ok' : 'bad'}`;
-    const status = probe.ok
-      ? `Connected${probe.detail ? ` — ${probe.detail}` : ''}`
-      : (probe.detail || 'Unreachable');
-    setTip(moreBtn, [
-      'More — attach, clear, settings',
-      `Provider: ${s.provider}`,
-      probe.url ? `Endpoint: ${probe.url.replace(/^https?:\/\//i, '')}` : '',
-      `Model: ${s.model || 'server default'}`,
-      `Status: ${status}`,
-    ].filter(Boolean).join('\n'), { label: true });
+    gearTip.setProbe(probe);
   };
 
   // ── Injected controller capabilities ───────────────────────────────────────
@@ -899,6 +1024,9 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
         // the normal path (nothing is auto-retried; a Stop never offers one).
         // turnFailureText: the browser's error voice, same words on every surface.
         const el = addMsg('error', turnFailureText(llmSettings, err));
+        // The provider itself is the problem: offer Configure ABOVE Retry (browser
+        // chatConfigureButton parity — its card renders the CTA before the retry icon).
+        if (isUnreachableError(err)) addConfigureCta(el);
         // Icon-only (the composer buttons' shape) — a labelled button inside the
         // bubble reads as part of the message.
         addRetry(el, text, send, attachments);
@@ -931,7 +1059,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     // (the reachability badge, browser parity) and innerHTML would delete it.
     moreTrigger.insertAdjacentHTML('afterbegin', icon('dots', { size: 16 }));
     for (const [id, name] of [['chat-attach-btn', 'image'], ['chat-clear', 'trash'],
-                              ['chat-open-options', 'gear']]) {
+                              ['chat-swap-sides', 'swap'], ['chat-open-options', 'gear']]) {
       const el = document.getElementById(id);
       if (el) el.insertAdjacentHTML('afterbegin', icon(name, { size: 14 }));
     }
@@ -958,15 +1086,27 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       const moreBtn = document.getElementById('chat-more-btn');
       const moreMenu = document.getElementById('chat-more-menu');
       const attachInput = document.getElementById('chat-attach-input');
-      const closeMore = () => {
-        moreMenu.hidden = true;
-        moreBtn.setAttribute('aria-expanded', 'false');
+      // Both edges fly, like every other surface here: the motes stream out of the "…"
+      // and pour back into it. Played while the menu is still up — `hidden` is
+      // display:none — and the cloud is a copy on <body>, so the end state never waits.
+      const setMoreOpen = (on) => {
+        if (on === !moreMenu.hidden) return;
+        if (on) moreMenu.hidden = false;
+        if (on) surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS });
+        else surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS });
+        if (!on) moreMenu.hidden = true;
+        moreBtn.setAttribute('aria-expanded', String(on));
       };
+      const closeMore = () => setMoreOpen(false);
       moreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        moreMenu.hidden = !moreMenu.hidden;
-        moreBtn.setAttribute('aria-expanded', String(!moreMenu.hidden));
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        if (opening) { dismissTip(); gearTip.hide(); }   // their tiers would sit over the menu
       });
+      // The trigger's rich status tooltip (browser chatPanel.js statusHost parity):
+      // hover/focus reveal it, one click's focus suppressed (chatStatusTip.js wire).
+      gearTip.wire(moreBtn);
       for (const item of moreMenu.querySelectorAll('.chat-more-item'))
         item.addEventListener('click', closeMore);
       document.addEventListener('pointerdown', (e) => {
@@ -985,6 +1125,13 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
       // Settings → the extension's own Options page (the popup's gear path).
       document.getElementById('chat-open-options').addEventListener('click', () => {
         document.getElementById('open-options')?.click();
+      });
+      // Swap message sides — scoped to THIS page's own session (chatLayoutPrefs.js):
+      // not persisted, so a fresh popup/side panel/DevTools panel always starts at
+      // the default rather than carrying over another one's last setting.
+      applyChatSide(transcriptEl);
+      document.getElementById('chat-swap-sides').addEventListener('click', () => {
+        applyChatSide(transcriptEl, toggleChatSide());
       });
     }
 
@@ -1095,8 +1242,10 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
   };
 
   return {
-    // Wired into popup.js's generic section toggler for #sec-assistant.
-    handleToggle(collapsed) { if (!collapsed) boot(); },
+    // Wired into popup.js's generic section toggler for #sec-assistant. A collapsed
+    // section is display:none, so the transcript measures zero — re-sync the pills
+    // once expanding gives it a real height.
+    handleToggle(collapsed) { if (!collapsed) { boot(); pillRects = null; syncJumps(); } },
 
     // The ✦ header button: expand (through the section head, so aria-expanded and
     // the toggle hook stay in sync), scroll into view, focus the input.

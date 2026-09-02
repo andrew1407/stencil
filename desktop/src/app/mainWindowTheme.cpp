@@ -1,6 +1,7 @@
 #include "mainWindow.hpp"
 #include "mainWindowHelpers.hpp"
 #include "canvasWidget.hpp"
+#include "../support/dockGrip.hpp"
 #include "dropZonesOverlay.hpp"
 #include "chatDock.hpp"
 #include "chatMenuPanel.hpp"
@@ -10,6 +11,7 @@
 #include "notifications.hpp"
 #include "projectDragZones.hpp"
 #include "selectionPanel.hpp"
+#include "selectedLineBar.hpp"
 #include "theme.hpp"
 #include "tipContent.hpp"
 #include "../support/faceSwap.hpp"
@@ -68,15 +70,21 @@ namespace stencil::gui {
       wipe = ThemeSwapOverlay::capture(this, origin);
       themeWipe_ = wipe;
     }
+    // The app-wide palette/stylesheet depend only on (dark, accent): skip the global
+    // re-polish (it restyles every widget in the process) when neither moved — the
+    // live-apply Settings dialog runs this whole function per control click.
+    const bool restyleApp = !themePainted_ || swapping;
     themePainted_ = true;
     paintedDark_ = dark;
     paintedAccent_ = settings_.accentColor;
-    // Apply at the application level so menus, popups and native chrome (which
-    // aren't children of this window) are themed too. With the Fusion style set
-    // in main(), a matching palette + stylesheet themes the whole app — on
-    // Fedora a widget-level setStyleSheet left the menubar/toolbar unthemed.
-    qApp->setPalette(buildQPalette(dark, settings_.accentColor));
-    qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
+    if (restyleApp) {
+      // Apply at the application level so menus, popups and native chrome (which
+      // aren't children of this window) are themed too. With the Fusion style set
+      // in main(), a matching palette + stylesheet themes the whole app — on
+      // Fedora a widget-level setStyleSheet left the menubar/toolbar unthemed.
+      qApp->setPalette(buildQPalette(dark, settings_.accentColor));
+      qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
+    }
     // Tooltips are rendered as rich text (tipContent.hpp) — their keycaps and muted lines
     // are literal colours, so they have to be re-taken from the palette on every swap.
     setTooltipPalette(themePalette(dark, settings_.accentColor));
@@ -84,13 +92,22 @@ namespace stencil::gui {
     canvas_->setAccent(settings_.accentColor);
     incognitoOverlay_->setTheme(dark, settings_.accentColor);
     if (dropZones_) dropZones_->setAccent(themePalette(dark, settings_.accentColor).accent);
+    // The canvas↔panel separator grip paints in palette colours of its own.
+    if (panelGrip_) {
+      const Palette gp = themePalette(dark, settings_.accentColor);
+      panelGrip_->setColors(gp.borderMain, gp.accent);
+    }
     actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
 
     // Re-tint the shared line-art icons to the active text color (light/dark/accent).
     const QColor iconCol = themePalette(dark, settings_.accentColor).textMain;
     styleActionIcons(dark, iconCol);
+    // styleActionIcons() just reset actCopyImage_/actSaveImage_ to their resting-state
+    // glyph — re-apply the split-compare override (if any) on top of it.
+    syncSplitCopyDownloadSlot();
     retintMenuIconsForSystem(dark, iconCol);
     if (selPanel_) selPanel_->restyleIcons(iconCol);
+    if (selectedLineBar_) selectedLineBar_->restyleIcons(iconCol);
     // The colour chips carry a palette-coloured frame (updateColorSwatch), so they are
     // re-issued from HERE — after the snapshot — like every other themed control.
     if (lineColorBtn_) updateColorSwatch(lineColorBtn_, lineColorValue_);
@@ -118,6 +135,12 @@ namespace stencil::gui {
     vp.setColor(QPalette::Window, themePalette(dark).bgPage);
     scroll_->viewport()->setAutoFillBackground(true);
     scroll_->viewport()->setPalette(vp);
+
+    // The drop-hint's lightbulb is a rasterised glyph (inline <img> can't take the
+    // stylesheet's color), so it's re-tinted here like every other themed icon.
+    if (dropHintIcon_)
+      dropHintIcon_->setPixmap(themedIcon("lightbulb", themePalette(dark, settings_.accentColor).textMuted, 14)
+                                    .pixmap(14, 14));
 
     // Everything above is painted — now wipe the old snapshot away over the top of it.
     if (wipe) wipe->start();
@@ -203,6 +226,7 @@ namespace stencil::gui {
     };
     // File / image
     set(actOpen_, "image");
+    set(actOpenAnother_, "external");
     set(actLinks_, "link");
     set(actConnect_, "server");
     set(actOpenIn_, "monitor");
@@ -223,7 +247,7 @@ namespace stencil::gui {
     set(actCopyLayout_, "copy");
     set(actUploadJson_, "upload");
     setDanger(actClearProject_, "trash");
-    set(actSettings_, "gear");
+    set(actSettings_, "palette");
     set(actInfo_, "help");
     set(actRedo_, "redo");
     set(actDeleteLast_, "minus");
@@ -253,7 +277,7 @@ namespace stencil::gui {
     // just dims it when disabled). Qt auto-greys the icon for the disabled/locked state, so we
     // don't swap in a separate lock glyph.
     if (actIncognito_) actIncognito_->setIcon(themedIcon("incognito", iconColor, s));
-    set(actSettings_, "gear");
+    set(actSettings_, "palette");
     set(actAccent_, "palette");   // Settings section: the accent/visuals popover
     // Project / data
     set(actProjects_, "layers");          // browser projects-btn glyph (layers, not folder)
@@ -272,16 +296,34 @@ namespace stencil::gui {
     set(actUploadJson_, "upload");
     set(actCopyLayout_, "copy");
     set(actPasteLayout_, "paste");
+    // actSaveImage_/actCopyImage_ always mean "Current" — the toolbar's own generic glyph,
+    // whichever variant they perform (browser parity: exportOptionsMenu.js VARIANT_ICONS —
+    // "'current' keeps whichever action icon the caller passes").
     set(actSaveImage_, "download");        // browser save-image glyph (download)
     set(actCopyImage_, "copy");
+    set(actSaveImageCurrentRow_, "download");   // "Current"'s own row — same glyph as the primary
+    set(actCopyImageCurrentRow_, "copy");
+    // The split siblings and the other fixed variants each get their OWN glyph — not the
+    // trigger's icon repeated (browser parity: contextMenu.js copyImg-sub/dlImg-sub icons).
+    // syncSplitCopyDownloadSlot() is re-run right after this pass (applyTheme) so a theme
+    // swap mid-compare doesn't matter — visibility, not icon, is all it still touches here.
+    set(actSaveImageSplit_, "compare");
+    set(actCopyImageSplit_, "compare");
+    set(actCopyImageTint_, "palette");
+    set(actSaveImageOriginal_, "image");
+    set(actSaveImageTint_, "palette");
+    set(actCopyImageOriginal_, "image");
+    set(actShareImage_, "share");
     set(actPasteImage_, "paste");
-    // Help
-    set(actInfo_, "info");
-    set(actShortcuts_, "help");
+    // Help — matches the browser's icon('help')/icon('gear') pair (js/ui/toolbar.js
+    // settings-btn/info-btn): the gear opens Shortcuts, the question mark opens Help.
+    set(actInfo_, "help");
+    set(actShortcuts_, "gear");
     set(actQuit_, "power");
-    // Context-menu extras
-    set(actDrawModeToggle_, "rect");   // browser contextMenu.js parity (rect outline, not a pencil)
-    set(actDrawRectNow_, "rect-filled");
+    // Context-menu extras — the same animated outline glyphs as the toolbar's Line/Rect
+    // face (browser contextMenu.js parity: ctx-draw-line/ctx-draw-rect, icon('line')/('rect')).
+    set(actDrawLineNow_, "line");
+    set(actDrawRectNow_, "rect");
     // The theme toggle shows the destination scheme (sun when dark, moon when light),
     // matching the browser's toggle glyph.
     if (actTheme_) actTheme_->setIcon(themedIcon(dark ? "sun" : "moon", iconColor, s));
@@ -339,8 +381,13 @@ namespace stencil::gui {
     swapFace(startDrawBtn_, face, applyFill, animate && flipped ? kFaceSwapMs : 0);
   }
 
-  // Line ✎ / Rect ▭ — the same swap, no accent state of its own (it picks the mode, it does
-  // not report a live session). Port of drawingApp.js syncDrawModeUI.
+  // Line ✎ / Rect ▭ — the same swap, no accent STATE of its own (it picks the mode, it
+  // does not report a live session) but a permanent accent FILL: it has no idle/on pair
+  // to distinguish the way Start/Stop does, and the plain toolbutton ghost (transparent,
+  // a translucent tint only on hover) left it looking unstyled next to every other
+  // action button in the row, which the browser's `#draw-mode-toggle` never is — a bare
+  // `<button>` there, so it is solid accent-filled at rest too (layout.css `button {}`).
+  // Port of drawingApp.js syncDrawModeUI.
   void MainWindow::syncDrawModeFace(bool rect, bool animate) {
     if (!drawModeBtn_) return;
     FaceSpec face;
@@ -351,8 +398,12 @@ namespace stencil::gui {
     face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line");
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
-    face.glyphColor = iconColor_;
-    face.textColor = themePalette(resolveDark(settings_.themeMode), settings_.accentColor).textMain;
+    // On-accent white, like every other filled toolbar button (toolButtonIconColor) —
+    // plus the light-accent halo those pick up too, for the same contrast reason.
+    const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    face.glyphColor = QColor(Qt::white);
+    face.textColor = QColor(Qt::white);
+    face.halo = accentNeedsGlyphShadow(pal.accent);
     drawModeBtn_->setToolTip(rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
@@ -414,6 +465,12 @@ namespace stencil::gui {
         const auto name = actionIconNames_.constFind(a);
         if (name != actionIconNames_.constEnd())
           b->setIcon(themedIcon(name.value(), toolButtonIconColor(a, iconColor_), kToolIcon));
+        // The compound [toolFill="danger"]:disabled selector needs a re-polish on every
+        // enabled/disabled flip, same as the property itself does below — otherwise a
+        // destructive action that goes disabled (Clear All Lines with nothing to clear)
+        // kept its solid red fill instead of falling back to the muted disabled chip.
+        b->style()->unpolish(b);
+        b->style()->polish(b);
       };
       paint();
       // A QToolButton re-copies its default action's icon on every QEvent::ActionChanged —

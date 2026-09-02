@@ -7,8 +7,9 @@ import {
 } from '../js/llm/chatSession.js';
 import {
   revealFeather, REVEAL_FEATHER, revealVisibleBottom, revealTriggerFits,
-  REVEAL_SMOOTH_FEATHER_PX, REVEAL_TRIGGER_SIZE, REVEAL_TRIGGER_PAD,
+  REVEAL_SMOOTH_FEATHER_PX, REVEAL_TRIGGER_SIZE, REVEAL_TRIGGER_PAD, dustFitsScroller,
 } from '../js/ui/motion.js';
+import { shrinkWrapWidth } from '../js/ui/chatView.js';
 
 // ── A DOM-lite live tree, enough to actually RUN renderChatLog ───────────────
 // The other chat views are pinned against their source; the bugs this file guards
@@ -311,12 +312,13 @@ test('a repaint keeps the motion classes motion.js owns, mask state included', a
   const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
   // Taken from motion.js's constants — a retyped list is what dropped .reveal-masked,
   // and the observer's "changed?" cache then never put it back.
-  assert.ok(view.includes('const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,\n  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS];'));
+  assert.ok(view.includes('const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,\n  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];'));
   const transcript = makeEl();
   const log = [{ id: 1, role: 'user', text: 'hi' }];
   renderChatLog(transcript, log, {});
   const row = rowsOf(transcript)[0];
-  for (const c of ['reveal-item', 'reveal-masked', 'reveal-entering', 'reveal-smooth', 'reveal-no-trigger']) row.classList.add(c);
+  for (const c of ['reveal-item', 'reveal-masked', 'reveal-entering', 'reveal-smooth', 'reveal-no-trigger',
+                   'chat-entering']) row.classList.add(c);
   log[0].text = 'hi there';
   renderChatLog(transcript, log, {});
   // …the smooth-fade and no-trigger flags included: the observer only writes them when
@@ -325,6 +327,11 @@ test('a repaint keeps the motion classes motion.js owns, mask state included', a
   for (const c of ['reveal-item', 'reveal-masked', 'reveal-entering', 'reveal-smooth', 'reveal-no-trigger']) {
     assert.ok(row.classList.contains(c), `${c} survives the repaint`);
   }
+  // …and the arrival VEIL above all: one turn appends two rows (the message, then the
+  // pending "…"), so the second append repaints the first. Dropping it here tore the veil
+  // off a frame after it went on, and the user's own bubble appeared instantly while its
+  // dust was still flying — the bug reported on Retry.
+  assert.ok(row.classList.contains('chat-entering'), 'the arrival veil survives the repaint');
   assert.ok(row.classList.contains('chat-msg-user'), 'and the row still carries its own classes');
 });
 
@@ -442,11 +449,14 @@ test('the chat transcript takes the SMOOTH fade; other reveal targets keep the g
 test('the trigger reads --visible-bottom, and the observer publishes it for EVERY row', () => {
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
   const btn = /\.chat-row-menu-btn \{([\s\S]*?)\n\}/.exec(css)[1];
-  assert.match(btn, /bottom: var\(--visible-bottom, 0px\)/, 'anchored to the visible slice');
+  assert.match(btn, /bottom: calc\(var\(--visible-bottom, 0px\) \+ var\(--row-menu-lift, 0px\)\)/,
+    'anchored to the visible slice, plus the jump-pill clearance lift');
   assert.match(btn, /width: 21px; height: 21px/, 'the size the geometry above assumes');
   // Hover reveals it, so a partially visible row must answer hover on its visible
   // slice — the rule hangs off the ROW, which is what the pointer is over.
-  assert.match(css, /\.chat-msg:hover \.chat-row-menu-btn \{ opacity: 1; \}/);
+  // …revealed translucent, with only the hovered trigger itself going fully opaque.
+  assert.match(css, /\.chat-msg:hover \.chat-row-menu-btn \{ opacity: \.7; \}/);
+  assert.match(css, /\.chat-msg:hover \.chat-row-menu-btn:hover \{ opacity: 1; \}/);
   const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
   const apply = motion.slice(motion.indexOf('const apply = ()'), motion.indexOf('const schedule'));
   const published = apply.indexOf("setProperty('--visible-bottom'");
@@ -511,4 +521,219 @@ test('a settled reply carries no progress line and no cancel — the turn is ove
   assert.ok(!/syncAuxNote|auxNoteText|onAuxCancel|chat-aux/.test(view));
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
   assert.ok(!/\.chat-aux/.test(css), 'and neither does the stylesheet');
+});
+
+// ── Arrivals are dust too (motion.js chatIn) ────────────────────────────────
+// A message coming apart already had particles; a message APPEARING had nothing —
+// which is what made the two directions read as different surfaces. Every entry that
+// arrives now gathers out of its own dust, on the same fine mesh the removal uses.
+test('an appearing entry plays the gather; a transcript’s FIRST paint does not', async () => {
+  stubDom();
+  globalThis.matchMedia = () => ({ matches: false });
+  const { renderChatLog } = await import('../js/ui/chatView.js?render-enter');
+  const { CHAT_ENTERING_CLASS } = await import('../js/ui/motion.js');
+  const transcript = makeEl();
+  // Opening a surface onto history it MISSED is not a conversation happening in front
+  // of you — the first paint is silent, however many rows it lands.
+  const log = [{ id: 1, role: 'user', text: 'hi' }, { id: 2, role: 'assistant', text: 'hello' }];
+  renderChatLog(transcript, log, {});
+  assert.deepStrictEqual(rowsOf(transcript).map((r) => r.classList.contains(CHAT_ENTERING_CLASS)),
+    [false, false], 'history assembles silently');
+
+  // A fresh turn: the user's bubble and the pending "…" both arrive.
+  log.push({ id: 3, role: 'user', text: 'now crop it' },
+           { id: 4, role: 'assistant', text: '…', pending: true });
+  renderChatLog(transcript, log, {});
+  const [, , userRow, pendingRow] = rowsOf(transcript);
+  assert.ok(userRow.classList.contains(CHAT_ENTERING_CLASS), 'the message you sent arrives');
+  // …but the "…" placeholder does NOT: it lives about as long as the gather itself, so
+  // dusting it in kept it veiled for almost its whole life and the bouncing dots were
+  // never seen. Its arrival is the settle below.
+  assert.ok(!pendingRow.classList.contains(CHAT_ENTERING_CLASS),
+    'the in-flight placeholder is not dusted in — you have to be able to see the dots');
+  // …and the rows already on screen are left alone: an arrival is not a repaint.
+  assert.ok(!rowsOf(transcript)[0].classList.contains(CHAT_ENTERING_CLASS));
+
+  // The ANSWER lands in the element the dots held, so "a new node appeared" would have
+  // missed it entirely — a pending row settling is an arrival in its own right.
+  pendingRow.classList.remove(CHAT_ENTERING_CLASS);
+  Object.assign(log[3], { pending: false, text: 'Cropped.' });
+  renderChatLog(transcript, log, {});
+  assert.ok(pendingRow.classList.contains(CHAT_ENTERING_CLASS), 'the reply arrives as dust');
+  // A settled row that merely repaints must not replay it.
+  pendingRow.classList.remove(CHAT_ENTERING_CLASS);
+  renderChatLog(transcript, log, {});
+  assert.ok(!pendingRow.classList.contains(CHAT_ENTERING_CLASS), 'a repaint is not an arrival');
+
+  // A failure is a message too — same gather, whatever the row says.
+  log.push({ id: 5, role: 'assistant', text: "Couldn't reach Ollama at localhost:11434 (fetch failed)",
+             error: true, card: true, retryText: 'now crop it' });
+  renderChatLog(transcript, log, {});
+  const errRow = rowsOf(transcript).at(-1);
+  assert.ok(errRow.classList.contains('chat-msg-error'));
+  assert.ok(errRow.classList.contains(CHAT_ENTERING_CLASS), 'an error card arrives like any other');
+  delete globalThis.matchMedia;
+});
+
+test('the arrivals share ONE mesh budget with the wipe, and run after the scroll', () => {
+  // The dust is a clone per cell, so a Clear that also lands a fresh turn would put two
+  // full meshes in the air at once — the count handed to chatIn is both sides together.
+  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  assert.match(view, /entering\.forEach\(\(el, i\) => chatIn\(el, entering\.length \+ going\.length, i\)\)/);
+  // …and it runs at the END: a cloud taken mid-build would be missing the row's own
+  // text and CTAs, which are appended after the element exists.
+  assert.ok(view.indexOf('entering.forEach') > view.indexOf("el.querySelector('.chat-row-menu-btn')"));
+  // …AFTER the scroll pin, not before. The transcript grows by the new entry's height
+  // and scrolls to it; a cloud measured first is photographed at the pre-scroll box and
+  // ends up stranded above where the entry actually lands (the reported bug).
+  assert.ok(view.indexOf('entering.forEach') > view.indexOf('stickToBottom(transcript)'),
+    'the arrivals are armed after the transcript has been told to scroll');
+  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  // The arriving cloud flies on <body>, NOT in the transcript like the leave's: an
+  // arrival happens on every turn, and for its whole life its clones are elements
+  // carrying .chat-msg and [data-row] — everything that walks the transcript
+  // (renderChatLog's own lookups, the reveal observer, a test counting rows) would read
+  // them as live rows.
+  assert.match(motion, /reintegrate\(el, \{ cols, rows, toBody: true \}\)/);
+  // Two frames before the measure: frame one is the new entries' layout, frame two the
+  // scroll that follows it (stickToBottom pins on a rAF of its own).
+  assert.match(motion, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
+  // …and the cloud is torn down explicitly as the veil lifts, rather than left to its own
+  // grace period — the layer holds its FINISHED state (opaque, at identity), which is an
+  // exact second copy sitting over the real entry.
+  assert.match(motion, /unveil\(\);\s*\n\s*cancelDust\(el\);/);
+});
+
+test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {
+  const at = (top, bottom) => ({ getBoundingClientRect: () => ({ top, bottom, width: 200, height: bottom - top }) });
+  const scroller = at(100, 400);
+  assert.ok(dustFitsScroller(at(120, 200), scroller), 'wholly inside');
+  assert.ok(dustFitsScroller(at(100, 400), scroller), 'exactly filling it');
+  // The cloud is position:fixed, so the transcript does NOT clip it — an entry still
+  // below the fold would scatter its motes across the composer under it, which is what
+  // put dust over the input box.
+  assert.ok(!dustFitsScroller(at(350, 460), scroller), 'hanging past the bottom');
+  assert.ok(!dustFitsScroller(at(40, 150), scroller), 'hanging past the top');
+  assert.ok(!dustFitsScroller(at(0, 900), scroller), 'taller than the scroller');
+  assert.ok(!dustFitsScroller(at(120, 120), scroller), 'zero height');
+  assert.ok(!dustFitsScroller(null, scroller), 'no element');
+  assert.ok(!dustFitsScroller(at(120, 200), null), 'no scroller');
+});
+
+test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('.chat-transcript > .chat-entering'));
+  // A veil, not a keyframed fade: the entry is not seen at all until the motes land, so
+  // the animation can never play over an already-visible message (the reported bug).
+  assert.match(rule, /^\.chat-transcript > \.chat-entering[\s\S]{0,200}?opacity: 0 !important;/);
+  assert.match(rule.slice(0, 400), /animation: none !important;/,
+    'the dust is a photograph of where the entry IS — nothing may move under it');
+  assert.match(rule.slice(0, 400), /transition: none !important;/);
+  assert.match(css, /\.ctx-assist-transcript > \.chat-entering/, 'the flyout transcript too');
+  // The old fade is gone for good — keeping it would re-introduce exactly the bug.
+  assert.ok(!/chatCardEnter/.test(css), 'no fade-up keyframes survive');
+  // The entry keeps its HEIGHT while veiled (opacity only, never display/height), so the
+  // transcript grows and scrolls to it exactly as it always did.
+  assert.ok(!/\.chat-entering[\s\S]{0,200}?(display: none|height: 0)/.test(rule.slice(0, 400)));
+});
+
+test('chatIn: veils at once, lifts only when the motes have landed', async () => {
+  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, DISINTEGRATE_MS } = await import('../js/ui/motion.js');
+  // The gather rides the SAME clock the scatter falls on — the two directions are one
+  // motion, so one number owns both.
+  assert.strictEqual(CHAT_ENTER_MS, DISINTEGRATE_MS);
+  const classes = new Set();
+  const el = { classList: {
+    add: (...c) => c.forEach((x) => classes.add(x)),
+    remove: (...c) => c.forEach((x) => classes.delete(x)),
+    contains: (c) => classes.has(c),
+  } };
+  globalThis.matchMedia = () => ({ matches: false });
+  const p = chatIn(el);
+  // SYNCHRONOUSLY veiled — before the caller returns, so no frame ever paints the entry
+  // ahead of its own dust.
+  assert.ok(classes.has(CHAT_ENTERING_CLASS), 'veiled from the first frame');
+  await p;
+  // No DOM here, so no motes can fly (disintegrate bails) — then the veil must lift at
+  // once rather than hiding the entry behind a flight that never happened.
+  assert.ok(!classes.has(CHAT_ENTERING_CLASS), 'never left stranded invisible');
+
+  // Reduced motion: no veil at all — the entry is simply THERE.
+  globalThis.matchMedia = () => ({ matches: true });
+  await chatIn(el);
+  assert.ok(!classes.has(CHAT_ENTERING_CLASS));
+  // Decoration only: a missing element must never make an append throw.
+  await chatIn(null);
+  delete globalThis.matchMedia;
+});
+
+test('a flying cloud is re-anchored to its entry, and dropped if the entry leaves', () => {
+  // The layer is position:fixed at the box measured when it launched, but a transcript
+  // SCROLLS under it — the bottom-pin fires again on a 220ms timer, and a later turn
+  // appends more rows. A cloud left where it started is drawn over whatever has since
+  // moved into those coordinates: the reported "text appears mid-animation, breaking the
+  // UI" (a user bubble's motes rendered on top of the error card below it).
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
+  assert.match(src, /retargetDust\(el, r\);/, 'the cloud follows its entry per frame');
+  assert.ok(/dustFitsScroller\(el\)/.test(src),
+    'and is dropped outright once the entry is no longer wholly in the scroller');
+  // …and a subject that RESIZES mid-flight (a re-wrapped label, a font landing, the panel
+  // dragged wider) leaves a cloud that no longer matches what arrives — there is no
+  // re-photographing it, so the stale copy is dropped rather than shown at the wrong size.
+  assert.match(src, /const resized = !r \|\| !shot/);
+  assert.match(src, /if \(!dustFitsScroller\(el, el\.parentElement, r, s\) \|\| resized\) \{\s*\n\s*cancelDust\(el\); live = false; onDrop\(\); return;/);
+  // Fonts first: a webfont landing after the photograph re-wraps the entry and widens it.
+  assert.match(src, /globalThis\.document\?\.fonts\?\.ready/);
+  // …armed for the flight and stopped with it, so nothing keeps ticking after the cut.
+  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
+  assert.match(src, /stop\(\);\s*\n\s*handOver\(\);/);
+  // An element torn out mid-flight (the transcript cleared, a row replaced) measures as
+  // a zero box, so the same check reaps its orphaned cloud within a frame.
+  assert.match(src, /export function retargetDust\(el, r = null\) \{/);
+});
+
+test('a flying cloud is clipped to its scroller, so no mote lands on the composer', () => {
+  // On the desktop the overlay is a real widget and paints only inside its own box, so a
+  // mote can never reach the composer. Here the tiles translate freely out of an
+  // `overflow: visible` host, and a gather next to the input rained motes across it
+  // (reported). The clip is against the host's OWN border box, so the insets are signed:
+  // negative EXPANDS it, letting a mote fly anywhere inside the transcript and nowhere
+  // outside it.
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const clipDustToScroller = \(el, scroller = el\?\.parentElement, r = null, s = null\) => \{/);
+  assert.match(src, /host\.style\.clipPath =/);
+  assert.match(src, /inset\(\$\{px\(s\.top - r\.top\)\} \$\{px\(r\.right - s\.right\)\} \$\{px\(r\.bottom - s\.bottom\)\} \$\{px\(s\.left - r\.left\)\}\)/);
+  // Applied before the first painted frame, then kept in step per frame (both boxes move).
+  assert.match(src, /clipDustToScroller\(el\);   \/\/ before the first frame paints, not after it/);
+  assert.match(src, /retargetDust\(el, r\);\s*\n\s*clipDustToScroller\(el, el\.parentElement, r, s\);/);
+});
+
+test('dropping the cloud hands the entry over in the SAME frame', () => {
+  // The veil is lifted by a timer at the end of the FULL flight. A cancel that only killed
+  // the motes therefore left the message invisible, with nothing standing in for it, until
+  // that timer fired — up to the whole gather. Found by resizing a live entry mid-flight.
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
+  assert.match(src, /cancelDust\(el\); live = false; onDrop\(\); return;/);
+  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
+  // …and exactly once, whichever path gets there first (a drop, or the flight ending).
+  assert.match(src, /if \(handedOver\) return;/);
+});
+
+// ── A wrapped bubble hugs its own longest line, not the max-width cap ───────────────
+// (js/ui/chatView.js applyShrinkWrap) — reported: a two-line error card (long explanatory
+// text + a much narrower "Configure provider" button) rendered at the FULL 88% cap
+// instead of its own widest line, stranding the shorter line in dead space.
+test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
+  assert.strictEqual(shrinkWrapWidth([193.4]), null);
+  assert.strictEqual(shrinkWrapWidth([]), null);
+  assert.strictEqual(shrinkWrapWidth(null), null);
+});
+
+test('shrinkWrapWidth: two+ lines pin to the WIDEST one, rounded up', () => {
+  assert.strictEqual(shrinkWrapWidth([193.4, 182.1]), 194);
+  assert.strictEqual(shrinkWrapWidth([120, 300, 45]), 300);
+  // A degenerate (zero-width) measurement declines rather than pinning a collapsed box.
+  assert.strictEqual(shrinkWrapWidth([0, 0]), null);
 });

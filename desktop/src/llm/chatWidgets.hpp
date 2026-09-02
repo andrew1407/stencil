@@ -1,8 +1,8 @@
 #pragma once
 
-// Shared chat helper widgets, split out of chatDock.cpp: the wrapping
-// FlowLayout, the attachment HoverPreview, the in-flight TypingDots, and the
-// per-card "⋯" ChatCardMore watcher (+ its placement helper). Used by both
+// Shared chat helper widgets, split out of chatDock.cpp: the attachment
+// HoverPreview, the in-flight TypingDots, the per-card "⋯" ChatCardMore watcher
+// (+ its placement helper), and the card-arrival dust machinery. Used by both
 // chat surfaces (dock + context-menu panel).
 
 #include <QApplication>
@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QLayout>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QPointer>
 #include <QScreen>
@@ -43,64 +44,92 @@ namespace stencil::gui {
   // The small bold role caption every transcript card starts with.
   QLabel* makeRoleLabel(const QString& role, QWidget* card);
 
-  // Park a card's "⋯" beside the bottom corner of its VISIBLE SLICE (see
-  // chatWidgets.cpp for the placement rules).
-  void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll);
-
-  // Minimal wrapping flow layout (the Qt FlowLayout example, trimmed) for
-  // the suggestion pills — inline with wrapping, like the browser chips.
-  class FlowLayout : public QLayout {
+  // A message bubble's tail (browser .chat-msg-user::before/::after parity): a
+  // small triangular flag hanging from the bubble's BOTTOM edge, at the corner
+  // facing the panel centre — painted rather than QSS'd, since Qt stylesheets
+  // have no clip-path/border-triangle equivalent. `right` picks which side it
+  // attaches to (true = the bubble's right edge, the user side at rest);
+  // `setColors` takes the SAME fill/border the card's own QSS uses, so the
+  // tail reads as part of the bubble, not a separate shape.
+  class ChatBubbleTail : public QWidget {
     Q_OBJECT
    public:
-    FlowLayout(QWidget* parent, int margin, int hSpacing, int vSpacing)
-        : QLayout(parent), hs_(hSpacing), vs_(vSpacing) {
-      setContentsMargins(margin, margin, margin, margin);
-    }
-    ~FlowLayout() override {
-      while (QLayoutItem* item = takeAt(0)) delete item;
-    }
-    void addItem(QLayoutItem* item) override { items_.append(item); }
-    int count() const override { return items_.size(); }
-    QLayoutItem* itemAt(int i) const override { return items_.value(i); }
-    QLayoutItem* takeAt(int i) override {
-      return (i >= 0 && i < items_.size()) ? items_.takeAt(i) : nullptr;
-    }
-    Qt::Orientations expandingDirections() const override { return {}; }
-    bool hasHeightForWidth() const override { return true; }
-    int heightForWidth(int w) const override { return doLayout(QRect(0, 0, w, 0), true); }
-    QSize minimumSize() const override {
-      QSize s;
-      for (QLayoutItem* item : items_) s = s.expandedTo(item->minimumSize());
-      const QMargins m = contentsMargins();
-      return s + QSize(m.left() + m.right(), m.top() + m.bottom());
-    }
-    QSize sizeHint() const override { return minimumSize(); }
-    void setGeometry(const QRect& r) override {
-      QLayout::setGeometry(r);
-      doLayout(r, false);
-    }
+    explicit ChatBubbleTail(QWidget* parent);
+    void setColors(const QColor& fill, const QColor& border);
+    void setSide(bool right);
+    bool isRight() const { return right_; }
+
+   protected:
+    void paintEvent(QPaintEvent* event) override;
 
    private:
-    int doLayout(const QRect& rect, bool testOnly) const {
-      const QMargins m = contentsMargins();
-      const QRect eff = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom());
-      int x = eff.x(), y = eff.y(), lineH = 0;
-      for (QLayoutItem* item : items_) {
-        const QSize sz = item->sizeHint();
-        if (x + sz.width() > eff.right() + 1 && lineH > 0) {
-          x = eff.x();
-          y += lineH + vs_;
-          lineH = 0;
-        }
-        if (!testOnly) item->setGeometry(QRect(QPoint(x, y), sz));
-        x += sz.width() + hs_;
-        lineH = qMax(lineH, sz.height());
-      }
-      return y + lineH - rect.y() + m.bottom();
-    }
-    QList<QLayoutItem*> items_;
-    int hs_, vs_;
+    QColor fill_, border_;
+    bool right_ = true;
   };
+
+  // Attach (or move) `card`'s tail beside its bottom corner — right for a user
+  // bubble, left otherwise (swappable: `right` is the caller's CURRENT resolved
+  // side, not the raw role). Creates one on first call (parented to the card's
+  // OWN parent, like ChatCardMore's "…" — outside the card's clip) and reuses it
+  // after, linked BOTH ways (card→tail, tail→card) so a later reposition-only pass
+  // needs no colour/side recomputation.
+  void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool right);
+  // Re-place every tail already attached under `transcript` at its card's CURRENT
+  // geometry, without touching colour or side — called after
+  // applyChatBubbleWidths resizes/repositions the cards themselves, so a tail
+  // never lags a bubble that just moved.
+  void repositionChatBubbleTails(QWidget* transcript);
+
+  // Where fillChatCard/setChatSwapSides (chatCardRenderer.cpp, chatMenuPanel.cpp)
+  // stash a card's own chatBubbleOnRight() result (a bool QVariant) — placeChatCardMore
+  // below reads it back to park the "…" trigger on whichever side the tail is NOT,
+  // since objectName() alone (chatCardUser or not) stopped answering that once
+  // "Swap message sides" could put either role on either side.
+  inline constexpr const char* kChatOnRightProperty = "chatOnRight";
+
+  // Park a card's "⋯" beside the bottom corner of its VISIBLE SLICE (see
+  // chatWidgets.cpp for the placement rules). `avoidGlobal` (global/screen coords,
+  // a null QRect ⇒ nothing to avoid) is furniture the button must not sit under — the
+  // dock's jump pills: it shifts clear of them, or hides where there is no room to
+  // (browser/extension parity — the pills are the higher-priority control and stay put).
+  void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
+                         const QRect& avoidGlobal = QRect());
+
+  // ── Card-arrival dust, shared by both chat surfaces (browser motion.js chatIn) ──
+  // A message arriving or leaving is the surface's main event, so it plays on a
+  // FINER grid than a list row (browser CHAT_DISINTEGRATE_COLS/ROWS).
+  inline constexpr int kChatScatterCols = 32;
+  inline constexpr int kChatScatterRows = 16;
+  // One frame between arrival hops: the callers' own scrollToBottom() is a
+  // singleShot(0), so a 0ms hop would measure the box before that scroll landed.
+  inline constexpr int kChatGatherSettleMs = 16;
+  // How many hops a card may wait for the layout to give it a real box — a surface
+  // shown this very turn has no width yet; past the budget the card simply appears.
+  inline constexpr int kChatGatherTries = 6;
+
+  // Is `card` wholly inside `scroll`'s viewport? The dust layer lives on the window
+  // and the scroller does not clip it, so a card hanging past either edge would fly
+  // its motes over whatever sits outside it. Taller than the viewport ⇒ false.
+  bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll);
+
+  // One arrival attempt per event-loop turn: wait (bounded by `tries`) for `layout`
+  // to give `card` a real, size-stable box fully inside `scroll`'s viewport, then fly
+  // the card's own dust into place over `host` (Sweep::Gather) while the card hides
+  // behind the motes, tracked per frame. `settle` writes the resting state and is the
+  // one exit every bail-out takes, so a card can never be stranded invisible; a card
+  // no longer in `layout` is leaving and gets nothing. `onFlight` (optional) runs the
+  // moment the dust actually launches — the dock hangs its margin slide off it.
+  void gatherChatCardIn(QWidget* card, QVBoxLayout* layout, QScrollArea* scroll,
+                        QWidget* host, int cols, int rows, std::function<void()> settle,
+                        std::function<void()> onFlight = nullptr,
+                        int tries = kChatGatherTries, QSize lastSize = QSize());
+
+  // Keep a flying snapshot pinned to the card it photographed, and drop it the moment
+  // the card leaves the viewport or changes size (a stale copy reads as one message
+  // drawn over its neighbour — browser motion.js trackDust). The overlay deletes
+  // itself when its animation ends, so `!overlay` is exactly "the flight is over".
+  void trackChatCardDust(QWidget* card, QWidget* overlay, QScrollArea* scroll,
+                         std::function<void()> settle);
 
   // ── Hover preview for a small attachment thumbnail ────────────────────────
   // Tray chips show 28px and message bubbles 160px — too small to tell two
@@ -274,9 +303,9 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     ChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
-                 std::function<void()> moved)
+                 std::function<void()> moved, std::function<QRect()> avoidRect = nullptr)
         : QObject(card), card_(card), more_(more), scroll_(scroll),
-          moved_(std::move(moved)) {
+          moved_(std::move(moved)), avoidRect_(std::move(avoidRect)) {
       card->installEventFilter(this);
       more->installEventFilter(this);
       if (scroll) {
@@ -288,7 +317,7 @@ namespace stencil::gui {
       }
     }
     void place() {
-      placeChatCardMore(card_, more_, scroll_);
+      placeChatCardMore(card_, more_, scroll_, avoidRect_ ? avoidRect_() : QRect());
       if (moved_) moved_();
     }
 
@@ -375,6 +404,7 @@ namespace stencil::gui {
     QPointer<QToolButton> more_;
     QScrollArea* scroll_ = nullptr;
     std::function<void()> moved_;
+    std::function<QRect()> avoidRect_;   // global rect to shift/hide clear of; null ⇒ none
   };
 
 }  // namespace stencil::gui

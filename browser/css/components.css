@@ -237,7 +237,7 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     top: 0;
     bottom: 0;
     right: 0;
-    width: clamp(240px, var(--coord-panel-width, 360px), 86vw);
+    width: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw);
     transform: translateX(100%);
     opacity: 0;
     padding: 12px;
@@ -257,14 +257,14 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     position: fixed;
     top: 0;
     bottom: 0;
-    right: clamp(240px, var(--coord-panel-width, 360px), 86vw);
+    right: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw);
     width: 10px;
     z-index: 10001;
     cursor: col-resize;
     /* Slide in from the right IN LOCKSTEP with the points panel (same distance = the panel
        width, same 0.25s ease) instead of popping in via a display toggle. Hidden off to the
        right and non-interactive so it never blocks the right-edge hover trigger. */
-    transform: translateX(clamp(240px, var(--coord-panel-width, 360px), 86vw));
+    transform: translateX(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw));
     opacity: 0;
     pointer-events: none;
     transition: transform 0.25s ease, opacity 0.25s ease;
@@ -391,12 +391,7 @@ body.fullscreen-mode #fs-points-panel {
 .ctx-item:hover, .ctx-item.ctx-open-sub {
     background: var(--bg-coord-hover);
 }
-.ctx-item.ctx-disabled {
-    opacity: 0.4;
-    cursor: default;
-    pointer-events: none;
-}
-.ctx-item .ctx-icon {
+.ctx-item .ctx-icon, .accent-dd-opt .ctx-icon {
     width: 16px;
     flex-shrink: 0;
     display: inline-flex;
@@ -404,12 +399,18 @@ body.fullscreen-mode #fs-points-panel {
     justify-content: center;
     color: var(--text-muted);
 }
-.ctx-item .ctx-label { flex: 1; }
+.ctx-item .ctx-label, .accent-dd-opt .ctx-label { flex: 1; min-width: 0; }
+/* Trailing hotkey/arrow are fixed-width flex items (not auto-margin) so hotkey/arrow
+   always land on the same right edge regardless of which are present. .ctx-arrow is
+   always in the markup (contextMenu.js ctxArrow()), empty when there's no submenu, so
+   its 12px stays reserved either way. */
 .ctx-item .ctx-arrow {
-    margin-left: auto;
+    flex: 0 0 12px;
+    width: 12px;
     opacity: 0.55;
     display: inline-flex;
     align-items: center;
+    justify-content: flex-end;
 }
 .ctx-sep {
     height: 1px;
@@ -445,6 +446,40 @@ body.fullscreen-mode #fs-points-panel {
     overflow-x: hidden;
 }
 .ctx-sub.ctx-sub-visible { display: block; }
+/* Freshly (re)placed (js/ui/contextMenu.js positionSub): a row can land geometrically
+   under a cursor that never moved to reach it, and the browser re-evaluates :hover the
+   instant that happens — which would trigger a row's icon-motion/keycap-shake (below,
+   and the `:hover .tip-key` rule) with no actual hover gesture behind it. Blocking
+   pointer events keeps the cursor from "landing on" anything here until the user
+   genuinely moves it, which is also what lifts this class (samplePointer). */
+.ctx-sub.ctx-sub-fresh .ctx-item { pointer-events: none; }
+/* Nested flyout (Copy Image / Download Image variant lists) — same box, one
+   z-index higher so it always paints above the submenu it hangs off. */
+.ctx-sub-nested {
+    z-index: 100002;
+    min-width: 240px;
+}
+
+/* Alt-hover export preview (js/ui/exportPreview.js) — a small floating thumbnail
+   near the cursor, shown only while Alt is held over a copy/download variant row. */
+.ctx-preview-tip {
+    position: fixed;
+    z-index: 100010;
+    display: none;
+    padding: 4px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+    pointer-events: none;
+}
+.ctx-preview-tip.ctx-preview-visible { display: block; }
+.ctx-preview-tip img {
+    display: block;
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 4px;
+}
 
 /* Checkbox items inside submenus */
 .ctx-checkbox-item {
@@ -652,17 +687,26 @@ body.fullscreen-mode #fs-points-panel {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-/* Hotkey hint shown on the right side of ctx menu items */
+/* Hotkey hint shown on the right side of ctx menu items — a fixed-width flex item
+   (see .ctx-item .ctx-arrow above), so it and a trailing arrow both always land on
+   the same right edge whichever combination of the two a row has. */
 .ctx-hotkey {
-    margin-left: auto;
+    flex: 0 0 auto;
     font-size: 11px;
     color: var(--text-shortcut);
     white-space: nowrap;
     padding-left: 10px;
 }
-/* When a hotkey sits before the arrow, don't push it all the way right */
-.ctx-arrow + .ctx-hotkey, .ctx-hotkey + .ctx-arrow { margin-left: 0; }
-.ctx-item:has(.ctx-arrow) .ctx-hotkey { margin-left: auto; }
+/* Hovering a row with a shortcut hint shakes its keycaps once — a CSS :hover trigger
+   with no `infinite` plays the keyframe a single time per hover, same as the tooltip's
+   key-shake. `>` scopes it to the row's OWN hotkey, not a nested row's. Targets each
+   .tip-key individually so a multi-key combo shakes key by key, not as one block. */
+.ctx-item:hover > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key {
+    animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .ctx-item:hover > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key { animation: none; }
+}
 
 /* ── Notification stack (bottom-left) ──
    The host is the COLUMN, not a toast: js/ui/notifications.js appends one .notify-toast
@@ -1015,7 +1059,10 @@ body.fullscreen-mode #fs-points-panel {
     cursor: pointer;
 }
 .chat-more-item:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.chat-more-item:disabled { opacity: 0.5; cursor: default; }
+/* An item that cannot act right now (attach at the §7 cap or mid-turn, clear on an
+   empty conversation) leaves the menu instead of greying out (user decision; the
+   desktop … menu hides its actions the same way). */
+.chat-more-item:disabled { display: none; }
 /* Commit/discard pair in a settings footer (assistant modal — desktop dialog
    parity: edits reach storage only on Save). */
 .chat-settings-actions { display: inline-flex; gap: 8px; flex: 0 0 auto; }
@@ -1108,7 +1155,6 @@ body.fullscreen-mode #fs-points-panel {
 
 /* nested ctx items inside a submenu — keep them visually distinct  */
 .ctx-sub .ctx-item.ctx-sub-item { margin: 0 4px; }
-.ctx-sub .ctx-item.ctx-sub-item.ctx-disabled { opacity: 0.4; pointer-events: none; }
 
 /* ── Shared modal shell (visuals + info dialogs) ── */
 .app-modal-overlay {
@@ -1128,6 +1174,10 @@ body.fullscreen-mode #fs-points-panel {
    confirm over the Projects modal), so it must stack above every other app modal — not merely
    tie on z-index and rely on DOM order. */
 #confirm-modal-overlay.modal-open { z-index: 100003; }
+/* …and it keeps that place while it LEAVES: the dust hands over on the way out, and a
+   confirm sinking below the window it was asked from would read as the wrong dialog
+   coming apart. */
+#confirm-modal-overlay.modal-closing { z-index: 100003; }
 .app-modal {
     background: var(--bg-container);
     color: var(--text-main);
@@ -1233,9 +1283,19 @@ stencil-llm-settings-modal .vs-row select { flex: 1 1 auto; width: auto; min-wid
   background: transparent; border: none; border-bottom: 2px solid transparent;
   color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer;
 }
-.oi-tab:hover { color: var(--text-main); }
+/* The generic button:hover paints the accent-2 pill under a hovered tab, so the tab's
+   own colors must flip to the app-wide on-accent ink (white + the light-accent glyph
+   shadow, same as every filled button) — accent text over the accent pill made the
+   hovered active tab unreadable (user report). The :hover rule must ALSO carry
+   .is-active's specificity, or the active tab's accent text wins the tie. */
+.oi-tab:hover, .oi-tab.is-active:hover { color: #fff; }
 .oi-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
 .oi-panel { margin-bottom: 2px; }
+/* One dialog height across the source tabs (desktop parity): the shell is sized for
+   the tallest tab (Blank), so switching Local file / URL link / Blank never resizes
+   the window — the shorter tabs keep the slack below their rows, footer pinned. The
+   compact popover shape keeps its own small cap instead. */
+#open-image-modal-overlay:not(.modal-popover) .app-modal { min-height: min(430px, 82vh); }
 /* Open Image dialog: live preview + inline crop editor. The media is centered in a
    column; the crop-options row keeps the toggle, hint, and orientation button in one line. */
 .oi-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
@@ -1516,6 +1576,10 @@ stencil-image-info { display: block; }
 stencil-fullscreen-layer { display: contents; }
 
 /* ── Projects modal rows ────────────────────────────────────────── */
+/* The projects modal keeps a real working height even with one row (desktop-dialog
+   parity): the list body flexes and scrolls inside. The compact popover shape and
+   short viewports keep their own caps. */
+#projects-modal-overlay:not(.modal-popover) .app-modal { min-height: min(560px, 82vh); }
 .project-row {
     display: flex; align-items: center; gap: 12px;
     padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
@@ -1523,6 +1587,10 @@ stencil-fullscreen-layer { display: contents; }
 }
 .project-row:hover { background: var(--bg-info); }
 .project-row.project-active { border-color: var(--text-key); }
+/* The row for whatever's open in THIS editor right now — "(Current)" in the accent,
+   right after the origin badge it already sits beside (js/ui/projectsModal.js) — no
+   icon or separate mark of its own. */
+.project-current-badge { color: var(--accent); font-weight: 600; }
 .project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
 .project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
 /* Drag-reorder cues (Manual sort): the dragged row dims; a bar marks the edge it would
@@ -1645,6 +1713,9 @@ stencil-fullscreen-layer { display: contents; }
     position: fixed; z-index: 100002; display: none; pointer-events: none;
     padding: 4px; background: var(--input-bg); border-radius: 8px;
     border: 2px solid var(--remote-gold); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    /* projectsModal.js's positionZoom pins max-width/height to the live window every move —
+       without a clip, a picture the JS couldn't shrink in time would still poke past that box. */
+    overflow: hidden;
 }
 /* The width is set per-thumbnail (a multiple of its own pixels); these clamp it on
    screen. A hover preview is a GLANCE, not a lightbox — since the stored thumbnail got
@@ -1671,7 +1742,7 @@ stencil-fullscreen-layer { display: contents; }
 .project-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .project-sub.project-expired { color: var(--danger); font-weight: 600; }
 .project-sub.project-expiring { color: var(--warning); font-weight: 600; }
-.project-open-elsewhere { color: var(--accent); }
+.project-open-elsewhere { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
 .project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 /* Whole row opens the project on click; "⋯" (and its menu) stop propagation. */
 .project-row.project-clickable { cursor: pointer; }
@@ -1775,8 +1846,10 @@ stencil-fullscreen-layer { display: contents; }
 .chat-row-menu-btn {
     /* Anchored to the bottom of the row's VISIBLE slice, not to the row: motion.js
        publishes --visible-bottom per scroll frame, so a message the scroller cuts still
-       shows its trigger instead of parking it below the fold. 0 = nothing is cut. */
-    position: absolute; bottom: var(--visible-bottom, 0px); z-index: 2;
+       shows its trigger instead of parking it below the fold. 0 = nothing is cut.
+       --row-menu-lift (chatPanel.js syncRowMenuLift) adds on top of that: pushed up
+       clear of the jump pills when this row's trigger would otherwise sit under them. */
+    position: absolute; bottom: calc(var(--visible-bottom, 0px) + var(--row-menu-lift, 0px)); z-index: 2;
     display: none; align-items: center; justify-content: center;
     width: 21px; height: 21px; padding: 0; border-radius: 50%;
     border: 1px solid var(--border-main); background: var(--bg-container);
@@ -1789,7 +1862,11 @@ stencil-fullscreen-layer { display: contents; }
 .chat-row-menu-btn-right { right: -27px; }
 @media (hover: hover) {
     .chat-row-menu-btn { display: inline-flex; }
-    .chat-msg:hover .chat-row-menu-btn { opacity: 1; }
+    /* Revealed translucent — a ghost that does not compete with the message it sits
+       beside — and only the one under the cursor goes fully opaque. The second rule
+       needs the row in its selector to outweigh the first. */
+    .chat-msg:hover .chat-row-menu-btn { opacity: .7; }
+    .chat-msg:hover .chat-row-menu-btn:hover { opacity: 1; }
     /* Beat the generic button:hover accent fill — hover keeps the chrome and
        adds a small full-accent glow + a 1px lift. */
     .chat-row-menu-btn:hover {
@@ -1805,6 +1882,11 @@ stencil-fullscreen-layer { display: contents; }
    (revealTriggerFits) publishes the class per scroll frame. Higher specificity than the
    hover rule above, so it wins wherever it lands. */
 .chat-msg.reveal-no-trigger .chat-row-menu-btn { display: none; }
+/* The jump pills win: on a bubble too short to lift the trigger clear of them
+   (chatPanel.js rowMenuLiftFits), the trigger yields and hides instead of sitting
+   under them — never the other way around (an earlier rule hid the PILLS instead,
+   inverted per user report: the arrows are the higher-priority control). */
+.chat-msg.chat-row-menu-yield .chat-row-menu-btn { opacity: 0 !important; pointer-events: none !important; }
 
 /* Server picker injected into the confirm modal (app.choose). */
 .confirm-choose-row { margin-top: 12px; }
@@ -1824,6 +1906,10 @@ stencil-fullscreen-layer { display: contents; }
 /* ── Server connections modal ───────────────────────────────────── */
 /* A connection row is a .project-row sibling: same padding/gap/radius/border,
    same resting fill and hover lift. Only the connection-specific bits differ. */
+/* The connections area keeps a real default height even while empty — the modal
+   otherwise collapsed to a stub the moment no server was connected (user report;
+   desktop parity: its list box holds the same room). */
+#connect-list { min-height: 170px; }
 .connect-row {
     display: flex; align-items: center; gap: 12px;
     padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
@@ -2375,6 +2461,14 @@ stencil-chat-panel.chat-dock-float  { border-radius: 10px; }
     cursor: pointer;
 }
 .chat-hbtn:hover { background: var(--bg-container); color: var(--text-main); }
+/* The Resend/Retry icon under a failed turn (chatView.js chatConfigureButton's sibling,
+   the .chat-hbtn shape) reads on the DANGER wash a plain error card sits on — the
+   header ghosts' bg-container fill (near-black in dark mode) landed as a stray dark
+   square there (user report). No fill at all: just its own muted glyph colour traced
+   as a thin outline, so hovering it never looks like it grew a background. Border
+   reserved at rest (transparent) so gaining it on hover costs no layout shift. */
+.chat-retry-cta { border: 1px solid transparent; }
+.chat-retry-cta:hover { background: transparent; border-color: var(--text-muted); color: var(--text-muted); }
 .chat-dock-btns { display: inline-flex; gap: 1px; flex: 0 0 auto; }
 .chat-dock-btn-active, .chat-hbtn.chat-dock-btn-active { color: var(--accent); background: var(--bg-container); }
 /* The toolbar toggle (#chat-btn) shares the Settings-section ghost/active rules —
@@ -2451,6 +2545,11 @@ a.chat-hbtn { text-decoration: none; }
     gap: 8px;
     scrollbar-width: thin;
     scrollbar-color: var(--sb-thumb) transparent;
+    /* Measured for the narrow-column rule below (a docked/floating panel resizes
+       independently of the viewport, so a plain media query would answer the wrong
+       question). */
+    container-type: inline-size;
+    container-name: chat-transcript;
 }
 /* Empty-state: one subtle line — ALL provider detail lives in the gear's tooltip. */
 /* Empty-state: prompt SUGGESTION chips (click → prefill the input) instead of an
@@ -2476,6 +2575,14 @@ a.chat-hbtn { text-decoration: none; }
     gap: 8px;
 }
 .chat-config-cta, .chat-retry-cta, .chat-reconnect-cta { align-self: flex-start; margin-top: 6px; }
+/* The two labelled CTAs read as a small pill, not a full-size toolbar button: less
+   side padding than the base button, and a touch more room between the glyph and
+   its label than the shared .btn-icon-text gap gives (the gear crowded "Configure"
+   at 6px — user report). Hover stays the SOLID accent instead of lightening to
+   --accent-2: on a pill this small the lighten washed out the glass shimmer sweep
+   riding under it (layout.css), reading as if no hover animation played at all. */
+.chat-config-cta, .chat-reconnect-cta { padding: 7px 10px; gap: 8px; }
+.chat-config-cta:hover:not(:disabled), .chat-reconnect-cta:hover:not(:disabled) { background: var(--accent); }
 /* An error bubble carrying a call-to-action becomes a column, so the button
    sits under the text instead of dangling inline after it (.chat-msg alone is
    a plain pre-wrap block). */
@@ -2502,20 +2609,104 @@ a.chat-hbtn { text-decoration: none; }
 .chat-msg-text { min-width: 0; }
 .chat-msg-user {
     align-self: flex-end;
-    background: color-mix(in srgb, var(--accent) 14%, var(--bg-container));
-    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    /* Named so the tail below can reach the SAME colours without repeating the
+       color-mix() expressions — and so the swap rule further down only has to flip
+       which corner reads them, never restate them. */
+    --msg-fill: color-mix(in srgb, var(--accent) 14%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    /* Flattened at the tail's corner — the base 10px radius fought the tail's
+       own curve there and left a visible notch (user report). */
+    border-bottom-right-radius: 0;
 }
 .chat-msg-assistant {
     align-self: flex-start;
-    background: var(--bg-container);
-    border: 1px solid var(--border-main);
+    --msg-fill: var(--bg-container);
+    --msg-border: var(--border-main);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
 }
 /* A failed / stopped turn reads as one at a glance: danger text and border over a
    faint danger wash, rather than an ordinary bubble that merely happens to be red. */
 .chat-msg-error {
+    --msg-fill: color-mix(in srgb, var(--danger) 10%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--danger) 45%, transparent);
     color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
-    background: color-mix(in srgb, var(--danger) 10%, var(--bg-container));
+    border-color: var(--msg-border);
+    background: var(--msg-fill);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
+}
+/* ── Message tails: a small triangular flag hanging from the BOTTOM edge, at the
+   corner facing the panel centre — user right, assistant/error left. The classic
+   border-triangle trick (zero-size box, one transparent side), as two copies:
+   border colour behind, 1px smaller fill in front. The border copy's anchor is
+   pushed 1px further out on BOTH axes so it grows past the fill on all three
+   edges — sharing the fill's anchor left the outline coincident, and so painted
+   over, along the tail's bottom edge. Desktop mirrors this in chatWidgets.cpp. */
+.chat-msg-user::before, .chat-msg-user::after,
+.chat-msg-assistant::before, .chat-msg-assistant::after,
+.chat-msg-error::before, .chat-msg-error::after {
+    content: ""; position: absolute; border-style: solid;
+}
+.chat-msg-user::before { bottom: -1px; right: -10px; border-width: 9px 0 0 9px; border-color: transparent transparent transparent var(--msg-border); }
+.chat-msg-user::after { bottom: 0; right: -8px; border-width: 8px 0 0 8px; border-color: transparent transparent transparent var(--msg-fill); }
+.chat-msg-assistant::before, .chat-msg-error::before {
+    bottom: -1px; left: -10px; border-width: 9px 9px 0 0; border-color: transparent var(--msg-border) transparent transparent;
+}
+.chat-msg-assistant::after, .chat-msg-error::after {
+    bottom: 0; left: -8px; border-width: 8px 8px 0 0; border-color: transparent var(--msg-fill) transparent transparent;
+}
+/* ── Swapped sides (chatPanel.js / contextMenu.js wireChatSideToggle): the "…"
+   chat-more-menu item between Clear history and Settings. `.chat-swapped` only ever
+   lands on a transcript container (the panel's and the ctx-assist flyout's — one
+   preference, either surface), so a plain class selector covers both, and one class
+   flips every bubble at once: alignment, tail geometry, and the row "…" trigger's
+   side. Default (no class) is exactly today's layout. */
+.chat-swapped .chat-msg-user {
+    align-self: flex-start;
+    border-bottom-right-radius: 10px; border-bottom-left-radius: 0;
+}
+.chat-swapped .chat-msg-assistant,
+.chat-swapped .chat-msg-error {
+    align-self: flex-end;
+    border-bottom-left-radius: 10px; border-bottom-right-radius: 0;
+}
+.chat-swapped .chat-msg-user::before {
+    right: auto; bottom: -1px; left: -10px; border-width: 9px 9px 0 0; border-color: transparent var(--msg-border) transparent transparent;
+}
+.chat-swapped .chat-msg-user::after {
+    right: auto; bottom: 0; left: -8px; border-width: 8px 8px 0 0; border-color: transparent var(--msg-fill) transparent transparent;
+}
+.chat-swapped .chat-msg-assistant::before,
+.chat-swapped .chat-msg-error::before {
+    left: auto; bottom: -1px; right: -10px; border-width: 9px 0 0 9px; border-color: transparent transparent transparent var(--msg-border);
+}
+.chat-swapped .chat-msg-assistant::after,
+.chat-swapped .chat-msg-error::after {
+    left: auto; bottom: 0; right: -8px; border-width: 8px 0 0 8px; border-color: transparent transparent transparent var(--msg-fill);
+}
+.chat-swapped .chat-row-menu-btn-left { left: auto; right: -27px; }
+.chat-swapped .chat-row-menu-btn-right { right: auto; left: -27px; }
+
+/* ── Narrow column: below this the left/right split has no room to READ as one —
+   88% max-width either squeezes the text into a sliver or the two sides sit close
+   enough to look accidental. Both roles go near-full-width and STACK instead, one
+   under the other; colour + the tail still carry which side spoke. Measured off the
+   TRANSCRIPT's own box (container query), so a resized dock/float answers correctly
+   without a resize listener — the ctx-assist flyout (no container-type) is
+   unaffected, it already renders at a fixed compact width. */
+@container chat-transcript (max-width: 300px) {
+    /* flex-start, not stretch: a short "ok" still sizes to its content — only the
+       alternating LEFT/RIGHT indent goes away, not the bubble's own shape. The doubled
+       class matches the swap rules' specificity above and sits later, so column mode
+       wins with no !important on align-self; max-width keeps its !important because it
+       must also outrank the inline shrink-wrap pin (chatView.js applyShrinkWrap). */
+    .chat-msg.chat-msg-user, .chat-msg.chat-msg-assistant, .chat-msg.chat-msg-error {
+        max-width: 96% !important;
+        align-self: flex-start;
+    }
 }
 
 /* Variant / frame result cards: thumbnail + label + download / open-as-working. */
@@ -2667,8 +2858,12 @@ a.chat-hbtn { text-decoration: none; }
     color: var(--text-muted);
     cursor: pointer;
     box-shadow: 0 2px 8px var(--shadow);
+    /* Translucent at rest so a short bubble under a pill stays readable; the cursor
+       brings it back to full (the same .7 rest the row "…" triggers take). */
+    opacity: .7;
+    transition: opacity .12s ease;
 }
-.chat-jump-btn:hover { color: var(--text-main); border-color: var(--accent); }
+.chat-jump-btn:hover { color: var(--text-main); border-color: var(--accent); opacity: 1; }
 #chat-jump-bottom { right: 14px; }
 #chat-jump-top { right: 48px; }
 .chat-jumps.can-up #chat-jump-top, .chat-jumps.can-down #chat-jump-bottom { display: inline-flex; }
@@ -2945,6 +3140,10 @@ body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: 
     transition: opacity 90ms ease;
 }
 .chat-status-tip.visible { opacity: 1; }
+/* Once the real motes have flown (js/ui/chatPanel.js showGearTip/hideGearTip), the
+   plain fade steps aside for good — same reasoning as #app-tooltip.dust-driven — so
+   it can never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+.chat-status-tip.dust-driven { transition: none; }
 .chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
 .chat-status-tip th {
     text-align: left;
@@ -2979,3 +3178,5 @@ body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: 
     color: var(--text-muted);
 }
 .chat-cors-note code { font-size: 11px; }
+/* The one merged note box (user decision): its lines stack with a small gap. */
+.chat-cors-note > div + div { margin-top: 6px; }

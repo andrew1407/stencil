@@ -9,6 +9,13 @@
 
 namespace stencil::gui {
 
+  StayOpenMenu::StayOpenMenu(QWidget* parent) : QMenu(parent) {
+    setAttribute(Qt::WA_TranslucentBackground);
+  }
+  StayOpenMenu::StayOpenMenu(const QString& title, QWidget* parent) : QMenu(title, parent) {
+    setAttribute(Qt::WA_TranslucentBackground);
+  }
+
   void StayOpenMenu::setInteractiveArea(QWidget* area, QWidget* keyTarget) {
     area_ = area;
     keyTarget_ = keyTarget;

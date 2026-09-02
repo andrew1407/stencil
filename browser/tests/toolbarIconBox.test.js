@@ -54,8 +54,10 @@ test('the floating chat panel animates from the toolbar icon', () => {
   for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy'])
     assert.ok(js.includes(v), `chatPanel.js never sets ${v}`);
   // …and the close timer has to outlast the longer float flight, or the panel is torn
-  // out of the DOM mid-motion.
-  assert.match(js, /chat-dock-float'\)\s*\?\s*340/, 'the float close timer does not match modalToIcon');
+  // out of the DOM mid-motion. Docked shares the same 340ms now (the dust flight needs
+  // it as much as the float shape does — see CLOSE_MS in chatPanel.js).
+  const closeMs = js.match(/const CLOSE_MS = ([^;]+);/)?.[1] || '';
+  assert.match(closeMs, /^340$/, `the close timer does not match modalToIcon: "${closeMs}"`);
 });
 
 // Boot starts the editor blank by calling storage.newTemporary(), which also plays the
@@ -101,6 +103,27 @@ test('newTemporary only animates when there was an image to clear', () => {
   assert.ok(cond, 'the dust is no longer guarded');
   assert.match(cond[1], /ghostOut\(this\.app\.canvas\)/, 'the hold waits on the dust actually playing');
   assert.match(cond[2], /canvas-clearing/, 'the empty-state hold is no longer guarded');
+});
+
+// Regression: clearing an image used to leave the canvas at its old (possibly zoomed)
+// backing-store size and the viewport at its old scroll offset. The idle "+ Blank image"
+// card is position:absolute; inset:0 inside that SAME scrolled box, so it rendered at the
+// stale offset instead of centred — invisible or off past the fold — until the next zoom
+// or scroll touched it (user report: a "clank"/ghost image, scroll and zoom left over
+// after clearing).
+test('newTemporary resets the canvas size/zoom and the viewport scroll, not just the pixels', () => {
+  const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  const at = src.indexOf('  newTemporary({');
+  const body = src.slice(at, at + 3000);
+  assert.match(body, /this\.app\.canvas\.width = 0/, 'the backing store keeps its old (zoomed) footprint');
+  assert.match(body, /this\.app\.canvas\.height = 0/, 'the backing store keeps its old (zoomed) footprint');
+  assert.match(body, /this\.app\.canvas\.style\.width = ''/, 'a stale inline CSS width survives the clear');
+  assert.match(body, /this\.app\.canvas\.style\.height = ''/, 'a stale inline CSS height survives the clear');
+  assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
+  const scroll = body.match(/const vp = document\.getElementById\('canvas-viewport'\);\s*\n\s*if \(vp\) \{ ([^}]+) \}/)?.[1];
+  assert.ok(scroll, 'the viewport scroll position is never reset on clear');
+  assert.match(scroll, /vp\.scrollLeft = 0/);
+  assert.match(scroll, /vp\.scrollTop = 0/);
 });
 
 // Collapsed to its rail, the points/lines panel shows one chevron. As a `display: block`

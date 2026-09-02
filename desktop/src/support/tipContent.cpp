@@ -250,7 +250,13 @@ namespace stencil::gui {
     } else {
       tip.title = head;
     }
-    for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, t});
+    // A single trailing piece has nothing to enumerate against, so it reads as a hint
+    // instead of a bullet list of one.
+    if (tail.size() > 1) {
+      for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, t});
+    } else if (tail.size() == 1) {
+      tip.blocks.push_back({TipBlock::Kind::Hint, {}, tail.first()});
+    }
 
     // ── body ──
     for (int i = 1; i < lines.size(); i++) {
@@ -405,6 +411,12 @@ namespace stencil::gui {
     const QString t = plain.trimmed();
     if (t.isEmpty() || t.startsWith('<')) return {};  // empty, or already someone's own HTML
     return renderTip(plain, g_pal);
+  }
+
+  Palette currentPalette() { return g_pal; }
+
+  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac) {
+    return keysHtml(combo, pal, mac);
   }
 
 }

@@ -1,7 +1,7 @@
-// ── Instant control tooltip ─────────────────────────────────────────────────
+// ── Control tooltip ──────────────────────────────────────────────────────────
 // PORT of browser/js/ui/controlTooltip.js (the extension can't import across
-// subprojects) — shows a `title`/`data-title` on hover with no delay, where the native
-// popup waits ~1s and never appears on a disabled control. While ours is up the
+// subprojects) — shows a `title`/`data-title` on hover after a short delay, where the
+// native popup waits ~1s and never appears on a disabled control. While ours is up the
 // element's `title` is blanked so the native one can't double-show.
 //
 // The text is not printed flat: tipContent.js parses the title into the desktop app's
@@ -10,20 +10,19 @@
 // `[data-no-tooltip]` opts a control out (one that owns its own hover popup).
 
 import { renderTip, parseTip } from './tipContent.js';
-import { surfaceIn, surfaceOut, settleSurface } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, rectCenter,
+         TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from './motion.js';
 
-const SHOW_DELAY_MS = 90;   // tiny delay so flicking the cursor across the bar doesn't flash tips
+// Long enough that flicking the cursor across the whole bar shows nothing, short enough
+// that pausing on ONE control reads as responsive (shared home: motion.js; desktop
+// SnappyTooltipStyle keeps the same wake-up delay).
+const SHOW_DELAY_MS = TIP_SHOW_DELAY_MS;
 const SHAKE_CLASS = 'key-shake';
 const SHAKE_MS = 340;       // the keycap nudge — one shot, matched to the CSS keyframes
-// ── The tooltip is sand too ──────────────────────────────────────────────────
-// Every other overlay in the app forms from motes streaming out of the control that
-// opened it and comes apart into motes pouring back in (js/ui/motion.js
-// surfaceIn/surfaceOut); a tooltip is no different, and the control it describes is
-// exactly the point its dust belongs to. Its own clock, though: a tooltip is re-pointed
-// many times a second on a toolbar sweep, so both halves are short — the flight has to
-// be over before the next control's begins.
-const TIP_IN_MS = 260;
-const TIP_OUT_MS = 190;
+// The tooltip is sand too (motion.js surfaceIn/surfaceOut), on the shared short tip
+// clock — a toolbar sweep re-points it many times a second.
+const TIP_IN_MS = TIP_DUST_IN_MS;
+const TIP_OUT_MS = TIP_DUST_OUT_MS;
 // While the motes are still gathering the box may not move: the cloud was measured
 // where the tip was placed, and a tip that tracked the cursor mid-flight would leave
 // its own sand behind. It picks the cursor up again the moment it lands.
@@ -35,12 +34,8 @@ let placeHeldUntil = 0;
 let shakeTimer = null;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 // Where a tooltip's dust comes from and goes back to: the centre of the control it
-// describes. A detached or unmeasurable owner has no point, and the dust declines.
-const dustPoint = (el) => {
-  const r = el?.getBoundingClientRect?.();
-  if (!r || !(r.width > 0 && r.height > 0)) return null;
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-};
+// describes (rectCenter — a detached owner has no point, and the dust declines).
+const dustPoint = (el) => rectCenter(el);
 
 let tip = null;             // the floating element (created lazily)
 let curEl = null;           // element whose tooltip is currently shown/pending
@@ -167,8 +162,7 @@ const hide = () => {
   if (!tip) return;
   // It comes apart into its control. The class goes NOW either way: the cloud owns its
   // own lifetime, and the end state must never depend on the animation.
-  const point = dustPoint(owner);
-  if (tip.classList.contains('visible') && point) surfaceOut(tip, point, { ms: TIP_OUT_MS });
+  if (tip.classList.contains('visible')) surfaceOut(tip, dustPoint(owner), { ms: TIP_OUT_MS });
   else settleSurface(tip);
   placeHeldUntil = 0;
   tip.classList.remove('visible');
@@ -194,10 +188,9 @@ const reveal = (el) => {
   placeHeldUntil = 0;
   place(lastEvent);
   // Placed first, so the motes stream at the box the tip will actually occupy.
-  const point = dustPoint(el);
-  const dusted = point && surfaceIn(t, point, { ms: TIP_IN_MS });
+  // (surfaceIn settles the tip itself when there is no point to fly from.)
+  const dusted = surfaceIn(t, dustPoint(el), { ms: TIP_IN_MS });
   if (dusted) placeHeldUntil = now() + TIP_IN_MS;
-  else settleSurface(t);
   // …and the caps nudge once it has ARRIVED — never while it is still sand.
   clearTimeout(shakeTimer);
   if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, TIP_IN_MS);
@@ -228,6 +221,10 @@ const shakeMatchingKeys = (e) => {
   });
   return hit;
 };
+
+// Drop the tip now, whatever the hover/focus state — for a caller opening its own
+// popup over the same control (the tip's 100003 tier would bury it).
+export const dismissTip = () => hide();
 
 export const initTooltips = () => {
   if (typeof document === 'undefined') return;

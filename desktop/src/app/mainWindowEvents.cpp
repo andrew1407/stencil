@@ -4,6 +4,7 @@
 #include "canvasTooltip.hpp"
 #include "chatDock.hpp"
 #include "chatMenuPanel.hpp"
+#include "../support/dockGrip.hpp"
 #include "iconSet.hpp"
 #include "modalReveal.hpp"
 #include "notifications.hpp"
@@ -58,6 +59,12 @@ namespace stencil::gui {
   }
 
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
+    // Canvas scrollbar auto-hide: hovering a bar directly (to find/grab it) must never let
+    // it fade out from under the cursor — see revealCanvasScrollbars/scheduleScrollbarHide.
+    if (scroll_ && (obj == scroll_->horizontalScrollBar() || obj == scroll_->verticalScrollBar())) {
+      if (event->type() == QEvent::Enter) { scrollbarHovered_ = true; revealCanvasScrollbars(); }
+      else if (event->type() == QEvent::Leave) { scrollbarHovered_ = false; scheduleScrollbarHide(); }
+    }
     // Docked-chat resize moves the toast stack out of its way (never consumed).
     if (obj == chatDock_ && event->type() == QEvent::Resize) syncToastInset();
     // Disabled controls show `not-allowed` (browser rule) via an override cursor:
@@ -100,6 +107,45 @@ namespace stencil::gui {
     if (event->type() == QEvent::Leave || event->type() == QEvent::WindowDeactivate ||
         (obj == this && (event->type() == QEvent::Hide || event->type() == QEvent::Close)))
       setBlockedCursor(false);
+    // The grip must FOLLOW the panel through every geometry change — a separator
+    // drag, a dock split with the chat panel, a float/redock — not only the canvas
+    // viewport's resizes: anchored to a stale panel rect it ends up painting its bar
+    // stranded INSIDE the widened panel (user report).
+    if (obj == selPanel_ && panelGrip_) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
+        positionPanelGrip();
+    }
+    // The canvas↔panel separator grip (support/dockGrip.hpp): the separator belongs to
+    // the QMainWindow itself, so ITS hover and drag arrive here — the grip lights and
+    // grows while the cursor is on the strip, and stays hot through a drag (the browser
+    // .panel-resizer keeps its accent while `.dragging`).
+    if (obj == this && panelGrip_ && panelGrip_->isVisible()) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::HoverEnter || t == QEvent::HoverMove) {
+        const QPoint p = static_cast<QHoverEvent*>(event)->position().toPoint();
+        panelGrip_->setHot(panelGripDrag_ || panelGrip_->geometry().contains(p));
+      } else if (t == QEvent::MouseButtonPress &&
+                 static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+        if (panelGrip_->geometry().contains(
+                static_cast<QMouseEvent*>(event)->position().toPoint())) {
+          panelGripDrag_ = true;
+          panelGrip_->setHot(true);
+        }
+      } else if (t == QEvent::MouseButtonRelease && panelGripDrag_) {
+        panelGripDrag_ = false;
+        panelGrip_->setHot(panelGrip_->geometry().contains(
+            static_cast<QMouseEvent*>(event)->position().toPoint()));
+      } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
+        if (!panelGripDrag_) panelGrip_->setHot(false);
+      }
+    }
+    // A lost-focus window never delivers the held arrows' key-up (browser parity:
+    // controlsBinder.js's own blur listener clears #arrowsHeld the same way).
+    if (obj == this && event->type() == QEvent::WindowDeactivate) {
+      panLeftHeld_ = panRightHeld_ = panUpHeld_ = panDownHeld_ = panShiftHeld_ = false;
+      if (arrowPanTimer_) arrowPanTimer_->stop();
+    }
     // While a TEXT BOX has focus, the standard editing chords belong to it — not to a canvas
     // shortcut that happens to share the chord. ⌥⌫ (deleteLine) is the one that bit: typing in
     // the chat, it deleted the selected LINE instead of the word behind the cursor. Claiming
@@ -166,28 +212,59 @@ namespace stencil::gui {
     }
     // Popover buttons: the RELEASE is swallowed and replaced with the deferred
     // trigger (exec() would block before a dblclick arrived); dblclick pre-empts
-    // it. Alt+hover peeks the same popover (either order of Alt/glide); the peek
-    // lives only while Alt is down — altPeekAction_ names it for the KeyRelease.
-    if (event->type() == QEvent::KeyPress &&
+    // it. Alt+hover peeks the same popover; the peek lives only while Alt is down
+    // (altPeekAction_ names it for the KeyRelease). Skipped while any QMenu popup is
+    // open: it owns Alt itself (row export previews), and the cursor screen-position
+    // check below would otherwise "see" a toolbar icon under the popup and open its
+    // popover on top, stealing the grab and closing the menu.
+    const bool aMenuPopupIsOpen = qobject_cast<QMenu*>(QApplication::activePopupWidget()) != nullptr;
+    if (!aMenuPopupIsOpen && event->type() == QEvent::KeyPress &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt &&
         !static_cast<QKeyEvent*>(event)->isAutoRepeat() && !typingFocus()) {
-      for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
-        auto* btn = static_cast<QToolButton*>(it.key());
-        if (!it.value()->isEnabled()) continue;   // a disabled icon opens nothing
-        // underMouse() backs up the cursor-position check: same answer for a real
-        // resting pointer, and it is the state the offscreen GUI test can mock.
-        if (btn->isVisible() && (btn->underMouse() ||
-                                 btn->rect().contains(btn->mapFromGlobal(QCursor::pos())))) {
-          if (activePopover_) {
-            // A popover (peek or sticky) already shows: switch to this icon —
-            // the reject unwinds exec(), and execMaybePopover opens the next.
-            altPeekNextButton_ = btn;
-            altPeekNextAction_ = it.value();
-            dismissPopover();
-          } else {
-            altPeekOpen(btn, it.value());
+      // The copy/download-image toolbar buttons' own export-options popups
+      // (browser parity: exportOptionsMenu.js altHover) — Alt+hover opens the
+      // SAME popup right-click/dblclick already do (wireExportOptionsPopups).
+      // Deliberately independent of popoverButtons_ below: these are plain
+      // QMenus opened via QMenu::popup(), not a QAction triggering a QDialog,
+      // so there is no exec()/activePopover_ to fold this into. Checked FIRST
+      // and, on a match, skips that loop entirely for this keypress — one Alt
+      // hover opens at most one thing, never a peek AND an export popup both.
+      // Once open, a row's own Alt-hover preview (exportPreview.hpp) behaves
+      // exactly as it does for any other opening of the same menu.
+      bool openedExportMenu = false;
+      if (!activePopover_ && !altPeekExportMenu_) {
+        auto tryOpen = [this](QAction* act, QMenu* menu) {
+          if (!act || !menu || !act->isEnabled()) return false;
+          QWidget* btn = buttonForAction(act);
+          if (!btn || !btn->isVisible()) return false;
+          if (!(btn->underMouse() || btn->rect().contains(btn->mapFromGlobal(QCursor::pos()))))
+            return false;
+          altPeekExportMenu_ = menu;
+          menu->popup(btn->mapToGlobal(QPoint(0, btn->height())));
+          return true;
+        };
+        openedExportMenu =
+            tryOpen(actCopyImage_, copyImageOptionsMenu_) || tryOpen(actSaveImage_, saveImageOptionsMenu_);
+      }
+      if (!openedExportMenu) {
+        for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
+          auto* btn = static_cast<QToolButton*>(it.key());
+          if (!it.value()->isEnabled()) continue;   // a disabled icon opens nothing
+          // underMouse() backs up the cursor-position check: same answer for a real
+          // resting pointer, and it is the state the offscreen GUI test can mock.
+          if (btn->isVisible() && (btn->underMouse() ||
+                                   btn->rect().contains(btn->mapFromGlobal(QCursor::pos())))) {
+            if (activePopover_) {
+              // A popover (peek or sticky) already shows: switch to this icon —
+              // the reject unwinds exec(), and execMaybePopover opens the next.
+              altPeekNextButton_ = btn;
+              altPeekNextAction_ = it.value();
+              dismissPopover();
+            } else {
+              altPeekOpen(btn, it.value());
+            }
+            break;
           }
-          break;
         }
       }
     }
@@ -211,6 +288,14 @@ namespace stencil::gui {
           if (engaged) startLingerPoll();
           else actChat_->setChecked(false);
         }
+      }
+      // Same hold-to-peek rule for an export-options popup opened above: releasing
+      // Alt closes it UNLESS the cursor has since moved inside (engaged) — a plain
+      // QMenu needs no lingerPoll of its own, since it already closes itself on any
+      // outside click or Escape from here on.
+      if (QMenu* menu = altPeekExportMenu_.data()) {
+        altPeekExportMenu_.clear();
+        if (!menu->geometry().contains(QCursor::pos())) menu->close();
       }
     }
     // A popover also dies when THIS WINDOW loses the keyboard — the user switched apps
@@ -336,7 +421,7 @@ namespace stencil::gui {
     // already in viewport coordinates, which is what setZoomAnchored wants.
     if (scroll_ && obj == scroll_->viewport()) {
       const QEvent::Type t = event->type();
-      if (t == QEvent::Resize) { positionOverlayArrows(); positionPanelReopenButton(); }
+      if (t == QEvent::Resize) { positionOverlayArrows(); positionPanelReopenButton(); positionPanelGrip(); }
       // Right-click on the margin around the image (or anywhere with no image)
       // opens the same context menu the canvas opens — the backdrop had none.
       // syncContextActions() still gates the image-dependent entries.
@@ -384,7 +469,8 @@ namespace stencil::gui {
     }
     // Hover-reveal for the name group: any Enter/Leave on the field or the ✎/🎨 buttons recomputes
     // hover (deferred so underMouse() settles — moving field→button stays "hovered", no flicker).
-    if (obj == projectName_ || obj == projectNameEdit_ || obj == projectColorBtn_) {
+    if (obj == nameGroup_ || obj == projectName_ || obj == projectNameEdit_
+        || obj == projectColorBtn_) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Enter || t == QEvent::Leave)
         QTimer::singleShot(0, this, [this] { updateNameHover(); });

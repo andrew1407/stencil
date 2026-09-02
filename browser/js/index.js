@@ -9,6 +9,7 @@ import { initTooltips } from './ui/controlTooltip.js';
 import { wireChatPersistence } from './llm/chatPersistence.js';
 import { initProjectsBackend } from './core/projectsBackend.js';
 import { watchNumericInputs } from './ui/numericInput.js';
+import { installControlSwap } from './ui/controlSwap.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
@@ -36,6 +37,10 @@ window.onload = async () => {
   // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and
   // the observer catches the inputs that modals/panels render later.
   watchNumericInputs();
+  // …and let every checkbox's tick come and go as sand (ui/controlSwap.js). One
+  // delegated listener, like the desktop's one application-wide event filter, so a
+  // component built later gets the motion without knowing about it.
+  installControlSwap();
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
   document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));

@@ -10,7 +10,9 @@
 #include "mediaLoader.hpp"  // isImageFileName / isVideoFileName (attach routing)
 #include "theme.hpp"        // Palette (restyleIcons)
 #include "scrollReveal.hpp"  // transcript cards fade at the viewport edges
-#include "../support/disintegrateOverlay.hpp"  // cards scatter on Clear
+#include "../support/disintegrateOverlay.hpp"  // cards scatter on Clear, gather on append
+#include "../support/flowLayout.hpp"           // the suggestion chips wrap like browser chips
+#include "../support/modalReveal.hpp"          // support::motionReduced()
 #include "../support/menuReveal.hpp"           // card menu grows from the click
 #include "../support/iconMotion.hpp"           // the per-icon hover motion
 #include "../support/shimmerOverlay.hpp"       // the shared hover sweep
@@ -61,6 +63,20 @@
 namespace stencil::gui {
 
   namespace {
+    // Qt still reserves the unused shortcut column when sizing the popup, so the
+    // width must be set outright or the menu comes out far wider than its items.
+    void fitMenuWidth(QMenu& menu) {
+      int label = 0;
+      for (QAction* a : menu.actions())
+        label = std::max(label, menu.fontMetrics().horizontalAdvance(a->text()));
+      // 6 left pad + 16 icon + ~8 icon-text gap + 10 right pad + menu pads/margins.
+      menu.setFixedWidth(label + 52);
+    }
+    void compactIconMenu(QMenu& menu) {
+      menu.setStyleSheet(compactMenuQss());   // shared with MenuHotkeyChips' compact mode
+      fitMenuWidth(menu);
+    }
+
     constexpr int kThumbEdge = 160;  // variant thumbnail long edge (px)
     constexpr int kButtonEdge = 23;  // compact ghost action buttons (browser .chat-hbtn: 23x23)
     constexpr int kHeaderIcon = 13;  // …with a 13px glyph, as in the browser header
@@ -69,11 +85,9 @@ namespace stencil::gui {
     // mirrors these exact numbers so the two composers read identically.
     constexpr int kAccentEdge = 30;
     constexpr int kAccentIcon = 20;
-    // A chat card comes apart into a FINER grid than a list row (browser motion.js
-    // CHAT_DISINTEGRATE_COLS/ROWS): a deleted message is a deliberate act, and the
-    // default dust read as too coarse for it.
-    constexpr int kChatScatterCols = 32;
-    constexpr int kChatScatterRows = 16;
+    // Suggestion-chip corner: Qt silently draws a SQUARE box when border-radius exceeds
+    // half the height; 14 is half the app-wide floor, so the chip stays a true pill.
+    constexpr int kSuggestChipRadius = 14;
     // …and it FADES while the dust flies, instead of blinking out from under it
     // (browser css/animations.css chatCardLeave, motion.js CHAT_LEAVE_MS).
     constexpr int kChatLeaveMs = 260;
@@ -86,12 +100,10 @@ namespace stencil::gui {
     // MAX_ATTACHMENTS). A turn's images are re-encoded, replayed and paid for per turn
     // (contract §7); past three the queue is refused rather than silently trimmed.
     constexpr int kMaxAttachments = 3;
-    // Jump pills rest translucent so a short bubble under them stays readable;
-    // hovering one restores full opacity.
-    // The browser's .chat-jump-btn is fully opaque at rest — hover brightens its
-    // glyph to --text-main and its border to --accent. A 0.45 rest opacity was a
-    // desktop invention, and it is what made these circles read as washed out.
-    constexpr double kJumpRestOpacity = 1.0;
+    // Jump pills and the row "…" triggers rest translucent so a short bubble under
+    // them stays readable; hover restores full opacity. One deliberately shared
+    // figure (browser .chat-jump-btn / .chat-row-menu-btn on all three surfaces).
+    constexpr double kGhostRestOpacity = 0.7;
     // How close to the bottom (px) still counts as "reading the end" — the
     // transcript follows new content only inside this band (chat stickiness).
     constexpr int kStickyBottomPx = 40;
@@ -282,7 +294,7 @@ namespace stencil::gui {
       // Ghosted at rest so the bubble underneath stays readable; the hover
       // handling in eventFilter lifts it to full opacity.
       auto* fx = new QGraphicsOpacityEffect(b);
-      fx->setOpacity(kJumpRestOpacity);
+      fx->setOpacity(kGhostRestOpacity);
       b->setGraphicsEffect(fx);
       b->installEventFilter(this);
       b->hide();
@@ -407,15 +419,30 @@ namespace stencil::gui {
         clearConversation();
         emit clearRequested();  // the owner drops chatHistory_ + per-turn caches
       });
-      // No separator before Settings — the browser menu lists the three flat.
+      // Browser/extension parity: "Swap message sides" between Clear history and
+      // Settings. Re-skins this dock immediately; the owner persists it and
+      // propagates to the context menu's mirror panel (chatSwapSidesChanged).
+      actSwapSides_ = menu->addAction(QStringLiteral("Swap message sides"));
+      connect(actSwapSides_, &QAction::triggered, this, [this] {
+        setChatSwapSides(!chatSwapSides_);
+        emit chatSwapSidesChanged(chatSwapSides_);
+      });
+      // No separator before Settings — the browser menu lists the four flat.
       actSettings_ = menu->addAction(QStringLiteral("Settings"));
       connect(actSettings_, &QAction::triggered, this, &ChatDock::settingsRequested);
-      // Item states refresh as the menu opens: no third image past the §7 cap, and
-      // nothing to clear on an empty conversation (user decision).
-      connect(menu, &QMenu::aboutToShow, this, [this] {
-        actAttach_->setEnabled(images_.size() < kMaxAttachments && videoPath_.isEmpty());
-        actClear_->setEnabled(transcriptHasCards());
+      // Item states refresh as the menu opens: an item that cannot act right now
+      // HIDES rather than greys out (user decision; browser parity) — no third
+      // image past the §7 cap, nothing to clear on an empty conversation.
+      connect(menu, &QMenu::aboutToShow, this, [this, menu] {
+        syncMoreMenuItems();
+        fitMenuWidth(*menu);   // the labels are fixed, the FONT is not (theme/DPI change)
       });
+      // Four short labelled icons, not a menu-bar menu — so it hugs them (the card
+      // "⋯" gets the same treatment) instead of wearing the theme's wide gutters.
+      compactIconMenu(*menu);
+      // Both edges of the overflow fly, browser/extension parity: the motes stream out
+      // of the "…" and pour back into it (the menu is built once, popped many times).
+      support::revealMenuFrom(*menu, more_);
       more_->setMenu(menu);
     }
     btnRow->addWidget(more_);
@@ -563,8 +590,10 @@ namespace stencil::gui {
     }
     row->addWidget(dockGroup);
     floatBtn_ = makeGhostButton(titleBar_, "Float — drag the header to move");
-    connect(floatBtn_, &QToolButton::clicked, this,
-            [this] { setFloating(!isFloating()); });
+    // NOT a raw setFloating() here: that just teleports the panel with no animation
+    // at all. The owner answers with the same dust flight a side switch plays,
+    // ending in setFloating (or a re-dock) itself.
+    connect(floatBtn_, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
     row->addWidget(floatBtn_);
     closeBtn_ = makeGhostButton(titleBar_, "Close assistant");
     // NOT QWidget::close(): that hides the dock on the spot, and a side-docked
@@ -585,26 +614,22 @@ namespace stencil::gui {
     auto* box = new QWidget(parent);
     box->setObjectName(QStringLiteral("chatSuggest"));
     auto* flow = new FlowLayout(box, 2, 6, 6);
-    struct Chip {
-      const char* display;
-      const char* prompt;
+    // One string per chip (browser CHAT_SUGGESTIONS parity): what's written on
+    // the button is exactly what lands in the input.
+    static const char* const kChips[] = {
+        "Make it sepia",
+        "3 variants: rotated \xc2\xb7 tinted \xc2\xb7 cropped",
+        "Extract the lines from this image",
+        "Crop 10% off every edge, rotate right",
     };
-    static const Chip kChips[] = {
-        {"Make it sepia", "Make it sepia"},
-        {"3 variants: rotated \xc2\xb7 tinted \xc2\xb7 cropped",
-         "Give me 3 variants: rotated, tinted, cropped"},
-        {"Extract the lines from this image", "Extract the lines from this image"},
-        {"Crop 10% off every edge, rotate right",
-         "Crop 10% off every edge and rotate right"},
-    };
-    for (const Chip& c : kChips) {
-      auto* chip = new QPushButton(QString::fromUtf8(c.display), box);
+    for (const char* c : kChips) {
+      const QString text = QString::fromUtf8(c);
+      auto* chip = new QPushButton(text, box);
       chip->setObjectName(QStringLiteral("chatSuggestChip"));
       chip->setCursor(Qt::PointingHandCursor);
       chip->setFocusPolicy(Qt::NoFocus);
-      const QString prompt = QString::fromUtf8(c.prompt);
       QObject::connect(chip, &QPushButton::clicked, box,
-                       [onPick, prompt] { if (onPick) onPick(prompt); });
+                       [onPick, text] { if (onPick) onPick(text); });
       flow->addWidget(chip);
     }
     return box;
@@ -615,15 +640,15 @@ namespace stencil::gui {
   void styleSuggestionChips(QWidget* chips, const Palette& pal) {
     if (!chips) return;
     const QString qss =
-        QStringLiteral(
-            "QPushButton{border:1px solid %1;border-radius:16px;"
-            "background:%2;color:%3;padding:4px 12px;}"
-            "QPushButton:hover{border-color:%4;background:rgba(%5,%6,%7,26);}")
+        QStringLiteral("QPushButton{border:1px solid %1;border-radius:%8px;"
+                       "background:%2;color:%3;padding:4px 12px;}"
+                       "QPushButton:hover{border-color:%4;background:rgba(%5,%6,%7,26);}")
             .arg(pal.borderMain.name(), pal.bgContainer.name(), pal.textMain.name(),
                  pal.accent.name())
             .arg(pal.accent.red())
             .arg(pal.accent.green())
-            .arg(pal.accent.blue());
+            .arg(pal.accent.blue())
+            .arg(kSuggestChipRadius);
     for (QPushButton* chip : chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip")))
       chip->setStyleSheet(qss);
   }
@@ -652,7 +677,7 @@ namespace stencil::gui {
         (event->type() == QEvent::Enter || event->type() == QEvent::Leave)) {
       auto* pill = static_cast<QToolButton*>(obj);
       auto* fx = qobject_cast<QGraphicsOpacityEffect*>(pill->graphicsEffect());
-      if (fx) fx->setOpacity(event->type() == QEvent::Enter ? 1.0 : kJumpRestOpacity);
+      if (fx) fx->setOpacity(event->type() == QEvent::Enter ? 1.0 : kGhostRestOpacity);
       // …and the glyph brightens to --text-main under the cursor, dropping back
       // to --text-muted (browser .chat-jump-btn / :hover).
       const QColor glyph = event->type() == QEvent::Enter
@@ -982,26 +1007,37 @@ namespace stencil::gui {
   // composer lights up — a drop over the transcript belongs to the window behind it.
   // ── Jump pills (browser chatPanel syncJumps parity): ⌃ while the view is off the
   // beginning, ⌄ while it is off the latest message, both mid-log, neither fits. ──
-  // Does a row's "…" sit on top of the jump pills right now? The pills float in
-  // the transcript's bottom-right corner, which is exactly where an assistant
-  // row's menu button lands, and two round controls on top of each other are
-  // unclickable as well as ugly. Recomputed from the live geometry (never a
-  // cached flag), so the pills always come back once the button moves or goes.
-  bool ChatDock::jumpPillsBlocked() const {
-    if (!transcript_ || !jumpBottom_) return false;
+  // The pills' own global box, whichever are visible right now — a null QRect while
+  // neither is. Recomputed from the live geometry (never a cached flag), so a row's
+  // "…" always reads where the pills ACTUALLY are, this instant.
+  QRect ChatDock::jumpPillsGlobalRect() const {
+    if (!jumpBottom_) return QRect();
     const auto globalOf = [](QWidget* w) {
       return QRect(w->parentWidget() ? w->parentWidget()->mapToGlobal(w->pos())
                                      : w->mapToGlobal(QPoint(0, 0)),
                    w->size());
     };
-    // The pills' own boxes, whether or not they are showing at this instant —
-    // asking a hidden widget where it is is exactly what we need here.
-    QRect pills = globalOf(jumpBottom_);
-    if (jumpTop_) pills = pills.united(globalOf(jumpTop_));
-    pills.adjust(-4, -4, 4, 4);   // a near miss still crowds them
-    for (QToolButton* more : transcript_->findChildren<QToolButton*>("chatCardMore"))
-      if (more->isVisible() && pills.intersects(globalOf(more))) return true;
-    return false;
+    QRect pills;
+    if (jumpBottom_->isVisible()) pills = globalOf(jumpBottom_);
+    if (jumpTop_ && jumpTop_->isVisible())
+      pills = pills.isNull() ? globalOf(jumpTop_) : pills.united(globalOf(jumpTop_));
+    return pills;
+  }
+
+  // The pills just moved, appeared or vanished — any row "…" already on screen must
+  // reconsider whether it still clears them (shift further, settle back, or hide).
+  // placeChatCardMore is idempotent, so re-running it on a row that needed no change
+  // is a no-op.
+  void ChatDock::revalidateMoreButtons() {
+    if (!transcript_ || !scroll_) return;
+    const QRect avoid = jumpPillsGlobalRect();
+    // Direct children: placeChatCardMore parents every "…" to the transcript itself.
+    for (QToolButton* more : transcript_->findChildren<QToolButton*>(
+             QStringLiteral("chatCardMore"), Qt::FindDirectChildrenOnly)) {
+      if (!more->isVisible()) continue;
+      if (auto* card = qobject_cast<QFrame*>(more->property("chatMoreCard").value<QObject*>()))
+        placeChatCardMore(card, more, scroll_, avoid);
+    }
   }
 
   void ChatDock::updateJumpButtons() {
@@ -1009,11 +1045,14 @@ namespace stencil::gui {
     const auto* bar = scroll_->verticalScrollBar();
     const bool up = bar->value() > 12;
     const bool down = bar->maximum() - bar->value() > 12;
-    // Position FIRST: the overlap test reads where the pills actually are.
     if (up || down) positionJumpButtons();
-    const bool blocked = jumpPillsBlocked();
-    jumpTop_->setVisible(up && !blocked);
-    jumpBottom_->setVisible(down && !blocked);
+    // The pills answer to the scroll position alone now — a row's "…" is what gets
+    // out of THEIR way (revalidateMoreButtons), never the reverse (an earlier rule
+    // hid the pills instead, inverted per user report: the arrows are the
+    // higher-priority control and stay put).
+    jumpTop_->setVisible(up);
+    jumpBottom_->setVisible(down);
+    revalidateMoreButtons();
   }
 
   // Grace-hide for a card's "⋯": it sits across a small gap from the bubble, so
@@ -1315,34 +1354,55 @@ namespace stencil::gui {
   // DeleteWhenStopped reaps a normal finish.
   void ChatDock::animateCardIn(QWidget* card, QVBoxLayout* lay) {
     // Claim the card's opacity while the entrance plays: ScrollReveal drives the same
-    // effect, and two writers on one effect flicker.
+    // effect, and two writers on one effect flicker. Claimed and zeroed NOW even when
+    // the entrance itself starts a turn later, so the card never flashes at full
+    // strength in between.
     card->setProperty(ScrollReveal::kEnteringProperty, true);
     auto* fx = new QGraphicsOpacityEffect(card);
     fx->setOpacity(0.0);
     card->setGraphicsEffect(fx);  // the widget takes ownership of the effect
+    // Reduced motion keeps the old immediate path: nothing to photograph, nothing to
+    // wait for. Everything else defers — appendTranscriptCard hands the caller an EMPTY
+    // card, and the dust has to be a picture of the FINISHED bubble, laid out at its real
+    // width and already scrolled to. The caller's own scrollToBottom() is a singleShot(0)
+    // queued AFTER this one, so a 0ms hop here would still measure the pre-scroll box;
+    // one frame lets that scroll land first.
+    if (support::motionReduced()) { startCardEntrance(card, lay); return; }
+    QPointer<QWidget> cp(card);
+    QTimer::singleShot(kChatGatherSettleMs, card, [this, cp, lay] {
+      if (cp) startCardEntrance(cp, lay);
+    });
+  }
+
+  void ChatDock::startCardEntrance(QWidget* card, QVBoxLayout* lay) {
     const QMargins rest = lay->contentsMargins();
-    auto* anim = new QVariantAnimation(card);
-    anim->setDuration(kAppearMs);
-    anim->setStartValue(0.0);
-    anim->setEndValue(1.0);
-    anim->setEasingCurve(QEasingCurve::OutCubic);
-    QPointer<QGraphicsOpacityEffect> fxp(fx);
-    connect(anim, &QVariantAnimation::valueChanged, card,
-            [fxp, lay, rest](const QVariant& v) {
-              const double t = v.toDouble();
-              if (!fxp) return;   // something replaced the effect — never write to it
-              fxp->setOpacity(t);
-              const int off = qRound(kAppearSlidePx * (1.0 - t));
-              lay->setContentsMargins(rest.left(), rest.top() + off, rest.right(),
-                                      qMax(0, rest.bottom() - off));
-            });
-    connect(anim, &QVariantAnimation::finished, card, [this, card, fx, lay, rest] {
-      fx->setOpacity(1.0);  // land exactly on the resting state
+    // The resting state — every bail-out in the shared machinery takes it, so a card
+    // can never be stranded invisible behind a flight that did not happen.
+    const auto settle = [this, card, lay, rest] {
+      if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect())) e->setOpacity(1.0);
       lay->setContentsMargins(rest);
       card->setProperty(ScrollReveal::kEnteringProperty, false);
       if (reveal_) reveal_->apply();   // hand the card over to the scroll curve
-    });
-    anim->start(QAbstractAnimation::DeleteWhenStopped);
+      repositionChatBubbleTails(transcript_);
+    };
+    // The slide runs on its own short clock only once the dust actually flies — the
+    // gap the card opens in the transcript is layout, not flourish, and the finished
+    // bubble must never be drawn under the animation (the card waits fully hidden).
+    const auto slide = [this, card, lay, rest] {
+      auto* anim = new QVariantAnimation(card);
+      anim->setDuration(kAppearMs);
+      anim->setStartValue(0.0);
+      anim->setEndValue(1.0);
+      anim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(anim, &QVariantAnimation::valueChanged, card, [lay, rest](const QVariant& v) {
+        const int off = qRound(kAppearSlidePx * (1.0 - v.toDouble()));
+        lay->setContentsMargins(rest.left(), rest.top() + off, rest.right(),
+                                qMax(0, rest.bottom() - off));
+      });
+      anim->start(QAbstractAnimation::DeleteWhenStopped);
+    };
+    gatherChatCardIn(card, transcriptLayout_, scroll_, window(), kChatScatterCols,
+                     kChatScatterRows, settle, slide);
   }
 
   // The shared row menu (browser chatView.js chatRowMenuItems): Copy message and
@@ -1385,10 +1445,6 @@ namespace stencil::gui {
     // Parented to the card's OWN top level, never to a hooks owner that may be a
     // widget inside a popup that is already going away.
     QMenu menu(top);
-    // Compact override of the theme's roomy QMenu paddings (26px right slack +
-    // 24px left reserve): this short icon list should hug its longest label.
-    menu.setStyleSheet(QStringLiteral(
-        "QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}"));
     // Same glyphs as the browser's chat row menu (copy / pen / send), one flat
     // list — no separators, so nothing dangles now that "Select all" is gone.
     QAction* copy =
@@ -1401,13 +1457,7 @@ namespace stencil::gui {
       resend = menu.addAction(themedIcon("send", hooks.text, 16), QStringLiteral("Resend"));
       resend->setEnabled(!(hooks.busy && hooks.busy()));
     }
-    // Qt reserves a shortcut column these items never use — size the menu to
-    // its longest label instead (icon 16 + pads/margins around it).
-    int label = 0;
-    for (QAction* a : menu.actions())
-      label = std::max(label, menu.fontMetrics().horizontalAdvance(a->text()));
-    // 6 left pad + 16 icon + ~8 icon-text gap + 10 right pad + menu pads/margins.
-    menu.setFixedWidth(label + 52);
+    compactIconMenu(menu);   // …and it hugs its longest label, like the composer's "…"
     card->setProperty("chatMenuOpen", true);   // holds its "⋯" visible meanwhile
     support::revealMenu(menu, globalPos);  // grow-from-the-cursor pop
     QAction* picked = menu.exec(globalPos);
@@ -1484,10 +1534,20 @@ namespace stencil::gui {
     more->setIconSize(QSize(15, 15));
     // Browser .chat-row-menu-btn parity: an outlined circle on the container
     // tone, and NO hover fill — hover is the accent glow + 1px lift instead.
+    // It rests at 0.7 like the browser's revealed trigger and the jump pills, and the
+    // cursor brings it back to full. Not a QGraphicsOpacityEffect: a widget carries only
+    // ONE graphics effect and the accent glow below already claims it, so the alpha is
+    // baked into the chrome instead (and blended into the glyph, which QSS can't reach).
+    const auto rgba = [](const QColor& c, double a) {
+      return QStringLiteral("rgba(%1,%2,%3,%4)")
+          .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a);
+    };
     more->setStyleSheet(QStringLiteral("QToolButton{padding:1px;background:%1;"
                                        "border:1px solid %2;border-radius:10px;}"
-                                       "QToolButton:hover{background:%1;}")
-                            .arg(hooks.chip.name(), hooks.border.name()));
+                                       "QToolButton:hover{background:%3;border-color:%4;}")
+                            .arg(rgba(hooks.chip, kGhostRestOpacity),
+                                 rgba(hooks.border, kGhostRestOpacity),
+                                 hooks.chip.name(), hooks.border.name()));
     // Centred (no offset), so the glow rings the button like the browser's.
     auto* glow = new QGraphicsDropShadowEffect(more);
     glow->setOffset(0, 0);
@@ -1498,13 +1558,16 @@ namespace stencil::gui {
     more->setCursor(Qt::PointingHandCursor);
     more->setFocusPolicy(Qt::NoFocus);  // never steal a label's selection focus
     installHoverShimmer(more);          // the same sweep every chat button gets
-    more->setIcon(themedIcon("more", hooks.muted, 16));
+    // The glyph takes the same 0.7, blended over the chip it sits on rather than made
+    // translucent: the icon is rasterised, and themedIcon's cache is keyed on an
+    // alpha-less colour name, so an alpha here would collide with the opaque request.
+    more->setIcon(themedIcon("more", blendColors(hooks.muted, hooks.chip, kGhostRestOpacity), 16));
     more->hide();
     QObject::connect(more, &QToolButton::clicked, more, [cardRef, more, show] {
       if (!cardRef) return;
       show(cardRef, more->mapToGlobal(QPoint(0, more->height())));
     });
-    new ChatCardMore(card, more, hooks.scroll, hooks.moreMoved);  // hover + placement
+    new ChatCardMore(card, more, hooks.scroll, hooks.moreMoved, hooks.avoidRect);  // hover + placement
   }
 
   QWidget* makeChatTypingDots(QWidget* parent) {
@@ -1530,16 +1593,45 @@ namespace stencil::gui {
     auto* retry = makeGhostButton(lay->parentWidget(),
                                   QStringLiteral("Send this message again"));
     retry->setObjectName("chatRetry");
+    // Sized up from makeGhostButton's header-ghost default (kHeaderIcon/kButtonEdge):
+    // a lone icon-only action at the foot of an error card — often the ONLY thing on
+    // it (a plain failure has no Configure CTA beside it) — reads as an afterthought
+    // at that size.
+    static constexpr int kRetryIcon = 18;
+    static constexpr int kRetryEdge = 30;
+    retry->setIconSize(QSize(kRetryIcon, kRetryIcon));
+    retry->setFixedSize(kRetryEdge, kRetryEdge);
     // Neutral glyph on EVERY card, error ones included: the browser's retry is a
     // .chat-hbtn, which sets `color: var(--text-muted)` of its own and never
     // inherits the bubble's --danger. Painted red it sat red-on-red in the error
     // card's danger wash and barely read; the red belongs to the card's ground
     // and border, not to the control offering the way out.
-    retry->setIcon(themedIcon("refresh", glyph, 14));
+    retry->setIcon(themedIcon("refresh", glyph, kRetryIcon));
     QObject::connect(retry, &QToolButton::clicked, retry,
                      [onClick] { if (onClick) onClick(); });
     lay->addWidget(retry, 0, Qt::AlignLeft);
     return retry;
+  }
+
+  // The unreachable-card "Configure provider" CTA (browser chatConfigureButton),
+  // shared by the dock and the menu panel: accent-filled, white gear glyph (haloed
+  // on a light accent — the glyph inherits the canonical gear hover motion for
+  // free). `onClick` gets the button, still on screen, as the settings reveal's
+  // anchor. Accent look via the accentCta property (theme.cpp); the objectName
+  // stays free for the GUI tests.
+  QPushButton* addChatConfigureCta(QVBoxLayout* lay, const QColor& accent,
+                                   std::function<void(QPushButton*)> onClick) {
+    if (!lay) return nullptr;
+    auto* cta = new QPushButton(QObject::tr("Configure provider"), lay->parentWidget());
+    cta->setObjectName(QStringLiteral("chatConfigureCta"));
+    cta->setProperty("accentCta", true);
+    cta->setCursor(Qt::PointingHandCursor);
+    cta->setIcon(themedIcon("gear", Qt::white, 14, accentNeedsGlyphShadow(accent)));
+    cta->setIconSize(QSize(14, 14));
+    QObject::connect(cta, &QPushButton::clicked, cta,
+                     [cta, onClick] { if (onClick) onClick(cta); });
+    lay->addWidget(cta, 0, Qt::AlignLeft);
+    return cta;
   }
 
   // The dock's own hooks for the shared menu above: its composer, its resend
@@ -1563,7 +1655,11 @@ namespace stencil::gui {
         addAttachmentImage(v.value<QImage>());
       emit sendRequested(text);
     };
-    h.moreMoved = [this] { updateJumpButtons(); };
+    // No h.moreMoved: the relationship inverted (the pills win, the trigger gets out
+    // of THEIR way — jumpPillsGlobalRect/revalidateMoreButtons), so a moved trigger no
+    // longer has anything to tell the pills. Wiring it back to updateJumpButtons would
+    // also be reentrant: it now moves triggers itself, which would fire this same hook.
+    h.avoidRect = [this] { return jumpPillsGlobalRect(); };
     h.leaving = [this] { return closing_; };
     h.text = textCache_.isValid() ? textCache_ : palette().color(QPalette::Text);
     h.chip = chipCache_.isValid() ? chipCache_ : palette().color(QPalette::AlternateBase);
@@ -1576,17 +1672,26 @@ namespace stencil::gui {
   void ChatDock::installCardMenu(QFrame* card) { installChatCardMenu(card, cardMenuHooks()); }
 
 
-  // Bubbles stop short of the full width (browser max-width: 88%) so the side
-  // they sit on is legible; re-applied whenever the viewport resizes.
-  // Shared with the context menu's assistant panel: a wrapped label CLIPS ITSELF
-  // without this pass, so both transcripts run it.
+  // The share of the viewport a bubble may take. Browser/extension parity
+  // (@container chat-transcript (max-width: 300px)): below that the split has no
+  // room to read as a SIDE any more, so bubbles widen toward the full column
+  // instead of squeezing their text — the alignment itself is unchanged (unlike
+  // the CSS surfaces, dropping it here would mean re-running the layout's
+  // alignment on every resize, and the L/R split still reads fine at this width,
+  // it is only the TEXT that was cramped).
+  double chatBubbleCapFraction(int avail) { return avail > 0 && avail < 300 ? 0.96 : 0.88; }
+
+  // Bubbles stop short of the full width so the side they sit on is legible;
+  // re-applied whenever the viewport resizes. Shared with the context menu's
+  // assistant panel: a wrapped label CLIPS ITSELF without this pass, so both
+  // transcripts run it.
   void applyChatBubbleWidths(QWidget* transcript, QScrollArea* scroll) {
     // The widest a wrapped label inside `card` may be: the bubble cap minus the card's
     // own padding. Used both to cap the label and, when it has not been laid out yet,
     // to measure the height its text will need.
     const auto lwFor = [scroll](QFrame* card) {
       const int avail = scroll && scroll->viewport() ? scroll->viewport()->width() : 0;
-      const int cap = qMax(120, static_cast<int>(avail * 0.88));
+      const int cap = qMax(120, static_cast<int>(avail * chatBubbleCapFraction(avail)));
       const QMargins m = card && card->layout() ? card->layout()->contentsMargins() : QMargins();
       return qMax(80, cap - m.left() - m.right());
     };
@@ -1595,7 +1700,7 @@ namespace stencil::gui {
     // measure anything — leave the cards alone and let the owner re-run this
     // once it has a real width, rather than pinning them to a bogus cap.
     if (avail <= 0 || !transcript) return;
-    const int cap = qMax(120, static_cast<int>(avail * 0.88));
+    const int cap = qMax(120, static_cast<int>(avail * chatBubbleCapFraction(avail)));
     for (QFrame* card : transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
       card->setMaximumWidth(cap);
       // Word-wrapped labels grow TALLER as the card narrows: without
@@ -1612,6 +1717,13 @@ namespace stencil::gui {
         // the whole transcript.
         const int lw = lwFor(card);
         l->setMaximumWidth(lw);
+        // Browser shrink-to-fit parity: a wrapped bubble narrows below the cap only
+        // when its text fits one line; otherwise it takes the FULL cap (Qt's wrapped
+        // sizeHint favours a squarer, needlessly narrow shape instead).
+        const int natural = l->fontMetrics().size(0, l->text()).width();
+        // Pinned explicitly rather than left at minimumWidth 0: a wrapped QLabel's
+        // sizeHint reads its CURRENT geometry, so a fresh label wrapped short lines.
+        l->setMinimumWidth(qMin(natural, lw));
         QSizePolicy lp = l->sizePolicy();
         lp.setHeightForWidth(true);
         lp.setVerticalPolicy(QSizePolicy::MinimumExpanding);
@@ -1653,6 +1765,8 @@ namespace stencil::gui {
       }
     }
     if (transcript->layout()) transcript->layout()->activate();
+    // Every card above may have just moved — its tail (if any) has to follow.
+    repositionChatBubbleTails(transcript);
   }
 
   void ChatDock::applyBubbleWidths() { applyChatBubbleWidths(transcript_, scroll_); }
@@ -1894,11 +2008,24 @@ namespace stencil::gui {
     // The way back in, spelled out — an expired session is not something Resend
     // can fix, so the card leads with the reconnect (browser parity).
     auto* cta = new QPushButton(tr("Reconnect to %1").arg(host), lay->parentWidget());
-    cta->setObjectName(QStringLiteral("chatReconnectCta"));
+    cta->setObjectName(QStringLiteral("chatReconnectCta"));   // the GUI test finds it
+    cta->setProperty("accentCta", true);   // accent fill via theme.cpp's property rule
     cta->setCursor(Qt::PointingHandCursor);
     connect(cta, &QPushButton::clicked, this, [this, host] { emit reconnectRequested(host); });
     lay->addWidget(cta, 0, Qt::AlignLeft);
     addRetryButton(lay, retryText);   // …and the turn is still resendable after
+    applyBubbleWidths();
+  }
+
+  void ChatDock::appendUnreachable(const QString& text, const QString& retryText) {
+    QVBoxLayout* lay = appendCard("Error", text, CardKind::Error);
+    // The reveal flies from THIS button — it lives in the transcript and stays on
+    // screen through the click, unlike the gear behind "…".
+    QPointer<ChatDock> self(this);
+    addChatConfigureCta(lay, accentCache_, [self](QPushButton* cta) {
+      if (self) emit self->configureProviderRequested(cta);
+    });
+    addRetryButton(lay, retryText);
     applyBubbleWidths();
   }
 
@@ -2047,6 +2174,16 @@ namespace stencil::gui {
     return false;
   }
 
+  // Show a … item only while it can actually act (user decision; the browser hides
+  // its .chat-more-item the same way): attach until the §7 cap with no video queued,
+  // clear only over a non-empty transcript, neither while a turn is in flight.
+  void ChatDock::syncMoreMenuItems() {
+    if (actAttach_)
+      actAttach_->setVisible(!busyFlag_ && images_.size() < kMaxAttachments
+                             && videoPath_.isEmpty());
+    if (actClear_) actClear_->setVisible(!busyFlag_ && transcriptHasCards());
+  }
+
   void ChatDock::setBusy(bool on) {
     // Tracked as state, NOT as the progress bar's visibility: a turn can be
     // driven from the context-menu chat with this dock closed, and a hidden
@@ -2058,9 +2195,9 @@ namespace stencil::gui {
     // …and so is clearing: the transcript can't be wiped out from under an
     // answer that is still landing in it.
     if (clearBtn_) clearBtn_->setEnabled(!on);
-    // The … menu mirrors those two (its items are the visible affordance now).
-    if (actAttach_) actAttach_->setEnabled(!on);
-    if (actClear_) actClear_->setEnabled(!on);
+    // The … menu mirrors those two (its items are the visible affordance now):
+    // mid-turn they leave the menu entirely instead of greying out.
+    syncMoreMenuItems();
     // While in flight, the send button IS the stop button (white glyph on the
     // accent fill, like the rest of the action group).
     send_->setIcon(themedIcon(on ? "stop" : "send", QColor(Qt::white), kAccentIcon));
@@ -2094,6 +2231,7 @@ namespace stencil::gui {
     // Browser .chat-panel parity: one card on the controls-panel tone with a
     // themed hairline border; transcript + input are recessed rounded surfaces
     // (page tone, 8px radius, accent focus ring).
+    paletteCache_ = pal;   // so a later swap toggle can re-issue this stylesheet
     accentCache_ = pal.accent;
     chipCache_ = pal.bgContainer;
     borderCache_ = pal.borderMain;
@@ -2140,7 +2278,7 @@ namespace stencil::gui {
         // The transcript bubbles themselves come from the SHARED sheet the
         // context menu's panel applies too, so one message looks the same
         // wherever it is rendered.
-        + chatCardStyleSheet(pal));
+        + chatCardStyleSheet(pal, chatSwapSides_));
     // The accent-filled composer buttons carry white line-art (like checked
     // toolbar toggles); the title-bar float/close ghosts use the theme text.
     const QColor onAccent = Qt::white;
@@ -2153,6 +2291,7 @@ namespace stencil::gui {
     if (more_) more_->setIcon(themedIcon("dots", onAccent, kAccentIcon, halo));
     if (actAttach_) actAttach_->setIcon(themedIcon("image", pal.textMain, 14));
     if (actClear_) actClear_->setIcon(themedIcon("trash", pal.textMain, 14));
+    if (actSwapSides_) actSwapSides_->setIcon(themedIcon("swap", pal.textMain, 14));
     if (actSettings_) actSettings_->setIcon(themedIcon("gear", pal.textMain, 14));
     closeBtn_->setIcon(themedIcon("x", pal.textMain, 14));
     updatePlacementState();
@@ -2167,14 +2306,9 @@ namespace stencil::gui {
     if (dropCue_) {
       // SOLID, blended — the browser's color-mix(accent 16%, card) is opaque, and a
       // translucent slab here let the placeholder text show straight through the label.
-      const auto blend = [](const QColor& a, const QColor& b, double t) {
-        return QColor(qRound(a.red() * t + b.red() * (1 - t)),
-                      qRound(a.green() * t + b.green() * (1 - t)),
-                      qRound(a.blue() * t + b.blue() * (1 - t)));
-      };
       dropCue_->setStyleSheet(
           QStringLiteral("#chatDropCue{border:2px dashed %1;border-radius:10px;background:%2;}")
-              .arg(pal.accent.name(), blend(pal.accent, pal.inputBg, 0.16).name()));
+              .arg(pal.accent.name(), blendColors(pal.accent, pal.inputBg, 0.16).name()));
       if (dropCueIcon_) dropCueIcon_->setPixmap(themedIcon("image", pal.accent, 16).pixmap(16, 16));
       if (dropCueText_)
         dropCueText_->setStyleSheet(
@@ -2182,13 +2316,21 @@ namespace stencil::gui {
     }
     headerTitle_->setStyleSheet(
         QStringLiteral("color:%1;background:transparent;").arg(pal.textMain.name()));
-    // Jump pills: circle ghosts over the transcript (browser .chat-jump-btn).
+    // Jump pills: circle ghosts over the transcript (browser .chat-jump-btn). The
+    // browser's hover comes from TWO rules that compose: its own (border → --accent,
+    // glyph → --text-main, done below via the eventFilter) plus the app-wide generic
+    // `button:hover { background: var(--accent-2) }`, which .chat-jump-btn:hover never
+    // overrides — so the pill fills solid on hover there. QSS has no such generic rule
+    // to fall back on, so it has to be stated here explicitly, or the fill is missing
+    // (an earlier gap: only the border recoloured, and the pill stayed unfilled).
+    // pal.textKey doubles as --accent-2 (see theme.cpp themePalette).
     if (jumpTop_ && jumpBottom_) {
       const QString jumpQss =
           QStringLiteral(
               "QToolButton{border:1px solid %1;border-radius:14px;background:%2;}"
-              "QToolButton:hover{border-color:%3;}")
-              .arg(pal.borderMain.name(), pal.bgControls.name(), pal.accent.name());
+              "QToolButton:hover{border-color:%3;background:%4;}")
+              .arg(pal.borderMain.name(), pal.bgControls.name(), pal.accent.name(),
+                   pal.textKey.name());
       jumpTop_->setIcon(themedIcon("chevron-up", pal.textMuted, 14));
       jumpBottom_->setIcon(themedIcon("chevron-down", pal.textMuted, 14));
       jumpTop_->setStyleSheet(jumpQss);

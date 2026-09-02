@@ -3,6 +3,7 @@
 #include "iconSet.hpp"
 
 #include "guiHelpers.hpp"
+#include "../support/modalChrome.hpp"  // confirmModal — the browser-styled question
 #include "projectsStore.hpp"
 
 #include <QCalendarWidget>
@@ -143,10 +144,11 @@ namespace stencil::gui {
 
   void ExpirationDialog::toggleKeepForever() {
     if (keep_->isChecked()) {
-      const auto r = QMessageBox::question(
-          this, "Keep forever",
-          "Keep this project forever and remove its expiration date?");
-      if (r != QMessageBox::Yes) {
+      ConfirmSpec spec;
+      spec.title = "Keep forever";
+      spec.message = "Keep this project forever and remove its expiration date?";
+      spec.confirmIcon = QStringLiteral("calendar");
+      if (!confirmModal(this, spec)) {
         QSignalBlocker b(keep_);
         keep_->setChecked(false);
         return;

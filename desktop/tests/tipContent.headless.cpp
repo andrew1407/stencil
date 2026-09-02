@@ -82,8 +82,8 @@ int main(int argc, char** argv) {
   {  // "·" lists and "term — description" on the heading line.
     const Tip d = parseTip("Drag to reorder · drag out of the modal to disconnect");
     check(d.title == "Drag to reorder" && d.blocks.size() == 1 &&
-              d.blocks[0].kind == TipBlock::Kind::Bullet,
-          "the heading's · list becomes bullets under it");
+              d.blocks[0].kind == TipBlock::Kind::Hint,
+          "a single trailing · piece has nothing to enumerate against, so it's a hint, not a bulleted list of one");
     check(renderTip("a · b · c", pal).count(QString::fromUtf8("\u2022")) == 2,
           "each · part after the heading becomes its own bullet");
     const Tip s = parseTip("Shared server project — https://stencil.example/p/1");

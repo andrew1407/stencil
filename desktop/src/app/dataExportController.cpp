@@ -1,7 +1,10 @@
 #include "dataExportController.hpp"
 #include "canvasWidget.hpp"
 #include "notifications.hpp"
+#include "../support/guiHelpers.hpp"  // showSaveDialog
+#include "../support/modalChrome.hpp"  // confirmModalChoice — the browser-styled question
 #include "../support/iconSet.hpp"
+#include "../support/shareImage.hpp"
 #include <QByteArray>
 #include <QClipboard>
 #include <QFile>
@@ -11,6 +14,7 @@
 #include <QJsonDocument>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QTemporaryDir>
 
 namespace stencil::gui {
 
@@ -21,6 +25,10 @@ namespace stencil::gui {
       : parent_(parent), canvas_(canvas), notify_(notify), settings_(settings),
         projectBaseName_(std::move(projectBaseName)),
         currentLayoutMeta_(std::move(currentLayoutMeta)) {}
+
+  bool DataExportController::inSplitCompare() const {
+    return canvas_->isSplitCompare();
+  }
 
   void DataExportController::downloadLayout() {
     if (canvas_->allLines().empty()) {
@@ -127,23 +135,19 @@ namespace stencil::gui {
     // prompt (exportService.js #applyValidatedLayout).
     bool combine = false;
     if (!canvas_->allLines().empty()) {
-      QMessageBox box(parent_);
-      box.setWindowTitle("Existing layout");
-      box.setText("Add the imported JSON on top of the current layout, or replace it?");
-      QPushButton* combineBtn = box.addButton("Combine", QMessageBox::AcceptRole);
-      QPushButton* replaceBtn = box.addButton("Replace", QMessageBox::DestructiveRole);
-      QAbstractButton* cancelBtn = box.addButton(QMessageBox::Cancel);
-      // Same glyphs as the browser's dialog: stack the incoming lines on the existing
-      // ones, or swap one layout for the other (browser exportService.js altIcon /
-      // confirmIcon). Each button says what it does twice — in word and in picture.
-      const QColor txt = box.palette().color(QPalette::WindowText);
-      combineBtn->setIcon(themedIcon("layers", txt, 15));
-      replaceBtn->setIcon(themedIcon("swap", txt, 15));
-      if (cancelBtn) cancelBtn->setIcon(themedIcon("x", txt, 15));
-      box.setDefaultButton(combineBtn);
-      box.exec();
-      if (box.clickedButton() == combineBtn) combine = true;
-      else if (box.clickedButton() != replaceBtn) {
+      // The browser's styled askAlt (exportService.js): Replace is the confirm
+      // (swap one layout for the other), Combine the alt (stack the incoming lines
+      // on the existing ones) — each button says what it does in word and picture.
+      ConfirmSpec spec;
+      spec.title = "Existing layout";
+      spec.message = "Add the imported JSON on top of the current layout, or replace it?";
+      spec.confirmLabel = "Replace";
+      spec.confirmIcon = QStringLiteral("swap");
+      spec.altLabel = "Combine";
+      spec.altIcon = QStringLiteral("layers");
+      const ConfirmChoice pick = confirmModalChoice(parent_, spec);
+      if (pick == ConfirmChoice::Alt) combine = true;
+      else if (pick != ConfirmChoice::Confirm) {
         notify_->info("Import canceled");  // drawingApp.js:2107 "Upload canceled"
         return;
       }
@@ -151,9 +155,10 @@ namespace stencil::gui {
     int w = 0, h = 0;
     core::Lines lines = fileStore::parseLayoutJson(obj, w, h);
     if (w != canvas_->imageWidth() || h != canvas_->imageHeight()) {
-      if (QMessageBox::question(parent_, "Dimension mismatch",
-                                "Image dimensions do not match. Continue anyway?")
-          != QMessageBox::Yes) {
+      ConfirmSpec dim;
+      dim.title = "Dimension mismatch";
+      dim.message = "Image dimensions do not match. Continue anyway?";
+      if (!confirmModal(parent_, dim)) {
         notify_->info("Import canceled");  // drawingApp.js:2113 dimension guard
         return;
       }
@@ -167,19 +172,42 @@ namespace stencil::gui {
     notify_->success(combine ? "Layout loaded (combined)" : "Layout loaded");
   }
 
-  // Render the canvas (image + filter + overlay) to a file. Extension drives the
-  // encoder (jpg/png/webp/bmp; anything else -> png). Mirrors the browser
-  // saveImage mime map (drawingApp.js :2062-2068) but writes to a chosen path.
-  void DataExportController::saveImageFile() {
+  // Per-variant file-name suffix (browser exportService.js #VARIANT_META) and
+  // copied-to-clipboard label. "current" (or anything unknown) takes the defaults.
+  namespace {
+    struct VariantMeta { const char* variant; const char* suffix; const char* copiedLabel; };
+    constexpr VariantMeta kVariantMeta[] = {
+        {"original", "-original", "Original image copied to clipboard"},
+        {"tint", "-tint", "Tinted image copied to clipboard"},
+        {"split", "-split", "Split image copied to clipboard"},
+    };
+    const VariantMeta* variantMeta(const QString& variant) {
+      for (const auto& m : kVariantMeta)
+        if (variant == QLatin1String(m.variant)) return &m;
+      return nullptr;
+    }
+    QString variantSuffix(const QString& variant) {
+      const VariantMeta* m = variantMeta(variant);
+      return m ? QString::fromLatin1(m->suffix) : QString();
+    }
+  }
+
+  // Render the canvas (per export variant) to a file. Extension drives the encoder
+  // (jpg/png/webp/bmp; anything else -> png). Mirrors the browser saveImage mime map
+  // (exportService.js) but writes to a chosen path.
+  void DataExportController::saveImageFile(const QString& variant) {
     if (!canvas_->hasImage()) {
       notify_->error("Load an image first");  // drawingApp.js:2037 "No image"
       return;
     }
-    const QString suggested = projectBaseName_() + "-drawing." +
+    if (variant == "split" && !inSplitCompare()) {
+      notify_->error("Turn on split compare to download with the splitter");
+      return;
+    }
+    const QString suggested = projectBaseName_() + "-drawing" + variantSuffix(variant) + "." +
                               canvas_->imageExt();
-    const QString path = QFileDialog::getSaveFileName(
-        parent_, "Save image", suggested,
-        "Images (*.png *.jpg *.jpeg *.webp *.bmp)");
+    const QString path = showSaveDialog(parent_, "Save image", suggested,
+                                        "Images (*.png *.jpg *.jpeg *.webp *.bmp)");
     if (path.isEmpty()) return;
     // Map the chosen extension to a Qt encoder format; default png (matching the
     // browser's mimeMap fallback, drawingApp.js:2063-2064).
@@ -189,25 +217,63 @@ namespace stencil::gui {
     else if (ext == "webp") fmt = "WEBP";
     else if (ext == "bmp") fmt = "BMP";
     else if (ext == "png") fmt = "PNG";
-    // withOverlay=true: bake the points/lines onto the saved image.
-    if (canvas_->renderToImage(true).save(path, fmt)) {
+    // "split" is always a CLEAN composite — the movable divider bar and its drag knob
+    // are on-screen editor UI, not part of the picture (browser parity: exportService.js
+    // renderSplitExportCanvas).
+    if (canvas_->renderToImage(variant, /*withDivider=*/false).save(path, fmt)) {
       notify_->success("Image saved");
     } else {
       notify_->error("Could not save image");
     }
   }
 
-  // Copy the RENDERED image — filter plus the visible lines/points — to the
-  // clipboard. Mirrors the browser's copyImageToClipboard, which routes through
-  // renderExportCanvas so every image action ships the same annotated result
-  // (the old no-overlay copy predated that and dropped the user's edits).
-  void DataExportController::copyImageToClipboard() {
+  // Hand the annotated render to the OS's native share sheet (support/shareImage.hpp
+  // — a different body per platform; browser/extension parity: exportService.js
+  // shareImage(), same file name and title convention). The share UI needs an actual
+  // FILE on disk, not raw bytes, so this writes one first — into a directory that
+  // lives for the rest of the app's run (one static QTemporaryDir, not a fresh one
+  // per share), since the native picker reads it asynchronously and may still be
+  // open well after this call returns.
+  void DataExportController::shareImage(QWidget* anchor) {
+    if (!canvas_->hasImage()) {
+      notify_->error("Load an image first");
+      return;
+    }
+    static QTemporaryDir shareDir;
+    if (!shareDir.isValid()) {
+      notify_->error("Could not prepare a file to share");
+      return;
+    }
+    const QString baseName = projectBaseName_();
+    const QString path = shareDir.filePath(baseName + "-drawing.png");
+    if (!canvas_->renderToImage(true).save(path, "PNG")) {
+      notify_->error("Image encode failed");
+      return;
+    }
+    // The BUTTON, not parent_ (the whole window) — see the header note.
+    if (!support::showShareSheet(anchor ? anchor : parent_, path, baseName + " — Stencil"))
+      notify_->error("Sharing not supported on this system");
+  }
+
+  // Copy the RENDERED image — per export variant — to the clipboard. Mirrors the
+  // browser's copyImageToClipboard, which routes through renderExportCanvas so every
+  // image action ships the same result. "current" is ALWAYS the plain edited image,
+  // split compare view or not — "split" is its own explicit variant (like saveImageFile's),
+  // the only way to copy the compare composite instead (no divider/knob baked in,
+  // matching the download's own "with splitter" row).
+  void DataExportController::copyImageToClipboard(const QString& variant) {
     if (!canvas_->hasImage()) {
       notify_->error("No image to copy");  // drawingApp.js:2134
       return;
     }
-    QGuiApplication::clipboard()->setImage(canvas_->renderToImage(true));
-    notify_->success("Image copied to clipboard");
+    if (variant == "split" && !inSplitCompare()) {
+      notify_->error("Turn on split compare to copy with the splitter");
+      return;
+    }
+    QGuiApplication::clipboard()->setImage(canvas_->renderToImage(variant));
+    const VariantMeta* m = variantMeta(variant);
+    notify_->success(m ? QString::fromLatin1(m->copiedLabel)
+                       : QStringLiteral("Image copied to clipboard"));
   }
 
 }  // namespace stencil::gui

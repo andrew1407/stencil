@@ -16,6 +16,7 @@
 #include "../src/app/dataExportController.hpp"
 #include "pillSplitter.hpp"
 #include "../src/app/selectionPanel.hpp"
+#include "../src/app/selectedLineBar.hpp"
 #include "../src/app/scrollReveal.hpp"
 #include "fileStore.hpp"
 #include "connectDialog.hpp"
@@ -29,6 +30,7 @@
 #include "controlSwap.hpp"
 #include "iconMotion.hpp"
 #include "guiHelpers.hpp"
+#include <QStyleFactory>
 #include "theme.hpp"
 #include "modalReveal.hpp"
 #include <QScopeGuard>
@@ -126,6 +128,40 @@ namespace {
     auto* fx = surfaceFlight(host);
     return fx ? fx->surfaceTarget() : QPoint(-1, -1);
   }
+
+  // The GHOST twin of the above: the fallback for whatever the dust engine declines
+  // outright (an unmeasurable box, a snapshot that failed to grab) — every dialog,
+  // including the big `.app-modal` ones, dusts first (support/modalReveal.cpp
+  // kDialogDustMaxCells). Found the same way, by its own object name (makeGhost).
+  QLabel* modalGhost(const QWidget* host) {
+    QLabel* found = nullptr;
+    for (QLabel* g : host->findChildren<QLabel*>(QStringLiteral("stencilModalGhost")))
+      if (g->isVisible()) found = g;   // the newest one wins
+    return found;
+  }
+
+  // Where either flight mechanism (dust or ghost) STARTS, caught on its QEvent::Show
+  // rather than polled later — a ghost's geometry is an active tween, so reading it even
+  // 50ms in is already off. Only the FIRST match sticks, so an immediate accept/close's
+  // CLOSE flight (same object name, starts at the dialog box, not the icon) can't clobber it.
+  struct RevealOriginWatcher : QObject {
+    QPoint origin{-1, -1};
+    bool captured = false;
+    void reset() { origin = QPoint(-1, -1); captured = false; }
+    bool eventFilter(QObject* o, QEvent* e) override {
+      if (captured || e->type() != QEvent::Show) return false;
+      auto* w = qobject_cast<QWidget*>(o);
+      if (!w) return false;
+      if (w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)) {
+        auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+        if (fx->surfacePicture().isValid()) { origin = fx->surfaceTarget(); captured = true; }
+      } else if (w->objectName() == QLatin1String("stencilModalGhost")) {
+        origin = w->geometry().center();
+        captured = true;
+      }
+      return false;
+    }
+  };
 
   // A control's centre in the window's coordinates — what a flight out of it aims at.
   QPoint flightPointOf(const QWidget* control, const QWidget* host) {
@@ -274,20 +310,21 @@ namespace {
     if (ok && ms > 0) QTest::qWait(ms);
   }
 
-  // A confirmation is a modal QMessageBox that blocks the triggering call (Quit, Delete Project
-  // File, …). Arm this BEFORE triggering the action: it waits for the box to appear and clicks the
-  // button whose label matches (the dialogs use custom "Quit"/"Cancel"/"Delete" buttons, not
-  // standard Yes/No roles), letting the otherwise-blocked trigger() return with that answer.
+  // A confirmation is a modal dialog that blocks the triggering call (Quit, Delete Project
+  // File, …) — a QMessageBox, or the chrome-styled confirmModal (modalChrome.cpp) the
+  // projects flows use. Arm this BEFORE triggering the action: it polls until a modal
+  // CARRYING the named button appears (an unrelated modal — e.g. the projects dialog the
+  // question will sit over — is skipped, not clicked) and clicks it, letting the
+  // otherwise-blocked trigger() return with that answer.
   void dismissModal(const QString& buttonText) {
     QTimer::singleShot(0, [buttonText]() {
       for (int i = 0; i < 200; ++i) {
-        if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
-          for (QAbstractButton* b : box->buttons())
+        if (auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget())) {
+          for (QAbstractButton* b : dlg->findChildren<QAbstractButton*>())
             if (QString(b->text()).remove('&').compare(buttonText, Qt::CaseInsensitive) == 0) {
               b->click();
               return;
             }
-          return;
         }
         QTest::qWait(5);
       }
@@ -327,9 +364,14 @@ class MainWindowGuiTest : public QObject {
     // fit-scaled canvas has room for well-separated draw clicks.
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);
-    png_ = QDir::temp().filePath("stencil_gui_e2e_input.png");
+    png_ = QDir::temp().filePath("stencil_e2e_input.png");
     QVERIFY(img.save(png_, "PNG"));
   }
+
+
+
+
+
 
   // Regression: enabling the f(x,y) pill must reveal the x/y formula inputs, and they must
   // stay visible across an image load and window resizes (the state the user drives).
@@ -435,6 +477,7 @@ class MainWindowGuiTest : public QObject {
     struct Pair { QAction* act; QWidget* widget; const char* browserId; };
     const QList<Pair> pairs{
         {win.actOpen_, nullptr, "load-image-btn"},
+        {win.actOpenAnother_, nullptr, "open-image-btn"},
         {win.actSaveImage_, nullptr, "save-image"},
         {win.actCopyImage_, nullptr, "copy-image"},
         {win.actOpenIn_, nullptr, "open-in-btn"},
@@ -734,6 +777,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
     // A fresh window has no .stencil link, so live-sync is dead while Projects beside it
     // is live: one row, both states.
     QVERIFY(!win.actStencilLiveSync_->isEnabled());
@@ -1109,15 +1153,16 @@ class MainWindowGuiTest : public QObject {
     const auto restoreAnim = qScopeGuard([&] {
       if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim);
     });
-    // The lifecycle as it happens, in order: the popover's own show/hide, every box the
-    // hosting overlay takes (its animation, in main-window coordinates), and any ghost
-    // the reveal machinery might fly — there must be none.
+    // The lifecycle as it happens, in order: the popover's own show/hide, the particle
+    // dust flights execMaybePopover plays over the hosting overlay, and any ghost the
+    // reveal machinery might fly instead — there must be none.
     struct Trace : QObject {
       QStringList seq;
       QSet<QObject*> dialogs;
       QElapsedTimer clock;
-      qint64 pressedAt = -1, hidAt = -1, collapsedAt = -1;
-      QList<QRect> opening, closing;   // overlay boxes, before and after the press
+      qint64 pressedAt = -1, hidAt = -1;
+      // DisintegrateOverlay flights actually launched, before/after the outside press.
+      int dustOpening = 0, dustClosing = 0;
       bool dismissed = false;
       bool eventFilter(QObject* o, QEvent* e) override {
         auto* w = qobject_cast<QWidget*>(o);
@@ -1128,10 +1173,9 @@ class MainWindowGuiTest : public QObject {
             hidAt = clock.isValid() ? clock.elapsed() : -1;
           }
         }
-        if (w && w->objectName() == QLatin1String("popoverOverlay") &&
-            (e->type() == QEvent::Resize || e->type() == QEvent::Move)) {
-          (dismissed ? closing : opening) << w->geometry();
-          if (dismissed) collapsedAt = clock.elapsed();
+        if (w && w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)
+            && e->type() == QEvent::Show) {
+          if (dismissed) ++dustClosing; else ++dustOpening;
         }
         if (w && w->objectName() == QLatin1String("stencilModalGhost") &&
             e->type() == QEvent::Show)
@@ -1147,11 +1191,9 @@ class MainWindowGuiTest : public QObject {
                             static_cast<QWidget*>(other)}) {
       trace.seq.clear();
       trace.dialogs.clear();
-      trace.pressedAt = trace.hidAt = trace.collapsedAt = -1;
-      trace.opening.clear();
-      trace.closing.clear();
+      trace.pressedAt = trace.hidAt = -1;
+      trace.dustOpening = trace.dustClosing = 0;
       trace.dismissed = false;
-      QRect openBox;
       bool wasTopLevel = true, hadOverlay = false;
       QTimer::singleShot(400, &win, [&] {   // …once the open animation has landed
         const QPoint local = target->rect().center();
@@ -1161,7 +1203,6 @@ class MainWindowGuiTest : public QObject {
         // invisible, and what the in-window overlay fixes.
         if (win.activePopover_) wasTopLevel = win.activePopover_->isWindow();
         hadOverlay = win.popoverOverlay_ && win.popoverOverlay_->isVisible();
-        if (win.popoverOverlay_) openBox = win.popoverOverlay_->geometry();
         trace.dismissed = true;
         QMouseEvent pr(QEvent::MouseButtonPress, local, at, Qt::LeftButton, Qt::LeftButton,
                        Qt::NoModifier);
@@ -1199,35 +1240,12 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(!wasTopLevel, qPrintable(QString("%1: the popover is still a top-level "
                                                 "window — nothing will animate it").arg(what)));
       QVERIFY2(hadOverlay, qPrintable(QString("%1: no in-window overlay hosted it").arg(what)));
-      // Both animations really stepped, in the window's own coordinates: out of the icon
-      // on the way in, back into it on the way out.
-      QVERIFY2(trace.opening.size() >= 3,
-               qPrintable(QString("%1: %2 steps opening — it did not grow out of the icon")
-                              .arg(what).arg(trace.opening.size())));
-      QVERIFY2(trace.closing.size() >= 3,
-               qPrintable(QString("%1: %2 steps closing — the collapse did not run")
-                              .arg(what).arg(trace.closing.size())));
-      QRect first = trace.opening.first();   // the smallest box the grow started from
-      for (const QRect& r : trace.opening)
-        if (r.width() * r.height() < first.width() * first.height()) first = r;
-      const QRect last = trace.closing.last();
-      const QRect logoBox = QRect(logo->mapTo(&win, QPoint(0, 0)), logo->size());
-      QVERIFY2(first.width() * first.height() * 4 < openBox.width() * openBox.height(),
-               qPrintable(QString("%1: opened from %2x%3 — not from the icon")
-                              .arg(what).arg(first.width()).arg(first.height())));
-      QVERIFY2(openBox.isValid() && last.width() * last.height() * 4 <
-                                        openBox.width() * openBox.height(),
-               qPrintable(QString("%1: ended at %2x%3 from %4x%5 — barely shrank")
-                              .arg(what).arg(last.width()).arg(last.height())
-                              .arg(openBox.width()).arg(openBox.height())));
-      QVERIFY2((last.center() - logoBox.center()).manhattanLength() <
-                   (openBox.center() - logoBox.center()).manhattanLength(),
-               qPrintable(QString("%1: it did not collapse TOWARD the icon").arg(what)));
-      // The collapse took real time — the dialog itself hides at once (its picture is
-      // frozen into the overlay), so it is the OVERLAY's last step that dates the end.
-      QVERIFY2(trace.collapsedAt - trace.pressedAt >= 120,
-               qPrintable(QString("%1: collapsed in %2 ms — it snapped shut, no animation")
-                              .arg(what).arg(trace.collapsedAt - trace.pressedAt)));
+      // Both edges actually flew the particle dust — the popover no longer grows/shrinks
+      // its own box.
+      QVERIFY2(trace.dustOpening > 0,
+               qPrintable(QString("%1: no dust played on open").arg(what)));
+      QVERIFY2(trace.dustClosing > 0,
+               qPrintable(QString("%1: no dust played on close").arg(what)));
       QVERIFY(!win.activePopover_);
     }
     beat();
@@ -1251,6 +1269,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
     QToolButton* logo = win.logoBtn_;
     QVERIFY(logo);
     const QString original = win.settings_.accentColor;   // persisted — restored below
@@ -1925,9 +1944,11 @@ class MainWindowGuiTest : public QObject {
     // line hidden alongside the rows, its bubble is the only place these facts are left.
     win.actToolbars_->setChecked(false);
     QTRY_VERIFY(!win.actToolbars_->isChecked());
-    QTest::qWait(400);   // the rows slide out
-    QVERIFY2(hint->isVisible(), "the hint appears with the Controls collapsed");
-    QVERIFY2(!win.imageSizeInfo_->isVisible(), "…and the size line goes with the rows");
+    // The invariant is that exactly ONE of the two readouts is up — polled for, not timed:
+    // the size line only reads as gone once the fold's finish step hides the rows
+    // (QToolBarLayout re-shows its action widgets on every relayout, and the slide is one
+    // per frame), and the fold's duration is not this test's business.
+    QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.imageSizeInfo_->isVisible(), 3000);
     QVERIFY2(hint->toolTip().contains(size), "…still carrying the size");
 
     // Incognito adds its line — and only its line.
@@ -2453,7 +2474,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(btn->property("drawToggle").toString(), QString("on"));
     QVERIFY2(btn->styleSheet().isEmpty(), "the swap's colour override outlived it");
 
-    // ── Line ↔ Rect: the same swap, the same pinned box.
+    // ── Line ↔ Rect: the same swap, the same pinned box, and — unlike Start/Stop — a
+    // PERMANENT accent fill (it has no idle/on pair of its own, and no QAction for
+    // styleDangerToolButtons' pass to reach, so it carries the property itself). The
+    // browser's #draw-mode-toggle is a bare <button>, filled at rest for the same reason.
+    QCOMPARE(mode->property("toolFill").toString(), QString("accent"));
     QCOMPARE(mode->text(), QString("Line"));
     mode->click();
     QVERIFY2(stencil::gui::faceSwapping(mode), "the mode toggle snapped instead of swapping");
@@ -2462,6 +2487,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!stencil::gui::faceSwapping(mode));
     QCOMPARE(mode->size(), modeSize);
     QVERIFY2(mode->toolTip().contains("Rectangle"), "the tooltip did not follow the mode");
+    QCOMPARE(mode->property("toolFill").toString(), QString("accent"));   // survives the swap
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Line"));
     QVERIFY(mode->toolTip().contains("Line"));
@@ -2679,7 +2705,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(clear);
     QVERIFY(clear->isVisible());   // shown for a local/temporary editor (hidden only for server projects)
 
-    dismissModal("Yes");      // blocks on the confirm until the timer clicks Yes
+    dismissModal("Confirm");      // blocks on the confirm until the timer answers it
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
@@ -2708,7 +2734,7 @@ class MainWindowGuiTest : public QObject {
     pf.imageWidth = 240;
     pf.imageHeight = 160;
     pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, lines, "none", "#7c3aed", {}, 1, {});
-    const QString path = QDir::temp().filePath("stencil_gui_e2e_project.stencil");
+    const QString path = QDir::temp().filePath("stencil_e2e_project.stencil");
     {
       QFile wf(path);
       QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate));
@@ -2740,7 +2766,7 @@ class MainWindowGuiTest : public QObject {
     pf.imageWidth = 240;
     pf.imageHeight = 160;
     pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});   // rotation 0
-    const QString path = QDir::temp().filePath("stencil_gui_livesync.stencil");
+    const QString path = QDir::temp().filePath("stencil_livesync.stencil");
     { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
 
     MainWindow win(nullptr, false);
@@ -2792,7 +2818,7 @@ class MainWindowGuiTest : public QObject {
     pf.imageWidth = 240;
     pf.imageHeight = 160;
     pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});
-    const QString path = QDir::temp().filePath("stencil_gui_delete.stencil");
+    const QString path = QDir::temp().filePath("stencil_delete.stencil");
     { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
 
     MainWindow win(nullptr, false);
@@ -2944,7 +2970,7 @@ class MainWindowGuiTest : public QObject {
     QStringList items;
     for (QAction* a : moreBtn->menu()->actions())
       if (!a->isSeparator()) items << a->text();
-    QCOMPARE(items, (QStringList{"Add image", "Clear history", "Settings"}));
+    QCOMPARE(items, (QStringList{"Add image", "Clear history", "Swap message sides", "Settings"}));
     // The branded header IS the title bar (no double header).
     QVERIFY(dock->titleBarWidget());
     QVERIFY(dock->titleBarWidget()->findChild<QLabel*>("chatHeaderTitle"));
@@ -2956,8 +2982,12 @@ class MainWindowGuiTest : public QObject {
       const QImage bodyImg = dock->widget()->grab().toImage();
       const QColor cardBg = bodyImg.pixelColor(bodyImg.width() / 2, 4);
       const QImage centralImg = win.centralWidget()->grab().toImage();
+      // Near the BOTTOM, not the exact vertical center: the top bars (toolbars,
+      // image-info strip) are a few rows tall and grow/shrink with theme/content
+      // changes — a center sample can drift onto one of them by coincidence. The
+      // bottom stays safely inside the canvas/page area regardless.
       const QColor canvasBg =
-          centralImg.pixelColor(centralImg.width() / 2, centralImg.height() / 2);
+          centralImg.pixelColor(centralImg.width() / 2, centralImg.height() - 10);
       QVERIFY(cardBg != canvasBg);
       QVERIFY(dock->styleSheet().contains("border:1px solid"));
     }
@@ -3020,6 +3050,123 @@ class MainWindowGuiTest : public QObject {
 
     chat->setChecked(false);
     QTRY_VERIFY(!dock->isVisible());
+    beat();
+  }
+
+  // Browser .chat-msg-user::before/::after parity: every settled bubble grows a
+  // painted tail at the corner facing the panel centre — user right, assistant/
+  // error left — and "Swap message sides" (the "…" menu item between Clear
+  // history and Settings) flips BOTH the alignment and the tail side of every
+  // card ALREADY on screen, not just future ones, and persists.
+  void chatSwapSidesReskinsRetroactively() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // Whatever this machine's settings.json already holds — restored at the end,
+    // like every other test here that touches real persisted settings.
+    const bool wasSwapped = win.settings_.chatSwapSides;
+    if (wasSwapped) win.chatDock_->setChatSwapSides(false);   // start from a known state
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.chatDock_->appendUser(QStringLiteral("hi"), {});
+    win.chatDock_->appendAssistant(QStringLiteral("hello"));
+    QTest::qWait(250);   // past kAppearMs (140ms) — the entrance slide must have finished
+    // A short bubble's width can still settle over a couple of extra layout
+    // passes after the wait above (viewport/scrollbar interplay in
+    // applyChatBubbleWidths) — one more explicit re-sync makes the geometry
+    // checks below deterministic instead of racing the last pixel or two of it.
+    win.chatDock_->applyBubbleWidths();
+
+    QFrame* userCard = nullptr;
+    QFrame* asstCard = nullptr;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) userCard = f;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardAssistant")) asstCard = f;
+    QVERIFY(userCard && asstCard);
+    auto* transcriptLayout = qobject_cast<QVBoxLayout*>(userCard->parentWidget()->layout());
+    QVERIFY(transcriptLayout);
+    // QBoxLayout carries a widget's alignment on the LayoutItem, not as a
+    // queryable per-widget property — find it by index (setAlignment(widget,…)
+    // is the only setter Qt offers, so this is the matching getter path).
+    const auto alignmentOf = [](QVBoxLayout* lay, QWidget* w) {
+      return lay->itemAt(lay->indexOf(w))->alignment();
+    };
+    QCOMPARE(alignmentOf(transcriptLayout, userCard), Qt::AlignRight);
+    QCOMPARE(alignmentOf(transcriptLayout, asstCard), Qt::AlignLeft);
+
+    // Every role bubble carries a tail — a real widget, positioned OUTSIDE the
+    // card's own box on the side its alignment implies.
+    const auto tailOf = [](QFrame* card) {
+      return qobject_cast<QWidget*>(card->property("chatTail").value<QObject*>());
+    };
+    auto* userTail = tailOf(userCard);
+    auto* asstTail = tailOf(asstCard);
+    QVERIFY2(userTail && userTail->isVisible(), "the user bubble has no tail");
+    QVERIFY2(asstTail && asstTail->isVisible(), "the assistant bubble has no tail");
+    // The tail hangs from the bubble's BOTTOM edge, flush with it, and pokes out
+    // past the corner facing the panel centre — checked as an invariant (pokes
+    // out on the right side, sits near the bottom), not exact pixel offsets,
+    // which are the placement formula's own implementation detail.
+    QVERIFY2(userTail->geometry().right() > userCard->geometry().right(),
+             "the user bubble's tail must poke out past its RIGHT edge");
+    QVERIFY2(qAbs(userTail->geometry().bottom() - userCard->geometry().bottom()) <= 2,
+             "the tail must hang flush with the bubble's bottom edge");
+    QVERIFY2(asstTail->geometry().left() < asstCard->geometry().left(),
+             "the assistant bubble's tail must poke out past its LEFT edge");
+    if (qEnvironmentVariableIsSet("STENCIL_GUI_SHOTS")) {
+      QTest::qWait(50);
+      win.chatDock_->grab().save(QString::fromLocal8Bit(qgetenv("STENCIL_GUI_SHOTS")) + "/dock-tails.png");
+    }
+
+    // Flip it — through the REAL menu action, not the setter directly, so the
+    // persistence signal is exercised too.
+    bool signaled = false;
+    bool signaledValue = false;
+    connect(win.chatDock_, &stencil::gui::ChatDock::chatSwapSidesChanged, &win,
+            [&](bool on) { signaled = true; signaledValue = on; });
+    auto* moreBtn = win.chatDock_->findChild<QToolButton*>("chatMore");
+    QVERIFY(moreBtn && moreBtn->menu());
+    QAction* swapAction = nullptr;
+    for (QAction* a : moreBtn->menu()->actions())
+      if (a->text() == QLatin1String("Swap message sides")) swapAction = a;
+    QVERIFY2(swapAction, "no \"Swap message sides\" action in the … menu");
+    swapAction->trigger();
+
+    QVERIFY2(signaled && signaledValue, "the dock must emit chatSwapSidesChanged(true)");
+    QVERIFY2(win.settings_.chatSwapSides, "MainWindow must persist the flip into settings_");
+    QVERIFY(win.chatDock_->chatSwapSides());
+
+    // The EXISTING cards moved — this is the whole point (a browser/extension
+    // parity CSS class would do this for free; Qt has to re-skin by hand).
+    QCOMPARE(alignmentOf(transcriptLayout, userCard), Qt::AlignLeft);
+    QCOMPARE(alignmentOf(transcriptLayout, asstCard), Qt::AlignRight);
+    QVERIFY2(userTail->geometry().left() < userCard->geometry().left(),
+             "swapped: the user bubble's tail must have moved to poke out past its LEFT edge");
+    QVERIFY2(asstTail->geometry().right() > asstCard->geometry().right(),
+             "swapped: the assistant bubble's tail must have moved to poke out past its RIGHT edge");
+
+    // A round trip through the SAME file persistence every other setting uses.
+    const stencil::gui::Settings loaded = stencil::gui::fileStore::loadSettings();
+    QVERIFY2(loaded.chatSwapSides, "the flip must survive a settings.json round trip");
+
+    // …and a NEWLY opened context-menu mirror panel picks up the SAME preference,
+    // not the pre-flip default.
+    win.ensureChatMenuPanel();
+    win.chatMirror(QStringLiteral("Assistant"), QStringLiteral("mirrored"), false);
+    QTest::qWait(20);
+    QFrame* mirroredAsst = nullptr;
+    for (QFrame* f : win.chatMenuPanel_->findChildren<QFrame*>("chatCardAssistant"))
+      mirroredAsst = f;
+    QVERIFY2(mirroredAsst, "the mirror panel never rendered the appended row");
+    auto* mirrorLayout = qobject_cast<QVBoxLayout*>(mirroredAsst->parentWidget()->layout());
+    QVERIFY(mirrorLayout);
+    QCOMPARE(alignmentOf(mirrorLayout, mirroredAsst), Qt::AlignRight);
+
+    // Restore whatever this machine's settings.json held before the test, exactly
+    // (an even number of clicks isn't enough if it started true).
+    win.chatDock_->setChatSwapSides(wasSwapped);
+    win.settings_.chatSwapSides = wasSwapped;
+    stencil::gui::fileStore::saveSettings(win.settings_);
     beat();
   }
 
@@ -3397,6 +3544,293 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawLine, "expected the drawn red line in the copied image");
   }
 
+  // FEATURE (user report): Cmd+C / the toolbar Copy button's plain click default to
+  // the CURRENT image (tint + lines/points) — same as the browser, same as download,
+  // always has (an earlier desktop-only "Ctrl+C defaults to tint" swap was reverted).
+  // actCopyImageTint_ ("Filter Only", Ctrl+Alt+C) stays its own separate, fixed variant.
+  void copyDefaultIsCurrentImage() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.applyImageFilter(QStringLiteral("custom"));
+    win.applyTintColor(QColor(200, 30, 30));   // a strong, easy-to-detect red tint
+    // "current" vs "tint" only actually differ by the lines/points overlay — add one
+    // so the two variants render to genuinely different images below.
+    stencil::core::Line line;
+    line.color = "#00ff00";
+    line.thickness = 6;
+    line.points.push_back({4.0, 20.0});
+    line.points.push_back({36.0, 20.0});
+    win.canvas_->setLines({line});
+
+    // The default gesture (actCopyImage_, Ctrl+C) copies the CURRENT (full) image.
+    win.actCopyImage_->trigger();
+    const QImage current = QGuiApplication::clipboard()->image();
+    QVERIFY(!current.isNull());
+    QCOMPARE(current, win.canvas_->renderToImage(QStringLiteral("current")));
+
+    // "Filter Only" (actCopyImageTint_) copies the filtered image with no overlay instead.
+    win.actCopyImageTint_->trigger();
+    const QImage tinted = QGuiApplication::clipboard()->image();
+    QVERIFY(!tinted.isNull());
+    QCOMPARE(tinted, win.canvas_->renderToImage(QStringLiteral("tint")));
+    QVERIFY2(current != tinted, "current and tint must actually render differently here");
+  }
+
+  // FEATURE (user report): "Filter Only" would render byte-identical to "Original" with
+  // no filter applied, so it's hidden (not just greyed) until one actually is — live as
+  // the filter is toggled, not just on the next unrelated refresh.
+  void filterOnlyHiddenWithNoFilterApplied() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.refreshActions();
+    QVERIFY2(!win.actCopyImageTint_->isVisible(), "Filter Only shows with no filter applied");
+    QVERIFY2(!win.actSaveImageTint_->isVisible(), "Filter Only shows with no filter applied");
+
+    win.applyImageFilter(QStringLiteral("sepia"));
+    QVERIFY2(win.actCopyImageTint_->isVisible(), "Filter Only should show once a filter is active");
+    QVERIFY2(win.actSaveImageTint_->isVisible(), "Filter Only should show once a filter is active");
+
+    win.applyImageFilter(QStringLiteral("none"));
+    QVERIFY2(!win.actCopyImageTint_->isVisible(), "Filter Only should hide again once the filter clears");
+    QVERIFY2(!win.actSaveImageTint_->isVisible(), "Filter Only should hide again once the filter clears");
+  }
+
+  // FEATURE (user report): "Current"'s OWN row (actCopyImageCurrentRow_/
+  // actSaveImageCurrentRow_) would render byte-identical to Original/Filter Only with
+  // nothing drawn — hidden until there's something to overlay, same reasoning as Filter
+  // Only. A SEPARATE action from actCopyImage_/actSaveImage_ (the toolbar buttons' own,
+  // which stay visible/enabled throughout — a QToolButton mirrors its action's
+  // visibility, so hiding THOSE would take the toolbar icon down with them) but firing
+  // the identical operation.
+  void currentRowHiddenWithNoLinesButToolbarButtonStays() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.refreshActions();
+    QVERIFY2(!win.actCopyImageCurrentRow_->isVisible(), "Current's row shows with nothing drawn");
+    QVERIFY2(!win.actSaveImageCurrentRow_->isVisible(), "Current's row shows with nothing drawn");
+    QVERIFY2(win.actCopyImage_->isVisible(), "the toolbar's own Copy action must stay visible regardless");
+    QVERIFY2(win.actSaveImage_->isVisible(), "the toolbar's own Download action must stay visible regardless");
+    QVERIFY(win.actCopyImage_->isEnabled());
+
+    stencil::core::Line line;
+    line.color = "#00ff00";
+    line.points.push_back({4.0, 20.0});
+    line.points.push_back({36.0, 20.0});
+    win.canvas_->setLines({line});
+    win.refreshActions();
+    QVERIFY2(win.actCopyImageCurrentRow_->isVisible(), "Current's row should show once something is drawn");
+    QVERIFY2(win.actSaveImageCurrentRow_->isVisible(), "Current's row should show once something is drawn");
+
+    // Clicking the row performs the exact same thing as the toolbar button.
+    win.actCopyImageCurrentRow_->trigger();
+    const QImage viaRow = QGuiApplication::clipboard()->image();
+    win.actCopyImage_->trigger();
+    QCOMPARE(QGuiApplication::clipboard()->image(), viaRow);
+
+    win.canvas_->setLines({});
+    win.refreshActions();
+    QVERIFY2(!win.actCopyImageCurrentRow_->isVisible(), "Current's row should hide again once lines are cleared");
+    QVERIFY2(!win.actSaveImageCurrentRow_->isVisible(), "Current's row should hide again once lines are cleared");
+    QVERIFY2(win.actCopyImage_->isVisible(), "the toolbar's own Copy action is still untouched");
+  }
+
+  // REGRESSION (user report, screenshot): MenuHotkeyChips only ever placed/hid a row's
+  // chip on the menu's OWN aboutToShow — an action going invisible out from under an
+  // ALREADY-OPEN menu (e.g. turning the filter off while its download-options popup is
+  // still up) left that chip floating at its last valid position, overlapping whatever
+  // row now sits there instead. Needs the live poll (menuHotkeys.hpp installPlacer).
+  void filterOnlyChipHidesLiveWhileItsMenuStaysOpen() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.applyImageFilter(QStringLiteral("sepia"));   // Filter Only visible before the popup opens
+
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QVERIFY(saveBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
+                          saveBtn->mapToGlobal(saveBtn->rect().center()));
+    QApplication::sendEvent(saveBtn, &ctx);
+    QMenu* menu = win.saveImageOptionsMenu_;
+    const bool opened = menu && menu->isVisible();
+
+    auto chipOver = [&](QAction* act) -> stencil::gui::TipBody* {
+      const QRect r = menu->actionGeometry(act);
+      for (QLabel* l : menu->findChildren<QLabel*>())
+        if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+          if (!c->isHidden() && c->geometry().intersects(r)) return c;
+      return nullptr;
+    };
+    // Captured into locals and the menu closed BEFORE any assertion — an early QVERIFY2
+    // return must never leave the menu open, or it outlives `win` and crashes on teardown
+    // (exportOptionsPopupIsNotWiderThanItsContent's own comment has the full story).
+    bool chippedWhileActive = false, stillChippedAfter = true;
+    if (opened) {
+      chippedWhileActive = chipOver(win.actSaveImageTint_) != nullptr;
+      // Turn the filter off WHILE the popup stays open — no click, no reopen — and
+      // give the live poll (menuHotkeys.hpp) a moment to catch up.
+      win.applyImageFilter(QStringLiteral("none"));
+      for (int i = 0; i < 20 && stillChippedAfter; ++i) {
+        QTest::qWait(20);
+        stillChippedAfter = chipOver(win.actSaveImageTint_) != nullptr;
+      }
+      menu->close();
+    }
+    QVERIFY2(opened, "the download options popup never opened");
+    QVERIFY2(chippedWhileActive, "Filter Only should be chipped while the filter is active");
+    QVERIFY2(!stillChippedAfter, "Filter Only's chip is still floating after the filter cleared");
+  }
+
+  // FEATURE (user report): "With Compare" is a SEPARATE action (actCopyImageSplit_/
+  // actSaveImageSplit_), not a relabeling of "Current" — actCopyImage_/actSaveImage_
+  // always read/perform "Current", comparing or not. The split action is only VISIBLE
+  // while a split compare view is active, and only then does it borrow the real
+  // Ctrl+C/Ctrl+Shift+D shortcut from its "Current" sibling (syncSplitCopyDownloadSlot()) —
+  // giving the shortcut back the moment compare turns off. The literal "Filter Only" row
+  // (actCopyImageTint_) is unaffected either way — it never follows compare state.
+  void copyDownloadSplitTakesThePrimaryGesture() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays. This test's own
+    // regression block below needs it visible to find its chip.
+    {
+      stencil::core::Line line;
+      line.points.push_back({4.0, 20.0});
+      line.points.push_back({36.0, 20.0});
+      win.canvas_->setLines({line});
+    }
+
+    win.refreshActions();
+    QCOMPARE(win.actCopyImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QCOMPARE(win.actSaveImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QVERIFY2(!win.actCopyImageSplit_->isVisible(), "With Compare shows outside compare");
+    QVERIFY2(!win.actSaveImageSplit_->isVisible(), "With Compare shows outside compare");
+    const QKeySequence copyShortcut = win.actCopyImage_->shortcut();
+    const QKeySequence saveShortcut = win.actSaveImage_->shortcut();
+    QVERIFY2(!copyShortcut.isEmpty(), "Current should carry the real Ctrl+C outside compare");
+
+    // Prime MenuHotkeyChips' per-action combo cache with "Current"'s Ctrl+C BEFORE
+    // compare mode ever turns on — the ordinary way a user would have already opened
+    // this popup at some point. The real regression only shows up on a SECOND open,
+    // once the shortcut has since moved elsewhere (below).
+    {
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QVERIFY(copyBtn);
+      QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                            copyBtn->mapToGlobal(copyBtn->rect().center()));
+      QApplication::sendEvent(copyBtn, &ctx);
+      QVERIFY2(win.copyImageOptionsMenu_->isVisible(), "priming popup never opened");
+      win.copyImageOptionsMenu_->close();
+    }
+
+    win.canvas_->setCompareMode(QStringLiteral("vertical"));
+    win.refreshActions();
+    // "Current" never relabels — it's still there, unaffected, beside the new row.
+    QCOMPARE(win.actCopyImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QCOMPARE(win.actSaveImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QCOMPARE(win.actCopyImageSplit_->text(), QString("With Compare"));
+    QCOMPARE(win.actSaveImageSplit_->text(), QString("With Compare"));
+    QVERIFY2(win.actCopyImageSplit_->isVisible(), "With Compare must show while comparing");
+    QVERIFY2(win.actSaveImageSplit_->isVisible(), "With Compare must show while comparing");
+    // The shortcut moved onto the split action; "Current" is left with none (Qt would
+    // otherwise flag two enabled actions sharing one shortcut as ambiguous).
+    QCOMPARE(win.actCopyImageSplit_->shortcut(), copyShortcut);
+    QCOMPARE(win.actSaveImageSplit_->shortcut(), saveShortcut);
+    QVERIFY(win.actCopyImage_->shortcut().isEmpty());
+    QVERIFY(win.actSaveImage_->shortcut().isEmpty());
+    QVERIFY2(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageSplit_),
+             "the toolbar popup never got the split row");
+    QCOMPARE(win.copyImageOptionsMenu_->actions().first(), win.actCopyImageSplit_);  // leads
+    QCOMPARE(win.saveImageOptionsMenu_->actions().first(), win.actSaveImageSplit_);  // leads
+
+    // REGRESSION (user report): MenuHotkeyChips never deleted a row's chip widget on
+    // teardown (menuHotkeys.hpp's destructor only restored the action's text/shortcut) —
+    // it just sat there, orphaned but still parented (and visible) on the persistent
+    // menu. Reopening the SAME popup here, now with a 4th row ahead of it shifting every
+    // later row down one slot, lands the leftover chip from the earlier "priming" open
+    // squarely on top of whatever row now occupies its old screen position — visually a
+    // hotkey combo "still showing" on a row that has none any more.
+    {
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QVERIFY(copyBtn);
+      QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                            copyBtn->mapToGlobal(copyBtn->rect().center()));
+      QApplication::sendEvent(copyBtn, &ctx);
+      QMenu* menu = win.copyImageOptionsMenu_;
+      const bool opened = menu && menu->isVisible();
+      // Captured into locals and the menu closed BEFORE any assertion — an early
+      // QVERIFY2 return must never leave the menu open, or it outlives `win` and
+      // crashes on teardown (exportOptionsPopupIsNotWiderThanItsContent's own comment
+      // has the full story).
+      bool currentChipped = false, splitChipped = false;
+      if (opened) {
+        const QRect currentRect = menu->actionGeometry(win.actCopyImageCurrentRow_);
+        const QRect splitRect = menu->actionGeometry(win.actCopyImageSplit_);
+        for (QLabel* l : menu->findChildren<QLabel*>()) {
+          auto* chip = dynamic_cast<stencil::gui::TipBody*>(l);
+          if (!chip || chip->isHidden()) continue;
+          if (chip->geometry().intersects(currentRect)) currentChipped = true;
+          if (chip->geometry().intersects(splitRect)) splitChipped = true;
+        }
+        menu->close();
+      }
+      QVERIFY2(opened, "the copy-image options popup never opened");
+      QVERIFY2(!currentChipped, "Current still shows a hotkey chip while a comparison is active");
+      QVERIFY2(splitChipped, "With Compare should carry the chip while comparing");
+    }
+
+    win.actCopyImageSplit_->trigger();
+    const QImage copiedSplit = QGuiApplication::clipboard()->image();
+    QVERIFY(!copiedSplit.isNull());
+    QCOMPARE(copiedSplit, win.canvas_->renderToImage(QStringLiteral("split")));
+
+    // "Current" stays reachable — via the menu, with no hotkey of its own right now —
+    // and still means the plain edited frame, not the split, even while comparing.
+    win.actCopyImage_->trigger();
+    QCOMPARE(QGuiApplication::clipboard()->image(), win.canvas_->renderToImage(QStringLiteral("current")));
+
+    // The literal "Filter Only" row never auto-switches to the split composite just
+    // because a compare view is active — it keeps rendering tint-only, no overlay.
+    win.actCopyImageTint_->trigger();
+    QCOMPARE(QGuiApplication::clipboard()->image(), win.canvas_->renderToImage(QStringLiteral("tint")));
+
+    // Turning compare back off hides the split action again and gives "Current" back its shortcut.
+    win.canvas_->setCompareMode(QStringLiteral("none"));
+    win.refreshActions();
+    QCOMPARE(win.actCopyImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QCOMPARE(win.actSaveImage_->text(), QString("Current (Tint + Lines/Points)"));
+    QVERIFY(!win.actCopyImageSplit_->isVisible());
+    QVERIFY(!win.actSaveImageSplit_->isVisible());
+    QCOMPARE(win.actCopyImage_->shortcut(), copyShortcut);
+    QCOMPARE(win.actSaveImage_->shortcut(), saveShortcut);
+    win.actCopyImage_->trigger();
+    QCOMPARE(QGuiApplication::clipboard()->image(), win.canvas_->renderToImage(QStringLiteral("current")));
+  }
+
   void chatClearConversation() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -3582,20 +4016,17 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.chatImageEncoded_.data.isEmpty());
     QCOMPARE(win.currentLlmSettings().provider, providerBefore);
 
-    // Appear animation: a fresh card starts transparent behind its own opacity
-    // effect and animates to fully visible. Overlapping appends each own their
-    // animation, so all of them land at 1.0 and at their resting margins.
+    // Appear: a fresh card is claimed by its own opacity effect and ends fully visible.
+    // Overlapping appends each own their animation, so all of them land at 1.0 and at
+    // their resting margins. This suite runs REDUCED (STENCIL_NO_ANIM), where the card is
+    // simply THERE — the arrival's veil-then-dust is chatCardsArriveOutOfDust's business,
+    // and a card left hidden here is what reducedMotionChatCardArrivesAtOnce pins.
     dock->appendUser("again");
     dock->appendAssistant("sure");
     dock->appendError("nope");
     const auto cards =
         transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly);
     QCOMPARE(cards.size(), 3);
-    for (QFrame* card : cards) {
-      auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
-      QVERIFY(fx);
-      QCOMPARE(fx->opacity(), 0.0);  // starts hidden, before the loop spins
-    }
     for (QFrame* card : cards) {
       auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
       QTRY_COMPARE(fx->opacity(), 1.0);
@@ -3749,7 +4180,62 @@ class MainWindowGuiTest : public QObject {
     }
 
     // Tidy the dev state dir: drop the project this test created.
-    dismissModal("Yes");
+    dismissModal("Confirm");
+    QAction* clear = actionByText(&win, "Clear Project");
+    QVERIFY(clear);
+    clear->trigger();
+    QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
+    beat();
+  }
+
+  // Pan/zoom persistence (browser parity: storage.js's own debounced scroll/zoom save +
+  // "Saved" toast). A zoom change and a scrollbar drag each debounce into ONE save, the
+  // active project's record picks up the new view, and reopening that project restores it
+  // instead of the plain fit-to-window.
+  void panZoomPersistsPerProjectWithSavedToast() {
+    using stencil::gui::Project;
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    win.adoptCanvasAsLocalProject();
+    QVERIFY(!win.activeProjectId_.isEmpty());
+    const QString projectId = win.activeProjectId_;
+
+    // Zoom in past the viewport so the canvas actually grows a scrollable range —
+    // otherwise the scrollbars have nowhere to move and the pan half of this test proves
+    // nothing.
+    win.setZoom(5.0);
+    win.scroll_->horizontalScrollBar()->setValue(30);
+    win.scroll_->verticalScrollBar()->setValue(20);
+    QTest::qWait(600);   // past the 400ms debounce
+
+    {
+      Project* pr = win.findProject(projectId.toStdString());
+      QVERIFY(pr);
+      QCOMPARE(pr->zoomScale, 5.0);
+      QCOMPARE(pr->scrollLeft, 30);
+      QCOMPARE(pr->scrollTop, 20);
+    }
+    // The debounced save flashes the same toast every other save does.
+    {
+      bool sawSaved = false;
+      for (QLabel* l : win.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly))
+        if (l->property("stencilToastText").toString() == "Saved") sawSaved = true;
+      QVERIFY2(sawSaved, "no \"Saved\" toast after the debounced pan/zoom save");
+    }
+
+    // Knock the live canvas to a different zoom WITHOUT going through setZoom (which would
+    // reschedule — and overwrite — the very save just verified above), simulating "the
+    // editor is sitting somewhere else" right before this project reopens.
+    canvas->setScale(1.0);
+    QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false));
+    QTest::qWait(50);   // the scroll half restores a turn later (QTimer::singleShot(0, …))
+    QCOMPARE(canvas->scale(), 5.0);
+    QCOMPARE(win.scroll_->horizontalScrollBar()->value(), 30);
+    QCOMPARE(win.scroll_->verticalScrollBar()->value(), 20);
+
+    // Tidy the dev state dir: drop the project this test created.
+    dismissModal("Confirm");
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
     clear->trigger();
@@ -4116,8 +4602,13 @@ class MainWindowGuiTest : public QObject {
     // way the assertion is "the child popup opens", which is what regressed.
     auto openSub = [](QMenu* menu, const QString& title) -> QMenu* {
       QAction* parent = nullptr;
+      // startsWith, not == : a submenu-opener's own hint text is native-formatted off
+      // the action it names (mainWindow.cpp hintTab — "Image Filter\t⌥B" on macOS,
+      // "Image Filter\tAlt+B" elsewhere), so a literal platform-specific suffix isn't
+      // reliable to match here. "Style" etc. carry no hint at all, so the prefix IS
+      // the whole label — startsWith is exact for them too.
       for (QAction* a : menu->actions())
-        if (a->text() == title) parent = a;
+        if (a->text().startsWith(title)) parent = a;
       if (!parent || !parent->menu()) return nullptr;
       // A move to the position the cursor already occupies produces no event at
       // all, and the first move into a freshly popped menu is routinely
@@ -4144,8 +4635,8 @@ class MainWindowGuiTest : public QObject {
     // and it doubles as the "arrows/Enter still drive the menu" assertion.
     auto openSubByKey = [](QMenu* menu, const QString& title) -> QMenu* {
       QAction* parent = nullptr;
-      for (QAction* a : menu->actions())
-        if (a->text() == title) parent = a;
+      for (QAction* a : menu->actions())    // startsWith — see openSub's comment above
+        if (a->text().startsWith(title)) parent = a;
       if (!parent || !parent->menu()) return nullptr;
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
@@ -4181,7 +4672,7 @@ class MainWindowGuiTest : public QObject {
         prev = a;
       }
       styleOpenedOff = openSub(menu, "Style") != nullptr;
-      filterOpenedOff = openSubByKey(menu, "Image Filter\tAlt+B") != nullptr;
+      filterOpenedOff = openSubByKey(menu, "Image Filter") != nullptr;
       menu->close();
     });
     win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
@@ -4239,7 +4730,7 @@ class MainWindowGuiTest : public QObject {
       // hover-open for two of them, plus the keyboard path (arrows/Right) which
       // must still drive the menu while nothing has focused the chat input.
       styleOpened = openSub(menu, "Style") != nullptr;
-      filterOpened = openSub(menu, "Image Filter\tAlt+B") != nullptr;
+      filterOpened = openSub(menu, "Image Filter") != nullptr;
 
       tooltipByKey = openSubByKey(menu, "Tooltip") != nullptr;
 
@@ -4562,6 +5053,83 @@ class MainWindowGuiTest : public QObject {
 
     win.llmClient_.reset();  // drop the mock before it goes out of scope
     beat();
+  }
+
+  // TEMP DIAGNOSTIC: dust on open, dust on our own forced hover-away close, and dust
+  // replaying on a SECOND open of the same submenu instance.
+  void ctxSubmenuDustReplayProbe() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+
+    const auto moveTo = [](QMenu* m, const QPoint& p) {
+      QMouseEvent e(QEvent::MouseMove, QPointF(p), QPointF(m->mapToGlobal(p)),
+                    Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(m, &e);
+    };
+    const auto hoverPath = [&](QMenu* m, const QPoint& from, const QPoint& to) {
+      for (int i = 1; i <= 8; ++i) { moveTo(m, from + (to - from) * i / 8); QTest::qWait(15); }
+    };
+    const auto dustSeen = [&win] {
+      for (QWidget* w : win.findChildren<QWidget*>(
+               QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName))) {
+        auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+        if (fx->surfacePicture().isValid()) return true;
+      }
+      return false;
+    };
+
+    bool dustOnFirstOpen = false, dustOnClose = false, closed = false, dustOnSecondOpen = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      if (!menu) return;
+      QAction* parent = nullptr;
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith("Image / Layout")) parent = a;
+      if (!parent || !parent->menu()) return;
+      QAction* plainRow = nullptr;
+      for (QAction* a : menu->actions()) {
+        if (a->isSeparator() || a->menu() || !a->isEnabled()) continue;
+        plainRow = a; break;
+      }
+      if (!plainRow) return;
+      const QPoint plainCenter = menu->actionGeometry(plainRow).center();
+      const QPoint parentCenter = menu->actionGeometry(parent).center();
+      QMenu* sub = parent->menu();
+
+      // Open #1.
+      for (int attempt = 0; attempt < 4 && !sub->isVisible(); ++attempt) {
+        moveTo(menu, plainCenter); QTest::qWait(30);
+        moveTo(menu, parentCenter);
+        for (int i = 0; i < 40 && !sub->isVisible(); ++i) QTest::qWait(10);
+      }
+      if (!sub->isVisible()) { menu->close(); return; }
+      dustOnFirstOpen = dustSeen();
+
+      // Hover away — our own SubmenuCloseGuard should hide it AND dust it.
+      hoverPath(menu, parentCenter, plainCenter);
+      for (int i = 0; i < 60 && sub->isVisible(); ++i) { QTest::qWait(10); if (dustSeen()) dustOnClose = true; }
+      closed = !sub->isVisible();
+
+      // Open #2 — the SAME QMenu instance, reopened.
+      hoverPath(menu, plainCenter, parentCenter);
+      for (int i = 0; i < 60 && !sub->isVisible(); ++i) QTest::qWait(10);
+      dustOnSecondOpen = dustSeen();
+
+      menu->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+
+    QVERIFY2(dustOnFirstOpen, "no dust on the first open");
+    QVERIFY2(closed, "the submenu never closed");
+    QVERIFY2(dustOnClose, "no dust while our own guard closed the submenu");
+    QVERIFY2(dustOnSecondOpen, "no dust replayed on the second open of the same submenu");
   }
 
   // One conversation, two views: the dock and the context-menu panel must show
@@ -4999,6 +5567,95 @@ class MainWindowGuiTest : public QObject {
                                             .arg(QDebug::toString(origin), QDebug::toString(want))));
   }
 
+  // The chat composer's "…" was the last popup in the app that still hard-cut on both
+  // edges, and the Assistant window it raises grew out of nothing — its Settings item is
+  // gone by the time the window opens, so the anchor measured 0x0. Both now belong to the
+  // "…" TRIGGER, which is also what makes the window fall from above when the dock is
+  // shut: a hidden anchor is no anchor (modalReveal originRect).
+  void chatOverflowAndItsWindowFlyToTheDotsTrigger() {
+    MainWindow win;
+    win.resize(1400, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.chatDock_->setVisible(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    QTest::qWait(150);
+    // ctest runs with STENCIL_NO_ANIM=1 and every flight is a no-op under it; this test
+    // is about the flight itself, so turn it back on for the duration.
+    const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
+    qunsetenv("STENCIL_NO_ANIM");
+    const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
+
+    auto* moreBtn = win.chatDock_->moreButton();
+    QVERIFY(moreBtn && moreBtn->isVisible());
+    QMenu* menu = moreBtn->menu();
+    QVERIFY(menu);
+    const QPoint want = flightPointOf(moreBtn, &win);
+
+    // The menu's own dust is skipped offscreen by design (menuReveal revealPopup — the
+    // gui suite picks items the instant the popup lands), so what is checkable here is
+    // that BOTH edges are wired, and wired to the trigger. It is a repeat-show menu, so
+    // the one-shot MenuReveal would have been wrong; revealMenuFrom is what it gets.
+    auto* flight = menu->findChild<QObject*>(QStringLiteral("stencilMenuFlight"),
+                                             Qt::FindDirectChildrenOnly);
+    QVERIFY2(flight, "the … menu has no flight wired at all");
+
+    // It is four short labelled icons, NOT a menu-bar menu: the theme's gutters (24px
+    // left check reserve + 26px right shortcut slack) plus the shortcut column Qt
+    // reserves anyway left a visible gap after each glyph and a band of dead space down
+    // the right edge. compactIconMenu hugs the longest label instead.
+    menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
+    QVERIFY(QTest::qWaitForWindowExposed(menu));
+    QTest::qWait(30);
+    int widest = 0;
+    for (QAction* a : menu->actions())
+      widest = std::max(widest, menu->fontMetrics().horizontalAdvance(a->text()));
+    QVERIFY2(widest > 0, "no labels to measure");
+    const int slack = menu->width() - widest;
+    // Icon + paddings only. The untamed hint ran ~95px past the label on this font.
+    QVERIFY2(slack > 0 && slack <= 64,
+             qPrintable(QString("menu is %1 wide for a %2 label — %3px of slack")
+                            .arg(menu->width()).arg(widest).arg(slack)));
+    menu->hide();
+    QTest::qWait(30);
+    // Popping it twice must not stack a second filter — nor go quiet on the second show.
+    menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
+    QVERIFY(QTest::qWaitForWindowExposed(menu));
+    menu->hide();
+    QTest::qWait(30);
+    menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
+    QTest::qWait(30);
+    menu->hide();
+    QTest::qWait(30);
+    QCOMPARE(menu->findChildren<QObject*>(QStringLiteral("stencilMenuFlight"),
+                                          Qt::FindDirectChildrenOnly).size(), 1);
+
+    // …and the window that Settings raises rides the trigger's point — this half DOES
+    // fly offscreen, so it is asserted for real.
+    QDialog dlg(&win);
+    dlg.resize(320, 240);
+    stencil::support::revealDialog(dlg, moreBtn);
+    dlg.show();
+    QTest::qWait(50);
+    QCOMPARE(surfaceFlightTarget(&win), want);
+    dlg.close();
+    QTest::qWait(50);
+
+    // A shut dock leaves nothing on screen to own the window: it falls from above
+    // instead of out of the trigger's stale last position.
+    win.chatDock_->setVisible(false);
+    QTRY_VERIFY(!moreBtn->isVisible());
+    QDialog orphan(&win);
+    orphan.resize(320, 240);
+    stencil::support::revealDialog(orphan, moreBtn);
+    orphan.show();
+    QTest::qWait(50);
+    const QPoint above = surfaceFlightTarget(&win);
+    if (above != QPoint(-1, -1))
+      QVERIFY2(above != want, "a hidden trigger must not keep claiming the flight");
+    orphan.close();
+  }
+
   // pickColorAnimated is the getColor drop-in behind every colour swatch: same modal
   // contract (picked colour on OK, invalid QColor on cancel) plus the revealDialog
   // flight out of the anchor icon. The suite runs with STENCIL_NO_ANIM=1, so the
@@ -5016,14 +5673,19 @@ class MainWindowGuiTest : public QObject {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
-    // exec() blocks, so a 0-timer drives the modal: read the point the in-flight cloud
-    // aims at (where the user sees the picker come out of), then pick a colour and OK.
-    QPoint origin(-1, -1);
+    // exec() blocks, so a 0-timer drives the modal: the watcher catches the flight's
+    // origin the instant it starts (QColorDialog is comfortably past the dust size
+    // ceiling, so this is the ghost — reading it late would already be mid-tween).
+    RevealOriginWatcher watcher;
+    qApp->installEventFilter(&watcher);
+    const auto removeWatcher = qScopeGuard([&] { qApp->removeEventFilter(&watcher); });
     QTimer::singleShot(0, [&] {
       for (int i = 0; i < 200; ++i) {
         if (auto* dlg = qobject_cast<QColorDialog*>(QApplication::activeModalWidget())) {
-          QTest::qWait(50);   // past the 0-timer that builds the cloud, inside the flight
-          origin = surfaceFlightTarget(&win);
+          // revealDialog's own 0-timer (registered after this one) needs a turn to
+          // fire and start the OPEN flight before accept() closes the dialog and
+          // starts the close flight instead — same watcher, same object name.
+          QTest::qWait(50);
           dlg->setCurrentColor(QColor("#12ab34"));
           dlg->accept();
           return;
@@ -5035,9 +5697,9 @@ class MainWindowGuiTest : public QObject {
         stencil::support::pickColorAnimated(QColor("#ffffff"), &win, "Test colour", icon);
     QCOMPARE(picked, QColor("#12ab34"));
     const QPoint want = flightPointOf(icon, &win);
-    QVERIFY2(origin == want,
+    QVERIFY2(watcher.origin == want,
              qPrintable(QString("the picker's flight starts at %1, the anchor icon is at %2")
-                            .arg(QDebug::toString(origin), QDebug::toString(want))));
+                            .arg(QDebug::toString(watcher.origin), QDebug::toString(want))));
     // Cancel path: reject → invalid colour, exactly the getColor contract call sites rely on.
     QTimer::singleShot(0, [] {
       for (int i = 0; i < 200; ++i) {
@@ -5098,12 +5760,16 @@ class MainWindowGuiTest : public QObject {
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
 
-    // Reads the point the reveal's cloud aims at while the dialog is blocked in exec(),
-    // then closes it so trigger() returns.
-    QPoint start(-1, -1);
-    const auto watchThenClose = [&] {
+    // The watcher catches the flight's origin the instant it starts, whichever
+    // mechanism plays it — a ghost's geometry is what a QPropertyAnimation is
+    // actively tweening, so reading it any time after Show would already be
+    // mid-flight, not the origin.
+    RevealOriginWatcher watcher;
+    qApp->installEventFilter(&watcher);
+    const auto removeWatcher = qScopeGuard([&] { qApp->removeEventFilter(&watcher); });
+    // Let the dialog and its flight fully appear, then close it so trigger() returns.
+    const auto closeSoon = [&] {
       QTimer::singleShot(140, &win, [&] {
-        start = surfaceFlightTarget(&win);
         if (QWidget* modal = QApplication::activeModalWidget()) modal->close();
       });
     };
@@ -5111,37 +5777,50 @@ class MainWindowGuiTest : public QObject {
     // ── an icon-backed dialog ──
     QWidget* icon = win.buttonForAction(win.actProjects_);
     QVERIFY2(icon && icon->isVisible(), "the Projects icon is not on the toolbar");
-    start = QPoint(-1, -1);
-    watchThenClose();
+    watcher.reset();
+    closeSoon();
     win.actProjects_->trigger();
     QTest::qWait(50);
     {
       const QPoint want = flightPointOf(icon, &win);
-      QVERIFY2(start == want, qPrintable(QString("icon case: flight starts at %1, icon at %2")
-                                             .arg(QDebug::toString(start), QDebug::toString(want))));
+      QVERIFY2(watcher.origin == want,
+               qPrintable(QString("icon case: flight starts at %1, icon at %2")
+                              .arg(QDebug::toString(watcher.origin), QDebug::toString(want))));
     }
 
     // ── a menu-only dialog: no icon, so the clicked ROW is the origin ──
-    QAction* act = win.actShortcuts_;
-    QVERIFY2(act && !win.buttonForAction(act), "Customize Shortcuts should have no toolbar icon");
+    // Synthetic action: every dialog-opening action now has a toolbar icon
+    // (actShortcuts_ used to be the exception this borrowed — fixed to carry the
+    // browser's gear icon like its siblings), so nothing icon-less is left to
+    // borrow. Built the same way a real one would be: bound, then wired to open
+    // a plain dialog through the same execMaybePopover path.
     QMenu* help = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(act)) { help = m; break; }
-    QVERIFY2(help, "the Help menu does not carry it");
+      if (m->actions().contains(win.actInfo_)) { help = m; break; }
+    QVERIFY2(help, "the Help menu was not found");
+    auto* act = new QAction("Test Menu-Only Dialog", &win);
+    help->addAction(act);
+    win.bindRevealAnchor(act);
+    connect(act, &QAction::triggered, &win, [&win, act] {
+      QDialog dlg(&win);
+      dlg.resize(300, 200);
+      win.execMaybePopover(dlg, act);
+    });
+    QVERIFY2(!win.buttonForAction(act), "the synthetic action must have no toolbar icon");
     help->popup(win.mapToGlobal(QPoint(60, 40)));
     QVERIFY(QTest::qWaitForWindowExposed(help));
     const QRect row = help->actionGeometry(act);
     QTest::mouseMove(help, row.center());
     QTest::qWait(30);
     help->close();
-    start = QPoint(-1, -1);
-    watchThenClose();
+    watcher.reset();
+    closeSoon();
     act->trigger();
     QTest::qWait(50);
     const QRect rowInWin(win.mapFromGlobal(help->mapToGlobal(row.topLeft())), row.size());
-    QVERIFY2(start == rowInWin.center(),
+    QVERIFY2(watcher.origin == rowInWin.center(),
              qPrintable(QString("menu case: flight starts at %1, row at %2")
-                            .arg(QDebug::toString(start), QDebug::toString(rowInWin))));
+                            .arg(QDebug::toString(watcher.origin), QDebug::toString(rowInWin))));
   }
 
   // The labelled Open Image button centres its icon+text. Qt left-aligns a
@@ -5557,6 +6236,115 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawNarrow, "docking from float snapped straight to full width");
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::LeftDockWidgetArea);
     QTRY_VERIFY2(dock->width() > settled / 2, "it never grew in from the float");
+  }
+
+  // Docking the chat onto the SAME side as the points panel used to let the two fight
+  // over width: the panel would balloon or collapse mid-slide (Qt's dock layout freely
+  // redistributing space between two flexible siblings), and that bad width then got
+  // captured as the "restore" size, reappearing very wide on the next reopen. Browser
+  // parity (layout.css .main-content flex row): the chat overlay only ever eats into the
+  // canvas column — the fixed-width panel beside it never moves. Regression for that bug.
+  void chatSharingPanelSideKeepsPanelWidthStable() {
+    const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
+    qunsetenv("STENCIL_NO_ANIM");
+    const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(win.selPanel_ && win.chatDock_);
+    QVERIFY(win.dockWidgetArea(win.selPanel_) == Qt::RightDockWidgetArea);
+    QTRY_VERIFY(!win.selPanel_->isHidden());
+
+    // Chat starts docked LEFT by default — open it (an UNRELATED area, so this alone
+    // settles QMainWindow's dock layout onto the panel's real natural width, not
+    // whatever incidental size it had straight out of construction) and let it settle.
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
+    QTest::qWait(400);
+    const int panelBefore = win.selPanel_->width();
+    QVERIFY2(panelBefore > 120, "the points panel never reached its natural width");
+
+    // Now place the chat RIGHT, alongside the points panel, and watch the panel's
+    // width through the whole flight.
+    emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
+    int maxSeen = 0, minSeen = win.width();
+    for (int i = 0; i < 60; ++i) {
+      QTest::qWait(15);
+      if (win.selPanel_->isHidden()) continue;
+      const int w = win.selPanel_->width();
+      maxSeen = std::max(maxSeen, w);
+      minSeen = std::min(minSeen, w);
+    }
+    QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
+    QTest::qWait(200);
+    // They must land SIDE BY SIDE (same row, chat to the right of the panel) —
+    // never stacked vertically (Qt's plain, unsplit addDockWidget default).
+    QCOMPARE(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(), win.chatDock_->mapTo(&win, QPoint(0, 0)).y());
+    QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
+             "chat did not land to the right of the points panel");
+    // The panel must never balloon past its pre-share width, nor get squeezed away —
+    // the chat's own slide is what should move, not the panel sitting beside it.
+    QVERIFY2(maxSeen <= panelBefore + 8,
+             qPrintable(QString("points panel widened to %1 (was %2)").arg(maxSeen).arg(panelBefore)));
+    QVERIFY2(minSeen >= 100,
+             qPrintable(QString("points panel collapsed to %1 mid-slide").arg(minSeen)));
+
+    // Close the chat: the panel should hand its width right back...
+    win.actChat_->setChecked(false);
+    QTRY_VERIFY(!win.chatDock_->isVisible());
+    QTest::qWait(300);
+    QVERIFY2(win.selPanel_->width() >= panelBefore - 8,
+             qPrintable(QString("panel stayed narrow after chat closed: %1 (was %2)")
+                            .arg(win.selPanel_->width()).arg(panelBefore)));
+
+    // ...and reopening the chat (sharing again) must not have baked a bad "restore"
+    // width into the panel from the earlier fight — it settles back near its own size,
+    // never "very wide".
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    QTest::qWait(400);
+    QVERIFY2(win.selPanel_->width() <= panelBefore + 8,
+             qPrintable(QString("panel reopened very wide: %1 (was %2)")
+                            .arg(win.selPanel_->width()).arg(panelBefore)));
+  }
+
+  // The points panel can be HIDDEN (no image loaded, or collapsed by the user) at the
+  // moment the chat gets placed onto its side — dockChatTo used to gate its split on the
+  // panel being visible right then, so the two were left plain-stacked (Qt's unsplit
+  // addDockWidget default: one squashed row above the other). Showing the panel again
+  // later never re-split them — it just reappeared squashed under the chat. Regression
+  // for that; ensurePanelChatSplit must repair it wherever either dock's visibility flips.
+  void chatPlacedWhilePanelHiddenStillSplitsSideBySide() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(win.selPanel_ && win.chatDock_ && win.actPanel_ && win.actChat_);
+    QVERIFY(win.dockWidgetArea(win.selPanel_) == Qt::RightDockWidgetArea);
+    QTRY_VERIFY(!win.selPanel_->isHidden());
+
+    // Hide the points panel FIRST...
+    win.actPanel_->setChecked(false);
+    QTRY_VERIFY(win.selPanel_->isHidden());
+
+    // ...then place the (unrelated-side) chat onto the panel's side while it's hidden.
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
+    emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
+    QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
+    QTest::qWait(400);
+
+    // Now reveal the panel again — it must come back BESIDE the chat, not squashed
+    // underneath it.
+    win.actPanel_->setChecked(true);
+    QTRY_VERIFY(!win.selPanel_->isHidden());
+    QTest::qWait(400);
+    QCOMPARE(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(), win.chatDock_->mapTo(&win, QPoint(0, 0)).y());
+    QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
+             "the panel reappeared stacked under the chat instead of beside it");
+    QVERIFY2(win.selPanel_->height() > win.height() / 2,
+             "the panel came back with a squashed, shared-row height");
   }
 
   // A FLOATING chat opens out of the toolbar icon and shrinks back into it, like every
@@ -6295,13 +7083,15 @@ class MainWindowGuiTest : public QObject {
     QLabel* body = win.tooltip_->findChild<QLabel*>();
     QVERIFY(body);
 
-    // Hover an image-space spot; report what the tooltip says (empty = hidden).
+    // Hover an image-space spot; report what the tooltip says (empty = hidden). The
+    // reveal now waits out the same delay as the toolbar tooltip (mainWindow.cpp
+    // scheduleHoverShow, 200 ms) before it actually shows, so this outwaits it.
     const auto hoverText = [&](double ix, double iy) {
       const QPoint p(qRound(ix * s), qRound(iy * s));
       QMouseEvent move(QEvent::MouseMove, QPointF(p), canvas->mapToGlobal(p), Qt::NoButton,
                        Qt::NoButton, Qt::NoModifier);
       QApplication::sendEvent(canvas, &move);
-      QTest::qWait(20);
+      QTest::qWait(240);
       return win.tooltip_->isVisible() ? body->text() : QString();
     };
     const auto compareAt = [&](const char* mode, double split) {
@@ -6356,6 +7146,183 @@ class MainWindowGuiTest : public QObject {
 
     // Back to normal: the tooltip returns everywhere.
     QVERIFY2(hoverText(60, 100).contains("60, 100"), "the tooltip did not come back");
+    beat();
+  }
+
+  // The tooltip must not show — or stay stuck showing — while the mouse is down doing
+  // something else (Alt-dragging a point, drag-creating a rect/zoom box, panning);
+  // hoverLeft() retracts one already up when the drag starts.
+  void noTooltipWhileTheMouseIsDownDrawingOrDragging() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 850);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QTest::qWait(150);
+    win.settings_.tooltipEnabled = true;    // independent of the machine's saved settings
+    win.settings_.tooltipShowScreen = true;
+
+    stencil::core::Line line;
+    line.points = {{40, 40}, {160, 120}};
+    canvas->setLines({line});
+    const double s = canvas->scale();
+
+    auto sendMouse = [&](QEvent::Type t, const QPointF& pos, Qt::MouseButton btn,
+                         Qt::MouseButtons btns, Qt::KeyboardModifiers mods) {
+      QMouseEvent ev(t, pos, canvas->mapToGlobal(pos.toPoint()), btn, btns, mods);
+      QCoreApplication::sendEvent(canvas, &ev);
+    };
+    const auto moveTo = [&](double ix, double iy) {
+      sendMouse(QEvent::MouseMove, QPointF(ix * s, iy * s), Qt::NoButton, Qt::NoButton,
+               Qt::NoModifier);
+    };
+
+    // Baseline: hovering the first point (no modifiers, nothing else going on) shows the
+    // tooltip after the reveal delay — proves the setup actually can show one at all.
+    moveTo(40, 40);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+
+    // Alt-press ON that same point starts a point drag without moving first — the
+    // stranding case: the very next move must retract the tooltip that was already up,
+    // not just skip showing a new one. (The drag itself relocates the point to wherever
+    // it's released — setLines() below puts it back for the next section.)
+    sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
+             Qt::LeftButton, Qt::AltModifier);
+    sendMouse(QEvent::MouseMove, QPointF(70 * s, 60 * s), Qt::NoButton, Qt::LeftButton,
+             Qt::AltModifier);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    // Dragging further — even back over the SECOND point — never re-shows it either.
+    sendMouse(QEvent::MouseMove, QPointF(160 * s, 120 * s), Qt::NoButton, Qt::LeftButton,
+             Qt::AltModifier);
+    QTest::qWait(260);   // outwait the reveal delay — it must still be hidden
+    QVERIFY2(!win.tooltip_->isVisible(), "a point drag popped a tooltip mid-drag");
+    sendMouse(QEvent::MouseButtonRelease, QPointF(160 * s, 120 * s), Qt::LeftButton,
+             Qt::NoButton, Qt::AltModifier);
+    beat();
+
+    // Rect-draw mode, dragging out a box over the first point: no tooltip either.
+    canvas->setLines({line});   // undo the point drag above — point 1 back at (40, 40)
+    canvas->setDrawMode(CanvasWidget::DrawMode::Rect);
+    moveTo(40, 40);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
+             Qt::LeftButton, Qt::NoModifier);
+    sendMouse(QEvent::MouseMove, QPointF(90 * s, 90 * s), Qt::NoButton, Qt::LeftButton,
+             Qt::NoModifier);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    QTest::qWait(260);
+    QVERIFY2(!win.tooltip_->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
+    sendMouse(QEvent::MouseButtonRelease, QPointF(90 * s, 90 * s), Qt::LeftButton,
+             Qt::NoButton, Qt::NoModifier);
+    canvas->setDrawMode(CanvasWidget::DrawMode::Line);
+    beat();
+
+    // Shift-drag (zoom rect) over a point: still nothing.
+    canvas->setLines({line});   // drop the rect-draw commit above, back to the plain line
+    moveTo(40, 40);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
+             Qt::LeftButton, Qt::ShiftModifier);
+    // Kept under the 4-image-px commit threshold (mouseReleaseEvent) so releasing does
+    // NOT actually zoom — this section only cares about the tooltip during the drag.
+    sendMouse(QEvent::MouseMove, QPointF(42 * s, 41 * s), Qt::NoButton, Qt::LeftButton,
+             Qt::ShiftModifier);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    QTest::qWait(260);
+    QVERIFY2(!win.tooltip_->isVisible(), "a zoom-rect drag popped a tooltip mid-drag");
+    sendMouse(QEvent::MouseButtonRelease, QPointF(42 * s, 41 * s), Qt::LeftButton,
+             Qt::NoButton, Qt::ShiftModifier);
+    beat();
+
+    // Back to a plain hover afterwards: the tooltip is not stuck off either.
+    moveTo(40, 40);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    beat();
+  }
+
+  // imageSizeInfo_ needs real top/bottom breathing room via contentsMargins, not
+  // stylesheet `padding` — QSS padding on this QLabel had no effect on paint or sizeHint().
+  void imageSizeInfoHasRealVerticalPadding() {
+    MainWindow win(nullptr, false);
+    openLoaded(win);
+    QVERIFY(win.imageSizeInfo_);
+    // 10px left/right (browser parity: css/layout.css .info padding: 10px), 6px top/bottom
+    // (tighter than that — a taller row than the text needed).
+    QCOMPARE(win.imageSizeInfo_->contentsMargins(), QMargins(10, 6, 10, 6));
+    // Not just set — actually taken into account: the reserved fixed height must exceed
+    // the bare font height by at least the vertical margins.
+    win.reserveImageInfoHeight();
+    const int fontH = QFontMetrics(win.imageSizeInfo_->font()).height();
+    QVERIFY2(win.imageSizeInfo_->height() >= fontH + 12,
+             "the reserved height leaves no room for 6px top + 6px bottom");
+  }
+
+  // The "Selected Line:" bar appears/disappears through dustSelectedLineBarIn/Out
+  // (mainWindow.cpp) rather than a plain instant show/hide. Like the other docked
+  // surface flights, it declines under the offscreen QPA platform this suite runs
+  // under, so this asserts the end state rather than a live flight.
+  void selectedLineBarAppearsAndDisappearsWithDust() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 850);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QVERIFY2(!win.selectedLineDock_->isVisible(), "nothing selected yet");
+
+    stencil::core::Line line;
+    line.points = {{20, 20}, {80, 80}};
+    canvas->setLines({line});
+
+    // Select it: the bar comes up (and, off this platform, dust would gather into it).
+    canvas->selectLineByIndex(0);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
+    beat();
+
+    // selectedLineBarDustPoint() is plain geometry, so it runs fine offscreen even
+    // though the flight it feeds does not.
+    QVERIFY2(win.imageInfoBar_ && win.imageInfoBar_->isVisible(), "no image-info row to anchor to");
+    const QRect barPicture(win.selectedLineBar_->mapTo(&win, QPoint(0, 0)),
+                           win.selectedLineBar_->size());
+    const QRect infoRectNow(win.imageInfoBar_->mapTo(&win, QPoint(0, 0)), win.imageInfoBar_->size());
+    const int dockTop = win.selectedLineDock_->mapTo(&win, QPoint(0, 0)).y();
+
+    // The x is the BAR's own centre — both bars span the full window width (each its own
+    // Qt::TopDockWidgetArea dock), so this already IS the window's centre.
+    QVERIFY2(std::abs(barPicture.center().x() - win.width() / 2) < 4,
+             "the bar itself is not spanning the full window width — the premise of this test");
+    const QPoint openPt = win.selectedLineBarDustPoint(barPicture, /*closing=*/false);
+    QCOMPARE(openPt.x(), barPicture.center().x());
+    QCOMPARE(openPt.y(), infoRectNow.bottom());   // reflow already ran — read it as-is
+
+    // Closing predicts the row's post-close position (the dock's current top + the row's
+    // height) rather than using its live, still-stale bottom — which would overshoot.
+    const QPoint closePt = win.selectedLineBarDustPoint(barPicture, /*closing=*/true);
+    QCOMPARE(closePt.x(), barPicture.center().x());
+    QCOMPARE(closePt.y(), dockTop + infoRectNow.height());
+    QVERIFY2(closePt.y() <= barPicture.top() + infoRectNow.height(),
+             "the dock's own top must be at or above the bar's content-widget top");
+    QVERIFY2(closePt.y() < infoRectNow.bottom(),
+             "the closing point used the stale (pre-close) position instead of predicting it");
+
+    // Reselecting a DIFFERENT line while the bar is already open must not disturb it —
+    // it just repopulates in place (same as the browser's wasHidden gate).
+    stencil::core::Line line2;
+    line2.points = {{100, 20}, {160, 80}};
+    canvas->setLines({line, line2});
+    canvas->selectLineByIndex(1);
+    QTest::qWait(150);
+    QVERIFY2(win.selectedLineDock_->isVisible(), "the bar stays up across a re-selection");
+    beat();
+
+    // Deselect: the bar goes away (and, off this platform, dust would scatter out of it).
+    canvas->deselect();
+    QTRY_VERIFY_WITH_TIMEOUT(!win.selectedLineDock_->isVisible(), 2000);
+    beat();
+
+    // Re-selecting after a full hide brings it straight back — nothing latched stuck.
+    canvas->selectLineByIndex(0);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
     beat();
   }
 
@@ -6631,15 +7598,20 @@ class MainWindowGuiTest : public QObject {
     // …and its twin in the panel header, so the pair stays consistent.
     QWidget* bar = nullptr;
     for (QDockWidget* d : win.findChildren<QDockWidget*>())
-      if (d->objectName() != QLatin1String("llmChatDock") && d->titleBarWidget()) bar = d->titleBarWidget();
+      if (d->objectName() != QLatin1String("llmChatDock") &&
+          d->objectName() != QLatin1String("selectedLineDock") &&
+          d->objectName() != QLatin1String("imageInfoDock") && d->titleBarWidget())
+        bar = d->titleBarWidget();
     QVERIFY2(bar, "no selection-panel title bar");
-    bool sawChevron = false;
-    for (QToolButton* b : bar->findChildren<QToolButton*>()) {
-      sawChevron = true;
+    // By NAME, not "every QToolButton in the header": the header also carries the
+    // Points | Lines strip, and a QTabBar owns two internal scroll arrows that are
+    // QToolButtons of its own sizing.
+    const auto chevrons = bar->findChildren<QToolButton*>(QStringLiteral("panelCollapseBtn"));
+    QVERIFY2(!chevrons.isEmpty(), "the panel header has no collapse chevron");
+    for (QToolButton* b : chevrons) {
       QCOMPARE(b->focusPolicy(), Qt::NoFocus);
       QCOMPARE(b->size(), QSize(kPanelChevronBox, kPanelChevronBox));
     }
-    QVERIFY2(sawChevron, "the panel header has no collapse chevron");
   }
 
   void clearProjectActionIsDangerAndGated() {
@@ -6993,7 +7965,9 @@ class MainWindowGuiTest : public QObject {
         if (qobject_cast<MainWindow*>(w) && w->isVisible()) ++n;
       return n;
     };
-    // Watches for a confirmation QMessageBox for the whole flow and answers it.
+    // Watches for the styled in-dialog open-confirm (modalChrome confirmModal —
+    // it sits OVER the still-open projects dialog now) and answers it. Matched by
+    // objectName: the projects dialog itself is a modal QDialog too.
     struct BoxWatch {
       bool seen = false;
       bool accept = true;
@@ -7002,13 +7976,12 @@ class MainWindowGuiTest : public QObject {
       auto* t = new QTimer;
       t->setInterval(5);
       QObject::connect(t, &QTimer::timeout, t, [w] {
-        auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
-        if (!box) return;
+        QWidget* m = QApplication::activeModalWidget();
+        if (!m || m->objectName() != QLatin1String("stencilConfirmModal")) return;
         w->seen = true;
-        if (!w->accept) { box->reject(); return; }
-        for (QAbstractButton* b : box->buttons())
-          if (box->buttonRole(b) == QDialogButtonBox::AcceptRole) { b->click(); return; }
-        box->accept();
+        const QLatin1String want = w->accept ? QLatin1String("Open") : QLatin1String("Cancel");
+        for (QPushButton* b : m->findChildren<QPushButton*>())
+          if (b->text() == want) { b->click(); return; }
       });
       t->start();
       return t;
@@ -7186,7 +8159,7 @@ class MainWindowGuiTest : public QObject {
       // click() is synchronous (like trigger()): dismissModal's 0-timer must first fire
       // INSIDE the confirm's nested loop, not during a QTest::mouseClick event pump —
       // there its qWait poll gets buried under the confirm's loop and deadlocks.
-      dismissModal("Yes");   // the in-dialog confirm
+      dismissModal("Confirm");   // the in-dialog styled confirm
       clearBtn->click();
 
       // The row is still IN the list (slot held open, same height) but paints as blank.
@@ -7258,13 +8231,12 @@ class MainWindowGuiTest : public QObject {
       if (!item) { bailOut(); return; }
       sawRow = true;
       list->scrollToItem(item);
-      // Let the OPEN flight land and delete its own cloud, so the one found below is
-      // unambiguously the close flight's. The reveal's deferred grab has long fired
-      // (the dialog-find loop above pumped events); the extra beat is belt and braces.
-      // Bounded wait — a loaded machine may need more than the nominal duration.
+      // Let the OPEN flight (dust or ghost) land and delete itself, so the one found
+      // below is unambiguously the close flight's. Bounded wait for a loaded machine.
       QTest::qWait(50);
-      for (int i = 0; i < 250 && surfaceFlight(&win); ++i) QTest::qWait(10);
-      if (surfaceFlight(&win)) { bailOut(); return; }
+      const auto openFlightLive = [&] { return surfaceFlight(&win) || modalGhost(&win); };
+      for (int i = 0; i < 250 && openFlightLive(); ++i) QTest::qWait(10);
+      if (openFlightLive()) { bailOut(); return; }
       // Where the row sits, in DIALOG coordinates — the ghost photographs the dialog.
       const QRect rowInDlg =
           QRect(list->viewport()->mapTo(dlg, list->visualItemRect(item).topLeft()),
@@ -7277,7 +8249,7 @@ class MainWindowGuiTest : public QObject {
         if (b->text() == "Close") closeBtn = b;
       }
       if (!clearBtn || !closeBtn) { bailOut(); return; }
-      dismissModal("Yes");
+      dismissModal("Confirm");
       clearBtn->click();     // rows doomed, scatter playing
       closeBtn->click();     // …and the dialog closed IMMEDIATELY, mid-scatter
 
@@ -7288,9 +8260,11 @@ class MainWindowGuiTest : public QObject {
 
       // The close flight's SNAPSHOT must show the slot as bare background — the stale
       // open-time picture (or a barely-started scatter) would still paint the row.
-      if (auto* fx = surfaceFlight(&win)) {
-        ghostSeen = true;
-        const QPixmap shot = fx->snapshot();
+      // Checked either way (dust or ghost), same as the reveal tests.
+      QPixmap shot;
+      if (auto* fx = surfaceFlight(&win)) { ghostSeen = true; shot = fx->snapshot(); }
+      else if (auto* g = modalGhost(&win)) { ghostSeen = true; shot = g->pixmap(); }
+      if (!shot.isNull()) {
         const qreal dpr = shot.devicePixelRatio();
         const QImage gi = shot.toImage();
         const QRect strip(int(rowInDlg.x() * dpr), int(rowInDlg.y() * dpr),
@@ -7379,16 +8353,16 @@ class MainWindowGuiTest : public QObject {
         emit list->customContextMenuRequested(list->visualItemRect(it).center());
       };
 
-      // 1. Answer NO: the row, the project, and the dialog all stay.
+      // 1. Answer Cancel: the row, the project, and the dialog all stay.
       removeViaMenu(item);
-      dismissModal("No");            // the deferred in-dialog confirm
+      dismissModal("Cancel");        // the deferred in-dialog styled confirm
       QTest::qWait(400);
       openAfterNo = dlg->isVisible();
       keptAfterNo = rowFor(idA) != nullptr && hasProject(idA);
 
-      // 2. Same remove, answer YES: the project goes, the dialog stays open.
+      // 2. Same remove, answer Confirm: the project goes, the dialog stays open.
       removeViaMenu(rowFor(idA));
-      dismissModal("Yes");
+      dismissModal("Confirm");
       QTest::qWait(400);
       openAfterYes = dlg->isVisible() && !hasProject(idA);
       // The scattered row leaves the list once the dust lands (setProjects repaint).
@@ -7428,13 +8402,13 @@ class MainWindowGuiTest : public QObject {
         }
         if (!menu) return;
         *opened = true;
-        // The shared QActions are the WINDOW's children (the menu only
-        // references them); syncContextActions has just run for this popup.
-        for (QAction* a : win.findChildren<QAction*>())
-          if (a->text().startsWith("Copy Image")) {
-            *copyFound = true;
-            *copyEnabled = a->isEnabled();
-          }
+        // The "Current" copy-image variant action — syncContextActions has just
+        // run for this popup. actCopyImage_ is a fixed pointer (not text-matched):
+        // its own text no longer starts with "Copy Image" now that it is nested
+        // under a "Copy Image ▸" submenu parent (which is a DIFFERENT, always-
+        // enabled QAction — the submenu opener, not the image-dependent copy itself).
+        *copyFound = win.actCopyImage_ != nullptr;
+        *copyEnabled = win.actCopyImage_ && win.actCopyImage_->isEnabled();
         menu->close();
       });
       const QPoint corner(6, 6);
@@ -7459,6 +8433,674 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(openedOutside, "no context menu on the backdrop around the image");
     QVERIFY2(copyEnabledOutside, "image actions stayed disabled with an image loaded");
     beat();
+  }
+
+  // The copy/download-image toolbar buttons open a small variant-options popup on
+  // right-click instead of re-running the plain action (browser parity:
+  // js/ui/exportOptionsMenu.js) — verifies wireExportOptionsPopups(). The copy button's
+  // plain click is also exercised (safe: no blocking dialog, unlike Save's file picker).
+  void toolbarImageButtonsOpenExportOptionsOnRightClick() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(saveBtn);
+    QVERIFY(copyBtn);
+    QVERIFY(win.saveImageOptionsMenu_);
+    QVERIFY(win.copyImageOptionsMenu_);
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageCurrentRow_));
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageOriginal_));
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageTint_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageCurrentRow_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageOriginal_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageTint_));
+
+    // Right-click the Download button: the popup opens, the plain action does NOT fire
+    // (a real download would pop a blocking file dialog — this must never happen here).
+    int saveTriggers = 0;
+    connect(win.actSaveImage_, &QAction::triggered, &win, [&] { ++saveTriggers; });
+    QContextMenuEvent saveCtx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
+                              saveBtn->mapToGlobal(saveBtn->rect().center()));
+    QApplication::sendEvent(saveBtn, &saveCtx);
+    QVERIFY2(QApplication::activePopupWidget() == win.saveImageOptionsMenu_,
+             "right-click on the download-image button opened no popup, or the wrong one");
+    QCOMPARE(saveTriggers, 0);
+    win.saveImageOptionsMenu_->close();
+
+    // Same gesture on the Copy button.
+    QContextMenuEvent copyCtx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                              copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &copyCtx);
+    QVERIFY2(QApplication::activePopupWidget() == win.copyImageOptionsMenu_,
+             "right-click on the copy-image button opened no popup, or the wrong one");
+    win.copyImageOptionsMenu_->close();
+
+    // A plain single click on Copy still runs the default ("current") variant — deferred
+    // briefly (so a following dblclick could still cancel it, though none comes here).
+    int copyTriggers = 0;
+    connect(win.actCopyImage_, &QAction::triggered, &win, [&] { ++copyTriggers; });
+    QTest::mouseClick(copyBtn, Qt::LeftButton);
+    QTRY_COMPARE(copyTriggers, 1);
+    beat();
+  }
+
+  // REGRESSION: holding Alt over an export-variant row (to peek its live preview,
+  // exportPreview.cpp) used to close the menu instantly instead of showing the
+  // preview. The preview's own dust flight span an ESCAPING top-level window while
+  // the menu still held the platform pointer/keyboard grab, which killed that grab
+  // (menuReveal.cpp's dustMenuIn/dustMenuOut hit and solved the identical problem
+  // for a menu's own reveal/dismiss dust — exportPreview.cpp now follows suit).
+  // The escaping window only exists on a REAL platform (disintegrateOverlay.hpp
+  // skips it under offscreen, where the gui suite normally runs), so this only
+  // actually exercises the bug outside of `QT_QPA_PLATFORM=offscreen`; it still
+  // documents and checks the expected behavior either way.
+  void altHoldOverExportRowDoesNotCloseTheMenu() {
+    // The offscreen QPA plugin doesn't honor Qt::ToolTip's real-platform contract
+    // of coexisting with an open popup's grab — showing exportPreview.cpp's own
+    // preview tooltip closes the menu there regardless of this fix, which is about
+    // a REAL platform (verified: reverting it reproduces the exact same failure
+    // for real, but this offscreen quirk persists even with the fix in place and
+    // even with the tooltip's own dust flight removed entirely). Nothing to check
+    // here without a real windowing platform.
+    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
+      QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // Away from every icon before touching Alt at all — see the sibling test below
+    // for why a stray popoverButtons_ match here would be a real, hang-the-suite bug.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
+    {
+      stencil::core::Line line;
+      line.points.push_back({4.0, 20.0});
+      line.points.push_back({36.0, 20.0});
+      win.canvas_->setLines({line});
+      win.refreshActions();
+    }
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens
+    // on) so AltPreviewFilter has an activeAction() to render a preview for. A
+    // synthetic mouseMove doesn't reliably drive QMenu's own hover tracking on a
+    // real platform popup, so set it directly — exactly what QMenu does internally
+    // on a real hover.
+    QAction* row = win.actCopyImageCurrentRow_;
+    menu->setActiveAction(row);
+    QCOMPARE(menu->activeAction(), row);
+
+    QTest::keyPress(menu, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "holding Alt over an export row closed the menu");
+    QTest::keyRelease(menu, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "releasing Alt closed the menu");
+    menu->close();
+    // Let the preview's dust-out flight (kDustOutMs, exportPreview.cpp) actually
+    // finish and its DisintegrateOverlay (parented to this popup) get cleaned up
+    // before `win` — and the popup with it — is destroyed underneath it.
+    QTest::qWait(260);
+  }
+
+  // REGRESSION: same bug class as altHoldOverExportRowDoesNotCloseTheMenu, but through
+  // the CANVAS CONTEXT MENU's doubly-nested Copy Image submenu (Image/Layout ▸ Copy
+  // Image ▸ Current/Original/Tint) rather than the toolbar's single-level options
+  // popup. A submenu opened by hovering never grabs its own keyboard — the ROOT of the
+  // chain keeps holding it — so a raw Alt keypress can land there instead of on the
+  // leaf; AltPreviewFilter used to watch only the leaf and threw such a keypress away.
+  // Sent to `root` here, not the leaf, to exercise exactly that routing (mainWindowActions.cpp).
+  void altHoldOverNestedCtxMenuRowDoesNotCloseTheMenu() {
+    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
+      QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    bool reached = false, survived = false, previewShown = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QAction* layoutAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
+      if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
+      root->setActiveAction(layoutAct);
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* layoutMenu = layoutAct->menu();
+      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      QAction* copyAct = nullptr;
+      for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
+      if (!copyAct || !copyAct->menu()) { root->close(); return; }
+      layoutMenu->setActiveAction(copyAct);
+      QTest::keyClick(layoutMenu, Qt::Key_Right);
+      QMenu* copyMenu = copyAct->menu();
+      for (int i = 0; i < 100 && !copyMenu->isVisible(); ++i) QTest::qWait(10);
+      if (!copyMenu->isVisible()) { root->close(); return; }
+
+      // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
+      // in this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing
+      // drawn), while Original is always there — this test's own point is Alt-key
+      // ROUTING, not which specific row it lands on.
+      copyMenu->setActiveAction(win.actCopyImageOriginal_);
+      reached = true;
+      // The real bug: a bare Alt landing on the ROOT of the chain (not the leaf) —
+      // with only the leaf watched, AltPreviewFilter threw this away entirely and the
+      // preview never fired. Checked directly (not just "did the menu survive" — a
+      // filter that does nothing at all would trivially pass that half too).
+      QTest::keyPress(root, Qt::Key_Alt);
+      previewShown = false;
+      for (QWidget* w : QApplication::topLevelWidgets())
+        if (w->objectName() == QLatin1String("exportPreviewTip") && w->isVisible()) previewShown = true;
+      survived = copyMenu->isVisible() && layoutMenu->isVisible() && root->isVisible();
+      QTest::keyRelease(root, Qt::Key_Alt);
+      root->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
+    QVERIFY2(reached, "never reached the nested Copy Image submenu");
+    QVERIFY2(previewShown, "Alt delivered to the chain's ROOT never reached the leaf's preview at all");
+    QVERIFY2(survived, "holding Alt (delivered to the chain's ROOT) over a nested export row closed the menu");
+    QTest::qWait(260);
+  }
+
+  // REGRESSION: still closed the menu even after the fix above, because a DIFFERENT
+  // mechanism was doing it. The nested Copy/Download Image flyout paints right OVER
+  // the toolbar it grew from, so the REAL cursor sits, in plain screen coordinates, on
+  // top of whatever toolbar button happens to be underneath — and mainWindowEvents.cpp's
+  // qApp-wide Alt-KeyPress filter (altPeekExportMenu_/popoverButtons_, entirely
+  // unrelated to exportPreview's own row preview) read that as "Alt held over an icon"
+  // and popped ITS OWN popover open on top, stealing the platform grab the context menu
+  // chain depended on. Fixed by skipping that whole block outright whenever a QMenu
+  // popup is already active.
+  void altHoldOverNestedRowAboveAToolbarButtonDoesNotHijackTheMenu() {
+    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
+      QSKIP("needs a real platform's popup-grab handling");
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+
+    bool reached = false, survived = false, hijacked = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QAction* layoutAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
+      if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
+      root->setActiveAction(layoutAct);
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* layoutMenu = layoutAct->menu();
+      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      QAction* copyAct = nullptr;
+      for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
+      if (!copyAct || !copyAct->menu()) { root->close(); return; }
+      layoutMenu->setActiveAction(copyAct);
+      QTest::keyClick(layoutMenu, Qt::Key_Right);
+      QMenu* copyMenu = copyAct->menu();
+      for (int i = 0; i < 100 && !copyMenu->isVisible(); ++i) QTest::qWait(10);
+      if (!copyMenu->isVisible()) { root->close(); return; }
+      // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
+      // in this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing
+      // drawn), while Original is always there — this test's own point is Alt-key
+      // ROUTING, not which specific row it lands on.
+      copyMenu->setActiveAction(win.actCopyImageOriginal_);
+      reached = true;
+
+      // The exact repro: the cursor sits over the toolbar's own Copy button — right
+      // where the flyout is actually painted on screen — while Alt is pressed.
+      // underMouse() backs up the cursor-position check in mainWindowEvents.cpp (same
+      // answer for a real resting pointer); it's also what an offscreen-adjacent test
+      // can reliably mock — a real QCursor::setPos warp is not guaranteed to land in time.
+      copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+      QTest::keyPress(root, Qt::Key_Alt);
+      QTest::qWait(30);
+      hijacked = win.copyImageOptionsMenu_ && win.copyImageOptionsMenu_->isVisible();
+      survived = copyMenu->isVisible() && layoutMenu->isVisible() && root->isVisible();
+      QTest::keyRelease(root, Qt::Key_Alt);
+      copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+      root->close();
+      if (win.copyImageOptionsMenu_) win.copyImageOptionsMenu_->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
+    QVERIFY2(reached, "never reached the nested Copy Image submenu");
+    QVERIFY2(!hijacked, "Alt over the row opened the toolbar button's OWN options popup on top");
+    QVERIFY2(survived, "holding Alt with the cursor over a toolbar button closed the context menu chain");
+    QTest::qWait(260);
+  }
+
+  // Alt+hover over the copy/download-image toolbar buttons themselves opens their
+  // export-options popup, the SAME hold-to-peek gesture every other popover icon
+  // gets (mainWindowEvents.cpp's altPeekExportMenu_) — not just right-click/dblclick.
+  // Releasing Alt closes it again unless the cursor moved inside it first (engaged).
+  void altHoldOverExportButtonOpensItsOptionsPopup() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // QCursor::pos() is one process-wide value that outlives any one test/window —
+    // a stray Alt keypress otherwise risks landing on WHATEVER popover button a
+    // PRIOR test last left the (fake, offscreen) cursor sitting over, opening a
+    // modal dialog that then blocks forever in execMaybePopover's QEventLoop::exec()
+    // with nothing left to close it (regression: hung the whole suite, 300s
+    // watchdog abort). Away from every icon before this test touches Alt at all.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY(menu && !menu->isVisible());
+
+    // underMouse() backs up the real cursor-position check (mainWindowEvents.cpp) —
+    // same state a real resting pointer leaves, and what an offscreen test can mock.
+    copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+    QTest::keyPress(&win, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "Alt-hover over the copy button never opened its options popup");
+
+    // NOT engaged (cursor stayed on the button, never moved into the popup): the
+    // release closes it, same as any other hold-to-peek icon.
+    QTest::keyRelease(&win, Qt::Key_Alt);
+    QVERIFY2(!menu->isVisible(), "releasing Alt over the button did not close the peeked popup");
+    copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+
+    // ENGAGED: move the cursor onto the popup itself before releasing Alt — it
+    // must survive, exactly like every other peeked popover.
+    copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+    QTest::keyPress(&win, Qt::Key_Alt);
+    QVERIFY(menu->isVisible());
+    QCursor::setPos(menu->mapToGlobal(menu->rect().center()));
+    QTest::qWait(20);
+    copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+    QTest::keyRelease(&win, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "an ENGAGED peek (cursor moved into the popup) must survive Alt release");
+    menu->close();
+    QTest::qWait(260);   // let the row-preview's own dust settle before `win` dies (see above)
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));   // leave it parked for whatever runs next
+  }
+
+  // REGRESSION: under Fusion (main.cpp forces it app-wide) a chipped row's icon-to-
+  // label gap blew out to ~3x normal. Root cause: MenuHotkeyChips pads the action's
+  // TEXT with its own "\t"+spaces to blank the native shortcut column for the chip
+  // widget to paint over, but never touched the action's real shortcut() — with
+  // AA_DontShowShortcutsInContextMenus off (main.cpp), QMenuPrivate/Fusion then
+  // double up the reserved shortcut width (already-tabbed text + a still-live
+  // native shortcut), regardless of how much padding follows the tab. Fixed by
+  // silencing shortcut() for the duration of the chip (the row still SHOWS it —
+  // that's what the chip paints) and restoring it when the chip is torn down.
+  void hotkeyChipDoesNotWidenTheIconGapUnderFusion() {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this
+    // popup at all (actCopyImageCurrentRow_ is, and it carries no real shortcut of its
+    // own by design — see mainWindow.hpp), but Original's Ctrl+Shift+C is exactly as
+    // real and exactly as much MenuHotkeyChips' job to silence while chipped.
+    const QKeySequence realShortcut = win.actCopyImageOriginal_->shortcut();
+    QVERIFY2(!realShortcut.isEmpty(), "actCopyImageOriginal_ should carry a real shortcut to chip");
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    const bool opened = menu && menu->isVisible();
+    // Captured into locals and the menu closed BEFORE any assertion — an early
+    // QVERIFY2 return must never leave the menu open, or it outlives `win` and
+    // crashes on teardown (exportOptionsPopupIsNotWiderThanItsContent's own comment
+    // has the full story — this test used to assert first, and the FALSE this
+    // regression exposed took the whole process down with it, SIGSEGV, reported).
+    bool silencedWhileChipped = false;
+    QString cachedCombo;
+    if (opened) {
+      // While chipped: the native shortcut is silenced (that's the actual fix)...
+      silencedWhileChipped = win.actCopyImageOriginal_->shortcut().isEmpty();
+      // ...but the row still knows the real combo (property-cache, menuHotkeys.hpp).
+      cachedCombo = win.actCopyImageOriginal_->property("stencilHotkeyCombo").toString();
+      menu->close();
+      QTest::qWait(50);
+    }
+    QVERIFY2(opened, "the copy-image options popup never opened");
+    QVERIFY2(silencedWhileChipped,
+             "the action's native shortcut must be cleared while its row is chipped");
+    QCOMPARE(cachedCombo, realShortcut.toString(QKeySequence::NativeText));
+    QCOMPARE(win.actCopyImageOriginal_->shortcut(), realShortcut);   // restored once the chip is torn down
+  }
+
+  // A chipped row's keycaps shake once on hover (browser: .ctx-item:hover .tip-key /
+  // keycapShake) — verified via capOffset(), "what the tests watch" per its own comment
+  // (appTooltip.hpp), and driven with setActiveAction() rather than QTest::mouseMove:
+  // the latter does not reliably reach a shown popup's own hover tracking (confirmed —
+  // it left QMenu::hovered's own spy at 0 — so it isn't a usable probe for this or any
+  // other hover-driven popup behaviour), exactly the same limitation
+  // contextMenuRowShimmersOnHover already worked around for the sibling shimmer sweep.
+  void hotkeyChipShakesOnHover() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
+    {
+      stencil::core::Line line;
+      line.points.push_back({4.0, 20.0});
+      line.points.push_back({36.0, 20.0});
+      win.canvas_->setLines({line});
+      win.refreshActions();
+    }
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    QAction* row = win.actCopyImageCurrentRow_;
+    QAction* other = nullptr;
+    // Skip invisible rows too (actCopyImageSplit_ leads this same menu but stays
+    // hidden outside compare mode) — setActiveAction on a row with no real geometry
+    // wouldn't make the later move onto `row` a genuine transition.
+    for (QAction* a : menu->actions()) if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
+    QVERIFY(other);
+    const QRect r = menu->actionGeometry(row);
+
+    // NOT c->isHidden(): an action that's currently invisible (e.g. "Filter Only" with
+    // no filter applied) still has its OWN chip widget parked wherever it was last valid
+    // — geometry().intersects() alone can't tell a genuinely-showing chip from a hidden
+    // one sitting in the same spot (menuHotkeys.hpp's place() hides, never destroys them).
+    stencil::gui::TipBody* chip = nullptr;
+    for (QLabel* l : menu->findChildren<QLabel*>())
+      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
+    QVERIFY2(chip, "no chip found for the Current row");
+    // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions
+    // (appTooltip.hpp's own findCaps()), and doing so from the test would prime the
+    // exact state menuHotkeys.hpp's wire() must prime ITSELF, silently passing even if
+    // production never does (the actual regression: nothing in menuHotkeys.hpp ever
+    // called capCount(), so caps_ stayed empty forever and paintEvent()'s own "nothing
+    // to shake" guard ate every shake in every real run of the app — capOffset() alone
+    // still read correctly since dx_ itself was never in question, only whether
+    // anything ever painted it; user report). The REST snapshot below is taken first,
+    // grab()ing the chip exactly as wire() left it — untouched by this test.
+    const QImage rest = chip->grab().toImage();
+
+    bool sawNonZero = false;
+    QImage midShake;
+    // Land on a KNOWN different row first, so the move onto `row` is a genuine
+    // transition (a freshly-opened QMenu can already be hovering its first row).
+    menu->setActiveAction(other);
+    menu->setActiveAction(row);
+    for (int i = 0; i < 40 && !sawNonZero; ++i) {
+      QTest::qWait(10);
+      if (chip->capOffset() != 0) { sawNonZero = true; midShake = chip->grab().toImage(); }
+    }
+    menu->close();
+    QVERIFY2(sawNonZero, "the chip's keycaps never moved during the shake window");
+    QVERIFY2(!midShake.isNull() && midShake != rest,
+             "the shake changed capOffset() but never actually painted anything different "
+             "— the caps were never hunted, so paintEvent() had nothing to draw the shake with");
+    QTest::qWait(50);
+    menu->close();
+  }
+
+  // REGRESSION (user report): QMenu::hovered(QAction*) re-fires for the action ALREADY
+  // being hovered — confirmed here via setActiveAction() on an already-active row,
+  // which genuinely re-emits the signal, exactly what a repaint or plain mouse jitter
+  // within the same row's bounds does for real — and shakeRow() restarted the
+  // animation from frame one on every single re-fire, reading as the caps
+  // continuously shaking on any mouse movement rather than once per hover.
+  // REGRESSION: the re-fire guard above only advances on a genuinely NEW hovered(QAction*)
+  // — but the mouse leaving a row WITHOUT landing on another one first (out past the menu
+  // edge, then back onto the SAME row) never fires hovered() again either, so the guard
+  // stayed stuck on that row and ate the second, perfectly legitimate hover (user report:
+  // "plays only once, and don't [play] again on another hover"). Fixed the way
+  // menuShimmer.hpp's RowOverlay already had to: reset the guard on QEvent::Leave.
+  void hotkeyChipShakeReplaysAfterTheMouseLeavesAndComesBackToTheSameRow() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    {
+      stencil::core::Line line;
+      line.points.push_back({4.0, 20.0});
+      line.points.push_back({36.0, 20.0});
+      win.canvas_->setLines({line});
+      win.refreshActions();
+    }
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    QAction* row = win.actCopyImageCurrentRow_;
+    const QRect r = menu->actionGeometry(row);
+    stencil::gui::TipBody* chip = nullptr;
+    for (QLabel* l : menu->findChildren<QLabel*>())
+      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
+    QVERIFY2(chip, "no chip found for the Current row");
+
+    menu->setActiveAction(row);   // first hover: starts the shake
+    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
+    // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses
+    // zero mid-cycle (hotkeyChipShakeDoesNotRestartOnAReFireForTheSameRow's own comment),
+    // so QTRY would happily accept a passing zero-crossing as "settled" while the shake
+    // is still actually running underneath it.
+    QTest::qWait(stencil::gui::AppTooltip::kShakeMs + 300);
+    QCOMPARE(chip->capOffset(), 0);
+
+    // The mouse leaves the row WITHOUT ever landing on another one — no second
+    // hovered(QAction*) fires for that, only a real Leave.
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(menu, &leave);
+
+    menu->setActiveAction(row);   // back onto the SAME row — must shake again
+    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should replay after the mouse came back");
+    menu->close();
+  }
+
+  void hotkeyChipShakeDoesNotRestartOnAReFireForTheSameRow() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    {
+      stencil::core::Line line;
+      line.points.push_back({4.0, 20.0});
+      line.points.push_back({36.0, 20.0});
+      win.canvas_->setLines({line});
+      win.refreshActions();
+    }
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    QAction* row = win.actCopyImageCurrentRow_;
+    QAction* other = nullptr;
+    for (QAction* a : menu->actions()) if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
+    QVERIFY(other);
+    const QRect r = menu->actionGeometry(row);
+    stencil::gui::TipBody* chip = nullptr;
+    for (QLabel* l : menu->findChildren<QLabel*>())
+      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
+    QVERIFY2(chip, "no chip found for the Current row");
+
+    // The shake curve crosses zero mid-cycle (it's a wiggle, not a one-way ramp), so a
+    // single fixed-instant sample can land on a crossing and misread a live shake as
+    // settled. Use QTRY to catch it on the way up instead of a single qWait+assert, and
+    // time the re-fire and the settle check off a real clock rather than guessed delays.
+    QElapsedTimer timer;
+    menu->setActiveAction(other);
+    timer.start();
+    menu->setActiveAction(row);   // first hover: starts the shake
+    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
+    while (timer.elapsed() < 120) QTest::qWait(10);   // well clear of the start
+    menu->setActiveAction(row);   // the re-fire — must NOT restart it
+    // Wait to (a hair past) the ORIGINAL shake's own finish line, measured from when it
+    // actually started. A wrongly-restarted shake would still be running here (its own
+    // clock reset at the re-fire, well under kShakeMs old by this checkpoint); the
+    // correctly-unbothered one has already settled back to rest.
+    const int remaining = int(stencil::gui::AppTooltip::kShakeMs + 60 - timer.elapsed());
+    if (remaining > 0) QTest::qWait(remaining);
+    // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which
+    // deletes the chip widgets outright — reading through the pointer after that is a
+    // use-after-free (previously the source of this test's own flakiness).
+    const int settledOffset = chip->capOffset();
+    menu->close();
+    QCOMPARE(settledOffset, 0);
+  }
+
+  // REGRESSION: the copy/download-image variant popups (and their canvas-context-menu
+  // and top-Data-menu counterparts) used to size themselves off theme.cpp's generic
+  // QMenu::item padding (24px left / 26px right) — sized for the menu BAR's own wider
+  // checkable/submenu column — leaving a visible gap after the icon and a dead band
+  // past the hotkey chip on these short rows (reported: roughly a third of the row's
+  // width sitting empty on both sides of the chip). Fixed by MenuHotkeyChips' own
+  // `compact` mode: a tighter local stylesheet plus an ACCURATE "\t"+spaces run sized
+  // to the chip's own real width (no setFixedWidth — that only clips the outer widget
+  // frame, not QMenuPrivate's own sizeHint-driven row layout, which stayed at the OLD
+  // wider size and clipped every combo's last keycap when tried — menuHotkeys.hpp's
+  // own comment has the full story). This test only bounds the SLACK; the per-chip
+  // "does it actually fit" check lives in downloadPopupChipsAreNotClipped.
+  void exportOptionsPopupIsNotWiderThanItsContent() {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));   // main.cpp forces this app-wide
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    int widestLabel = 0;
+    for (QAction* a : menu->actions()) {
+      if (!a->isVisible()) continue;   // e.g. "Filter Only" with no filter applied
+      const QString label = a->text().left(a->text().indexOf('\t'));
+      widestLabel = std::max(widestLabel, menu->fontMetrics().horizontalAdvance(label));
+    }
+    int widestChip = 0;
+    // Skip HIDDEN chips ("Filter Only" with no filter applied, "With Compare" outside
+    // compare) — menuHotkeys.hpp's place() hides rather than destroys them, so one can
+    // still be sitting there with a nonzero width that never actually shows on screen.
+    for (QLabel* l : menu->findChildren<QLabel*>())
+      if (auto* chip = dynamic_cast<stencil::gui::TipBody*>(l))
+        if (!chip->isHidden()) widestChip = std::max(widestChip, chip->width());
+    QVERIFY2(widestChip > 0, "no hotkey chips found on the copy-image popup");
+
+    // Icon + paddings + the gap between label and chip + the menu's own frame. A
+    // generous ceiling (not an exact match) — it only has to catch the row coming out
+    // FAR wider than its content, the actual regression.
+    const int slack = menu->width() - (widestLabel + widestChip);
+    // Closed BEFORE asserting, not after — an early QVERIFY2 return must never leave the
+    // menu open, or it outlives `win` and crashes on teardown (downloadPopupChipsAreNotClipped's
+    // own comment has the full story; this test used to assert first, so a failing slack
+    // check here left the popup open and took the whole process down with it — SIGSEGV,
+    // reported).
+    menu->close();
+    QVERIFY2(slack > 0 && slack <= 80,
+             qPrintable(QString("menu is %1 wide for a %2px label + %3px chip — %4px of slack")
+                            .arg(menu->width()).arg(widestLabel).arg(widestChip).arg(slack)));
+  }
+
+  // REGRESSION: the download popup's own combos are the widest (3 modifiers + D) — an
+  // explicit per-chip "does it actually fit inside the menu" check, not just the
+  // aggregate slack bound exportOptionsPopupIsNotWiderThanItsContent already checks.
+  // A setFixedWidth()-based fix tried here first clipped every combo's last keycap: it
+  // only clips the outer WIDGET frame, not QMenuPrivate's own (independently sizeHint-
+  // driven) row layout, so the row — and this class's chip, positioned from that SAME
+  // row rect — kept the wider natural size while the frame around it shrank underneath
+  // (menuHotkeys.hpp's own comment has the full story). Menu closed BEFORE asserting,
+  // not after — an early QVERIFY2 return must never leave it open, or a QMenu that
+  // outlives `win` crashes on teardown (styleDangerToolButtons fires off a QAction
+  // signal from MenuHotkeyChips' destructor mid `~MainWindow`, reported).
+  void downloadPopupChipsAreNotClipped() {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QVERIFY(saveBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
+                          saveBtn->mapToGlobal(saveBtn->rect().center()));
+    QApplication::sendEvent(saveBtn, &ctx);
+    QMenu* menu = win.saveImageOptionsMenu_;
+    const bool opened = menu && menu->isVisible();
+    bool anyOverflow = false;
+    if (opened) {
+      QTest::qWait(60);
+      for (QLabel* l : menu->findChildren<QLabel*>()) {
+        if (auto* chip = dynamic_cast<stencil::gui::TipBody*>(l))
+          if (!chip->isHidden() && chip->geometry().right() > menu->width()) anyOverflow = true;
+      }
+      menu->close();
+      QTest::qWait(50);
+    }
+    QVERIFY2(opened, "the download-image options popup never opened");
+    QVERIFY2(!anyOverflow, "a chip's right edge overflows the menu's own width");
   }
 
   // REGRESSION (hard crash): clicking a CHECKABLE row in the canvas context
@@ -7889,6 +9531,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
 
     // A shown, enabled toolbar button carrying a SETTLE design — it comes back to rest on
     // its own, so convergence can be asserted without a leave.
@@ -7963,12 +9606,13 @@ class MainWindowGuiTest : public QObject {
   // stack the incoming lines on the existing ones, swap = trade one layout for the other)
   // rather than a generic tick. Browser parity: exportService.js confirmIcon / altIcon.
   // ── Menu-bar coverage: the browser's toolbar sections must all be reachable ──
-  // The bug this locks down: Start/Stop Drawing were in the Edit menu but the LINE/RECT
-  // mode toggle was not — it existed only on the toolbar and in the canvas context menu, so
-  // the menu bar gave no way to switch drawing mode (the browser's Draw section has both).
-  // The same held for the line-style set and the image filter. Walking the real menu bar
-  // also proves the shared plain QActions did not get moved OUT of the context menu, which
-  // is exactly what would happen if a QWidgetAction were reused this way.
+  // The bug this locks down: Start/Stop Drawing were in the Edit menu but the instant
+  // line/rect items were not (only the rect one existed, and only on the toolbar and in
+  // the canvas context menu) — the menu bar gave no way to draw a shape instantly (the
+  // browser's Draw section has both). The same held for the line-style set and the image
+  // filter. Walking the real menu bar also proves the shared plain QActions did not get
+  // moved OUT of the context menu, which is exactly what would happen if a QWidgetAction
+  // were reused this way.
   void menuBarExposesTheDrawAndStyleControls() {
     MainWindow win(nullptr, /*restoreLast=*/false);
 
@@ -7983,13 +9627,11 @@ class MainWindowGuiTest : public QObject {
     for (QAction* top : win.menuBar()->actions())
       if (top->menu()) walk(top->menu());
 
-    // The reported gap: drawing mode, beside Start/Stop.
+    // The reported gap: instant line/rect, beside Start/Stop.
     QVERIFY(titles.contains("Start Drawing"));
     QVERIFY(titles.contains("Stop Drawing"));
-    QVERIFY2(titles.contains("Switch to Rectangle Drawing") ||
-                 titles.contains("Switch to Line Drawing"),
-             "the line/rect mode toggle must be reachable from the menu bar");
-    QVERIFY(titles.contains("Draw Rectangle (instant)"));
+    QVERIFY(titles.contains("Draw Line"));
+    QVERIFY(titles.contains("Draw Rectangle"));
 
     // Line style (browser toolbar's Line Style select).
     QVERIFY(titles.contains("Solid"));
@@ -8019,19 +9661,21 @@ class MainWindowGuiTest : public QObject {
     QApplication::clipboard()->setText(
         QStringLiteral(R"({"lines":[{"points":[{"x":5,"y":5},{"x":9,"y":9}]}]})"));
 
-    // Inspect the modal while it blocks the trigger, then back out of it.
+    // Inspect the modal while it blocks the trigger, then back out of it. The prompt
+    // is the chrome-styled askAlt (modalChrome confirmModalChoice), not a QMessageBox.
     QMap<QString, bool> hasGlyph;
     QTimer::singleShot(0, [&hasGlyph]() {
       for (int i = 0; i < 200; ++i) {
-        if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
-          for (QAbstractButton* b : box->buttons())
+        QWidget* m = QApplication::activeModalWidget();
+        if (m && m->objectName() == QLatin1String("stencilConfirmModal")) {
+          for (QPushButton* b : m->findChildren<QPushButton*>())
             hasGlyph.insert(QString(b->text()).remove('&'), !b->icon().isNull());
-          for (QAbstractButton* b : box->buttons())
+          for (QPushButton* b : m->findChildren<QPushButton*>())
             if (QString(b->text()).remove('&').compare("Cancel", Qt::CaseInsensitive) == 0) {
               b->click();
               return;
             }
-          box->reject();
+          if (auto* d = qobject_cast<QDialog*>(m)) d->reject();
           return;
         }
         QTest::qWait(5);
@@ -8064,7 +9708,7 @@ class MainWindowGuiTest : public QObject {
 
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
-    dismissModal("Yes");
+    dismissModal("Confirm");
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
 
@@ -8080,6 +9724,316 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->idleHintHidden(),
                              stencil::gui::DisintegrateOverlay::kMs + 1500);
     QCOMPARE(asked.count(), 0);
+    beat();
+  }
+
+  // A CHAT card arrives the same way the transcript's Clear scatters one: its own dust
+  // gathers into place (Sweep::Gather) while the bubble is held back behind the motes.
+  // The reported gap was one-sided motion — a deleted message had particles, an appearing
+  // one (yours, the model's reply, an error) simply popped in. Browser motion.js chatIn.
+  void chatCardsArriveOutOfDust() {
+    const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+
+    // The message you send, the "…" holding the turn, the reply, and a failure — every
+    // one of them is a card appearing, so every one of them gathers.
+    for (const auto& append : QVector<std::function<void()>>{
+             [&win] { win.chatDock_->appendUser(QStringLiteral("crop it square"), {}); },
+             [&win] { win.chatDock_->showPending(); },
+             [&win] { win.chatDock_->appendAssistant(QStringLiteral("Cropped.")); },
+             [&win] { win.chatDock_->appendError(QStringLiteral("Couldn't reach Ollama at localhost:11434 (fetch failed)"),
+                                                 QStringLiteral("crop it square")); }}) {
+      append();
+      // The grab is deferred (appendTranscriptCard hands the caller an EMPTY card — the
+      // dust has to be a photograph of the FINISHED bubble, laid out at its real width),
+      // so the cloud shows up a beat later, not in this tick.
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+      QFrame* card = nullptr;
+      for (QFrame* f : win.chatDock_->findChildren<QFrame*>())
+        if (f->objectName().startsWith(QLatin1String("chatCard"))) card = f;
+      QVERIFY(card);
+      // Held FULLY hidden while the motes fly — they ARE the bubble forming. Fading it up
+      // underneath them drew the finished card first and played the animation over the
+      // top of it, which is the one thing an arrival must not do (the reported bug).
+      auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
+      QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                               stencil::gui::DisintegrateOverlay::kMs + 2000);
+      win.chatDock_->clearPending();   // the "…" must not outlive its own case
+    }
+
+    // …and every card lands on its resting state: full opacity, resting margins, and the
+    // effect handed back to the scroll-edge reveal (kEnteringProperty dropped).
+    int settled = 0;
+    for (QFrame* card : win.chatDock_->findChildren<QFrame*>()) {
+      if (!card->objectName().startsWith(QLatin1String("chatCard"))) continue;
+      ++settled;
+      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
+        QTRY_COMPARE(fx->opacity(), 1.0);
+      QTRY_COMPARE(card->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool(), false);
+      QTRY_COMPARE(card->layout()->contentsMargins().top(), 6);
+    }
+    QVERIFY2(settled > 0, "no card was found — the checks above would be vacuous");
+    beat();
+  }
+
+  // …and so does a row in the context menu's assistant panel — the third chat surface on
+  // this front-end. It mirrors the dock's transcript, so an arrival there is an arrival
+  // too (ChatMenuPanel::gatherRow, the dock's animateCardIn in miniature).
+  void chatMenuPanelRowsArriveOutOfDust() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 850);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.ensureChatMenuPanel();
+    QVERIFY(win.chatMenuPanel_);
+    win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
+    win.chatMenuPanel_->show();
+    QTest::qWait(300);   // the panel's own width has to arrive before the grab can read it
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+
+    win.chatMirror(QStringLiteral("You"), QStringLiteral("crop it square"), false);
+    QTRY_VERIFY_WITH_TIMEOUT(win.chatMenuPanel_->findChild<QWidget*>(kDust) != nullptr, 3000);
+    // …with the row itself held back behind them, never faded up underneath.
+    for (QFrame* row : win.chatMenuPanel_->findChildren<QFrame*>()) {
+      if (!row->property("chatMoreBtn").isValid()) continue;
+      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(row->graphicsEffect()))
+        QVERIFY2(fx->opacity() == 0.0, "the row is invisible until its motes land");
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(win.chatMenuPanel_->findChild<QWidget*>(kDust) == nullptr,
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    // The row lands visible — held back behind the motes, never left behind them.
+    int settled = 0;
+    for (QFrame* row : win.chatMenuPanel_->findChildren<QFrame*>()) {
+      if (!row->property("chatMoreBtn").isValid()) continue;
+      ++settled;
+      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(row->graphicsEffect()))
+        QTRY_COMPARE(fx->opacity(), 1.0);
+    }
+    QVERIFY2(settled > 0, "no mirrored row was found — the check would be vacuous");
+    beat();
+  }
+
+  // REGRESSION: on a transcript long enough to SCROLL, the cloud was photographed before
+  // the scroll landed — so the motes flew at the card's pre-scroll box and rained over the
+  // composer below it, while the card itself sat somewhere else. The entrance now waits a
+  // frame for scrollToBottom() (itself a singleShot(0), queued after the entrance's own),
+  // and refuses to fly at all for a card not wholly inside the viewport.
+  void chatCardDustNeverEscapesTheScrolledTranscript() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1000, 620);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+
+    // Fill it well past one viewport, so every further append really does scroll.
+    for (int i = 0; i < 10; ++i) {
+      win.chatDock_->appendUser(QStringLiteral("question %1 long enough to wrap onto a second line").arg(i), {});
+      win.chatDock_->appendAssistant(QStringLiteral("reply %1, also long enough to take real height in the column").arg(i));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 4000);
+    auto* scroll = win.chatDock_->findChild<QScrollArea*>();
+    QVERIFY(scroll);
+    QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
+
+    win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    QWidget* dust = win.findChild<QWidget*>(kDust);
+    QVERIFY(dust);
+    // The cloud sits over the card it belongs to, and that card is inside the viewport —
+    // so the motes cannot be flying anywhere near the composer.
+    QFrame* card = nullptr;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;
+    QVERIFY(card);
+    const QRect viewGlobal(scroll->viewport()->mapToGlobal(QPoint(0, 0)), scroll->viewport()->size());
+    const QRect cardGlobal(card->mapToGlobal(QPoint(0, 0)), card->size());
+    // VERTICALLY inside — the axis the scroll moves, and the one the composer is on. A
+    // bubble's own furniture (the "…" trigger) deliberately hangs outside it sideways.
+    QVERIFY2(cardGlobal.top() >= viewGlobal.top() && cardGlobal.bottom() <= viewGlobal.bottom(),
+             "the dusted card is not wholly in the viewport");
+    // The layer is padded for the flight, so it is the CARD's box that must be covered,
+    // not the layer that must be contained.
+    const QRect dustGlobal(dust->mapToGlobal(QPoint(0, 0)), dust->size());
+    QVERIFY2(dustGlobal.intersects(cardGlobal), "the cloud is not over the card it belongs to");
+    QVERIFY2(qAbs(dustGlobal.center().y() - cardGlobal.center().y()) < cardGlobal.height(),
+             "the cloud is stranded away from its card — measured before the scroll");
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
+      QTRY_COMPARE(fx->opacity(), 1.0);
+    beat();
+  }
+
+  // REGRESSION: a card's dust is a SNAPSHOT placed once, but the transcript keeps moving
+  // under it — appending the next card scrolls the view, a wrapped label re-reserves its
+  // height, the dock is resized. Left where it launched, that snapshot was drawn over a
+  // NEIGHBOURING bubble, which reads as one message overlapping the one below it
+  // (reported). The overlay now follows its own card, and is dropped outright the moment
+  // the card moves out of view or changes size.
+  void chatCardDustFollowsItsOwnCard() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+
+    // Enough traffic that every further append really does scroll the transcript.
+    for (int i = 0; i < 8; ++i) {
+      win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped %1").arg(i), {});
+      win.chatDock_->appendAssistant(QStringLiteral("reply %1, long enough to take real height").arg(i));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 4000);
+
+    // A turn's two cards land back to back — the second one's append is what scrolls the
+    // first one's snapshot off its subject.
+    win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    win.chatDock_->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
+                               QStringLiteral("retry me"));
+
+    // Watch the whole flight: every live overlay must sit on a card, never between two.
+    int strandedFrames = 0, sampled = 0;
+    for (int f = 0; f < 90; ++f) {
+      QTest::qWait(16);
+      for (QWidget* d : win.findChildren<QWidget*>(kDust)) {
+        if (!d->isVisible()) continue;
+        ++sampled;
+        const QPoint dTL = d->mapToGlobal(QPoint(0, 0));
+        bool onACard = false;
+        for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
+          if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
+          const QPoint cTL = c->mapToGlobal(QPoint(0, 0));
+          // The layer is padded around its picture (kSurfacePadPx-ish slack), so it is
+          // the OFFSET that must match, not the box.
+          constexpr int kSlack = 70;
+          if (qAbs(dTL.x() - cTL.x()) <= kSlack && qAbs(dTL.y() - cTL.y()) <= kSlack) {
+            onACard = true;
+            break;
+          }
+        }
+        if (!onACard) ++strandedFrames;
+      }
+    }
+    QVERIFY2(sampled > 0, "no overlay was ever sampled — the check would be vacuous");
+    QCOMPARE(strandedFrames, 0);
+
+    // …and when the tracker DOES drop a stale snapshot, the card it was standing in for
+    // takes over in that same moment. The veil is otherwise lifted only at the end of the
+    // full flight, so a cancel that just killed the motes left the message invisible with
+    // nothing in its place (the browser twin had exactly this, found by resizing a live
+    // entry mid-flight). Resizing the dock changes every card's width — the drop path.
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 3000);
+    win.chatDock_->appendUser(QStringLiteral("resized mid-flight"), {});
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    win.chatDock_->resize(win.chatDock_->width() - 90, win.chatDock_->height());
+    QTest::qWait(120);
+    QFrame* resized = nullptr;
+    for (QFrame* c : win.chatDock_->findChildren<QFrame*>("chatCardUser")) resized = c;
+    QVERIFY(resized);
+    if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(resized->graphicsEffect()))
+      QTRY_VERIFY2_WITH_TIMEOUT(fx->opacity() == 1.0,
+                                "a card whose snapshot was dropped must not stay invisible",
+                                1500);
+
+    // …and nothing is left behind: every card lands visible, at its resting margins.
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 3000);
+    for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
+      if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
+      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(c->graphicsEffect()))
+        QTRY_COMPARE(fx->opacity(), 1.0);
+    }
+    beat();
+  }
+
+  // REGRESSION: the empty-state chips rendered as sharp RECTANGLES (reported). Qt draws a
+  // square box — silently — when border-radius exceeds half the widget's height, and these
+  // chips settle at 28px while the sheet asked for the browser's 16. Reading the height at
+  // style time does not save it either: the flow layout compresses the chip from 32 to 28
+  // afterwards, so the radius has to be pinned to the floor the app-wide sheet guarantees.
+  void suggestionChipsAreRoundedPills() {
+    MainWindow win(nullptr, false);
+    win.resize(1100, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    QTest::qWait(300);
+    QWidget* chips = win.chatDock_->findChild<QWidget*>(QStringLiteral("chatSuggest"));
+    QVERIFY(chips);
+    const auto btns = chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip"));
+    QCOMPARE(btns.size(), 4);
+
+    for (QPushButton* chip : btns) {
+      // The radius the sheet asks for must be one this chip can actually carry.
+      const QRegularExpression re(QStringLiteral("border-radius:(\\d+)px"));
+      const QRegularExpressionMatch m = re.match(chip->styleSheet());
+      QVERIFY2(m.hasMatch(), "the chip carries no border-radius at all");
+      const int radius = m.captured(1).toInt();
+      QVERIFY2(radius * 2 <= chip->height(),
+               qPrintable(QStringLiteral("radius %1 exceeds half of the chip's %2px height — "
+                                         "Qt renders that as a rectangle")
+                              .arg(radius).arg(chip->height())));
+      QVERIFY2(radius >= 8, "…and it still has to read as a pill, not a soft rectangle");
+    }
+
+    // …and it really PAINTS rounded: rendered onto white, the corners must show white
+    // through. grab() alone cannot tell — outside a rounded corner it leaves transparent
+    // pixels, which over this dark theme look exactly like the chip's own fill.
+    QPushButton* chip = btns.first();
+    QPixmap shot(chip->size());
+    shot.fill(Qt::white);
+    chip->render(&shot, QPoint(), QRegion(), QWidget::DrawChildren);
+    const QImage img = shot.toImage();
+    QVERIFY2(img.pixelColor(0, 0) == QColor(Qt::white),
+             "the top-left corner is filled — the chip is a rectangle");
+    QVERIFY2(img.pixelColor(img.width() - 1, img.height() - 1) == QColor(Qt::white),
+             "the bottom-right corner is filled — the chip is a rectangle");
+    // …while its middle is of course painted.
+    QVERIFY2(img.pixelColor(img.width() / 2, img.height() / 2) != QColor(Qt::white),
+             "the chip did not paint at all — the corner check would be vacuous");
+    beat();
+  }
+
+  // Reduced motion: the card is simply THERE on the short fade — no cloud, and above all
+  // no card left sitting at opacity 0 for a flight that never ran.
+  void reducedMotionChatCardArrivesAtOnce() {
+    qputenv("STENCIL_NO_ANIM", "1");   // the suite's own default; set explicitly for the reader
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.chatDock_->appendUser(QStringLiteral("hi"), {});
+    QTest::qWait(120);
+    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
+             "no dust under reduced motion");
+    QFrame* card = nullptr;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;
+    QVERIFY(card);
+    if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
+      QTRY_COMPARE(fx->opacity(), 1.0);
     beat();
   }
 
@@ -8198,7 +10152,7 @@ class MainWindowGuiTest : public QObject {
     // invitation is back at once instead of waiting out an animation that never ran.
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
-    dismissModal("Yes");
+    dismissModal("Confirm");
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
     QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
@@ -8477,6 +10431,43 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // REGRESSION: the compare combo's connect() lived in buildStyleToolbar(), which
+  // buildToolbar() calls BEFORE buildDrawViewToolbar() — the function that actually
+  // constructs compareCombo_. Every click there wired to a still-null combo (Qt drops
+  // a connect() with a null sender, warning "invalid nullptr parameter"), so every row
+  // in the popup looked selectable but never touched the canvas (reported: "none of
+  // the options work"). Fixed by moving the connect() into buildDrawViewToolbar,
+  // right after compareCombo_ is built. A REAL click through the combo's own themed
+  // popup, not win.setCompareModeUi() called directly — that bypasses the exact wiring
+  // that was broken.
+  void compareComboClickActuallyChangesTheCanvas() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(64, 48, QImage::Format_RGB32);
+    img.fill(Qt::darkCyan);
+    win.loadImageWithLayout(img, QJsonObject());
+
+    QVERIFY(win.compareCombo_);
+    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("none"));
+    win.compareCombo_->showPopup();
+    QTest::qWait(60);
+    QWidget* popup = nullptr;
+    for (QWidget* w : QApplication::topLevelWidgets())
+      if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) popup = w;
+    QVERIFY2(popup, "the compare combo's themed popup never appeared");
+    auto* list = popup->findChild<QListView*>("searchComboList");
+    QVERIFY(list);
+    // Row 2 = "Split ↔" (vertical) — see the addItem() order in buildDrawViewToolbar.
+    const QModelIndex idx = list->model()->index(2, 0);
+    QCOMPARE(idx.data(Qt::DisplayRole).toString(), QString::fromUtf8("Split ↔"));
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualRect(idx).center());
+    QTest::qWait(30);
+    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("vertical"));
+    QCOMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
+  }
+
   // A split compare of a BLANK page shows the blank's own fill on BOTH halves:
   // the original side is the untouched red page, the edit side the red page
   // with the lines — never a gray/neutral placeholder.
@@ -8554,6 +10545,226 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // The bug this locks down: recoloring a blank project's background regenerates the
+  // SAME dimensions in place (applyBlankColor → loadFromImage(img, keepZoom=true)) —
+  // there is nothing to refit, so the zoom the user had set must survive it (browser
+  // parity: drawingApp.js loadImageFromFile's opts.keepZoom / drawingApp-launch tests).
+  void recoloringABlankKeepsTheZoom() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.createBlankImage(QColor("#ffffff"), 400, 300);
+    win.canvas_->setScale(2.5);
+    QCOMPARE(win.canvas_->scale(), 2.5);
+    win.applyBlankColor(QColor("#0000ff"));
+    QCOMPARE(win.canvas_->scale(), 2.5);
+    beat();
+  }
+
+  // The bug this locks down: a context-menu row whose action isn't available (no
+  // image, no lines) used to show up greyed out with nothing to explain why — now it
+  // is simply not in the menu, the desktop's version of the browser's hide-not-disable
+  // (contextMenu.js syncState). The persistent menu bar keeps the conventional greyed
+  // rows instead (menuBarExposesTheDrawAndStyleControls covers that one).
+  void contextMenuHidesUnavailableActionsInsteadOfGreyingThem() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // A fresh window: no image, no lines. Real right-click on the scroll area's
+    // viewport (contextMenuOpensOnEmptyCanvasArea's own way in) — canvas_ has no
+    // real size to click yet without an image.
+    QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
+    QVERIFY(viewport);
+
+    auto openSubByKey = [](QMenu* menu, const QString& title) -> QMenu* {
+      QAction* parent = nullptr;
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith(title)) parent = a;
+      if (!parent || !parent->menu()) return nullptr;
+      menu->setActiveAction(parent);
+      QTest::keyClick(menu, Qt::Key_Right);
+      for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+      return parent->menu()->isVisible() ? parent->menu() : nullptr;
+    };
+
+    QSet<QString> rootTitles, layoutTitles;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      if (!menu) return;
+      for (QAction* a : menu->actions())
+        if (!a->isSeparator()) rootTitles.insert(a->text());
+      if (QMenu* layout = openSubByKey(menu, "Image / Layout"))
+        for (QAction* a : layout->actions())
+          if (!a->isSeparator()) layoutTitles.insert(a->text());
+      menu->close();
+    });
+    QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
+    QTest::qWait(50);
+
+    // A row with a shortcut carries it appended as "\t<combo>" (native-rendered, so a
+    // literal platform-specific suffix isn't reliable to match) — startsWith throughout,
+    // exactly like openSubByKey above.
+    auto has = [](const QSet<QString>& set, const QString& prefix) {
+      for (const QString& t : set) if (t.startsWith(prefix)) return true;
+      return false;
+    };
+
+    QVERIFY2(has(rootTitles, "Fit to Window"), "the context menu never opened");
+    QVERIFY2(!has(rootTitles, "Clear All Lines"), "Clear All Lines showed with no lines to clear");
+
+    QVERIFY2(!layoutTitles.isEmpty(), "the Image / Layout submenu never opened");
+    // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles (subMenuIn's own
+    // arg) — a different, always-enabled QAction than actCopyImage_/actSaveImage_
+    // itself, whose OWN text is the "Current (Tint + Lines/Points)" row nested
+    // inside (contextMenuOpensOnEmptyCanvasArea's comment explains the same split).
+    QVERIFY2(!has(layoutTitles, "Copy Image"), "Copy Image showed with no image loaded");
+    QVERIFY2(!has(layoutTitles, "Download Image"), "Download Image showed with no image loaded");
+    QVERIFY2(!has(layoutTitles, "Share Image"), "Share Image showed with no image loaded");
+    QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
+    QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
+    QVERIFY2(!has(layoutTitles, "Paste Layout JSON"), "Paste Layout showed with no image loaded");
+    // These two need neither an image nor lines — they still show.
+    QVERIFY2(has(layoutTitles, "Paste (Image or Layout)"), "Paste Image needs no existing image");
+    QVERIFY2(has(layoutTitles, "Import Layout JSON"), "Upload Layout needs no existing lines");
+    beat();
+  }
+
+  // Browser parity: css/layout.css's ui-shimmer now covers .ctx-item too (support/
+  // menuShimmer.hpp is the desktop port) — the same left→right sweep every other
+  // shimmered control gets (hoverShimmerAnimates), played on a context-menu ROW.
+  void contextMenuRowShimmersOnHover() {
+    const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
+    QVERIFY(viewport);
+
+    bool overlayFound = false, advanced = false;
+    qreal p1 = -1.0, p2 = -1.0;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      if (!menu) return;
+      QWidget* overlay = menu->findChild<QWidget*>("menuShimmerOverlay");
+      if (!overlay) { menu->close(); return; }
+      overlayFound = true;
+      QCOMPARE(overlay->geometry(), menu->rect());  // the band covers the whole menu
+
+      QAction* fit = nullptr;
+      QAction* other = nullptr;
+      for (QAction* a : menu->actions()) {
+        if (a->isSeparator()) continue;
+        if (a->text().startsWith("Fit to Window")) fit = a;
+        else if (!other) other = a;
+      }
+      if (!fit || !other) { menu->close(); return; }
+      // A freshly-opened QMenu can already be hovering its first row on its own —
+      // land on a KNOWN different row first, so the move onto "fit" is a genuine
+      // transition (sweep()'s own re-fire guard would no-op a same-row "hover").
+      menu->setActiveAction(other);
+      menu->setActiveAction(fit);
+      p1 = overlay->property("sweepProgress").toReal();
+      // Poll rather than a single timed sample: a QVariantAnimation ticks off
+      // QMenu::exec()'s own event loop, which paces timers coarser than a normal
+      // window's, so the SAME 325ms sweep can take a good deal longer, wall-clock,
+      // to visibly move here than it does outside a popup (hoverShimmerAnimates).
+      for (int i = 0; i < 400 && !advanced; ++i) {
+        QTest::qWait(15);
+        p2 = overlay->property("sweepProgress").toReal();
+        advanced = p2 > p1 && p1 >= 0.0;
+      }
+      menu->close();
+    });
+    QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
+    QTest::qWait(50);
+
+    QVERIFY2(overlayFound, "no shimmer overlay on the context menu");
+    QVERIFY2(advanced, qPrintable(QString("row shimmer did not advance (%1 -> %2)")
+                                      .arg(p1)
+                                      .arg(p2)));
+    beat();
+  }
+
+  // REGRESSION (user report): MenuHotkeyChips shares ONE rows_ list across the WHOLE
+  // recursive wire() tree (root menu + every submenu level), but installPlacer() gives
+  // each level its OWN aboutToShow/live-poll calling place() with THAT level's `menu`.
+  // Without a "does this row actually belong to `menu`" check, opening ANY submenu
+  // (e.g. Style, which carries no hotkey rows of its own) called place(styleMenu),
+  // which asked styleMenu->actionGeometry() for a ROOT-level row like "Fit to Window"
+  // — got an invalid rect back (that action isn't IN Style's list) — and hid the
+  // root's own chip out from under it, even though the root menu was still showing
+  // behind it. With several submenu levels each polling on their own timer, no
+  // chip anywhere stayed shown long enough to shake, preview, or shimmer.
+  void openingASubmenuDoesNotHideTheRootMenusOwnChips() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
+    QVERIFY(viewport);
+
+    auto openSubByKey = [](QMenu* menu, const QString& title) -> QMenu* {
+      QAction* parent = nullptr;
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith(title)) parent = a;
+      if (!parent || !parent->menu()) return nullptr;
+      menu->setActiveAction(parent);
+      QTest::keyClick(menu, Qt::Key_Right);
+      for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+      return parent->menu()->isVisible() ? parent->menu() : nullptr;
+    };
+    auto fitChip = [](QMenu* menu, QAction* fit) -> stencil::gui::TipBody* {
+      const QRect r = menu->actionGeometry(fit);
+      for (QLabel* l : menu->findChildren<QLabel*>())
+        if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+          if (c->geometry().intersects(r)) return c;
+      return nullptr;
+    };
+
+    bool chippedBeforeSubmenu = false, styleOpened = false, chippedAfterSubmenu = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      if (!menu) return;
+      QAction* fit = nullptr;
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith("Fit to Window")) fit = a;
+      if (!fit) { menu->close(); return; }
+      auto* chip = fitChip(menu, fit);
+      chippedBeforeSubmenu = chip && !chip->isHidden();
+
+      QMenu* style = openSubByKey(menu, "Style");
+      styleOpened = style != nullptr;
+      QTest::qWait(200);   // past a couple of Style's own 120ms live-poll ticks
+
+      chip = fitChip(menu, fit);
+      chippedAfterSubmenu = chip && !chip->isHidden();
+      if (style) style->close();
+      menu->close();
+    });
+    QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
+    QTest::qWait(50);
+
+    QVERIFY2(chippedBeforeSubmenu, "Fit to Window never carried a chip to begin with");
+    QVERIFY2(styleOpened, "the Style submenu never opened");
+    QVERIFY2(chippedAfterSubmenu, "Fit to Window's chip was hidden by the Style submenu's own live-poll");
+    beat();
+  }
+
   // The toolbar closes with a SETTINGS cluster, mirroring the browser's last
   // group: theme · fullscreen · incognito · gear · palette · info. Every button
   // drives the EXISTING QAction, so the toolbar and the menu bar stay in step in
@@ -8570,12 +10781,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(caption, "the section has no caption");
     QCOMPARE(caption->text(), QStringLiteral("SETTINGS"));   // same styling as its siblings
 
-    // The six controls, in the browser's order.
+    // The six controls, in the browser's order: theme · fullscreen · incognito ·
+    // gear (Shortcuts) · palette (Visuals) · info (Help). actAccent_ is NOT here —
+    // it's the logo's own popover, with no toolbar icon of its own in the browser.
     QList<QAction*> got;
     for (QToolButton* b : section->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
     const QList<QAction*> want{win.actTheme_, win.actFullscreen_, win.actIncognito_,
-                               win.actSettings_, win.actAccent_, win.actInfo_};
+                               win.actShortcuts_, win.actSettings_, win.actInfo_};
     QCOMPARE(got.size(), want.size());
     for (int i = 0; i < want.size(); ++i)
       QVERIFY2(got.at(i) == want.at(i),
@@ -8867,8 +11080,12 @@ class MainWindowGuiTest : public QObject {
     win.settings_.llmBaseUrl = "http://localhost:11434";
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    // Enough long messages that the transcript really scrolls.
-    for (int i = 0; i < 8; ++i) {
+    // Enough long messages that the transcript really scrolls. Bubbles now
+    // stretch to the full cap width once they need to wrap (browser
+    // shrink-to-fit parity, applyChatBubbleWidths) rather than Qt's narrower
+    // "balanced" wrap, so each one is shorter than it used to be — more
+    // turns are needed to still leave a row clipped past the viewport edge.
+    for (int i = 0; i < 14; ++i) {
       win.chatDock_->appendUser(
           QStringLiteral("Loading the image into incognito, converting to black & white "
                          "and cropping to portrait 3:4. Once it's done I will report "
@@ -8898,21 +11115,41 @@ class MainWindowGuiTest : public QObject {
       QScrollBar* bar = scroll->verticalScrollBar();
       QVERIFY2(bar->maximum() > 0, qPrintable(QString("%1: the transcript does not scroll")
                                                   .arg(what)));
-      bar->setValue(bar->maximum() / 2);
-      QTest::qWait(120);
       const QRect vp = globalRect(scroll->viewport());
       QFrame* clippedTop = nullptr;
       QFrame* clippedBottom = nullptr;
       // A slice tall enough to CARRY the pill (a shorter one deliberately hides
       // it — that rule has its own checks below).
       const int room = 21 + 8;
-      for (QFrame* card : host->findChildren<QFrame*>()) {
-        if (!card->property("chatMoreBtn").isValid()) continue;
-        const QRect g = globalRect(card);
-        const QRect vis = g.intersected(vp);
-        if (vis.height() < room) continue;
-        if (g.top() < vp.top()) clippedTop = card;
-        if (g.bottom() > vp.bottom()) clippedBottom = card;
+      // Bubbles that all wrap to the same line count (browser shrink-to-fit
+      // parity: every long turn here stretches to the same cap width) land in
+      // exact lockstep — a card pitch that divides the viewport height evenly
+      // leaves the middle sitting BETWEEN two cards instead of straddling one,
+      // or leaves a clipped candidate's slice barely at `room` — just enough to
+      // pass the clip check, but too tight to also clear the jump pills sharing
+      // that same bottom-right corner (its own, correct, hide rule). Walk scroll
+      // positions out from the middle until BOTH clipped rows actually show
+      // their "…", not merely until each looks clipped.
+      for (int v = bar->maximum() / 2; v <= bar->maximum(); v += 12) {
+        bar->setValue(v);
+        QTest::qWait(30);
+        clippedTop = clippedBottom = nullptr;
+        for (QFrame* card : host->findChildren<QFrame*>()) {
+          if (!card->property("chatMoreBtn").isValid()) continue;
+          const QRect g = globalRect(card);
+          const QRect vis = g.intersected(vp);
+          if (vis.height() < room) continue;
+          if (g.top() < vp.top()) clippedTop = card;
+          if (g.bottom() > vp.bottom()) clippedBottom = card;
+        }
+        if (!clippedTop || !clippedBottom) continue;
+        bool bothShow = true;
+        for (QFrame* card : {clippedTop, clippedBottom}) {
+          hover(card);
+          QToolButton* more = moreOf(card);
+          if (!more || !more->isVisible()) { bothShow = false; break; }
+        }
+        if (bothShow) break;
       }
       QVERIFY2(clippedTop, qPrintable(QString("%1: no row clipped at the top").arg(what)));
       QVERIFY2(clippedBottom, qPrintable(QString("%1: no row clipped at the bottom").arg(what)));
@@ -8944,11 +11181,27 @@ class MainWindowGuiTest : public QObject {
       const QRect vp = globalRect(scroll->viewport());
       QFrame* left = nullptr;   // a user row: its "…" hangs off the LEFT
       QFrame* right = nullptr;  // an assistant row: off the RIGHT
+      // This test is about the HORIZONTAL edge (a narrow column's pill hanging
+      // off the bubble's side), not vertical clipping — prefer a row that is
+      // FULLY on screen, so a merely-tall-enough-but-still-clipped one (which
+      // can legitimately hide its "…" against the jump pills, same rule
+      // checkSurface exercises on purpose) doesn't get picked here by accident.
       for (QFrame* card : host->findChildren<QFrame*>()) {
         if (!card->property("chatMoreBtn").isValid()) continue;
-        if (globalRect(card).intersected(vp).height() < 21 + 8) continue;
+        const QRect g = globalRect(card);
+        if (!vp.contains(g)) continue;
         if (card->objectName() == QLatin1String("chatCardUser")) left = card;
         else right = card;
+      }
+      // Fall back to a merely-clipped-but-tall-enough row if nothing is fully
+      // on screen (a very short viewport, say).
+      if (!left || !right) {
+        for (QFrame* card : host->findChildren<QFrame*>()) {
+          if (!card->property("chatMoreBtn").isValid()) continue;
+          if (globalRect(card).intersected(vp).height() < 21 + 8) continue;
+          if (card->objectName() == QLatin1String("chatCardUser")) { if (!left) left = card; }
+          else if (!right) right = card;
+        }
       }
       QVERIFY2(left && right, qPrintable(QString("%1: need a row hanging each way").arg(what)));
       for (QFrame* card : {left, right}) {
@@ -9048,7 +11301,7 @@ class MainWindowGuiTest : public QObject {
     win.chatMenuPanel_->show();
     // The panel is built lazily and mirrors the SHARED history, which these
     // direct dock appends never touched — mirror the same volume into it.
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 14; ++i) {
       win.chatMirror(QStringLiteral("You"),
                      QStringLiteral("Loading the image into incognito, converting to "
                                     "black & white and cropping to portrait 3:4 (%1).").arg(i),
@@ -9069,6 +11322,10 @@ class MainWindowGuiTest : public QObject {
   // an assistant row's "…" lands when that row is the one being clipped. Two
   // round controls stacked are unclickable, so the pills yield to the button and
   // come straight back when it moves on.
+  // The pills are the higher-priority control (user report: they used to vanish
+  // under a row's "…", which read as broken scrolling) — they stay up regardless,
+  // and the TRIGGER gets out of their way: it shifts clear, or hides if a bubble
+  // too short leaves nowhere to shift it to (browser/extension parity).
   void chatJumpPillsYieldToTheRowMenu() {
     MainWindow win(nullptr, false);
     win.resize(1100, 700);
@@ -9107,12 +11364,13 @@ class MainWindowGuiTest : public QObject {
       return jumps[0]->isVisible() && jumps[1]->isVisible();
     };
     QTRY_VERIFY(pillsUp());
-    const QRect pills = QRect(jumps[0]->mapToGlobal(QPoint(0, 0)), jumps[0]->size())
-                            .united(QRect(jumps[1]->mapToGlobal(QPoint(0, 0)), jumps[1]->size()));
+    const auto pillsRect = [&] {
+      return QRect(jumps[0]->mapToGlobal(QPoint(0, 0)), jumps[0]->size())
+          .united(QRect(jumps[1]->mapToGlobal(QPoint(0, 0)), jumps[1]->size()));
+    };
 
-    // Show one row's "…" and park it ON the pills — which is where a wide bubble
-    // puts it in a real conversation (the button hangs off the bubble's right
-    // edge, and the pills float in that same corner).
+    // Hover the row whose "…" lands in the pills' corner — same real Enter path a
+    // cursor takes, so placeChatCardMore runs its actual shift/hide logic.
     QFrame* card = nullptr;
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>())
       if (f->property("chatMoreBtn").isValid() &&
@@ -9124,17 +11382,30 @@ class MainWindowGuiTest : public QObject {
     QEvent enter(QEvent::Enter);
     QApplication::sendEvent(card, &enter);
     auto* more = qobject_cast<QToolButton*>(card->property("chatMoreBtn").value<QObject*>());
-    QVERIFY(more && more->isVisible());
+    QVERIFY(more);
+    // The pills never stand down for this any more — up before AND after the hover.
     QVERIFY2(jumps[0]->isVisible() && jumps[1]->isVisible(),
              "the pills should still be up before the button reaches them");
-    more->move(more->parentWidget()->mapFromGlobal(pills.topLeft()));
-    QVERIFY2(QRect(more->mapToGlobal(QPoint(0, 0)), more->size()).intersects(pills),
-             "the test failed to park the button on the pills");
-    QVERIFY2(!jumps[0]->isVisible() && !jumps[1]->isVisible(),
-             "the jump pills stayed under the row menu button");
-    // …and they come back the moment it goes.
-    more->hide();
-    QTRY_VERIFY2(jumps[1]->isVisible(), "the jump pills never came back");
+    QVERIFY2(jumps[0]->isVisible() && jumps[1]->isVisible(),
+             "the jump pills must stay up — the row's trigger yields, not them");
+    // The trigger itself either shifted clear of the pills, or — nowhere left in
+    // this row's own visible slice to shift it to — hid instead. Either way it
+    // must never simply sit ON them (unclickable, two round controls stacked).
+    if (more->isVisible()) {
+      QVERIFY2(!QRect(more->mapToGlobal(QPoint(0, 0)), more->size()).intersects(pillsRect()),
+               "the trigger sat under the pills instead of shifting clear of them");
+    }
+    // …and forcing it directly onto the pills (bypassing the real placement path,
+    // the way a stale position from before a resize might) is corrected on the next
+    // real placement pass, never by the pills hiding.
+    if (more->isVisible()) {
+      more->move(more->parentWidget()->mapFromGlobal(pillsRect().topLeft()));
+      win.chatDock_->revalidateMoreButtons();
+      QVERIFY2(jumps[0]->isVisible() && jumps[1]->isVisible(), "the pills stayed up");
+      if (more->isVisible())
+        QVERIFY2(!QRect(more->mapToGlobal(QPoint(0, 0)), more->size()).intersects(pillsRect()),
+                 "revalidateMoreButtons must pull the trigger back off the pills");
+    }
     beat();
   }
 
@@ -9695,6 +11966,30 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win2.activeProjectId_, win.activeProjectId_);
   }
 
+  // Deliberate NON-round-trip: the image filter/tint (and the compare split view,
+  // which was never persisted to begin with) must NOT carry over into a freshly
+  // reopened desktop app (user report) — unlike everything else a session restores
+  // (image, lines, page size, scale, crop, rotation, draw mode), which still does.
+  void sessionRestoreDoesNotCarryOverTheFilterOrTint() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // a REAL file path — restoreSession needs one to reload from
+    QTRY_VERIFY(win.canvas_->hasImage());
+    win.applyImageFilter(QStringLiteral("custom"));
+    win.applyTintColor(QColor(200, 40, 40));
+    QCOMPARE(win.settings_.imageFilter, QStringLiteral("custom"));
+    win.saveSessionNow();
+
+    MainWindow win2(nullptr, true);
+    QVERIFY(win2.canvas_ && win2.canvas_->hasImage());   // the rest of the session DID restore
+    QCOMPARE(win2.settings_.imageFilter, QStringLiteral("none"));
+    QCOMPARE(win2.canvas_->imageFilter(), QStringLiteral("none"));
+    if (win2.imageFilter_) QCOMPARE(win2.imageFilter_->currentData().toString(), QStringLiteral("none"));
+    if (win2.filterColorBtn_) QVERIFY(!win2.filterColorBtn_->isVisible());
+  }
+
   void chatMultiImageOutOfRangeAndEmptySaveWarn() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -9766,7 +12061,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Removed.\",\"actions\":["
         "{\"op\":\"removeProject\",\"name\":\"chat del target\"}]}"));
-    dismissModal("Yes");
+    dismissModal("Confirm");
     win.onChatSend("delete the chat del target project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList_.size()), before - 1);
@@ -9776,7 +12071,7 @@ class MainWindowGuiTest : public QObject {
     // clearProjects, confirm DECLINED: nothing removed, the note says so.
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearProjects\"}]}"));
-    dismissModal("No");
+    dismissModal("Cancel");
     win.onChatSend("clear all my projects");
     QTRY_VERIFY(!dock->isBusy());
     QCOMPARE(int(win.projectList_.size()), before - 1);
@@ -9826,7 +12121,7 @@ class MainWindowGuiTest : public QObject {
 
     // Declined: the confirm ran, nothing went.
     mock.queue.append(wrap(removeCurrent));
-    dismissModal("No");
+    dismissModal("Cancel");
     win.onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY2(canvas->hasImage(), "a declined confirm must keep the image");
@@ -9838,7 +12133,7 @@ class MainWindowGuiTest : public QObject {
 
     // Accepted: the §10 clear flow — image and lines go, the editor is empty.
     mock.queue.append(wrap(removeCurrent));
-    dismissModal("Yes");
+    dismissModal("Confirm");
     win.onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(!canvas->hasImage(), "the accepted fallback must clear the image");
@@ -9853,7 +12148,7 @@ class MainWindowGuiTest : public QObject {
     win.activeProjectId_ = id;
     const int before = int(win.projectList_.size());
     mock.queue.append(wrap(removeCurrent));
-    dismissModal("Yes");
+    dismissModal("Confirm");
     win.onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList_.size()), before - 1);
@@ -9894,7 +12189,7 @@ class MainWindowGuiTest : public QObject {
     // The deferred confirm is QUEUED at turn end, so arm the dismissal AFTER
     // the send: its poll then runs inside the modal's own event loop.
     win.onChatSend("switch to inches, then clear the chat");
-    dismissModal("No");
+    dismissModal("Cancel");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(chatTranscriptHas(dock, "clear canceled"),
                  "a declined confirm must land as a note");
@@ -9911,7 +12206,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearChat\"}]}"));
     win.onChatSend("clear the chat");
-    dismissModal("Yes");   // after the send — the confirm is queued (see above)
+    dismissModal("Confirm");   // after the send — the confirm is queued (see above)
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(win.chatHistory_.isEmpty(), "the replay history must clear");
     QTRY_VERIFY2(assistantBubbleTexts(dock).isEmpty(), "the transcript must clear");
@@ -9922,7 +12217,7 @@ class MainWindowGuiTest : public QObject {
     }
 
     // Tidy the dev state dir: drop the project this test created.
-    dismissModal("Yes");
+    dismissModal("Confirm");
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
     clear->trigger();
@@ -9942,6 +12237,16 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(png_);
     QTRY_VERIFY(win.canvas_->hasImage());
+    // The fixture is a flat white image; a perfectly uniform snapshot's contour render
+    // can coincide with the plain snapshot bit-for-bit (applyContourRGBA maps ANY
+    // uniform image to solid white). One line breaks the uniformity so the edge map
+    // and the plain snapshot are guaranteed to differ, regardless of that overlap.
+    stencil::core::Line line;
+    line.color = "#000000";
+    line.thickness = 4;
+    line.points.push_back({20.0, 20.0});
+    line.points.push_back({100.0, 100.0});
+    win.canvas_->setLines({line});
     win.settings_.llmProvider = "ollama";
     win.settings_.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
@@ -10219,6 +12524,51 @@ class MainWindowGuiTest : public QObject {
   // the width the layout actually gives it. Measuring a freshly appended card
   // at its default 100×30 child geometry reserved several times the needed
   // height and left ~50 px dead bands above and below the centered text.
+  // A tail's WIDGET geometry can look perfectly flush (chatSwapSidesReskinsRetroactively
+  // checks exactly that) while the pixels underneath still show a gap, if the
+  // card's own corner render ever stopped actually being flat under its tail —
+  // this checks the rendered PIXEL at that corner, not just the geometry, so a
+  // future edit that broke chatCardStyleSheet()'s flattened-corner radii would
+  // fail loudly here instead of only failing a user's eyeball (user report: a
+  // tail rendering as "a triangle with a visible gap from the message").
+  void chatBubbleTailRendersFlushNoGap() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.chatDock_->appendUser(QStringLiteral("Give me 3 variants"), {});
+    win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
+    win.chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());
+    QTest::qWait(150);
+    QFrame* errCard = nullptr;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) errCard = f;
+    QFrame* userCard = nullptr;
+    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) userCard = f;
+    QVERIFY(errCard && userCard);
+    QImage shot = win.chatDock_->grab().toImage();
+    // A pixel just inside the card's own flattened corner (well within the
+    // round notch a 10px radius would otherwise leave unfilled there) —
+    // sampled against a reference pixel a few px further in, which is
+    // unambiguously plain bubble fill either way. Equal ⇒ the corner reads as
+    // one continuous fill, same as the reference; a regressed (still rounded)
+    // corner would instead sample the transcript's own, different background.
+    const auto sampleFlushCorner = [&](QFrame* card, bool right, const char* what) {
+      const QPoint corner = card->mapTo(win.chatDock_,
+          right ? card->rect().bottomRight() : card->rect().bottomLeft());
+      const int dx = right ? -1 : 1;
+      const QColor atCorner = shot.pixelColor(corner.x() + dx, corner.y() - 1);
+      const QColor reference = shot.pixelColor(corner.x() + dx * 6, corner.y() - 6);
+      QVERIFY2(atCorner == reference,
+               qPrintable(QStringLiteral("%1: corner pixel %2 != interior fill %3 — a gap")
+                              .arg(what, atCorner.name(QColor::HexArgb), reference.name(QColor::HexArgb))));
+    };
+    sampleFlushCorner(errCard, false, "error card (left tail)");
+    sampleFlushCorner(userCard, true, "user card (right tail)");
+    beat();
+  }
+
   void chatBubbleHugsItsText() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -10309,7 +12659,7 @@ class MainWindowGuiTest : public QObject {
 
   // The transcript's jump pills rest translucent (they float OVER bubbles and
   // fully covered a short message) and return to full opacity under the cursor.
-  void chatJumpArrowsRestTranslucent() {   // …opaque now; the NAME is historical
+  void chatJumpArrowsRestTranslucent() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
     win.show();
@@ -10327,9 +12677,9 @@ class MainWindowGuiTest : public QObject {
     const auto jumps =
         win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
-    // The browser's .chat-jump-btn is FULLY OPAQUE at rest (a 0.45 rest opacity
-    // was a desktop invention, and it is what made these circles read as washed
-    // out); hover brightens the glyph from --text-muted to --text-main.
+    // The pills rest at 0.7 — the shared figure across the three surfaces (the browser's
+    // .chat-jump-btn and every row "…" trigger); hover restores full opacity and
+    // brightens the glyph from --text-muted to --text-main.
     // …in whichever theme this window actually resolved to.
     const bool dark = stencil::gui::resolveDark(win.settings_.themeMode);
     const QColor muted = stencil::gui::themePalette(dark, win.settings_.accentColor).textMuted;
@@ -10350,7 +12700,7 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY(b->isVisible());
       auto* fx = qobject_cast<QGraphicsOpacityEffect*>(b->graphicsEffect());
       QVERIFY2(fx, "jump pill must carry the rest-opacity effect");
-      QCOMPARE(fx->opacity(), 1.0);
+      QCOMPARE(fx->opacity(), 0.7);
       QVERIFY2(glyphIs(b, muted), "the pill's rest glyph is not --text-muted");
       QEvent enter(QEvent::Enter);
       QCoreApplication::sendEvent(b, &enter);
@@ -10358,7 +12708,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(glyphIs(b, main), "hover must brighten the glyph to --text-main");
       QEvent leave(QEvent::Leave);
       QCoreApplication::sendEvent(b, &leave);
-      QCOMPARE(fx->opacity(), 1.0);
+      QCOMPARE(fx->opacity(), 0.7);
       QVERIFY2(glyphIs(b, muted), "leaving must drop the glyph back to --text-muted");
     }
     beat();
@@ -10513,6 +12863,110 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.findChildren<QWidget*>(
                    QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
     beat();
+  }
+
+  // A dust flight that leaves the host must not be cropped to it (placeForSurface).
+  void surfaceDustLayerCoversTheWholeFlightNotJustTheWindow() {
+    using stencil::gui::DisintegrateOverlay;
+    const QRect host(120, 122, 900, 620);
+    const QRect dragged(879, 613, 620, 700);   // Projects dragged past the bottom-right
+    const QPoint icon(300, 200);
+    const QRect need = DisintegrateOverlay::surfaceLayerRect(dragged, icon);
+    QVERIFY2(!host.contains(need), "the host cannot hold the flight — the layer must escape it");
+    QVERIFY2(need.contains(dragged), "the layer must cover the window that is coming apart");
+    QVERIFY2(need.contains(icon), "…and the point its motes are pouring into");
+    QVERIFY2(need.bottom() > host.bottom() && need.right() > host.right(),
+             "the cropped-off part is exactly what the layer has to reach");
+    QVERIFY2(!host.contains(DisintegrateOverlay::surfaceLayerRect(QRect(260, 82, 620, 700), icon)),
+             "a dialog taller than the window needs the escape too");
+    QVERIFY2(host.contains(DisintegrateOverlay::surfaceLayerRect(QRect(400, 300, 200, 160), icon)),
+             "a flight that fits must not pay for a window of its own");
+  }
+
+  // Offscreen's virtual screen is no real desktop, so the layer stays a child there.
+  void surfaceDustStaysAChildWhenThereIsNoDesktop() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* dock = win.findChild<QDockWidget*>("llmChatDock");
+    QVERIFY(dock);
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(dock->isVisible());
+    dock->setFloating(true);
+    QTRY_VERIFY(dock->isFloating());
+    QTest::qWait(300);
+    win.actChat_->setChecked(false);
+    QTest::qWait(60);
+    auto* fx = surfaceFlight(&win);
+    QVERIFY2(fx, "the floating chat's flight did not play");
+    QVERIFY2(!fx->isWindow(), "offscreen has no desktop to escape onto");
+    QCOMPARE(fx->geometry(), win.rect());
+  }
+
+  // Canvas scrollbars are invisible at rest, revealed only by an actual pan or zoom — never
+  // just from hovering the canvas — and fade back out once the view settles. Direct opacity
+  // checks: a real fade plays only off the offscreen platform, but the opacity value itself
+  // is plain state either way.
+  void canvasScrollbarsHideUntilPanOrZoom() {
+    MainWindow win;
+    win.resize(600, 500);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(2000, 2000, QImage::Format_RGB32);   // bigger than the viewport at 100%
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.refreshActions();
+    QVERIFY(win.vScrollOpacity_ && win.hScrollOpacity_);
+
+    win.setZoom(1.0);
+    QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
+    QCOMPARE(win.hScrollOpacity_->opacity(), 1.0);
+    QTest::qWait(1200);   // past the 900ms idle timer
+    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+    QCOMPARE(win.hScrollOpacity_->opacity(), 0.0);
+
+    // A pan (here: the vertical scrollbar's own value, exactly what a drag-pan/wheel-scroll
+    // drives — see MainWindow::scrollTo) reveals it again, and it fades back out the same way.
+    win.scroll_->verticalScrollBar()->setValue(50);
+    QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
+    QTest::qWait(1200);
+    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+
+    // Hovering the bar itself (to grab it) must never let it fade out from under the cursor.
+    QEvent enter(QEvent::Enter);
+    QCoreApplication::sendEvent(win.scroll_->verticalScrollBar(), &enter);
+    QVERIFY(win.scrollbarHovered_);
+    QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
+    QTest::qWait(1200);   // would have hidden by now if hovering didn't suppress it
+    QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
+    QEvent leave(QEvent::Leave);
+    QCoreApplication::sendEvent(win.scroll_->verticalScrollBar(), &leave);
+    QVERIFY(!win.scrollbarHovered_);
+    QTest::qWait(1200);
+    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+  }
+
+  // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
+  // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
+  // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
+  // one's still-playing dust. Only one "toast" label should ever exist for a given message.
+  void repeatedToastReplacesAStillLeavingOne() {
+    QWidget host;
+    host.resize(600, 420);
+    host.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&host));
+    stencil::gui::Notifications toasts(&host);
+    toasts.show("Saved", stencil::gui::Notifications::Level::Success, /*msec=*/50);
+    QTest::qWait(70);   // its life timer fires -> dismiss() -> mid-way through the 160ms fadeOut
+    toasts.show("Saved", stencil::gui::Notifications::Level::Success, /*msec=*/3000);
+    QTest::qWait(10);
+    const auto ts = host.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly);
+    QCOMPARE(ts.size(), 1);
+    QCOMPARE(ts.first()->property("stencilToastText").toString(), QString("Saved"));
+    QVERIFY2(!ts.first()->property("stencilToastLeaving").toBool(),
+             "the survivor is the stale leaving one, not the fresh arrival");
   }
 
 };

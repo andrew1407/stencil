@@ -3,6 +3,7 @@ import { StencilTooltip } from './tooltip.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { wirePanelResizer } from '../utils.js';
+import { foldDust, motionReduced } from './motion.js';
 // ── Component: main content (canvas section + coordinates panel) ──
 // Owns the canvas/coord-panel markup and the coord-panel collapse behavior.
 export class StencilMainContent extends StencilElement {
@@ -95,18 +96,29 @@ export class StencilMainContent extends StencilElement {
     }
     const btn = document.getElementById('toggle-coord-panel');
     const panel = document.getElementById('coord-panel');
+    const body = document.getElementById('coord-body');
     let hidden = false;
     let foldTimer = 0;
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
-      panel.classList.toggle('coord-collapsed', hidden);
-      // Hold the tabs/table out of the layout while the panel slides (.coord-folding,
-      // animations.css). Half of --fold-ms: the out-quart ease is ~94% done by then.
-      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const foldMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fold-ms')) || 400;
-      panel.classList.add('coord-folding');
+      // The shared fold-with-dust ritual (motion.js foldDust): the table pours out past
+      // the right edge the panel collapses towards and gathers back out of it. Its own
+      // gather clock (460): .coord-folding below takes the table out of the layout for
+      // half the slide, which restarts the surfaceForm fade — a window's 620ms gather
+      // would still be fading long after the panel had settled.
       clearTimeout(foldTimer);
+      panel.classList.remove('coord-folding');
+      foldDust(body, panel, 'coord-collapsed', hidden, 'right',
+        { inMs: 460, toggle: () => panel.classList.toggle('coord-collapsed', hidden) });
+      // Hold the tabs/table out of the layout while the panel slides (.coord-folding,
+      // animations.css). Half the slide's OWN duration — the collapse takes the longer
+      // one — by which point the out-quart ease is ~94% done.
+      const reduced = motionReduced();
+      const token = hidden ? '--fold-out-ms' : '--fold-ms';
+      const foldMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(token))
+                     || (hidden ? 600 : 400);
+      panel.classList.add('coord-folding');
       foldTimer = setTimeout(() => panel.classList.remove('coord-folding'), reduced ? 0 : foldMs / 2);
       // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide and
       // LEFT to show. Not swapped: animations.css spins the one glyph 180° with the slide.

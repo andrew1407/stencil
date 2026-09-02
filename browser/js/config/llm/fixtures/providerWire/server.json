@@ -179,7 +179,7 @@
   {
     "name": "reply extraction: stopReason max_tokens is a typed truncation error, never a reply",
     "divergences": {
-      "desktop": "same truncated kind with its own message ('response truncated (max tokens reached)'), plus the always-sent model:\"\"",
+      "desktop": "same truncated kind and message; only the always-sent model:\"\" body divergence",
       "bot": "same truncated kind with its own message ('The AI response was cut off at the token limit — try a shorter or simpler request.')"
     },
     "provider": "server",

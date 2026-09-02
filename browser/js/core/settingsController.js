@@ -2,6 +2,8 @@ import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
 import { icon } from '../ui/icons.js';
 import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
 import { normalizePageSize } from './units.js';
+import { setChecked, swapCheckGlyph } from '../ui/controlSwap.js';
+import { revealControls } from '../ui/motion.js';
 
 // Shared `parse` guards for the settings registry below: the numeric ones return
 // undefined on NaN to ABORT the set (matching the old per-setter guards).
@@ -26,8 +28,10 @@ const applyMirror = ({ id, kind }, value) => {
   switch (kind) {
     case 'value': el.value = value; break;
     case 'valueSkipFocus': if (document.activeElement !== el) el.value = value; break;
-    case 'checked': el.checked = value; break;
-    case 'checkIcon': el.innerHTML = value ? icon('check', { size: 14 }) : ''; break;
+    // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
+    // the context-menu twin, a restored project — animates exactly as a click does.
+    case 'checked': setChecked(el, value); break;
+    case 'checkIcon': swapCheckGlyph(el, value ? icon('check', { size: 14 }) : ''); break;
   }
 };
 
@@ -123,8 +127,9 @@ const SETTINGS = {
     mirror: [{ id: 'page-size', kind: 'value' }],
     afterSet: (self) => {
       const app = self.app;
-      const cg = document.getElementById('custom-size-group');
-      if (cg) cg.style.display = app.pageSize === 'custom' ? 'inline-flex' : 'none';
+      // The W/H boxes a custom page needs form out of motes, and come apart into them
+      // when a named format takes over (ui/motion.js revealControls).
+      revealControls(document.getElementById('custom-size-group'), app.pageSize === 'custom');
       app.coordTable.update();
     },
     redraw: true, save: true, remoteSync: true,   // page format rides the layout — push it to peers/server too
@@ -245,18 +250,15 @@ export class SettingsController {
 
   // ── Formula controls (shared with #wireFormulaControls + #adoptServerFormulas) ──
   syncFormulaUI(checked) {
-    const fi = document.getElementById('formula-inputs');
-    if (fi) fi.style.display = checked ? 'inline-flex' : 'none';
-    const ctxFi = document.getElementById('ctx-formula-inputs');
-    if (ctxFi) ctxFi.style.display = checked ? 'block' : 'none';
-    const ctxCb = document.getElementById('ctx-allow-formulas');
-    if (ctxCb) ctxCb.checked = checked;
+    revealControls(document.getElementById('formula-inputs'), checked);
+    revealControls(document.getElementById('ctx-formula-inputs'), checked, 'block');
+    setChecked(document.getElementById('ctx-allow-formulas'), checked);
     // Main toolbar pill: reflect the checked state as the accent-filled `.on` class (a
     // deterministic toggle — the CSS :has() selector doesn't restyle reliably on programmatic
     // state changes).
     const mainCb = document.getElementById('allow-formulas');
     if (mainCb) {
-      mainCb.checked = checked;
+      setChecked(mainCb, checked);
       mainCb.closest('.pill-toggle')?.classList.toggle('on', checked);
     }
   }

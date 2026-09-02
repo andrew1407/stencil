@@ -1,5 +1,6 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
+import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from './motion.js';
 // ── Component: bottom-left notification stack ───────────────────
 // Owns the show/auto-hide logic; utils.js `notify()` delegates to this.
 // #notify-balloon is the STACK, not a toast: each message gets its own .notify-toast
@@ -12,6 +13,10 @@ const OK_HIDE_MS = 2400;
 const CLICKABLE_HIDE_MS = 6000;
 // How long .notify-leaving stays on — matches notifyLeave in css/animations.css.
 const LEAVE_ANIM_MS = 260;
+// Toast dust, 2x the shared menu clock's length — a passing notice can afford to drift
+// rather than snap.
+const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680
+const LEAVE_DUST_MS = 1040;
 // The stack never grows past this (desktop parity: Notifications::kMaxVisible in
 // desktop/src/support/notifications.cpp). Past three the column starts walling off the
 // side of the canvas, and the oldest message is the one nobody is still reading.
@@ -26,6 +31,9 @@ export const squeezeLongTokens = (msg, max = 48) =>
     const keep = Math.floor((max - 1) / 2);
     return tok.slice(0, keep) + '…' + tok.slice(-keep);
   }).join('');
+
+// The dust's origin/target: off the left edge, at the toast's own (bottom-of-stack) height.
+const toastDustPoint = (toast) => dockAwayPoint(toast.getBoundingClientRect?.(), 'left');
 
 export class StencilNotifications extends StencilElement {
   // The stack starts empty; every toast is created by notify().
@@ -83,6 +91,11 @@ export class StencilNotifications extends StencilElement {
     }
     // Appended last → bottom of the column, which is where the eye already is.
     this.appendChild(toast);
+    // Adding a row to the flex column bumps every sibling already flying (a burst
+    // firing on one tick, before either finished its own entrance) — drag their clouds
+    // along rather than leaving them stranded at the box they were grabbed at.
+    for (const el of this.children) if (el !== toast) retargetDust(el);
+    surfaceIn(toast, toastDustPoint(toast), { ms: ENTER_DUST_MS });
     toast._hideTimer = setTimeout(() => this.#dismiss(toast),
       onClick ? CLICKABLE_HIDE_MS : (type === 'fail' ? FAIL_HIDE_MS : OK_HIDE_MS));
   }
@@ -102,7 +115,12 @@ export class StencilNotifications extends StencilElement {
     // replaying the springy entrance backwards.
     toast.classList.add('notify-leaving');
     toast.classList.remove('notify-clickable');
-    setTimeout(() => toast.remove(), LEAVE_ANIM_MS);
+    surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS });
+    setTimeout(() => {
+      toast.remove();
+      // Removing a row shrinks the column too — the same retarget, the other direction.
+      for (const el of this.children) retargetDust(el);
+    }, LEAVE_ANIM_MS);
   }
 }
 define('stencil-notifications', StencilNotifications);

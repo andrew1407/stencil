@@ -296,8 +296,8 @@ test('the tooltip keeps its mask grain as the fallback under the real motes', ()
   // …and once a real cloud has flown, the mask and the transition are off for good.
   assert.match(THEME, /#app-tooltip\.dust-driven \{[\s\S]*?mask-image: none;/);
   const tip = readFileSync(new URL('../src/lib/controlTooltip.js', import.meta.url), 'utf8');
-  assert.match(tip, /surfaceIn\(t, point, \{ ms: TIP_IN_MS \}\)/);
-  assert.match(tip, /surfaceOut\(tip, point, \{ ms: TIP_OUT_MS \}\)/);
+  assert.match(tip, /surfaceIn\(t, dustPoint\(el\), \{ ms: TIP_IN_MS \}\)/);
+  assert.match(tip, /surfaceOut\(tip, dustPoint\(owner\), \{ ms: TIP_OUT_MS \}\)/);
 });
 
 test('the injected in-page modal carries the same grain inline (it can link nothing)', () => {
@@ -329,11 +329,15 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     ['../src/lib/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
     ['../src/lib/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
-    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, point, { ms: MENU_IN_MS })', 'surfaceOut(menu, point, { ms: MENU_OUT_MS })'],
+    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, dustPoint(trigger), { ms: MENU_IN_MS })',
+                                   'surfaceOut(menu, menu.hidden ? null : dustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
     ['../src/lib/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../src/popup/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/options.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
     ['../src/options/options.js', 'surfaceIn(menu, centerOf(trigger));', 'surfaceOut(menu, centerOf(trigger));'],
+    // The chat composer's "…" — the last one still hard-cutting on both edges.
+    ['../src/popup/assistant.js', 'surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })',
+                                  'surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS })'],
   ];
   for (const [rel, opens, closes] of cases) {
     const s = src(rel);
@@ -343,6 +347,19 @@ test('every icon-anchored surface dusts from — and back into — its own contr
   // The logo's drag menu names the MARK as its point, not the menu's top-left corner.
   assert.match(src('../src/lib/logoDragMenu.js'),
     /placeMenu\(r\.left, r\.bottom \+ 6, \{ x: r\.left \+ r\.width \/ 2, y: r\.top \+ r\.height \/ 2 \}\)/);
+});
+
+// `hidden` is display:none, so there is nothing left to copy once it is set — the order
+// around each flight is the whole contract for this one.
+test('the composer "…" is unhidden before it forms, and hidden right after it leaves', () => {
+  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
+  const s = src.slice(src.indexOf('const setMoreOpen = (on) =>'));
+  assert.ok(s.indexOf('if (on) moreMenu.hidden = false;') < s.indexOf('surfaceIn(moreMenu'));
+  assert.ok(s.indexOf('surfaceOut(moreMenu') < s.indexOf('if (!on) moreMenu.hidden = true;'));
+  // Re-closing a closed menu (Escape with nothing up) must not raise a second cloud.
+  assert.match(s, /if \(on === !moreMenu\.hidden\) return;/);
+  // Every close path still goes through it.
+  assert.match(src, /const closeMore = \(\) => setMoreOpen\(false\);/);
 });
 
 test('a close is SYNCHRONOUS: the motes are the surface leaving, nothing waits on them', () => {

@@ -1,5 +1,6 @@
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "modalChrome.hpp"   // confirmModal — the browser-styled yes/no question
 #include "modalReveal.hpp"   // support::motionReduced()
 #include "pageMetrics.hpp"
 #include <QAbstractButton>
@@ -9,6 +10,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QEasingCurve>
+#include <QFileDialog>
 #include <QIcon>
 #include <QMessageBox>
 #include <QPainter>
@@ -55,14 +57,23 @@ namespace stencil::gui {
         "QToolButton:hover{background:rgba(94,102,124,245);}");
   }
 
+  QString showSaveDialog(QWidget* parent, const QString& title,
+                         const QString& suggested, const QString& filter) {
+    QFileDialog dlg(parent, title, suggested, filter);
+    dlg.setAcceptMode(QFileDialog::AcceptSave);
+    dlg.setFileMode(QFileDialog::AnyFile);
+    dlg.setOption(QFileDialog::DontUseNativeDialog, true);
+    if (dlg.exec() != QDialog::Accepted || dlg.selectedFiles().isEmpty()) return QString();
+    return dlg.selectedFiles().first();
+  }
+
   bool confirmYesNo(QWidget* parent, const QString& title, const QString& text) {
-    QMessageBox box(parent);
-    box.setWindowTitle(title);
-    box.setText(text);
-    box.setIcon(QMessageBox::NoIcon);   // the app's modals carry no platform glyph
-    box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    box.setDefaultButton(QMessageBox::No);
-    return box.exec() == QMessageBox::Yes;
+    // The browser's styled confirm (modalChrome confirmModal), not a native
+    // QMessageBox — every yes/no question in the app wears the same shell.
+    ConfirmSpec spec;
+    spec.title = title;
+    spec.message = text;
+    return confirmModal(parent, spec);
   }
 
   QDialogButtonBox* makeButtonBox(QDialog* parent,
@@ -70,17 +81,25 @@ namespace stencil::gui {
     auto* box = new QDialogButtonBox(buttons, parent);
     QObject::connect(box, &QDialogButtonBox::accepted, parent, &QDialog::accept);
     QObject::connect(box, &QDialogButtonBox::rejected, parent, &QDialog::reject);
-    // Only the affirmative action (Ok/Save/Yes/Apply) gets the accent #primaryButton
-    // look; otherwise a Close-/Cancel-only box auto-promotes its lone button to a CTA.
+    // Only the affirmative action (Ok/Save/Yes/Apply) gets the accent CTA look
+    // (theme.cpp QPushButton[accentCta="true"]); otherwise a Close-/Cancel-only box
+    // auto-promotes its lone button to a CTA.
     for (QAbstractButton* btn : box->buttons()) {
       const QDialogButtonBox::ButtonRole role = box->buttonRole(btn);
       const bool primary = role == QDialogButtonBox::AcceptRole ||
                            role == QDialogButtonBox::YesRole ||
                            role == QDialogButtonBox::ApplyRole;
-      btn->setObjectName(primary ? QStringLiteral("primaryButton") : QString());
+      if (primary) btn->setProperty("accentCta", true);
       if (auto* pb = qobject_cast<QPushButton*>(btn)) {
         pb->setDefault(primary);
         pb->setAutoDefault(primary);
+        // Browser parity: every confirm-style button wears its glyph — ✓ on the
+        // affirmative CTA (white on the accent fill), ✕ on Cancel/Close (the
+        // text colour; browser confirmModal / .app-modal-close do the same).
+        if (primary)
+          pb->setIcon(themedIcon("check", QColor("#ffffff"), 14));
+        else if (box->buttonRole(pb) == QDialogButtonBox::RejectRole)
+          pb->setIcon(themedIcon("x", parent->palette().color(QPalette::WindowText), 14));
       }
     }
     return box;
@@ -125,8 +144,11 @@ namespace stencil::gui {
     const QString bg = QString("rgba(%1,%2,%3,%4)")
                            .arg(color.red()).arg(color.green()).arg(color.blue())
                            .arg(color.alphaF(), 0, 'f', 3);
-    btn->setStyleSheet(QString("QPushButton { background: %1; border: 1px solid %2; border-radius: 6px; }"
-                               "QPushButton:hover { border: 1px solid palette(highlight); }")
+    // QAbstractButton, not QPushButton: a QSS type selector does NOT match sibling
+    // classes, so the open-image dialog's QToolButton swatch rendered unstyled
+    // (an invisible white chip on a white dialog).
+    btn->setStyleSheet(QString("QAbstractButton { background: %1; border: 1px solid %2; border-radius: 6px; }"
+                               "QAbstractButton:hover { border: 1px solid palette(highlight); }")
                            .arg(bg, outline));
   }
 

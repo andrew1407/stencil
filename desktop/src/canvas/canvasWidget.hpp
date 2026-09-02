@@ -96,6 +96,11 @@ namespace stencil::gui {
     // Brand-accent preset key (theme.hpp accentPresets); recolours the rubber-band
     // previews to match the rest of the app.
     void setAccent(const QString& accentKey);
+    // Highlight styles (browser DEFAULT_VISUALS.selGlowColor/hoverRingColor/
+    // focusRingColor, Settings-backed) — override the Palette's theme-derived
+    // defaults so a user's choice actually shows on the canvas.
+    void setHighlightColors(const QColor& selGlow, const QColor& hoverRing,
+                            const QColor& focusRing);
 
     // Selection panel support: the line whose points are shown, and the focused
     // point within it (-1 = none).
@@ -158,6 +163,9 @@ namespace stencil::gui {
     // left/top, current edit on the right/bottom). Transient view state, never saved.
     void setCompareMode(const QString& mode);
     const QString& compareMode() const { return compareMode_; }
+    // True while a split compare view (vertical/horizontal) is actually showing —
+    // the single source of truth MainWindow/DataExportController both gate on.
+    bool isSplitCompare() const { return compareMode_ == "vertical" || compareMode_ == "horizontal"; }
     void setCompareSplit(double fraction);      // divider position 0..1
     double compareSplit() const { return compareSplit_; }
     // Alt+Shift+O momentary "peek at the original" override (shown while held).
@@ -178,15 +186,30 @@ namespace stencil::gui {
     bool compareShowsEdited(double imageX, double imageY) const;
 
     // ── render-to-image + image accessors ──
-    // Native-resolution render of the (filtered) image; overlay draws the lines
-    // honoring the current show flags when `withOverlay` is true.
+    // Native-resolution render of an export variant — mirrors the browser's
+    // exportService.js renderExportCanvas/renderSplitExportCanvas:
+    //   "current"  (default) — active filter/tint + visible lines/points, honoring the
+    //               current show flags (the original single-arg behavior below)
+    //   "original" — the cropped+rotated original alone: no filter, no annotations
+    //   "tint"     — active filter/tint, but no lines/points
+    //   "split"    — the split-compare composite (edited half + original half); only
+    //               meaningful while a split compare view is active. `withDivider`
+    //               bakes the movable divider bar in (download) or leaves a clean
+    //               split with no divider element (clipboard copy while comparing).
+    QImage renderToImage(const QString& variant, bool withDivider = false) const;
+    // Back-compat convenience most call sites use: true == "current" (filter + overlay),
+    // false == "tint" (filter only, no overlay) — the two forms this call originally took.
     QImage renderToImage(bool withOverlay) const;
     const QImage& image() const { return image_; }
     QString imageBaseName() const;
     QString imageExt() const;
     // Adopt an in-memory image (clipboard paste / generated): replaces the
     // current image, clears the file path, and resets lines/history/scale.
-    void loadFromImage(const QImage& img);
+    // `keepZoom` skips the scale reset — a blank recolor (applyBlankColor)
+    // regenerates the SAME dimensions in place, so there is nothing to refit and
+    // resetting anyway threw away whatever zoom/pan the user had (browser parity:
+    // drawingApp.js loadImageFromFile's opts.keepZoom).
+    void loadFromImage(const QImage& img, bool keepZoom = false);
     // Adopt an in-memory image with a known geometry (a reopened server project):
     // applies rotation FIRST, then the crop (which lives in rotated-original space),
     // mirroring restore() for the in-memory case. A zero-width crop default-crops.
@@ -233,10 +256,17 @@ namespace stencil::gui {
    signals:
     void hovered(double imageX, double imageY);  // image-space cursor position
     // Richer hover for the tooltip: image-space pos + global cursor +
-    // modifier flags, emitted alongside hovered() on mouse move.
+    // modifier flags, emitted alongside hovered() on mouse move. `immediate` is true only
+    // from refreshHoverForModifiers() — Shift/Ctrl changing what's shown for the SAME
+    // hover updates at once (browser: tooltip.js refresh()); an ordinary mouse move
+    // (immediate=false, the default) waits out MainWindow's reveal delay instead.
     void hoverDetail(double imageX, double imageY, const QPoint& globalPos,
-                     Qt::KeyboardModifiers mods);
+                     Qt::KeyboardModifiers mods, bool immediate = false);
     void hoverLeft();  // cursor left the canvas -> hide tooltip
+    // The pointer really LEFT the canvas widget (leaveEvent) — unlike hoverLeft,
+    // which drags/pans also emit mid-canvas just to drop the tooltip. The coord
+    // readout clears on this one (browser parity: mouseleave empties #coord-status).
+    void canvasLeft();
     // The point/line under the canvas cursor changed (all -1 = nothing hovered).
     // lineIdx -1 with a valid ptIdx = a point of the in-progress line; overLineIdx
     // is the committed line under the cursor (point hit or stroke hit) for the
@@ -328,9 +358,12 @@ namespace stencil::gui {
     const core::Point* holdAnchor() const;
 
     // Compare view (port of renderer.js drawCompareSplit + pointerController divider drag).
-    // Paint the untouched original over the "original" half of a split and draw the movable
-    // divider; hit-test the divider in widget space for the drag.
-    void paintCompareSplit(QPainter& p, const QString& mode) const;
+    // Paint the untouched original over the "original" half of a split and, unless
+    // `withDivider` is false (the export path's clean split), the movable divider on
+    // top. Scale-parameterized like drawLineScaled: the live view passes scale_, a
+    // renderToImage("split") export passes 1.0. Hit-testing the divider drag stays in
+    // widget space (nearCompareDivider), which always means the live view's scale_.
+    void paintCompareSplit(QPainter& p, const QString& mode, double scale, bool withDivider = true) const;
     bool nearCompareDivider(const QPoint& widgetPos) const;
     // What the compare "original" side shows: the raw pixels for a picture, but a
     // BLANK page as currently coloured (fill + tint) — there is no earlier
@@ -415,6 +448,11 @@ namespace stencil::gui {
     void setIdleCardHover(bool on);
     bool dark_ = false;
     QString accentKey_ = "violet";  // brand accent for the rubber-band previews
+    // Highlight styles (Settings-backed; DEFAULT_VISUALS' own values until
+    // setHighlightColors is called, so an unwired build/test keeps the old look).
+    QColor selGlow_{"#ffc800"};
+    QColor hoverRing_{"#7c3aed"};
+    QColor focusRing_{"#7c3aed"};
 
     // Selected committed-line index (-1 = none) + draw-mode/rect state.
     // Canonical owner; filters/render/line-edit only consume selectedLineIdx_.

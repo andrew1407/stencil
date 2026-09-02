@@ -11,10 +11,10 @@ import {
   FLIP_MS, FLIP_EASING, FLIP_ACTIVE_CLASS,
   themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
   originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
-  dustDelay, dustEase, ghostIn, ghostOut, hasPixels, tileNoise,
+  dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, hasPixels, tileNoise,
+  DUST_CELL_PX, DUST_MAX_PARTICLES,
   playCanvasArrival, ASSEMBLING_CLASS, CLEARING_CLASS, GHOST_MS,
-  createFilterAnimator, FILTER_LEAVING_CLASS, FILTER_ENTERING_CLASS, FILTER_LEAVE_MS,
-  LEAVE_MS as LEAVE_MS_REF,
+  createFilterAnimator, FILTER_ENTERING_CLASS, FILTER_ENTER_MS,
 } from '../js/ui/motion.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
@@ -304,6 +304,74 @@ test('a mote covers most of its flight early and settles', () => {
   for (let k = 0.1; k < 1; k += 0.1) assert.ok(dustEase(k) > dustEase(k - 0.1), 'monotonic');
 });
 
+// ── Mote size must not follow the zoom ──────────────────────────────────────
+// Zoom scales the canvas's CSS box, not the viewport frame. Regression: the grid was
+// laid over the WHOLE canvas box, so a zoomed-in canvas tripped the particle ceiling
+// and the thinning loop handed back big flakes — mote size rose with the zoom level.
+// Clipping to the frame first keeps the grid viewport-bounded at any zoom.
+test('the dust grid over the visible slice is the same at any zoom', () => {
+  const frame = box(0, 0, 800, 600);
+  const fitted = dustVisibleBox(box(0, 0, 800, 600), frame);        // 100%
+  const zoomed = dustVisibleBox(box(-1600, -1200, 4000, 3000), frame); // 500%, panned
+  assert.deepEqual(fitted, { left: 0, top: 0, width: 800, height: 600 });
+  assert.deepEqual(zoomed, fitted, 'only the slice inside the frame plays');
+  assert.deepEqual(dustGrid(zoomed.width, zoomed.height),
+    dustGrid(fitted.width, fitted.height), 'so the grid — and the mote size — match');
+  // The old whole-box grid is what coarsened the motes: at 500% it is much sparser.
+  const whole = dustGrid(4000, 3000);
+  const vis = dustGrid(800, 600);
+  assert.ok(4000 / whole.cols > 3 * (800 / vis.cols), 'gridding the whole box gives big flakes');
+});
+
+test('dustVisibleBox clips each edge independently', () => {
+  const frame = box(100, 50, 400, 300);
+  assert.deepEqual(dustVisibleBox(box(150, 80, 100, 100), frame),
+    { left: 150, top: 80, width: 100, height: 100 }, 'fully inside: untouched');
+  assert.deepEqual(dustVisibleBox(box(0, 0, 1000, 1000), frame),
+    { left: 100, top: 50, width: 400, height: 300 }, 'covering the frame: the frame');
+  const off = dustVisibleBox(box(600, 50, 100, 100), frame);
+  assert.ok(off.width <= 0, 'scrolled clean out of the frame: nothing left to play');
+});
+
+// The stage lives INSIDE the scrolling viewport, so a scroll would carry it away from
+// the frame. Regression: a project restore jumps to its saved scroll right after the
+// arrival goes up, and at high zoom that moved the whole cloud off-screen — the exact
+// "no animation at all at extreme zoom" report. The pin keeps it over the frame.
+test('a scroll under a flying stage re-anchors it to the frame', () => {
+  const listeners = {};
+  const host = {
+    scrollLeft: 0, scrollTop: 0,
+    addEventListener: (ev, fn) => { listeners[ev] = fn; },
+    removeEventListener: (ev) => { delete listeners[ev]; },
+  };
+  const stage = { style: {} };
+  const unpin = pinDustStage(stage, host, 10, 20);
+  host.scrollLeft = 35232; host.scrollTop = 50516;   // the restore's saved-scroll jump
+  listeners.scroll();
+  assert.equal(stage.style.left, '35242px', 'base offset + the new scroll');
+  assert.equal(stage.style.top, '50536px');
+  unpin();
+  assert.ok(!listeners.scroll, 'removed with the stage — no listener left on the viewport');
+});
+
+test('the restore sets the saved scroll BEFORE raising the arrival, in the same tick', () => {
+  const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  const scrollAt = src.indexOf('vp.scrollLeft = layout.scrollLeft');
+  const arrivalAt = src.indexOf('playCanvasArrival(this.app.canvas)');
+  assert.ok(scrollAt > -1 && arrivalAt > -1 && scrollAt < arrivalAt,
+    'saved scroll applied before the dust snapshots the view');
+  assert.ok(!/requestAnimationFrame[\s\S]{0,200}vp\.scrollLeft/.test(src),
+    'and not deferred a frame — that jumped the viewport out from under the cloud');
+});
+
+test('dustGrid aims at DUST_CELL_PX and respects the particle ceiling', () => {
+  const small = dustGrid(300, 240);
+  assert.equal(small.cols, Math.round(300 / DUST_CELL_PX));
+  assert.equal(small.rows, Math.round(240 / DUST_CELL_PX));
+  const big = dustGrid(3000, 2400);
+  assert.ok(big.cols * big.rows <= DUST_MAX_PARTICLES, 'thinned under the ceiling');
+});
+
 test('ghostOut declines the same way, so the emptied editor is not held back for nothing', () => {
   assert.equal(ghostOut(null), false, 'no canvas');
   assert.equal(ghostOut({ width: 0, height: 0 }), false, 'nothing to snapshot');
@@ -420,11 +488,24 @@ test('animations.css: one trigger drives every icon, and the generic tilt is gon
   const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
   assert.ok(!/rotate\(-7deg\) scale\(1\.14\)/.test(css),
     'the one-size-fits-all tilt+swell must not come back');
-  const hover = css.match(/^[^{}]*:hover\s*\n\s*:is\(\.ic, \.draw-mode-icon, \.ic \*, \.draw-mode-icon \*\) \{([^}]*)\}/m);
-  assert.ok(hover, 'the icon-hover trigger exists and reaches the PARTS, not just the glyph');
-  assert.match(hover[1], /--ic-on: 1;/, 'it flips the hold latch');
-  assert.match(hover[1], /animation-name: var\(--ic-play, none\);/, 'and starts the settle play');
-  assert.ok(!/transform:/.test(hover[1]),
+  // Two selector branches sharing one declaration block, not two rules: a plain
+  // descendant match for controls that can never nest a submenu, and a SCOPED
+  // (`> .ctx-icon`/`> .ctx-check`) branch for `.ctx-item` — which CAN carry a nested
+  // `.ctx-sub` flyout as a DOM child (Image / Layout, Copy Image, Style, …), so a plain
+  // descendant match there reached every icon inside that flyout the instant the OUTER
+  // row was hovered, not just the row the pointer was actually on.
+  const triggerStart = css.indexOf(':is(button, .btn-icon');
+  assert.ok(triggerStart >= 0, 'the icon-hover trigger exists');
+  const triggerBraceAt = css.indexOf('{', triggerStart);
+  const selector = css.slice(triggerStart, triggerBraceAt);
+  const body = css.slice(triggerBraceAt + 1, css.indexOf('}', triggerBraceAt));
+  assert.match(selector, /:hover\s*\n\s*:is\(\.ic, \.draw-mode-icon, \.ic \*, \.draw-mode-icon \*\)/,
+    'the general branch reaches the PARTS, not just the glyph');
+  assert.match(selector, /\.ctx-item:not\(\.is-loading\):not\(\.swapping\):not\(\[id\^="toggle-"\]\):hover\s*\n\s*> :is\(\.ctx-icon, \.ctx-check\)/,
+    "a submenu parent's hover reaches only its OWN icon, never a nested flyout's");
+  assert.match(body, /--ic-on: 1;/, 'it flips the hold latch');
+  assert.match(body, /animation-name: var\(--ic-play, none\);/, 'and starts the settle play');
+  assert.ok(!/transform:/.test(body),
     'the trigger itself moves nothing — the per-icon rules do');
   // The fold chevrons opt out as an ATTRIBUTE, so the rule stays at class specificity
   // and the reduced-motion override below can still outrank it.
@@ -745,10 +826,15 @@ test('the panel folds are an ease-out, and hold visibility for the whole fold', 
   assert.ok(y1 > 0.5 && y2 === 1, `--fold-ease ${token('fold-ease')}: leaves at speed, settles at the end`);
   const foldMs = Number(/(\d+)ms/.exec(token('fold-ms'))[1]);
   assert.ok(foldMs >= 300, 'the fold is the slower, settling kind');
+  // …and COLLAPSING is slower still: with no icon to shrink into, the fold itself is the
+  // only thing that reads as the menu leaving, so a brisk exit registers as a snap.
+  const foldOutMs = Number(/(\d+)ms/.exec(token('fold-out-ms'))[1]);
+  assert.ok(foldOutMs > foldMs, `--fold-out-ms ${foldOutMs} outlasts the way back in`);
   // visibility is what takes the collapsed toolbar out of the tab order; released EARLY
-  // it blinks out mid-fold, and the fold animates against nothing.
+  // it blinks out mid-fold, and the fold animates against nothing — so the delay has to be
+  // the COLLAPSE's own duration, which is the one this rule is the after-change style for.
   const hidden = css.slice(css.indexOf('#controls-body.hidden {'));
-  assert.match(hidden.slice(0, hidden.indexOf('}')), /visibility 0s linear var\(--fold-ms\)/,
+  assert.match(hidden.slice(0, hidden.indexOf('}')), /visibility 0s linear var\(--fold-out-ms\)/,
     'the visibility delay must be the fold duration itself, not a copied constant');
   // Every collapsing part opts out under reduced motion.
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {\n    #controls-body'));
@@ -863,10 +949,10 @@ test('theme mode: the pre-paint script and the app agree on what "system" means'
 });
 
 // ── Filtering a list (createFilterAnimator) ─────────────────────────────────
-// Filtering is SYMMETRIC and is not a removal: rows the filter drops collapse out
-// (the light .filter-leaving, never the delete's scatter), the list re-renders, and
-// rows it reveals fade in. render() always runs exactly once — the rendered set is
-// never allowed to depend on the decoration.
+// A filter is a QUESTION being re-answered, not a removal: what no longer matches is
+// simply gone the moment the list rebuilds, and the whole effect belongs to the rows
+// that are LEFT, which arrive as the new answer. render() runs exactly once per call,
+// FIRST — the set you can see never depends on the decoration.
 
 test('filterDelta: what a change drops, reveals, and whether it merely moved', async () => {
   const { filterDelta } = await import('../js/ui/motion.js');
@@ -924,42 +1010,42 @@ const filterRig = ({ shown = [], reduced = false } = {}) => {
   return rig;
 };
 
-test('a filter change plays OUT, then re-renders, then plays IN', async () => {
+test('a filter change re-renders FIRST, then plays the rows that are LEFT in', async () => {
   const rig = filterRig({ shown: ['a', 'b', 'c'] });
   rig.nextKeys = ['b', 'd'];
-  const done = rig.run();
-  // Before the timer: the dropped rows are leaving and the list is untouched.
-  assert.ok(rig.classesOf('a').has(FILTER_LEAVING_CLASS), 'the filtered-out row collapses');
-  assert.ok(rig.classesOf('c').has(FILTER_LEAVING_CLASS));
-  assert.ok(!rig.classesOf('b').has(FILTER_LEAVING_CLASS), 'a surviving row is untouched');
-  assert.strictEqual(rig.renders, 0, 'the rebuild waits for the leave — rows vanished mid-air before');
-  rig.flush();
-  await done;
-  assert.strictEqual(rig.renders, 1, 'exactly one rebuild');
-  assert.ok(rig.classesOf('d').has(FILTER_ENTERING_CLASS), 'the revealed row fades in');
-  assert.ok(!rig.classesOf('b').has(FILTER_ENTERING_CLASS), 'a row that was already there does not');
+  await rig.run();
+  assert.strictEqual(rig.renders, 1, 'exactly one rebuild, and nothing waited on it');
+  assert.deepEqual(rig.keys, ['b', 'd'], 'the new answer is on screen at once');
+  // Every row that is LEFT arrives — the filtered set is what changed, not just the
+  // rows that happen to be new to it.
+  assert.ok(rig.classesOf('d').has(FILTER_ENTERING_CLASS), 'the revealed row arrives');
+  assert.ok(rig.classesOf('b').has(FILTER_ENTERING_CLASS), '…and so does the one that survived');
   rig.flush();
   assert.ok(!rig.classesOf('d').has(FILTER_ENTERING_CLASS), 'and the class is cleaned up after');
+  assert.ok(!rig.classesOf('b').has(FILTER_ENTERING_CLASS));
 });
 
-test('a filter that only REVEALS rows renders immediately (nothing to play out first)', async () => {
+test('what the filter DROPS never plays at all — it is simply not the answer any more', async () => {
+  const rig = filterRig({ shown: ['a', 'b'] });
+  rig.nextKeys = ['b'];
+  await rig.run();
+  const classes = rig.classesOf('a');
+  assert.strictEqual(classes.size, 0, 'the excluded row is untouched: no exit to watch');
+  assert.ok(!classes.has('leaving'), 'the destructive collapse belongs to a real removal');
+  assert.ok(!classes.has('materializing'), 'and the dust gather to a real add');
+  // What tells a filter apart from a removal is its SHAPE, not its speed: no
+  // destructive scatter, no collapsing slot, nothing played on the way out at all —
+  // so the arrival is free to take its own time, slow enough to actually read.
+  assert.ok(FILTER_ENTER_MS >= 300, 'slow enough to read as a deliberate settle, not a flicker');
+});
+
+test('a filter that only REVEALS rows plays the whole set in too', async () => {
   const rig = filterRig({ shown: ['a'] });
   rig.nextKeys = ['a', 'b'];
   await rig.run();
   assert.strictEqual(rig.renders, 1);
   assert.ok(rig.classesOf('b').has(FILTER_ENTERING_CLASS));
-  assert.ok(!rig.classesOf('a').has(FILTER_ENTERING_CLASS));
-});
-
-test('a filtered-out row never plays the DELETE effect', async () => {
-  const rig = filterRig({ shown: ['a', 'b'] });
-  rig.nextKeys = ['b'];
-  rig.run();
-  const classes = rig.classesOf('a');
-  assert.ok(classes.has(FILTER_LEAVING_CLASS));
-  assert.ok(!classes.has('leaving'), 'the destructive collapse belongs to a real removal');
-  assert.ok(!classes.has('materializing'), 'and the dust gather to a real add');
-  assert.ok(FILTER_LEAVE_MS < LEAVE_MS_REF, 'the filter leave is the quicker of the two');
+  assert.ok(rig.classesOf('a').has(FILTER_ENTERING_CLASS));
 });
 
 test('a sort switch (same rows, new order) settles the whole list back in', async () => {
@@ -977,7 +1063,7 @@ test('a change that moves nothing just renders — no flash', async () => {
   await rig.run();
   assert.strictEqual(rig.renders, 1, 'the rebuild still happens (the row CONTENT may differ)');
   assert.ok(!rig.classesOf('a').has(FILTER_ENTERING_CLASS));
-  assert.ok(!rig.classesOf('a').has(FILTER_LEAVING_CLASS));
+  assert.ok(!rig.classesOf('b').has(FILTER_ENTERING_CLASS));
 });
 
 test('reduced motion: straight to the re-render, no classes at all', async () => {
@@ -990,29 +1076,25 @@ test('reduced motion: straight to the re-render, no classes at all', async () =>
   assert.strictEqual(rig.classesOf('b').size, 0);
 });
 
-test('fast typing: a change landing mid-animation renders NOW, and never drops rows', async () => {
+test('fast typing: every keystroke renders NOW, and never drops rows', async () => {
   const rig = filterRig({ shown: ['a', 'b', 'c'] });
-  rig.nextKeys = ['a', 'b'];        // keystroke 1 — 'c' starts leaving
-  const first = rig.run();
-  assert.strictEqual(rig.renders, 0);
-  rig.nextKeys = ['a'];             // keystroke 2, mid-leave
+  rig.nextKeys = ['a', 'b'];        // keystroke 1
   await rig.run();
-  assert.strictEqual(rig.renders, 1, 'the newer set is on screen immediately');
-  assert.deepEqual(rig.keys, ['a']);
-  rig.flush();                      // the superseded leave's timer fires late
-  await first;
-  assert.strictEqual(rig.renders, 1, 'the stale transition re-renders nothing over it');
+  assert.strictEqual(rig.renders, 1, 'on screen immediately — there is no exit to wait on');
+  rig.nextKeys = ['a'];             // keystroke 2, hard on its heels
+  await rig.run();
+  assert.strictEqual(rig.renders, 2, 'and so is the next one');
   assert.deepEqual(rig.keys, ['a'], 'the final rendered set is the last one asked for');
+  rig.flush();                      // the enter clean-ups fire late, over nothing
+  assert.deepEqual(rig.keys, ['a']);
 });
 
-test('animations.css: the filter leave is lighter and quicker than the delete', () => {
+test('animations.css: a filter has an arrival and no exit at all', () => {
   const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
-  assert.match(css, /\.filter-leaving \{[^}]*animation: rowFilterOut 0\.15s/,
-    'quicker than .leaving’s 0.22s — a filter is not a removal');
-  assert.match(css, /@keyframes rowFilterOut \{[\s\S]*?max-height: 0/, 'and it collapses the row');
-  assert.match(css, /\.filter-entering \{\s*animation: rowFilterIn 0\.2s/);
+  assert.ok(!/\.filter-leaving/.test(css), 'nothing plays a filtered-out row out any more');
+  assert.ok(!/rowFilterOut/.test(css), '…and its keyframes are gone with it');
+  assert.match(css, /\.filter-entering \{\s*animation: rowFilterIn 0\.34s/);
   assert.match(css, /@keyframes rowFilterIn \{\s*from \{ opacity: 0; transform: translateY\(-4px\); \}/,
-    'the arrival is the exit reversed — the two must be symmetric');
-  assert.ok(!/\.filter-leaving[^}]*disintegrate/.test(css), 'no dust: nothing was destroyed');
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.filter-leaving, \.filter-entering \{ animation: none; \}/);
+    'the rows that are left arrive — that is the whole effect');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.filter-entering \{ animation: none; \}/);
 });

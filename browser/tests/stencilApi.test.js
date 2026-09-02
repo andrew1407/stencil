@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFetchStub } from './helpers/fetchStub.js';
-import { installDom } from './helpers/dom.js';
+import { installDom, createStubElement } from './helpers/dom.js';
 
 // Inert DOM stubs so the few document/window-touching paths (closeModals, color canvas,
 // the links-modal refresh event) stay no-ops instead of throwing under node --test.
@@ -19,8 +19,15 @@ globalThis.window.dispatchEvent = globalThis.window.dispatchEvent ?? (() => {});
 // driven by a flag the toggleFullscreen mock flips, so move/fullscreen are observable.
 const viewport = { scrollLeft: 0, scrollTop: 0 };
 let bodyFullscreen = false;
+// The two transcripts stencil.chat.swapSides restamps — real classList.toggle so the
+// applied class is observable.
+const chatTranscript = createStubElement();
+const ctxAssistTranscript = createStubElement();
 installDom({
-  getElementById: (id) => (id === 'canvas-viewport' ? viewport : null),
+  getElementById: (id) => (id === 'canvas-viewport' ? viewport
+    : id === 'chat-transcript' ? chatTranscript
+    : id === 'ctx-assist-transcript' ? ctxAssistTranscript
+    : null),
   body: { classList: { contains: (c) => c === 'fullscreen-mode' && bodyFullscreen } },
 });
 
@@ -1034,4 +1041,18 @@ test('a failed fetch leaves the editor alone — the adoption never runs', async
   assert.equal(called(app, 'adoptIncognitoHere').length, 0);
   assert.equal(app.storage.incognito, false);
   assert.deepEqual(app.image, { width: 9, height: 9 });
+});
+
+test('chat.swapSides gets/sets the tab-session-only side and restamps both transcripts live', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+  assert.equal(stencil.chat.swapSides, false, 'default is normal, unswapped');
+  stencil.chat.swapSides = true;
+  assert.equal(stencil.chat.swapSides, true);
+  assert.ok(chatTranscript.classes.has('chat-swapped'), 'the panel transcript restamped immediately');
+  assert.ok(ctxAssistTranscript.classes.has('chat-swapped'), 'the ctx-assist transcript restamped too');
+  stencil.chat.swapSides = false;
+  assert.equal(stencil.chat.swapSides, false);
+  assert.ok(!chatTranscript.classes.has('chat-swapped'));
+  assert.ok(!ctxAssistTranscript.classes.has('chat-swapped'));
 });

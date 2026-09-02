@@ -5,7 +5,7 @@
 // Qt's tooltip is a private QTipLabel: QSS has no transitions, and there is no supported
 // hook to animate the label Qt shows. So QEvent::ToolTip is swallowed app-wide and this
 // frameless panel is shown in its place. Qt still owns the TIMING — a ToolTip event only
-// arrives after SH_ToolTip_WakeUpDelay (main.cpp pins it at 120 ms) — and the content is
+// arrives after SH_ToolTip_WakeUpDelay (main.cpp pins it at 200 ms) — and the content is
 // still tipContent's rendering, so nothing but the motion changes: the fade, plus one
 // brief shake of the KEYCAPS as a tip carrying them appears, to point at the shortcut
 // (browser/extension: .tip-key.key-shake). The panel itself never moves.
@@ -198,13 +198,11 @@ namespace stencil::gui {
                                             // (TipBody holds its steps — the CAPS move, not this)
     // ── The tooltip is sand too (browser js/ui/controlTooltip.js) ──────────────
     // It forms from motes streaming out of the control it describes and comes apart into
-    // motes pouring back into it — the same flight a dialog or a menu plays. Its own,
-    // short clock: a tooltip is re-pointed many times a second on a toolbar sweep, so a
-    // flight has to be over before the next control's begins.
-    static constexpr int kDustInMs = 260;
-    static constexpr int kDustOutMs = 190;
-    static constexpr double kDustHold = 0.55;   // browser: the surfaceForm stop
-    static constexpr int kDustHandOverMs = 60;  // …and surfaceLeave's, on the way out
+    // motes pouring back into it — on the shared tip clock (disintegrateOverlay.hpp):
+    // short, so a flight is over before a toolbar sweep reaches the next control.
+    static constexpr int kDustInMs = kTipDustInMs;
+    static constexpr int kDustOutMs = kTipDustOutMs;
+    static constexpr int kDustHandOverMs = gui::kDustHandOverMs;
     static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* kObjectName = "stencilAppTooltip";
 
@@ -276,11 +274,7 @@ namespace stencil::gui {
         if (dusted) {
           // The tip waits behind its own motes and fades up as the last of them land.
           setWindowOpacity(0.0);
-          fade_->setKeyValues({});
-          fade_->setDuration(kDustInMs);
-          fade_->setKeyValueAt(0.0, 0.0);
-          fade_->setKeyValueAt(kDustHold, 0.0);
-          fade_->setKeyValueAt(1.0, 1.0);
+          holdFadeKeys(fade_, kDustInMs);
         } else {
           fade_->setKeyValues({});
           fade_->setDuration(kFadeMs);
@@ -349,23 +343,17 @@ namespace stencil::gui {
 
    private:
     // Fly the tooltip's own motes out of — or back into — the control it describes.
-    // Drawn inside that control's window, since the overlay is a child widget; without
-    // one (or when the box is too small to grain) the plain fade above stands in.
+    // Measured in that control's window (escapeHost lets the cloud past its edge, as a
+    // tip near it goes); without one, or a box too small to grain, the fade above stands in.
     bool dust(bool gather) {
       QWidget* owner = owner_.data();
-      QWidget* host = owner ? owner->window() : nullptr;
-      if (!host || !host->isVisible() || !owner->isVisible()) return false;
-      const QRect target(mapToGlobal(QPoint(0, 0)), size());
-      if (target.width() < 8 || target.height() < 8) return false;
-      const QPixmap shot = grab();
-      if (shot.isNull()) return false;
-      const QRect box(host->mapFromGlobal(target.topLeft()), target.size());
-      const QPoint point = host->mapFromGlobal(owner->mapToGlobal(owner->rect().center()));
-      // Lifted towards the tip's own text colour, so its motes read against the window
-      // behind them whatever the theme is (DisintegrateOverlay::kSurfaceInkMix).
-      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, gather,
-                                                   gather ? kDustInMs : kDustOutMs,
-                                                   palette().color(QPalette::WindowText))
+      if (!owner || !owner->isVisible()) return false;
+      // paintNow on a close: the panel hands over in one 60ms beat, and a deferred
+      // first frame was exactly the gap in which the tip blinked out mote-less.
+      return flyTipDust(this, owner->window(),
+                        owner->mapToGlobal(owner->rect().center()), gather,
+                        gather ? kDustInMs : kDustOutMs,
+                        /*escapeHost=*/true, /*paintNow=*/!gather)
              != nullptr;
     }
 

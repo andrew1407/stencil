@@ -6,7 +6,7 @@ Comment=Load an image, draw polylines and rectangles over it, edit points, and s
 # %u passes a launcher/file-manager-selected file OR a stencil:// deep link as a
 # positional arg, opened by openPathFromOS / parseStencilUrl (image/video ->
 # editor, *.json -> layout, stencil://open?... -> deep link).
-Exec=stencil_gui %u
+Exec=stencil %u
 Icon=stencil
 Terminal=false
 Categories=Graphics;2DGraphics;RasterGraphics;
@@ -20,8 +20,8 @@ Actions=Incognito;Projects;
 
 [Desktop Action Incognito]
 Name=New Incognito Editor
-Exec=stencil_gui --incognito
+Exec=stencil --incognito
 
 [Desktop Action Projects]
 Name=Open Projects
-Exec=stencil_gui --projects
+Exec=stencil --projects

@@ -15,6 +15,7 @@
 #include <QMainWindow>
 #include <QString>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -45,6 +46,7 @@ class QDragMoveEvent;
 class QDragLeaveEvent;
 class QDropEvent;
 class QUrl;
+class QGraphicsOpacityEffect;
 
 namespace stencil::net {
   class ConnectionManager;
@@ -66,6 +68,7 @@ namespace stencil::gui {
 
   class CanvasWidget;
   class SelectionPanel;
+  class SelectedLineBar;
   class Notifications;
   class CanvasTooltip;
   class IncognitoOverlay;
@@ -76,6 +79,7 @@ namespace stencil::gui {
   class RemoteSyncController;
   class RemoteSession;
   class ProjectTransferController;
+  class DisintegrateOverlay;
   struct LaunchOptions;
 
   class MainWindow : public QMainWindow {
@@ -140,12 +144,24 @@ namespace stencil::gui {
     // line colour it inherits (core pointColorOr). Paints the Points swatch.
     QColor effectiveDefaultPointColor() const;
     void showContextMenu(const QPoint& globalPos);
+    // Shows/hides actCopyImageSplit_/actSaveImageSplit_ ("With Compare") with
+    // the canvas's split-compare state, and moves the real Ctrl+C/Ctrl+Shift+D shortcut onto whichever
+    // of "Current"/"With Compare" is the primary gesture right now — see their
+    // declarations below for why. Called from every refresh point (refreshActions,
+    // syncContextActions) AND after a theme repaint (applyTheme), since styleActionIcons()
+    // would otherwise reset the split action's icon back to the static default.
+    void syncSplitCopyDownloadSlot();
     // Re-sync the persistent context-menu actions to the live canvas state
     // (enable flags, draw-mode label, point/thickness seeds, group checks,
     // tooltip rows). Called as the first statement of showContextMenu().
     void syncContextActions();
     void onHoverDetail(double imageX, double imageY, const QPoint& globalPos,
-                       Qt::KeyboardModifiers mods);
+                       Qt::KeyboardModifiers mods, bool immediate = false);
+    // Debounces the tooltip reveal by the target hovered (browser: tooltip.js
+    // scheduleShow); `immediate` (refreshHoverForModifiers) skips the wait outright.
+    void scheduleHoverShow(const QString& key, std::function<void()> revealFn, bool immediate);
+    // Drops the tooltip and any pending reveal for it.
+    void hideHoverTooltip();
     // Data actions (S9): the layout JSON export/import + clipboard + image save/copy methods live
     // in DataExportController (dataExport_). pasteImage() stays here — it creates a project — and
     // delegates its JSON-text fallback to dataExport_->pasteLayout().
@@ -160,6 +176,24 @@ namespace stencil::gui {
     // draw-mode bridge). Mirrors the wiring done in browser/js/ui/contextMenu.js
     // wire() (~112-605). Called once, right after buildActions().
     void buildContextActions();
+    // Build the two toolbar buttons' export-options popups (Copy Image / Download Image
+    // variants) — double-click / right-click opens, Alt+hover on a row previews it. Called
+    // once, right after buildToolbar() (needs the buttons, resolved via buttonForAction).
+    void wireExportOptionsPopups();
+    // Wire the Alt+hover live preview (support/exportPreview.hpp) onto one export-variant
+    // menu — shared by the nested context-menu submenus and the toolbar popups above.
+    void wireExportPreviewHover(QMenu* menu);
+    // Fill one Copy/Download Image variant menu (split · current-row · the two fixed
+    // variants) and wire its preview hover — the ONE row order every surface shows
+    // (context menu, Data menu, toolbar popups).
+    void populateExportVariantMenu(QMenu* menu, bool copy);
+    // The export actions' enable/visibility gating + the split-shortcut swap, computed
+    // from the live canvas/settings state — shared by refreshActions, syncContextActions
+    // and applyImageFilter.
+    void syncExportActions();
+    // The rendered preview image for one export-variant QAction (maps the action pointer
+    // back to its variant string). Null if `act` isn't one of ours.
+    QImage exportVariantPreviewImage(QAction* act) const;
     void buildMenus();
     // Put the menu bar where settings_.nativeMenuBar says. Qt only reads the flag
     // when the bar is (re)created, so switching it at runtime rebuilds the menus.
@@ -192,6 +226,8 @@ namespace stencil::gui {
     // Pin the info row to the taller of its two states so the passive incognito
     // indicator can never reflow the window (canvas, points panel, rows below).
     void reserveImageInfoHeight();
+    // Locks imageInfoDock_'s own height to its content's — see the .cpp for why.
+    void syncImageInfoDockHeight();
     QPixmap makeLogoPixmap(int size) const;            // paint the mini S-mark logo (browser parity)
     // Logo accent-preset picker: a popover DIALOG opened via execMaybePopover, so the
     // Alt-peek/glide/release machinery treats it exactly like every other popover.
@@ -246,13 +282,67 @@ namespace stencil::gui {
     void syncToastInset();                // keep the toast stack clear of the status bar
     void updatePanelReopenButton();     // show/hide + place the floating right-edge re-open chevron
     void positionPanelReopenButton();   // position it flush to the canvas' right edge, vertically centred
+    void positionPanelGrip();           // place the animated canvas↔panel separator grip (dockGrip.hpp)
     void setPanelShown(bool show, bool animate);      // animated points-panel collapse/expand
+    // The points panel is a surface too (browser mainContent.js parity): its table pours
+    // out past the edge it is docked to and gathers back out of it, behind a veil
+    // (panelVeil_) so the motes ARE the panel rather than a cloud over a visible slide.
+    // The snapshot is taken at `full`, whichever way the slide is about to run. Null when
+    // nothing played (reduced motion, headless, an unmeasurable box).
+    QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
+    void releasePanelVeil();            // drop that veil (finish step, or a superseding toggle)
+    // …and the same for the collapsing TOOL ROWS (browser toolbar.js): they fold as one
+    // block, so the flight is over their UNION rect, streaming past the window's top
+    // edge. No veil — animateBarsHeight stays a pure geometry slide on purpose.
+    QPointer<gui::DisintegrateOverlay> barsSurfaceFlight(const QList<class QToolBar*>& bars,
+                                                         bool gather, int ms);
+    // The "Selected Line:" bar's own flight (browser: selectionPanel.js surfaceIn/Out),
+    // called from onSelectionChanged() only on the hidden<->visible edge. In grabs the bar
+    // after the dock is shown; Out grabs it before the dock hides.
+    void dustSelectedLineBarIn();
+    void dustSelectedLineBarOut();
+    // Where those motes land: `barPicture`'s own centre for x, just under the "Image Size:
+    // …" row for y — see the .cpp for how `closing` predicts vs. reads that row's rect.
+    // Falls back to dockAwayPoint off `barPicture` if the row is unmeasurable.
+    QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
     // Animated chat-dock reveal/dismiss (browser panel parity: ~0.34 s in,
     // ~0.26 s out, ease-out). Slides the DOCKED extent — width for the
     // left/right areas, height for top/bottom — between 0 and its natural size
     // with the same min==max pinning setPanelShown uses, then hides at the end.
     // A floating dock is its own window, so it just shows/hides.
     void setChatShown(bool show, bool animate);
+    // Hold the points panel at a FIXED width for the length of a chat-dock flight that
+    // shares `chatArea` with it, so the slide eats into the CANVAS column only (browser
+    // parity) instead of letting Qt redistribute between the two docks. No-op when not
+    // sharing; stopChatAnim always releases the pin.
+    void pinPanelWhileSharing(Qt::DockWidgetArea chatArea);
+    // Re-split the panel and chat side-by-side when they share an L/R area AND the panel
+    // is visible (splitting against a hidden dock can park it off-screen). Called from
+    // wherever either dock's visibility changes. Idempotent.
+    void ensurePanelChatSplit();
+    // Pin the chat dock to a side (title bar buttons, a drag dropped on a dock zone,
+    // or toggleChatFloat's float→dock leg), animated via chatSurfaceFlight below.
+    void dockChatTo(Qt::DockWidgetArea area);
+    // A docked chat panel is ALSO a surface (setChatShown's own open/close play the
+    // same flight): motes stream out of (or into) the far side of the edge named by
+    // `area`, `gather` true for an arrival. `pin` is the caller's own width/height
+    // setter — the snapshot is taken at the panel's settled `full` extent regardless
+    // of which way `pin` is about to animate, then handed back to it. Builds the veil
+    // (chatVeil_) too, so the real dock stays invisible for the whole flight instead
+    // of visibly sliding under a full-brightness picture of itself. Shared by
+    // dockChatTo (side switches) and the title bar's Float toggle. Null when nothing
+    // played (reduced motion, an unmeasurable box) — the caller falls back to `pin` alone.
+    QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool gather, int ms,
+                                                         const std::function<void(int)>& pin, int full);
+    // The min==max pin on the chat dock's slide axis (width for L/R docks, height for
+    // T/B) — the `pin` every chat slide hands to chatSurfaceFlight/startExtentSlide.
+    std::function<void(int)> chatExtentPin(bool horiz);
+    // The title bar's Float button (browser chat-float-btn parity): animated, unlike
+    // QDockWidget::setFloating() alone — docked leaves through chatSurfaceFlight's dust
+    // the same way a side switch does, then the floating shape flies out of the icon
+    // (support::revealWindow); floating leaves through dismissWindow, then re-docks at
+    // the last area it held (dockChatTo), which plays its own arrival dust.
+    void toggleChatFloat();
     // The chat icon's popover gesture (dblclick / right-click, like every
     // dialog-opening icon): float the dock at its compact size pinned next to
     // the icon — the browser's compact chat (chatPanel.js compactChatRect).
@@ -313,8 +403,18 @@ namespace stencil::gui {
     void openSettings();
     // The chat dock's gear: the dedicated assistant-only dialog (browser
     // llmSettingsModal parity), writing the same llm* keys through the same
-    // applySettings path as the full Settings dialog.
-    void openAssistantSettings();
+    // applySettings path as the full Settings dialog. Kept as a distinctly named
+    // pair rather than an overload — &MainWindow::openAssistantSettings is taken
+    // by address in several connect()s, which needs it unambiguous.
+    void openAssistantSettings();  // the gear's own "…"-trigger anchor
+    // `anchor` is the button the dialog's dust flight belongs to — the
+    // unreachable card's "Configure provider" CTA, which (unlike the gear)
+    // stays on screen through the click. `anchorRect` (GLOBAL) is the fallback
+    // for a caller whose own button is ABOUT to be hidden (the context-menu
+    // mirror's gear/CTA: opening the dialog closes that popup first) — captured
+    // by the caller while the button was still visible, support::revealDialog
+    // parity with pickColorAnimated's own anchorRect fallback.
+    void openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect = QRect());
     // Build (once) the ChatMenuPanel hosted by the context menu's "Assistant ▸"
     // submenu — a persistent QWidgetAction, parented to the WINDOW, so the
     // transcript survives the menu being rebuilt on every right-click. Only ever
@@ -327,12 +427,16 @@ namespace stencil::gui {
     // is told onto the context-menu panel; each is a no-op until that panel
     // exists. No plan or execution logic lives here.
     void chatMirror(const QString& role, const QString& text, bool muted,
-                    const QString& retryText = QString(), const QStringList& notes = {});
+                    const QString& retryText = QString(), const QStringList& notes = {},
+                    bool configure = false);
     // Transcript error/notice lines fanned out to BOTH views. A non-empty
     // toastError additionally raises the hidden-dock failure toast
     // ("Assistant failed — <toastError>").
     void chatError(const QString& text, const QString& toastError = QString());
-    void chatNotice(const QString& text);  // muted "Assistant off" guidance
+    // A transport/config failure the user can fix by choosing a different
+    // provider (browser "unreachable" kind) — an error card with a "Configure
+    // provider" CTA instead of chatError's plain Retry.
+    void chatUnreachable(const QString& text, const QString& toastError = QString());
     void chatMirrorPending(bool show);  // add / remove the in-flight "…" row
     void chatMirrorStopped(const QString& retryText = QString());  // → a "Stopped." card
     // Can the user SEE a chat result right now? False while both surfaces are
@@ -363,6 +467,19 @@ namespace stencil::gui {
     void scheduleAutosave();
     void saveSessionNow();
     void restoreSession();
+    // Pan/zoom persistence (browser parity: storage.js's debounced scrollLeft/scrollTop/zoom
+    // save + "Saved" toast). Lighter than saveToActiveProject(): touches only the active
+    // project's view fields, not lines/crop/chat. scheduleViewSave() debounces every route
+    // (setZoom, the two scrollbars); saveActiveProjectView() runs once the burst settles.
+    void scheduleViewSave();
+    void saveActiveProjectView();
+    // Canvas scrollbars are invisible at rest, revealed only by an actual pan or zoom —
+    // driven from code via a QGraphicsOpacityEffect per bar (QSS can't express "hidden until
+    // an unrelated action, then fade out"). revealCanvasScrollbars() shows both and restarts
+    // the idle timer; scheduleScrollbarHide() is the shared restart path eventFilter's
+    // hover-suppress uses too.
+    void revealCanvasScrollbars();
+    void scheduleScrollbarHide();
     void openProjects();
     // Build id -> edited-result preview pixmaps for the local project list, shown as
     // the Projects dialog's row icons. Each is rendered through the same canvas/export
@@ -716,9 +833,9 @@ namespace stencil::gui {
     QString currentProjectColor() const;
     // Pop a colour picker seeded with the active project's colour, then apply it.
     void chooseProjectColor();
-    // Browser-like 🎨 popup: a menu offering "Choose colour…" (opens the picker) and
-    // "Use theme default colour" (enabled only when a custom colour is set) — instead of
-    // opening the picker directly.
+    // Browser-like 🎨 popup: with a custom colour set, a menu offering "Choose colour…"
+    // (opens the picker) and "Use theme default colour"; with none set the picker opens
+    // directly — there is nothing to clear.
     void showProjectColorMenu();
     // Set the ACTIVE editor's project colour (local id or server-linked session):
     // validates ("" = clear, else QColor(str).isValid() → "#rrggbb" lower-case),
@@ -786,9 +903,29 @@ namespace stencil::gui {
 
     // ── core widgets ──
     bool rKeyHeld_ = false;  // R held? gates the Alt+R+←/→ line-rotate chord
+    // Which arrow keys (+ Shift) are down, for diagonal keyboard panning (browser parity:
+    // controlsBinder.js wireArrowPan's #arrowsHeld). Two keys held deliver as two independent
+    // native auto-repeat streams, so combining them happens on our own tick (arrowPanTimer_).
+    bool panLeftHeld_ = false;
+    bool panRightHeld_ = false;
+    bool panUpHeld_ = false;
+    bool panDownHeld_ = false;
+    bool panShiftHeld_ = false;
+    QTimer* arrowPanTimer_ = nullptr;
     CanvasWidget* canvas_ = nullptr;
     QScrollArea* scroll_ = nullptr;
     SelectionPanel* selPanel_ = nullptr;
+    SelectedLineBar* selectedLineBar_ = nullptr;  // "Selected Line:" bar above the canvas
+    // Docked Qt::TopDockWidgetArea, not a QToolBar row: a top/bottom dock area spans the
+    // FULL window width the same way a toolbar row does (over the right Points/Lines dock
+    // too), but — unlike QToolBarLayout, which sizes an added widget to its own content
+    // regardless of size policy — a QDockWidget stretches its ONE content widget to fill
+    // its whole allocated area, which selectedLineBar_'s own FlowLayout needs to wrap
+    // against the bar's REAL width rather than a narrow, content-sized one. Its ordinary,
+    // already-proven show()/hide() (selPanel_ uses the same) also sidesteps the toolbar
+    // widget-visibility sync bug the previous attempt hit.
+    class QDockWidget* selectedLineDock_ = nullptr;
+    class QVBoxLayout* centralLayout_ = nullptr;  // [image-info bar, scroll_]
     // AI-assistant chat dock (dockable on all four sides + free-floating).
     ChatDock* chatDock_ = nullptr;
     // QPointer: notify_ is parented to the scroll viewport and dies with it during
@@ -796,6 +933,13 @@ namespace stencil::gui {
     // must see a real null, not a dangling raw pointer.
     QPointer<Notifications> notify_;
     CanvasTooltip* tooltip_ = nullptr;
+    // Delays the canvas line/point/coords tooltip's reveal (S12), the same wait the
+    // toolbar/menu tooltip already has via SH_ToolTip_WakeUpDelay (main.cpp) — see
+    // scheduleHoverShow()/hideHoverTooltip().
+    QTimer* hoverTooltipTimer_ = nullptr;
+    QString hoverPendingKey_;   // target the timer is armed for ("" = none)
+    QString hoverShownKey_;     // target CURRENTLY on screen, or about to be mid-timer
+    std::function<void()> hoverPendingReveal_;
     IncognitoOverlay* incognitoOverlay_ = nullptr;
     DropZonesOverlay* dropZones_ = nullptr;   // split image-drop overlay (save | incognito)
     ProjectDragZones* projectZones_ = nullptr;  // 3-zone overlay for dragging a project out of the dialog
@@ -803,6 +947,16 @@ namespace stencil::gui {
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     QTimer* autosaveTimer_ = nullptr;
+    // Debounced pan/zoom persistence (scheduleViewSave/saveActiveProjectView) — browser
+    // parity, storage.js's scroll/zoom save debounce. restoringView_ below guards against
+    // re-saving a view that loadProjectIntoCanvas/restoreSession are still applying.
+    QTimer* viewSaveTimer_ = nullptr;
+    // Canvas scrollbar auto-hide (revealCanvasScrollbars) — see its own declaration above.
+    class QGraphicsOpacityEffect* vScrollOpacity_ = nullptr;
+    class QGraphicsOpacityEffect* hScrollOpacity_ = nullptr;
+    QTimer* scrollbarHideTimer_ = nullptr;
+    bool scrollbarHovered_ = false;   // pointer is on a bar right now — never auto-hide then
+    bool restoringView_ = false;
     // Live co-edit reentrancy flags: true while an async push / reload is in flight (set at the
     // start of saveToServer / openServerProject, cleared by a shared clearer when the whole async
     // chain ends). READ by the RemoteSyncController (passed as const bool*) plus the filter/reload
@@ -837,11 +991,8 @@ namespace stencil::gui {
     QToolButton* blankColorBtn_ = nullptr;   // recolour a blank project's background (blanks only)
     // QToolBar::addWidget wraps each button in a QWidgetAction; show/hide must toggle THESE
     // actions (not just the widgets) or the toolbar ignores it. Used by refreshProjectNameButtons.
-    QAction* projectNameEditAction_ = nullptr;
-    QAction* projectColorBtnAction_ = nullptr;
+    QWidget* nameGroup_ = nullptr;   // field + ✎/🎨/✓/✗ in one hover region
     QAction* blankColorBtnAction_ = nullptr;
-    QAction* projectNameAcceptAction_ = nullptr;
-    QAction* projectNameCancelAction_ = nullptr;
 
     // ── inline toolbar widget groups (S10 custom page, S11 formulas) ──
     // The QWidgetAction handle (…Act_) is toggled, not the widget, so the
@@ -900,6 +1051,10 @@ namespace stencil::gui {
 
     // ── actions (shared by menu bar, toolbar, context menu) ──
     QAction* actOpen_ = nullptr;
+    // Same handler as actOpen_, but its own row button (browser parity: #open-image-btn,
+    // the compact icon shown alongside Save/Copy/Share/Open-in once an image is loaded,
+    // vs. #load-image-btn's full "Open Image" button in the empty state).
+    QAction* actOpenAnother_ = nullptr;
     QAction* actCrop_ = nullptr;
     QAction* actRotateLeft_ = nullptr;
     QAction* actRotateRight_ = nullptr;
@@ -932,9 +1087,28 @@ namespace stencil::gui {
     class QToolBar* headerToolbar_ = nullptr;     // always-visible header row (pill + project name)
     QWidget* settingsSection_ = nullptr;          // toolbar SETTINGS cluster (browser's last group)
     class QToolButton* panelReopenBtn_ = nullptr; // floating right-edge chevron: re-opens a hidden panel
+    // Animated grip over the canvas↔panel separator (support/dockGrip.hpp) + whether a
+    // separator drag started on it, so the grip stays hot for the whole drag.
+    class DockGripOverlay* panelGrip_ = nullptr;
+    bool panelGripDrag_ = false;
     class QLabel* imageSizeInfo_ = nullptr;       // "Image Size: W × H px" — hides with the tool rows
+    // The styled bar imageSizeInfo_ sits in (buildImageInfoBar), inside imageInfoDock_ below
+    // — selectedLineBarDustPoint still reads THIS rect for the dust point's y (height/bottom
+    // only, never its x).
+    QWidget* imageInfoBar_ = nullptr;
+    // imageInfoBar_'s host (adaptive top gap + fixed bottom gap) and the real
+    // Qt::TopDockWidgetArea dock it lives in, stacked below selectedLineDock_ so the row
+    // spans the full window width above both the canvas and the panel (browser parity:
+    // #image-info is a sibling of .main-content, not nested in .canvas-section).
+    QWidget* imageInfoHost_ = nullptr;
+    class QDockWidget* imageInfoDock_ = nullptr;
     // Font/theme key the reserved info-row height was measured for ("" = not yet).
     QString imageInfoHeightKey_;
+    // Drag & drop hint below the canvas (browser .drop-hint parity, mainContent.js) — icon +
+    // text kept as separate labels so applyTheme() can re-tint just the rasterised icon.
+    QWidget* dropHint_ = nullptr;
+    class QLabel* dropHintIcon_ = nullptr;
+    class QLabel* dropHintText_ = nullptr;
     class QToolButton* logoBtn_ = nullptr;        // header-row app logo — click cycles the accent (browser parity)
     QTimer* logoClickTimer_ = nullptr;            // defers the single-click cycle so a double-click can pre-empt it
     QAction* actAccent_ = nullptr;                // opens the accent-preset popover (logo's popoverButtons_ entry)
@@ -978,6 +1152,15 @@ namespace stencil::gui {
     // closes exactly that (reject the modal popover / hide the compact chat) and
     // nothing else — a dblclick / right-click open clears this and stays sticky.
     QPointer<QAction> altPeekAction_;
+    // HOLD-to-peek for the copy/download-image toolbar buttons' export-options
+    // popups — the SAME gesture as popoverButtons_ above, but for a plain QMenu
+    // (opened via QMenu::popup(), not act->trigger()'ing a QDialog), so it is kept
+    // deliberately independent of the popover machinery rather than shoehorned
+    // into it. Set right after popup(); the KeyRelease(Alt) handler closes it
+    // unless the cursor has since moved INSIDE it (engaged, same rule as a peeked
+    // popover) — the menu's own Alt-hover row preview (exportPreview.hpp,
+    // wireExportPreviewHover) then behaves exactly as it does for any other open.
+    QPointer<QMenu> altPeekExportMenu_;
     // Alt-GLIDE continuation: the popover icon the cursor landed on while another
     // popover was showing; execMaybePopover rejects the current dialog and opens
     // this one's peek next (the modal loop blocks ordinary hover events).
@@ -1037,7 +1220,11 @@ namespace stencil::gui {
     bool fsWasToolbars_ = true;
     bool fsWasPanel_ = true;
     QTimer* fsHoverTimer_ = nullptr;   // polls the cursor to edge-reveal toolbars/panel in fullscreen
-    int panelRestoreWidth_ = 300;           // remembered panel width for the expand animation
+    // How wide the points panel is before the user has ever dragged the splitter — the
+    // browser's --coord-panel-default (css/layout.css).
+    static constexpr int kPanelDefaultWidth = 405;
+    // Remembered panel width for the expand animation; seeded at that default.
+    int panelRestoreWidth_ = kPanelDefaultWidth;
     QVariantAnimation* panelAnim_ = nullptr;  // in-flight panel collapse/expand (min==max pinning)
     // Chat-dock slide (setChatShown): the in-flight animation, the extent to
     // reopen at (remembered just before each hide, like panelRestoreWidth_),
@@ -1046,6 +1233,14 @@ namespace stencil::gui {
     QVariantAnimation* chatAnim_ = nullptr;
     int chatRestoreExtent_ = 0;
     QSize chatNaturalMin_;
+    // The real dock stays invisible behind its own dust flight (setChatShown) — the
+    // motes ARE the panel forming or leaving, not a decoration over an already-visible
+    // slide. Tracked so stopChatAnim() can hand the dock straight back if the flight
+    // is interrupted; QPointer because setGraphicsEffect(nullptr) deletes it.
+    QPointer<QGraphicsOpacityEffect> chatVeil_;
+    // The same veil for the points panel's own flight (panelSurfaceFlight); released by
+    // setPanelShown's finish step and by any superseding toggle.
+    QPointer<QGraphicsOpacityEffect> panelVeil_;
     // Settings key of a model that rejected images ("multimodal not
     // supported"): while the current provider/model still matches, the working
     // image is NOT auto-attached — every turn would 400 otherwise. Reset by
@@ -1074,6 +1269,19 @@ namespace stencil::gui {
     };
     QVector<MirrorRow> chatMirrorLog_;
     Qt::DockWidgetArea chatCompactPrevArea_ = Qt::LeftDockWidgetArea;
+    // The deliberate (title-bar Float button) float's own rect, remembered for the
+    // session — browser chatPanel.js floatRect/FLOAT_DEFAULT parity: a fixed corner
+    // the FIRST float lands at, not the toggle icon (openChatCompact's icon-anchored
+    // popoverRect is a DIFFERENT gesture, kept separate). Invalid until the dock has
+    // floated at least once; captured just before it leaves that shape (toggleChatFloat,
+    // dockChatTo's wasFloating branch), so dragging it and toggling dock/float again
+    // comes back where it was left, same as the browser's session-persisted floatRect.
+    QRect chatFloatRect_;
+    // Where a FRESH float lands (browser FLOAT_DEFAULT, ported to this window's own
+    // top-left instead of the viewport's — desktop has no single shared viewport
+    // origin): a fixed inset, clamped to the window's own screen. Never the toggle
+    // icon — see chatFloatRect_.
+    QRect defaultChatFloatRect() const;
     // True while the chat shows AS that popover (floating + unadopted): the
     // shape the mini-window rules apply to — a docked panel or a user-adopted
     // float is never popover-dismissed.
@@ -1110,21 +1318,50 @@ namespace stencil::gui {
     QAction* actDeleteProjectFile_ = nullptr;   // delete the linked .stencil file (enabled only when linked)
     QAction* actCopyLayout_ = nullptr;
     QAction* actPasteLayout_ = nullptr;
-    QAction* actSaveImage_ = nullptr;
-    QAction* actCopyImage_ = nullptr;
+    // Image copy/download variants (browser parity: exportService.js renderExportCanvas
+    // variants). actSaveImage_/actCopyImage_ are the PRIMARY gesture actions (toolbar
+    // buttons, Ctrl+Shift+D/Ctrl+C), reused verbatim in the context-menu submenus and the
+    // toolbar buttons' own options popups. They ALWAYS mean "current" (tint + lines/points);
+    // actSaveImageSplit_/actCopyImageSplit_ are the separate "With Compare" action, visible
+    // only while a split compare view is active. Only one of a pair ever holds the real
+    // shortcut at a time (Qt disallows ambiguous shortcuts) — syncSplitCopyDownloadSlot()
+    // moves it between them as compare toggles.
+    QAction* actSaveImage_ = nullptr;            // "current" — Ctrl+Shift+D outside compare
+    QAction* actSaveImageSplit_ = nullptr;       // "split" — "With Compare", shown only while comparing
+    QAction* actSaveImageOriginal_ = nullptr;    // "original" (no tint, no lines/points)
+    QAction* actSaveImageTint_ = nullptr;        // "tint"     (tint only, no lines/points)
+    QAction* actCopyImage_ = nullptr;            // "current" — Ctrl+C outside compare
+    QAction* actCopyImageSplit_ = nullptr;       // "split" — "With Compare", shown only while comparing
+    QAction* actCopyImageOriginal_ = nullptr;    // "original"
+    QAction* actCopyImageTint_ = nullptr;        // "tint"
+    // "Current"'s OWN row inside the three menus — a SEPARATE action from
+    // actSaveImage_/actCopyImage_ above, which stay the toolbar buttons' real actions and
+    // so can't be hidden without hiding the toolbar icon itself. "Current" is meaningless
+    // with nothing drawn, so its row needs its own hasLines gate (browser parity:
+    // exportOptionsMenu.js / contextMenu.js). No shortcut of its own: syncSplitCopyDownloadSlot()
+    // mirrors whichever combo is live on actCopyImage_/actSaveImage_ into this row's TEXT
+    // (manual "\t"+combo hint) rather than a real QAction::shortcut(), which would conflict
+    // with the toolbar's own action.
+    QAction* actSaveImageCurrentRow_ = nullptr;
+    QAction* actCopyImageCurrentRow_ = nullptr;
+    QAction* actShareImage_ = nullptr;   // native OS share sheet (support/shareImage.hpp)
     QAction* actPasteImage_ = nullptr;
+    // The two toolbar buttons' own dust-animated options popups (double-click / right-click
+    // opens; Alt+hover on a row previews it — support/exportPreview.hpp). Built once, reused.
+    QMenu* copyImageOptionsMenu_ = nullptr;
+    QMenu* saveImageOptionsMenu_ = nullptr;
 
     // ── Context-menu submenu actions (S11; browser/js/ui/contextMenu.js). These
     // persistent actions/QWidgetActions are owned by `this` and reused on every
     // right-click so their checked/enabled/visible state stays live. The toolbar
     // and menu bar keep their own shared QActions; these cover the bits the
-    // context menu adds on top (draw-mode bridge, instant rect, the Style/Filter/
-    // Tooltip submenus).
+    // context menu adds on top (instant line/rect, the Style/Filter/Tooltip
+    // submenus).
 
-    // Draw-mode bridge (contextMenu.js:416-421 ctx-drawmode-toggle) — flips the
-    // canvas line<->rect mode and notifies. Label re-synced before each exec.
-    QAction* actDrawModeToggle_ = nullptr;
-    // Instant rectangle (contextMenu.js:425-431 ctx-draw-rect): rect mode + begin
+    // Instant line (contextMenu.js:ctx-draw-line): line mode + begin drawing
+    // immediately. Siblings with actDrawRectNow_ below — same action, other mode.
+    QAction* actDrawLineNow_ = nullptr;
+    // Instant rectangle (contextMenu.js:ctx-draw-rect): rect mode + begin
     // drawing immediately.
     QAction* actDrawRectNow_ = nullptr;
 
@@ -1138,6 +1375,20 @@ namespace stencil::gui {
     QWidgetAction* thicknessAction_ = nullptr;
     QSpinBox* pointSpin_ = nullptr;
     QSpinBox* thickSpin_ = nullptr;
+
+    // Context-menu sub-labels (browser parity: contextMenu.js's .ctx-sub-label —
+    // "Image", "Layout (JSON)", "Line Style", "Filter", "Coordinate Formulas", "Show
+    // in Tooltip"). Plain muted caption text, NOT QMenu::addSection() — a section is
+    // a separator with a label, and the browser's caption has no line of its own; the
+    // theme's QSS separator rule painted one anyway since addSection()'s QAction is
+    // still isSeparator()==true. Built once in buildContextActions(), re-added to the
+    // fresh menu on every right-click like pointSizeAction_ above.
+    QWidgetAction* secImageAct_ = nullptr;
+    QWidgetAction* secLayoutJsonAct_ = nullptr;
+    QWidgetAction* secLineStyleAct_ = nullptr;
+    QWidgetAction* secFilterAct_ = nullptr;
+    QWidgetAction* secCoordFormulasAct_ = nullptr;
+    QWidgetAction* secShowInTooltipAct_ = nullptr;
 
     // Image Filter submenu (contextMenu.js:59-74): the filter options are hosted QRadioButtons
     // (exclusive QButtonGroup) so picking one keeps the menu open — like the browser's inline
@@ -1237,8 +1488,13 @@ namespace stencil::gui {
     };
     QuickCropOpts pendingCrop_;
     bool incognito_ = false;
-    double lastHoverX_ = 0.0;
-    double lastHoverY_ = 0.0;
+    // NaN until the cursor actually hovers the canvas — the coord readout shows
+    // nothing before a real hover, and clears again when the cursor leaves
+    // (CanvasWidget::canvasLeft re-arms it); the unit/page refreshers that replay
+    // onHovered(lastHoverX_, lastHoverY_) then keep the bar empty instead of
+    // resurrecting stale numbers.
+    double lastHoverX_ = std::numeric_limits<double>::quiet_NaN();
+    double lastHoverY_ = std::numeric_limits<double>::quiet_NaN();
     // The text color the toolbar/menu icons were last rasterized in (set by
     // styleActionIcons). Lets live handlers re-icon a widget in the current theme
     // color without recomputing the palette (e.g. the draw-mode toggle).

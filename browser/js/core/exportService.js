@@ -1,4 +1,4 @@
-import { notify, shortName } from '../utils.js';
+import { notify, shortName, isSplitCompare } from '../utils.js';
 import { arriveFrom } from '../ui/motion.js';
 import { validateLayout } from './layout.js';
 import { serializeProjectFile, parseProjectFile } from './projectFile.js';
@@ -22,10 +22,17 @@ export class ExportService {
     URL.revokeObjectURL(url);
   }
 
-  // Render the image (current filter) plus visible lines/points onto a full-resolution
-  // offscreen canvas — shared by saveImage / copyImageToClipboard / shareImage. The
-  // renderer's helpers write to app.ctx; point that at the offscreen ctx, then restore.
-  renderExportCanvas() {
+  // Render one export variant onto a full-resolution offscreen canvas — shared by
+  // saveImage / copyImageToClipboard / shareImage / the Alt-hover preview. The renderer's
+  // helpers write to app.ctx; point that at the offscreen ctx, then restore.
+  //   'current'  — active filter/tint + visible lines/points (the original, default behavior)
+  //   'original' — the cropped+rotated original alone: no filter, no annotations
+  //   'tint'     — active filter/tint, but no lines/points
+  //   'split'    — 'current' plus the split-compare composite (edited half + original
+  //                half). Always a CLEAN split: the divider bar and its knob are on-screen
+  //                editor UI, not part of the picture, so every export opts out of
+  //                drawCompareSplit's live-canvas `withDivider` default.
+  renderExportCanvas(variant = 'current') {
     const app = this.app;
     const offscreen = document.createElement('canvas');
     offscreen.width = app.canvas.width;
@@ -33,38 +40,70 @@ export class ExportService {
     const ctx = offscreen.getContext('2d');
     const savedCtx = app.ctx;
     app.ctx = ctx;
-    app.renderer.drawImageWithFilter(ctx);
-    if (app.showLines) {
-      app.lines.forEach(line => app.renderer.drawLine(line, false));
-    } else if (app.showPoints) {
-      app.lines.forEach(line => {
-        line.points.forEach(p => app.renderer.drawPoint(p, line.color, line.pointSize ?? app.pointSize, false));
-      });
+    if (variant === 'original') {
+      ctx.filter = 'none';
+      ctx.drawImage(app.image, 0, 0);
+    } else {
+      app.renderer.drawImageWithFilter(ctx);
+      if (variant === 'current' || variant === 'split') {
+        if (app.showLines) {
+          app.lines.forEach(line => app.renderer.drawLine(line, false));
+        } else if (app.showPoints) {
+          app.lines.forEach(line => {
+            line.points.forEach(p => app.renderer.drawPoint(p, line.color, line.pointSize ?? app.pointSize, false));
+          });
+        }
+      }
+      if (variant === 'split') {
+        const mode = app.compareMode === 'horizontal' ? 'horizontal' : 'vertical';
+        app.renderer.drawCompareSplit(mode, { withDivider: false });
+      }
     }
     app.ctx = savedCtx;
     return offscreen;
   }
 
-  saveImage() {
+  // File-name suffix + clipboard/toast label per export variant.
+  static #VARIANT_META = {
+    current:  { suffix: '',          copyLabel: 'Image copied to clipboard' },
+    original: { suffix: '-original', copyLabel: 'Original image copied to clipboard' },
+    tint:     { suffix: '-tint',     copyLabel: 'Tinted image copied to clipboard' },
+    split:    { suffix: '-split',    copyLabel: 'Split image copied to clipboard' },
+  };
+
+  saveImage(variant = 'current') {
     const app = this.app;
     if (!app.image) {
       notify('No image loaded', 'fail');
       return;
     }
-    const offscreen = this.renderExportCanvas();
+    if (variant === 'split' && !isSplitCompare(app)) {
+      notify('Turn on split compare to download with the splitter', 'fail');
+      return;
+    }
+    // 'current' is always the plain edited frame (tint + lines/points) — 'split' is its
+    // own explicit variant, a separate row/hotkey slot while a split compare view is
+    // active (desktop parity: dataExportController.cpp saveImageFile). The PRIMARY
+    // gesture (the toolbar click / the saveImage hotkey) decides which of the two to ask
+    // for at the call site (controlsBinder.js / exportOptionsMenu.js openFull) — this
+    // method itself never substitutes one for the other.
+    const offscreen = this.renderExportCanvas(variant);
 
     const baseName = app.imageBaseName || 'drawing';
     const ext = app.imageExt      || 'png';
     const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', png: 'image/png' };
     const mime = mimeMap[ext] || 'image/png';
     const outExt = (ext === 'jpg' || ext === 'jpeg') ? 'jpg' : (mimeMap[ext] ? ext : 'png');
+    const suffix = ExportService.#VARIANT_META[variant]?.suffix || '';
     const link = document.createElement('a');
-    link.download = `${baseName}-drawing.${outExt}`;
+    link.download = `${baseName}-drawing${suffix}.${outExt}`;
     link.href = offscreen.toDataURL(mime);
     link.click();
 
-    // A server-linked session also writes the annotated result + layout back.
-    if (app.remoteLink) app.remoteSync.saveToServer();
+    // A server-linked session also writes the annotated result + layout back — only for
+    // the canonical "current" download; the other variants are alternate exports, not the
+    // project's saved state.
+    if (app.remoteLink && variant === 'current') app.remoteSync.saveToServer();
   }
 
   // Share the annotated image via the Web Share API (mobile/PWA). The Share entry
@@ -82,8 +121,15 @@ export class ExportService {
         notify('Sharing not supported on this browser', 'fail');
         return;
       }
-      navigator.share({ files: [file], title: `${baseName} — Stencil` })
-        .catch(err => { if (err && err.name !== 'AbortError') notify('Share failed', 'fail'); });
+      try {
+        // Some engines throw synchronously (a stale/expired user gesture) rather than
+        // rejecting the promise — caught here so the failure surfaces instead of vanishing
+        // silently behind the menu, which had already closed by the time this callback runs.
+        navigator.share({ files: [file], title: `${baseName} — Stencil` })
+          .catch(err => { if (err && err.name !== 'AbortError') notify('Share failed', 'fail'); });
+      } catch {
+        notify('Share failed', 'fail');
+      }
     }, 'image/png');
   }
 
@@ -123,24 +169,35 @@ export class ExportService {
     e.target.value = '';
   }
 
-  // ── Clipboard: copy current image (with active filter) ──
+  // ── Clipboard: copy the current image (with active filter) ──
   // The write() MUST run synchronously inside the Cmd/Ctrl+C gesture with a Promise-valued
   // ClipboardItem — deferring into the async toBlob callback loses the user-activation
   // (NotAllowedError on macOS WebKit). Returns a promise resolving on a successful write
   // and REJECTING on failure, so a plan-driven copy (§10 `copy` op) can report the outcome.
-  copyImageToClipboard() {
+  //   variant: 'current' (default, Ctrl+C) | 'original' (Ctrl+Shift+C) | 'tint' (Ctrl+Alt+C)
+  //            | 'split' (Ctrl+C's OWN row/slot while a split compare view is active —
+  //            see controlsBinder.js's copyImage hotkey handler and exportOptionsMenu.js's
+  //            openFull, which decide 'split' vs 'current' at the call site)
+  copyImageToClipboard(variant = 'current') {
     // Rejections are PRE-CAUGHT on a side branch so a fire-and-forget caller (the
     // toolbar button, the chainable facade) never trips unhandledrejection, while an
     // awaiting caller (the §10 copy op) still observes the real outcome.
     const outcome = (() => {
       const app = this.app;
       if (!app.image) { notify('No image to copy', 'fail'); return Promise.reject(new Error('No image to copy')); }
+      if (variant === 'split' && !isSplitCompare(app)) {
+        notify('Turn on split compare to copy with the splitter', 'fail');
+        return Promise.reject(new Error('Split compare is not active'));
+      }
       try {
-        const off = this.renderExportCanvas();
+        // 'current' is always the plain edited frame; 'split' is its own explicit variant
+        // (see the class-level comment above) — no substitution happens in here.
+        const off = this.renderExportCanvas(variant);
         const blobP = new Promise((res, rej) =>
           off.toBlob(b => b ? res(b) : rej(new Error('Image encode failed')), 'image/png'));
+        const label = ExportService.#VARIANT_META[variant]?.copyLabel || 'Image copied to clipboard';
         return navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
-          .then(() => notify('Image copied to clipboard', 'ok'))
+          .then(() => notify(label, 'ok'))
           .catch(err => { notify('Copy failed: ' + (err.message || err), 'fail'); throw err; });
       } catch (e) {
         notify('Copy failed: ' + e.message, 'fail');

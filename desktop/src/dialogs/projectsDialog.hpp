@@ -2,10 +2,12 @@
 #include "fileStore.hpp"
 #include "serverClient.hpp"
 #include "tooltipRows.hpp"  // core::UnitFormat for the tooltip's "Line: <len> <unit>" row
+#include <QColor>
 #include <QDialog>
 #include <QHash>
 #include <QPair>
 #include <QPixmap>
+#include <QPoint>
 #include <QSet>
 #include <QString>
 #include <QVector>
@@ -17,8 +19,8 @@ class QComboBox;
 class QLineEdit;
 class QTimer;
 class QNetworkAccessManager;
+class QVariantAnimation;
 class QLabel;
-class QPoint;
 class QPushButton;
 class QWidget;
 
@@ -87,18 +89,19 @@ namespace stencil::gui {
     // shown as the row icon; the caller renders them via the canvas/export path.
     // `unit` is the active display unit (cm/inches); it converts each local project's
     // cached lineLengthCm into a "Line: <len> <unit>" row in the per-row tooltip.
+    // `activeProjectId` (nullable-empty) is the project open in THIS editor right now —
+    // its row gets the browser-parity "(Current)" mark right after its origin badge,
+    // painted in the installed palette's accent (`accentColor` is unused, kept for ABI).
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             stencil::net::ConnectionManager* connections = nullptr,
                             const QHash<QString, QPixmap>& thumbs = {},
                             core::UnitFormat unit = {},
-                            QWidget* parent = nullptr);
+                            QWidget* parent = nullptr,
+                            const QString& activeProjectId = QString(),
+                            const QColor& accentColor = QColor());
 
     Action action() const { return action_; }
     QString selectedId() const { return selectedId_; }
-    // False when the user's gesture already expressed intent unambiguously (a
-    // double click): MainWindow then skips its "Open this project?" prompt.
-    // True for a single click, Return, and the drag-out zones.
-    bool confirmRequested() const { return confirmOpen_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
     // For SetColor: the chosen colour ("#rrggbb"), or "" to clear to the theme default.
@@ -120,6 +123,9 @@ namespace stencil::gui {
     // Items are (id, serverUrl) pairs (serverUrl empty = local); the owner removes them
     // and calls setProjects().
     void removeRequested(const QVector<QPair<QString, QString>>& items);
+    // Inline rename (dblclick on the name / the ⋯ menu's Rename): already validated
+    // in-dialog, same stay-open pattern — the owner renames and calls setProjects().
+    void renameRequested(const QString& id, const QString& newName);
 
    protected:
     // Hover-magnify: watch the list viewport so hovering a row's thumbnail pops a
@@ -154,6 +160,25 @@ namespace stencil::gui {
     // A uniform 56×56 fallback tile (centered native glyph) shown when a row has no
     // image, so every row is the same height. `remote` picks a network vs file glyph.
     QPixmap placeholderIcon(bool remote) const;
+    // The hover-magnify preview is sand too (browser js/ui/projectsModal.js
+    // enableThumbZoom, motion.js surfaceIn/surfaceOut): it forms from motes streaming
+    // out of the row's icon cell and comes apart into motes pouring back in. `it` is
+    // the row the flight belongs to.
+    bool dustHoverPreview(QListWidgetItem* it, bool gather);
+    // Hide the hover-magnify preview, dusting it back into the row it was shown for.
+    void hideHoverPreview();
+    // Place the preview down-right of the (global) cursor, flipped/clamped on-screen —
+    // called on every move, so the glance follows the pointer (browser positionZoom).
+    void placeHoverPreview(const QPoint& globalCursor);
+    // An APPEARANCE: the preview waits behind its own gathering motes and fades up as
+    // the last of them land (appTooltip showFor / browser surfaceIn). Shared by the
+    // first show, a swap onto another row, and the Alt re-scale.
+    void revealHoverPreview(QListWidgetItem* it);
+    QVariantAnimation* hoverFade();   // lazily built windowOpacity ramp for the above
+    // The REAL cursor (not an event's claim) is over the previewed row's thumbnail —
+    // guards the Leave/deactivate backstops against spurious events our own preview
+    // window triggers when it slides under a stationary pointer.
+    bool pointerOverPreviewedIcon() const;
     // Per-row action menu (the "⋯" kebab + right-click both call this). Selects
     // `it` first, since the action slots act on the current item.
     void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
@@ -165,9 +190,7 @@ namespace stencil::gui {
     //   Ctrl/⌘ + single click   → confirm, then open in a NEW window
     //   Ctrl/⌘ + double click   → new window immediately, no confirmation
     //   Return on a focused row → treated as a plain single click (confirms)
-    // The dialog only records the choice; MainWindow shows the confirmation
-    // AFTER exec() returns (a QMessageBox raised from inside the click would be
-    // dismissed by the same release), gated on the public confirmRequested().
+    // The confirmation is asked IN-DIALOG (finishOpen) over the still-open list.
     //
     // Arm the deferred single-click open. Deferring by doubleClickInterval() is
     // the crux: a double click must cancel it, or the confirmation flashes up
@@ -175,6 +198,10 @@ namespace stencil::gui {
     void scheduleRowOpen(QListWidgetItem* it);
     void fireRowOpen();       // the timer expired → a genuine single click
     void openRow(QListWidgetItem* it, bool newWindow, bool confirm);
+    // Confirm (over the STILL-OPEN dialog, browser parity) then set `act` + accept().
+    // A double click (confirmOpen_ false) accepts straight away; Cancel keeps the
+    // dialog up. `name` labels the question.
+    void finishOpen(Action act, bool newWindow, const QString& name);
     void deleteSelected();
     // Move the selected LOCAL project to a server (pick one if several connected).
     void moveToServerSelected();
@@ -187,7 +214,8 @@ namespace stencil::gui {
     // Re-apply the storage filter (All / Local / Server / a specific server) + the search
     // text to the visible rows: excluded rows fade + collapse out, included ones back in.
     void applyFilter();
-    // Lazily build that transition (support/filterFade).
+    // Lazily build that transition (support/filterFade); rows that are LEFT arrive
+    // out of sand via the shared ListFilterFade::dustRowIn.
     ListFilterFade* filterFade();
     // (Re)populate the "Show:" combo with All / Local / All-servers + one entry per connected
     // server, preserving the current selection. Called when the connected-server set changes.
@@ -201,7 +229,10 @@ namespace stencil::gui {
     bool allFilteredChecked() const;
     void toggleSelectAll();
     void runBatch(Action act);
-    void renameSelected();
+    // Inline rename (browser parity: dblclick the name → a live-validated editor with
+    // ✓/✗ over the row; Enter saves via renameRequested, Esc/click-away discards).
+    void beginInlineRename(QListWidgetItem* it);
+    void closeInlineRename();
     void expirationSelected();
     // Pop a colour picker (seeded with the row's current colour) and emit SetColor.
     void setColorSelected();
@@ -209,7 +240,9 @@ namespace stencil::gui {
     void clearColorSelected();
     // Resolve `it`'s (id, serverUrl), set the SetColor result fields, and accept().
     void emitSetColor(QListWidgetItem* it, const QString& color);
-    // The selected row's current colour ("#rrggbb" or "") — local meta or server record.
+    // A row's current colour ("#rrggbb" or "") — local meta or server record.
+    QString rowColor(const QListWidgetItem* it) const;
+    // …the selected row's, via the same lookup.
     QString currentRowColor() const;
     // The (serverUrl|id) key for list row `i` (matches checked_ keys); "" for placeholder rows.
     QString rowKeyAt(int i) const;
@@ -227,6 +260,7 @@ namespace stencil::gui {
     long long now_ = 0;
     core::UnitFormat unit_;  // active display unit for the tooltip's line-length row
     stencil::net::ConnectionManager* connections_ = nullptr;
+    QString activeProjectId_;  // the project open in THIS editor right now (its "(Current)" row)
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.
     QHash<QString, QPixmap> thumbs_;
     // Cached server-project previews, keyed "serverUrl|id|version" so the periodic
@@ -241,6 +275,10 @@ namespace stencil::gui {
     QSet<QString> thumbInFlight_;
     // Frameless floating label showing the magnified thumbnail under the cursor.
     QLabel* hoverPreview_ = nullptr;
+    QListWidgetItem* hoverItem_ = nullptr;   // the row the shown preview belongs to
+    QVariantAnimation* hoverFade_ = nullptr; // its opacity ramp (in behind dust, out behind it)
+    bool hoverClosing_ = false;              // the ramp is running towards hide()
+    bool hoverZoomCursor_ = false;           // the viewport shows the magnifier cursor
     QTimer* remoteTimer_ = nullptr;
     bool remoteBusy_ = false;
     // False until the first server listing resolves — drives the "Loading shared
@@ -267,13 +305,18 @@ namespace stencil::gui {
     QPushButton* batchCopyServer_ = nullptr;
     QPushButton* batchToLocal_ = nullptr;
     QPushButton* batchCopyLocal_ = nullptr;
+    QPushButton* batchRemove_ = nullptr;
+    QPushButton* batchClear_ = nullptr;
     bool building_ = false;   // suppress itemChanged while refresh() sets check states
-    // Row-open gesture state (see confirmRequested()).
+    // Row-open gesture state (see scheduleRowOpen/openRow).
     QTimer* clickTimer_ = nullptr;      // pending single-click open
     int pendingRow_ = -1;               // row it applies to
     bool pendingNewWindow_ = false;     // Ctrl/⌘ was down for that click
     Qt::KeyboardModifiers pressMods_;   // modifiers of the last press on the list
+    QPoint pressPos_;                   // viewport pos of that press (name dblclick hit test)
     bool pressOnCheck_ = false;         // last press landed on a row's checkbox
+    // Inline rename editor (child of the list viewport).
+    QWidget* renameBox_ = nullptr;
     bool confirmOpen_ = true;           // single click / drag-out ask; double click doesn't
     bool rowDragging_ = false;          // a drag must not open anything on release
     QVector<QPair<QString, QString>> batchItems_;

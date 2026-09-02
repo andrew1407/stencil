@@ -9,12 +9,19 @@ const markup = layout();
 
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 237 static body IDs (spec §6 + crop / install / open-image / open-in / confirm modals + AI chat panel/settings), original body order. Each must appear EXACTLY once.
+// All 248 static body IDs (spec §6 + crop / install / open-image / open-in / confirm modals + AI chat panel/settings), original body order. Each must appear EXACTLY once.
+// ctx-*-img-split ("With Compare") is a FOURTH row, hidden until a split compare view
+// is active, alongside (not instead of) ctx-copy-img-current / ctx-dl-img-current — each
+// pair's own -hk span is where the shared hotkey chip moves to/from (contextMenu.js).
 const IDS = [
-    'ctx-menu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-paste-img', 'ctx-dl-img',
+    'ctx-menu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-copy-img-sub',
+    'ctx-copy-img-split', 'ctx-copy-img-split-hk', 'ctx-copy-img-current', 'ctx-copy-img-current-hk',
+    'ctx-copy-img-original', 'ctx-copy-img-tint', 'ctx-paste-img',
+    'ctx-dl-img', 'ctx-dl-img-sub', 'ctx-dl-img-split', 'ctx-dl-img-split-hk', 'ctx-dl-img-current',
+    'ctx-dl-img-current-hk', 'ctx-dl-img-original', 'ctx-dl-img-tint',
     'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
     'ctx-fs-label', 'ctx-fit-window', 'ctx-draw-toggle', 'ctx-draw-label', 'ctx-draw-hotkey',
-    'ctx-drawmode-toggle', 'ctx-drawmode-label', 'ctx-draw-rect', 'ctx-show-points', 'ctx-chk-points',
+    'ctx-draw-line', 'ctx-draw-rect', 'ctx-show-points', 'ctx-chk-points',
     'ctx-show-lines', 'ctx-chk-lines', 'ctx-clear-lines', 'ctx-style-menu', 'ctx-style-sub',
     'ctx-point-size', 'ctx-thickness', 'ctx-style-radios', 'ctx-filter-menu', 'ctx-filter-sub',
     'ctx-filter-radios', 'ctx-tint-row', 'ctx-tint-color', 'ctx-transform-menu', 'ctx-transform-sub',
@@ -70,8 +77,8 @@ const IDS = [
     'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note'
 ];
 
-test('fixture has exactly 235 IDs', () => {
-    assert.strictEqual(IDS.length, 235);
+test('fixture has exactly 248 IDs', () => {
+    assert.strictEqual(IDS.length, 248);
 });
 
 test('every static body ID is present exactly once', () => {
@@ -92,13 +99,21 @@ test('dynamic containers are present and empty/placeholder', () => {
 test('context-menu data-hk attributes are present', () => {
     // Every data-hk must match a real hotkey registry id so formatCombo can render
     // it (mac glyphs incl.) — 'clearAllLines', not the legacy 'clear-all-lines'.
-    const hks = ['copyImage', 'copyLayout', 'fullscreen', 'resetZoom', 'startDraw',
+    // 'copyImage'/'saveImage' are NOT here: the Copy/Download Image rows are nested
+    // submenu openers now, and no longer carry the combo on the opener itself (it
+    // lives on whichever variant row is primary — see ctx-copy-img's own comment).
+    const hks = ['copyLayout', 'fullscreen', 'resetZoom', 'startDraw',
                  'togglePoints', 'toggleLines', 'clearAllLines', 'cycleFilter'];
     for (const hk of hks) {
         assert.ok(markup.includes(`data-hk="${hk}"`), `data-hk="${hk}" present`);
     }
     // 'paste' appears twice (paste image + paste layout)
     assert.strictEqual(count('data-hk="paste"'), 2, 'data-hk="paste" appears twice');
+});
+
+test('Copy Image / Download Image opener rows carry no hotkey chip of their own', () => {
+    assert.ok(!markup.includes('data-hk="copyImage"'), 'ctx-copy-img no longer hints Ctrl+C');
+    assert.ok(!markup.includes('data-hk="saveImage"'), 'ctx-dl-img no longer hints Ctrl+Shift+D');
 });
 
 test('checked defaults preserved', () => {

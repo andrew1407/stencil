@@ -69,7 +69,7 @@ src/                  # Qt GUI, grouped by role (headers included bare across gr
 tests/                # Qt headless integration tests (crop + image fixture)
   fixtures/           # sample.png used by the image test
 resources/  packaging/
-CMakeLists.txt        # builds stencil_gui; pulls the core via add_subdirectory(../core)
+CMakeLists.txt        # builds stencil; pulls the core via add_subdirectory(../core)
 ```
 
 ### Collaboration server
@@ -177,7 +177,7 @@ cmake --build build -j
 - `stencil_core`  — static library of the shared logic (defined in `../core/`, pulled in
   here via `add_subdirectory`; its own Doctest suite is turned **off** for the desktop
   build and run by the dedicated core build instead).
-- `stencil_gui`   — the Qt desktop app (built only if Qt 6 is found; otherwise
+- `stencil`       — the Qt desktop app (built only if Qt 6 is found; otherwise
   configuration prints a notice and skips it, so the core still builds on a machine
   without Qt).
 - `stencil_crop_headless` — a Qt offscreen integration test of the crop canvas (ctest).
@@ -209,11 +209,11 @@ the result into one self-contained package in `build/dist/`:
 
 | Platform | Package | Form |
 |---|---|---|
-| macOS | `stencil-<ver>-Darwin-<arch>.dmg` | `Stencil.app` bundle |
-| Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil_gui.exe` + Qt DLLs |
+| macOS | `stencil-<ver>-Darwin-<arch>.dmg` | `stencil.app` bundle |
+| Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil.exe` + Qt DLLs |
 | Linux | `stencil-<ver>-Linux-<arch>.tar.gz` | `bin/` + `.desktop` entry & icon |
 
-The shipped binary is still `stencil_gui` — packaging only changes how it's laid
+The shipped binary is the same `stencil` — packaging only changes how it's laid
 out and where it stores state, not what it is. On macOS, signing/notarization is
 out of scope here; an unsigned `.dmg` warns on first launch.
 
@@ -298,7 +298,7 @@ ctest --test-dir build --output-on-failure   # runs every headless test (needs Q
 ## Run the GUI
 
 ```bash
-./build/stencil_gui
+./build/stencil
 ```
 
 Open an image, left-click to add polyline points, **New Line** (Alt+S) to finish
@@ -312,7 +312,7 @@ The executable accepts flags that pre-open content at startup — the desktop
 counterpart of the browser app's URL deep-links (`#stencil=` / `?open=`):
 
 ```bash
-./build/stencil_gui [options]
+./build/stencil [options]
 ```
 
 | Flag | Description |
@@ -332,26 +332,26 @@ Examples:
 
 ```bash
 # Force dark mode for this launch
-./build/stencil_gui --theme dark
+./build/stencil --theme dark
 
 # Open a local image, starting in light mode
-./build/stencil_gui --src ~/Pictures/floorplan.png --theme light
+./build/stencil --src ~/Pictures/floorplan.png --theme light
 
 # Fetch and open a remote image
-./build/stencil_gui --src https://example.com/diagram.jpg
+./build/stencil --src https://example.com/diagram.jpg
 
 # Grab the 120th frame of a video file and edit it without saving
-./build/stencil_gui --src ~/clips/walkthrough.mp4 --frame 120 --incognito
+./build/stencil --src ~/clips/walkthrough.mp4 --frame 120 --incognito
 
 # Open an image and immediately apply a saved layout (local file or URL)
-./build/stencil_gui --src floorplan.png --layout floorplan-layout.json
-./build/stencil_gui --src floorplan.png --layout https://example.com/layout.json
+./build/stencil --src floorplan.png --layout floorplan-layout.json
+./build/stencil --src floorplan.png --layout https://example.com/layout.json
 
 # Reopen an existing saved project by name
-./build/stencil_gui --project "Kitchen remodel"
+./build/stencil --project "Kitchen remodel"
 
 # Launch straight into the Projects window
-./build/stencil_gui --projects
+./build/stencil --projects
 ```
 
 The image / URL / video and layout resolution runs asynchronously on the event

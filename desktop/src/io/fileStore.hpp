@@ -44,6 +44,13 @@ namespace stencil::gui {
     double defaultThickness = 2.0;
     double defaultPointSize = 4.0;
     QString defaultStyle = "solid";   // solid | dashed | dotted
+    // Fill for a newly LOCKED area with no fill colour of its own yet (browser
+    // DEFAULT_VISUALS.defaultFillColor / layout.js fillState).
+    QString defaultFillColor = "#3399ff";
+    // Highlight styles (browser DEFAULT_VISUALS.*, same defaults).
+    QString selGlowColor = "#ffc800";    // selection highlight glow (lines + points)
+    QString hoverRingColor = "#7c3aed";  // hover ring around points
+    QString focusRingColor = "#7c3aed";  // focused/clicked point ring
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     // Custom page dimensions in cm (browser DEFAULT_PAGE 21 x 29.7).
     double customPageWidth = 21.0;
@@ -90,6 +97,11 @@ namespace stencil::gui {
     // conversation with the active project and restore it on reopen. OFF by
     // default everywhere — an explicit user opt-in; incognito never persists.
     bool saveChatsWithProject = false;
+    // "Swap message sides" (chat "…" menu, between Clear history and Settings):
+    // false (default) is today's layout — user right, assistant/error left.
+    // Browser/extension parity: js/ui/chatLayoutPrefs.js CHAT_SIDE_SWAPPED,
+    // lib/chatLayoutPrefs.js, one boolean apart from their string enum.
+    bool chatSwapSides = false;
     // Put the menu bar where the PLATFORM does (macOS/Unity global bar) instead of
     // inside the window. Default true. It is off-by-default only in effect on the
     // desktops where Qt's native export leaves an empty in-window bar — the reason
@@ -140,6 +152,12 @@ namespace stencil::gui {
     // Persisted-chat document (llm-contract.md §12.1); empty = no saved
     // chat. Written only when Settings.saveChatsWithProject is on.
     QJsonObject chat;
+    // Pan/zoom position (browser parity: storage.js's zoom/scrollLeft/scrollTop), restored
+    // on reopen. 0 = never saved — MainWindow falls back to fitToWindow(), mirroring the
+    // browser's own `if (layout.zoom)` gate.
+    double zoomScale = 0.0;
+    int scrollLeft = 0;
+    int scrollTop = 0;
   };
 
   namespace fileStore {

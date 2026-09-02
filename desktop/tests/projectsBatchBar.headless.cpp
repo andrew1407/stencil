@@ -1,7 +1,7 @@
 // Headless checks for the Projects dialog's multi-select surface (dialogs/projectsDialog):
 //   - batch bar composition: the Move/Copy direction buttons are HIDDEN (not greyed)
 //     unless the selection is homogeneous — local-only (and a server is connected)
-//     shows To server/Server copy, server-only shows To local/Local copy, mixed shows
+//     shows Move/Copy to server, server-only shows Move/Copy to local, mixed shows
 //     neither (browser parity: projectsModal.js updateBatchBar);
 //   - the Select all / Deselect all toggle sweeps the CURRENT filtered view only,
 //     flips its label once everything visible is checked, and deselect clears the
@@ -10,9 +10,12 @@
 //     row: each VISIBLE row's clipped rect gets a DisintegrateOverlay inside the list
 //     viewport (never over the dialog chrome), rows scrolled out of view spawn none, and
 //     every checked id is retired in place while removeRequested carries the batch;
-//   - filter/search changes are a symmetric, LIGHT transition (support/filterFade):
-//     excluded rows fade + collapse out, included ones back in, no destructive dust,
-//     reduced motion straight to the end, and the right visible set after rapid edits.
+//   - a filter/search change is a QUESTION re-answered (support/filterFade): what it
+//     excludes is gone at once with nothing to watch, and the rows that are LEFT arrive —
+//     keeping their slots if they had them — out of the filter's own light sand, never
+//     the removal's destructive scatter, which is named apart so the two can't be
+//     confused; reduced motion goes straight to the end, and rapid edits land the right
+//     visible set.
 // A mock QTcpServer stands in for the collaboration server (token + /projects list),
 // so the server-row compositions run without a Go server. Offscreen, like the others.
 #include "disintegrateOverlay.hpp"
@@ -41,6 +44,7 @@ using stencil::gui::BatchDirections;
 using stencil::gui::batchDirectionsFor;
 using stencil::gui::DisintegrateOverlay;
 using stencil::gui::filteredIn;
+using stencil::gui::kFilterDustObjectName;
 using stencil::gui::kFilterFadeMs;
 using stencil::gui::Project;
 using stencil::gui::ProjectsDialog;
@@ -91,6 +95,7 @@ int main(int argc, char** argv) {
   QApplication app(argc, argv);
   QCoreApplication::setOrganizationName("StencilTest");
   QCoreApplication::setApplicationName("projectsBatchBarHeadless");
+
 
   // ── Pure composition rule (no widgets needed) ──
   std::printf("batch direction matrix:\n");
@@ -160,10 +165,10 @@ int main(int argc, char** argv) {
     check(rowById(list, "r1", true) != nullptr, "server rows arrived from the mock listing");
     if (!rowById(list, "r1", true)) { dlg.reject(); return 1; }
 
-    QPushButton* toServer = btnByText(&dlg, QString::fromUtf8("⇧ To server"));
-    QPushButton* copyServer = btnByText(&dlg, QString::fromUtf8("⧉ Server copy"));
-    QPushButton* toLocal = btnByText(&dlg, QString::fromUtf8("⇩ To local"));
-    QPushButton* copyLocal = btnByText(&dlg, QString::fromUtf8("⧉ Local copy"));
+    QPushButton* toServer = btnByText(&dlg, QStringLiteral("Move to server"));
+    QPushButton* copyServer = btnByText(&dlg, QStringLiteral("Copy to server"));
+    QPushButton* toLocal = btnByText(&dlg, QStringLiteral("Move to local"));
+    QPushButton* copyLocal = btnByText(&dlg, QStringLiteral("Copy to local"));
     QPushButton* removeBtn = btnByText(&dlg, QStringLiteral("Remove selected"));
     check(toServer && copyServer && toLocal && copyLocal && removeBtn,
           "finds all five batch buttons");
@@ -273,8 +278,9 @@ int main(int argc, char** argv) {
     QPushButton* removeBtn = btnByText(&dlg, QStringLiteral("Remove selected"));
     check(removeBtn && removeBtn->isVisible(), "batch Remove available with 14 checked");
     if (!removeBtn) return 1;
-    // The confirm now shows INSIDE the still-open dialog; answer Yes from a 0-timer
-    // (it fires within the box's own event loop) and collect the emitted items.
+    // The confirm now shows INSIDE the still-open dialog (the chrome-styled
+    // confirmModal); answer Confirm from a 0-timer (it fires within the modal's
+    // own event loop) and collect the emitted items.
     QVector<QPair<QString, QString>> removed;
     QObject::connect(&dlg, &ProjectsDialog::removeRequested,
                      [&removed](const QVector<QPair<QString, QString>>& items) {
@@ -282,9 +288,10 @@ int main(int argc, char** argv) {
                      });
     QTimer::singleShot(0, [] {
       for (int i = 0; i < 200; ++i) {
-        if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
-          box->button(QMessageBox::Yes)->click();
-          return;
+        QWidget* m = QApplication::activeModalWidget();
+        if (m && m->objectName() == QLatin1String("stencilConfirmModal")) {
+          for (QPushButton* b : m->findChildren<QPushButton*>())
+            if (b->text() == QLatin1String("Confirm")) { b->click(); return; }
         }
         pumpFor(5);
       }
@@ -348,7 +355,7 @@ int main(int argc, char** argv) {
   // support/filterFade motion), never with the scatter a removal uses, and comes back
   // the same way round. Local-only dialog: no server poll to re-list rows mid-flight.
   {
-    std::printf("filter enter/exit transitions:\n");
+    std::printf("filter transitions (the answer arrives; nothing plays out):\n");
     ProjectsDialog dlg(locals, 5000);
     dlg.show();
     pumpFor(50);
@@ -365,23 +372,28 @@ int main(int argc, char** argv) {
     check(fullH > 0 && rowH(drop()) == fullH, "a settled row occupies its whole slot");
 
     search->setText("alp");
-    check(!drop()->isHidden(), "an excluded row stays up while it leaves");
-    check(!filteredIn(drop()), "…though it has already left the filtered set");
-    check(filteredIn(keep()), "…and the matching row is still in it");
+    // A filter DROPS nothing: the excluded row is out of the answer, and out of the view,
+    // the moment the answer changes. There is no exit to watch.
+    check(drop()->isHidden() && rowH(drop()) == 0, "an excluded row is gone at once");
+    check(!filteredIn(drop()), "…and has left the filtered set");
+    check(filteredIn(keep()), "…while the matching row is still in it");
     check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
           "…with none of the destructive scatter a removal uses");
-    pumpFor(kFilterFadeMs / 3);
-    check(rowH(drop()) < fullH, "…its slot collapsing as it goes");
-    pumpUntil([&] { return drop()->isHidden(); });
-    check(drop()->isHidden() && !keep()->isHidden(), "the excluded row goes once it has played");
-    check(rowH(keep()) == fullH, "…leaving the matching row at full height");
+    // The whole effect belongs to what is LEFT: the matching row keeps its slot (nothing
+    // may jump under the pointer) and re-forms out of the filter's own, lighter sand,
+    // named apart so nothing counting removals mistakes the two (support/filterFade.hpp).
+    check(rowH(keep()) == fullH, "the matching row keeps its slot — no jump under the cursor");
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+          "…and arrives out of the filter's own dust");
+    pumpUntil([&] { return dlg.findChild<QWidget*>(
+                        QString::fromLatin1(kFilterDustObjectName)) == nullptr; });
+    check(!keep()->isHidden() && rowH(keep()) == fullH, "…landing whole, where it always was");
 
     search->clear();
-    check(!drop()->isHidden() && rowH(drop()) < fullH,
-          "an entering row is in the view at once, still expanding");
+    check(!drop()->isHidden(), "a revealed row is in the view at once");
     check(filteredIn(drop()), "…and already counted in the filtered set");
     pumpUntil([&] { return rowH(drop()) == fullH; });
-    check(rowH(drop()) == fullH, "…and lands on its full slot");
+    check(rowH(drop()) == fullH, "…and its slot opens to full height");
 
     // Rapid edits: the LAST needle decides, with nothing left stuck part-collapsed.
     for (const char* q : {"al", "be", "ga", "a", ""}) {
@@ -409,6 +421,31 @@ int main(int argc, char** argv) {
     check(!drop()->isHidden() && rowH(drop()) == fullH,
           "…restoring it whole, still without animating");
     qunsetenv("STENCIL_NO_ANIM");
+    dlg.reject();
+  }
+
+  // ── Regression: a live re-list landing mid dust-flight must not crash. setProjects()
+  // (what a server poll / MainWindow refresh calls) does list_->clear() — if it lands in
+  // the gap between a filter arrival's dust settling and its veil-lift timer firing, the
+  // pending timer must not touch the now-deleted QListWidgetItem it started with.
+  {
+    std::printf("a live re-list mid dust-flight (crash regression):\n");
+    ProjectsDialog dlg(locals, 5000);
+    dlg.show();
+    pumpFor(50);
+    auto* list = dlg.findChild<QListWidget*>("projectsList");
+    auto* search = dlg.findChild<QLineEdit*>();
+    check(list && search, "finds the projects list and its search box");
+    if (!list || !search) return 1;
+    search->setText("alp");   // "alpha" arrives out of dust; its veil-lift timer is now pending
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+          "dust is in flight for the arriving row");
+    dlg.setProjects(locals);   // the live re-list — clears and rebuilds every row mid-flight
+    // Pump well past the veil-lift timer (kFilterDustMs * kFilterDustVeilStop) without
+    // crashing — that's the whole regression.
+    pumpFor(400);
+    check(dlg.isVisible(), "the dialog survives a re-list landing mid dust-flight");
+    check(rowById(list, "l1", false) != nullptr, "the rebuilt list still has its rows");
     dlg.reject();
   }
 

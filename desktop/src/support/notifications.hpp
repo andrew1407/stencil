@@ -1,5 +1,6 @@
 #pragma once
 #include <QColor>
+#include <QHash>
 #include <QLabel>
 #include <QList>
 #include <QObject>
@@ -12,6 +13,8 @@ class QWidget;
 // message that appears, then auto-dismisses after a few seconds. Toasts stack
 // upward from the bottom-left of the host widget.
 namespace stencil::gui {
+
+  class DisintegrateOverlay;
 
   class Notifications : public QObject {
     Q_OBJECT
@@ -70,6 +73,11 @@ namespace stencil::gui {
     // on every reflow, and the cap below happily retired the NEWEST toasts.
     // QPointer, so a toast deleted by any other route drops out on its own.
     QList<QPointer<QLabel>> stack_;
+    // The still-flying entrance cloud for a toast whose fade hasn't landed yet, so
+    // reflow() can drag it along when a burst bumps the toast to a new slot mid-flight —
+    // without this the cloud stays pinned to the box it was grabbed at, and the widget
+    // reappears somewhere else with no motes to show for it.
+    QHash<QLabel*, QPointer<DisintegrateOverlay>> entering_;
   };
 
 }

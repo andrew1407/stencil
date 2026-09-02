@@ -1,5 +1,6 @@
-import { StencilElement, hostTag, define } from './base.js';
+import { StencilElement, hostTag, define, createModalFlight } from './base.js';
 import { icon } from './icons.js';
+import { gestureAnchorRect } from './gesturePoint.js';
 
 // ── Component: generic confirm dialog ───────────────────────────
 // A single reusable yes/no modal replacing native confirm(). Call via the
@@ -36,7 +37,14 @@ export class StencilConfirmModal extends StencilElement {
     const confirmBtn = document.getElementById('confirm-modal-confirm');
 
     const body = overlay.querySelector('.settings-body');
+    // The question is sand like every other window (ui/base.js createModalFlight) — but
+    // it has no opener icon: it is raised by whatever the user just did, so it forms out
+    // of motes streaming from THAT gesture's own point and pours back into it.
+    const flight = createModalFlight(overlay, () => overlay.querySelector('.app-modal'));
 
+    // The gesture this dialog grew from, captured on open and reused on close — measured
+    // again at close time it would anchor on the dismiss button instead.
+    let openAnchor = null;
     // Resolver for the in-flight ask()/choose(); null when no dialog is open.
     let resolveCurrent = null;
     // When set, the dialog is in "choose" mode: Confirm resolves with the picked
@@ -48,7 +56,13 @@ export class StencilConfirmModal extends StencilElement {
     // button 'alt', and Cancel/Close/Escape null (see askAlt).
     let altBtn = null;
     const settle = (val) => {
+      // Measured while it is still up — display:none measures 0 — then handed to the
+      // cloud, which has a life of its own on <body>: the answer never waits for it.
+      const animate = overlay.classList.contains('modal-open') && !flight.reducedMotion()
+                      && flight.setOrigin(openAnchor);
       overlay.classList.remove('modal-open');
+      if (animate) flight.playClosing();
+      else { flight.settle(); flight.finishClose(); }
       document.removeEventListener('keydown', onKey, true);
       const r = resolveCurrent; resolveCurrent = null;
       const selEl = choiceSelect; choiceSelect = null;
@@ -78,7 +92,12 @@ export class StencilConfirmModal extends StencilElement {
       document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'Confirm';
       document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
       confirmBtn.classList.toggle('danger', !!opts.danger);
+      flight.finishClose();   // a question asked while the last one is still leaving
       overlay.classList.add('modal-open');
+      // Measured after the class applies — the box has no size while display:none. Captured
+      // once here and reused by settle() so the close flies back to this same point.
+      openAnchor = gestureAnchorRect();
+      if (!flight.reducedMotion() && flight.setOrigin(openAnchor)) flight.playDust(true);
       document.addEventListener('keydown', onKey, true);
     };
 

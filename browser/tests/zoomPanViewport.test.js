@@ -298,6 +298,20 @@ test('clampPanelWidth: never leaves the canvas less than its minimum', async () 
   assert.equal(clampPanelWidth(10, 1990), 240);
 });
 
+// One number, five references: the panel itself, the fullscreen points drawer, that
+// drawer's resizer rail and its off-screen transform. Written out at each site they drifted
+// apart and the drawer opened a different width than the panel it stands in for.
+test('the untouched panel width is one token, and every fallback reads it', () => {
+  const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const px = Number(/--coord-panel-default:\s*(\d+)px/.exec(layout)?.[1]);
+  assert.ok(px >= 240 && px <= 640, `--coord-panel-default ${px}px sits inside the clamp range`);
+  for (const file of ['layout.css', 'components.css', 'animations.css']) {
+    const css = readFileSync(new URL(`../css/${file}`, import.meta.url), 'utf8');
+    assert.ok(!/var\(--coord-panel-width,\s*\d/.test(css),
+      `${file}: a hard-coded fallback beside the token is how the two drifted apart`);
+  }
+});
+
 test('the panel width is re-clamped when the window changes, keeping the preference', () => {
   const src = readFileSync(new URL('../js/utils.js', import.meta.url), 'utf8');
   const fn = src.slice(src.indexOf('export const wirePanelResizer'), src.indexOf('// ── Notification balloon'));

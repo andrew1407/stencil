@@ -10,15 +10,19 @@
 //     than as a handful of slabs sliding off. Sweep::Fall out, Sweep::Gather in — the
 //     pair the browser already uses for ghostOut/ghostIn.
 //
-//   * QComboBox — the outgoing option leaves and the incoming one arrives on the app's
-//     existing exchange curve (faceSwap's faceSwapFrame): sequential, with an invisible
-//     pivot, so two values are never legible at once. The glyph TURN is read here as the
-//     chat card's vertical slide (chatDock kAppearSlidePx) — a word cannot rotate and
-//     stay a word — giving an odometer, clipped by the combo's own edit field.
+//   * QComboBox — the outgoing option comes APART into particles and the incoming one
+//     FORMS out of them, in place: the same sand, on the same sequential timing the old
+//     odometer had (the outgoing word is well on its way out before the incoming one
+//     starts arriving), so two values are never legible at once. Clipped by the combo's
+//     own edit field, so a mote can no more leave the field than the word could.
 //
-// Neither motion moves a box: the checkbox's particles fly in an overlay parented to the
-// window, and the combo's word slides inside a child overlay pinned to the edit field.
-// No control is ever resized, so no dialog can reflow mid-effect.
+//   * The LIST a combo drops is a surface like every other popup: it forms out of motes
+//     streaming from the combo and comes apart into them (support/menuReveal.hpp
+//     revealPopup — the same flight the context menus and dialogs play).
+//
+// None of these motions moves a box: the checkbox's particles fly in an overlay parented
+// to the window, and the combo's two clouds inside a child overlay pinned to it. No
+// control is ever resized, so no dialog can reflow mid-effect.
 //
 // The trigger is one application-wide event filter (installControlSwap()), the same
 // reason iconMotion.hpp has one: checkboxes and combos are built in a dozen dialogs and
@@ -26,12 +30,16 @@
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "disintegrateOverlay.hpp"
-#include "faceSwap.hpp"      // faceSwapFrame(), kFaceSwapMs, kFaceSwapTurnDeg
+#include "faceSwap.hpp"      // kFaceSwapMs — the exchange's clock
+#include "menuReveal.hpp"    // support::revealPopup() — the dropped list is a surface
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QAbstractAnimation>
 #include <QCheckBox>
+#include <QAbstractItemView>
+#include <QEasingCurve>
 #include <QComboBox>
+#include <QPointer>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QObject>
@@ -70,12 +78,26 @@ namespace stencil::gui {
   inline constexpr const char* kCheckSwapOwnerProperty = "stencilCheckSwapOwner";
 
   // ── the combo's value exchange ───────────────────────────────────────────────
-  inline constexpr int kValueSwapSlidePx = 6;   // chatDock kAppearSlidePx
+  // Motes about this big on screen — a word is small, and a word's grain has to be
+  // smaller still or the exchange reads as two halves sliding.
+  inline constexpr int kValueSwapCellPx = 3;
+  // How far a mote may travel. Small on purpose: the field clips it, and a word that
+  // exploded would read as an error rather than as a value changing.
+  inline constexpr double kValueSwapThrowPx = 11.0;
+  // Where the incoming word starts arriving, as a share of the exchange. The outgoing
+  // one is most of the way out by then — the invisible pivot the odometer had.
+  inline constexpr double kValueSwapPivot = 0.34;
+  // …and how much of it the outgoing word gets. Ending before the exchange does leaves
+  // the last beat to the arrival alone, which is the half you actually read.
+  inline constexpr double kValueSwapOutShare = 0.7;
   inline constexpr const char* kValueSwapObjectName = "stencilValueSwap";
   // Set while the swap owns the combo's text colour, so the widget stylesheet below can
   // match with the same weight as the app-wide QSS rule (faceSwap's idiom).
   inline constexpr const char* kValueSwapProperty = "stencilValueSwapping";
   inline constexpr const char* kValueSwapTextProperty = "stencilValueSwapText";
+  // The value BEFORE the current one — what an editable combo's pick animates from
+  // (currentTextChanged has already overwritten the cache by the time textActivated fires).
+  inline constexpr const char* kValueSwapPrevProperty = "stencilValueSwapPrev";
   inline constexpr const char* kValueSwapCountProperty = "stencilValueSwapCount";
   inline constexpr const char* kValueSwapSheetProperty = "stencilValueSwapBaseSheet";
 
@@ -185,8 +207,17 @@ namespace stencil::gui {
       QPixmap pm(QSize(qRound(cb->width() * dpr), qRound(cb->height() * dpr)));
       pm.setDevicePixelRatio(dpr);
       pm.fill(Qt::transparent);
-      QStyleOptionComboBox o = comboOption(cb, text);
       QPainter p(&pm);
+      if (cb->isEditable()) {
+        // An editable combo's word lives in its QLineEdit — CE_ComboBoxLabel paints
+        // nothing for it, so draw the value by hand in the field's own font/colour.
+        p.setFont(cb->font());
+        p.setPen(cb->palette().color(QPalette::Text));
+        p.drawText(comboFieldRect(cb).adjusted(3, 0, -2, 0),
+                   Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, text);
+        return pm;
+      }
+      QStyleOptionComboBox o = comboOption(cb, text);
       cb->style()->drawControl(QStyle::CE_ComboBoxLabel, &o, &p, cb);
       return pm;
     }
@@ -211,7 +242,8 @@ namespace stencil::gui {
         cb->setStyleSheet(cb->property(kValueSwapSheetProperty).toString()
                           + QStringLiteral("QComboBox[%1=\"true\"],QComboBox[%1=\"true\"]:hover,"
                                            "QComboBox[%1=\"true\"]:focus,"
-                                           "QComboBox[%1=\"true\"]:on"
+                                           "QComboBox[%1=\"true\"]:on,"
+                                           "QComboBox[%1=\"true\"] QLineEdit"
                                            "{color:rgba(0,0,0,0);}")
                                 .arg(p));
       } else {
@@ -221,6 +253,52 @@ namespace stencil::gui {
       // Qt matches property selectors at POLISH time, so both edges have to re-polish or
       // the rule is skipped entirely and the old word stays up under the swap.
       repolish(cb);
+    }
+
+    // ── the list a combo drops ────────────────────────────────────────────────
+    // It is a surface like every other popup in the app, so it forms out of motes
+    // streaming from the control that owns it (support/menuReveal.hpp revealPopup — the
+    // same flight the context menus and the dialogs play). A QComboBox places and shows
+    // its own container, so there is nothing to call at the call site: the flight hangs
+    // off the container's own Show, which is the first moment its box is final.
+    inline constexpr const char* kComboPopupFilterName = "stencilComboPopupDust";
+    class ComboPopupDust : public QObject {
+     public:
+      explicit ComboPopupDust(QComboBox* cb) : QObject(cb), cb_(cb) {
+        setObjectName(QString::fromLatin1(kComboPopupFilterName));
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (!cb_) return QObject::eventFilter(o, e);
+        auto* popup = qobject_cast<QWidget*>(o);
+        if (!popup) return QObject::eventFilter(o, e);
+        if (e->type() == QEvent::Show) {
+          support::revealPopup(*popup, cb_);
+        } else if (e->type() == QEvent::Hide) {
+          // Same reasoning as the Show branch: Qt hides its own container, so the
+          // close has to hang off that Hide too, or it never played an exit flight.
+          support::dismissPopup(*popup, cb_);
+        }
+        return QObject::eventFilter(o, e);
+      }
+
+     private:
+      QPointer<QComboBox> cb_;
+    };
+
+    // Arm it once per combo. view()->window() is the container Qt drops; asking for the
+    // view is what creates it, which is exactly why this can be done at wire time.
+    inline void wireComboPopupDust(QComboBox* cb) {
+      QAbstractItemView* view = cb->view();
+      QWidget* popup = view ? view->window() : nullptr;
+      if (!popup || popup == cb->window()) return;
+      // The watcher is parented to the COMBO (the popup container is Qt's, and outlives
+      // nothing of ours), so that is where the once-only guard looks.
+      if (cb->findChild<QObject*>(QString::fromLatin1(kComboPopupFilterName),
+                                  Qt::FindDirectChildrenOnly))
+        return;
+      popup->installEventFilter(new ComboPopupDust(cb));
     }
 
     inline void rememberComboValue(QComboBox* cb) {
@@ -283,17 +361,60 @@ namespace stencil::gui {
 
    protected:
     void paintEvent(QPaintEvent*) override {
-      const FaceSwapFrame fr = faceSwapFrame(t_);
-      const QPixmap& pm = fr.incoming ? in_ : out_;
-      if (pm.isNull()) return;
       QPainter p(this);
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-      p.setClipRect(clip_);   // clipped by the edit field, the way an odometer is
-      p.setOpacity(std::clamp(fr.alpha, 0.0, 1.0));
-      // faceSwap's quarter-turn, read as the chat card's rise: the outgoing word lifts
-      // away and the incoming one comes up from below. The turn's sign already reverses
-      // across the pivot, so the two directions fall out of the same curve.
-      p.drawPixmap(QPointF(0.0, -fr.deg / kFaceSwapTurnDeg * kValueSwapSlidePx), pm);
+      p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
+      // Sequential, like the odometer this replaces: the outgoing word is most of the way
+      // out before the incoming one starts arriving, so two values are never legible at
+      // once — only, now, both are sand.
+      paintCloud(p, out_, std::clamp(t_ / kValueSwapOutShare, 0.0, 1.0), false);
+      paintCloud(p, in_,
+                 std::clamp((t_ - kValueSwapPivot) / (1.0 - kValueSwapPivot), 0.0, 1.0), true);
+    }
+
+    // One cloud of a WORD: the label picture redrawn cell by cell, each cell thrown by
+    // its own hash. The twin of DisintegrateOverlay's Fall/Gather sweeps, at word scale —
+    // the same two decorrelated noises, so the app's sand all behaves alike. `t` is this
+    // cloud's own progress; `gather` reads the same journey backwards.
+    void paintCloud(QPainter& p, const QPixmap& pm, double t, bool gather) {
+      if (pm.isNull() || (gather ? t <= 0.0 : t >= 1.0)) return;
+      const QRectF box(clip_);
+      if (box.width() < 2 || box.height() < 2) return;
+      const int cols = std::max(1, qRound(box.width() / kValueSwapCellPx));
+      const int rows = std::max(1, qRound(box.height() / kValueSwapCellPx));
+      const double cw = box.width() / cols;
+      const double ch = box.height() / rows;
+      // The label pixmap covers the whole control and is device-pixel scaled.
+      const double sx = double(pm.width()) / std::max(1, width());
+      const double sy = double(pm.height()) / std::max(1, height());
+      static const QEasingCurve kOut(QEasingCurve::OutQuint);
+      for (int cy = 0; cy < rows; ++cy)
+        for (int cx = 0; cx < cols; ++cx) {
+          const double n = DisintegrateOverlay::cellNoise(cx, cy);
+          const double m = DisintegrateOverlay::cellNoise(cx + 41, cy + 17);
+          // A word is READ left to right, so it comes apart that way — and gathers back
+          // the same sweep reversed, the rule every other flight here follows.
+          const double along = cols > 1 ? double(cx) / (cols - 1) : 0.0;
+          const double delay = (gather ? 1.0 - along : along) * 0.4 + n * 0.1;
+          double k = (t - delay) / std::max(0.05, 1.0 - delay);
+          k = std::clamp(k, 0.0, 1.0);
+          const double e = kOut.valueForProgress(k);
+          const double away = gather ? 1.0 - e : e;
+          if (away >= 1.0) continue;
+          const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
+          const QRectF src(dst.x() * sx, dst.y() * sy, cw * sx, ch * sy);
+          p.save();
+          p.setOpacity(std::clamp(1.0 - away, 0.0, 1.0));
+          p.translate(dst.center());
+          p.translate(away * (m - 0.5) * kValueSwapThrowPx,
+                      away * (0.3 + n * 0.7) * kValueSwapThrowPx);
+          p.rotate(away * (m - 0.5) * 50);
+          const double scale = 1.0 - away * (0.6 - n * 0.25);
+          p.scale(scale, scale);
+          p.translate(-dst.center());
+          p.drawPixmap(dst, pm, src);
+          p.restore();
+        }
     }
 
    private:
@@ -322,16 +443,35 @@ namespace stencil::gui {
       const QString from = prev.toString();
       rememberComboValue(cb);   // the cache is the TRUE current value from here on
       if (cb->property(kNoControlSwapProperty).toBool()) return;
-      // An EDITABLE combo (the zoom box, the LLM model box) has no chosen option to
-      // exchange: its value is a QLineEdit the user is typing into, and blanking that
-      // text for 240ms per keystroke would be sabotage, not motion.
-      if (cb->isEditable()) return;
+      // An EDITABLE combo (the zoom box, the LLM model box) must not animate per
+      // KEYSTROKE — but a PICK from its list is a value exchange like any other, so
+      // the outgoing value is stashed for onComboPick (textActivated fires after
+      // currentTextChanged has already overwritten the cache).
+      if (cb->isEditable()) {
+        cb->setProperty(kValueSwapPrevProperty, from);
+        return;
+      }
       if (support::motionReduced() || !cb->isVisible()) {
         ValueSwapOverlay::cancel(cb);
         return;
       }
       if (!prev.isValid() || from.isEmpty() || to.isEmpty() || from == to) return;
       if (prevCount != cb->count()) return;
+      ValueSwapOverlay::play(cb, from, to);
+    }
+
+    // A PICK from an editable combo's dropped list (the zoom presets, the model box):
+    // the one moment such a combo exchanges values rather than being typed into —
+    // browser parity: the zoom preset pick plays markSwap on its input.
+    inline void onComboPick(QComboBox* cb, const QString& to) {
+      if (!cb->isEditable()) return;   // non-editables animate via currentTextChanged
+      if (cb->property(kNoControlSwapProperty).toBool()) return;
+      if (support::motionReduced() || !cb->isVisible()) {
+        ValueSwapOverlay::cancel(cb);
+        return;
+      }
+      const QString from = cb->property(kValueSwapPrevProperty).toString();
+      if (from.isEmpty() || to.isEmpty() || from == to) return;
       ValueSwapOverlay::play(cb, from, to);
     }
 
@@ -359,8 +499,11 @@ namespace stencil::gui {
       } else if (auto* cb = qobject_cast<QComboBox*>(o)) {
         cb->setProperty(kControlSwapWiredProperty, true);
         ctl::rememberComboValue(cb);
+        ctl::wireComboPopupDust(cb);
         connect(cb, &QComboBox::currentTextChanged, cb,
                 [cb](const QString& to) { ctl::onComboText(cb, to); });
+        connect(cb, &QComboBox::textActivated, cb,
+                [cb](const QString& to) { ctl::onComboPick(cb, to); });
       }
       return QObject::eventFilter(o, e);
     }

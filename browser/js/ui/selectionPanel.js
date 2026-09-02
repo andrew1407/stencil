@@ -3,6 +3,7 @@ import { icon } from './icons.js';
 import { fillState } from '../core/layout.js';
 import { pointColorOf } from '../core/renderer.js';
 import { notify } from '../utils.js';
+import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint } from './motion.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
 export class StencilSelectionPanel extends StencilElement {
@@ -16,7 +17,7 @@ export class StencilSelectionPanel extends StencilElement {
                 </div>
                 <div class="control-group">
                     <label>Point Color:</label>
-                    <input type="color" id="sel-point-color" title="Point color for this line">
+                    <input type="color" id="sel-point-color">
                 </div>
                 <div class="control-group">
                     <label>Thickness:</label>
@@ -35,9 +36,9 @@ export class StencilSelectionPanel extends StencilElement {
                     </select>
                 </div>
                 <div class="control-group" id="sel-fill-group" style="display:none;">
-                    <label title="Locked area fill"><input type="checkbox" id="sel-fill-enabled" style="vertical-align:middle;"> Fill:</label>
-                    <input type="color" id="sel-fill" title="Area fill color">
-                    <button id="sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;padding:6px 10px;">${icon('x', { size: 13 })}</button>
+                    <label><input type="checkbox" id="sel-fill-enabled" style="vertical-align:middle;"> Fill:</label>
+                    <input type="color" id="sel-fill">
+                    <button id="sel-fill-clear" type="button" style="background:#e67e22;padding:6px 10px;">${icon('x', { size: 13 })}</button>
                 </div>
                 <button id="sel-deselect" class="deselect-btn btn-icon-text">${icon('x', { size: 13 })}<span>Deselect</span></button>
             </div>
@@ -48,6 +49,22 @@ export class StencilSelectionPanel extends StencilElement {
 define('stencil-selection-panel', StencilSelectionPanel);
 
 // ── Panel ↔ app sync (extracted from drawingApp.js; DrawingApp keeps thin delegators) ──
+
+// Anchors to #image-info rather than the bar's own (dis)appearing rect — no single
+// control opens the bar, so there's no natural origin element otherwise.
+// `closing`: #image-info's rect is still pre-close here; predict its post-close position
+// (bar's own top + #image-info's height) instead of trusting that stale bottom.
+export const barDustPoint = (el, closing = false) => {
+  const info = document.getElementById('image-info');
+  const r = info?.getBoundingClientRect?.();
+  if (r && r.width > 0 && r.height > 0) {
+    const y = closing ? el.getBoundingClientRect().top + r.height : r.bottom;
+    return { x: r.left + r.width / 2, y };
+  }
+  // No image-info to anchor to (shouldn't happen while a line is selected) — fall back
+  // to the bar's own geometry.
+  return dockAwayPoint(el.getBoundingClientRect(), 'bottom');
+};
 
 // Populate + show the panel (and its fullscreen mirror) for the selected `line`.
 export function showSelectionPanel(app, line) {
@@ -70,7 +87,12 @@ export function showSelectionPanel(app, line) {
       fillGroup.style.display = 'none';
     }
   }
-  document.getElementById('selection-panel').style.display = 'block';
+  const panel = document.getElementById('selection-panel');
+  // Only on the hidden -> visible edge: re-populating an already-open bar (switching the
+  // selected line) must not replay the gather.
+  const wasHidden = panel.style.display !== 'block';
+  panel.style.display = 'block';
+  if (wasHidden && !surfaceIn(panel, barDustPoint(panel))) settleSurface(panel);
   app.syncFsSelectionPanel(line);
   app.renderLinesList();
 }
@@ -78,7 +100,12 @@ export function showSelectionPanel(app, line) {
 // Hide the selection panel and its fullscreen mirror.
 export function hideSelectionPanels() {
   const selPanel = document.getElementById('selection-panel');
-  if (selPanel) selPanel.style.display = 'none';
+  if (selPanel) {
+    if (selPanel.style.display === 'block') {
+      if (!surfaceOut(selPanel, barDustPoint(selPanel, /* closing */ true))) settleSurface(selPanel);
+    } else settleSurface(selPanel);
+    selPanel.style.display = 'none';
+  }
   const fsPanel = document.getElementById('fs-selection-panel');
   if (fsPanel) fsPanel.style.display = 'none';
 }
@@ -136,7 +163,7 @@ export function syncFsSelectionPanel(app, line) {
             ${line.locked ? `<div class="control-group"><label>Fill:</label>
                 <input type="checkbox" id="fs-sel-fill-enabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
                 <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
-                <button id="fs-sel-fill-clear" type="button" title="Clear fill (make transparent)" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
+                <button id="fs-sel-fill-clear" type="button" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
             <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
         </div>`;
   fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {

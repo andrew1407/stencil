@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(stencil VERSION 1.0.0 LANGUAGES CXX)
+# support/shareImageMac.mm (the macOS body of the native share sheet) is Objective-C++.
+# Harmless to enable on every OS this configures on — it only matters to the compiler
+# once a .mm file is actually compiled, which only happens under the APPLE branch below.
+if(APPLE)
+  enable_language(OBJCXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,6 +101,7 @@ if(Qt6_FOUND)
     src/app/launchOptions.cpp
     src/app/deepLink.cpp
     src/app/selectionPanel.cpp
+    src/app/selectedLineBar.cpp
     src/llm/chatDock.cpp
     src/llm/chatWidgets.cpp
     src/llm/chatCardRenderer.cpp
@@ -131,25 +138,49 @@ if(Qt6_FOUND)
     src/support/guiHelpers.cpp
     src/support/menuReveal.cpp
     src/support/modalReveal.cpp
+    src/support/modalChrome.cpp
     src/support/searchCombo.cpp
     src/support/iconSet.cpp
     src/support/numericInput.cpp
+    src/support/exportPreview.cpp
     resources/app.qrc)
 
-  add_executable(stencil_gui
+  # Native OS share sheet (support/shareImage.hpp — one Share button, browser/extension
+  # parity, hotkeysConfig.json shareImage): a small platform-specific TU per OS, since
+  # the native API behind each only exists on its own platform. The only extra library
+  # either real body needs is OS-provided (AppKit / the WinRT projection), not a new
+  # third-party dependency; Linux's fallback needs nothing beyond what's linked already.
+  set(STENCIL_SHARE_LIBS)
+  if(APPLE)
+    list(APPEND STENCIL_GUI_SOURCES src/support/shareImageMac.mm)
+    set_source_files_properties(src/support/shareImageMac.mm PROPERTIES
+      COMPILE_FLAGS "-fobjc-arc")
+    find_library(STENCIL_APPKIT_LIBRARY AppKit REQUIRED)
+    list(APPEND STENCIL_SHARE_LIBS ${STENCIL_APPKIT_LIBRARY})
+  elseif(WIN32)
+    list(APPEND STENCIL_GUI_SOURCES src/support/shareImageWin.cpp)
+    # C++/WinRT projection headers ship with the Windows SDK; `windowsapp` is its
+    # umbrella import lib for the WinRT runtime classes used there.
+    list(APPEND STENCIL_SHARE_LIBS windowsapp)
+  else()
+    list(APPEND STENCIL_GUI_SOURCES src/support/shareImageLinux.cpp)
+  endif()
+
+  add_executable(stencil
     src/app/main.cpp
     ${STENCIL_GUI_SOURCES}
   )
-  target_include_directories(stencil_gui PRIVATE ${STENCIL_GUI_DIRS})
-  target_link_libraries(stencil_gui
-    PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg)
+  target_include_directories(stencil PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil
+    PRIVATE stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg
+            ${STENCIL_SHARE_LIBS})
   if(STENCIL_DEV_STATE_DIR)
     # Repo-local, gitignored runtime state dir (settings / session / projects).
-    target_compile_definitions(stencil_gui PRIVATE
+    target_compile_definitions(stencil PRIVATE
       "STENCIL_STATE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/.stencil\"")
-    message(STATUS "stencil_gui: dev state dir baked (${CMAKE_CURRENT_SOURCE_DIR}/.stencil)")
+    message(STATUS "stencil: dev state dir baked (${CMAKE_CURRENT_SOURCE_DIR}/.stencil)")
   else()
-    message(STATUS "stencil_gui: portable build — state resolves to per-user config dir")
+    message(STATUS "stencil: portable build — state resolves to per-user config dir")
   endif()
   # App icon: rasterise browser/favicon.svg (the shared single-source artwork) into
   # a multi-resolution .icns at configure time and drop it in Contents/Resources/.
@@ -168,16 +199,16 @@ if(Qt6_FOUND)
                 "${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg" "${_icns}"
         RESULT_VARIABLE _icns_rc OUTPUT_QUIET)
       if(_icns_rc EQUAL 0)
-        target_sources(stencil_gui PRIVATE "${_icns}")
+        target_sources(stencil PRIVATE "${_icns}")
         set_source_files_properties("${_icns}" PROPERTIES
           MACOSX_PACKAGE_LOCATION Resources)
         set(STENCIL_BUNDLE_ICON_FILE "stencil.icns")
-        message(STATUS "stencil_gui: bundled app icon ${_icns}")
+        message(STATUS "stencil: bundled app icon ${_icns}")
       else()
-        message(WARNING "stencil_gui: make-icns.sh failed (rc=${_icns_rc}) — building without an app icon")
+        message(WARNING "stencil: make-icns.sh failed (rc=${_icns_rc}) — building without an app icon")
       endif()
     else()
-      message(WARNING "stencil_gui: sips/iconutil not found — building without an app icon")
+      message(WARNING "stencil: sips/iconutil not found — building without an app icon")
     endif()
 
     # Themed AppIcon (macOS 26 "Icon & widget style": Default / Dark / Tinted, with
@@ -199,23 +230,23 @@ if(Qt6_FOUND)
                 "${CMAKE_CURRENT_BINARY_DIR}" "${STENCIL_ACTOOL}"
         RESULT_VARIABLE _car_rc OUTPUT_QUIET ERROR_QUIET)
       if(_car_rc EQUAL 0 AND EXISTS "${_car}")
-        target_sources(stencil_gui PRIVATE "${_car}")
+        target_sources(stencil PRIVATE "${_car}")
         set_source_files_properties("${_car}" PROPERTIES
           MACOSX_PACKAGE_LOCATION Resources)
         set(STENCIL_BUNDLE_ICON_NAME "AppIcon")
-        message(STATUS "stencil_gui: bundled themed AppIcon (Assets.car) — dark/tinted aware")
+        message(STATUS "stencil: bundled themed AppIcon (Assets.car) — dark/tinted aware")
       else()
-        message(STATUS "stencil_gui: themed AppIcon skipped (actool rc=${_car_rc}) — plain .icns only")
+        message(STATUS "stencil: themed AppIcon skipped (actool rc=${_car_rc}) — plain .icns only")
       endif()
     else()
-      message(STATUS "stencil_gui: actool not found (needs full Xcode) — plain .icns only, no OS icon theming")
+      message(STATUS "stencil: actool not found (needs full Xcode) — plain .icns only, no OS icon theming")
     endif()
   endif()
   # Ship as a macOS .app bundle and a Windows GUI app (no console window) so the
   # platform deploy tools have the right shape to bundle Qt into.
   # Custom Info.plist adds CFBundleDocumentTypes (image/movie/json) so Finder
   # offers Stencil for "Open With" / drag-onto-Dock, delivering a QFileOpenEvent.
-  set_target_properties(stencil_gui PROPERTIES
+  set_target_properties(stencil PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_BUNDLE_NAME "Stencil"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.stencil.app"
@@ -228,14 +259,14 @@ if(Qt6_FOUND)
   # AppIcon. Done POST_BUILD (after CMake assembles Info.plist) and only when the
   # car was built — Delete-then-Add makes it idempotent across rebuilds.
   if(STENCIL_BUNDLE_ICON_NAME)
-    add_custom_command(TARGET stencil_gui POST_BUILD
+    add_custom_command(TARGET stencil POST_BUILD
       COMMAND /bin/sh -c
-        "PL=\"$<TARGET_BUNDLE_CONTENT_DIR:stencil_gui>/Info.plist\"; \
+        "PL=\"$<TARGET_BUNDLE_CONTENT_DIR:stencil>/Info.plist\"; \
          /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' \"$PL\" 2>/dev/null; \
          /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string ${STENCIL_BUNDLE_ICON_NAME}' \"$PL\""
       VERBATIM)
   endif()
-  message(STATUS "Qt6 found — building stencil_gui (${Qt6_VERSION})")
+  message(STATUS "Qt6 found — building stencil (${Qt6_VERSION})")
 
   # Headless functional check of the crop integration (CanvasWidget + cropGeometry).
   # Runs offscreen (QT_QPA_PLATFORM=offscreen), so it needs no display. Kept out of
@@ -321,11 +352,13 @@ if(Qt6_FOUND)
   # and the combo's value exchange, driven on live widgets under the real app stylesheet
   # (converge on the true state, no geometry change, rapid changes land, reduced motion
   # goes straight to the end state). Needs theme for the QSS the indicator is drawn from,
-  # iconSet for faceSwap's glyphs and modalReveal for motionReduced().
+  # iconSet for faceSwap's glyphs, menuReveal for the dropped list's dust and modalReveal
+  # for motionReduced().
   add_executable(stencil_controlswap_headless
     tests/controlSwap.headless.cpp
     src/support/theme.cpp
     src/support/iconSet.cpp
+    src/support/menuReveal.cpp
     src/support/modalReveal.cpp
     resources/app.qrc)
   target_include_directories(stencil_controlswap_headless PRIVATE
@@ -359,8 +392,10 @@ if(Qt6_FOUND)
     ${STENCIL_GUI_SOURCES})
   target_include_directories(stencil_mainwindow_gui PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_mainwindow_gui PRIVATE
-    stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test)
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test
+    ${STENCIL_SHARE_LIBS})
   add_test(NAME stencil_mainwindow_gui COMMAND stencil_mainwindow_gui)
+
   # STENCIL_NO_ANIM: this test opens dialogs and acts on them at once, so the
   # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
   # window under the test for its first ~200 ms, which is exactly the kind of timing the
@@ -456,6 +491,7 @@ if(Qt6_FOUND)
     src/support/theme.cpp
     src/support/notifications.cpp
     src/support/iconSet.cpp
+    src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     src/io/fileStore.cpp
     resources/app.qrc)
   target_include_directories(stencil_projecttransfer_headless PRIVATE ${STENCIL_GUI_DIRS})
@@ -498,6 +534,7 @@ if(Qt6_FOUND)
     tests/notifications.headless.cpp
     src/support/notifications.cpp
     src/support/iconSet.cpp
+    src/support/modalReveal.cpp   # the toast dust flight needs motionReduced()
     resources/app.qrc)
   target_include_directories(stencil_notifications_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_notifications_headless PRIVATE Qt6::Widgets Qt6::Svg)
@@ -512,12 +549,14 @@ if(Qt6_FOUND)
   # QTcpServer stands in for the collaboration server.
   add_executable(stencil_connectrow_headless
     tests/connectRow.headless.cpp
+    src/support/modalChrome.cpp
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
+    src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc)
   target_include_directories(stencil_connectrow_headless PRIVATE ${STENCIL_GUI_DIRS})
@@ -532,12 +571,14 @@ if(Qt6_FOUND)
   # loop, keeps the saved connection, and the row offers a labelled Reconnect.
   add_executable(stencil_serverauth_headless
     tests/serverAuth.headless.cpp
+    src/support/modalChrome.cpp
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
+    src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc)
   target_include_directories(stencil_serverauth_headless PRIVATE ${STENCIL_GUI_DIRS})
@@ -555,12 +596,14 @@ if(Qt6_FOUND)
   # listing, so the server-row compositions need no Go server.
   add_executable(stencil_projectsbatch_headless
     tests/projectsBatchBar.headless.cpp
+    src/support/modalChrome.cpp
     src/dialogs/projectsDialog.cpp
     src/net/serverClient.cpp
     src/io/fileStore.cpp
     src/support/guiHelpers.cpp
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
+    src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the dialog's filter/sort/mode pickers are these now
     resources/app.qrc)
   target_include_directories(stencil_projectsbatch_headless PRIVATE ${STENCIL_GUI_DIRS})
@@ -736,7 +779,7 @@ if(Qt6_FOUND)
   # installed. `cpack` finally wraps that tree into one platform package:
   # .dmg (macOS) / .zip (Windows) / .tar.gz (Linux). Build releases with
   # -DSTENCIL_DEV_STATE_DIR=OFF (see desktop/README.md → Release packaging).
-  install(TARGETS stencil_gui
+  install(TARGETS stencil
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION bin)
 
@@ -761,13 +804,13 @@ if(Qt6_FOUND)
   # documented in desktop/README.md.
   if(Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
     qt6_generate_deploy_app_script(
-      TARGET stencil_gui
+      TARGET stencil
       OUTPUT_SCRIPT STENCIL_DEPLOY_SCRIPT
       NO_UNSUPPORTED_PLATFORM_ERROR)
     install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
   elseif(Qt6_VERSION VERSION_GREATER_EQUAL 6.3)
     qt6_generate_deploy_app_script(
-      TARGET stencil_gui
+      TARGET stencil
       FILENAME_VARIABLE STENCIL_DEPLOY_SCRIPT
       NO_UNSUPPORTED_PLATFORM_ERROR)
     install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
@@ -792,7 +835,7 @@ if(Qt6_FOUND)
   endif()
   include(CPack)
 else()
-  message(STATUS "Qt6 not found — skipping stencil_gui (core builds via ../core)")
+  message(STATUS "Qt6 not found — skipping stencil (core builds via ../core)")
 endif()
 
 # The WebAssembly target moved to core/CMakeLists.txt (it builds the shared core, not

@@ -31,6 +31,8 @@ namespace stencil::gui {
     QColor danger;       // --danger           (errors; lifted on dark, like the CSS)
     QColor selGlow;      // DEFAULT_VISUALS.selGlowColor
     QColor hoverRing;    // DEFAULT_VISUALS.hoverRingColor
+    QColor bgCoordHover; // --bg-coord-hover   (neutral row-hover tint, e.g. .ctx-item:hover —
+                         // NOT accent-tinted; a fixed light/dark gray the same across accents)
   };
 
   // A selectable brand-accent preset: a key (stored in Settings.accentColor), a
@@ -58,6 +60,18 @@ namespace stencil::gui {
   // so the accent can vary. (Named themePalette, not palette, to avoid shadowing
   // QWidget::palette().)
   Palette themePalette(bool dark, const QString& accentKey = "violet");
+
+  // QSS geometry the code also measures against — buildStylesheet interpolates these,
+  // so the stylesheet and the arithmetic can't drift.
+  inline constexpr int kMenuItemRightPadPx = 26;   // QMenu::item right padding
+  inline constexpr int kDockSeparatorPx = 9;       // QMainWindow::separator width
+
+  // Compact popup QSS for short, flat icon+label menus (the chat "…"/row menus,
+  // MenuHotkeyChips' compact mode): the app-wide QMenu paddings are sized for the
+  // menu bar and read as dead space there.
+  inline QString compactMenuQss() {
+    return QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
+  }
 
   // A Qt stylesheet (QSS) styling the whole app for the given mode + accent.
   QString buildStylesheet(bool dark, const QString& accentKey = "violet");

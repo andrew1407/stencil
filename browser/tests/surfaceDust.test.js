@@ -18,7 +18,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import {
-  surfaceMotion, dockAwayPoint, reshapeGrid, settleSurface,
+  surfaceMotion, dockAwayPoint, reshapeGrid, settleSurface, foldBox, FOLD_INSTANT_CLASS,
   surfaceIn, surfaceOut, cancelDust, tileNoise,
   SURFACE_IN_MS, SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPECK_PX,
   SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
@@ -29,10 +29,14 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const animCss = read('../css/animations.css');
 const baseJs = read('../js/ui/base.js');
 const chatPanelJs = read('../js/ui/chatPanel.js');
+const confirmJs = read('../js/ui/confirmModal.js');
 const ctxJs = read('../js/ui/contextMenu.js');
 const projectsJs = read('../js/ui/projectsModal.js');
 const chatViewJs = read('../js/ui/chatView.js');
+const llmSettingsJs = read('../js/ui/llmSettingsModal.js');
 const motionJs = read('../js/ui/motion.js');
+const toolbarJs = read('../js/ui/toolbar.js');
+const mainContentJs = read('../js/ui/mainContent.js');
 
 const BOX = { left: 400, top: 200, width: 600, height: 400 };
 const ICON = { x: 60, y: 40 };
@@ -121,7 +125,9 @@ test('a surface never dusts as copies of ITSELF — a cloud carries no identity'
   // every query on the page — the app's own, and every test that drives it — would have
   // to know about a decoration. This is the guard against that coming back.
   const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
-  assert.match(dust, /paintTile: speckPainter\(el\),/, 'a surface always paints specks');
+  // (`paint` is the caller's colour override — a mark whose ink has already left the
+  // element by the time it flies; it changes the COLOUR, never the specks.)
+  assert.match(dust, /paintTile: speckPainter\(el, paint\),/, 'a surface always paints specks');
   assert.ok(!/makeCopy/.test(dust.slice(0, dust.indexOf('settleSurface'))),
     'and never hands disintegrate an element to copy');
   assert.ok(!/cloneForTile|cloneNode/.test(motionJs.slice(motionJs.indexOf('// ── Surfaces'),
@@ -130,11 +136,15 @@ test('a surface never dusts as copies of ITSELF — a cloud carries no identity'
 });
 
 test('a surface is grained at least as fine as a row, under its own mote ceiling', () => {
-  // A window is tens of times a row's area, so the BUDGET is what sizes its cells — and
-  // at the wipe's own 1200 a settings window came apart into 20px slabs, a mosaic
-  // rather than sand. The grain aimed for is the row's or finer.
+  // A window is tens of times a row's area, so the BUDGET is what sizes its cells. The
+  // grain aimed for is the row's or finer; the CEILING is lower than "one per pixel"
+  // would want, because a few thousand of them — each its own compositor layer — is
+  // what read as lag on a big surface (a full-height chat panel, a tall settings
+  // window). The speck stays capped separately, so a coarser grid is still sand.
   assert.ok(SURFACE_MOTE_PX <= MOTE_PX, 'a surface mote is no coarser than a row’s');
-  assert.equal(SURFACE_COLS * SURFACE_ROWS, 2400, 'the surface mote ceiling');
+  // 1380 (the original ceiling) still cost ~35ms of build/style/paint on a full-height
+  // docked panel, most of a close's own budget spent before the first mote had moved.
+  assert.equal(SURFACE_COLS * SURFACE_ROWS, 672, 'the surface mote ceiling');
   // Whatever the budget leaves, the SPECK drawn in a cell is capped at a grain — a
   // cell-filling square is the "huge rectangles" a scatter must never show.
   assert.ok(SURFACE_SPECK_PX <= MOTE_PX, 'the drawn grain never grows with the cell');
@@ -208,11 +218,12 @@ test('one cloud per element: a superseding open/close drops the one in the air',
   // disintegrate() cancels before it builds, which is what stops a double-clicked menu
   // stranding a layer over the page.
   const body = motionJs.slice(motionJs.indexOf('export function disintegrate'));
-  assert.match(body, /cancelDust\(el\);\s*\/\/ one cloud per element/);
+  assert.match(body, /\/\/ One cloud per element[\s\S]{0,320}?if \(own\) cancelDust\(el\);/);
   // …and every surface flight settles the element first.
-  assert.match(motionJs, /const playSurface = \(el, point, \{ ms, gather \}\) => \{\s*\n\s*if \(!el\?\.classList\) return false;\s*\n\s*settleSurface\(el\);/);
+  assert.match(motionJs, /const playSurface = \(el, point, \{ ms, gather, box = null \}\) => \{\s*\n\s*if \(!el\?\.classList\) return false;\s*\n\s*settleSurface\(el\);/);
   // The layer removes itself even if nobody ever settles it.
-  assert.match(body, /el\.__dustTimer = setTimeout\(\(\) => \{[\s\S]*?host\.remove\(\);/);
+  assert.match(body, /const life = setTimeout\(\(\) => \{[\s\S]*?host\.remove\(\);/);
+  assert.match(body, /if \(own\) \{ el\.__dustHost = host; el\.__dustTimer = life; \}/);
 });
 
 test('the box is measured with its own entrance suppressed, or every mote is icon-sized', () => {
@@ -282,8 +293,19 @@ test('modals: the dust point IS the icon centre setOriginVars already measured',
   assert.match(baseJs, /overlay\.classList\.add\('modal-open', 'modal-popover'\);[\s\S]*?if \(!reducedMotion\(\) && setOriginVars\(\)\) playDust\(true\);/);
   assert.match(baseJs, /overlay\.classList\.add\('modal-closing'\);\s*\n\s*playDust\(false\);/);
   // The window still goes away on its own clock — the close never waits on the effect.
-  assert.match(baseJs, /const CLOSE_MS = SURFACE_OUT_MS;/);
-  assert.match(baseJs, /settleSurface\(boxOf\(\)\);\s*\/\/ nothing plays/);
+  assert.match(baseJs, /const MODAL_CLOSE_MS = SURFACE_OUT_MS;/);
+  assert.match(baseJs, /flight\.settle\(\);\s*\/\/ nothing plays/);
+  // …and the CONFIRM dialog, which has no opener icon at all, plays the very same
+  // flight out of the gesture that raised it (ui/gesturePoint.js).
+  assert.match(confirmJs, /createModalFlight\(overlay, \(\) => overlay\.querySelector\('\.app-modal'\)\)/);
+  assert.match(confirmJs, /openAnchor = gestureAnchorRect\(\);\s*\n\s*if \(!flight\.reducedMotion\(\) && flight\.setOrigin\(openAnchor\)\) flight\.playDust\(true\);/);
+  assert.match(confirmJs, /if \(animate\) flight\.playClosing\(\);/);
+  // The close reuses the SAME anchor the dialog opened with — not a fresh
+  // gestureAnchorRect(), which by settle time is wherever Confirm/Cancel/Close was
+  // just clicked, not the icon that raised the question.
+  assert.match(confirmJs, /flight\.setOrigin\(openAnchor\);\s*\n\s*overlay\.classList\.remove\('modal-open'\);/);
+  assert.ok(!/const settle = \(val\) => \{[\s\S]{0,200}gestureAnchorRect\(\)/.test(confirmJs),
+    'settle() must not recompute the gesture point — it would anchor on the button that just closed it');
 });
 
 test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
@@ -294,7 +316,7 @@ test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
   assert.match(chatPanelJs, /host\.classList\.toggle\('chat-open', on\);[\s\S]{0,160}if \(on\) playDust\(true\);/);
   // Closed BEFORE it leaves the screen, and on the same clock the class swap uses.
   assert.match(chatPanelJs, /playDust\(false\);\s*\/\/ …measured while it is still on screen\s*\n\s*host\.classList\.add\('chat-closing'\);/);
-  assert.match(chatPanelJs, /ms: enter \? 420 : closeMs\(\)/);
+  assert.match(chatPanelJs, /ms: enter \? 420 : CLOSE_MS/);
 });
 
 test('the context menu forms out of the very click it was opened at', () => {
@@ -311,7 +333,7 @@ test('the context menu forms out of the very click it was opened at', () => {
 
 test('the ⋯ overflow menus grow out of the button (or the right-click) that opened them', () => {
   // Projects: the cursor for a right-click, the "⋯" button's centre otherwise.
-  assert.match(projectsJs, /menuPoint = point \|\| \(ar \? \{ x: ar\.left \+ ar\.width \/ 2, y: ar\.top \+ ar\.height \/ 2 \} : null\);/);
+  assert.match(projectsJs, /menuPoint = point \|\| rectCenter\(anchor\);/);
   assert.match(projectsJs, /surfaceIn\(menu, menuPoint, \{ ms: SURFACE_MENU_IN_MS \}\);/);
   // …and back into it. The node still goes NOW: the layer owns its own lifetime.
   assert.match(projectsJs, /surfaceOut\(openMenu, menuPoint, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*openMenu\.remove\(\);/);
@@ -320,10 +342,153 @@ test('the ⋯ overflow menus grow out of the button (or the right-click) that op
   assert.match(chatViewJs, /surfaceOut\(menu, \{ x, y \}, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*menu\.remove\(\);/);
 });
 
+// The composer's "…" menu was the last popup in the app still hard-cutting on both
+// edges — every other surface already flew. It carries the settings/clear/attach items,
+// so it is also the one the user opens most.
+test('the composer "…" menu forms out of, and pours back into, its own trigger', () => {
+  const wire = chatViewJs.slice(chatViewJs.indexOf('export const wireChatMoreMenu'));
+  // The point is the trigger's centre, measured live (the composer moves with the dock).
+  assert.match(wire, /const dustPoint = \(\) => rectCenter\(btn\);/);
+  assert.match(wire, /surfaceIn\(menu, dustPoint\(\), \{ ms: SURFACE_MENU_IN_MS \}\)/);
+  assert.match(wire, /surfaceOut\(menu, dustPoint\(\), \{ ms: SURFACE_MENU_OUT_MS \}\)/);
+  // Only a real change flies: re-closing a closed menu must not raise a second cloud.
+  assert.match(wire, /const changed = on === menu\.hidden;/);
+  // `hidden` is display:none, so the box must still be up when the flight is played,
+  // and must go straight after — the cloud is a copy on <body> with its own life.
+  const open = wire.indexOf('menu.hidden = false;');
+  const out = wire.indexOf('surfaceOut(menu, dustPoint()');
+  const hide = wire.indexOf('if (!on) menu.hidden = true;');
+  assert.ok(open < wire.indexOf('surfaceIn(menu, dustPoint()'), 'unhidden before it forms');
+  assert.ok(out < hide, 'measured while still up, hidden immediately after');
+});
+
+// The gear that raises the settings window lives INSIDE that menu, and the menu closes
+// as it is clicked — so measuring the gear gives 0x0 and the window used to fall from
+// above. It belongs to the "…" the user can still see.
+test('the assistant settings window flies to the "…", not to the gear that vanished', () => {
+  assert.match(llmSettingsJs, /originEl: \(\) => visibleChatMoreBtn\(\)/);
+  const pick = chatViewJs.slice(chatViewJs.indexOf('export const visibleChatMoreBtn'));
+  // The composer the user last opened wins, then whichever surface is actually up.
+  assert.match(pick, /shownBtn\(lastMoreBtn\)/);
+  assert.match(pick, /shownBtn\(doc\.getElementById\('chat-more-btn'\)\)/);
+  assert.match(pick, /shownBtn\(doc\.getElementById\('ctx-assist-more-btn'\)\)/);
+  // A hidden trigger measures 0x0 and must NOT be offered — null is the honest answer,
+  // and base.js then falls from above (its `onScreen` guard).
+  assert.match(chatViewJs, /const shownBtn = \(el\) => \{[\s\S]{0,200}r\.width > 0 && r\.height > 0 \? el : null;/);
+  assert.match(pick, /\|\| null;/);
+  // The shell resolves it at BOTH edges, because close() re-measures before it plays.
+  assert.match(baseJs, /const defaultOrigin = \(\) => \(originFor \? originFor\(\) : openBtn\);/);
+  assert.match(baseJs, /: \(from === null \? null : defaultOrigin\(\)\);/);
+});
+
+test('a FOLD is the exception: it leaves slower than it arrives', async () => {
+  const { FOLD_DUST_OUT_MS } = await import('../js/ui/motion.js');
+  assert.ok(FOLD_DUST_OUT_MS > SURFACE_OUT_MS,
+    'a fold has no icon to shrink into — the fold IS the close, so it may not be brisk');
+  const token = (name) => Number(/(\d+)ms/.exec(new RegExp(`--${name}:\\s*([^;]+);`).exec(animCss)[1])[1]);
+  // The sand and the CSS fold must scale together, or one outlives the other.
+  assert.equal((FOLD_DUST_OUT_MS / SURFACE_OUT_MS).toFixed(2),
+               (token('fold-out-ms') / token('fold-ms')).toFixed(2));
+});
+
 test('a surface forms slower than it leaves — arriving is the half you watch', () => {
   assert.ok(SURFACE_IN_MS > SURFACE_OUT_MS, 'the gather is the slower half');
   assert.ok(SURFACE_IN_MS >= 560 && SURFACE_IN_MS <= 700, 'slow enough to read as sand gathering');
   // tileNoise is the shared hash — the surface flight is the row's, not a second system.
   assert.equal(typeof tileNoise(1, 2), 'number');
   assert.equal(tileNoise(1, 2), tileNoise(1, 2));
+});
+
+
+// ── 5. The two FOLDING surfaces ─────────────────────────────────────────────
+// The toolbar's tool rows and the points panel's table have no opener icon: CSS owns
+// their whole reveal (grid-template-rows / width), so at the moment the toggle flips
+// they are still at the box they are LEAVING — zero on the way in. foldBox is what
+// gets the flight the box it is about to fly over.
+
+// A fake element/scope pair: the box it reports depends on whether `cls` is set, exactly
+// as the real fold's does.
+const foldStub = (cls, openBox, shutBox = { width: 0, height: 0, left: 0, top: 0 }) => {
+  const classes = new Set([cls]);
+  const reads = [];
+  const el = {
+    classList: {
+      add: (c) => classes.add(c), remove: (c) => classes.delete(c),
+      contains: (c) => classes.has(c),
+      toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
+    },
+    getBoundingClientRect: () => {
+      const box = classes.has(cls) ? shutBox : openBox;
+      reads.push({ box, instant: classes.has(FOLD_INSTANT_CLASS) });
+      return box;
+    },
+  };
+  return { el, classes, reads };
+};
+
+test('foldBox reads the OPEN box, with the transitions off, and puts the state back', () => {
+  const open = { left: 0, top: 0, width: 900, height: 160 };
+  const { el, classes, reads } = foldStub('hidden', open);
+  const box = foldBox(el, el, 'hidden', false, FOLD_INSTANT_CLASS);
+  assert.deepEqual(box, { left: 0, top: 0, width: 900, height: 160 },
+    'the box dusted is the one the fold is about to reach, not the collapsed one');
+  // Every read happened with the fold's easing suppressed — a transitioned read hands
+  // back the box it is leaving, which is the whole bug this exists for.
+  assert.ok(reads.length >= 2 && reads.every((r) => r.instant), 'measured with motion off');
+  // …and nothing survives the round trip: same state in, same state out.
+  assert.ok(classes.has('hidden'), 'the collapsed state is restored');
+  assert.ok(!classes.has(FOLD_INSTANT_CLASS), 'the escape hatch is dropped again');
+});
+
+test('foldBox declines an unmeasurable box, and never throws on a stub', () => {
+  const { el } = foldStub('hidden', { left: 0, top: 0, width: 4, height: 4 });
+  assert.equal(foldBox(el, el, 'hidden', false, FOLD_INSTANT_CLASS), null);
+  assert.equal(foldBox(null, null, 'hidden', false, FOLD_INSTANT_CLASS), null);
+  assert.equal(foldBox({}, {}, 'hidden', false, FOLD_INSTANT_CLASS), null);
+});
+
+test('a folding surface hands its box in — the live rect is the wrong one', () => {
+  // playSurface/surfaceDust/disintegrate all take the override, or a fold dusts over
+  // a zero-height box and the flight silently declines.
+  assert.match(motionJs, /export const surfaceIn = \(el, point, \{ ms = SURFACE_IN_MS, box = null \} = \{\}\) =>/);
+  assert.match(motionJs, /export const surfaceOut = \(el, point, \{ ms = SURFACE_OUT_MS, box = null \} = \{\}\) =>/);
+  const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
+  assert.match(dust, /const r = box \|\| el\.getBoundingClientRect\(\);/);
+  const dis = motionJs.slice(motionJs.indexOf('export function disintegrate'));
+  assert.match(dis, /const r = box \|\| el\.getBoundingClientRect\(\);/);
+  // The suppression class is real CSS, on both folds and their fading children.
+  const instant = animCss.slice(animCss.indexOf('#controls-body.fold-instant'));
+  assert.match(instant.slice(0, instant.indexOf('}')), /transition: none !important/);
+  for (const sel of ['#controls-body.fold-instant > *', '.coordinates-panel.fold-instant',
+                     '.coordinates-panel.fold-instant #coord-body'])
+    assert.ok(animCss.includes(sel), `${sel} is suppressed for the read`);
+});
+
+test('the tool rows dust up past the top edge, measured before the class flips', () => {
+  // Both folds ride ONE shared ritual (motion.js foldDust): measure the SHOWN box,
+  // THEN let the caller fold (the other order reads the box it is leaving), aim past
+  // the dock edge, and give the collapse the fold's own slower exit clock.
+  const fold = motionJs.slice(motionJs.indexOf('export function foldDust'));
+  assert.ok(fold.indexOf('foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS)') !== -1);
+  assert.ok(fold.indexOf('foldBox(') < fold.indexOf('toggle?.();'),
+    'the box is measured before the fold starts');
+  assert.match(fold, /const away = box && dockAwayPoint\(box, dock\);/);
+  assert.match(fold, /ms: hiding \? FOLD_DUST_OUT_MS : inMs/);
+  assert.match(toolbarJs,
+    /foldDust\(body, body, 'hidden', hidden, 'top',\s*\n?\s*\{ toggle: \(\) => body\.classList\.toggle\('hidden', hidden\) \}\);/);
+});
+
+test('the points table pours out past the right edge the panel collapses towards', () => {
+  assert.match(mainContentJs,
+    /foldDust\(body, panel, 'coord-collapsed', hidden, 'right',\s*\n?\s*\{ inMs: 460, toggle: \(\) => panel\.classList\.toggle\('coord-collapsed', hidden\) \}\);/);
+  // .coord-folding takes the table out of the layout — it must be off for the read.
+  assert.ok(mainContentJs.indexOf("panel.classList.remove('coord-folding')")
+            < mainContentJs.indexOf('foldDust(body, panel'),
+    'the fold hold is lifted before the box is read');
+});
+
+test('neither fold dusts under reduced motion — the box is not even measured', () => {
+  const fold = motionJs.slice(motionJs.indexOf('export function foldDust'));
+  assert.match(fold, /motionReduced\(\) \? null : foldBox\(/,
+    'reduced motion skips the two forced layouts as well as the flight');
 });

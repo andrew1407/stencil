@@ -33,10 +33,28 @@ namespace stencil::gui {
     // Confirm-replace + dimension-mismatch guard, then adopt the parsed layout. Shared by
     // uploadLayout + pasteLayout here and MainWindow's applyLayoutFromSource (--layout).
     void applyLayoutJson(const QJsonObject& obj);
-    void saveImageFile();
-    void copyImageToClipboard();
+    // variant: "current" (default — tint + lines/points) | "original" (no tint, no
+    // lines/points) | "tint" (tint only, no lines/points) | "split" (needs a split
+    // compare view — the composite, no divider/knob baked in either).
+    void saveImageFile(const QString& variant = "current");
+    // Same four variants as saveImageFile, same meaning each — deliberately explicit
+    // (browser/desktop parity, user report): "current" is always the plain edited
+    // image, split compare view or not; picking "split" is the only way to copy that
+    // composite instead, exactly mirroring how "download" needs its own explicit row.
+    void copyImageToClipboard(const QString& variant = "current");
+    // Native OS share sheet (browser/extension parity: exportService.js shareImage()).
+    // Writes the annotated render to a session-lifetime temp file and hands it to
+    // support::showShareSheet — see shareImage.hpp for what that actually shows per OS.
+    // `anchor` is the Share BUTTON itself, not `parent_` (the whole window) — macOS's
+    // picker positions itself relative to anchor's bounds, and a window-sized anchor
+    // popped up off in a corner of the window instead of next to the button that was
+    // clicked. The caller resolves it at trigger time (MainWindow::buttonForAction).
+    void shareImage(QWidget* anchor);
 
   private:
+    // True while a split compare view (vertical/horizontal) is actually showing.
+    bool inSplitCompare() const;
+
     QWidget* parent_;
     CanvasWidget* canvas_;
     Notifications* notify_;

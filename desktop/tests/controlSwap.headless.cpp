@@ -1,11 +1,15 @@
 // Headless check of the form-control state swaps (src/support/controlSwap.hpp) — the
 // checkbox's particle toggle and the combo's value exchange.
 //
-// What is pinned here: that both effects actually run and converge on the TRUE state,
+// …plus the two that travel with them: the sand a combo's dropped LIST forms out of, and
+// the sand a whole GROUP of controls comes and goes as (support/controlReveal.hpp).
+//
+// What is pinned here: that the effects actually run and converge on the TRUE state,
 // that reduced motion lands on the end state with no motion at all, that neither ever
 // resizes or moves the control it decorates, that a burst of rapid changes always ends
 // on the last one asked for with nothing stranded behind it, and that the app-wide
 // installer wires controls built after it without any call site's help.
+#include "controlReveal.hpp"
 #include "controlSwap.hpp"
 #include "theme.hpp"
 
@@ -13,9 +17,11 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QAbstractItemView>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QImage>
+#include <QLabel>
 #include <QVBoxLayout>
 
 #include <cstdio>
@@ -30,6 +36,10 @@ using stencil::gui::kControlSwapWiredProperty;
 using stencil::gui::kNoControlSwapProperty;
 using stencil::gui::kValueSwapProperty;
 using stencil::gui::swapCheckIndicator;
+using stencil::gui::kControlRevealInMs;
+using stencil::gui::kFaceSwapMs;
+using stencil::gui::kControlRevealOutMs;
+using stencil::gui::revealControls;
 using stencil::gui::ValueSwapOverlay;
 
 static void pumpFor(int ms) {
@@ -174,7 +184,17 @@ int main(int argc, char** argv) {
     QWidget* fx = combo->findChild<QWidget*>(QString::fromLatin1(
         stencil::gui::kValueSwapObjectName));
     check(fx != nullptr && fx->geometry() == combo->rect(),
-          "the odometer is pinned inside the combo — the word can never slide outside it");
+          "the exchange is pinned inside the combo — a mote can no more leave the field "
+          "than the word could");
+    // Mid-exchange the overlay is DRAWING: the outgoing word's sand is on its way out
+    // and the incoming one's is arriving, so what is on screen is neither settled word.
+    pumpFor(kFaceSwapMs / 3);
+    const QImage mid = fx ? fx->grab().toImage().convertToFormat(QImage::Format_ARGB32)
+                          : QImage();
+    check(inkedPixels(mid) > 0, "…and it really paints the sand, not an empty layer");
+    check(mid != stencil::gui::ctl::comboLabelPixmap(combo, "Letter").toImage()
+                     .convertToFormat(QImage::Format_ARGB32),
+          "…which is not simply the settled word drawn early");
   }
   check(pumpUntil([combo] { return !ValueSwapOverlay::running(combo); }),
         "the exchange converges and stops");
@@ -269,8 +289,92 @@ int main(int argc, char** argv) {
   check(liveCheckOverlays(&host) == 0 && !ValueSwapOverlay::running(combo),
         "a hidden dialog's controls change state without animating");
 
+  // ── the list a combo drops ──────────────────────────────────────────────────
+  // It is a surface like every other popup (support/menuReveal.hpp revealPopup), and the
+  // watcher arms that flight on the container itself — no call site is involved, which is
+  // the whole point. The flight declines offscreen (no compositor for windowOpacity), so
+  // what is pinned here is the wiring, not the pixels.
+  {
+    QWidget* popup = combo->view() ? combo->view()->window() : nullptr;
+    check(popup != nullptr && popup != combo->window(),
+          "a combo's list lives in a popup window of its own");
+    // The watcher is parented to the combo, not to Qt's container.
+    const QString name = QString::fromLatin1(stencil::gui::ctl::kComboPopupFilterName);
+    check(combo->findChild<QObject*>(name, Qt::FindDirectChildrenOnly) != nullptr,
+          "…and the app-wide watcher armed its dust without any call site's help");
+    stencil::gui::ctl::wireComboPopupDust(combo);   // idempotent: never a second filter
+    int filters = 0;
+    for (QObject* o : combo->children())
+      if (o->objectName() == name) ++filters;
+    check(filters == 1, "…exactly once");
+  }
+
+  // ── a GROUP of controls coming and going (support/controlReveal.hpp) ─────────
+  // The f(x,y) fields and the custom page's W/H boxes: visibility lands at once in both
+  // directions, the sand is a snapshot with a life of its own, and nothing is ever left
+  // dimmed behind a flight that was interrupted.
+  {
+    host.show();
+    pumpUntil([&host] { return host.isVisible(); });
+    auto* group = new QWidget(&host);
+    auto* gl = new QVBoxLayout(group);
+    gl->addWidget(new QLabel("x(x)=", group));
+    group->setFixedSize(160, 28);
+    lay->addWidget(group);
+    group->setVisible(false);
+    pumpFor(60);
+    const auto liveReveals = [&host] {
+      return int(host.findChildren<QWidget*>(
+                     QString::fromLatin1(stencil::gui::kControlRevealObjectName)).size());
+    };
+
+    revealControls(group, true);
+    check(group->isVisible(), "the group is there at once — the layout never waits");
+    // Its own slot opens from zero in step with the dust: painted at 0 from the FIRST
+    // frame (set before Show), so a neighbouring control never sees it jump to full
+    // width and back.
+    check(group->maximumWidth() == 0, "the slot starts at zero width, not a flash of full");
+    check(pumpUntil([&] { return liveReveals() == 1; }, 2000),
+          "…and its motes gather over it once the pending layout has placed it");
+    check(group->graphicsEffect() != nullptr, "…with the real group veiled behind them");
+    check(pumpUntil([&] { return group->maximumWidth() >= 160; }, kControlRevealInMs + 3000),
+          "…while its slot grows to the group's true width");
+    check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealInMs + 3000),
+          "the gather converges and cleans itself up");
+    check(pumpUntil([&] { return group->graphicsEffect() == nullptr; }, 2000),
+          "…and the veil comes off, so the group is never left dimmed");
+    check(group->isVisible(), "…leaving it shown");
+
+    revealControls(group, false);
+    // The slot closes under the dust rather than jumping shut — group stays visible
+    // (still occupying its shrinking width) until the collapse actually finishes.
+    check(group->isVisible(), "the group stays up while its slot closes");
+    check(liveReveals() == 1, "…handing the picture to a cloud that outlives it");
+    check(pumpUntil([&] { return !group->isVisible(); }, kControlRevealOutMs + 3000),
+          "…and hides once the slot has fully closed");
+    check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealOutMs + 3000),
+          "…the cloud converges too");
+
+    // Asking for the state it already has is not a flight.
+    revealControls(group, false);
+    check(liveReveals() == 0 && !group->isVisible(),
+          "a group already in the asked-for state just stays there");
+
+    // Reduced motion: the end state, with nothing in the air and no effect left behind.
+    qputenv("STENCIL_NO_ANIM", "1");
+    revealControls(group, true);
+    check(group->isVisible() && liveReveals() == 0 && group->graphicsEffect() == nullptr,
+          "reduced motion shows the group with no motion at all");
+    revealControls(group, false);
+    check(!group->isVisible() && liveReveals() == 0, "…and hides it the same way");
+    qunsetenv("STENCIL_NO_ANIM");
+    delete group;
+    host.hide();
+  }
+
   // Degenerate calls are no-ops, not crashes.
   swapCheckIndicator(nullptr, true);
+  revealControls(nullptr, true);
 
   std::printf("%s\n", failures ? "FAILED" : "OK");
   return failures ? 1 : 0;

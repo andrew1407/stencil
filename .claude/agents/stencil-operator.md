@@ -261,11 +261,11 @@ build -j` (needs Qt 6). Launch / open content with `Bash` using its CLI flags â€
 you "open it" and seed an instance:
 
 ```bash
-./build/stencil_gui --src <path|url> [--frame n] [--layout <path|url>] \
+./build/stencil --src <path|url> [--frame n] [--layout <path|url>] \
                     [--theme dark|light] [--incognito]
-./build/stencil_gui --project "<saved project name>"   # reopen a saved project
-./build/stencil_gui --projects                          # open the Projects window
-./build/stencil_gui <file>                              # bare image / video / layout JSON
+./build/stencil --project "<saved project name>"   # reopen a saved project
+./build/stencil --projects                          # open the Projects window
+./build/stencil <file>                              # bare image / video / layout JSON
 ```
 
 Run it in the background. There's no scripting bridge into a *running* desktop instance, so

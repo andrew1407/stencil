@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { parseCombo, eventCombo, comboMatchesEvent } from '../js/ui/controlTooltip.js';
+import { TIP_SHOW_DELAY_MS } from '../js/ui/motion.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const componentsCss = read('../css/components.css');
@@ -102,7 +103,8 @@ test('positioning measures the LAYOUT box, so the entry scale cannot mis-clamp i
 });
 
 test('the show delay is unchanged — the transition is layered over it, not instead of it', () => {
-  assert.match(tooltipJs, /const SHOW_DELAY_MS = 90;/);
+  assert.match(tooltipJs, /const SHOW_DELAY_MS = TIP_SHOW_DELAY_MS;/);
+  assert.equal(TIP_SHOW_DELAY_MS, 200, 'the shared wake-up delay keeps its value');
   assert.match(tooltipJs, /showTimer = setTimeout\(\(\) => reveal\(el\), SHOW_DELAY_MS\);/);
   // Every dismissal still goes through the one hide(), which clears that timer first.
   assert.match(tooltipJs, /const hide = \(\) => \{\s*\n\s*clearTimeout\(showTimer\);/);

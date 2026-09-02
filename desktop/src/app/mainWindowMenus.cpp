@@ -1,6 +1,8 @@
 #include "mainWindow.hpp"
 #include "mainWindowHelpers.hpp"
 #include "canvasWidget.hpp"
+#include "menuReveal.hpp"
+#include "menuRowPolish.hpp"
 
 #include <QActionGroup>
 #include <QMenu>
@@ -34,16 +36,18 @@ namespace stencil::gui {
     file->addAction(actSaveSession_);
     file->addSeparator();
     file->addAction(actQuit_);
+    support::revealMenuBarMenu(*file, *menuBar());
 
     auto* edit = menuBar()->addMenu("&Edit");
     edit->addAction(actStartDraw_);
     edit->addAction(actStopDraw_);
-    // The line/rectangle mode toggle belongs beside Start/Stop, exactly as the browser's
-    // Draw toolbar section pairs #draw-toggle with #draw-mode-toggle. Both actions already
-    // existed but were reachable only from the canvas context menu, so the menu bar offered
-    // no way to switch drawing mode. Sharing a plain QAction across two menus is fine (the
-    // Image Filter rows below cannot be shared — they are QWidgetActions).
-    edit->addAction(actDrawModeToggle_);
+    // The instant line/rect actions belong beside Start/Stop, exactly as the browser's
+    // Draw toolbar section pairs #draw-toggle with the two instant items. Both actions
+    // already existed (rect) or are new (line) but were reachable only from the canvas
+    // context menu, so the menu bar offered no way to draw a shape instantly. Sharing a
+    // plain QAction across two menus is fine (the Image Filter rows below cannot be
+    // shared — they are QWidgetActions).
+    edit->addAction(actDrawLineNow_);
     edit->addAction(actDrawRectNow_);
     // Line-style radio set, mirroring the browser's Line Style toolbar select. Same
     // exclusive lineStyleGroup_ as the context menu's copy, so the two stay in sync.
@@ -51,6 +55,7 @@ namespace stencil::gui {
     lineStyle->addAction(actStyleSolid_);
     lineStyle->addAction(actStyleDashed_);
     lineStyle->addAction(actStyleDotted_);
+    support::revealSubmenu(*lineStyle, *edit, *lineStyle->menuAction());
     edit->addSeparator();
     edit->addAction(actUndo_);
     edit->addAction(actRedo_);
@@ -61,6 +66,7 @@ namespace stencil::gui {
     edit->addAction(actDeletePoint_);
     edit->addAction(actClearAll_);
     edit->addAction(actDeselect_);
+    support::revealMenuBarMenu(*edit, *menuBar());
 
     // Data menu (S9): layout JSON file + clipboard, and image save/copy/paste.
     // Mirrors the browser toolbar's Image/Layout button cluster (toolbar.js).
@@ -76,9 +82,22 @@ namespace stencil::gui {
     data->addAction(actCopyLayout_);
     data->addAction(actPasteLayout_);
     data->addSeparator();
-    data->addAction(actSaveImage_);
-    data->addAction(actCopyImage_);
+    // Copy Image / Download Image: nested submenus of the same variant actions the
+    // canvas context menu and the toolbar buttons' options popups use (context-menu
+    // parity — see showContextMenu's copyImg/dlImg).
+    QMenu* copyImgMenu = data->addMenu("Copy Image");
+    populateExportVariantMenu(copyImgMenu, /*copy=*/true);
+    QMenu* dlImgMenu = data->addMenu("Download Image");
+    populateExportVariantMenu(dlImgMenu, /*copy=*/false);
+    // Row polish (icon hover motion, keycap shake, hover sweep) — parity with the
+    // canvas context menu's own copy/download submenus (showContextMenu) and the
+    // toolbar's export-options popups (wireExportOptionsPopups). Both menus here
+    // are built once and live for the app's whole life (menuRowPolish.hpp).
+    for (QMenu* m : {copyImgMenu, dlImgMenu}) support::wireMenuRowPolish(m, this, /*compact=*/true);
+    support::revealSubmenu(*copyImgMenu, *data, *copyImgMenu->menuAction());
+    support::revealSubmenu(*dlImgMenu, *data, *dlImgMenu->menuAction());
     data->addAction(actPasteImage_);
+    support::revealMenuBarMenu(*data, *menuBar());
 
     auto* view = menuBar()->addMenu("&View");
     view->addAction(actZoomIn_);
@@ -110,6 +129,7 @@ namespace stencil::gui {
     mkCompare("Horizontal split (original / edit)", "horizontal");
     compareMenu->addSeparator();
     compareMenu->addAction(actCycleCompare_);
+    support::revealSubmenu(*compareMenu, *view, *compareMenu->menuAction());
     view->addAction(actPanel_);
     view->addAction(actChat_);
     view->addAction(actToolbars_);
@@ -118,12 +138,14 @@ namespace stencil::gui {
     auto* units = view->addMenu("&Units");
     units->addAction(actUnitCm_);
     units->addAction(actUnitIn_);
+    support::revealSubmenu(*units, *view, *units->menuAction());
     view->addSeparator();
     view->addAction(actTheme_);
     view->addAction(actFullscreen_);
     view->addSeparator();
     view->addAction(actIncognito_);
     view->addAction(actSettings_);
+    support::revealMenuBarMenu(*view, *menuBar());
 
     auto* project = menuBar()->addMenu("P&roject");
     project->addAction(actProjects_);
@@ -143,10 +165,12 @@ namespace stencil::gui {
     project->addSeparator();
     project->addAction(actLinks_);
     project->addAction(actOpenIn_);
+    support::revealMenuBarMenu(*project, *menuBar());
 
     auto* help = menuBar()->addMenu("&Help");
     help->addAction(actInfo_);
     help->addAction(actShortcuts_);
+    support::revealMenuBarMenu(*help, *menuBar());
 
     // Remember WHICH ROW a menu command came out of, so a dialog opened from the menu bar
     // grows out of that row when its toolbar icon is hidden (see dialogAnchorRect_).

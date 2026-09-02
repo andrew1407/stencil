@@ -34,7 +34,7 @@ import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
-import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace } from '../ui/motion.js';
+import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace, revealControls } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
@@ -696,7 +696,11 @@ export class DrawingApp {
         // File-origin provenance: a .stencil open passes fromFile; any other fresh load clears
         // it (a replace-in-place keeps the project's existing origin).
         if (!replaceInPlace) this.fromFile = !!opts.fromFile;
-        this.zoomPan.fitToWindow();
+        // A blank recolor keeps the SAME dimensions (setBlankColor reads them off the
+        // current canvas) — nothing to refit, and doing it anyway threw away whatever
+        // zoom/pan the user had. `replaceProjectImage`'s swap-in of a different file can
+        // genuinely change size/aspect, so that path keeps the fit.
+        if (!opts.keepZoom) this.zoomPan.fitToWindow();
         this.updateInfo();
         this.coordTable.update(this.lines.length > 0 ? this.lines[this.lines.length - 1].points : null);
         this.renderer.redraw();
@@ -837,7 +841,12 @@ export class DrawingApp {
     if (matches.length && this.switchToProject(matches[0].id)) {
       if (matches.length > 1) {
         notify(`Resumed "${shortName(matches[0].name)}" — ${matches.length} projects share this image`, 'ok');
-        document.getElementById('projects-btn')?.click();
+        // This fires from the BOOT path (an external launch, before the very first
+        // frame has necessarily painted) — a click landing before the toolbar has a
+        // real, laid-out box sends the modal's icon-origin flight measuring a 0×0
+        // rect, and it falls back to dropping in from above instead of the icon a
+        // moment later shows as perfectly visible. One frame is enough to be sure.
+        requestAnimationFrame(() => document.getElementById('projects-btn')?.click());
       }
       return true;
     }
@@ -894,8 +903,7 @@ export class DrawingApp {
     }
     const sel = document.getElementById('page-size');
     if (sel) sel.value = size;
-    const cg = document.getElementById('custom-size-group');
-    if (cg) cg.style.display = size === 'custom' ? 'inline-flex' : 'none';
+    revealControls(document.getElementById('custom-size-group'), size === 'custom');
     this.applyUnitToUI();   // refresh the custom width/height inputs in the active unit
     this.coordTable.update();
   }
@@ -1018,9 +1026,6 @@ export class DrawingApp {
         : 'Drawing mode: Line (click to switch to Rectangle)';
       btn.title = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
     }
-    const lbl = document.getElementById('ctx-drawmode-label');
-    if (lbl) lbl.textContent = this.drawMode === 'rect'
-      ? 'Switch to Line Drawing' : 'Switch to Rectangle Drawing';
   }
 
   stopDrawingMode() {
@@ -1508,8 +1513,14 @@ export class DrawingApp {
       return;
     }
 
-    // While panning or dragging point, don't update tooltip or cursor here
-    if (this.isPanning || this.isDraggingPoint) return;
+    // Mid drag/hold, the tooltip has no business on screen (same states tooltip.js
+    // refresh() excludes) — drop one already showing and don't offer a new one.
+    if (this.isPanning || this.isDraggingPoint || this.isDraggingSegment ||
+        this.isDraggingLine || this.isZoomRectDragging || this.isRectDrawDragging ||
+        this.input.holdEngaged) {
+      this.tooltipMgr.hide();
+      return;
+    }
 
     const { x, y } = this.canvasCoords(e.clientX, e.clientY);
 
@@ -2325,7 +2336,7 @@ export class DrawingApp {
     const w = this.canvas.width, h = this.canvas.height;
     this.#blankFillBlob(w, h, next).then(blob => {
       this.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
-        { replaceInPlace: true, keepAnnotations: true, blankColor: next });
+        { replaceInPlace: true, keepAnnotations: true, blankColor: next, keepZoom: true });
       if (this.activeProjectId != null) {
         this.storage.store.setBlankColor(this.activeProjectId, next);
         this.tabs.projectsChanged({ id: this.activeProjectId, action: PROJECT_ACTION.UPDATED });
