@@ -272,6 +272,21 @@ test('the wipe starts at the theme button, and no press is remembered to overrid
   assert.deepEqual(page.swapOrigin(), { x: 290, y: 40 }, 'the centre of #theme-toggle');
   // And the circle still has to reach the furthest corner from there.
   assert.equal(Math.round(page.swapRadius()), Math.round(Math.hypot(290, 660)));
+  // The clip the reveal actually plays is the RAGGED polygon pair (browser parity:
+  // motion.js swapEdgePolygon) — a torn front, not a clean circle line; equal vertex
+  // counts so the two end states interpolate, and even the deepest tooth of the full
+  // ring still clears the furthest corner.
+  const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
+    .map((m) => ({ x: (parseFloat(m[1]) / 100) * 480, y: (parseFloat(m[2]) / 100) * 700 }));
+  const from = parse(page.swapClip('from'));
+  const to = parse(page.swapClip('to'));
+  assert.equal(from.length, 240);
+  assert.equal(to.length, 240);
+  assert.ok(from.every((p) => Math.hypot(p.x - 290, p.y - 40) < 0.5), 'collapsed at the origin');
+  const radii = to.map((p) => Math.hypot(p.x - 290, p.y - 40));
+  const R = Math.hypot(290, 660);
+  assert.ok(radii.every((r) => r >= R), 'every tooth clears the furthest corner');
+  assert.ok(Math.max(...radii) - Math.min(...radii) > R * 0.022, 'ragged, not a circle in disguise');
 });
 
 test('with nothing to anchor to, the wipe blooms from the centre — never a click', () => {
@@ -302,6 +317,40 @@ test('a laid-out but invisible copy of the control is skipped for the visible on
   });
   page.theme.set('dark');
   assert.deepEqual(page.swapOrigin(), { x: 290, y: 40 });
+});
+
+// ── Dust in the wipe's wake ──────────────────────────────────────────────────
+// The growing circle kicks up specks (browser parity: motion.js swapDustSpecs). They
+// spawn only once the transition is `ready` — same frame the ring's own clock starts —
+// and are painted in the palette read BEFORE the swap, the paint the front grinds away.
+test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', async () => {
+  const page = wipePage();
+  page.theme.set('dark');
+  await Promise.resolve();   // let `ready` deliver
+  await Promise.resolve();
+  assert.equal(page.bodyChildren.length, 1, 'one dust layer');
+  const host = page.bodyChildren[0];
+  assert.equal(host.className, 'swap-dust');
+  assert.ok(host.children.length > 10, `a real field of motes (got ${host.children.length})`);
+  assert.ok(host.children.every((m) => m.className === 'swap-dust-mote'));
+  // The sandbox's computed vars are the pre-swap (light) palette: the wake bakes those
+  // literals — by the time a mote shows, the live vars already mean the new theme.
+  assert.ok(host.children.some((m) => m.style.background === '#7c3aed'), 'old-accent grains');
+  assert.ok(host.children.some((m) => m.style.background === 'color-mix(in srgb, #f4f5f7 58%, #1d2230)'),
+    'body grains lifted off the old surface towards its old ink');
+  // Every mote ignites on the ring's clock, inside the wipe's duration.
+  for (const m of host.children) {
+    const delay = parseInt(m.style.animationDelay, 10);
+    assert.ok(delay > 0 && delay < 280, `ignites mid-wipe, not at the ends (${m.style.animationDelay})`);
+  }
+});
+
+test('the fallback path (no View Transitions) spawns no dust — there is no ring to ride', async () => {
+  const page = loadAccent({ controls: [TOGGLE] });
+  page.theme.set('dark');
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(page.bodyChildren.length, 0);
 });
 
 test('the accent swap anchors to the toggle too, and a cross-page change animates', () => {

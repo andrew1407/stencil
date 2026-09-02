@@ -57,10 +57,12 @@ if (accent) {
   // corner it has always grown from, drawn as particles.
   const open = () => { menu.hidden = false; surfaceIn(menu, centerOf(trigger)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
   const close = () => { if (!menu.hidden) surfaceOut(menu, centerOf(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
-  // The wipe starts at the dropdown TRIGGER, not at the option row: the menu is gone by
-  // the time the palette floods, and a row near the top of a scrolled menu would look
-  // like the colour came out of a corner.
-  const choose = (key) => { value = accent.set(key, trigger); sync(); close(); };
+  // The wipe starts at the trigger's colour SWATCH, not at the option row: the menu is
+  // gone by the time the palette floods, and a row near the top of a scrolled menu
+  // would look like the colour came out of a corner. The swatch, not the whole trigger:
+  // the new colour should visibly pour out of the little rect that shows it, not out
+  // of the middle of the text.
+  const choose = (key) => { value = accent.set(key, trigger.querySelector('.js-cur-sw') || trigger); sync(); close(); };
 
   trigger.addEventListener('click', () => { menu.hidden ? open() : close(); });
   sync();

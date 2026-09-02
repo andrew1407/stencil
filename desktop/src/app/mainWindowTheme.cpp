@@ -68,6 +68,12 @@ namespace stencil::gui {
         if (rect().contains(c)) origin = c;
       }
       wipe = ThemeSwapOverlay::capture(this, origin);
+      // The circle kicks up dust in its wake, painted in the palette it is erasing —
+      // read from the PAINTED state, before the restyle below moves it.
+      if (wipe) {
+        const Palette old = themePalette(paintedDark_, paintedAccent_);
+        wipe->seedDust(old.bgPage, old.textMain, old.accent);
+      }
       themeWipe_ = wipe;
     }
     // The app-wide palette/stylesheet depend only on (dark, accent): skip the global

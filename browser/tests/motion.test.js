@@ -10,6 +10,8 @@ import {
   observeReveal, flashLanding, flipTransform, revealDissolve, revealGrain,
   FLIP_MS, FLIP_EASING, FLIP_ACTIVE_CLASS,
   themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
+  swapEase, swapDustSpecs, SWAP_DUST_MOTES, SWAP_DUST_LIFE_MS, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T,
+  swapEdgePolygon, SWAP_EDGE_POINTS, SWAP_EDGE_AMP,
   originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
   dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, hasPixels, tileNoise,
   DUST_CELL_PX, DUST_MAX_PARTICLES,
@@ -598,6 +600,144 @@ test('swapPercent expresses the circle as percentages of the viewport', () => {
   assert.deepEqual(swapPercent(10, 10, 0, 0), { x: 50, y: 50, r: 150 });
 });
 
+// ── The ring the dust rides ─────────────────────────────────────────────────
+// swapEase is the JS evaluation of the wipe's own control points — the desktop solves
+// the same bezier (themeSwapOverlay.hpp swapEase, pinned by themeSwapEase.headless.cpp).
+// The dust is seeded off this curve, so it and the clip-path can never disagree.
+test('swapEase walks the wipe’s own curve, easing in slightly and never backwards', () => {
+  assert.ok(Math.abs(swapEase(0)) < 1e-6, 'starts at the origin');
+  assert.ok(Math.abs(swapEase(1) - 1) < 1e-6, 'ends at the full radius');
+  let prev = -1;
+  for (let i = 0; i <= 100; i++) {
+    const v = swapEase(i / 100);
+    assert.ok(v >= prev - 1e-9, `never runs backwards (t=${i / 100})`);
+    prev = v;
+  }
+  // The area-sweep shape: the radius eases IN slightly (see the note over
+  // ::view-transition-new(root) in animations.css) — behind the diagonal early on…
+  assert.ok(swapEase(0.2) > 0.1 && swapEase(0.2) < 0.2, `eases in slightly (got ${swapEase(0.2)})`);
+  assert.ok(swapEase(0.5) < 0.5, 'still behind the diagonal at half time');
+  // …and the control points are the CSS's, verbatim.
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  assert.ok(/animation: themeSwapReveal var\(--swap-ms, 280ms\) cubic-bezier\(0\.4, 0\.25, 0\.95, 1\)/.test(css),
+    'the JS curve and the declared reveal share one set of control points');
+});
+
+// ── The torn front ──────────────────────────────────────────────────────────
+// The clip is a polygon ring, not a circle: each vertex reaches off the nominal radius
+// by its own noise, so the edge crumbles instead of sweeping as a line. Coverage still
+// rules: even the deepest tooth must clear the furthest corner when the wipe ends.
+test('swapEdgePolygon: a ragged ring that still covers the whole viewport', () => {
+  const [x, y, w, h] = [90, 60, 1440, 900];
+  const R = swapRadius(x, y, w, h);
+  const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
+    .map((mch) => ({ x: (parseFloat(mch[1]) / 100) * w, y: (parseFloat(mch[2]) / 100) * h }));
+  const to = parse(swapEdgePolygon(x, y, w, h, 1));
+  assert.equal(to.length, SWAP_EDGE_POINTS);
+  const radii = to.map((p) => Math.hypot(p.x - x, p.y - y));
+  for (const r of radii) {
+    assert.ok(r >= R, `a tooth dips inside the corner reach (${r} < ${R})`);
+    assert.ok(r <= R * (1 + SWAP_EDGE_AMP * 2 + 0.02), `a tooth overshoots wildly (${r})`);
+  }
+  // RAGGED, not a circle in disguise: the teeth really spread across the amp band.
+  assert.ok(Math.max(...radii) - Math.min(...radii) > R * SWAP_EDGE_AMP,
+    'the edge varies by a visible share of the radius');
+  // The collapsed start: every vertex AT the origin, same count, so CSS interpolates.
+  const from = parse(swapEdgePolygon(x, y, w, h, 0));
+  assert.equal(from.length, SWAP_EDGE_POINTS);
+  assert.ok(from.every((p) => Math.hypot(p.x - x, p.y - y) < 0.5));
+  // Deterministic, and a stub viewport declines rather than throwing.
+  assert.equal(swapEdgePolygon(x, y, w, h, 1), swapEdgePolygon(x, y, w, h, 1));
+  assert.equal(swapEdgePolygon(0, 0, 0, 0, 1), '');
+});
+
+test('swapDustSpecs seeds every mote just inside the ring, on screen, deterministically', () => {
+  const [x, y, w, h] = [90, 60, 1440, 900];
+  const specs = swapDustSpecs(x, y, w, h);
+  assert.ok(specs.length > 30, `a real field of motes, not a sprinkle (got ${specs.length})`);
+  assert.ok(specs.length <= SWAP_DUST_MOTES);
+  assert.deepEqual(specs, swapDustSpecs(x, y, w, h), 'a hash, not Math.random');
+  const R = swapRadius(x, y, w, h);
+  for (const s of specs) {
+    // Ignition rides the wipe's clock, clear of both ends.
+    assert.ok(s.delay >= Math.floor(SWAP_DUST_MIN_T * THEME_SWAP_MS), `delay ${s.delay} too early`);
+    assert.ok(s.delay <= Math.ceil(SWAP_DUST_MAX_T * THEME_SWAP_MS), `delay ${s.delay} too late`);
+    // In the front's WAKE: when a mote lights up, even the deepest tooth of the torn
+    // edge has already passed its spot — during a view transition anything outside the
+    // clip simply is not rendered.
+    const dist = Math.hypot(s.left + s.size / 2 - x, s.top + s.size / 2 - y);
+    const wakeAtIgnite = swapEase((s.delay + 1) / THEME_SWAP_MS) * R * (1 - SWAP_EDGE_AMP);
+    assert.ok(dist <= wakeAtIgnite + 1, `mote at ${dist}px ahead of the wake band at ${wakeAtIgnite}px`);
+    // On screen (a hair of margin), so no spec is spent where nobody can see it.
+    assert.ok(s.left + s.size / 2 >= -16 && s.left + s.size / 2 <= w + 16, `off screen x ${s.left}`);
+    assert.ok(s.top + s.size / 2 >= -16 && s.top + s.size / 2 <= h + 16, `off screen y ${s.top}`);
+    assert.ok(s.size >= 2.5 && s.size <= 6, `grain out of range ${s.size}`);
+    assert.ok(s.alpha >= 0.75 && s.alpha <= 1, `never faint ${s.alpha}`);
+  }
+  // Both grains are present: the old surface's own colour, and the departing accent.
+  assert.ok(specs.some((s) => s.accent) && specs.some((s) => !s.accent));
+  // A degenerate viewport seeds nothing rather than throwing (a stub environment).
+  assert.deepEqual(swapDustSpecs(0, 0, 0, 0), []);
+});
+
+test('themeSwap spawns the wake once the transition is ready, in the OLD palette', async () => {
+  const root = rootStub();
+  const bodyChildren = [];
+  const mkEl = () => {
+    const props = {};
+    const kids = [];
+    return {
+      props, children: kids, className: '',
+      style: { setProperty: (k, v) => { props[k] = v; },
+               set left(v) { props.left = v; }, set top(v) { props.top = v; },
+               set width(v) { props.width = v; }, set height(v) { props.height = v; },
+               set background(v) { props.background = v; }, set animationDelay(v) { props.animationDelay = v; } },
+      appendChild: (c) => kids.push(c),
+      remove: () => {},
+    };
+  };
+  const doc = {
+    documentElement: root,
+    createElement: () => mkEl(),
+    body: { appendChild: (el2) => bodyChildren.push(el2) },
+    startViewTransition: (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; },
+  };
+  const priorWin = globalThis.window;
+  const priorCS = globalThis.getComputedStyle;
+  const priorDoc = globalThis.document;
+  const priorMM = globalThis.matchMedia;
+  globalThis.window = { innerWidth: 300, innerHeight: 400 };
+  // The vars as they read BEFORE apply — the wake must bake these, not the new theme's.
+  globalThis.getComputedStyle = () => ({
+    getPropertyValue: (n) => ({ '--bg-page': '#111318', '--text-main': '#e8eaf0', '--accent': '#eab308' }[n] || ''),
+  });
+  // Installed for the WHOLE test, not via withDoc: the wake spawns from ready's
+  // microtask, after a withDoc would already have restored the globals.
+  globalThis.document = doc;
+  globalThis.matchMedia = () => ({ matches: false });
+  try {
+    themeSwap(() => {}, { x: 150, y: 200 });
+    await Promise.resolve();   // let `ready` deliver
+    await Promise.resolve();
+    assert.equal(bodyChildren.length, 1, 'one dust layer on <body>');
+    const host = bodyChildren[0];
+    assert.equal(host.className, 'swap-dust');
+    assert.equal(host.props['--swap-dust-ms'], `${SWAP_DUST_LIFE_MS}ms`);
+    assert.ok(host.children.length > 30, 'a field of motes');
+    const motes = host.children;
+    assert.ok(motes.every((m) => m.className === 'swap-dust-mote'));
+    assert.ok(motes.some((m) => m.props.background === '#eab308'), 'accent grains in the OLD accent');
+    assert.ok(motes.some((m) => /color-mix\(in srgb, #111318 58%, #e8eaf0\)/.test(m.props.background)),
+      'body grains lifted off the OLD surface towards its OLD ink');
+  } finally {
+    clearTimeout(root._swapDustTimer);   // reap the layer's own timer — tests must not linger
+    globalThis.window = priorWin;
+    globalThis.getComputedStyle = priorCS;
+    globalThis.document = priorDoc;
+    globalThis.matchMedia = priorMM;
+  }
+});
+
 test('themeSwap without View Transitions transitions the palette and still applies it', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const root = rootStub();
@@ -628,6 +768,13 @@ test('themeSwap hands the circle to CSS as custom properties, not a scripted ani
   // 500px of a 300x400 viewport, as the percentage clip-path resolves against sqrt(w²+h²)/√2.
   assert.equal(root.props['--swap-r'], '141.421%', 'the radius reaches the furthest corner');
   assert.equal(root.props['--swap-ms'], `${THEME_SWAP_MS}ms`);
+  // …and the clip the reveal actually plays: the ragged polygon pair, equal vertex
+  // counts so the two interpolate.
+  const count = (p) => (String(p).match(/%/g) || []).length / 2;
+  assert.ok(String(root.props['--swap-clip-from']).startsWith('polygon('), 'a collapsed ragged start');
+  assert.ok(String(root.props['--swap-clip-to']).startsWith('polygon('), 'a full ragged ring');
+  assert.equal(count(root.props['--swap-clip-from']), SWAP_EDGE_POINTS);
+  assert.equal(count(root.props['--swap-clip-to']), SWAP_EDGE_POINTS);
   assert.equal(rootStub.lastAnimate, undefined, 'nothing is animated from script');
   // Transitions are suppressed WHILE the snapshot is captured, or it records the old
   // colours mid-ease and the wipe reveals a half-changed page.
@@ -654,8 +801,12 @@ test('animations.css: the swap wipe is declarative, and the fallback transitions
   assert.ok(/::view-transition-old\(root\) \{ z-index: 0; animation: none; \}/.test(css),
     'the OLD snapshot keeps no default animation');
   assert.ok(/animation: themeSwapReveal var\(--swap-ms/.test(css), 'the reveal is a CSS animation');
-  assert.ok(/@keyframes themeSwapReveal \{[\s\S]*?clip-path: circle\(var\(--swap-r/.test(css),
-    'growing to the radius motion.js supplies');
+  // The front is the ragged polygon pair motion.js supplies; the circle is only the
+  // fallback for a write that never happened.
+  assert.ok(/@keyframes themeSwapReveal \{[\s\S]*?clip-path: var\(--swap-clip-from, circle\(0%/.test(css),
+    'collapsing from the ragged start, circle as fallback');
+  assert.ok(/@keyframes themeSwapReveal \{[\s\S]*?clip-path: var\(--swap-clip-to, circle\(var\(--swap-r/.test(css),
+    'growing to the ragged ring motion.js supplies');
   const fallback = css.slice(css.indexOf('html.theme-swapping'));
   assert.ok(/background-color 0\.45s/.test(fallback) && /color 0\.45s/.test(fallback)
     && /border-color 0\.45s/.test(fallback), 'every colour consumer eases, not just the body');
